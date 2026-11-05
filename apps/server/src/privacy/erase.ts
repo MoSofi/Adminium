@@ -35,6 +35,15 @@
  * their rows still hold the address, and the next run finds them and does
  * every step again (each changes nothing the second time).
  *
+ * An erasure narrowed to some apps (`scope.ts`: a shop owner's
+ * `privacy.people`) empties only those apps' rows and copies, the consent
+ * rows and Adminium's own rows about them, and the downloads its caller made;
+ * it leaves the do-not-email list, a forms add-on's answers and every store
+ * matched by the address alone (mail errors among them) to whoever manages
+ * privacy for the whole workspace. The audit log's and the removed-row
+ * history's text that holds the address is still swept: it is the
+ * customer's (a staff account's address never comes this far).
+ *
  * "What stays" (`what-stays.ts`) is what the erasure leaves on purpose: rows
  * of a table the law keeps (an invoice), the documents and payments Adminium
  * keeps, the stores kept for a set time, and the do-not-email entry.
@@ -54,6 +63,7 @@ import { findPersonRows, writePersonRows, type ErasedSource, type LeftColumn, ty
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
 import type { AnswerFilesRemover } from '../forms/answers.js';
 import { personHash, personHashes } from './export.js';
+import type { AppScope } from './scope.js';
 import { findPerson, searchAddress } from './sources.js';
 import { whatStays, type StaysItem } from './what-stays.js';
 
@@ -72,6 +82,12 @@ export interface EraseDeps {
    */
   signIns?: ((event: RecordWriteEvent) => Promise<void>) | undefined;
   now?: (() => number) | undefined;
+}
+
+/** Whom an erasure narrowed to some apps is for: those apps, and who asks (their own downloads go). */
+export interface EraseScope {
+  apps: AppScope;
+  by: string;
 }
 
 /** What goes, as the erase dialog counts it. */
@@ -167,18 +183,20 @@ function copyLinks(rows: PersonRows): CopyLink[] {
 }
 
 /** Their consent rows: by the address, and by each of their rows. */
-async function consentIds(consent: ConsentService, address: string, people: readonly PersonRowRef[]): Promise<number> {
+async function consentIds(consent: ConsentService, address: string, people: readonly PersonRowRef[], byAddress: boolean): Promise<number> {
   const ids = new Set<string>();
-  for (const one of await consent.history({ address }, { limit: 500 })) ids.add(one.id);
+  if (byAddress) for (const one of await consent.history({ address }, { limit: 500 })) ids.add(one.id);
   for (const row of people) for (const one of await consent.history({ person: { connectionId: row.connectionId, table: row.table, key: row.key } }, { limit: 500 })) ids.add(one.id);
   return ids.size;
 }
 
 /** What an erasure of this address would do, and what it would leave (nothing is written). */
-export async function previewErasure(deps: EraseDeps, rawAddress: string): Promise<ErasePreview> {
+export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?: EraseScope): Promise<ErasePreview> {
   const address = searchAddress(rawAddress);
   const now = deps.now ?? Date.now;
-  const rows = await findPersonRows({ meta: deps.meta, manager: deps.manager, erasedName: await erasedNameOf(deps.meta), now }, address);
+  const apps = scope?.apps ?? null;
+  const whole = apps === null;
+  const rows = await findPersonRows({ meta: deps.meta, manager: deps.manager, erasedName: await erasedNameOf(deps.meta), now }, address, apps);
   const people = peopleRefs(rows);
   const goes: GoesItem[] = [];
   for (const database of rows.databases) {
@@ -187,42 +205,46 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string): Promi
       goes.push({ kind: source.kind, count: source.rows.length, connectionId: source.connectionId, table: source.table.id, app: source.app, label: source.label });
     }
   }
-  for (const one of await findFormRows(deps, address)) {
+  for (const one of whole ? await findFormRows(deps, address) : []) {
     if (one.answers.length > 0 && one.addOn.answers !== null) goes.push({ kind: 'form-answers', count: one.answers.length, connectionId: one.connectionId, table: one.addOn.answers.id, app: one.addOn.key, label: one.addOn.answers.table.label ?? one.addOn.answers.name });
     if (one.files.length > 0 && one.addOn.files !== null) goes.push({ kind: 'form-files', count: one.files.length, connectionId: one.connectionId, table: one.addOn.files.id, app: one.addOn.key, label: one.addOn.files.table.label ?? one.addOn.files.name });
     if (one.invitations.length > 0 && one.addOn.invitations !== null) {
       goes.push({ kind: 'form-invitations', count: one.invitations.length, connectionId: one.connectionId, table: one.addOn.invitations.id, app: one.addOn.key, label: one.addOn.invitations.table.label ?? one.addOn.invitations.name });
     }
   }
-  const consent = await consentIds(deps.consent, address, people);
+  const consent = await consentIds(deps.consent, address, people, whole);
   if (consent > 0) goes.push({ kind: 'consent', count: consent });
-  const sends = (await campaignSendIds(deps.meta, address, people)).length;
+  const sends = (await campaignSendIds(deps.meta, address, people, whole)).length;
   if (sends > 0) goes.push({ kind: 'campaign-mail', count: sends });
   const files = new Set([...(await rowFileIds(deps.meta, people)), ...copyFileIds(rows)]).size;
   if (files > 0) goes.push({ kind: 'files', count: files });
-  const stays = await whatStays(deps.meta, await findPerson(deps, address));
-  const found = goes.length > 0 || stays.some((item) => item.count !== null && item.count > 0) || (await deps.consent.stop.entryFor(address)) !== null;
+  const stays = await whatStays(deps.meta, await findPerson(deps, address, apps));
+  const found = goes.length > 0 || stays.some((item) => item.count !== null && item.count > 0) || (whole && (await deps.consent.stop.entryFor(address)) !== null);
   return { address, found, goes, stays, left: rows.left };
 }
 
 /** Erases the person with this address (see the header). */
-export async function erasePerson(deps: EraseDeps, rawAddress: string): Promise<EraseResult> {
+export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: EraseScope): Promise<EraseResult> {
   const { meta, consent } = deps;
   const now = deps.now ?? Date.now;
   const address = searchAddress(rawAddress);
+  const apps = scope?.apps ?? null;
+  const whole = apps === null;
   const started = now();
   // The keys first: while they cannot be read, nothing is touched (the caller answers 503).
   const hash = await personHash(meta, deps.secret, address);
   const hashes = await personHashes(meta, deps.secret, address);
   const erasedName = await erasedNameOf(meta);
-  const rows = await findPersonRows({ meta, manager: deps.manager, erasedName, now }, address);
-  const forms = await findFormRows(deps, address);
+  const rows = await findPersonRows({ meta, manager: deps.manager, erasedName, now }, address, apps);
+  const forms = whole ? await findFormRows(deps, address) : [];
   const people = peopleRefs(rows);
   const counts: Record<string, number> = {};
 
-  // 1. Still stopped, by the hash alone.
-  await consent.eraseDisplay(address, { addIfMissing: true, at: started });
-  counts['stop-list'] = 1;
+  // 1. Still stopped, by the hash alone. The do-not-email list is the workspace's: an erasure for some apps leaves it.
+  if (whole) {
+    await consent.eraseDisplay(address, { addIfMissing: true, at: started });
+    counts['stop-list'] = 1;
+  }
 
   // 2. Their sessions and open sign-in links.
   if (deps.signIns !== undefined) {
@@ -245,16 +267,18 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string): Promise<
   }
 
   // 3. Their consent rows.
-  let deleted = await consent.deleteForPerson({ address });
+  let deleted = whole ? await consent.deleteForPerson({ address }) : 0;
   for (const row of people) deleted += await consent.deleteForPerson({ person: { connectionId: row.connectionId, table: row.table, key: row.key } });
   counts['consent'] = deleted;
 
   // 4. Campaign sends, downloads, files on their rows.
-  counts['campaign-mail'] = await blankCampaignSends(meta, await campaignSendIds(meta, address, people), now());
-  const mail = await sweepMailAddress(meta, address, now());
-  counts['campaign-failures'] = mail.runs;
-  counts['mail-errors'] = mail.sends + mail.jobs;
-  const downloads = await privacyExportsRepo(meta).deleteAboutPerson(hashes);
+  counts['campaign-mail'] = await blankCampaignSends(meta, await campaignSendIds(meta, address, people, whole), now());
+  if (whole) {
+    const mail = await sweepMailAddress(meta, address, now());
+    counts['campaign-failures'] = mail.runs;
+    counts['mail-errors'] = mail.sends + mail.jobs;
+  }
+  const downloads = await privacyExportsRepo(meta).deleteAboutPerson(hashes, whole || scope === undefined ? {} : { requestedBy: scope.by });
   let filesFailed = 0;
   for (const fileId of downloads.fileIds) {
     const file = await filesRepo(meta).findById(fileId);

@@ -4306,6 +4306,7 @@ export default {
     },
     "person": {
       "locked": "This server can’t read its address keys (its secret was changed), so nobody can be found or erased. Ask whoever runs this server.",
+      "staffAddress": "This address belongs to a member of staff here. Only someone who manages privacy for the whole workspace can look it up or erase it.",
       "copyOf": "{label} (copies of them)",
       "inApp": "{label} — {app}",
       "kind": {

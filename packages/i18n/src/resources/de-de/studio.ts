@@ -4306,6 +4306,7 @@ export default {
     },
     "person": {
       "locked": "Dieser Server kann seine Adressschlüssel nicht lesen (sein Geheimnis wurde geändert), daher kann niemand gefunden oder gelöscht werden. Fragen Sie die Person, die diesen Server betreibt.",
+      "staffAddress": "Diese Adresse gehört zu einem Mitarbeiterkonto hier. Nur wer den Datenschutz für den ganzen Arbeitsbereich verwaltet, kann sie nachschlagen oder löschen.",
       "copyOf": "{label} (Kopien davon)",
       "inApp": "{label} — {app}",
       "kind": {

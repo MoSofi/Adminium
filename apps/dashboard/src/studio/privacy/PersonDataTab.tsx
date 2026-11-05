@@ -52,7 +52,7 @@ import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { EraseDialog } from './EraseDialog.js';
-import { lockedWords } from './privacyWords.js';
+import { isStaffAddress, lockedWords, staffAddressWords } from './privacyWords.js';
 import { PRIVACY_EXPORTS_QUERY_KEY, exportDownloadHref, findPerson, privacyExportsQuery, requestExport, type FoundSource, type PersonFound, type PrivacyExport, type SourceKind } from './privacyApi.js';
 
 const ICONS: Record<SourceKind, LucideIcon> = {
@@ -186,7 +186,9 @@ export function PersonDataTab(): ReactNode {
       setError(
         failure instanceof ApiError && failure.status === 503
           ? lockedWords()
-          : failure instanceof ApiError && failure.status === 422
+          : isStaffAddress(failure)
+            ? staffAddressWords()
+            : failure instanceof ApiError && failure.status === 422
             ? t('studio:privacy.person.notAddress', 'That isn’t an e-mail address. Enter one like name@company.com.')
             : t('studio:privacy.person.findFailed', 'The search did not finish. Try again.'),
       );
@@ -201,8 +203,8 @@ export function PersonDataTab(): ReactNode {
       await requestExport(address);
       await queryClient.invalidateQueries({ queryKey: PRIVACY_EXPORTS_QUERY_KEY });
       toasts.push({ variant: 'success', title: t('studio:privacy.person.downloadQueued', 'The download is being made. It shows under Downloads when it’s ready.') });
-    } catch {
-      toasts.push({ variant: 'error', title: t('studio:privacy.person.downloadFailed', 'The download could not be asked for. Try again.') });
+    } catch (failure) {
+      toasts.push({ variant: 'error', title: isStaffAddress(failure) ? staffAddressWords() : t('studio:privacy.person.downloadFailed', 'The download could not be asked for. Try again.') });
     } finally {
       setAsking(false);
     }

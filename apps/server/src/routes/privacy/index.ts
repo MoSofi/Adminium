@@ -70,6 +70,7 @@ import { erasePerson, previewErasure } from '../../privacy/erase.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
 import { countsOf, PRIVACY_EXPORT_KIND, personHash } from '../../privacy/export.js';
 import { formAnswersKeeping, keepingRows } from '../../privacy/keeping.js';
+import { privacyScopeOf, refuseStaffAddress, type PrivacyScope } from '../../privacy/scope.js';
 import { findPerson, searchAddress, type PersonFound } from '../../privacy/sources.js';
 import { normaliseAddress } from '../../public-api/claim-code.js';
 import { whatStays } from '../../privacy/what-stays.js';
@@ -145,9 +146,21 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     }
   }
 
-  /** The search. */
-  async function find(address: string): Promise<PersonFound> {
-    return unlocked(() => findPerson(deps, address));
+  /** The search, as far as the asker's privacy action reaches. */
+  async function find(address: string, scope: PrivacyScope): Promise<PersonFound> {
+    return unlocked(() => findPerson(deps, address, scope.apps));
+  }
+
+  /**
+   * How far the asker's privacy action reaches (`privacy/scope.ts`), for this
+   * address: a holder of `privacy.people` alone reaches the apps whose roles
+   * give it, and never a staff account's address.
+   */
+  async function scopeFor(request: FastifyRequest, address: string): Promise<PrivacyScope> {
+    const scope = await privacyScopeOf(meta, personOf(request));
+    if (scope === null) throw new ForbiddenError('You do not have the required permission.', 'FORBIDDEN', { permission: PERMISSIONS.privacyPeople });
+    await refuseStaffAddress(meta, scope, address);
+    return scope;
   }
 
   async function hashOf(address: string) {
@@ -292,9 +305,8 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
       '/privacy/find',
       { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: privacyAddressBody, response: { 200: privacyFindReply } } },
       async (request) => {
-        personOf(request);
         const address = searchAddress(request.body.address);
-        const found = await find(address);
+        const found = await find(address, await scopeFor(request, address));
         await app.rbac.audit(request, { category: 'data', action: 'privacy.find', changes: { after: { address: await hashOf(address), counts: countsOf(found.sources) } } });
         return {
           data: {
@@ -311,9 +323,8 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
       '/privacy/what-stays',
       { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: privacyAddressBody, response: { 200: whatStaysReply } } },
       async (request) => {
-        personOf(request);
         const address = searchAddress(request.body.address);
-        const items = await whatStays(meta, await find(address));
+        const items = await whatStays(meta, await find(address, await scopeFor(request, address)));
         await app.rbac.audit(request, { category: 'data', action: 'privacy.what-stays', changes: { after: { address: await hashOf(address), items: items.length } } });
         return { data: { items } };
       },
@@ -330,6 +341,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
       async (request, reply) => {
         const userId = personOf(request);
         const address = searchAddress(request.body.address);
+        await scopeFor(request, address);
         const hash = await hashOf(address);
         const row = await exports.create({ requestedBy: userId, address: hash }, app.rbac.now());
         const job = await deps.enqueue({ kind: PRIVACY_EXPORT_KIND, payload: { exportId: row.id, userId, address: sealAddress(secret, address) }, maxAttempts: 1 });
@@ -371,9 +383,10 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
       '/privacy/erase/preview',
       { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: privacyAddressBody, response: { 200: erasePreviewReply } } },
       async (request) => {
-        personOf(request);
+        const userId = personOf(request);
         const address = searchAddress(request.body.address);
-        const preview = await unlocked(() => previewErasure(eraseDeps, address));
+        const scope = await scopeFor(request, address);
+        const preview = await unlocked(() => previewErasure(eraseDeps, address, { apps: scope.apps, by: userId }));
         await app.rbac.audit(request, {
           category: 'data',
           action: 'privacy.erase.preview',
@@ -387,11 +400,12 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
       '/privacy/erase',
       { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-erase' }, schema: { body: eraseBody, response: { 200: eraseReply } } },
       async (request) => {
-        personOf(request);
+        const userId = personOf(request);
         const address = searchAddress(request.body.address);
+        const scope = await scopeFor(request, address);
         // Typed again, as the dialog asks: the same address, any case. The refusal never repeats it.
         if (normaliseAddress(request.body.confirm) !== address) throw new ConflictError('Type the address again to confirm the erasure.', 'CONFLICT', { reason: 'confirm-mismatch' });
-        const result = await unlocked(() => erasePerson(eraseDeps, address));
+        const result = await unlocked(() => erasePerson(eraseDeps, address, { apps: scope.apps, by: userId }));
         await app.rbac.audit(request, {
           category: 'data',
           action: 'privacy.erase',

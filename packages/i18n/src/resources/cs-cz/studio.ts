@@ -4306,6 +4306,7 @@ export default {
     },
     "person": {
       "locked": "Tento server nemůže přečíst své klíče adres (jeho tajný klíč byl změněn), takže nikoho nelze najít ani vymazat. Obraťte se na toho, kdo server spravuje.",
+      "staffAddress": "Tato adresa patří zdejšímu zaměstnanci. Vyhledat nebo vymazat ji může jen ten, kdo spravuje ochranu soukromí celého pracovního prostoru.",
       "copyOf": "{label} (jejich kopie)",
       "inApp": "{label} — {app}",
       "kind": {

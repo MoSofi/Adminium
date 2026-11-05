@@ -14,12 +14,15 @@
  *     sealed (`consent/keys.ts` `sealAddress`), so neither the queue nor the
  *     row holds it in clear;
  *   - the job asks again whether the person who asked still holds the
- *     privacy action, and writes nothing when they do not;
+ *     privacy action, and writes nothing when they do not; it searches only
+ *     as far as that action reaches for them now (`scope.ts`: a shop owner's
+ *     own apps), and writes nothing about a staff account's address for one
+ *     who does not manage privacy for the whole workspace;
  *   - the file is downloaded by the person who asked, and nobody else, until
  *     `retention.exportsDays` is over, when it is deleted (`sweepPrivacyExports`);
  *   - the audit log is told the counts and the keyed hash, never the address.
  */
-import { DAY_MS, auditRepo, filesRepo, newId, privacyExportsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { DAY_MS, auditRepo, filesRepo, newId, privacyExportsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { strToU8, zipSync, type Zippable } from 'fflate';
 import { z } from 'zod';
 
@@ -27,8 +30,7 @@ import { addressKeyRing, openAddress } from '../consent/keys.js';
 import { serializeCsvRow, EXPORT_BOM } from '../data-io/csv.js';
 import type { FileStore } from '../files/store.js';
 import type { JobRegistry } from '../jobs/registry.js';
-import { PERMISSIONS } from '../rbac/permissions.js';
-import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
+import { privacyScopeOf, refuseStaffAddress } from './scope.js';
 import { findPerson, type FoundSource, type PersonFound, type PrivacyFindDeps } from './sources.js';
 
 export const PRIVACY_EXPORT_KIND = 'privacy.export';
@@ -78,14 +80,6 @@ export interface PrivacyExportDeps extends PrivacyFindDeps {
   now?: () => number;
 }
 
-/** Whether a person may still use the privacy action: active, and holding it. */
-export async function mayUsePrivacy(meta: MetaDb, userId: string): Promise<boolean> {
-  const user = await usersRepo(meta).findById(userId);
-  if (user === null || user.status !== 'active') return false;
-  const set = await resolvePermissionSet(meta, { kind: 'user', id: user.id, label: user.name });
-  return permissionSetAllows(set, PERMISSIONS.privacyManage) || permissionSetAllows(set, PERMISSIONS.privacyPeople);
-}
-
 export async function runPrivacyExport(payload: PrivacyExportPayload, deps: PrivacyExportDeps): Promise<'ready' | 'failed' | 'skipped'> {
   const { meta } = deps;
   const now = deps.now ?? Date.now;
@@ -96,13 +90,19 @@ export async function runPrivacyExport(payload: PrivacyExportPayload, deps: Priv
   const audit = (action: string, after: Record<string, unknown>) =>
     auditRepo(meta).append({ actorKind: 'user', actorId: payload.userId, actorLabel: payload.userId, category: 'export', action, changes: { after: { exportId: row.id, address, ...after } } }, now());
 
-  if (row.requestedBy !== payload.userId || !(await mayUsePrivacy(meta, payload.userId))) {
+  // Whether, and how far, the person who asked may still use the privacy action.
+  const scope = row.requestedBy === payload.userId ? await privacyScopeOf(meta, payload.userId) : null;
+  const refuse = async (): Promise<'failed'> => {
     await repo.markFailed(row.id, 'not-allowed', now());
     await audit('privacy.export.failed', { reason: 'not-allowed' });
     return 'failed';
-  }
+  };
+  if (scope === null) return refuse();
   try {
-    const found = await findPerson(deps, openAddress(deps.secret, payload.address));
+    const address = openAddress(deps.secret, payload.address);
+    // A staff account's address, for one who holds `privacy.people` alone: nothing is written.
+    if (!(await refuseStaffAddress(meta, scope, address).then(() => true, () => false))) return await refuse();
+    const found = await findPerson(deps, address, scope.apps);
     const at = now();
     const bytes = Buffer.from(personZip(found, at));
     const fileId = newId('file');

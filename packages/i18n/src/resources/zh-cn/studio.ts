@@ -4306,6 +4306,7 @@ export default {
     },
     "person": {
       "locked": "此服务器无法读取其地址密钥（其密钥已更改），因此无法查找或删除任何人。请联系运行此服务器的人。",
+      "staffAddress": "此地址属于这里的一名员工。只有管理整个工作区隐私的人才能查找或删除它。",
       "copyOf": "{label}（其副本）",
       "inApp": "{label} — {app}",
       "kind": {

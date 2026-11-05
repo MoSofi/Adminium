@@ -60,6 +60,8 @@ let systemActions: string[];
 let notice: PrivacyNotice;
 let exportsList: PrivacyExport[];
 let eraseReply: { status: number; body: unknown };
+/** A staff account's address, which a shop owner's search is refused. */
+const STAFF_ADDRESS = 'olga@shop.dev';
 /** The erase preview never answers (the dialog stays on its loading state). */
 let previewHangs = false;
 let reach: PublicReach;
@@ -138,6 +140,7 @@ function stub(): Call[] {
       }
       if (url === '/api/v1/privacy/find') {
         const address = (body as { address: string }).address.toLowerCase();
+        if (address === STAFF_ADDRESS) return ok({ error: { code: 'STAFF_ADDRESS', message: 'This address belongs to a member of staff here.' } }, 403);
         return ok({ data: address === MARTA ? FOUND : { address, found: false, person: null, sources: [] } });
       }
       if (url === '/api/v1/privacy/exports' && method === 'GET') return ok({ data: exportsList });
@@ -259,6 +262,16 @@ describe('who opens the privacy page', () => {
     expect(await screen.findByText('Erased. Saved in the audit log.')).toBeDefined();
     // Nothing of the notice, the websites or the keeping was asked for: those routes would refuse.
     expect(calls.some((call) => ['/api/v1/privacy/notice', '/api/v1/privacy/websites', '/api/v1/privacy/keeping', '/api/v1/privacy/reach'].includes(call.url))).toBe(false);
+  });
+
+  it("a shop owner's search for a staff account's address says why it is refused, in words of its own", async () => {
+    roles = ['shop-owner'];
+    systemActions = ['privacy.people'];
+    await renderAt('/studio/privacy?tab=person');
+    await userEvent.type(await screen.findByLabelText('E-mail address'), STAFF_ADDRESS);
+    await userEvent.click(screen.getByTestId('privacy-person-find'));
+    expect(await screen.findByText('This address belongs to a member of staff here. Only someone who manages privacy for the whole workspace can look it up or erase it.')).toBeDefined();
+    expect(screen.queryByTestId('privacy-result')).toBeNull();
   });
 
   it('a rep asking for the websites tab gets the no-access state and asks for no list', async () => {

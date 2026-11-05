@@ -13,6 +13,16 @@ export function noticeUrlError(value: string): string | null {
   return t('studio:privacy.notice.httpsOnly', 'Use an address that starts with https, such as https://www.example.com/privacy.');
 }
 
+/** 403 `STAFF_ADDRESS`: a staff account's address, refused to whoever does not manage privacy for the whole workspace. */
+export function staffAddressWords(): string {
+  return t('studio:privacy.person.staffAddress', 'This address belongs to a member of staff here. Only someone who manages privacy for the whole workspace can look it up or erase it.');
+}
+
+/** Whether a refusal is the staff-address one. */
+export function isStaffAddress(failure: unknown): boolean {
+  return typeof failure === 'object' && failure !== null && (failure as { code?: unknown }).code === 'STAFF_ADDRESS';
+}
+
 /** 503 `ADDRESS_KEYS_LOCKED`: the server cannot read its address keys, so it neither searches nor erases. */
 export function lockedWords(): string {
   return t('studio:privacy.person.locked', 'This server can’t read its address keys (its secret was changed), so nobody can be found or erased. Ask whoever runs this server.');

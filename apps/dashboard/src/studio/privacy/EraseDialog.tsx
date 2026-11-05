@@ -23,7 +23,7 @@ import { Alert, Button, Input, Modal, ModalBody, ModalFooter, ModalHeader, Skele
 import { ApiError } from '../../app/api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { erasePerson, previewErasure, type EraseResult } from './privacyApi.js';
-import { confirmMatches, goesWords, lockedWords, staysWords } from './privacyWords.js';
+import { confirmMatches, goesWords, isStaffAddress, lockedWords, staffAddressWords, staysWords } from './privacyWords.js';
 
 /** Digits in mono, the words around them as they are (the comp's counts). */
 function Numbered({ text }: { text: string }): ReactNode {
@@ -116,7 +116,7 @@ export function EraseDialog({ address, onClose, onErased }: { address: string; o
         {preview.isError ? (
           <Alert
             tone="danger"
-            title={preview.error instanceof ApiError && preview.error.status === 503 ? lockedWords() : t('studio:privacy.erase.previewFailed', 'What an erasure would do could not be worked out. Close this and try again.')}
+            title={preview.error instanceof ApiError && preview.error.status === 503 ? lockedWords() : isStaffAddress(preview.error) ? staffAddressWords() : t('studio:privacy.erase.previewFailed', 'What an erasure would do could not be worked out. Close this and try again.')}
           />
         ) : preview.data === undefined ? (
           <div className="flex flex-col gap-2" aria-busy="true">

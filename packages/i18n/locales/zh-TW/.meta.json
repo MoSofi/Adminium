@@ -34943,6 +34943,10 @@
     "status": "mt",
     "srcHash": "c1d7737f9e08"
   },
+  "studio.privacy.person.staffAddress": {
+    "status": "mt",
+    "srcHash": "d7cb0070d6e2"
+  },
   "studio.privacy.tab.keeping": {
     "status": "mt",
     "srcHash": "aa413501810c"

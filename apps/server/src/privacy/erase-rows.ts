@@ -57,6 +57,7 @@ import { forgetOf, forgetsOn, type TableForgets } from '../public-api/forgets-on
 import { inList, linkColumnsOf, theirCopyRows } from './copy-rows.js';
 import { alreadyBlank, blankValue, columnFacts, type ErasedRole } from './erase-values.js';
 import { addressIs, keptTablesOf, NO_SECRETS, PRESENT, tableOf, type AppOnDatabase } from './sources.js';
+import { inScope, type AppScope } from './scope.js';
 
 /** What the erasure does to one row. */
 export interface ErasedRow {
@@ -189,10 +190,11 @@ function blankRow(table: ResolvedTable, row: Row, columns: ReadonlyMap<string, E
 }
 
 /** Everything of a person in the apps' own databases, with what each row gets (nothing is written). */
-export async function findPersonRows(deps: EraseRowsDeps, address: string): Promise<PersonRows> {
+export async function findPersonRows(deps: EraseRowsDeps, address: string, scope?: AppScope): Promise<PersonRows> {
   const { meta } = deps;
   const out: PersonRows = { address, databases: [], left: [] };
-  const installed = (await manifestsRepo(meta, NO_SECRETS).list('app')).filter((entry) => entry.row.connectionId !== null && PRESENT.has(entry.row.status));
+  // Only the apps of the scope (`scope.ts`), as the search reads them.
+  const installed = (await manifestsRepo(meta, NO_SECRETS).list('app')).filter((entry) => entry.row.connectionId !== null && PRESENT.has(entry.row.status) && inScope(scope, entry.row.manifestKey));
   const outboxes = await appOutboxesRepo(meta).list();
   const connections = [...new Set(installed.map((entry) => entry.row.connectionId as string))].sort();
 
@@ -204,7 +206,7 @@ export async function findPersonRows(deps: EraseRowsDeps, address: string): Prom
       continue;
     }
     const apps: AppOnDatabase[] = installed.filter((entry) => entry.row.connectionId === connectionId).map((entry) => ({ appKey: entry.row.manifestKey, document: entry.document as AppOnDatabase['document'] }));
-    const declared = await peopleTablesOf(meta).all(connectionId, view.model);
+    const declared = (await peopleTablesOf(meta).all(connectionId, view.model)).filter((entry) => inScope(scope, entry.appKey));
     const ownOutboxes = outboxes.filter((one) => one.connectionId === connectionId && apps.some((app) => app.appKey === one.appKey));
     if (declared.length === 0 && ownOutboxes.length === 0) continue;
     const { db, dialect } = await deps.manager.data(connectionId);

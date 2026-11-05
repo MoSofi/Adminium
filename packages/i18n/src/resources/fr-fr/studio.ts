@@ -4306,6 +4306,7 @@ export default {
     },
     "person": {
       "locked": "Ce serveur ne peut pas lire ses clés d’adresse (son secret a été changé) : personne ne peut être trouvé ni effacé. Demandez à la personne qui gère ce serveur.",
+      "staffAddress": "Cette adresse appartient à un membre de l’équipe ici. Seule une personne qui gère la confidentialité de tout l’espace de travail peut la rechercher ou l’effacer.",
       "copyOf": "{label} (copies)",
       "inApp": "{label} — {app}",
       "kind": {

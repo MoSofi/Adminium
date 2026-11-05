@@ -4306,6 +4306,7 @@ export default {
     },
     "person": {
       "locked": "Denne server kan ikke læse sine adressenøgler (dens hemmelighed er ændret), så ingen kan findes eller slettes. Spørg den, der driver serveren.",
+      "staffAddress": "Denne adresse tilhører en medarbejder her. Kun en, der administrerer privatliv for hele arbejdsområdet, kan slå den op eller slette den.",
       "copyOf": "{label} (kopier af dem)",
       "inApp": "{label} — {app}",
       "kind": {

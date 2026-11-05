@@ -136,9 +136,13 @@ export function privacyExportsRepo(meta: MetaDb) {
       return rows.map(decode);
     },
 
-    /** Deletes a person's downloads (the erasure); returns the files they held, for their bytes to go too. */
-    async deleteAboutPerson(hashes: readonly AddressHash[]): Promise<{ deleted: number; fileIds: string[] }> {
-      const found = await aboutPerson(hashes);
+    /**
+     * Deletes a person's downloads (the erasure); returns the files they held,
+     * for their bytes to go too. With `requestedBy`, only the downloads that
+     * person made (an erasure narrowed to some apps leaves the others').
+     */
+    async deleteAboutPerson(hashes: readonly AddressHash[], options: { requestedBy?: string } = {}): Promise<{ deleted: number; fileIds: string[] }> {
+      const found = (await aboutPerson(hashes)).filter((one) => options.requestedBy === undefined || one.requestedBy === options.requestedBy);
       if (found.length === 0) return { deleted: 0, fileIds: [] };
       const res = await db.deleteFrom('adminium_privacy_exports').where('id', 'in', found.map((one) => one.id)).executeTakeFirst();
       return { deleted: Number(res.numDeletedRows), fileIds: found.flatMap((one) => (one.fileId === null ? [] : [one.fileId])) };

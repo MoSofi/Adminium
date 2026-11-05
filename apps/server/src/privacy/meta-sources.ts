@@ -24,6 +24,13 @@
  * (`holdsAddress`), so `xmarta@…` never stands for `marta@…`.
  *
  * Every store is read a batch at a time, in id order.
+ *
+ * A request narrowed to some apps (`byAddress: false`) reads only what is
+ * kept about the rows found there: a store matched by the address alone (a
+ * campaign's failure list, a designer invoice, a payment service's message,
+ * a send, a document, a run or a notification that only names the address)
+ * is no app's, and is left to whoever manages privacy for the whole
+ * workspace.
  */
 import { sql, type RawBuilder } from 'kysely';
 import { readJson, type MetaDb } from '@adminium/meta';
@@ -112,8 +119,11 @@ async function* batches<T extends { id: string }>(read: (after: string | null) =
 }
 
 /** The meta store's sources for one person (see the header). Only sources with something in them are answered. */
-export async function findInMeta(meta: MetaDb, address: string, rows: readonly FoundRow[]): Promise<FoundSource[]> {
+export async function findInMeta(meta: MetaDb, address: string, rows: readonly FoundRow[], options: { byAddress?: boolean } = {}): Promise<FoundSource[]> {
   const { db } = meta;
+  const byAddress = options.byAddress !== false;
+  // Matched by the address alone: only for the whole workspace.
+  const addressOf = (matches: boolean): boolean => byAddress && matches;
   const index = rowIndex(rows);
   const tables = [...new Set(rows.flatMap((row) => [row.table, row.tableName]))];
   const out: FoundSource[] = [];
@@ -121,13 +131,13 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
   // ── campaign mail: the send ledger ────────────────────────────────────────
   const sends = source('campaign-mail', 'held');
   const people = rows;
-  for await (const batch of batches((after) => {
+  if (byAddress || people.length > 0) for await (const batch of batches((after) => {
     let query = db
       .selectFrom('adminium_email_sends')
       .select(['id', 'runId', 'address', 'name', 'language', 'connectionId', 'personTable', 'personKey', 'state', 'reason', 'sentAt', 'clicks', 'createdAt'])
       .where((eb) =>
         eb.or([
-          eb(sql<string>`lower(trim(${sql.ref('address')}))`, '=', address),
+          ...(byAddress ? [eb(sql<string>`lower(trim(${sql.ref('address')}))`, '=', address)] : []),
           ...(people.length === 0
             ? []
             : [eb.and([eb('connectionId', 'in', [...new Set(people.map((row) => row.connectionId))]), eb('personTable', 'in', tables), eb('personKey', 'in', [...new Set(people.map((row) => row.key))])])]),
@@ -137,7 +147,7 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
     return query.orderBy('id', 'asc').limit(BATCH).execute();
   })) {
     for (const row of batch) {
-      if (!isAddress(row.address, address) && !isOneOf(index, row.connectionId, row.personTable, row.personKey)) continue;
+      if (!addressOf(isAddress(row.address, address)) && !isOneOf(index, row.connectionId, row.personTable, row.personKey)) continue;
       add(sends, row.id, plainRow({ ...row, connectionId: undefined, personTable: undefined, personKey: undefined }));
     }
   }
@@ -145,7 +155,7 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
 
   // ── a campaign's failure list ─────────────────────────────────────────────
   const failures = source('campaign-failures', 'held');
-  for await (const batch of batches((after) => {
+  if (byAddress) for await (const batch of batches((after) => {
     let query = db.selectFrom('adminium_email_runs').select(['id', 'failures', 'startedAt']).where(holdsAny(meta, 'failures', [address]));
     if (after !== null) query = query.where('id', '>', after);
     return query.orderBy('id', 'asc').limit(BATCH).execute();
@@ -164,17 +174,17 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
   // ── rendered documents ────────────────────────────────────────────────────
   const documents = source('documents', 'held');
   const documentIds: string[] = [];
-  for await (const batch of batches((after) => {
+  if (byAddress || tables.length > 0) for await (const batch of batches((after) => {
     let query = db
       .selectFrom('adminium_documents')
       .select(['id', 'addOnKey', 'kind', 'connectionId', 'entityTable', 'entityId', 'subject', 'number', 'status', 'delivery', 'locale', 'format', 'renderedAt', 'sentAt', 'voidedAt', 'createdAt'])
-      .where((eb) => eb.or([holdsAny(meta, 'subject', [address]), ...(tables.length === 0 ? [] : [eb('entityTable', 'in', tables)])]));
+      .where((eb) => eb.or([...(byAddress ? [holdsAny(meta, 'subject', [address])] : []), ...(tables.length === 0 ? [] : [eb('entityTable', 'in', tables)])]));
     if (after !== null) query = query.where('id', '>', after);
     return query.orderBy('id', 'asc').limit(BATCH).execute();
   })) {
     for (const row of batch) {
       const subject = readJson<unknown>(row.subject);
-      if (!isOneOf(index, row.connectionId, row.entityTable, row.entityId) && !jsonHoldsAddress(subject, address)) continue;
+      if (!isOneOf(index, row.connectionId, row.entityTable, row.entityId) && !addressOf(jsonHoldsAddress(subject, address))) continue;
       documentIds.push(row.id);
       const { subject: _subject, ...kept } = row;
       add(documents, row.id, plainRow({ ...kept, fields: (subject as { fields?: unknown } | null)?.fields ?? null }));
@@ -184,7 +194,7 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
 
   // ── designer invoices ─────────────────────────────────────────────────────
   const invoices = source('invoices', 'held');
-  for await (const batch of batches((after) => {
+  if (byAddress) for await (const batch of batches((after) => {
     let query = db.selectFrom('adminium_invoice_documents').select(['id', 'kind', 'name', 'number', 'status', 'body', 'createdAt', 'updatedAt']).where('kind', '=', 'invoice').where(holdsAny(meta, 'body', [address]));
     if (after !== null) query = query.where('id', '>', after);
     return query.orderBy('id', 'asc').limit(BATCH).execute();
@@ -223,7 +233,7 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
   out.push(payments);
 
   const events = source('payment-events', 'held');
-  for await (const batch of batches((after) => {
+  if (byAddress) for await (const batch of batches((after) => {
     let query = db.selectFrom('adminium_payment_events').select(['id', 'provider', 'mode', 'type', 'kind', 'body', 'receivedAt']).where(holdsAny(meta, 'body', [address]));
     if (after !== null) query = query.where('id', '>', after);
     return query.orderBy('id', 'asc').limit(BATCH).execute();
@@ -239,8 +249,8 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
   // ── the rules' run history ────────────────────────────────────────────────
   const runs = source('automation-runs', 'held');
   const tableNeedles = tables.map((table) => `"${table}"`);
-  for await (const batch of batches((after) => {
-    let query = db.selectFrom('adminium_automation_runs').select(['id', 'automationId', 'status', 'triggerEvent', 'startedAt', 'finishedAt']).where(holdsAny(meta, 'triggerEvent', [address, ...tableNeedles]));
+  if (byAddress || tableNeedles.length > 0) for await (const batch of batches((after) => {
+    let query = db.selectFrom('adminium_automation_runs').select(['id', 'automationId', 'status', 'triggerEvent', 'startedAt', 'finishedAt']).where(holdsAny(meta, 'triggerEvent', [...(byAddress ? [address] : []), ...tableNeedles]));
     if (after !== null) query = query.where('id', '>', after);
     return query.orderBy('id', 'asc').limit(BATCH).execute();
   })) {
@@ -248,7 +258,7 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
       const event = readJson<{ record?: { connectionId?: unknown; table?: unknown; pk?: unknown } | null; snapshot?: unknown; event?: unknown; occurredAt?: unknown } | null>(row.triggerEvent);
       const record = event?.record ?? null;
       const theirs = record !== null && isOneOf(index, record.connectionId, record.table, refKey(record.pk));
-      if (!theirs && !jsonHoldsAddress(event?.snapshot ?? null, address) && !jsonHoldsAddress(event, address)) continue;
+      if (!theirs && !addressOf(jsonHoldsAddress(event?.snapshot ?? null, address) || jsonHoldsAddress(event, address))) continue;
       add(runs, row.id, plainRow({ id: row.id, automationId: row.automationId, status: row.status, event: event?.event ?? null, startedAt: row.startedAt, finishedAt: row.finishedAt, snapshot: event?.snapshot ?? null }));
     }
   }
@@ -256,18 +266,18 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
 
   // ── notifications to staff ────────────────────────────────────────────────
   const notifications = source('notifications', 'held');
-  for await (const batch of batches((after) => {
+  if (byAddress || tableNeedles.length > 0) for await (const batch of batches((after) => {
     let query = db
       .selectFrom('adminium_notifications')
       .select(['id', 'kind', 'title', 'body', 'entity', 'createdAt', 'readAt'])
-      .where((eb) => eb.or([holdsAny(meta, 'title', [address]), holdsAny(meta, 'body', [address]), ...(tableNeedles.length === 0 ? [] : [holdsAny(meta, 'entity', tableNeedles)])]));
+      .where((eb) => eb.or([...(byAddress ? [holdsAny(meta, 'title', [address]), holdsAny(meta, 'body', [address])] : []), ...(tableNeedles.length === 0 ? [] : [holdsAny(meta, 'entity', tableNeedles)])]));
     if (after !== null) query = query.where('id', '>', after);
     return query.orderBy('id', 'asc').limit(BATCH).execute();
   })) {
     for (const row of batch) {
       const entity = readJson<{ connectionId?: unknown; table?: unknown; pk?: unknown } | null>(row.entity);
       const theirs = entity !== null && typeof entity === 'object' && isOneOf(index, entity.connectionId, entity.table, refKey(entity.pk));
-      if (!theirs && !holdsAddress(row.title, address) && !holdsAddress(row.body ?? '', address)) continue;
+      if (!theirs && !addressOf(holdsAddress(row.title, address) || holdsAddress(row.body ?? '', address))) continue;
       add(notifications, row.id, plainRow({ id: row.id, kind: row.kind, title: row.title, body: row.body, createdAt: row.createdAt, readAt: row.readAt }));
     }
   }

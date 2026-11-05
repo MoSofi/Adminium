@@ -182,6 +182,29 @@ for (const engine of META_ENGINES) {
       for (const other of ['ben@other.example', `x${MARTA}`, `${MARTA}.org`, 'quote@other.example', 'cross@other.example', 'Xavier']) expect(written).not.toContain(other);
     });
 
+    it('for a search narrowed to some apps, finds only what is kept about the rows found there, never a store matched by the address alone', async () => {
+      const found = await findInMeta(
+        meta,
+        MARTA,
+        [
+          { connectionId: conn, table: 'public.crm_contacts', tableName: 'crm_contacts', key: '7' },
+          { connectionId: conn, table: 'public.crm_invoices', tableName: 'crm_invoices', key: '3' },
+        ],
+        { byAddress: false },
+      );
+      const byKind = Object.fromEntries(found.map((one) => [one.kind, one]));
+      // No failure list, no designer invoice, no payment service's message: those are no app's.
+      expect(found.map((one) => one.kind).sort()).toEqual(['automation-runs', 'campaign-mail', 'documents', 'files', 'notifications', 'payments'].sort());
+      expect(byKind['campaign-mail']!.rows.map((row) => row['address'])).toEqual(['marta.old@cobaltlegal.example']);
+      expect(byKind['documents']!.keys).toEqual([ids['docOfRow']]);
+      expect(byKind['payments']!.keys.sort()).toEqual([ids['payRow'], ids['payDoc']].sort());
+      expect(byKind['automation-runs']!.keys).toEqual([ids['runByRow']]);
+      expect(byKind['notifications']!.keys).toEqual([ids['noticeRow']]);
+      expect(byKind['files']!.keys).toEqual([ids['file']]);
+      // With no row found, nothing at all.
+      expect(await findInMeta(meta, MARTA, [], { byAddress: false })).toEqual([]);
+    });
+
     it('finds nothing for an address nobody has', async () => {
       expect(await findInMeta(meta, 'nobody@nowhere.example', [])).toEqual([]);
     });

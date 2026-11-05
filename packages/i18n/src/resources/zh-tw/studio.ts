@@ -4306,6 +4306,7 @@ export default {
     },
     "person": {
       "locked": "此伺服器無法讀取其地址金鑰（其密鑰已變更），因此無法尋找或刪除任何人。請聯絡執行此伺服器的人。",
+      "staffAddress": "此地址屬於這裡的一名員工。只有管理整個工作區隱私的人才能查詢或刪除它。",
       "copyOf": "{label}（其副本）",
       "inApp": "{label} — {app}",
       "kind": {

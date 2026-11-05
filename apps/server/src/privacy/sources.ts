@@ -28,6 +28,12 @@
  * Only the sources this release has are searched: no chats or page visits
  * exist yet.
  *
+ * A request narrowed to some apps (`scope.ts`: a shop owner's
+ * `privacy.people`) reads only those apps' people tables, copies and
+ * outboxes, the consent rows and Adminium's own rows about the rows found
+ * there; never a store matched by the address alone, the do-not-email list
+ * or a forms add-on's answers.
+ *
  * The address is compared as `normaliseAddress` spells it, trimmed and in
  * lower case on both sides; nothing else is folded.
  */
@@ -49,6 +55,7 @@ import { theirCopyRows } from './copy-rows.js';
 import { parsedJson } from './erase-values.js';
 import { findFormRows, formSources } from './form-answers.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
+import { inScope, type AppScope } from './scope.js';
 import type { FoundSource } from './types.js';
 import { plainRow, plainValue } from './values.js';
 
@@ -212,8 +219,13 @@ function consentRow(event: ConsentEvent): Record<string, unknown> {
   });
 }
 
-/** Everything the install keeps about one address (see the header). `rawAddress` is refused when it is no address. */
-export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Promise<PersonFound> {
+/**
+ * Everything the install keeps about one address (see the header), within
+ * `apps` (none: the whole workspace). `rawAddress` is refused when it is no
+ * address.
+ */
+export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps?: AppScope): Promise<PersonFound> {
+  const whole = apps === undefined || apps === null;
   const { meta, consent } = deps;
   const address = searchAddress(rawAddress);
   const sources: FoundSource[] = [];
@@ -222,7 +234,7 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Pro
   const peopleRows: { connectionId: string; table: string; key: string }[] = [];
   let person: PersonFound['person'] = null;
 
-  const installed = (await manifestsRepo(meta, NO_SECRETS).list('app')).filter((entry) => entry.row.connectionId !== null && PRESENT.has(entry.row.status));
+  const installed = (await manifestsRepo(meta, NO_SECRETS).list('app')).filter((entry) => entry.row.connectionId !== null && PRESENT.has(entry.row.status) && inScope(apps, entry.row.manifestKey));
   const outboxes = await appOutboxesRepo(meta).list();
   const connections = [...new Set(installed.map((entry) => entry.row.connectionId as string))].sort();
 
@@ -233,12 +245,12 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Pro
     } catch {
       continue;
     }
-    const apps: AppOnDatabase[] = installed.filter((entry) => entry.row.connectionId === connectionId).map((entry) => ({ appKey: entry.row.manifestKey, document: entry.document as AppOnDatabase['document'] }));
-    const declared = await peopleTablesOf(meta).all(connectionId, view.model);
-    const ownOutboxes = outboxes.filter((one) => one.connectionId === connectionId && apps.some((app) => app.appKey === one.appKey));
+    const onDatabase: AppOnDatabase[] = installed.filter((entry) => entry.row.connectionId === connectionId).map((entry) => ({ appKey: entry.row.manifestKey, document: entry.document as AppOnDatabase['document'] }));
+    const declared = (await peopleTablesOf(meta).all(connectionId, view.model)).filter((entry) => inScope(apps, entry.appKey));
+    const ownOutboxes = outboxes.filter((one) => one.connectionId === connectionId && onDatabase.some((app) => app.appKey === one.appKey));
     if (declared.length === 0 && ownOutboxes.length === 0) continue;
     const { db } = await deps.manager.data(connectionId);
-    const kept = await keptTablesOf(meta, connectionId, apps, view);
+    const kept = await keptTablesOf(meta, connectionId, onDatabase, view);
     /** The key values of the person's rows, per people table: what a copy's link and an outbox's recipient point at. */
     const keysOf = new Map<string, unknown[]>();
     /** Their rows as found, per people table: their phone numbers are read from them. */
@@ -339,7 +351,8 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Pro
 
   // ── consent and the do-not-email list, through the consent door ─────────
   const events = new Map<string, ConsentEvent>();
-  for (const one of await consent.history({ address }, { limit: 500 })) events.set(one.id, one);
+  // By the address alone, only for the whole workspace: such a row is no app's.
+  if (whole) for (const one of await consent.history({ address }, { limit: 500 })) events.set(one.id, one);
   for (const row of peopleRows) {
     for (const one of await consent.history({ person: row }, { limit: 500 })) events.set(one.id, one);
   }
@@ -347,7 +360,7 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Pro
     const ordered = [...events.values()].sort((a, b) => b.at - a.at || b.id.localeCompare(a.id));
     sources.push({ id: 'consent', kind: 'consent', group: 'agreed', connectionId: null, table: null, app: null, ref: null, label: null, keptByLaw: null, count: ordered.length, keys: ordered.map((one) => one.id), rows: ordered.map(consentRow) });
   }
-  const stopped = await consent.stop.entryFor(address);
+  const stopped = whole ? await consent.stop.entryFor(address) : null;
   if (stopped !== null) {
     sources.push({
       id: 'stop-list',
@@ -366,7 +379,7 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Pro
   }
 
   // ── the forms add-ons: their answers, and the invitations sent to them ───
-  const forms = await formSources(await findFormRows(deps, address, ROWS_MAX));
+  const forms = whole ? await formSources(await findFormRows(deps, address, ROWS_MAX)) : [];
   sources.push(...forms);
   if (person === null) {
     // Nobody's row names them: the name an answer of theirs gave, when one did.
@@ -375,7 +388,7 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string): Pro
   }
 
   // ── what Adminium keeps itself ────────────────────────────────────────────
-  sources.push(...(await findInMeta(meta, address, appRows)));
+  sources.push(...(await findInMeta(meta, address, appRows, { byAddress: whole })));
 
   return { address, person, sources, lawLinked };
 }

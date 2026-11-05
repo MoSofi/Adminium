@@ -3373,10 +3373,18 @@ A manifest cannot know the real table names or page ids, so it grants through pl
 | `page:@<add-on page or panel id>:view` | See a page or a record panel of an add-on the app requires or suggests (`page:@customiser-line:view`). The id starts with the add-on's key. `view` only. Needs Adminium 0.3.44. A page of an add-on made only for certain apps (one whose `attaches` does not name the dashboard) is on the dashboard while one of those apps has it connected and switched on, at `/add-ons/<add-on key>/<page ref>`, from 0.3.47. A screens-only role that holds the grant fetches the files shipped beside that page (`/api/v1/add-ons/<add-on key>/pages/<page ref>/files/…`, a starter font its panel draws with), not the page itself. |
 | `privacy:@:people` | Find, download and erase a person's data, on the dashboard's privacy page (`/studio/privacy?tab=person`). See below. Needs Adminium 0.3.47. |
 
-`privacy:@:people` is given as the console key `system:privacy:people`: the role may search
-everything the workspace keeps about one e-mail address, download it for the person, and erase
-them, past every role's table and row limits, in every app on the server. It is how a shop's owner
-answers a customer's request without being the Super Admin. It never opens the privacy notice, the
+`privacy:@:people` is given as the console key `system:privacy:people`: the role may search what
+the app keeps about one e-mail address, download it for the person, and erase them, past every
+role's table and row limits. It is how a shop's owner answers a customer's request without being
+the Super Admin. It reaches only the apps whose roles give it to the person: those apps' people
+tables, the copies they declare (with the add-on rows those copies' links reach) and their
+outboxes, the consent rows about those rows, and what Adminium keeps about them (campaign mail,
+documents, payments, rule runs, notifications and files of those rows). Never another app's people,
+never the do-not-email list or a forms add-on's answers (the workspace's), never a store that only
+names the address, and never an address that is a staff account's: that is refused (403
+`STAFF_ADDRESS`), since erasing it would rewrite the audit log. The erasure deletes the downloads
+the holder made, not other people's. Whoever holds `system:privacy:manage` reaches everything, as
+before. It never opens the privacy notice, the
 websites or how long things are kept (`system:privacy:manage`, the Super Admin's). The privacy page
 opens on "A person's data" alone for such a role. The install check names every role that would
 hold it before anyone agrees. The plan refuses it on a `screensOnly` role (the privacy page is the

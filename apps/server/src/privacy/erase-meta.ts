@@ -244,11 +244,11 @@ export interface PersonRowRef {
 }
 
 /** Their campaign sends: to the address, or to one of their rows (whatever address it went to). */
-export async function campaignSendIds(meta: MetaDb, address: string, people: readonly PersonRowRef[]): Promise<string[]> {
+export async function campaignSendIds(meta: MetaDb, address: string, people: readonly PersonRowRef[], byAddress = true): Promise<string[]> {
   const { db } = meta;
   const ids = new Set<string>();
-  const byAddress = await db.selectFrom('adminium_email_sends').select(['id']).where(sql<boolean>`lower(trim(${sql.ref('address')})) = ${address}`).execute();
-  for (const row of byAddress) ids.add(row.id);
+  // By the address alone only for the whole workspace: a send to it that names no row of theirs is no app's.
+  if (byAddress) for (const row of await db.selectFrom('adminium_email_sends').select(['id']).where(sql<boolean>`lower(trim(${sql.ref('address')})) = ${address}`).execute()) ids.add(row.id);
   const tables = [...new Set(people.flatMap((row) => [row.table, row.tableName]))];
   for (const connectionId of new Set(people.map((row) => row.connectionId))) {
     const keys = [...new Set(people.filter((row) => row.connectionId === connectionId).map((row) => row.key))];
