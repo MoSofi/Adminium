@@ -349,12 +349,14 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'people.addOnCopyFrom',
   // A picture from a row's file column in an email, checked and carried at the send (outbox/row-pictures.ts).
   'email.rowPicture',
-  // An app role's personal-column read and remove on an add-on's table, and up to sixteen of them (apps/manifest-role-tables.ts).
+  // An app role's personal-column read and remove on an add-on's table, and up to twenty-four of them (apps/manifest-role-tables.ts).
   'roles.addOnActions',
   // An add-on's appGrants allowing those, and an add or a change on a table its ledger writes (@adminium/manifest app-grants.ts).
   'appGrants.more',
   // An app role that finds, downloads and erases a person's data (apps/manifest-roles.ts, routes/privacy).
   'roles.privacyPeople',
+  // The columns a records page's list opens on, written to the page at install (apps/manifest-page-config.ts).
+  'config.columns',
 ];
 
 export interface UnbuiltWord {

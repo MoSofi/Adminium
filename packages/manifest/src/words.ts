@@ -245,6 +245,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'appGrants.more',
   // An app role that finds, downloads and erases a person's data (`privacy:@:people`).
   'roles.privacyPeople',
+  // The columns a records page's list opens on, in order (`config.columns`).
+  'config.columns',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -469,6 +471,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'roles.addOnActions': '0.3.47',
   'appGrants.more': '0.3.47',
   'roles.privacyPeople': '0.3.47',
+  // A release before ignores the key, and the list opens on the columns Adminium picks.
+  'config.columns': '0.3.47',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -728,6 +732,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     if (toolbar['links'] !== undefined) out.push({ word: 'toolbar.links', path: `${here}.layout.toolbar.links` });
     if (config['tabs'] !== undefined) out.push({ word: 'config.tabs', path: `${here}.tabs` });
     if (config['bulk'] !== undefined) out.push({ word: 'config.bulk', path: `${here}.bulk` });
+    if (config['columns'] !== undefined) out.push({ word: 'config.columns', path: `${here}.columns` });
     if (config['board'] !== undefined) out.push({ word: 'config.board', path: `${here}.board` });
     const board = isDoc(config['board']) ? config['board'] : {};
     const boardCard = isDoc(board['card']) ? board['card'] : {};

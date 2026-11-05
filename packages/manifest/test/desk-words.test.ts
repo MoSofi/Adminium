@@ -174,6 +174,38 @@ describe('a records page\'s filters', () => {
   });
 });
 
+describe('the columns a list opens on', () => {
+  /** A copy whose list names these columns, at the release that reads them. */
+  const listing = (columns: unknown, change?: (doc: Doc) => void) =>
+    kit((doc) => {
+      doc.compatibility.minAdminiumVersion = '0.3.47';
+      page(doc).columns = columns;
+      change?.(doc);
+    });
+
+  it('names columns of the page\'s table, in order, each once, at most eight', () => {
+    expect(listing(['status', 'label', 'balance'])).toEqual([]);
+    expect(listing(['status', 'ghost']).join()).toContain('pages.0.config.columns.1: "ghost" is not a column of the page\'s table "cards"');
+    expect(listing(['status', 'kind', 'status']).join()).toContain('"status" is named twice');
+    expect(listing(['id', 'status', 'kind', 'label', 'balance', 'owner_email', 'note', 'resends', 'activated_at'])).not.toEqual([]);
+    expect(listing(['id', 'status', 'kind', 'label', 'balance', 'owner_email', 'note', 'resends'])).toEqual([]);
+    expect(listing([])).not.toEqual([]);
+  });
+
+  it('never names a column kept from staff', () => {
+    expect(listing(['code']).join()).toContain('"cards.code" is a code only its last four characters are shown of: no list shows it');
+    expect(listing(['pin']).join()).toContain('"cards.pin" is a code staff never see');
+    expect(listing(['note'], (doc) => { cards(doc).columns.find((column: Doc) => column.ref === 'note').rules = { secret: true }; }).join()).toContain('"cards.note" is a secret');
+  });
+
+  it('is read on a records page only, and only from the release that reads it', () => {
+    expect(listing(['activated_at'], (doc) => { doc.pages[0].template = 'page-calendar'; doc.pages[0].config = { calendar: { start: 'activated_at' }, columns: ['activated_at'] }; }).join()).toContain('only a page-crud takes "columns"');
+    expect(installFloorWords({ ...structuredClone(DESK), pages: [{ ...DESK.pages[0], config: { columns: ['status'] } }] })).toContainEqual({ word: 'config.columns', path: 'pages.0.config.columns' });
+    const old = issuesOf(DESK, (doc) => { page(doc).columns = ['status']; }).join('\n');
+    expect(old).toContain('config.columns');
+  });
+});
+
 describe('a list\'s bulk action', () => {
   const bulk = (doc: Doc): Doc => page(doc).bulk[0];
 

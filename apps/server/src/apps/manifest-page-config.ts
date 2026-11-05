@@ -25,10 +25,10 @@
  * (`formIssues`), so an app whose form names a column it never declared is
  * refused before anything is written — never a form silently dropped.
  */
-import { boardColumnsOf, pageSourceTable, type BoardColumns, type CalendarColumns, type DatabaseModel } from '@adminium/engine';
+import { boardColumnsOf, columnSpecsForTable, pageSourceTable, type BoardColumns, type CalendarColumns, type DatabaseModel } from '@adminium/engine';
 import { z } from 'zod';
 import { capacityCountsSchema, countsJoinSchema, filterNodeSchema, pageLayoutSchema, parseCrudDefaultFilters, parseCrudForm, type CrudFormConfig, type PageLayout } from '@adminium/engine/config';
-import { pageBulkSchema, pageFiltersSchema, pageTabsSchema, type Manifest } from '@adminium/manifest';
+import { pageBulkSchema, pageColumnsSchema, pageFiltersSchema, pageTabsSchema, type Manifest } from '@adminium/manifest';
 
 import { childRelations } from '../crud/child-rows.js';
 import { filterProblem, type DayColumnKind } from '../widget-data/filter-checks.js';
@@ -336,13 +336,47 @@ function wordsPair(words: string | Readonly<Record<string, string>>): { text: st
 export interface BoundListConfig {
   /** The keys to lay over the page's stored config. `detail` is the generated one with its tabs worded. */
   config: Record<string, unknown>;
-  warnings: { reason: 'PAGE_FILTERS_INVALID' | 'PAGE_DEFAULT_FILTERS_INVALID' | 'PAGE_TABS_INVALID' | 'PAGE_TAB_UNKNOWN' | 'PAGE_BULK_INVALID'; message: string }[];
+  warnings: { reason: 'PAGE_FILTERS_INVALID' | 'PAGE_DEFAULT_FILTERS_INVALID' | 'PAGE_TABS_INVALID' | 'PAGE_TAB_UNKNOWN' | 'PAGE_BULK_INVALID' | 'PAGE_COLUMNS_INVALID'; message: string }[];
+}
+
+type ColumnSpec = Record<string, unknown> & { name: string };
+
+/**
+ * The list's columns as the manifest names them: those first, in its order,
+ * shown; then every other column of the table, hidden, so the page's column
+ * settings still offer each one to switch on. A column keeps the spec the
+ * generator wrote for it (its label, its link's display); one the generator
+ * left out gets the spec it would have written. A secret is never listed.
+ */
+function listColumns(named: readonly string[], view: SnapshotView, table: ResolvedTable, stored: unknown): ColumnSpec[] {
+  const kept = new Map<string, ColumnSpec>();
+  for (const spec of Array.isArray(stored) ? stored : []) {
+    if (typeof spec === 'object' && spec !== null && typeof (spec as { name?: unknown }).name === 'string') kept.set((spec as ColumnSpec).name, spec as ColumnSpec);
+  }
+  const fresh = new Map(columnSpecsForTable(view.model as unknown as DatabaseModel, table.table).map((spec) => [spec.name, spec as unknown as ColumnSpec]));
+  const specOf = (name: string): ColumnSpec | undefined => kept.get(name) ?? fresh.get(name);
+  const open = (name: string): boolean => {
+    const column = table.columns.get(name);
+    return column !== undefined && !column.secret;
+  };
+  const out: ColumnSpec[] = [];
+  for (const name of named) {
+    const spec = specOf(name);
+    if (spec !== undefined && open(name)) out.push({ ...spec, hidden: false });
+  }
+  const first = new Set(named);
+  for (const column of table.table.columns) {
+    if (first.has(column.name) || !open(column.name)) continue;
+    const spec = specOf(column.name);
+    if (spec !== undefined) out.push({ ...spec, hidden: true });
+  }
+  return out;
 }
 
 /**
  * WHAT A RECORDS PAGE SAYS OF ITSELF BESIDE ITS FORM, bound to the real
- * tables: the list's filters and the filters it opens with, the words of its
- * related tabs, its bulk actions. The manifest names tables by their short
+ * tables: the list's filters and the filters it opens with, the columns it
+ * opens on, the words of its related tabs, its bulk actions. The manifest names tables by their short
  * names; the stored page names them as the snapshot does. Columns keep their
  * names.
  *
@@ -384,6 +418,14 @@ export function bindListConfig(raw: Readonly<Record<string, unknown>> | undefine
     if (parsed === null) out.warnings.push({ reason: 'PAGE_DEFAULT_FILTERS_INVALID', message: 'its default filters are not valid filters, so the list opens unfiltered' });
     else if (gone !== undefined) out.warnings.push({ reason: 'PAGE_DEFAULT_FILTERS_INVALID', message: `"${table.name}" has no column "${gone}", so the list opens unfiltered` });
     else out.config['defaultFilters'] = parsed;
+  }
+
+  if (raw['columns'] !== undefined) {
+    const parsed = pageColumnsSchema.safeParse(raw['columns']);
+    const gone = parsed.success ? missing(parsed.data) : undefined;
+    if (!parsed.success) out.warnings.push({ reason: 'PAGE_COLUMNS_INVALID', message: 'its columns are not valid columns, so the list opens on the columns Adminium picks' });
+    else if (gone !== undefined) out.warnings.push({ reason: 'PAGE_COLUMNS_INVALID', message: `"${table.name}" has no column "${gone}", so the list opens on the columns Adminium picks` });
+    else out.config['columns'] = listColumns(parsed.data, view, table, stored['columns']);
   }
 
   if (raw['tabs'] !== undefined) {

@@ -79,7 +79,8 @@ export interface ManifestPageSkip {
     | 'PAGE_DEFAULT_FILTERS_INVALID'
     | 'PAGE_TABS_INVALID'
     | 'PAGE_TAB_UNKNOWN'
-    | 'PAGE_BULK_INVALID';
+    | 'PAGE_BULK_INVALID'
+    | 'PAGE_COLUMNS_INVALID';
   message: string;
 }
 
@@ -344,7 +345,7 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
         envelope = { ...envelope, config: { ...own, layout: bound.layout } };
       }
     }
-    // What a records page says of itself beside its form — the list's filters and the ones it opens with, the words
+    // What a records page says of itself beside its form — the list's filters and the ones it opens with, its columns, the words
     // of its tabs, its bulk actions — bound to the real tables and written BEFORE the page is stamped, so a fresh
     // page does not read as one somebody edited.
     if (template === 'page-crud' && composed !== null && tableId !== null) {
@@ -353,9 +354,11 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       for (const warning of bound.warnings) result.warnings.push({ page: page.ref, ...warning });
       // A code only its last four characters are shown of, and a code staff never see, are on no list, form or peek.
       const declared = (manifest.requiredSchema?.tables ?? []).find((candidate) => (names[candidate.ref] ?? candidate.ref) === composed.view.table(tableId).name);
-      const columns = current['columns'];
+      // After the manifest's own columns are laid on: they are filtered the same way.
+      const merged = { ...current, ...bound.config };
+      const columns = merged['columns'];
       const shown = declared === undefined || !Array.isArray(columns) ? undefined : columns.filter((column) => keptFromStaff(declared, String((column as { name?: unknown }).name)) === null);
-      envelope = { ...envelope, config: { ...current, ...(shown === undefined ? {} : { columns: shown }), ...bound.config } };
+      envelope = { ...envelope, config: { ...merged, ...(shown === undefined ? {} : { columns: shown }) } };
     }
     // The manifest's own title: its key, its English, its translations
     //, and `from` — the English it came with, so the sidebar can
