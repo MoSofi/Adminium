@@ -137,6 +137,12 @@ describe("an app's grant on a ledger's table, cut to the add-on's words", () => 
     expect(addOnRoleTableHold(grant('requests', ['read', 'read_pii', 'create'], { creatable: ['account_id'] }), noRead)).toMatchObject({ actions: ['create'], narrowed: { actions: ['read', 'read_pii'] } });
   });
 
+  it('personal columns never stand without the read, even where an add-on\'s words would allow them alone', () => {
+    // A shape no manifest passes (the validator refuses `read_pii` without `read`): the hold still drops it.
+    const shape = { tables: [{ ref: 'designs', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'words', type: 'text' }], appGrants: { actions: ['read_pii', 'create'] as RoleAddOnTable['actions'], creatable: ['words'] } }], ledgers: [] };
+    expect(roleTableHold(grant('designs', ['read', 'read_pii', 'create'], { creatable: ['words'] }), shape)).toMatchObject({ actions: ['create'], narrowed: { actions: ['read', 'read_pii'] } });
+  });
+
   it('a new personal-column read or remove is a widening, said by its action', () => {
     expect(holdWider({ actions: ['read'] }, { actions: ['read', 'read_pii'] })).toEqual({ actions: ['read_pii'], columns: [] });
     expect(holdWider({ actions: ['read', 'delete'] }, { actions: ['read', 'delete'] })).toBeNull();

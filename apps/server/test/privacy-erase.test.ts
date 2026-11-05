@@ -235,7 +235,7 @@ for (const [dialect, reachable] of LEGS) {
       await roles.assignToUser(s.ids['ann']!, (await roles.findBySlug('admin'))!.id);
       // An Admin role an older server built: every system key it knew, every table, and nothing new.
       const old = await roles.create({ slug: 'old-admin', name: 'Admin (older)' });
-      for (const key of SYSTEM_ACTION_KEYS.filter((one) => one !== 'privacy.manage')) await grants.grant(old.id, 'system', key, { allowed: true });
+      for (const key of SYSTEM_ACTION_KEYS.filter((one) => !one.startsWith('privacy.'))) await grants.grant(old.id, 'system', key, { allowed: true });
       await grants.grant(old.id, 'table', '*/*', { read: true, read_pii: true, create: true, update: true, delete: true, export: true, import: true });
       await roles.assignToUser(s.ids['olda']!, old.id);
       // Pia answers access requests: the privacy action alone, no table at all.
