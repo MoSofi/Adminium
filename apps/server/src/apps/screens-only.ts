@@ -8,7 +8,7 @@
  * need: signing in and out, their own account, the records their roles grant,
  * the live-update stream, the translations, the schema of their app's own
  * database, what an add-on their app uses says of the rows a screen shows
- * (its stock words), which of their app's own rules are switched on, and
+ * (its stock words, its record panels), which of their app's own rules are switched on, and
  * bringing a file in to a table their role may import (a "paste a list"
  * screen of their app), and the files a record of theirs keeps (a crew's
  * signature and photos, a copy of one for another record), and a record's e-mail consent (the panel, and recording consent,
@@ -55,6 +55,8 @@ export const STAFF_WORDS_ROUTE = `${API}/words/:addOn/:wordsId`;
 export const ADD_ON_LOOK_UP_ROUTE = `${API}/add-ons/:key/look-up`;
 /** The route a screen draws an add-on's own document through. */
 export const ADD_ON_DOCUMENT_ROUTE = `${API}/add-ons/:key/documents/render`;
+/** The route a screen loads an add-on's record panel through (a design kit's panel on an order line). */
+export const ADD_ON_PANEL_BUNDLE_ROUTE = `${API}/add-ons/:key/panels/:id/bundle`;
 
 /**
  * The add-ons a screens-only person's apps use: connected to one of their
@@ -147,6 +149,9 @@ export function allowedForScreensOnly(
   if (method === 'POST' && route === ADD_ON_LOOK_UP_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
   // A document of an add-on of their app, drawn at its desk (a gift card printed once, as it is sold). The route checks the reads it needs.
   if (method === 'POST' && route === ADD_ON_DOCUMENT_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
+  // A record panel of an add-on of their app, shown on a screen of their app (a design kit's panel on an order line). The
+  // route serves its code only for a row they reach, with a grant on the panel's table and the panel's own permission.
+  if (method === 'GET' && route === ADD_ON_PANEL_BUNDLE_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
   // …and the page it prints, by the one-time ticket the render answered.
   if (method === 'GET' && rest === '/documents/print-once/:ticket') return true;
   // A file brought in to a table of their app, from a screen of their app (the kit's import part). Each of these

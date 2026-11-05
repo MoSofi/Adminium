@@ -36,12 +36,12 @@ describe.each(LEGS)('a design kit\'s panel on an order line\'s record page — %
   /** The tables by their names here: an order line's, and the kit's designs. */
   const ids = { lines: '', designs: '' };
   let signIns = 0;
-  const people: Record<'all' | 'noLine' | 'noDesigns' | 'noPanel', { id: string; cookie: string }> = {} as never;
+  const people: Record<'all' | 'noLine' | 'noDesigns' | 'noPanel' | 'desk' | 'deskNoPanel' | 'otherDesk', { id: string; cookie: string }> = {} as never;
 
-  /** Somebody holding exactly these grants, signed in. */
-  const person = async (email: string, grants: string[]) => {
+  /** Somebody holding exactly these grants, signed in; with `screensOnlyOf`, in a role that opens only that app's screens. */
+  const person = async (email: string, grants: string[], screensOnlyOf?: string) => {
     const user = await usersRepo(h.meta).create({ email, name: email.split('@')[0]!, passwordHash: await adminPasswordHash() });
-    const role = await rolesRepo(h.meta).create({ slug: `own-${user.id.slice(-8)}`, name: 'Own' });
+    const role = await rolesRepo(h.meta).create({ slug: `own-${user.id.slice(-8)}`, name: 'Own', ...(screensOnlyOf === undefined ? {} : { appKey: screensOnlyOf, screensOnly: true }) });
     for (const row of matrixRowsFromGrants(grants).rows) await permissionsRepo(h.meta).grant(role.id, row.resourceKind, row.resourceRef, row.actions as never);
     await rolesRepo(h.meta).assignToUser(user.id, role.id);
     signIns += 1;
@@ -88,6 +88,10 @@ describe.each(LEGS)('a design kit\'s panel on an order line\'s record page — %
     people.noLine = await person('noline@shop.test', [designs, panel]);
     people.noDesigns = await person('nodesigns@shop.test', [line, panel]);
     people.noPanel = await person('nopanel@shop.test', [line, designs]);
+    // People who open only an app's own screens: the shop's desk, with and without the panel; another app's desk.
+    people.desk = await person('desk@shop.test', [line, designs, panel], 'printing');
+    people.deskNoPanel = await person('desknopanel@shop.test', [line, designs], 'printing');
+    people.otherDesk = await person('otherdesk@shop.test', [line, designs, panel], 'bakery');
   }, 240_000);
   afterAll(async () => {
     if (!available) return;
@@ -128,6 +132,18 @@ describe.each(LEGS)('a design kit\'s panel on an order line\'s record page — %
     expect((await bundle(people.all, '999')).statusCode).toBe(404);
     // A table that links into nothing of the kit's has no panel.
     expect((await bundle(people.all, '1', ids.designs)).statusCode).toBe(404);
+  });
+
+  it.skipIf(!available)('serves its code to the shop\'s screens-only desk holding the panel, and to no other screens-only person', async () => {
+    const served = await bundle(people.desk, '1');
+    expect(served.statusCode, served.body).toBe(200);
+    expect(served.body).toBe(DESIGN_KIT_FILES['dist/panel.js']);
+    // Without the panel's permission the route itself refuses, as it does anyone.
+    const noPanel = await bundle(people.deskNoPanel, '1');
+    expect([noPanel.statusCode, noPanel.json().error?.code]).toEqual([403, 'FORBIDDEN']);
+    // An add-on none of their apps uses is not theirs to ask, whatever their grants.
+    const other = await bundle(people.otherDesk, '1');
+    expect([other.statusCode, other.json().error?.code]).toEqual([403, 'APP_SCREENS_ONLY']);
   });
 
   it.skipIf(!available)('draws nothing for a declared fill of the record editor slot with no file, and is no error for it', async () => {

@@ -24,7 +24,7 @@ import {
 } from '@adminium/meta';
 
 import type { AdminiumServer } from '../src/app.js';
-import { ADD_ON_DOCUMENT_ROUTE, ADD_ON_LOOK_UP_ROUTE, STAFF_WORDS_ROUTE, allowedForScreensOnly } from '../src/apps/screens-only.js';
+import { ADD_ON_DOCUMENT_ROUTE, ADD_ON_LOOK_UP_ROUTE, ADD_ON_PANEL_BUNDLE_ROUTE, STAFF_WORDS_ROUTE, allowedForScreensOnly } from '../src/apps/screens-only.js';
 import { discoverSurfaces } from '../src/cli/surfaces-root.js';
 import { composeServer } from '../src/compose.js';
 import { ConnectionManager } from '../src/connections/manager.js';
@@ -213,6 +213,19 @@ describe('someone who opens only an app’s own screens', () => {
     expect(allowed('POST', RENDER, { key: 'stock' })).toBe(false);
     expect(allowed('GET', RENDER, { key: 'offers' })).toBe(false);
     expect(allowed('GET', '/api/v1/documents/print-once/:ticket', { ticket: 't' })).toBe(true);
+  });
+
+  it('may load a record panel of an add-on their app uses: that route, a GET, and that add-on', () => {
+    const PANEL = '/api/v1/add-ons/:key/panels/:id/bundle';
+    const allowed = (method: string, route: string, params: unknown, addOns: ReadonlySet<string> = new Set(['design-kit'])) => allowedForScreensOnly(method, route, params, new Set(['conn_1']), ['printing'], addOns);
+    expect(ADD_ON_PANEL_BUNDLE_ROUTE).toBe(PANEL);
+    expect(allowed('GET', PANEL, { key: 'design-kit', id: 'design' })).toBe(true);
+    // Another add-on, none of theirs, another method, a page's bundle, and a key that is no name.
+    expect(allowed('GET', PANEL, { key: 'offers', id: 'design' })).toBe(false);
+    expect(allowed('GET', PANEL, { key: 'design-kit', id: 'design' }, new Set())).toBe(false);
+    expect(allowed('POST', PANEL, { key: 'design-kit', id: 'design' })).toBe(false);
+    expect(allowed('GET', '/api/v1/add-ons/:key/pages/:ref/bundle', { key: 'design-kit', ref: 'designs' })).toBe(false);
+    expect(allowed('GET', PANEL, { key: ['design-kit'], id: 'design' })).toBe(false);
   });
 
   it('may bring a file in to a table of their app: the seven routes of one import and its job, and no other of either', () => {
