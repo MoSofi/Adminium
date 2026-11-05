@@ -69,6 +69,11 @@ describe.each(LEGS)('an add-on\'s own sample data — %s', (dialect, available) 
 
     const added = await add(h);
     expect(added.counts).toEqual({ items: 3, takes: 3, notes: 1 });
+    // The add above stands for the queued job's run: that job finishes as the worker finishes one (its key let go).
+    // Until it has, the sample reads as not loaded yet, however many rows are in.
+    expect((await get(h, '/add-ons/stock-kit/sample-data')).json()).toMatchObject({ loaded: false, total: 7 });
+    const harness = h;
+    await harness.meta.db.updateTable('adminium_jobs').set({ status: 'succeeded', finishedAt: Date.now(), dedupeKey: null }).where('id', '=', queued.json().jobId).execute();
     // The totals its rows feed are settled, with nothing judged: what was taken, and what is left.
     const items = await h.rows(`SELECT name, taken, ${dialect === 'mysql' ? '`left`' : '"left"'} AS remaining FROM stock_kit_items ORDER BY id`);
     expect(items.map((item) => [item['name'], Number(item['taken']), Number(item['remaining'])])).toEqual([['Flour', 4, 6], ['Salt', 4, 0], ['Yeast', 0, 1]]);
