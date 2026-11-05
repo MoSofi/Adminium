@@ -43,7 +43,8 @@ export type AssistantPlaceGuard =
   // The Studio roles, or the key, as `StudioGuard alsoFor="…"` reads it.
   | 'studio|settings.manage'
   // Any of the keys, as `StudioGuard requires={[…]}` reads it.
-  | 'payments.manage|payments.view';
+  | 'payments.manage|payments.view'
+  | 'privacy.manage|privacy.people';
 
 export interface AssistantPlace {
   /** The route's path, exactly as the dashboard's router spells it. */
@@ -75,7 +76,7 @@ export const ASSISTANT_PLACES: readonly AssistantPlace[] = Object.freeze([
   { path: '/settings/defaults', guard: 'none', name: 'Global defaults', what: 'Workspace-wide appearance and language defaults.' },
   { path: '/settings/translations', guard: 'none', name: 'Languages & translations', what: 'Change any wording in the product, choose which languages people can pick, add a language.' },
   { path: '/email-templates/do-not-email', guard: 'settings.manage', name: 'Do-not-email list', what: 'The addresses marketing mail never goes to: who unsubscribed, bounced or asked, and adding or removing addresses by hand.' },
-  { path: '/studio/privacy', guard: 'privacy.manage', name: 'Privacy', what: 'The privacy notice address, everything kept about one person (find it, download it, erase the person), and how long things are kept.' },
+  { path: '/studio/privacy', guard: 'privacy.manage|privacy.people', name: 'Privacy', what: 'The privacy notice address, everything kept about one person (find it, download it, erase the person), and how long things are kept.' },
   { path: '/settings/maps', guard: 'settings.manage', name: 'Maps', what: 'Whether maps are shown and whether routes follow roads; which map server and routing server are asked, and what each of them learns.' },
   { path: '/studio', guard: 'connections.manage', name: 'Data connections', what: 'Connect a database, rename, pause or delete a connection, read its schema again, its regional settings (currency, time zone).' },
   { path: '/studio/pages', guard: 'pages.manage', name: 'Pages', what: 'Create, edit, reorder, hide and delete pages; a page\'s columns, filters, layout and place in the sidebar.' },
