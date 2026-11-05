@@ -930,7 +930,12 @@
       "pickFirst": "更新前請選擇如何處理 {table}。",
       "checkFirst": "更新前請重新檢查資料表。",
       "nothingYet": "按下「更新」之前不會有任何變更。",
-      "rolesSubtitle": "檢查此版本的角色可以對附加元件的資料表做什麼。"
+      "rolesSubtitle": "檢查此版本的角色可以對附加元件的資料表做什麼。",
+      "grantsSubtitle": "檢查此版本的角色新獲得了什麼。",
+      "grantsAdded": {
+        "title": "此版本給了它的角色更多權限",
+        "addOnSettings": "{roles} 可以變更 {addOn} 的設定，這些設定由它服務的所有應用程式共用。"
+      }
     },
     "veto": {
       "title": "此部署無法線上瀏覽",

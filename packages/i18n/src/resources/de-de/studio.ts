@@ -940,7 +940,12 @@ export default {
       "pickFirst": "Wählen Sie vor dem Update, was mit {table} geschehen soll.",
       "checkFirst": "Prüfen Sie die Tabellen vor dem Update erneut.",
       "nothingYet": "Nichts ändert sich, bevor Sie auf Aktualisieren klicken.",
-      "rolesSubtitle": "Prüfen Sie, was die Rollen dieser Version mit Add-on-Tabellen tun dürfen."
+      "rolesSubtitle": "Prüfen Sie, was die Rollen dieser Version mit Add-on-Tabellen tun dürfen.",
+      "grantsSubtitle": "Prüfen Sie, was die Rollen dieser Version neu erhalten.",
+      "grantsAdded": {
+        "title": "Diese Version gibt ihren Rollen mehr",
+        "addOnSettings": "{roles} kann die Einstellungen von {addOn} ändern, die alle Apps teilen, für die es arbeitet."
+      }
     },
     "veto": {
       "title": "Diese Installation kann nicht online suchen",

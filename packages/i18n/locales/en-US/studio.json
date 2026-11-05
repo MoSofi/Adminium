@@ -930,7 +930,12 @@
       "pickFirst": "Pick what to do with {table} before you update.",
       "checkFirst": "Check the tables again before you update.",
       "nothingYet": "Nothing changes until you press Update.",
-      "rolesSubtitle": "Check what this version’s roles may do with add-ons’ tables."
+      "rolesSubtitle": "Check what this version’s roles may do with add-ons’ tables.",
+      "grantsSubtitle": "Check what this version’s roles are newly given.",
+      "grantsAdded": {
+        "title": "This version gives its roles more",
+        "addOnSettings": "{roles} can change the settings of {addOn}, which every app it serves shares."
+      }
     },
     "veto": {
       "title": "This deployment cannot browse online",

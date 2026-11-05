@@ -76,6 +76,7 @@ import {
 import { DocumentsWaitingNotice } from './DocumentsWaitingNotice.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
 import { CheckHint, TableCheck, type TakenPick } from './InstallCheck.js';
+import { RoleGrantsAddedCard } from './PrivacyGrantsCard.js';
 import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
 import { AppsRoleTablesWiderCard, RoleTablesUpdateCard } from './RoleTablesList.js';
 
@@ -111,7 +112,22 @@ export interface UpdateChecked {
   publicAccess?: boolean;
   /** The operator saw what the new version's roles hold more of add-ons' tables, and allows it. */
   roleTables?: boolean;
+  /** The operator saw the grants the new version's roles are newly given (erasing people, an add-on's settings), and allows them. */
+  roleGrants?: boolean;
 }
+
+/** The grants a new version's roles are given that the running one's were not: the update asks before it gives them. */
+export function grantsAddedOf(plan: AppInstallPlan): { privacy: NonNullable<AppInstallPlan['privacyGrants']>; addOn: NonNullable<AppInstallPlan['addOnGrants']> } {
+  return {
+    privacy: (plan.privacyGrants ?? []).filter((grant) => grant.added === true),
+    addOn: (plan.addOnGrants ?? []).filter((grant) => grant.added === true),
+  };
+}
+
+const asksGrants = (plan: AppInstallPlan): boolean => {
+  const added = grantsAddedOf(plan);
+  return added.privacy.length > 0 || added.addOn.length > 0;
+};
 
 /** What a new version's roles hold more of add-ons' tables than the running one's: the update asks before it gives it. */
 function roleTablesWider(plan: AppInstallPlan): NonNullable<AppInstallPlan['roleTables']> {
@@ -302,7 +318,7 @@ export function useAppAcquisition() {
           if (plan.tables !== undefined) {
             const askable = plan.problems.every((problem) => problem.code === 'TABLE_TAKEN');
             const asksShare = (plan.shareOffers ?? []).length > 0;
-            if ((checkAsks(plan.tables) || asksShare || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0) && (plan.installable || askable)) {
+            if ((checkAsks(plan.tables) || asksShare || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0 || asksGrants(plan)) && (plan.installable || askable)) {
               setConsent({ key: app.key, to, plan, connectionId: app.connectionId });
               return;
             }
@@ -542,6 +558,7 @@ function UpdateCheckDialog({
   const asksTables = checkAsks(tables) || (plan.shareOffers ?? []).length > 0;
   const access = publicAccessAdded(plan);
   const wider = roleTablesWider(plan);
+  const grants = grantsAddedOf(plan);
   return (
     <Modal
       open
@@ -560,7 +577,9 @@ function UpdateCheckDialog({
             ? t('studio:hostedApps.update.checkSubtitle', 'Check the tables this version uses.')
             : access !== null
               ? t('studio:hostedApps.update.accessSubtitle', 'Check what this version lets the app’s customers do.')
-              : t('studio:hostedApps.update.rolesSubtitle', 'Check what this version’s roles may do with add-ons’ tables.')
+              : wider.length === 0 && asksGrants(plan)
+                ? t('studio:hostedApps.update.grantsSubtitle', 'Check what this version’s roles are newly given.')
+                : t('studio:hostedApps.update.rolesSubtitle', 'Check what this version’s roles may do with add-ons’ tables.')
         }
         closeLabel={t('studio:hostedApps.update.close', 'Close')}
       />
@@ -611,6 +630,7 @@ function UpdateCheckDialog({
           )}
           <RoleTablesUpdateCard entries={wider} />
           <AppsRoleTablesWiderCard entries={wider} />
+          <RoleGrantsAddedCard privacy={grants.privacy} addOn={grants.addOn} />
         </div>
       </ModalBody>
       <ModalFooter>
@@ -636,6 +656,8 @@ function UpdateCheckDialog({
                 ...(access === null ? {} : { publicAccess: allowPublic && !publicAccessBlocked(access) }),
                 // Shown above: the Update button is the say.
                 ...(wider.length === 0 ? {} : { roleTables: true }),
+                // …and so is it for what the roles are newly given.
+                ...(grants.privacy.length === 0 && grants.addOn.length === 0 ? {} : { roleGrants: true }),
               })
             }
           >

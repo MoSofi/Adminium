@@ -28887,6 +28887,18 @@
     "status": "mt",
     "srcHash": "da5ceaf8f12b"
   },
+  "studio.hostedApps.update.grantsAdded.addOnSettings": {
+    "status": "mt",
+    "srcHash": "82720177cc8e"
+  },
+  "studio.hostedApps.update.grantsAdded.title": {
+    "status": "mt",
+    "srcHash": "98dbb647f4b4"
+  },
+  "studio.hostedApps.update.grantsSubtitle": {
+    "status": "mt",
+    "srcHash": "fcd83e00f7e2"
+  },
   "studio.hostedApps.update.missingColumns": {
     "status": "mt",
     "srcHash": "5d2f4c1163fe"

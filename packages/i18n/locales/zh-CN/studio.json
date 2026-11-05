@@ -930,7 +930,12 @@
       "pickFirst": "更新前请选择如何处理 {table}。",
       "checkFirst": "更新前请重新检查数据表。",
       "nothingYet": "按下“更新”之前不会有任何更改。",
-      "rolesSubtitle": "检查此版本的角色可以对附加组件的表做什么。"
+      "rolesSubtitle": "检查此版本的角色可以对附加组件的表做什么。",
+      "grantsSubtitle": "检查此版本的角色新获得了什么。",
+      "grantsAdded": {
+        "title": "此版本给了它的角色更多权限",
+        "addOnSettings": "{roles} 可以更改 {addOn} 的设置，这些设置由它服务的所有应用共享。"
+      }
     },
     "veto": {
       "title": "此部署无法在线浏览",

@@ -930,7 +930,12 @@
       "pickFirst": "Choisissez quoi faire de {table} avant de mettre à jour.",
       "checkFirst": "Vérifiez à nouveau les tables avant de mettre à jour.",
       "nothingYet": "Rien ne change tant que vous n’avez pas cliqué sur Mettre à jour.",
-      "rolesSubtitle": "Vérifiez ce que les rôles de cette version peuvent faire des tables des modules."
+      "rolesSubtitle": "Vérifiez ce que les rôles de cette version peuvent faire des tables des modules.",
+      "grantsSubtitle": "Vérifiez ce que les rôles de cette version reçoivent de nouveau.",
+      "grantsAdded": {
+        "title": "Cette version donne plus à ses rôles",
+        "addOnSettings": "{roles} peut modifier les réglages de {addOn}, partagés par toutes les apps qu’il sert."
+      }
     },
     "veto": {
       "title": "Ce déploiement ne peut pas consulter le catalogue en ligne",

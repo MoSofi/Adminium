@@ -940,7 +940,12 @@ export default {
       "pickFirst": "Před aktualizací vyberte, co udělat s {table}.",
       "checkFirst": "Před aktualizací tabulky zkontrolujte znovu.",
       "nothingYet": "Dokud nestisknete Aktualizovat, nic se nezmění.",
-      "rolesSubtitle": "Zkontrolujte, co smějí role této verze dělat s tabulkami doplňků."
+      "rolesSubtitle": "Zkontrolujte, co smějí role této verze dělat s tabulkami doplňků.",
+      "grantsSubtitle": "Zkontrolujte, co role této verze nově dostávají.",
+      "grantsAdded": {
+        "title": "Tato verze dává svým rolím víc",
+        "addOnSettings": "{roles} může měnit nastavení doplňku {addOn}, která sdílejí všechny aplikace, jimž slouží."
+      }
     },
     "veto": {
       "title": "Toto nasazení nemůže procházet online",

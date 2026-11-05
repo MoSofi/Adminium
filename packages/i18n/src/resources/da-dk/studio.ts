@@ -940,7 +940,12 @@ export default {
       "pickFirst": "Vælg, hvad der skal ske med {table}, før du opdaterer.",
       "checkFirst": "Tjek tabellerne igen, før du opdaterer.",
       "nothingYet": "Intet ændres, før du trykker på Opdater.",
-      "rolesSubtitle": "Tjek, hvad denne versions roller må gøre med tilføjelsers tabeller."
+      "rolesSubtitle": "Tjek, hvad denne versions roller må gøre med tilføjelsers tabeller.",
+      "grantsSubtitle": "Tjek, hvad denne versions roller får af nyt.",
+      "grantsAdded": {
+        "title": "Denne version giver sine roller mere",
+        "addOnSettings": "{roles} kan ændre indstillingerne for {addOn}, som alle de apps, den betjener, deler."
+      }
     },
     "veto": {
       "title": "Denne installation kan ikke gennemse online",

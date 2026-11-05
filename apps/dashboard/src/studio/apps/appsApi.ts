@@ -191,7 +191,7 @@ export function downloadApp(key: string, version: string): Promise<{ jobId: stri
 export function updateApp(
   key: string,
   /** The check the operator saw for the new version: its checksum, what they chose, and their say on its public access. */
-  checked?: { planChecksum?: string; choices?: InstallAnswers['choices']; shares?: InstallAnswers['shares']; publicAccess?: boolean; roleTables?: boolean },
+  checked?: { planChecksum?: string; choices?: InstallAnswers['choices']; shares?: InstallAnswers['shares']; publicAccess?: boolean; roleTables?: boolean; roleGrants?: boolean },
 ): Promise<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }> {
   return api.post<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }>(
     `/api/v1/apps/${encodeURIComponent(key)}/update`,
@@ -688,9 +688,12 @@ export interface AppInstallPlan {
    * shown before anyone agrees: those settings are shared by every app the
    * add-on serves. Absent when none, and from an older server.
    */
-  addOnGrants?: { role: string; roleName: string; addOn: string; grant: 'settings' }[];
-  /** The roles that would find, download and erase a person's data (`privacy:@:people`). */
-  privacyGrants?: { role: string; roleName: string }[];
+  addOnGrants?: { role: string; roleName: string; addOn: string; grant: 'settings'; added?: true }[];
+  /**
+   * The roles that would find, download and erase a person's data (`privacy:@:people`).
+   * `added`, on an update's check: the running version's role was not given it, and the update asks first.
+   */
+  privacyGrants?: { role: string; roleName: string; added?: true }[];
   /**
    * What each role would hold of the tables of the add-ons the app names, with
    * the columns of each action, cut to each add-on's own words. Absent when
