@@ -1624,6 +1624,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         templateKey,
         locale,
         vars,
+        // The banner names the business the mail is from, not Adminium.
+        brandName: vars['appName'],
         template: shown,
         ...(Object.keys(rows).length === 0 ? {} : { rows }),
         ...(shownPictures.pictures.size === 0 ? {} : { pictures: shownPictures.pictures }),

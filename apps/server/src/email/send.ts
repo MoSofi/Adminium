@@ -310,6 +310,12 @@ export interface EnqueueEmailInput {
    */
   markFileId?: string | undefined;
   /**
+   * An app's own mail: the business it is from (its settings row's name).
+   * When the template names no brand, the banner carries this name, and no
+   * Adminium mark in front of it (the workspace logo still, when one is set).
+   */
+  brandName?: string | undefined;
+  /**
    * The rows each `email.rows` block lists, by the block's id, as the sender
    * read them (an order's tickets): each row's variables.
    */
@@ -465,7 +471,12 @@ export interface PreparedEmail {
  * time, and this re-checks so a stale row cannot send from an address the
  * operator has since removed.
  */
-export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource): Promise<PreparedEmail> {
+/** What a caller knows of whose mail it is: an app's (see `EnqueueEmailInput.brandName`). */
+export interface PrepareEmailOptions {
+  brandName?: string | undefined;
+}
+
+export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource, options: PrepareEmailOptions = {}): Promise<PreparedEmail> {
   const settings = settingsRepo(meta);
   const [appName, accent, logoFileId, smtp, senders] = await Promise.all([
     settings.get('branding.appName'),
@@ -476,12 +487,17 @@ export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource): Promis
   ]);
   const files = filesRepo(meta);
 
-  // The mark: the document's choice, else the workspace logo when there is one, else the comp's default.
-  const wanted = doc.brand?.mark ?? (logoFileId === null ? DEFAULT_EMAIL_MARK : 'logo');
+  // An app's mail names its business, and never wears Adminium's own mark in its stead.
+  const business = options.brandName?.trim() ?? '';
+  const fallback: RenderEmailInput['mark'] = business === '' ? { kind: 'mark', mark: DEFAULT_EMAIL_MARK } : undefined;
+  // The mark: the document's choice, else the workspace logo when there is one, else the comp's default (an app's mail: none).
+  const wanted = doc.brand?.mark ?? (logoFileId === null ? null : 'logo');
   let mark: RenderEmailInput['mark'];
-  if (wanted === 'logo') {
+  if (wanted === null) {
+    mark = fallback;
+  } else if (wanted === 'logo') {
     const logo = logoFileId === null ? null : await files.findById(logoFileId);
-    mark = logo !== null && logo.deletedAt === null ? { kind: 'file', fileId: logo.id } : { kind: 'mark', mark: DEFAULT_EMAIL_MARK };
+    mark = logo !== null && logo.deletedAt === null ? { kind: 'file', fileId: logo.id } : fallback;
   } else {
     mark = { kind: 'mark', mark: isShippedMark(wanted) ? wanted : DEFAULT_EMAIL_MARK };
   }
@@ -515,7 +531,7 @@ export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource): Promis
   return {
     render: {
       document: { subject: doc.subject, preheader: doc.preheader, blocks: doc.blocks, footer: doc.footer },
-      brand: effectiveBrand(doc.brand, { appName, accent }),
+      brand: effectiveBrand(doc.brand, { appName: business === '' ? appName : business, accent }),
       mark,
       imageFiles,
     },
@@ -720,7 +736,7 @@ export async function enqueueEmail(
       ? input.vars
       : { ...input.vars, ...Object.fromEntries(Object.entries(input.counts).map(([name, value]) => [name, proseNumber(value, written)])) };
 
-  const prepared = await prepareEmail(meta, row);
+  const prepared = await prepareEmail(meta, row, { brandName: input.brandName });
   for (const gone of prepared.missing) {
     deps.logger?.warn(
       { templateKey: input.templateKey, attachmentId: gone.id, fileId: gone.fileId },

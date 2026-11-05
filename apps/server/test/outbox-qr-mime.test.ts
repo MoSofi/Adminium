@@ -146,9 +146,9 @@ describe.each(LEGS)('a ticket email as a mail client receives it — %s', (diale
     expect(root.type).toBe('multipart/alternative');
     expect(root.parts.map((part) => part.type)).toEqual(['text/plain', 'multipart/related']);
     const related = root.parts[1]!;
-    // The html, the brand's mark, and one image per ticket.
-    expect(related.parts.map((part) => part.type)).toEqual(['text/html', 'image/png', 'image/png', 'image/png']);
-    expect(related.parts.slice(1).map((part) => part.headers['content-id'])).toEqual(['<mark>', '<qr-1>', '<qr-2>']);
+    // The html and one image per ticket: an app's mail wears no Adminium mark in its banner.
+    expect(related.parts.map((part) => part.type)).toEqual(['text/html', 'image/png', 'image/png']);
+    expect(related.parts.slice(1).map((part) => part.headers['content-id'])).toEqual(['<qr-1>', '<qr-2>']);
   });
 
   it.skipIf(!available)("shows every cid once, inline, each reading back as its ticket's code", () => {
