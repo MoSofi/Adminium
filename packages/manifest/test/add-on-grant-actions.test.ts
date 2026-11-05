@@ -5,7 +5,10 @@
  * twenty-four such grants. A table a ledger's code writes stays the ledger's:
  * an app's role reads it, and adds rows and changes the add-on's own columns
  * there only where the add-on allows it by name (`appGrants`) — never a
- * column the ledger's code writes, never a remove.
+ * column the ledger's code writes, never a remove. A row an app's role adds is
+ * its own, not the ledger's record: it may carry what a posting fills on the
+ * rows the ledger adds (a proof version's words), never a value the ledger
+ * alone moves (a hold's state) nor the link to a posting's receipt.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -100,6 +103,17 @@ describe("an add-on's appGrants: personal columns, removing rows, a ledger's tab
     expect(said(kit({ holds: { actions: ['read', 'delete'] } }))).toEqual(['requiredSchema.tables.2.appGrants.actions.1: a ledger\'s code writes "holds": no app\'s role removes its rows']);
     expect(said(kit({ accounts: { actions: ['read_pii'] } }))).toEqual(['requiredSchema.tables.0.appGrants.actions: "read_pii" shows the personal columns of what a role reads: allow "read" too']);
   });
+
+  it("a new row is never given what the ledger keeps: the state it moves, or a posting's receipt", () => {
+    expect(said(kit({ holds: { actions: ['read', 'create'], creatable: ['account_id', 'state', 'receipt_id'] } }))).toEqual([
+      'requiredSchema.tables.2.appGrants.creatable.1: a ledger\'s code keeps "holds.state": no app\'s role gives it to a new row',
+      'requiredSchema.tables.2.appGrants.creatable.2: "holds.receipt_id" links a row to the receipt of the posting that added it, which Adminium fills: no app\'s role gives it to a new row',
+    ]);
+    // …nor changes the receipt link of a row.
+    expect(said(kit({ holds: { actions: ['read', 'update'], writable: ['receipt_id'] } }))).toEqual(['requiredSchema.tables.2.appGrants.writable.0: a ledger\'s code writes "holds.receipt_id": no app\'s role changes it']);
+    // What a posting fills on the rows the ledger adds may be given to a row of the app's own.
+    expect(said(kit({ holds: { actions: ['read', 'create'], creatable: ['account_id', 'amount', 'memo'] } }))).toEqual([]);
+  });
 });
 
 describe("an app's grant on a ledger's table, cut to the add-on's words", () => {
@@ -130,6 +144,18 @@ describe("an app's grant on a ledger's table, cut to the add-on's words", () => 
     const shape = { tables: [{ ref: 'holds', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'state', type: 'text' }, { ref: 'memo', type: 'text' }], appGrants: { actions: ['read', 'update'] as RoleAddOnTable['actions'], writable: ['state', 'memo'] } }], ledgers: [{ receipts: 'postings', writes: { holds: { update: { by: ['id'], set: ['state'] } } } }] };
     const hold = roleTableHold(grant('holds', ['read', 'update'], { writable: ['state', 'memo'] }), shape);
     expect(hold).toMatchObject({ actions: ['read', 'update'], writable: ['memo'], narrowed: { writable: ['state'] } });
+  });
+
+  it("a create never gives a new row what the ledger keeps, even where the add-on's words list it", () => {
+    // A shape no manifest passes (the validator refuses it): the hold still keeps the ledger's state and the receipt link out of a new row.
+    const shape = {
+      tables: [{ ref: 'holds', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'amount', type: 'decimal' }, { ref: 'state', type: 'text' }, { ref: 'receipt_id', type: 'fk' }], appGrants: { actions: ['read', 'create'] as RoleAddOnTable['actions'], creatable: ['amount', 'state', 'receipt_id'] } }],
+      ledgers: [{ receipts: 'postings', writes: { holds: { insert: ['amount', 'state'], update: { by: ['id'], set: ['state'] } } } }],
+    };
+    const hold = roleTableHold(grant('holds', ['read', 'create'], { creatable: ['amount', 'state', 'receipt_id'] }), shape);
+    expect(hold).toMatchObject({ actions: ['read', 'create'], creatable: ['amount'], narrowed: { creatable: ['state', 'receipt_id'] } });
+    // Asked for every column: given what the add-on lists, less the ledger's.
+    expect(roleTableHold(grant('holds', ['read', 'create']), shape)).toMatchObject({ creatable: ['amount'] });
   });
 
   it('personal columns go with a read the add-on cuts', () => {

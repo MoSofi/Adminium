@@ -9,7 +9,10 @@
  * add-on allows an app's role to add rows and change its own columns
  * (`appGrants`), never a column the ledger's code writes. Each is given the
  * way the role's other grants on the add-on's tables are, and taken back with
- * them. Proved through the data routes as the screens-only role itself, and
+ * them. A row the role adds there is its own, not the ledger's record: never
+ * given what the ledger keeps (a hold's state, which its code moves, or the
+ * link to a posting's receipt) — an add-on that offers it is refused, and the
+ * role's grant is cut to fit. Proved through the data routes as the screens-only role itself, and
  * against a role of the same app that holds less. On every engine this run
  * can reach.
  */
@@ -26,8 +29,14 @@ import { servePublic, type Served } from './public-lane.helpers.js';
 type Doc = Record<string, unknown>;
 const KIT = 'ledger-kit';
 
-/** The kit, whose `things` (written by its ledger: `name`) keep a personal contact and a memo, and say what an app's role may hold. */
-function kit(): Doc {
+/**
+ * The kit, whose `things` (written by its ledger: `name`) keep a personal
+ * contact and a memo, and say what an app's role may hold; its `holds` (the
+ * ledger adds them and moves their `state`) may be added to by an app's role.
+ * `overreach` offers what the ledger keeps as well: a hold's state, and a
+ * thing's link to its receipt.
+ */
+function kit(overreach = false): Doc {
   const doc = ledgerKitManifest() as Doc & { compatibility: Doc; requiredSchema: { tables: (Doc & { ref: string; columns: Doc[] })[] } };
   doc.compatibility = { ...doc.compatibility, minAdminiumVersion: '0.3.47' };
   doc.requiredSchema.tables = doc.requiredSchema.tables.map((table) => {
@@ -35,12 +44,14 @@ function kit(): Doc {
       return {
         ...table,
         columns: [...table.columns, { ref: 'contact', type: 'text', maxLength: 120, nullable: true, rules: { personal: true } }, { ref: 'memo', type: 'text', maxLength: 200, nullable: true }],
-        appGrants: { actions: ['read', 'read_pii', 'create', 'update'], creatable: ['name', 'contact', 'memo'], writable: ['memo'] },
+        appGrants: { actions: ['read', 'read_pii', 'create', 'update'], creatable: ['name', 'contact', 'memo', ...(overreach ? ['receipt_id'] : [])], writable: ['memo'] },
       };
     }
+    if (table.ref === 'holds') return { ...table, appGrants: { actions: ['read', 'create'], creatable: ['account_id', 'amount', ...(overreach ? ['state'] : [])] } };
     if (table.ref === 'settings') return { ...table, appGrants: { actions: ['read', 'delete'] } };
     return table;
   });
+  if (overreach) (doc as Doc)['version'] = '0.9.0';
   return doc;
 }
 
@@ -68,6 +79,8 @@ const shop = (): Doc => ({
       tables: [
         { addOn: KIT, table: 'things', actions: ['read', 'read_pii', 'create', 'update'], limit: { creatable: ['name', 'contact', 'memo'], writable: ['memo'] } },
         { addOn: KIT, table: 'settings', actions: ['read', 'delete'] },
+        // Asks for a hold's state too: what the ledger keeps is cut.
+        { addOn: KIT, table: 'holds', actions: ['read', 'create'], limit: { creatable: ['account_id', 'amount', 'state'] } },
       ],
     },
     // The same reads, without the personal columns or the remove, and no add or change.
@@ -80,6 +93,8 @@ describe.each(LEGS)("an app's screens-only role: personal columns, removes and a
   let served: Served;
   let things: string;
   let settings: string;
+  let holds: string;
+  let overreached: { statusCode: number; body: string };
   const cookies = new Map<string, string>();
   let at = 0;
 
@@ -100,15 +115,21 @@ describe.each(LEGS)("an app's screens-only role: personal columns, removes and a
     await h.stageApp(shop());
     const installed = await h.install('shop', '1.0.0');
     expect(installed.statusCode, installed.body).toBe(200);
+    // An add-on that offers an app's new row what its ledger keeps is not installed.
+    const greedy = kit(true);
+    await h.stageAddOn(greedy, { files: ledgerKitFiles(greedy) });
+    overreached = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: KIT, version: '0.9.0', attachTo: ['shop'] } });
     const doc = kit();
     await h.stageAddOn(doc, { files: ledgerKitFiles(doc) });
     const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: KIT, version: '1.0.0', attachTo: ['shop'] } });
     expect(added.statusCode, added.body).toBe(200);
     await h.rows(`INSERT INTO ledger_kit_things (name, contact, memo) VALUES ('Mug for Ana', 'ana@example.com', 'first')`);
     await h.rows(`INSERT INTO ledger_kit_settings (id, show_left_below) VALUES (10, 5), (11, 6)`);
+    await h.rows(`INSERT INTO ledger_kit_accounts (id, name) VALUES (1, 'Clay')`);
     const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
     things = model.tables.find((table) => table.name === 'ledger_kit_things')!.id;
     settings = model.tables.find((table) => table.name === 'ledger_kit_settings')!.id;
+    holds = model.tables.find((table) => table.name === 'ledger_kit_holds')!.id;
     served = await servePublic(h as never, null, { ADMINIUM_DATA_DIR: h.dataDir });
     cookies.set('maker', await signIn('maker'));
     cookies.set('packer', await signIn('packer'));
@@ -156,5 +177,26 @@ describe.each(LEGS)("an app's screens-only role: personal columns, removes and a
       [1, 'Mug for Ana', 'proofed'],
       [2, 'Proof v2', 'proof'],
     ]);
+  });
+
+  it.skipIf(!available)("an add-on that offers a new row what its ledger keeps is refused, by the columns it names", () => {
+    expect(overreached.statusCode, overreached.body).toBeGreaterThanOrEqual(400);
+    expect(overreached.body).toContain('holds.state');
+    expect(overreached.body).toContain('things.receipt_id');
+  });
+
+  it.skipIf(!available)("the maker adds a hold, never with the state the ledger moves nor a posting's receipt", async () => {
+    const role = (await rolesRepo(h.meta).findBySlug('shop-maker'))!;
+    const rows = await permissionsRepo(h.meta).listForRole(role.id);
+    const onHolds = rows.find((row) => row.resourceRef === `${h.connectionId}/${holds}`)?.actions as Doc | undefined;
+    expect(onHolds).toMatchObject({ read: true, create: true });
+    // The state the role asked for is cut from what its new rows may be given.
+    expect(JSON.stringify(onHolds?.['createLimit'])).toContain('amount');
+    expect(JSON.stringify(onHolds?.['createLimit'])).not.toContain('state');
+    expect((await call('maker', 'POST', holds, { values: { account_id: 1, amount: '2', state: 'taken' } })).statusCode).toBe(403);
+    expect((await call('maker', 'POST', things, { values: { name: 'Forged', receipt_id: 1 } })).statusCode).toBe(403);
+    const made = await call('maker', 'POST', holds, { values: { account_id: 1, amount: '2' } });
+    expect(made.statusCode, made.body).toBeLessThan(300);
+    expect((await h.rows('SELECT account_id, state, receipt_id FROM ledger_kit_holds')).map((row) => [Number(row['account_id']), row['state'], row['receipt_id'] ?? null])).toEqual([[1, 'held', null]]);
   });
 });

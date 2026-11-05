@@ -6100,8 +6100,13 @@ read only on a table a ledger's code writes. A ledger's receipt table takes no `
 table a ledger's code writes (a design's versions, which an order line's posting makes), `appGrants`
 may allow `create` and `update` (needs `minAdminiumVersion` `0.3.47`): an app's role then adds rows
 with the `creatable` columns, and changes only `writable` columns the ledger's code does not write:
-what a posting copied stays as it was copied. `writable` may not name a column the ledger writes,
-and `delete` is never allowed there. Without `appGrants` such a table stays read only for apps'
+what a posting copied stays as it was copied. `writable` may not name a column the ledger writes
+(nor `receipt_id`, the link Adminium fills to the receipt of a posting's row), and `delete` is never
+allowed there. A row an app's role adds is its own, not the ledger's record: `creatable` may name
+the columns a posting fills on the rows the ledger adds (a proof version's `design_id` and
+`values`), but never a column the ledger's code sets on rows it changes (`update.set`, a design's
+`state`) nor `receipt_id`, which would let the role skip the posting (from 0.3.47; a grant an earlier
+release wrote is cut to it when the add-on is next installed or updated). Without `appGrants` such a table stays read only for apps'
 roles. Each column named must be one of the table's.
 
 An app's entry is cut to it when it is written, and again whenever the add-on is installed,
