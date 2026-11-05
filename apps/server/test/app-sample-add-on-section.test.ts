@@ -9,6 +9,7 @@
  * for that sample. With the add-on absent — or removed, tables and all —
  * the app's sample still adds, counts and removes clean.
  */
+import { jobsRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createSampleDataService, findSampleApp, findSampleOwner, registerSampleDataHandler, type SampleApp } from '../src/apps/sample-data.js';
@@ -195,6 +196,35 @@ describe.each(LEGS)('an app\'s sample rows for an add-on — %s', (dialect, avai
     // One bar for the whole of it: it never runs backwards and never passes its end.
     expect(seen).toEqual([...seen].sort((a, b) => a - b));
     expect(Math.max(0, ...seen)).toBeLessThanOrEqual(100);
+  });
+
+  it.runIf(available)('reads as loaded only once the whole add has finished, the add-on\'s part with it', async () => {
+    const w = await world({ tables: [{ ref: 'takes', rows: [{ item_id: { '@ref': 'flour' }, qty: '3.00' }] }] });
+    h = w.harness;
+    const harness = h;
+    const status = async () => (await harness.inject({ method: 'GET', url: '/apps/shop/sample-data' })).json() as { loaded: boolean; total: number; available: unknown };
+    const queued = await post(harness, '/apps/shop/sample-data', { addOns: ['stock-kit'] });
+    expect(queued.statusCode, queued.body).toBe(200);
+    const job = await harness.meta.db.selectFrom('adminium_jobs').selectAll().where('id', '=', queued.json().jobId).executeTakeFirstOrThrow();
+    const payload = (typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload) as Record<string, unknown>;
+    let handler: ((payload: never, ctx: never) => Promise<unknown>) | null = null;
+    registerSampleDataHandler({ registerJobHandler: (_kind: string, _schema: unknown, run: typeof handler) => (handler = run) } as never, h.sampleData);
+    // Asked while the add-on's part runs: the shop's own rows are in, the add-on's are not all there yet.
+    let asked: Promise<{ loaded: boolean; total: number; available: unknown }> | null = null;
+    const progress = (pct: number) => {
+      if (pct > 50 && asked === null) asked = status();
+      return asked ?? Promise.resolve();
+    };
+    await handler!(payload as never, { progress } as never);
+    const midway = await asked!;
+    expect(midway.total).toBeGreaterThan(0);
+    expect(midway.loaded).toBe(false);
+    // The dialog still has what an add would write: never "ships no sample data".
+    expect(midway.available).not.toBeNull();
+    // The job finishes as the worker finishes one (its key let go), and the sample reads as loaded.
+    await harness.meta.db.updateTable('adminium_jobs').set({ status: 'succeeded', finishedAt: Date.now(), dedupeKey: null }).where('id', '=', job.id).execute();
+    expect(await jobsRepo(harness.meta).active(`app-sample-add:shop`)).toBeNull();
+    expect(await status()).toMatchObject({ loaded: true, total: 3 });
   });
 
   it.runIf(available)('asked for alone, as before, the app\'s rows for the add-on still wait; an add-on that holds its sample is left as it is', async () => {

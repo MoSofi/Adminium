@@ -90,7 +90,7 @@ import { panelOpen, panelsOn } from '../../add-ons/record-panels.js';
 import type { TabInstalls } from '../../add-ons/record-tabs.js';
 import { factsViewFor } from '../pages/column-facts.js';
 import { addOnUninstallPlan, uninstallAddOn } from '../../add-ons/uninstall.js';
-import { createSampleDataService, enqueueSampleAdd, findSampleOwner, type SampleDataDeps } from '../../apps/sample-data.js';
+import { createSampleDataService, enqueueSampleAdd, findSampleOwner, sampleAddUnderway, type SampleDataDeps } from '../../apps/sample-data.js';
 import { appJobReply, sampleRemoveBody, sampleRemovePlanReply, sampleRemoveReply, sampleStatusReply } from '../apps/schema.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
@@ -2286,7 +2286,9 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const target = await sampleOwnerOf(request.params.key);
         if (samples === null) return { offered: false, loaded: false, total: 0, addedAt: null, tables: [], available: null };
-        const status = await samples.status(target);
+        const stored = await samples.status(target);
+        // Loaded once its own add has finished, as an app's is.
+        const status = stored.loaded && (await sampleAddUnderway(deps.meta, target.key)) ? { ...stored, loaded: false } : stored;
         return { ...status, available: status.offered && !status.loaded ? await samples.addPreview(target) : null };
       },
     );

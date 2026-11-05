@@ -104,6 +104,7 @@ import { settingValueIssues, settingValuesWithDefaults } from '../../apps/settin
 import {
   createSampleDataService,
   enqueueSampleAdd,
+  sampleAddUnderway,
   findSampleApp,
 } from '../../apps/sample-data.js';
 import { ownRules, shapeRules } from '../../apps/manifest-rules.js';
@@ -1251,7 +1252,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         if (samples === null) {
           return { offered: false, loaded: false, total: 0, addedAt: null, tables: [], available: null };
         }
-        const status = await samples.status(target);
+        const stored = await samples.status(target);
+        // Loaded once the add has finished: rows the job has written so far are not yet the whole of it.
+        const status = stored.loaded && (await sampleAddUnderway(deps.meta, target.key)) ? { ...stored, loaded: false } : stored;
         const available = status.offered && !status.loaded ? await samples.addPreview(target) : null;
         return { ...status, available };
       },

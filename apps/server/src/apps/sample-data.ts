@@ -3200,6 +3200,16 @@ export function registerSampleDataHandler(registry: JobRegistry, deps: SampleDat
   );
 }
 
+/**
+ * Whether an add of this key's sample is queued or running. While it is, the
+ * sample is not loaded yet, whatever rows are already in: an app's job writes
+ * the app's own rows first and its add-ons' after them, so a reader that took
+ * the first rows for the whole would go on without the add-ons' sections.
+ */
+export async function sampleAddUnderway(meta: MetaDb, key: string): Promise<boolean> {
+  return (await jobsRepo(meta).active(`${SAMPLE_ADD_KIND}:${key}`)) !== null;
+}
+
 export async function enqueueSampleAdd(meta: MetaDb, payload: SampleAddPayload): Promise<Job> {
   return jobsRepo(meta).enqueue({
     kind: SAMPLE_ADD_KIND,
