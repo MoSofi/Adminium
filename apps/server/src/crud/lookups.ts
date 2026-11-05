@@ -112,7 +112,8 @@ function parseLookupSpec(raw: string): ParsedLookup {
 /**
  * The single-column outbound FK of `table` on `fkColumn`, from the effective
  * model's relations (covers declared FKs, accepted `relation.add` overrides
- * and inferred relations), falling back to the column's `references` mirror.
+ * and inferred relations), falling back to the column's `references` mirror,
+ * then to its link into an add-on's table while that add-on is there.
  * Returns null when the column is not a usable FK.
  */
 function outboundFk(
@@ -133,8 +134,11 @@ function outboundFk(
   if (best !== undefined) {
     return { tableId: best.to.tableId, column: best.to.columns[0] as string };
   }
-  const mirror = table.table.columns.find((column) => column.name === fkColumn)?.references;
-  return mirror ?? null;
+  const column = table.table.columns.find((candidate) => candidate.name === fkColumn);
+  if (column?.references != null) return column.references;
+  // A link into an add-on's table (`column.addOnLink`) has no foreign key behind it: followed while the add-on is there for the table.
+  const link = column?.addOnLink;
+  return link === undefined || link.tableId === null || link.key === null ? null : { tableId: link.tableId, column: link.key };
 }
 
 export interface ResolveLookupsOptions {

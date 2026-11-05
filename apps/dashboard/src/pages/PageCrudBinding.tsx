@@ -49,7 +49,7 @@ import { pictureChooser } from '../files/pictureChooser.js';
 import { listKeysOf, useListOptions } from '../api/optionLists.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
-import { parseColumns, projectionParamsOf, withFkDisplay, withLookups } from './columnSpecs.js';
+import { parseColumns, projectionParamsOf, withFactSpecs, withFkDisplay, withLookups } from './columnSpecs.js';
 import { useManifestBulkActions } from './ManifestBulkAction.js';
 import { ProjectActionMenu, useProjectActions } from './projectActions.js';
 import { useAppToasts } from './toasts.js';
@@ -107,9 +107,10 @@ export function PageCrudBinding({
   // Explicit lookup columns plus the derived FK-chip display lookups
   // (fk.display → `<name>__display` params + displayKey stamps), one plan so
   // the columns PageCrud renders and the params its reads carry never drift.
+  // …told first what the server knows of them now (a link into an add-on's table, an app's file rule).
   const { columns, lookups } = useMemo(
-    () => withFkDisplay(parseColumns(page.config, page.id)),
-    [page.config, page.id],
+    () => withFkDisplay(withFactSpecs(parseColumns(page.config, page.id), formColumns)),
+    [page.config, page.id, formColumns],
   );
   /*
    * What the grid, the peek and the card layouts draw: the stored columns with
@@ -395,7 +396,11 @@ export function PageCrudBinding({
    * plumbing a settings read through the page reply to make the browser repeat
    * a check it cannot enforce is not worth the round trip.
    */
-  const hasFileColumns = useMemo(() => columns.some((column) => column.file !== undefined), [columns]);
+  // A file column the list leaves out is still one the form edits (a proof's picture): the server's columns count too.
+  const hasFileColumns = useMemo(
+    () => columns.some((column) => column.file !== undefined) || (formColumns ?? []).some((fact) => fact.spec['file'] !== undefined),
+    [columns, formColumns],
+  );
   /*
    * "Choose existing…" on a picture column: this table's pictures, and the
    * Files page's own uploads for someone who can open the Files page. Each

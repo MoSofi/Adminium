@@ -40,6 +40,61 @@ export function parseColumns(config: Record<string, unknown>, pageId: string): G
   return columns;
 }
 
+/** What the page reply's `formColumns` carry that this module reads: each column's spec as the server builds it now. */
+export interface FactSpec {
+  spec: { name?: unknown } & Record<string, unknown>;
+}
+
+/** The server's spec of each column, parsed, by name; a spec that does not parse is left out. */
+function factSpecsByName(formColumns: readonly FactSpec[] | undefined): Map<string, GridColumnSpec> {
+  const out = new Map<string, GridColumnSpec>();
+  for (const fact of formColumns ?? []) {
+    const parsed = gridColumnSpecSchema.safeParse(fact.spec);
+    if (parsed.success) out.set(parsed.data.name, parsed.data);
+  }
+  return out;
+}
+
+/**
+ * The stored columns, told what the server knows of them that the page was
+ * made without (`formColumns` on the page reply):
+ *
+ * - a link into an add-on's table (`fk`): no foreign key stands behind it, so
+ *   the generator saw a plain number, and a list showed a public holiday as
+ *   "143". With it the cell is the linked row's chip, named as that row is;
+ * - an app's file rule (`file`): the rule is no type the generator reads, so
+ *   the form offered a box to type a file's id into.
+ *
+ * What the page stores wins wherever it says anything: a column that already
+ * carries an `fk` or a `file` block, or is a projection (a lookup, a reverse
+ * count, a derived value), keeps its own.
+ */
+export function withFactSpecs(columns: readonly GridColumnSpec[], formColumns: readonly FactSpec[] | undefined): GridColumnSpec[] {
+  const facts = factSpecsByName(formColumns);
+  if (facts.size === 0) return [...columns];
+  return columns.map((column) => {
+    const fact = facts.get(column.name);
+    if (fact === undefined || column.lookup !== undefined || column.reverse !== undefined || column.derived !== undefined) return column;
+    let out = column;
+    if (out.fk === undefined && fact.fk !== undefined) out = { ...out, fk: fact.fk };
+    if (out.file === undefined && fact.file !== undefined) out = { ...out, file: fact.file };
+    return out;
+  });
+}
+
+/**
+ * The stored columns, then the rest of the table's as the server has them:
+ * what a record page shows and edits. A list keeps to a handful of columns,
+ * and the record page showed only those, so its edit form had no field for a
+ * column the list leaves out (a proof's picture, its note). The list's own
+ * panel does the same (`PageCrud`'s `panelColumns`).
+ */
+export function withRestOfTable(columns: readonly GridColumnSpec[], formColumns: readonly FactSpec[] | undefined): GridColumnSpec[] {
+  const held = new Set(columns.map((column) => column.name));
+  const rest = [...factSpecsByName(formColumns).values()].filter((column) => !held.has(column.name));
+  return rest.length === 0 ? [...columns] : [...columns, ...rest];
+}
+
 /**
  * Wire `lookup=` specs (`alias:fkColumn[.fkColumn…].targetColumn`) for the
  * page's lookup columns — the server projects each referenced-table value

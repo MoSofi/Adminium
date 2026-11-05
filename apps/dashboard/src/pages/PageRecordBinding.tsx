@@ -81,8 +81,10 @@ import {
   parseColumns,
   parseDefaultSort,
   projectionParamsOf,
+  withFactSpecs,
   withFkDisplay,
   withLookups,
+  withRestOfTable,
 } from './columnSpecs.js';
 import { Alert } from '@adminium/ui';
 import { addOnWords } from '../add-ons/messages.js';
@@ -111,6 +113,7 @@ export function PageRecordBinding({
   recordTabs,
   recordPanels,
   columnFacts,
+  formColumns,
   formRelations,
   currency,
   tableLabelPlural,
@@ -121,9 +124,11 @@ export function PageRecordBinding({
   const queryClient = useQueryClient();
   const router = useRouter();
 
+  // The stored columns, told what the server knows of them now, then the rest of the table's: the record shows and
+  // edits every column, not only the handful its list keeps (a proof's picture, its note).
   const { columns, lookups } = useMemo(
-    () => withFkDisplay(parseColumns(page.config, page.id)),
-    [page.config, page.id],
+    () => withFkDisplay(withRestOfTable(withFactSpecs(parseColumns(page.config, page.id), formColumns), formColumns)),
+    [page.config, page.id, formColumns],
   );
   // A choice column reads as the list beside it does: the server's words for
   // its values, in this person's language, where the page sets none.

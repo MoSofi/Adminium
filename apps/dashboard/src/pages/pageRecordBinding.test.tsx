@@ -1199,3 +1199,45 @@ describe('the e-mail consent panel on a people table\'s record', () => {
     expect(screen.queryByTestId('record-panel-consent')).toBeNull();
   });
 });
+
+/**
+ * A record page shows and edits every column of the row, not only the handful
+ * its list keeps: a proof's note and its picture, which Maker's list leaves
+ * out, had no field in the record page's edit form. And a column the app's
+ * rule makes a file column (`rules.file`) is an upload field there, its file
+ * block coming from the server's facts the page was made without.
+ */
+describe('the record page edits every column of the row', () => {
+  const factsReply = () =>
+    jsonResponse(200, {
+      data: recordEnvelope(),
+      columnFacts: {
+        table: { labelSingular: 'Customer', labelPlural: 'Customers' },
+        columns: [
+          { spec: { name: 'name', label: 'Name', logicalType: 'text' }, ordinal: 2, writable: true, filledBy: null, required: false },
+          { spec: { name: 'note', label: 'Note to the customer', logicalType: 'text' }, ordinal: 5, writable: true, filledBy: null, required: false },
+          {
+            spec: { name: 'picture', label: 'Picture', logicalType: 'varchar', file: { ref: 'id', accept: ['png', 'pdf'], maxBytes: 26214400 } },
+            ordinal: 6,
+            writable: true,
+            filledBy: null,
+            required: false,
+          },
+        ],
+      },
+    });
+
+  it('lists the columns its list leaves out, and offers the picture as an upload in its edit form', async () => {
+    const user = userEvent.setup();
+    await renderAt('/p/customers/r/1', { pageReply: factsReply });
+    await screen.findByRole('heading', { level: 2 });
+    const fields = document.querySelector('[data-part="record-fields"]') as HTMLElement;
+    expect(within(fields).getByText('Note to the customer')).toBeDefined();
+    expect(within(fields).getByText('Picture')).toBeDefined();
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog');
+    const picture = dialog.querySelector('[data-column="picture"], [data-field="picture"]') ?? dialog;
+    expect(picture.querySelector('[data-part="file-field"]')).not.toBeNull();
+    expect(within(dialog).getByText('Note to the customer')).toBeDefined();
+  });
+});

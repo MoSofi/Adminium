@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { gridColumnSpecSchema, type CrudApi, type GridColumnSpec } from '@adminium/widgets';
 
-import { parseColumns, projectionParamsOf, withFkDisplay, withLookups } from './columnSpecs.js';
+import { parseColumns, projectionParamsOf, withFactSpecs, withFkDisplay, withLookups, withRestOfTable } from './columnSpecs.js';
 
 /**
  * `withFkDisplay` — the FK-chip display derivation: `fk.display` (the
@@ -217,5 +217,42 @@ describe('withLookups', () => {
     void decorated.get('7');
     expect(calls).toEqual([{ compute: '{"measures":[]}' }, { compute: '{"measures":[]}' }]);
     expect(withLookups(api, [], [])).toBe(api);
+  });
+});
+
+/**
+ * What the server knows of a column that the stored page was made without:
+ * a link into an add-on's table (Print's closure → public holiday showed
+ * "143") and an app's file rule (Maker's proof picture: a bare text box on
+ * create, no field at all on the record page's edit).
+ */
+describe('withFactSpecs / withRestOfTable', () => {
+  const holiday = col({ name: 'holiday_id', label: 'Public holiday' });
+  const reason = col({ name: 'reason', label: 'Reason', logicalType: 'varchar' });
+  const facts = [
+    { spec: { name: 'holiday_id', label: 'Public holiday', logicalType: 'integer', fk: { table: 'main.holiday_calendars_holidays', column: 'id', display: 'name' } } },
+    { spec: { name: 'reason', label: 'Reason', logicalType: 'varchar' } },
+    { spec: { name: 'picture', label: 'Picture', logicalType: 'varchar', file: { ref: 'id', accept: ['png', 'pdf'], maxBytes: 26214400 } } },
+  ];
+
+  it('gives a link into an add-on\'s table its chip, named by the linked row, through a display lookup', () => {
+    const plan = withFkDisplay(withFactSpecs([reason, holiday], facts));
+    expect(plan.columns[1]?.fk).toMatchObject({ table: 'main.holiday_calendars_holidays', display: 'name', displayKey: 'holiday_id__display' });
+    expect(plan.lookups).toEqual(['holiday_id__display:holiday_id.name']);
+    expect(plan.columns[0]).toEqual(reason);
+  });
+
+  it('keeps what the page stores: its own fk, its own file block, a projection', () => {
+    const own = col({ name: 'holiday_id', fk: { table: 'main.other', column: 'id' } });
+    expect(withFactSpecs([own], facts)[0]?.fk).toEqual({ table: 'main.other', column: 'id' });
+    const lookup = col({ name: 'holiday_id', lookup: { path: ['x_id'], select: 'name' } });
+    expect(withFactSpecs([lookup], facts)[0]?.fk).toBeUndefined();
+    expect(withFactSpecs([holiday], undefined)).toEqual([holiday]);
+  });
+
+  it('puts the rest of the table after the stored columns, a file column with its file block', () => {
+    const all = withRestOfTable(withFactSpecs([reason], facts), facts);
+    expect(all.map((column) => column.name)).toEqual(['reason', 'holiday_id', 'picture']);
+    expect(all[2]?.file).toMatchObject({ ref: 'id', accept: ['png', 'pdf'] });
   });
 });

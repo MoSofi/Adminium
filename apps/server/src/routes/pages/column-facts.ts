@@ -34,10 +34,13 @@ import { overridesRepo, snapshotsRepo } from '@adminium/meta';
 
 import {
   applyOverrides,
+  type EffectiveColumn,
   type ColumnOptionItem,
   type ColumnValidation,
 } from '../../connections/effective-schema.js';
+import { addOnInstallsStamp, addOnTablesFor } from '../../apps/add-on-tables.js';
 import { tableRulesFor, type ColumnFill } from '../../crud/column-rules.js';
+import { ruledBlock } from '../../files/column-blocks.js';
 import { childRelations } from '../../crud/child-rows.js';
 import { labelColumnFor } from '../../crud/labels.js';
 import { linkableRelations } from '../../crud/links.js';
@@ -165,6 +168,45 @@ function fillFactOf(fill: ColumnFill | undefined): Pick<ColumnFact, 'filledBy' |
   };
 }
 
+/** The kinds of file a picture field takes: a column taking only these is drawn as a picture. */
+const PICTURE_KINDS = new Set(['png', 'jpeg', 'webp', 'gif']);
+
+/**
+ * A column the app's own rule makes a file column (`column.file`), as the
+ * `file` block a page's column carries: the file's id stored, the kinds and
+ * the size the rule says. The generator reads no rule: it gave such a column
+ * no block (the form offered a box to type a file's id into), or guessed one
+ * from its name (a "picture" taking pictures only, stored as an address) that
+ * the upload route does not keep to. The rule's block replaces either.
+ */
+function fileBlockOf(rule: NonNullable<EffectiveColumn['file']>): Record<string, unknown> {
+  const { ruled: _ruled, ...block } = ruledBlock(rule);
+  return rule.accept.length > 0 && rule.accept.every((kind) => PICTURE_KINDS.has(kind)) ? { ...block, inline: true } : block;
+}
+
+/**
+ * A link into an add-on's table (`column.addOnLink`), found here, as the `fk`
+ * a list column carries: the add-on's table, its key, what it is called and
+ * the column its rows are named by. With it a list shows the linked row's
+ * name (a public holiday's) rather than its number; nothing while the add-on
+ * is not there for the table, or its rows have no name to show.
+ */
+function addOnLinkFk(view: SnapshotView, link: EffectiveColumn['addOnLink']): { fk?: Record<string, unknown> } {
+  if (link === undefined || link.tableId === null || link.key === null) return {};
+  const target = view.linkTable(link.tableId);
+  if (target === null) return {};
+  const display = labelColumnFor(view, target);
+  const called = target.table.labelPlural ?? target.table.label;
+  return {
+    fk: {
+      table: target.id,
+      column: link.key,
+      ...(called === undefined ? {} : { label: called }),
+      ...(display === null || display === link.key ? {} : { display }),
+    },
+  };
+}
+
 /** The writable columns of one table, as the form reads them. */
 function columnsOf(view: SnapshotView, table: ResolvedTable): ColumnFact[] {
   return blockFor(view, table, { deep: false }).columns;
@@ -200,6 +242,9 @@ function blockFor(
       ...spec,
       ...(label === undefined ? {} : { label }),
       ...(spec.fk === undefined || targetName === undefined ? {} : { fk: { ...spec.fk, label: targetName } }),
+      ...(spec.fk === undefined ? addOnLinkFk(view, column.addOnLink) : {}),
+      // The app's rule over the generator's guess from the column's name: the upload route stores what the rule says.
+      ...(column.file === undefined ? {} : { file: fileBlockOf(column.file) }),
     };
     columns.push({
       spec: named as unknown as Record<string, unknown>,
@@ -282,16 +327,20 @@ async function entryFor(meta: MetaDb, connectionId: string, locale: string | und
   if (snapshot === null) return null;
   const active = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
   const last = active.at(-1);
-  const stamp = `${snapshot.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}`;
+  // An add-on installed, connected or switched off moves where a link into its tables leads: part of the stamp.
+  const stamp = `${snapshot.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}:${await addOnInstallsStamp(meta)}`;
   // One view per locale: the labels in it are resolved for that reader.
   const cacheKey = `${connectionId}\u0000${locale ?? ''}`;
   let entry = CACHE.get(cacheKey);
   if (entry === undefined || entry.stamp !== stamp) {
+    const model = snapshot.schema as DatabaseModel;
+    // Links into an add-on's tables resolved as the data routes resolve them, so a link's facts name the row's table.
+    const addOnTables = await addOnTablesFor(meta, connectionId, model);
     entry = {
       stamp,
       view: new SnapshotView(
         connectionId,
-        applyOverrides(snapshot.schema as DatabaseModel, active, locale === undefined ? {} : { defaultLocale: locale }),
+        applyOverrides(model, active, locale === undefined ? { addOnTables } : { defaultLocale: locale, addOnTables }),
       ),
       facts: new Map(),
     };
