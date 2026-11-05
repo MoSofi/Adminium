@@ -1,5 +1,22 @@
 # @adminium/server
 
+## 0.3.48
+
+### Patch Changes
+
+- 5cbbec4: The assistant can point a shop owner who may erase their customers at the privacy page.
+- 102e71f: The add-ons that come with Adminium are now 1.0.19: an app's own roles can make Customiser proofs and production files, the starter fonts make files out of the box, and DHL quotes in the shop's currency.
+- @adminium/adapter-mysql@0.3.48
+  - @adminium/adapter-postgres@0.3.48
+  - @adminium/adapter-sqlite@0.3.48
+  - @adminium/add-on-contracts@0.3.48
+  - @adminium/engine@0.3.48
+  - @adminium/i18n@0.3.48
+  - @adminium/llm@0.3.48
+  - @adminium/manifest@0.3.48
+  - @adminium/meta@0.3.48
+  - @adminium/schema-import@0.3.48
+
 ## 0.3.47
 
 ### Patch Changes
