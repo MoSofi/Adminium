@@ -1,5 +1,21 @@
 # @adminium/server
 
+## 0.3.46
+
+### Patch Changes
+
+- 9e1b7be: The add-ons that come with Adminium are now 1.0.18: Holiday calendars installs its holidays again.
+- @adminium/adapter-mysql@0.3.46
+  - @adminium/adapter-postgres@0.3.46
+  - @adminium/adapter-sqlite@0.3.46
+  - @adminium/add-on-contracts@0.3.46
+  - @adminium/engine@0.3.46
+  - @adminium/i18n@0.3.46
+  - @adminium/llm@0.3.46
+  - @adminium/manifest@0.3.46
+  - @adminium/meta@0.3.46
+  - @adminium/schema-import@0.3.46
+
 ## 0.3.45
 
 ### Patch Changes
