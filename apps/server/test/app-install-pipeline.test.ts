@@ -4924,6 +4924,10 @@ for (const [dialect, available] of legs) {
       await h.meta.db.updateTable('adminium_connections').set({ timezone: 'America/New_York' }).execute();
       const added = await service.add(app, { locale: 'de-DE', userId: null, userLabel: 'test', now });
       expect(added).toEqual({ counts: { menu_items: 3, shifts: 1, payments: 1, lines: 2 }, files: 1 });
+      // The add above stands for the queued job's run, which finishes as the worker finishes one (its key let go):
+      // until it has, the sample reads as not loaded yet.
+      expect((await h.app.inject({ method: 'GET', url: '/apps/pos/sample-data' })).json()).toMatchObject({ loaded: false, total: 7 });
+      await h.meta.db.updateTable('adminium_jobs').set({ status: 'succeeded', finishedAt: Date.now(), dedupeKey: null }).where('id', '=', queued.json().jobId).execute();
 
       const items = await h.rows('SELECT id, name FROM pos_menu_items ORDER BY id');
       expect(items.map((r) => r.name)).toEqual(['Milchkaffee', 'Tea', 'Cake']);
