@@ -246,7 +246,7 @@ import { assistantRoutes } from './routes/assistant/index.js';
 import type { RunService } from './llm/run-service.js';
 import { rbacPlugin } from './plugins/rbac.js';
 import { NO_SURFACE_SETTINGS } from './surfaces/settings.js';
-import { ADD_ON_DOCUMENT_ROUTE, ADD_ON_LOOK_UP_ROUTE, ADD_ON_PANEL_BUNDLE_ROUTE, STAFF_WORDS_ROUTE, allowedForScreensOnly, appAddOns, appConnections, screensOnlyError } from './apps/screens-only.js';
+import { ADD_ON_DOCUMENT_ROUTE, ADD_ON_LOOK_UP_ROUTE, ADD_ON_PAGE_FILES_ROUTE, ADD_ON_PANEL_BUNDLE_ROUTE, STAFF_WORDS_ROUTE, allowedForScreensOnly, appAddOns, appConnections, screensOnlyError } from './apps/screens-only.js';
 import { isGranted } from './rbac/permissions.js';
 import { permissionSetAllows, resolvePermissionSet } from './rbac/resolver.js';
 import { API_PREFIX } from './routes/index.js';
@@ -794,7 +794,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const settings = app.surfaceSettings === null ? NO_SURFACE_SETTINGS : await app.surfaceSettings.read();
     const connections = await appConnections(meta, settings, set.screensOnly);
     // Their apps' add-ons are read only for the routes that ask an add-on something.
-    const asksAnAddOn = [STAFF_WORDS_ROUTE, ADD_ON_LOOK_UP_ROUTE, ADD_ON_DOCUMENT_ROUTE, ADD_ON_PANEL_BUNDLE_ROUTE];
+    const asksAnAddOn = [STAFF_WORDS_ROUTE, ADD_ON_LOOK_UP_ROUTE, ADD_ON_DOCUMENT_ROUTE, ADD_ON_PANEL_BUNDLE_ROUTE, ADD_ON_PAGE_FILES_ROUTE];
     const addOns = asksAnAddOn.includes(route) ? await appAddOns(meta, set.screensOnly, connections) : undefined;
     // The assistant's routes, when their role was given the assistant (never by default, and no app's manifest can).
     const assistant = route.startsWith('/api/v1/assistant/') && isGranted(set.grants, 'system:assistant:use');

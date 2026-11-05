@@ -35,7 +35,7 @@ import {
 import { DEFAULT_NAV_GROUP } from '@adminium/add-on-contracts';
 import { addOnManifestSchema, isSidePath, navLinkSchema, type NavLink, type NavLinkScreen } from '@adminium/manifest';
 
-import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
+import { addOnPagePermission, appsSwitchedOn, pagesAreGated, pagesOnDashboard } from '../../add-ons/page-gate.js';
 
 import { screensOnlyError } from '../../apps/screens-only.js';
 import { UnauthorizedError } from '../../errors.js';
@@ -355,20 +355,31 @@ export async function unmetFeaturePages(
  * dashboard load.
  */
 
-/** The add-ons switched on for the dashboard, by key, with their manifests. */
+/**
+ * The add-ons whose pages are on the dashboard (`pagesOnDashboard`): switched
+ * on for it, or, made for certain apps only, switched on for one of them
+ * while it is installed. By key, with their manifests.
+ */
 export async function dashboardAddOnManifests(meta: MetaDb): Promise<{ manifestKey: string; version: string; manifest: unknown }[]> {
-  const order = (
-    await meta.db
-      .selectFrom('adminium_manifest_attachments as a')
-      .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
-      .select(['m.id as id'])
-      .where('a.attachedTo', '=', 'dashboard')
-      .where('a.disabledAt', 'is', null)
-      .where('m.kind', '=', 'add-on')
-      .where('m.status', '=', 'installed')
-      .orderBy('m.manifestKey', 'asc')
-      .execute()
-  ).map((row) => row.id);
+  const attachments = await meta.db
+    .selectFrom('adminium_manifest_attachments as a')
+    .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
+    .select(['m.id as id', 'm.manifestKey as key', 'a.attachedTo as attachedTo', 'a.disabledAt as disabledAt'])
+    .where('m.kind', '=', 'add-on')
+    .where('m.status', '=', 'installed')
+    .execute();
+  if (attachments.length === 0) return [];
+  const appsOn = await appsSwitchedOn(meta);
+  const byId = new Map<string, { key: string; attachments: { attachedTo: string; disabledAt: unknown }[] }>();
+  for (const row of attachments) {
+    const held = byId.get(row.id) ?? { key: row.key, attachments: [] };
+    held.attachments.push({ attachedTo: row.attachedTo, disabledAt: row.disabledAt });
+    byId.set(row.id, held);
+  }
+  const order = [...byId.entries()]
+    .filter(([, held]) => pagesOnDashboard(held.attachments, appsOn))
+    .sort(([, a], [, b]) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+    .map(([id]) => id);
   if (order.length === 0) return [];
   const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'version', 'manifest']).where('id', 'in', order).execute();
   return inIdOrder(order, rows).map((row) => ({ manifestKey: row.manifestKey, version: row.version, manifest: row.manifest }));

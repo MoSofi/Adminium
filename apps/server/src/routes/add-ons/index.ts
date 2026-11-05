@@ -85,7 +85,7 @@ import {
 } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
+import { addOnPagePermission, appsSwitchedOn, pagesAreGated, pagesOnDashboard } from '../../add-ons/page-gate.js';
 import { panelOpen, panelsOn } from '../../add-ons/record-panels.js';
 import type { TabInstalls } from '../../add-ons/record-tabs.js';
 import { factsViewFor } from '../pages/column-facts.js';
@@ -1740,8 +1740,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const manifest = parseManifest(installed.document, key);
         const page = (manifest.addOn.pages ?? []).find((candidate) => candidate.ref === ref);
         if (page === undefined) throw new NotFoundError(`"${key}" has no page "${ref}".`);
-        // Switched off for the dashboard, the page is not there for anybody: its rail entry is gone, and so is its code.
-        if (pagesAreGated(manifest) && !installed.attachments.some((attachment) => attachment.attachedTo === DASHBOARD_HOST && attachment.disabledAt === null)) {
+        // Not on the dashboard (switched off there, or every app it serves is off), the page is not there for anybody: its rail entry is gone, and so is its code.
+        if (pagesAreGated(manifest) && !pagesOnDashboard(installed.attachments, await appsSwitchedOn(deps.meta))) {
           throw new NotFoundError(`"${key}" has no page "${ref}".`);
         }
         /*
@@ -1779,7 +1779,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const manifest = parseManifest(installed.document, key);
         const page = (manifest.addOn.pages ?? []).find((candidate) => candidate.ref === ref);
         if (page === undefined) throw new NotFoundError(`"${key}" has no page "${ref}".`);
-        if (pagesAreGated(manifest) && !installed.attachments.some((attachment) => attachment.attachedTo === DASHBOARD_HOST && attachment.disabledAt === null)) {
+        if (pagesAreGated(manifest) && !pagesOnDashboard(installed.attachments, await appsSwitchedOn(deps.meta))) {
           throw new NotFoundError(`"${key}" has no page "${ref}".`);
         }
         if (pagesAreGated(manifest) && typeof request.can === 'function' && !(await request.can(addOnPagePermission(ref)))) {
