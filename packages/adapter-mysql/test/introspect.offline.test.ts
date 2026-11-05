@@ -880,6 +880,7 @@ interface Catalog {
   foreignKeys?: CatalogRow[];
   tableConstraints?: CatalogRow[];
   checkConstraints?: CatalogRow[] | Error;
+  indexExpressions?: CatalogRow[] | Error;
 }
 
 /** Route by a fragment unique to each of the six statements. */
@@ -889,6 +890,10 @@ function routed(rows: Catalog): ((sql: string) => Promise<CatalogRow[]>) & { cal
     calls.push(sql);
     if (sql.includes('information_schema.TABLES')) return rows.tables ?? [];
     if (sql.includes('information_schema.COLUMNS')) return rows.columns ?? [];
+    if (sql.includes('information_schema.STATISTICS') && sql.includes('COLUMN_NAME IS NULL')) {
+      if (rows.indexExpressions instanceof Error) throw rows.indexExpressions;
+      return rows.indexExpressions ?? [];
+    }
     if (sql.includes('information_schema.STATISTICS')) return rows.statistics ?? [];
     if (sql.includes('KEY_COLUMN_USAGE')) return rows.foreignKeys ?? [];
     if (sql.includes('information_schema.TABLE_CONSTRAINTS')) return rows.tableConstraints ?? [];
@@ -1239,6 +1244,58 @@ describe('introspectMysql — indexes from STATISTICS', () => {
     const model = await introspectMysql(exec, CTX);
     expect(model.tables[0]!.indexes[0]!.columns).toEqual([]);
     expect(model.tables[0]!.indexes[0]!.method).toBeNull();
+  });
+
+  it('reads a functional unique index as an expression, never as a unique set of columns', async () => {
+    const exec = routed({
+      tables: oneTable,
+      columns: twoColumns,
+      statistics: [
+        { table_name: 't', index_name: 'a_lower', non_unique: 0, seq_in_index: 1, column_name: null, index_type: 'BTREE' },
+        { table_name: 't', index_name: 'b_a_lower', non_unique: 0, seq_in_index: 1, column_name: 'b', index_type: 'BTREE' },
+        { table_name: 't', index_name: 'b_a_lower', non_unique: 0, seq_in_index: 2, column_name: null, index_type: 'BTREE' },
+      ],
+      indexExpressions: [
+        { table_name: 't', index_name: 'a_lower', seq_in_index: 1, expression: 'lower(`a`)' },
+        { table_name: 't', index_name: 'b_a_lower', seq_in_index: 2, expression: 'lower(`a`)' },
+      ],
+    });
+    const model = await introspectMysql(exec, CTX);
+    const table = model.tables[0]!;
+    expect(table.indexes.find((i) => i.name === 'a_lower')).toMatchObject({ columns: [], expression: 'lower(`a`)', unique: true, primary: false });
+    // A column beside an expression is kept, with the expression beside it: still no unique set of columns.
+    expect(table.indexes.find((i) => i.name === 'b_a_lower')).toMatchObject({ columns: ['b'], expression: 'lower(`a`)', unique: true });
+    expect(table.uniques).toEqual([]);
+    expect(table.columns.every((c) => !c.isUnique)).toBe(true);
+    // The expressions are asked once, and only because there were such parts.
+    expect(exec.calls.filter((sql) => sql.includes('COLUMN_NAME IS NULL'))).toHaveLength(1);
+  });
+
+  it('asks no expressions of a database whose indexes are all over columns', async () => {
+    const exec = routed({
+      tables: oneTable,
+      columns: twoColumns,
+      statistics: [{ table_name: 't', index_name: 'a', non_unique: 0, seq_in_index: 1, column_name: 'a', index_type: 'BTREE' }],
+      indexExpressions: new Error('no EXPRESSION column on this server'),
+    });
+    const model = await introspectMysql(exec, CTX);
+    expect(model.tables[0]!.uniques).toEqual([{ name: 'a', columns: ['a'] }]);
+    expect(exec.calls.some((sql) => sql.includes('COLUMN_NAME IS NULL'))).toBe(false);
+    expect(model.warnings.map((w) => w.code)).not.toContain('index-expressions-unavailable');
+  });
+
+  it('keeps a functional index when its expressions cannot be read, and says so', async () => {
+    const exec = routed({
+      tables: oneTable,
+      columns: twoColumns,
+      statistics: [{ table_name: 't', index_name: 'a_lower', non_unique: 0, seq_in_index: 1, column_name: null, index_type: 'BTREE' }],
+      indexExpressions: new Error('no EXPRESSION column on this server'),
+    });
+    const model = await introspectMysql(exec, CTX);
+    expect(model.tables[0]!.indexes[0]).toMatchObject({ name: 'a_lower', columns: [], unique: true });
+    expect(model.tables[0]!.indexes[0]!.expression).not.toBeNull();
+    expect(model.tables[0]!.uniques).toEqual([]);
+    expect(model.warnings.map((w) => w.code)).toContain('index-expressions-unavailable');
   });
 
   it('degrades a statistics row with no index name', async () => {

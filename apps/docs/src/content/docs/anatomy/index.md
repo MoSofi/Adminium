@@ -363,15 +363,19 @@ you ask it to.
 ### Introspect
 
 Each adapter issues a **fixed** number of catalog statements that does not grow
-with your table count — 7 for Postgres, 6 for MySQL, a set of pragma joins for
+with your table count — 7 for Postgres, 6 for MySQL (a 7th only when the
+database keeps an index over an expression), a set of pragma joins for
 SQLite — under a total time budget (30 s by default), and assembles the same
 normalized `DatabaseModel`.
 
 The dialects genuinely differ in what they can see. Postgres alone reports
 multiple schemas, materialized views, comments, row-level security, write
 activity, table size, partial and expression indexes, native enums, domains and
-array columns. MySQL reports none of those and always marks its row estimates
-*approximate*. SQLite has no native enum type at all, so enums are synthesized
+array columns. MySQL reports none of those but its expression indexes
+(`((lower(email)))`, MySQL 8.0.13 and later), and always marks its row estimates
+*approximate*. An index over an expression, on either, is read with its
+expression and is never taken for a set of columns kept unique: a unique index
+over `lower(email)` does not make `email` unique. SQLite has no native enum type at all, so enums are synthesized
 by hand-parsing `CHECK (col IN ('a','b'))` out of the stored DDL. Each
 degradation is recorded as a typed warning code rather than silently dropped.
 

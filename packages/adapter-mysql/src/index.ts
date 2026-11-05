@@ -367,6 +367,7 @@ export {
   columnsSql,
   detectServerFlavor,
   foreignKeysSql,
+  indexExpressionsSql,
   GRANTS_SQL,
   interpretGrants,
   interpretProbe,

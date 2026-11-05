@@ -208,6 +208,23 @@ WHERE TABLE_SCHEMA = ${quoteLiteral(schema)}
 ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`;
 }
 
+/**
+ * The expressions of the functional key parts (MySQL 8.0.13+: `((lower(email)))`).
+ * Asked only when the statistics hold a key part with no column, which no
+ * server without such parts writes, so a server without the column is never
+ * asked for it.
+ */
+export function indexExpressionsSql(schema: string): string {
+  return `
+SELECT TABLE_NAME AS table_name,
+       INDEX_NAME AS index_name,
+       SEQ_IN_INDEX AS seq_in_index,
+       EXPRESSION AS expression
+FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA = ${quoteLiteral(schema)} AND COLUMN_NAME IS NULL
+ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`;
+}
+
 export function foreignKeysSql(schema: string): string {
   return `
 SELECT k.TABLE_NAME AS table_name,
@@ -595,6 +612,8 @@ export async function introspectMysql(
     unique: boolean;
     method: string | null;
     columns: { seq: number; name: string }[];
+    /** The key parts over an expression rather than a column, by their place in the index. */
+    expressions: { seq: number; text: string | null }[];
   }
   const indexAccumulators = new Map<string, IndexAccumulator>();
   for (const row of statisticRows) {
@@ -609,27 +628,59 @@ export async function introspectMysql(
         unique: num(row['non_unique']) === 0,
         method: str(row['index_type'])?.toLowerCase() ?? null,
         columns: [],
+        expressions: [],
       };
       indexAccumulators.set(key, acc);
     }
     const columnName = str(row['column_name']);
     if (columnName !== null) {
       acc.columns.push({ seq: num(row['seq_in_index']) ?? 0, name: columnName });
+    } else {
+      // A functional key part (`((lower(email)))`): no column, an expression instead.
+      acc.expressions.push({ seq: num(row['seq_in_index']) ?? 0, text: null });
+    }
+  }
+  // The functional key parts' own text, read only when there are any (never on a server that has none).
+  if ([...indexAccumulators.values()].some((acc) => acc.expressions.length > 0)) {
+    try {
+      for (const row of await guarded(indexExpressionsSql(schema))) {
+        const acc = indexAccumulators.get(`${str(row['table_name']) ?? ''}\x00${str(row['index_name']) ?? ''}`);
+        const part = acc?.expressions.find((one) => one.seq === (num(row['seq_in_index']) ?? 0));
+        if (part !== undefined) part.text = str(row['expression']);
+      }
+    } catch (error) {
+      if (error instanceof AdapterError && error.code === 'TIMEOUT') throw error;
+      warnings.push({ code: 'index-expressions-unavailable', message: 'the expressions of functional index key parts could not be read: such an index is kept, named without them', tableId: null });
     }
   }
   for (const [key, acc] of indexAccumulators) {
     const indexName = key.split('\x00')[1] ?? '';
     const columns = acc.columns.sort((a, b) => a.seq - b.seq).map((c) => c.name);
     const primary = indexName === 'PRIMARY';
+    /*
+     * An index with a key part over an expression keeps it, as Postgres's
+     * does: its plain columns, and the expressions beside them. It is no set
+     * of columns kept unique (a unique over `lower(email)` does not make
+     * `email` unique, and one with no column at all would read as a unique
+     * set of nothing), so it is never listed as one, nor marks a column unique.
+     */
+    const expression =
+      acc.expressions.length === 0
+        ? null
+        : acc.expressions
+            .sort((a, b) => a.seq - b.seq)
+            .map((part) => part.text ?? '(expression)')
+            .join(', ');
     acc.table.indexes.push({
       name: indexName,
       columns,
-      expression: null, // functional index expressions are not surfaced in v1
+      expression,
       unique: acc.unique,
       primary,
       method: acc.method,
       partial: false,
     });
+    if (expression !== null) continue;
     if (primary) {
       acc.table.primaryKey = columns;
       for (const column of acc.table.columns) {
