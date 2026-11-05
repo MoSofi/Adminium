@@ -30,6 +30,7 @@ import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { SnapshotView } from '../../crud/identifiers.js';
 import { resolveLookups } from '../../crud/lookups.js';
+import { staffInstants } from '../../crud/instants.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { Row } from '../../crud/mask.js';
 import { rowTestTables, type RowTest } from '../../crud/row-limit.js';
@@ -325,7 +326,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
           : staffGroupLabels({ meta, keys: [...rows, ...(priorRows ?? [])].map((row) => row[alias]), named: namesPeople(request), unnamed: await unnamedWord(request) });
       const groupNames = descriptor.groupLabel === undefined ? await staffLabels(0, compiled.groupAlias) : undefined;
       const colLabels = await staffLabels(1, compiled.colAlias);
-      const plain = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId, groupLabels: groupLabels ?? groupNames, colLabels });
+      const plain = asInstants(shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId, groupLabels: groupLabels ?? groupNames, colLabels }), compiled.table, dialect);
       // A chart's figures that are money, by alias: its table writes them in the currency.
       const money = plain.shape === 'categorical' || plain.shape === 'timeseries' ? moneyFiguresOf(descriptor.aggregations, compiled.table) : [];
       const listed = money.length === 0 ? plain : { ...plain, money };
@@ -479,4 +480,28 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       },
     );
   };
+}
+
+/**
+ * The rows a widget is handed whole (a list, one record, a live list's first
+ * rows), each SQLite time as the instant it names: what the data routes hand
+ * the same reader for the same row, and what a live list's later rows carry
+ * (`stream-publisher.ts`). SQLite keeps this server's wall clock in a
+ * `timestamp`; sent as it is, a reader in another zone than the server's read
+ * it as their own wall clock, and a list showed a row an hour off the grid.
+ * Postgres and MySQL already answer with instants.
+ */
+function asInstants(payload: ShapedPayload, table: Parameters<typeof staffInstants>[1], dialect: string): ShapedPayload {
+  if (dialect !== 'sqlite') return payload;
+  const read = (row: Row): Row => staffInstants(row, table, 'sqlite');
+  switch (payload.shape) {
+    case 'record-list':
+      return { ...payload, rows: payload.rows.map(read) };
+    case 'record':
+      return { ...payload, row: payload.row === null ? null : read(payload.row) };
+    case 'stream':
+      return { ...payload, snapshot: payload.snapshot.map(read) };
+    default:
+      return payload;
+  }
 }
