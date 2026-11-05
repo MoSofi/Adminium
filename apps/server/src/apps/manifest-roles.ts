@@ -193,7 +193,19 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
     if (role.cloneFrom !== undefined && !roles.some((other) => other.key === role.cloneFrom && other !== role)) {
       refuse(`it clones "${role.cloneFrom}", which is not another of this app's roles`);
     }
-    for (const grant of role.permissions ?? []) {
+    const own = new Set(role.permissions ?? []);
+    for (const grant of grantsOf(role, roles)) {
+      /*
+       * A grant this role takes from the role it clones is judged where it is
+       * written; only what turns on THIS role is asked again, or a clone would
+       * be a way round it (a screens-only clone of the owner, erasing people).
+       */
+      if (!own.has(grant)) {
+        if (PRIVACY_PEOPLE.test(grant) && (manifest as Manifest).kind !== 'add-on' && role.screensOnly === true) {
+          refuse(`it clones "${role.cloneFrom ?? ''}", whose "${grant}" is used on the dashboard's privacy page, which a screens-only role never opens: give it to a role that opens the dashboard`);
+        }
+        continue;
+      }
       if (grant.startsWith('system:')) {
         refuse(`"${grant}" gives a console permission, which an app cannot`);
         continue;
@@ -300,6 +312,24 @@ export function privacyGrantsOf(manifest: Manifest): { role: string; roleName: s
   if (!ownsBlocks(manifest) || manifest.kind !== 'app') return [];
   const roles = manifest.roles ?? [];
   return roles.flatMap((role) => (grantsOf(role, roles).some((grant) => PRIVACY_PEOPLE.test(grant)) ? [{ role: roleSlugFor(manifest.key, role.key), roleName: role.name }] : []));
+}
+
+/**
+ * What a new version's roles are given that the running version's were not,
+ * by role: the add-on settings (`addOn:<key>:settings`) and finding and
+ * erasing people's data (`privacy:@:people`). An update gives them only when
+ * the operator allows it, as it does more of an add-on's tables; a new role
+ * that wants one counts too. Nothing is said for a first install, whose check
+ * lists every grant.
+ */
+export function grantsAdded(running: Manifest | null, next: Manifest): { addOnGrants: ReturnType<typeof addOnGrantsOf>; privacyGrants: ReturnType<typeof privacyGrantsOf> } {
+  if (running === null) return { addOnGrants: [], privacyGrants: [] };
+  const had = new Set(addOnGrantsOf(running).map((grant) => `${grant.role}\u0000${grant.addOn}`));
+  const erased = new Set(privacyGrantsOf(running).map((grant) => grant.role));
+  return {
+    addOnGrants: addOnGrantsOf(next).filter((grant) => !had.has(`${grant.role}\u0000${grant.addOn}`)),
+    privacyGrants: privacyGrantsOf(next).filter((grant) => !erased.has(grant.role)),
+  };
 }
 
 export interface RolesResult {

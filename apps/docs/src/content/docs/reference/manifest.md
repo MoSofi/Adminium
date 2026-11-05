@@ -3395,6 +3395,13 @@ grant it is given once: an owner who takes it away keeps it away.
 { "key": "owner", "name": "Owner", "permissions": ["table:@customers:read", "privacy:@:people"] }
 ```
 
+A new version that gives `privacy:@:people` or an add-on's settings (`addOn:<add-on key>:settings`)
+to a role whose running version did not have it — a new role too — is updated only when whoever
+updates allows it: the update's check marks each such grant (`added`), the dashboard's update
+dialog shows it, and an update sent without `"roleGrants": true` is refused (422
+`ROLE_GRANTS_ADDED`) before anything moves. A `screensOnly` role that clones (`cloneFrom`) a role
+holding `privacy:@:people` is refused as if it named it. From Adminium 0.3.47.
+
 An add-on's page or panel is given as the role's [`tables`](#a-role-on-an-add-ons-tables)
 are: while that add-on is installed in the same database, attached to the app and switched on.
 It is taken back when that stops, and given again when the add-on is back. An owner who takes

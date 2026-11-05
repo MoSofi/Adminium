@@ -423,14 +423,32 @@ export const appInstallPlanDto = z.object({
    * shared by every app the add-on serves. Absent when none.
    */
   addOnGrants: z
-    .array(z.object({ role: z.string(), roleName: z.string(), addOn: z.string(), grant: z.literal('settings') }))
+    .array(
+      z.object({
+        role: z.string(),
+        roleName: z.string(),
+        addOn: z.string(),
+        grant: z.literal('settings'),
+        /** An update's check: the running version's role was not given it. The update gives it only with `"roleGrants": true`. */
+        added: z.literal(true).optional(),
+      }),
+    )
     .optional(),
   /**
    * The roles that would find, download and erase a person's data
    * (`privacy:@:people`): everything the workspace keeps about one address,
    * past every role's limits. Shown on the check step. Absent when none.
    */
-  privacyGrants: z.array(z.object({ role: z.string(), roleName: z.string() })).optional(),
+  privacyGrants: z
+    .array(
+      z.object({
+        role: z.string(),
+        roleName: z.string(),
+        /** An update's check: the running version's role was not given it. The update gives it only with `"roleGrants": true`. */
+        added: z.literal(true).optional(),
+      }),
+    )
+    .optional(),
   /**
    * What each role of the app would hold of the tables of the add-ons it
    * names (`roles[].tables`), for the check step to show: written when that
@@ -971,6 +989,14 @@ export const updateAppBody = z
      * `ROLE_TABLES_WIDER`) before anything moves.
      */
     roleTables: z.boolean().optional(),
+    /**
+     * The check's say on the grants the new version's roles are given that
+     * the running version's were not (`privacyGrants[].added`,
+     * `addOnGrants[].added`): finding and erasing people's data, or an
+     * add-on's shared settings. Only `true` allows them; without it such an
+     * update is refused (422 `ROLE_GRANTS_ADDED`) before anything moves.
+     */
+    roleGrants: z.boolean().optional(),
   })
   // A POST with no body at all arrives as null.
   .nullish();

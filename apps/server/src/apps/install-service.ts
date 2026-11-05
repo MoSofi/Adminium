@@ -123,6 +123,7 @@ import { formIssues, layoutQueryProblems, layoutTables } from './manifest-page-c
 import {
   addOnGrantsOf,
   privacyGrantsOf,
+  grantsAdded,
   addOnPageGrantIssues,
   roleIssues,
   roleSlugFor,
@@ -1040,6 +1041,11 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     }
     const nameOf = (key: string) => appNames.get(key) ?? key;
     const roleTables = await roleTablesForCheck(manifest, addOnRows);
+    // For an app already installed: which of these grants its running version's roles were not given (`added`), which an update asks about.
+    const runningApp = manifest.kind === 'app' ? (await manifests.list('app')).find((m) => m.row.manifestKey === manifest.key) : undefined;
+    const added = grantsAdded((runningApp?.document as Manifest | null | undefined) ?? null, manifest);
+    const isAdded = (role: string, addOn?: string) =>
+      addOn === undefined ? added.privacyGrants.some((grant) => grant.role === role) : added.addOnGrants.some((grant) => grant.role === role && grant.addOn === addOn);
     return {
       plan,
       shapeRecords: shapes === null ? new Map() : shapeRecordsFor(manifest, shapes),
@@ -1099,9 +1105,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         sampleData: manifest.kind === 'app' && manifest.sampleData !== undefined,
         // Whether this install asks if maps are shown: the app shows maps, and nobody has answered for this install yet.
         ...(manifest.kind === 'app' && manifest.maps === true && (await settingsRepo(deps.meta).get('maps.enabled')) === null ? { maps: true } : {}),
-        ...(addOnGrantsOf(manifest).length === 0 ? {} : { addOnGrants: addOnGrantsOf(manifest) }),
+        ...(addOnGrantsOf(manifest).length === 0 ? {} : { addOnGrants: addOnGrantsOf(manifest).map((grant) => (isAdded(grant.role, grant.addOn) ? { ...grant, added: true as const } : grant)) }),
         // The roles that would find, download and erase anybody the workspace keeps: said before anyone agrees.
-        ...(privacyGrantsOf(manifest).length === 0 ? {} : { privacyGrants: privacyGrantsOf(manifest) }),
+        ...(privacyGrantsOf(manifest).length === 0 ? {} : { privacyGrants: privacyGrantsOf(manifest).map((grant) => (isAdded(grant.role) ? { ...grant, added: true as const } : grant)) }),
         // What each role would hold of the tables of the add-ons the app names, once each is there for it: with the columns, cut to the add-on's words.
         ...(roleTables.length === 0 ? {} : { roleTables }),
         pageWarnings:
@@ -2943,6 +2949,27 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         `"${key}" ${to} lets its roles do more with an add-on's tables than ${from} did: ${said.join('; ')}. ` +
           'Check the update and allow it ("roleTables": true), or keep the running version.',
         { reason: 'ROLE_TABLES_WIDER', roleTables: wider.map((entry) => ({ ...(entry.app === undefined ? {} : { app: entry.app, appName: entry.appName }), role: entry.role, roleName: entry.roleName, addOn: entry.addOn, table: entry.table, wider: entry.wider! })) },
+      );
+    }
+
+    /*
+     * WHAT THE NEW VERSION'S ROLES ARE GIVEN THAT THE RUNNING ONE'S WERE NOT:
+     * finding and erasing anybody the workspace keeps (`privacy:@:people`),
+     * or an add-on's settings that every app it serves shares. Each is given
+     * once, so an update would hand it over unasked: said on the check and
+     * given only when the operator allows it (`roleGrants: true`). Refused
+     * before anything moves.
+     */
+    const newGrants = grantsAdded(installed.document as Manifest | null, manifest);
+    if ((newGrants.privacyGrants.length > 0 || newGrants.addOnGrants.length > 0) && input.body?.roleGrants !== true) {
+      const said = [
+        ...newGrants.privacyGrants.map((grant) => `"${grant.roleName}" may find, download and erase people's data`),
+        ...newGrants.addOnGrants.map((grant) => `"${grant.roleName}" may change the settings of the add-on "${grant.addOn}"`),
+      ];
+      throw new ValidationFailedError(
+        `"${key}" ${to} gives its roles more than ${from} did: ${said.join('; ')}. ` +
+          'Check the update and allow it ("roleGrants": true), or keep the running version.',
+        { reason: 'ROLE_GRANTS_ADDED', privacyGrants: newGrants.privacyGrants, addOnGrants: newGrants.addOnGrants },
       );
     }
 
