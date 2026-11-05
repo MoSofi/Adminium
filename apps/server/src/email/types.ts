@@ -169,4 +169,5 @@ export interface EmailSendAttachmentRef {
 /** An inline image the HTML references by `cid:` — a shipped mark, or a library file (the logo, a Files image). */
 export type EmailSendInlineRef =
   | { cid: string; kind: 'mark'; mark: string }
-  | { cid: string; kind: 'file'; fileId: string };
+  /** `maxBytes`: a picture from a row's file column, weighed again before it is attached. */
+  | { cid: string; kind: 'file'; fileId: string; maxBytes?: number | undefined };

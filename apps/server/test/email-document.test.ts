@@ -27,6 +27,7 @@ import {
   type EmailDocument,
   type EmailDocumentInput,
 } from '../src/email/document.js';
+import { fileIdsOf } from '../src/email/file-reach.js';
 import { EMAIL_BLOCK_KINDS, renderEmail } from '../src/email/render.js';
 import {
   EMAIL_STARTER_KEYS,
@@ -134,6 +135,18 @@ describe('normalizeDocument / validateDocument', () => {
     expect(() =>
       validateDocument(doc({ blocks: [{ id: 'i', block: 'email.image', data: { url: 'http://x.test/a.png' }, style: {} }] }), ctx()),
     ).toThrowError(expect.objectContaining({ details: expect.objectContaining({ code: 'IMAGE_URL_NOT_HTTPS' }) }));
+    // A picture from a row's file column: one whole placeholder naming a row and a column; anything else is refused.
+    const image = (fileId: string) => doc({ blocks: [{ id: 'p', block: 'email.image', data: { fileId, required: true }, style: {} }] });
+    validateDocument(image('{{job.photo}}'), ctx());
+    validateDocument(image('{{ order.job.photo }}'), ctx());
+    for (const bad of ['see {{job.photo}}', '{{job.photo|none}}', '{{row.photo}}', '{{photo}}', 'x'.repeat(37)]) {
+      expect(() => validateDocument(image(bad), ctx()), bad).toThrowError(expect.objectContaining({ details: expect.objectContaining({ code: 'IMAGE_FILE_PLACEHOLDER' }) }));
+    }
+    expect(() =>
+      validateDocument(doc({ blocks: [{ id: 'p', block: 'email.image', data: { fileId: '{{job.photo}}', required: 'yes' }, style: {} }] }), ctx()),
+    ).toThrowError(expect.objectContaining({ details: expect.objectContaining({ code: 'BLOCK_DATA_INVALID' }) }));
+    // It names no file of its own: never asked whether its author may send one.
+    expect(fileIdsOf(image('{{job.photo}}'))).toEqual([]);
     expect(() =>
       validateDocument(doc({ blocks: [{ id: 'l', block: 'email.list', data: { items: 'not a list' }, style: {} }] }), ctx()),
     ).toThrowError(expect.objectContaining({ details: expect.objectContaining({ code: 'BLOCK_DATA_INVALID', index: 0 }) }));

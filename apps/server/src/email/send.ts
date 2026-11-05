@@ -54,6 +54,7 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 import { dirForLocale, isLocaleId } from '@adminium/i18n';
+import { namesAPlaceholder } from '@adminium/manifest';
 
 import { deriveKey, encryptSecret } from '../config/secrets.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
@@ -295,6 +296,12 @@ export interface EnqueueEmailInput {
   template?: EmailRenderSource | undefined;
   /** Library files this one message carries besides the template's own (a drawn document). */
   attachments?: readonly EmailSendAttachmentRef[] | undefined;
+  /**
+   * The pictures from rows' file columns this message shows, by file id, each
+   * checked by the caller against the row it is on (`outbox/row-pictures.ts`).
+   * An image block naming one by its placeholder shows it; any other is left out.
+   */
+  pictures?: ReadonlySet<string> | undefined;
   /** Where a reply goes (`Reply-To`); anything but one plain address is left out. */
   replyTo?: string | undefined;
   /**
@@ -485,7 +492,8 @@ export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource): Promis
     if (block['block'] !== 'email.image') continue;
     const data = block['data'];
     const fileId = typeof data === 'object' && data !== null ? (data as Record<string, unknown>)['fileId'] : undefined;
-    if (typeof fileId !== 'string' || fileId === '') continue;
+    // A picture from a row's file column is the sender's to check, for each message: never a library file.
+    if (typeof fileId !== 'string' || fileId === '' || namesAPlaceholder(fileId)) continue;
     const row = await files.findById(fileId);
     if (row !== null && row.deletedAt === null) imageFiles.add(fileId);
   }
@@ -561,7 +569,11 @@ export async function resolveGeneratedAttachments(
 /** The queue-side shape of the renderer's inline references: the mark and library files — never a QR code (see {@link qrRefs}). */
 export function inlineRefs(rendered: RenderedEmail): EmailSendInlineRef[] {
   return rendered.inline.flatMap((ref: EmailInlineRef): EmailSendInlineRef[] =>
-    ref.kind === 'mark' ? [{ cid: ref.cid, kind: 'mark', mark: ref.mark }] : ref.kind === 'file' ? [{ cid: ref.cid, kind: 'file', fileId: ref.fileId }] : [],
+    ref.kind === 'mark'
+      ? [{ cid: ref.cid, kind: 'mark', mark: ref.mark }]
+      : ref.kind === 'file'
+        ? [{ cid: ref.cid, kind: 'file', fileId: ref.fileId, ...(ref.maxBytes === undefined ? {} : { maxBytes: ref.maxBytes }) }]
+        : [],
   );
 }
 
@@ -728,6 +740,7 @@ export async function enqueueEmail(
     ...prepared.render,
     locale,
     vars,
+    ...(input.pictures === undefined ? {} : { pictures: input.pictures }),
     dir: isLocaleId(locale) ? dirForLocale(locale) : 'ltr',
     ...(input.rows === undefined ? {} : { rows: input.rows }),
     ...(input.marketing === undefined ? {} : { locked: input.marketing.locked }),

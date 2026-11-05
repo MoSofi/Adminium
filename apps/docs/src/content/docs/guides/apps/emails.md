@@ -338,6 +338,7 @@ Then the row's status changes, with a sentence in its error column:
 | `failed` | Email is not set up on this server | Set up email, then queue the row again. |
 | `failed` | Not sent: the email lists rows from a table or link that is not there | A list's table, link or column is gone, for example renamed. See [Emails that list rows](#emails-that-list-rows). |
 | `failed` | Not sent: {{…}} holds more than a QR code carries (64 bytes) | A code drawn as a QR code is longer than one carries. See [QR codes](#qr-codes). |
+| `failed` | Not sent: the picture {{…}} *reason* | A `required` picture from a row could not be shown: no file in the column, another row's file, one in the bin, no picture, larger than 2 MB, or not shown to this reader. See [Pictures from a row](#pictures-from-a-row). |
 | `failed` | Not sent: the values before the change are more than the outbox keeps | See [Messages about changes](#messages-about-changes). |
 | `failed` | The email could not be prepared | Something else went wrong; the server log says what. |
 | `failed` | Not delivered: *reason* | The mail server refused it for good, after its retries. |
@@ -654,6 +655,36 @@ empty draws no image.
 A code is a door credential. Its text stays inside the sealed message while it waits in the mail
 queue, never in the job's plain payload, and the rules for [codes](#variables) hold for a QR code as
 for any other value: one that opens a shared link goes only to the person it belongs to.
+
+### Pictures from a row
+
+An image may show the picture a row keeps in a [file column](/reference/manifest/#files-in-a-column):
+a repair's photo in the message about the repair. Its `fileId` is the column, as one placeholder
+and nothing else, for a row the message reads through one of the outbox's links (or a row one of
+them points at):
+
+```json
+{ "block": "email.image", "data": { "fileId": "{{job.photo}}", "alt": "Your repair" } }
+```
+
+The column is a `text` column with a `file` rule that takes pictures (`png`, `jpeg`, `gif` or
+`webp`), holding one file. It is never a secret, personal or withheld column: those are refused
+when the app is installed, as is a row the message does not read, a row of a list
+(`{{row.photo}}`), and a placeholder beside other text or with a backup.
+
+Each message checks its picture against the row it reads it through before it is queued. The file
+must be an upload that row has claimed (not one waiting to be saved, not another row's, whatever
+id the column holds), not in the bin, a png, jpeg, gif or webp, and at most **2 MB**. Only a
+picture that passes travels with the message, as an image inside it (`cid:`), the way a picture
+from Files does, and it is weighed again when the message is delivered: one grown past 2 MB since
+is not sent.
+
+A picture that does not pass is left out, and the message goes without it. With
+`"required": true` the message is not sent instead, and says why: "Not sent: the picture
+{{job.photo}} is not a file of this row" ("holds no picture", "is a file that is gone", "is not a
+picture (png, jpeg, gif or webp)", "is larger than 2 MB", "is not shown to this reader"). A
+message about no row at all fails as for any value: "Not sent: nothing fills {{job.photo}}".
+Needs Adminium 0.3.45.
 
 ## Links
 

@@ -59,7 +59,7 @@
  */
 
 import { tagFromLocaleId } from '@adminium/i18n';
-import { blocksShownFor, fillPlaceholders } from '@adminium/manifest';
+import { blocksShownFor, fillPlaceholders, ROW_PICTURE_MAX_BYTES, rowPictureName } from '@adminium/manifest';
 import type { EmailBlockStyle, EmailBrand } from '@adminium/meta';
 
 /**
@@ -70,7 +70,8 @@ import type { EmailBlockStyle, EmailBrand } from '@adminium/meta';
  */
 export type EmailInlineRef =
   | { cid: string; kind: 'mark'; mark: string }
-  | { cid: string; kind: 'file'; fileId: string }
+  /** `maxBytes`: a picture from a row's file column, weighed again at delivery. */
+  | { cid: string; kind: 'file'; fileId: string; maxBytes?: number | undefined }
   /**
    * A QR code of a code (a ticket's), drawn as a PNG at delivery. Its text is
    * a door credential: it travels in the sealed envelope, never in the job's
@@ -340,6 +341,8 @@ interface RenderCtx {
   accent: string;
   /** The Files images delivery can attach by CID, by file id. */
   imageFiles: ReadonlySet<string>;
+  /** The pictures from rows' file columns the sender checked for this message, by file id. */
+  pictures: ReadonlySet<string>;
   /** References this render emitted — filled as blocks render. */
   used: EmailInlineRef[];
   /** The rows each `email.rows` block lists, by the block's id: each row's variables. */
@@ -506,8 +509,15 @@ function renderImage(data: Record<string, unknown>, ctx: RenderCtx): BlockOut | 
   const alt = strOr(data['alt']);
   const fileId = typeof data['fileId'] === 'string' ? data['fileId'] : '';
   const url = strOr(data['url']).trim();
+  // A picture from a row's file column (`{{job.photo}}`): the file the row holds, only when the sender checked it for this message.
+  const picture = rowPictureName(fileId);
+  const held = picture === null ? undefined : ctx.vars[picture];
   let src: string | null = null;
-  if (fileId !== '' && ctx.imageFiles.has(fileId)) {
+  if (held !== undefined && held !== '' && ctx.pictures.has(held)) {
+    const cid = imageCid(held);
+    if (!ctx.used.some((ref) => ref.cid === cid)) ctx.used.push({ cid, kind: 'file', fileId: held, maxBytes: ROW_PICTURE_MAX_BYTES });
+    src = `cid:${cid}`;
+  } else if (picture === null && fileId !== '' && ctx.imageFiles.has(fileId)) {
     const cid = imageCid(fileId);
     ctx.used.push({ cid, kind: 'file', fileId });
     src = `cid:${cid}`;
@@ -1066,6 +1076,12 @@ export interface RenderEmailInput {
    * other id falls back to its URL. */
   imageFiles?: ReadonlySet<string> | undefined;
   /**
+   * The pictures from rows' file columns (`fileId: "{{job.photo}}"`) the
+   * sender checked for this message: the file a row's column holds is shown
+   * only when it is here. Absent: no such picture is shown.
+   */
+  pictures?: ReadonlySet<string> | undefined;
+  /**
    * The rows each `email.rows` block lists, by the block's id, as the sender
    * read them: each row's `{{row.*}}` variables. Absent (a campaign, a test
    * send, a preview): every such block says its `empty`, or is left out.
@@ -1135,6 +1151,7 @@ export function renderEmail(input: RenderEmailInput): RenderedEmail {
     align: input.dir === 'rtl' ? 'right' : 'left',
     accent,
     imageFiles: input.imageFiles ?? new Set(),
+    pictures: input.pictures ?? new Set(),
     used: [],
     rows: input.rows,
     qr: new Map(),

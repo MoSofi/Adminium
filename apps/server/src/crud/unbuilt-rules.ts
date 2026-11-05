@@ -347,6 +347,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'agrees.length',
   // A person's copy one or two links further into an add-on, erased with its files (privacy/copy-rows.ts, privacy/erase.ts).
   'people.addOnCopyFrom',
+  // A picture from a row's file column in an email, checked and carried at the send (outbox/row-pictures.ts).
+  'email.rowPicture',
 ];
 
 export interface UnbuiltWord {

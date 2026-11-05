@@ -26,7 +26,7 @@
  * holds the canvas and the renderer together reads it there.
  */
 
-import { OTHERWISE_BLOCKS, otherwiseOf, showWhenOf } from '@adminium/manifest';
+import { namesAPlaceholder, OTHERWISE_BLOCKS, otherwiseOf, rowPictureName, showWhenOf } from '@adminium/manifest';
 import { z } from 'zod';
 import {
   emailAttachmentsSchema,
@@ -186,7 +186,10 @@ export const EMAIL_BLOCK_DATA_SCHEMAS: Readonly<Record<EmailBlockKind, z.ZodType
   'email.image': loose.extend({
     alt: short.optional(),
     url: z.string().max(2000).optional(),
-    fileId: z.string().max(36).nullable().optional(),
+    /** A library file's id, or a picture from a row's file column: `{{job.photo}}`, the whole value (checked below). */
+    fileId: z.string().max(120).nullable().optional(),
+    /** A picture from a row that cannot be shown stops the message rather than leaving the picture out. */
+    required: z.boolean().optional(),
     height: num.optional(),
     /** A QR code of a code, as the whole value: `{{ticket.code.qr}}`. */
     qr: z.string().max(120).optional(),
@@ -300,6 +303,19 @@ export function validateDocument(doc: EmailDocument, ctx: ValidateDocumentContex
       });
     }
     if (block.block === 'email.image') {
+      const fileId = block.data['fileId'];
+      if (typeof fileId === 'string' && fileId !== '') {
+        // Either a library file's own id, or a picture from a row's file column written as one whole placeholder.
+        const name = rowPictureName(fileId);
+        const placeholder = namesAPlaceholder(fileId);
+        if ((placeholder && (name === null || name.startsWith('row.') || !name.includes('.'))) || (!placeholder && fileId.length > 36)) {
+          throw new ValidationFailedError('A picture from a row is written {{<link>.<file column>}}, as the whole value.', {
+            code: 'IMAGE_FILE_PLACEHOLDER',
+            index,
+            fileId,
+          });
+        }
+      }
       const url = typeof block.data['url'] === 'string' ? block.data['url'].trim() : '';
       if (url !== '' && !/^https:\/\//i.test(url)) {
         throw new ValidationFailedError('Image URLs must use https.', {

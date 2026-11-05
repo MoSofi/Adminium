@@ -62,7 +62,13 @@ export const emailSendAttachmentRefSchema: z.ZodType<EmailSendAttachmentRef> = z
 /** An inline image the HTML references by `cid:` — a shipped mark, or a library file (the logo, a Files image). */
 export const emailSendInlineRefSchema: z.ZodType<EmailSendInlineRef> = z.discriminatedUnion('kind', [
   z.object({ cid: z.string().min(1).max(80), kind: z.literal('mark'), mark: z.string().min(1).max(20) }),
-  z.object({ cid: z.string().min(1).max(80), kind: z.literal('file'), fileId: z.string().min(1).max(36) }),
+  z.object({
+    cid: z.string().min(1).max(80),
+    kind: z.literal('file'),
+    fileId: z.string().min(1).max(36),
+    /** A picture from a row's file column: the most it may weigh, asked again of the file as it is now. */
+    maxBytes: z.number().int().positive().optional(),
+  }),
 ]);
 export type { EmailSendAttachmentRef, EmailSendInlineRef };
 
@@ -186,16 +192,22 @@ async function readLibraryFile(
   deps: EmailSendHandlerDeps,
   fileId: string,
   filename: string,
+  /** The most the file may weigh (a picture from a row's file column), asked of the file as it is now and of its bytes. */
+  maxBytes?: number,
 ): Promise<{ content: Buffer; contentType: string; filename: string }> {
   const row = await filesRepo(deps.meta).findById(fileId);
   if (row === null || row.deletedAt !== null) {
     throw new Error(`attachment "${filename}" (${fileId}) is missing or in the trash — cannot deliver this message`);
   }
+  const tooBig = () => new Error(`picture "${filename}" (${fileId}) is larger than ${String(maxBytes)} bytes — cannot deliver this message`);
+  if (maxBytes !== undefined && row.sizeBytes > maxBytes) throw tooBig();
   if (deps.storage === undefined) {
     throw new Error(`attachment "${filename}" (${fileId}) cannot be read: no file store is wired to the email runner`);
   }
   const opened = await deps.storage.open({ destinationId: row.destinationId, storageKey: row.storageKey });
-  return { content: await readAll(opened.stream), contentType: row.mime, filename: row.filename };
+  const content = await readAll(opened.stream);
+  if (maxBytes !== undefined && content.length > maxBytes) throw tooBig();
+  return { content, contentType: row.mime, filename: row.filename };
 }
 
 /**
@@ -216,7 +228,7 @@ export async function resolveEmailParts(
       const mark = await loadMarkBytes(ref.mark);
       parts.push({ filename: mark.filename, content: mark.content, contentType: mark.contentType, cid: ref.cid });
     } else {
-      const file = await readLibraryFile(deps, ref.fileId, ref.cid);
+      const file = await readLibraryFile(deps, ref.fileId, ref.cid, ref.maxBytes);
       parts.push({ filename: file.filename, content: file.content, contentType: file.contentType, cid: ref.cid });
     }
   }

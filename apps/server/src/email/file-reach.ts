@@ -15,6 +15,7 @@
  * Asked wherever a document comes in from outside: the editor's save, its
  * test send, and what the assistant drafts and sends.
  */
+import { namesAPlaceholder } from '@adminium/manifest';
 import { filesRepo, type MetaDb, type StoredFile } from '@adminium/meta';
 
 import { ValidationFailedError } from '../errors.js';
@@ -47,7 +48,8 @@ export function fileIdsOf(doc: { attachments?: EmailDocument['attachments'] | un
     if (block['block'] !== 'email.image') continue;
     const data = block['data'];
     const fileId = typeof data === 'object' && data !== null ? (data as Record<string, unknown>)['fileId'] : undefined;
-    if (typeof fileId === 'string' && fileId !== '') ids.add(fileId);
+    // A picture from a row's file column names no file of its own: the row's file is checked at each send.
+    if (typeof fileId === 'string' && fileId !== '' && !namesAPlaceholder(fileId)) ids.add(fileId);
   }
   return [...ids];
 }

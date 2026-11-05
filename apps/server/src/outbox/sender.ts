@@ -152,6 +152,7 @@ import { resolveColumnOptions, resolveEnumLabels, type EffectiveColumn } from '.
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { slotInstant } from '../crud/capacity-guard.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
+import { rowPictures, type ReadRow } from './row-pictures.js';
 import type { Row } from '../crud/mask.js';
 import type { RecordWriteService, UpdateRecordInput } from '../crud/write-service.js';
 import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
@@ -609,6 +610,8 @@ type BlankOf = (table: ResolvedTable, record: Row) => Promise<ReadonlySet<string
 interface WrittenValues {
   vars: Record<string, string>;
   withheld: Set<string>;
+  /** Each row put, by the name the template reads it under: what a picture from a row's file column is checked against. */
+  read?: Map<string, ReadRow>;
   /** `<name>.name` of each staff column put, by the id it holds: named by {@link namePeople}. */
   people?: Map<string, string>;
 }
@@ -942,13 +945,17 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     addressed: Addressed | null,
     /** Whose codes the email may carry: the recipient, when it goes to their own address on file; else nobody's. */
     holder: CodeHolder | null,
-  ): Promise<{ vars: Record<string, string>; withheld: Set<string> }> {
+  ): Promise<{ vars: Record<string, string>; withheld: Set<string>; read: Map<string, ReadRow> }> {
     const { db, view } = ctx;
     const out: WrittenValues = { vars: {}, withheld: new Set<string>() };
     const { vars, withheld } = out;
+    const read = new Map<string, ReadRow>();
     const holders = holdersOf(box, view, holder);
-    const put = async (prefix: string, table: ResolvedTable, record: Row, settingsRow = false) =>
+    const put = async (prefix: string, table: ResolvedTable, record: Row, settingsRow = false) => {
+      // A row of the message's own, under its name: never the settings row, which is nobody's.
+      if (!settingsRow && !read.has(prefix)) read.set(prefix, { table, record });
       putValues(out, ctx, holders, prefix, table, record, settingsRow, settingsRow ? NOTHING_BLANK : await ctx.blankOf(table, record));
+    };
 
     const links = Object.entries(box.definition.links ?? {});
     const linked: { name: string; table: ResolvedTable; record: Row }[] = [];
@@ -1061,7 +1068,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     await namePeople(deps.meta, out);
     // A name a row of the recipient's own fills too (`client.share_token` beside a project's) is not held back.
     for (const name of withheld) if (Object.hasOwn(vars, name)) withheld.delete(name);
-    return { vars, withheld };
+    return { vars, withheld, read };
   }
 
   /**
@@ -1541,7 +1548,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const labels = ctx.labels?.(template.locale);
     const columnKey = await columnKeyOf(box, producer);
     const blankOf = heldElsewhere(box, ctx, to, addressed, columnKey);
-    const { vars, withheld } = await variables(box, { ...ctx, forms, labels, blankOf }, row, addressed, holder);
+    const { vars, withheld, read } = await variables(box, { ...ctx, forms, labels, blankOf }, row, addressed, holder);
     vars['signInLink'] = '';
     if (reads.has('signInLink')) {
       const minted = await signInLink(box, ctx, row, to, addressed, producer);
@@ -1588,6 +1595,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // A QR code draws so many bytes of text at most: a longer code is never queued (it could only fail later, after the row reads sent).
     const long = [...drawn].filter((name) => !name.startsWith('row.') && !fitsQr(vars[name]));
     if (long.length > 0) return { status: 'failed', error: qrTooLongSentence(long) };
+    // The pictures from rows' file columns, each checked against the row it is read through: only those go with the message.
+    const shownPictures = await rowPictures({ meta: deps.meta, connectionId: box.connectionId, view: ctx.view, blocks: sent.blocks, vars, withheld, rows: read });
+    if (shownPictures.refused !== null) return { status: 'failed', error: sentence(shownPictures.refused) };
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
     // A reply goes to the person the row's staff column names, when the producer says so and somebody who signs in is there;
     // else to the house's own address, when its settings name one that is an address.
@@ -1616,6 +1626,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         vars,
         template: shown,
         ...(Object.keys(rows).length === 0 ? {} : { rows }),
+        ...(shownPictures.pictures.size === 0 ? {} : { pictures: shownPictures.pictures }),
         ...(override.subject === undefined && override.body === undefined ? {} : { override }),
         // A marketing mail with no reply address of its own takes the marketing mail settings' one (the carry's).
         ...((carry?.replyTo ?? replyTo) === null ? {} : { replyTo: (carry?.replyTo ?? replyTo)! }),
