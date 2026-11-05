@@ -86,7 +86,7 @@ import { sql, type DeleteQueryBuilder, type DeleteResult, type Kysely, type Upda
 import type { Dialect } from '@adminium/engine';
 import type { TablePrivileges } from '@adminium/engine/adapter';
 
-import { isChangeEffect, rollupValue, type MoveEffect } from '@adminium/manifest';
+import { isChangeEffect, normalizedText, rollupValue, type MoveEffect } from '@adminium/manifest';
 
 import { AppError, ConflictError, ForbiddenError, ValidationFailedError, PostingRefusedError } from '../errors.js';
 import type { StateLink } from '../connections/effective-schema.js';
@@ -101,7 +101,6 @@ import { decideRow, hasStampsAfterFormulas, needsStored, stampFires, stampYields
 import { judgeChangeGuards } from './change-guards.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
 import { isLookupIssue, lookupIssue, reservedIssue, type LookupMiss } from './code-lookup.js';
-import { normalizedAs } from './normalize.js';
 import { isWriteConflict } from './db-errors.js';
 import {
   attachRequiredGuards,
@@ -2171,7 +2170,7 @@ export function normalizeText(rules: TableRules | null, values: Row): Row {
   for (const { column, how } of rules?.normalizes ?? []) {
     const value = values[column];
     if (typeof value !== 'string') continue;
-    const next = normalizedAs(how, value);
+    const next = normalizedText(how, value);
     if (next === value) continue;
     out ??= { ...values };
     out[column] = next;

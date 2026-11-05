@@ -943,6 +943,11 @@ that moves under it, and an update that fills it for the rows already there. A r
 before keeps its key until one of those works it out again. Needs Adminium 0.3.45; before it,
 only a join over a running number was kept so, and any other kept as it was worked out.
 
+An app that works its formulas out itself, in a demo with no server, keeps the same value by
+passing the column's rules to the evaluator: `evaluateFormula(expr, row, scale, formulaKeepOf(column))`
+from `@adminium/manifest` applies the `normalize` rule, then cuts a join to the column's length,
+as the server does. Needs `@adminium/manifest` 0.3.45.
+
 A join that reads personal data lands it only in a personal column. A guest's first and last
 names beside their email read as personal by their names, so the joined name needs
 `"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`

@@ -289,6 +289,7 @@ export {
   currencyScale,
   evaluateFormula,
   formulaColumns,
+  formulaKeepOf,
   formulaConditionSchema,
   formulaCycle,
   formulaExprSchema,
@@ -303,6 +304,7 @@ export {
   joinText,
   nightlyRates,
   NightlyRuleUnreadable,
+  normalizedText,
   PER_NIGHT_MAX,
   weekdaysOf,
   ratioText,
@@ -311,7 +313,9 @@ export {
   toRatio,
   type FormulaCondition,
   type FormulaExpr,
+  type FormulaKeep,
   type Night,
+  type NormalizeRule,
   type NightlyAdjustment,
 } from './formula.js';
 

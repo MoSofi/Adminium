@@ -32,6 +32,7 @@
  * through this link), on the typed column, as `used-up`.
  */
 import { refuseUngrantedColumns } from '../connections/privileges.js';
+import { normalizedText } from '@adminium/manifest';
 import type { CodeLookupWhere, ColumnLookupRule, EffectiveColumn, EffectiveTable } from '../connections/effective-schema.js';
 import type { SnapshotView } from './identifiers.js';
 import { readDay, readInstant } from './moments.js';
@@ -128,7 +129,7 @@ export function codeLookupsOf(view: Pick<SnapshotView, 'model'> | undefined, tab
 
 /** A code as codes are kept: upper case, with spaces and `-` gone. */
 export function canonicalCode(text: string): string {
-  return text.toUpperCase().replace(/[\s-]+/g, '');
+  return normalizedText('code', text);
 }
 
 /** A kept code read as Crockford reads one: O is 0, I and L are 1. */

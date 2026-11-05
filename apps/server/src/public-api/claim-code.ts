@@ -23,6 +23,8 @@
  */
 import { createHash, createHmac, hkdfSync, randomInt, timingSafeEqual } from 'node:crypto';
 
+import { normalizedText } from '@adminium/manifest';
+
 import { PLAIN_DOTTED } from '../email/plain-address.js';
 
 /** Digits in a code, and how long one lasts. */
@@ -90,7 +92,7 @@ export function codeMatches(key: Buffer, binding: string, typed: string, stored:
  * (`normalize: 'email'`), the sign-in lookup and the find-or-create.
  */
 export function normaliseAddress(address: string): string {
-  return address.trim().toLowerCase();
+  return normalizedText('email', address);
 }
 
 export function hashAddress(key: Buffer, address: string): string {
