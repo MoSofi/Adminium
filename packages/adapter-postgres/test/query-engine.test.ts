@@ -159,6 +159,19 @@ describe('createQueryEngine pool error contract', () => {
       expect(String(pools.at(0)!.options.options)).toContain(`-c TimeZone=${ZONE!}`);
     });
 
+    it.each(['-c TimeZone=UTC', '-c timezone=America/New_York -c search_path=reporting', '--TimeZone=UTC'])('keeps a zone the DSN\'s own options name (%s), and adds none over it', (own) => {
+      createQueryEngine(`${DSN}?options=${encodeURIComponent(own)}`);
+      const options = String(pools.at(0)!.options.options);
+      expect(options.startsWith(own)).toBe(true);
+      expect(options.match(/timezone/gi)).toHaveLength(1);
+      expect(options).toContain('-c statement_timeout=15000');
+    });
+
+    it('still adds the process zone when the DSN\'s options name another setting only', () => {
+      createQueryEngine(`${DSN}?options=${encodeURIComponent('-c search_path=reporting')}`);
+      expect(String(pools.at(0)!.options.options)).toContain(`-c TimeZone=${ZONE!}`);
+    });
+
     it('drops only the zone when the server does not know its name, and keeps the budget', async () => {
       const engine = createQueryEngine(DSN);
       pools.at(0)!.failNextConnect = Object.assign(new Error(`invalid value for parameter "TimeZone": "${ZONE!}"`), { code: '22023' });

@@ -21,7 +21,7 @@ import {
   postgresSerializers,
   quoteIdentifier,
 } from './serialization.js';
-import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection, isTimeZoneRefusal, processTimeZone, splitDsnOptions } from './session.js';
+import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection, isTimeZoneRefusal, optionsNameTimeZone, processTimeZone, splitDsnOptions } from './session.js';
 
 const DEFAULT_DATA_POOL_MAX = 10;
 const DEFAULT_STATEMENT_TIMEOUT_MS = 15_000;
@@ -72,7 +72,8 @@ export function createQueryEngine(config: DataConnectionConfig | string): QueryE
     [split.options, ours === '' ? null : ours].filter((part) => part !== null).join(' ');
 
   // The session keeps this process's clock (`processTimeZone`): what a column's own `now` default fills, and how a zone-less time is read.
-  let zone = processTimeZone();
+  // A zone the DSN's own options name is the operator's word, and stands.
+  let zone = optionsNameTimeZone(split.options) ? null : processTimeZone();
   let ourOptions = buildSessionSettings(statementTimeoutMs, false, zone).startupOptions;
   let pool = buildDataPool(base, compose(ourOptions));
 

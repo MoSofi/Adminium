@@ -80,6 +80,15 @@ export function processTimeZone(): string | null {
 }
 
 /**
+ * Whether the DSN's own `options` already set the session's zone (`-c
+ * TimeZone=UTC`, `--timezone=UTC`): an operator who named one keeps it, and
+ * the process's zone is not added over it.
+ */
+export function optionsNameTimeZone(options: string | null): boolean {
+  return options !== null && /(?:^|\s)(?:-c\s*|--)timezone\s*=/i.test(options);
+}
+
+/**
  * The server refusing the zone we asked for: a Postgres older than the zone's
  * name (`Europe/Kyiv` arrived in its 2022 time-zone data). The session then
  * keeps the server's own zone, as it did before one was set, rather than

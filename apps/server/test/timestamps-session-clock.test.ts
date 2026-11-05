@@ -20,8 +20,13 @@
  * Run with `TZ=Europe/Paris` (or any zone off UTC) for the SQLite case to
  * mean anything: in UTC every clock agrees. SQLite always runs; Postgres with
  * TEST_POSTGRES_URL, MySQL with TEST_MYSQL_URL.
+ *
+ * A zone the operator names in the DSN's own options (`?options=-c
+ * TimeZone=UTC`) is theirs, and the session keeps it: the process's zone is
+ * added only where the DSN names none.
  */
-import { sql, type Kysely } from 'kysely';
+import { createQueryEngine } from '@adminium/adapter-postgres';
+import { Kysely as KyselyDb, sql, type Dialect as KyselyDialect, type Kysely } from 'kysely';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { SourceDatabase } from '../src/connections/manager.js';
@@ -80,5 +85,33 @@ describe.each(ENGINES)("a time stamped by the database's own default, on %s", (d
     const stamped = instantOf(rows[0]!.made_at, dialect);
     expect(stamped).toBeGreaterThanOrEqual(before - 2000);
     expect(stamped).toBeLessThanOrEqual(after + 2000);
+  });
+});
+
+describe("a postgres session's zone, against a real server", () => {
+  const url = process.env['TEST_POSTGRES_URL'];
+  const zoneOf = async (dsn: string): Promise<string> => {
+    const engine = createQueryEngine(dsn);
+    const db = new KyselyDb<SourceDatabase>({ dialect: engine.dialect as KyselyDialect });
+    try {
+      const { rows } = await sql<{ TimeZone: string }>`SHOW TimeZone`.execute(db);
+      return rows[0]!.TimeZone;
+    } finally {
+      await db.destroy();
+    }
+  };
+  const withOptions = (base: string, options: string): string => {
+    const dsn = new URL(base);
+    dsn.searchParams.set('options', options);
+    return dsn.toString();
+  };
+
+  it.skipIf(url === undefined)("is this process's zone when the DSN names none", async () => {
+    expect(await zoneOf(url!)).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  });
+
+  it.skipIf(url === undefined)("is the zone the DSN's own options name, never ours over it", async () => {
+    const own = Intl.DateTimeFormat().resolvedOptions().timeZone === FAR_ZONE ? 'UTC' : FAR_ZONE;
+    expect(await zoneOf(withOptions(url!, `-c TimeZone=${own}`))).toBe(own);
   });
 });
