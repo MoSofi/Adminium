@@ -101,4 +101,13 @@ describe('the record panel', () => {
     expect(order).toEqual(['id', 'name', 'status', 'note']);
     expect(panel.queryByText('Customer name')).toBeNull();
   });
+
+  it("names each field as the business calls it, never with the database's type of it", async () => {
+    const { api } = makeApi([]);
+    render(<RecordDetail api={api} columns={columns} recordId="7" />);
+    await screen.findAllByText('Ada');
+    expect(screen.queryByText('varchar')).toBeNull();
+    expect(screen.queryByText('integer')).toBeNull();
+    expect(screen.getByText('Name')).toBeTruthy();
+  });
 });

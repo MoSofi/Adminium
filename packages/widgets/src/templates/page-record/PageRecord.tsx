@@ -1416,7 +1416,6 @@ export function PageRecord({
             columns={half}
             record={record}
             cellContext={cellContext}
-            showTypeTags
           />
         ))}
       </div>

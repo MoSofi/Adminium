@@ -104,6 +104,9 @@ describe('PageRecord', () => {
     expect(within(fields).getByText('Number')).toBeDefined();
     expect(within(fields).getByText('Total')).toBeDefined();
     expect(within(fields).queryByText('ID')).toBeNull();
+    // A field is named as the business calls it, never with the database's type of it ("varchar", "decimal").
+    expect(within(fields).queryByText('varchar')).toBeNull();
+    expect(within(fields).queryByText('decimal')).toBeNull();
     // One column that may shrink below its text: a long unbroken value (a key, a token) is cut short, and never widens the page on a phone.
     expect(fields.className.split(' ')).toContain('grid-cols-1');
     // The masked column renders the masked treatment, exactly as the grid

@@ -183,7 +183,7 @@ export function RecordDetail({
       </div>
 
       {references.length === 0 ? (
-        <DetailKeyValue columns={columns} record={record} cellContext={cellContext} showTypeTags />
+        <DetailKeyValue columns={columns} record={record} cellContext={cellContext} />
       ) : (
         <Tabs defaultValue="__fields">
           <TabsList>
@@ -195,7 +195,7 @@ export function RecordDetail({
             ))}
           </TabsList>
           <TabsContent value="__fields">
-            <DetailKeyValue columns={columns} record={record} cellContext={cellContext} showTypeTags />
+            <DetailKeyValue columns={columns} record={record} cellContext={cellContext} />
           </TabsContent>
           {references.map((reference) => (
             <TabsContent key={reference.relationId} value={reference.relationId}>
