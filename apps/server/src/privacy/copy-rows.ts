@@ -314,6 +314,13 @@ export async function theirCopyRows(input: CopyRowsInput): Promise<TheirCopyTabl
   return out;
 }
 
+/** The add-on table an app's link names as its manifest declares it, by its one-column key; null when it is not here. */
+function declaredTarget(view: SnapshotView, through: NonNullable<DeclaredCopy['through']>): { table: ResolvedTable; key: string } | null {
+  if (through.names === undefined) return null;
+  const table = view.linkTable(through.names);
+  return table === null || table.primaryKey.length !== 1 ? null : { table, key: table.primaryKey[0]! };
+}
+
 /**
  * The rows of an add-on's table reached from the rows the app's link names
  * (`keys`) through the table's own links (`from`), followed back: a design's
@@ -338,8 +345,13 @@ async function rowsFrom(
     steps.push({ table: here, column, key: target.key });
     here = target.table;
   }
-  // The table the app's link names, and the column of it the link holds.
-  const named = foreignKeyOf(view, through.line, through.link);
+  /*
+   * The table the app's link names, and the column of it the link holds: the
+   * database's foreign key when it has one, else the add-on table the app's
+   * manifest says the column links to (an `addOnLink` has no key behind it,
+   * and a snapshot may hold no guess at it), by that table's own key.
+   */
+  const named = foreignKeyOf(view, through.line, through.link) ?? declaredTarget(view, through);
   if (named === null || named.table.id !== here.id || named.key !== steps[steps.length - 1]!.key) return [];
   let values: unknown[] = [...keys];
   // From the far end back: the rows of each table between, by the link into the next one.

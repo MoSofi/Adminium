@@ -13,11 +13,20 @@
  * customer's design, versions and files whole. The search finds the versions
  * too, and the preview counts the files.
  *
+ * The app's link into the add-on (`order_lines.design_id`, an `addOnLink`)
+ * has no foreign key behind it. Each engine is run twice: once with the
+ * snapshot's guess at that link (a column named after the table it points
+ * at), and once without it — as a shop's own snapshot may hold no guess (the
+ * Maker walk's had none) — where the link the app's manifest declares is what
+ * leads to the versions. Either way her order line is the shop's record of a
+ * sale, kept by law: its words are found and stay; the versions' words and
+ * files go, and a deleted file is no longer served.
+ *
  * The Customiser is taken from a checkout of the add-ons repository, built
  * (`ADMINIUM_ADD_ONS_REPO`, `npm run build` in `packages/customiser`); without
  * it the suite is skipped, by name. On every engine this run can reach.
  */
-import { filesRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import { filesRepo, overridesRepo, rolesRepo, snapshotsRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { builtAddOn } from './add-ons/harness.js';
@@ -54,7 +63,14 @@ function printShop(): Doc {
         { ref: 'orders', columns: [pk, { ref: 'customer_id', type: 'fk', references: 'customers', nullable: true }, { ref: 'email', type: 'text', maxLength: 120, nullable: true }] },
         {
           ref: 'order_lines',
-          columns: [pk, { ref: 'order_id', type: 'fk', references: 'orders' }, { ref: 'design_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: CUSTOMISER, table: 'designs' } } }],
+          keep: { law: 'tax' },
+          columns: [
+            pk,
+            { ref: 'order_id', type: 'fk', references: 'orders' },
+            { ref: 'customer_id', type: 'fk', references: 'customers', nullable: true },
+            { ref: 'lettering', type: 'text', maxLength: 80, nullable: true },
+            { ref: 'design_id', type: 'int', nullable: true, rules: { addOnLink: { addOn: CUSTOMISER, table: 'designs' } } },
+          ],
         },
       ],
     },
@@ -69,6 +85,7 @@ function printShop(): Doc {
         name: 'name',
         copies: [
           { table: 'orders', column: 'email', holds: 'email', via: 'customer_id' },
+          { table: 'order_lines', column: 'lettering', holds: 'details', via: 'customer_id' },
           { addOn: CUSTOMISER, table: 'designs', column: 'values', holds: 'details', via: VIA },
           { addOn: CUSTOMISER, table: 'design_versions', column: 'values', holds: 'details', via: VIA, from: ['design_id'] },
           { addOn: CUSTOMISER, table: 'design_versions', column: 'proof_file', holds: 'details', via: VIA, from: ['design_id'] },
@@ -79,7 +96,9 @@ function printShop(): Doc {
   };
 }
 
-describe.each(LEGS)("a customer's design versions, erased with them — %s", (dialect, available) => {
+const RUNS = LEGS.flatMap(([dialect, available]) => [[dialect, 'guessed', available] as const, [dialect, 'declared only', available] as const]);
+
+describe.each(RUNS)("a customer's design versions, erased with them — %s, the link %s", (dialect, link, available) => {
   const runs = available && built !== null;
   let h: Harness;
   let served: Served;
@@ -109,7 +128,7 @@ describe.each(LEGS)("a customer's design versions, erased with them — %s", (di
     await h.rows(
       `INSERT INTO customiser_designs (id, app, code, ${q('values')}, created_at, updated_at) VALUES (1, 'printing', 'AAAABBBBCCCCDDD1', '{"line1":"Marta & Jo"}', '${AT}', '${AT}'), (2, 'printing', 'AAAABBBBCCCCDDD2', '{"line1":"For Ben"}', '${AT}', '${AT}')`,
     );
-    await h.rows(`INSERT INTO printing_order_lines (id, order_id, design_id) VALUES (1, 1, 1), (2, 2, 2)`);
+    await h.rows(`INSERT INTO printing_order_lines (id, order_id, customer_id, lettering, design_id) VALUES (1, 1, 1, 'Marta & Jo', 1), (2, 2, 2, 'For Ben', 2)`);
     // Marta's design has two versions, Ben's one; each version one production file.
     await h.rows(
       `INSERT INTO customiser_design_versions (id, app, design_id, ${q('version')}, ${q('values')}, made_at) VALUES (1, 'printing', 1, 1, '{"line1":"Marta & Jo"}', '${AT}'), (2, 'printing', 1, 2, '{"line1":"Marta & Jo 1985"}', '${AT}'), (3, 'printing', 2, 1, '{"line1":"For Ben"}', '${AT}')`,
@@ -120,6 +139,16 @@ describe.each(LEGS)("a customer's design versions, erased with them — %s", (di
     }
     for (const [name, id] of [['file1', 1], ['file2', 2], ['file3', 3]] as const) {
       await h.rows(`UPDATE customiser_version_files SET file = '${await fileFor(name, 'customiser_version_files', id)}' WHERE id = ${String(id)}`);
+    }
+    if (link === 'declared only') {
+      // The snapshot holds no guess at the line's link into the designs: only the app's manifest says where it leads.
+      const snapshot = await snapshotsRepo(h.meta).latest(h.connectionId);
+      const relations = ((snapshot?.schema as { relations?: { from: { tableId: string; columns: string[] }; to: { tableId: string } }[] } | undefined)?.relations ?? []).filter(
+        (relation) => relation.from.tableId.endsWith('printing_order_lines') && relation.from.columns.includes('design_id'),
+      );
+      for (const relation of relations) {
+        await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'relation.remove' as never, tableName: relation.from.tableId, columnName: null, value: { fromColumn: 'design_id', toTable: relation.to.tableId } as never, origin: 'user' } as never);
+      }
     }
     served = await servePublic(h as never, null, { ADMINIUM_DATA_DIR: h.dataDir });
     const officer = await usersRepo(h.meta).create({ email: 'pia@shop.dev', name: 'Pia', passwordHash: await adminPasswordHash() });
@@ -170,5 +199,13 @@ describe.each(LEGS)("a customer's design versions, erased with them — %s", (di
     expect(left).not.toContain(files['file1']);
     expect(left).not.toContain(files['file2']);
     expect(left).toEqual(expect.arrayContaining([files['proof3'], files['file3']]));
+    // A deleted file is no longer served; his still is.
+    for (const name of ['proof1', 'file1', 'file2']) {
+      const content = await served.composed.app.inject({ method: 'GET', url: `/api/v1/files/${files[name]!}`, headers: { cookie } });
+      expect(content.statusCode, name).toBe(404);
+    }
+    expect((await served.composed.app.inject({ method: 'GET', url: `/api/v1/files/${files['file3']!}`, headers: { cookie } })).statusCode).toBe(200);
+    // Her order line is the shop's record of a sale: its words stay.
+    expect((await h.rows('SELECT id, lettering FROM printing_order_lines ORDER BY id')).map((row) => row['lettering'])).toEqual(['Marta & Jo', 'For Ben']);
   });
 });

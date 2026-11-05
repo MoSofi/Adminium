@@ -56,6 +56,14 @@ export interface DeclaredCopy {
     link: string;
     up: { column: string; to: string } | null;
     /**
+     * The add-on's table the app's link names, as the app's manifest declares
+     * it (`rules.addOnLink` on the line's column). Such a link has no foreign
+     * key behind it, so this is how the rows it names are found when the
+     * database says nothing (a SQLite source, or one whose snapshot holds no
+     * guess at the link).
+     */
+    names?: string;
+    /**
      * The copy table's own links, followed back to the add-on's table the
      * app's link names (`["version_id", "design_id"]`): its rows are theirs
      * because the rows those links lead to are. Absent, the link names the
@@ -132,7 +140,13 @@ function jsonColumnsOf(document: unknown): Map<string, Set<string>> {
 }
 
 /** An app's `people`, read from the manifest it stored; a list that does not read is none. */
-function peopleOf(document: unknown): { entries: PeopleEntry[]; keyFields: Map<string, string>; links: Map<string, { column: string; to: string }[]>; requires: Set<string> } {
+function peopleOf(document: unknown): {
+  entries: PeopleEntry[];
+  keyFields: Map<string, string>;
+  links: Map<string, { column: string; to: string }[]>;
+  addOnLinks: Map<string, Map<string, { addOn: string; table: string }>>;
+  requires: Set<string>;
+} {
   const doc = typeof document === 'object' && document !== null ? (document as { people?: unknown; requiredSchema?: { tables?: unknown }; addOns?: { requires?: unknown } }) : {};
   const parsed = peopleSchema.safeParse(doc.people);
   const tables = Array.isArray(doc.requiredSchema?.tables) ? (doc.requiredSchema.tables as unknown[]) : [];
@@ -151,8 +165,21 @@ function peopleOf(document: unknown): { entries: PeopleEntry[]; keyFields: Map<s
       return [[one.ref, fks] as const];
     }),
   );
+  // Each table's links into an add-on's tables (`rules.addOnLink`), by the app's short names: which add-on table a line names.
+  const addOnLinks = new Map<string, Map<string, { addOn: string; table: string }>>();
+  for (const table of tables) {
+    const one = table as { ref?: unknown; columns?: unknown } | null;
+    if (typeof one?.ref !== 'string' || !Array.isArray(one.columns)) continue;
+    for (const column of one.columns as { ref?: unknown; rules?: { addOnLink?: { addOn?: unknown; table?: unknown } } }[]) {
+      const link = column?.rules?.addOnLink;
+      if (typeof column?.ref !== 'string' || typeof link?.addOn !== 'string' || typeof link.table !== 'string') continue;
+      const byColumn = addOnLinks.get(one.ref) ?? new Map<string, { addOn: string; table: string }>();
+      byColumn.set(column.ref, { addOn: link.addOn, table: link.table });
+      addOnLinks.set(one.ref, byColumn);
+    }
+  }
   const requires = new Set(Array.isArray(doc.addOns?.requires) ? (doc.addOns.requires as { key?: unknown }[]).flatMap((one) => (typeof one.key === 'string' ? [one.key] : [])) : []);
-  return { entries: parsed.success ? parsed.data : [], keyFields, links, requires };
+  return { entries: parsed.success ? parsed.data : [], keyFields, links, addOnLinks, requires };
 }
 
 /** Every people table of the install, resolved against its database and the owner's word. */
@@ -169,7 +196,7 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
     const connectionId = app.connectionId as string;
     const model = source.models.get(connectionId);
     if (model === undefined) continue;
-    const { entries, keyFields, links, requires } = peopleOf(app.document);
+    const { entries, keyFields, links, addOnLinks, requires } = peopleOf(app.document);
     const appJson = jsonColumnsOf(app.document);
     /** Whether a copy's column keeps JSON: its manifest says so, or the database does. */
     const keepsJson = (declared: Map<string, Set<string>> | undefined, ref: string, column: string, real: PeopleModel['tables'][number]): boolean =>
@@ -226,7 +253,11 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
             up = { column: fk.column, to: to.table.id };
           }
           const json = keepsJson(addOnJson.get(copy.addOn), copy.table, copy.column, held.table);
-          return [{ table: held.table.id, ref: `${copy.addOn}-${copy.table}`, column: copy.column, holds: copy.holds, via: null, ...(json ? { json: true as const } : {}), through: { line: line.table.id, link, up, ...(copy.from === undefined ? {} : { from: [...copy.from] }) } }];
+          // The add-on table the line's column links to, as the app declares it: only a table of this copy's add-on, held here.
+          const declaredLink = addOnLinks.get(lineRef)?.get(link);
+          const named = declaredLink === undefined || declaredLink.addOn !== copy.addOn ? undefined : tableOf(declaredLink.table, copy.addOn);
+          const through = { line: line.table.id, link, up, ...(named === undefined ? {} : { names: named.table.id }), ...(copy.from === undefined ? {} : { from: [...copy.from] }) };
+          return [{ table: held.table.id, ref: `${copy.addOn}-${copy.table}`, column: copy.column, holds: copy.holds, via: null, ...(json ? { json: true as const } : {}), through }];
         }
         const held = tableOf(copy.table);
         if (held === undefined || !held.table.columns.some((candidate) => candidate.name === copy.column)) return [];
