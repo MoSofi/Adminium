@@ -400,6 +400,8 @@ try {
             subject: parsed.subject ?? '',
             from: parsed.from?.text ?? '',
             to: list(parsed.to).flatMap((entry) => entry.value.map((address) => address.address ?? '')),
+            // Where a reply goes (an order's mail answered to the shop's own address): empty when the message names none.
+            replyTo: parsed.replyTo?.text ?? '',
             html: typeof parsed.html === 'string' ? parsed.html : '',
             text: parsed.text ?? '',
             attachments: parsed.attachments.map((attachment) => ({

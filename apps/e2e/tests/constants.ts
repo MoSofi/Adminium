@@ -179,6 +179,8 @@ export interface SinkMessage {
   subject: string;
   from: string;
   to: string[];
+  /** The Reply-To header as written (`"Shop" <shop@example.test>`), or empty when the message has none. */
+  replyTo: string;
   html: string;
   text: string;
   attachments: { filename: string; contentType: string; cid: string | null; size: number; related: boolean }[];
