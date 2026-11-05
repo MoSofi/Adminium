@@ -19,7 +19,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseCrudDerived } from '@adminium/engine/config';
 
-import { MAX_COMPUTE_BYTES, MAX_COMPUTE_DEPTH } from '../src/crud/compute.js';
+import { assertComputeEnvelope, MAX_COMPUTE_BYTES, MAX_COMPUTE_DEPTH } from '../src/crud/compute.js';
 import {
   asUser,
   buildDataTestApp,
@@ -503,20 +503,26 @@ describe('CRUD measures (fake adapter)', () => {
       expect(payload.length).toBeLessThan(MAX_COMPUTE_BYTES);
       expect(MAX_COMPUTE_DEPTH).toBeLessThan(800);
 
-      const scannedStart = performance.now();
-      const { status } = await list(`compute=${encodeURIComponent(payload)}`);
-      const scannedMs = performance.now() - scannedStart;
+      // Refused by the character scan, before JSON.parse and the grammar: its
+      // refusal is the only one that names `maxDepth`, and `parseComputeParam`
+      // runs the scan first, so a reply carrying it means the parser never ran.
+      // Said by what refused, not by how long it took: a busy runner cannot
+      // make this pass or fail.
+      const { status, body } = await list(`compute=${encodeURIComponent(payload)}`);
       expect(status).toBe(422);
+      expect(JSON.stringify(body)).toContain(`"maxDepth":${String(MAX_COMPUTE_DEPTH)}`);
+      expect(() => {
+        assertComputeEnvelope(payload);
+      }).toThrow(`at most ${String(MAX_COMPUTE_DEPTH)} levels deep`);
 
-      // What the same payload costs the parser the scan protects: zod's
-      // recursive union re-descends on failure, so a rejecting chain is
-      // quadratic in depth (measured here: ~620 ms at 800 levels, ~160 at
-      // 400, ~12 at 100). A relative assertion rather than an absolute one,
-      // so a faster machine cannot make this vacuous.
-      const unscannedStart = performance.now();
-      expect(parseCrudDerived(JSON.parse(payload)).ok).toBe(false);
-      const unscannedMs = performance.now() - unscannedStart;
-      expect(unscannedMs / Math.max(scannedMs, 0.001)).toBeGreaterThan(10);
+      // What the scan saves: the grammar refuses the same chain too (zod's
+      // recursive union re-descends on failure, quadratic in depth), but by a
+      // refusal of its own that never names `maxDepth`. With the scan's depth
+      // check gone, the route answers with this one instead, and the reply
+      // above stops naming the depth.
+      const unscanned = parseCrudDerived(JSON.parse(payload));
+      expect(unscanned.ok).toBe(false);
+      expect(JSON.stringify(unscanned)).not.toContain('maxDepth');
     });
   });
 
