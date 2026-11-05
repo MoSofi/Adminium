@@ -47,15 +47,8 @@ import { servePublic, type Served } from './public-lane.helpers.js';
 type Doc = Record<string, unknown>;
 
 const CUSTOMISER = 'customiser';
-/**
- * The add-ons' release the app requires (`^1.0.16`) is the one that first
- * ships the Customiser. A checkout built before that release carries the
- * version before it: it is staged at the version the app asks for, as that
- * release will be.
- */
-const RELEASE = '1.0.16';
-const checkout = builtAddOn(CUSTOMISER);
-const built = checkout === null ? null : { ...checkout, version: RELEASE, manifest: { ...checkout.manifest, version: RELEASE } };
+/** The Customiser as the checkout builds it, at its own version: a release the app's range takes. */
+const built = builtAddOn(CUSTOMISER);
 
 /** The Print Shop checkout: its manifest and the sample files it ships. */
 function printApp(): { manifest: Doc; files: Record<string, string> } | null {
