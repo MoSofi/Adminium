@@ -15,7 +15,7 @@ import { useBranding } from '../shell/BrandMark.js';
 import { addressSurface } from './addressSurface.js';
 import { AuthScreenLayout } from './AuthScreenLayout.js';
 import { login, storeChallenge } from './authApi.js';
-import { nextTarget } from './nextTarget.js';
+import { dashboardReturn, nextTarget } from './nextTarget.js';
 import { StaffHandover } from './StaffHandover.js';
 
 export function LoginPage() {
@@ -47,8 +47,9 @@ export function LoginPage() {
       window.location.assign(target);
       return;
     }
-    // `returnTo` is a runtime string — go through history, not typed links.
-    router.history.push(to ?? '/');
+    // `returnTo` is a runtime string — go through history, not typed links. A `next` that names one of the
+    // dashboard's own screens is where the person was going, followed the same way.
+    router.history.push(to ?? dashboardReturn(next, here !== undefined) ?? '/');
   };
 
   if (opening !== null) {

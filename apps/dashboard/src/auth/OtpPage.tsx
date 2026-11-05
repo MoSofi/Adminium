@@ -15,7 +15,7 @@ import { useBranding } from '../shell/BrandMark.js';
 import { addressSurface } from './addressSurface.js';
 import { AuthScreenLayout } from './AuthScreenLayout.js';
 import { clearChallenge, readChallenge, verify2fa } from './authApi.js';
-import { nextTarget } from './nextTarget.js';
+import { dashboardReturn, nextTarget } from './nextTarget.js';
 import { StaffHandover } from './StaffHandover.js';
 
 export function OtpPage() {
@@ -73,7 +73,7 @@ export function OtpPage() {
                 return;
               }
               // Runtime string target — go through history, not typed links.
-              router.history.push(challenge.returnTo ?? '/');
+              router.history.push(challenge.returnTo ?? dashboardReturn(challenge.next, here !== undefined) ?? '/');
             })
             .catch((cause: unknown) => {
               setLoading(false);

@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { validateAutomationsSearch } from '../automations/search.js';
 import { validateEmailTemplatesSearch } from '../email/search.js';
-import { isLocalPath, nextTarget } from './nextTarget.js';
+import { dashboardReturn, isLocalPath, nextTarget } from './nextTarget.js';
 
 describe('the address sign-in hands back to', () => {
   it('is a path of this origin and nothing else', () => {
@@ -21,6 +21,14 @@ describe('the address sign-in hands back to', () => {
     // Any other path of the origin is not the gate's: an API route, the dashboard's own screens.
     for (const other of ['/', '/api/v1/auth/logout', '/api/v1/exports/1/download', '/settings/roles', '/apps', '/apps/', '/apps//evil.example', '/appsx/crm']) expect(nextTarget(other, false), other).toBeNull();
     for (const bad of ['//evil.example', '/\\evil.example', 'https://evil.example/apps/crm/staff/', '/apps/crm/staff/\\..', null, undefined]) expect(nextTarget(bad, false), String(bad)).toBeNull();
+  });
+
+  it('on the dashboard\'s own address, a target among its own screens is where sign-in hands back, inside the dashboard', () => {
+    for (const screen of ['/studio/privacy', '/p/orders?tab=open', '/settings/roles', '/']) expect(dashboardReturn(screen, false), screen).toBe(screen);
+    // An API route is never a screen; an app's screens are opened as a document (nextTarget); nothing off this origin.
+    for (const not of ['/api/v1/auth/logout', '/api', '/api?x=1', '/apps/crm/staff/', '/apps', '//evil.example', '/\\evil.example', 'https://evil.example/p/orders', null, undefined]) expect(dashboardReturn(not, false), String(not)).toBeNull();
+    // On an app's staff address every path is the app's, opened as a document.
+    expect(dashboardReturn('/studio/privacy', true)).toBeNull();
   });
 
   it('on an address mapped to an app\'s staff side, any path of that address is the app\'s', () => {

@@ -15,6 +15,11 @@
  * dashboard's own address the gate only ever sends an app's mount
  * (`/apps/<key>/…`), so only that is followed there; on an address mapped to
  * an app's staff side every path is the app's, and any local path is.
+ *
+ * A `next` on the dashboard's own address that names one of the dashboard's
+ * own screens (`/studio/privacy`, `/p/orders`) is not a document to open: it
+ * is where the person was going, followed inside the dashboard as `returnTo`
+ * is ({@link dashboardReturn}). Never an API route, and never into `/apps/`.
  */
 
 /** A path of this origin: `/p/orders`, never `//host`, `/\host` or `https://host`. */
@@ -27,4 +32,16 @@ export function isLocalPath(value: unknown): value is string {
 export function nextTarget(next: string | null | undefined, onAppAddress: boolean): string | null {
   if (!isLocalPath(next)) return null;
   return onAppAddress || /^\/apps\/[a-z0-9]/.test(next) ? next : null;
+}
+
+/**
+ * The dashboard screen a sign-in on the dashboard's own address hands back to
+ * when `next` names one, or null: a path of this origin that is not an API
+ * route and not an app's screens (those are opened as a document, above).
+ * On an app's staff address every path is the app's, so none is.
+ */
+export function dashboardReturn(next: string | null | undefined, onAppAddress: boolean): string | null {
+  if (onAppAddress || !isLocalPath(next)) return null;
+  if (/^\/(api|apps)(\/|$|\?|#)/.test(next)) return null;
+  return next;
 }
