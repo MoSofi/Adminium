@@ -44,6 +44,7 @@
     "skills-claims-check": "node scripts/skills/check-claims.mjs --self-test && node scripts/skills/check-claims.mjs",
     "cross-package-tests-check": "node scripts/check-cross-package-tests.mjs --phase=source",
     "cross-package-dist-tests-check": "node scripts/check-cross-package-tests.mjs --phase=dist",
+    "bundled-add-ons-check": "ADMINIUM_CHECK_BUNDLED_ADD_ONS=scripts/release/out/add-ons-bundle pnpm --filter @adminium/server exec vitest run test/bundled-add-ons-install.test.ts",
     "generate-notices": "node scripts/generate-notices.mjs",
     "changeset": "changeset",
     "dev-setup": "node scripts/dev-setup.mjs"

@@ -106,9 +106,74 @@ jobs:
           fi
           echo "RELEASE-GATE.md is fully checked."
 
+  # Every add-on the image and the desktop app carry, installed from the exact
+  # tarball the bundle pins (scripts/release/add-ons-bundle.json), on SQLite,
+  # Postgres and MySQL, through the real seed and install routes: every stage
+  # must finish and each table must hold the rows it starts with. Holiday
+  # Calendars 1.0.16 and 1.0.17 shipped a tarball without the seeds file its
+  # manifest names; the engines bundling them installed it to a 409 at the
+  # seeds stage, and no test had installed the published bytes. Both publish
+  # jobs need this one, so a release with a broken bundled add-on stops here.
+  bundled-add-ons:
+    name: bundled add-ons install
+    needs: release-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The server's tests read its workspace packages from their dists.
+      - name: Build what the server imports
+        run: pnpm turbo run build --filter=@adminium/server^...
+
+      - name: Install every bundled add-on from its pinned tarball
+        run: pnpm bundled-add-ons-check
+        env:
+          TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          TEST_MYSQL_URL: mysql://root:root@127.0.0.1:3306
+
   docker:
     name: docker
-    needs: release-gate
+    needs: [release-gate, bundled-add-ons]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -462,7 +527,7 @@ jobs:
 
   npm:
     name: npm
-    needs: release-gate
+    needs: [release-gate, bundled-add-ons]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Publishes every public package under the scope-mapped identity
