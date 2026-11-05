@@ -21,6 +21,18 @@ message is delivered, only of a code column, and only for a code of at most 64 b
 [withhold](https://docs.adminium.dev/reference/manifest/#withheld-columns) or share-code rules keep from the message's recipient is printed
 empty, in every form, its QR code included.
 
+An `email.image` block may show the picture a row keeps in a [file column](https://docs.adminium.dev/reference/manifest/#files-in-a-column):
+`"fileId": "{{<link>.<column>}}"`, the whole value, for a row one of the outbox's links names (or
+`<link>.<base>`, a row it points at). The column is a `text` column whose `file.accept` takes a
+picture (`png`, `jpeg`, `gif`, `webp`), and is never secret, personal (marked, or guessed from its
+name) or withheld; `{{row.…}}`, a placeholder beside other text or with a backup, and a row the
+message does not read are refused. Each message checks the file against the row (an upload that
+row has claimed, not in the bin, a picture, at most 2 MB) and sends only a file that passes, as an
+inline image weighed again at delivery. One that does not is left out, or, with
+`"required": true` on the image, the message fails and says why. See
+[Pictures from a row](https://docs.adminium.dev/guides/apps/emails/#pictures-from-a-row). Needs Adminium 0.3.45
+(`email.rowPicture`).
+
 #### Blocks sent only with a value
 
 A block's `data` may carry `onlyWith` or `onlyWithout`, the name of one variable the template

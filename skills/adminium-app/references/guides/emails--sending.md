@@ -32,6 +32,7 @@ Then the row's status changes, with a sentence in its error column:
 | `failed` | Email is not set up on this server | Set up email, then queue the row again. |
 | `failed` | Not sent: the email lists rows from a table or link that is not there | A list's table, link or column is gone, for example renamed. See [Emails that list rows](https://docs.adminium.dev/guides/apps/emails/#emails-that-list-rows). |
 | `failed` | Not sent: {{…}} holds more than a QR code carries (64 bytes) | A code drawn as a QR code is longer than one carries. See [QR codes](https://docs.adminium.dev/guides/apps/emails/#qr-codes). |
+| `failed` | Not sent: the picture {{…}} *reason* | A `required` picture from a row could not be shown: no file in the column, another row's file, one in the bin, no picture, larger than 2 MB, or not shown to this reader. See [Pictures from a row](https://docs.adminium.dev/guides/apps/emails/#pictures-from-a-row). |
 | `failed` | Not sent: the values before the change are more than the outbox keeps | See [Messages about changes](https://docs.adminium.dev/guides/apps/emails/#messages-about-changes). |
 | `failed` | The email could not be prepared | Something else went wrong; the server log says what. |
 | `failed` | Not delivered: *reason* | The mail server refused it for good, after its retries. |

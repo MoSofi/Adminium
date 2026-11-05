@@ -48,5 +48,8 @@ What happens when you confirm:
   its sample rows out once that table holds real ones. See
   [A menu two apps share](https://docs.adminium.dev/guides/apps/shared-menu/#sample-data-on-a-shared-menu).
 
-The card then reads **Loaded**, with the number of records and the date. An app's sample data can
-be loaded once at a time: remove it before adding it again.
+The card then reads **Loaded**, with the number of records and the date. It reads so only once the
+whole add has finished, the samples of the add-ons added with it too:
+`GET /api/v1/apps/<key>/sample-data` answers `loaded: false` while the add is queued or running,
+however many records are in by then (Adminium 0.3.45 and later). An app's sample data can be loaded
+once at a time: remove it before adding it again.

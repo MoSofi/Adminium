@@ -16,7 +16,7 @@
 | `references/manifest/requiredschema--tables.md` | requiredSchema — Tables | 3445 |
 | `references/manifest/requiredschema--columns.md` | requiredSchema — Columns | 7568 |
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 2212 |
-| `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7280 |
+| `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7394 |
 | `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7581 |
 | `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 6333 |
 | `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7046 |
@@ -24,11 +24,11 @@
 | `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7818 |
 | `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 6589 |
 | `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 7742 |
-| `references/manifest/requiredschema--column-rules-9.md` | requiredSchema — Column rules (part 9) | 7750 |
-| `references/manifest/requiredschema--column-rules-10.md` | requiredSchema — Column rules (part 10) | 7164 |
-| `references/manifest/requiredschema--column-rules-11.md` | requiredSchema — Column rules (part 11) | 7808 |
+| `references/manifest/requiredschema--column-rules-9.md` | requiredSchema — Column rules (part 9) | 7540 |
+| `references/manifest/requiredschema--column-rules-10.md` | requiredSchema — Column rules (part 10) | 7006 |
+| `references/manifest/requiredschema--column-rules-11.md` | requiredSchema — Column rules (part 11) | 7715 |
 | `references/manifest/requiredschema--column-rules-12.md` | requiredSchema — Column rules (part 12) | 7788 |
-| `references/manifest/requiredschema--column-rules-13.md` | requiredSchema — Column rules (part 13) | 4926 |
+| `references/manifest/requiredschema--column-rules-13.md` | requiredSchema — Column rules (part 13) | 6600 |
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
@@ -81,7 +81,7 @@
 | `references/manifest/emails--a-survey-s-link.md` | Emails — A survey's link | 4389 |
 | `references/manifest/emails--held-messages.md` | Emails — Held messages | 2873 |
 | `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7062 |
-| `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 4763 |
+| `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 5774 |
 | `references/manifest/people.md` | People | 979 |
 | `references/manifest/people-2.md` | People (part 2) | 7597 |
 | `references/manifest/public-access.md` | Public access | 2014 |

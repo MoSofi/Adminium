@@ -22,7 +22,11 @@ is sent to the app instead of the dashboard:
   into such a column (`POST /api/v1/files/<id>/copy`: a photo a past order has, chosen again; judged
   by the target table's own create or update, never by a files-wide right), read a file back with
   the record that holds it, and throw away one of their own uploads no record holds yet; the list of
-  files and the rest of the file routes stay the dashboard's.
+  files and the rest of the file routes stay the dashboard's. A screen of their app may show an
+  add-on's [record panel](https://docs.adminium.dev/reference/manifest/#a-panel-on-another-tables-record) too (a design kit's panel on an order
+  line): its code (`GET /api/v1/add-ons/<add-on>/panels/<panel>/bundle`) is served for an add-on
+  connected to their app, and still only for a row they reach, with a grant on the panel's table
+  and the panel's own permission (`page:@<panel>:view` in the app's role). Needs Adminium 0.3.45.
 - the [assistant](https://docs.adminium.dev/guides/llm-assist/milo/#on-an-apps-own-staff-address), when an administrator
   has given their role the assistant permission: its button is on the app's staff screens, and it
   answers about their app's data within what their roles read. An app's manifest cannot grant

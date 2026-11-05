@@ -1,5 +1,13 @@
 # @adminium/manifest
 
+## 0.3.45
+
+### Patch Changes
+
+- 10eb1e5: An app's email may show the picture a row keeps in a file column: `email.image` with `fileId: "{{job.photo}}"`, the whole value, for a row one of the outbox's links reads. The manifest refuses anything else: a placeholder beside other text, a row the message does not read, a column that is no file column of pictures, and a secret, personal or withheld one. Each message checks the file against that row before it is queued (an upload the row has claimed, not in the bin, a png, jpeg, gif or webp of at most 2 MB); only a file that passes travels with it, as an inline image weighed again at delivery. One that does not is left out, or, with `"required": true`, the message is not sent and says why. Needs Adminium 0.3.45.
+- f8840a8: `evaluateFormula` takes what a formula column keeps of its value as a fourth argument, and `formulaKeepOf(column)` reads it from a manifest column: its `normalize` rule, applied first, then for a join the column's length, cut there. An app's demo that passes it shows the value the server stores (a joined address key kept as a code). `normalizedText(how, text)` is the one `normalize` rule: the server keeps typed values, worked-out values, typed codes and addresses through it.
+- @adminium/add-on-contracts@0.3.45
+
 ## 0.3.44
 
 ### Patch Changes

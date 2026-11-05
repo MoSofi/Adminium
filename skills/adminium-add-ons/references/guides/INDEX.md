@@ -25,13 +25,13 @@
 | `references/guides/emails--what-queues-a-row.md` | What queues a row | 6745 |
 | `references/guides/emails--messages-about-changes.md` | Messages about changes | 4152 |
 | `references/guides/emails--messages-about-a-row-that-is-removed.md` | Messages about a row that is removed | 4950 |
-| `references/guides/emails--sending.md` | Sending | 4071 |
+| `references/guides/emails--sending.md` | Sending | 4391 |
 | `references/guides/emails--held-messages.md` | Held messages | 1454 |
 | `references/guides/emails--attachments.md` | Attachments | 1887 |
 | `references/guides/emails--the-templates.md` | The templates | 1273 |
 | `references/guides/emails--variables.md` | Variables | 7565 |
 | `references/guides/emails--variables--the-person-a-staff-column-names.md` | Variables — The person a staff column names | 1053 |
-| `references/guides/emails--emails-that-list-rows.md` | Emails that list rows | 5462 |
+| `references/guides/emails--emails-that-list-rows.md` | Emails that list rows | 7245 |
 | `references/guides/emails--links.md` | Links | 850 |
 | `references/guides/emails--upgrading.md` | Upgrading | 1762 |
 | `references/guides/postings--overview.md` | Rows that post into an add-on's ledger | 874 |

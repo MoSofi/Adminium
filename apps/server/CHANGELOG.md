@@ -1,5 +1,30 @@
 # @adminium/server
 
+## 0.3.45
+
+### Patch Changes
+
+- e376122: The add-ons that come with Adminium are now version 1.0.17, with Holiday calendars' England and Wales bank holidays.
+- 10eb1e5: An app's email may show the picture a row keeps in a file column: `email.image` with `fileId: "{{job.photo}}"`, the whole value, for a row one of the outbox's links reads. The manifest refuses anything else: a placeholder beside other text, a row the message does not read, a column that is no file column of pictures, and a secret, personal or withheld one. Each message checks the file against that row before it is queued (an upload the row has claimed, not in the bin, a png, jpeg, gif or webp of at most 2 MB); only a file that passes travels with it, as an inline image weighed again at delivery. One that does not is left out, or, with `"required": true`, the message is not sent and says why. Needs Adminium 0.3.45.
+- f8840a8: `evaluateFormula` takes what a formula column keeps of its value as a fourth argument, and `formulaKeepOf(column)` reads it from a manifest column: its `normalize` rule, applied first, then for a join the column's length, cut there. An app's demo that passes it shows the value the server stores (a joined address key kept as a code). `normalizedText(how, text)` is the one `normalize` rule: the server keeps typed values, worked-out values, typed codes and addresses through it.
+- d4944a3: A formula column with a `normalize` rule keeps the value it works out the way the rule says, as a typed value is: a join over a postcode and an address line kept as a code is `SL71BT12QUAYSTREET` however the address is typed. It is kept so on a create, an edit, a total that works it out again and an update that fills it for the rows already there, before the row meets its unique key. Before, only a join over a running number was kept so, and the same address typed in another case made a second key past a `unique` one.
+- 3e21729: A MySQL database that already keeps an index over an expression (`CREATE UNIQUE INDEX … ON customers ((lower(email)))`) no longer stops an install at its writers stage with `APP_INSTALL_INCOMPLETE`. The index was read as a unique key over no column, which a stored schema refuses; it is now read with its expression, as Postgres reads one, and never as a set of columns kept unique. The index itself is left exactly as it is. Install again to finish an install that stopped this way.
+- 854987e: `GET /api/v1/apps/<key>/sample-data` (and an add-on's) answers `loaded: true` only once the add has finished. While the add is queued or running it answers `loaded: false`, however many rows are in: an app's add writes its own rows first and the samples of the add-ons added with it after, so a reader that took the first rows for the whole went on before the add-ons' rows were in.
+- bb0efca: Someone who opens only their app's screens may load a record panel of an add-on connected to their app (`GET /api/v1/add-ons/<add-on>/panels/<panel>/bundle`: a design kit's panel on an order line). It was refused with `APP_SCREENS_ONLY`. The route still serves the code only for a row they reach, with a grant on the panel's table and the panel's own permission; an add-on none of their apps uses stays refused.
+- Updated dependencies [10eb1e5]
+- Updated dependencies [f8840a8]
+- Updated dependencies [3e21729]
+  - @adminium/manifest@0.3.45
+  - @adminium/adapter-mysql@0.3.45
+  - @adminium/adapter-postgres@0.3.45
+  - @adminium/adapter-sqlite@0.3.45
+  - @adminium/add-on-contracts@0.3.45
+  - @adminium/engine@0.3.45
+  - @adminium/i18n@0.3.45
+  - @adminium/llm@0.3.45
+  - @adminium/meta@0.3.45
+  - @adminium/schema-import@0.3.45
+
 ## 0.3.44
 
 ### Patch Changes
