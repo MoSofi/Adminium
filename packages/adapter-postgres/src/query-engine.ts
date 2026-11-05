@@ -21,7 +21,7 @@ import {
   postgresSerializers,
   quoteIdentifier,
 } from './serialization.js';
-import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection, splitDsnOptions } from './session.js';
+import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection, isTimeZoneRefusal, processTimeZone, splitDsnOptions } from './session.js';
 
 const DEFAULT_DATA_POOL_MAX = 10;
 const DEFAULT_STATEMENT_TIMEOUT_MS = 15_000;
@@ -71,7 +71,9 @@ export function createQueryEngine(config: DataConnectionConfig | string): QueryE
   const compose = (ours: string): string =>
     [split.options, ours === '' ? null : ours].filter((part) => part !== null).join(' ');
 
-  let ourOptions = buildSessionSettings(statementTimeoutMs, false).startupOptions;
+  // The session keeps this process's clock (`processTimeZone`): what a column's own `now` default fills, and how a zone-less time is read.
+  let zone = processTimeZone();
+  let ourOptions = buildSessionSettings(statementTimeoutMs, false, zone).startupOptions;
   let pool = buildDataPool(base, compose(ourOptions));
 
   /**
@@ -97,6 +99,20 @@ export function createQueryEngine(config: DataConnectionConfig | string): QueryE
       try {
         return await used.connect();
       } catch (error) {
+        // A server too old for the zone's name: the same pool without the zone, and the session keeps the server's own.
+        if (isTimeZoneRefusal(error) && zone !== null && ourOptions !== '') {
+          if (used !== pool) {
+            if (downgrade !== null) await downgrade;
+            return await pool.connect();
+          }
+          const stale = pool;
+          zone = null;
+          ourOptions = buildSessionSettings(statementTimeoutMs, false, zone).startupOptions;
+          pool = buildDataPool(base, compose(ourOptions));
+          downgrade = stale.end().catch(() => undefined);
+          await downgrade;
+          return await pool.connect();
+        }
         if (!isPoolerStartupRejection(error)) throw error;
         if (used !== pool) {
           if (downgrade !== null) await downgrade;

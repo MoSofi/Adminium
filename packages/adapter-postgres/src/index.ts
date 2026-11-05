@@ -413,7 +413,7 @@ export {
   quoteIdentifier,
 } from './serialization.js';
 export { toAdapterError } from './errors.js';
-export { buildSessionSettings, isPoolerStartupRejection, splitDsnOptions } from './session.js';
+export { buildSessionSettings, isPoolerStartupRejection, isTimeZoneRefusal, processTimeZone, splitDsnOptions } from './session.js';
 
 /** @deprecated M0 scaffold export; kept so early imports keep compiling. */
 export const PACKAGE_NAME = '@adminium/adapter-postgres';

@@ -63,6 +63,11 @@ async function acquireVia(engine: { dialect: unknown }): Promise<unknown> {
 vi.mock('pg', () => ({ default: { Pool: FakePool } }));
 
 const { createQueryEngine } = await import('../src/query-engine.js');
+const { processTimeZone } = await import('../src/session.js');
+
+/** Our startup options as the pool gets them: each session in this process's zone, after the budget. */
+const ZONE = processTimeZone();
+const ours = (options: string): string => (ZONE === null ? options : `${options} -c TimeZone=${ZONE}`);
 
 const DSN = 'postgres://user:pw@127.0.0.1:5432/db';
 
@@ -122,12 +127,12 @@ describe('createQueryEngine pool error contract', () => {
     // M3, so a runaway CRUD query had no server-side bound at all.
     it('sends the data role’s session settings', () => {
       createQueryEngine({ role: 'data', dsn: DSN } as never);
-      expect(pools.at(0)!.options.options).toBe('-c statement_timeout=15000');
+      expect(pools.at(0)!.options.options).toBe(ours('-c statement_timeout=15000'));
     });
 
     it('honours an explicit statementTimeoutMs, floored', () => {
       createQueryEngine({ role: 'data', dsn: DSN, statementTimeoutMs: 2500.9 } as never);
-      expect(pools.at(0)!.options.options).toBe('-c statement_timeout=2500');
+      expect(pools.at(0)!.options.options).toBe(ours('-c statement_timeout=2500'));
     });
 
     it('carries no introspect-only limits — it is a data connection', () => {
@@ -142,8 +147,27 @@ describe('createQueryEngine pool error contract', () => {
       createQueryEngine({ role: 'data', dsn } as never);
       expect(pools.at(0)!.options.connectionString).toBe(DSN);
       expect(pools.at(0)!.options.options).toBe(
-        '-c search_path=reporting -c statement_timeout=15000',
+        ours('-c search_path=reporting -c statement_timeout=15000'),
       );
+    });
+  });
+
+  describe("the session's zone", () => {
+    it('puts every session in this process\'s zone, the clock a `timestamp` column keeps', () => {
+      expect(ZONE).not.toBeNull();
+      createQueryEngine(DSN);
+      expect(String(pools.at(0)!.options.options)).toContain(`-c TimeZone=${ZONE!}`);
+    });
+
+    it('drops only the zone when the server does not know its name, and keeps the budget', async () => {
+      const engine = createQueryEngine(DSN);
+      pools.at(0)!.failNextConnect = Object.assign(new Error(`invalid value for parameter "TimeZone": "${ZONE!}"`), { code: '22023' });
+
+      await expect(acquireVia(engine)).resolves.toBeDefined();
+
+      expect(pools).toHaveLength(2);
+      expect(pools.at(0)!.ended).toBe(true);
+      expect(pools.at(1)!.options.options).toBe('-c statement_timeout=15000');
     });
   });
 

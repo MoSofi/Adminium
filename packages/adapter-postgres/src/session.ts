@@ -53,6 +53,47 @@ export function isPoolerStartupRejection(error: unknown): boolean {
   return false;
 }
 
+/** An IANA zone name as it can ride a `-c TimeZone=…` startup option: no space, no quote. */
+const ZONE_NAME = /^[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+)*$/;
+
+/**
+ * This process's time zone, as a data session's `TimeZone`: the zone whose
+ * wall clock Adminium keeps in a column with no zone of its own (a
+ * `timestamp`), on every engine. Null where the process names none usable.
+ *
+ * Postgres fills `CURRENT_TIMESTAMP` into such a column, and reads a zone-less
+ * time into a `timestamptz`, in its SESSION's zone, which is the server's
+ * default unless a session sets one. A managed database in UTC served by an
+ * Adminium in Paris stamped a row by the column's own default an hour behind
+ * every row Adminium wrote, and read back an hour early. With the session in
+ * this process's zone the database's clock and Adminium's are one, for tables
+ * already made as well as new ones.
+ */
+export function processTimeZone(): string | null {
+  let zone: string | undefined;
+  try {
+    zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return null;
+  }
+  return zone !== undefined && ZONE_NAME.test(zone) ? zone : null;
+}
+
+/**
+ * The server refusing the zone we asked for: a Postgres older than the zone's
+ * name (`Europe/Kyiv` arrived in its 2022 time-zone data). The session then
+ * keeps the server's own zone, as it did before one was set, rather than
+ * every connection failing.
+ */
+export function isTimeZoneRefusal(error: unknown): boolean {
+  for (let current: unknown = error, depth = 0; current !== null && current !== undefined && depth < 5; depth += 1) {
+    const message = (current as { message?: unknown }).message;
+    if (typeof message === 'string' && /invalid value for parameter "TimeZone"|time zone "[^"]*" not recognized/i.test(message)) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
 /**
  * The session settings, in both shapes: the startup-packet form (zero round
  * trips, preferred) and the `SET LOCAL` prelude used when a pooler refuses
@@ -62,11 +103,13 @@ export function isPoolerStartupRejection(error: unknown): boolean {
 export function buildSessionSettings(
   statementTimeoutMs: number,
   introspect: boolean,
+  timeZone: string | null = null,
 ): { startupOptions: string; prelude: string } {
   const pairs: [string, string][] = [['statement_timeout', String(statementTimeoutMs)]];
   if (introspect) {
     pairs.push(['lock_timeout', '2s'], ['idle_in_transaction_session_timeout', '10s']);
   }
+  if (timeZone !== null) pairs.push(['TimeZone', timeZone]);
   return {
     startupOptions: pairs.map(([k, v]) => `-c ${k}=${v}`).join(' '),
     // Quoted values: `2s` is not a valid bare token for SET, unlike in `-c`.
