@@ -134,6 +134,7 @@ export default {
     "audit": "Journal d’audit",
     "security": "Mot de passe et sessions",
     "files": "Fichiers",
+    "addOnSettings": "Réglages : {name}",
     "emptyWithheld": "Aucune page n’a encore été partagée avec votre rôle. Demandez l’accès à un administrateur.",
     "emptyConnected": "Les pages apparaîtront ici une fois créées à partir de la base de données connectée.",
     "app": {

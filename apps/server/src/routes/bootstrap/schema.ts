@@ -397,6 +397,14 @@ export const bootstrapReply = z.object({
      */
     addOnNav: bootstrapAddOnNav,
     /**
+     * The add-ons whose settings this reader keeps through the per-add-on
+     * grant (`addOn:<key>:settings`, an app's role may carry it) without
+     * managing add-ons: each one's own settings screen, which the rail links.
+     * Absent when there is none (and for whoever manages add-ons, who keeps
+     * them on the add-ons page).
+     */
+    addOnSettings: z.array(z.object({ key: z.string(), name: z.string() })).optional(),
+    /**
      * Pages hidden from the sidebar but very much alive (follow-up): same item
      * shape as the nav, no group. The dashboard resolves `/p/<slug>` URLs,
      * palette landings, and record-page related-tab specs and cross-links

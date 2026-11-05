@@ -124,6 +124,7 @@
     "audit": "Auditlog",
     "security": "Adgangskode og sessioner",
     "files": "Filer",
+    "addOnSettings": "Indstillinger: {name}",
     "emptyWithheld": "Der er endnu ikke delt nogen sider med din rolle. Bed en administrator om adgang.",
     "emptyConnected": "Sider vises her, når de er lavet ud fra den forbundne database.",
     "app": {

@@ -32,6 +32,7 @@ import {
   Paperclip,
   ScrollText,
   ShieldCheck,
+  SlidersHorizontal,
   Upload,
   UserRound,
   Users,
@@ -263,6 +264,30 @@ function PlatformLinkList({ links }: { links: readonly PlatformNavLink[] }) {
           <Link to={link.to} className={NAV_LINK_CLASS}>
             <link.icon className="size-[18px] shrink-0" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate">{t(link.labelKey, link.fallback)}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The group the settings an app's role keeps of an add-on are linked in: beside imports, exports and files. */
+const SETTINGS_GROUP: NavGroupKey = 'library';
+
+/**
+ * One row per add-on whose settings the reader keeps through the per-add-on
+ * grant (`addOn:<key>:settings`, an app's role carries it) without managing
+ * add-ons: its own settings screen, as the add-ons page would draw them.
+ */
+function AddOnSettingsLinkList({ addOns }: { addOns: readonly { key: string; name: string }[] }) {
+  if (addOns.length === 0) return null;
+  return (
+    <ul className="m-0 flex list-none flex-col gap-1 p-0" data-part="nav-add-on-settings">
+      {addOns.map((addOn) => (
+        <li key={addOn.key}>
+          <Link to="/add-on-settings/$key" params={{ key: addOn.key }} className={NAV_LINK_CLASS}>
+            <SlidersHorizontal className="size-[18px] shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">{t('nav.addOnSettings', '{name} settings', { name: addOn.name })}</span>
           </Link>
         </li>
       ))}
@@ -556,6 +581,8 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
    * being a row that 403s when clicked.
    */
   const addOnNav = addOnNavOf(bootstrap);
+  // The add-ons whose settings this reader keeps by grant, without managing add-ons: one row each, in Library.
+  const addOnSettings = bootstrap.addOnSettings ?? [];
   // A page drawn in its add-on's own section, or with no place in the rail at all, is no row of the shared groups.
   const visibleAddOnPages = addOnNav.pages.filter((page) => (admin || !page.adminOnly) && page.inSection !== true && page.unlisted !== true);
   const addOnPagesFor = (group: string): readonly AddOnNavPage[] =>
@@ -711,6 +738,7 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
                   <NavItemList items={group.items} />
                 )}
                 <PlatformLinkList links={platformLinksFor(group.key)} />
+                {group.key === SETTINGS_GROUP && <AddOnSettingsLinkList addOns={addOnSettings} />}
                 <AddOnLinkList pages={addOnPagesFor(group.key)} />
               </div>
               {hostedAfter === group.key ? hostedSections : null}
@@ -719,13 +747,15 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
         {platformOnlyGroups.map((entry) => {
           const links = platformLinksFor(entry.group);
           const pages = addOnPagesFor(entry.group);
-          if (links.length === 0 && pages.length === 0) return null;
+          const settings = entry.group === SETTINGS_GROUP ? addOnSettings : [];
+          if (links.length === 0 && pages.length === 0 && settings.length === 0) return null;
           return (
             <div key={entry.group} className="mb-1" data-part="nav-platform-group">
               <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
                 {t(GROUP_LABEL_KEY[entry.group], GROUP_LABELS[entry.group])}
               </div>
               <PlatformLinkList links={links} />
+              <AddOnSettingsLinkList addOns={settings} />
               <AddOnLinkList pages={pages} />
             </div>
           );

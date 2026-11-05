@@ -63,14 +63,16 @@ function preload(ref: AddOnModuleRef): void {
   document.head.append(link);
 }
 
-const loaded = new Map<string, Promise<unknown>>();
+const loaded = new Map<string, Promise<Record<string, unknown> | null>>();
 
 /**
- * Import one add-on page module and return its default export. Loads are shared
- * per URL; the integrity is part of the key, so an upgraded package (same URL,
- * new hash) loads again instead of serving the old module from this map.
+ * Import one add-on module and return its namespace — every export, for a
+ * file that hands the host a `register()` (a slot fill) rather than a page as
+ * its default. Loads are shared per URL; the integrity is part of the key, so
+ * an upgraded package (same URL, new hash) loads again instead of serving the
+ * old module from this map.
  */
-export function loadAddOnModule(ref: AddOnModuleRef): Promise<unknown> {
+export function loadAddOnNamespace(ref: AddOnModuleRef): Promise<Record<string, unknown> | null> {
   const key = `${ref.url} ${ref.integrity}`;
   const existing = loaded.get(key);
   if (existing !== undefined) return existing;
@@ -81,14 +83,18 @@ export function loadAddOnModule(ref: AddOnModuleRef): Promise<unknown> {
     const { ensureAddOnRuntime } = await import('./runtime.js');
     await ensureAddOnRuntime({ data: ref.hostApi === 2 });
     preload(ref);
-    const mod = (await importModule(ref.url)) as { default?: unknown } | null;
-    return mod?.default;
+    return (await importModule(ref.url)) as Record<string, unknown> | null;
   })();
   loaded.set(key, pending);
   pending.catch(() => {
     if (loaded.get(key) === pending) loaded.delete(key);
   });
   return pending;
+}
+
+/** Import one add-on page module and return its default export (see {@link loadAddOnNamespace}). */
+export async function loadAddOnModule(ref: AddOnModuleRef): Promise<unknown> {
+  return (await loadAddOnNamespace(ref))?.default;
 }
 
 /** Test seam. */

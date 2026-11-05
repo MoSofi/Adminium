@@ -128,6 +128,12 @@
     },
     "settings": {
       "badJson": "這不是有效的 JSON，因此未儲存。",
+      "fillFailed": "無法載入此附加元件自己的設定控制項。其中的任何內容都未執行。",
+      "fillSaveFailed": "無法儲存此變更。未做任何變更。",
+      "notHere": "此附加元件未安裝",
+      "notHereBody": "此附加元件未在此安裝，或其設定不歸您管理。管理員可以安裝它，或將其設定授予您的角色。",
+      "pageNamed": "{name} 設定",
+      "pageTitle": "附加元件設定",
       "save": "儲存設定",
       "title": "設定"
     },

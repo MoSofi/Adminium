@@ -114,6 +114,9 @@ const OtpPageLazy = lazyRoute(async () => (await import('../auth/OtpPage.js')).O
 const AddOnPageHostLazy = lazyRoute(
   async () => (await import('../add-ons/AddOnPageHost.js')).AddOnPageHost,
 );
+const AddOnSettingsPageLazy = lazyRoute(
+  async () => (await import('../studio/add-ons/AddOnSettingsPage.js')).AddOnSettingsPage,
+);
 const AppSurfacePageLazy = lazyRoute(
   async () => (await import('../apps/AppSurfacePage.js')).AppSurfacePage,
 );
@@ -614,6 +617,17 @@ const addOnPageRootRoute = createRoute({
   },
 });
 
+/**
+ * One add-on's settings, for whoever keeps them without managing add-ons (an
+ * app's role holding `addOn:<key>:settings`). Its own prefix, so no add-on
+ * page's address (`/add-ons/<key>/<ref>`) can ever be this screen.
+ */
+const addOnSettingsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/add-on-settings/$key',
+  component: AddOnSettingsPageLazy,
+});
+
 const accountRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/account',
@@ -1101,6 +1115,7 @@ const routeTree = rootRoute.addChildren([
     appSurfaceRoute,
     addOnPageRoute,
     addOnPageRootRoute,
+    addOnSettingsRoute,
     appSurfaceRootRoute,
     accountRoute,
     welcomeRoute,

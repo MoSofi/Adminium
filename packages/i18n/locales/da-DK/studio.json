@@ -128,6 +128,12 @@
     },
     "settings": {
       "badJson": "Det er ikke gyldig JSON, så intet blev gemt.",
+      "fillFailed": "Tilføjelsens egen indstillingskontrol kunne ikke indlæses. Intet fra den er blevet kørt.",
+      "fillSaveFailed": "Ændringen kunne ikke gemmes. Intet blev ændret.",
+      "notHere": "Denne tilføjelse er ikke installeret",
+      "notHereBody": "Denne tilføjelse er ikke installeret her, eller dens indstillinger er ikke dine at passe. En administrator kan installere den eller give din rolle dens indstillinger.",
+      "pageNamed": "Indstillinger: {name}",
+      "pageTitle": "Indstillinger for tilføjelse",
       "save": "Gem indstillinger",
       "title": "Indstillinger"
     },

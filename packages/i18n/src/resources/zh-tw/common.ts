@@ -134,6 +134,7 @@ export default {
     "audit": "稽核紀錄",
     "security": "密碼與工作階段",
     "files": "檔案",
+    "addOnSettings": "{name} 設定",
     "emptyWithheld": "尚未有頁面分享給您的角色。請向管理員申請存取權限。",
     "emptyConnected": "從已連接的資料庫建立頁面後，頁面會出現在這裡。",
     "app": {

@@ -39,8 +39,10 @@ import { addOnPagePermission, appsSwitchedOn, pagesAreGated, pagesOnDashboard } 
 
 import { screensOnlyError } from '../../apps/screens-only.js';
 import { UnauthorizedError } from '../../errors.js';
+import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
 import { loadAppParts, partIsOn } from '../../rbac/app-parts.js';
 import { parseGrant, PERMISSIONS } from '../../rbac/permissions.js';
+import { getPrincipal } from '../../rbac/principal.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
 import { MAPS_OFF } from '../../geo/map-policy.js';
 import type { AuthContext } from '../../plugins/auth.js';
@@ -383,6 +385,44 @@ export async function dashboardAddOnManifests(meta: MetaDb): Promise<{ manifestK
   if (order.length === 0) return [];
   const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'version', 'manifest']).where('id', 'in', order).execute();
   return inIdOrder(order, rows).map((row) => ({ manifestKey: row.manifestKey, version: row.version, manifest: row.manifest }));
+}
+
+/**
+ * The add-ons whose settings a reader keeps through the per-add-on grant
+ * (`addOn:<key>:settings`), as `PUT /add-ons/:key/settings` honours it: an
+ * add-on with something to set (a setting that is no secret, or a settings
+ * panel of its own), and the grant held for it now (`addOnSettingsGrantHeld`:
+ * an app's role only while that app has the add-on connected and switched
+ * on). Nobody who manages add-ons is told of any: the add-ons page is theirs.
+ */
+async function settingsKeptByGrant(meta: MetaDb, request: FastifyRequest, permissions: PermissionSet | null): Promise<{ key: string; name: string }[]> {
+  if (permissions === null || permissions.superAdmin) return [];
+  const named = [...permissions.grants].flatMap((grant) => {
+    const key = /^addOn:([a-z][a-z0-9-]{1,79}):settings$/.exec(grant)?.[1];
+    return key === undefined ? [] : [key];
+  });
+  if (named.length === 0) return [];
+  if (typeof request.can === 'function' && (await request.can(PERMISSIONS.manifestsManage))) return [];
+  const viewer = getPrincipal(request);
+  if (viewer === null) return [];
+  const rows = await meta.db
+    .selectFrom('adminium_manifests')
+    .select(['manifestKey', 'manifest'])
+    .where('kind', '=', 'add-on')
+    .where('status', '=', 'installed')
+    .where('manifestKey', 'in', named)
+    .execute();
+  const out: { key: string; name: string }[] = [];
+  // Sorted here, not by the database: a sort that carries the manifests fails on MySQL past its sort buffer.
+  for (const row of rows.sort((a, b) => (a.manifestKey < b.manifestKey ? -1 : a.manifestKey > b.manifestKey ? 1 : 0))) {
+    const parsed = addOnManifestSchema.safeParse(readJson(row.manifest));
+    if (!parsed.success) continue;
+    const manifest = parsed.data;
+    const somethingToSet = (manifest.settings ?? []).some((setting) => setting.secret !== true) || (manifest.addOn.slots ?? []).some((slot) => slot.slot === 'settings.add-on.panel');
+    if (!somethingToSet || !(await addOnSettingsGrantHeld(meta, viewer, row.manifestKey))) continue;
+    out.push({ key: row.manifestKey, name: manifest.name });
+  }
+  return out;
 }
 
 /** The installed apps, by key, with their manifests. */
@@ -972,6 +1012,7 @@ export async function bootstrapHandler(
     }
   }
   const addOnNav = buildAddOnNav(addOnDocuments, (ref) => openCodePages.has(ref), prefs.locale);
+  const addOnSettings = await settingsKeptByGrant(ctx.meta, request, permissions);
   const addOnKeys = new Set(sectionAddOns.map((row) => row.key));
   const withheld = visibleRows.filter((row) => row.appKey != null && unmet.get(row.appKey)?.has(row.slug) === true);
   /*
@@ -1056,6 +1097,7 @@ export async function bootstrapHandler(
       csrfToken: csrfTokenFor(ctx, request),
       hostedApps,
       addOnNav,
+      ...(addOnSettings.length === 0 ? {} : { addOnSettings }),
       hiddenPages: hidden,
       pausedPages: paused,
       unavailableApps: hasSurfaces

@@ -128,6 +128,12 @@
     },
     "settings": {
       "badJson": "Das ist kein gültiges JSON und wurde nicht gespeichert.",
+      "fillFailed": "Das eigene Einstellungsfeld dieses Add-ons konnte nicht geladen werden. Nichts davon wurde ausgeführt.",
+      "fillSaveFailed": "Diese Änderung konnte nicht gespeichert werden. Es wurde nichts geändert.",
+      "notHere": "Dieses Add-on ist nicht installiert",
+      "notHereBody": "Dieses Add-on ist hier nicht installiert, oder seine Einstellungen gehören nicht zu Ihren Aufgaben. Eine Administratorin oder ein Administrator kann es installieren oder Ihrer Rolle seine Einstellungen geben.",
+      "pageNamed": "Einstellungen: {name}",
+      "pageTitle": "Add-on-Einstellungen",
       "save": "Einstellungen speichern",
       "title": "Einstellungen"
     },

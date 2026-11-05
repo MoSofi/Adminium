@@ -138,6 +138,12 @@ export default {
     },
     "settings": {
       "badJson": "这不是有效的 JSON，因此未保存。",
+      "fillFailed": "无法加载此附加组件自己的设置控件。其中的任何内容都未运行。",
+      "fillSaveFailed": "无法保存此更改。未做任何更改。",
+      "notHere": "此附加组件未安装",
+      "notHereBody": "此附加组件未在此安装，或其设置不归您管理。管理员可以安装它，或将其设置授予您的角色。",
+      "pageNamed": "{name} 设置",
+      "pageTitle": "附加组件设置",
       "save": "保存设置",
       "title": "设置"
     },

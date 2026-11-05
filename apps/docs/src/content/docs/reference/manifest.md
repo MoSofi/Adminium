@@ -3366,7 +3366,7 @@ A manifest cannot know the real table names or page ids, so it grants through pl
 | `table:@<table ref>:<action>` | `read`, `create`, `update`, `delete`, `export`, `import`, `read_pii` |
 | `page:@<page ref>:<action>` | `view`, `edit` |
 | `app:@:staff` | Open the app's staff screens. |
-| `addOn:<add-on key>:settings` | Edit that add-on's non-secret settings (the letterhead of an invoicing add-on). Only an add-on the app requires or suggests in [`addOns`](#add-ons). |
+| `addOn:<add-on key>:settings` | Edit that add-on's non-secret settings (the letterhead of an invoicing add-on). Only an add-on the app requires or suggests in [`addOns`](#add-ons). A holder who does not manage add-ons finds a row for it in the rail's Library group, opening `/add-on-settings/<add-on key>`: the add-on's own settings control (its `settings.add-on.panel` fill, such as the closed-days picker of Holiday Calendars) above the generated fields. Needs Adminium 0.3.47. |
 | `page:@<add-on page or panel id>:view` | See a page or a record panel of an add-on the app requires or suggests (`page:@customiser-line:view`). The id starts with the add-on's key. `view` only. Needs Adminium 0.3.44. A page of an add-on made only for certain apps (one whose `attaches` does not name the dashboard) is on the dashboard while one of those apps has it connected and switched on, at `/add-ons/<add-on key>/<page ref>`, from 0.3.47. A screens-only role that holds the grant fetches the files shipped beside that page (`/api/v1/add-ons/<add-on key>/pages/<page ref>/files/…`, a starter font its panel draws with), not the page itself. |
 
 An add-on's page or panel is given as the role's [`tables`](#a-role-on-an-add-ons-tables)

@@ -138,6 +138,12 @@ export default {
     },
     "settings": {
       "badJson": "Toto není platný JSON, takže se nic neuložilo.",
+      "fillFailed": "Vlastní ovládací prvek nastavení tohoto doplňku se nepodařilo načíst. Nic z něj nebylo spuštěno.",
+      "fillSaveFailed": "Tuto změnu se nepodařilo uložit. Nic se nezměnilo.",
+      "notHere": "Tento doplněk není nainstalován",
+      "notHereBody": "Tento doplněk zde není nainstalován, nebo jeho nastavení nespravujete. Správce ho může nainstalovat nebo svěřit jeho nastavení vaší roli.",
+      "pageNamed": "Nastavení: {name}",
+      "pageTitle": "Nastavení doplňku",
       "save": "Uložit nastavení",
       "title": "Nastavení"
     },

@@ -124,6 +124,7 @@
     "audit": "Audit-Log",
     "security": "Passwort & Sitzungen",
     "files": "Dateien",
+    "addOnSettings": "Einstellungen: {name}",
     "emptyWithheld": "Mit Ihrer Rolle wurden noch keine Seiten geteilt. Bitten Sie eine Administratorin oder einen Administrator um Zugriff.",
     "emptyConnected": "Seiten erscheinen hier, sobald sie aus der verbundenen Datenbank erstellt wurden.",
     "app": {

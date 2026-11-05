@@ -64,6 +64,7 @@ import { AddOnBrowser } from './AddOnBrowser.js';
 import { MakesSummary, PlanSummary, PublicAccessChoice } from './PlanSummary.js';
 import { UninstallSummary, uninstallAllowed } from './UninstallSummary.js';
 import { PageSurface } from '../../shell/PageSurface.js';
+import { SettingsPanelFill, settingsFillBundle } from './SettingsPanelFill.js';
 import { t } from '../../i18n/t.js';
 import {
   ADD_ONS_QUERY_KEY,
@@ -308,12 +309,13 @@ function ConsentDialog({
  * draws. Two destinations, two forms, and the REPO refuses a `secret` key on
  * the settings PUT so a mistake here cannot cross them.
  *
- * ─── On the `dashboard` host this form IS the settings surface (D23) ───────
+ * ─── An add-on's own settings control is drawn first ──────────────────────
  *
- * An add-on's own `settings.add-on.panel` fill never renders in stock Adminium
- * — that needs the dashboard slot host, which is post-v1. Until then this is
- * where its settings are edited, which is exactly why it is generated rather
- * than bespoke: it has to serve an add-on nobody has seen.
+ * An add-on that ships a fill of `settings.add-on.panel` (its own form for a
+ * setting no generated control can draw, such as a list of closed days) has
+ * it drawn at the top (`SettingsPanelFill`), and its `json` settings are left
+ * to it: the raw box below is for an add-on that ships no such control. The
+ * rest is generated, which is exactly why it serves an add-on nobody has seen.
  *
  * ─── `json` renders as a raw editor, and that is said rather than hidden ───
  *
@@ -323,16 +325,19 @@ function ConsentDialog({
  */
 export function SettingsForm({ addOn, busy }: { addOn: AddOnDto; busy: boolean }) {
   const queryClient = useQueryClient();
-  const editable = addOn.settings.filter((setting) => !setting.secret);
+  // Its own control, when it ships one, keeps its `json` settings: the raw box is for an add-on that ships none.
+  const ownControl = settingsFillBundle(addOn) !== null;
+  const editable = addOn.settings.filter((setting) => !setting.secret && !(ownControl && setting.type === 'json'));
   const [draft, setDraft] = useState<Record<string, unknown>>(addOn.settingValues);
   const [invalid, setInvalid] = useState<string | null>(null);
 
   const save = useMutation({
-    mutationFn: () => saveAddOnSettings(addOn.key, draft),
+    // Only the fields drawn here: a value the add-on's own control saved is never written back from an older draft.
+    mutationFn: () => saveAddOnSettings(addOn.key, Object.fromEntries(editable.filter((setting) => Object.prototype.hasOwnProperty.call(draft, setting.key)).map((setting) => [setting.key, draft[setting.key]]))),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['studio', 'add-ons'] }),
   });
 
-  if (editable.length === 0) return null;
+  if (editable.length === 0 && !ownControl) return null;
 
   const set = (key: string, value: unknown) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -343,6 +348,7 @@ export function SettingsForm({ addOn, busy }: { addOn: AddOnDto; busy: boolean }
       <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
         {t('studio:addOns.settings.title', 'Settings')}
       </p>
+      {ownControl && <SettingsPanelFill addOn={addOn} />}
       {editable.map((setting) => {
         const label =
           setting.label === null ? setting.key : t(setting.label.key, setting.label.fallback);
@@ -428,15 +434,17 @@ export function SettingsForm({ addOn, busy }: { addOn: AddOnDto; busy: boolean }
           </label>
         );
       })}
-      <div>
-        <Button
-          size="sm"
-          disabled={busy || save.isPending || invalid !== null}
-          onClick={() => save.mutate()}
-        >
-          {t('studio:addOns.settings.save', 'Save settings')}
-        </Button>
-      </div>
+      {editable.length > 0 && (
+        <div>
+          <Button
+            size="sm"
+            disabled={busy || save.isPending || invalid !== null}
+            onClick={() => save.mutate()}
+          >
+            {t('studio:addOns.settings.save', 'Save settings')}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

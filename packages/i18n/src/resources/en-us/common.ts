@@ -134,6 +134,7 @@ export default {
     "audit": "Audit log",
     "security": "Password & sessions",
     "files": "Files",
+    "addOnSettings": "{name} settings",
     "emptyWithheld": "No pages have been shared with your role yet. Ask an administrator for access.",
     "emptyConnected": "Pages appear here once they are made from the connected database.",
     "app": {

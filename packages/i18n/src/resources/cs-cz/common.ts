@@ -134,6 +134,7 @@ export default {
     "audit": "Auditní log",
     "security": "Heslo a relace",
     "files": "Soubory",
+    "addOnSettings": "Nastavení: {name}",
     "emptyWithheld": "S vaší rolí zatím nebyly sdíleny žádné stránky. Požádejte o přístup správce.",
     "emptyConnected": "Stránky se zde objeví, jakmile budou vytvořeny z připojené databáze.",
     "app": {

@@ -6191,6 +6191,10 @@
     "srcHash": "85dfa32c97d8",
     "status": "mt"
   },
+  "common.nav.addOnSettings": {
+    "status": "mt",
+    "srcHash": "24dddc5d8cf4"
+  },
   "common.nav.app.openStaff": {
     "status": "mt",
     "srcHash": "b172c79b6dab"
@@ -23926,6 +23930,30 @@
   "studio.addOns.settings.badJson": {
     "status": "mt",
     "srcHash": "9852d5ae6823"
+  },
+  "studio.addOns.settings.fillFailed": {
+    "status": "mt",
+    "srcHash": "3cd51bd7d0bf"
+  },
+  "studio.addOns.settings.fillSaveFailed": {
+    "status": "mt",
+    "srcHash": "a1c3a3707d14"
+  },
+  "studio.addOns.settings.notHere": {
+    "status": "mt",
+    "srcHash": "144a45d4d098"
+  },
+  "studio.addOns.settings.notHereBody": {
+    "status": "mt",
+    "srcHash": "ca3a4b17f282"
+  },
+  "studio.addOns.settings.pageNamed": {
+    "status": "mt",
+    "srcHash": "24dddc5d8cf4"
+  },
+  "studio.addOns.settings.pageTitle": {
+    "status": "mt",
+    "srcHash": "8359c771a6cc"
   },
   "studio.addOns.settings.save": {
     "status": "mt",

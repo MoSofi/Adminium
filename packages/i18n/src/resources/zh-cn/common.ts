@@ -134,6 +134,7 @@ export default {
     "audit": "审计日志",
     "security": "密码与会话",
     "files": "文件",
+    "addOnSettings": "{name} 设置",
     "emptyWithheld": "尚未有页面共享给您的角色。请向管理员申请访问权限。",
     "emptyConnected": "从已连接的数据库创建页面后，页面会显示在这里。",
     "app": {

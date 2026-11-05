@@ -128,6 +128,12 @@
     },
     "settings": {
       "badJson": "That is not valid JSON, so it was not saved.",
+      "fillFailed": "This add-on’s own settings control could not be loaded. Nothing from it has been run.",
+      "fillSaveFailed": "That change could not be saved. Nothing was changed.",
+      "notHere": "This add-on is not installed",
+      "notHereBody": "This add-on is not installed here, or its settings are not yours to keep. An administrator can install it, or give your role its settings.",
+      "pageNamed": "{name} settings",
+      "pageTitle": "Add-on settings",
       "save": "Save settings",
       "title": "Settings"
     },

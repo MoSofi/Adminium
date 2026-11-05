@@ -128,6 +128,12 @@
     },
     "settings": {
       "badJson": "Ce n’est pas du JSON valide ; rien n’a été enregistré.",
+      "fillFailed": "Le réglage propre à ce module n’a pas pu être chargé. Rien n’en a été exécuté.",
+      "fillSaveFailed": "Cette modification n’a pas pu être enregistrée. Rien n’a changé.",
+      "notHere": "Ce module n’est pas installé",
+      "notHereBody": "Ce module n’est pas installé ici, ou ses réglages ne vous reviennent pas. Un administrateur peut l’installer, ou confier ses réglages à votre rôle.",
+      "pageNamed": "Réglages : {name}",
+      "pageTitle": "Réglages du module",
       "save": "Enregistrer les réglages",
       "title": "Réglages"
     },

@@ -294,6 +294,12 @@ export interface BootstrapData {
    */
   addOnNav?: AddOnNav;
   /**
+   * The add-ons whose settings this reader keeps through the per-add-on grant
+   * (`addOn:<key>:settings`) without managing add-ons: the rail links each
+   * one's settings screen. Absent from an older server, and when there is none.
+   */
+  addOnSettings?: { key: string; name: string }[];
+  /**
    * Pages hidden from the sidebar but alive (follow-up): Studio's "Hide from
    * sidebar" and the generated cascade-child default both land pages here.
    * Same shape as nav items, no group. Everything that RESOLVES pages — the
