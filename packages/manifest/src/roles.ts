@@ -626,8 +626,12 @@ export const ROLE_ADD_ON_ACTIONS = ['read', 'create', 'update', 'read_pii', 'del
 /** The actions a grant's column lists narrow: what a read shows, what an update changes, what a new row is given. */
 export const ROLE_ADD_ON_COLUMN_ACTIONS = ['read', 'create', 'update'] as const;
 
-/** The most add-on tables one role is granted: an app's owner holds a designer's tables and a calendar's besides. */
-export const ROLE_ADD_ON_TABLES_MAX = 16;
+/**
+ * The most add-on tables one role is granted. A shop's owner reads a
+ * designer's tables (about a dozen), a stock add-on's, a carrier's and a
+ * calendar's besides: some twenty, with room for one more add-on.
+ */
+export const ROLE_ADD_ON_TABLES_MAX = 24;
 
 /**
  * A grant on a table of an add-on the app names, by the add-on's key and the

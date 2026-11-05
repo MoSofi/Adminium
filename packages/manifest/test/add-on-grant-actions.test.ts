@@ -2,7 +2,7 @@
 /**
  * An app's role on an add-on's table may read its personal columns
  * (`read_pii`, beside `read`) and remove rows (`delete`), and hold up to
- * sixteen such grants. A table a ledger's code writes stays the ledger's:
+ * twenty-four such grants. A table a ledger's code writes stays the ledger's:
  * an app's role reads it, and adds rows and changes the add-on's own columns
  * there only where the add-on allows it by name (`appGrants`) — never a
  * column the ledger's code writes, never a remove.
@@ -61,7 +61,7 @@ const parsed = (doc: Doc): AddOnManifest => {
 
 const grant = (table: string, actions: RoleAddOnTable['actions'], limit?: RoleAddOnTable['limit']): RoleAddOnTable => ({ addOn: 'ledger-kit', table, actions, ...(limit === undefined ? {} : { limit }) });
 
-describe("an app's role on an add-on's table: personal columns, removing rows, sixteen tables", () => {
+describe("an app's role on an add-on's table: personal columns, removing rows, twenty-four tables", () => {
   it('takes read_pii beside read, and delete, at the release that reads them', () => {
     const doc = app([{ addOn: 'kit', table: 'designs', actions: ['read', 'read_pii'] }, { addOn: 'kit', table: 'files', actions: ['read', 'create', 'delete'] }]);
     expect(said(doc)).toEqual([]);
@@ -78,10 +78,10 @@ describe("an app's role on an add-on's table: personal columns, removing rows, s
     expect(said(app([{ addOn: 'kit', table: 'files', actions: ['read'], limit: { rows: { delete: { reach: 'all', while: { column: 'kind', in: ['print'] } } } } }])).join('\n')).toContain('the grant has no "delete", so there is nothing for its rows to limit');
   });
 
-  it('holds sixteen add-on tables, not seventeen; more than twelve needs the release that reads them', () => {
+  it('holds twenty-four add-on tables, not twenty-five; more than twelve needs the release that reads them', () => {
     const many = (count: number) => app(Array.from({ length: count }, (_, at) => ({ addOn: 'kit', table: `t${String(at)}`, actions: ['read'] })));
-    expect(said(many(16))).toEqual([]);
-    expect(said(many(17)).join('\n')).toContain('roles.0.tables');
+    expect(said(many(24))).toEqual([]);
+    expect(said(many(25)).join('\n')).toContain('roles.0.tables');
     expect(installFloorWords(many(13)).map((found) => found.word)).toContain('roles.addOnActions');
     expect(installFloorWords(many(12)).map((found) => found.word)).not.toContain('roles.addOnActions');
   });
