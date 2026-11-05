@@ -91,7 +91,8 @@ export default {
     "paymentsManage": "设置付款",
     "paymentsRefund": "办理退款",
     "paymentsView": "查看付款活动并导出",
-    "privacyManage": "查找、下载和管理某人的数据"
+    "privacyManage": "查找、下载和管理某人的数据",
+    "privacyPeople": "查找、下载并删除某人的数据"
   },
   "rename": {
     "failed": "无法重命名该角色",

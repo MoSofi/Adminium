@@ -842,6 +842,10 @@ export default {
         "getting": "Obtention de {addOn}, dont {app} a besoin…",
         "brings": "Installer télécharge d’abord {addOn}, dont {app} a besoin, depuis adminium.dev.",
         "readFirst": "{addOn} est maintenant sur ce serveur. Lisez ci-dessus ce qu’elle ajoute, puis appuyez sur Installer."
+      },
+      "privacyGrants": {
+        "title": "Un rôle peut effacer des personnes",
+        "body": "{roles} peut trouver, télécharger et effacer tout ce que cet espace de travail conserve sur une personne, sur la page de confidentialité."
       }
     },
     "installed": {
@@ -3518,12 +3522,16 @@ export default {
       "action": {
         "read": "lire",
         "create": "ajouter des lignes",
-        "update": "modifier des lignes"
+        "update": "modifier des lignes",
+        "readPii": "voir les données personnelles",
+        "delete": "supprimer des lignes"
       },
       "keyShown": "Une lecture montre aussi la clé de chaque ligne. Un lien vers une autre ligne n’est montré que là où il est listé.",
       "othersTitle": "Des rôles d’applications obtiennent plus des tables d’un module",
       "othersBody": "La nouvelle version du module permet à ces rôles d’en faire plus avec ses tables. Continuer l’autorise.",
-      "appRoles": "Rôles de {app}"
+      "appRoles": "Rôles de {app}",
+      "seesPii": "Voit les données personnelles de ce qu’il lit",
+      "removes": "Supprime des lignes"
     }
   },
   "featurePage": {

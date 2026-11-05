@@ -392,7 +392,8 @@ export type SystemAction =
   | 'payments.manage'
   | 'payments.refund'
   | 'payments.view'
-  | 'privacy.manage';
+  | 'privacy.manage'
+  | 'privacy.people';
 
 /**
  * Does this session hold `system:<action>`? What the dashboard asks before it
@@ -406,7 +407,7 @@ export type SystemAction =
  * Nor does the privacy key: it reads a person's data past every limit, the
  * Admin role is not seeded with it, and a server that sends no list has none.
  */
-const NEVER_GUESSED: ReadonlySet<SystemAction> = new Set<SystemAction>(['payments.manage', 'payments.refund', 'payments.view', 'privacy.manage']);
+const NEVER_GUESSED: ReadonlySet<SystemAction> = new Set<SystemAction>(['payments.manage', 'payments.refund', 'payments.view', 'privacy.manage', 'privacy.people']);
 
 export function holdsSystemAction(bootstrap: BootstrapData, action: SystemAction): boolean {
   if (bootstrap.systemActions === undefined) {

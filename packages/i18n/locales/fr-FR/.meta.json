@@ -23091,6 +23091,10 @@
     "status": "mt",
     "srcHash": "ca4384fb1b57"
   },
+  "roles.permission.privacyPeople": {
+    "status": "mt",
+    "srcHash": "35035ad38368"
+  },
   "roles.permission.projectRead": {
     "status": "mt",
     "srcHash": "bb0cbe226b62"
@@ -24883,9 +24887,17 @@
     "status": "mt",
     "srcHash": "11858f93ca90"
   },
+  "studio.appAddOns.roleTables.action.delete": {
+    "status": "mt",
+    "srcHash": "cd6876539cf9"
+  },
   "studio.appAddOns.roleTables.action.read": {
     "status": "mt",
     "srcHash": "a7afddb68260"
+  },
+  "studio.appAddOns.roleTables.action.readPii": {
+    "status": "mt",
+    "srcHash": "dba9c4bd73ce"
   },
   "studio.appAddOns.roleTables.action.update": {
     "status": "mt",
@@ -24950,6 +24962,14 @@
   "studio.appAddOns.roleTables.readsAll": {
     "status": "mt",
     "srcHash": "7cfe2a0d775b"
+  },
+  "studio.appAddOns.roleTables.removes": {
+    "status": "mt",
+    "srcHash": "164189b89930"
+  },
+  "studio.appAddOns.roleTables.seesPii": {
+    "status": "mt",
+    "srcHash": "7df186550e0e"
   },
   "studio.appAddOns.roleTables.summary": {
     "status": "mt",
@@ -28366,6 +28386,14 @@
   "studio.hostedApps.install.plan.toggleDdl": {
     "status": "mt",
     "srcHash": "3682742900af"
+  },
+  "studio.hostedApps.install.privacyGrants.body": {
+    "status": "mt",
+    "srcHash": "fa0d3696a9a4"
+  },
+  "studio.hostedApps.install.privacyGrants.title": {
+    "status": "mt",
+    "srcHash": "599b3b3da9b6"
   },
   "studio.hostedApps.install.progress": {
     "status": "mt",

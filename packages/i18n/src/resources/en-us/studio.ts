@@ -842,6 +842,10 @@ export default {
         "getting": "Getting {addOn}, which {app} needs…",
         "brings": "Install first downloads {addOn}, which {app} needs, from adminium.dev.",
         "readFirst": "{addOn} is on this server now. Read what it adds, above, then press Install."
+      },
+      "privacyGrants": {
+        "title": "A role can erase people",
+        "body": "{roles} can find, download and erase everything this workspace keeps about a person, on the privacy page."
       }
     },
     "installed": {
@@ -3518,12 +3522,16 @@ export default {
       "action": {
         "read": "read",
         "create": "add rows",
-        "update": "change rows"
+        "update": "change rows",
+        "readPii": "see personal details",
+        "delete": "remove rows"
       },
       "keyShown": "A read also shows each row’s key. A link to another row is shown only where it is listed.",
       "othersTitle": "Apps’ roles get more of an add-on’s tables",
       "othersBody": "The add-on’s new version lets these roles do more with its tables. Going ahead allows it.",
-      "appRoles": "{app}’s roles"
+      "appRoles": "{app}’s roles",
+      "seesPii": "Sees personal details in what it reads",
+      "removes": "Removes rows"
     }
   },
   "featurePage": {

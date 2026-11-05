@@ -81,7 +81,8 @@
     "paymentsManage": "Set up payments",
     "paymentsRefund": "Give refunds",
     "paymentsView": "See payment activity and export it",
-    "privacyManage": "Find, download and manage a person’s data"
+    "privacyManage": "Find, download and manage a person’s data",
+    "privacyPeople": "Find, download and erase a person’s data"
   },
   "rename": {
     "failed": "Could not rename the role",

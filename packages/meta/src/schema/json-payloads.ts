@@ -314,6 +314,11 @@ export const SYSTEM_ACTION_KEYS = [
   // past any role's table and row limits, so it is a key of its own. Only the
   // Super Admin holds it unless it is granted on purpose (as payments).
   'privacy.manage',
+  // A person's data alone: finding everything kept about one address,
+  // downloading it, and erasing them; never the privacy notice nor the
+  // websites. What a shop's owner needs to answer a customer's request, and
+  // the one privacy right an app's role may carry (`privacy:@:people`).
+  'privacy.people',
 ] as const;
 export type SystemActionKey = (typeof SYSTEM_ACTION_KEYS)[number];
 export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);

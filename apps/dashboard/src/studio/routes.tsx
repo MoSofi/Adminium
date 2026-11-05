@@ -344,10 +344,14 @@ function DoNotEmailRouteComponent() {
   );
 }
 
-/** Privacy & public pages: `privacy.manage` alone (the Super Admin's); it rides the settings hub's chunk, as Maps does. */
+/**
+ * Privacy & public pages: `privacy.manage` (the Super Admin's), or `privacy.people` alone — a person's data, as a shop's
+ * owner holds it through their app's role — which opens the page on that tab only. It rides the settings hub's chunk, as
+ * Maps does.
+ */
 function PrivacyRouteComponent() {
   return (
-    <StudioGuard requires="privacy.manage">
+    <StudioGuard requires={['privacy.manage', 'privacy.people']}>
       <StudioBody>
         <StudioSettingsPageLazy privacy />
       </StudioBody>

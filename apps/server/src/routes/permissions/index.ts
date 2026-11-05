@@ -106,6 +106,7 @@ const SYSTEM_PERMISSION_META: Record<
   // `workspace`: the privacy notice is the business's own words, and finding a
   // person's data reads every people table past the role's limits.
   'privacy.manage': { label: "Find, download and manage a person's data", category: 'workspace' },
+  'privacy.people': { label: "Find, download and erase a person's data", category: 'workspace' },
 };
 
 /** `users.manage` → `system:users:manage` (spells the dot as a colon). */

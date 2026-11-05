@@ -842,6 +842,10 @@ export default {
         "getting": "Henter {addOn}, som {app} har brug for…",
         "brings": "Installér henter først {addOn}, som {app} har brug for, fra adminium.dev.",
         "readFirst": "{addOn} er nu på denne server. Læs ovenfor, hvad den tilføjer, og tryk så Installér."
+      },
+      "privacyGrants": {
+        "title": "En rolle kan slette personer",
+        "body": "{roles} kan finde, hente og slette alt, hvad dette arbejdsområde gemmer om en person, på privatlivssiden."
       }
     },
     "installed": {
@@ -3518,12 +3522,16 @@ export default {
       "action": {
         "read": "læse",
         "create": "tilføje rækker",
-        "update": "ændre rækker"
+        "update": "ændre rækker",
+        "readPii": "se personlige oplysninger",
+        "delete": "fjerne rækker"
       },
       "keyShown": "En læsning viser også hver rækkes nøgle. Et link til en anden række vises kun, hvor det er nævnt.",
       "othersTitle": "Roller i apps får mere af en tilføjelses tabeller",
       "othersBody": "Tilføjelsens nye version lader disse roller gøre mere med dens tabeller. Når du fortsætter, tillader du det.",
-      "appRoles": "Roller i {app}"
+      "appRoles": "Roller i {app}",
+      "seesPii": "Ser personlige oplysninger i det, den læser",
+      "removes": "Fjerner rækker"
     }
   },
   "featurePage": {

@@ -68,9 +68,9 @@ describe('appGrants on an add-on\'s table', () => {
     expect(messages(kit({ entries: { actions: ['read'], never: ['account_id'] } }))).toEqual([]);
   });
 
-  it('refuses it on a ledger\'s receipts, and any write on a table a ledger\'s code writes', () => {
+  it('refuses it on a ledger\'s receipts, and a change to what a ledger\'s code writes', () => {
     expect(messages(kit({ postings: { actions: ['read'] } }))).toEqual(['requiredSchema.tables.3.appGrants: "postings" is a ledger\'s receipt table, which no app\'s role ever holds: take "appGrants" off it']);
-    expect(messages(kit({ holds: { actions: ['read', 'update'], writable: ['state'] } }))).toEqual(['requiredSchema.tables.2.appGrants.actions.1: a ledger\'s code writes "holds": an app\'s role may only read it']);
+    expect(messages(kit({ holds: { actions: ['read', 'update'], writable: ['state'] } }, '0.3.47'))).toEqual(['requiredSchema.tables.2.appGrants.writable.0: a ledger\'s code writes "holds.state": no app\'s role changes it']);
   });
 
   it('is an add-on\'s word: an app\'s own table is refused it', () => {

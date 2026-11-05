@@ -21,13 +21,14 @@
  * unless granted on purpose): the route's guard says so, and so does every
  * route behind it.
  */
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Clock, Lock, TriangleAlert } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Alert, Button, Card, FormField, Input, Skeleton, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
+import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
@@ -61,31 +62,45 @@ const TAB = 'whitespace-nowrap px-3.5 pb-2.5 pt-2.5 font-bold data-[state=active
 export function PrivacyPage(): ReactNode {
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { tab?: unknown };
-  const tab = tabOf(search.tab);
-  const notice = useQuery(privacyNoticeQuery());
+  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  /*
+   * A person's data alone (`privacy.people`, as a shop's owner holds it through their app's role): that one tab, opened at
+   * once, and nothing of the notice, the websites or the keeping, whose routes would refuse them.
+   */
+  const whole = holdsSystemAction(bootstrap, 'privacy.manage');
+  const tab = whole ? tabOf(search.tab) : 'person';
+  const notice = useQuery({ ...privacyNoticeQuery(), enabled: whole });
 
   return (
     <>
-      <PageActions title={t('studio:privacy.title', 'Privacy & public pages')} backTo="/studio/settings" {...(notice.data === undefined || notice.data.shownName === '' ? {} : { subtitle: notice.data.shownName })} />
+      <PageActions title={t('studio:privacy.title', 'Privacy & public pages')} backTo={whole ? '/studio/settings' : '/'} {...(notice.data === undefined || notice.data.shownName === '' ? {} : { subtitle: notice.data.shownName })} />
       <PageSurface width="full" className="mx-auto flex w-full max-w-[976px] flex-col gap-3.5 leading-[normal]" testId="privacy-page">
         <Tabs value={tab} onValueChange={(next) => void navigate({ to: '/studio/privacy', search: { tab: next } as never, replace: true })}>
           <TabsList aria-label={t('studio:privacy.title', 'Privacy & public pages')} className="gap-1 overflow-x-auto overflow-y-hidden max-sm:-mx-4 max-sm:gap-0.5 max-sm:px-2">
-            <TabsTrigger value="notice" className={TAB}>
-              {t('studio:privacy.tab.notice', 'Privacy notice')}
-            </TabsTrigger>
-            <TabsTrigger value="websites" className={TAB}>
-              {t('studio:privacy.websites.tab', 'Your websites')}
-            </TabsTrigger>
+            {whole ? (
+              <TabsTrigger value="notice" className={TAB}>
+                {t('studio:privacy.tab.notice', 'Privacy notice')}
+              </TabsTrigger>
+            ) : null}
+            {whole ? (
+              <TabsTrigger value="websites" className={TAB}>
+                {t('studio:privacy.websites.tab', 'Your websites')}
+              </TabsTrigger>
+            ) : null}
             <TabsTrigger value="person" className={TAB}>
               {t('studio:privacy.tab.person', 'A person’s data')}
             </TabsTrigger>
-            <TabsTrigger value="keeping" className={TAB}>
-              {t('studio:privacy.tab.keeping', 'How long we keep things')}
-            </TabsTrigger>
+            {whole ? (
+              <TabsTrigger value="keeping" className={TAB}>
+                {t('studio:privacy.tab.keeping', 'How long we keep things')}
+              </TabsTrigger>
+            ) : null}
           </TabsList>
-          <TabsContent value="notice" className="pt-3.5">
-            <NoticeTab />
-          </TabsContent>
+          {whole ? (
+            <TabsContent value="notice" className="pt-3.5">
+              <NoticeTab />
+            </TabsContent>
+          ) : null}
           <TabsContent value="websites" className="pt-3.5">
             <Suspense
               fallback={
@@ -108,9 +123,11 @@ export function PrivacyPage(): ReactNode {
               <PersonDataTabLazy />
             </Suspense>
           </TabsContent>
-          <TabsContent value="keeping" className="pt-3.5">
-            <KeepingTab />
-          </TabsContent>
+          {whole ? (
+            <TabsContent value="keeping" className="pt-3.5">
+              <KeepingTab />
+            </TabsContent>
+          ) : null}
         </Tabs>
       </PageSurface>
     </>

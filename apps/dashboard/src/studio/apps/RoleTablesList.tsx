@@ -45,6 +45,8 @@ function actionWords(action: string): string {
   if (action === 'read') return t('studio:appAddOns.roleTables.action.read', 'read');
   if (action === 'create') return t('studio:appAddOns.roleTables.action.create', 'add rows');
   if (action === 'update') return t('studio:appAddOns.roleTables.action.update', 'change rows');
+  if (action === 'read_pii') return t('studio:appAddOns.roleTables.action.readPii', 'see personal details');
+  if (action === 'delete') return t('studio:appAddOns.roleTables.action.delete', 'remove rows');
   return action;
 }
 
@@ -72,6 +74,8 @@ function holdWords(entry: PlanRoleTable): string[] {
         : t('studio:appAddOns.roleTables.adds', 'Adds rows, filling in {columns}', { columns: entry.creatable.join(', ') }),
     );
   }
+  if (entry.actions.includes('read_pii')) out.push(t('studio:appAddOns.roleTables.seesPii', 'Sees personal details in what it reads'));
+  if (entry.actions.includes('delete')) out.push(t('studio:appAddOns.roleTables.removes', 'Removes rows'));
   return out;
 }
 

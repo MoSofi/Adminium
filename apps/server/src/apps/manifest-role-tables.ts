@@ -16,7 +16,11 @@
  *  - the actions and their limit go in ONE row, one statement: never a grant
  *    that stands for a moment without its limit;
  *  - never widened past what the add-on's own shape allows: no hold at all on
- *    a ledger's receipts, read only on a table a ledger's code writes;
+ *    a ledger's receipts, read only on a table a ledger's code writes (an
+ *    add and a change there only where the add-on's `appGrants` allows it,
+ *    never a remove);
+ *  - `read_pii` shows the table's personal columns in clear, beside `read`;
+ *    `delete` removes rows: each given and taken back as the others are;
  *  - never past what the add-on lets an app's role hold (`appGrants`): an
  *    action or a column outside it is left out, by name, and a grant on such
  *    a table is written with its column lists — never whole;
@@ -83,7 +87,7 @@ export function roleTablesChecked(
   );
 }
 
-const PAIR = /^table:@([a-z][a-z0-9-]{1,79})\/([A-Za-z0-9_]+):(read|create|update)$/;
+const PAIR = /^table:@([a-z][a-z0-9-]{1,79})\/([A-Za-z0-9_]+):(read|create|update|read_pii|delete)$/;
 /** Whether a ledger pair is a grant on an add-on's table (its `/` cannot occur in a grant on the app's own). */
 export const isAddOnTablePair = (grant: string): boolean => PAIR.test(grant);
 

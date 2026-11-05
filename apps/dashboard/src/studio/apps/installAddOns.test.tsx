@@ -311,6 +311,23 @@ describe('the Add-ons card', () => {
     expect(rowOf(card, 'holiday-calendars').querySelector('[data-part="add-on-role-tables"]')).toBeNull();
   });
 
+  it('says a hold that sees personal details and removes rows, and a role that may erase people', async () => {
+    plans = [
+      {
+        ...planWith([INVOICES, HOLIDAYS]),
+        roleTables: [{ role: 'maker', roleName: 'Maker', addOn: 'invoices', table: 'files', actions: ['read', 'read_pii', 'delete'], readable: ['id', 'name'] }],
+        privacyGrants: [{ role: 'clients-manager', roleName: 'Studio manager' }],
+      },
+    ];
+    const user = userEvent.setup();
+    const card = await reachCheck(user);
+    const details = rowOf(card, 'invoices').querySelector('details[data-part="add-on-role-tables"]') as HTMLDetailsElement;
+    await user.click(details.querySelector('summary')!);
+    const lines = [...details.querySelectorAll('[data-role-table]')].map((line) => [...line.querySelectorAll('p')].map((p) => p.textContent));
+    expect(lines).toEqual([['filesMaker', 'Reads id, name', 'Sees personal details in what it reads', 'Removes rows']]);
+    expect(screen.getByTestId('privacy-grants').textContent).toBe('A role can erase peopleStudio manager can find, download and erase everything this workspace keeps about a person, on the privacy page.');
+  });
+
   it('leaves an unticked suggestion out, and says it won’t be connected', async () => {
     const user = userEvent.setup();
     const card = await reachCheck(user);

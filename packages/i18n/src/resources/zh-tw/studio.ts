@@ -842,6 +842,10 @@ export default {
         "getting": "正在取得 {app} 所需的 {addOn}…",
         "brings": "「安裝」會先從 adminium.dev 下載 {app} 所需的 {addOn}。",
         "readFirst": "{addOn} 現已在此伺服器上。請先閱讀上方它會加入的內容，然後按「安裝」。"
+      },
+      "privacyGrants": {
+        "title": "某個角色可以刪除個人資料",
+        "body": "{roles} 可以在隱私頁面尋找、下載並刪除此工作區保存的關於某人的全部資料。"
       }
     },
     "installed": {
@@ -3518,12 +3522,16 @@ export default {
       "action": {
         "read": "讀取",
         "create": "新增資料列",
-        "update": "變更資料列"
+        "update": "變更資料列",
+        "readPii": "查看個人資訊",
+        "delete": "刪除列"
       },
       "keyShown": "讀取時也會顯示每列的鍵。指向其他列的連結只有在列出時才會顯示。",
       "othersTitle": "應用程式的角色可取得附加元件資料表的更多權限",
       "othersBody": "該附加元件的新版本讓這些角色可以對它的資料表做更多操作。繼續即表示允許。",
-      "appRoles": "{app} 的角色"
+      "appRoles": "{app} 的角色",
+      "seesPii": "可查看所讀內容中的個人資訊",
+      "removes": "刪除列"
     }
   },
   "featurePage": {

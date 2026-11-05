@@ -112,6 +112,10 @@ export const PERMISSIONS = {
   // every role's table and row limits, so only the Super Admin holds it unless
   // granted on purpose.
   privacyManage: 'system:privacy:manage',
+  // A person's data alone: find, download, erase. Never the notice or the
+  // websites. What an app's role may carry (`privacy:@:people`), as an owner
+  // answers a customer; `privacy.manage` holds it too.
+  privacyPeople: 'system:privacy:people',
 } as const;
 
 /**

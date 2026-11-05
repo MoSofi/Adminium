@@ -842,6 +842,10 @@ export default {
         "getting": "Získávám {addOn}, který {app} potřebuje…",
         "brings": "Nainstalovat nejprve stáhne {addOn}, který {app} potřebuje, z adminium.dev.",
         "readFirst": "{addOn} je teď na tomto serveru. Přečtěte si výše, co přidá, a pak stiskněte Nainstalovat."
+      },
+      "privacyGrants": {
+        "title": "Role může mazat osoby",
+        "body": "{roles} může na stránce soukromí najít, stáhnout a vymazat vše, co tento pracovní prostor o osobě uchovává."
       }
     },
     "installed": {
@@ -3518,12 +3522,16 @@ export default {
       "action": {
         "read": "číst",
         "create": "přidávat řádky",
-        "update": "měnit řádky"
+        "update": "měnit řádky",
+        "readPii": "vidět osobní údaje",
+        "delete": "odebírat řádky"
       },
       "keyShown": "Čtení zobrazí také klíč každého řádku. Odkaz na jiný řádek se zobrazí jen tam, kde je uveden.",
       "othersTitle": "Role aplikací získají víc z tabulek doplňku",
       "othersBody": "Nová verze doplňku umožní těmto rolím víc s jeho tabulkami. Pokračováním to povolíte.",
-      "appRoles": "Role aplikace {app}"
+      "appRoles": "Role aplikace {app}",
+      "seesPii": "Vidí osobní údaje v tom, co čte",
+      "removes": "Odebírá řádky"
     }
   },
   "featurePage": {

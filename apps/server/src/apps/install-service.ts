@@ -122,6 +122,7 @@ import { rulesKeptBack, writeManifestRules, type RulesResult } from './manifest-
 import { formIssues, layoutQueryProblems, layoutTables } from './manifest-page-config.js';
 import {
   addOnGrantsOf,
+  privacyGrantsOf,
   addOnPageGrantIssues,
   roleIssues,
   roleSlugFor,
@@ -1099,6 +1100,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         // Whether this install asks if maps are shown: the app shows maps, and nobody has answered for this install yet.
         ...(manifest.kind === 'app' && manifest.maps === true && (await settingsRepo(deps.meta).get('maps.enabled')) === null ? { maps: true } : {}),
         ...(addOnGrantsOf(manifest).length === 0 ? {} : { addOnGrants: addOnGrantsOf(manifest) }),
+        // The roles that would find, download and erase anybody the workspace keeps: said before anyone agrees.
+        ...(privacyGrantsOf(manifest).length === 0 ? {} : { privacyGrants: privacyGrantsOf(manifest) }),
         // What each role would hold of the tables of the add-ons the app names, once each is there for it: with the columns, cut to the add-on's words.
         ...(roleTables.length === 0 ? {} : { roleTables }),
         pageWarnings:

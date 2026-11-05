@@ -689,6 +689,8 @@ export interface AppInstallPlan {
    * add-on serves. Absent when none, and from an older server.
    */
   addOnGrants?: { role: string; roleName: string; addOn: string; grant: 'settings' }[];
+  /** The roles that would find, download and erase a person's data (`privacy:@:people`). */
+  privacyGrants?: { role: string; roleName: string }[];
   /**
    * What each role would hold of the tables of the add-ons the app names, with
    * the columns of each action, cut to each add-on's own words. Absent when

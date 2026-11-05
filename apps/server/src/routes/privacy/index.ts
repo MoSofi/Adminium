@@ -52,7 +52,7 @@
  * the counts and the keyed hash, never the address.
  */
 import { WEBSITES_MAX } from '@adminium/add-on-contracts/forms/websites';
-import type { FastifyRequest } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { filesRepo, isHttpsPageUrl, privacyExportsRepo, settingsRepo, usersRepo, type EnqueueJobInput, type MetaDb, type PrivacyExport } from '@adminium/meta';
 
@@ -192,6 +192,16 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
 
   return async (app) => {
     const privacy = app.rbac.require(PERMISSIONS.privacyManage);
+    /*
+     * A PERSON'S DATA: find, download, erase. `privacy.people` opens these and
+     * nothing else of the page (never the notice, never the websites); an
+     * app's role may carry it (`privacy:@:people`), so a shop's owner answers
+     * a customer's request. `privacy.manage` opens them too.
+     */
+    async function people(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+      if (typeof request.can === 'function' && (await request.can(PERMISSIONS.privacyPeople))) return;
+      await privacy(request, reply);
+    }
     const actingUserId = (request: FastifyRequest) => (request.apiKeyPrincipal == null ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null) : null);
 
     // ── the privacy notice ──────────────────────────────────────────────────
@@ -280,7 +290,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     // ── one person's data ───────────────────────────────────────────────────
     app.post(
       '/privacy/find',
-      { preHandler: privacy, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: privacyAddressBody, response: { 200: privacyFindReply } } },
+      { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: privacyAddressBody, response: { 200: privacyFindReply } } },
       async (request) => {
         personOf(request);
         const address = searchAddress(request.body.address);
@@ -299,7 +309,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
 
     app.post(
       '/privacy/what-stays',
-      { preHandler: privacy, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: privacyAddressBody, response: { 200: whatStaysReply } } },
+      { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: privacyAddressBody, response: { 200: whatStaysReply } } },
       async (request) => {
         personOf(request);
         const address = searchAddress(request.body.address);
@@ -316,7 +326,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     // ── "Download everything" ───────────────────────────────────────────────
     app.post(
       '/privacy/exports',
-      { preHandler: privacy, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-export' }, schema: { body: privacyAddressBody, response: { 202: privacyExportCreateReply } } },
+      { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-export' }, schema: { body: privacyAddressBody, response: { 202: privacyExportCreateReply } } },
       async (request, reply) => {
         const userId = personOf(request);
         const address = searchAddress(request.body.address);
@@ -328,17 +338,17 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
-    app.get('/privacy/exports', { preHandler: privacy, schema: { response: { 200: privacyExportListReply } } }, async (request) => ({
+    app.get('/privacy/exports', { preHandler: people, schema: { response: { 200: privacyExportListReply } } }, async (request) => ({
       data: (await exports.listFor(personOf(request))).map(exportView),
     }));
 
-    app.get('/privacy/exports/:id', { preHandler: privacy, schema: { params: privacyExportParams, response: { 200: privacyExportReply } } }, async (request) => ({
+    app.get('/privacy/exports/:id', { preHandler: people, schema: { params: privacyExportParams, response: { 200: privacyExportReply } } }, async (request) => ({
       data: exportView(await ownExport(request, request.params.id)),
     }));
 
     app.get(
       '/privacy/exports/:id/download',
-      { preHandler: privacy, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-export' }, schema: { params: privacyExportParams } },
+      { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-export' }, schema: { params: privacyExportParams } },
       async (request, reply) => {
         const row = await ownExport(request, request.params.id);
         if (row.status === 'expired' || (row.expiresAt !== null && row.expiresAt < app.rbac.now())) throw new AppError(410, 'EXPORT_EXPIRED', 'This download has expired: ask for a new one.');
@@ -359,7 +369,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     // ── erasing ─────────────────────────────────────────────────────────────
     app.post(
       '/privacy/erase/preview',
-      { preHandler: privacy, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: privacyAddressBody, response: { 200: erasePreviewReply } } },
+      { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-find' }, schema: { body: privacyAddressBody, response: { 200: erasePreviewReply } } },
       async (request) => {
         personOf(request);
         const address = searchAddress(request.body.address);
@@ -375,7 +385,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
 
     app.post(
       '/privacy/erase',
-      { preHandler: privacy, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-erase' }, schema: { body: eraseBody, response: { 200: eraseReply } } },
+      { preHandler: people, config: { audit: audited('rbac'), rateLimitBucket: 'privacy-erase' }, schema: { body: eraseBody, response: { 200: eraseReply } } },
       async (request) => {
         personOf(request);
         const address = searchAddress(request.body.address);

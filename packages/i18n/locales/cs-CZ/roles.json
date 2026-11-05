@@ -81,7 +81,8 @@
     "paymentsManage": "Nastavit platby",
     "paymentsRefund": "Vracet peníze",
     "paymentsView": "Zobrazit aktivitu plateb a exportovat ji",
-    "privacyManage": "Najít, stáhnout a spravovat údaje osoby"
+    "privacyManage": "Najít, stáhnout a spravovat údaje osoby",
+    "privacyPeople": "Najít, stáhnout a vymazat údaje osoby"
   },
   "rename": {
     "failed": "Roli se nepodařilo přejmenovat",

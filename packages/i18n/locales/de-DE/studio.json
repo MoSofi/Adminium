@@ -832,6 +832,10 @@
         "getting": "{addOn} wird geholt, das {app} braucht…",
         "brings": "Installieren lädt zuerst {addOn}, das {app} braucht, von adminium.dev herunter.",
         "readFirst": "{addOn} ist jetzt auf diesem Server. Lies oben, was es hinzufügt, und drücke dann Installieren."
+      },
+      "privacyGrants": {
+        "title": "Eine Rolle kann Personen löschen",
+        "body": "{roles} kann auf der Datenschutzseite alles finden, herunterladen und löschen, was dieser Arbeitsbereich über eine Person speichert."
       }
     },
     "installed": {
@@ -3508,12 +3512,16 @@
       "action": {
         "read": "lesen",
         "create": "Zeilen hinzufügen",
-        "update": "Zeilen ändern"
+        "update": "Zeilen ändern",
+        "readPii": "persönliche Angaben sehen",
+        "delete": "Zeilen entfernen"
       },
       "keyShown": "Beim Lesen wird auch der Schlüssel jeder Zeile angezeigt. Eine Verknüpfung zu einer anderen Zeile wird nur angezeigt, wo sie aufgeführt ist.",
       "othersTitle": "Rollen von Apps erhalten mehr von den Tabellen eines Add-ons",
       "othersBody": "Die neue Version des Add-ons erlaubt diesen Rollen mehr bei seinen Tabellen. Wenn Sie fortfahren, erlauben Sie es.",
-      "appRoles": "Rollen von {app}"
+      "appRoles": "Rollen von {app}",
+      "seesPii": "Sieht persönliche Angaben in dem, was sie liest",
+      "removes": "Entfernt Zeilen"
     }
   },
   "featurePage": {

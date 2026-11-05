@@ -241,6 +241,26 @@ describe('who opens the privacy page', () => {
     expect(screen.queryByRole('button', { name: 'Open the audit log' })).toBeNull();
   });
 
+  it('a shop owner holding privacy.people alone gets the person tab, asks for no notice, and erases', async () => {
+    roles = ['shop-owner'];
+    systemActions = ['privacy.people'];
+    const { calls } = await renderAt('/studio/privacy?tab=notice');
+    const tabs = await screen.findAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['A person’s data']);
+    expect(tabs[0]!.getAttribute('aria-selected')).toBe('true');
+    await userEvent.type(await screen.findByLabelText('E-mail address'), MARTA);
+    await userEvent.click(screen.getByTestId('privacy-person-find'));
+    await screen.findByTestId('privacy-result');
+    await userEvent.click(screen.getByTestId('privacy-erase'));
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByTestId('erase-goes');
+    await userEvent.type(within(dialog).getByLabelText('Type the address to confirm'), MARTA);
+    await userEvent.click(within(dialog).getByTestId('erase-for-good'));
+    expect(await screen.findByText('Erased. Saved in the audit log.')).toBeDefined();
+    // Nothing of the notice, the websites or the keeping was asked for: those routes would refuse.
+    expect(calls.some((call) => ['/api/v1/privacy/notice', '/api/v1/privacy/websites', '/api/v1/privacy/keeping', '/api/v1/privacy/reach'].includes(call.url))).toBe(false);
+  });
+
   it('a rep asking for the websites tab gets the no-access state and asks for no list', async () => {
     roles = ['rep'];
     systemActions = ['settings.manage'];

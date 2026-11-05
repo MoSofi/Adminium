@@ -832,6 +832,10 @@
         "getting": "正在获取 {app} 所需的 {addOn}…",
         "brings": "“安装”会先从 adminium.dev 下载 {app} 所需的 {addOn}。",
         "readFirst": "{addOn} 现已在此服务器上。请先阅读上方它会添加的内容，然后按“安装”。"
+      },
+      "privacyGrants": {
+        "title": "某个角色可以删除个人数据",
+        "body": "{roles} 可以在隐私页面查找、下载并删除此工作区保存的关于某人的全部数据。"
       }
     },
     "installed": {
@@ -3508,12 +3512,16 @@
       "action": {
         "read": "读取",
         "create": "添加行",
-        "update": "更改行"
+        "update": "更改行",
+        "readPii": "查看个人信息",
+        "delete": "删除行"
       },
       "keyShown": "读取时也会显示每行的键。指向其他行的链接只有在列出时才会显示。",
       "othersTitle": "应用的角色可获得附加组件表的更多权限",
       "othersBody": "该附加组件的新版本让这些角色可以对它的表做更多操作。继续即表示允许。",
-      "appRoles": "{app} 的角色"
+      "appRoles": "{app} 的角色",
+      "seesPii": "可查看所读内容中的个人信息",
+      "removes": "删除行"
     }
   },
   "featurePage": {

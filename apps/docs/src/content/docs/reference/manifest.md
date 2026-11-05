@@ -3368,6 +3368,21 @@ A manifest cannot know the real table names or page ids, so it grants through pl
 | `app:@:staff` | Open the app's staff screens. |
 | `addOn:<add-on key>:settings` | Edit that add-on's non-secret settings (the letterhead of an invoicing add-on). Only an add-on the app requires or suggests in [`addOns`](#add-ons). A holder who does not manage add-ons finds a row for it in the rail's Library group, opening `/add-on-settings/<add-on key>`: the add-on's own settings control (its `settings.add-on.panel` fill, such as the closed-days picker of Holiday Calendars) above the generated fields. Needs Adminium 0.3.47. |
 | `page:@<add-on page or panel id>:view` | See a page or a record panel of an add-on the app requires or suggests (`page:@customiser-line:view`). The id starts with the add-on's key. `view` only. Needs Adminium 0.3.44. A page of an add-on made only for certain apps (one whose `attaches` does not name the dashboard) is on the dashboard while one of those apps has it connected and switched on, at `/add-ons/<add-on key>/<page ref>`, from 0.3.47. A screens-only role that holds the grant fetches the files shipped beside that page (`/api/v1/add-ons/<add-on key>/pages/<page ref>/files/…`, a starter font its panel draws with), not the page itself. |
+| `privacy:@:people` | Find, download and erase a person's data, on the dashboard's privacy page (`/studio/privacy?tab=person`). See below. Needs Adminium 0.3.47. |
+
+`privacy:@:people` is given as the console key `system:privacy:people`: the role may search
+everything the workspace keeps about one e-mail address, download it for the person, and erase
+them, past every role's table and row limits, in every app on the server. It is how a shop's owner
+answers a customer's request without being the Super Admin. It never opens the privacy notice, the
+websites or how long things are kept (`system:privacy:manage`, the Super Admin's). The privacy page
+opens on "A person's data" alone for such a role. The install check names every role that would
+hold it before anyone agrees. The plan refuses it on a `screensOnly` role (the privacy page is the
+dashboard's) and on an add-on's role. A version that drops it takes it back. Like every app
+grant it is given once: an owner who takes it away keeps it away.
+
+```json
+{ "key": "owner", "name": "Owner", "permissions": ["table:@customers:read", "privacy:@:people"] }
+```
 
 An add-on's page or panel is given as the role's [`tables`](#a-role-on-an-add-ons-tables)
 are: while that add-on is installed in the same database, attached to the app and switched on.
@@ -3465,8 +3480,20 @@ A manifest that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or l
 ]
 ```
 
-Up to 12 entries, one per table. `addOn` is the add-on's key and `table` its own name for the
-table. `actions` are `read`, `create` and `update`, never a delete, an export or an import.
+Up to 16 entries, one per table (more than 12 needs `minAdminiumVersion` `0.3.47`). `addOn` is the
+add-on's key and `table` its own name for the table. `actions` are `read`, `read_pii`, `create`,
+`update` and `delete`, never an export or an import. `read_pii` shows the table's personal columns
+in clear (a design's words), and needs `read` in the same entry; `delete` removes rows (a version's
+files, made again). Either needs `minAdminiumVersion` `0.3.47`. Neither is given on a ledger's
+receipt table, and `delete` never on a table a ledger's code writes; `create` and `update` there
+only where the add-on's `appGrants` allows them.
+
+```json
+{ "addOn": "customiser", "table": "design_versions", "actions": ["read", "read_pii", "create", "update"],
+  "limit": { "creatable": ["app", "design_id", "version", "values"], "writable": ["proof_file"] } },
+{ "addOn": "customiser", "table": "version_files", "actions": ["read", "create", "update", "delete"] }
+```
+
 `limit` is the object a role's [`limits`](#roles) hold for one table, and narrows only an action
 the entry gives: `readable` needs `read`, `writable` needs `update`, `creatable` needs `create`.
 The grant is live while the add-on is connected to the app; the add-on's table and column names
@@ -6058,7 +6085,7 @@ The table is the add-on's, so the add-on says how far that may go, on the table 
 
 | Field | Rule |
 |---|---|
-| `actions` | The most an app's role is given here: `read`, `create`, `update`. |
+| `actions` | The most an app's role is given here: `read`, `read_pii` (personal columns in clear, with `read`), `create`, `update`, `delete`. `read_pii` and `delete` need `minAdminiumVersion` `0.3.47`. |
 | `readable` | The only columns an app's read shows. Absent: every column but those in `never`, and never a secret. |
 | `writable` | The only columns an app's update may change. Required when `actions` has `update`. |
 | `creatable` | The only columns a new row an app's role adds may be given. Required when `actions` has `create`. |
@@ -6066,8 +6093,13 @@ The table is the add-on's, so the add-on says how far that may go, on the table 
 
 Once an add-on sets `appGrants` on one table, a table without it is given to no app's role. An
 add-on that sets it on none is held only by its own shape: no hold on a ledger's receipt table,
-read only on a table a ledger's code writes. A ledger's receipt table takes no `appGrants`, and a
-table a ledger's code writes allows only `read`. Each column named must be one of the table's.
+read only on a table a ledger's code writes. A ledger's receipt table takes no `appGrants`. On a
+table a ledger's code writes (a design's versions, which an order line's posting makes), `appGrants`
+may allow `create` and `update` (needs `minAdminiumVersion` `0.3.47`): an app's role then adds rows
+with the `creatable` columns, and changes only `writable` columns the ledger's code does not write:
+what a posting copied stays as it was copied. `writable` may not name a column the ledger writes,
+and `delete` is never allowed there. Without `appGrants` such a table stays read only for apps'
+roles. Each column named must be one of the table's.
 
 An app's entry is cut to it when it is written, and again whenever the add-on is installed,
 updated, connected or switched back on. Whatever is cut is named: in the install check, and in the

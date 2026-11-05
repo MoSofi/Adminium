@@ -91,7 +91,8 @@ export default {
     "paymentsManage": "Zahlungen einrichten",
     "paymentsRefund": "Erstattungen geben",
     "paymentsView": "Zahlungsaktivität sehen und exportieren",
-    "privacyManage": "Daten einer Person finden, herunterladen und verwalten"
+    "privacyManage": "Daten einer Person finden, herunterladen und verwalten",
+    "privacyPeople": "Daten einer Person finden, herunterladen und löschen"
   },
   "rename": {
     "failed": "Die Rolle konnte nicht umbenannt werden",

@@ -426,6 +426,12 @@ export const appInstallPlanDto = z.object({
     .array(z.object({ role: z.string(), roleName: z.string(), addOn: z.string(), grant: z.literal('settings') }))
     .optional(),
   /**
+   * The roles that would find, download and erase a person's data
+   * (`privacy:@:people`): everything the workspace keeps about one address,
+   * past every role's limits. Shown on the check step. Absent when none.
+   */
+  privacyGrants: z.array(z.object({ role: z.string(), roleName: z.string() })).optional(),
+  /**
    * What each role of the app would hold of the tables of the add-ons it
    * names (`roles[].tables`), for the check step to show: written when that
    * add-on is there for the app, taken back when it is not. Absent when none.

@@ -238,6 +238,13 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'people.addOnCopyFrom',
   // A picture from a row's file column in an email (`email.image` with `fileId: "{{job.photo}}"`).
   'email.rowPicture',
+  // A role's grant on an add-on's table that reads its personal columns or removes rows, or more than twelve such grants.
+  'roles.addOnActions',
+  // An add-on's `appGrants` that allows reading personal columns or removing rows, or adding and changing rows of a table
+  // a ledger's code writes.
+  'appGrants.more',
+  // An app role that finds, downloads and erases a person's data (`privacy:@:people`).
+  'roles.privacyPeople',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -458,6 +465,10 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'people.addOnCopyFrom': '0.3.44',
   // A picture from a row's file column in an email: a release before leaves the picture out, or refuses a long name.
   'email.rowPicture': '0.3.45',
+  // A release before refuses the actions, the thirteenth grant, and an app's grant it cannot place.
+  'roles.addOnActions': '0.3.47',
+  'appGrants.more': '0.3.47',
+  'roles.privacyPeople': '0.3.47',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -554,6 +565,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       list(isDoc(role) ? role['permissions'] : undefined).forEach((grant, g) => {
         const ref = typeof grant === 'string' ? /^page:@([a-z][a-z0-9-]*):view$/.exec(grant)?.[1] : undefined;
         if (ref !== undefined && !ownPages.has(ref)) out.push({ word: 'roles.addOnPages', path: `roles.${String(r)}.permissions.${String(g)}` });
+        if (grant === 'privacy:@:people') out.push({ word: 'roles.privacyPeople', path: `roles.${String(r)}.permissions.${String(g)}` });
       });
     });
     // The app's people tables.
@@ -600,6 +612,12 @@ export function installFloorWords(document: unknown): ManifestWord[] {
     });
     if (table['builtOn'] !== undefined && isDoc(table['states']) && table['states']['create'] !== undefined) out.push({ word: 'shape.create', path: `${at}.states.create` });
     if (table['appGrants'] !== undefined) out.push({ word: 'table.appGrants', path: `${at}.appGrants` });
+    if (isDoc(table['appGrants'])) {
+      const actions = list(table['appGrants']['actions']);
+      // A table a ledger's code writes, by the add-on's own ledgers.
+      const byLedger = addOn && isDoc(document['addOn']) && list(document['addOn']['ledgers']).some((ledger) => isDoc(ledger) && isDoc(ledger['writes']) && Object.prototype.hasOwnProperty.call(ledger['writes'], table['ref'] as string));
+      if (actions.includes('read_pii') || actions.includes('delete') || (byLedger && (actions.includes('create') || actions.includes('update')))) out.push({ word: 'appGrants.more', path: `${at}.appGrants.actions` });
+    }
     if (table['occupies'] !== undefined) out.push({ word: 'table.occupies', path: `${at}.occupies` });
     if (table['removal'] !== undefined) out.push({ word: 'table.removal', path: `${at}.removal` });
     if (table['keep'] !== undefined) out.push({ word: 'table.keep', path: `${at}.keep` });
@@ -683,7 +701,9 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         if ((Array.isArray(reach) ? reach : [reach]).some((one) => isDoc(one) && one['notThrough'] !== undefined)) out.push({ word: 'rows.notThrough', path: `roles.${String(r)}.limits.${ref}.rows.${action}` });
       }
     }
+    if (list(role['tables']).length > 12) out.push({ word: 'roles.addOnActions', path: `roles.${String(r)}.tables` });
     list(role['tables']).forEach((grant, g) => {
+      if (isDoc(grant) && (list(grant['actions']).includes('read_pii') || list(grant['actions']).includes('delete'))) out.push({ word: 'roles.addOnActions', path: `roles.${String(r)}.tables.${String(g)}.actions` });
       if (isDoc(grant) && isDoc(grant['limit']) && grant['limit']['writableFrom'] !== undefined) {
         out.push({ word: 'roles.writableFrom', path: `roles.${String(r)}.tables.${String(g)}.limit.writableFrom` });
       }

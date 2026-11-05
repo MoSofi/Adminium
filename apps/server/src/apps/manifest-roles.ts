@@ -16,6 +16,10 @@
  *   `app:@:staff`              the app's own staff screens
  *   `addOn:<key>:settings`     one add-on's non-secret settings — only an add-on
  *                              the app requires or suggests, never "every add-on"
+ *   `privacy:@:people`         a person's data: find, download and erase
+ *                              everything the workspace keeps about one address
+ *                              (`system:privacy:people`); never the privacy
+ *                              notice or the websites. Shown on the install check.
  *
  * `read_pii` shows the table's personal columns in clear (crud/mask.ts): a
  * reception that rings patients holds it on the patients table.
@@ -61,6 +65,10 @@ const TABLE = /^table:@([A-Za-z0-9_]+):(read|create|update|delete|export|import|
 const PAGE = /^page:@([a-z][a-z0-9-]*):(view|edit)$/;
 const APP = /^app:@:staff$/;
 const ADD_ON_SETTINGS = /^addOn:([a-z][a-z0-9-]{1,79}):settings$/;
+/** A person's data (find, download, erase), the one privacy right an app's role may carry. */
+const PRIVACY_PEOPLE = /^privacy:@:people$/;
+/** What `privacy:@:people` is given as: the console's own key for a person's data. */
+const PRIVACY_PEOPLE_GRANT = 'system:privacy:people';
 
 export function roleSlugFor(appKey: string, roleKey: string): string {
   return `${appKey}-${roleKey}`;
@@ -214,13 +222,18 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         // An add-on's own role may be given the add-on's own settings: that is what its manager is for.
         const own = (manifest as Manifest).kind === 'add-on' && addOn === manifest.key;
         if (!named && !own) refuse(`"${grant}" names an add-on the app neither requires nor suggests`);
+      } else if (PRIVACY_PEOPLE.test(grant)) {
+        // An add-on's role is never given people's data: it is the business's to give, through its own apps' roles.
+        if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
+        // A person's data is found and erased on the dashboard's privacy page, which a screens-only person never opens.
+        else if (role.screensOnly === true) refuse(`"${grant}" is used on the dashboard's privacy page, which a screens-only role never opens: give it to a role that opens the dashboard`);
       } else if (!APP.test(grant)) {
         // A grant that names an add-on the app builds on: the right place for it is said, with what to write.
         const named = [...(manifest.addOns?.requires ?? []), ...(manifest.addOns?.suggests ?? [])].find((need) => new RegExp(`(^|[:@.])${need.key}[.:/]`).test(grant));
         const theirs = /([a-z][a-z0-9_]*):(?:read|create|update)$/.exec(grant);
         refuse(
           named === undefined
-            ? `"${grant}" is not a grant an app can give (table:@…, page:@… or app:@:staff)`
+            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff or privacy:@:people)`
             : `"${grant}" is not a grant an app can give. A table of the add-on "${named.key}" is granted beside "permissions", on the role itself: "tables": [{ "addOn": "${named.key}", "table": "${theirs?.[1] ?? '<its table>'}", "actions": ["read"] }]`,
         );
       }
@@ -276,6 +289,17 @@ export function addOnGrantsOf(manifest: Manifest): { role: string; roleName: str
       return match === null ? [] : [{ role: roleSlugFor(manifest.key, role.key), roleName: role.name, addOn: match[1]!, grant: 'settings' as const }];
     }),
   );
+}
+
+/**
+ * The roles that would find, download and erase people's data
+ * (`privacy:@:people`) — shown on the install check, so whoever installs
+ * sees that a shop's owner may erase anybody the workspace keeps.
+ */
+export function privacyGrantsOf(manifest: Manifest): { role: string; roleName: string }[] {
+  if (!ownsBlocks(manifest) || manifest.kind !== 'app') return [];
+  const roles = manifest.roles ?? [];
+  return roles.flatMap((role) => (grantsOf(role, roles).some((grant) => PRIVACY_PEOPLE.test(grant)) ? [{ role: roleSlugFor(manifest.key, role.key), roleName: role.name }] : []));
 }
 
 export interface RolesResult {
@@ -388,6 +412,9 @@ export async function writeManifestRoles(input: {
       }
     } else if (APP.test(grant)) {
       await permissions.revoke(roleId, 'app', manifest.key);
+    } else if (PRIVACY_PEOPLE.test(grant)) {
+      const row = matrixRowsFromGrants([PRIVACY_PEOPLE_GRANT]).rows[0];
+      if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
     } else if (ADD_ON_SETTINGS.test(grant)) {
       const row = matrixRowsFromGrants([grant]).rows[0];
       if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
@@ -481,6 +508,11 @@ export async function writeManifestRoles(input: {
         await permissions.grant(role.id, 'page', target.id, actions as never);
       } else if (APP.test(grant)) {
         await permissions.grant(role.id, 'app', manifest.key, { staff: true });
+      } else if (PRIVACY_PEOPLE.test(grant)) {
+        if (manifest.kind !== 'app') continue;
+        const row = matrixRowsFromGrants([PRIVACY_PEOPLE_GRANT]).rows[0];
+        if (row === undefined) continue;
+        await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
       } else if (ADD_ON_SETTINGS.test(grant)) {
         const row = matrixRowsFromGrants([grant]).rows[0];
         if (row === undefined) continue;

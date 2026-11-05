@@ -83,7 +83,7 @@ export async function mayUsePrivacy(meta: MetaDb, userId: string): Promise<boole
   const user = await usersRepo(meta).findById(userId);
   if (user === null || user.status !== 'active') return false;
   const set = await resolvePermissionSet(meta, { kind: 'user', id: user.id, label: user.name });
-  return permissionSetAllows(set, PERMISSIONS.privacyManage);
+  return permissionSetAllows(set, PERMISSIONS.privacyManage) || permissionSetAllows(set, PERMISSIONS.privacyPeople);
 }
 
 export async function runPrivacyExport(payload: PrivacyExportPayload, deps: PrivacyExportDeps): Promise<'ready' | 'failed' | 'skipped'> {

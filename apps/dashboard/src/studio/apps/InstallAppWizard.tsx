@@ -134,6 +134,7 @@ import {
 import { MapsInstallCard, PartsInstallCard, partChoicesOf } from './AppPartsCard.js';
 import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
 import { AppsRoleTablesWiderCard } from './RoleTablesList.js';
+import { PrivacyGrantsCard } from './PrivacyGrantsCard.js';
 import { SampleInstallCard, runSampleAdd } from './SampleData.js';
 
 type StepId = 'bundle' | 'database' | 'plan' | 'done';
@@ -538,7 +539,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const cardsOfPlan =
     plan === null
       ? null
-      : plan.publicAccess !== undefined || plan.sampleData === true || addOnRows.length > 0 || plan.modules !== undefined || plan.maps === true ? (
+      : plan.publicAccess !== undefined || plan.sampleData === true || addOnRows.length > 0 || plan.modules !== undefined || plan.maps === true || plan.privacyGrants !== undefined ? (
       <div className="grid grid-cols-[repeat(auto-fit,minmax(272px,1fr))] gap-3">
         {plan.publicAccess === undefined ? null : (
           <PublicAccessInstallCard access={plan.publicAccess} checked={allowPublic} onChange={setAllowPublic} />
@@ -569,6 +570,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
           />
         )}
         <AppsRoleTablesWiderCard entries={plan.roleTables ?? []} />
+        <PrivacyGrantsCard grants={plan.privacyGrants ?? []} />
         {plan.modules === undefined ? null : (
           <PartsInstallCard
             appName={appName}
