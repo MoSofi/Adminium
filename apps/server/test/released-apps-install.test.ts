@@ -160,11 +160,13 @@ for (const [dialect, available] of ENGINES) {
 
         const planned = await h.inject({ method: 'POST', url: '/apps/plan', payload: { key, version: String(next['version']), connectionId: h.connectionId } });
         expect(planned.statusCode, planned.body).toBe(200);
-        const plan = (JSON.parse(planned.body) as { plan: { installable: boolean; problems: unknown[]; checksum: string } }).plan;
+        const plan = (JSON.parse(planned.body) as { plan: { installable: boolean; problems: unknown[]; checksum: string; privacyGrants?: { added?: true }[]; addOnGrants?: { added?: true }[] } }).plan;
         expect(plan.problems).toEqual([]);
         expect(plan.installable).toBe(true);
+        // A grant the release newly gives a role (an add-on's settings) is asked about, and allowed here as the dialog would.
+        const asks = [...(plan.privacyGrants ?? []), ...(plan.addOnGrants ?? [])].some((grant) => grant.added === true);
 
-        const updated = await h.inject({ method: 'POST', url: `/apps/${key}/update`, payload: { planChecksum: plan.checksum, publicAccess: true } });
+        const updated = await h.inject({ method: 'POST', url: `/apps/${key}/update`, payload: { planChecksum: plan.checksum, publicAccess: true, ...(asks ? { roleGrants: true } : {}) } });
         expect(updated.statusCode, updated.body).toBe(200);
         const listed = JSON.parse((await h.inject({ method: 'GET', url: '/apps' })).body) as { apps: { key: string; version: string }[] };
         expect(listed.apps.find((app) => app.key === key)?.version).toBe(next['version']);
