@@ -254,6 +254,17 @@ describe('the choice family', () => {
     expect(screen.getByRole('radio', { name: 'new' })).toBeDefined();
   });
 
+  it('segments never wider than the field: four long answers go onto a second line, not past the dialog', () => {
+    renderControl('segmented', {
+      column: spec({ name: 'state', label: 'Answer', logicalType: 'enum', enumValues: ['sent', 'approved', 'change_asked', 'superseded'] }),
+      options: [{ value: 'sent', label: 'Waiting' }, { value: 'approved', label: 'Approved' }, { value: 'change_asked', label: 'Change asked' }, { value: 'superseded', label: 'Sent again' }],
+      value: 'sent',
+    });
+    const tray = screen.getByRole('radiogroup').className.split(' ');
+    expect(tray).toContain('max-w-full');
+    expect(tray).toContain('flex-wrap');
+  });
+
   it('segments with nothing chosen while the form holds no answer', async () => {
     /*
      * A required enum used to draw its first value as chosen while the form

@@ -70,6 +70,13 @@ export function SegmentedChoiceControl(props: ControlProps) {
   return (
     <SegmentedControl
       {...(props.id === undefined ? {} : { id: props.id })}
+      /*
+       * Never wider than its field. The tray does not wrap on its own, so four
+       * answers ("Waiting", "Approved", "Change asked", "Sent again") in one
+       * half of a two-column section pushed the whole dialog sideways: its
+       * segments go onto a second line instead.
+       */
+      className="max-w-full flex-wrap"
       aria-label={props.field?.label ?? props.column.label}
       options={options.map((option) => {
         const tone = option.tone ?? props.column.enumTones?.[option.value];
