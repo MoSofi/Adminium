@@ -1,5 +1,15 @@
 # @adminium/manifest
 
+## 0.3.47
+
+### Patch Changes
+
+- 987ff51: An app's role may now read an add-on table's personal columns (`read_pii`) and remove its rows (`delete`) through `roles[].tables`, and hold up to twenty-four such grants (more than twelve needs Adminium 0.3.47 in the manifest's floor). An add-on may let apps' roles add rows and change its own columns on a table its ledger writes (`appGrants`), never a column the ledger writes and never a remove there. The install check says each.
+- 987ff51: An app's role may now find, download and erase a person's data (`privacy:@:people`, the new `system:privacy:people`), so a shop's owner answers a customer's request without being the Super Admin. The privacy page opens on "A person's data" alone for such a role, the install check names the roles that hold it, and a screens-only role is refused it.
+- a9fefa4: On a table an add-on's ledger writes, an app's role that may add rows is never given a column the ledger keeps: one its code sets on the rows it changes (a hold's or a design's state), or the link to the receipt of a posting's row (`receipt_id`), which would pass a role's row off as a posting's. The add-on's `appGrants.creatable` naming one is refused, and a grant is cut to fit whatever the add-on lists. The columns a posting fills on the rows the ledger adds (a proof version's words) may still be given to a row the role adds, and `appGrants.writable` may no longer name `receipt_id` either.
+- 4d5f5b8: An app's records page may name the columns its list opens on (`config.columns`, up to eight, in order). The install shows those first and keeps every other column of the table hidden in the page's column settings, ready to switch on, so a list no longer opens on whatever the generator ranked highest (rate-card prices before the order and its stage).
+- @adminium/add-on-contracts@0.3.47
+
 ## 0.3.46
 
 ### Patch Changes

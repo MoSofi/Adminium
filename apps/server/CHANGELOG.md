@@ -1,5 +1,41 @@
 # @adminium/server
 
+## 0.3.47
+
+### Patch Changes
+
+- f50a15a: A list column that links to a row of an add-on's table (a closure's public holiday) shows that row's name instead of its number.
+- 7435239: An add-on made only for certain apps (a design kit that names the shops it serves) now has its pages on the dashboard while one of those apps has it switched on, for Super Admin and for a role that holds the page's permission. A screens-only role that holds it can fetch the files shipped beside the page, such as the starter fonts a design panel draws with.
+- e6eb955: An add-on's own settings control (Holiday Calendars' closed-days picker) is drawn in its settings form, in place of the raw JSON box. Someone whose app role keeps an add-on's settings, without managing add-ons, finds a row for it in the rail's Library group that opens those settings.
+- f50a15a: A column an app makes a file column (a proof's picture) is an upload field in the new and edit forms, and the record page shows and edits every column of the row, not only those its list shows.
+- 3e9c3b7: An app's e-mail whose template names no brand now carries the business's own name in its header band (the app's settings row, as the footer does), with no Adminium mark in front of it; the workspace logo still shows when one is set. Adminium's own e-mails are unchanged.
+- 987ff51: An app's role may now read an add-on table's personal columns (`read_pii`) and remove its rows (`delete`) through `roles[].tables`, and hold up to twenty-four such grants (more than twelve needs Adminium 0.3.47 in the manifest's floor). An add-on may let apps' roles add rows and change its own columns on a table its ledger writes (`appGrants`), never a column the ledger writes and never a remove there. The install check says each.
+- 987ff51: An app's role may now find, download and erase a person's data (`privacy:@:people`, the new `system:privacy:people`), so a shop's owner answers a customer's request without being the Super Admin. The privacy page opens on "A person's data" alone for such a role, the install check names the roles that hold it, and a screens-only role is refused it.
+- 75a1829: Finding, downloading and erasing a person now follows an app's link into an add-on's table as the app's manifest declares it (`rules.addOnLink`), not only a database foreign key. On a database where that link has none and the schema holds no guess at it (a SQLite shop), a customer's design versions and their files were missed: their words survived the erasure, their proof and production files stayed and were still served, and the preview counted too few files. The search, the preview and the erasure now reach them alike.
+- a9fefa4: On a table an add-on's ledger writes, an app's role that may add rows is never given a column the ledger keeps: one its code sets on the rows it changes (a hold's or a design's state), or the link to the receipt of a posting's row (`receipt_id`), which would pass a role's row off as a posting's. The add-on's `appGrants.creatable` naming one is refused, and a grant is cut to fit whatever the add-on lists. The columns a posting fills on the rows the ledger adds (a proof version's words) may still be given to a row the role adds, and `appGrants.writable` may no longer name `receipt_id` either.
+- 4d5f5b8: An app's records page may name the columns its list opens on (`config.columns`, up to eight, in order). The install shows those first and keeps every other column of the table hidden in the page's column settings, ready to switch on, so a list no longer opens on whatever the generator ranked highest (rate-card prices before the order and its stage).
+- bf16d38: An app's role holding `privacy:@:people` (a shop's owner) now finds, downloads and erases a person only in the apps whose roles give it to them: those apps' people, the copies they declare and the add-on rows those reach, the consent rows and what Adminium keeps about those rows. Another app's people on the same server, the do-not-email list, a forms add-on's answers and stores that only name the address are left to whoever manages privacy for the whole workspace. An address that belongs to a staff account is refused with a sentence of its own, so erasing it can never rewrite the audit log. Holders of the full privacy right are unchanged.
+- 556f1e6: A screens-only app role can no longer take the right to find and erase people's data by cloning a role that holds it; the install check refuses it by name, as it does when the role names it itself.
+- 556f1e6: An app update that gives one of its roles the right to find and erase people's data (`privacy:@:people`), or an add-on's shared settings, which the running version's role did not have now asks first: the update's check marks each such grant, the update dialog shows it, and the update is refused (`ROLE_GRANTS_ADDED`) unless it is allowed.
+- 070ddae: On a SQLite database, a widget's list, its one record and a live list's first rows now carry each time as the moment it names, as the grid does, so a reader in another time zone sees the same hour in both.
+- Updated dependencies [987ff51]
+- Updated dependencies [987ff51]
+- Updated dependencies [a9fefa4]
+- Updated dependencies [4d5f5b8]
+- Updated dependencies [e04d12d]
+- Updated dependencies [ffa8fd3]
+- Updated dependencies [bf16d38]
+  - @adminium/manifest@0.3.47
+  - @adminium/meta@0.3.47
+  - @adminium/adapter-postgres@0.3.47
+  - @adminium/engine@0.3.47
+  - @adminium/llm@0.3.47
+  - @adminium/adapter-mysql@0.3.47
+  - @adminium/adapter-sqlite@0.3.47
+  - @adminium/schema-import@0.3.47
+  - @adminium/add-on-contracts@0.3.47
+  - @adminium/i18n@0.3.47
+
 ## 0.3.46
 
 ### Patch Changes

@@ -1,5 +1,7 @@
 # @adminium/public-client
 
+## 0.3.47
+
 ## 0.3.46
 
 ## 0.3.45

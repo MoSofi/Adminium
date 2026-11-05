@@ -27,6 +27,10 @@ is sent to the app instead of the dashboard:
   line): its code (`GET /api/v1/add-ons/<add-on>/panels/<panel>/bundle`) is served for an add-on
   connected to their app, and still only for a row they reach, with a grant on the panel's table
   and the panel's own permission (`page:@<panel>:view` in the app's role). Needs Adminium 0.3.45.
+  The files such an add-on ships beside one of its pages (a starter font the panel draws a proof
+  with: `GET /api/v1/add-ons/<add-on>/pages/<page>/files/…`) are served to them too, while the
+  add-on is connected to their app and their role holds that page's permission
+  (`page:@<page>:view`). Needs Adminium 0.3.47.
 - the [assistant](https://docs.adminium.dev/guides/llm-assist/milo/#on-an-apps-own-staff-address), when an administrator
   has given their role the assistant permission: its button is on the app's staff screens, and it
   answers about their app's data within what their roles read. An app's manifest cannot grant

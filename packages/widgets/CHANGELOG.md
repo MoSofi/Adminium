@@ -1,5 +1,16 @@
 # @adminium/widgets
 
+## 0.3.47
+
+### Patch Changes
+
+- 0134c78: Record pages and the record panel name each field as the business calls it, without the database's type of it ("varchar", "float").
+- 51f2eb1: A choice of several long answers in a form goes onto a second line instead of pushing the dialog sideways.
+- @adminium/charts@0.3.47
+  - @adminium/i18n@0.3.47
+  - @adminium/tokens@0.3.47
+  - @adminium/ui@0.3.47
+
 ## 0.3.46
 
 ### Patch Changes

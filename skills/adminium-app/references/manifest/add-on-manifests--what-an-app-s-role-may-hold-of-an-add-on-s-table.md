@@ -14,7 +14,7 @@ The table is the add-on's, so the add-on says how far that may go, on the table 
 
 | Field | Rule |
 |---|---|
-| `actions` | The most an app's role is given here: `read`, `create`, `update`. |
+| `actions` | The most an app's role is given here: `read`, `read_pii` (personal columns in clear, with `read`), `create`, `update`, `delete`. `read_pii` and `delete` need `minAdminiumVersion` `0.3.47`. |
 | `readable` | The only columns an app's read shows. Absent: every column but those in `never`, and never a secret. |
 | `writable` | The only columns an app's update may change. Required when `actions` has `update`. |
 | `creatable` | The only columns a new row an app's role adds may be given. Required when `actions` has `create`. |
@@ -22,8 +22,18 @@ The table is the add-on's, so the add-on says how far that may go, on the table 
 
 Once an add-on sets `appGrants` on one table, a table without it is given to no app's role. An
 add-on that sets it on none is held only by its own shape: no hold on a ledger's receipt table,
-read only on a table a ledger's code writes. A ledger's receipt table takes no `appGrants`, and a
-table a ledger's code writes allows only `read`. Each column named must be one of the table's.
+read only on a table a ledger's code writes. A ledger's receipt table takes no `appGrants`. On a
+table a ledger's code writes (a design's versions, which an order line's posting makes), `appGrants`
+may allow `create` and `update` (needs `minAdminiumVersion` `0.3.47`): an app's role then adds rows
+with the `creatable` columns, and changes only `writable` columns the ledger's code does not write:
+what a posting copied stays as it was copied. `writable` may not name a column the ledger writes
+(nor `receipt_id`, the link Adminium fills to the receipt of a posting's row), and `delete` is never
+allowed there. A row an app's role adds is its own, not the ledger's record: `creatable` may name
+the columns a posting fills on the rows the ledger adds (a proof version's `design_id` and
+`values`), but never a column the ledger's code sets on rows it changes (`update.set`, a design's
+`state`) nor `receipt_id`, which would let the role skip the posting (from 0.3.47; a grant an earlier
+release wrote is cut to it when the add-on is next installed or updated). Without `appGrants` such a table stays read only for apps'
+roles. Each column named must be one of the table's.
 
 An app's entry is cut to it when it is written, and again whenever the add-on is installed,
 updated, connected or switched back on. Whatever is cut is named: in the install check, and in the

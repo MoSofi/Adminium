@@ -2363,6 +2363,25 @@
                           ],
                           "additionalProperties": false
                         },
+                        "addOnSettings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "hiddenPages": {
                           "type": "array",
                           "items": {
@@ -134414,6 +134433,12 @@
                                 "enum": [
                                   "settings"
                                 ]
+                              },
+                              "added": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
                               }
                             },
                             "required": [
@@ -134421,6 +134446,31 @@
                               "roleName",
                               "addOn",
                               "grant"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "privacyGrants": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "roleName": {
+                                "type": "string"
+                              },
+                              "added": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "roleName"
                             ],
                             "additionalProperties": false
                           }
@@ -136264,6 +136314,9 @@
                         }
                       },
                       "roleTables": {
+                        "type": "boolean"
+                      },
+                      "roleGrants": {
                         "type": "boolean"
                       }
                     }

@@ -4,13 +4,15 @@
 
 ### Tab words, filters and bulk actions
 
-A `page-crud` page bound to a table may say three more things in its `config`. A manifest that
-uses `tabs` or `bulk` sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
+A `page-crud` page bound to a table may say four more things in its `config`. A manifest that
+uses `tabs` or `bulk` sets `compatibility.minAdminiumVersion` to `0.3.18` or later, and one that
+uses `columns` to `0.3.47` or later.
 
 ```json
 "config": {
   "tabs": { "receipts": { "empty": "Nothing received yet", "emptyBody": "A receipt shows here.", "noNew": true } },
   "filters": [{ "column": "status", "control": "any-of" }, { "column": "ordered_on" }],
+  "columns": ["name", "status", "on_hand", "ordered_on"],
   "bulk": [{
     "id": "reorder", "label": "Reorder",
     "child": { "table": "reorder_requests", "via": "point_id", "form": ["note"] },
@@ -26,6 +28,7 @@ uses `tabs` or `bulk` sets `compatibility.minAdminiumVersion` to `0.3.18` or lat
 |---|---|
 | `tabs` | Keyed by a child table: one with a foreign key to the page's table. `empty` and `emptyBody` are what the tab says while it holds no row; `noNew: true` takes its "New" away, for rows made elsewhere. It words a tab the page already has: it adds none and renames none. |
 | `filters` | Up to 6 columns of the page's table, each once. `control` is `one-of` or `any-of` for a choice, `yes-no`, `record` for a link, `date-range` or `number-range`; left out, the column's type decides. A free text column and the key cannot be filtered. |
+| `columns` | The columns the list opens on, in this order: 1 to 8 columns of the page's table, each once, never a secret or a code kept from staff. Every other column of the table is written after them, hidden, so the page's column settings offer each one to switch on. Left out, the list opens on the columns Adminium ranks first (on a table of prices, the prices). A page somebody has edited keeps its own columns on an update. |
 | `bulk` | Up to 2 actions on the rows ticked in the list. Each adds one row of `child.table` per ticked row, linked through `via`, with `form` (up to 4 columns) typed once for all of them and `set` written on each. `where` keeps only the ticked rows that hold a value. `confirm.columns` (up to 8) are shown for each row before anything is made. |
 
 A bulk action's `confirm.title`, `confirm.body` and `done` may name `{count}`, the number of rows,

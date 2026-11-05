@@ -16,8 +16,20 @@ A manifest that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or l
 ]
 ```
 
-Up to 12 entries, one per table. `addOn` is the add-on's key and `table` its own name for the
-table. `actions` are `read`, `create` and `update`, never a delete, an export or an import.
+Up to 24 entries, one per table (more than 12 needs `minAdminiumVersion` `0.3.47`): enough for a shop's owner who reads a designer's tables, a stock add-on's, a carrier's and a calendar's together. `addOn` is the
+add-on's key and `table` its own name for the table. `actions` are `read`, `read_pii`, `create`,
+`update` and `delete`, never an export or an import. `read_pii` shows the table's personal columns
+in clear (a design's words), and needs `read` in the same entry; `delete` removes rows (a version's
+files, made again). Either needs `minAdminiumVersion` `0.3.47`. Neither is given on a ledger's
+receipt table, and `delete` never on a table a ledger's code writes; `create` and `update` there
+only where the add-on's `appGrants` allows them.
+
+```json
+{ "addOn": "customiser", "table": "design_versions", "actions": ["read", "read_pii", "create", "update"],
+  "limit": { "creatable": ["app", "design_id", "version", "values"], "writable": ["proof_file"] } },
+{ "addOn": "customiser", "table": "version_files", "actions": ["read", "create", "update", "delete"] }
+```
+
 `limit` is the object a role's [`limits`](https://docs.adminium.dev/reference/manifest/#roles) hold for one table, and narrows only an action
 the entry gives: `readable` needs `read`, `writable` needs `update`, `creatable` needs `create`.
 The grant is live while the add-on is connected to the app; the add-on's table and column names

@@ -32,8 +32,38 @@ A manifest cannot know the real table names or page ids, so it grants through pl
 | `table:@<table ref>:<action>` | `read`, `create`, `update`, `delete`, `export`, `import`, `read_pii` |
 | `page:@<page ref>:<action>` | `view`, `edit` |
 | `app:@:staff` | Open the app's staff screens. |
-| `addOn:<add-on key>:settings` | Edit that add-on's non-secret settings (the letterhead of an invoicing add-on). Only an add-on the app requires or suggests in [`addOns`](https://docs.adminium.dev/reference/manifest/#add-ons). |
-| `page:@<add-on page or panel id>:view` | See a page or a record panel of an add-on the app requires or suggests (`page:@customiser-line:view`). The id starts with the add-on's key. `view` only. Needs Adminium 0.3.44. |
+| `addOn:<add-on key>:settings` | Edit that add-on's non-secret settings (the letterhead of an invoicing add-on). Only an add-on the app requires or suggests in [`addOns`](https://docs.adminium.dev/reference/manifest/#add-ons). A holder who does not manage add-ons finds a row for it in the rail's Library group, opening `/add-on-settings/<add-on key>`: the add-on's own settings control (its `settings.add-on.panel` fill, such as the closed-days picker of Holiday Calendars) above the generated fields. Needs Adminium 0.3.47. |
+| `page:@<add-on page or panel id>:view` | See a page or a record panel of an add-on the app requires or suggests (`page:@customiser-line:view`). The id starts with the add-on's key. `view` only. Needs Adminium 0.3.44. A page of an add-on made only for certain apps (one whose `attaches` does not name the dashboard) is on the dashboard while one of those apps has it connected and switched on, at `/add-ons/<add-on key>/<page ref>`, from 0.3.47. A screens-only role that holds the grant fetches the files shipped beside that page (`/api/v1/add-ons/<add-on key>/pages/<page ref>/files/…`, a starter font its panel draws with), not the page itself. |
+| `privacy:@:people` | Find, download and erase a person's data, on the dashboard's privacy page (`/studio/privacy?tab=person`). See below. Needs Adminium 0.3.47. |
+
+`privacy:@:people` is given as the console key `system:privacy:people`: the role may search what
+the app keeps about one e-mail address, download it for the person, and erase them, past every
+role's table and row limits. It is how a shop's owner answers a customer's request without being
+the Super Admin. It reaches only the apps whose roles give it to the person: those apps' people
+tables, the copies they declare (with the add-on rows those copies' links reach) and their
+outboxes, the consent rows about those rows, and what Adminium keeps about them (campaign mail,
+documents, payments, rule runs, notifications and files of those rows). Never another app's people,
+never the do-not-email list or a forms add-on's answers (the workspace's), never a store that only
+names the address, and never an address that is a staff account's: that is refused (403
+`STAFF_ADDRESS`), since erasing it would rewrite the audit log. The erasure deletes the downloads
+the holder made, not other people's. Whoever holds `system:privacy:manage` reaches everything, as
+before. It never opens the privacy notice, the
+websites or how long things are kept (`system:privacy:manage`, the Super Admin's). The privacy page
+opens on "A person's data" alone for such a role. The install check names every role that would
+hold it before anyone agrees. The plan refuses it on a `screensOnly` role (the privacy page is the
+dashboard's) and on an add-on's role. A version that drops it takes it back. Like every app
+grant it is given once: an owner who takes it away keeps it away.
+
+```json
+{ "key": "owner", "name": "Owner", "permissions": ["table:@customers:read", "privacy:@:people"] }
+```
+
+A new version that gives `privacy:@:people` or an add-on's settings (`addOn:<add-on key>:settings`)
+to a role whose running version did not have it — a new role too — is updated only when whoever
+updates allows it: the update's check marks each such grant (`added`), the dashboard's update
+dialog shows it, and an update sent without `"roleGrants": true` is refused (422
+`ROLE_GRANTS_ADDED`) before anything moves. A `screensOnly` role that clones (`cloneFrom`) a role
+holding `privacy:@:people` is refused as if it named it. From Adminium 0.3.47.
 
 An add-on's page or panel is given as the role's [`tables`](https://docs.adminium.dev/reference/manifest/#a-role-on-an-add-ons-tables)
 are: while that add-on is installed in the same database, attached to the app and switched on.
@@ -66,41 +96,4 @@ values. The names are the ones [public access](https://docs.adminium.dev/referen
     }
   }
 }
-```
-
-| Field | Required | Rule |
-|---|---|---|
-| `writable` | no | The columns the update may change, at least one. |
-| `writableValues` | no | For a column in `writable`, the only values it may set (1–32, each a value of the column). Needs `writable`. |
-| `writableFrom` | no | `{ "<column>": [1–32 values] }`: the update reaches a row only while that column of the row holds one of these values. Any column of the table, in `writable` or not. Needs `writable`, and `minAdminiumVersion` 0.3.19 or later. |
-| `readable` | no | The only columns the role's read of the table shows, 1–200, each once. The key is always read; a link to another row is read only when it is listed, as any column (0.3.35; before, every link was read). Needs the role's `table:@<ref>:read`. |
-| `creatable` | no | The only columns a new row the role creates may be given; the rest take their defaults or what Adminium decides. Needs the role's `table:@<ref>:create`. |
-| `creatableValues` | no | For a column in `creatable`, the only values a new row may be given (1–32). Needs `creatable`. |
-
-A limit names `writable`, `readable`, `creatable`, or any of them.
-
-The table must be one the app declares, and the role must grant `table:@<ref>:update` itself or
-through `cloneFrom`. Someone who also holds a role with an unlimited update on the table is not
-limited. Creating rows is not limited by `writable`; `creatable` limits it the same way, on the
-create itself, a row added from a parent's form, and an import (which may not bring in a column
-outside `creatable`, nor one whose values are limited). A value left empty, and the state column at
-its first state, are no choice and always pass. Every install and update writes the
-manifest's current limits.
-
-`writableValues` says what a column may be moved **to**; `writableFrom` says what a row may be
-moved **from**. It is judged on the row as it is stored, never on what the request says of it, and
-whatever the update changes: a clinician who may move a visit along from `checked_in`, `roomed` or
-`with_clinician` cannot change a visit that is already `seen` at all — not its status, not another
-column, not a line under it sent through the visit's form. The refusal is `403 COLUMN_FORBIDDEN`
-with `reason: "update-from"`, the column and the values. It holds on a single change, a bulk
-change (one row out of reach refuses the whole batch), a row-by-row change (that row only) and a
-record's own action. Roles add up here too: a role with an unlimited update lifts it; of two
-limited roles, a column only one of them judges by is not judged, and where both do, a value either
-lists is enough. A create is not held by it: a new row under a parent is the child table's create. See [Edits limited to some columns](https://docs.adminium.dev/guides/apps/roles-and-staff-access/#edits-limited-to-some-columns).
-
-`readable` limits what the role **reads** the same way: housekeeping reads a stay's room and dates,
-and none of its guest or its money.
-
-```json
-"limits": { "stays": { "readable": ["room_id", "arrive", "depart", "late_checkout", "status"] } }
 ```

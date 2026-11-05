@@ -52,7 +52,7 @@
 | `references/manifest/pages.md` | Pages | 6557 |
 | `references/manifest/pages-2.md` | Pages (part 2) | 7055 |
 | `references/manifest/pages-3.md` | Pages (part 3) | 2610 |
-| `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 5063 |
+| `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 5603 |
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
 | `references/manifest/pages--a-page-kept-off-the-sidebar.md` | Pages — A page kept off the sidebar | 1236 |
 | `references/manifest/pages--navlinks.md` | Pages — navLinks | 2645 |
@@ -60,9 +60,9 @@
 | `references/manifest/whose-a-row-is.md` | Whose a row is | 7636 |
 | `references/manifest/whose-a-row-is-2.md` | Whose a row is (part 2) | 7680 |
 | `references/manifest/whose-a-row-is-3.md` | Whose a row is (part 3) | 1960 |
-| `references/manifest/roles.md` | Roles | 7177 |
-| `references/manifest/roles-2.md` | Roles (part 2) | 1109 |
-| `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 2199 |
+| `references/manifest/roles.md` | Roles | 7203 |
+| `references/manifest/roles-2.md` | Roles (part 2) | 4198 |
+| `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 3087 |
 | `references/manifest/settings.md` | Settings | 1211 |
 | `references/manifest/add-ons.md` | Add-ons | 5863 |
 | `references/manifest/documents.md` | Documents | 7330 |

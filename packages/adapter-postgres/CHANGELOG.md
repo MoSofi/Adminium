@@ -1,5 +1,13 @@
 # @adminium/adapter-postgres
 
+## 0.3.47
+
+### Patch Changes
+
+- e04d12d: A Postgres connection whose DSN names its own session zone (`?options=-c TimeZone=UTC`) keeps it: Adminium puts its data sessions in the server process's zone only when the DSN names none.
+- ffa8fd3: A Postgres database kept in another time zone than the Adminium server no longer stamps a time column's own default hours off: each data session keeps the server's clock, as the times Adminium writes do.
+- @adminium/engine@0.3.47
+
 ## 0.3.46
 
 ### Patch Changes
