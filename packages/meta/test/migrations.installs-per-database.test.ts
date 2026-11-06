@@ -16,9 +16,13 @@
  * - Attachments name their host install; one joining two databases is
  *   flagged.
  * - What an install made carries its id.
+ * - A run that stops between any two of its steps is finished by the next:
+ *   on MySQL every step before the stop stays, and each step asks first.
  */
+import type { KyselyPlugin, RootOperationNode } from 'kysely';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { up as up0076 } from '../src/migrations/0076_installs_per_database.js';
 import { ALL_MIGRATIONS, addOnSettingsRepo, connectionsRepo, appOutboxesRepo, applyMigrations, manifestsRepo, newId, rolesRepo, type MetaDb } from '../src/index.js';
 import { writeBool } from '../src/repos/util.js';
 import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
@@ -89,6 +93,57 @@ async function seed(meta: MetaDb) {
   return { fernhill, kiln, pos, invoices, stripe, declared, design, roleId };
 }
 
+/** What the wave leaves, checked the same after one clean run and after a run that stopped and was run again. */
+async function expectUpgraded(meta: MetaDb, s: Awaited<ReturnType<typeof seed>>): Promise<void> {
+  const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'scopeKey', 'instanceSlug']).execute();
+  const scope = Object.fromEntries(rows.map((row) => [row.manifestKey, row.scopeKey]));
+  expect(scope).toEqual({ pos: s.fernhill, invoices: s.fernhill, 'payments-stripe': 'server', labels: 'server', design: s.kiln });
+  expect(rows.every((row) => row.instanceSlug === '')).toBe(true);
+
+  // Trap 9: the FK children of manifests are all still there.
+  expect(await meta.db.selectFrom('adminium_manifest_attachments').selectAll().execute()).toHaveLength(4);
+  expect(await meta.db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toHaveLength(1);
+  expect(await meta.db.selectFrom('adminium_app_outboxes').selectAll().execute()).toHaveLength(1);
+
+  const links = await meta.db.selectFrom('adminium_manifest_attachments').select(['manifestId', 'attachedTo', 'hostInstall', 'flag']).execute();
+  const link = (manifestId: string, to = 'pos') => links.find((one) => one.manifestId === manifestId && one.attachedTo === to);
+  expect(link(s.invoices)).toMatchObject({ hostInstall: s.pos, flag: null });
+  expect(link(s.stripe)).toMatchObject({ hostInstall: s.pos, flag: null });
+  // Design keeps its tables on kiln and is attached to Fernhill's Point of Sale.
+  expect(link(s.design)).toMatchObject({ hostInstall: s.pos, flag: 'crosses' });
+  expect(link(s.invoices, 'not-installed')).toMatchObject({ hostInstall: '', flag: null });
+
+  expect((await meta.db.selectFrom('adminium_roles').select('manifestId').where('id', '=', s.roleId).executeTakeFirstOrThrow()).manifestId).toBe(s.pos);
+  expect((await meta.db.selectFrom('adminium_automations').select('installId').executeTakeFirstOrThrow()).installId).toBe(s.pos);
+  expect(await addOnSettingsRepo(meta).valuesForInstall(s.invoices)).toEqual({ business_name: 'Fernhill Coffee' });
+  expect(await meta.db.selectFrom('adminium_add_on_settings').select('addOnKey').execute()).toEqual([{ addOnKey: 'invoices' }]);
+}
+
+/** A statement that changes the schema or the rows: what a stop can fall between. The wave's own questions are reads. */
+function isStep(node: RootOperationNode): boolean {
+  if (node.kind === 'RawNode') return !node.sqlFragments.join('').trimStart().toLowerCase().startsWith('select');
+  return ['AlterTableNode', 'CreateIndexNode', 'DropIndexNode', 'CreateTableNode', 'DropTableNode'].includes(node.kind);
+}
+
+/** The wave, stopped before its step `at + 1` (the database went away), counting the steps it got to. */
+function stoppedAt(at: number) {
+  let steps = 0;
+  const plugin: KyselyPlugin = {
+    transformQuery({ node }) {
+      if (isStep(node)) {
+        steps += 1;
+        if (steps > at) throw new Error(`stopped before step ${String(steps)}`);
+      }
+      return node;
+    },
+    transformResult: async ({ result }) => result,
+  };
+  return {
+    migration: { name: '0076_installs_per_database', up: (db: Parameters<typeof up0076>[0], c: Parameters<typeof up0076>[1]) => up0076(db.withPlugin(plugin), c) },
+    steps: () => steps,
+  };
+}
+
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`0076_installs_per_database [${dialect.name}]`, () => {
     let t: TestDb;
@@ -104,27 +159,34 @@ for (const dialect of TEST_DIALECTS) {
     it('gives every existing install its scope and the bare addresses, and never rebuilds manifests', async () => {
       const s = await seed(t.meta);
       await upgrade();
-      const rows = await t.meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'scopeKey', 'instanceSlug']).execute();
-      const scope = Object.fromEntries(rows.map((row) => [row.manifestKey, row.scopeKey]));
-      expect(scope).toEqual({ pos: s.fernhill, invoices: s.fernhill, 'payments-stripe': 'server', labels: 'server', design: s.kiln });
-      expect(rows.every((row) => row.instanceSlug === '')).toBe(true);
-
-      // Trap 9: the FK children of manifests are all still there.
-      expect(await t.meta.db.selectFrom('adminium_manifest_attachments').selectAll().execute()).toHaveLength(4);
-      expect(await t.meta.db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toHaveLength(1);
-      expect(await t.meta.db.selectFrom('adminium_app_outboxes').selectAll().execute()).toHaveLength(1);
-
-      const links = await t.meta.db.selectFrom('adminium_manifest_attachments').select(['manifestId', 'attachedTo', 'hostInstall', 'flag']).execute();
-      const link = (manifestId: string, to = 'pos') => links.find((one) => one.manifestId === manifestId && one.attachedTo === to);
-      expect(link(s.invoices)).toMatchObject({ hostInstall: s.pos, flag: null });
-      expect(link(s.stripe)).toMatchObject({ hostInstall: s.pos, flag: null });
-      // Design keeps its tables on kiln and is attached to Fernhill's Point of Sale.
-      expect(link(s.design)).toMatchObject({ hostInstall: s.pos, flag: 'crosses' });
-      expect(link(s.invoices, 'not-installed')).toMatchObject({ hostInstall: '', flag: null });
-
-      expect((await t.meta.db.selectFrom('adminium_roles').select('manifestId').where('id', '=', s.roleId).executeTakeFirstOrThrow()).manifestId).toBe(s.pos);
-      expect((await t.meta.db.selectFrom('adminium_automations').select('installId').executeTakeFirstOrThrow()).installId).toBe(s.pos);
+      await expectUpgraded(t.meta, s);
     });
+
+    it('is finished by the next run after a stop between any two of its steps', async () => {
+      // How many steps a whole run takes on this engine, counted on this store.
+      const counted = stoppedAt(Number.POSITIVE_INFINITY);
+      const s = await seed(t.meta);
+      await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: [...PRE, counted.migration] });
+      await expectUpgraded(t.meta, s);
+      const total = counted.steps();
+      expect(total).toBeGreaterThan(20);
+
+      for (let at = 1; at < total; at += 1) {
+        const fresh = await dialect.make();
+        try {
+          await applyMigrations(fresh.meta.db, { dialect: fresh.meta.dialect, migrations: PRE });
+          const ids = await seed(fresh.meta);
+          const stop = stoppedAt(at);
+          await expect(applyMigrations(fresh.meta.db, { dialect: fresh.meta.dialect, migrations: [...PRE, stop.migration] }), `stop at ${String(at)}`).rejects.toThrow(`stopped before step ${String(at + 1)}`);
+          // Run again, as the next start of the server does: the wave finishes, then the ones after it.
+          const resumed = await applyMigrations(fresh.meta.db, { dialect: fresh.meta.dialect, migrations: ALL_MIGRATIONS });
+          expect(resumed.applied[0], `stop at ${String(at)}`).toBe('0076_installs_per_database');
+          await expectUpgraded(fresh.meta, ids);
+        } finally {
+          await fresh.destroy();
+        }
+      }
+    }, 600_000);
 
     it('keys a key once per database and once per address, and a NULL connection cannot slip past', async () => {
       const s = await seed(t.meta);
