@@ -8,12 +8,17 @@
  * schema does not declare).
  */
 import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { gunzipSync } from 'node:zlib';
 
 import { appSavesRepo, filesRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { runCli } from '../src/cli/run.js';
+import type { CliRuntime } from '../src/cli/runtime.js';
 import { createSaveService, nextVersion, packManifest, type SaveRights } from '../src/apps/save/service.js';
 import { runIntrospection } from '../src/connections/introspect.js';
 import { runGeneration } from '../src/generate/run.js';
@@ -21,6 +26,7 @@ import { AppError, errorEnvelope } from '../src/errors.js';
 import type { FileStore } from '../src/files/store.js';
 import { appSaveRoutes } from '../src/routes/apps/save.js';
 import { ENGINES, installHarness, type Dialect, type Harness } from './app-install-harness.js';
+import { fakeDeps, fakeIo } from './cli-helpers.js';
 
 /** A library that keeps the bytes in memory. */
 function library(): FileStore & { kept: Map<string, Buffer> } {
@@ -183,5 +189,46 @@ describe('save as app: the version and the package', () => {
     const b = await packManifest({ key: 'x' }, files);
     expect(Buffer.from(a).equals(Buffer.from(b))).toBe(true);
     await expect(packManifest({ key: 'x' }, new Map([['../escape', new Uint8Array(1)]]))).rejects.toThrow(/outside the package/);
+  });
+});
+
+describe('save as app: the command', () => {
+  let harness: Harness | null = null;
+  let dir: string | null = null;
+  afterEach(async () => {
+    await harness?.close();
+    harness = null;
+    if (dir !== null) rmSync(dir, { recursive: true, force: true });
+    dir = null;
+  });
+
+  it('prints the plan, writes nothing with --plan, then writes the file and its fingerprint', async () => {
+    harness = await installHarness('sqlite');
+    const h = harness;
+    await shopTables(h);
+    dir = mkdtempSync(join(tmpdir(), 'app-save-cli-'));
+    const runtime = { metaStore: { meta: h.meta }, close: async () => {} } as unknown as CliRuntime;
+    const deps = fakeDeps({ cwd: dir, runtime });
+
+    const planned = fakeIo();
+    expect(await runCli(['app', 'save', '--connection', h.connectionId, '--key', 'corner-shop', '--plan'], { io: planned, deps })).toBe(0);
+    expect(planned.stdout()).toContain('corner-shop 1.0.0 (first save)');
+    expect(existsSync(join(dir, 'corner-shop-1.0.0.tgz'))).toBe(false);
+    expect(await appSavesRepo(h.meta).listForKey('corner-shop')).toEqual([]);
+
+    const io = fakeIo();
+    expect(await runCli(['app', 'save', '--connection', h.connectionId, '--key', 'corner-shop'], { io, deps }), io.stderr()).toBe(0);
+    const bytes = readFileSync(join(dir, 'corner-shop-1.0.0.tgz'));
+    const integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
+    expect(io.stdout()).toContain(`Fingerprint: ${integrity}`);
+    const [save] = await appSavesRepo(h.meta).listForKey('corner-shop');
+    // Recorded for the next version and the lineage, with no copy kept: the command wrote the file itself.
+    expect(save).toMatchObject({ version: '1.0.0', integrity, fileId: null });
+  });
+
+  it('asks for --connection and --key', async () => {
+    const io = fakeIo();
+    expect(await runCli(['app', 'save', '--key', 'x'], { io, deps: fakeDeps({}) })).not.toBe(0);
+    expect(io.stderr()).toContain('--connection and --key');
   });
 });

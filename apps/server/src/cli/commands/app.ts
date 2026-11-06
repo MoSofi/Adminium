@@ -15,10 +15,11 @@ import { appCheckCommand } from './app/check.js';
 import { appNewCommand } from './app/new.js';
 import { appApproveBuildCommand } from './app/approve-build.js';
 import { appPackCommand } from './app/pack.js';
+import { appSaveCommand } from './app/save.js';
 import { appTryCommand } from './app/try.js';
 
 /** In the order a person meets them. */
-export const APP_COMMANDS: readonly Command[] = [appNewCommand, appCheckCommand, appBuildCommand, appTryCommand, appPackCommand, appApproveBuildCommand];
+export const APP_COMMANDS: readonly Command[] = [appNewCommand, appCheckCommand, appBuildCommand, appTryCommand, appPackCommand, appApproveBuildCommand, appSaveCommand];
 
 function listing(): string {
   const width = Math.max(...APP_COMMANDS.map((command) => command.name.length));
@@ -38,7 +39,7 @@ function listing(): string {
 
 export const appCommand: Command = {
   name: 'app',
-  summary: 'Create, check, build, pack and try an app in this project',
+  summary: 'Create, check, build, pack and try an app in this project, or save a database as one',
   usage: 'adminium app <command> [key] [options]',
   describe: listing().split('\n').slice(2).join('\n'),
   flags: {},

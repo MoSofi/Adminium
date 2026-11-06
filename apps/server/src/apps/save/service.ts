@@ -106,7 +106,8 @@ export interface SavedFile {
 
 export interface SaveServiceDeps {
   meta: MetaDb;
-  storage: FileStore;
+  /** Where "Download again" keeps its copy; null keeps none (the CLI writes the file itself). */
+  storage: FileStore | null;
   masterSecret: string;
   adminiumVersion: string;
   projectEnvFile?: string | null;
@@ -203,7 +204,7 @@ export function createSaveService(deps: SaveServiceDeps) {
       return (await prepare(request, rights)).plan;
     },
 
-    async save(request: SaveRequest, rights: SaveRights): Promise<SavedFile> {
+    async save(request: SaveRequest, rights: SaveRights): Promise<SavedFile & { tarball: Uint8Array }> {
       const { plan, converted, lineage } = await prepare(request, rights);
       if (plan.problems.length > 0) throw new ConflictError(`The file cannot be made: ${plan.problems.map((p) => p.message).join(' ')}`, 'CONFLICT', { reason: 'SAVE_REFUSED' });
       const open = plan.check.filter((item) => item.group === 'choice');
@@ -215,28 +216,32 @@ export function createSaveService(deps: SaveServiceDeps) {
       const tarball = await packManifest(converted.manifest, converted.files);
       const integrity = `sha512-${createHash('sha512').update(tarball).digest('base64')}`;
       const filename = `${request.key}-${plan.version}.tgz`;
-      const fileId = newId('file');
       const at = now();
-      const stored = await deps.storage.write({ id: fileId, kind: 'export', filename, mime: 'application/gzip', bytes: Buffer.from(tarball) });
-      await filesRepo(deps.meta).create(
-        { id: fileId, filename, mime: 'application/gzip', sizeBytes: stored.sizeBytes, sha256: stored.sha256, kind: 'export', uploadedBy: rights.userId, storageKey: stored.storageKey, destinationId: stored.destinationId, storage: stored.storage },
-        at,
-      );
+      let fileId: string | null = null;
+      if (deps.storage !== null) {
+        fileId = newId('file');
+        const stored = await deps.storage.write({ id: fileId, kind: 'export', filename, mime: 'application/gzip', bytes: Buffer.from(tarball) });
+        await filesRepo(deps.meta).create(
+          { id: fileId, filename, mime: 'application/gzip', sizeBytes: stored.sizeBytes, sha256: stored.sha256, kind: 'export', uploadedBy: rights.userId, storageKey: stored.storageKey, destinationId: stored.destinationId, storage: stored.storage },
+          at,
+        );
+      }
       const row = await appSavesRepo(deps.meta).create(
         { appKey: request.key, version: plan.version, lineage, connectionId: request.connectionId, label: plan.label, savedBy: rights.userId, integrity, bytes: tarball.byteLength, fileId },
         at,
       );
-      return { id: row.id, key: row.appKey, version: row.version, integrity, bytes: tarball.byteLength, filename, savedAt: row.savedAt };
+      return { id: row.id, key: row.appKey, version: row.version, integrity, bytes: tarball.byteLength, filename, savedAt: row.savedAt, tarball };
     },
 
     /** The saved file again ("Download again"), or null when its copy is gone. */
     async file(id: string): Promise<{ save: AppSave; filename: string; bytes: Uint8Array } | null> {
       const save = await appSavesRepo(deps.meta).findById(id);
-      if (save === null || save.fileId === null) return null;
+      if (save === null || save.fileId === null || deps.storage === null) return null;
+      const storage = deps.storage;
       const file = await filesRepo(deps.meta).findById(save.fileId);
       if (file === null) return null;
       const chunks: Buffer[] = [];
-      for await (const chunk of await deps.storage.read(file)) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+      for await (const chunk of await storage.read(file)) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
       return { save, filename: `${save.appKey}-${save.version}.tgz`, bytes: Buffer.concat(chunks) };
     },
 

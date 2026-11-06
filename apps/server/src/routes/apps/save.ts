@@ -152,7 +152,10 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
         config: { audit: audited('rbac') },
         schema: { body: saveAppBody, response: { 200: saveAppReply } },
       },
-      async (request) => ({ save: await deps.service.save(request.body, rightsOf(request)) }),
+      async (request) => {
+        const { tarball: _bytes, ...save } = await deps.service.save(request.body, rightsOf(request));
+        return { save };
+      },
     );
 
     app.get(
