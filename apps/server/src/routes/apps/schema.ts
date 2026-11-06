@@ -798,6 +798,29 @@ export const answerRemovalReply = z.object({
 export const installedAppReply = z.object({
   key: appKey,
   version: z.string(),
+  /*
+   * Which install the row is (the same app may be installed once per
+   * database). Set on the list route; absent from an install's or an
+   * update's own reply, and from an older server.
+   */
+  /** The install's id: what `X-Adminium-Install` names. */
+  installId: z.string().optional(),
+  /** Its address slug: `''` for the install that owns the plain addresses. */
+  slug: z.string().optional(),
+  /** `key`, or `key~slug` for a later install: its page's and its grants' name. */
+  address: z.string().optional(),
+  /** The database it is installed on, by name; null for one of no database. */
+  connectionName: z.string().nullable().optional(),
+  /** The manifest's display name; the key when it has none. */
+  name: z.string().optional(),
+  /** A self-made app's file (`provenance`): "Made at <label> on <date>, Adminium <version>". */
+  madeAt: z.object({ label: z.string().nullable(), savedAt: z.string(), adminiumVersion: z.string() }).optional(),
+  /**
+   * A later install of an app whose screens know one database
+   * (`frontends[].instances` unset): its screens open for the first install
+   * only, so `sides` is empty. Its pages, tables and rules work.
+   */
+  screensFirstOnly: z.literal(true).optional(),
   /** Absent when the app declares no tables and none were touched. */
   schema: appliedSchema.optional(),
   /** `file` (a package: uploaded, downloaded or bundled) or `folder` (an app this project's folder carries). */
@@ -1254,11 +1277,19 @@ export const appSettingsReply = z.object({
 export const appOverviewReply = z.object({
   key: appKey,
   connection: z.object({ id: z.string(), name: z.string(), engine: z.string() }).nullable(),
+  /**
+   * What this install put here: the pages it made (`adminium_pages` of this
+   * install), its own email templates (each key once, whatever its
+   * languages), the scheduled reports it made, and its roles.
+   */
+  added: z.object({ pages: z.number(), emailTemplates: z.number(), scheduledReports: z.number(), roles: z.number() }),
   tables: z.array(
     z.object({
       ref: z.string(),
       table: z.string(),
       state: z.string(),
+      /** The table was here before the app: the install found it and used it (or shares another app's), and did not make it. */
+      before: z.literal(true).optional(),
       /** `sample-ledger`: Adminium's list of the sample rows it added, made on the first add. */
       role: z.enum(['app', 'sample-ledger']),
       /** The last introspection's estimate; null when it has none. */
@@ -1543,4 +1574,78 @@ export const appInstanceAdoptReply = z.object({
   settingsCopied: z.array(z.string()),
   secretsLeft: z.array(z.string()),
   rolesGranted: z.array(z.object({ id: z.string(), name: z.string() })),
+});
+
+// ── After you install ────────────────────────────────────────────────────────
+
+export const afterInstallParams = z.object({ key: appKey, id: z.string().min(1).max(64) });
+
+const afterInstallItem = z.object({
+  id: z.string(),
+  /** `webhook` | `address` | `document` | `delivery` | `recipients` | `payment-key` | `bank-account` | `sender` | `system-grant`. */
+  kind: z.string(),
+  /** The entry of the file it belongs to: a rule's key, a mail's, a report's, `<table>/<kind>` of a document, a role's. */
+  item: z.string(),
+  /** What to fill in, inside it. Never the value. */
+  field: z.string(),
+  /** What it points at, by name (the rule, the mail, the report, the document, the role); null when it is gone. */
+  name: z.string().nullable(),
+  /** Ticked, or seen done. */
+  done: z.boolean(),
+  /** Who ticked it; null when nobody did (or it is only seen done). */
+  doneBy: z.object({ id: z.string(), name: z.string() }).nullable(),
+  doneAt: z.number().nullable(),
+  /** The server sees it done: the address filled in, the sender set, the recipients chosen, the permission given. */
+  seen: z.boolean(),
+  /** The permission a person needs to do it. */
+  right: z.string(),
+  /** The reader holds `right`, so may tick it or untick it. */
+  canTick: z.boolean(),
+  /** Where it is done. */
+  link: z
+    .object({ to: z.enum(['automation', 'email-templates', 'reports', 'roles', 'payments', 'documents', 'settings']), id: z.string().optional() })
+    .nullable(),
+});
+
+/** One install's "After you install" list. `hidden`: put away once everything was done (an undone item shows it again). */
+export const afterInstallReply = z.object({ items: z.array(afterInstallItem), hidden: z.boolean() });
+
+export const afterInstallTickBody = z.object({ done: z.boolean() }).strict();
+export const afterInstallHiddenBody = z.object({ hidden: z.boolean() }).strict();
+
+// ── The look and languages a self-made app's file brought ────────────────────
+
+const lookGroup = z.enum(['logo', 'colours', 'languages', 'wordings', 'systemEmails', 'settings']);
+
+/**
+ * What this install's deployment-wide part wrote over the server, by group,
+ * with the groups somebody changed since (an undo leaves those). `look` is
+ * null when it wrote nothing (or it was undone).
+ */
+export const appLookReply = z.object({
+  look: z
+    .object({
+      /** When the install wrote it. */
+      appliedAt: z.number(),
+      logo: z.boolean(),
+      colours: z.boolean(),
+      /** The languages it switched on, by tag. */
+      languages: z.array(z.string()),
+      wordings: z.number(),
+      /** Each edited system email once, whatever its languages. */
+      systemEmails: z.number(),
+      /** Other plain settings (the menu's name, whether the version shows…). */
+      settings: z.number(),
+      changed: z.array(lookGroup),
+      /** The reader may change the server's settings, and so put it back. */
+      canUndo: z.boolean(),
+    })
+    .nullable(),
+});
+
+export const appLookUndoReply = z.object({
+  /** Values put back: `<kind>:<item>`. */
+  restored: z.array(z.string()),
+  /** Values somebody changed since the install: left as they are. */
+  kept: z.array(z.string()),
 });
