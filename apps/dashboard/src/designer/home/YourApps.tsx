@@ -13,6 +13,7 @@ import { ArrowRight, Boxes, Download, MessageSquarePlus } from 'lucide-react';
 import { DEFAULT_BRANDING, brandingQuery } from '../../app/branding.js';
 import { DownloadAppDialog } from '../../apps/DownloadAppDialog.js';
 import { ApiError } from '../../app/api.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { designerApi, type DesignerTarget, type YourApp } from '../api.js';
@@ -38,6 +39,7 @@ export function editedWhen(at: number, now = Date.now(), locale = getI18nInstanc
 }
 
 export function YourApps({ apps, model, target }: { apps: YourApp[]; model: PickedModel | null; target: DesignerTarget }): ReactNode {
+  useCommonWords();
   const navigate = useNavigate();
   const toasts = useAppToasts();
   const serverName = (useQuery(brandingQuery()).data ?? DEFAULT_BRANDING).appName;

@@ -18,6 +18,7 @@ import { Copy, Download, FileArchive } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
 
 import { ApiError } from '../app/api.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { getI18nInstance, t } from '../i18n/t.js';
 import { folderAppVersion, packProjectApp, packedFileUrl, type PackedAppFile } from './appFilesApi.js';
 
@@ -98,6 +99,7 @@ export interface DownloadAppDialogProps {
 }
 
 export function DownloadAppDialog({ appKey, appName, version: given, serverName, onClose, onPacked }: DownloadAppDialogProps) {
+  useCommonWords();
   const read = useQuery({ queryKey: ['folder-app-version', appKey], queryFn: () => folderAppVersion(appKey), enabled: given === null });
   const version = given ?? read.data ?? null;
   const [typedRaw, setTyped] = useState<string | null>(given);

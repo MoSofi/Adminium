@@ -154,6 +154,7 @@ const GROUP_FILES: ReadonlyMap<string, string> = new Map([
 
 /** Exact source strings that are about the groups. */
 const GROUP_STRINGS: ReadonlyMap<string, string> = new Map([
+  ['No app is installed on this workspace’s databases', 'Hosted apps in One at a time: the apps on the tab’s workspace’s databases'],
   ['There is no such workspace.', 'a `workspaceId` the person cannot see (assistant host, last-chosen workspace)'],
   ['That database is not in this workspace. Call list_connections for the ones here.', 'Milo narrowed to the tab’s workspace'],
   ['Workspaces group databases: names and memberships, not rows.', 'row-coverage reason of the /workspaces routes'],

@@ -11,6 +11,7 @@ import { Link } from '@tanstack/react-router';
 import { EmptyState, MonoText } from '@adminium/ui';
 import { ArrowRight } from 'lucide-react';
 
+import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 import { addressOf } from './installAddress.js';
 
@@ -44,6 +45,7 @@ export function RetiredAddress({
   /** The rest of the address (an add-on page's ref), kept on each link. */
   rest?: string;
 }) {
+  useCommonWords();
   return (
     <EmptyState
       data-testid="retired-address"

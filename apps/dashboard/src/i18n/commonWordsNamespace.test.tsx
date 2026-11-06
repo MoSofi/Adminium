@@ -82,6 +82,11 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'shell/workspaces/listWorkspace.tsx': [],
   'studio/hub/ConnectionsHub.tsx': ['studio/hub/WorkspaceDialogs.tsx', 'studio/hub/WorkspacesCard.tsx'],
   'settings/GlobalDefaultsPage.tsx': [],
+  // An app's own file and its copies (`appFiles`, `appCopies`): the Download dialog, the two lists that open it, and a retired address.
+  'apps/DownloadAppDialog.tsx': [],
+  'apps/RetiredAddress.tsx': [],
+  'studio/apps/InstalledAppsCard.tsx': [],
+  'designer/home/YourApps.tsx': [],
   'pages/dashboard-builder/DashboardBuilder.tsx': [
     'pages/dashboard-builder/BuilderGrid.tsx',
     'pages/dashboard-builder/ConfigInspector.tsx',

@@ -51,6 +51,7 @@ import { getFormatters } from '@adminium/i18n';
 
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { DEFAULT_BRANDING, brandingQuery } from '../../app/branding.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useCurrentWorkspace } from '../../workspaces/current.js';
 import { AppIcon, OnDatabase, WorkspaceChips, workspacesOf } from './appPageParts.js';
@@ -121,6 +122,7 @@ export function groupCopies(apps: readonly InstalledApp[]): InstalledApp[] {
 const rowId = (app: InstalledApp): string => app.installId ?? app.key;
 
 export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, onFinishUpdate, busy = false, beforeInstall }: InstalledAppsCardProps) {
+  useCommonWords();
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(installedAppsQuery());
   // The workspaces for the chips: none until the bootstrap is in (it always is under the shell).

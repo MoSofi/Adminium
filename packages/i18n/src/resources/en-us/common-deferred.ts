@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces, appFiles, appCopies groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -1361,5 +1361,40 @@ export default {
       "caption": "Applies to everyone on this server."
     },
     "switched": "Switched to {name}"
+  },
+  "appFiles": {
+    "download": {
+      "action": "Download",
+      "versionShape": "A version is three numbers, like 1.2.0.",
+      "versionBelow": "It can’t be lower than {version}, the version the app is at.",
+      "checkFailed": "The app did not pass its check, so it cannot be packed.",
+      "tooLarge": "The file would be {size}, and an upload takes at most 32 MB. Large pictures in its screens or sample rows are the usual cause.",
+      "buildFailed": "Its screens did not build, so it cannot be packed. {message}",
+      "catalog": "This app is from the catalogue. Its screens are never packed again here.",
+      "notInstalled": "This app is not installed from its folder yet, so it has no version to start from.",
+      "title": "Download {app}",
+      "closeLabel": "Close",
+      "body": "The file holds the screens and their source, so another server can keep editing them. Build settings and scripts are left out.",
+      "version": "Version",
+      "packing": "Checking, building and packing…",
+      "notYet": "Made when you press Download",
+      "fingerprint": "Fingerprint",
+      "copied": "Copied",
+      "copy": "Copy",
+      "fingerprintHint": "Whoever installs it can check the file against this.",
+      "downloading": "Downloading {file}",
+      "cancel": "Cancel",
+      "close": "Done",
+      "again": "Download again",
+      "appLabel": "Download {name}",
+      "noVersions": "Nothing is built yet, so there is nothing to download."
+    }
+  },
+  "appCopies": {
+    "retired": {
+      "title": "{app} is installed on {databases}",
+      "body": "It is no longer at this address. Open the copy you meant:",
+      "open": "Open it on {database}"
+    }
   }
 } as const;
