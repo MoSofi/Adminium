@@ -78,7 +78,7 @@ function inventory(connectionId = 'con_f', withViews = false): SaveInventory {
       { id: 'page_customers', title: 'Customers', tableId: 'public.customers', generated: true },
       { id: 'page_orders', title: 'Orders', tableId: 'public.orders', generated: false },
     ],
-    views: withViews ? [{ id: 'view_mine', name: 'Late ones', pageId: 'page_orders', ownerId: 'usr_rosa', ownerName: 'Rosa Okafor' }] : [],
+    views: withViews ? [{ id: 'view_mine', name: 'Late ones', pageId: 'page_orders', ownerId: 'usr_rosa' }] : [],
     roles: [],
     automations: [{ id: 'aut_1', name: 'Welcome new wholesale customers', tableIds: ['public.customers'] }],
     emailTemplates: [],

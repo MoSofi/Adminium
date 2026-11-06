@@ -288,10 +288,7 @@ function ViewsRow({
             <li key={view.id} className="flex flex-wrap items-center gap-3 px-3 py-2">
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-semibold">{view.name}</span>
-                <span className="block text-[12px] text-fg-subtle">
-                  {pageTitle(view.pageId)}
-                  {view.ownerName === null ? null : ` · ${view.ownerName}`}
-                </span>
+                <span className="block text-[12px] text-fg-subtle">{pageTitle(view.pageId)}</span>
               </span>
               <label htmlFor={id} className="text-[12.5px] font-semibold text-fg-muted">
                 {t('studio:saveApp.check.answer.makeShared', 'Make shared')}

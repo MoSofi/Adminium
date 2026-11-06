@@ -238,7 +238,7 @@ export const saveInventoryReply = z.object({
       }),
     ),
     pages: z.array(z.object({ id: z.string(), title: z.string(), tableId: z.string().nullable(), generated: z.boolean() })),
-    views: z.array(z.object({ id: z.string(), name: z.string(), pageId: z.string(), ownerId: z.string().nullable(), ownerName: z.string().nullable() })),
+    views: z.array(z.object({ id: z.string(), name: z.string(), pageId: z.string(), ownerId: z.string().nullable() })),
     roles: z.array(z.object({ id: z.string(), name: z.string() })),
     automations: z.array(inventoryItem),
     emailTemplates: z.array(z.object({ key: z.string(), name: z.string() })),

@@ -152,7 +152,7 @@ export interface SaveInventory {
   connectionId: string;
   tables: InventoryTable[];
   pages: { id: string; title: string; tableId: string | null; generated: boolean }[];
-  views: { id: string; name: string; pageId: string; ownerId: string | null; ownerName: string | null }[];
+  views: { id: string; name: string; pageId: string; ownerId: string | null }[];
   roles: { id: string; name: string }[];
   automations: InventoryItem[];
   emailTemplates: { key: string; name: string }[];
