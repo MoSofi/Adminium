@@ -20,6 +20,7 @@ import { convertAutomations } from './automations.js';
 import { CheckList, type CheckItem } from './check.js';
 import { convertDocuments } from './documents.js';
 import { convertEmail } from './email.js';
+import { convertInstance } from './instance.js';
 import { convertPages } from './pages.js';
 import { convertPayments } from './payments.js';
 import { convertPublicAccess } from './public-access.js';
@@ -49,6 +50,7 @@ const PARTS: readonly [string, ConvertPart][] = [
   ['payments', convertPayments],
   ['add-ons', convertAddOns],
   ['email', convertEmail],
+  ['instance', convertInstance],
   ['rows', convertRows],
 ];
 

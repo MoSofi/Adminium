@@ -47,6 +47,7 @@ export const saveAppBody = z
         scheduledReports: ids.optional(),
         publicEndpoints: ids.optional(),
         payments: z.boolean().optional(),
+        instance: z.boolean().optional(),
       })
       .strict()
       .optional(),

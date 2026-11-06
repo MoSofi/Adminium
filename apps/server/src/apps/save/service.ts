@@ -56,6 +56,7 @@ export interface SaveRequest {
         scheduledReports?: string[] | undefined;
         publicEndpoints?: string[] | undefined;
         payments?: boolean | undefined;
+        instance?: boolean | undefined;
       }
     | undefined;
   rows?: Record<string, RowChoice> | undefined;
@@ -180,6 +181,9 @@ export function createSaveService(deps: SaveServiceDeps) {
   }
 
   async function refuseWithoutRights(request: SaveRequest, rights: SaveRights): Promise<void> {
+    if (request.include?.instance === true && !(await rights.can('system:settings:manage'))) {
+      throw new ConflictError('Saving the look, languages, wording and system emails needs managing settings.', 'CONFLICT', { reason: 'SAVE_INSTANCE_NOT_YOURS' });
+    }
     for (const [tableId, choice] of Object.entries(request.rows ?? {})) {
       if (choice.mode === 'none') continue;
       const base = `table:${request.connectionId}:${tableId}`;

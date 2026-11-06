@@ -73,6 +73,8 @@ export interface SaveChoices {
   publicEndpoints?: readonly string[];
   /** Whether the payments setup travels. Default: yes when one exists. */
   payments?: boolean;
+  /** Whether the deployment-wide part travels (look, languages, wording, edited system emails, plain settings). Default: no. */
+  instance?: boolean;
 
   /** Rows per table, by model table id. Default: none. */
   rows?: Readonly<Record<string, RowChoice>>;
