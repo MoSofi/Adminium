@@ -160,7 +160,7 @@ import { installAutomations, plannedAfterInstallOfRules } from './manifest-autom
 import { recordAfterInstall, type AfterInstallItem } from './after-install.js';
 import { requiredAppsHere, requiredTablesGone } from './required-apps.js';
 import { deliveryItems, installSavedParts, plannedAfterInstallOfParts, savedPartsRefusal } from './saved-parts.js';
-import { INSTANCE_EVENTS, applyInstance, carriesInstance, instanceFileProblems, instanceRefusal, reviewInstance, type InstanceResult } from './manifest-instance.js';
+import { INSTANCE_EVENTS, applyInstance, carriesInstance, instanceFileProblems, instanceRefusal, instanceValuesNow, reviewInstance, undoInstance, type InstanceResult } from './manifest-instance.js';
 import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { addOnsNamedBy, liveAddOnsFor } from './live-add-ons.js';
 import { addOnGrantsWider, roleTablesAsked, roleTablesChecked, settleRoleTables, widerWords, type AddOnGrantWider, type RoleTableCheck, type RoleTableResult } from './manifest-role-tables.js';
@@ -3458,6 +3458,19 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     if (partsRefused !== null) throw partsRefused;
     const instanceRefused = await instanceRefusal(manifest, input.body?.instance, actor.can);
     if (instanceRefused !== null) throw instanceRefused;
+    /*
+     * A VERSION THAT NO LONGER CARRIES THE SERVER-WIDE PART puts back what the
+     * running one wrote over the server, as the uninstall would: that is a
+     * change of the server's settings, asked of whoever updates.
+     */
+    const dropsInstance = !carriesInstance(manifest) && (await instanceValuesNow(deps.meta, installed.row.id)).some((value) => !value.changed);
+    if (dropsInstance && !(await actor.can(PERMISSIONS.settingsManage))) {
+      throw new ForbiddenError(
+        `${to} of "${key}" no longer changes the look and languages of the whole server, so updating puts back what it changed. That needs the permission to change the server’s settings: ask someone who has it to update it.`,
+        'FORBIDDEN',
+        { reason: 'INSTANCE_RESTORE_NEEDS_SETTINGS' },
+      );
+    }
 
     /*
      * AN ADD-ON MOUNTED ON THIS APP MUST STILL WORK WITH IT. A new version
@@ -3781,6 +3794,12 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         const refused = await instanceRefusal(manifest, true, actor.can);
         if (refused !== null) throw refused;
         instanceDone = await applyInstanceFor(manifest, installed.row.id, input.body, userId, host);
+      } else if (!carriesInstance(manifest)) {
+        // The new version carries none: what the running one wrote is put back (a value somebody changed since stays theirs).
+        const undone = await undoInstance(deps.meta, installed.row.id, userId);
+        if (undone.branding) host.publish?.('config-changed', INSTANCE_EVENTS.branding, {});
+        if (undone.words) host.publish?.('config-changed', INSTANCE_EVENTS.i18n, {});
+        if (undone.restored.length + undone.kept.length > 0) instanceDone = { written: [], restored: undone.restored, left: [], branding: undone.branding, words: undone.words };
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

@@ -6,7 +6,9 @@
  * `before` is kept from the FIRST write: an update writes over the value again
  * and records only what it wrote now, so an undo still lands on what this
  * server had before any version of the app. `before` null means nothing was
- * set (no setting row, no word, no email row, no language row).
+ * set (no setting row, no word, no email row, no language row). When two
+ * apps write one value, the later one's `before` is the earlier one's value;
+ * the earlier one going hands its own `before` on ({@link appInstanceUndoRepo.setBefore}).
  *
  * Every method takes the store it is handed, so the install passes its own
  * transaction (`{ db: trx, dialect }`) and the values and their undo commit
@@ -95,6 +97,27 @@ export function appInstanceUndoRepo(meta: MetaDb) {
           createdAt: at,
           updatedAt: at,
         })
+        .execute();
+    },
+
+    /**
+     * Every install's record of one value, oldest first: two apps may write
+     * the same setting, and an undo of one asks what the other wrote after it.
+     */
+    async listForItem(kind: AppInstanceValueKind, item: string): Promise<AppInstanceValue[]> {
+      const rows = await db.selectFrom('adminium_app_instance_undo').selectAll().where('kind', '=', kind).where('item', '=', item).orderBy('createdAt', 'asc').orderBy('id', 'asc').execute();
+      return rows.map(decode);
+    },
+
+    /**
+     * What a record puts back: the app that wrote before it went, so this one
+     * now puts back what was there before that one.
+     */
+    async setBefore(id: string, before: HeldValue, at: number = Date.now()): Promise<void> {
+      await db
+        .updateTable('adminium_app_instance_undo')
+        .set({ before: before === null ? null : packJson({ v: before.value ?? null }), updatedAt: at })
+        .where('id', '=', id)
         .execute();
     },
 
