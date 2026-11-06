@@ -741,6 +741,8 @@ export interface AdminiumEmailTemplatesTable {
   shownIn: ColumnType<string, string | undefined, string>;
   /** The hash of what the app shipped; a row that no longer hashes to it was edited. */
   contentHash: string | null;
+  /** "Send as" (wave 0080): NULL = by the record's workspace, `server`, or a workspace id. One value per key. */
+  sendAs: ColumnType<string | null, string | null | undefined, string | null>;
 }
 
 /** Saved reusable email blocks, workspace-wide. */

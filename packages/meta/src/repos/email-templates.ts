@@ -88,7 +88,16 @@ export interface EmailTemplate {
   shownIn: 'all' | 'chosen';
   /** The hash of what the app shipped: a row that no longer hashes to it was edited. */
   contentHash: string | null;
+  /**
+   * "Send as" (wave 0080): null = the sender of the workspace the mail's
+   * record is in, `server` = the server's own sender, or a workspace id. One
+   * value per key: {@link emailTemplatesRepo} `sendAsOf` reads the family's.
+   */
+  sendAs: string | null;
 }
+
+/** "Send as" the server's own sender, whatever the record. */
+export const TEMPLATE_SEND_AS_SERVER = 'server';
 
 /** The envelope fields every write may carry beyond the M7 five. */
 export interface EmailEnvelopeInput {
@@ -278,6 +287,8 @@ function decode(row: Selectable<AdminiumEmailTemplatesTable>): EmailTemplate {
     installId: row.installId ?? null,
     shownIn: row.shownIn === 'chosen' ? 'chosen' : 'all',
     contentHash: row.contentHash,
+    // Absent on a store before wave 0080.
+    sendAs: row.sendAs ?? null,
   };
 }
 
@@ -644,6 +655,31 @@ export function emailTemplatesRepo(meta: MetaDb) {
       const row = await findByKeyLocale(key, locale);
       if (row === null) throw new Error(`email template upsert lost its row: ${key}/${locale}`);
       return row;
+    },
+
+    /**
+     * "Send as" for a template: written to every row of the key (every
+     * language), so the family has one sender. Null goes back to "by the
+     * record". Returns how many rows it wrote.
+     */
+    async setSendAs(key: string, sendAs: string | null, at: number = Date.now()): Promise<number> {
+      const res = await db.updateTable('adminium_email_templates').set({ sendAs, updatedAt: at }).where('key', '=', key).executeTakeFirst();
+      return affected(res.numUpdatedRows);
+    },
+
+    /**
+     * A family's "Send as": the value its rows hold (a language added after it
+     * was set holds none, and is not asked); null when none names one.
+     */
+    async sendAsOf(key: string): Promise<string | null> {
+      const row = await db
+        .selectFrom('adminium_email_templates')
+        .select('sendAs')
+        .where('key', '=', key)
+        .where('sendAs', 'is not', null)
+        .orderBy('locale')
+        .executeTakeFirst();
+      return row?.sendAs ?? null;
     },
 
     /** Every row an app shipped, archived ones included, by key then locale. */
