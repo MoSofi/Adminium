@@ -53,6 +53,8 @@ import { bootstrapQuery } from '../../app/bootstrap.js';
 import { DEFAULT_BRANDING, brandingQuery } from '../../app/branding.js';
 import { useCommonWords } from '../../i18n/commonWords.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
+import { DocsLink } from '../../kb/DocsLink.js';
+import { docsUrl } from '../../kb/docsLinks.js';
 import { useCurrentWorkspace } from '../../workspaces/current.js';
 import { AppIcon, OnDatabase, WorkspaceChips, workspacesOf } from './appPageParts.js';
 import { DownloadAppDialog } from '../../apps/DownloadAppDialog.js';
@@ -365,6 +367,14 @@ export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, onFinish
                   {databasesShown ? (
                     <div className="mt-1.5">
                       <WorkspaceChips workspaces={workspaces} connectionId={app.connectionId} />
+                    </div>
+                  ) : null}
+                  {/* Several copies of one key: drawn once, beside the key's one Update. */}
+                  {copies.length > 1 && firstOfKey ? (
+                    <div className="mt-1.5">
+                      <DocsLink href={docsUrl('self-hosting/apps-per-database#one-version-for-every-copy')}>
+                        {t('studio:apps.copies.docsLink', 'How the copies of one app update')}
+                      </DocsLink>
                     </div>
                   ) : null}
                   {app.screensFirstOnly === true ? (

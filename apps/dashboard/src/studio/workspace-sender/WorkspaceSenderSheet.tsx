@@ -23,6 +23,8 @@ import { useId, useState, type ReactNode } from 'react';
 import { Alert, Button, FormField, Input, Sheet, SheetFooter, SheetHeader, Spinner, Textarea } from '@adminium/ui';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
+import { DocsLink } from '../../kb/DocsLink.js';
+import { docsUrl } from '../../kb/docsLinks.js';
 import { checkDraft, refusalOf, senderApi, sendingDomainsQuery, type SenderDraft, type SenderRefusal, type SenderWorkspace, type SendingDomains } from './senderApi.js';
 
 export interface WorkspaceSenderSheetProps {
@@ -232,6 +234,9 @@ export function WorkspaceSenderSheet({ workspace, opener, onSaved, defaultOpen =
                 'The do-not-email list belongs to the whole server: someone who unsubscribes from one business gets no marketing mail from any business on it.',
               )}
             </p>
+            <DocsLink href={docsUrl('guides/workspaces/senders')} className="self-start">
+              {t('studio:workspaceSender.docsLink', 'Which sender a mail uses')}
+            </DocsLink>
           </form>
         </div>
         <SheetFooter>

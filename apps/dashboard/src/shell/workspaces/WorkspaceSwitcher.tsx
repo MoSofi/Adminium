@@ -32,6 +32,8 @@ import { Popover, PopoverContent, PopoverTrigger, SegmentedControl } from '@admi
 
 import { findPageBySlug, holdsSystemAction, type BootstrapData } from '../../app/bootstrap.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
+import { DocsLink } from '../../kb/DocsLink.js';
+import { docsUrl } from '../../kb/docsLinks.js';
 import { getDesktopApi } from '../../lib/desktop-runtime.js';
 import { useBranding } from '../BrandMark.js';
 import { chooseGroup } from './current.js';
@@ -198,6 +200,9 @@ export function WorkspaceSwitcher({
               <div id="workspace-view-caption" className="mt-[7px] text-[11.5px] leading-[1.5] text-fg-subtle">
                 {t('workspaces.view.caption', 'Applies to everyone on this server.')}
               </div>
+              <DocsLink href={docsUrl('guides/workspaces#the-two-views')} className="mt-1 text-[11.5px]">
+                {t('workspaces.view.docsLink', 'How the two views differ')}
+              </DocsLink>
             </div>
           </>
         ) : null}

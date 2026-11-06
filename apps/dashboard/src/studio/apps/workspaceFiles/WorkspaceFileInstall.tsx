@@ -45,6 +45,8 @@ import { ApiError, api } from '../../../app/api.js';
 import { bootstrapQuery, holdsSystemAction } from '../../../app/bootstrap.js';
 import { brandingQuery } from '../../../app/branding.js';
 import { t } from '../../../i18n/t.js';
+import { DocsLink } from '../../../kb/DocsLink.js';
+import { docsUrl } from '../../../kb/docsLinks.js';
 import { useOpenWorkspace } from '../../../workspaces/open.js';
 import { connectionsQuery } from '../../hub/connectionsQuery.js';
 import { namesList, sentence } from '../addOnWords.js';
@@ -328,13 +330,16 @@ export function WorkspaceFileInstall({ file, resumeId, onClose }: WorkspaceFileI
       <div>
         <h2 className="text-[20px] font-extrabold tracking-[-0.02em]">{t('studio:workspaceFiles.install.title', 'Install a workspace file')}</h2>
         <p className="mt-0.5 text-[13px] text-fg-muted">{server}</p>
+        <DocsLink href={docsUrl('guides/workspaces/files#installing-a-workspace-file')} className="mt-1.5">
+          {t('studio:workspaceFiles.docsLink', 'How workspace files work')}
+        </DocsLink>
       </div>
       <header>
         <Stepper steps={steps} activeIndex={stepIndex} label={t('studio:workspaceFiles.install.progress', 'Install progress')} />
       </header>
 
       {refusal !== null ? (
-        <RefusalCard title={refusal.title} onBack={onClose}>
+        <RefusalCard title={refusal.title} onBack={onClose} docsHref={docsUrl('guides/workspaces/files#the-file')}>
           {refusal.body}
         </RefusalCard>
       ) : staged === null ? (

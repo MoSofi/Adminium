@@ -22,6 +22,8 @@ import { Suspense, lazy, useRef, useState, type DragEvent, type KeyboardEvent } 
 import { Badge, Button, Card, EmptyState, Modal, ModalBody, ModalHeader, MonoText, Spinner } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
+import { DocsLink } from '../../kb/DocsLink.js';
+import { docsUrl } from '../../kb/docsLinks.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { initialsOf } from '../../shell/workspaces/model.js';
 import { WorkspaceTile } from '../../shell/workspaces/WorkspaceTile.js';
@@ -138,6 +140,9 @@ export function WorkspacesCard({ list, connections }: { list: WorkspaceList; con
           <p className="mt-[3px] text-[12.5px] leading-[1.5] text-fg-muted">
             {t('studio:hub.workspaces.subtitle', 'Databases that serve one business share one menu. A database can be in several.')}
           </p>
+          <DocsLink href={docsUrl('guides/workspaces#managing-workspaces')} className="mt-1">
+            {t('studio:hub.workspaces.docsLink', 'How workspaces work')}
+          </DocsLink>
         </div>
         <Button variant="secondary" size="sm" className="ms-auto" onClick={() => setMaking(true)} data-testid="workspace-new">
           <Plus aria-hidden className="size-[15px]" />

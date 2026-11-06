@@ -28,6 +28,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Alert, Button, MonoText, Spinner, Switch, cn } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
+import { DocsLink } from '../../kb/DocsLink.js';
+import { docsUrl } from '../../kb/docsLinks.js';
 import type { SaveFlowShared } from './saveAppShared.js';
 import type { AnswerChoice, CheckItem } from './saveAppApi.js';
 import { groupCheck, itemId, needsCount, personalViews, type SaveDraft } from './saveAppDraft.js';
@@ -82,6 +84,9 @@ export function SaveAppCheck(props: SaveAppCheckProps) {
       <div>
         <h2 className="text-[16.5px] font-extrabold tracking-[-0.02em]">{t('studio:saveApp.step.check', 'Check')}</h2>
         <p className="mt-1 text-[13px] leading-[1.5] text-fg-muted">{t('studio:saveApp.check.body', 'What goes in the file, and what needs you first.')}</p>
+        <DocsLink href={docsUrl('guides/your-own-apps/save-as-app#check')} className="mt-1.5">
+          {t('studio:saveApp.check.docsLink', 'What each group means')}
+        </DocsLink>
       </div>
 
       {plan === undefined ? null : (

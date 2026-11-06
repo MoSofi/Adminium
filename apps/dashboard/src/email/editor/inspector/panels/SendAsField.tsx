@@ -19,6 +19,8 @@ import { useState } from 'react';
 import { FormField, Select } from '@adminium/ui';
 
 import { t } from '../../../../i18n/t.js';
+import { DocsLink } from '../../../../kb/DocsLink.js';
+import { docsUrl } from '../../../../kb/docsLinks.js';
 import { EMAIL_DOCUMENTS_KEY } from '../../../queries.js';
 import type { EmailDocumentDetail } from '../../../api.js';
 import { SEND_AS_SERVER, sendAsApi, sendAsOptionsQuery, type SendAsOptions } from '../../../sendAs.js';
@@ -67,6 +69,7 @@ export function SendAsField({ documentId, sendAs }: SendAsFieldProps) {
           : t('email:sendAs.helper.workspace', 'Every mail of this template goes from {workspace}’s sender, whatever its record.', { workspace: chosen?.name ?? '' });
 
   return (
+    <div className="flex flex-col gap-1.5">
     <FormField
       label={t('email:sendAs.label', 'Send as')}
       helper={failed ? undefined : helper}
@@ -90,5 +93,9 @@ export function SendAsField({ documentId, sendAs }: SendAsFieldProps) {
         ))}
       </Select>
     </FormField>
+    <DocsLink href={docsUrl('guides/workspaces/senders#send-as')} className="self-start">
+      {t('email:sendAs.docsLink', 'How Send as chooses a sender')}
+    </DocsLink>
+    </div>
   );
 }

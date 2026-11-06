@@ -22,6 +22,8 @@ import { Button, Card, CardBody, CardHeader, IconTile, SegmentedControl } from '
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
+import { DocsLink } from '../kb/DocsLink.js';
+import { docsUrl } from '../kb/docsLinks.js';
 import { useAppToasts } from '../pages/toasts.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
@@ -162,6 +164,9 @@ function DefaultsForm({ initial }: { initial: SettingsDefaultsData }): ReactNode
             <p id="defaults-workspace-view-caption" className="text-body-sm text-fg-muted">
               {t('workspaces.view.caption', 'Applies to everyone on this server.')}
             </p>
+            <DocsLink href={docsUrl('guides/workspaces#the-two-views')} className="self-start">
+              {t('workspaces.view.docsLink', 'How the two views differ')}
+            </DocsLink>
           </div>
         </CardBody>
       </Card>

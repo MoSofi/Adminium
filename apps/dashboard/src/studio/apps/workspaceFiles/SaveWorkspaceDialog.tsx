@@ -35,6 +35,8 @@ import { Archive, CircleCheck, Copy, Database, Download, Package, PackageCheck, 
 
 import { bootstrapQuery, holdsSystemAction } from '../../../app/bootstrap.js';
 import { t } from '../../../i18n/t.js';
+import { DocsLink } from '../../../kb/DocsLink.js';
+import { docsUrl } from '../../../kb/docsLinks.js';
 import { formatBytes } from '../../storage/storageApi.js';
 import { sentence } from '../addOnWords.js';
 import { APP_SAVES_QUERY_KEY as SINGLE_SAVES_QUERY_KEY } from '../saveAppApi.js';
@@ -218,7 +220,10 @@ export function SaveWorkspaceDialog({ workspace, onClose, onMoreChoices }: { wor
         className="border-b border-border"
       />
       <ModalBody className="flex flex-col gap-4 py-5 leading-[normal]">
-        <p className="text-[13px] leading-[1.5] text-fg-muted">{t('studio:workspaceFiles.save.intro', 'Each database becomes an app inside one file. Nothing on this server changes.')}</p>
+        <div className="flex flex-col items-start gap-1.5">
+          <p className="text-[13px] leading-[1.5] text-fg-muted">{t('studio:workspaceFiles.save.intro', 'Each database becomes an app inside one file. Nothing on this server changes.')}</p>
+          <DocsLink href={docsUrl('guides/workspaces/files#saving-a-workspace')}>{t('studio:workspaceFiles.docsLink', 'How workspace files work')}</DocsLink>
+        </div>
         {rows === null ? (
           first.isError ? (
             <Alert tone="danger" title={t('studio:workspaceFiles.error', 'Something went wrong')}>

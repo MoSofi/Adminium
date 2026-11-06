@@ -14,6 +14,8 @@ import { Badge, Button, Card, CardBody, CardHeader, EmptyState, IconTile, MonoTe
 import type { ReactNode } from 'react';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
+import { DocsLink } from '../../kb/DocsLink.js';
+import { docsUrl } from '../../kb/docsLinks.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import type { ConnectionDto } from '../api.js';
 import { appSavesQuery, downloadSavedFile, type AppSaveRow } from './saveAppApi.js';
@@ -38,6 +40,9 @@ export function SavedFromHereCard({ connections, saveButton, onSaveNewer }: Save
       <CardHeader className="flex items-center gap-3">
         <h2 className="text-sm font-bold tracking-tight">{t('studio:saveApp.saved.title', 'Saved from here')}</h2>
         <MonoText className="text-xs text-fg-subtle">{saves.length}</MonoText>
+        <DocsLink href={docsUrl('guides/your-own-apps/save-as-app#saved-from-here')} className="ms-auto">
+          {t('studio:saveApp.saved.docsLink', 'About saved versions')}
+        </DocsLink>
       </CardHeader>
       <CardBody className="flex flex-col gap-3">
         {saves.length === 0 ? (

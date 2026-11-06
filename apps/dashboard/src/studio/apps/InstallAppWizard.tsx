@@ -110,6 +110,8 @@ import {
 import { ApiError } from '../../app/api.js';
 import { bootstrapQuery, type BootstrapData } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
+import { DocsLink } from '../../kb/DocsLink.js';
+import { docsUrl } from '../../kb/docsLinks.js';
 import { addOnCatalogQuery, downloadAddOn, getAddOnJob } from '../add-ons/addOnsApi.js';
 import { connectionsQuery } from '../hub/connectionsQuery.js';
 import {
@@ -1144,6 +1146,9 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                       database: <MonoText>{connectionName}</MonoText>,
                     }, { app: appName })}
                   </p>
+                  <DocsLink href={docsUrl('guides/your-own-apps/install#the-review')} className="mt-1.5">
+                    {t('studio:hostedApps.review.docsLink', 'What the review checks')}
+                  </DocsLink>
                 </div>
               )}
               <WhereItCameFrom

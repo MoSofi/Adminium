@@ -118,6 +118,38 @@ describe('in-app help links resolve to real docs pages', () => {
     }
   });
 
+  it("every screen's docs link written as docsUrl('…') goes to a published page and heading", () => {
+    // A screen's own help link is a literal at its call site, so a renamed
+    // page or heading fails here rather than 404ing from inside the product.
+    const dashboard = join(repoRoot, 'apps', 'dashboard', 'src');
+    const links: { file: string; path: string }[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(full);
+          continue;
+        }
+        if (!/\.tsx?$/.test(entry.name) || /\.(test|stories)\.tsx?$/.test(entry.name)) continue;
+        for (const match of readFileSync(full, 'utf8').matchAll(/docsUrl\(\s*'([^']+)'\s*\)/g)) {
+          links.push({ file: full.slice(repoRoot.length + 1), path: match[1] as string });
+        }
+      }
+    };
+    walk(dashboard);
+    // The screens of saving and installing apps, workspaces and their senders link here.
+    expect(links.length).toBeGreaterThanOrEqual(15);
+
+    const routes = docsRoutes();
+    for (const { file, path } of links) {
+      const [route, anchor] = path.split('#') as [string, string | undefined];
+      expect(routes, `${file} links to /${path}, which the docs site does not publish`).toContain(route);
+      if (anchor !== undefined) {
+        expect(headingAnchors(route), `${file} links to /${path}, which has no such heading`).toContain(anchor);
+      }
+    }
+  });
+
   it("the API explorer's \"API reference\" links to a route the docs site publishes", () => {
     // `/api-docs` is read by the people who CALL an instance's API, and this
     // link is the only way from it to the contract they need.

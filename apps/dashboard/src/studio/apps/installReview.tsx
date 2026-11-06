@@ -60,6 +60,8 @@ import {
 
 import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
+import { DocsLink } from '../../kb/DocsLink.js';
+import { docsUrl } from '../../kb/docsLinks.js';
 import { namesList, readerTag, sentence } from './addOnWords.js';
 import type { AfterInstallItem, AppInstallPlan, InstallAnswers, InstanceEmail, InstancePart, PageClash } from './appsApi.js';
 
@@ -883,8 +885,21 @@ export function AfterInstallCard({ items }: { items: readonly AfterInstallItem[]
 
 // ── Refusals ───────────────────────────────────────────────────────────────
 
-/** One refusal: it replaces the review, with no Install button. */
-export function RefusalCard({ title, children, onBack }: { title: string; children: ReactNode; onBack?: (() => void) | undefined }) {
+/**
+ * One refusal: it replaces the review, with no Install button. Its docs link
+ * goes to the guide's list of refusals; a workspace file's goes to its own.
+ */
+export function RefusalCard({
+  title,
+  children,
+  onBack,
+  docsHref = docsUrl('guides/your-own-apps/install#refusals'),
+}: {
+  title: string;
+  children: ReactNode;
+  onBack?: (() => void) | undefined;
+  docsHref?: string | undefined;
+}) {
   return (
     <div role="alert" data-part="refusal" className="flex max-w-[560px] flex-col gap-3 rounded-[14px] border border-danger/25 bg-surface p-5 leading-[normal] shadow-sm">
       <div className="flex items-center gap-2.5">
@@ -892,11 +907,14 @@ export function RefusalCard({ title, children, onBack }: { title: string; childr
         <h2 className="text-[14.5px] font-bold">{title}</h2>
       </div>
       <p className="text-[13px] leading-[1.55] text-fg-muted">{children}</p>
-      {onBack === undefined ? null : (
-        <Button variant="secondary" className="self-start" onClick={onBack}>
-          {t('studio:hostedApps.refusal.back', 'Back')}
-        </Button>
-      )}
+      <div className="flex flex-wrap items-center gap-4">
+        {onBack === undefined ? null : (
+          <Button variant="secondary" onClick={onBack}>
+            {t('studio:hostedApps.refusal.back', 'Back')}
+          </Button>
+        )}
+        <DocsLink href={docsHref}>{t('studio:hostedApps.refusal.docsLink', 'Why a file is refused')}</DocsLink>
+      </div>
     </div>
   );
 }

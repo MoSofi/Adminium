@@ -24,6 +24,8 @@ import { Checkbox, Radio, RadioGroup, Select, cn } from '@adminium/ui';
 
 import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
+import { DocsLink } from '../kb/DocsLink.js';
+import { docsUrl } from '../kb/docsLinks.js';
 import { nextShownIn, type ShownIn } from './model.js';
 import { OTHER_DATABASES, useShownInScope, type ShownInWorkspace } from './scope.js';
 
@@ -111,8 +113,13 @@ export function ShownInControl({ value, onChange, disabled = false, className }:
   const start = scope.currentWorkspaceId === OTHER_DATABASES ? null : scope.currentWorkspaceId;
   return (
     <div data-testid="shown-in-control" className={cn('leading-[normal]', className)}>
-      <div id={labelId} className="mb-1 text-[12.5px] font-bold text-fg">
-        {t('shownIn.label', 'Shown in')}
+      <div className="mb-1 flex flex-wrap items-baseline gap-x-3">
+        <div id={labelId} className="text-[12.5px] font-bold text-fg">
+          {t('shownIn.label', 'Shown in')}
+        </div>
+        <DocsLink href={docsUrl('guides/workspaces#shown-in')} className="ms-auto text-[12px]">
+          {t('shownIn.docsLink', 'How Shown in works')}
+        </DocsLink>
       </div>
       <RadioGroup
         aria-labelledby={labelId}
