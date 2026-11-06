@@ -336,6 +336,11 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
               ],
             });
           }
+          // A database with a copy of its own: that copy reads it, under its own grant. Pointing this one there would serve that data under this one's.
+          const owner = (await installs.listByKey(key)).find((one) => one.row.kind === 'app' && one.row.instanceSlug !== '' && one.row.connectionId === connectionId);
+          if (owner !== undefined) {
+            throw new ConflictError(`That database has its own copy of ${key}. Open that copy instead.`, 'CONFLICT', { reason: 'INSTALL_OWNS_DATABASE', appKey, connectionId, address: `${key}~${owner.row.instanceSlug}` });
+          }
         }
         const current = await readSettings();
         const before = staffConnectionOf(current, appKey);

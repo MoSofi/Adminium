@@ -559,17 +559,20 @@ async function copiesElsewhere(meta: MetaDb, appKey: string, side: string): Prom
 }
 
 /**
- * The install a mount serves: the one on the mount's database, else (the bare
- * mount with no binding) the bare install. Its id goes into the screens'
- * config, and the screens send it back as `X-Adminium-Install`.
+ * The install a mount serves: the one its address names, which is the one
+ * whose grant the staff gate asks for (`app:<address>:staff`). The bare mount
+ * and an instance made before installs were per database are the bare
+ * install's; a later install's slug is that install's. Never the install of
+ * whatever database the mount was pointed at: the grant and the install agree.
+ * Its id goes into the screens' config, and the screens send it back as
+ * `X-Adminium-Install`.
  */
-async function installOfMount(meta: MetaDb, appKey: string, connectionId: string | null, slug: string | null = null): Promise<{ id: string } | null> {
-  const bare = () => meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', appKey).where('kind', '=', 'app').where('instanceSlug', '=', '').executeTakeFirst();
-  if (connectionId === null) return (await bare()) ?? null;
-  const own = await meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', appKey).where('kind', '=', 'app').where('scopeKey', '=', connectionId).executeTakeFirst();
-  if (own !== undefined) return own;
-  // An instance made before installs were per database has no install of its own: it is the bare install's, as it always was.
-  return slug === null ? null : ((await bare()) ?? null);
+async function installOfMount(meta: MetaDb, settings: SurfaceSettings, appKey: string, slug: string | null): Promise<{ id: string } | null> {
+  const address = addressForMount(settings, appKey, slug);
+  const known = settings.installs?.[address];
+  if (known !== undefined) return { id: known.id };
+  const addressSlug = address === appKey ? '' : (slug ?? '');
+  return (await meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', appKey).where('kind', '=', 'app').where('instanceSlug', '=', addressSlug).executeTakeFirst()) ?? null;
 }
 
 export const surfacesPlugin = fp<SurfacesPluginOptions>(
@@ -810,7 +813,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
             ? await installConnectionOf(opts.metaDb, appKey)
             : null;
         const tables = await tablesOf(connectionId ?? fallback, appKey);
-        const install = opts.metaDb === undefined ? null : await installOfMount(opts.metaDb, appKey, connectionId ?? fallback, slug);
+        const install = opts.metaDb === undefined ? null : await installOfMount(opts.metaDb, settings, appKey, slug);
         const values = await settingsOf(appKey, install?.id ?? null);
         /*
          * WHO IS SIGNED IN, and the token their writes carry: with these and
@@ -906,7 +909,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         appKey,
       );
       const bound = connectionId ?? (slug === null ? await installConnectionOf(metaDb, appKey) : null);
-      const install = await installOfMount(metaDb, appKey, bound, slug);
+      const install = await installOfMount(metaDb, settings, appKey, slug);
       const values = await settingsOf(appKey, install?.id ?? null);
       const addOns = await addOnsOf(appKey, 'customer', bound, install?.id ?? null);
       return {
