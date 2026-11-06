@@ -20,6 +20,7 @@ import type { MetaDb } from '@adminium/meta';
 
 import type { CheckList } from './check.js';
 import type { SaveRefs } from './refs.js';
+import type { RowAccess } from './rows.js';
 
 export type SaveDialect = 'postgres' | 'mysql' | 'sqlite';
 
@@ -34,6 +35,8 @@ export interface SaveSource {
   adminiumVersion: string;
   /** A Files library file's bytes by its id (mail attachments, pictures, a logo); null when it is gone. Absent: no file travels. */
   readFile?: ((fileId: string) => Promise<Uint8Array | null>) | undefined;
+  /** How the rows part reads the database and its pictures; absent: no rows can be saved. */
+  rows?: RowAccess | undefined;
 }
 
 /** Rows a table carries. */

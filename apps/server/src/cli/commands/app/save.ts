@@ -99,6 +99,7 @@ export const appSaveCommand: Command = {
           return row === undefined || !(SOURCE_ENGINES as readonly string[]).includes(row.engine) ? null : (row.engine as SaveDialect);
         },
         displayName: async () => settingsRepo(meta).get('branding.appName'),
+        dataDb: async (connectionId) => (await runtime.manager.data(connectionId)).db,
       });
 
       const plan = await service.plan(request, HOST);

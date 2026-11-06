@@ -28,7 +28,10 @@ import { dirname, join } from 'node:path';
 import { parseDatabaseModel } from '@adminium/engine';
 import { appSavesRepo, filesRepo, newId, snapshotsRepo, type AppSave, type MetaDb } from '@adminium/meta';
 
+import type { Kysely } from 'kysely';
+
 import { packStagedTree } from '../../add-ons/pack.js';
+import type { SourceDatabase } from '../../connections/manager.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import type { FileStore } from '../../files/store.js';
 import type { CheckItem } from './check.js';
@@ -117,6 +120,8 @@ export interface SaveServiceDeps {
   dialectOf(connectionId: string): Promise<SaveDialect | null>;
   /** The deployment's display name: the label's default. */
   displayName(): Promise<string>;
+  /** The database's own rows, for a save that carries some. */
+  dataDb?: ((connectionId: string) => Promise<Kysely<SourceDatabase>>) | undefined;
   now?: () => number;
 }
 
@@ -182,6 +187,22 @@ export function createSaveService(deps: SaveServiceDeps) {
             },
           }),
     };
+    const wantsRows = Object.values(request.rows ?? {}).some((choice) => choice.mode !== 'none');
+    if (wantsRows && deps.dataDb !== undefined) {
+      const readFile = source.readFile;
+      source.rows = {
+        db: await deps.dataDb(request.connectionId),
+        ...(readFile === undefined
+          ? {}
+          : {
+              readFile: async (fileId: string) => {
+                const file = await filesRepo(deps.meta).findById(fileId);
+                const bytes = file === null ? null : await readFile(fileId);
+                return file === null || bytes === null ? null : { bytes, filename: file.filename, mime: file.mime };
+              },
+            }),
+      };
+    }
     const made = await convertToApp(source, choices);
     // The gates' answers carried out on the file itself, before the gates look again.
     const converted = { ...made, ...carryOutAnswers(made.manifest, made.files, choices) };

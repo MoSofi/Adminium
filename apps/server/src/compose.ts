@@ -2520,6 +2520,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               return row === undefined || !(SOURCE_ENGINES as readonly string[]).includes(row.engine) ? null : (row.engine as SaveDialect);
             },
             displayName: async () => settingsRepo(meta).get('branding.appName'),
+            dataDb: async (connectionId) => (await manager.data(connectionId)).db,
           }),
         }),
       );

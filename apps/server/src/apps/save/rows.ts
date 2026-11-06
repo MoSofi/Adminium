@@ -68,7 +68,7 @@ interface Picked {
 export const convertRows: ConvertPart = async (ctx) => {
   const chosen = Object.entries(ctx.choices.rows ?? {}).filter((entry): entry is [string, RowChoice & { mode: 'starting' | 'sample' }] => entry[1].mode !== 'none');
   if (chosen.length === 0) return {};
-  const access = (ctx.source as RowsSource).rows;
+  const access = ctx.source.rows;
   if (access === undefined) throw new Error('save: rows were chosen, and the source gives no way to read them');
   const plan = await planTables(ctx);
   const view = await loadSnapshotView(ctx.source.meta, ctx.source.connectionId);

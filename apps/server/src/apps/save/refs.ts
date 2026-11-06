@@ -114,8 +114,9 @@ export function snakeRef(name: string): string {
   return snake === '' ? 't' : snake;
 }
 
+/** A table of the database's own: not a system table, not Adminium's, not a view (a view has no rows of its own to make). */
 function isOwnTable(table: TableModel): boolean {
-  return table.system !== true && !table.name.startsWith('adminium_');
+  return table.system !== true && table.kind === 'table' && !table.name.startsWith('adminium_');
 }
 
 export async function buildSaveRefs(source: SaveSource, choices: SaveChoices): Promise<SaveRefs> {
@@ -131,10 +132,11 @@ export async function buildSaveRefs(source: SaveSource, choices: SaveChoices): P
 
   // Tables.
   const chosenTables = choices.tables === undefined ? null : new Set(choices.tables);
+  const leftOut = new Set(choices.leaveOut ?? []);
   const tableRef = allocator('_', 63);
   const tables: SavedTable[] = [];
   for (const table of model.tables) {
-    if (!isOwnTable(table) || held.has(table.id)) continue;
+    if (!isOwnTable(table) || held.has(table.id) || leftOut.has(`table:${table.id}`)) continue;
     if (chosenTables !== null && !chosenTables.has(table.id)) continue;
     const ref = tableRef(snakeRef(table.name));
     tables.push({ id: table.id, ref, model: table, needsName: ref !== table.name, needsSchema: source.dialect === 'postgres' && table.schema !== model.defaultSchema });
