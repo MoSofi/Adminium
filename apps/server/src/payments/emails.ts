@@ -32,6 +32,7 @@ import { resolveEmailTemplate, translatorForLocale } from '../email/builtins.js'
 import { paymentEmailLines } from '../email/builtins.js';
 import { PAYMENT_LINK_TEMPLATE_KEY, PAYMENT_RECEIPT_TEMPLATE_KEY, enqueueEmail, type EnqueueEmailDeps } from '../email/send.js';
 import { WORKSPACE_ACCENT_HEX } from '../email/render.js';
+import { resolveMailSender, type MailSender } from '../email/workspace-sender.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import { businessName } from '../privacy/business.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../routes/payments/ways.js';
@@ -54,6 +55,17 @@ export interface ShopFace {
 export async function shopFace(meta: MetaDb): Promise<ShopFace> {
   const page = await paymentSettingsRepo(meta).get(PAY_PAGE_DOC, payPageSchema);
   return { name: await businessName(meta), email: page?.contactEmail ?? null, phone: page?.contactPhone ?? null, logoFileId: page?.logoFileId ?? null };
+}
+
+/**
+ * The shop as the customers of one database know it: a workspace with a
+ * sender of its own speaks with its name and its reply-to (Kiln Street
+ * Pottery's invoice never reads "Fernhill Coffee"), else the pay page's.
+ */
+async function shopFor(meta: MetaDb, payable: ResolvedPayable, templateKey: string): Promise<{ shop: ShopFace; sender: MailSender }> {
+  const sender = await resolveMailSender(meta, { connectionId: payable.ref.connectionId, templateKey });
+  const shop = await shopFace(meta);
+  return { sender, shop: { ...shop, name: sender.name ?? shop.name, email: sender.replyTo ?? shop.email } };
 }
 
 /** How the shop's contact reads in a sentence: the address, the phone, or both. */
@@ -115,7 +127,7 @@ export async function sendPayLinkEmail(deps: PaymentEmailDeps, input: { link: Pa
   const to = payable.customerEmail;
   if (to === null) return { sent: false, reason: 'no-customer-email' };
   const locale = await recipientLocale(deps.meta, null);
-  const shop = await shopFace(deps.meta);
+  const { shop, sender } = await shopFor(deps.meta, payable, PAYMENT_LINK_TEMPLATE_KEY);
   const template = await templateFor(deps.meta, PAYMENT_LINK_TEMPLATE_KEY, locale, shop);
   if (template === null) return { sent: false, reason: 'template-off' };
   const { t } = await translatorForLocale(deps.meta, template.locale);
@@ -136,6 +148,8 @@ export async function sendPayLinkEmail(deps: PaymentEmailDeps, input: { link: Pa
     },
     ...(shop.email === null ? {} : { replyTo: shop.email }),
     ...(shop.logoFileId === null ? {} : { markFileId: shop.logoFileId }),
+    // As the sender of the workspace the invoice's database is in (a designer invoice has none: the server's).
+    sender,
     // A second press while the first is still on its way sends one email.
     dedupeKey: `payment-link-email:${input.link.id}`,
   });
@@ -169,7 +183,7 @@ export async function queuePaymentReceipt(deps: PaymentEmailDeps, attempt: Payme
     const to = payable?.customerEmail ?? null;
     if (payable === null || to === null) return false;
     const locale = await recipientLocale(deps.meta, null);
-    const shop = await shopFace(deps.meta);
+    const { shop, sender } = await shopFor(deps.meta, payable, PAYMENT_RECEIPT_TEMPLATE_KEY);
     const template = await templateFor(deps.meta, PAYMENT_RECEIPT_TEMPLATE_KEY, locale, shop);
     if (template === null) return false;
     const { t } = await translatorForLocale(deps.meta, template.locale);
@@ -198,6 +212,7 @@ export async function queuePaymentReceipt(deps: PaymentEmailDeps, attempt: Payme
       },
       ...(shop.email === null ? {} : { replyTo: shop.email }),
       ...(shop.logoFileId === null ? {} : { markFileId: shop.logoFileId }),
+      sender,
       dedupeKey: `payment-receipt:${attempt.id}`,
     });
     if (job === null) return false;

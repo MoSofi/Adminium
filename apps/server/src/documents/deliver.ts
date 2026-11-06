@@ -210,6 +210,8 @@ export async function emailDocument(
     {
       to,
       templateKey: DOCUMENT_READY_TEMPLATE_KEY,
+      // As the sender of the workspace the document's database is in (an invoice from Kiln goes as Kiln).
+      about: { connectionId: document.connectionId },
       // Absent, not the tag: `enqueueEmail` then resolves the workspace
       // default, which is a better answer than a locale no row can match.
       ...(localeIdFor(document.locale) === undefined

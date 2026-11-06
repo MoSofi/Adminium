@@ -130,6 +130,13 @@ export const emailDocumentDetail = emailDocumentSummary.extend({
   vars: z.array(z.string()),
   languages: z.array(emailLanguageView),
   attachmentsResolved: z.array(emailAttachmentResolvedView),
+  /**
+   * "Send as", one value for every language of the template: null = the
+   * sender of the workspace the mail's record is in (the server's for a
+   * database in none, and for mail about no record); `server`; or a
+   * workspace id.
+   */
+  sendAs: z.string().nullable(),
 });
 export type EmailDocumentDetailView = z.infer<typeof emailDocumentDetail>;
 
@@ -190,6 +197,10 @@ export const emailPatchBody = z
     reviewed: z.literal(true).optional(),
   })
   .refine((body) => Object.keys(body).length > 0, 'nothing to change');
+
+/** "Send as": null (by the record's workspace), `server`, or a workspace id. */
+export const emailSendAsBody = z.object({ sendAs: z.string().trim().min(1).max(40).nullable() });
+export const emailSendAsReply = z.object({ key: z.string(), sendAs: z.string().nullable() });
 
 /**
  * Addresses to send the sample to. Deliberately NOT `z.string().email()`: the
