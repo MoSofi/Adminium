@@ -19,6 +19,7 @@ import { Select, cn } from '@adminium/ui';
 import type { BootstrapData } from '../../app/bootstrap.js';
 import { useCommonWords } from '../../i18n/commonWords.js';
 import { t } from '../../i18n/t.js';
+import { useCurrentWorkspace } from '../../workspaces/current.js';
 import { useCurrentGroup } from './current.js';
 import { groupsHolding, type WorkspaceGroup } from './model.js';
 import { WorkspaceChip, groupName } from './WorkspaceTile.js';
@@ -41,9 +42,24 @@ export interface ListWorkspace {
 }
 
 export function useListWorkspace(bootstrap: Pick<BootstrapData, 'workspaces' | 'user'>): ListWorkspace {
+  const { groups, shown, current, view } = useCurrentGroup(bootstrap);
+  return useListOf(groups, shown, current, view);
+}
+
+/**
+ * The same, for a list drawn where the bootstrap is not at hand (a tab of a
+ * Studio page): the tab's workspace as `useCurrentWorkspace` reads it, which
+ * never fetches. Outside the shell (a test, a story) nothing is sent or drawn.
+ */
+export function useTabListWorkspace(): ListWorkspace {
+  const { workspaces: groups, shown, currentWorkspaceId, view } = useCurrentWorkspace();
+  const current = groups.find((group) => group.id === currentWorkspaceId) ?? null;
+  return useListOf(groups, shown, current, view);
+}
+
+function useListOf(groups: WorkspaceGroup[], shown: boolean, current: WorkspaceGroup | null, view: 'one' | 'all'): ListWorkspace {
   // The chip, filter and column words are a deferred group: the list waits for them once.
   useCommonWords();
-  const { groups, shown, current, view } = useCurrentGroup(bootstrap);
   const [filter, setFilter] = useState(ALL_GROUPS);
   // A filter naming a group that went is All workspaces again.
   const chosen = groups.some((group) => group.id === filter) ? filter : ALL_GROUPS;

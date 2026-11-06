@@ -385,10 +385,11 @@ export interface PayableCheck {
 
 export const PAYMENTS_PAYABLES_QUERY_KEY = ['payments', 'payables'] as const;
 
-export function paymentsPayablesQuery() {
+/** `workspaceId` narrows the list to one workspace's databases; the key stays under the list's own, so a change refreshes every one. */
+export function paymentsPayablesQuery(workspaceId?: string) {
   return queryOptions({
-    queryKey: PAYMENTS_PAYABLES_QUERY_KEY,
-    queryFn: async () => (await api.get<{ data: PayablesList }>('/api/v1/payments/payables')).data,
+    queryKey: workspaceId === undefined ? PAYMENTS_PAYABLES_QUERY_KEY : ([...PAYMENTS_PAYABLES_QUERY_KEY, workspaceId] as const),
+    queryFn: async () => (await api.get<{ data: PayablesList }>(`/api/v1/payments/payables${workspaceId === undefined ? '' : `?workspaceId=${encodeURIComponent(workspaceId)}`}`)).data,
     retry: false,
   });
 }
