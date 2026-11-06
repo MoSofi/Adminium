@@ -30,7 +30,7 @@ import type {
 import { PageSettingsChangedError } from '@adminium/widgets';
 
 import { ApiError, api } from '../app/api.js';
-import { namesMintedFile } from '../files/api.js';
+import { namesMintedFile } from '../files/minted.js';
 
 export type {
   CrudApi,

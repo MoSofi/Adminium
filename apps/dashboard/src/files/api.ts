@@ -21,6 +21,7 @@
  */
 
 import { api, ApiError, csrfHeaders } from '../app/api.js';
+import { rememberMinted } from './minted.js';
 
 /** One file as every surface here renders it — the server's `FileView`. */
 export interface FileDto {
@@ -234,32 +235,8 @@ export async function restoreFile(fileId: string): Promise<FileDto> {
   return (await api.post<{ data: FileDto }>(`/api/v1/files/${encodeURIComponent(fileId)}/restore`)).data;
 }
 
-/**
- * The values this tab minted for a column (an upload's or a copy's reference):
- * a save that names one carries the page's revision, so a form opened before
- * the page stopped holding files there is refused rather than leaving the
- * file to the sweep.
- */
-const minted = new Set<string>();
-
-/** Whether a stored value names a file this tab uploaded or copied for a column. */
-export function namesMintedFile(value: unknown): boolean {
-  if (typeof value !== 'string' || value === '') return false;
-  if (minted.has(value)) return true;
-  const trimmed = value.trim();
-  if (!trimmed.startsWith('[')) return false;
-  try {
-    const list = JSON.parse(trimmed) as unknown;
-    return Array.isArray(list) && list.some((entry) => typeof entry === 'string' && minted.has(entry));
-  } catch {
-    return false;
-  }
-}
-
-/** Remember a value an upload or a copy minted. */
-export function rememberMinted(ref: string | undefined): void {
-  if (ref !== undefined && ref !== '') minted.add(ref);
-}
+// What this tab minted: kept apart, since every save asks it.
+export { namesMintedFile, rememberMinted } from './minted.js';
 
 /**
  * The record's own copy of a file, made for a column (`POST /files/:id/copy`):
