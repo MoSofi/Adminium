@@ -17,6 +17,13 @@
  *
  * Last comes the settings row: when the add-on names a settings table and it
  * is still empty after the seeds, one row of column defaults.
+ *
+ * Rows that name each other (an app saved from a database whose rows point at
+ * each other through links that may be empty) are written in two passes: a
+ * row that names a LATER row's label is written with the link empty, and the
+ * link is filled once that row is in. A row that names its own key (an app
+ * saved with its rows keeps their ids) leaves a Postgres counting key behind
+ * it, so the counter is moved past the highest key once every row is in.
  */
 import { MAX_SEED_ROWS, type Manifest } from '@adminium/manifest';
 import type { MetaDb } from '@adminium/meta';
@@ -83,7 +90,16 @@ async function rowsOf(seed: { table: string; rows?: Row[] | undefined; file?: st
  * anything else as written. Null for a row that points at one left out (its
  * table already held rows, so the row it names was never written): it goes too.
  */
-function valuesOf(table: string, row: Row, labels: ReadonlyMap<string, unknown>, leftOut: ReadonlySet<string>, locale: string): Row | null {
+function valuesOf(
+  table: string,
+  row: Row,
+  labels: ReadonlyMap<string, unknown>,
+  leftOut: ReadonlySet<string>,
+  locale: string,
+  /** Labels of rows written later: a link to one is empty now and filled in the second pass (`later` gets the column and label). */
+  ahead: ReadonlySet<string> = new Set(),
+  later: { column: string; label: string }[] = [],
+): Row | null {
   const out: Row = {};
   for (const [column, value] of Object.entries(row)) {
     if (column === '@label') continue;
@@ -98,6 +114,11 @@ function valuesOf(table: string, row: Row, labels: ReadonlyMap<string, unknown>,
     if (typeof texts === 'object' && texts !== null && !Array.isArray(texts)) out[column] = pickText(texts as Record<string, string>, locale);
     else if (typeof named === 'string') {
       if (leftOut.has(named)) return null;
+      if (!labels.has(named) && ahead.has(named)) {
+        out[column] = null;
+        later.push({ column, label: named });
+        continue;
+      }
       if (!labels.has(named)) throw refused(table, [{ column }], `A starting row for "${table}" points at "${named}", and no starting row before it carries that label.`);
       out[column] = labels.get(named);
     } else if (Object.keys(record).some((key) => key.startsWith('@'))) {
@@ -105,6 +126,16 @@ function valuesOf(table: string, row: Row, labels: ReadonlyMap<string, unknown>,
     } else out[column] = value;
   }
   return out;
+}
+
+const COUNTING = new Set(['integer', 'bigint']);
+
+/** A Postgres table's counting key moved past its highest key, as the sample loader moves it. */
+async function countPastKeys(db: WriteTarget['db'], table: ResolvedTable): Promise<void> {
+  for (const column of table.primaryKey.filter((name) => COUNTING.has(table.columns.get(name)?.logicalType ?? ''))) {
+    const qualified = sql`format('%I.%I', ${table.schema}::text, ${table.name}::text)`;
+    await sql`SELECT setval(pg_get_serial_sequence(${qualified}, ${column}), COALESCE((SELECT MAX(${sql.ref(column)}) FROM ${sql.table(table.id)}), 0) + 1, false) WHERE pg_get_serial_sequence(${qualified}, ${column}) IS NOT NULL`.execute(db);
+  }
 }
 
 const holdsARow = async (db: Kysely<unknown>, table: ResolvedTable): Promise<boolean> => (await sql`select 1 as one from ${sql.table(table.id)} limit 1`.execute(db)).rows.length > 0;
@@ -144,15 +175,22 @@ export async function writeManifestSeeds(input: SeedsInput): Promise<SeedsResult
   const writes = createWriteService(writeStores(input.meta));
   const context: WriteContext = { origin: 'import', hops: 0, actor: input.actor === null ? null : { kind: 'user', id: input.actor.id, label: input.actor.label }, request: null };
 
+  /** Every label a row about to be written carries: a link to one not yet in is filled in the second pass. */
+  const ahead = new Set(todo.flatMap((entry) => entry.rows.map((row) => row['@label']).filter((label): label is string => typeof label === 'string')));
   await (source.db as Kysely<Record<string, never>>).transaction().execute(async (trx) => {
     const db = trx as unknown as WriteTarget['db'];
     const labels = new Map<string, unknown>();
+    /** Links to rows written later: the row's key, its table, the column and the label it names. */
+    const second: { ref: string; table: ResolvedTable; key: Row; column: string; label: string }[] = [];
+    /** Tables a row gave its own key: their counting keys are moved past it. */
+    const keyed = new Map<string, ResolvedTable>();
     /** The rows of tables whose totals other rows feed: settled once, when every row is in. */
     const totals = new Map<string, { target: WriteTarget; rows: { record: Row; before: null }[] }>();
     const write = async (ref: string, table: ResolvedTable, row: Row): Promise<void> => {
       const target: WriteTarget = { connectionId: view.connectionId, view, table, db, dialect: source.dialect };
       const label = row['@label'];
-      const values = valuesOf(ref, row, labels, leftOut, input.locale);
+      const later: { column: string; label: string }[] = [];
+      const values = valuesOf(ref, row, labels, leftOut, input.locale, ahead, later);
       if (values === null) {
         if (typeof label === 'string') leftOut.add(label);
         return;
@@ -167,6 +205,8 @@ export async function writeManifestSeeds(input: SeedsInput): Promise<SeedsResult
       if (typeof label === 'string') {
         labels.set(label, table.primaryKey.length === 1 ? stored[table.primaryKey[0]!] : Object.fromEntries(table.primaryKey.map((column) => [column, stored[column]])));
       }
+      if (table.primaryKey.length > 0 && table.primaryKey.every((column) => values[column] !== undefined && values[column] !== null)) keyed.set(table.id, table);
+      for (const link of later) second.push({ ref, table, key: Object.fromEntries(table.primaryKey.map((column) => [column, stored[column]])), column: link.column, label: link.label });
       if ((tableRulesFor({ view, table })?.ownRollups?.length ?? 0) > 0) {
         const bucket = totals.get(ref) ?? { target, rows: [] };
         bucket.rows.push({ record: stored, before: null });
@@ -175,6 +215,21 @@ export async function writeManifestSeeds(input: SeedsInput): Promise<SeedsResult
       result.written[ref] = (result.written[ref] ?? 0) + 1;
     };
     for (const entry of todo) for (const row of entry.rows) await write(entry.ref, entry.table, row);
+    // The second pass: each link to a row that was not in yet, now that it is.
+    for (const link of second) {
+      if (!labels.has(link.label)) throw refused(link.ref, [{ column: link.column }], `A starting row for "${link.ref}" points at "${link.label}", and no starting row carries that label.`);
+      if (Object.keys(link.key).length === 0) throw refused(link.ref, [{ column: link.column }], `A starting row for "${link.ref}" points at a later row, and "${link.ref}" has no key to find it again by.`);
+      await db
+        .updateTable(link.table.id)
+        .set({ [link.column]: labels.get(link.label) } as never)
+        .where((eb) => eb.and(Object.entries(link.key).map(([column, value]) => eb(eb.ref(column), '=', value))))
+        .execute()
+        .catch((error: unknown) => {
+          throw refused(link.ref, [{ column: link.column, message: error instanceof Error ? error.message : String(error) }], `A starting row for "${link.ref}" could not be linked to "${link.label}".`);
+        });
+    }
+    // A row that named its own key leaves a counting key behind it: moved past the highest one, or the owner's next row would take a key a starting row holds.
+    if (source.dialect === 'postgres') for (const table of keyed.values()) await countPastKeys(db, table);
     // The one settings row, of defaults: only when nothing above, and nobody before, gave the table one.
     if (settingsEmpty && settingsTable !== null) await write(settingsRef as string, settingsTable, {});
     for (const { target, rows } of totals.values()) await writes.settle('create', target, rows);
