@@ -57,7 +57,6 @@ import {
   newId,
   overridesRepo,
   pagesRepo,
-  pageAppPart,
   permissionsRepo,
   snapshotsRepo,
   userPrefsRepo,
@@ -591,7 +590,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           throw new NotFoundError(`page ${request.params.pageId} does not exist`);
         }
         // A page of a part of its app that is switched off: refused by address too, whoever asks.
-        await assertPagePartOn(deps.meta, page.config);
+        await assertPagePartOn(deps.meta, page);
 
         // View gate: the same `page:<id>:view` grant the bootstrap
         // nav filter applies (super-admins bypass inside `request.can`). The
@@ -709,7 +708,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
             ? yesNo
             : withReaderLabels(yesNo, columnFacts, labelWordsOf(await overridesRepo(deps.meta).listForConnection(source.connectionId, { status: 'active' }), source.table));
         // A card of a part of the app that is off is not drawn (`layout.items[].module`), as a page of it is not.
-        const config = await withCardsOfPartsOn(deps.meta, hiddenColumns.length === 0 ? typed : withoutColumns(typed, hiddenColumns));
+        const config = await withCardsOfPartsOn(deps.meta, page, hiddenColumns.length === 0 ? typed : withoutColumns(typed, hiddenColumns));
 
         // Layout resolution: a per-user override wins over the shared
         // default baked into the envelope's `config.layout`. Only applies when
@@ -735,7 +734,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
               const authoredAt = (override.config as Record<string, unknown>)['pageRevision'];
               const layoutStale = typeof authoredAt === 'number' && authoredAt < page.revision;
               // The caller's own layout loses a card of a part that is off too.
-              const items = await cardsOfPartsOn(deps.meta, pageAppPart(envelope)?.app, parsed.data.items);
+              const items = await cardsOfPartsOn(deps.meta, { config: envelope, manifestId: page.manifestId, connectionId: page.connectionId }, parsed.data.items);
               return {
                 data: { ...envelope, config: { ...templateConfig, layout: { ...parsed.data, items: [...items] } } },
                 canEditLayout,
@@ -780,7 +779,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
 
         // The cards of a part that is off were not drawn, so a layout saved without them keeps them where they were.
         const stored = pageLayoutSchema.safeParse(((page.config as { config?: { layout?: unknown } } | null)?.config ?? {}).layout);
-        const hidden = stored.success ? await cardsOfPartsOff(deps.meta, pageAppPart(page.config)?.app, stored.data.items) : [];
+        const hidden = stored.success ? await cardsOfPartsOff(deps.meta, page, stored.data.items) : [];
         const sent = new Set(request.body.items.map((item) => item.i));
         const kept = hidden.filter((item) => !sent.has(item.i));
         const layout = kept.length === 0 ? request.body : { ...request.body, items: [...request.body.items, ...kept] };

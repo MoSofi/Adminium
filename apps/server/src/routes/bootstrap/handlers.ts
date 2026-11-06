@@ -41,7 +41,7 @@ import { addOnPagePermission, appsSwitchedOn, pagesAreGated, pagesOnDashboard } 
 import { screensOnlyError } from '../../apps/screens-only.js';
 import { UnauthorizedError } from '../../errors.js';
 import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
-import { loadAppParts, partIsOn } from '../../rbac/app-parts.js';
+import { loadAppParts, partIsOn, partsOfOwner } from '../../rbac/app-parts.js';
 import { parseGrant, PERMISSIONS } from '../../rbac/permissions.js';
 import { getPrincipal } from '../../rbac/principal.js';
 import { grantKeyOf, installsOf } from '../../installs/resolve.js';
@@ -529,13 +529,14 @@ export async function buildNavLinkItems(input: {
   mayOpenStaff: ReadonlySet<string>;
   /** Where each app's staff side opens, and whether in the dashboard's frame; absent for a side that is not served. */
   staffBase: (appKey: string) => { url: string; document: boolean } | null;
-  partIsOn: (appKey: string, module: string | undefined) => boolean;
+  /** Whether a part of the install `app` is on: each copy answers to its own switches. */
+  partIsOn: (app: SectionApp, module: string | undefined) => boolean;
   locale: string;
 }): Promise<Map<string, { group: string | null; item: BootstrapNavItem }[]>> {
   const out = new Map<string, { group: string | null; item: BootstrapNavItem }[]>();
   for (const app of input.apps) {
     for (const link of app.navLinks ?? []) {
-      if (!input.partIsOn(app.key, link.module)) continue;
+      if (!input.partIsOn(app, link.module)) continue;
       let target: { href: string; document: boolean } | null = null;
       if ('screen' in link.to) {
         const screen = SCREEN_OF[link.to.screen];
@@ -1141,7 +1142,7 @@ export async function bootstrapHandler(
    * server names: a dashboard screen narrowed to the app, for somebody who may
    * open that screen, or the app's staff side, for somebody who may open it.
    */
-  const linkParts = await loadAppParts(ctx.meta, sectionApps.filter((app) => (app.navLinks ?? []).some((link) => link.module !== undefined)).map((app) => app.key));
+  const linkParts = await loadAppParts(ctx.meta, [...new Set(sectionApps.filter((app) => (app.navLinks ?? []).some((link) => link.module !== undefined)).map((app) => app.appKey ?? app.key))]);
   const links = await buildNavLinkItems({
     apps: sectionApps,
     can: async (permission) => typeof request.can !== 'function' || (await request.can(permission)),
@@ -1155,7 +1156,7 @@ export async function bootstrapHandler(
       const host = Object.entries(placements.domains).find(([, target]) => target.appKey === appKey && target.side === 'staff' && target.instance === undefined)?.[0];
       return { url: host === undefined ? `${surface.prefix}/` : `${request.protocol}://${host}/`, document: true };
     },
-    partIsOn: (appKey, module) => partIsOn(linkParts.get(appKey), module),
+    partIsOn: (app, module) => partIsOn(partsOfOwner(linkParts, app.appKey ?? app.key, { installId: app.installId ?? null, connectionId: app.connectionId ?? null }), module),
     locale: prefs.locale,
   });
   // A harness that mounts this route without the core plugin shows no map.

@@ -312,7 +312,7 @@ export async function appDocumentOff(input: {
 }): Promise<{ addOn: string; feature: string | null; reason: string } | null> {
   const entry = (input.manifest.documents ?? []).find((d) => d.table === input.table && d.kind === input.profile.kind);
   // A document of a part of the app that is switched off is not drawn, by any door.
-  if (entry?.module !== undefined && !(await appPartIsOn(input.meta, input.manifest.key, entry.module))) {
+  if (entry?.module !== undefined && !(await appPartIsOn(input.meta, input.manifest.key, entry.module, { installId: input.profile.installId, connectionId: input.profile.connectionId }))) {
     return { addOn: input.profile.addOnKey, feature: entry.feature ?? null, reason: `its part of the app ("${entry.module}") is switched off` };
   }
   const plan = { addOn: input.profile.addOnKey, kind: input.profile.kind, feature: entry?.feature };

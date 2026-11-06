@@ -397,12 +397,15 @@ for (const [dialect, reachable] of LEGS) {
     });
 
     it('closes a public entry of a part while it is off', async () => {
-      const stored = readAppModules((((await manifestsRepo(s.meta, { encrypt: (v) => v, decrypt: (v) => v }).listByKey('desk'))[0] ?? null))!.row.modules);
+      const install = ((await manifestsRepo(s.meta, { encrypt: (v) => v, decrypt: (v) => v }).listByKey('desk'))[0] ?? null)!.row;
+      const stored = readAppModules(install.modules);
       expect(stored?.doors).toEqual({ desk_vans: 'fleet' });
-      expect(await publicEntryPartOff(s.meta, 'desk', 'desk_vans')).toBe(false);
+      expect(await publicEntryPartOff(s.meta, 'desk', 'desk_vans', install.id)).toBe(false);
       expect((await flip('fleet', false)).statusCode).toBe(200);
-      expect(await publicEntryPartOff(s.meta, 'desk', 'desk_vans')).toBe(true);
-      expect(await publicEntryPartOff(s.meta, null, 'desk_vans')).toBe(false);
+      expect(await publicEntryPartOff(s.meta, 'desk', 'desk_vans', install.id)).toBe(true);
+      expect(await publicEntryPartOff(s.meta, null, 'desk_vans', install.id)).toBe(false);
+      // An install that is not there borrows no other copy's switch.
+      expect(await publicEntryPartOff(s.meta, 'desk', 'desk_vans', 'man_gone')).toBe(false);
       // Every door of the public API reads the key through this: the entry is not in it.
       const key = { managedBy: 'desk', scope: { byRef: new Map<string, unknown>([['desk_vans', 1], ['desk_tickets', 2]]) } };
       expect([...(await withOpenDoors(s.meta, key)).scope.byRef.keys()]).toEqual(['desk_tickets']);

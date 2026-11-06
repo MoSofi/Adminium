@@ -138,7 +138,7 @@ async function executeReportRun(
   if (page === null) return fail('The report’s page no longer exists.');
   // A report over a page of a part of its app that is switched off waits with it: not sent, not failed, due again at its next time.
   const part = pageAppPart(page.config);
-  if (part !== null && !(await appPartIsOn(deps.meta, part.app, part.module))) {
+  if (part !== null && !(await appPartIsOn(deps.meta, part.app, part.module, { installId: page.manifestId, connectionId: page.connectionId }))) {
     ctx.log('report-run: its part of the app is switched off, skipping', { reportId: report.id, app: part.app, module: part.module });
     await finishRun();
     return { reportId: report.id, exportId: null };

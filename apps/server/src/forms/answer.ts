@@ -634,7 +634,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
     const opened = openedTable(scope, becomes.table);
     if (opened === undefined) return broken('the table is not opened to forms');
     // The part of the app the entry belongs to, and the settings it needs: closed while off.
-    if (!(await appPartIsOn(meta, opened.appKey, opened.entry.module ?? null))) return { state: 'closed' };
+    if (!(await appPartIsOn(meta, opened.appKey, opened.entry.module ?? null, { installId: opened.installId, connectionId: opened.connectionId }))) return { state: 'closed' };
     for (const setting of opened.entry.requireSetting) {
       if (!(await deps.switches.isOn(opened.connectionId, setting.table, setting.column))) return { state: 'closed' };
     }
