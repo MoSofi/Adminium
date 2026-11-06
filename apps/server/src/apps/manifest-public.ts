@@ -863,12 +863,20 @@ export async function installPublicAccess(input: {
   const guest = (entry: PlannedPublicEndpoint) => input.manifest.kind !== 'app' || entry.owner !== input.manifest.key;
   const storedOwner = new Map((await publicEndpointsRepo(input.meta).listByConnection(input.connectionId)).map((endpoint) => [endpoint.ref, endpoint.managedBy]));
   const planned: PlannedPublicEndpoint[] = [];
+  const takenHere: string[] = [];
   for (const entry of every.filter((candidate) => !unsound(candidate))) {
-    if (guest(entry) && storedOwner.has(entry.ref) && storedOwner.get(entry.ref) !== entry.owner) {
-      skipped.push({ ref: entry.ref, reason: `an endpoint "${entry.ref}" is here already and is not this add-on's: it is left as it is` });
-      continue;
+    if (storedOwner.has(entry.ref) && storedOwner.get(entry.ref) !== entry.owner) {
+      if (guest(entry)) {
+        skipped.push({ ref: entry.ref, reason: `an endpoint "${entry.ref}" is here already and is not this add-on's: it is left as it is` });
+        continue;
+      }
+      // The app's own entry is held to the same: another's endpoint is never written over (the check refused it already).
+      takenHere.push(entry.ref);
     }
     planned.push(entry);
+  }
+  if (takenHere.length > 0) {
+    throw new Error(`The public access this app asks for has the name of an endpoint here that is not the app's (${takenHere.map((ref) => `"${ref}"`).join(', ')}). It is never written over: rename or remove that endpoint first.`);
   }
   for (const entry of planned) {
     try {

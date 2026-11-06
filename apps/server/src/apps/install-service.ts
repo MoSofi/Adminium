@@ -168,7 +168,7 @@ import { installAppDocuments } from '../documents/app-documents.js';
 import type { AppProfilesResult } from '../documents/app-profiles.js';
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import { EndpointInUse, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
-import type { PublicMethod } from '../public-api/endpoint.js';
+import { parseDefinition, printDefinition, type PublicMethod } from '../public-api/endpoint.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { refusePlannedOnly, refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import { tableIdIn, tableIdOrNull } from '../installs/table-id.js';
@@ -1255,7 +1255,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       ...shapeIssues.map((issue) => ({ code: issue.code as PlanProblem['code'], table: issue.table, message: issue.message })),
       ...(await repeatedUniques(pure, connectionId, manifest, dialect)),
       ...(await orphanedLinks(pure, connectionId, manifest, found)),
-      ...(await shareRefProblems(manifest, connectionId, pure)),
+      ...(await endpointRefProblems(manifest, connectionId, pure)),
       // An app this one requires that is not here as it needs it, or a table of it that is gone.
       ...required.problems,
       ...requiredTablesGone(manifest, required, found),
@@ -1414,27 +1414,29 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   }
 
   /**
-   * A PUBLIC ENDPOINT ON A SHARED TABLE UNDER A NAME ANOTHER APP'S HAS. An
-   * endpoint's name comes from its table's real name, so two apps sharing a
-   * table can ask for the same one — which the database would refuse part
-   * way through the install. Said on the check instead.
+   * A PUBLIC ENDPOINT UNDER A NAME AN ENDPOINT HERE ALREADY HAS that is not
+   * this app's: the server's own, one an operator made, another app's. An
+   * endpoint's name comes from its table's real name, or from the `path` a
+   * self-made file gives it, so an app can ask for any name. Writing it would
+   * replace that endpoint in place, serving the app's table under the other's
+   * live keys. Never done: refused on the check, by name, before anything
+   * moves, for an install and an update alike.
    */
-  async function shareRefProblems(manifest: Manifest, connectionId: string, plan: InstallPlan): Promise<PlanProblem[]> {
+  async function endpointRefProblems(manifest: Manifest, connectionId: string, plan: InstallPlan): Promise<PlanProblem[]> {
     if (manifest.kind !== 'app' || (manifest.publicAccess ?? []).length === 0) return [];
     const shared = new Set((plan.tables ?? []).filter((t) => t.action === 'share').map((t) => t.ref));
-    if (shared.size === 0) return [];
     const stored = new Map((await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).map((e) => [e.ref, e.managedBy]));
     const out: PlanProblem[] = [];
     for (const endpoint of planPublicEndpoints(manifest, plan.names ?? {}, null, { tablesMadeLater: true })) {
-      if (!shared.has(endpoint.table)) continue;
       const holder = stored.get(endpoint.ref);
       if (holder === undefined || holder === manifest.key) continue;
+      const whose = holder === null ? 'an endpoint of this server' : `"${holder}"'s`;
       out.push({
         code: 'SHARE_REF_TAKEN',
         table: endpoint.table,
-        message:
-          `The public access "${endpoint.ref}" this app asks for on the shared table "${plan.names?.[endpoint.table] ?? endpoint.table}" is already ` +
-          `${holder === null ? 'an endpoint of this server' : `"${holder}"'s`}. Keep a separate menu, or remove that endpoint first.`,
+        message: shared.has(endpoint.table)
+          ? `The public access "${endpoint.ref}" this app asks for on the shared table "${plan.names?.[endpoint.table] ?? endpoint.table}" is already ${whose}. Keep a separate menu, or remove that endpoint first.`
+          : `The public access "${endpoint.ref}" this app asks for has the name of an endpoint here that is ${whose}. It is never written over: rename or remove that endpoint first, or install the app on another database.`,
       });
     }
     return out;
@@ -1653,7 +1655,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     if (installed && deps.publicAccess !== undefined) {
       const at = Date.now();
       const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
-      const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key);
+      // This install's keys only: a key another copy's operator took back withholds nothing here.
+      const install = await manifests.findInScope(manifest.key, connectionId);
+      const own = install === null ? [] : await publicKeysRepo(deps.meta).listManagedBy(manifest.key, install.row.id);
       if (hasPhoneSide(manifest) && planned.length > 0) {
         const phones = own.filter((k) => phoneKey(k.kind));
         // One is made from the customer key: with that key taken back by the operator, none is.
@@ -2693,8 +2697,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * a page that silently did not change is the thing they would not find.
      */
     stage = 'pages';
-    const liveKey = await publicKeysRepo(deps.meta).newestLiveByApp(key, 'customer');
-    const keepsPublicAccess = liveKey !== null && liveKey.managedBy === key;
+    // This install's own consent: the live key on its own database.
+    const liveKey = connectionId === null ? null : await publicKeysRepo(deps.meta).newestLiveByAppAndConnection(key, 'customer', connectionId);
+    const keepsPublicAccess = liveKey !== null && liveKey.managedBy === key && (liveKey.installId === null || liveKey.installId === installed.row.id);
     const caught: { error?: unknown } = {};
     const watching: InstallHost = {
       ...host,
@@ -3370,6 +3375,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const updates = appUpdatesRepo(deps.meta);
     const unfinished = await updates.find(installed.row.id);
     if (unfinished !== null && unfinished.toVersion === installed.row.version && installed.document !== null) {
+      // Whoever finishes it is held to the same: what its live keys serve changes only by someone who may manage API keys.
+      await refuseServedChanges(installed.document as Manifest, installed, await actor.can(PERMISSIONS.apiKeysManage));
       return writeUpdated(actor, host, input, installed, {
         manifest: installed.document as Manifest,
         from: unfinished.fromVersion,
@@ -3446,6 +3453,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           'Update it without public access, or ask someone who can.',
       );
     }
+    await refuseServedChanges(manifest, installed, canGrantKeys);
     const partsRefused = await savedPartsRefusal(manifest, actor.can);
     if (partsRefused !== null) throw partsRefused;
     const instanceRefused = await instanceRefusal(manifest, input.body?.instance, actor.can);
@@ -3714,8 +3722,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
        * keys. Not saying so gives nothing new. What it no longer declares
        * was taken back above, either way.
        */
-      const liveKey = await publicKeysRepo(deps.meta).newestLiveByApp(key, 'customer');
-      const keepsPublicAccess = liveKey !== null && liveKey.managedBy === key;
+      // This install's own consent: the live key on its own database. Another copy's key allows nothing here.
+      const liveKey = connectionId === null ? null : await publicKeysRepo(deps.meta).newestLiveByAppAndConnection(key, 'customer', connectionId);
+      const keepsPublicAccess = liveKey !== null && liveKey.managedBy === key && (liveKey.installId === null || liveKey.installId === installed.row.id);
       const consent = input.body?.publicAccess;
       const grant =
         consent === true && canGrantKeys
@@ -3973,6 +3982,49 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * is given, and each entry left out is said with its reason. This half is
    * told, not thrown: the add-on stays attached with no public door.
    */
+  /**
+   * WHAT A NEW VERSION WOULD CHANGE OF WHAT AN INSTALL'S LIVE KEYS SERVE: the
+   * refs of its own endpoints that a live key of THIS install holds, written
+   * differently by the version. Strangers reach those through the key the
+   * operator allowed, so changing one is allowing public access again: by
+   * someone who may manage API keys, as at install. Another copy's keys are
+   * not looked at.
+   */
+  async function servedEndpointChanges(manifest: Manifest, install: InstalledManifest): Promise<string[]> {
+    const connectionId = install.row.connectionId;
+    if (manifest.kind !== 'app' || (manifest.publicAccess ?? []).length === 0 || connectionId === null || deps.publicAccess === undefined) return [];
+    const at = Date.now();
+    const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
+    const live = (await publicKeysRepo(deps.meta).listManagedBy(manifest.key, install.row.id)).filter((k) => here.has(k.id));
+    if (live.length === 0) return [];
+    const view = await deps.publicAccess.viewFor(connectionId);
+    if (view === null) return [];
+    const held = new Set<string>();
+    for (const k of live) for (const ref of (await deps.publicAccess.service.heldByKey(connectionId, k.id)).keys()) held.add(ref);
+    const stored = new Map((await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).map((endpoint) => [endpoint.ref, endpoint.definition]));
+    const names = await appTablesRepo(deps.meta).realNames(connectionId, manifest.key);
+    const out: string[] = [];
+    for (const entry of plannedPublicEndpointsFor(manifest, names, view, { tablesMadeLater: true }, [])) {
+      if (entry.owner !== manifest.key || entry.definition === null || !held.has(entry.ref)) continue;
+      const before = stored.get(entry.ref);
+      if (before === undefined) continue;
+      const parsed = parseDefinition(before);
+      if (!parsed.ok || printDefinition(parsed.definition) !== printDefinition(entry.definition)) out.push(entry.ref);
+    }
+    return out;
+  }
+
+  /** Refuses, before anything moves, an update that changes what an install's live keys serve, by someone who may not manage API keys. */
+  async function refuseServedChanges(manifest: Manifest, install: InstalledManifest, canGrantKeys: boolean): Promise<void> {
+    if (canGrantKeys) return;
+    const changed = await servedEndpointChanges(manifest, install);
+    if (changed.length === 0) return;
+    throw new ForbiddenError(
+      `This version of "${manifest.key}" changes what its public access serves (${changed.map((ref) => `"${ref}"`).join(', ')}), ` +
+        'which only someone who may manage API keys can allow. Ask someone who can to update it.',
+    );
+  }
+
   /** The refs of the tables this app already has in a database: a part with one of them is never left out again. */
   async function tablesMadeFor(key: string, connectionId: string | null | undefined): Promise<Set<string>> {
     if (connectionId === null || connectionId === undefined) return new Set();
