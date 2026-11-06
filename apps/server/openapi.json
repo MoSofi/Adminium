@@ -145707,6 +145707,11 @@
                     "type": "string",
                     "maxLength": 500
                   },
+                  "icon": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
                   "label": {
                     "type": "string",
                     "minLength": 1,
@@ -146103,6 +146108,11 @@
                   "description": {
                     "type": "string",
                     "maxLength": 500
+                  },
+                  "icon": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
                   },
                   "label": {
                     "type": "string",
@@ -146839,6 +146849,12 @@
                               "null"
                             ]
                           },
+                          "icon": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "label": {
                             "type": "string"
                           },
@@ -146874,6 +146890,7 @@
                           "connectionId",
                           "name",
                           "description",
+                          "icon",
                           "label",
                           "savedBy",
                           "savedByName",
@@ -147026,6 +147043,11 @@
                         "description": {
                           "type": "string",
                           "maxLength": 500
+                        },
+                        "icon": {
+                          "type": "string",
+                          "maxLength": 60,
+                          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
                         },
                         "include": {
                           "type": "object",
@@ -147373,6 +147395,15 @@
                                             },
                                             "target": {
                                               "type": "string"
+                                            },
+                                            "targets": {
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string"
+                                              }
                                             }
                                           },
                                           "required": [
@@ -147535,6 +147566,11 @@
                         "description": {
                           "type": "string",
                           "maxLength": 500
+                        },
+                        "icon": {
+                          "type": "string",
+                          "maxLength": 60,
+                          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
                         },
                         "include": {
                           "type": "object",
