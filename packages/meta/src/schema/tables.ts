@@ -2245,21 +2245,28 @@ export interface MetaDB {
   adminium_app_after_install_hidden: AdminiumAppAfterInstallHiddenTable;
 }
 
-/** Every physical table name, in dependency-safe creation order. */
+/**
+ * Every physical table name, each after every table its foreign keys point at.
+ * Moving the meta store inserts in this order, and Postgres and MySQL check a
+ * foreign key as each row lands: a new table goes after the tables it
+ * references (the relocate order test reads the real keys and says which).
+ */
 export const META_TABLE_NAMES = [
   'adminium_migrations',
   'adminium_users',
+  'adminium_workspaces',
   'adminium_user_prefs',
   'adminium_sessions',
   'adminium_password_resets',
   'adminium_settings',
+  'adminium_storage_destinations',
+  'adminium_files',
+  'adminium_connections',
+  'adminium_manifests',
   'adminium_roles',
   'adminium_role_permissions',
   'adminium_user_roles',
   'adminium_api_keys',
-  'adminium_storage_destinations',
-  'adminium_files',
-  'adminium_connections',
   'adminium_schema_snapshots',
   'adminium_schema_overrides',
   'adminium_schema_changes',
@@ -2287,7 +2294,6 @@ export const META_TABLE_NAMES = [
   'adminium_webhooks',
   'adminium_webhook_deliveries',
   'adminium_feature_flags',
-  'adminium_manifests',
   'adminium_app_tables',
   'adminium_app_outboxes',
   'adminium_manifest_attachments',
@@ -2336,7 +2342,6 @@ export const META_TABLE_NAMES = [
   'adminium_public_uploads',
   'adminium_app_saves',
   'adminium_app_after_install',
-  'adminium_workspaces',
   'adminium_workspace_connections',
   'adminium_item_workspaces',
   'adminium_workspace_saves',

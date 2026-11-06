@@ -19,6 +19,7 @@ import {
   assertMetaStoreEmpty,
   parkAdminiumTables,
   probeAdminiumTables,
+  addOnSettingsRepo,
   appTablesRepo,
   connectionsRepo,
   copyMetaStore,
@@ -34,10 +35,13 @@ import {
   publicRequestStatsRepo,
   publicScopesRepo,
   relocatableTables,
+  rolesRepo,
   sessionsRepo,
   settingsRepo,
   snakeToCamel,
+  userPrefsRepo,
   usersRepo,
+  workspacesRepo,
   type MetaDb,
 } from '../src/index.js';
 import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
@@ -146,6 +150,39 @@ async function seed(meta: MetaDb) {
     state: 'created',
   });
 
+  // Wave 0076 and the workspaces: rows whose foreign keys point at tables that
+  // used to be copied AFTER them. An app role names its install, an add-on's
+  // settings name theirs, and a person's chosen workspace names the workspace.
+  // Every store with an app that has roles holds the first; this is the move
+  // that used to fail on the very first of them.
+  await rolesRepo(meta).create({
+    slug: 'pos-cashier',
+    name: 'Cashier',
+    appKey: 'pos',
+    manifestId: installedApp.row.id,
+  });
+  const addOn = await manifestsRepo(meta, crypto).install({
+    manifestKey: 'barcode-labels',
+    version: '1.0.0',
+    kind: 'add-on',
+    source: 'file',
+    document: { key: 'barcode-labels' },
+    connectionId: connection.id,
+    scopeKey: connection.id,
+  });
+  await addOnSettingsRepo(meta).patch(
+    { manifestId: addOn.row.id, addOnKey: 'barcode-labels' },
+    { size: 'small' },
+    [{ key: 'size' }],
+    { updatedBy: user.id },
+  );
+  const workspace = await workspacesRepo(meta).create({
+    name: 'Shop',
+    connectionIds: [connection.id],
+    createdBy: user.id,
+  });
+  await userPrefsRepo(meta).set(user.id, { workspaceId: workspace.id });
+
   return { user, connection, page };
 }
 
@@ -238,6 +275,26 @@ for (const source of available) {
 
         const pages = await pagesRepo(to.meta).listForConnection(seeded.connectionId);
         expect(pages.map((page) => page.slug)).toContain('public-users-directory');
+      });
+
+      it('carries app roles, add-on settings and the chosen workspace', async () => {
+        const seeded = await seed2(from.meta);
+        await copyMetaStore({ from: from.meta, to: to.meta });
+
+        const role = await rolesRepo(to.meta).findBySlug('pos-cashier');
+        const app = await to.meta.db
+          .selectFrom('adminium_manifests')
+          .select(['id', 'manifestKey'])
+          .execute();
+        const pos = app.find((row) => row.manifestKey === 'pos');
+        const labels = app.find((row) => row.manifestKey === 'barcode-labels');
+        expect(role?.manifestId).toBe(pos?.id);
+        expect(await addOnSettingsRepo(to.meta).valuesForInstall(labels?.id as string)).toEqual({ size: 'small' });
+
+        const prefs = await userPrefsRepo(to.meta).get(seeded.userId);
+        const workspaces = await workspacesRepo(to.meta).list();
+        expect(workspaces.map((workspace) => workspace.name)).toEqual(['Shop']);
+        expect(prefs?.workspaceId).toBe(workspaces[0]?.id);
       });
 
       it('refuses a target that already holds Adminium data', async () => {

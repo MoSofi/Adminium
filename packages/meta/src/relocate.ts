@@ -450,9 +450,11 @@ export interface CopyMetaStoreResult {
  * Copy every `adminium_*` table from `from` to `to`, in one transaction.
  *
  * The target must be migrated and empty ({@link assertMetaStoreEmpty}). Insert
- * order is {@link META_TABLE_NAMES}, which is declared in dependency-safe
- * creation order and is therefore also FK-safe for inserts — so this needs no
- * constraint juggling on any of the three dialects.
+ * order is {@link META_TABLE_NAMES}, which lists every table after every table
+ * its foreign keys point at, so this needs no constraint juggling on any of
+ * the three dialects. A later migration that adds a foreign key has to keep it
+ * so: `relocate-order.test.ts` reads the real keys on each engine and fails
+ * when a table comes before one it references.
  */
 export async function copyMetaStore(opts: CopyMetaStoreOptions): Promise<CopyMetaStoreResult> {
   const { from, to } = opts;
