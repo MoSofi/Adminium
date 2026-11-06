@@ -46,6 +46,8 @@ const BRANDING_SETTINGS = {
 const PICTURE_TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg' };
 
 const BLOCK_FIELDS = ['block', 'id', 'label', 'data', 'showWhen', 'otherwise'] as const;
+/** The most changed words one file carries (the manifest's own cap). */
+const WORDS_MAX = 5000;
 
 export const convertInstance: ConvertPart = async (ctx) => {
   if (ctx.choices.instance !== true) return {};
@@ -81,7 +83,15 @@ export const convertInstance: ConvertPart = async (ctx) => {
 
   // The words somebody changed. A blank one is a word left out on purpose, and travels as one.
   const words = await meta.db.selectFrom('adminium_translations').select(['locale', 'namespace', 'key', 'value']).where('scope', '=', SCOPE).orderBy('locale').orderBy('namespace').orderBy('key').execute();
-  if (words.length > 0) part['wording'] = words.map((word) => ({ locale: word.locale, namespace: word.namespace, key: word.key, value: word.value }));
+  const wording = words
+    .map((word) => ({ locale: word.locale, namespace: word.namespace, key: word.key, value: word.value }))
+    .filter((word) => {
+      if (instanceSchema.safeParse({ wording: [word] }).success) return true;
+      check.add({ group: 'info', code: 'INSTANCE_LEFT', kind: KIND, item: `${word.namespace}.${word.key} (${word.locale})`, field: 'wording', message: 'A saved app cannot carry this word as it is, so it stays out.' });
+      return false;
+    });
+  if (wording.length > WORDS_MAX) check.add({ group: 'info', code: 'INSTANCE_WORDS_CUT', kind: KIND, item: 'wording', field: 'wording', message: `A saved app carries at most ${String(WORDS_MAX)} changed words: the rest stay out.` });
+  if (wording.length > 0) part['wording'] = wording.slice(0, WORDS_MAX);
 
   // The system emails somebody edited, without their sender or their look.
   const emails: Record<string, unknown>[] = [];
@@ -98,7 +108,7 @@ export const convertInstance: ConvertPart = async (ctx) => {
     if (row.brand !== null) check.add({ group: 'info', code: 'INSTANCE_EMAIL_LOOK', kind: KIND, item, field: 'brand', message: 'The look of this system email (its name, mark and colour) stays here: it is sent with the look of the server it is installed on.' });
     if (row.blocks.some((block) => block['style'] !== undefined)) check.add({ group: 'info', code: 'INSTANCE_EMAIL_STYLE', kind: KIND, item, field: 'blocks', message: 'The block styles of this system email stay here: its blocks travel in the plain style.' });
     if (row.attachments.length > 0) check.add({ group: 'info', code: 'INSTANCE_EMAIL_FILES', kind: KIND, item, field: 'attachments', message: 'What this system email attaches stays as the server it is installed on has it.' });
-    emails.push({
+    const email = {
       key: row.key,
       locale: row.locale,
       content: {
@@ -107,7 +117,9 @@ export const convertInstance: ConvertPart = async (ctx) => {
         blocks: row.blocks.map((block) => Object.fromEntries(BLOCK_FIELDS.filter((field) => block[field] !== undefined).map((field) => [field, block[field]]))),
         ...(row.footer === '' ? {} : { footer: row.footer }),
       },
-    });
+    };
+    if (instanceSchema.safeParse({ systemEmails: [email] }).success) emails.push(email);
+    else check.add({ group: 'info', code: 'INSTANCE_LEFT', kind: KIND, item, field: 'systemEmails', message: 'A saved app cannot carry this system email as it is (a block, a subject or a footer it does not take), so it stays out.' });
   }
   if (emails.length > 0) part['systemEmails'] = emails;
 
@@ -156,7 +168,7 @@ async function pictureOf(ctx: ConvertContext, meta: MetaDb, fileId: string, name
  * undefined when nothing is left.
  */
 function keptValid(part: Record<string, unknown>, check: CheckList): InstancePart | undefined {
-  for (let round = 0; round < 50; round += 1) {
+  for (let round = 0; round < 200; round += 1) {
     if (Object.keys(part).length === 0) return undefined;
     const parsed = instanceSchema.safeParse(part);
     if (parsed.success) return parsed.data;

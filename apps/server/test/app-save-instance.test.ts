@@ -121,12 +121,22 @@ describe('saving the server-wide part', () => {
     expect(unchosen.check.some((item) => item.kind === 'instance')).toBe(false);
   });
 
-  it('leaves out a logo it cannot read, and says so', async () => {
+  it('leaves out a logo it cannot read, a word and an email it cannot carry, and says so', async () => {
     const library = memoryLibrary();
     const h = await installHarness('sqlite', { library });
     open.push(h);
     await dressServer(h.meta, library);
+    await translationsRepo(h.meta).upsert({ locale: 'en_US', namespace: 'common', key: 'not a key', value: 'x' });
+    const invite = (await emailTemplatesRepo(h.meta).findByKeyLocale('user-invite', 'en_US'))!;
+    await emailTemplatesRepo(h.meta).upsert('user-invite', 'en_US', { name: invite.name, subject: invite.subject, blocks: [{ id: 'raw', block: 'email.html', data: { html: '<p>Hi</p>' } }], enabled: true, isBuiltinCopy: false });
     const result = await convertToApp(await sourceOf(h, null), choices({ instance: true }));
+    const instance = (result.manifest as unknown as Doc)['instance'] as Doc;
+    expect((instance['wording'] as Doc[]).map((word) => word.key)).toEqual(['common.save', 'auth.trust']);
+    expect((instance['systemEmails'] as Doc[]).map((email) => email.key)).toEqual(['password-reset']);
+    expect(result.check.filter((item) => item.code === 'INSTANCE_LEFT' || item.code === 'INSTANCE_EMAIL_HTML').map((item) => [item.code, item.item])).toEqual([
+      ['INSTANCE_LEFT', 'common.not a key (en_US)'],
+      ['INSTANCE_EMAIL_HTML', 'user-invite (en_US)'],
+    ]);
     expect(((result.manifest as unknown as Doc)['instance'] as Doc)['branding']).toEqual({ appName: 'Fernhill', showVersion: false, accent: 'teal' });
     expect(result.files.size).toBe(0);
     expect(result.check.find((item) => item.code === 'INSTANCE_PICTURE_LEFT')).toMatchObject({ group: 'info', item: 'logo' });
