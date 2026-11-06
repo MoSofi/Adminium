@@ -5289,5 +5289,158 @@
       "warehouse": "仓库",
       "cupSoda": "杯子"
     }
+  },
+  "workspaceFiles": {
+    "app": {
+      "choose": "选择数据库",
+      "chooseWhere": "选择 {app} 安装到哪里。",
+      "counts": {
+        "after": "{count, plural, other {安装后 # 项待办}}",
+        "choices": "{count, plural, other {# 项选择}}",
+        "outside": "{count, plural, other {# 个外部地址}}",
+        "screens": "{count, plural, other {# 个界面}}",
+        "tables": "{count, plural, other {# 张表}}"
+      },
+      "hideReview": "收起检查",
+      "installOn": "安装到",
+      "showReview": "展开检查",
+      "update": "此文件较新。{app} 的每个副本都会更新：{databases}。"
+    },
+    "cancel": "取消",
+    "choice": {
+      "addTo": "加入 {name}",
+      "create": "创建工作区 {name}",
+      "createHint": "应用所在的数据库会放入其中。",
+      "existing": "加入现有工作区",
+      "existingHint": "在下方选择。",
+      "existingLabel": "现有工作区",
+      "first": "从现在起，所有人的菜单都按工作区分组。不属于任何工作区的数据库显示在“其他数据库”下。",
+      "none": "不加入工作区",
+      "noneHint": "数据库留在“其他数据库”下。",
+      "noneHintFirst": "数据库在菜单中保持原样。",
+      "noneYet": "{server} 上还没有工作区",
+      "title": "工作区"
+    },
+    "close": "关闭",
+    "copied": "已复制",
+    "copy": "复制",
+    "done": {
+      "chooseRest": "为其余应用选择数据库",
+      "inExisting": "它们在 {server} 上，位于工作区 {workspace}。",
+      "inNew": "它们在 {server} 上，位于新工作区 {workspace}。",
+      "installed": "已安装",
+      "notInstalled": "未安装",
+      "nothingKept": "未保留任何内容",
+      "on": "它们在 {server} 上。",
+      "onDatabase": "在 {database} 上",
+      "openWorkspace": "打开工作区",
+      "rest": "安装其余应用",
+      "stopped": "已安装 {done}/{total}。{app} 已停止，其内容均未保留。",
+      "title": "已安装 {done}/{total} 个应用",
+      "waiting": "尚未安装",
+      "what": "安装结果",
+      "workspace": "工作区"
+    },
+    "error": "出了点问题",
+    "install": {
+      "apps": "{count, plural, other {# 个应用}}",
+      "appsIntro": "每个应用安装到各自的数据库。某个应用被拒绝不会影响其他应用。",
+      "appsTitle": "文件中的应用",
+      "back": "返回",
+      "badge": "工作区文件",
+      "button": "{count, plural, other {安装 # 个应用}}",
+      "buttonBoth": "{installs, plural, other {安装 # 个应用}}，{updates, plural, other {更新 # 个}}",
+      "buttonUpdate": "{count, plural, other {更新 # 个应用}}",
+      "checkIntro": "{workspace} 中的应用将安装到 {server}。在你点击“安装”之前不会有任何改动。",
+      "checkTitle": "安装前检查",
+      "failed": "安装未执行",
+      "footer": "第 {n} 步，共 {total} 步 · {file}",
+      "noDatabases": {
+        "body": "应用只能安装到已连接的数据库。请先连接一个数据库，再回到此文件。",
+        "title": "这里还没有数据库"
+      },
+      "progress": "安装进度",
+      "reading": "正在读取工作区文件…",
+      "steps": {
+        "bundle": "安装包",
+        "done": "完成",
+        "review": "检查"
+      },
+      "summary": {
+        "refused": "{apps}{count, plural, other {被拒绝。}}其余应用会安装。",
+        "refusedAll": "{apps}{count, plural, other {被拒绝。}}",
+        "waiting": "{ready}{count, plural, other {现在安装。}}为 {apps} 做出选择后即可{others, plural, other {加入}}。",
+        "waitingAll": "为 {apps} 选择数据库，并完成其检查。"
+      },
+      "title": "安装工作区文件"
+    },
+    "refusal": {
+      "extra": "文件中包含其应用列表未列出的内容。",
+      "integrity": "其中一个应用不是保存时的文件：其指纹不匹配。",
+      "mismatch": "其中一个应用并非文件所声明的应用。",
+      "missing": "文件列出的某个应用不在文件中。",
+      "nested": "工作区文件中嵌套的工作区文件不会被安装。",
+      "title": "无法安装此工作区文件",
+      "twoInstances": "其中有两个应用带有服务器设置。工作区文件最多只能让一个应用带上它们。"
+    },
+    "save": {
+      "button": "保存工作区",
+      "include": "包含 {database}",
+      "intro": "每个数据库都会成为同一个文件中的一个应用。此服务器上不会有任何改动。",
+      "key": "键",
+      "lastSaved": "上次保存 {version}",
+      "moreChoices": "更多选项",
+      "name": "名称",
+      "needChoice": "{count, plural, other {# 项需要做出选择}}",
+      "noneIncluded": "至少勾选一个数据库。",
+      "ready": "没有需要选择的项目。",
+      "save": "保存",
+      "settings": {
+        "from": "来自 {database}",
+        "help": "此服务器的外观、语言、措辞和系统邮件最多随一个应用一起带走。",
+        "label": "服务器设置",
+        "none": "无"
+      },
+      "subtitle": "工作区 · {count, plural, other {{n} 个数据库}}",
+      "title": "将 {workspace} 保存为一个文件",
+      "tooBig": "此工作区文件将超过 {size}。请去掉一个数据库或其示例行后重试。",
+      "useMoreChoices": "在应用上使用“更多选项”来做出选择。",
+      "version": "版本"
+    },
+    "saved": {
+      "copyApp": "复制 {file} 的指纹",
+      "copyFile": "复制文件的指纹",
+      "done": "完成",
+      "download": "下载",
+      "fingerprint": "指纹",
+      "inside": "包含的应用",
+      "intro": "下载后可在另一台服务器上安装。",
+      "keep": "请将指纹与文件一起保存。新服务器会要求提供指纹，以确认文件就是你保存的那一个。",
+      "title": "{workspace} 已保存为一个文件"
+    },
+    "saves": {
+      "again": "保存新版本",
+      "copy": "复制指纹",
+      "download": "再次下载",
+      "label": "此处保存的工作区文件",
+      "saved": "保存于 {date} · {size}"
+    },
+    "status": {
+      "checking": "检查中",
+      "choice": "需要选择",
+      "installed": "已安装 · {version}",
+      "ready": "就绪",
+      "refused": "已拒绝",
+      "stopped": "已停止",
+      "update": "更新 · {from} → {to}",
+      "updated": "已更新"
+    },
+    "waiting": {
+      "discard": "丢弃",
+      "label": "等待中的工作区文件",
+      "review": "检查并安装",
+      "staged": "{workspace} 已上传，等待安装。",
+      "stopped": "{workspace}：已安装 {done}/{total}。安装中途停止。"
+    }
   }
 }

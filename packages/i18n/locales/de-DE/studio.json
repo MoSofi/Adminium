@@ -5289,5 +5289,158 @@
       "warehouse": "Lager",
       "cupSoda": "Becher"
     }
+  },
+  "workspaceFiles": {
+    "app": {
+      "choose": "Datenbank wählen",
+      "chooseWhere": "Wählen Sie, wohin {app} kommt.",
+      "counts": {
+        "after": "{count, plural, one {# Aufgabe nach der Installation} other {# Aufgaben nach der Installation}}",
+        "choices": "{count, plural, one {# Entscheidung} other {# Entscheidungen}}",
+        "outside": "{count, plural, one {# Adresse außerhalb} other {# Adressen außerhalb}}",
+        "screens": "{count, plural, one {# Oberfläche} other {# Oberflächen}}",
+        "tables": "{count, plural, one {# Tabelle} other {# Tabellen}}"
+      },
+      "hideReview": "Prüfung ausblenden",
+      "installOn": "Installieren auf",
+      "showReview": "Prüfung anzeigen",
+      "update": "Diese Datei ist neuer. Jede Kopie von {app} wird aktualisiert: {databases}."
+    },
+    "cancel": "Abbrechen",
+    "choice": {
+      "addTo": "Zu {name} hinzufügen",
+      "create": "Arbeitsbereich {name} anlegen",
+      "createHint": "Die Datenbanken, in die die Apps kommen, werden ihm zugeordnet.",
+      "existing": "Zu einem bestehenden Arbeitsbereich hinzufügen",
+      "existingHint": "Wählen Sie ihn unten aus.",
+      "existingLabel": "Bestehender Arbeitsbereich",
+      "first": "Das Menü aller gruppiert sich ab jetzt nach Arbeitsbereichen. Datenbanken ohne Arbeitsbereich stehen unter „Andere Datenbanken“.",
+      "none": "Kein Arbeitsbereich",
+      "noneHint": "Die Datenbanken bleiben unter „Andere Datenbanken“.",
+      "noneHintFirst": "Die Datenbanken bleiben im Menü, wie sie sind.",
+      "noneYet": "Noch keine Arbeitsbereiche auf {server}",
+      "title": "Arbeitsbereich"
+    },
+    "close": "Schließen",
+    "copied": "Kopiert",
+    "copy": "Kopieren",
+    "done": {
+      "chooseRest": "Datenbank für den Rest wählen",
+      "inExisting": "Sie sind auf {server}, im Arbeitsbereich {workspace}.",
+      "inNew": "Sie sind auf {server}, im neuen Arbeitsbereich {workspace}.",
+      "installed": "Installiert",
+      "notInstalled": "Nicht installiert",
+      "nothingKept": "nichts behalten",
+      "on": "Sie sind auf {server}.",
+      "onDatabase": "auf {database}",
+      "openWorkspace": "Arbeitsbereich öffnen",
+      "rest": "Den Rest installieren",
+      "stopped": "{done} von {total} installiert. {app} wurde abgebrochen. Davon wurde nichts behalten.",
+      "title": "{done} von {total} Apps sind installiert",
+      "waiting": "noch nicht installiert",
+      "what": "Was passiert ist",
+      "workspace": "Arbeitsbereich"
+    },
+    "error": "Etwas ist schiefgelaufen",
+    "install": {
+      "apps": "{count, plural, one {# App} other {# Apps}}",
+      "appsIntro": "Jede App wird auf ihrer eigenen Datenbank installiert. Wird eine abgelehnt, hält das die anderen nicht auf.",
+      "appsTitle": "Apps in der Datei",
+      "back": "Zurück",
+      "badge": "Arbeitsbereich-Datei",
+      "button": "{count, plural, one {# App installieren} other {# Apps installieren}}",
+      "buttonBoth": "{installs, plural, one {# App installieren} other {# Apps installieren}}, {updates, plural, one {# aktualisieren} other {# aktualisieren}}",
+      "buttonUpdate": "{count, plural, one {# App aktualisieren} other {# Apps aktualisieren}}",
+      "checkIntro": "Die Apps in {workspace} kommen auf {server}. Nichts ändert sich, bevor Sie auf Installieren drücken.",
+      "checkTitle": "Vor dem Installieren prüfen",
+      "failed": "Die Installation lief nicht",
+      "footer": "Schritt {n} von {total} · {file}",
+      "noDatabases": {
+        "body": "Apps kommen auf verbundene Datenbanken. Verbinden Sie zuerst eine Datenbank und kommen Sie dann zu dieser Datei zurück.",
+        "title": "Hier gibt es noch keine Datenbank"
+      },
+      "progress": "Installationsfortschritt",
+      "reading": "Die Arbeitsbereich-Datei wird gelesen…",
+      "steps": {
+        "bundle": "Paket",
+        "done": "Fertig",
+        "review": "Prüfen"
+      },
+      "summary": {
+        "refused": "{apps} {count, plural, one {wird abgelehnt.} other {werden abgelehnt.}} Die anderen werden installiert.",
+        "refusedAll": "{apps} {count, plural, one {wird abgelehnt.} other {werden abgelehnt.}}",
+        "waiting": "{ready} {count, plural, one {wird jetzt installiert.} other {werden jetzt installiert.}} Treffen Sie die Entscheidungen für {apps}, um {others, plural, one {sie} other {sie}} hinzuzufügen.",
+        "waitingAll": "Wählen Sie eine Datenbank für {apps} und beantworten Sie die Prüfung."
+      },
+      "title": "Arbeitsbereich-Datei installieren"
+    },
+    "refusal": {
+      "extra": "Die Datei enthält etwas, das ihre Liste der Apps nicht nennt.",
+      "integrity": "Eine App darin ist nicht die Datei, die gespeichert wurde: Ihr Fingerabdruck stimmt nicht.",
+      "mismatch": "Eine App darin ist nicht die App, für die die Datei sie ausgibt.",
+      "missing": "Eine App, die die Datei nennt, ist nicht darin.",
+      "nested": "Eine Arbeitsbereich-Datei in einer Arbeitsbereich-Datei wird nicht installiert.",
+      "title": "Diese Arbeitsbereich-Datei kann nicht installiert werden",
+      "twoInstances": "Zwei Apps darin bringen die Servereinstellungen mit. Eine Arbeitsbereich-Datei bringt sie mit höchstens einer App mit."
+    },
+    "save": {
+      "button": "Arbeitsbereich speichern",
+      "include": "{database} einbeziehen",
+      "intro": "Jede Datenbank wird zu einer App in einer einzigen Datei. Auf diesem Server ändert sich nichts.",
+      "key": "Schlüssel",
+      "lastSaved": "Zuletzt gespeichert {version}",
+      "moreChoices": "Weitere Optionen",
+      "name": "Name",
+      "needChoice": "{count, plural, one {# Punkt braucht eine Entscheidung} other {# Punkte brauchen eine Entscheidung}}",
+      "noneIncluded": "Haken Sie mindestens eine Datenbank an.",
+      "ready": "Nichts braucht eine Entscheidung.",
+      "save": "Speichern",
+      "settings": {
+        "from": "Aus {database}",
+        "help": "Aussehen, Sprachen, Formulierungen und Systemmails dieses Servers reisen mit höchstens einer App.",
+        "label": "Servereinstellungen",
+        "none": "Keine"
+      },
+      "subtitle": "Arbeitsbereich · {count, plural, one {{n} Datenbank} other {{n} Datenbanken}}",
+      "title": "{workspace} als eine Datei speichern",
+      "tooBig": "Diese Arbeitsbereich-Datei wäre größer als {size}. Lassen Sie eine Datenbank oder ihre Beispielzeilen weg und versuchen Sie es erneut.",
+      "useMoreChoices": "Nutzen Sie „Weitere Optionen“ bei einer App, um ihre Entscheidungen zu treffen.",
+      "version": "Version"
+    },
+    "saved": {
+      "copyApp": "Fingerabdruck von {file} kopieren",
+      "copyFile": "Fingerabdruck der Datei kopieren",
+      "done": "Fertig",
+      "download": "Herunterladen",
+      "fingerprint": "Fingerabdruck",
+      "inside": "Enthaltene Apps",
+      "intro": "Laden Sie sie herunter, um sie auf einem anderen Server zu installieren.",
+      "keep": "Bewahren Sie die Fingerabdrücke mit der Datei auf. Der neue Server fragt danach, um zu prüfen, dass die Datei die gespeicherte ist.",
+      "title": "{workspace} ist als eine Datei gespeichert"
+    },
+    "saves": {
+      "again": "Neuere Version speichern",
+      "copy": "Fingerabdruck kopieren",
+      "download": "Erneut herunterladen",
+      "label": "Hier gespeicherte Arbeitsbereich-Dateien",
+      "saved": "gespeichert {date} · {size}"
+    },
+    "status": {
+      "checking": "Wird geprüft",
+      "choice": "Braucht eine Entscheidung",
+      "installed": "Installiert · {version}",
+      "ready": "Bereit",
+      "refused": "Abgelehnt",
+      "stopped": "Abgebrochen",
+      "update": "Aktualisierung · {from} → {to}",
+      "updated": "Aktualisiert"
+    },
+    "waiting": {
+      "discard": "Verwerfen",
+      "label": "Wartende Arbeitsbereich-Dateien",
+      "review": "Prüfen und installieren",
+      "staged": "{workspace} ist hochgeladen und wartet auf die Installation.",
+      "stopped": "{workspace}: {done} von {total} installiert. Die Installation wurde mittendrin abgebrochen."
+    }
   }
 }

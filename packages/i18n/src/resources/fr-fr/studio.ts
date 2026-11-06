@@ -5299,5 +5299,158 @@ export default {
       "warehouse": "Entrepôt",
       "cupSoda": "Gobelet"
     }
+  },
+  "workspaceFiles": {
+    "app": {
+      "choose": "Choisir une base de données",
+      "chooseWhere": "Choisissez où va {app}.",
+      "counts": {
+        "after": "{count, plural, one {# chose après l’installation} other {# choses après l’installation}}",
+        "choices": "{count, plural, one {# choix} other {# choix}}",
+        "outside": "{count, plural, one {# adresse extérieure} other {# adresses extérieures}}",
+        "screens": "{count, plural, one {# écran} other {# écrans}}",
+        "tables": "{count, plural, one {# table} other {# tables}}"
+      },
+      "hideReview": "Masquer la vérification",
+      "installOn": "Installer sur",
+      "showReview": "Afficher la vérification",
+      "update": "Ce fichier est plus récent. Chaque copie de {app} est mise à jour : {databases}."
+    },
+    "cancel": "Annuler",
+    "choice": {
+      "addTo": "Ajouter à {name}",
+      "create": "Créer l’espace de travail {name}",
+      "createHint": "Les bases de données qui reçoivent les apps y sont placées.",
+      "existing": "Ajouter à un espace de travail existant",
+      "existingHint": "Choisissez-le ci-dessous.",
+      "existingLabel": "Espace de travail existant",
+      "first": "Le menu de chacun se regroupe désormais par espace de travail. Les bases de données qui n’en ont aucun apparaissent sous Autres bases de données.",
+      "none": "Aucun espace de travail",
+      "noneHint": "Les bases de données restent sous Autres bases de données.",
+      "noneHintFirst": "Les bases de données restent telles quelles dans le menu.",
+      "noneYet": "Aucun espace de travail sur {server} pour l’instant",
+      "title": "Espace de travail"
+    },
+    "close": "Fermer",
+    "copied": "Copié",
+    "copy": "Copier",
+    "done": {
+      "chooseRest": "Choisir une base de données pour le reste",
+      "inExisting": "Elles sont sur {server}, dans l’espace de travail {workspace}.",
+      "inNew": "Elles sont sur {server}, dans le nouvel espace de travail {workspace}.",
+      "installed": "Installée",
+      "notInstalled": "Non installée",
+      "nothingKept": "rien n’a été conservé",
+      "on": "Elles sont sur {server}.",
+      "onDatabase": "sur {database}",
+      "openWorkspace": "Ouvrir l’espace de travail",
+      "rest": "Installer le reste",
+      "stopped": "{done} sur {total} installées. {app} s’est arrêtée. Rien n’en a été conservé.",
+      "title": "{done} apps sur {total} sont installées",
+      "waiting": "pas encore installée",
+      "what": "Ce qui s’est passé",
+      "workspace": "Espace de travail"
+    },
+    "error": "Un problème est survenu",
+    "install": {
+      "apps": "{count, plural, one {# app} other {# apps}}",
+      "appsIntro": "Chaque app s’installe sur sa propre base de données. Une app refusée n’arrête pas les autres.",
+      "appsTitle": "Apps du fichier",
+      "back": "Retour",
+      "badge": "Fichier d’espace de travail",
+      "button": "{count, plural, one {Installer # app} other {Installer # apps}}",
+      "buttonBoth": "{installs, plural, one {Installer # app} other {Installer # apps}}, {updates, plural, one {en mettre # à jour} other {en mettre # à jour}}",
+      "buttonUpdate": "{count, plural, one {Mettre à jour # app} other {Mettre à jour # apps}}",
+      "checkIntro": "Les apps de {workspace} vont sur {server}. Rien ne change avant que vous n’appuyiez sur Installer.",
+      "checkTitle": "Vérifier avant d’installer",
+      "failed": "L’installation n’a pas eu lieu",
+      "footer": "Étape {n} sur {total} · {file}",
+      "noDatabases": {
+        "body": "Les apps vont sur des bases de données connectées. Connectez d’abord une base de données, puis revenez à ce fichier.",
+        "title": "Aucune base de données ici pour l’instant"
+      },
+      "progress": "Progression de l’installation",
+      "reading": "Lecture du fichier d’espace de travail…",
+      "steps": {
+        "bundle": "Paquet",
+        "done": "Terminé",
+        "review": "Vérification"
+      },
+      "summary": {
+        "refused": "{apps} {count, plural, one {est refusée.} other {sont refusées.}} Les autres s’installent.",
+        "refusedAll": "{apps} {count, plural, one {est refusée.} other {sont refusées.}}",
+        "waiting": "{ready} {count, plural, one {s’installe maintenant.} other {s’installent maintenant.}} Faites les choix pour {apps} afin de {others, plural, one {l’ajouter} other {les ajouter}}.",
+        "waitingAll": "Choisissez une base de données pour {apps} et répondez à sa vérification."
+      },
+      "title": "Installer un fichier d’espace de travail"
+    },
+    "refusal": {
+      "extra": "Le fichier contient quelque chose que sa liste d’apps ne nomme pas.",
+      "integrity": "Une app du fichier n’est pas celle qui a été enregistrée : son empreinte ne correspond pas.",
+      "mismatch": "Une app du fichier n’est pas l’app que le fichier annonce.",
+      "missing": "Une app que le fichier nomme n’y est pas.",
+      "nested": "Un fichier d’espace de travail dans un fichier d’espace de travail n’est pas installé.",
+      "title": "Ce fichier d’espace de travail ne peut pas être installé",
+      "twoInstances": "Deux apps du fichier emportent les réglages du serveur. Un fichier d’espace de travail les emporte avec une seule app au plus."
+    },
+    "save": {
+      "button": "Enregistrer l’espace de travail",
+      "include": "Inclure {database}",
+      "intro": "Chaque base de données devient une app dans un seul fichier. Rien ne change sur ce serveur.",
+      "key": "Clé",
+      "lastSaved": "Dernier enregistrement {version}",
+      "moreChoices": "Plus de choix",
+      "name": "Nom",
+      "needChoice": "{count, plural, one {# élément demande un choix} other {# éléments demandent un choix}}",
+      "noneIncluded": "Cochez au moins une base de données.",
+      "ready": "Rien ne demande de choix.",
+      "save": "Enregistrer",
+      "settings": {
+        "from": "Depuis {database}",
+        "help": "L’apparence, les langues, les formulations et les e-mails système de ce serveur voyagent avec une seule app au plus.",
+        "label": "Réglages du serveur",
+        "none": "Aucun"
+      },
+      "subtitle": "Espace de travail · {count, plural, one {{n} base de données} other {{n} bases de données}}",
+      "title": "Enregistrer {workspace} dans un seul fichier",
+      "tooBig": "Ce fichier d’espace de travail dépasserait {size}. Retirez une base de données ou ses lignes d’exemple, puis réessayez.",
+      "useMoreChoices": "Utilisez Plus de choix sur une app pour faire ses choix.",
+      "version": "Version"
+    },
+    "saved": {
+      "copyApp": "Copier l’empreinte de {file}",
+      "copyFile": "Copier l’empreinte du fichier",
+      "done": "Terminé",
+      "download": "Télécharger",
+      "fingerprint": "Empreinte",
+      "inside": "Apps incluses",
+      "intro": "Téléchargez-le pour l’installer sur un autre serveur.",
+      "keep": "Conservez les empreintes avec le fichier. Le nouveau serveur les demande pour vérifier que le fichier est bien celui que vous avez enregistré.",
+      "title": "{workspace} est enregistré dans un seul fichier"
+    },
+    "saves": {
+      "again": "Enregistrer une version plus récente",
+      "copy": "Copier l’empreinte",
+      "download": "Télécharger à nouveau",
+      "label": "Fichiers d’espace de travail enregistrés ici",
+      "saved": "enregistré le {date} · {size}"
+    },
+    "status": {
+      "checking": "Vérification",
+      "choice": "Demande un choix",
+      "installed": "Installée · {version}",
+      "ready": "Prête",
+      "refused": "Refusée",
+      "stopped": "Arrêtée",
+      "update": "Mise à jour · {from} → {to}",
+      "updated": "Mise à jour"
+    },
+    "waiting": {
+      "discard": "Abandonner",
+      "label": "Fichiers d’espace de travail en attente",
+      "review": "Vérifier et installer",
+      "staged": "{workspace} est envoyé et attend d’être installé.",
+      "stopped": "{workspace} : {done} sur {total} installées. L’installation s’est arrêtée en cours de route."
+    }
   }
 } as const;

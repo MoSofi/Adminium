@@ -5289,5 +5289,158 @@
       "warehouse": "Warehouse",
       "cupSoda": "Cup"
     }
+  },
+  "workspaceFiles": {
+    "app": {
+      "choose": "Choose a database",
+      "chooseWhere": "Choose where {app} goes.",
+      "counts": {
+        "after": "{count, plural, one {# thing after you install} other {# things after you install}}",
+        "choices": "{count, plural, one {# choice} other {# choices}}",
+        "outside": "{count, plural, one {# outside address} other {# outside addresses}}",
+        "screens": "{count, plural, one {# screen} other {# screens}}",
+        "tables": "{count, plural, one {# table} other {# tables}}"
+      },
+      "hideReview": "Hide the review",
+      "installOn": "Install on",
+      "showReview": "Show the review",
+      "update": "This file is newer. Every copy of {app} is updated: {databases}."
+    },
+    "cancel": "Cancel",
+    "choice": {
+      "addTo": "Add to {name}",
+      "create": "Create workspace {name}",
+      "createHint": "The databases the apps go into are put in it.",
+      "existing": "Add to an existing workspace",
+      "existingHint": "Pick it below.",
+      "existingLabel": "Existing workspace",
+      "first": "Everyone’s menu groups by workspace from now on. Databases in none show under Other databases.",
+      "none": "No workspace",
+      "noneHint": "The databases stay in Other databases.",
+      "noneHintFirst": "The databases stay as they are in the menu.",
+      "noneYet": "No workspaces on {server} yet",
+      "title": "Workspace"
+    },
+    "close": "Close",
+    "copied": "Copied",
+    "copy": "Copy",
+    "done": {
+      "chooseRest": "Choose a database for the rest",
+      "inExisting": "They are on {server}, in the workspace {workspace}.",
+      "inNew": "They are on {server}, in the new workspace {workspace}.",
+      "installed": "Installed",
+      "notInstalled": "Not installed",
+      "nothingKept": "nothing kept",
+      "on": "They are on {server}.",
+      "onDatabase": "on {database}",
+      "openWorkspace": "Open the workspace",
+      "rest": "Install the rest",
+      "stopped": "{done} of {total} installed. {app} stopped. Nothing of it was kept.",
+      "title": "{done} of {total} apps are installed",
+      "waiting": "not installed yet",
+      "what": "What happened",
+      "workspace": "Workspace"
+    },
+    "error": "Something went wrong",
+    "install": {
+      "apps": "{count, plural, one {# app} other {# apps}}",
+      "appsIntro": "Each app installs on its own database. One that is refused does not stop the others.",
+      "appsTitle": "Apps in the file",
+      "back": "Back",
+      "badge": "Workspace file",
+      "button": "{count, plural, one {Install # app} other {Install # apps}}",
+      "buttonBoth": "{installs, plural, one {Install # app} other {Install # apps}}, {updates, plural, one {update #} other {update #}}",
+      "buttonUpdate": "{count, plural, one {Update # app} other {Update # apps}}",
+      "checkIntro": "The apps in {workspace} go onto {server}. Nothing changes until you press Install.",
+      "checkTitle": "Check before you install",
+      "failed": "The install did not run",
+      "footer": "Step {n} of {total} · {file}",
+      "noDatabases": {
+        "body": "Apps go onto databases that are connected. Connect a database first, then come back to this file.",
+        "title": "No database here yet"
+      },
+      "progress": "Install progress",
+      "reading": "Reading the workspace file…",
+      "steps": {
+        "bundle": "Bundle",
+        "done": "Done",
+        "review": "Review"
+      },
+      "summary": {
+        "refused": "{apps} {count, plural, one {is refused.} other {are refused.}} The others install.",
+        "refusedAll": "{apps} {count, plural, one {is refused.} other {are refused.}}",
+        "waiting": "{ready} {count, plural, one {installs now.} other {install now.}} Make the choices for {apps} to add {others, plural, one {it} other {them}}.",
+        "waitingAll": "Choose a database for {apps}, and answer its review."
+      },
+      "title": "Install a workspace file"
+    },
+    "refusal": {
+      "extra": "The file carries something its list of apps does not name.",
+      "integrity": "An app inside is not the file that was saved: its fingerprint does not match.",
+      "mismatch": "An app inside is not the app the file says it is.",
+      "missing": "An app the file names is not in it.",
+      "nested": "A workspace file inside a workspace file is not installed.",
+      "title": "This workspace file can’t be installed",
+      "twoInstances": "Two apps inside carry the server settings. A workspace file carries them with one app at most."
+    },
+    "save": {
+      "button": "Save workspace",
+      "include": "Include {database}",
+      "intro": "Each database becomes an app inside one file. Nothing on this server changes.",
+      "key": "Key",
+      "lastSaved": "Last saved {version}",
+      "moreChoices": "More choices",
+      "name": "Name",
+      "needChoice": "{count, plural, one {# thing needs a choice} other {# things need a choice}}",
+      "noneIncluded": "Tick at least one database.",
+      "ready": "Nothing needs a choice.",
+      "save": "Save",
+      "settings": {
+        "from": "From {database}",
+        "help": "The look, languages, wording and system emails of this server travel with one app at most.",
+        "label": "Server settings",
+        "none": "None"
+      },
+      "subtitle": "Workspace · {count, plural, one {{n} database} other {{n} databases}}",
+      "title": "Save {workspace} as one file",
+      "tooBig": "This workspace file would be larger than {size}. Leave out a database or its sample rows and try again.",
+      "useMoreChoices": "Use More choices on an app to make its choices.",
+      "version": "Version"
+    },
+    "saved": {
+      "copyApp": "Copy the fingerprint of {file}",
+      "copyFile": "Copy the file’s fingerprint",
+      "done": "Done",
+      "download": "Download",
+      "fingerprint": "Fingerprint",
+      "inside": "Apps inside",
+      "intro": "Download it to install it on another server.",
+      "keep": "Keep the fingerprints with the file. The new server asks for them to check the file is the one you saved.",
+      "title": "{workspace} is saved as one file"
+    },
+    "saves": {
+      "again": "Save a newer version",
+      "copy": "Copy fingerprint",
+      "download": "Download again",
+      "label": "Workspace files saved here",
+      "saved": "saved {date} · {size}"
+    },
+    "status": {
+      "checking": "Checking",
+      "choice": "Needs a choice",
+      "installed": "Installed · {version}",
+      "ready": "Ready",
+      "refused": "Refused",
+      "stopped": "Stopped",
+      "update": "Update · {from} → {to}",
+      "updated": "Updated"
+    },
+    "waiting": {
+      "discard": "Discard",
+      "label": "Workspace files waiting",
+      "review": "Review and install",
+      "staged": "{workspace} is uploaded and waits to be installed.",
+      "stopped": "{workspace}: {done} of {total} installed. The install stopped part way."
+    }
   }
 }

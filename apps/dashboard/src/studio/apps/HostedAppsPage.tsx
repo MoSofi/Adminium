@@ -71,6 +71,8 @@ import { AppBrowser } from './AppBrowser.js';
 import { AppAcquisitionAlerts, UpdateConsentDialog, useAppAcquisition } from './appAcquisition.js';
 import { UpdateColumnsDialog } from './UpdateColumnsDialog.js';
 import { InstallAppWizard } from './InstallAppWizard.js';
+import { WorkspaceFileInstall } from './workspaceFiles/WorkspaceFileInstall.js';
+import { WorkspaceFilesWaiting } from './workspaceFiles/WorkspaceSavesList.js';
 import { InstalledAppsCard } from './InstalledAppsCard.js';
 import { SaveAsAppButton } from './SaveAsAppButton.js';
 import { SaveAsAppFlow, type SaveStart } from './SaveAsAppFlow.js';
@@ -94,6 +96,8 @@ export function HostedAppsPage() {
    * has one.
    */
   const [installing, setInstalling] = useState(false);
+  /** A workspace file on its own screen: one just uploaded, or one staged before (a reload) to finish. */
+  const [workspaceFile, setWorkspaceFile] = useState<{ file?: File; resumeId?: string } | null>(null);
   /** The shelf app the wizard opens on, when it was opened from a card. */
   const [chosen, setChosen] = useState<
     { key: string; version: string; name: string; downloaded?: boolean } | undefined
@@ -206,12 +210,19 @@ export function HostedAppsPage() {
         />
       )}
 
-      {saving !== null && savingMode === 'wizard' ? null : installing ? (
+      {saving !== null && savingMode === 'wizard' ? null : workspaceFile !== null ? (
+        <WorkspaceFileInstall file={workspaceFile.file} resumeId={workspaceFile.resumeId} onClose={() => setWorkspaceFile(null)} />
+      ) : installing ? (
         <InstallAppWizard
           preselected={chosen}
           onClose={() => {
             setInstalling(false);
             setChosen(undefined);
+          }}
+          onWorkspaceFile={(file) => {
+            setInstalling(false);
+            setChosen(undefined);
+            setWorkspaceFile({ file });
           }}
         />
       ) : (
@@ -250,6 +261,7 @@ export function HostedAppsPage() {
       />
 
       <AppAcquisitionAlerts state={acquisition} origin="installed" />
+      <WorkspaceFilesWaiting onOpen={(resumeId) => setWorkspaceFile({ resumeId })} />
       <InstalledAppsCard
         busy={acquisition.busy}
         onUpdate={(app, row) => void acquisition.update(app, row)}

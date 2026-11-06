@@ -133896,6 +133896,12 @@
                                   "null"
                                 ]
                               },
+                              "sides": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
                               "target": {
                                 "type": [
                                   "string",
@@ -133981,6 +133987,7 @@
                               "integrity",
                               "database",
                               "suggested",
+                              "sides",
                               "target",
                               "state",
                               "refusal",
@@ -134157,6 +134164,12 @@
                                     "null"
                                   ]
                                 },
+                                "sides": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
                                 "target": {
                                   "type": [
                                     "string",
@@ -134242,6 +134255,7 @@
                                 "integrity",
                                 "database",
                                 "suggested",
+                                "sides",
                                 "target",
                                 "state",
                                 "refusal",
@@ -134429,6 +134443,12 @@
                                   "null"
                                 ]
                               },
+                              "sides": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
                               "target": {
                                 "type": [
                                   "string",
@@ -134514,6 +134534,7 @@
                               "integrity",
                               "database",
                               "suggested",
+                              "sides",
                               "target",
                               "state",
                               "refusal",
@@ -135297,6 +135318,12 @@
                                   "null"
                                 ]
                               },
+                              "sides": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
                               "target": {
                                 "type": [
                                   "string",
@@ -135382,6 +135409,7 @@
                               "integrity",
                               "database",
                               "suggested",
+                              "sides",
                               "target",
                               "state",
                               "refusal",
@@ -135566,6 +135594,12 @@
                                   "null"
                                 ]
                               },
+                              "sides": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
                               "target": {
                                 "type": [
                                   "string",
@@ -135651,6 +135685,7 @@
                               "integrity",
                               "database",
                               "suggested",
+                              "sides",
                               "target",
                               "state",
                               "refusal",
@@ -146942,6 +146977,9 @@
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "filename": {
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -146953,7 +146991,8 @@
                           "savedAt",
                           "integrity",
                           "bytes",
-                          "appSaveIds"
+                          "appSaveIds",
+                          "filename"
                         ],
                         "additionalProperties": false
                       }
@@ -147330,6 +147369,12 @@
                               "name": {
                                 "type": "string"
                               },
+                              "lastSaved": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
                               "plan": {
                                 "type": "object",
                                 "properties": {
@@ -147477,6 +147522,7 @@
                               "database",
                               "key",
                               "name",
+                              "lastSaved",
                               "plan"
                             ],
                             "additionalProperties": false

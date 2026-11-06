@@ -64,6 +64,8 @@ export interface WorkspaceAppPlan {
   database: { name: string; engine: SaveDialect };
   key: string;
   name: string;
+  /** The version this database's app was last saved at, or null for a first save. */
+  lastSaved: string | null;
   plan: SavePlan;
 }
 
@@ -188,7 +190,8 @@ export function createWorkspaceSaveService(deps: WorkspaceSaveDeps) {
       const { workspace, names, requests, label, instanceFrom } = await appsOf(workspaceId, request);
       const apps: WorkspaceAppPlan[] = [];
       for (const one of requests) {
-        apps.push({ connectionId: one.connectionId, database: await databaseOf(one.connectionId, names), key: one.key, name: one.name, plan: await deps.save.plan(one, rights) });
+        const lastSaved = (await appSavesRepo(deps.meta).listForKey(one.key)).find((save) => save.connectionId === one.connectionId)?.version ?? null;
+        apps.push({ connectionId: one.connectionId, database: await databaseOf(one.connectionId, names), key: one.key, name: one.name, lastSaved, plan: await deps.save.plan(one, rights) });
       }
       const savedAt = new Date(now()).toISOString();
       return {

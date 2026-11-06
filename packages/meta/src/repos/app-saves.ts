@@ -206,6 +206,8 @@ export interface WorkspaceInstallApp {
   state: 'pending' | 'installed' | 'updated' | 'refused' | 'stopped';
   /** The app's name, as its manifest gives it. */
   name?: string;
+  /** The screens its file carries (`staff`, `customer`), as staged. */
+  sides?: string[];
   /** Why it was refused or where it stopped: a stable reason and a sentence. */
   reason?: string;
   error?: string;

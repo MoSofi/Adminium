@@ -18,6 +18,7 @@ import { useAppToasts } from '../../pages/toasts.js';
 import type { ConnectionDto } from '../api.js';
 import { appSavesQuery, downloadSavedFile, type AppSaveRow } from './saveAppApi.js';
 import { appIconOf } from './saveAppIcons.js';
+import { WorkspaceSavesList } from './workspaceFiles/WorkspaceSavesList.js';
 
 export interface SavedFromHereCardProps {
   connections: readonly ConnectionDto[];
@@ -117,6 +118,8 @@ export function SavedFromHereCard({ connections, saveButton, onSaveNewer }: Save
             })}
           </ul>
         )}
+        {/* Whole workspaces saved here, as one file each. */}
+        <WorkspaceSavesList />
       </CardBody>
     </Card>
   );
