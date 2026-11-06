@@ -271,6 +271,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/email-templates/:id/duplicate': noRows('Email designs and their sends to the server\'s users; a picture or attachment is opened as a file.'),
   'POST /api/v1/email-templates/:id/from-template': noRows('Email designs and their sends to the server\'s users; a picture or attachment is opened as a file.'),
   'POST /api/v1/email-templates/:id/languages': noRows('Email designs and their sends to the server\'s users; a picture or attachment is opened as a file.'),
+  'PUT /api/v1/email-templates/:id/send-as': noRows('Which sender a template goes as: the template rows and a workspace\'s name, no source row.'),
   'GET /api/v1/email-templates/:id/runs': noRows('Email designs and their sends to the server\'s users; a picture or attachment is opened as a file.'),
   'POST /api/v1/email-templates/:id/send': rows(['visible', 'list'], 'A picture or an attachment a design names by its file is opened as a file is: through the record it hangs on, as the person saving or sending; a table\'s people are tried as the sender lists the table.'),
   'POST /api/v1/email-templates/:id/test-send': rows('visible', 'A picture or an attachment a design names by its file is opened as a file is: through the record it hangs on, as the person saving or sending.'),
@@ -599,6 +600,9 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'PUT /api/v1/workspaces/order': noRows('Workspaces group databases: names and memberships, not rows.'),
   'GET /api/v1/workspaces/:id/delete-plan': noRows('Workspaces group databases: names and memberships, not rows.'),
   'DELETE /api/v1/workspaces/:id': noRows('Workspaces group databases: names and memberships, not rows.'),
+  'GET /api/v1/workspaces/sender-domains': noRows('Where the server can send from: its mail settings and DKIM keys, no source row.'),
+  'PUT /api/v1/workspaces/:id/sender': noRows('A workspace\'s sender: a name and addresses on the workspace, no source row.'),
+  'DELETE /api/v1/workspaces/:id/sender': noRows('A workspace\'s sender: a name and addresses on the workspace, no source row.'),
   'PUT /api/v1/connections/:id/workspaces': noRows('Workspaces group databases: names and memberships, not rows.'),
   'PUT /api/v1/teams/:id/members/:userId': noRows('Teams and who leads them: people, not rows.'),
   // --- /users

@@ -34,7 +34,8 @@ import { emailRunsRepo, type ConsentPurpose, type EmailRun, type EmailSend, type
 import { withClickLinks } from '../email/click-link.js';
 import { mailLinkKeys } from '../email/link-keys.js';
 import { DEFAULT_MARKETING_PURPOSE, type MarketingCarry, type MarketingMail, type MarketingVerdict } from '../email/marketing.js';
-import { fromOf, type MarketingStanding } from '../email/send.js';
+import { senderFor, type MarketingStanding } from '../email/send.js';
+import { campaignAbout, resolveMailSender, type MailSender } from '../email/workspace-sender.js';
 import { UNSUBSCRIBE_PATH } from '../email/unsubscribe-token.js';
 import type { CampaignSeams } from './email-campaign-run.js';
 
@@ -66,6 +67,15 @@ export function campaignMarketingChecks(options: CampaignChecksOptions): Marketi
   const { marketing } = options;
   /** The ground each row passed on, kept from its check to its message (the same batch, the same process). */
   const passed = new Map<string, MarketingVerdict>();
+  /** The sender each run goes as, asked once a batch (`checkBatch`) and kept for its rows. */
+  const senders = new Map<string, MailSender>();
+
+  async function senderOfRun(run: EmailRun, templateKey?: string): Promise<MailSender> {
+    const key = templateKey ?? (await emailRunsRepo(options.meta).content(run.id))?.templateKey ?? null;
+    const sender = await resolveMailSender(options.meta, campaignAbout(run, key ?? ''));
+    senders.set(run.id, sender);
+    return sender;
+  }
 
   const personOf = (row: EmailSend) => (row.connectionId !== null && row.personTable !== null && row.personKey !== null ? { connectionId: row.connectionId, table: row.personTable, key: row.personKey } : null);
 
@@ -78,8 +88,10 @@ export function campaignMarketingChecks(options: CampaignChecksOptions): Marketi
       if (run.mailClass !== 'marketing') return 'send';
       // The From of the content as it froze (the first batch freezes it before this check).
       const content = await emailRunsRepo(options.meta).content(run.id);
-      const from = (await fromOf(options.meta, content?.variants[0]?.brand ?? null)) ?? '';
-      const refused = await marketing.refusal(from);
+      // As the sender it goes as: the workspace of its audience's database (its postal address too), or the server.
+      const sender = await senderOfRun(run, content?.templateKey);
+      const from = (await senderFor(options.meta, content?.variants[0]?.brand ?? null, sender)).from ?? '';
+      const refused = await marketing.refusal(from, { postal: sender.postal });
       return refused === null ? 'send' : { refuse: refused };
     },
 
@@ -101,7 +113,11 @@ export function campaignMarketingChecks(options: CampaignChecksOptions): Marketi
       passed.delete(row.id);
       const purpose = 'send' in verdict && verdict.send === 'existing-customers' ? null : runPurpose(run);
       const standing: MarketingStanding = { purpose: runPurpose(run), basis: 'send' in verdict ? verdict.send : 'consent', person: personOf(row) };
-      const carry = { ...(await marketing.carry({ to: row.address, purpose, locale, send: row.id })), standing };
+      const sender = senders.get(run.id) ?? (await senderOfRun(run));
+      const carry = {
+        ...(await marketing.carry({ to: row.address, purpose, locale, send: row.id, replyTo: sender.replyTo, postal: sender.postal, ...(sender.name === null ? {} : { business: sender.name }) })),
+        standing,
+      };
       if (options.trackClicks?.(run) !== true) return carry;
       const origin = new URL(carry.locked.link.href).origin;
       const key = await mailLinkKeys(options.meta, options.secret).click();

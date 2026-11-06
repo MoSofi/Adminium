@@ -74298,6 +74298,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "sendAs": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -74323,7 +74329,8 @@
                     "document",
                     "vars",
                     "languages",
-                    "attachmentsResolved"
+                    "attachmentsResolved",
+                    "sendAs"
                   ],
                   "additionalProperties": false
                 }
@@ -75542,6 +75549,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "sendAs": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -75567,7 +75580,8 @@
                     "document",
                     "vars",
                     "languages",
-                    "attachmentsResolved"
+                    "attachmentsResolved",
+                    "sendAs"
                   ],
                   "additionalProperties": false
                 }
@@ -76268,6 +76282,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "sendAs": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -76293,7 +76313,8 @@
                     "document",
                     "vars",
                     "languages",
-                    "attachmentsResolved"
+                    "attachmentsResolved",
+                    "sendAs"
                   ],
                   "additionalProperties": false
                 }
@@ -77257,6 +77278,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "sendAs": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -77282,7 +77309,8 @@
                     "document",
                     "vars",
                     "languages",
-                    "attachmentsResolved"
+                    "attachmentsResolved",
+                    "sendAs"
                   ],
                   "additionalProperties": false
                 }
@@ -78435,6 +78463,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "sendAs": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -78460,7 +78494,8 @@
                     "document",
                     "vars",
                     "languages",
-                    "attachmentsResolved"
+                    "attachmentsResolved",
+                    "sendAs"
                   ],
                   "additionalProperties": false
                 }
@@ -78469,6 +78504,77 @@
           },
           "204": {
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/email-templates/{id}/send-as": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sendAs": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "sendAs"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "sendAs": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "sendAs"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -79164,6 +79270,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "sendAs": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -79189,7 +79301,8 @@
                     "document",
                     "vars",
                     "languages",
-                    "attachmentsResolved"
+                    "attachmentsResolved",
+                    "sendAs"
                   ],
                   "additionalProperties": false
                 }
@@ -79910,6 +80023,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "sendAs": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -79935,7 +80054,8 @@
                     "document",
                     "vars",
                     "languages",
-                    "attachmentsResolved"
+                    "attachmentsResolved",
+                    "sendAs"
                   ],
                   "additionalProperties": false
                 }
@@ -80653,6 +80773,12 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "sendAs": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -80678,7 +80804,8 @@
                     "document",
                     "vars",
                     "languages",
-                    "attachmentsResolved"
+                    "attachmentsResolved",
+                    "sendAs"
                   ],
                   "additionalProperties": false
                 }
@@ -154045,6 +154172,291 @@
                     "connectionIds",
                     "shownOnlyIn",
                     "last"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/sender-domains": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "domains": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "addresses": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "domains",
+                    "addresses"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{id}/sender": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 120,
+                        "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "from": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 320
+                  },
+                  "replyTo": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 254
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "postal": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 300
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "from"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "connectionIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "sender": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "from": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "replyTo": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "postal": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "from",
+                        "replyTo",
+                        "postal"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "position",
+                    "connectionIds",
+                    "sender",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "connectionIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "sender": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "from": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "replyTo": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "postal": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "from",
+                        "replyTo",
+                        "postal"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "position",
+                    "connectionIds",
+                    "sender",
+                    "createdAt",
+                    "updatedAt"
                   ],
                   "additionalProperties": false
                 }

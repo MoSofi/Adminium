@@ -46,6 +46,7 @@ import {
   localesRepo,
   newId,
   settingsRepo,
+  TEMPLATE_SEND_AS_SERVER,
   workspacesRepo,
   type EmailAttachment,
   type EmailDocumentKind,
@@ -81,8 +82,8 @@ import type { MarketingRefusal } from '../../email/sender/index.js';
 import { renderEmail } from '../../email/render.js';
 import {
   enqueueRenderedEmail,
-  fromOf,
   isEmailConfigured,
+  senderFor,
   prepareEmail,
   resolveGeneratedAttachments,
 } from '../../email/send.js';
@@ -116,6 +117,8 @@ import {
   emailRunProgressReply,
   emailRunStopReply,
   emailRunsReply,
+  emailSendAsBody,
+  emailSendAsReply,
   emailSendLogCsvQuery,
   emailSendLogQuery,
   emailSendLogReply,
@@ -391,6 +394,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         archived: s.archivedAt !== null,
       })),
       attachmentsResolved,
+      sendAs: await templates.sendAsOf(row.key),
     };
   }
 
@@ -541,18 +545,21 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
     let marketingKit: Pick<MarketingMail, 'refusals'> | null = deps.marketing ?? null;
     /**
      * What would refuse a marketing send of this campaign now: the sender's
-     * checks, for the From the campaign goes from (its brand's sender, else
-     * the mail server's). The same function the run asks at its first batch,
-     * so the dialog, the send and the run never disagree.
+     * checks, for the From the campaign goes from (the sender of its
+     * audience's workspace, or the one it names, else its brand's sender,
+     * else the mail server's) and that sender's postal address. The same
+     * function the run asks at its first batch, so the dialog, the send and
+     * the run never disagree.
      */
-    async function senderRefusals(row: EmailTemplate): Promise<{ sender: string | null; refusals: MarketingRefusal[] }> {
-      const from = (await fromOf(meta, row.brand)) ?? '';
+    async function senderRefusals(row: EmailTemplate, connectionId: string | null): Promise<{ sender: string | null; refusals: MarketingRefusal[] }> {
+      const resolved = await senderFor(meta, row.brand, { connectionId, templateKey: row.key });
+      const from = resolved.from ?? '';
       const sender = bareAddress(from) === '' ? null : bareAddress(from);
       if (marketingKit === null) {
         if (secret === null) return { sender, refusals: [] };
         marketingKit = createMarketingMail({ meta, secret });
       }
-      return { sender, refusals: await marketingKit.refusals(from) };
+      return { sender, refusals: await marketingKit.refusals(from, { postal: resolved.sender.postal }) };
     }
 
     /** Whether this reader sees a run's per-recipient failures (`runView`): the e-mail managers only. */
@@ -916,6 +923,33 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       },
     );
 
+    // "Send as": the sender every language of the template goes as. Null = the sender of the workspace the mail's
+    // record is in (the server's for a database in none); `server`; or one workspace, whatever the record.
+    app.put(
+      '/email-templates/:id/send-as',
+      {
+        config: { audit: audited('rbac') },
+        schema: { params: emailIdParams, body: emailSendAsBody, response: { 200: emailSendAsReply } },
+      },
+      async (request) => {
+        requireUserId(request);
+        await requireSettingsManage(request, 'edit email templates');
+        const row = await mustFind(request.params.id);
+        const wanted = request.body.sendAs;
+        if (wanted !== null && wanted !== TEMPLATE_SEND_AS_SERVER && (await workspacesRepo(meta).findById(wanted)) === null) {
+          throw new NotFoundError('There is no such workspace.', { sendAs: wanted });
+        }
+        const before = await templates.sendAsOf(row.key);
+        if (before !== wanted) await templates.setSendAs(row.key, wanted, app.rbac.now());
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'email-template.send-as',
+          changes: { before: { key: row.key, sendAs: before }, after: { sendAs: wanted } },
+        });
+        return { key: row.key, sendAs: wanted };
+      },
+    );
+
     // ── families ───────────────────────────────────────────────────────────
 
     app.post(
@@ -1109,7 +1143,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const doc = await acceptDocument(request.body.document);
         const appName = await settings.get('branding.appName');
         const origin = await linkOrigin(meta, request);
-        const prepared = await prepareEmail(meta, doc);
+        // As the sender the template names ("Send as"), if any: a test send is about no record.
+        const prepared = await prepareEmail(meta, doc, { about: { templateKey: row.key } });
         const locale = row.locale;
         let queued = 0;
         for (const to of request.body.to) {
@@ -1167,7 +1202,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         if (request.body.audience.kind === 'table') {
           const preview = await tableAudiencePreview(audienceDeps(), signedInUserId(request), request.body.audience, await sentVariants(row), request.body.ratePerHour ?? null);
           // Mail to a table's people is marketing: what would refuse it, so the dialog shows it before the send.
-          return { ...preview, ...(await senderRefusals(row)) };
+          return { ...preview, ...(await senderRefusals(row, request.body.audience.connectionId)) };
         }
         const audience = await resolveCampaignAudience(meta, request.body.audience);
         return {
@@ -1208,7 +1243,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const toTable = request.body.audience.kind === 'table' ? await openedTableAudience(request, request.body.audience) : null;
         // Marketing mail the sender's checks refuse is refused here, before a run is made (the run would stop at its first batch).
         if (toTable !== null) {
-          const { refusals } = await senderRefusals(row);
+          const { refusals } = await senderRefusals(row, toTable.audience.connectionId);
           if (refusals.length > 0) {
             throw new AppError(409, 'SENDER_REFUSED', `This campaign can't go out yet. ${refusals.map(marketingRefusalSentence).join('. ')}.`, { refusals });
           }

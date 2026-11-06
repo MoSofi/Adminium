@@ -118,7 +118,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/email-audience/*` | 8 | A campaign to the people of a table — the tables you may send to, their saved views, the first send’s review of people ticked before records were kept, the owner’s switch for existing customers, and a table’s e-mail settings (whether campaigns may mail it, its address and name columns) |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
 | `/api/v1/email-runs/*` | 7 | Campaign sends — cancel a scheduled or running run |
-| `/api/v1/email-templates/*` | 17 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
+| `/api/v1/email-templates/*` | 18 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
 | `/api/v1/events` | 1 | Server-sent events — the fallback when a WebSocket cannot be established |
 | `/api/v1/exports/*` | 7 | Queued exports of a whole result set, and their downloads |
 | `/api/v1/files/*` | 12 | Uploaded files and record attachments — upload, list, download (with Range and ETag), attach to a record, rename, move to trash and restore |
@@ -161,7 +161,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/users/*` | 11 | People on the server — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
 | `/api/v1/words` | 1 | What staff are told of the rows a screen shows, in an add-on's stock words — in, low or out for up to sixty rows of a table named as it is stored, and for a caller who reads the add-on's stock tables the figure behind the word: the exact count, the batch and its expiry, the line that runs out first, and whether stock or the day's portions bind |
-| `/api/v1/workspaces/*` | 6 | Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be in several workspaces or in none, and deleting a workspace leaves its databases where they are |
+| `/api/v1/workspaces/*` | 9 | Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be in several workspaces or in none, and deleting a workspace leaves its databases where they are |
 
 <!-- END GENERATED: groups -->
 
@@ -526,6 +526,7 @@ GET /api/v1/email-templates/{id}
 PUT /api/v1/email-templates/{id}
 PATCH /api/v1/email-templates/{id}
 DELETE /api/v1/email-templates/{id}
+PUT /api/v1/email-templates/{id}/send-as
 POST /api/v1/email-templates/{id}/duplicate
 POST /api/v1/email-templates/{id}/languages
 POST /api/v1/email-templates/{id}/from-template
@@ -1072,6 +1073,9 @@ PATCH /api/v1/workspaces/{id}
 DELETE /api/v1/workspaces/{id}
 PUT /api/v1/workspaces/order
 GET /api/v1/workspaces/{id}/delete-plan
+GET /api/v1/workspaces/sender-domains
+PUT /api/v1/workspaces/{id}/sender
+DELETE /api/v1/workspaces/{id}/sender
 ```
 
 <!-- END GENERATED: operations -->

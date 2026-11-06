@@ -95,6 +95,7 @@ import {
 import type { MarketingCarry } from '../email/marketing.js';
 import { CAMPAIGN_REPORT_APP, CAMPAIGN_REPORT_TABLE } from '../email/message-id.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
+import { campaignAbout, resolveMailSender } from '../email/workspace-sender.js';
 import { translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
 import { campaignRecipients, writeRecipients, type TableAudience } from './email-campaign-recipients.js';
@@ -415,12 +416,14 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
       const content = await runs.content(run.id);
       if (content === null) throw new Error(`campaign run ${run.id} has no frozen content`);
       const appName = await settingsRepo(meta).get('branding.appName');
+      // The sender the run goes as: the workspace of its audience's database, or the one its template names.
+      const sender = await resolveMailSender(meta, campaignAbout(run, content.templateKey));
       const packs = new Map<string, Pack>();
       const packFor = async (language: string | null): Promise<Pack> => {
         const variant = content.variants.find((v) => v.locale === language) ?? content.variants[0]!;
         let pack = packs.get(variant.locale);
         if (pack === undefined) {
-          pack = { variant, prepared: await prepareEmail(meta, variant) };
+          pack = { variant, prepared: await prepareEmail(meta, variant, { sender }) };
           packs.set(variant.locale, pack);
         }
         return pack;
@@ -447,7 +450,7 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
           rendered,
           from: prepared.from,
           attachments: [...prepared.attachments, ...generated],
-          ...(carry === null ? {} : { headers: carry.headers, replyTo: carry.replyTo }),
+          ...(carry === null ? (sender.replyTo === null ? {} : { replyTo: sender.replyTo }) : { headers: carry.headers, replyTo: carry.replyTo }),
           ...(carry?.standing === undefined ? {} : { standing: carry.standing }),
         };
       };

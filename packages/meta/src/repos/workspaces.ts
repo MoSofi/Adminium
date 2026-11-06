@@ -169,10 +169,16 @@ export function workspacesRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 0 ? null : findById(id);
     },
 
-    /** Delete a workspace: its databases stay, its memberships and links go (cascade). */
+    /**
+     * Delete a workspace: its databases stay, its memberships and links go
+     * (cascade), and the email templates that sent as it go back to "by the
+     * record" (their "Send as" names it with no foreign key, wave 0080).
+     */
     async remove(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_workspaces').where('id', '=', id).executeTakeFirst();
-      return affected(res.numDeletedRows) === 1;
+      if (affected(res.numDeletedRows) !== 1) return false;
+      await db.updateTable('adminium_email_templates').set({ sendAs: null }).where('sendAs', '=', id).execute();
+      return true;
     },
 
     /**

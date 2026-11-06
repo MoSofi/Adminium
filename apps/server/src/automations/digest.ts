@@ -237,7 +237,8 @@ export async function sendDigest(deps: DigestSendDeps, payload: DigestSendPayloa
   }
   const job = await enqueueEmail(
     { meta, ...(deps.secret === undefined ? {} : { secret: deps.secret }) },
-    { to: user.email, templateKey: payload.templateKey, locale, template, rows, vars, dedupeKey: `digest-mail:${payload.runId}:${user.id}` } as never,
+    // As the sender of the workspace the summary's database is in, or the one its template names.
+    { to: user.email, templateKey: payload.templateKey, locale, template, rows, vars, about: { connectionId: payload.connectionId }, dedupeKey: `digest-mail:${payload.runId}:${user.id}` } as never,
   );
   return job === null ? { sent: false, why: 'no-email' } : { sent: true, rows: counts };
 }

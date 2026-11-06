@@ -101,6 +101,7 @@ import { up as up0076 } from './0076_installs_per_database.js';
 import { up as up0077 } from './0077_app_parts.js';
 import { up as up0078 } from './0078_app_updates.js';
 import { up as up0079 } from './0079_app_instance_undo.js';
+import { up as up0080 } from './0080_template_send_as.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -189,4 +190,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0077_app_parts', up: up0077 },
   { name: '0078_app_updates', up: up0078 },
   { name: '0079_app_instance_undo', up: up0079 },
+  { name: '0080_template_send_as', up: up0080 },
 ];

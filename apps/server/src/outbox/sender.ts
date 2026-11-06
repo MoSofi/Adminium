@@ -166,6 +166,7 @@ import { listedReductions, type ListedColumns } from '../crud/adjust/listed.js';
 import { storedTableRef, tableRefIndex } from '../apps/table-ref.js';
 import { renderDocument, type DocumentWithhold, type RenderDeps } from '../documents/render.js';
 import { enqueueEmail, emailRuntimeSecret, fromOf, replyToOf, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
+import { resolveMailSender } from '../email/workspace-sender.js';
 import {
   createMarketingMail,
   DEFAULT_MARKETING_PURPOSE,
@@ -1488,6 +1489,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // ready: recorded as skipped, never tried again in a loop, and the people who manage e-mail are told once.
     const manifest = (await appFacts(box.row.manifestId)).manifest ?? {};
     const mailClass = mailClassOf(manifest, { outboxKind: kind });
+    // The sender it goes as: the workspace of the outbox's database (the first by position), or the one the template names.
+    const sender = await resolveMailSender(deps.meta, { connectionId: box.connectionId, templateKey });
     // The consent purpose the kind is sent for (`outbox.purposes`): a marketing kind is judged for it instead of the
     // newsletter; a service kind that names one skips a person whose latest answer for it is "no" (a survey
     // invitation sent as service mail never reaches a person who said no to surveys), and the do-not-email list too:
@@ -1520,9 +1523,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         existingCustomer: person === null ? false : await existingCustomer(deps.meta, kit, ctx.view, person),
       });
       if ('skip' in verdict) return { status: 'skipped', error: sentence(marketingSkipSentence(verdict.skip)) };
-      const from = await fromOf(deps.meta, template.brand);
+      const from = await fromOf(deps.meta, template.brand, sender);
       if (from === null) return { status: 'failed', error: 'Email is not set up on this server' };
-      const refused = await kit.refusal(from);
+      const refused = await kit.refusal(from, { postal: sender.postal });
       if (refused !== null) {
         await kit.tellRefused({ about: `outbox:${box.appKey}:${kind}`, source: `${box.appKey} · ${kind}`, refusal: refused }).catch(() => 0);
         return { status: 'skipped', error: sentence(marketingRefusalSentence(refused)) };
@@ -1605,8 +1608,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (shownPictures.refused !== null) return { status: 'failed', error: sentence(shownPictures.refused) };
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
     // A reply goes to the person the row's staff column names, when the producer says so and somebody who signs in is there;
-    // else to the house's own address, when its settings name one that is an address.
-    const replyTo = (await staffReplyTo({ meta: deps.meta, db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id }, producer, row)) ?? (await houseReplyTo(box, ctx.db));
+    // else to the house's own address, when its settings name one that is an address; else to its sender's reply-to.
+    const replyTo = (await staffReplyTo({ meta: deps.meta, db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id }, producer, row)) ?? (await houseReplyTo(box, ctx.db)) ?? sender.replyTo;
     // What a marketing mail carries: the unsubscribe link (a mail on the existing-customers basis has no purpose), its two
     // headers and the locked footer, in the template's language, naming the business as the mail's own banner does.
     const carry =
@@ -1616,8 +1619,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
             to,
             purpose: marketingBasis === 'existing-customers' ? null : (purpose ?? DEFAULT_MARKETING_PURPOSE),
             locale: template.locale,
-            business: vars['appName'],
+            business: vars['appName'] ?? sender.name ?? undefined,
             replyTo,
+            // The postal address of the sender it goes as (a workspace's), else the server's.
+            postal: sender.postal,
           });
     return {
       to,
@@ -1632,6 +1637,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         // The banner names the business the mail is from, not Adminium.
         brandName: vars['appName'],
         template: shown,
+        sender,
         ...(Object.keys(rows).length === 0 ? {} : { rows }),
         ...(shownPictures.pictures.size === 0 ? {} : { pictures: shownPictures.pictures }),
         ...(override.subject === undefined && override.body === undefined ? {} : { override }),
