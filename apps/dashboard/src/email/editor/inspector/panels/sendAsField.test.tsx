@@ -18,8 +18,8 @@ import { SendAsField } from './SendAsField.js';
 const OPTIONS: SendAsOptions = {
   server: 'Shared Host <news@shared-host.example>',
   workspaces: [
-    { id: 'wsp_kiln', name: 'Kiln Street Pottery', from: 'studio@kilnstreet.example' },
-    { id: 'wsp_archive', name: 'Archive', from: null },
+    { id: 'wsp_kiln', name: 'Kiln Street Pottery', from: 'studio@kilnstreet.example', hasSender: true },
+    { id: 'wsp_archive', name: 'Archive', from: null, hasSender: false },
   ],
 };
 
@@ -82,5 +82,20 @@ describe('Send as', () => {
     mount(OPTIONS, 'wsp_archive');
     await screen.findByTestId('email-send-as');
     expect(screen.getByText('Archive has no sender of its own yet, so this template goes from the server’s sender.')).toBeTruthy();
+  });
+
+  it('names a workspace by itself when its From is not this person’s to read', async () => {
+    mount({ server: null, workspaces: [{ id: 'wsp_kiln', name: 'Kiln Street Pottery', from: null, hasSender: true }] }, 'wsp_kiln');
+    const select = (await screen.findByTestId('email-send-as')) as HTMLSelectElement;
+    expect([...select.options].map((option) => option.textContent)).toEqual(['By the record’s workspace', 'The server', 'Kiln Street Pottery']);
+    expect(screen.getByText('Every mail of this template goes from Kiln Street Pottery’s sender, whatever its record.')).toBeTruthy();
+  });
+
+  it('keeps a workspace this person does not see, and says so', async () => {
+    mount(OPTIONS, 'wsp_hidden');
+    const select = (await screen.findByTestId('email-send-as')) as HTMLSelectElement;
+    expect(select.value).toBe('wsp_hidden');
+    expect(select.options[select.selectedIndex]?.textContent).toBe('A workspace you can’t see');
+    expect(screen.getByText('Every mail of this template goes from the sender of a workspace you can’t see.')).toBeTruthy();
   });
 });

@@ -117,4 +117,29 @@ describe('the workspaces of the session bootstrap', () => {
     await userPrefsRepo(t.meta).set(reader.id, { workspaceId: coffee.id }, Date.now());
     expect((await bootstrap('ade@example.com')).block!.lastWorkspaceId).toBeNull();
   });
+
+  it('tells someone of a workspace they see only the databases they reach in it, by id and engine', async () => {
+    const repo = workspacesRepo(t.meta);
+    // Kiln's workspace holds a database the reader reaches and one they do not; "Other databases" likewise.
+    const kiln = await repo.create({ name: 'Kiln Street Pottery', connectionIds: [conn.kiln, conn.suppliers], createdBy: null });
+    await repo.create({ name: 'Fernhill Coffee', connectionIds: [conn.fernhill], createdBy: null });
+    const reader = await usersRepo(t.meta).create({ email: 'bo@example.com', name: 'Bo', passwordHash: await adminPasswordHash() });
+    const role = await rolesRepo(t.meta).create({ slug: 'kiln-only', name: 'Kiln only' });
+    await rolesRepo(t.meta).assignToUser(reader.id, role.id);
+    for (const [connectionId, slug] of [[conn.kiln, 'kiln-orders'], [conn.scratch, 'scratch-orders']] as const) {
+      const page = (await pagesRepo(t.meta).findBySlug(connectionId, slug))!;
+      await permissionsRepo(t.meta).grant(role.id, 'page', page.id, { view: true, edit: false } as never);
+    }
+
+    const { block, items } = await bootstrap('bo@example.com');
+    expect(block!.workspaces).toEqual([expect.objectContaining({ id: kiln.id, connectionIds: [conn.kiln] })]);
+    expect(block!.otherDatabases).toEqual([conn.scratch]);
+    expect(block!.engines).toEqual({ [conn.kiln]: 'mysql', [conn.scratch]: 'sqlite' });
+    const whole = JSON.stringify(block);
+    for (const unseen of [conn.suppliers, conn.fernhill]) expect(whole).not.toContain(unseen);
+    // Each row they have still sits in its workspace.
+    expect(items.find((item) => item.slug === 'kiln-orders')?.workspaceIds).toEqual([kiln.id]);
+    expect(items.find((item) => item.slug === 'scratch-orders')?.workspaceIds).toEqual([]);
+    expect(items.some((item) => item.slug === 'suppliers-orders')).toBe(false);
+  });
 });

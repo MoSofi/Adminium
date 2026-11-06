@@ -14,10 +14,11 @@
  *  - an item's link rows go with the item; a copy is listed where its source is.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { auditRepo, connectionsRepo, emailTemplatesRepo, rolesRepo, usersRepo, workspacesRepo, type MetaDb, type User } from '@adminium/meta';
+import { auditRepo, connectionsRepo, emailTemplatesRepo, pagesRepo, permissionsRepo, rolesRepo, usersRepo, workspacesRepo, type MetaDb, type User } from '@adminium/meta';
 
 import { liveTemplateKeySet, resolveRuleTemplate } from '../src/automations/templates.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
+import { matrixRowsFromGrants, PERMISSIONS } from '../src/rbac/permissions.js';
 import { emailTemplatesRoutes } from '../src/routes/email-templates/index.js';
 import { invoicesRoutes } from '../src/routes/invoices/index.js';
 import { reportDocumentsRoutes } from '../src/routes/report-documents/index.js';
@@ -73,6 +74,7 @@ describe.each(META_ENGINES)('"Shown in" — $name', (engine) => {
       await meta.db.deleteFrom(table).execute();
     }
     await meta.db.deleteFrom('adminium_email_templates').where('key', 'like', 'shown-%').execute();
+    await meta.db.deleteFrom('adminium_pages').execute();
     await meta.db.deleteFrom('adminium_connections').execute();
     const connections = connectionsRepo(meta, PLAIN);
     const make = async (name: string) => (await connections.create({ name, engine: 'postgres', introspectDsn: `postgres://ro@db.internal:5432/${name}` })).id;
@@ -231,5 +233,42 @@ describe.each(META_ENGINES)('"Shown in" — $name', (engine) => {
     // Gone items leave nothing for a delete to list.
     const plan = (await call('GET', `/workspaces/${kiln}/delete-plan`)).json() as { shownOnlyIn: { itemId: string }[] };
     for (const id of [s.news, s.reportA, s.invoiceA]) expect(plan.shownOnlyIn.map((item) => item.itemId)).not.toContain(id);
+  });
+
+  it.skipIf(!engine.available)('names to an editor only the workspaces they see, and keeps the others when they save', async () => {
+    const s = await seed();
+    const both = { shownIn: { mode: 'chosen', workspaceIds: [coffee, kiln] } };
+    for (const url of [`/email-templates/${s.firing}`, `/report-documents/${s.reportA}`, `/invoices/${s.invoiceA}`]) expect((await call('PATCH', url, owner, both)).statusCode, url).toBe(200);
+    // Edits templates and layouts; reaches a page of Kiln's database alone, so sees Kiln's workspace alone.
+    const editor = await usersRepo(meta).create({ email: `editor-${engine.name}@adminium.test`, name: 'Editor', status: 'active' });
+    const role = await rolesRepo(meta).create({ slug: `kiln-editor-${Date.now()}`, name: 'Kiln editor' });
+    await rolesRepo(meta).assignToUser(editor.id, role.id);
+    for (const row of matrixRowsFromGrants([PERMISSIONS.settingsManage]).rows) await permissionsRepo(meta).grant(role.id, row.resourceKind, row.resourceRef, row.actions as never);
+    const kilnDb = (await workspacesRepo(meta).findById(kiln))!.connectionIds[0]!;
+    const page = await pagesRepo(meta).create({ connectionId: kilnDb, slug: 'kiln-firings', type: 'crud', title: 'Firings', navGroup: 'workspace', config: { v: 1, kind: 'crud', template: 'page-crud', config: {} }, createdBy: null });
+    await permissionsRepo(meta).grant(role.id, 'page', page.id, { view: true, edit: false } as never);
+
+    for (const url of [`/email-templates/${s.firing}`, `/report-documents/${s.reportA}`, `/invoices/${s.invoiceA}`]) {
+      const read = await call('GET', url, editor);
+      expect(read.statusCode, `${url} ${read.body}`).toBe(200);
+      expect(read.json().shownIn, url).toEqual({ mode: 'chosen', workspaceIds: [kiln] });
+      expect(read.body, url).not.toContain(coffee);
+    }
+    for (const url of ['/email-templates', '/report-documents', '/invoices']) {
+      const list = await call('GET', url, editor);
+      expect(list.statusCode, `${url} ${list.body}`).toBe(200);
+      expect(list.body, url).not.toContain(coffee);
+    }
+
+    // Their save is over what they see: taking Kiln off leaves Fernhill's link as it was.
+    const saved = await call('PATCH', `/invoices/${s.invoiceA}`, editor, { shownIn: { mode: 'chosen', workspaceIds: [] } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(saved.json().shownIn).toEqual({ mode: 'chosen', workspaceIds: [] });
+    expect(await workspacesRepo(meta).shownIn('invoice', s.invoiceA)).toEqual({ mode: 'chosen', workspaceIds: [coffee] });
+    // Naming a workspace they do not see changes nothing of it.
+    expect((await call('PATCH', `/report-documents/${s.reportA}`, editor, { shownIn: { mode: 'chosen', workspaceIds: [kiln] } })).statusCode).toBe(200);
+    expect((await workspacesRepo(meta).shownIn('report', s.reportA))?.workspaceIds.sort()).toEqual([coffee, kiln].sort());
+    expect((await call('PATCH', `/email-templates/${s.news}`, editor, { shownIn: { mode: 'chosen', workspaceIds: [coffee] } })).statusCode).toBe(200);
+    expect(await workspacesRepo(meta).shownIn('email-template', s.news)).toEqual({ mode: 'chosen', workspaceIds: [] });
   });
 });

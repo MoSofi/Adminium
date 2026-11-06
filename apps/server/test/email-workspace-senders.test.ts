@@ -27,6 +27,8 @@ import {
   connectionsRepo,
   emailSendsRepo,
   emailTemplatesRepo,
+  pagesRepo,
+  permissionsRepo,
   rolesRepo,
   settingsRepo,
   usersRepo,
@@ -60,6 +62,7 @@ import { sendPayLinkEmail } from '../src/payments/emails.js';
 import { sendConfirmation } from '../src/public-api/confirm.js';
 import type { PayableSources, ResolvedPayable } from '../src/payments/payables.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
+import { matrixRowsFromGrants, PERMISSIONS } from '../src/rbac/permissions.js';
 import { RealtimeHub } from '../src/realtime/hub.js';
 import { emailTemplatesRoutes } from '../src/routes/email-templates/index.js';
 import type { EmailDocumentDetailView, EmailRunView } from '../src/routes/email-templates/schema.js';
@@ -608,11 +611,31 @@ for (const engine of META_ENGINES) {
         expect((await call('GET', '/email-templates/send-as-options', owner)).json()).toEqual({
           server: 'Shared Host <news@shared-host.example>',
           workspaces: [
-            { id: coffee.id, name: 'Fernhill Coffee', from: 'orders@fernhill.example' },
-            { id: kiln.id, name: 'Kiln Street Pottery', from: 'studio@kilnstreet.example' },
-            { id: expect.any(String), name: 'Archive', from: null },
+            { id: coffee.id, name: 'Fernhill Coffee', from: 'orders@fernhill.example', hasSender: true },
+            { id: kiln.id, name: 'Kiln Street Pottery', from: 'studio@kilnstreet.example', hasSender: true },
+            { id: expect.any(String), name: 'Archive', from: null, hasSender: false },
           ],
         });
+      });
+
+      it('offers an editor who reaches one workspace that one alone, without its From, and refuses another', async () => {
+        // Edits templates, does not manage connections (so not senders), and reaches a page of Kiln's database only.
+        const editor = await usersRepo(meta).create({ email: 'editor@shared-host.example', name: 'Editor', status: 'active' });
+        const role = await rolesRepo(meta).create({ slug: 'kiln-editor', name: 'Kiln editor' });
+        await rolesRepo(meta).assignToUser(editor.id, role.id);
+        for (const row of matrixRowsFromGrants([PERMISSIONS.settingsManage]).rows) await permissionsRepo(meta).grant(role.id, row.resourceKind, row.resourceRef, row.actions as never);
+        const page = await pagesRepo(meta).create({ connectionId: conn.kiln, slug: 'kiln-firings', type: 'crud', title: 'Firings', navGroup: 'workspace', config: { v: 1, kind: 'crud', template: 'page-crud', config: {} }, createdBy: null });
+        await permissionsRepo(meta).grant(role.id, 'page', page.id, { view: true, edit: false } as never);
+
+        const offered = await call('GET', '/email-templates/send-as-options', editor);
+        expect(offered.statusCode, offered.body).toBe(200);
+        expect(offered.json()).toEqual({ server: 'Shared Host <news@shared-host.example>', workspaces: [{ id: kiln.id, name: 'Kiln Street Pottery', from: null, hasSender: true }] });
+        expect(offered.body).not.toContain('studio@kilnstreet.example');
+        expect(offered.body).not.toContain(coffee.id);
+
+        const template = (await emailTemplatesRepo(meta).findByKeyLocale('firing-done', 'en_US'))!;
+        expect((await call('PUT', `/email-templates/${template.id}/send-as`, editor, { sendAs: coffee.id })).statusCode).toBe(404);
+        expect((await call('PUT', `/email-templates/${template.id}/send-as`, editor, { sendAs: kiln.id })).json().sendAs).toBe(kiln.id);
       });
 
       it('names a template’s sender: a workspace, the server, or by the record; a workspace that is not there is not found', async () => {

@@ -209,10 +209,15 @@ export const emailPatchBody = z
 /** "Send as": null (by the record's workspace), `server`, or a workspace id. */
 export const emailSendAsBody = z.object({ sendAs: z.string().trim().min(1).max(40).nullable() });
 export const emailSendAsReply = z.object({ key: z.string(), sendAs: z.string().nullable() });
-/** What "Send as" offers: the server's From (null with no mail set up), and every workspace with its own From (null: none). */
+/**
+ * What "Send as" offers: the server's From (null with no mail set up), and
+ * each workspace the person sees. `from` is its own From, given only to those
+ * who manage senders (null otherwise, or with none); `hasSender` says whether
+ * it has one, for everyone.
+ */
 export const emailSendAsOptionsReply = z.object({
   server: z.string().nullable(),
-  workspaces: z.array(z.object({ id: z.string(), name: z.string(), from: z.string().nullable() })),
+  workspaces: z.array(z.object({ id: z.string(), name: z.string(), from: z.string().nullable(), hasSender: z.boolean() })),
 });
 
 /**

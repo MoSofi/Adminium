@@ -93,7 +93,8 @@ import type { FileStore } from '../../files/store.js';
 import { translatorFor } from '../../i18n/server-i18n.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { linkOrigin } from '../../security/public-origin.js';
-import { saveShownIn, shownInFilter, shownInOf } from '../../workspaces/shown-in.js';
+import { saveShownIn, shownInFilter, shownInOf, shownInSeenOnly } from '../../workspaces/shown-in.js';
+import { canOf, visibleWorkspaceIds, visibleWorkspaces } from '../../workspaces/visibility.js';
 import {
   emailAddLanguageBody,
   emailAudiencePreviewBody,
@@ -522,6 +523,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
   }
 
   return async (app) => {
+    // A "Shown in" names only the workspaces this person sees.
+    app.addHook('preSerialization', shownInSeenOnly(meta));
     const secret = deps.secret ?? app.authContext?.env.ADMINIUM_SECRET ?? null;
 
     /** What a table audience reads; refused when this server was put together without it. */
@@ -878,7 +881,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         if (shownIn !== undefined) {
           // A rule names the key: every language of it is listed in the same workspaces.
           const family = siblings.some((one) => one.id === row.id) ? siblings.map((one) => one.id) : [row.id];
-          const moved = await saveShownIn(meta, 'email-template', [row.id, ...family.filter((id) => id !== row.id)], shownIn);
+          const moved = await saveShownIn(meta, 'email-template', [row.id, ...family.filter((id) => id !== row.id)], shownIn, await visibleWorkspaceIds(meta, request));
           await app.rbac.audit(request, {
             category: 'settings',
             action: 'email-template.shown-in',
@@ -924,14 +927,21 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       },
     );
 
-    // What "Send as" offers: the server's own From, and each workspace with the From it has (null: it goes as the server).
+    /*
+     * What "Send as" offers: the server's own From, and each workspace this
+     * person sees, with whether it has a sender of its own. The workspace's
+     * From address itself only to those who manage senders (they manage
+     * connections): to anyone else it is null, and `hasSender` says it has one.
+     */
     app.get('/email-templates/send-as-options', { schema: { response: { 200: emailSendAsOptionsReply } } }, async (request) => {
       requireUserId(request);
       await requireSettingsManage(request, 'edit email templates');
-      const all = await workspacesRepo(meta).list();
+      const seen = await visibleWorkspaces(meta, canOf(request));
       return {
         server: (await senderFor(meta, null)).from,
-        workspaces: all.map((workspace) => ({ id: workspace.id, name: workspace.name, from: workspace.sender.from })),
+        workspaces: seen.all
+          .filter((workspace) => workspace.visible)
+          .map((workspace) => ({ id: workspace.id, name: workspace.name, from: seen.manages ? workspace.sender.from : null, hasSender: workspace.sender.from !== null })),
       };
     });
 
@@ -948,7 +958,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         await requireSettingsManage(request, 'edit email templates');
         const row = await mustFind(request.params.id);
         const wanted = request.body.sendAs;
-        if (wanted !== null && wanted !== TEMPLATE_SEND_AS_SERVER && (await workspacesRepo(meta).findById(wanted)) === null) {
+        // A workspace this person does not see is not found, as on every list that names one.
+        if (wanted !== null && wanted !== TEMPLATE_SEND_AS_SERVER && !(await visibleWorkspaceIds(meta, request)).has(wanted)) {
           throw new NotFoundError('There is no such workspace.', { sendAs: wanted });
         }
         const before = await templates.sendAsOf(row.key);

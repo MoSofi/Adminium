@@ -41,7 +41,8 @@ import { acceptReportBody, bodyColumn, normalizeReportBody, type ReportBody } fr
 import { BLANK_ICON, blankBody, isReportStarterKey, renderStarter, starterCards } from '../../report-documents/starters.js';
 import { summaryOf } from '../../report-documents/summary.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
-import { saveShownIn, shownInFilter, shownInOf } from '../../workspaces/shown-in.js';
+import { saveShownIn, shownInFilter, shownInOf, shownInSeenOnly } from '../../workspaces/shown-in.js';
+import { visibleWorkspaceIds } from '../../workspaces/visibility.js';
 import {
   reportCreateBody,
   reportDetailView,
@@ -108,6 +109,8 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
   }
 
   return async (app) => {
+    // A "Shown in" names only the workspaces this person sees.
+    app.addHook('preSerialization', shownInSeenOnly(meta));
     async function requireSettingsManage(request: FastifyRequest, what: string): Promise<void> {
       if (await request.can(PERMISSIONS.settingsManage)) return;
       throw new ForbiddenError(`You do not have permission to ${what}.`, 'FORBIDDEN', {
@@ -258,7 +261,7 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
           });
         }
         if (shownIn !== undefined) {
-          const moved = await saveShownIn(meta, 'report', [row.id], shownIn);
+          const moved = await saveShownIn(meta, 'report', [row.id], shownIn, await visibleWorkspaceIds(meta, request));
           await app.rbac.audit(request, {
             category: 'settings',
             action: 'report-document.shown-in',

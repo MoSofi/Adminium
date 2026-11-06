@@ -18643,6 +18643,10 @@
     "status": "mt",
     "srcHash": "623b811ca75f"
   },
+  "email.sendAs.helper.unseen": {
+    "status": "mt",
+    "srcHash": "e1ac37cd0680"
+  },
   "email.sendAs.helper.workspace": {
     "status": "mt",
     "srcHash": "0343529eaef8"
@@ -18658,6 +18662,10 @@
   "email.sendAs.serverFrom": {
     "status": "mt",
     "srcHash": "8e61fe034306"
+  },
+  "email.sendAs.unseenWorkspace": {
+    "status": "mt",
+    "srcHash": "be88b48dc495"
   },
   "email.sendAs.workspaceFrom": {
     "status": "src",

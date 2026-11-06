@@ -32,6 +32,13 @@ export interface VisibleWorkspaces {
   otherVisible: boolean;
   /** Whether they manage connections (they see every workspace). */
   manages: boolean;
+  /**
+   * The databases this person reaches; null when they manage connections
+   * (every one), or while no workspace exists (there is nothing to cut). A
+   * workspace they see may hold others: those are not theirs to be told of,
+   * not even by id.
+   */
+  reached: ReadonlySet<string> | null;
 }
 
 type Can = (permission: string) => Promise<boolean>;
@@ -78,7 +85,7 @@ export async function visibleWorkspaces(
 ): Promise<VisibleWorkspaces> {
   const all = await workspacesRepo(meta).list();
   const manages = await can(CONNECTIONS_MANAGE);
-  if (all.length === 0) return { all: [], otherDatabases: null, otherVisible: false, manages };
+  if (all.length === 0) return { all: [], otherDatabases: null, otherVisible: false, manages, reached: null };
   const reached = manages ? new Set<string>() : await reachedConnections(meta, can, known);
   const grouped = new Set(all.flatMap((workspace) => workspace.connectionIds));
   const connections = (await meta.db.selectFrom('adminium_connections').select('id').orderBy('name', 'asc').execute()).map((row) => row.id);
@@ -88,6 +95,7 @@ export async function visibleWorkspaces(
     otherDatabases: other.length === 0 ? null : other,
     otherVisible: other.length > 0 && (manages || other.some((id) => reached.has(id))),
     manages,
+    reached: manages ? null : reached,
   };
 }
 

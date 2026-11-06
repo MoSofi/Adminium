@@ -984,11 +984,13 @@ export default {
     "byRecord": "按记录所在的工作区",
     "workspaceFrom": "{workspace} · {from}",
     "workspaceNoSender": "{workspace} · 尚无发件人",
+    "unseenWorkspace": "你看不到的工作区",
     "helper": {
       "byRecord": "与记录相关的邮件，以其数据库所在工作区的发件人发出。",
       "server": "此模板的每封邮件都以服务器的发件人发出。",
       "noSender": "{workspace} 尚无自己的发件人，因此此模板以服务器的发件人发出。",
-      "workspace": "无论是哪条记录，此模板的每封邮件都以 {workspace} 的发件人发出。"
+      "workspace": "无论是哪条记录，此模板的每封邮件都以 {workspace} 的发件人发出。",
+      "unseen": "此模板的每封邮件都以一个你看不到的工作区的发件人发出。"
     },
     "failed": "无法保存。请重试。",
     "docsLink": "“发件身份”如何选择发件人"

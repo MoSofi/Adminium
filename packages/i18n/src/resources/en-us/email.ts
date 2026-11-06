@@ -984,11 +984,13 @@ export default {
     "byRecord": "By the record’s workspace",
     "workspaceFrom": "{workspace} · {from}",
     "workspaceNoSender": "{workspace} · no sender yet",
+    "unseenWorkspace": "A workspace you can’t see",
     "helper": {
       "byRecord": "Mail about a record goes from the sender of the workspace its database is in.",
       "server": "Every mail of this template goes from the server’s sender.",
       "noSender": "{workspace} has no sender of its own yet, so this template goes from the server’s sender.",
-      "workspace": "Every mail of this template goes from {workspace}’s sender, whatever its record."
+      "workspace": "Every mail of this template goes from {workspace}’s sender, whatever its record.",
+      "unseen": "Every mail of this template goes from the sender of a workspace you can’t see."
     },
     "failed": "This could not be saved. Try again.",
     "docsLink": "How Send as chooses a sender"

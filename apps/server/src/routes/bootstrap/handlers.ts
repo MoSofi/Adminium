@@ -1162,36 +1162,6 @@ export async function bootstrapHandler(
   // A harness that mounts this route without the core plugin shows no map.
   const maps = request.server.hasDecorator('maps') ? await request.server.maps.read() : MAPS_OFF;
 
-  /*
-   * THE WORKSPACES THIS PERSON SEES: a page of one of its databases, or the
-   * staff screens of an install on one, or they manage connections. Read off
-   * what this bootstrap already worked out: the pages they may view, and the
-   * installs whose screens they may open.
-   */
-  const seen = await visibleWorkspaces(ctx.meta, async (permission) => typeof request.can !== 'function' || (await request.can(permission as never)), {
-    pageConnections: visibleRows.map((row) => row.connectionId),
-    installConnections: sectionApps.filter((entry) => mayOpenStaff.has(entry.key)).map((entry) => entry.connectionId ?? null),
-  });
-  const visibleIds = new Set(seen.all.filter((workspace) => workspace.visible).map((workspace) => workspace.id));
-  const lastChosen = (await userPrefsRepo(ctx.meta).get(user.id))?.workspaceId ?? null;
-  const workspacesBlock =
-    seen.all.length === 0
-      ? undefined
-      : {
-          workspaces: seen.all
-            .filter((workspace) => workspace.visible)
-            .map((workspace) => ({ id: workspace.id, name: workspace.name, initials: initialsOf(workspace.name), position: workspace.position, connectionIds: workspace.connectionIds })),
-          otherDatabases: seen.otherVisible ? seen.otherDatabases : null,
-          workspaceView: await settingsRepo(ctx.meta).get('ui.workspaceView'),
-          lastWorkspaceId: lastChosen !== null && visibleIds.has(lastChosen) ? lastChosen : null,
-          manage: seen.manages,
-          // The engine of each database the groups above hold, for the menu's "3 databases · Postgres".
-          engines: Object.fromEntries(
-            connectionRows
-              .filter((row) => seen.all.some((workspace) => workspace.visible && workspace.connectionIds.includes(row.id)) || (seen.otherVisible && (seen.otherDatabases ?? []).includes(row.id)))
-              .map((row) => [row.id, row.engine] as const),
-          ),
-        };
   const appSections = [
     ...buildAppSections({
       apps: sectionApps,
@@ -1207,6 +1177,51 @@ export async function bootstrapHandler(
     // After the apps: an add-on is what an app is extended with.
     ...buildAddOnSections({ addOns: sectionAddOns, appItems, codePages: addOnNav.pages, locale: prefs.locale }),
   ];
+  /*
+   * THE WORKSPACES THIS PERSON SEES: a page of one of its databases, or the
+   * staff screens of an install on one, or they manage connections. Read off
+   * what this bootstrap already worked out: the pages they may view, and the
+   * installs whose screens they may open.
+   */
+  const seen = await visibleWorkspaces(ctx.meta, async (permission) => typeof request.can !== 'function' || (await request.can(permission as never)), {
+    pageConnections: visibleRows.map((row) => row.connectionId),
+    installConnections: sectionApps.filter((entry) => mayOpenStaff.has(entry.key)).map((entry) => entry.connectionId ?? null),
+  });
+  const visibleIds = new Set(seen.all.filter((workspace) => workspace.visible).map((workspace) => workspace.id));
+  const lastChosen = (await userPrefsRepo(ctx.meta).get(user.id))?.workspaceId ?? null;
+  /*
+   * Of a workspace they see, only the databases they reach: the others are
+   * not theirs to be told of, not even by id. Every database the menu
+   * has a row of is one they reach, so each row still sits in its workspace.
+   */
+  const inMenu = new Set<string>();
+  const collect = (value: unknown): void => {
+    if (Array.isArray(value)) return value.forEach(collect);
+    if (value === null || typeof value !== 'object') return;
+    const connectionId = (value as Record<string, unknown>)['connectionId'];
+    if (typeof connectionId === 'string') inMenu.add(connectionId);
+    for (const child of Object.values(value)) collect(child);
+  };
+  if (seen.reached !== null) {
+    collect(nav);
+    collect(appSections);
+  }
+  const reachable = (ids: readonly string[]): string[] => (seen.reached === null ? [...ids] : ids.filter((id) => seen.reached!.has(id) || inMenu.has(id)));
+  const shownWorkspaces = seen.all.filter((workspace) => workspace.visible).map((workspace) => ({ ...workspace, connectionIds: reachable(workspace.connectionIds) }));
+  const shownOther = seen.otherVisible && seen.otherDatabases !== null ? reachable(seen.otherDatabases) : null;
+  const shownDatabases = new Set([...shownWorkspaces.flatMap((workspace) => workspace.connectionIds), ...(shownOther ?? [])]);
+  const workspacesBlock =
+    seen.all.length === 0
+      ? undefined
+      : {
+          workspaces: shownWorkspaces.map((workspace) => ({ id: workspace.id, name: workspace.name, initials: initialsOf(workspace.name), position: workspace.position, connectionIds: workspace.connectionIds })),
+          otherDatabases: shownOther,
+          workspaceView: await settingsRepo(ctx.meta).get('ui.workspaceView'),
+          lastWorkspaceId: lastChosen !== null && visibleIds.has(lastChosen) ? lastChosen : null,
+          manage: seen.manages,
+          // The engine of each database the groups above hold, for the menu's "3 databases · Postgres".
+          engines: Object.fromEntries(connectionRows.filter((row) => shownDatabases.has(row.id)).map((row) => [row.id, row.engine] as const)),
+        };
   // Every item of a database says which of this person's workspaces hold it; an app's page, which install it is.
   if (workspacesBlock !== undefined || sectionApps.length > 0) {
     const holders = new Map<string, string[]>();

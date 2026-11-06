@@ -285,6 +285,44 @@ describe('a link to a page', () => {
   });
 });
 
+describe('a person who reaches part of a workspace', () => {
+  it('is told only of the databases they reach, and every row they have sits in its workspace', async () => {
+    // The server sends each workspace's databases cut to the ones this person reaches, and their engines alone.
+    const reached = new Set<string>([DB.fernhill.id, DB.kiln.id]);
+    const kept = (item: NavItem): boolean => item.connectionId === null || reached.has(item.connectionId);
+    const cut = (ids: readonly string[]) => ids.filter((id) => reached.has(id));
+    // Their rows: the pages of the databases they reach (each still naming its workspaces), and those of none.
+    const stamped = { groups: nav(true).groups.map((group) => ({ ...group, items: group.items.filter(kept) })) };
+    await renderShell(
+      makeBootstrap({
+        systemActions: [],
+        nav: stamped,
+        appSections: [SECTION],
+        workspaces: {
+          workspaces: [{ ...COFFEE, connectionIds: cut(COFFEE.connectionIds) }, { ...KILN, connectionIds: cut(KILN.connectionIds) }],
+          otherDatabases: null,
+          workspaceView: 'one',
+          lastWorkspaceId: KILN.id,
+          manage: false,
+          engines: { [DB.fernhill.id]: 'postgres', [DB.kiln.id]: 'mysql' },
+        },
+      }),
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Workspace\s*Kiln Street Pottery/ }));
+    const menu = await screen.findByRole('dialog', { name: 'Workspaces on Fernhill main' });
+    const rows = within(menu).getAllByRole('button').filter((button) => button.getAttribute('data-part') === 'workspace-menu-row');
+    expect(rows.map((row) => row.textContent)).toEqual(['FCFernhill Coffee1 database · Postgres', 'KSKiln Street Pottery1 database · MySQL']);
+    fireEvent.keyDown(menu, { key: 'Escape' });
+    const block = screen.getByRole('navigation', { name: 'Kiln Street Pottery' });
+    expect(within(block).getAllByRole('link').map((link) => link.textContent)).toEqual(['Pieces', 'Firing board']);
+    // Nothing of a workspace's database falls to Shared for want of its id.
+    const server = screen.getByRole('navigation', { name: 'Server' });
+    expect(within(server).getByRole('link', { name: 'Team notes' })).toBeTruthy();
+    expect(within(server).queryByRole('link', { name: 'Pieces' })).toBeNull();
+    expect(within(server).queryByRole('link', { name: 'Orders' })).toBeNull();
+  });
+});
+
 describe('another session\'s change', () => {
   it('redraws the rail without a reload', async () => {
     const { queryClient, setBootstrap } = await renderShell(makeBootstrap({ nav: nav(false) }));

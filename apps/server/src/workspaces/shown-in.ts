@@ -13,11 +13,11 @@
  * shown in the same workspaces, because a rule names the key, not a language.
  */
 import { workspacesRepo, type MetaDb, type ShownInKind } from '@adminium/meta';
-import type { FastifyRequest } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { NotFoundError } from '../errors.js';
-import { workspaceConnections } from './visibility.js';
+import { visibleWorkspaceIds, workspaceConnections } from './visibility.js';
 
 export const shownInMode = z.enum(['all', 'chosen']);
 
@@ -52,12 +52,20 @@ export async function saveShownIn(
   kind: ShownInKind,
   itemIds: readonly string[],
   input: ShownInInput,
+  /**
+   * The workspaces the person saving sees. Their choice is over these alone:
+   * a workspace they do not see keeps its link as it was, and one they named
+   * without seeing it is left out. Absent: every workspace.
+   */
+  seen?: ReadonlySet<string>,
 ): Promise<{ before: ShownInView; after: ShownInView }> {
   const workspaces = workspacesRepo(meta);
   const first = itemIds[0];
   const was = first === undefined ? null : await workspaces.shownIn(kind, first);
   const before: ShownInView = was ?? { mode: 'all', workspaceIds: [] };
-  const chosen = input.mode === 'all' ? null : (await workspaces.existing(input.workspaceIds)).sort();
+  const named = seen === undefined ? input.workspaceIds : input.workspaceIds.filter((id) => seen.has(id));
+  const kept = seen === undefined || before.mode === 'all' ? [] : before.workspaceIds.filter((id) => !seen.has(id));
+  const chosen = input.mode === 'all' ? null : [...new Set(await workspaces.existing([...named, ...kept]))].sort();
   for (const id of itemIds) await workspaces.setShownIn(kind, id, chosen);
   return { before, after: chosen === null ? { mode: 'all', workspaceIds: [] } : { mode: 'chosen', workspaceIds: chosen } };
 }
@@ -78,4 +86,34 @@ export async function shownInFilter(
   if ((await workspaceConnections(meta, request, workspaceId)) === null) throw new NotFoundError('There is no such workspace.', { workspaceId });
   const chosen = await workspacesRepo(meta).chosenIn(kind, workspaceId);
   return (item) => item.shownIn === 'all' || chosen.has(item.id);
+}
+
+/** Every "Shown in" view in a reply, wherever it sits. */
+function shownInViews(value: unknown, out: ShownInView[]): void {
+  if (Array.isArray(value)) {
+    for (const item of value) shownInViews(item, out);
+    return;
+  }
+  if (value === null || typeof value !== 'object') return;
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'shownIn' && child !== null && typeof child === 'object' && Array.isArray((child as { workspaceIds?: unknown }).workspaceIds)) out.push(child as ShownInView);
+    else shownInViews(child, out);
+  }
+}
+
+/**
+ * A route's `preSerialization` hook: every "Shown in" in the reply, cut to
+ * the workspaces this person sees. A workspace they do not see is not theirs
+ * to be told of, not even by id. The views are the reply's own (each built
+ * for it), so they are cut in place.
+ */
+export function shownInSeenOnly(meta: MetaDb | (() => MetaDb)) {
+  return async (request: FastifyRequest, _reply: FastifyReply, payload: unknown): Promise<unknown> => {
+    const views: ShownInView[] = [];
+    shownInViews(payload, views);
+    if (!views.some((view) => view.workspaceIds.length > 0)) return payload;
+    const seen = await visibleWorkspaceIds(typeof meta === 'function' ? meta() : meta, request);
+    for (const view of views) view.workspaceIds = view.workspaceIds.filter((id) => seen.has(id));
+    return payload;
+  };
 }
