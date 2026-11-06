@@ -36619,6 +36619,10 @@
     "status": "mt",
     "srcHash": "3c75497d521f"
   },
+  "studio.saveApp.check.answer.carryKey": {
+    "status": "mt",
+    "srcHash": "60b2c475c8e6"
+  },
   "studio.saveApp.check.answer.clear": {
     "status": "mt",
     "srcHash": "3716bb050dcd"
@@ -36666,6 +36670,10 @@
   "studio.saveApp.check.done.carry": {
     "status": "mt",
     "srcHash": "9442fda4877f"
+  },
+  "studio.saveApp.check.done.carryKey": {
+    "status": "mt",
+    "srcHash": "722a733eff03"
   },
   "studio.saveApp.check.done.clear": {
     "status": "mt",

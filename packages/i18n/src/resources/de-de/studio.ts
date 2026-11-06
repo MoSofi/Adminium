@@ -4991,7 +4991,8 @@ export default {
         "carry": "Als Text übernehmen",
         "leaveOut": "Weglassen",
         "clear": "Dieses Feld leeren",
-        "keep": "Das ist kein Schlüssel"
+        "keep": "Das ist kein Schlüssel",
+        "carryKey": "Gemeinsam eindeutig halten"
       },
       "done": {
         "clear": "Das Feld ist in der Datei leer. Auf diesem Server ändert sich nichts.",
@@ -4999,7 +5000,8 @@ export default {
         "leaveOut": "Es wird aus der Datei weggelassen. Auf diesem Server ändert sich nichts.",
         "keep": "Als kein Schlüssel markiert. Es kommt so hinein, wie es geschrieben ist.",
         "carry": "Es kommt als Text hinein. Die Spalte auf diesem Server bleibt unverändert.",
-        "makeShared": "Es kommt als geteilte Ansicht der App hinein. Hier bleibt es, wie es ist."
+        "makeShared": "Es kommt als geteilte Ansicht der App hinein. Hier bleibt es, wie es ist.",
+        "carryKey": "Es kommt hinein, mit diesen Spalten gemeinsam eindeutig und ohne Schlüssel. Die Tabelle auf diesem Server bleibt unverändert."
       },
       "secret": "{kind} „{item}“ · {field} · enthält ein gespeichertes Geheimnis dieses Servers.",
       "secretLikely": "{kind} „{item}“ · {field} · sieht aus wie ein Schlüssel.",

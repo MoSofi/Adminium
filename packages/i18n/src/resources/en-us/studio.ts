@@ -4991,7 +4991,8 @@ export default {
         "carry": "Carry as text",
         "leaveOut": "Leave it out",
         "clear": "Clear this field",
-        "keep": "It is not a key"
+        "keep": "It is not a key",
+        "carryKey": "Keep them unique together"
       },
       "done": {
         "clear": "The field will be empty in the file. Nothing on this server changes.",
@@ -4999,7 +5000,8 @@ export default {
         "leaveOut": "It is left out of the file. Nothing on this server changes.",
         "keep": "Marked as not a key. It goes in as written.",
         "carry": "It goes in as text. The column on this server is unchanged.",
-        "makeShared": "It goes in as a shared view of the app. Here it stays as it is."
+        "makeShared": "It goes in as a shared view of the app. Here it stays as it is.",
+        "carryKey": "It goes in with those columns kept unique together, and no key. The table on this server is unchanged."
       },
       "secret": "{kind} ‘{item}’ · {field} · holds a saved secret of this server.",
       "secretLikely": "{kind} ‘{item}’ · {field} · looks like a key.",

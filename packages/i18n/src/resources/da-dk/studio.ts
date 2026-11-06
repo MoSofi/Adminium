@@ -4991,7 +4991,8 @@ export default {
         "carry": "Tag med som tekst",
         "leaveOut": "Udelad den",
         "clear": "Ryd dette felt",
-        "keep": "Det er ikke en nøgle"
+        "keep": "Det er ikke en nøgle",
+        "carryKey": "Hold dem unikke sammen"
       },
       "done": {
         "clear": "Feltet er tomt i filen. Intet på denne server ændres.",
@@ -4999,7 +5000,8 @@ export default {
         "leaveOut": "Det udelades af filen. Intet på denne server ændres.",
         "keep": "Markeret som ikke en nøgle. Det kommer med, som det er skrevet.",
         "carry": "Det kommer med som tekst. Kolonnen på denne server er uændret.",
-        "makeShared": "Den kommer med som en delt visning i appen. Her forbliver den, som den er."
+        "makeShared": "Den kommer med som en delt visning i appen. Her forbliver den, som den er.",
+        "carryKey": "Det kommer med, så kolonnerne er unikke sammen og uden nøgle. Tabellen på denne server er uændret."
       },
       "secret": "{kind} “{item}” · {field} · indeholder en gemt hemmelighed fra denne server.",
       "secretLikely": "{kind} “{item}” · {field} · ligner en nøgle.",

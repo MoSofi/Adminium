@@ -4991,7 +4991,8 @@ export default {
         "carry": "Přenést jako text",
         "leaveOut": "Vynechat",
         "clear": "Vymazat toto pole",
-        "keep": "Není to klíč"
+        "keep": "Není to klíč",
+        "carryKey": "Ponechat společně jedinečné"
       },
       "done": {
         "clear": "Pole bude v souboru prázdné. Na tomto serveru se nic nezmění.",
@@ -4999,7 +5000,8 @@ export default {
         "leaveOut": "Položka se ze souboru vynechá. Na tomto serveru se nic nezmění.",
         "keep": "Označeno, že to není klíč. Přenese se tak, jak je zapsáno.",
         "carry": "Přenese se jako text. Sloupec na tomto serveru zůstane beze změny.",
-        "makeShared": "Přenese se jako sdílený pohled aplikace. Zde zůstane, jak je."
+        "makeShared": "Přenese se jako sdílený pohled aplikace. Zde zůstane, jak je.",
+        "carryKey": "Přenese se s těmito sloupci společně jedinečnými a bez klíče. Tabulka na tomto serveru zůstane beze změny."
       },
       "secret": "{kind} „{item}“ · {field} · obsahuje uložený tajný údaj tohoto serveru.",
       "secretLikely": "{kind} „{item}“ · {field} · vypadá jako klíč.",

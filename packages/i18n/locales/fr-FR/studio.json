@@ -4981,7 +4981,8 @@
         "carry": "Transmettre en texte",
         "leaveOut": "L’exclure",
         "clear": "Vider ce champ",
-        "keep": "Ce n’est pas une clé"
+        "keep": "Ce n’est pas une clé",
+        "carryKey": "Les garder uniques ensemble"
       },
       "done": {
         "clear": "Le champ sera vide dans le fichier. Rien ne change sur ce serveur.",
@@ -4989,7 +4990,8 @@
         "leaveOut": "L’élément est exclu du fichier. Rien ne change sur ce serveur.",
         "keep": "Marqué comme n’étant pas une clé. Il est inclus tel quel.",
         "carry": "Elle est incluse en texte. La colonne sur ce serveur reste inchangée.",
-        "makeShared": "Elle est incluse comme vue partagée de l’application. Ici, elle reste telle quelle."
+        "makeShared": "Elle est incluse comme vue partagée de l’application. Ici, elle reste telle quelle.",
+        "carryKey": "Elle est incluse avec ces colonnes uniques ensemble, et sans clé. La table sur ce serveur reste inchangée."
       },
       "secret": "{kind} « {item} » · {field} · contient un secret enregistré de ce serveur.",
       "secretLikely": "{kind} « {item} » · {field} · ressemble à une clé.",

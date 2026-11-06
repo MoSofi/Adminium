@@ -226,7 +226,7 @@ function QuestionRow({ item, tone, icon, onAnswer }: { item: CheckItem; tone: To
         <div className="flex flex-wrap gap-1.5">
           {choices.map((choice) => (
             <Button key={choice} size="sm" variant="secondary" onClick={() => onAnswer(item, choice)}>
-              {answerLabel(choice)}
+              {answerLabel(choice, item)}
             </Button>
           ))}
         </div>

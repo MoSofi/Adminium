@@ -25,6 +25,7 @@ import {
 } from './saveAppDraft.js';
 import { aboutProblems, looksLikeAddress, nextVersionFor } from './saveAppAbout.js';
 import { saveDatabases } from './saveAppDatabases.js';
+import { answerLabel, answeredSentence } from './saveAppWords.js';
 import { makeBootstrap } from '../../test/fixtures.js';
 import type { ConnectionDto } from '../api.js';
 
@@ -158,6 +159,13 @@ describe('the save draft', () => {
     expect(groupCheck(p)).toMatchObject({ blocks: [secret], choices: [noType] });
     expect(needsCount(p, 0)).toEqual({ blocks: 2, choices: 1 });
     expect(needsCount(p, 10)).toEqual({ blocks: 2, choices: 2 });
+  });
+
+  it('words a key of several columns as kept unique together, never as text', () => {
+    const composite: CheckItem = { ...noType, code: 'COMPOSITE_KEY', kind: 'table', item: 'pairs' };
+    expect(answerLabel('carry-as-text', composite)).toBe('Keep them unique together');
+    expect(answerLabel('carry-as-text', noType)).toBe('Carry as text');
+    expect(answeredSentence(composite, 'carry-as-text')).toMatch(/unique together, and no key/);
   });
 
   it('makes a key from a name, and numbers versions as the server does', () => {

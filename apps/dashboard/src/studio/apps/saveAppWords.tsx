@@ -78,10 +78,13 @@ export function kindLabel(kind: string): string {
   }
 }
 
-export function answerLabel(choice: AnswerChoice): string {
+export function answerLabel(choice: AnswerChoice, item?: Pick<CheckItem, 'code'>): string {
   switch (choice) {
     case 'carry-as-text':
-      return t('studio:saveApp.check.answer.carry', 'Carry as text');
+      // A key of several columns is carried as those columns kept unique together, not as text.
+      return item?.code === 'COMPOSITE_KEY'
+        ? t('studio:saveApp.check.answer.carryKey', 'Keep them unique together')
+        : t('studio:saveApp.check.answer.carry', 'Carry as text');
     case 'leave-out':
       return t('studio:saveApp.check.answer.leaveOut', 'Leave it out');
     case 'make-shared':
@@ -105,7 +108,9 @@ export function answeredSentence(item: CheckItem, choice: AnswerChoice): string 
     case 'keep':
       return t('studio:saveApp.check.done.keep', 'Marked as not a key. It goes in as written.');
     case 'carry-as-text':
-      return t('studio:saveApp.check.done.carry', 'It goes in as text. The column on this server is unchanged.');
+      return item.code === 'COMPOSITE_KEY'
+        ? t('studio:saveApp.check.done.carryKey', 'It goes in with those columns kept unique together, and no key. The table on this server is unchanged.')
+        : t('studio:saveApp.check.done.carry', 'It goes in as text. The column on this server is unchanged.');
     case 'make-shared':
       return t('studio:saveApp.check.done.makeShared', 'It goes in as a shared view of the app. Here it stays as it is.');
   }
