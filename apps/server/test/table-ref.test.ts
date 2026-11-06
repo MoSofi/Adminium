@@ -38,7 +38,7 @@ const TABLES = [
   { id: 'public.menu_items', name: 'menu_items' },
   { id: 'public.inventory_items', name: 'inventory_items' },
 ];
-const index = (records: AppTableRecord[], tables = TABLES): TableRefIndex => ({ records, tables });
+const index = (records: AppTableRecord[], tables = TABLES): TableRefIndex => ({ records, tables: tables.map((table) => ({ ...table, schema: 'public' })), defaultSchema: 'public' });
 
 describe('the stored name of a table', () => {
   it('is its maker\'s key and short name when a manifest made it', () => {

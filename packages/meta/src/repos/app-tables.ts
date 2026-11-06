@@ -213,13 +213,22 @@ export function appTablesRepo(meta: MetaDb) {
       return rows.map(toRecord);
     },
 
-    /** Every app that records a real table — "who else uses this?" */
-    async byTable(connectionId: string, tableName: string): Promise<AppTableRecord[]> {
+    /**
+     * Every app that records a real table — "who else uses this?" `real` is
+     * the table as {@link realTableOf} names it: a bare name is the one in the
+     * default schema (a record with no schema), `<schema>.<name>` the one in
+     * that schema. A table of the same name in another schema is another table.
+     */
+    async byTable(connectionId: string, real: string): Promise<AppTableRecord[]> {
+      const dot = real.indexOf('.');
+      const schemaName = dot < 0 ? null : real.slice(0, dot);
+      const tableName = dot < 0 ? real : real.slice(dot + 1);
       const rows = await db
         .selectFrom('adminium_app_tables')
         .selectAll()
         .where('connectionId', '=', connectionId)
         .where('tableName', '=', tableName)
+        .where((eb) => (schemaName === null ? eb('schemaName', 'is', null) : eb('schemaName', '=', schemaName)))
         .execute();
       return rows.map(toRecord);
     },
@@ -245,7 +254,8 @@ export function appTablesRepo(meta: MetaDb) {
           .set({
             manifestId: input.manifestId,
             tableName: input.tableName,
-            schemaName: input.schemaName ?? held.schemaName,
+            // `null` says the table is the default schema's (one moved out of a schema); left out, the held schema stays.
+            schemaName: input.schemaName === undefined ? held.schemaName : input.schemaName,
             owned: writeBool(meta, owned),
             state,
             role: input.role ?? held.role,

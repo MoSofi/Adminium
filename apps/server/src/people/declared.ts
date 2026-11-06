@@ -26,7 +26,9 @@
  * tests drive.
  */
 import { FIRST_WORD_OF_NAME, LINK_PATH, isAddOnCopy, optOutMarkColumn, peopleSchema, type PeopleCopy, type PeopleEntry } from '@adminium/manifest';
-import { appTablesRepo, manifestsRepo, overridesRepo, type AppTableRecord, type MetaDb, type SchemaOverride } from '@adminium/meta';
+import { appTablesRepo, manifestsRepo, overridesRepo, realTableOf, type AppTableRecord, type MetaDb, type SchemaOverride } from '@adminium/meta';
+
+import { tableIdModelOf, tableIdOrNull } from '../installs/table-id.js';
 
 /** A column on another table that holds a copy of the person's address or name. */
 export interface DeclaredCopy {
@@ -104,6 +106,8 @@ export interface DeclaredPeopleTable {
 /** What the resolver reads of a database's snapshot. */
 export interface PeopleModel {
   tables: readonly { id: string; name: string; schema?: string | undefined; columns: readonly { name: string; logicalType?: string | undefined }[] }[];
+  /** The schema a table recorded with none is in (`public` when not said). */
+  defaultSchema?: string | undefined;
 }
 
 /** Everything the resolver reads, already loaded. */
@@ -196,6 +200,7 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
     const connectionId = app.connectionId as string;
     const model = source.models.get(connectionId);
     if (model === undefined) continue;
+    const named = tableIdModelOf(model);
     const { entries, keyFields, links, addOnLinks, requires } = peopleOf(app.document);
     const appJson = jsonColumnsOf(app.document);
     /** Whether a copy's column keeps JSON: its manifest says so, or the database does. */
@@ -205,7 +210,9 @@ export function resolveDeclaredPeople(source: PeopleSource): DeclaredPeopleTable
     const tableOf = (ref: string, owner: string = app.appKey) => {
       const record = source.records.find((candidate) => candidate.connectionId === connectionId && candidate.appKey === owner && candidate.ref === ref && HELD.has(candidate.state));
       if (record === undefined) return undefined;
-      const table = model.tables.find((candidate) => candidate.name === record.tableName && (record.schemaName === null || candidate.schema === undefined || candidate.schema === record.schemaName));
+      // A record with no schema is the default schema's table: never a same-named one elsewhere.
+      const id = tableIdOrNull(named, realTableOf(record));
+      const table = id === null ? undefined : model.tables.find((candidate) => candidate.id === id);
       return table === undefined ? undefined : { table, owned: record.owned };
     };
 

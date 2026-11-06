@@ -37,11 +37,13 @@
  * (`not-repaired` consequence) rather than silently left.
  */
 import { parseDatabaseModel } from '@adminium/engine';
+import { splitTableName } from '@adminium/manifest';
 import type { MetaDb } from '@adminium/meta';
 import { appTablesRepo, connectionsRepo, overridesRepo, pagesRepo, permissionActionsSchemaFor, permissionsRepo, publicApiStateRepo, snapshotsRepo, type RowReach, type TableActions } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
 import { mapTableRefs } from '../apps/real-refs.js';
+import { defaultSchemaOf, recordIsTable } from '../installs/table-id.js';
 import { applyOverrides, columnPolicyFor } from '../connections/effective-schema.js';
 import { isUntouched, stamped } from '../pages/generated-stamp.js';
 
@@ -720,10 +722,15 @@ export async function tableRefRewrites(input: TableRefRepairInput): Promise<Tabl
   const marked = (await overridesRepo(input.meta).listForConnection(input.connectionId, { status: 'active' })).filter((row) => row.op === 'column.tableRef' && row.columnName !== null);
   if (marked.length === 0) return [];
   const records = await appTablesRepo(input.meta).forConnection(input.connectionId);
-  const made = (name: string): boolean => records.some((record) => record.tableName === name && record.owned && record.state !== 'dropped');
+  // A record of the table by its id: `sales.orders` was made by whoever made it, not by the maker of `public.orders`.
+  const defaultSchema = await defaultSchemaOf(input.meta, input.connectionId);
+  const made = (id: string): boolean => {
+    const { schema, name } = splitTableName(id);
+    return records.some((record) => recordIsTable(record, { schema: schema ?? defaultSchema ?? '', name }, defaultSchema) && record.owned && record.state !== 'dropped');
+  };
   const out: TableRefRewrite[] = [];
   for (const rename of input.renames) {
-    if (made(bare(rename.from)) || made(bare(rename.to))) continue;
+    if (made(rename.from) || made(rename.to)) continue;
     for (const row of marked) out.push({ table: row.tableName, column: row.columnName as string, from: rename.from, to: rename.to });
   }
   return out;

@@ -33,6 +33,7 @@
 import { appPartIsOn } from '../rbac/app-parts.js';
 import { satisfiesSemverRange, type AppManifest, type Manifest } from '@adminium/manifest';
 import { appTablesRepo, documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
+import { realOfTable, tableIdOrNull } from '../installs/table-id.js';
 
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { SnapshotView } from '../crud/identifiers.js';
@@ -120,7 +121,7 @@ export async function addOnAvailability(
 export function realIdIn(view: SnapshotView | null, names: Readonly<Record<string, string>>): (ref: string) => string | null {
   return (ref) => {
     const real = names[ref] ?? ref;
-    return view?.model.tables.find((table) => table.name === real)?.id ?? null;
+    return view === null ? null : tableIdOrNull(view.model, real);
   };
 }
 
@@ -344,7 +345,9 @@ export async function ownedDocumentOff(
   const view = await loadSnapshotView(meta, profile.connectionId).catch(() => null);
   if (view === null) return { addOn: profile.addOnKey, feature: null, reason: "the app's tables cannot be read right now" };
   const names = await appTablesRepo(meta).realNames(profile.connectionId, profile.ownerApp);
-  const real = view.model.tables.find((table) => table.id === profile.table)?.name;
+  // The profile's table as the app's records name it: `sales.orders` for one in a schema of its own.
+  const table = view.model.tables.find((one) => one.id === profile.table);
+  const real = table === undefined ? undefined : realOfTable(view.model, table);
   const ref = Object.entries(names).find(([, name]) => name === real)?.[0] ?? '';
   return await appDocumentOff({ meta, manifest, profile, table: ref, runtime });
 }

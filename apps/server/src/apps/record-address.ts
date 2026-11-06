@@ -25,10 +25,11 @@
  * nothing. The host of an e-mail's link is the operator's mapped host or
  * `system.publicOrigin`, never a request's.
  */
-import { recordAddressOf, staffRecordAddresses } from '@adminium/manifest';
-import { readBool, settingsRepo, type MetaDb } from '@adminium/meta';
+import { recordAddressOf, splitTableName, staffRecordAddresses } from '@adminium/manifest';
+import { readBool, realTableOf, settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { SURFACES_URL_ROOT } from '../cli/surfaces-root.js';
+import { defaultSchemaOf } from '../installs/table-id.js';
 import { loadAppParts, partIsOn } from '../rbac/app-parts.js';
 import { permissionSetAllows, resolvePermissionSet, type PermissionSet } from '../rbac/resolver.js';
 import { availabilityOf, instancesOf, staffConnectionOf, staffPlacementOf, type SurfaceSettings } from '../surfaces/settings.js';
@@ -54,8 +55,8 @@ export interface RecordPlace {
 
 interface AppAddresses {
   appKey: string;
-  /** Real table name → the address its records open at, with the part of the app the table belongs to. */
-  tables: Map<string, { address: string; schema: string | null; module: string | null; owned: boolean }>;
+  /** Real table (`realTableOf`: `orders`, `sales.orders`) → its name and schema, the address its records open at, and the part of the app it belongs to. */
+  tables: Map<string, { name: string; address: string; schema: string | null; module: string | null; owned: boolean }>;
   /** The base of the mount that reads this connection, on this server. */
   base: string;
   host: string | null;
@@ -109,6 +110,7 @@ export interface RecordAddressBook {
 export const NO_ADDRESSES: RecordAddressBook = { placeOf: () => null, placeFor: () => null };
 
 export async function recordAddressBook(meta: MetaDb, connectionId: string, given?: SurfaceSettings): Promise<RecordAddressBook> {
+  let defaultSchema: string | null | undefined;
   const rows = await meta.db
     .selectFrom('adminium_manifests')
     .select(['id', 'manifestKey', 'connectionId', 'version', 'updatedAt'])
@@ -137,6 +139,7 @@ export async function recordAddressBook(meta: MetaDb, connectionId: string, give
     }
     if (Object.keys(known.addresses).length === 0) continue;
 
+    defaultSchema ??= await defaultSchemaOf(meta, connectionId);
     const tableRows = await meta.db
       .selectFrom('adminium_app_tables')
       .select(['ref', 'tableName', 'schemaName', 'module', 'state', 'owned'])
@@ -149,7 +152,7 @@ export async function recordAddressBook(meta: MetaDb, connectionId: string, give
       const address = known.addresses[table.ref];
       // A table of a part that is off opens nowhere in the app: its screens are off with it.
       if (address === undefined || !partIsOn(parts.get(key), table.module)) continue;
-      tables.set(table.tableName, { address, schema: table.schemaName, module: table.module, owned: readBool(table.owned) });
+      tables.set(realTableOf(table), { name: table.tableName, address, schema: table.schemaName, module: table.module, owned: readBool(table.owned) });
     }
     if (tables.size === 0) continue;
 
@@ -172,10 +175,18 @@ export async function recordAddressBook(meta: MetaDb, connectionId: string, give
    */
   const placeOf = (record: RecordAt): RecordPlace | null => {
     if (record.connectionId !== connectionId) return null;
+    const asked = splitTableName(record.table);
     let shared: RecordPlace | null = null;
     for (const app of apps) {
-      for (const [name, table] of app.tables) {
-        const named = table.schema !== null ? record.table === `${table.schema}.${name}` || record.table === name : record.table === name || record.table.endsWith(`.${name}`);
+      for (const table of app.tables.values()) {
+        if (asked.name !== table.name) continue;
+        // A table recorded with no schema is the default schema's: `sales.orders` is never its record, nor a bare name a schema'd one's.
+        const named =
+          asked.schema === null
+            ? table.schema === null
+            : table.schema !== null
+              ? asked.schema === table.schema
+              : defaultSchema === null || asked.schema === defaultSchema;
         if (!named) continue;
         const path = recordAddressOf(table.address, record.recordId);
         if (path === null) continue;

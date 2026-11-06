@@ -169,6 +169,7 @@ import { EndpointInUse, KeyCreateRefused, type EndpointService } from '../public
 import type { PublicMethod } from '../public-api/endpoint.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { refusePlannedOnly, refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
+import { tableIdIn, tableIdOrNull } from '../installs/table-id.js';
 import type { DsnCrypto } from '@adminium/meta';
 import type { FileStore } from '../files/store.js';
 import { APP_VERSION } from '../version.js';
@@ -497,26 +498,6 @@ function updateAnswers(body: { choices?: Record<string, TableChoice> | undefined
     ...(body?.shares === undefined ? {} : { shares: body.shares }),
     ...(body?.pages === undefined ? {} : { pages: body.pages }),
   };
-}
-
-/**
- * The snapshot's id of a real table: a self-made app's `sales.Order Lines` is
- * its own id already; a bare name is the table of that name in the default
- * schema, else the only one so named.
- */
-export function tableIdIn(model: DatabaseModel, real: string): string {
-  return tableIdOrNull(model, real) ?? real;
-}
-
-/** {@link tableIdIn}, or null when the model has no such table. */
-export function tableIdOrNull(model: Pick<DatabaseModel, 'tables' | 'defaultSchema'>, real: string): string | null {
-  const { schema, name } = splitTableName(real);
-  if (schema !== null) return model.tables.find((t) => t.schema === schema && t.name === name)?.id ?? null;
-  return (
-    model.tables.find((t) => t.name === name && (t.schema === model.defaultSchema || t.schema === null))?.id ??
-    model.tables.find((t) => t.name === name)?.id ??
-    null
-  );
 }
 
 /** A real table as its record keeps it: the name, and the schema apart (null for none). */
@@ -1285,10 +1266,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const held = await appTablesRepo(deps.meta).realNames(connectionId, manifest.key);
     // The app's table by its own id: a table of the same name in another schema is somebody else's, and its mark says nothing here.
     const read = privateNow.length === 0 ? null : await loadSnapshotView(deps.meta, connectionId).then((view) => view.model, () => null);
-    const idOf = (real: string): string | null => {
-      const named = (read?.tables ?? []).filter((one) => one.name === real);
-      return (named.length === 1 ? named[0] : named.find((one) => one.schema === read?.defaultSchema))?.id ?? null;
-    };
+    const idOf = (real: string): string | null => (read === null ? null : tableIdOrNull(read, real));
     for (const table of manifest.requiredSchema?.tables ?? []) {
       const real = held[table.ref];
       if (real === undefined) continue;

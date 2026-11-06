@@ -38,7 +38,7 @@
  * lower case on both sides; nothing else is folded.
  */
 import { KEPT_BY_LAW_REASONS, type KeptByLawReason, type Outbox } from '@adminium/manifest';
-import { appOutboxesRepo, appTablesRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
+import { appOutboxesRepo, appTablesRepo, manifestsRepo, realTableOf, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
 import { looksLikeAddress, type ConsentEvent, type ConsentService } from '../consent/index.js';
@@ -163,7 +163,8 @@ export async function keptTablesOf(meta: MetaDb, connectionId: string, apps: rea
       const law = table?.keep?.law;
       if (typeof table?.ref !== 'string' || typeof law !== 'string' || !(KEPT_BY_LAW_REASONS as readonly string[]).includes(law)) continue;
       const record = records.find((candidate) => candidate.appKey === app.appKey && candidate.ref === table.ref && HELD.has(candidate.state));
-      const resolved = record === undefined ? null : tableOf(view, record.schemaName === null ? record.tableName : `${record.schemaName}.${record.tableName}`) ?? tableOf(view, record?.tableName ?? '');
+      // By the one string its record names it by: a table in a schema of its own that is gone is never its default-schema twin.
+      const resolved = record === undefined ? null : tableOf(view, realTableOf(record));
       if (resolved !== null) out.set(resolved.id, { reason: law as KeptByLawReason, app: app.appKey });
     }
   }

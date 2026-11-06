@@ -39,7 +39,7 @@ import {
   type Manifest,
   installsLikeAnApp,
 } from '@adminium/manifest';
-import { appTablesRepo, auditRepo, manifestsRepo, type InstalledManifest } from '@adminium/meta';
+import { appTablesRepo, auditRepo, manifestsRepo, realTableOf, type InstalledManifest } from '@adminium/meta';
 
 import { catalogSchema, isCurrentCatalogFormat, meetsMinimum, pickLocalized, type CatalogClient, type CatalogEntry } from '../add-ons/catalog.js';
 import { bundledAddOnVersions } from '../add-ons/bundled.js';
@@ -619,7 +619,7 @@ export function tablesComingFromAddOns(rows: readonly AppAddOnRow[]): { ref: str
 }
 
 /**
- * Table name → the installed add-on that declares it. An add-on's tables are
+ * Real table (`realTableOf`) → the installed add-on that declares it. An add-on's tables are
  * its own whoever else names them: an app may not rename one out of the way,
  * take it over, or drop it with itself. Nothing records which connection an
  * add-on's tables went to, so callers match these names against the tables
@@ -631,7 +631,7 @@ export async function addOnTablesByName(installer: Pick<AddOnInstallerDeps, 'met
   for (const installed of await manifestsRepo(installer.meta, installer.credentialCrypto).list('add-on')) {
     // The names its tables really have, from its records; an add-on installed before records were kept has only its bare refs.
     const recorded = installed.row.connectionId === null ? [] : (await records.forInstall(installed.row.connectionId, installed.row.manifestKey)).filter((record) => record.state !== 'dropped');
-    for (const record of recorded) if (!out.has(record.tableName)) out.set(record.tableName, installed.row.manifestKey);
+    for (const record of recorded) if (!out.has(realTableOf(record))) out.set(realTableOf(record), installed.row.manifestKey);
     if (recorded.length > 0) continue;
     const tables = (installed.document as { requiredSchema?: { tables?: { ref?: unknown }[] } } | null)?.requiredSchema?.tables ?? [];
     for (const table of tables) {

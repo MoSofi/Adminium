@@ -67,6 +67,7 @@ import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
 import { newId, overridesRepo, pagesRepo, permissionsRepo, snapshotsRepo, type MetaDb, type PageSummary } from '@adminium/meta';
 
 import { ownsBlocks } from './owns-blocks.js';
+import { tableIdOrNull } from '../installs/table-id.js';
 import type { RefTarget } from './envelope-refs.js';
 import { appTableRefs, envelopeFromFile, targetTableFor } from './manifest-envelopes.js';
 import { bindForm, bindLayout, bindListConfig, boardOf, calendarOf } from './manifest-page-config.js';
@@ -441,7 +442,7 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
     const tableId =
       tableRef === null || model === null
         ? null
-        : (model.tables.find((t) => t.name === tableRef)?.id ?? null);
+        : tableIdOrNull(model, tableRef);
 
     let envelope: Record<string, unknown> | null = null;
     if (bound && tableRef === null) {
@@ -552,7 +553,8 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       const bound = bindListConfig(page.config, composed.view, composed.view.table(tableId), names, current);
       for (const warning of bound.warnings) result.warnings.push({ page: page.ref, ...warning });
       // A code only its last four characters are shown of, and a code staff never see, are on no list, form or peek.
-      const declared = (manifest.requiredSchema?.tables ?? []).find((candidate) => (names[candidate.ref] ?? candidate.ref) === composed.view.table(tableId).name);
+      // By the table's id: `sales.orders` and `public.orders` are two tables, and each keeps its own codes.
+      const declared = (manifest.requiredSchema?.tables ?? []).find((candidate) => tableIdOrNull(composed.view.model, names[candidate.ref] ?? candidate.ref) === tableId);
       // After the manifest's own columns are laid on: they are filtered the same way.
       const merged = { ...current, ...bound.config };
       const columns = merged['columns'];

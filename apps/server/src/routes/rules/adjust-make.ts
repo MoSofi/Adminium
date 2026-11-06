@@ -23,6 +23,7 @@
  */
 import type { EffectiveModel, EffectiveTable, TableAdjust } from '../../connections/effective-schema.js';
 import type { EditBody } from '../../schema-ddl/programmatic.js';
+import { tableOfReal } from '../../installs/table-id.js';
 
 /** Which of the columns the rule names, and the table of typed codes, Adminium is to add. */
 export interface MakeAsked {
@@ -69,7 +70,7 @@ const MONEY = { logicalType: 'decimal', numericPrecision: 14, numericScale: 2 } 
  * add-on's own names for its tables of codes and vouchers, for the links a
  * typed code fills.
  */
-export function planMake(input: { model: Pick<EffectiveModel, 'tables'>; table: EffectiveTable; adjust: TableAdjust; make: MakeAsked; adjuster: { addOn: string; codes: string; vouchers: string } | null }): MakePlan {
+export function planMake(input: { model: Pick<EffectiveModel, 'tables' | 'defaultSchema'>; table: EffectiveTable; adjust: TableAdjust; make: MakeAsked; adjuster: { addOn: string; codes: string; vouchers: string } | null }): MakePlan {
   const { model, table: order, adjust, make } = input;
   const addColumns: NonNullable<EditBody['addColumns']> = [];
   const upsertTables: NonNullable<EditBody['upsertTables']> = [];
@@ -153,7 +154,8 @@ export function planMake(input: { model: Pick<EffectiveModel, 'tables'>; table: 
     const key = order.primaryKey[0];
     const keyColumn = order.columns.find((candidate) => candidate.name === key);
     const wanted = codes === undefined ? [] : [codes.via, codes.typed, codes.code, codes.voucher, ...(codes.removed === undefined ? [] : [codes.removed])];
-    const existing = model.tables.find((candidate) => candidate.name === make.codes!.table || candidate.id === make.codes!.table);
+    // By its id, else as a real string: a bare name is the default schema's table, never a same-named one elsewhere.
+    const existing = model.tables.find((candidate) => candidate.id === make.codes!.table) ?? tableOfReal(model, make.codes.table);
     const links = (table: string): void => {
       for (const [name, target] of [[codes!.code, input.adjuster!.codes], [codes!.voucher, input.adjuster!.vouchers]] as const) {
         rules.push({ table, column: name, op: 'column.addOnLink', value: { addOn: input.adjuster!.addOn, table: target } });

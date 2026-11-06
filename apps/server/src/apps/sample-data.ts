@@ -75,6 +75,7 @@ import {
   jobsRepo,
   newId,
   readJson,
+  realTableOf,
   type Job,
   overridesRepo,
   rolesRepo,
@@ -87,6 +88,7 @@ import {
 
 import { createAppFiles, type AppFiles } from './app-files.js';
 import { roleSlugFor } from './manifest-roles.js';
+import { defaultSchemaOf, recordIsTable, tableOfReal } from '../installs/table-id.js';
 import type { AppStore } from './store.js';
 import { applyOverrides, type EffectiveModel } from '../connections/effective-schema.js';
 import { runIntrospection } from '../connections/introspect.js';
@@ -915,11 +917,13 @@ export async function ledgersListing(
   meta: MetaDb,
   db: Kysely<SourceDatabase>,
   connectionId: string,
-  tableName: string,
+  table: { schema: string; name: string },
   pk: Row,
 ): Promise<{ ledger: string; seq: number; colHashes: string }[]> {
   const records = await appTablesRepo(meta).forConnection(connectionId);
-  const holders = records.filter((record) => record.role === 'app' && record.tableName === tableName && record.state !== 'dropped' && record.state !== 'pending');
+  // Its own records only: `sales.orders`'s rows are never `public.orders`'s samples.
+  const defaultSchema = await defaultSchemaOf(meta, connectionId);
+  const holders = records.filter((record) => record.role === 'app' && recordIsTable(record, table, defaultSchema) && record.state !== 'dropped' && record.state !== 'pending');
   const out: { ledger: string; seq: number; colHashes: string }[] = [];
   for (const ledger of records.filter((record) => record.role === 'sample-ledger' && record.state === 'created')) {
     const refs = [...new Set(holders.map((holder) => (holder.appKey === ledger.appKey ? holder.ref : `${holder.appKey}:${holder.ref}`)))];
@@ -946,7 +950,8 @@ export async function sampleListsNaming(meta: MetaDb, db: Kysely<SourceDatabase>
   const wanted = keyIdOf(table, pk);
   if (wanted === null) return [];
   const records = await appTablesRepo(meta).forConnection(connectionId);
-  const holders = records.filter((record) => record.role === 'app' && record.tableName === table.name && record.state !== 'dropped' && record.state !== 'pending');
+  const defaultSchema = await defaultSchemaOf(meta, connectionId);
+  const holders = records.filter((record) => record.role === 'app' && recordIsTable(record, table, defaultSchema) && record.state !== 'dropped' && record.state !== 'pending');
   if (holders.length === 0) return [];
   const out: SampleList[] = [];
   for (const ledger of records.filter((record) => record.role === 'sample-ledger' && record.state === 'created')) {
@@ -965,7 +970,8 @@ export async function sampleListsNaming(meta: MetaDb, db: Kysely<SourceDatabase>
 export async function sampleKeysOf(meta: MetaDb, db: Kysely<SourceDatabase>, connectionId: string, table: ResolvedTable): Promise<Set<string>> {
   const out = new Set<string>();
   const records = await appTablesRepo(meta).forConnection(connectionId);
-  const holders = records.filter((record) => record.role === 'app' && record.tableName === table.name && record.state !== 'dropped' && record.state !== 'pending');
+  const defaultSchema = await defaultSchemaOf(meta, connectionId);
+  const holders = records.filter((record) => record.role === 'app' && recordIsTable(record, table, defaultSchema) && record.state !== 'dropped' && record.state !== 'pending');
   if (holders.length === 0) return out;
   for (const ledger of records.filter((record) => record.role === 'sample-ledger' && record.state === 'created')) {
     const refs = [...new Set(holders.map((holder) => (holder.appKey === ledger.appKey ? holder.ref : `${holder.appKey}:${holder.ref}`)))];
@@ -1006,7 +1012,8 @@ export async function listRuleMadeRow(
   if (row === undefined) return 0;
   const key = Object.fromEntries(target.table.primaryKey.map((column) => [column, row[column]]));
   const records = await appTablesRepo(meta).forConnection(target.connectionId);
-  const holders = records.filter((record) => record.role === 'app' && record.tableName === target.table.name && record.state !== 'dropped' && record.state !== 'pending');
+  const defaultSchema = await defaultSchemaOf(meta, target.connectionId);
+  const holders = records.filter((record) => record.role === 'app' && recordIsTable(record, target.table, defaultSchema) && record.state !== 'dropped' && record.state !== 'pending');
   const maker = holders.find((holder) => holder.owned) ?? holders[0];
   const { rowHash, colHashes } = hashRow(row, target.table);
   let listed = 0;
@@ -1046,7 +1053,7 @@ export async function rehashSampleRow(
   pk: Row,
 ): Promise<void> {
   const db = asDb(target.db);
-  const listed = await ledgersListing(meta, db, target.connectionId, target.table.name, pk);
+  const listed = await ledgersListing(meta, db, target.connectionId, target.table, pk);
   if (listed.length === 0) return;
   const now = await fetchByPk(db, target.table, pk);
   if (now === undefined) return;
@@ -1206,7 +1213,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
     if (rule === undefined || real === undefined) return new Set();
     const live = (state: string) => state === 'created' || state === 'adopted' || state === 'shared';
     const everyRecord = await records.forConnection(connectionId);
-    const sharedWith = everyRecord.filter((r) => r.appKey !== app.key && r.role === 'app' && r.tableName === real && live(r.state));
+    const sharedWith = everyRecord.filter((r) => r.appKey !== app.key && r.role === 'app' && realTableOf(r) === real && live(r.state));
     if (sharedWith.length === 0) return new Set();
     const view = await viewFor(connectionId);
     const table = view.table(real);
@@ -1747,7 +1754,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const refIndex = await tableRefIndex(deps.meta, connectionId, view.model);
       const tableRef = (ref: string): string | null => {
         const real = names[ref];
-        const found = real === undefined ? undefined : view.model.tables.find((table) => table.name === real);
+        const found = real === undefined ? undefined : tableOfReal(view.model, real);
         return found === undefined ? null : storedTableRef(refIndex, found.id);
       };
       /*

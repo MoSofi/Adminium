@@ -48,6 +48,7 @@ import { matrixRowsFromGrants } from '../rbac/permissions.js';
 import type { RoleTableResult } from '@adminium/manifest';
 import { grantKeyOf, installRoleSlug, type InstallAddress } from '../installs/resolve.js';
 import { ownsBlocks } from './owns-blocks.js';
+import { tableIdOrNull } from '../installs/table-id.js';
 
 type ManifestRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[number];
 
@@ -372,7 +373,7 @@ export async function writeManifestRoles(input: {
   const prefixed = (manifest.requiredSchema as { prefixed?: boolean } | undefined)?.prefixed === true;
   const tableId = (ref: string): string | null => {
     const real = input.names[ref] ?? (prefixed ? null : ref);
-    return real === null ? null : (model?.tables.find((table) => table.name === real)?.id ?? null);
+    return real === null || model === null ? null : tableIdOrNull(model, real);
   };
   const roles = rolesRepo(meta);
   const permissions = permissionsRepo(meta);

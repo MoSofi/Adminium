@@ -3,12 +3,14 @@ import type { DatabaseModel } from '@adminium/engine';
 
 import type { ConnectionManager } from '../connections/manager.js';
 import { countWithin } from '../crud/count-within.js';
+import { tableIdOrNull } from '../installs/table-id.js';
 
 /** How long the app page waits for one table's row count before showing the estimate. */
 export const APP_TABLE_COUNT_BUDGET_MS = 400;
 
 /**
- * How many rows each of an app's tables HOLDS, counted now, by table name.
+ * How many rows each of an app's tables HOLDS, counted now, by the real
+ * table string asked for (`realTableOf`: `orders`, `sales.orders`).
  *
  * The snapshot's estimate is what the install saw — empty tables — and no
  * engine's statistics move when sample data lands, so the app page read
@@ -28,8 +30,8 @@ export async function liveRowCounts(
     const handle = await manager.data(await manager.mustFind(connectionId));
     await Promise.all(
       tableNames.map(async (name) => {
-        const id = model.tables.find((table) => table.name === name)?.id;
-        if (id === undefined) return;
+        const id = tableIdOrNull(model, name);
+        if (id === null) return;
         const count = await countWithin(handle.db, id, budgetMs);
         if (count !== null) out.set(name, count);
       }),
