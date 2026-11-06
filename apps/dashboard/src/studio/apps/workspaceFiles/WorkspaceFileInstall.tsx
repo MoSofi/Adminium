@@ -24,13 +24,13 @@
  *
  * ─── Departures ────────────────────────────────────────────────────────────
  *
- *  **W1 — no "A new database…"** in "Install on" (plan, F14): apps go onto
+ *  **W1 — no "A new database…"** in "Install on": apps go onto
  *  databases already connected; with none, the row says to connect one first.
- *  **W2 — a newer app is an update, not a refusal** (A5-F1): its pill reads
+ *  **W2 — a newer app is an update, not a refusal**: its pill reads
  *  "Update", with the versions, and the footer counts both.
  *  **W3 — "Add to an existing workspace" is disabled on a server with none**,
  *  and "No workspace" then reads "The databases stay as they are in the
- *  menu." (A5-F12). The first workspace's notice is from the plan (§ notes).
+ *  menu." The first workspace's notice is drawn from notes.
  *  **W4 — "Open the workspace" opens Data connections**, where its card is:
  *  switching the menu to a workspace belongs to the sidebar.
  *  **W5 — the review of an update shows the update's plan** with the same

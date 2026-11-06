@@ -22,7 +22,7 @@
  *  the dialog's own field anatomy, shown only to someone who manages
  *  settings (the save refuses it to anyone else).
  *  **S2 — fingerprints are real** (`sha512-` + base64), shortened in the
- *  middle, Copy giving the whole (A5-F11); the comp's are 64-hex fakes.
+ *  middle, Copy giving the whole; the comp's are 64-hex fakes.
  *  **S3 — the result dialog is lg (720)**, a kit size, where the comp draws 640.
  *  **S4 — "More choices" shows only where the page that mounts the dialog
  *  opens Save as app's wizard** (`onMoreChoices`); the dialog cannot open it
