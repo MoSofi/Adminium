@@ -41,7 +41,7 @@ function registeredCommands(): string[] {
     const from = new RegExp(`import \\{ ${identifier} \\} from '([^']+)'`).exec(run)?.[1];
     expect(from, `run.ts registers ${identifier} but imports it from nowhere`).toBeDefined();
     const source = read(join('apps', 'server', 'src', 'cli', (from ?? '').replace(/^\.\//, '').replace(/\.js$/, '.ts')));
-    const name = /^  name: '([a-z-]+)',$/m.exec(source)?.[1];
+    const name = /^ {2}name: '([a-z-]+)',$/m.exec(source)?.[1];
     expect(name, `${identifier} declares no \`name\``).toBeDefined();
     return name ?? '';
   });
