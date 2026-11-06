@@ -1046,6 +1046,7 @@ export default {
         "body": "Sie kommen ausgeschaltet und leer an. Wer Automatisierungen verwaltet, kann sie einschalten.",
         "webhook": "sendet an eine Webadresse · Adresse leer gelassen",
         "address": "mailt an eine feste Adresse · Adresse leer gelassen",
+        "outbound": "sendet nach außen durch das, was sie schreibt oder verlinkt · erst prüfen",
         "off": "Aus"
       },
       "instance": {
@@ -1083,6 +1084,7 @@ export default {
         "recipients": "{count, plural, one {Wer den geplanten Bericht {item} erhält} other {Wer die # geplanten Berichte erhält}}",
         "sender": "{count, plural, one {Die Absenderadresse der Mail {item}} other {Die Absenderadresse für # Mailvorlagen}}",
         "systemGrant": "Die Konsolenrechte der Rolle {item}",
+        "outbound": "Was die Regel {item} nach außen sendet",
         "title": "Nach der Installation",
         "note": "Sie bleiben auf der Seite der App, bis sie erledigt sind."
       },
@@ -3530,6 +3532,8 @@ export default {
     "pages": "{count, plural, one {# Seite} other {# Seiten}}",
     "keys": "{count, plural, one {Ihr Browser-Schlüssel} other {Ihre # Browser-Schlüssel}}",
     "settings": "Ihre Einstellungen",
+    "instance": "Das Aussehen und die Sprachen, die sie angewendet hat, so zurückgesetzt, wie sie waren",
+    "instanceLocked": "Sie hat das Aussehen und die Sprachen des ganzen Servers geändert. Sie zurückzusetzen erfordert die Berechtigung, die Servereinstellungen zu ändern: Bitten Sie jemanden mit dieser Berechtigung, die App zu deinstallieren.",
     "hosts": "{count, plural, one {Ihre Domain} other {Ihre # Domains}}",
     "tables": "{count, plural, one {# Tabelle mit allen Datensätzen} other {# Tabellen mit allen Datensätzen}}",
     "editedPages": "Seiten, die Sie bearbeitet haben, bleiben als normale Seiten",
@@ -5544,6 +5548,7 @@ export default {
         "recipients": "{count, plural, one {Empfänger des geplanten Berichts wählen} other {Empfänger der # geplanten Berichte wählen}}",
         "sender": "{count, plural, one {Absenderadresse für # E-Mail-Vorlage festlegen} other {Absenderadresse für # E-Mail-Vorlagen festlegen}}",
         "systemGrant": "Der Rolle {name} ihre Konsolenrechte geben",
+        "outbound": "Prüfen, was '{name}' nach außen sendet, dann einschalten",
         "webhook": "Die Webadresse in '{name}' eintragen",
         "webhookHeader": "Den Header-Wert in '{name}' ausfüllen"
       },

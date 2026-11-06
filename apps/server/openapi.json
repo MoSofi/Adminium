@@ -138095,7 +138095,8 @@
                                   "payment-key",
                                   "bank-account",
                                   "sender",
-                                  "system-grant"
+                                  "system-grant",
+                                  "outbound"
                                 ]
                               },
                               "item": {
@@ -143263,6 +143264,22 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "instance": {
+                      "type": "object",
+                      "properties": {
+                        "values": {
+                          "type": "number"
+                        },
+                        "canRestore": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "values",
+                        "canRestore"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [

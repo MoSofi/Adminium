@@ -62,6 +62,8 @@ import { tagFromLocaleId } from '@adminium/i18n';
 import { blocksShownFor, fillPlaceholders, ROW_PICTURE_MAX_BYTES, rowPictureName } from '@adminium/manifest';
 import type { EmailBlockStyle, EmailBrand } from '@adminium/meta';
 
+import { plainLink } from './plain-link.js';
+
 /**
  * Where the bytes of an inline image come from. The renderer never holds
  * bytes: it emits `cid:` references and reports what it referenced, and
@@ -270,7 +272,8 @@ function fill(source: string, vars: Record<string, string>, escape: (s: string) 
  */
 function safeHref(url: string): string {
   const trimmed = url.trim();
-  return /^(?:https?:|mailto:)/i.test(trimmed) ? trimmed : '#';
+  // `https:/evil`, `https:\\evil` and `https:evil` all start `https:`, and a browser goes to `evil` for each: only `https://host` as written passes.
+  return plainLink(trimmed, ['http', 'https', 'mailto']) ? trimmed : '#';
 }
 
 /** Subjects are a header, not a body: CR/LF there is header injection. */
@@ -521,7 +524,7 @@ function renderImage(data: Record<string, unknown>, ctx: RenderCtx): BlockOut | 
     const cid = imageCid(fileId);
     ctx.used.push({ cid, kind: 'file', fileId });
     src = `cid:${cid}`;
-  } else if (/^https:\/\//i.test(url)) {
+  } else if (plainLink(url, ['https'])) {
     src = url;
   }
   if (src === null) return null;
@@ -1108,7 +1111,7 @@ export interface LockedFooter {
 function lockedFooterOf(locked: LockedFooter, ctx: Pick<RenderCtx, 'align'>): { html: string; text: string } {
   const style = `margin:0;font-family:${FONT};font-size:11px;line-height:1.6;color:${PALETTE.muted};text-align:${ctx.align};word-break:break-word;`;
   const lines = locked.lines.map((line) => line.replaceAll(/[\r\n]+/g, ' ').trim()).filter((line) => line !== '');
-  const href = /^https:\/\//i.test(locked.link.href) ? locked.link.href : null;
+  const href = plainLink(locked.link.href, ['https']) ? locked.link.href.trim() : null;
   const html =
     `<tr><td style="padding:0 ${String(CARD_X)}px 26px;"><div style="padding-top:12px;border-top:1px solid ${PALETTE.rule};">` +
     lines.map((line) => `<p style="${style}">${escapeHtml(line)}</p>`).join('') +

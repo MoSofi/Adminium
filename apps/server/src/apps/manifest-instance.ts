@@ -12,8 +12,11 @@
  *    default), and only by someone who may change the server's settings
  *    ({@link instanceRefusal});
  *  - the review shows every value it would change, and each edited email as a
- *    diff with every link host it holds; an email whose hosts are not all
- *    ticked is left out, and says so ({@link reviewInstance});
+ *    diff with every link host it holds, read as a mail client reads it
+ *    (`email/link-hosts.ts`); an email whose hosts are not all ticked is left
+ *    out, and says so, and so is one with a link whose host cannot be told,
+ *    that runs code, or that hands this server's own link to another host,
+ *    whatever is ticked ({@link reviewInstance});
  *  - everything is written in ONE meta transaction, with what each value
  *    replaced (`adminium_app_instance_undo`), so a failure part way changes
  *    nothing, an uninstall puts back exactly what was there (nothing, when
@@ -49,7 +52,9 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 
+import { BUILTIN_EMAIL_TEMPLATE_VARS } from '../email/builtins.js';
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
+import { emailLinks } from '../email/link-hosts.js';
 import { isEmailBlockKind } from '../email/render.js';
 import { ForbiddenError } from '../errors.js';
 import type { FileStore } from '../files/store.js';
@@ -263,33 +268,19 @@ const BRANDING_SETTINGS = {
   density: 'appearance.density',
 } as const;
 
-/** Every link host in an email's words: a link to anywhere a person may be sent. */
-export function linkHosts(content: unknown): string[] {
-  const hosts = new Set<string>();
-  const visit = (value: unknown, field: string | null): void => {
-    if (typeof value === 'string') {
-      for (const match of value.matchAll(/\bhttps?:\/\/([^\s"'<>()/?#\\]+)/gi)) hosts.add(hostOf(match[1]!));
-      // A link with no scheme in a field that is a link (`//evil.example`).
-      if (field !== null && /^(?:url|href|src|link)$/i.test(field)) {
-        const bare = /^\/\/([^\s"'<>()/?#\\]+)/.exec(value.trim());
-        if (bare !== null) hosts.add(hostOf(bare[1]!));
-      }
-      return;
-    }
-    if (Array.isArray(value)) {
-      for (const one of value) visit(one, field);
-      return;
-    }
-    if (value !== null && typeof value === 'object') for (const [key, one] of Object.entries(value)) visit(one, key);
-  };
-  visit(content, null);
-  hosts.delete('');
-  return [...hosts].sort();
+/** The placeholders of a system email that hold this server's own links (`resetUrl`, a sign-in `link`). */
+export function ownLinkVars(key: string | null): string[] {
+  const all = key === null ? Object.values(BUILTIN_EMAIL_TEMPLATE_VARS).flat() : ((BUILTIN_EMAIL_TEMPLATE_VARS as Readonly<Record<string, readonly string[]>>)[key] ?? []);
+  return [...new Set(all.filter((name) => /Url$/.test(name) || name === 'link'))];
 }
 
-function hostOf(authority: string): string {
-  const afterUser = authority.slice(authority.lastIndexOf('@') + 1);
-  return afterUser.replace(/:\d*$/, '').replace(/\.$/, '').toLowerCase();
+/**
+ * Every outside host an email can send a person to or load from (see
+ * `email/link-hosts.ts`), read with this server's own links of the email
+ * `key`, or of every system email when none is named.
+ */
+export function linkHosts(content: unknown, key: string | null = null): string[] {
+  return emailLinks(content, ownLinkVars(key)).hosts;
 }
 
 /** A file's blocks as the store keeps them: each with an id the editor addresses. */
@@ -304,6 +295,9 @@ function blocksProblem(blocks: readonly Record<string, unknown>[]): string | nul
     if (kind === 'email.rows' || !isEmailBlockKind(kind)) return `block ${String(index + 1)} is "${String(kind)}", which a system email cannot draw`;
     const data = block['data'];
     if (data !== undefined && !EMAIL_BLOCK_DATA_SCHEMAS[kind].safeParse(data).success) return `block ${String(index + 1)} is not the shape a "${kind}" block takes`;
+    // As the template store's own check: a picture is loaded over https only.
+    const url = kind === 'email.image' && data !== null && typeof data === 'object' ? (data as Record<string, unknown>)['url'] : undefined;
+    if (typeof url === 'string' && url.trim() !== '' && !/^https:\/\//i.test(url.trim())) return `block ${String(index + 1)} loads a picture that is not on https`;
   }
   return null;
 }
@@ -391,8 +385,14 @@ async function planInstance(m: MetaDb, part: InstancePart): Promise<InstancePlan
       left.push({ item, reason: problem });
       continue;
     }
+    // Every host it can send a person to, read as a mail client reads it; one it cannot tell keeps the whole email out.
+    const links = emailLinks(email.content, ownLinkVars(email.key));
+    if (links.problems.length > 0) {
+      left.push({ item, reason: links.problems.join('; ') });
+      continue;
+    }
     const held: EmailHeld = { subject: email.content.subject, preheader: email.content.preheader ?? '', blocks, footer: email.content.footer ?? '', isBuiltinCopy: false };
-    emails.push({ item, key: email.key, locale: email.locale, held, hosts: linkHosts(email.content) });
+    emails.push({ item, key: email.key, locale: email.locale, held, hosts: links.hosts });
   }
   return { values, files, left, emails };
 }

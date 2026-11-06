@@ -1036,6 +1036,7 @@
         "body": "Přijdou vypnutá a prázdná. Zapnout je může ten, kdo spravuje automatizace.",
         "webhook": "posílá na webovou adresu · adresa ponechána prázdná",
         "address": "posílá e-mail na pevnou adresu · adresa ponechána prázdná",
+        "outbound": "posílá ven tím, co zapisuje nebo na co odkazuje · nejdřív ho zkontrolujte",
         "off": "Vypnuto"
       },
       "instance": {
@@ -1073,6 +1074,7 @@
         "recipients": "{count, plural, one {Kdo dostává plánovaný přehled {item}} few {Kdo dostává # plánované přehledy} many {Kdo dostává # plánovaného přehledu} other {Kdo dostává # plánovaných přehledů}}",
         "sender": "{count, plural, one {Adresa odesílatele e-mailu {item}} few {Adresa odesílatele pro # e-mailové šablony} many {Adresa odesílatele pro # e-mailové šablony} other {Adresa odesílatele pro # e-mailových šablon}}",
         "systemGrant": "Práva konzole role {item}",
+        "outbound": "Co pravidlo {item} posílá ven",
         "title": "Po instalaci",
         "note": "Zůstanou na stránce aplikace, dokud nebudou hotové."
       },
@@ -3520,6 +3522,8 @@
     "pages": "{count, plural, one {# stránka} few {# stránky} many {# stránky} other {# stránek}}",
     "keys": "{count, plural, one {Její klíč prohlížeče} few {Její # klíče prohlížeče} many {Jejích # klíče prohlížeče} other {Jejích # klíčů prohlížeče}}",
     "settings": "Její nastavení",
+    "instance": "Vzhled a jazyky, které použila, se vrátí, jak byly",
+    "instanceLocked": "Změnila vzhled a jazyky celého serveru. Vrátit je zpět vyžaduje oprávnění měnit nastavení serveru: požádejte někoho, kdo ho má, aby tuto aplikaci odinstaloval.",
     "hosts": "{count, plural, one {Její doména} few {Její # domény} many {Jejích # domény} other {Jejích # domén}}",
     "tables": "{count, plural, one {# tabulka a všechny její záznamy} few {# tabulky a všechny jejich záznamy} many {# tabulky a všechny jejich záznamy} other {# tabulek a všechny jejich záznamy}}",
     "editedPages": "Stránky, které jste upravili, zůstanou jako běžné stránky",
@@ -5534,6 +5538,7 @@
         "recipients": "{count, plural, one {Zvolit, kdo dostává naplánovanou sestavu} few {Zvolit, kdo dostává # naplánované sestavy} many {Zvolit, kdo dostává # naplánované sestavy} other {Zvolit, kdo dostává # naplánovaných sestav}}",
         "sender": "{count, plural, one {Nastavit adresu odesílatele pro # e-mailovou šablonu} few {Nastavit adresu odesílatele pro # e-mailové šablony} many {Nastavit adresu odesílatele pro # e-mailové šablony} other {Nastavit adresu odesílatele pro # e-mailových šablon}}",
         "systemGrant": "Dát roli {name} její práva v konzoli",
+        "outbound": "Zkontrolovat, co '{name}' posílá ven, a pak ho zapnout",
         "webhook": "Doplnit webovou adresu do '{name}'",
         "webhookHeader": "Vyplnit hodnotu hlavičky v '{name}'"
       },

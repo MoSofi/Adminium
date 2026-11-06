@@ -1036,6 +1036,7 @@
         "body": "它們到達時為關閉且空白。管理自動化的人可以開啟它們。",
         "webhook": "傳送到網址 · 位址留空",
         "address": "寄信到固定位址 · 位址留空",
+        "outbound": "透過寫入的內容或連結向外傳送 · 請先檢查",
         "off": "關閉"
       },
       "instance": {
@@ -1073,6 +1074,7 @@
         "recipients": "{count, plural, =1 {誰接收排程報表 {item}} other {誰接收這 # 份排程報表}}",
         "sender": "{count, plural, =1 {郵件 {item} 的寄件位址} other {# 個郵件範本的寄件位址}}",
         "systemGrant": "角色 {item} 的主控台權限",
+        "outbound": "規則 {item} 向外傳送的內容",
         "title": "安裝之後",
         "note": "這些會一直留在應用程式頁面，直到完成。"
       },
@@ -3520,6 +3522,8 @@
     "pages": "{count, plural, other {# 個頁面}}",
     "keys": "{count, plural, other {其 # 個瀏覽器金鑰}}",
     "settings": "其設定",
+    "instance": "它套用的外觀和語言，恢復為原樣",
+    "instanceLocked": "它變更了整個伺服器的外觀和語言。恢復它們需要變更伺服器設定的權限：請讓擁有該權限的人解除安裝此應用程式。",
     "hosts": "{count, plural, other {其 # 個網域}}",
     "tables": "{count, plural, other {# 個資料表及其全部記錄}}",
     "editedPages": "你編輯過的頁面會保留為一般頁面",
@@ -5534,6 +5538,7 @@
         "recipients": "{count, plural, other {選擇這 # 份排程報表的收件人}}",
         "sender": "{count, plural, other {為 # 個郵件範本設定寄件地址}}",
         "systemGrant": "授予 {name} 角色其主控台權限",
+        "outbound": "檢查 '{name}' 向外傳送的內容，然後再啟用",
         "webhook": "為 '{name}' 新增網址",
         "webhookHeader": "填寫 '{name}' 的標頭值"
       },

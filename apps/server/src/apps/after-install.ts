@@ -7,7 +7,10 @@
  * document is mailed to, who a scheduled report goes to, a payment service's
  * keys, a bank account, the address a mail is sent from, a console
  * permission a role held where the file was made. Those parts arrive empty
- * (and their rule switched off, the permission not given); each is one item of the app's "After you install" list, said by what
+ * (and their rule switched off, the permission not given). A rule step that
+ * sends out of Adminium with words of the file's own (`outbound`: an address
+ * it writes, a link its mail carries) keeps them, and arrives switched off
+ * for its owner to look at. Each is one item of the app's "After you install" list, said by what
  * it is (`kind`), the entry of the file it belongs to (`item`: a rule's key,
  * a report's key, a document's table and kind) and the field to fill.
  *
@@ -15,7 +18,7 @@
  */
 import { appAfterInstallRepo, type MetaDb } from '@adminium/meta';
 
-export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant';
+export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant' | 'outbound';
 
 export interface AfterInstallItem {
   kind: AfterInstallKind;

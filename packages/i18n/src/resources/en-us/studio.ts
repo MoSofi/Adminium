@@ -1046,6 +1046,7 @@ export default {
         "body": "They arrive switched off and empty. Someone who manages automations can turn them on.",
         "webhook": "sends to a web address · address left empty",
         "address": "emails a fixed address · address left empty",
+        "outbound": "sends out by what it writes or links to · check it first",
         "off": "Off"
       },
       "instance": {
@@ -1083,6 +1084,7 @@ export default {
         "recipients": "{count, plural, one {Who receives the scheduled report {item}} other {Who receives the # scheduled reports}}",
         "sender": "{count, plural, one {The sender address of the email {item}} other {The sender address for # email templates}}",
         "systemGrant": "The {item} role’s console rights",
+        "outbound": "What the rule {item} sends out",
         "title": "After you install",
         "note": "These stay on the app’s page until they are done."
       },
@@ -3530,6 +3532,8 @@ export default {
     "pages": "{count, plural, one {# page} other {# pages}}",
     "keys": "{count, plural, one {Its browser key} other {Its # browser keys}}",
     "settings": "Its settings",
+    "instance": "The look and languages it applied, put back as they were",
+    "instanceLocked": "It changed the look and languages of the whole server. Putting them back needs the permission to change the server’s settings: ask someone who has it to uninstall this app.",
     "hosts": "{count, plural, one {Its domain} other {Its # domains}}",
     "tables": "{count, plural, one {# table and every record in it} other {# tables and every record in them}}",
     "editedPages": "Pages you edited stay as ordinary pages",
@@ -5562,6 +5566,7 @@ export default {
         "paymentKey": "Add the keys for '{name}'",
         "bankAccount": "Add the bank account for '{name}'",
         "systemGrant": "Give the {name} role its console rights",
+        "outbound": "Check what '{name}' sends out, then switch it on",
         "other": "Fill in '{name}'"
       },
       "link": {

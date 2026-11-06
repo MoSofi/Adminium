@@ -1046,6 +1046,7 @@ export default {
         "body": "De ankommer slået fra og tomme. En, der administrerer automatiseringer, kan slå dem til.",
         "webhook": "sender til en webadresse · adressen er tom",
         "address": "mailer til en fast adresse · adressen er tom",
+        "outbound": "sender ud gennem det, den skriver eller linker til · tjek den først",
         "off": "Fra"
       },
       "instance": {
@@ -1083,6 +1084,7 @@ export default {
         "recipients": "{count, plural, one {Hvem der får den planlagte rapport {item}} other {Hvem der får de # planlagte rapporter}}",
         "sender": "{count, plural, one {Afsenderadressen for mailen {item}} other {Afsenderadressen for # mailskabeloner}}",
         "systemGrant": "Konsolrettighederne for rollen {item}",
+        "outbound": "Hvad reglen {item} sender ud",
         "title": "Efter installationen",
         "note": "De bliver på appens side, til de er gjort."
       },
@@ -3530,6 +3532,8 @@ export default {
     "pages": "{count, plural, one {# side} other {# sider}}",
     "keys": "{count, plural, one {Dens browsernøgle} other {Dens # browsernøgler}}",
     "settings": "Dens indstillinger",
+    "instance": "Udseendet og sprogene den anvendte, sat tilbage som de var",
+    "instanceLocked": "Den ændrede udseendet og sprogene for hele serveren. At sætte dem tilbage kræver tilladelse til at ændre serverens indstillinger: bed en, der har den, om at afinstallere appen.",
     "hosts": "{count, plural, one {Dens domæne} other {Dens # domæner}}",
     "tables": "{count, plural, one {# tabel og alle dens poster} other {# tabeller og alle deres poster}}",
     "editedPages": "Sider, du har redigeret, bliver som almindelige sider",
@@ -5544,6 +5548,7 @@ export default {
         "recipients": "{count, plural, one {Vælg, hvem der modtager den planlagte rapport} other {Vælg, hvem der modtager de # planlagte rapporter}}",
         "sender": "{count, plural, one {Angiv afsenderadressen for # e-mailskabelon} other {Angiv afsenderadressen for # e-mailskabeloner}}",
         "systemGrant": "Giv rollen {name} dens konsolrettigheder",
+        "outbound": "Tjek hvad '{name}' sender ud, og slå den så til",
         "webhook": "Tilføj webadressen til '{name}'",
         "webhookHeader": "Udfyld headerværdien i '{name}'"
       },

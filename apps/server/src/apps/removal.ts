@@ -56,7 +56,7 @@ import { builtOnTables } from './app-shapes.js';
 import { removeOutbox } from './manifest-outbox.js';
 import { removeAutomations } from './manifest-automations.js';
 import { removeSavedParts } from './saved-parts.js';
-import { undoInstance } from './manifest-instance.js';
+import { instanceValuesNow, undoInstance } from './manifest-instance.js';
 import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { grantKeyOf } from '../installs/resolve.js';
 import { dependentsOf, requiredByError } from './required-apps.js';
@@ -81,6 +81,13 @@ export interface RemovalDeps {
 export interface DropOptions {
   dropTables: boolean;
   superAdmin: boolean;
+  /**
+   * Whether the person may change the server's settings. Putting back what
+   * an app's deployment-wide part wrote over the server is a change of them,
+   * asked of whoever applies it and of whoever puts it back alone: an
+   * uninstall that would put some back is theirs too. No when absent.
+   */
+  settingsManage?: boolean | undefined;
 }
 
 /** What went between two manifests of one app. Refs, never real table names. */
@@ -365,6 +372,8 @@ export function createRemovals(deps: RemovalDeps) {
         .map(([host]) => host),
       /** The apps on this database that require this one (`apps.requires`): while any is here, it stays. */
       requiredBy: await dependentsOf(manifestsRepo(deps.meta, deps.credentialCrypto), row),
+      /** How many values its deployment-wide part wrote over this server that are still as it wrote them: the uninstall puts each back. */
+      instanceValues: (await instanceValuesNow(deps.meta, install)).filter((value) => !value.changed).length,
     };
   }
   type UninstallList = Awaited<ReturnType<typeof listOf>>;
@@ -378,6 +387,20 @@ export function createRemovals(deps: RemovalDeps) {
   async function checkDrop(list: UninstallList, opts: DropOptions): Promise<void> {
     // An app another app on this database requires is not uninstalled from under it, dropping tables or not.
     if (list.requiredBy.length > 0) throw requiredByError(list.key, list.requiredBy);
+    /*
+     * What its deployment-wide part wrote over the server is put back by the
+     * uninstall, as one step with the rest: someone who may not change the
+     * server's settings does not change them this way, nor leaves them half
+     * put back. They ask someone who may (who can also put the look back
+     * first, on the app's page).
+     */
+    if (list.instanceValues > 0 && opts.settingsManage !== true) {
+      throw new ForbiddenError(
+        'This app changed the look and languages of the whole server. Putting them back needs the permission to change the server’s settings: ask someone who has it to uninstall it.',
+        'FORBIDDEN',
+        { reason: 'INSTANCE_RESTORE_NEEDS_SETTINGS' },
+      );
+    }
     const doomed = opts.dropTables ? list.tables.filter((entry) => entry.droppable) : [];
     if (doomed.length === 0) return;
     if (!opts.superAdmin) {

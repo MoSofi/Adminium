@@ -27,6 +27,15 @@
  * owner fills in is no edit of the rule: it is kept out of the fingerprint,
  * and carried over when an update rewrites the rule.
  *
+ * A step can also send out with no address field at all, so these count too
+ * ({@link outboundSteps}): a step that writes words of its own into a column
+ * a mail goes to (or an address anywhere), an add-on's step given an address
+ * of the file's own, a mail whose template or own values link to an outside
+ * host with the record's values in the link (or a link nobody can tell). Each
+ * keeps its words, and its rule arrives switched off with an item on the
+ * list for the owner to look at; an update that brings a new one switches an
+ * unchanged rule off again. When unsure, a step counts as sending out.
+ *
  * Meta store only: no source transaction, no lock.
  */
 import type { AddOnStep } from '@adminium/add-on-contracts';
@@ -34,12 +43,13 @@ import type { AddOnStep } from '@adminium/add-on-contracts';
 import type { RuleSteps } from '../automations/validate.js';
 import { createHash } from 'node:crypto';
 
-import type { ManifestAutomation, ManifestCondition, ManifestNode, ManifestWriteValue, Manifest } from '@adminium/manifest';
-import { auditRepo, automationsRepo, documentProfilesRepo, emailTemplatesRepo, rolesRepo, settingsRepo, type Automation, type AutomationGraph, type AutomationTrigger, type MetaDb } from '@adminium/meta';
+import { placeholdersIn, type ManifestAutomation, type ManifestCondition, type ManifestNode, type ManifestWriteValue, type Manifest } from '@adminium/manifest';
+import { appAfterInstallRepo, auditRepo, automationsRepo, documentProfilesRepo, emailTemplatesRepo, rolesRepo, settingsRepo, type Automation, type AutomationGraph, type AutomationTrigger, type MetaDb } from '@adminium/meta';
 
 import { forgetSpellsIfChosenAnew, nextTickFor } from '../automations/schedule.js';
 import { firstIncompleteNode, resolveRule } from '../automations/validate.js';
 import type { SnapshotView } from '../crud/identifiers.js';
+import { emailLinks } from '../email/link-hosts.js';
 import { installTemplateKey, type InstallAddress } from '../installs/resolve.js';
 import type { AfterInstallItem } from './after-install.js';
 import { roleSlugFor } from './manifest-roles.js';
@@ -100,6 +110,123 @@ export function automationHashOf(rule: Pick<Automation, 'name' | 'description' |
 /** Whether a step is one that sends out of Adminium: a webhook, or a mail to typed addresses. */
 function sendsOut(node: StoredNode): boolean {
   return node.action?.kind === 'webhook' || (node.action?.kind === 'email' && (node.action['to'] as { kind?: string } | null)?.kind === 'fixed');
+}
+
+/** The link a rule's mail holds of this server's own: the record's page. */
+const RULE_MAIL_OWN_LINKS = ['recordUrl'];
+
+/** Words a file wrote itself, each placeholder taken out (its backup kept): what they say whatever the record holds. */
+function literalOf(text: string): string {
+  let out = '';
+  let cursor = 0;
+  for (const one of placeholdersIn(text)) {
+    out += `${text.slice(cursor, one.at)} ${one.backup ?? ''} `;
+    cursor = one.at + one.whole.length;
+  }
+  return (out + text.slice(cursor)).trim();
+}
+
+/** Whether words a file wrote reach somebody outside by themselves: an address, a host, a phone number (`phones`). */
+function reachesOut(text: string, phones: boolean): boolean {
+  const literal = literalOf(text);
+  if (literal === '') return false;
+  if (literal.includes('@')) return true;
+  const links = emailLinks({ text });
+  if (links.hosts.length > 0 || links.problems.length > 0) return true;
+  return phones && /\d{6,}/.test(literal.replaceAll(/[\s().+/-]/g, ''));
+}
+
+type ManifestStep = { id: string; kind: string; action?: Record<string, unknown> & { kind: string }; branches?: { nodes: ManifestStep[] }[] };
+
+function manifestSteps(nodes: readonly ManifestStep[]): ManifestStep[] {
+  return nodes.flatMap((node) => [node, ...(node.branches ?? []).flatMap((branch) => manifestSteps(branch.nodes))]);
+}
+
+/**
+ * The steps of a manifest's rules that send out though they name no
+ * address a person fills in, by rule key: each the id of a step. Read from
+ * the file alone, every rule at once, since one rule may write the address
+ * another mails:
+ *
+ *  - a step that writes words of its own into a column a mail step sends to,
+ *    and that mail step; one that writes an address anywhere, or a link to an
+ *    outside host with the record's values in it;
+ *  - an add-on's step with an address, a host or a phone number of the
+ *    file's own in an input;
+ *  - a mail or summary whose template links to an outside host with a value
+ *    of the record in the link, or holds a link nobody can tell; a mail whose
+ *    own values (`vars`) name an outside host or an address.
+ */
+export function outboundSteps(manifest: Manifest): Map<string, string[]> {
+  const rules = ((manifest as { automations?: ManifestAutomation[] }).automations ?? []) as ManifestAutomation[];
+  const templates = new Map((((manifest as { emailTemplates?: { key: string }[] }).emailTemplates ?? []) as { key: string }[]).map((template) => [template.key, template]));
+  const leaks = new Map<string, boolean>();
+  const templateLeaks = (key: unknown): boolean => {
+    if (typeof key !== 'string') return false;
+    const template = templates.get(key);
+    if (template === undefined) return false;
+    if (!leaks.has(key)) {
+      const links = emailLinks(template, RULE_MAIL_OWN_LINKS);
+      leaks.set(key, links.problems.length > 0 || links.carried.length > 0);
+    }
+    return leaks.get(key) === true;
+  };
+  const stepsOf = (rule: ManifestAutomation): ManifestStep[] => manifestSteps(rule.graph.nodes as unknown as ManifestStep[]);
+  const fieldOf = (action: Record<string, unknown>): string | null => {
+    const to = action['to'] as { kind?: string; column?: unknown } | undefined;
+    return action['kind'] === 'email' && to?.kind === 'field' && typeof to.column === 'string' ? to.column : null;
+  };
+
+  // The columns a mail goes to, and those a step writes words of its own into.
+  const mailed = new Set<string>();
+  const written = new Set<string>();
+  for (const rule of rules) {
+    for (const step of stepsOf(rule)) {
+      const action = step.action;
+      if (action === undefined) continue;
+      const field = fieldOf(action);
+      if (field !== null) mailed.add(field);
+      if (action.kind === 'record.create' || action.kind === 'record.update') {
+        for (const [column, value] of Object.entries((action['values'] ?? {}) as Record<string, unknown>)) if (typeof value === 'string' && literalOf(value) !== '') written.add(column);
+      }
+    }
+  }
+
+  const out = new Map<string, string[]>();
+  for (const rule of rules) {
+    const ids: string[] = [];
+    for (const step of stepsOf(rule)) {
+      const action = step.action;
+      if (step.kind !== 'action' || action === undefined) continue;
+      let sends = false;
+      if (action.kind === 'record.create' || action.kind === 'record.update') {
+        for (const [column, value] of Object.entries((action['values'] ?? {}) as Record<string, unknown>)) {
+          if (typeof value !== 'string' || literalOf(value) === '') continue;
+          const carries = placeholdersIn(value).length > 0;
+          const hosts = emailLinks({ text: value });
+          if (mailed.has(column) || literalOf(value).includes('@') || (carries && (hosts.hosts.length > 0 || hosts.problems.length > 0))) sends = true;
+        }
+      }
+      if (action.kind === 'email') {
+        const field = fieldOf(action);
+        if (field !== null && written.has(field)) sends = true;
+        if (templateLeaks(action['templateKey'])) sends = true;
+        for (const value of Object.values((action['vars'] ?? {}) as Record<string, unknown>)) if (typeof value === 'string' && reachesOut(value, false)) sends = true;
+      }
+      if (action.kind === 'digest' && templateLeaks(action['templateKey'])) sends = true;
+      if (action.kind === 'add-on.step') {
+        for (const value of Object.values((action['inputs'] ?? {}) as Record<string, unknown>)) if (typeof value === 'string' && reachesOut(value, true)) sends = true;
+      }
+      if (sends) ids.push(step.id);
+    }
+    if (ids.length > 0) out.set(rule.key, ids);
+  }
+  return out;
+}
+
+/** The items of {@link outboundSteps} for one rule: one per step, for its owner to look at before switching it on. */
+function outboundItems(key: string, outbound: ReadonlyMap<string, readonly string[]>): AfterInstallItem[] {
+  return (outbound.get(key) ?? []).map((id) => ({ kind: 'outbound', item: key, field: id }));
 }
 
 /** What the owner still has to fill in of a stored rule: one item per empty value. */
@@ -312,7 +439,8 @@ export function plannedAfterInstallOfRules(manifest: Manifest): AfterInstallItem
     profileId: (document) => (documents.some((entry) => entry.table === document.table && entry.kind === document.kind) ? 'planned' : null),
   };
   const rules = ((manifest as { automations?: ManifestAutomation[] }).automations ?? []) as ManifestAutomation[];
-  return rules.flatMap((rule) => afterInstallItemsOfRule(rule.key, bind(rule, binding).graph));
+  const outbound = outboundSteps(manifest);
+  return rules.flatMap((rule) => [...afterInstallItemsOfRule(rule.key, bind(rule, binding).graph), ...outboundItems(rule.key, outbound)]);
 }
 
 /** A shipped rule as this install stores it: every table, role, text and zone its own. */
@@ -413,6 +541,9 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
   const result: AutomationsResult = { written: [], kept: [], removed: [], afterInstall: [] };
   // The app's own document profiles here, made before its rules: what a document step draws.
   const profiles = await documentProfilesRepo(meta).listOwnedBy(connectionId, manifest.key);
+  // Steps that send out with no address to fill in; and those the owner was already shown, by an earlier version.
+  const outbound = outboundSteps(manifest);
+  const shown = new Set((await appAfterInstallRepo(meta).list(input.install.id)).filter((row) => row.kind === 'outbound').map((row) => `${row.item}\u0000${row.field}`));
 
   for (const rule of shipped) {
     const refusal = (why: string): Error => new Error(`The rule "${rule.key}" of "${manifest.key}" cannot be installed: ${why}`);
@@ -449,7 +580,8 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
     const unfinished = firstIncompleteNode(asFilledIn(bound.graph), (addOn, step) => (addOn === manifest.key ? ownSteps(addOn, step) : { state: 'ok', step: { addOn, addOnName: addOn, step: { key: step, inputs: [] } as never, table: '', inputTables: {}, refOf: (tableId: string) => tableId } }));
     if (unfinished !== null) throw refusal(`its step "${unfinished.title}" is not finished.`);
     // A rule that sends out, or waits for its owner, arrives switched off.
-    const switchedOn = rule.enabled && waiting.length === 0 && !storedNodes(bound.graph.nodes as unknown as StoredNode[]).some(sendsOut);
+    const flagged = outboundItems(rule.key, outbound);
+    const switchedOn = rule.enabled && waiting.length === 0 && flagged.length === 0 && !storedNodes(bound.graph.nodes as unknown as StoredNode[]).some(sendsOut);
 
     const existing = mine.find((candidate) => candidate.templateKey === rule.key);
     // The part it belongs to is the app's to say, also of a rule its owner has since changed.
@@ -463,12 +595,12 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
       // Hashed as the store keeps it, so reading it back is never an edit.
       const written = (await repo.findById(made.id)) ?? made;
       await repo.setHash(made.id, automationHashOf(written));
-      result.afterInstall.push(...afterInstallItemsOfRule(rule.key, written.graph));
+      result.afterInstall.push(...afterInstallItemsOfRule(rule.key, written.graph), ...flagged);
       result.written.push(rule.key);
       continue;
     }
     if (existing.contentHash === null || automationHashOf(existing) !== existing.contentHash) {
-      result.afterInstall.push(...afterInstallItemsOfRule(rule.key, existing.graph));
+      result.afterInstall.push(...afterInstallItemsOfRule(rule.key, existing.graph), ...flagged);
       result.kept.push(rule.key);
       continue;
     }
@@ -479,15 +611,35 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
     const trigger =
       zone !== null && bound.trigger.kind === 'schedule' && bound.trigger.schedule.kind !== 'interval' ? ({ ...bound.trigger, schedule: { ...bound.trigger.schedule, timezone: zone } } as AutomationTrigger) : bound.trigger;
     const schedule = trigger.kind === 'schedule' ? trigger.schedule : null;
+    // A step that now sends out, which no earlier version showed its owner, switches the rule off until they look.
+    const offAgain = existing.enabled && flagged.some((item) => !shown.has(`${item.item}\u0000${item.field}`));
+    const enabled = existing.enabled && !offAgain;
     await repo.update(
       existing.id,
-      { name: bound.name, description: bound.description, trigger, graph: bound.graph, ...(existing.enabled && schedule !== null ? { nextRunAt: nextTickFor(schedule, at) } : schedule === null ? { nextRunAt: null } : {}) },
+      {
+        name: bound.name,
+        description: bound.description,
+        trigger,
+        graph: bound.graph,
+        ...(offAgain ? { enabled: false, nextRunAt: null } : enabled && schedule !== null ? { nextRunAt: nextTickFor(schedule, at) } : schedule === null ? { nextRunAt: null } : {}),
+      },
       at,
     );
+    if (offAgain) {
+      await auditRepo(meta).append({
+        actorKind: 'system',
+        actorId: null,
+        actorLabel: 'Adminium',
+        category: 'automation',
+        action: 'automation.disable',
+        connectionId,
+        changes: { after: { id: existing.id, name: bound.name, because: `the update of "${manifest.key}" made a step of it send out of Adminium` } },
+      });
+    }
     await forgetSpellsIfChosenAnew(meta, existing.id, existing.trigger, trigger);
     const rewritten = (await repo.findById(existing.id)) ?? existing;
     await repo.setHash(existing.id, automationHashOf(rewritten));
-    result.afterInstall.push(...afterInstallItemsOfRule(rule.key, rewritten.graph));
+    result.afterInstall.push(...afterInstallItemsOfRule(rule.key, rewritten.graph), ...flagged);
     result.written.push(rule.key);
   }
 

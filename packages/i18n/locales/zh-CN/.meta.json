@@ -26091,6 +26091,10 @@
     "status": "mt",
     "srcHash": "38c3453a3beb"
   },
+  "studio.apps.afterInstall.item.outbound": {
+    "status": "mt",
+    "srcHash": "ea948ec8d62c"
+  },
   "studio.apps.afterInstall.item.paymentKey": {
     "status": "mt",
     "srcHash": "e9aad4de08e4"
@@ -29643,6 +29647,10 @@
     "status": "mt",
     "srcHash": "b2d9e7ab7df9"
   },
+  "studio.hostedApps.review.after.outbound": {
+    "status": "mt",
+    "srcHash": "a7222495cf6c"
+  },
   "studio.hostedApps.review.after.paymentKey": {
     "status": "mt",
     "srcHash": "6c9b44928229"
@@ -29826,6 +29834,10 @@
   "studio.hostedApps.review.outside.off": {
     "status": "mt",
     "srcHash": "e3de5ab0ca4c"
+  },
+  "studio.hostedApps.review.outside.outbound": {
+    "status": "mt",
+    "srcHash": "ffbb0d10e5ae"
   },
   "studio.hostedApps.review.outside.title": {
     "status": "mt",
@@ -40830,6 +40842,14 @@
   "studio.uninstall.hosts": {
     "status": "mt",
     "srcHash": "71a263e24c6b"
+  },
+  "studio.uninstall.instance": {
+    "status": "mt",
+    "srcHash": "b1380852bc27"
+  },
+  "studio.uninstall.instanceLocked": {
+    "status": "mt",
+    "srcHash": "8a274287b497"
   },
   "studio.uninstall.kept": {
     "status": "mt",

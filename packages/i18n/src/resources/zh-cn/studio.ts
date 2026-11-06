@@ -1046,6 +1046,7 @@ export default {
         "body": "它们到达时处于关闭且为空。管理自动化的人可以开启它们。",
         "webhook": "发送到网址 · 地址留空",
         "address": "发邮件到固定地址 · 地址留空",
+        "outbound": "通过写入的内容或链接向外发送 · 请先检查",
         "off": "关闭"
       },
       "instance": {
@@ -1083,6 +1084,7 @@ export default {
         "recipients": "{count, plural, =1 {谁接收定时报表 {item}} other {谁接收这 # 份定时报表}}",
         "sender": "{count, plural, =1 {邮件 {item} 的发件地址} other {# 个邮件模板的发件地址}}",
         "systemGrant": "角色 {item} 的控制台权限",
+        "outbound": "规则 {item} 向外发送的内容",
         "title": "安装之后",
         "note": "这些会一直留在应用页面，直到完成。"
       },
@@ -3530,6 +3532,8 @@ export default {
     "pages": "{count, plural, other {# 个页面}}",
     "keys": "{count, plural, other {其 # 个浏览器密钥}}",
     "settings": "其设置",
+    "instance": "它应用的外观和语言，恢复为原样",
+    "instanceLocked": "它更改了整个服务器的外观和语言。恢复它们需要更改服务器设置的权限：请让拥有该权限的人卸载此应用。",
     "hosts": "{count, plural, other {其 # 个域名}}",
     "tables": "{count, plural, other {# 个数据表及其全部记录}}",
     "editedPages": "你编辑过的页面会作为普通页面保留",
@@ -5544,6 +5548,7 @@ export default {
         "recipients": "{count, plural, other {选择这 # 份定时报告的接收人}}",
         "sender": "{count, plural, other {为 # 个邮件模板设置发件地址}}",
         "systemGrant": "授予 {name} 角色其控制台权限",
+        "outbound": "检查 '{name}' 向外发送的内容，然后再启用",
         "webhook": "为 '{name}' 添加网址",
         "webhookHeader": "填写 '{name}' 的请求头值"
       },

@@ -515,13 +515,14 @@ export function PageClashesCard({
 // ── Rules that send data out ───────────────────────────────────────────────
 
 /** The rules that would send data out, each with how: they arrive switched off and empty. */
-export function outsideRules(items: readonly AfterInstallItem[] | undefined): { item: string; webhook: boolean; address: boolean }[] {
-  const byRule = new Map<string, { item: string; webhook: boolean; address: boolean }>();
+export function outsideRules(items: readonly AfterInstallItem[] | undefined): { item: string; webhook: boolean; address: boolean; outbound: boolean }[] {
+  const byRule = new Map<string, { item: string; webhook: boolean; address: boolean; outbound: boolean }>();
   for (const entry of items ?? []) {
-    if (entry.kind !== 'webhook' && entry.kind !== 'address') continue;
-    const rule = byRule.get(entry.item) ?? { item: entry.item, webhook: false, address: false };
+    if (entry.kind !== 'webhook' && entry.kind !== 'address' && entry.kind !== 'outbound') continue;
+    const rule = byRule.get(entry.item) ?? { item: entry.item, webhook: false, address: false, outbound: false };
     if (entry.kind === 'webhook') rule.webhook = true;
-    else rule.address = true;
+    else if (entry.kind === 'address') rule.address = true;
+    else rule.outbound = true;
     byRule.set(entry.item, rule);
   }
   return [...byRule.values()];
@@ -547,6 +548,7 @@ export function OutsideAddressesCard({ items, forUpdate = false }: { items: read
                 {[
                   rule.webhook ? t('studio:hostedApps.review.outside.webhook', 'sends to a web address · address left empty') : null,
                   rule.address ? t('studio:hostedApps.review.outside.address', 'emails a fixed address · address left empty') : null,
+                  rule.outbound ? t('studio:hostedApps.review.outside.outbound', 'sends out by what it writes or links to · check it first') : null,
                 ]
                   .filter((line) => line !== null)
                   .join(' · ')}
@@ -858,6 +860,9 @@ export function afterInstallLines(items: readonly AfterInstallItem[] | undefined
         break;
       case 'system-grant':
         lines.push({ key, words: sentence('studio:hostedApps.review.after.systemGrant', 'The {item} role’s console rights', { item: mono(entry.item) }) });
+        break;
+      case 'outbound':
+        lines.push({ key, words: sentence('studio:hostedApps.review.after.outbound', 'What the rule {item} sends out', { item: mono(entry.item) }) });
         break;
     }
   }
