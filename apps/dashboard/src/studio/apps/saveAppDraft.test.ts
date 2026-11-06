@@ -102,6 +102,8 @@ describe('the save draft', () => {
     expect(request.rows).toBeUndefined();
     expect(request.answers).toBeUndefined();
     expect(request.version).toBeUndefined();
+    expect(request.icon).toBeUndefined();
+    expect(requestOf({ ...draft, icon: 'coffee' }, inventory()).icon).toBe('coffee');
   });
 
   it('records each answer under its list, with the value the item gives for that choice', () => {
@@ -179,8 +181,8 @@ describe('the save draft', () => {
 
 describe('what the app is called', () => {
   const saves = [
-    { id: 'asv_1', key: 'fernhill-ops', version: '1.0.3', connectionId: 'con_1', name: 'Fernhill Ops', description: null, label: 'Fernhill main', savedBy: null, savedByName: null, savedAt: 1, integrity: 'sha512-x', bytes: 1, downloadable: true },
-    { id: 'asv_2', key: 'kiln', version: '1.0.0', connectionId: 'con_2', name: 'Kiln', description: null, label: 'Kiln', savedBy: null, savedByName: null, savedAt: 1, integrity: 'sha512-x', bytes: 1, downloadable: true },
+    { id: 'asv_1', key: 'fernhill-ops', version: '1.0.3', connectionId: 'con_1', name: 'Fernhill Ops', description: null, label: 'Fernhill main', icon: null, savedBy: null, savedByName: null, savedAt: 1, integrity: 'sha512-x', bytes: 1, downloadable: true },
+    { id: 'asv_2', key: 'kiln', version: '1.0.0', connectionId: 'con_2', name: 'Kiln', description: null, label: 'Kiln', icon: null, savedBy: null, savedByName: null, savedAt: 1, integrity: 'sha512-x', bytes: 1, downloadable: true },
   ];
   const draft = (over: object) => ({ ...draftFromInventory(inventory(), { name: 'Fernhill Ops', key: 'fernhill-ops' }), ...over });
 

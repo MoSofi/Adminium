@@ -255,6 +255,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'page.envelope',
   'page.views',
   'app.provenance',
+  // A self-made app's icon.
+  'app.icon',
   // The other apps a self-made app needs on its database, and its part that is the whole deployment's.
   'apps.requires',
   'instance',
@@ -539,6 +541,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'page.envelope': '0.3.49',
   'page.views': '0.3.49',
   'app.provenance': '0.3.49',
+  'app.icon': '0.3.49',
   'apps.requires': '0.3.49',
   'instance': '0.3.49',
   'column.time': '0.3.49',
@@ -844,6 +847,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
   });
   // The fields a dashboard's tables are described with: on a column, on a link, on a table.
   if (document['provenance'] !== undefined) out.push({ word: 'app.provenance', path: 'provenance' });
+  if (document['icon'] !== undefined) out.push({ word: 'app.icon', path: 'icon' });
   if (isDoc(document['apps']) && document['apps']['requires'] !== undefined) out.push({ word: 'apps.requires', path: 'apps.requires' });
   if (document['instance'] !== undefined) out.push({ word: 'instance', path: 'instance' });
   list(schema['tables']).forEach((table, t) => {

@@ -186,7 +186,7 @@ describe('save as app: the routes', () => {
     expect(Object.keys(plan).sort()).toEqual(['check', 'counts', 'key', 'label', 'lineage', 'minAdminiumVersion', 'problems', 'ready', 'version']);
     expect(plan['ready'], JSON.stringify(plan)).toBe(true);
 
-    const saved = await app.inject({ method: 'POST', url: '/apps/save', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop' } });
+    const saved = await app.inject({ method: 'POST', url: '/apps/save', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', icon: 'shopping-bag' } });
     expect(saved.statusCode, saved.body).toBe(200);
     const save = saved.json().save as { id: string; integrity: string; bytes: number; filename: string };
     expect(save).toMatchObject({ key: 'corner-shop', version: '1.0.0', filename: 'corner-shop-1.0.0.tgz' });
@@ -198,8 +198,8 @@ describe('save as app: the routes', () => {
     const list = await app.inject({ method: 'GET', url: '/apps/saves' });
     expect(list.statusCode).toBe(200);
     expect(list.json().saves).toEqual([expect.objectContaining({ id: save.id, key: 'corner-shop', version: '1.0.0', connectionId: h.connectionId, label: 'Corner shop', downloadable: true, integrity: save.integrity, bytes: save.bytes })]);
-    expect(Object.keys(list.json().saves[0]).sort()).toEqual(['bytes', 'connectionId', 'description', 'downloadable', 'id', 'integrity', 'key', 'label', 'name', 'savedAt', 'savedBy', 'savedByName', 'version']);
-    expect(list.json().saves[0]).toMatchObject({ name: 'Corner shop', description: null, savedBy: null, savedByName: null });
+    expect(Object.keys(list.json().saves[0]).sort()).toEqual(['bytes', 'connectionId', 'description', 'downloadable', 'icon', 'id', 'integrity', 'key', 'label', 'name', 'savedAt', 'savedBy', 'savedByName', 'version']);
+    expect(list.json().saves[0]).toMatchObject({ name: 'Corner shop', description: null, icon: 'shopping-bag', savedBy: null, savedByName: null });
 
     const inventory = await app.inject({ method: 'GET', url: `/apps/save/inventory?connectionId=${h.connectionId}` });
     expect(inventory.statusCode, inventory.body).toBe(200);
@@ -217,6 +217,9 @@ describe('save as app: the routes', () => {
     const row = (await appSavesRepo(h.meta).findById(save.id))!;
     expect(await filesRepo(h.meta).findById(row.fileId!)).toMatchObject({ kind: 'export', filename: 'corner-shop-1.0.0.tgz' });
     expect(gunzipSync(bytes).toString('latin1')).toContain('package/manifest.json');
+    // The icon is in the file, as a self-made app's own word.
+    expect(gunzipSync(bytes).toString('utf8')).toContain('"icon": "shopping-bag"');
+    expect((await app.inject({ method: 'POST', url: '/apps/save/plan', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', icon: 'Not An Icon' } })).statusCode).not.toBe(200);
 
     expect((await app.inject({ method: 'GET', url: '/apps/save/asv_missing/file' })).statusCode).toBe(404);
   });

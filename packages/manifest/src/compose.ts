@@ -82,6 +82,7 @@ const APP_FIELDS = [
   'maps',
   'widgets',
   'provenance',
+  'icon',
   'apps',
   'prefixed',
 ] as const;

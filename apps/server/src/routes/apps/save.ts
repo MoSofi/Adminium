@@ -19,6 +19,7 @@
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { appIconSchema } from '@adminium/manifest';
 import { usersRepo, type MetaDb } from '@adminium/meta';
 
 import type { SaveRights, SaveService } from '../../apps/save/service.js';
@@ -38,6 +39,8 @@ export const saveAppBody = z
     name: z.string().trim().min(1).max(80),
     version: z.string().regex(/^\d+\.\d+\.\d+$/).optional(),
     description: z.string().max(500).optional(),
+    /** The app's icon: a lucide icon name. */
+    icon: appIconSchema.optional(),
     label: z.string().trim().min(1).max(120).optional(),
     include: z
       .object({
@@ -125,6 +128,8 @@ export const appSavesReply = z.object({
       /** The app's name and description as saved; null on a save from before they were kept. */
       name: z.string().nullable(),
       description: z.string().nullable(),
+      /** The app's icon as saved; null when none was chosen. */
+      icon: z.string().nullable(),
       label: z.string(),
       savedBy: z.string().nullable(),
       /** Who saved it, by name; null when nobody (the command line) or they are gone. */
@@ -307,6 +312,7 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
           connectionId: save.connectionId,
           name: save.name,
           description: save.description,
+          icon: save.icon,
           label: save.label,
           savedBy: save.savedBy,
           savedByName: save.savedBy === null ? null : (people.get(save.savedBy) ?? null),

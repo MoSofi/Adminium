@@ -78,6 +78,7 @@ export async function convertToApp(source: SaveSource, choices: SaveChoices): Pr
     publisher: { id: 'local', name: choices.label },
     license: 'UNLICENSED',
     description: { key: `${choices.key}.description`, fallback: choices.description?.trim() || choices.name },
+    ...(choices.icon === undefined ? {} : { icon: choices.icon }),
     categories: ['operations'],
     compatibility: { minAdminiumVersion: '0.0.0' },
     requiredSchema: { tables: [] },

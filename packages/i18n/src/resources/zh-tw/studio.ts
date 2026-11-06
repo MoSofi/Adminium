@@ -5140,7 +5140,8 @@ export default {
       "versionShape": "版本由三個數字組成，例如 1.2.0。",
       "versionSaved": "{version} 已儲存過。已儲存的版本不能再次儲存。",
       "versionOlder": "{version} 低於上次儲存的 {last}。請使用更高的版本。",
-      "labelAddress": "這看起來像位址。請填寫名稱，而不是位址。"
+      "labelAddress": "這看起來像位址。請填寫名稱，而不是位址。",
+      "icon": "圖示"
     },
     "group": {
       "tables": "資料表",
@@ -5283,6 +5284,20 @@ export default {
       "wildcard": "{roles, plural, other {# 個角色可以使用所有資料表。}}{tables, plural, other {在應用程式中，它們只涵蓋這 # 個資料表。}}",
       "builtinRoles": "{count, plural, other {# 個內建角色不會隨之移轉。}}",
       "minVersion": "需要 Adminium {version} 或更新版本。"
+    },
+    "icon": {
+      "coffee": "咖啡",
+      "bean": "咖啡豆",
+      "flame": "火焰",
+      "package": "包裹",
+      "store": "商店",
+      "truck": "卡車",
+      "leaf": "葉子",
+      "sprout": "嫩芽",
+      "shoppingBag": "購物袋",
+      "receipt": "收據",
+      "warehouse": "倉庫",
+      "cupSoda": "杯子"
     }
   }
 } as const;

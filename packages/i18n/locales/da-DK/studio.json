@@ -5130,7 +5130,8 @@
       "versionShape": "En version er tre tal, f.eks. 1.2.0.",
       "versionSaved": "{version} er allerede gemt. En gemt version kan ikke gemmes igen.",
       "versionOlder": "{version} er ældre end {last}, den senest gemte. Brug en højere version.",
-      "labelAddress": "Det ligner en adresse. Brug et navn, ikke en adresse."
+      "labelAddress": "Det ligner en adresse. Brug et navn, ikke en adresse.",
+      "icon": "Ikon"
     },
     "group": {
       "tables": "Tabeller",
@@ -5273,6 +5274,20 @@
       "wildcard": "{roles, plural, one {# rolle kan bruge alle tabeller.} other {# roller kan bruge alle tabeller.}} {tables, plural, one {I appen dækker de kun denne # tabel.} other {I appen dækker de kun disse # tabeller.}}",
       "builtinRoles": "{count, plural, one {Den # indbyggede rolle bliver her.} other {De # indbyggede roller bliver her.}}",
       "minVersion": "Kræver Adminium {version} eller nyere."
+    },
+    "icon": {
+      "coffee": "Kaffe",
+      "bean": "Bønne",
+      "flame": "Flamme",
+      "package": "Pakke",
+      "store": "Butik",
+      "truck": "Lastbil",
+      "leaf": "Blad",
+      "sprout": "Spire",
+      "shoppingBag": "Indkøbspose",
+      "receipt": "Kvittering",
+      "warehouse": "Lager",
+      "cupSoda": "Krus"
     }
   }
 }

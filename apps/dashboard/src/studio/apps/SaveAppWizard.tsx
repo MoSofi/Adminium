@@ -14,8 +14,6 @@
  *  5. Download — the file and its fingerprint, with Copy.
  *
  * Departures, each forced:
- *  - No icon picker on About: an app file has no app icon to carry, and
- *    nothing on the server it is installed on would show one.
  *  - The key and version refusals are said beside their fields, from the saves
  *    this page lists, before the server would refuse them.
  */
@@ -46,6 +44,7 @@ import type { SaveFlowShared } from './saveAppShared.js';
 import { SaveAppCheck, checkFooterNote } from './SaveAppCheck.js';
 import { SaveAppInclude } from './SaveAppInclude.js';
 import { downloadSavedFile } from './saveAppApi.js';
+import { AppIconPicker } from './saveAppIcons.js';
 import { aboutProblems, nextVersionFor, savesOf } from './saveAppAbout.js';
 import { monoSentence } from './saveAppWords.js';
 
@@ -282,6 +281,12 @@ function AboutStep({ draft, setDraft, saves, problems }: SaveAppWizardProps & { 
       <FormField label={t('studio:saveApp.about.description', 'Description')} controlId="save-app-description">
         <Textarea value={draft.description} maxLength={500} rows={3} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
       </FormField>
+      <div className="flex flex-col gap-2">
+        <span id="save-app-icon-label" className="text-[13px] font-semibold text-fg">
+          {t('studio:saveApp.about.icon', 'Icon')}
+        </span>
+        <AppIconPicker labelledBy="save-app-icon-label" value={draft.icon} onChange={(icon) => setDraft({ ...draft, icon })} />
+      </div>
       <FormField
         label={t('studio:saveApp.about.label', 'Made at')}
         controlId="save-app-label"

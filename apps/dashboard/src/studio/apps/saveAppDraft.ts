@@ -60,6 +60,8 @@ export interface SaveDraft {
   /** Null: the next version (the server's own count). */
   version: string | null;
   description: string;
+  /** A lucide icon name; null for none. */
+  icon: string | null;
   /** Empty: the server's display name. */
   label: string;
   include: Record<IncludeKind, string[]>;
@@ -106,7 +108,7 @@ export function idsOf(inventory: SaveInventory, kind: IncludeKind): string[] {
 /** Everything ticked, no rows, nothing answered: the quick save. */
 export function draftFromInventory(
   inventory: SaveInventory,
-  about: { name: string; key: string; description?: string; label?: string },
+  about: { name: string; key: string; description?: string; icon?: string | null; label?: string },
 ): SaveDraft {
   const include = Object.fromEntries(INCLUDE_KINDS.map((kind) => [kind, idsOf(inventory, kind)])) as Record<IncludeKind, string[]>;
   return {
@@ -115,6 +117,7 @@ export function draftFromInventory(
     key: about.key,
     version: null,
     description: about.description ?? '',
+    icon: about.icon ?? null,
     label: about.label ?? '',
     include,
     payments: inventory.payments,
@@ -162,6 +165,7 @@ export function requestOf(draft: SaveDraft, inventory: SaveInventory): SaveReque
     name: draft.name.trim(),
     ...(draft.version === null ? {} : { version: draft.version }),
     ...(draft.description.trim() === '' ? {} : { description: draft.description.trim() }),
+    ...(draft.icon === null ? {} : { icon: draft.icon }),
     ...(draft.label.trim() === '' ? {} : { label: draft.label.trim() }),
     include: {
       ...Object.fromEntries(INCLUDE_KINDS.map((kind) => [kind, draft.include[kind]])),

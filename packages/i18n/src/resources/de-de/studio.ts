@@ -5140,7 +5140,8 @@ export default {
       "versionShape": "Eine Version besteht aus drei Zahlen, z. B. 1.2.0.",
       "versionSaved": "{version} wurde bereits gespeichert. Eine gespeicherte Version kann nicht erneut gespeichert werden.",
       "versionOlder": "{version} ist älter als {last}, die zuletzt gespeicherte. Verwenden Sie eine höhere Version.",
-      "labelAddress": "Das sieht aus wie eine Adresse. Verwenden Sie einen Namen, keine Adresse."
+      "labelAddress": "Das sieht aus wie eine Adresse. Verwenden Sie einen Namen, keine Adresse.",
+      "icon": "Symbol"
     },
     "group": {
       "tables": "Tabellen",
@@ -5283,6 +5284,20 @@ export default {
       "wildcard": "{roles, plural, one {# Rolle darf jede Tabelle verwenden.} other {# Rollen dürfen jede Tabelle verwenden.}} {tables, plural, one {In der App decken sie nur diese # Tabelle ab.} other {In der App decken sie nur diese # Tabellen ab.}}",
       "builtinRoles": "{count, plural, one {Die # integrierte Rolle bleibt zurück.} other {Die # integrierten Rollen bleiben zurück.}}",
       "minVersion": "Benötigt Adminium {version} oder neuer."
+    },
+    "icon": {
+      "coffee": "Kaffee",
+      "bean": "Bohne",
+      "flame": "Flamme",
+      "package": "Paket",
+      "store": "Laden",
+      "truck": "Lastwagen",
+      "leaf": "Blatt",
+      "sprout": "Spross",
+      "shoppingBag": "Einkaufstasche",
+      "receipt": "Beleg",
+      "warehouse": "Lager",
+      "cupSoda": "Becher"
     }
   }
 } as const;

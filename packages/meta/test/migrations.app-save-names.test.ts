@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Wave 0086: a saved app's name and description, on every available dialect.
+ * Wave 0086: a saved app's name, description and icon, on every available dialect.
  * A save from before the wave upgrades with neither; a new one keeps both, at
  * their full widths, and reads them back.
  */
@@ -39,12 +39,13 @@ for (const dialect of TEST_DIALECTS) {
 
       const saves = appSavesRepo(t.meta);
       const old = await saves.findById('asv_old');
-      expect([old?.name, old?.description]).toEqual([null, null]);
+      expect([old?.name, old?.description, old?.icon]).toEqual([null, null, null]);
 
-      const made = await saves.create({ appKey: 'fernhill-ops', version: '1.0.1', lineage: 'l', connectionId: conn, label: 'Fernhill main', savedBy: null, integrity: FP, bytes: 11, name: 'N'.repeat(80), description: 'D'.repeat(500) }, T0 + 1);
+      const made = await saves.create({ appKey: 'fernhill-ops', version: '1.0.1', lineage: 'l', connectionId: conn, label: 'Fernhill main', savedBy: null, integrity: FP, bytes: 11, name: 'N'.repeat(80), description: 'D'.repeat(500), icon: 'i'.repeat(60) }, T0 + 1);
       const read = await saves.findById(made.id);
       expect(read?.name).toBe('N'.repeat(80));
       expect(read?.description).toBe('D'.repeat(500));
+      expect(read?.icon).toBe('i'.repeat(60));
       expect((await saves.listForKey('fernhill-ops')).map((s) => [s.version, s.name === null])).toEqual([
         ['1.0.1', false],
         ['1.0.0', true],

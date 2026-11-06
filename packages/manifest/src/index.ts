@@ -282,6 +282,8 @@ export {
   pageViewSchema,
   pageViewsSchema,
   provenanceSchema,
+  APP_ICON_PATTERN,
+  appIconSchema,
   savedAppIssues,
   type PageEnvelopeField,
   type PageView,

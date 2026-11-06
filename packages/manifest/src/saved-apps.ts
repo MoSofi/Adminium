@@ -80,6 +80,14 @@ export const provenanceSchema = z
   .strict();
 export type Provenance = z.infer<typeof provenanceSchema>;
 
+/**
+ * A self-made app's icon: a lucide icon's name, as the product's icon set
+ * names it (`coffee`, `shopping-bag`). Where it is installed, the app is shown
+ * with it; a name the target's set does not hold falls back to its default.
+ */
+export const APP_ICON_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+export const appIconSchema = z.string().max(60).regex(APP_ICON_PATTERN, 'an icon is a lucide icon name in kebab case, such as "coffee"');
+
 interface Issue {
   path: (string | number)[];
   message: string;
@@ -89,6 +97,7 @@ interface SavedAppShape {
   kind: string;
   publisher: { id: string };
   provenance?: unknown;
+  icon?: unknown;
   pages?: readonly { ref: string; template: string; config?: unknown; bindings?: Readonly<Record<string, string>> | undefined; envelope?: { template: string } | undefined; views?: unknown }[] | undefined;
   requiredSchema?: {
     prefixed?: true | undefined;
@@ -181,6 +190,7 @@ export function savedAppIssues(m: SavedAppShape): Issue[] {
   const onlyLocal = (path: Issue['path'], word: string) =>
     out.push({ path, message: `"${word}" is carried only by a self-made app (publisher "${LOCAL_PUBLISHER_ID}")` });
   if (m.provenance !== undefined && !local) onlyLocal(['provenance'], 'provenance');
+  if (m.icon !== undefined && !local) onlyLocal(['icon'], 'icon');
   (m.pages ?? []).forEach((page, p) => {
     if (page.envelope !== undefined) {
       if (!local) onlyLocal(['pages', p, 'envelope'], 'envelope');

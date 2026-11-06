@@ -5130,7 +5130,8 @@
       "versionShape": "版本由三个数字组成，例如 1.2.0。",
       "versionSaved": "{version} 已保存过。已保存的版本不能再次保存。",
       "versionOlder": "{version} 低于上次保存的 {last}。请使用更高的版本。",
-      "labelAddress": "这看起来像地址。请填写名称，而不是地址。"
+      "labelAddress": "这看起来像地址。请填写名称，而不是地址。",
+      "icon": "图标"
     },
     "group": {
       "tables": "数据表",
@@ -5273,6 +5274,20 @@
       "wildcard": "{roles, plural, other {# 个角色可以使用所有数据表。}}{tables, plural, other {在应用中，它们只涵盖这 # 个数据表。}}",
       "builtinRoles": "{count, plural, other {# 个内置角色不会随之迁移。}}",
       "minVersion": "需要 Adminium {version} 或更高版本。"
+    },
+    "icon": {
+      "coffee": "咖啡",
+      "bean": "咖啡豆",
+      "flame": "火焰",
+      "package": "包裹",
+      "store": "商店",
+      "truck": "卡车",
+      "leaf": "叶子",
+      "sprout": "嫩芽",
+      "shoppingBag": "购物袋",
+      "receipt": "收据",
+      "warehouse": "仓库",
+      "cupSoda": "杯子"
     }
   }
 }

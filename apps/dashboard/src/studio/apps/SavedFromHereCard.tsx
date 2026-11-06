@@ -17,6 +17,7 @@ import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import type { ConnectionDto } from '../api.js';
 import { appSavesQuery, downloadSavedFile, type AppSaveRow } from './saveAppApi.js';
+import { appIconOf } from './saveAppIcons.js';
 
 export interface SavedFromHereCardProps {
   connections: readonly ConnectionDto[];
@@ -48,10 +49,12 @@ export function SavedFromHereCard({ connections, saveButton, onSaveNewer }: Save
           <ul className="flex flex-col gap-3">
             {saves.map((save) => {
               const database = databaseOf(save.connectionId);
+              // The app's own icon when it was saved with one.
+              const Own = appIconOf(save.icon) ?? FileArchive;
               return (
                 <li key={save.id} className="flex flex-wrap items-center gap-4">
                   <IconTile>
-                    <FileArchive aria-hidden className="size-5" />
+                    <Own aria-hidden className="size-5" />
                   </IconTile>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">

@@ -88,6 +88,7 @@ export interface SaveRequest {
   name: string;
   version?: string;
   description?: string;
+  icon?: string;
   label?: string;
   include?: SaveInclude;
   rows?: Record<string, RowChoice>;
@@ -111,6 +112,7 @@ export interface AppSaveRow {
   connectionId: string | null;
   name: string | null;
   description: string | null;
+  icon: string | null;
   label: string;
   savedBy: string | null;
   savedByName: string | null;

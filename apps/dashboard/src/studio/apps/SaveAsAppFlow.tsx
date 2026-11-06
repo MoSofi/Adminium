@@ -40,7 +40,7 @@ export interface SaveStart {
   connectionId: string | null;
   mode: 'quick' | 'wizard';
   /** "Save a newer version": the last save's words. */
-  prefill?: { key: string; name: string; description: string; label: string };
+  prefill?: { key: string; name: string; description: string; icon?: string | null; label: string };
 }
 
 export interface SaveAsAppFlowProps {
@@ -88,6 +88,7 @@ export function SaveAsAppFlow({ start, onClose, onModeChange }: SaveAsAppFlowPro
         name,
         key: draft?.key ?? start.prefill?.key ?? keyFromName(name),
         description: draft?.description ?? start.prefill?.description ?? '',
+        icon: draft?.icon ?? start.prefill?.icon ?? null,
         label: draft?.label ?? start.prefill?.label ?? '',
       }),
     );

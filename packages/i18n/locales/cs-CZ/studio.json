@@ -5130,7 +5130,8 @@
       "versionShape": "Verze se skládá ze tří čísel, například 1.2.0.",
       "versionSaved": "{version} už byla uložena. Uloženou verzi nelze uložit znovu.",
       "versionOlder": "{version} je starší než {last}, naposledy uložená. Použijte vyšší verzi.",
-      "labelAddress": "Vypadá to jako adresa. Použijte název, ne adresu."
+      "labelAddress": "Vypadá to jako adresa. Použijte název, ne adresu.",
+      "icon": "Ikona"
     },
     "group": {
       "tables": "Tabulky",
@@ -5273,6 +5274,20 @@
       "wildcard": "{roles, plural, one {# role smí používat každou tabulku.} few {# role smějí používat každou tabulku.} many {# role smí používat každou tabulku.} other {# rolí smí používat každou tabulku.}} {tables, plural, one {V aplikaci pokrývají jen tuto # tabulku.} few {V aplikaci pokrývají jen tyto # tabulky.} many {V aplikaci pokrývají jen těchto # tabulky.} other {V aplikaci pokrývají jen těchto # tabulek.}}",
       "builtinRoles": "{count, plural, one {# vestavěná role se nepřenese.} few {# vestavěné role se nepřenesou.} many {# vestavěné role se nepřenese.} other {# vestavěných rolí se nepřenese.}}",
       "minVersion": "Vyžaduje Adminium {version} nebo novější."
+    },
+    "icon": {
+      "coffee": "Káva",
+      "bean": "Zrnko",
+      "flame": "Plamen",
+      "package": "Balík",
+      "store": "Obchod",
+      "truck": "Nákladní auto",
+      "leaf": "List",
+      "sprout": "Klíček",
+      "shoppingBag": "Nákupní taška",
+      "receipt": "Účtenka",
+      "warehouse": "Sklad",
+      "cupSoda": "Kelímek"
     }
   }
 }

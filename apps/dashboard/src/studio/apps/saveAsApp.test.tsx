@@ -273,7 +273,7 @@ describe('Save as app', () => {
 
   it('lists the saves made here and opens a newer version at the next number', async () => {
     const user = userEvent.setup();
-    const save: AppSaveRow = { id: 'asv_1', key: 'fernhill-ops', version: '1.1.0', connectionId: 'con_f', name: 'Fernhill Ops', description: 'Roasting', label: 'Fernhill main', savedBy: 'usr_rosa', savedByName: 'Rosa Okafor', savedAt: Date.UTC(2026, 10, 1), integrity: FINGERPRINT, bytes: 10, downloadable: true };
+    const save: AppSaveRow = { id: 'asv_1', key: 'fernhill-ops', version: '1.1.0', connectionId: 'con_f', name: 'Fernhill Ops', description: 'Roasting', icon: 'coffee', label: 'Fernhill main', savedBy: 'usr_rosa', savedByName: 'Rosa Okafor', savedAt: Date.UTC(2026, 10, 1), integrity: FINGERPRINT, bytes: 10, downloadable: true };
     const calls = renderAt('/studio/apps', { saves: [save] });
     const card = (await screen.findByText('Saved from here')).closest('[data-part="saved-from-here"]') as HTMLElement;
     expect(within(card).getByText('Fernhill Ops')).toBeTruthy();
@@ -285,12 +285,12 @@ describe('Save as app', () => {
     expect((within(dialog).getByLabelText('Name') as HTMLInputElement).value).toBe('Fernhill Ops');
     expect((within(dialog).getByLabelText('Version') as HTMLInputElement).value).toBe('1.1.1');
     await within(dialog).findByText('Ready to save');
-    expect(plans(calls).at(-1)).toMatchObject({ key: 'fernhill-ops', description: 'Roasting', label: 'Fernhill main' });
+    expect(plans(calls).at(-1)).toMatchObject({ key: 'fernhill-ops', description: 'Roasting', icon: 'coffee', label: 'Fernhill main' });
   });
 
-  it('shows workspace chips on the Database step, and asks before unticking a table others use', async () => {
+  it('shows workspace chips on the Database step, asks before unticking a table others use, and takes an icon', async () => {
     const user = userEvent.setup();
-    renderAt('/studio/apps', {
+    const calls = renderAt('/studio/apps', {
       workspaces: {
         workspaces: [{ id: 'ws_f', name: 'Fernhill Coffee', initials: 'FC', position: 0, connectionIds: ['con_f'] }],
         otherDatabases: ['con_a'],
@@ -323,6 +323,16 @@ describe('Save as app', () => {
     expect((screen.getByRole('checkbox', { name: 'orders' }) as HTMLButtonElement).getAttribute('data-state')).toBe('checked');
     // A table the saver may not read whole keeps its rows at Nothing.
     expect(screen.getByText(/You can’t read orders/)).toBeTruthy();
+
+    // About the app: the icon is chosen from the twelve, and the plan carries it.
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('heading', { name: 'About the app' })).toBeTruthy();
+    const icons = screen.getByRole('radiogroup', { name: 'Icon' });
+    expect(within(icons).getAllByRole('radio')).toHaveLength(12);
+    await user.click(within(icons).getByRole('radio', { name: 'Coffee' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('heading', { name: 'Check' })).toBeTruthy();
+    await waitFor(() => expect(plans(calls).at(-1)?.icon).toBe('coffee'));
   });
 
   it('opens the quick save on the database a connection card named', async () => {

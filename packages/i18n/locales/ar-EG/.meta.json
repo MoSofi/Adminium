@@ -37075,6 +37075,10 @@
     "status": "mt",
     "srcHash": "55f8ebc805e6"
   },
+  "studio.saveApp.about.icon": {
+    "status": "mt",
+    "srcHash": "716f63b96e0c"
+  },
   "studio.saveApp.about.key": {
     "status": "mt",
     "srcHash": "c67dd20ee842"
@@ -37490,6 +37494,54 @@
   "studio.saveApp.group.views": {
     "status": "mt",
     "srcHash": "c0c4dac89fed"
+  },
+  "studio.saveApp.icon.bean": {
+    "status": "mt",
+    "srcHash": "4bb8f79b42ab"
+  },
+  "studio.saveApp.icon.coffee": {
+    "status": "mt",
+    "srcHash": "bb4dd43b4e07"
+  },
+  "studio.saveApp.icon.cupSoda": {
+    "status": "mt",
+    "srcHash": "04b9507105b0"
+  },
+  "studio.saveApp.icon.flame": {
+    "status": "mt",
+    "srcHash": "245eb6d90c4a"
+  },
+  "studio.saveApp.icon.leaf": {
+    "status": "mt",
+    "srcHash": "00fe42c277c7"
+  },
+  "studio.saveApp.icon.package": {
+    "status": "mt",
+    "srcHash": "7431e3df243c"
+  },
+  "studio.saveApp.icon.receipt": {
+    "status": "mt",
+    "srcHash": "f6ce3b6fcfca"
+  },
+  "studio.saveApp.icon.shoppingBag": {
+    "status": "mt",
+    "srcHash": "880dd7bd3366"
+  },
+  "studio.saveApp.icon.sprout": {
+    "status": "mt",
+    "srcHash": "4b214b87f0a1"
+  },
+  "studio.saveApp.icon.store": {
+    "status": "mt",
+    "srcHash": "55de88709232"
+  },
+  "studio.saveApp.icon.truck": {
+    "status": "mt",
+    "srcHash": "5bfebf2e9996"
+  },
+  "studio.saveApp.icon.warehouse": {
+    "status": "mt",
+    "srcHash": "298dff72dae2"
   },
   "studio.saveApp.include.body": {
     "status": "mt",

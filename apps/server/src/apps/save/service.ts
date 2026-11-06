@@ -48,6 +48,7 @@ export interface SaveRequest {
   name: string;
   version?: string | undefined;
   description?: string | undefined;
+  icon?: string | undefined;
   label?: string | undefined;
   include?:
     | {
@@ -175,6 +176,7 @@ export function createSaveService(deps: SaveServiceDeps) {
       name: request.name,
       version,
       ...(request.description === undefined ? {} : { description: request.description }),
+      ...(request.icon === undefined ? {} : { icon: request.icon }),
       label,
       lineage,
       savedAt: new Date(now()).toISOString(),
@@ -289,7 +291,7 @@ export function createSaveService(deps: SaveServiceDeps) {
           );
         }
         const row = await appSavesRepo(deps.meta).create(
-          { appKey: request.key, version: plan.version, lineage, connectionId: request.connectionId, label: plan.label, savedBy: rights.userId, integrity, bytes: tarball.byteLength, fileId, name: request.name, description: request.description?.trim() || null },
+          { appKey: request.key, version: plan.version, lineage, connectionId: request.connectionId, label: plan.label, savedBy: rights.userId, integrity, bytes: tarball.byteLength, fileId, name: request.name, description: request.description?.trim() || null, icon: request.icon ?? null },
           at,
         );
         return { id: row.id, key: row.appKey, version: row.version, integrity, bytes: tarball.byteLength, filename, savedAt: row.savedAt, tarball };

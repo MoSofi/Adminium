@@ -34,6 +34,7 @@ export interface CreateAppSaveInput {
   fileId?: string | null;
   name?: string | null;
   description?: string | null;
+  icon?: string | null;
 }
 
 /** A version of a key that was saved before: it is never saved again. */
@@ -53,7 +54,7 @@ export function appSavesRepo(meta: MetaDb) {
         .where('version', '=', input.version)
         .executeTakeFirst();
       if (held !== undefined) throw new AppVersionSaved(`${input.appKey} ${input.version}`);
-      const row: AppSave = { id: newId('asv'), ...input, fileId: input.fileId ?? null, name: input.name ?? null, description: input.description ?? null, savedAt: at };
+      const row: AppSave = { id: newId('asv'), ...input, fileId: input.fileId ?? null, name: input.name ?? null, description: input.description ?? null, icon: input.icon ?? null, savedAt: at };
       await db.insertInto('adminium_app_saves').values(row).execute();
       return row;
     },

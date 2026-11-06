@@ -268,7 +268,7 @@ export function HostedAppsPage() {
           startSave({
             connectionId: save.connectionId,
             mode: 'quick',
-            prefill: { key: save.key, name: save.name ?? save.key, description: save.description ?? '', label: save.label },
+            prefill: { key: save.key, name: save.name ?? save.key, description: save.description ?? '', icon: save.icon, label: save.label },
           })
         }
       />
