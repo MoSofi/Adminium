@@ -363,6 +363,10 @@ import { widgetDataRoutes } from './routes/widget-data/index.js';
 import { WidgetDataCache } from './widget-data/cache.js';
 import { createTelemetryService } from './telemetry/service.js';
 import { APP_VERSION } from './version.js';
+import { SOURCE_ENGINES } from '@adminium/engine';
+import { createSaveService } from './apps/save/service.js';
+import type { SaveDialect } from './apps/save/types.js';
+import { appSaveRoutes } from './routes/apps/save.js';
 import { publicApiRegistrationBlocked, publicRoutes } from './routes/public/index.js';
 import type { PublicRateLimiter } from './public-api/limiter.js';
 import { publicAdminRoutes } from './routes/public-admin/index.js';
@@ -2500,6 +2504,24 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         },
       };
       await api.register(appRoutes(appDeps));
+      // Save as app: a database's configuration made into an app file, kept here and downloaded.
+      await api.register(
+        appSaveRoutes({
+          meta,
+          service: createSaveService({
+            meta,
+            storage,
+            masterSecret: env.ADMINIUM_SECRET,
+            adminiumVersion: APP_VERSION,
+            projectEnvFile: projectRoot === null ? null : join(projectRoot, '.env'),
+            dialectOf: async (connectionId) => {
+              const row = await meta.db.selectFrom('adminium_connections').select('engine').where('id', '=', connectionId).executeTakeFirst();
+              return row === undefined || !(SOURCE_ENGINES as readonly string[]).includes(row.engine) ? null : (row.engine as SaveDialect);
+            },
+            displayName: async () => settingsRepo(meta).get('branding.appName'),
+          }),
+        }),
+      );
       // One service for the folder's apps, the Designer and the add-on installer: it keeps no state between calls.
       const appService = createAppInstallService(appDeps);
       installCore = appService.core;

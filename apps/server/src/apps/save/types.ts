@@ -38,7 +38,7 @@ export interface SaveSource {
 export interface RowChoice {
   mode: 'none' | 'starting' | 'sample';
   /** Over 200 starting rows: the saved view whose order and filters pick them. */
-  viewId?: string;
+  viewId?: string | undefined;
 }
 
 /**

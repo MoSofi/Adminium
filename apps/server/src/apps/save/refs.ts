@@ -112,6 +112,7 @@ export async function buildSaveRefs(source: SaveSource, choices: SaveChoices): P
   const records = await appTablesRepo(meta).forConnection(connectionId);
   const held = new Map<string, HeldTable>();
   for (const record of records) {
+    // Everything an install made stays that install's, a self-made app's included: it is saved again where it was made.
     if (record.manifestId === null || record.releasedAt !== null) continue;
     const id = tableIdFor(model, record.schemaName === null ? record.tableName : `${record.schemaName}.${record.tableName}`);
     if (id !== null) held.set(id, { id, record });
