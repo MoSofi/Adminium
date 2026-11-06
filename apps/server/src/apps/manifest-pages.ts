@@ -67,6 +67,7 @@ import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
 import { newId, overridesRepo, pagesRepo, permissionsRepo, snapshotsRepo, type MetaDb, type PageSummary } from '@adminium/meta';
 
 import { ownsBlocks } from './owns-blocks.js';
+import { isSavedFile } from './saved-file.js';
 import { tableIdOrNull } from '../installs/table-id.js';
 import type { RefTarget } from './envelope-refs.js';
 import { appTableRefs, envelopeFromFile, targetTableFor } from './manifest-envelopes.js';
@@ -321,6 +322,8 @@ export async function planPageSlugs(
     const choice = choices[row.slug];
     const refuse = (code: PageSlugProblemCode, message: string) => problems.push({ code, table: row.slug, message });
     if (choice === undefined) {
+      // A released app's page at a taken address is left out with a warning, as before, until the install review can ask; a saved file is asked now.
+      if (!isSavedFile(manifest)) continue;
       refuse('PAGE_SLUG_UNANSWERED', `A page is already at /p/${row.slug} on this database. Pick what to do with it before you install: ${untouched ? 'replace it, ' : ''}rename it, or leave the app's page out.`);
     } else if (!offers.includes(choice.action)) {
       refuse('PAGE_SLUG_ANSWER_INVALID', `The page at /p/${row.slug} has been edited since it was made, so it is not replaced: rename it, or leave the app's page out.`);
@@ -393,7 +396,7 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
         const choice = input.choices?.[slug];
         if (whose === 'app' || choice === undefined) {
           // Another app's page is never clobbered (the install check refuses it before here); the operator's is only by their answer.
-          if (whose !== 'app' && input.strict === true) {
+          if (whose !== 'app' && input.strict === true && isSavedFile(manifest)) {
             throw new ValidationFailedError(`A page is already at /p/${slug}: pick what to do with it before you install.`, { reason: 'PAGE_SLUG_UNANSWERED', page: slug });
           }
           result.warnings.push({ page: page.ref, reason: 'PAGE_SLUG_TAKEN', message: `a page at /p/${slug} already exists and is not this app's` });

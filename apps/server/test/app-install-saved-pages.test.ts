@@ -112,6 +112,8 @@ function shop(version = '1.0.0', pages?: Doc[]): Doc {
       { ref: 'overview', template: 'page-dashboard', title: { key: 't.overview', fallback: 'Overview' }, nav: { group: 'manage', icon: 'layout-dashboard', order: 0 }, envelope: overviewEnvelope() },
     ],
     frontends: [{ side: 'staff', kind: 'spa' }],
+    // A file saved from a dashboard: where it was made.
+    provenance: { lineage: 'lin_shop_saved_1', savedAt: '2026-11-05T09:30:00Z', adminiumVersion: '0.3.49', label: 'Corner shop' },
   };
 }
 
@@ -275,6 +277,25 @@ describe.each(ENGINES)('a page address already taken, on %s', (dialect, availabl
     const install = await h.inject({ method: 'POST', url: '/apps/install', payload: { key: 'shop', version: '1.0.0', connectionId: h.connectionId } });
     expect(install.statusCode, install.body).toBe(422);
     expect(install.body).toContain('PAGE_SLUG_UNANSWERED');
+    expect((await page(h, 'orders')).id).toBe('page_mine');
+  });
+
+  it.skipIf(!available)("leaves a released app's page out with a warning, as before, until the review can ask", async () => {
+    harness = await installHarness(dialect);
+    const h = harness;
+    await operatorsPage(h, false);
+    // A catalogue app's file: no provenance, so it was not saved from a dashboard.
+    const released = app();
+    delete released['provenance'];
+    await h.stage(released);
+    const checked = await plan(h);
+    // The clash is still shown, and nothing refuses the install.
+    expect(checked.pageClashes).toEqual([{ page: 'orders', title: 'My orders', holder: 'yours', untouched: false, offers: ['rename-existing', 'skip'], action: 'undecided' }]);
+    expect(checked.problems.map((p) => p.code)).not.toContain('PAGE_SLUG_UNANSWERED');
+    const install = await h.inject({ method: 'POST', url: '/apps/install', payload: { key: 'shop', version: '1.0.0', connectionId: h.connectionId } });
+    expect(install.statusCode, install.body).toBe(200);
+    expect(install.body).toContain('PAGE_SLUG_TAKEN');
+    // The operator's page stays where it was.
     expect((await page(h, 'orders')).id).toBe('page_mine');
   });
 
