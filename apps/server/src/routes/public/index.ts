@@ -3135,7 +3135,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       // The guest's confirmation, when the endpoint sends one. Queued, never awaited on SMTP.
       const confirm = resource.confirm === null ? null : publicConfirmSchema.safeParse(resource.confirm);
       if (confirm?.success === true) {
-        await sendConfirmation({ meta, request, confirm: confirm.data, row: outcome.root, db: found.db, table, timezone: ok.key.scope.timezone, appKey: ok.key.managedBy });
+        await sendConfirmation({ meta, request, confirm: confirm.data, row: outcome.root, db: found.db, table, timezone: ok.key.scope.timezone, appKey: ok.key.managedBy, connectionId: ok.key.connectionId });
       }
       const rank = await rankOf(found, outcome.root);
       // The new row's own link, answered this once (a retry answers the rows, never the link).
@@ -3350,6 +3350,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             table: found.table,
             timezone: ok.key.scope.timezone,
             appKey: ok.key.managedBy,
+            connectionId: ok.key.connectionId,
           });
         }
 

@@ -78508,6 +78508,61 @@
         }
       }
     },
+    "/api/v1/email-templates/send-as-options": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "server": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "workspaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "from": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "from"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "server",
+                    "workspaces"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/email-templates/{id}/send-as": {
       "put": {
         "requestBody": {
@@ -135778,6 +135833,29 @@
                               "null"
                             ]
                           },
+                          "unfinishedUpdate": {
+                            "type": "object",
+                            "properties": {
+                              "from": {
+                                "type": "string"
+                              },
+                              "to": {
+                                "type": "string"
+                              },
+                              "stage": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "from",
+                              "to",
+                              "stage"
+                            ],
+                            "additionalProperties": false
+                          },
                           "sides": {
                             "type": "array",
                             "items": {
@@ -139425,6 +139503,29 @@
                         "null"
                       ]
                     },
+                    "unfinishedUpdate": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "type": "string"
+                        },
+                        "to": {
+                          "type": "string"
+                        },
+                        "stage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to",
+                        "stage"
+                      ],
+                      "additionalProperties": false
+                    },
                     "sides": {
                       "type": "array",
                       "items": {
@@ -140321,6 +140422,29 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "unfinishedUpdate": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string"
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "stage": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "from",
+                            "to",
+                            "stage"
+                          ],
+                          "additionalProperties": false
                         },
                         "sides": {
                           "type": "array",
@@ -141385,6 +141509,29 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "unfinishedUpdate": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string"
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "stage": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "from",
+                            "to",
+                            "stage"
+                          ],
+                          "additionalProperties": false
                         },
                         "sides": {
                           "type": "array",

@@ -976,5 +976,20 @@ export default {
     "limitEmail": "Jedna e-mailová adresa byla ve {form} zadána tolikrát, kolikrát smí být za den.",
     "limitEntry": "Tabulka, do které {form} zapisuje, přijala tolik nových řádků od návštěvníků, kolik její aplikace dovoluje.",
     "limitBody": "Znovu se otevře v {time}. Zvyšte limit nebo použijte přísnější kontrolu v Limitech formuláře."
+  },
+  "sendAs": {
+    "label": "Odeslat jako",
+    "server": "Server",
+    "serverFrom": "Server · {from}",
+    "byRecord": "Podle pracovního prostoru záznamu",
+    "workspaceFrom": "{workspace} · {from}",
+    "workspaceNoSender": "{workspace} · zatím bez odesílatele",
+    "helper": {
+      "byRecord": "E-mail o záznamu odchází od odesílatele pracovního prostoru, ve kterém je jeho databáze.",
+      "server": "Každý e-mail této šablony odchází od odesílatele serveru.",
+      "noSender": "{workspace} zatím nemá vlastního odesílatele, proto tato šablona odchází od odesílatele serveru.",
+      "workspace": "Každý e-mail této šablony odchází od odesílatele {workspace}, bez ohledu na záznam."
+    },
+    "failed": "Nepodařilo se to uložit. Zkuste to znovu."
   }
 } as const;

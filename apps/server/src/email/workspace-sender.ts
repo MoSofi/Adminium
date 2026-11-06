@@ -17,9 +17,9 @@
  *  3. Else, a database in no workspace or a workspace with no sender of its
  *     own, the server's sender, as before workspaces.
  * Only the send paths that are about a record ask (automation steps, the
- * digest, the outbox, document delivery, campaigns, invoices and pay mail):
- * mail with no record (sign-in, invitations, notices) never asks, and goes as
- * the server.
+ * digest, the outbox, document delivery, campaigns, invoices and pay mail, a
+ * form's sign-up confirmation, a booking's confirmation): mail with no record
+ * (sign-in, invitations, notices) never asks, and goes as the server.
  *
  * ─── The From must be one the server can send for ──────────────────────────
  * The relay, the DKIM keys and the DNS checks are the server's: a workspace's

@@ -23,8 +23,13 @@ const config: StorybookConfig = {
     '../../../apps/dashboard/src/automations/**/*.stories.tsx',
     // A person's own pages: the Security page's Figma card, in the states its connection draws.
     '../../../apps/dashboard/src/account/**/*.stories.tsx',
+    // A workspace's mail sender, and "Send as" on the email editor: self-contained pieces fed by the page's cache.
+    '../../../apps/dashboard/src/studio/workspace-sender/**/*.stories.tsx',
+    '../../../apps/dashboard/src/email/editor/inspector/panels/*.stories.tsx',
     // Installing an app file: the review's cards and the upload's choice, fed by props.
     '../../../apps/dashboard/src/studio/apps/**/*.stories.tsx',
+    // "Shown in": where an email template or a layout is listed, by workspace.
+    '../../../apps/dashboard/src/shown-in/**/*.stories.tsx',
   ],
   addons: ['@storybook/addon-a11y'],
   async viteFinal(viteConfig) {

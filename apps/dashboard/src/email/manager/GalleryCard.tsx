@@ -11,6 +11,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
+import { ShownInChips } from '../../shown-in/ShownIn.js';
 import type { EmailDocumentSummary } from '../api.js';
 import { MiniPreview } from './MiniPreview.js';
 import { DocumentStatusPill, LangPill } from './Pills.js';
@@ -43,6 +44,8 @@ export interface DocumentCardProps {
   archived: boolean;
   actions: DocumentActions;
   rename: RenameState | null;
+  /** Draw where it is listed (the server has workspaces). */
+  shownIn?: boolean | undefined;
 }
 
 /** The comp's rename input: accent border, surface-2 fill, commits on Enter/blur, reverts on Escape. */
@@ -120,7 +123,7 @@ export const ACTION_ROW_REVEAL =
   'pointer-events-none transition-transform duration-[180ms] ease-[cubic-bezier(.2,.7,.3,1)] ' +
   'group-hover:pointer-events-auto group-hover:translate-y-0 group-focus-within:pointer-events-auto group-focus-within:translate-y-0';
 
-export function GalleryCard({ doc, facts, archived, actions, rename }: DocumentCardProps) {
+export function GalleryCard({ doc, facts, archived, actions, rename, shownIn = false }: DocumentCardProps) {
   const accent = accentOf(doc);
   const status = statusOf(doc);
   const progress = useRunProgress(doc.run);
@@ -159,6 +162,7 @@ export function GalleryCard({ doc, facts, archived, actions, rename }: DocumentC
           <LangPill facts={facts} needsTranslation={doc.needsTranslation} />
           <DocumentStatusPill status={status} />
         </div>
+        {shownIn ? <ShownInChips shownIn={doc.shownIn} className="mt-2.5" /> : null}
         <div data-testid="email-card-actions" className={cn('flex gap-[5px]', ACTION_ROW_REVEAL)}>
           {archived ? (
             <button

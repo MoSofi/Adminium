@@ -959,7 +959,9 @@ export default {
       },
       "stopped": {
         "pages": "Aktualizace na {to} se zastavila při zápisu stránek. Nic se neztratilo; stránky verze {from} tu stále jsou.",
-        "other": "Aktualizace na {to} se zastavila v půli. Nic se neztratilo a dokončení naváže tam, kde se zastavila."
+        "other": "Aktualizace na {to} se zastavila v půli. Nic se neztratilo a dokončení naváže tam, kde se zastavila.",
+        "seeds": "Aktualizace na {to} se zastavila při přidávání počátečních řádků. Nic se neztratilo a dokončení přidá zbytek.",
+        "instance": "Aktualizace na {to} se zastavila při použití vzhledu a jazyků. Nic se neztratilo a dokončení je použije."
       },
       "titleOn": "Aktualizovat {app} na {database} na v{version}",
       "copyOf": "Kopie {n} z {total} · {from} → {to}",
@@ -5001,6 +5003,7 @@ export default {
       }
     }
   },
+<<<<<<< HEAD
   "workspaceFiles": {
     "app": {
       "choose": "Vyberte databázi",
@@ -5153,5 +5156,52 @@ export default {
       "staged": "{workspace} je nahrán a čeká na instalaci.",
       "stopped": "{workspace}: nainstalováno {done} z {total}. Instalace se v průběhu zastavila."
     }
+=======
+  "workspaceSender": {
+    "title": "Odesílatel pro {workspace}",
+    "subtitle": "E-maily o záznamech v databázích tohoto pracovního prostoru se odesílají od tohoto odesílatele.",
+    "close": "Zavřít",
+    "loading": "Načítání",
+    "accepted": {
+      "title": "Adresy, ze kterých tento server může odesílat",
+      "domains": "Libovolná adresa na:",
+      "addresses": "Nebo přesně:"
+    },
+    "noMail": {
+      "title": "Tento server zatím nemá odesílatele",
+      "body": "Nejdříve nastavte e-mail v Nastavení. Do té doby nemůže mít pracovní prostor vlastního odesílatele.",
+      "action": "Otevřít nastavení e-mailu"
+    },
+    "name": {
+      "label": "Jméno odesílatele",
+      "helper": "Od koho e-mail podle záhlaví přichází, například Kiln Street Pottery."
+    },
+    "from": {
+      "label": "Adresa odesílatele",
+      "helper": "Adresa na jednom z výše uvedených míst."
+    },
+    "replyTo": {
+      "label": "Adresa pro odpovědi",
+      "helper": "Kam chodí odpovědi. Ponechte prázdné pro adresu odesílatele."
+    },
+    "postal": {
+      "label": "Poštovní adresa",
+      "helper": "Tiskne se v patičce marketingových e-mailů tohoto pracovního prostoru. Ponechte prázdné pro adresu serveru."
+    },
+    "sharedList": "Seznam adres, kterým se nemá psát, patří celému serveru: kdo se odhlásí u jedné firmy, nedostane marketingové e-maily od žádné firmy na tomto serveru.",
+    "refusal": {
+      "notSendingDomain": "Tento server může odesílat jen z {accepted}. Použijte adresu odtamtud.",
+      "noMail": "Tento server zatím nemá odesílatele. Nejdříve nastavte e-mail v Nastavení.",
+      "notAnAddress": "Zadejte jednu e-mailovou adresu, například hello@example.com."
+    },
+    "failed": "Odesílatele se nepodařilo uložit. Zkuste to znovu.",
+    "footer": {
+      "own": "Jeho e-maily odcházejí z {from}.",
+      "server": "Dokud není uložena adresa odesílatele, jeho e-maily odcházejí od odesílatele serveru."
+    },
+    "clear": "Použít odesílatele serveru",
+    "cancel": "Zrušit",
+    "save": "Uložit odesílatele"
+>>>>>>> p76-conv
   }
 } as const;

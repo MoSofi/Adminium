@@ -959,7 +959,9 @@ export default {
       },
       "stopped": {
         "pages": "The update to {to} stopped while writing pages. Nothing was lost; {from}’s pages are still here.",
-        "other": "The update to {to} stopped part way. Nothing was lost, and finishing it carries on from where it stopped."
+        "other": "The update to {to} stopped part way. Nothing was lost, and finishing it carries on from where it stopped.",
+        "seeds": "The update to {to} stopped while adding its starting rows. Nothing was lost, and finishing it adds the rest.",
+        "instance": "The update to {to} stopped while applying the look and languages. Nothing was lost, and finishing it applies them."
       },
       "titleOn": "Update {app} on {database} to v{version}",
       "copyOf": "Copy {n} of {total} · {from} → {to}",
@@ -5001,6 +5003,7 @@ export default {
       }
     }
   },
+<<<<<<< HEAD
   "workspaceFiles": {
     "app": {
       "choose": "Choose a database",
@@ -5153,5 +5156,52 @@ export default {
       "staged": "{workspace} is uploaded and waits to be installed.",
       "stopped": "{workspace}: {done} of {total} installed. The install stopped part way."
     }
+=======
+  "workspaceSender": {
+    "title": "Sender for {workspace}",
+    "subtitle": "Mail about the records in this workspace’s databases goes from this sender.",
+    "close": "Close",
+    "loading": "Loading",
+    "accepted": {
+      "title": "Addresses this server can send from",
+      "domains": "Any address at:",
+      "addresses": "Or exactly:"
+    },
+    "noMail": {
+      "title": "This server has no sender yet",
+      "body": "Set up e-mail in Settings first. Until then, a workspace cannot have a sender of its own.",
+      "action": "Open e-mail settings"
+    },
+    "name": {
+      "label": "Sender name",
+      "helper": "Who the mail says it is from, such as Kiln Street Pottery."
+    },
+    "from": {
+      "label": "From address",
+      "helper": "An address at one of the places above."
+    },
+    "replyTo": {
+      "label": "Reply-to",
+      "helper": "Where replies go. Leave it blank for the From address."
+    },
+    "postal": {
+      "label": "Postal address",
+      "helper": "Printed at the foot of this workspace’s marketing mail. Leave it blank for the server’s."
+    },
+    "sharedList": "The do-not-email list belongs to the whole server: someone who unsubscribes from one business gets no marketing mail from any business on it.",
+    "refusal": {
+      "notSendingDomain": "This server can only send from {accepted}. Use an address there.",
+      "noMail": "This server has no sender yet. Set up e-mail in Settings first.",
+      "notAnAddress": "Enter one e-mail address, such as hello@example.com."
+    },
+    "failed": "The sender could not be saved. Try again.",
+    "footer": {
+      "own": "Its mail goes from {from}.",
+      "server": "Until a From address is saved, its mail goes from the server’s sender."
+    },
+    "clear": "Use the server’s sender",
+    "cancel": "Cancel",
+    "save": "Save sender"
+>>>>>>> p76-conv
   }
 } as const;

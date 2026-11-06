@@ -2026,5 +2026,32 @@ export default {
       "save": "Enregistrer le consentement",
       "close": "Fermer"
     }
+  },
+  "shownIn": {
+    "label": "Affiché dans",
+    "all": "Tous les espaces de travail",
+    "chosen": "Uniquement ces espaces de travail",
+    "none": "Aucun espace de travail",
+    "noneHint": "Répertorié dans aucun espace de travail. Cochez-en un pour l’y répertorier. Ce qui l’utilise déjà continue de l’envoyer.",
+    "unseen": "{count, plural, one {Également affiché dans # espace de travail que vous ne voyez pas.} other {Également affiché dans # espaces de travail que vous ne voyez pas.}}",
+    "unseenChip": "{count, plural, one {# autre espace de travail} other {# autres espaces de travail}}",
+    "filter": {
+      "label": "Espace de travail",
+      "other": "Autres bases de données"
+    },
+    "hidden": {
+      "here": "Non répertorié dans {workspace}. Ce qui l’utilise continue de l’envoyer.",
+      "other": "Non répertorié ici. Ce qui l’utilise continue de l’envoyer."
+    },
+    "kind": {
+      "emailTemplate": "Modèle d’e-mail",
+      "report": "Mise en page de rapport",
+      "invoice": "Mise en page de facture"
+    },
+    "deletePlan": {
+      "lead": "{count, plural, one {# élément n’est répertorié qu’ici. Après la suppression, il ne sera répertorié dans aucun espace de travail :} other {# éléments ne sont répertoriés qu’ici. Après la suppression, ils ne seront répertoriés dans aucun espace de travail :}}",
+      "after": "Ils restent, et ce qui les utilise continue de les envoyer. Vous pourrez leur choisir de nouveaux espaces de travail plus tard."
+    },
+    "saveFailed": "Impossible de changer où il est répertorié"
   }
 } as const;

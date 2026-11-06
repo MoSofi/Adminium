@@ -67,6 +67,12 @@ export interface InstalledApp {
   };
   installedAt: number;
   connectionId: string | null;
+  /**
+   * This copy's update moved its version and stopped part way: from, to, and
+   * the step it stopped at (null when unknown). The same update finishes it.
+   * Absent otherwise, and from an older server.
+   */
+  unfinishedUpdate?: { from: string; to: string; stage: string | null };
   sides: InstalledAppSide[];
   /** The app has a phone app for customers: served to nobody, with a key of its own. Absent otherwise, and from an older server. */
   phone?: true;

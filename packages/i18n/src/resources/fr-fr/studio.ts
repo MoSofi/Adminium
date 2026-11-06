@@ -959,7 +959,9 @@ export default {
       },
       "stopped": {
         "pages": "La mise à jour vers {to} s’est arrêtée pendant l’écriture des pages. Rien n’a été perdu ; les pages de {from} sont toujours là.",
-        "other": "La mise à jour vers {to} s’est arrêtée en cours de route. Rien n’a été perdu, et la terminer reprend là où elle s’est arrêtée."
+        "other": "La mise à jour vers {to} s’est arrêtée en cours de route. Rien n’a été perdu, et la terminer reprend là où elle s’est arrêtée.",
+        "seeds": "La mise à jour vers {to} s’est arrêtée pendant l’ajout de ses lignes de départ. Rien n’a été perdu, et la terminer ajoute le reste.",
+        "instance": "La mise à jour vers {to} s’est arrêtée pendant l’application de l’apparence et des langues. Rien n’a été perdu, et la terminer les applique."
       },
       "titleOn": "Mettre à jour {app} sur {database} vers v{version}",
       "copyOf": "Copie {n} sur {total} · {from} → {to}",
@@ -5001,6 +5003,7 @@ export default {
       }
     }
   },
+<<<<<<< HEAD
   "workspaceFiles": {
     "app": {
       "choose": "Choisir une base de données",
@@ -5153,5 +5156,52 @@ export default {
       "staged": "{workspace} est envoyé et attend d’être installé.",
       "stopped": "{workspace} : {done} sur {total} installées. L’installation s’est arrêtée en cours de route."
     }
+=======
+  "workspaceSender": {
+    "title": "Expéditeur de {workspace}",
+    "subtitle": "Les e-mails concernant les enregistrements des bases de données de cet espace de travail partent de cet expéditeur.",
+    "close": "Fermer",
+    "loading": "Chargement",
+    "accepted": {
+      "title": "Adresses depuis lesquelles ce serveur peut envoyer",
+      "domains": "Toute adresse sur :",
+      "addresses": "Ou exactement :"
+    },
+    "noMail": {
+      "title": "Ce serveur n’a pas encore d’expéditeur",
+      "body": "Configurez d’abord l’e-mail dans les Paramètres. D’ici là, un espace de travail ne peut pas avoir son propre expéditeur.",
+      "action": "Ouvrir les paramètres e-mail"
+    },
+    "name": {
+      "label": "Nom de l’expéditeur",
+      "helper": "Le nom sous lequel l’e-mail est envoyé, par exemple Kiln Street Pottery."
+    },
+    "from": {
+      "label": "Adresse d’expédition",
+      "helper": "Une adresse sur l’un des domaines ci-dessus."
+    },
+    "replyTo": {
+      "label": "Adresse de réponse",
+      "helper": "Où vont les réponses. Laissez vide pour l’adresse d’expédition."
+    },
+    "postal": {
+      "label": "Adresse postale",
+      "helper": "Imprimée au bas des e-mails marketing de cet espace de travail. Laissez vide pour celle du serveur."
+    },
+    "sharedList": "La liste d’exclusion e-mail appartient à tout le serveur : une personne qui se désabonne d’une entreprise ne reçoit plus d’e-mail marketing d’aucune entreprise de ce serveur.",
+    "refusal": {
+      "notSendingDomain": "Ce serveur ne peut envoyer que depuis {accepted}. Utilisez une adresse de ce type.",
+      "noMail": "Ce serveur n’a pas encore d’expéditeur. Configurez d’abord l’e-mail dans les Paramètres.",
+      "notAnAddress": "Saisissez une seule adresse e-mail, par exemple hello@example.com."
+    },
+    "failed": "L’expéditeur n’a pas pu être enregistré. Réessayez.",
+    "footer": {
+      "own": "Ses e-mails partent de {from}.",
+      "server": "Tant qu’aucune adresse d’expédition n’est enregistrée, ses e-mails partent de l’expéditeur du serveur."
+    },
+    "clear": "Utiliser l’expéditeur du serveur",
+    "cancel": "Annuler",
+    "save": "Enregistrer l’expéditeur"
+>>>>>>> p76-conv
   }
 } as const;

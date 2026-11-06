@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3597 entries. */
+/** `namespace:key` — 3618 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -701,6 +701,14 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:shortcuts.subtitle',
   'common:shortcuts.theme',
   'common:shortcuts.title',
+  'common:shownIn.all',
+  'common:shownIn.chosen',
+  'common:shownIn.filter.other',
+  'common:shownIn.kind.emailTemplate',
+  'common:shownIn.kind.invoice',
+  'common:shownIn.kind.report',
+  'common:shownIn.none',
+  'common:shownIn.saveFailed',
   'common:states.appDisabled.title',
   'common:states.connectionPaused.title',
   'common:states.dbUnreachable.primary',
@@ -1356,6 +1364,9 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'email:picker.title',
   'email:placeholders.label',
   'email:search.clear',
+  'email:sendAs.label',
+  'email:sendAs.server',
+  'email:sendAs.serverFrom',
   'email:status.draft',
   'email:status.failed',
   'email:status.live',
@@ -3042,6 +3053,16 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:workspaceFiles.saved.title',
   'studio:workspaceFiles.saves.label',
   'studio:workspaceFiles.waiting.label',
+  'studio:workspaceSender.accepted.title',
+  'studio:workspaceSender.close',
+  'studio:workspaceSender.from.label',
+  'studio:workspaceSender.loading',
+  'studio:workspaceSender.name.label',
+  'studio:workspaceSender.noMail.title',
+  'studio:workspaceSender.postal.label',
+  'studio:workspaceSender.replyTo.label',
+  'studio:workspaceSender.subtitle',
+  'studio:workspaceSender.title',
   'ui:action.cancel',
   'ui:action.clearSearch',
   'ui:action.close',

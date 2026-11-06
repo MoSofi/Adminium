@@ -74,12 +74,33 @@ const GROUP_KEYS: ReadonlyMap<string, string> = new Map<string, string>([
   ['studio:workspaceFiles.waiting.label', 'workspace files: saving a workspace and installing one'],
   ['studio:workspaceFiles.waiting.staged', 'workspace files: saving a workspace and installing one'],
   ['studio:workspaceFiles.waiting.stopped', 'workspace files: saving a workspace and installing one'],
+  ['email:sendAs.byRecord', '"Send as": the sender of the workspace the record’s database is in'],
+  ['email:sendAs.helper.byRecord', '"Send as": the sender of the workspace the record’s database is in'],
+  ['email:sendAs.helper.noSender', '"Send as" a workspace with no sender of its own'],
+  ['email:sendAs.helper.workspace', '"Send as" one workspace'],
+  ['email:sendAs.workspaceFrom', '"Send as": a workspace and its From'],
+  ['email:sendAs.workspaceNoSender', '"Send as": a workspace with no sender yet'],
+  ['studio:workspaceSender.title', 'the sender sheet of one workspace'],
+  ['studio:workspaceSender.subtitle', 'the sender sheet: mail about one workspace’s databases'],
+  ['studio:workspaceSender.noMail.body', 'the sender sheet: a workspace cannot have its own sender yet'],
+  ['studio:workspaceSender.postal.helper', 'the sender sheet: one workspace’s marketing mail'],
+  ['common:shownIn.all', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.chosen', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.none', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.noneHint', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.unseen', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.unseenChip', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.filter.label', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.deletePlan.lead', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.hidden.here', '"Shown in": a picked template not listed in the tab’s workspace, named by `{workspace}`'],
+  ['common:shownIn.deletePlan.after', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
 ]);
 
 /** Repo-relative path prefixes whose every "workspace" is the group. */
 const GROUP_FILES: ReadonlyMap<string, string> = new Map([
   ['apps/server/src/routes/workspaces/', 'the routes that create, rename, order and delete workspaces'],
   ['apps/server/src/workspaces/', 'which workspaces a person sees, and the `workspaceId` list filter'],
+  ['apps/dashboard/src/shown-in/', '"Shown in": where an email template, a report layout or an invoice layout is listed, by workspace'],
   ['apps/docs/src/content/docs/reference/rest-api.md', 'documents the /workspaces routes'],
   ['apps/docs/src/content/docs/anatomy/', 'the pnpm sense: "twenty-one workspaces" are the packages of the monorepo'],
   ['apps/docs/src/content/docs/contributing/', 'the pnpm sense, as above'],
@@ -89,6 +110,8 @@ const GROUP_FILES: ReadonlyMap<string, string> = new Map([
   ['apps/server/src/routes/apps/workspace-files.ts', 'the routes that upload, review and install a workspace file'],
   ['apps/server/src/cli/commands/workspace', '`adminium workspace list` and `adminium workspace save`'],
   ['apps/dashboard/src/studio/apps/workspaceFiles/', 'the Save workspace dialog and the workspace file install screens'],
+  ['apps/dashboard/src/studio/workspace-sender/', 'the sender sheet of one workspace'],
+  ['apps/dashboard/src/email/editor/inspector/panels/SendAsField.tsx', '"Send as": a workspace’s sender, or the server’s'],
 ]);
 
 /** Exact source strings that are about the groups. */
@@ -110,6 +133,9 @@ const GROUP_STRINGS: ReadonlyMap<string, string> = new Map([
   ['**Save workspace**, run with host access. A workspace file holds at most eight', 'cli.md, `workspace save`'],
   ['without `apps`, every database of the workspace is saved, each under the key it', 'cli.md, `workspace save`'],
   ["and each app's. A workspace file is installed from the dashboard only: **Install", 'cli.md, `workspace save`'],
+  ["The server's From and each workspace's name and From, no source row.", 'row-coverage reason of "Send as"’s choices'],
+  ["Which sender a template goes as: the template rows and a workspace's name, no source row.", 'row-coverage reason of "Send as"'],
+  ["A workspace's sender: a name and addresses on the workspace, no source row.", 'row-coverage reason of the workspace sender routes'],
 ]);
 
 // ─── What counts as words ────────────────────────────────────────────────────

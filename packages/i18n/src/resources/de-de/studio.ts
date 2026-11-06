@@ -959,7 +959,9 @@ export default {
       },
       "stopped": {
         "pages": "Die Aktualisierung auf {to} wurde beim Schreiben der Seiten unterbrochen. Nichts ging verloren; die Seiten von {from} sind noch da.",
-        "other": "Die Aktualisierung auf {to} wurde unterwegs unterbrochen. Nichts ging verloren, und das Abschließen macht dort weiter, wo sie stoppte."
+        "other": "Die Aktualisierung auf {to} wurde unterwegs unterbrochen. Nichts ging verloren, und das Abschließen macht dort weiter, wo sie stoppte.",
+        "seeds": "Die Aktualisierung auf {to} wurde beim Hinzufügen der Startzeilen unterbrochen. Nichts ging verloren, und das Abschließen fügt den Rest hinzu.",
+        "instance": "Die Aktualisierung auf {to} wurde beim Übernehmen von Aussehen und Sprachen unterbrochen. Nichts ging verloren, und das Abschließen übernimmt sie."
       },
       "titleOn": "{app} auf {database} auf v{version} aktualisieren",
       "copyOf": "Kopie {n} von {total} · {from} → {to}",
@@ -5001,6 +5003,7 @@ export default {
       }
     }
   },
+<<<<<<< HEAD
   "workspaceFiles": {
     "app": {
       "choose": "Datenbank wählen",
@@ -5153,5 +5156,52 @@ export default {
       "staged": "{workspace} ist hochgeladen und wartet auf die Installation.",
       "stopped": "{workspace}: {done} von {total} installiert. Die Installation wurde mittendrin abgebrochen."
     }
+=======
+  "workspaceSender": {
+    "title": "Absender für {workspace}",
+    "subtitle": "E-Mails zu Datensätzen in den Datenbanken dieses Arbeitsbereichs werden von diesem Absender verschickt.",
+    "close": "Schließen",
+    "loading": "Wird geladen",
+    "accepted": {
+      "title": "Adressen, von denen dieser Server senden kann",
+      "domains": "Jede Adresse unter:",
+      "addresses": "Oder genau:"
+    },
+    "noMail": {
+      "title": "Dieser Server hat noch keinen Absender",
+      "body": "Richten Sie zuerst E-Mail in den Einstellungen ein. Bis dahin kann ein Arbeitsbereich keinen eigenen Absender haben.",
+      "action": "E-Mail-Einstellungen öffnen"
+    },
+    "name": {
+      "label": "Absendername",
+      "helper": "Von wem die E-Mail laut Absender kommt, zum Beispiel Kiln Street Pottery."
+    },
+    "from": {
+      "label": "Absenderadresse",
+      "helper": "Eine Adresse unter einer der oben genannten Angaben."
+    },
+    "replyTo": {
+      "label": "Antwortadresse",
+      "helper": "Wohin Antworten gehen. Leer lassen für die Absenderadresse."
+    },
+    "postal": {
+      "label": "Postanschrift",
+      "helper": "Steht am Ende der Marketing-E-Mails dieses Arbeitsbereichs. Leer lassen für die des Servers."
+    },
+    "sharedList": "Die Nicht-anschreiben-Liste gilt für den ganzen Server: Wer sich bei einem Unternehmen abmeldet, erhält von keinem Unternehmen auf diesem Server mehr Marketing-E-Mails.",
+    "refusal": {
+      "notSendingDomain": "Dieser Server kann nur von {accepted} senden. Verwenden Sie dort eine Adresse.",
+      "noMail": "Dieser Server hat noch keinen Absender. Richten Sie zuerst E-Mail in den Einstellungen ein.",
+      "notAnAddress": "Geben Sie eine E-Mail-Adresse ein, zum Beispiel hello@example.com."
+    },
+    "failed": "Der Absender konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+    "footer": {
+      "own": "Seine E-Mails gehen von {from} aus.",
+      "server": "Solange keine Absenderadresse gespeichert ist, gehen seine E-Mails vom Absender des Servers aus."
+    },
+    "clear": "Absender des Servers verwenden",
+    "cancel": "Abbrechen",
+    "save": "Absender speichern"
+>>>>>>> p76-conv
   }
 } as const;

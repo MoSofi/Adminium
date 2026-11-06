@@ -976,5 +976,20 @@ export default {
     "limitEmail": "Én e-mailadresse er angivet i {form} så mange gange, som den må på en dag.",
     "limitEntry": "Tabellen, som {form} skriver i, har fået så mange nye rækker fra besøgende, som dens app tillader.",
     "limitBody": "Den åbner igen kl. {time}. Hæv grænsen eller brug et sværere tjek under formularens Grænser."
+  },
+  "sendAs": {
+    "label": "Send som",
+    "server": "Serveren",
+    "serverFrom": "Serveren · {from}",
+    "byRecord": "Efter postens arbejdsområde",
+    "workspaceFrom": "{workspace} · {from}",
+    "workspaceNoSender": "{workspace} · ingen afsender endnu",
+    "helper": {
+      "byRecord": "Mails om en post sendes fra afsenderen for det arbejdsområde, dens database ligger i.",
+      "server": "Alle mails fra denne skabelon sendes fra serverens afsender.",
+      "noSender": "{workspace} har endnu ikke sin egen afsender, så denne skabelon sendes fra serverens afsender.",
+      "workspace": "Alle mails fra denne skabelon sendes fra afsenderen for {workspace}, uanset posten."
+    },
+    "failed": "Dette kunne ikke gemmes. Prøv igen."
   }
 } as const;

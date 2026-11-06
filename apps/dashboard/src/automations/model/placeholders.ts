@@ -90,7 +90,8 @@ export function placeholderState(name: string, action: EmailAction, table: Sourc
 
 export function templateOf(sources: Sources | null, action: EmailAction): SourceTemplate | null {
   if (action.templateKey === null || action.templateKey === '') return null;
-  return sources?.templates.find((row) => row.key === action.templateKey) ?? null;
+  // A key not listed in this workspace still sends: it is read from the hidden ones.
+  return sources?.templates.find((row) => row.key === action.templateKey) ?? sources?.hiddenTemplates?.find((row) => row.key === action.templateKey) ?? null;
 }
 
 /** The template's placeholders in reading order, each with what fills it. */

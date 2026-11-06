@@ -118,7 +118,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/email-audience/*` | 8 | A campaign to the people of a table — the tables you may send to, their saved views, the first send’s review of people ticked before records were kept, the owner’s switch for existing customers, and a table’s e-mail settings (whether campaigns may mail it, its address and name columns) |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
 | `/api/v1/email-runs/*` | 7 | Campaign sends — cancel a scheduled or running run |
-| `/api/v1/email-templates/*` | 18 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
+| `/api/v1/email-templates/*` | 19 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
 | `/api/v1/events` | 1 | Server-sent events — the fallback when a WebSocket cannot be established |
 | `/api/v1/exports/*` | 7 | Queued exports of a whole result set, and their downloads |
 | `/api/v1/files/*` | 12 | Uploaded files and record attachments — upload, list, download (with Range and ETag), attach to a record, rename, move to trash and restore |
@@ -531,6 +531,7 @@ GET /api/v1/email-templates/{id}
 PUT /api/v1/email-templates/{id}
 PATCH /api/v1/email-templates/{id}
 DELETE /api/v1/email-templates/{id}
+GET /api/v1/email-templates/send-as-options
 PUT /api/v1/email-templates/{id}/send-as
 POST /api/v1/email-templates/{id}/duplicate
 POST /api/v1/email-templates/{id}/languages
