@@ -19,6 +19,7 @@
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { workspaceFileName } from '@adminium/manifest';
 import type { MetaDb } from '@adminium/meta';
 
 import type { SaveRights, SaveService } from '../../apps/save/service.js';
@@ -137,6 +138,8 @@ export const appSavesReply = z.object({
       bytes: z.number(),
       /** The app saves inside, in the file's order. */
       appSaveIds: z.array(z.string()),
+      /** The file's name, as "Download again" gives it. */
+      filename: z.string(),
     }),
   ),
 });
@@ -172,6 +175,8 @@ export const workspaceSavePlanReply = z.object({
         database: z.object({ name: z.string(), engine: z.string() }),
         key: z.string(),
         name: z.string(),
+        /** The version this database's app was last saved at; null for a first save. */
+        lastSaved: z.string().nullable(),
         plan: savePlanDto,
       }),
     ),
@@ -262,6 +267,7 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
           integrity: save.integrity,
           bytes: save.bytes,
           appSaveIds: save.appSaveIds,
+          filename: workspaceFileName(save.name, (JSON.parse(save.document) as { savedAt?: string }).savedAt ?? new Date(save.savedAt).toISOString()),
         })),
       }),
     );

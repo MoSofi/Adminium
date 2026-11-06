@@ -48,6 +48,8 @@ const workspaceFileApp = z.object({
   database: z.object({ name: z.string(), engine: z.string() }).nullable(),
   /** A connected database with that name and engine, when there is one: the "Install on" to start with. */
   suggested: z.string().nullable(),
+  /** The screens its file carries, as staged: the review warns about a self-made app's own screens. */
+  sides: z.array(z.string()),
   /** The database chosen to install on; null until chosen. */
   target: z.string().nullable(),
   state: z.enum(['pending', 'installed', 'updated', 'refused', 'stopped']),
@@ -153,6 +155,7 @@ export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAs
         integrity: app.integrity,
         database: entry === undefined ? null : { name: entry.database.name, engine: entry.database.engine },
         suggested: suggested?.id ?? null,
+        sides: app.sides ?? [],
         target: app.target,
         state: app.state,
         refusal: app.state === 'refused' || app.state === 'stopped' ? { reason: app.reason ?? 'REFUSED', message: app.error ?? '' } : null,
@@ -240,11 +243,11 @@ export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAs
         const { file } = checked;
 
         // Each app file staged as an upload stages it, with the fingerprint the file gives: refused alone, or staged.
-        const results = new Map<string, { name: string } | { reason: string; message: string }>();
+        const results = new Map<string, { name: string; sides: string[] } | { reason: string; message: string }>();
         await eachWorkspaceApp(body, file, async (entry, member) => {
           try {
             const staged = await w.stageAppFile({ body: Buffer.from(member), asserted: { key: entry.key, version: entry.version, expectedSha512: entry.integrity }, userId, userLabel, source: 'workspace-file' });
-            results.set(entry.key, { name: staged.name });
+            results.set(entry.key, { name: staged.name, sides: staged.sides });
           } catch (error) {
             if (!(error instanceof AppError)) throw error;
             results.set(entry.key, { reason: refusalReason(error), message: error.message });
@@ -259,7 +262,7 @@ export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAs
           apps: file.apps.map((entry) => {
             const result = results.get(entry.key);
             const base = { key: entry.key, version: entry.version, integrity: entry.integrity, target: null };
-            if (result !== undefined && 'name' in result) return { ...base, name: result.name, state: 'pending' as const };
+            if (result !== undefined && 'name' in result) return { ...base, name: result.name, sides: result.sides, state: 'pending' as const };
             return { ...base, state: 'refused' as const, reason: result?.reason ?? 'NOT_READ', error: result?.message ?? '' };
           }),
         });

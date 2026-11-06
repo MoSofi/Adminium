@@ -5000,5 +5000,158 @@ export default {
         "workspaceUsers": "Brugere på denne server"
       }
     }
+  },
+  "workspaceFiles": {
+    "app": {
+      "choose": "Vælg en database",
+      "chooseWhere": "Vælg, hvor {app} skal hen.",
+      "counts": {
+        "after": "{count, plural, one {# ting efter installationen} other {# ting efter installationen}}",
+        "choices": "{count, plural, one {# valg} other {# valg}}",
+        "outside": "{count, plural, one {# adresse udenfor} other {# adresser udenfor}}",
+        "screens": "{count, plural, one {# skærm} other {# skærme}}",
+        "tables": "{count, plural, one {# tabel} other {# tabeller}}"
+      },
+      "hideReview": "Skjul kontrollen",
+      "installOn": "Installér på",
+      "showReview": "Vis kontrollen",
+      "update": "Denne fil er nyere. Hver kopi af {app} bliver opdateret: {databases}."
+    },
+    "cancel": "Annullér",
+    "choice": {
+      "addTo": "Føj til {name}",
+      "create": "Opret arbejdsområdet {name}",
+      "createHint": "De databaser, apps kommer på, bliver lagt i det.",
+      "existing": "Føj til et eksisterende arbejdsområde",
+      "existingHint": "Vælg det herunder.",
+      "existingLabel": "Eksisterende arbejdsområde",
+      "first": "Alles menu grupperes efter arbejdsområde fra nu af. Databaser uden arbejdsområde vises under Andre databaser.",
+      "none": "Intet arbejdsområde",
+      "noneHint": "Databaserne bliver under Andre databaser.",
+      "noneHintFirst": "Databaserne bliver i menuen, som de er.",
+      "noneYet": "Ingen arbejdsområder på {server} endnu",
+      "title": "Arbejdsområde"
+    },
+    "close": "Luk",
+    "copied": "Kopieret",
+    "copy": "Kopiér",
+    "done": {
+      "chooseRest": "Vælg en database til resten",
+      "inExisting": "De er på {server}, i arbejdsområdet {workspace}.",
+      "inNew": "De er på {server}, i det nye arbejdsområde {workspace}.",
+      "installed": "Installeret",
+      "notInstalled": "Ikke installeret",
+      "nothingKept": "intet beholdt",
+      "on": "De er på {server}.",
+      "onDatabase": "på {database}",
+      "openWorkspace": "Åbn arbejdsområdet",
+      "rest": "Installér resten",
+      "stopped": "{done} af {total} installeret. {app} stoppede. Intet af den blev beholdt.",
+      "title": "{done} af {total} apps er installeret",
+      "waiting": "ikke installeret endnu",
+      "what": "Hvad der skete",
+      "workspace": "Arbejdsområde"
+    },
+    "error": "Noget gik galt",
+    "install": {
+      "apps": "{count, plural, one {# app} other {# apps}}",
+      "appsIntro": "Hver app installeres på sin egen database. En, der afvises, stopper ikke de andre.",
+      "appsTitle": "Apps i filen",
+      "back": "Tilbage",
+      "badge": "Arbejdsområdefil",
+      "button": "{count, plural, one {Installér # app} other {Installér # apps}}",
+      "buttonBoth": "{installs, plural, one {Installér # app} other {Installér # apps}}, {updates, plural, one {opdatér #} other {opdatér #}}",
+      "buttonUpdate": "{count, plural, one {Opdatér # app} other {Opdatér # apps}}",
+      "checkIntro": "Apps i {workspace} kommer på {server}. Intet ændres, før du trykker Installér.",
+      "checkTitle": "Kontrollér før du installerer",
+      "failed": "Installationen blev ikke kørt",
+      "footer": "Trin {n} af {total} · {file}",
+      "noDatabases": {
+        "body": "Apps kommer på databaser, der er forbundet. Forbind først en database, og kom så tilbage til denne fil.",
+        "title": "Ingen database her endnu"
+      },
+      "progress": "Installationsforløb",
+      "reading": "Læser arbejdsområdefilen…",
+      "steps": {
+        "bundle": "Pakke",
+        "done": "Færdig",
+        "review": "Kontrol"
+      },
+      "summary": {
+        "refused": "{apps} {count, plural, one {er afvist.} other {er afvist.}} De andre bliver installeret.",
+        "refusedAll": "{apps} {count, plural, one {er afvist.} other {er afvist.}}",
+        "waiting": "{ready} {count, plural, one {installeres nu.} other {installeres nu.}} Træf valgene for {apps} for at tilføje {others, plural, one {den} other {dem}}.",
+        "waitingAll": "Vælg en database til {apps}, og besvar dens kontrol."
+      },
+      "title": "Installér en arbejdsområdefil"
+    },
+    "refusal": {
+      "extra": "Filen indeholder noget, som dens liste over apps ikke nævner.",
+      "integrity": "En app i filen er ikke den fil, der blev gemt: dens fingeraftryk passer ikke.",
+      "mismatch": "En app i filen er ikke den app, filen siger, den er.",
+      "missing": "En app, som filen nævner, er der ikke.",
+      "nested": "En arbejdsområdefil inde i en arbejdsområdefil bliver ikke installeret.",
+      "title": "Denne arbejdsområdefil kan ikke installeres",
+      "twoInstances": "To apps i filen har serverindstillingerne med. En arbejdsområdefil har dem med i højst én app."
+    },
+    "save": {
+      "button": "Gem arbejdsområde",
+      "include": "Medtag {database}",
+      "intro": "Hver database bliver til en app i én fil. Intet ændres på denne server.",
+      "key": "Nøgle",
+      "lastSaved": "Sidst gemt {version}",
+      "moreChoices": "Flere valg",
+      "name": "Navn",
+      "needChoice": "{count, plural, one {# ting kræver et valg} other {# ting kræver et valg}}",
+      "noneIncluded": "Sæt flueben ved mindst én database.",
+      "ready": "Intet kræver et valg.",
+      "save": "Gem",
+      "settings": {
+        "from": "Fra {database}",
+        "help": "Udseendet, sprogene, formuleringerne og systemmails på denne server følger med højst én app.",
+        "label": "Serverindstillinger",
+        "none": "Ingen"
+      },
+      "subtitle": "Arbejdsområde · {count, plural, one {{n} database} other {{n} databaser}}",
+      "title": "Gem {workspace} som én fil",
+      "tooBig": "Denne arbejdsområdefil ville blive større end {size}. Udelad en database eller dens eksempelrækker, og prøv igen.",
+      "useMoreChoices": "Brug Flere valg på en app for at træffe dens valg.",
+      "version": "Version"
+    },
+    "saved": {
+      "copyApp": "Kopiér fingeraftrykket af {file}",
+      "copyFile": "Kopiér filens fingeraftryk",
+      "done": "Færdig",
+      "download": "Download",
+      "fingerprint": "Fingeraftryk",
+      "inside": "Apps i filen",
+      "intro": "Download den for at installere den på en anden server.",
+      "keep": "Gem fingeraftrykkene sammen med filen. Den nye server beder om dem for at kontrollere, at filen er den, du gemte.",
+      "title": "{workspace} er gemt som én fil"
+    },
+    "saves": {
+      "again": "Gem en nyere version",
+      "copy": "Kopiér fingeraftryk",
+      "download": "Download igen",
+      "label": "Arbejdsområdefiler gemt her",
+      "saved": "gemt {date} · {size}"
+    },
+    "status": {
+      "checking": "Kontrollerer",
+      "choice": "Kræver et valg",
+      "installed": "Installeret · {version}",
+      "ready": "Klar",
+      "refused": "Afvist",
+      "stopped": "Stoppet",
+      "update": "Opdatering · {from} → {to}",
+      "updated": "Opdateret"
+    },
+    "waiting": {
+      "discard": "Kassér",
+      "label": "Arbejdsområdefiler, der venter",
+      "review": "Kontrollér og installér",
+      "staged": "{workspace} er uploadet og venter på at blive installeret.",
+      "stopped": "{workspace}: {done} af {total} installeret. Installationen stoppede undervejs."
+    }
   }
 } as const;

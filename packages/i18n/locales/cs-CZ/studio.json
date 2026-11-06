@@ -4990,5 +4990,158 @@
         "workspaceUsers": "Uživatelé tohoto serveru"
       }
     }
+  },
+  "workspaceFiles": {
+    "app": {
+      "choose": "Vyberte databázi",
+      "chooseWhere": "Vyberte, kam {app} půjde.",
+      "counts": {
+        "after": "{count, plural, one {# věc po instalaci} few {# věci po instalaci} many {# věci po instalaci} other {# věcí po instalaci}}",
+        "choices": "{count, plural, one {# volba} few {# volby} many {# volby} other {# voleb}}",
+        "outside": "{count, plural, one {# adresa mimo} few {# adresy mimo} many {# adresy mimo} other {# adres mimo}}",
+        "screens": "{count, plural, one {# obrazovka} few {# obrazovky} many {# obrazovky} other {# obrazovek}}",
+        "tables": "{count, plural, one {# tabulka} few {# tabulky} many {# tabulky} other {# tabulek}}"
+      },
+      "hideReview": "Skrýt kontrolu",
+      "installOn": "Instalovat na",
+      "showReview": "Zobrazit kontrolu",
+      "update": "Tento soubor je novější. Každá kopie aplikace {app} se aktualizuje: {databases}."
+    },
+    "cancel": "Zrušit",
+    "choice": {
+      "addTo": "Přidat do {name}",
+      "create": "Vytvořit pracovní prostor {name}",
+      "createHint": "Databáze, do kterých aplikace půjdou, se do něj zařadí.",
+      "existing": "Přidat do existujícího pracovního prostoru",
+      "existingHint": "Vyberte ho níže.",
+      "existingLabel": "Existující pracovní prostor",
+      "first": "Nabídka všech se od teď seskupuje podle pracovních prostorů. Databáze bez pracovního prostoru se zobrazí v části Ostatní databáze.",
+      "none": "Žádný pracovní prostor",
+      "noneHint": "Databáze zůstanou v části Ostatní databáze.",
+      "noneHintFirst": "Databáze zůstanou v nabídce tak, jak jsou.",
+      "noneYet": "Na serveru {server} zatím nejsou žádné pracovní prostory",
+      "title": "Pracovní prostor"
+    },
+    "close": "Zavřít",
+    "copied": "Zkopírováno",
+    "copy": "Kopírovat",
+    "done": {
+      "chooseRest": "Vyberte databázi pro zbytek",
+      "inExisting": "Jsou na serveru {server}, v pracovním prostoru {workspace}.",
+      "inNew": "Jsou na serveru {server}, v novém pracovním prostoru {workspace}.",
+      "installed": "Nainstalováno",
+      "notInstalled": "Nenainstalováno",
+      "nothingKept": "nic se neuchovalo",
+      "on": "Jsou na serveru {server}.",
+      "onDatabase": "na {database}",
+      "openWorkspace": "Otevřít pracovní prostor",
+      "rest": "Nainstalovat zbytek",
+      "stopped": "Nainstalováno {done} z {total}. {app} se zastavila. Nic z ní se neuchovalo.",
+      "title": "Nainstalováno je {done} z {total} aplikací",
+      "waiting": "zatím nenainstalováno",
+      "what": "Co se stalo",
+      "workspace": "Pracovní prostor"
+    },
+    "error": "Něco se pokazilo",
+    "install": {
+      "apps": "{count, plural, one {# aplikace} few {# aplikace} many {# aplikace} other {# aplikací}}",
+      "appsIntro": "Každá aplikace se instaluje na vlastní databázi. Odmítnutí jedné nezastaví ostatní.",
+      "appsTitle": "Aplikace v souboru",
+      "back": "Zpět",
+      "badge": "Soubor pracovního prostoru",
+      "button": "{count, plural, one {Instalovat # aplikaci} few {Instalovat # aplikace} many {Instalovat # aplikace} other {Instalovat # aplikací}}",
+      "buttonBoth": "{installs, plural, one {Instalovat # aplikaci} few {Instalovat # aplikace} many {Instalovat # aplikace} other {Instalovat # aplikací}}, {updates, plural, one {aktualizovat #} few {aktualizovat #} many {aktualizovat #} other {aktualizovat #}}",
+      "buttonUpdate": "{count, plural, one {Aktualizovat # aplikaci} few {Aktualizovat # aplikace} many {Aktualizovat # aplikace} other {Aktualizovat # aplikací}}",
+      "checkIntro": "Aplikace z {workspace} půjdou na server {server}. Nic se nezmění, dokud nestisknete Instalovat.",
+      "checkTitle": "Před instalací zkontrolujte",
+      "failed": "Instalace neproběhla",
+      "footer": "Krok {n} z {total} · {file}",
+      "noDatabases": {
+        "body": "Aplikace jdou na připojené databáze. Nejprve připojte databázi a pak se k tomuto souboru vraťte.",
+        "title": "Zatím tu není žádná databáze"
+      },
+      "progress": "Průběh instalace",
+      "reading": "Čte se soubor pracovního prostoru…",
+      "steps": {
+        "bundle": "Balíček",
+        "done": "Hotovo",
+        "review": "Kontrola"
+      },
+      "summary": {
+        "refused": "{apps} {count, plural, one {je odmítnuta.} few {jsou odmítnuty.} many {jsou odmítnuty.} other {jsou odmítnuty.}} Ostatní se nainstalují.",
+        "refusedAll": "{apps} {count, plural, one {je odmítnuta.} few {jsou odmítnuty.} many {jsou odmítnuty.} other {jsou odmítnuty.}}",
+        "waiting": "{ready} {count, plural, one {se nainstaluje teď.} few {se nainstalují teď.} many {se nainstalují teď.} other {se nainstalují teď.}} Proveďte volby pro {apps}, abyste {others, plural, one {ji přidali} few {je přidali} many {je přidali} other {je přidali}}.",
+        "waitingAll": "Vyberte databázi pro {apps} a odpovězte na kontrolu."
+      },
+      "title": "Instalovat soubor pracovního prostoru"
+    },
+    "refusal": {
+      "extra": "Soubor obsahuje něco, co jeho seznam aplikací neuvádí.",
+      "integrity": "Jedna aplikace v souboru není soubor, který byl uložen: její otisk nesouhlasí.",
+      "mismatch": "Jedna aplikace v souboru není ta, za kterou ji soubor vydává.",
+      "missing": "Aplikace, kterou soubor uvádí, v něm není.",
+      "nested": "Soubor pracovního prostoru uvnitř souboru pracovního prostoru se neinstaluje.",
+      "title": "Tento soubor pracovního prostoru nelze nainstalovat",
+      "twoInstances": "Dvě aplikace v souboru nesou nastavení serveru. Soubor pracovního prostoru je nese nejvýše s jednou aplikací."
+    },
+    "save": {
+      "button": "Uložit pracovní prostor",
+      "include": "Zahrnout {database}",
+      "intro": "Z každé databáze se stane aplikace v jednom souboru. Na tomto serveru se nic nezmění.",
+      "key": "Klíč",
+      "lastSaved": "Naposledy uloženo {version}",
+      "moreChoices": "Další volby",
+      "name": "Název",
+      "needChoice": "{count, plural, one {# věc vyžaduje volbu} few {# věci vyžadují volbu} many {# věci vyžaduje volbu} other {# věcí vyžaduje volbu}}",
+      "noneIncluded": "Zaškrtněte alespoň jednu databázi.",
+      "ready": "Nic nevyžaduje volbu.",
+      "save": "Uložit",
+      "settings": {
+        "from": "Z {database}",
+        "help": "Vzhled, jazyky, formulace a systémové e-maily tohoto serveru putují nejvýše s jednou aplikací.",
+        "label": "Nastavení serveru",
+        "none": "Žádné"
+      },
+      "subtitle": "Pracovní prostor · {count, plural, one {{n} databáze} few {{n} databáze} many {{n} databáze} other {{n} databází}}",
+      "title": "Uložit {workspace} jako jeden soubor",
+      "tooBig": "Tento soubor pracovního prostoru by byl větší než {size}. Vynechejte databázi nebo její ukázkové řádky a zkuste to znovu.",
+      "useMoreChoices": "Volby aplikace proveďte přes Další volby.",
+      "version": "Verze"
+    },
+    "saved": {
+      "copyApp": "Kopírovat otisk souboru {file}",
+      "copyFile": "Kopírovat otisk souboru",
+      "done": "Hotovo",
+      "download": "Stáhnout",
+      "fingerprint": "Otisk",
+      "inside": "Aplikace uvnitř",
+      "intro": "Stáhněte ho a nainstalujte na jiném serveru.",
+      "keep": "Uchovejte otisky spolu se souborem. Nový server se na ně zeptá, aby ověřil, že jde o soubor, který jste uložili.",
+      "title": "{workspace} je uložen jako jeden soubor"
+    },
+    "saves": {
+      "again": "Uložit novější verzi",
+      "copy": "Kopírovat otisk",
+      "download": "Stáhnout znovu",
+      "label": "Soubory pracovních prostorů uložené zde",
+      "saved": "uloženo {date} · {size}"
+    },
+    "status": {
+      "checking": "Kontroluje se",
+      "choice": "Vyžaduje volbu",
+      "installed": "Nainstalováno · {version}",
+      "ready": "Připraveno",
+      "refused": "Odmítnuto",
+      "stopped": "Zastaveno",
+      "update": "Aktualizace · {from} → {to}",
+      "updated": "Aktualizováno"
+    },
+    "waiting": {
+      "discard": "Zahodit",
+      "label": "Čekající soubory pracovních prostorů",
+      "review": "Zkontrolovat a nainstalovat",
+      "staged": "{workspace} je nahrán a čeká na instalaci.",
+      "stopped": "{workspace}: nainstalováno {done} z {total}. Instalace se v průběhu zastavila."
+    }
   }
 }

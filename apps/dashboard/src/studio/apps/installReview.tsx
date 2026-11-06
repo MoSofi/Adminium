@@ -128,6 +128,8 @@ export function WhereItCameFrom({
   onFingerprint,
   fieldId,
   compact = false,
+  badge,
+  chip,
 }: {
   name: string;
   version: string;
@@ -142,6 +144,10 @@ export function WhereItCameFrom({
   fieldId?: string | undefined;
   /** Inside the update dialog: no section title. */
   compact?: boolean | undefined;
+  /** In place of "Your own app" (a workspace file says "Workspace file"). */
+  badge?: string | undefined;
+  /** In place of the version chip (a workspace file says "{n} apps"). */
+  chip?: string | undefined;
 }) {
   const own = madeAt !== undefined;
   const generated = useId();
@@ -160,13 +166,14 @@ export function WhereItCameFrom({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-bold">{name}</span>
-            <MonoText className={`${CHIP} bg-surface-3 text-fg-muted`}>{version}</MonoText>
+            {chip === undefined ? <MonoText className={`${CHIP} bg-surface-3 text-fg-muted`}>{version}</MonoText> : null}
             {own ? (
               <span className={`${CHIP} bg-accent-soft text-accent`}>
                 <HardDrive aria-hidden className="size-3" />
-                {t('studio:hostedApps.review.source.badge', 'Your own app')}
+                {badge ?? t('studio:hostedApps.review.source.badge', 'Your own app')}
               </span>
             ) : null}
+            {chip === undefined ? null : <span className={`${CHIP} bg-surface-3 text-fg-muted`}>{chip}</span>}
           </div>
           <div className="mt-[3px] text-[12.5px] text-fg-muted">
             {own

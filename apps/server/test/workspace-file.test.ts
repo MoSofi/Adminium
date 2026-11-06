@@ -103,7 +103,7 @@ type FileDto = {
   name: string;
   label: string;
   workspace: { mode: string; workspaceId?: string } | null;
-  apps: { key: string; name: string; version: string; state: string; suggested: string | null; route: string; refusal: { reason: string; message: string } | null; database: { name: string; engine: string } | null }[];
+  apps: { key: string; name: string; version: string; state: string; suggested: string | null; sides: string[]; route: string; refusal: { reason: string; message: string } | null; database: { name: string; engine: string } | null }[];
 };
 const fileOf = (reply: { body: string }): FileDto => (JSON.parse(reply.body) as { workspaceFile: FileDto }).workspaceFile;
 
@@ -135,13 +135,15 @@ describe.each(ENGINES)('save workspace and install it, on %s', (dialect, availab
     expect(again?.filename).toBe('corner-shop.workspace.tgz');
     expect(Buffer.from(again!.bytes).equals(Buffer.from(saved.tarball))).toBe(true);
     // Each inner file is an ordinary save of its own, the next one a version on.
-    expect((await src.service.plan(src.workspaceId, {}, HOST)).apps.map((app) => app.plan.version)).toEqual(['1.0.1', '1.0.1']);
+    const after = await src.service.plan(src.workspaceId, {}, HOST);
+    expect(after.apps.map((app) => [app.plan.version, app.lastSaved])).toEqual([['1.0.1', '1.0.0'], ['1.0.1', '1.0.0']]);
 
     const dst = await target(dialect, open);
     const staged = await upload(dst.h, saved.tarball);
     expect(staged.statusCode, staged.body).toBe(200);
     const file = fileOf(staged);
     expect(file).toMatchObject({ name: 'Corner Shop', label: 'Corner shop, Leith', state: 'staged', workspace: null });
+    expect(file.apps.every((app) => app.sides.includes('staff') || app.sides.length === 0)).toBe(true);
     expect(file.apps.map((app) => [app.key, app.state, app.route, app.suggested])).toEqual([
       ['archive', 'pending', 'install', dst.archive],
       ['clinic', 'pending', 'install', dst.h.connectionId],
@@ -485,7 +487,7 @@ describe('Save workspace: the routes and the command', () => {
 
       const listed = JSON.parse((await app.inject({ method: 'GET', url: '/apps/saves' })).body) as { saves: { key: string }[]; workspaces: { id: string; name: string; label: string; appSaveIds: string[] }[] };
       expect(listed.saves.map((one) => one.key).sort()).toEqual(['archive', 'clinic']);
-      expect(listed.workspaces).toMatchObject([{ id: reply.id, name: 'Corner Shop', label: 'Leith' }]);
+      expect(listed.workspaces).toMatchObject([{ id: reply.id, name: 'Corner Shop', label: 'Leith', filename: 'corner-shop.workspace.tgz' }]);
       expect(listed.workspaces[0]!.appSaveIds).toHaveLength(2);
 
       const missing = await app.inject({ method: 'GET', url: '/workspaces/save/wss_nope/file' });

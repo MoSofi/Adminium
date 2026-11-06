@@ -46,7 +46,34 @@ const WORD = /\bworkspaces?\b/i;
 
 /** en-US catalogue keys (`ns:dotted.key`) whose text is about the groups. */
 const GROUP_KEYS: ReadonlyMap<string, string> = new Map<string, string>([
-  // None yet. The sidebar, the switcher and the Workspaces dialog add theirs here.
+  // The sidebar, the switcher and the Workspaces dialog add theirs here.
+  ['studio:workspaceFiles.choice.create', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.choice.existing', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.choice.existingLabel', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.choice.first', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.choice.none', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.choice.noneYet', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.choice.title', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.done.inExisting', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.done.inNew', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.done.openWorkspace', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.done.workspace', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.install.badge', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.install.checkIntro', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.install.reading', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.install.title', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.refusal.nested', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.refusal.title', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.refusal.twoInstances', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.save.button', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.save.subtitle', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.save.title', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.save.tooBig', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.saved.title', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.saves.label', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.waiting.label', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.waiting.staged', 'workspace files: saving a workspace and installing one'],
+  ['studio:workspaceFiles.waiting.stopped', 'workspace files: saving a workspace and installing one'],
 ]);
 
 /** Repo-relative path prefixes whose every "workspace" is the group. */
@@ -56,6 +83,12 @@ const GROUP_FILES: ReadonlyMap<string, string> = new Map([
   ['apps/docs/src/content/docs/reference/rest-api.md', 'documents the /workspaces routes'],
   ['apps/docs/src/content/docs/anatomy/', 'the pnpm sense: "twenty-one workspaces" are the packages of the monorepo'],
   ['apps/docs/src/content/docs/contributing/', 'the pnpm sense, as above'],
+  ['apps/server/src/apps/save/workspace.ts', 'Save workspace: one app per database of a workspace, in one file'],
+  ['apps/server/src/apps/workspace-files.ts', 'reading and checking an uploaded workspace file'],
+  ['apps/server/src/apps/workspace-install.ts', 'installing a workspace file, and the workspace its databases join'],
+  ['apps/server/src/routes/apps/workspace-files.ts', 'the routes that upload, review and install a workspace file'],
+  ['apps/server/src/cli/commands/workspace', '`adminium workspace list` and `adminium workspace save`'],
+  ['apps/dashboard/src/studio/apps/workspaceFiles/', 'the Save workspace dialog and the workspace file install screens'],
 ]);
 
 /** Exact source strings that are about the groups. */
@@ -63,6 +96,20 @@ const GROUP_STRINGS: ReadonlyMap<string, string> = new Map([
   ['There is no such workspace.', 'a `workspaceId` the person cannot see (assistant host, last-chosen workspace)'],
   ['That database is not in this workspace. Call list_connections for the ones here.', 'Milo narrowed to the tab’s workspace'],
   ['Workspaces group databases: names and memberships, not rows.', 'row-coverage reason of the /workspaces routes'],
+  ['A workspace file.', 'the app upload handing a workspace file, by its name, to the workspace upload'],
+  ["A workspace file's app files staged as uploads: no source row.", 'row-coverage reason of the workspace upload'],
+  ['The workspace files staged here and how far each install got: no source row.', 'row-coverage reason of the workspace file routes'],
+  ["A saved workspace file packed again from the apps' kept files: no source row is read.", 'row-coverage reason of Download again'],
+  ['a preview of the workspace file a save would make; it reads configuration and writes nothing. The save it precedes is audited.', 'audit mark of the Save workspace plan'],
+  ['An app in that workspace file is no longer kept. Save the workspace again.', 'Download again of a workspace file'],
+  ['description: Every adminium command and flag — new, dev, build, start, check, app, workspace, pull, eject, try, migrate, introspect, generate-prompt, apply-llm-response, export-zip, import-zip.', 'the CLI reference lists the `workspace` command'],
+  ["A workspace groups some of this server's databases. `adminium workspace", 'cli.md, the `workspace` command'],
+  ['Prints each workspace, its id and name, and the databases it holds. A database', 'cli.md, `workspace list`'],
+  ['may be in several workspaces, or in none.', 'cli.md, `workspace list`'],
+  ['Saves every database of a workspace as one **workspace file**: one app per', 'cli.md, `workspace save`'],
+  ['**Save workspace**, run with host access. A workspace file holds at most eight', 'cli.md, `workspace save`'],
+  ['without `apps`, every database of the workspace is saved, each under the key it', 'cli.md, `workspace save`'],
+  ["and each app's. A workspace file is installed from the dashboard only: **Install", 'cli.md, `workspace save`'],
 ]);
 
 // ─── What counts as words ────────────────────────────────────────────────────

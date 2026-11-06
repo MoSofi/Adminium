@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3574 entries. */
+/** `namespace:key` — 3597 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -3019,6 +3019,29 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:wizard.step.tables',
   'studio:wizard.step.test',
   'studio:wizard.title',
+  'studio:workspaceFiles.choice.addTo',
+  'studio:workspaceFiles.choice.create',
+  'studio:workspaceFiles.choice.existing',
+  'studio:workspaceFiles.choice.none',
+  'studio:workspaceFiles.close',
+  'studio:workspaceFiles.error',
+  'studio:workspaceFiles.install.button',
+  'studio:workspaceFiles.install.buttonBoth',
+  'studio:workspaceFiles.install.buttonUpdate',
+  'studio:workspaceFiles.install.failed',
+  'studio:workspaceFiles.install.noDatabases.title',
+  'studio:workspaceFiles.install.progress',
+  'studio:workspaceFiles.install.steps.bundle',
+  'studio:workspaceFiles.install.steps.done',
+  'studio:workspaceFiles.install.steps.review',
+  'studio:workspaceFiles.refusal.title',
+  'studio:workspaceFiles.save.include',
+  'studio:workspaceFiles.save.title',
+  'studio:workspaceFiles.saved.copyApp',
+  'studio:workspaceFiles.saved.copyFile',
+  'studio:workspaceFiles.saved.title',
+  'studio:workspaceFiles.saves.label',
+  'studio:workspaceFiles.waiting.label',
   'ui:action.cancel',
   'ui:action.clearSearch',
   'ui:action.close',

@@ -121,6 +121,7 @@ import {
   type AddOnPicks,
 } from './AddOnsInstallCard.js';
 import { namesList, sentence } from './addOnWords.js';
+import { isWorkspaceFileRefusal } from './workspaceFiles/workspaceFilesApi.js';
 import {
   AfterInstallCard,
   ExistingTablesCard,
@@ -189,7 +190,7 @@ import { SampleInstallCard, runSampleAdd } from './SampleData.js';
 type StepId = 'bundle' | 'database' | 'plan' | 'done';
 
 /** The answers the pickers describe, in a stable key order so two can be compared. */
-function answersOf(
+export function answersOf(
   picks: Record<string, TakenPick>,
   renameTo: Record<string, string>,
   prefix: string,
@@ -229,7 +230,7 @@ function workspacesByConnection(bootstrap: BootstrapData | undefined): Map<strin
   return out;
 }
 
-function hasTables(plan: AppInstallPlan): plan is AppInstallPlan & { tables: PlannedAppTable[] } {
+export function hasTables(plan: AppInstallPlan): plan is AppInstallPlan & { tables: PlannedAppTable[] } {
   return plan.tables !== undefined;
 }
 
@@ -268,9 +269,11 @@ export interface InstallAppWizardProps {
   onBusy?: ((busy: boolean) => void) | undefined;
   /** "More choices": open the steps on the same app. */
   onMoreChoices?: (() => void) | undefined;
+  /** The upload is a workspace file (several apps): the page sends it again to the workspace upload. */
+  onWorkspaceFile?: ((file: File) => void) | undefined;
 }
 
-export function InstallAppWizard({ onClose, preselected, quick = false, onMoreChoices, onBusy }: InstallAppWizardProps) {
+export function InstallAppWizard({ onClose, preselected, quick = false, onMoreChoices, onBusy, onWorkspaceFile }: InstallAppWizardProps) {
   const queryClient = useQueryClient();
   const { data: connections } = useSuspenseQuery(connectionsQuery());
 
@@ -372,6 +375,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const upload = useMutation({
     mutationFn: async () => {
       if (file === null) throw new Error('no file');
+      // A workspace file by its name goes to its own upload at once: it may be larger than an app upload takes.
+      if (onWorkspaceFile !== undefined && file.name.endsWith('.workspace.tgz')) throw new ApiError(422, 'VALIDATION_FAILED', 'A workspace file.', null, { reason: 'IS_WORKSPACE_FILE' });
       /*
        * The browser hashes the bytes it sends (see `sha512Of` on what that is
        * worth). A fingerprint the person was given is checked on the review,
@@ -398,6 +403,11 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
       void queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY });
     },
     onError: (cause: Error) => {
+      // A workspace file: the app upload answers it, and its own screen takes it over.
+      if (file !== null && onWorkspaceFile !== undefined && isWorkspaceFileRefusal(cause)) {
+        onWorkspaceFile(file);
+        return;
+      }
       // Refused before anything was staged, in a sentence per database: the card replaces the upload.
       const refused = cause instanceof ApiError ? uploadRefusal(cause.code, cause.details) : null;
       if (refused !== null) {
