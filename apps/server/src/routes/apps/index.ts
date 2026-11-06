@@ -48,6 +48,7 @@ import {
   type Manifest,
   satisfiesSemverRange,
   PHONE_SIDE,
+  WORKSPACE_FILE,
 } from '@adminium/manifest';
 import { type DatabaseModel } from '@adminium/engine';
 import {
@@ -91,6 +92,8 @@ import {
 } from '../../apps/catalog.js';
 import { addOnsHereFor, asInstalledHere, partsLeftOut, planModulesOf, planWholeOf, tickedByDefault } from '../../apps/app-modules.js';
 import { surfacesOfInstalled } from '../../apps/installed.js';
+import { workspaceFileRefusal } from '../../apps/workspace-files.js';
+import { workspaceFileRoutes } from './workspace-files.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
@@ -283,6 +286,231 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     };
   }
 
+  /**
+   * An app file's bytes staged as the upload stages them: the package names
+   * itself, every refusal the upload gives (the floor, the project folder, the
+   * publisher, the catalogue's keys, another lineage, an older version), an
+   * audit row per outcome, and where the file goes on this server. The upload
+   * route and each app inside a workspace file come through here, so the two
+   * cannot refuse differently.
+   */
+  async function stageAppFile(input: {
+    body: Buffer;
+    asserted: { key?: string | undefined; version?: string | undefined; expectedSha512: string };
+    userId: string | null;
+    userLabel: string;
+    source?: 'upload' | 'workspace-file';
+  }): Promise<z.infer<typeof stagedAppReply>> {
+    const { body, asserted, userId, userLabel } = input;
+    const source = input.source ?? 'upload';
+
+    /*
+     * THE BUNDLE NAMES ITSELF. Its key and version come out of its own
+     * `manifest.json`, read by the store from the verified in-memory unpack
+     * before a byte is written — so the package is staged under exactly the
+     * identity the plan and install steps will later check it against.
+     * A key typed by the operator could only ever agree with the manifest
+     * or be refused, one step too late (47 step 1 follow-up).
+     *
+     * Held in an object rather than a `let`: TypeScript cannot see an
+     * assignment made inside a callback, and would read a `let` as never
+     * assigned on every line below this call.
+     */
+    const read: { manifest?: Manifest } = {};
+    // What is installed, read BEFORE the stage: `identify` runs inside it
+    // and cannot wait on the meta store.
+    const installedRows = await manifests.list('app');
+    // Each copy of each key, with its database's name: what a refusal below names, and where the reply says the file goes.
+    const copiesByKey = new Map<string, Awaited<ReturnType<typeof copiesOf>>>();
+    for (const keyed of new Set(installedRows.map((installed) => installed.row.manifestKey))) copiesByKey.set(keyed, await copiesOf(keyed));
+    const installedVersions = new Map(installedRows.map((installed) => [installed.row.manifestKey, installed.row.version]));
+    const installedPublishers = new Map(installedRows.map((installed) => [installed.row.manifestKey, publisherIdOf(installed.document)]));
+    // The keys the cached catalogue lists, when there is one: a self-made
+    // app may not take the key of an app the catalogue offers.
+    const cachedCatalog = await deps.store.readCatalogCache();
+    const parsedCatalog =
+      cachedCatalog === null || !isCurrentAppCatalogFormat(cachedCatalog.document)
+        ? null
+        : appCatalogSchema.safeParse(cachedCatalog.document);
+    const catalogKeys = new Set(parsedCatalog?.success === true ? parsedCatalog.data.apps.map((entry) => entry.key) : []);
+    // Who each key already in the store belongs to, by its newest readable package.
+    const stagedPublishers = new Map<string, string>();
+    for (const stagedKey of await deps.store.keys()) {
+      for (const stagedVersion of await deps.store.versions(stagedKey)) {
+        try {
+          const id = publisherIdOf(JSON.parse((await deps.store.readFile(stagedKey, stagedVersion, MANIFEST_FILE)).toString('utf8')));
+          if (id !== null) {
+            stagedPublishers.set(stagedKey, id);
+            break;
+          }
+        } catch {
+          // Unreadable: it decides nothing here, and install refuses it on its own.
+        }
+      }
+    }
+    let staged;
+    try {
+      staged = await deps.store.stage({
+        tarball: new Uint8Array(body),
+        expectedIntegrity: asserted.expectedSha512,
+        identify: (bytes, paths) => {
+          // A workspace file is uploaded on its own route, which reads it one app at a time.
+          if (paths.includes(WORKSPACE_FILE)) throw workspaceFileRefusal(bytes, serverVersion);
+          const manifest = appManifestFrom(bytes, null);
+          read.manifest = manifest;
+          if (asserted.key !== undefined && asserted.key !== manifest.key) {
+            throw new ValidationFailedError(
+              `The bundle was uploaded as "${asserted.key}" but its manifest declares "${manifest.key}".`,
+              { reason: 'KEY_MISMATCH' },
+            );
+          }
+          if (asserted.version !== undefined && asserted.version !== manifest.version) {
+            throw new ValidationFailedError(
+              `The bundle was uploaded as version ${asserted.version} but its manifest declares ${manifest.version}.`,
+              { reason: 'VERSION_MISMATCH' },
+            );
+          }
+          /*
+           * THE FLOOR, ON THE PATH THAT HAS NO CATALOG (G8-D2).
+           *
+           * `/apps/download` has checked `minAdminiumVersion` since the
+           * feed grew the field, and this route never did — so the same
+           * release the catalogue refuses installed without a word as a
+           * file, which is the route an operator reaches for precisely
+           * when the catalogue has said no. Checked HERE rather than in
+           * `appManifestFrom`, which plan and install also call: a
+           * package already on disk arrived through a path that checked,
+           * and re-refusing it would break putting one back.
+           *
+           * After the caller's own assertions, for the sideload route's
+           * reason: a mismatched key or version means they have not
+           * established that they meant this bundle at all.
+           */
+          const minimum = manifest.compatibility.minAdminiumVersion;
+          if (!meetsMinimum(minimum, serverVersion)) {
+            throw new ValidationFailedError(
+              `"${manifest.key}" ${manifest.version} needs Adminium ${minimum} or later; ` +
+                `this server is ${serverVersion}. Upgrade Adminium before uploading it.`,
+              { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: minimum, serverVersion },
+            );
+          }
+          // A release that cannot update what is installed is refused
+          // here too, before it sits in the store offering an update the
+          // update route would refuse.
+          // A key the project folder carries is the folder's: a package of it would be shadowed, never served.
+          if (files.sourceOf(manifest.key) === 'folder') {
+            throw new ValidationFailedError(
+              `"${manifest.key}" is an app of this project (apps/${manifest.key}/). Change it there, or give this package another key.`,
+              { reason: 'KEY_IN_PROJECT' },
+            );
+          }
+          // Only against a row that is there: with none, there is nobody to take over from.
+          const changed = installedPublishers.has(manifest.key)
+            ? publisherChangeRefusal(manifest, installedPublishers.get(manifest.key) ?? null)
+            : null;
+          if (changed !== null) throw changed;
+          // Another version of this key already in the store (bundled, downloaded, uploaded) decides whose key it is.
+          const stagedPublisher = stagedPublishers.get(manifest.key);
+          if (stagedPublisher !== undefined && stagedPublisher !== manifest.publisher.id) {
+            throw new ValidationFailedError(
+              `A package of "${manifest.key}" from the publisher "${stagedPublisher}" is already on this server, and this one says ` +
+                `"${manifest.publisher.id}". Discard that package first, or give this app another key.`,
+              { reason: 'PUBLISHER_CHANGED', installed: stagedPublisher, offered: manifest.publisher.id },
+            );
+          }
+          if (manifest.publisher.id === LOCAL_PUBLISHER_ID && catalogKeys.has(manifest.key) && !installedVersions.has(manifest.key)) {
+            throw new ValidationFailedError(
+              `"${manifest.key}" is the key of an app in the online catalogue. Give your app another key.`,
+              { reason: 'KEY_IN_CATALOG' },
+            );
+          }
+          // Another dashboard's app saved under this key, or an older version than a copy runs: refused, saying where.
+          const copies = copiesByKey.get(manifest.key) ?? [];
+          const otherApp = lineageRefusal(manifest, copies) ?? olderVersionRefusal(manifest, copies);
+          if (otherApp !== null) throw otherApp;
+          const installedVersion = installedVersions.get(manifest.key);
+          if (installedVersion !== undefined && installedVersion !== manifest.version) {
+            const refused = updateRefusal(manifest, installedVersion);
+            if (refused !== null) throw refused;
+          }
+          return { key: manifest.key, version: manifest.version };
+        },
+      });
+    } catch (error) {
+      const reason = refusalReason(error);
+      await auditAppEvent(
+        'app.unpack-refused',
+        {
+          // What is known of the package, which may be nothing: a refused
+          // hash or archive is refused before the manifest is read.
+          key: read.manifest?.key ?? asserted.key ?? null,
+          version: read.manifest?.version ?? asserted.version ?? null,
+          source,
+          reason,
+          bytes: body.byteLength,
+        },
+        userId,
+        userLabel,
+      );
+      // A manifest refusal is already a sentence about this bundle.
+      if (error instanceof AppError) throw error;
+      throw new ValidationFailedError(uploadRefusalMessage(error, 'app bundle'), { reason });
+    }
+
+    const { key, version } = staged;
+    const sides = sidesOf(staged.tree.files);
+    if (sides.length === 0 && !servesNothingByDesign(read.manifest ?? null)) {
+      // Staged and then discarded: a bundle with no servable side is not a
+      // surface, and leaving it on disk would put a package in the staged
+      // list that can never finish installing.
+      await deps.store.removeVersion(key, version);
+      await auditAppEvent(
+        'app.unpack-refused',
+        { key, version, source, reason: 'NO_SURFACE' },
+        userId,
+        userLabel,
+      );
+      throw new ValidationFailedError(
+        `"${key}@${version}" carries no surface: expected \`staff/index.html\`, ` +
+          '`customer/index.html`, or both.',
+        { reason: 'NO_SURFACE' },
+      );
+    }
+
+    await auditAppEvent(
+      'app.staged',
+      {
+        key,
+        version,
+        source,
+        integrity: staged.tree.integrity,
+        files: Object.keys(staged.tree.files).length,
+        sides,
+      },
+      userId,
+      userLabel,
+    );
+
+    // Where it goes: nowhere yet, over every copy, or onto a database without one.
+    const copies = copiesByKey.get(key) ?? [];
+    const taken = new Set(copies.map((copy) => copy.connectionId));
+    const databasesFree = (await connectionsRepo(deps.meta, deps.credentialCrypto).list()).filter((connection) => !taken.has(connection.id)).length;
+    const route: 'install' | 'update' | 'install-another' = copies.length === 0 ? 'install' : copies.some((copy) => compareSemver(version, copy.version) > 0) ? 'update' : 'install-another';
+    return {
+      key,
+      version,
+      // Always set here: `identify` ran, or the stage above threw.
+      name: read.manifest?.name ?? key,
+      ...(read.manifest === undefined ? {} : { publisher: { id: read.manifest.publisher.id, name: read.manifest.publisher.name } }),
+      files: Object.keys(staged.tree.files).length,
+      integrity: staged.tree.integrity,
+      sides,
+      route,
+      installs: copies.map(({ document: _document, ...copy }) => copy),
+      databasesFree,
+    };
+  }
+
   return async (app) => {
     /*
      * Raw tarball bodies, this plugin's scope only — the idiom
@@ -296,6 +524,19 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       (_request, body, done) => {
         done(null, body);
       },
+    );
+
+    // Workspace files: several app files in one, each staged through `stageAppFile` and installed through the service.
+    await app.register(
+      workspaceFileRoutes({
+        deps,
+        serverVersion,
+        stageAppFile,
+        copiesOf,
+        install: (request, body) => service.install(actorOf(request), hostOf(request), body),
+        update: (request, { key, installId, connectionId, body }) => service.update(actorOf(request), hostOf(request), { key, body, installId, ...(connectionId === null ? {} : { connectionId }) }),
+        auditAppEvent: (action, after, userId, userLabel) => auditAppEvent(action, after, userId, userLabel),
+      }),
     );
 
     app.get(
@@ -419,213 +660,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               '.tgz, holding `manifest.json` and a `staff/` and/or `customer/` directory.',
           );
         }
-        const asserted = request.query;
-        const userId = request.user?.id ?? null;
-        const userLabel = request.user?.email ?? 'unknown';
-
-        /*
-         * THE BUNDLE NAMES ITSELF. Its key and version come out of its own
-         * `manifest.json`, read by the store from the verified in-memory unpack
-         * before a byte is written — so the package is staged under exactly the
-         * identity the plan and install steps will later check it against.
-         * A key typed by the operator could only ever agree with the manifest
-         * or be refused, one step too late (47 step 1 follow-up).
-         *
-         * Held in an object rather than a `let`: TypeScript cannot see an
-         * assignment made inside a callback, and would read a `let` as never
-         * assigned on every line below this call.
-         */
-        const read: { manifest?: Manifest } = {};
-        // What is installed, read BEFORE the stage: `identify` runs inside it
-        // and cannot wait on the meta store.
-        const installedRows = await manifests.list('app');
-        // Each copy of each key, with its database's name: what a refusal below names, and where the reply says the file goes.
-        const copiesByKey = new Map<string, Awaited<ReturnType<typeof copiesOf>>>();
-        for (const keyed of new Set(installedRows.map((installed) => installed.row.manifestKey))) copiesByKey.set(keyed, await copiesOf(keyed));
-        const installedVersions = new Map(installedRows.map((installed) => [installed.row.manifestKey, installed.row.version]));
-        const installedPublishers = new Map(installedRows.map((installed) => [installed.row.manifestKey, publisherIdOf(installed.document)]));
-        // The keys the cached catalogue lists, when there is one: a self-made
-        // app may not take the key of an app the catalogue offers.
-        const cachedCatalog = await deps.store.readCatalogCache();
-        const parsedCatalog =
-          cachedCatalog === null || !isCurrentAppCatalogFormat(cachedCatalog.document)
-            ? null
-            : appCatalogSchema.safeParse(cachedCatalog.document);
-        const catalogKeys = new Set(parsedCatalog?.success === true ? parsedCatalog.data.apps.map((entry) => entry.key) : []);
-        // Who each key already in the store belongs to, by its newest readable package.
-        const stagedPublishers = new Map<string, string>();
-        for (const stagedKey of await deps.store.keys()) {
-          for (const stagedVersion of await deps.store.versions(stagedKey)) {
-            try {
-              const id = publisherIdOf(JSON.parse((await deps.store.readFile(stagedKey, stagedVersion, MANIFEST_FILE)).toString('utf8')));
-              if (id !== null) {
-                stagedPublishers.set(stagedKey, id);
-                break;
-              }
-            } catch {
-              // Unreadable: it decides nothing here, and install refuses it on its own.
-            }
-          }
-        }
-        let staged;
-        try {
-          staged = await deps.store.stage({
-            tarball: new Uint8Array(body),
-            expectedIntegrity: asserted.expectedSha512,
-            identify: (bytes) => {
-              const manifest = appManifestFrom(bytes, null);
-              read.manifest = manifest;
-              if (asserted.key !== undefined && asserted.key !== manifest.key) {
-                throw new ValidationFailedError(
-                  `The bundle was uploaded as "${asserted.key}" but its manifest declares "${manifest.key}".`,
-                  { reason: 'KEY_MISMATCH' },
-                );
-              }
-              if (asserted.version !== undefined && asserted.version !== manifest.version) {
-                throw new ValidationFailedError(
-                  `The bundle was uploaded as version ${asserted.version} but its manifest declares ${manifest.version}.`,
-                  { reason: 'VERSION_MISMATCH' },
-                );
-              }
-              /*
-               * THE FLOOR, ON THE PATH THAT HAS NO CATALOG (G8-D2).
-               *
-               * `/apps/download` has checked `minAdminiumVersion` since the
-               * feed grew the field, and this route never did — so the same
-               * release the catalogue refuses installed without a word as a
-               * file, which is the route an operator reaches for precisely
-               * when the catalogue has said no. Checked HERE rather than in
-               * `appManifestFrom`, which plan and install also call: a
-               * package already on disk arrived through a path that checked,
-               * and re-refusing it would break putting one back.
-               *
-               * After the caller's own assertions, for the sideload route's
-               * reason: a mismatched key or version means they have not
-               * established that they meant this bundle at all.
-               */
-              const minimum = manifest.compatibility.minAdminiumVersion;
-              if (!meetsMinimum(minimum, serverVersion)) {
-                throw new ValidationFailedError(
-                  `"${manifest.key}" ${manifest.version} needs Adminium ${minimum} or later; ` +
-                    `this server is ${serverVersion}. Upgrade Adminium before uploading it.`,
-                  { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: minimum, serverVersion },
-                );
-              }
-              // A release that cannot update what is installed is refused
-              // here too, before it sits in the store offering an update the
-              // update route would refuse.
-              // A key the project folder carries is the folder's: a package of it would be shadowed, never served.
-              if (files.sourceOf(manifest.key) === 'folder') {
-                throw new ValidationFailedError(
-                  `"${manifest.key}" is an app of this project (apps/${manifest.key}/). Change it there, or give this package another key.`,
-                  { reason: 'KEY_IN_PROJECT' },
-                );
-              }
-              // Only against a row that is there: with none, there is nobody to take over from.
-              const changed = installedPublishers.has(manifest.key)
-                ? publisherChangeRefusal(manifest, installedPublishers.get(manifest.key) ?? null)
-                : null;
-              if (changed !== null) throw changed;
-              // Another version of this key already in the store (bundled, downloaded, uploaded) decides whose key it is.
-              const stagedPublisher = stagedPublishers.get(manifest.key);
-              if (stagedPublisher !== undefined && stagedPublisher !== manifest.publisher.id) {
-                throw new ValidationFailedError(
-                  `A package of "${manifest.key}" from the publisher "${stagedPublisher}" is already on this server, and this one says ` +
-                    `"${manifest.publisher.id}". Discard that package first, or give this app another key.`,
-                  { reason: 'PUBLISHER_CHANGED', installed: stagedPublisher, offered: manifest.publisher.id },
-                );
-              }
-              if (manifest.publisher.id === LOCAL_PUBLISHER_ID && catalogKeys.has(manifest.key) && !installedVersions.has(manifest.key)) {
-                throw new ValidationFailedError(
-                  `"${manifest.key}" is the key of an app in the online catalogue. Give your app another key.`,
-                  { reason: 'KEY_IN_CATALOG' },
-                );
-              }
-              // Another dashboard's app saved under this key, or an older version than a copy runs: refused, saying where.
-              const copies = copiesByKey.get(manifest.key) ?? [];
-              const otherApp = lineageRefusal(manifest, copies) ?? olderVersionRefusal(manifest, copies);
-              if (otherApp !== null) throw otherApp;
-              const installedVersion = installedVersions.get(manifest.key);
-              if (installedVersion !== undefined && installedVersion !== manifest.version) {
-                const refused = updateRefusal(manifest, installedVersion);
-                if (refused !== null) throw refused;
-              }
-              return { key: manifest.key, version: manifest.version };
-            },
-          });
-        } catch (error) {
-          const reason = refusalReason(error);
-          await auditAppEvent(
-            'app.unpack-refused',
-            {
-              // What is known of the package, which may be nothing: a refused
-              // hash or archive is refused before the manifest is read.
-              key: read.manifest?.key ?? asserted.key ?? null,
-              version: read.manifest?.version ?? asserted.version ?? null,
-              source: 'upload',
-              reason,
-              bytes: body.byteLength,
-            },
-            userId,
-            userLabel,
-          );
-          // A manifest refusal is already a sentence about this bundle.
-          if (error instanceof AppError) throw error;
-          throw new ValidationFailedError(uploadRefusalMessage(error, 'app bundle'), { reason });
-        }
-
-        const { key, version } = staged;
-        const sides = sidesOf(staged.tree.files);
-        if (sides.length === 0 && !servesNothingByDesign(read.manifest ?? null)) {
-          // Staged and then discarded: a bundle with no servable side is not a
-          // surface, and leaving it on disk would put a package in the staged
-          // list that can never finish installing.
-          await deps.store.removeVersion(key, version);
-          await auditAppEvent(
-            'app.unpack-refused',
-            { key, version, source: 'upload', reason: 'NO_SURFACE' },
-            userId,
-            userLabel,
-          );
-          throw new ValidationFailedError(
-            `"${key}@${version}" carries no surface: expected \`staff/index.html\`, ` +
-              '`customer/index.html`, or both.',
-            { reason: 'NO_SURFACE' },
-          );
-        }
-
-        await auditAppEvent(
-          'app.staged',
-          {
-            key,
-            version,
-            source: 'upload',
-            integrity: staged.tree.integrity,
-            files: Object.keys(staged.tree.files).length,
-            sides,
-          },
-          userId,
-          userLabel,
-        );
-
-        // Where it goes: nowhere yet, over every copy, or onto a database without one.
-        const copies = copiesByKey.get(key) ?? [];
-        const taken = new Set(copies.map((copy) => copy.connectionId));
-        const databasesFree = (await connectionsRepo(deps.meta, deps.credentialCrypto).list()).filter((connection) => !taken.has(connection.id)).length;
-        const route: 'install' | 'update' | 'install-another' = copies.length === 0 ? 'install' : copies.some((copy) => compareSemver(version, copy.version) > 0) ? 'update' : 'install-another';
-        return {
-          key,
-          version,
-          // Always set here: `identify` ran, or the stage above threw.
-          name: read.manifest?.name ?? key,
-          ...(read.manifest === undefined ? {} : { publisher: { id: read.manifest.publisher.id, name: read.manifest.publisher.name } }),
-          files: Object.keys(staged.tree.files).length,
-          integrity: staged.tree.integrity,
-          sides,
-          route,
-          installs: copies.map(({ document: _document, ...copy }) => copy),
-          databasesFree,
-        };
+        return stageAppFile({ body, asserted: request.query, userId: request.user?.id ?? null, userLabel: request.user?.email ?? 'unknown' });
       },
     );
 

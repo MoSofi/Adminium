@@ -2123,6 +2123,8 @@ export interface AdminiumWorkspaceInstallsTable {
   state: string;
   runLock: string | null;
   lockedAt: Ts | null;
+  /** The file's `workspace.json` as uploaded (0082). */
+  document: string | null;
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;

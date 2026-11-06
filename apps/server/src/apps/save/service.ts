@@ -26,6 +26,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { parseDatabaseModel } from '@adminium/engine';
+import type { AppManifest } from '@adminium/manifest';
 import { appSavesRepo, filesRepo, newId, snapshotsRepo, type AppSave, type MetaDb } from '@adminium/meta';
 
 import type { Kysely } from 'kysely';
@@ -107,6 +108,18 @@ export interface SavedFile {
   bytes: number;
   filename: string;
   savedAt: number;
+}
+
+/** A file made and checked, not yet recorded (see `make`). */
+export interface MadeFile {
+  plan: SavePlan;
+  /** The manifest inside, as written. */
+  manifest: AppManifest;
+  tarball: Uint8Array;
+  integrity: string;
+  filename: string;
+  /** Keep its copy and record the save. */
+  commit(): Promise<SavedFile & { tarball: Uint8Array }>;
 }
 
 export interface SaveServiceDeps {
@@ -245,39 +258,60 @@ export function createSaveService(deps: SaveServiceDeps) {
     }
   }
 
+  async function make(request: SaveRequest, rights: SaveRights): Promise<MadeFile> {
+    const { plan, converted, lineage } = await prepare(request, rights);
+    if (plan.problems.length > 0) throw new ConflictError(`The file cannot be made: ${plan.problems.map((p) => p.message).join(' ')}`, 'CONFLICT', { reason: 'SAVE_REFUSED' });
+    const open = plan.check.filter((item) => item.group === 'choice');
+    if (open.length > 0) throw new ConflictError(`${String(open.length)} item(s) in Check need an answer before the file is made.`, 'CONFLICT', { reason: 'SAVE_NEEDS_ANSWERS' });
+    if (converted.files.size > 0 && !(await rights.can('system:files:manage'))) {
+      throw new ConflictError('The app carries files from the Files library, and saving them needs managing files.', 'CONFLICT', { reason: 'SAVE_FILES_NOT_YOURS' });
+    }
+
+    const tarball = await packManifest(converted.manifest, converted.files);
+    const integrity = `sha512-${createHash('sha512').update(tarball).digest('base64')}`;
+    const filename = `${request.key}-${plan.version}.tgz`;
+    return {
+      plan,
+      manifest: converted.manifest,
+      tarball,
+      integrity,
+      filename,
+      async commit() {
+        const at = now();
+        let fileId: string | null = null;
+        if (deps.storage !== null) {
+          fileId = newId('file');
+          const stored = await deps.storage.write({ id: fileId, kind: 'export', filename, mime: 'application/gzip', bytes: Buffer.from(tarball) });
+          await filesRepo(deps.meta).create(
+            { id: fileId, filename, mime: 'application/gzip', sizeBytes: stored.sizeBytes, sha256: stored.sha256, kind: 'export', uploadedBy: rights.userId, storageKey: stored.storageKey, destinationId: stored.destinationId, storage: stored.storage },
+            at,
+          );
+        }
+        const row = await appSavesRepo(deps.meta).create(
+          { appKey: request.key, version: plan.version, lineage, connectionId: request.connectionId, label: plan.label, savedBy: rights.userId, integrity, bytes: tarball.byteLength, fileId },
+          at,
+        );
+        return { id: row.id, key: row.appKey, version: row.version, integrity, bytes: tarball.byteLength, filename, savedAt: row.savedAt, tarball };
+      },
+    };
+  }
+
   return {
     async plan(request: SaveRequest, rights: SaveRights): Promise<SavePlan> {
       return (await prepare(request, rights)).plan;
     },
 
     async save(request: SaveRequest, rights: SaveRights): Promise<SavedFile & { tarball: Uint8Array }> {
-      const { plan, converted, lineage } = await prepare(request, rights);
-      if (plan.problems.length > 0) throw new ConflictError(`The file cannot be made: ${plan.problems.map((p) => p.message).join(' ')}`, 'CONFLICT', { reason: 'SAVE_REFUSED' });
-      const open = plan.check.filter((item) => item.group === 'choice');
-      if (open.length > 0) throw new ConflictError(`${String(open.length)} item(s) in Check need an answer before the file is made.`, 'CONFLICT', { reason: 'SAVE_NEEDS_ANSWERS' });
-      if (converted.files.size > 0 && !(await rights.can('system:files:manage'))) {
-        throw new ConflictError('The app carries files from the Files library, and saving them needs managing files.', 'CONFLICT', { reason: 'SAVE_FILES_NOT_YOURS' });
-      }
-
-      const tarball = await packManifest(converted.manifest, converted.files);
-      const integrity = `sha512-${createHash('sha512').update(tarball).digest('base64')}`;
-      const filename = `${request.key}-${plan.version}.tgz`;
-      const at = now();
-      let fileId: string | null = null;
-      if (deps.storage !== null) {
-        fileId = newId('file');
-        const stored = await deps.storage.write({ id: fileId, kind: 'export', filename, mime: 'application/gzip', bytes: Buffer.from(tarball) });
-        await filesRepo(deps.meta).create(
-          { id: fileId, filename, mime: 'application/gzip', sizeBytes: stored.sizeBytes, sha256: stored.sha256, kind: 'export', uploadedBy: rights.userId, storageKey: stored.storageKey, destinationId: stored.destinationId, storage: stored.storage },
-          at,
-        );
-      }
-      const row = await appSavesRepo(deps.meta).create(
-        { appKey: request.key, version: plan.version, lineage, connectionId: request.connectionId, label: plan.label, savedBy: rights.userId, integrity, bytes: tarball.byteLength, fileId },
-        at,
-      );
-      return { id: row.id, key: row.appKey, version: row.version, integrity, bytes: tarball.byteLength, filename, savedAt: row.savedAt, tarball };
+      return (await make(request, rights)).commit();
     },
+
+    /**
+     * The file made and checked, not yet recorded: `commit` keeps its copy and
+     * records the save. A workspace save makes every app's file first and
+     * records them only when the whole workspace file can be made, so a
+     * refusal of the whole never uses up an app's version.
+     */
+    make,
 
     /** The saved file again ("Download again"), or null when its copy is gone. */
     async file(id: string): Promise<{ save: AppSave; filename: string; bytes: Uint8Array } | null> {

@@ -101,7 +101,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/add-ons/*` | 36 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
-| `/api/v1/apps/*` | 36 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
+| `/api/v1/apps/*` | 41 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, uninstall, and upload, review and install a workspace file (several apps in one), finishing a stopped one with Install the rest |
 | `/api/v1/assistant/*` | 13 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
@@ -161,7 +161,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/users/*` | 11 | People on the server — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
 | `/api/v1/words` | 1 | What staff are told of the rows a screen shows, in an add-on's stock words — in, low or out for up to sixty rows of a table named as it is stored, and for a caller who reads the add-on's stock tables the figure behind the word: the exact count, the batch and its expiry, the line that runs out first, and whether stock or the day's portions bind |
-| `/api/v1/workspaces/*` | 9 | Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be in several workspaces or in none, and deleting a workspace leaves its databases where they are |
+| `/api/v1/workspaces/*` | 12 | Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be in several workspaces or in none, and deleting a workspace leaves its databases where they are. Save workspace makes one app per database and downloads them as one file |
 
 <!-- END GENERATED: groups -->
 
@@ -248,6 +248,11 @@ DELETE /api/v1/api-keys/{id}
 
 ```http
 POST /api/v1/apps/{key}/documents/render
+POST /api/v1/apps/upload-workspace
+GET /api/v1/apps/workspace-files
+GET /api/v1/apps/workspace/{id}/install
+POST /api/v1/apps/workspace/{id}/install
+DELETE /api/v1/apps/workspace/{id}/install
 GET /api/v1/apps
 POST /api/v1/apps/upload
 GET /api/v1/apps/catalog
@@ -1067,6 +1072,9 @@ GET /api/v1/words/{addOn}/{wordsId}
 ### `/workspaces`
 
 ```http
+POST /api/v1/workspaces/{id}/save/plan
+POST /api/v1/workspaces/{id}/save
+GET /api/v1/workspaces/save/{id}/file
 GET /api/v1/workspaces
 POST /api/v1/workspaces
 PATCH /api/v1/workspaces/{id}

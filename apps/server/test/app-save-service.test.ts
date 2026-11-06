@@ -20,6 +20,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { runCli } from '../src/cli/run.js';
 import type { CliRuntime } from '../src/cli/runtime.js';
 import { createSaveService, nextVersion, packManifest, type SaveRights } from '../src/apps/save/service.js';
+import { createWorkspaceSaveService } from '../src/apps/save/workspace.js';
 import { runIntrospection } from '../src/connections/introspect.js';
 import { runGeneration } from '../src/generate/run.js';
 import { AppError, errorEnvelope } from '../src/errors.js';
@@ -63,7 +64,8 @@ async function serve(h: Harness, dialect: Dialect, files: FileStore) {
     if (error instanceof AppError) return reply.status(error.statusCode).send(errorEnvelope(error.code, error.message, 'req_test', error.details));
     return reply.status(500).send(errorEnvelope('INTERNAL', String(error), 'req_test'));
   });
-  await app.register(appSaveRoutes({ meta: h.meta, service }));
+  const workspaces = createWorkspaceSaveService({ meta: h.meta, save: service, adminiumVersion: '0.3.49', dialectOf: async (id) => (id === h.connectionId ? dialect : null), displayName: async () => 'Corner shop' });
+  await app.register(appSaveRoutes({ meta: h.meta, service, workspaces }));
   await app.ready();
   return { service, app };
 }
