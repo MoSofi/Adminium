@@ -39340,487 +39340,487 @@
     "status": "mt"
   },
   "studio.workspaceFiles.app.choose": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "89346141c29b"
   },
   "studio.workspaceFiles.app.chooseWhere": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "9cd14b0ef55d"
   },
   "studio.workspaceFiles.app.counts.after": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "13dd2702f963"
   },
   "studio.workspaceFiles.app.counts.choices": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "68d3aed2dc24"
   },
   "studio.workspaceFiles.app.counts.outside": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "b19f4119d39a"
   },
   "studio.workspaceFiles.app.counts.screens": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "c9e368da8cb5"
   },
   "studio.workspaceFiles.app.counts.tables": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "f09224672f7e"
   },
   "studio.workspaceFiles.app.hideReview": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "dcdc854c25b6"
   },
   "studio.workspaceFiles.app.installOn": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "474732a0ec50"
   },
   "studio.workspaceFiles.app.showReview": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "b7a7042c95d5"
   },
   "studio.workspaceFiles.app.update": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "b923b97c489e"
   },
   "studio.workspaceFiles.cancel": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "77dfd2135f4d"
   },
   "studio.workspaceFiles.choice.addTo": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "ac6c0ab86017"
   },
   "studio.workspaceFiles.choice.create": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "242189ac372e"
   },
   "studio.workspaceFiles.choice.createHint": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "55c9e585eef4"
   },
   "studio.workspaceFiles.choice.existing": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "9edfefbfec4d"
   },
   "studio.workspaceFiles.choice.existingHint": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "36deb073a902"
   },
   "studio.workspaceFiles.choice.existingLabel": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "270f5e275027"
   },
   "studio.workspaceFiles.choice.first": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "d709c541da8b"
   },
   "studio.workspaceFiles.choice.none": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "df398e4cbf96"
   },
   "studio.workspaceFiles.choice.noneHint": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "c827abda332a"
   },
   "studio.workspaceFiles.choice.noneHintFirst": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "f217daaab88d"
   },
   "studio.workspaceFiles.choice.noneYet": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "4055020aa53c"
   },
   "studio.workspaceFiles.choice.title": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "4ca0a75c2b7f"
   },
   "studio.workspaceFiles.close": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "bbfa773e5a63"
   },
   "studio.workspaceFiles.copied": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "8e3df45a49db"
   },
   "studio.workspaceFiles.copy": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "af74f7c5362a"
   },
   "studio.workspaceFiles.done.chooseRest": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "7cb0ebc5eb6f"
   },
   "studio.workspaceFiles.done.inExisting": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "a62446833d8a"
   },
   "studio.workspaceFiles.done.inNew": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "9015d0eec3e1"
   },
   "studio.workspaceFiles.done.installed": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "7bb4405cdfc9"
   },
   "studio.workspaceFiles.done.notInstalled": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "1aab9f182430"
   },
   "studio.workspaceFiles.done.nothingKept": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "21359bc8eac8"
   },
   "studio.workspaceFiles.done.on": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "94e1d8f222f0"
   },
   "studio.workspaceFiles.done.onDatabase": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "861dd76fdca9"
   },
   "studio.workspaceFiles.done.openWorkspace": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "b2d10fc97216"
   },
   "studio.workspaceFiles.done.rest": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "902a68b491bd"
   },
   "studio.workspaceFiles.done.stopped": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "705aad92d9b6"
   },
   "studio.workspaceFiles.done.title": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "847c0626a24a"
   },
   "studio.workspaceFiles.done.waiting": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "6d71956a0b77"
   },
   "studio.workspaceFiles.done.what": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "7661e6591fd9"
   },
   "studio.workspaceFiles.done.workspace": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "4ca0a75c2b7f"
   },
   "studio.workspaceFiles.error": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "8d886c0ba6f2"
   },
   "studio.workspaceFiles.install.apps": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "673998a80f2f"
   },
   "studio.workspaceFiles.install.appsIntro": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "7ae37c8e6d3c"
   },
   "studio.workspaceFiles.install.appsTitle": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "8e4c60efe16e"
   },
   "studio.workspaceFiles.install.back": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "b52b36b7269f"
   },
   "studio.workspaceFiles.install.badge": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "048974eefe95"
   },
   "studio.workspaceFiles.install.button": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "95b6efc58cd0"
   },
   "studio.workspaceFiles.install.buttonBoth": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "f865f37ac99a"
   },
   "studio.workspaceFiles.install.buttonUpdate": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "3c447dd53cf0"
   },
   "studio.workspaceFiles.install.checkIntro": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "a269748b5636"
   },
   "studio.workspaceFiles.install.checkTitle": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "250c17399c1e"
   },
   "studio.workspaceFiles.install.failed": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "3f9d0c7a122c"
   },
   "studio.workspaceFiles.install.footer": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "535a22a28414"
   },
   "studio.workspaceFiles.install.noDatabases.body": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "1d1b90922487"
   },
   "studio.workspaceFiles.install.noDatabases.title": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "02a06b24f5ae"
   },
   "studio.workspaceFiles.install.progress": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "b30df64744a8"
   },
   "studio.workspaceFiles.install.reading": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "e25b02a60556"
   },
   "studio.workspaceFiles.install.steps.bundle": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "23ed731baa70"
   },
   "studio.workspaceFiles.install.steps.done": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "e9b450d14bc2"
   },
   "studio.workspaceFiles.install.steps.review": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "e29a79fe0c34"
   },
   "studio.workspaceFiles.install.summary.refused": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "b7a09a1817f8"
   },
   "studio.workspaceFiles.install.summary.refusedAll": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "fb295f54dc90"
   },
   "studio.workspaceFiles.install.summary.waiting": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "f013566622c9"
   },
   "studio.workspaceFiles.install.summary.waitingAll": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "a488808add40"
   },
   "studio.workspaceFiles.install.title": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "b80d81783353"
   },
   "studio.workspaceFiles.refusal.extra": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "42d130a1bbf2"
   },
   "studio.workspaceFiles.refusal.integrity": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "8ba846ec91fe"
   },
   "studio.workspaceFiles.refusal.mismatch": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "aa814684ec69"
   },
   "studio.workspaceFiles.refusal.missing": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "0f60ceb02c52"
   },
   "studio.workspaceFiles.refusal.nested": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "e0c0191ea6fe"
   },
   "studio.workspaceFiles.refusal.title": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "f21938011664"
   },
   "studio.workspaceFiles.refusal.twoInstances": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "15400acdbba7"
   },
   "studio.workspaceFiles.save.button": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "36256dc95d62"
   },
   "studio.workspaceFiles.save.include": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "d5bf6f0262dc"
   },
   "studio.workspaceFiles.save.intro": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "71f1d2d558c6"
   },
   "studio.workspaceFiles.save.key": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "c67dd20ee842"
   },
   "studio.workspaceFiles.save.lastSaved": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "d40a03c33e07"
   },
   "studio.workspaceFiles.save.moreChoices": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "89637b102927"
   },
   "studio.workspaceFiles.save.name": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "709a23220f2c"
   },
   "studio.workspaceFiles.save.needChoice": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "17a5a52896aa"
   },
   "studio.workspaceFiles.save.noneIncluded": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "67f0ceff158e"
   },
   "studio.workspaceFiles.save.ready": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "4a3d25549786"
   },
   "studio.workspaceFiles.save.save": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "efc007a393f6"
   },
   "studio.workspaceFiles.save.settings.from": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "758df704c81c"
   },
   "studio.workspaceFiles.save.settings.help": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "15f8e5f1b9b8"
   },
   "studio.workspaceFiles.save.settings.label": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "28af3cc7375d"
   },
   "studio.workspaceFiles.save.settings.none": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "6eef6648406c"
   },
   "studio.workspaceFiles.save.subtitle": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "d9005bddb1f9"
   },
   "studio.workspaceFiles.save.title": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "699144adfcdd"
   },
   "studio.workspaceFiles.save.tooBig": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "aa3ee1b20466"
   },
   "studio.workspaceFiles.save.useMoreChoices": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "8f4a5c139a4a"
   },
   "studio.workspaceFiles.save.version": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "2da600bf9404"
   },
   "studio.workspaceFiles.saved.copyApp": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "c681392ddb90"
   },
   "studio.workspaceFiles.saved.copyFile": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "05ab940ee9c1"
   },
   "studio.workspaceFiles.saved.done": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "e9b450d14bc2"
   },
   "studio.workspaceFiles.saved.download": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "a479c9c34e87"
   },
   "studio.workspaceFiles.saved.fingerprint": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "fed4c9053d8c"
   },
   "studio.workspaceFiles.saved.inside": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "979a839e8e42"
   },
   "studio.workspaceFiles.saved.intro": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "90dd1134936c"
   },
   "studio.workspaceFiles.saved.keep": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "2e1a7fb57e42"
   },
   "studio.workspaceFiles.saved.title": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "193ab3ea2236"
   },
   "studio.workspaceFiles.saves.again": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "e83b229e2add"
   },
   "studio.workspaceFiles.saves.copy": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "c12b696a7d02"
   },
   "studio.workspaceFiles.saves.download": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "3fdf9516fbab"
   },
   "studio.workspaceFiles.saves.label": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "0c2de408a952"
   },
   "studio.workspaceFiles.saves.saved": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "59ae56465678"
   },
   "studio.workspaceFiles.status.checking": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "97876b8380ad"
   },
   "studio.workspaceFiles.status.choice": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "97c05a911890"
   },
   "studio.workspaceFiles.status.installed": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "d314e3427e27"
   },
   "studio.workspaceFiles.status.ready": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "20c7c5522fc2"
   },
   "studio.workspaceFiles.status.refused": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "735ec50d7d93"
   },
   "studio.workspaceFiles.status.stopped": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "51e9111b8711"
   },
   "studio.workspaceFiles.status.update": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "b9550d49d232"
   },
   "studio.workspaceFiles.status.updated": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "f2f8570ddd7b"
   },
   "studio.workspaceFiles.waiting.discard": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "36fff63ccbcd"
   },
   "studio.workspaceFiles.waiting.label": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "381ebe7faeec"
   },
   "studio.workspaceFiles.waiting.review": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "c9fdd1684c8c"
   },
   "studio.workspaceFiles.waiting.staged": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "cdfaf0f0fda9"
   },
   "studio.workspaceFiles.waiting.stopped": {
-    "status": "deferred",
+    "status": "mt",
     "srcHash": "4b771015b2a3"
   },
   "studio.workspaceSender.accepted.addresses": {

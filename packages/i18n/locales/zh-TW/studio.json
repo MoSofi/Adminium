@@ -5038,5 +5038,158 @@
     "clear": "使用伺服器的寄件者",
     "cancel": "取消",
     "save": "儲存寄件者"
+  },
+  "workspaceFiles": {
+    "app": {
+      "choose": "選擇資料庫",
+      "chooseWhere": "選擇 {app} 安裝到哪裡。",
+      "counts": {
+        "after": "{count, plural, other {安裝後 # 項待辦}}",
+        "choices": "{count, plural, other {# 項選擇}}",
+        "outside": "{count, plural, other {# 個外部位址}}",
+        "screens": "{count, plural, other {# 個畫面}}",
+        "tables": "{count, plural, other {# 張表}}"
+      },
+      "hideReview": "收合檢查",
+      "installOn": "安裝到",
+      "showReview": "展開檢查",
+      "update": "此檔案較新。{app} 的每個副本都會更新：{databases}。"
+    },
+    "cancel": "取消",
+    "choice": {
+      "addTo": "加入 {name}",
+      "create": "建立工作區 {name}",
+      "createHint": "應用程式所在的資料庫會放入其中。",
+      "existing": "加入現有工作區",
+      "existingHint": "在下方選擇。",
+      "existingLabel": "現有工作區",
+      "first": "從現在起，所有人的選單都依工作區分組。不屬於任何工作區的資料庫顯示在「其他資料庫」下。",
+      "none": "不加入工作區",
+      "noneHint": "資料庫留在「其他資料庫」下。",
+      "noneHintFirst": "資料庫在選單中維持原樣。",
+      "noneYet": "{server} 上還沒有工作區",
+      "title": "工作區"
+    },
+    "close": "關閉",
+    "copied": "已複製",
+    "copy": "複製",
+    "done": {
+      "chooseRest": "為其餘應用程式選擇資料庫",
+      "inExisting": "它們在 {server} 上，位於工作區 {workspace}。",
+      "inNew": "它們在 {server} 上，位於新工作區 {workspace}。",
+      "installed": "已安裝",
+      "notInstalled": "未安裝",
+      "nothingKept": "未保留任何內容",
+      "on": "它們在 {server} 上。",
+      "onDatabase": "在 {database} 上",
+      "openWorkspace": "開啟工作區",
+      "rest": "安裝其餘應用程式",
+      "stopped": "已安裝 {done}/{total}。{app} 已停止，其內容均未保留。",
+      "title": "已安裝 {done}/{total} 個應用程式",
+      "waiting": "尚未安裝",
+      "what": "安裝結果",
+      "workspace": "工作區"
+    },
+    "error": "發生問題",
+    "install": {
+      "apps": "{count, plural, other {# 個應用程式}}",
+      "appsIntro": "每個應用程式安裝到各自的資料庫。某個應用程式被拒絕不會影響其他應用程式。",
+      "appsTitle": "檔案中的應用程式",
+      "back": "返回",
+      "badge": "工作區檔案",
+      "button": "{count, plural, other {安裝 # 個應用程式}}",
+      "buttonBoth": "{installs, plural, other {安裝 # 個應用程式}}，{updates, plural, other {更新 # 個}}",
+      "buttonUpdate": "{count, plural, other {更新 # 個應用程式}}",
+      "checkIntro": "{workspace} 中的應用程式將安裝到 {server}。在你按下「安裝」之前不會有任何變動。",
+      "checkTitle": "安裝前檢查",
+      "failed": "安裝未執行",
+      "footer": "第 {n} 步，共 {total} 步 · {file}",
+      "noDatabases": {
+        "body": "應用程式只能安裝到已連線的資料庫。請先連線一個資料庫，再回到此檔案。",
+        "title": "這裡還沒有資料庫"
+      },
+      "progress": "安裝進度",
+      "reading": "正在讀取工作區檔案…",
+      "steps": {
+        "bundle": "安裝包",
+        "done": "完成",
+        "review": "檢查"
+      },
+      "summary": {
+        "refused": "{apps}被拒絕。其餘應用程式會安裝。",
+        "refusedAll": "{apps}被拒絕。",
+        "waiting": "{ready}現在安裝。為 {apps} 做出選擇後即可加入。",
+        "waitingAll": "為 {apps} 選擇資料庫，並完成其檢查。"
+      },
+      "title": "安裝工作區檔案"
+    },
+    "refusal": {
+      "extra": "檔案中包含其應用程式清單未列出的內容。",
+      "integrity": "其中一個應用程式不是儲存時的檔案：其指紋不相符。",
+      "mismatch": "其中一個應用程式並非檔案所聲明的應用程式。",
+      "missing": "檔案列出的某個應用程式不在檔案中。",
+      "nested": "工作區檔案中巢狀的工作區檔案不會被安裝。",
+      "title": "無法安裝此工作區檔案",
+      "twoInstances": "其中有兩個應用程式帶有伺服器設定。工作區檔案最多只能讓一個應用程式帶上它們。"
+    },
+    "save": {
+      "button": "儲存工作區",
+      "include": "包含 {database}",
+      "intro": "每個資料庫都會成為同一個檔案中的一個應用程式。此伺服器上不會有任何變動。",
+      "key": "鍵",
+      "lastSaved": "上次儲存 {version}",
+      "moreChoices": "更多選項",
+      "name": "名稱",
+      "needChoice": "{count, plural, other {# 項需要做出選擇}}",
+      "noneIncluded": "至少勾選一個資料庫。",
+      "ready": "沒有需要選擇的項目。",
+      "save": "儲存",
+      "settings": {
+        "from": "來自 {database}",
+        "help": "此伺服器的外觀、語言、用語和系統郵件最多隨一個應用程式一起帶走。",
+        "label": "伺服器設定",
+        "none": "無"
+      },
+      "subtitle": "工作區 · {count, plural, other {{n} 個資料庫}}",
+      "title": "將 {workspace} 儲存為一個檔案",
+      "tooBig": "此工作區檔案將超過 {size}。請拿掉一個資料庫或其範例列後重試。",
+      "useMoreChoices": "在應用程式上使用「更多選項」來做出選擇。",
+      "version": "版本"
+    },
+    "saved": {
+      "copyApp": "複製 {file} 的指紋",
+      "copyFile": "複製檔案的指紋",
+      "done": "完成",
+      "download": "下載",
+      "fingerprint": "指紋",
+      "inside": "包含的應用程式",
+      "intro": "下載後可在另一台伺服器上安裝。",
+      "keep": "請將指紋與檔案一起保存。新伺服器會要求提供指紋，以確認檔案就是你儲存的那一個。",
+      "title": "{workspace} 已儲存為一個檔案"
+    },
+    "saves": {
+      "again": "儲存新版本",
+      "copy": "複製指紋",
+      "download": "再次下載",
+      "label": "此處儲存的工作區檔案",
+      "saved": "儲存於 {date} · {size}"
+    },
+    "status": {
+      "checking": "檢查中",
+      "choice": "需要選擇",
+      "installed": "已安裝 · {version}",
+      "ready": "就緒",
+      "refused": "已拒絕",
+      "stopped": "已停止",
+      "update": "更新 · {from} → {to}",
+      "updated": "已更新"
+    },
+    "waiting": {
+      "discard": "捨棄",
+      "label": "等待中的工作區檔案",
+      "review": "檢查並安裝",
+      "staged": "{workspace} 已上傳，等待安裝。",
+      "stopped": "{workspace}：已安裝 {done}/{total}。安裝中途停止。"
+    }
   }
 }
