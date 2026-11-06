@@ -160,6 +160,7 @@ describe('command registry', () => {
       'start',
       'check',
       'app',
+      'workspace',
       'owner',
       'pull',
       'eject',
