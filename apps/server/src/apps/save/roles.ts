@@ -29,7 +29,7 @@ import {
 } from '@adminium/meta';
 
 import { TABLE_ACTIONS } from '../../rbac/permissions.js';
-import type { ConvertContext, ConvertPart } from './types.js';
+import type { ConvertContext, ConvertPart, ManifestPart } from './types.js';
 
 type ManifestRole = {
   key: string;
@@ -238,5 +238,5 @@ export const convertRoles: ConvertPart = async (ctx) => {
     if (here) check.add({ group: 'info', code: 'BUILTIN_ROLE_CHANGED', kind: 'role', item: role.name, message: 'This built-in role holds grants on this database. Built-in roles are not saved in an app.' });
   }
 
-  return out.length === 0 ? {} : ({ roles: out } as never);
+  return (out.length === 0 ? {} : { roles: out }) as unknown as ManifestPart;
 };

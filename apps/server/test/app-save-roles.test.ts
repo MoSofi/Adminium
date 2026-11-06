@@ -141,8 +141,9 @@ describe('a console permission in a file', () => {
     h = null;
   });
 
-  const app = (publisher: { id: string; name: string }): Doc =>
+  const app = (publisher: { id: string; name: string }, saved = true): Doc =>
     standIns({
+      ...(saved ? { provenance: { lineage: 'lin-test-0002', savedAt: '2026-11-06T09:00:00Z', adminiumVersion: '0.3.49', label: 'Corner shop, Leith' } } : {}),
       kind: 'app',
       manifestVersion: 1,
       key: APP_KEY,
@@ -159,7 +160,7 @@ describe('a console permission in a file', () => {
       roles: [{ key: 'clerk', name: 'Clerk', permissions: ['table:@orders:read', 'system:users:manage', 'system:audit:read'] }],
     });
 
-  it('made on an Adminium: never given, listed in the review and after installing', async () => {
+  it('saved from a database: never given, listed in the review and after installing', async () => {
     h = await target('sqlite');
     const doc = app({ id: 'local', name: 'Corner shop, Leith' });
     expectValid(doc);
@@ -181,10 +182,14 @@ describe('a console permission in a file', () => {
     ]);
   });
 
-  it('from anyone else: refused, as before', async () => {
-    h = await target('sqlite');
-    const reply = await h.install(app({ id: 'adminium', name: 'Adminium' }));
-    expect(reply.statusCode).not.toBe(200);
-    expect(reply.body).toContain('console permission');
+  it('from a publisher, or a project\'s own app: refused, as before', async () => {
+    for (const publisher of [{ id: 'adminium', name: 'Adminium' }, { id: 'local', name: 'This project' }]) {
+      h = await target('sqlite');
+      const reply = await h.install(app(publisher, false));
+      expect(reply.statusCode).not.toBe(200);
+      expect(reply.body).toContain('console permission');
+      await h.close();
+      h = null;
+    }
   });
 });

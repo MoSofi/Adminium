@@ -2087,7 +2087,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         }
         afterInstall.push(...deliveryItems(manifest, await documentProfilesRepo(deps.meta).listOwnedBy(connectionId, manifest.key), realId));
       }
-      // A mail's sender and a role's console permission: never installed from a file made on an Adminium, chosen by the owner.
+      // A mail's sender and a role's console permission: never installed from a file saved from a database, chosen by the owner.
       afterInstall.push(...plannedAfterInstallOfSenders(manifest), ...plannedAfterInstallOfRoles(manifest));
       if (connectionId !== null && manifestRowId !== null) await recordAfterInstall(deps.meta, { manifestId: manifestRowId, appKey: manifest.key }, afterInstall);
       // Guests last: the endpoints read tables that must exist, and the key is made from them.
