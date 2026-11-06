@@ -845,7 +845,7 @@ export default {
       },
       "privacyGrants": {
         "title": "En rolle kan slette personer",
-        "body": "{roles} kan finde, hente og slette alt, hvad dette arbejdsområde gemmer om en person, på privatlivssiden."
+        "body": "{roles} kan finde, hente og slette alt, hvad denne server gemmer om en person, på privatlivssiden."
       }
     },
     "installed": {
@@ -1289,7 +1289,7 @@ export default {
     },
     "attachments": {
       "accept": "Accepterede filtyper",
-      "acceptHint": "Vælger du ingen, accepteres alt, hvad dette arbejdsområde tillader. Et valg her kan kun indsnævre listen, aldrig udvide den.",
+      "acceptHint": "Vælger du ingen, accepteres alt, hvad denne server tillader. Et valg her kan kun indsnævre listen, aldrig udvide den.",
       "column": {
         "adoptHint": "Denne tabel har allerede kolonnen, så der oprettes ikke noget — den bruges, som den er.",
         "bound": "Filer gemmes i denne tabels {column}-kolonne.",
@@ -1316,7 +1316,7 @@ export default {
       "enableHintColumn": "Filer gemmes i én kolonne på denne tabel, så de vises både i dialogerne Ny og Rediger og på hver post.",
       "enableHintSidecar": "Filer kobles i stedet på Adminiums side. De vises på hver posts side, ikke i dialogen Ny.",
       "maxBytes": "Største fil (MB)",
-      "maxBytesHint": "Lad feltet stå tomt for at følge arbejdsområdets grænse. Et tal her kan kun sænke den.",
+      "maxBytesHint": "Lad feltet stå tomt for at følge serverens grænse. Et tal her kan kun sænke den.",
       "maxCount": "Flest filer pr. post",
       "maxCountHint": "Lad feltet stå tomt for at acceptere så mange, som en post har brug for.",
       "sidecar": {
@@ -1348,7 +1348,7 @@ export default {
       "dragHandle": "Flyt {name}",
       "empty": "Ingen kolonner endnu — tilføj dem nedenfor.",
       "file": {
-        "acceptHelp": "Lad alle typer være slået fra for at acceptere det, dette arbejdsområde accepterer. Vælger du typer, kan det kun indsnævre listen — en kolonne kan aldrig acceptere en type, arbejdsområdet afviser.",
+        "acceptHelp": "Lad alle typer være slået fra for at acceptere det, denne server accepterer. Vælger du typer, kan det kun indsnævre listen — en kolonne kan aldrig acceptere en type, serveren afviser.",
         "acceptLabel": "Accepterede typer",
         "badge": "Fil",
         "destinationDefault": "Standarddestinationen",
@@ -1359,7 +1359,7 @@ export default {
         "maxCountHelp": "Lad feltet stå tomt for at acceptere så mange, som en post har brug for.",
         "maxCountLabel": "Højst antal filer pr. post",
         "maxCountToggle": "Højst antal filer for {name}",
-        "maxHelp": "Lad feltet stå tomt for at bruge arbejdsområdets grænse. En kolonne kan kun bede om mindre.",
+        "maxHelp": "Lad feltet stå tomt for at bruge serverens grænse. En kolonne kan kun bede om mindre.",
         "maxLabel": "Største fil (MB)",
         "maxToggle": "Største fil, {name} accepterer, i MB",
         "multipleHelp": "Kolonnen gemmer en liste af filer i stedet for én. Eksisterende enkeltværdier virker fortsat — de læses som en liste med ét element.",
@@ -2103,7 +2103,7 @@ export default {
       "optionsListHelp": "Selve listerne redigerer du under Studio → Lister.",
       "optionsListLabel": "Liste",
       "optionsListUnavailable": "Listerne kunne ikke læses.",
-      "optionsMissingList": "{key} (ikke i dette arbejdsområde)",
+      "optionsMissingList": "{key} (ikke på denne server)",
       "optionsPickList": "Vælg en liste…",
       "optionsSource": "Tilladte værdier",
       "optionsSourceHelp": "En liste skrives én gang i Studio og bruges af hver kolonne, der nævner den.",
@@ -2228,7 +2228,7 @@ export default {
   "settings": {
     "globalDefaultsNav": "Globale standarder",
     "title": "Indstillinger",
-    "workspaceSection": "Arbejdsområde"
+    "workspaceSection": "Server"
   },
   "settingsAi": {
     "assistant": {
@@ -2408,7 +2408,7 @@ export default {
       "change": "Ændr",
       "changeWhat": "Rediger en række eller et gemt dokument. Du bekræfter hver enkelt.",
       "send": "Send",
-      "sendWhat": "Send en eksisterende e-mailskabelon til personer i dette arbejdsområde. Du bekræfter hver enkelt.",
+      "sendWhat": "Send en eksisterende e-mailskabelon til personer på denne server. Du bekræfter hver enkelt.",
       "delete": "Slet",
       "deleteWhat": "Fjern en række eller et dokument. Du bekræfter hver enkelt.",
       "rows": "Rækker i én bekræftelse",
@@ -2477,7 +2477,7 @@ export default {
       "subtitle": "Uigenkaldelige handlinger."
     },
     "defaultsCard": {
-      "body": "Tema, accentfarve, tæthed og sprog for hele arbejdsområdet findes under globale standarder.",
+      "body": "Tema, accentfarve, tæthed og sprog for hele serveren findes under globale standarder.",
       "cta": "Åbn globale standarder",
       "heading": "Standarder for udseende og sprog"
     },
@@ -2543,7 +2543,7 @@ export default {
         "helper": "Vises i sidepanelet, browsertitlen og e-mails.",
         "label": "Applikationsnavn"
       },
-      "heading": "Arbejdsområdets identitet",
+      "heading": "Serverens identitet",
       "logo": {
         "badType": "Vælg et PNG-, JPEG-, WebP-, GIF- eller SVG-billede.",
         "drop": "Slip et billede her",
@@ -2587,14 +2587,14 @@ export default {
       "on": "Til",
       "shown": "Vist",
       "subtitle": "Gennemgå dine ændringer, før du gemmer.",
-      "title": "Gem arbejdsområdeindstillinger"
+      "title": "Gem serverindstillinger"
     },
     "save": "Gem ændringer",
-    "saveFailed": "Arbejdsområdeindstillingerne kunne ikke gemmes. Prøv igen.",
-    "saved": "Arbejdsområdeindstillinger opdateret",
+    "saveFailed": "Serverindstillingerne kunne ikke gemmes. Prøv igen.",
+    "saved": "Serverindstillinger opdateret",
     "security": {
       "allowSignup": {
-        "desc": "Alle kan oprette en konto — slået fra er arbejdsområdet kun på invitation.",
+        "desc": "Alle kan oprette en konto — slået fra er serveren kun på invitation.",
         "label": "Tillad selvregistrering"
       },
       "heading": "Sikkerhed",
@@ -2617,10 +2617,10 @@ export default {
       "cta": "Åbn lagring",
       "heading": "Lagring"
     },
-    "subtitle": "Identitet, sikkerhed og destruktive handlinger for dette arbejdsområde.",
-    "superAdminOnly": "Kun en superadmin kan ændre arbejdsområdets identitet og sikkerhedsindstillinger.",
+    "subtitle": "Identitet, sikkerhed og destruktive handlinger for denne server.",
+    "superAdminOnly": "Kun en superadmin kan ændre serverens identitet og sikkerhedsindstillinger.",
     "superAdminOnlyTitle": "Superadmin påkrævet",
-    "title": "Arbejdsområdeindstillinger",
+    "title": "Serverindstillinger",
     "translationsCard": {
       "body": "Omformulér hvad som helst i Adminium, vælg hvilke sprog folk kan vælge, og tilføj dine egne.",
       "cta": "Åbn oversættelser",
@@ -2775,7 +2775,7 @@ export default {
     "fileCount": "{count, plural, one {# fil} other {# filer}}",
     "kind": {
       "archive": "Arkiverede batches fra auditloggen",
-      "branding": "Arbejdsområdets logo",
+      "branding": "Serverens logo",
       "export": "Filer fra dataeksporter",
       "import": "Uploadede CSV-filer og deres fejlrapporter",
       "schema": "Importerede skemafiler",
@@ -2919,7 +2919,7 @@ export default {
     "andMore": "og {count} mere",
     "builtin": "Indbygget",
     "builtinCount": "{count} værdier",
-    "builtinSubtitle": "En liste, Adminium leverer. Den er den samme i alle arbejdsområder, og navnene vises på hver enkelt persons eget sprog.",
+    "builtinSubtitle": "En liste, Adminium leverer. Den er den samme på alle servere, og navnene vises på hver enkelt persons eget sprog.",
     "cancel": "Annuller",
     "close": "Luk",
     "copiedFrom": "en kopi af {key}",
@@ -2955,7 +2955,7 @@ export default {
     "removeValue": "Fjern {value}",
     "save": "Gem ændringer",
     "storeLabel": "Gem etiketten i stedet",
-    "storeLabelHelp": "En kopi gemmer koden, f.eks. DE. “Gem etiketten i stedet” gemmer det, den hedder her, f.eks. Tyskland — på dette arbejdsområdes sprog, fra nu af.",
+    "storeLabelHelp": "En kopi gemmer koden, f.eks. DE. “Gem etiketten i stedet” gemmer det, den hedder her, f.eks. Tyskland — på denne servers sprog, fra nu af.",
     "subtitle": "De svar, en kolonne accepterer — navngivet én gang og brugt overalt.",
     "title": "Lister",
     "valueAt": "Værdi {n}",
@@ -3140,7 +3140,7 @@ export default {
     "note": {
       "notRegistered": "Det offentlige API er ikke slået til på denne server. Sæt ADMINIUM_PUBLIC_API_ORIGINS, og genstart — nøgler oprettet her virker fra da af.",
       "off": "Det offentlige API er slået fra, så ingen nøgle virker lige nu.",
-      "offLink": "Åbn arbejdsområdeindstillinger"
+      "offLink": "Åbn serverindstillinger"
     },
     "quick": {
       "body": "Godkend forespørgsler med din nøgle i Authorization-headeren.",
@@ -3204,7 +3204,7 @@ export default {
       "keys": "Aktive nøgler",
       "requests": "Forespørgsler · 24 t"
     },
-    "subtitle": "Administrér programmatisk adgang til dit arbejdsområde",
+    "subtitle": "Administrér programmatisk adgang til din server",
     "summary": "{endpoints, plural, one {# endpoint} other {# endpoints}} · {methods, plural, one {# metode} other {# metoder}}",
     "title": "API-nøgler og tokens"
   },
@@ -4317,7 +4317,7 @@ export default {
     },
     "person": {
       "locked": "Denne server kan ikke læse sine adressenøgler (dens hemmelighed er ændret), så ingen kan findes eller slettes. Spørg den, der driver serveren.",
-      "staffAddress": "Denne adresse tilhører en medarbejder her. Kun en, der administrerer privatliv for hele arbejdsområdet, kan slå den op eller slette den.",
+      "staffAddress": "Denne adresse tilhører en medarbejder her. Kun en, der administrerer privatliv for hele serveren, kan slå den op eller slette den.",
       "copyOf": "{label} (kopier af dem)",
       "inApp": "{label} — {app}",
       "kind": {
@@ -4845,7 +4845,7 @@ export default {
         "title": "Send kampagne",
         "unfilled": "Intet udfylder {names}: alle modtagere ville få det, som det står. Giv det en reservetekst i editoren, eller fjern det.",
         "when": "Hvornår",
-        "workspaceUsers": "Brugere i arbejdsområdet"
+        "workspaceUsers": "Brugere på denne server"
       }
     }
   }

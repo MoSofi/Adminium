@@ -5,7 +5,7 @@
  * things a person does with a project as a whole, and Build | Share.
  *
  * Nothing here renders anywhere else. In a browser there is no bridge; in the
- * app's classic workspace the bridge says the window holds no project; and an
+ * app's classic server the bridge says the window holds no project; and an
  * app older than these calls has no `project` on its bridge at all.
  */
 import { useEffect, useState, type ReactNode } from 'react';

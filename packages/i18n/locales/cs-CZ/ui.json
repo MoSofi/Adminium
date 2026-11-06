@@ -416,9 +416,9 @@
     },
     "feeds": {
       "activityFeed": {
-        "description": "Průběžný kanál toho, kdo co ve vašem pracovním prostoru udělal, od nejnovějšího.",
+        "description": "Průběžný kanál toho, kdo co na vašem serveru udělal, od nejnovějšího.",
         "emptyTitle": "Žádná nedávná aktivita",
-        "emptyBody": "Akce ve vašem pracovním prostoru se zobrazí zde.",
+        "emptyBody": "Akce na vašem serveru se zobrazí zde.",
         "viewAllLabel": "Zobrazit vše"
       },
       "notificationFeed": {
@@ -1569,7 +1569,7 @@
         "offlineTitle": "Jste offline",
         "offlineBody": "Zkontrolujte připojení — dashboard se připojí automaticky.",
         "forbiddenTitle": "Nemáte přístup",
-        "forbiddenBody": "Požádejte správce pracovního prostoru o oprávnění k této stránce.",
+        "forbiddenBody": "Požádejte správce o oprávnění k této stránce.",
         "maintenanceTitle": "Probíhá údržba",
         "maintenanceBody": "Vylepšujeme věci. Obvykle to trvá několik minut.",
         "connErrorTitle": "Databáze není dostupná",
@@ -2180,7 +2180,7 @@
         "emptyBody": "Zde se zobrazí soubory uložené s tímto záznamem.",
         "loading": "Načítání souborů",
         "removed": "{name} byl přesunut do koše.",
-        "tooLarge": "Soubor je větší, než tento pracovní prostor dovoluje.",
+        "tooLarge": "Soubor je větší, než tento server dovoluje.",
         "lead": "Soubory uložené s tímto záznamem.",
         "allFiles": "Všechny soubory jsou na stránce Soubory",
         "inColumn": "Ve sloupci {column}",

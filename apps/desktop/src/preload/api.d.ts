@@ -445,7 +445,7 @@ export type DesktopThemeChoice = 'system' | 'light' | 'dark';
 
 /** What Start needs to draw itself. */
 export interface DesktopStartState {
-  /** No recent project and no classic workspace: the welcome line is shown. */
+  /** No recent project and no classic server: the welcome line is shown. */
   readonly firstLaunch: boolean;
   readonly recent: readonly DesktopRecentProject[];
   /** Where a new project is proposed (`~/Adminium`), real and as a person reads it. */
@@ -630,7 +630,7 @@ export interface DesktopStartApi {
   forgetProject(path: string): Promise<readonly DesktopRecentProject[]>;
   /** "Locate…": the system's folder picker, then the entry moves there. */
   locateProject(input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult>;
-  /** "Use my own database": the classic workspace. */
+  /** "Use my own database": the classic server. */
   useClassic(): Promise<void>;
 }
 
@@ -751,7 +751,7 @@ export type DesktopShareResult =
  * on the project this window holds, so a page cannot point it at another folder.
  */
 export interface DesktopProjectApi {
-  /** `null` in the classic workspace: the window holds no project. */
+  /** `null` in the classic server: the window holds no project. */
   info(): Promise<DesktopProjectInfo | null>;
   /** "Show in Finder" / "Show in File Explorer": the project's folder. */
   showInFolder(): Promise<void>;

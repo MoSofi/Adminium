@@ -286,8 +286,8 @@ afterEach(() => {
 describe('StudioSettingsPage', () => {
   it('renders workspace identity from the workspace payload for a super admin', async () => {
     await renderPage();
-    expect(await screen.findByRole('heading', { name: 'Workspace settings' })).toBeDefined();
-    expect(screen.getByRole('heading', { name: 'Workspace identity' })).toBeDefined();
+    expect(await screen.findByRole('heading', { name: 'Server settings' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Server identity' })).toBeDefined();
     expect((screen.getByLabelText('Application name') as HTMLInputElement).value).toBe('Adminium');
     // Pristine form — nothing to save yet.
     expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
@@ -353,7 +353,7 @@ describe('StudioSettingsPage', () => {
     expect(within(dialog).getByText('10 → 14')).toBeDefined();
 
     await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-    await screen.findByText('Workspace settings updated');
+    await screen.findByText('Server settings updated');
 
     const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/security'));
     expect(put?.body).toEqual({ sessionTtlHours: 720, require2fa: true, passwordMinLength: 14 });
@@ -366,7 +366,7 @@ describe('StudioSettingsPage', () => {
   it('review-then-confirm: lists exactly the changed field, then PUTs branding', async () => {
     const user = userEvent.setup();
     const { calls } = await renderPage();
-    await screen.findByRole('heading', { name: 'Workspace settings' });
+    await screen.findByRole('heading', { name: 'Server settings' });
 
     const nameInput = screen.getByLabelText('Application name');
     await user.clear(nameInput);
@@ -379,7 +379,7 @@ describe('StudioSettingsPage', () => {
     expect(within(dialog).getByText('Adminium → Acme Ops')).toBeDefined();
 
     await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-    await screen.findByText('Workspace settings updated');
+    await screen.findByText('Server settings updated');
 
     const brandingPut = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/branding'));
     expect(brandingPut?.body).toEqual({ appName: 'Acme Ops', showVersion: true });
@@ -447,7 +447,7 @@ describe('StudioSettingsPage', () => {
       expect(within(dialog).queryByText(/hunter2/)).toBeNull();
 
       await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-      await screen.findByText('Workspace settings updated');
+      await screen.findByText('Server settings updated');
 
       const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/email'));
       expect(put?.body).toEqual({
@@ -486,7 +486,7 @@ describe('StudioSettingsPage', () => {
       const dialog = await screen.findByRole('dialog');
       expect(within(dialog).getByText('587 → 465')).toBeDefined();
       await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-      await screen.findByText('Workspace settings updated');
+      await screen.findByText('Server settings updated');
 
       const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/email'));
       // No `pass` key at all: absent means "keep the stored one", which is what
@@ -561,7 +561,7 @@ describe('StudioSettingsPage', () => {
       await user.click(screen.getByRole('button', { name: 'Save changes' }));
       const dialog = await screen.findByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-      await screen.findByText('Workspace settings updated');
+      await screen.findByText('Server settings updated');
 
       const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/email'));
       expect((put?.body as { smtp: { pass: string; user: string } }).smtp.user).toBe('');
@@ -588,7 +588,7 @@ describe('StudioSettingsPage', () => {
       const dialog = await screen.findByRole('dialog');
       expect(within(dialog).getByText('Removed')).toBeDefined();
       await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-      await screen.findByText('Workspace settings updated');
+      await screen.findByText('Server settings updated');
 
       const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/email'));
       expect(put?.body).toEqual({ smtp: null });
@@ -665,7 +665,7 @@ describe('StudioSettingsPage', () => {
     systemActions = ['users.manage', 'audit.read', 'connections.manage', 'schema.remap', 'llm.run', 'project.read'];
     const { fetchMock } = await renderPage(['admin']);
     expect(
-      await screen.findByText('Only a super admin can change workspace identity and security settings.'),
+      await screen.findByText('Only a super admin can change the server’s identity and security settings.'),
     ).toBeDefined();
     expect(await screen.findByRole('heading', { name: 'Danger zone' })).toBeDefined();
     expect(
@@ -676,7 +676,7 @@ describe('StudioSettingsPage', () => {
   it('review-then-confirm covers the version chip too', async () => {
     const user = userEvent.setup();
     const { calls } = await renderPage();
-    await screen.findByRole('heading', { name: 'Workspace settings' });
+    await screen.findByRole('heading', { name: 'Server settings' });
 
     await user.click(screen.getByRole('switch', { name: 'Version in the sidebar' }));
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
@@ -684,7 +684,7 @@ describe('StudioSettingsPage', () => {
     expect(within(dialog).getByText('Shown → Hidden')).toBeDefined();
 
     await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-    await screen.findByText('Workspace settings updated');
+    await screen.findByText('Server settings updated');
     const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/branding'));
     expect(put?.body).toEqual({ appName: 'Adminium', showVersion: false });
   });
@@ -692,7 +692,7 @@ describe('StudioSettingsPage', () => {
   it('stages a picked logo and uploads it only on save', async () => {
     const user = userEvent.setup();
     const { calls } = await renderPage();
-    await screen.findByRole('heading', { name: 'Workspace identity' });
+    await screen.findByRole('heading', { name: 'Server identity' });
 
     const input = document.querySelector('[data-testid="branding-logo-input"]');
     await user.upload(
@@ -712,7 +712,7 @@ describe('StudioSettingsPage', () => {
     expect(within(dialog).getByText('mark.png')).toBeDefined();
 
     await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-    await screen.findByText('Workspace settings updated');
+    await screen.findByText('Server settings updated');
     const post = calls.find((c) => c.method === 'POST' && c.url.startsWith('/api/v1/branding/logo'));
     expect(post?.url).toContain('filename=mark.png');
   });
@@ -720,7 +720,7 @@ describe('StudioSettingsPage', () => {
   it('accepts a dropped image anywhere in the logo row', async () => {
     const user = userEvent.setup();
     await renderPage();
-    await screen.findByRole('heading', { name: 'Workspace identity' });
+    await screen.findByRole('heading', { name: 'Server identity' });
 
     const zone = document.querySelector('[data-part="branding-logo-dropzone"]') as HTMLElement;
     // The whole row is the target, not just the preview square — a drop that
@@ -743,7 +743,7 @@ describe('StudioSettingsPage', () => {
       logoUrl: '/api/v1/branding/logo?v=file_1',
       showVersion: true,
     });
-    await screen.findByRole('heading', { name: 'Workspace identity' });
+    await screen.findByRole('heading', { name: 'Server identity' });
     expect(screen.getByRole('button', { name: 'Replace logo' })).toBeDefined();
 
     await user.click(screen.getByRole('button', { name: 'Remove' }));
@@ -754,7 +754,7 @@ describe('StudioSettingsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-    await screen.findByText('Workspace settings updated');
+    await screen.findByText('Server settings updated');
     expect(calls.some((c) => c.method === 'DELETE' && c.url === '/api/v1/branding/logo')).toBe(true);
   });
 
@@ -765,7 +765,7 @@ describe('StudioSettingsPage', () => {
       logoUrl: '/api/v1/branding/logo?v=file_1',
       showVersion: true,
     });
-    await screen.findByRole('heading', { name: 'Workspace identity' });
+    await screen.findByRole('heading', { name: 'Server identity' });
 
     await user.click(screen.getByRole('button', { name: 'Remove' }));
     expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(false);
@@ -777,7 +777,7 @@ describe('StudioSettingsPage', () => {
 
   it('names itself in the topbar, not in the page body', async () => {
     await renderPage();
-    const heading = await screen.findByRole('heading', { name: 'Workspace settings' });
+    const heading = await screen.findByRole('heading', { name: 'Server settings' });
     expect(heading.closest('[data-part="topbar"]')).not.toBeNull();
     // The shell falls back to "Home" for any page that publishes no title, so
     // this is what stops the header contradicting the page under it.
@@ -894,7 +894,7 @@ describe('StudioSettingsPage', () => {
       const dialog = await screen.findByRole('dialog');
       expect(within(dialog).getByText('— → news@acme.io')).toBeDefined();
       await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-      await screen.findByText('Workspace settings updated');
+      await screen.findByText('Server settings updated');
 
       const put = calls.find((c) => c.method === 'PUT' && c.url === '/api/v1/settings/email');
       // The transport is absent from the body: untouched on the wire.
@@ -921,7 +921,7 @@ describe('StudioSettingsPage', () => {
       expect(within(dialog).getByText('news@acme.io → —')).toBeDefined();
       expect(within(dialog).getByText('10 → 5')).toBeDefined();
       await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-      await screen.findByText('Workspace settings updated');
+      await screen.findByText('Server settings updated');
       const put = calls.find((c) => c.method === 'PUT' && c.url === '/api/v1/settings/email');
       expect(put?.body).toEqual({ senders: [], maxAttachmentBytes: 5 * 1024 * 1024 });
 
@@ -947,7 +947,7 @@ describe('StudioSettingsPage', () => {
         const dialog = await screen.findByRole('dialog');
         expect(within(dialog).getByText('— → https://admin.example.com')).toBeDefined();
         await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-        await screen.findByText('Workspace settings updated');
+        await screen.findByText('Server settings updated');
 
         const put = calls.find((c) => c.method === 'PUT' && c.url === '/api/v1/settings/email');
         // No relay on this instance, and none needed: the address saves alone.
@@ -975,7 +975,7 @@ describe('StudioSettingsPage', () => {
         const dialog = await screen.findByRole('dialog');
         expect(within(dialog).getByText('https://admin.example.com → —')).toBeDefined();
         await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-        await screen.findByText('Workspace settings updated');
+        await screen.findByText('Server settings updated');
 
         const put = calls.find((c) => c.method === 'PUT' && c.url === '/api/v1/settings/email');
         expect(put?.body).toEqual({ publicOrigin: null });

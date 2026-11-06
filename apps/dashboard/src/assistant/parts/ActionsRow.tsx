@@ -56,7 +56,7 @@ export function ActionsRow({ actions, enabled, canWrite, saved, name, busy, onRu
         const title = needsGrant
           ? t('assistant:readOnly.noWriteTitle', 'Your role cannot do this here')
           : needsEnable
-            ? t('assistant:readOnly.switchedOffTitle', 'Saving is switched off for {name} in this workspace', { name })
+            ? t('assistant:readOnly.switchedOffTitle', 'Saving is switched off for {name} on this server', { name })
             : label;
         return (
           <Button

@@ -38,7 +38,7 @@ or the person whose import makes a message, may link it only to rows they can re
 | `practice.`*column* | A column of the app's settings row: `practice.phone`, `practice.address`. |
 | `was.`*column* | For a message about a change, the column as it was before it ([above](https://docs.adminium.dev/guides/apps/emails/#messages-about-changes)); for a message about a removed row, the column as the row held it ([above](https://docs.adminium.dev/guides/apps/emails/#messages-about-a-row-that-is-removed)). |
 | `row.`*column* | Inside a block that lists rows, a column of each row ([below](https://docs.adminium.dev/guides/apps/emails/#emails-that-list-rows)). |
-| `appName` | The name the app's emails are signed with, from its settings row, else the workspace's name. |
+| `appName` | The name the app's emails are signed with, from its settings row, else the server's name. |
 | `manage_url`, `booking_url` | Links to the app's customer pages ([below](https://docs.adminium.dev/guides/apps/emails/#links)). |
 
 A column's value is shown by its type:

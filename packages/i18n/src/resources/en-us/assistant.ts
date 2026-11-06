@@ -77,7 +77,7 @@ export default {
     "noticeProvider": "What you say is sent to {provider} to be written down. Nothing is kept.",
     "noticeBrowser": "What you say is written down by your browser’s own speech service.",
     "noticeOk": "OK",
-    "ownService": "your workspace’s model service"
+    "ownService": "your server’s model service"
   },
   "speak": {
     "play": "Read aloud",
@@ -250,9 +250,9 @@ export default {
   "readOnly": {
     "noWrite": "Your role can look, draft and preview here, but not save.",
     "noWriteTitle": "Your role cannot do this here",
-    "switchedOff": "Saving is switched off for {name} in this workspace.",
+    "switchedOff": "Saving is switched off for {name} on this server.",
     "openSettings": "Open settings",
-    "switchedOffTitle": "Saving is switched off for {name} in this workspace"
+    "switchedOffTitle": "Saving is switched off for {name} on this server"
   },
   "report": {
     "action1": "Run full preview",
@@ -353,16 +353,16 @@ export default {
     }
   },
   "general": {
-    "page": "This workspace",
-    "blurb": "Knows this workspace · {tables, plural, one {# readable table} other {# readable tables}}",
+    "page": "This server",
+    "blurb": "Knows this server · {tables, plural, one {# readable table} other {# readable tables}}",
     "greeting": "I can read the tables your role can read, and tell you where things are done.",
     "greetingSub": "Ask about your data, or where to change something. I answer in words and link to the place.",
-    "placeholder": "Ask about this workspace…",
+    "placeholder": "Ask about this server…",
     "chip1": "Where do I invite a colleague?",
-    "chip2": "What can I see in this workspace?",
+    "chip2": "What can I see on this server?",
     "chip3": "Which table has the most rows?",
     "workTitle": "Looked it up",
-    "scopePrimary": "workspace",
+    "scopePrimary": "server",
     "readPage": "{tables, plural, one {# readable table} other {# readable tables}}"
   },
   "answer": {
@@ -488,7 +488,7 @@ export default {
     },
     "refused": {
       "generic": "The server refused this.",
-      "switchedOff": "This is switched off for {name} in this workspace.",
+      "switchedOff": "This is switched off for {name} on this server.",
       "notThisTable": "Only the table of the page this was asked on can be changed from here.",
       "notData": "That is not a table of your data.",
       "noChange": "The row already holds these values.",

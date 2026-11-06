@@ -100,7 +100,7 @@ export function AttachmentsPanel({ attachments, resolved, onGeneratedChange, onR
       {documents === undefined ? null : (
         <>
           <Divider />
-          <PanelLabel className="mb-0">{t('email:inspector.workspaceDocuments', 'Workspace documents')}</PanelLabel>
+          <PanelLabel className="mb-0">{t('email:inspector.workspaceDocuments', 'Server documents')}</PanelLabel>
           {documents}
         </>
       )}

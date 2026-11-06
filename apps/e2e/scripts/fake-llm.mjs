@@ -128,7 +128,7 @@ const SCENARIOS = [
             id: 'c1',
             tool: 'list_documents',
             args: {},
-            step: step('file-search', 'Read the templates', 'in this workspace'),
+            step: step('file-search', 'Read the templates', 'on this server'),
           },
         ]),
       () =>
@@ -425,7 +425,7 @@ const SCENARIOS = [
       (messages) => {
         const told = String(messages.find((message) => message?.role === 'system')?.content ?? '');
         if (told !== '' && !told.includes('- send.template:')) return { schema_version: SCHEMA, say: 'I cannot send anything here.' };
-        return calls('Finding that campaign.', [{ id: 'c1', tool: 'list_documents', args: {}, step: step('file-search', 'Read the campaigns', 'in this workspace') }]);
+        return calls('Finding that campaign.', [{ id: 'c1', tool: 'list_documents', args: {}, step: step('file-search', 'Read the campaigns', 'on this server') }]);
       },
       (messages) => {
         const asked = /send the campaign "([^"]+)" to (.+?)\.?$/i.exec(messages.map((message) => String(message?.content ?? '')).find((text) => /send the campaign "/i.test(text)) ?? '');

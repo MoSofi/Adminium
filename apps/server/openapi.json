@@ -20,7 +20,7 @@
       "apiKey": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Workspace API key: `Authorization: Bearer adm_sk_…`."
+        "description": "Server API key: `Authorization: Bearer adm_sk_…`."
       }
     },
     "schemas": {}
@@ -42158,6 +42158,18 @@
     },
     "/api/v1/automations/sources": {
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "workspaceId",
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -42647,6 +42659,29 @@
                           },
                           "ownedByApp": {
                             "type": "boolean"
+                          },
+                          "shownIn": {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "enum": [
+                                  "all",
+                                  "chosen"
+                                ]
+                              },
+                              "workspaceIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "mode",
+                              "workspaceIds"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -42654,7 +42689,69 @@
                           "name",
                           "placeholders",
                           "backed",
-                          "ownedByApp"
+                          "ownedByApp",
+                          "shownIn"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hiddenTemplates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "placeholders": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "backed": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "ownedByApp": {
+                            "type": "boolean"
+                          },
+                          "shownIn": {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "enum": [
+                                  "all",
+                                  "chosen"
+                                ]
+                              },
+                              "workspaceIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "mode",
+                              "workspaceIds"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "placeholders",
+                          "backed",
+                          "ownedByApp",
+                          "shownIn"
                         ],
                         "additionalProperties": false
                       }
@@ -42683,6 +42780,7 @@
                     "connections",
                     "templatesOff",
                     "templates",
+                    "hiddenTemplates",
                     "roles"
                   ],
                   "additionalProperties": false
@@ -73055,6 +73153,16 @@
             "in": "query",
             "name": "app",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "workspaceId",
+            "required": false
           }
         ],
         "responses": {
@@ -73158,6 +73266,29 @@
                           },
                           "topicLabel": {
                             "type": "string"
+                          },
+                          "shownIn": {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "enum": [
+                                  "all",
+                                  "chosen"
+                                ]
+                              },
+                              "workspaceIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "mode",
+                              "workspaceIds"
+                            ],
+                            "additionalProperties": false
                           },
                           "run": {
                             "type": "object",
@@ -73408,7 +73539,8 @@
                           "starter",
                           "brand",
                           "heading",
-                          "topicLabel"
+                          "topicLabel",
+                          "shownIn"
                         ],
                         "additionalProperties": false
                       }
@@ -73585,6 +73717,29 @@
                     },
                     "topicLabel": {
                       "type": "string"
+                    },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
                     },
                     "run": {
                       "type": "object",
@@ -74170,6 +74325,7 @@
                     "brand",
                     "heading",
                     "topicLabel",
+                    "shownIn",
                     "document",
                     "vars",
                     "languages",
@@ -74813,6 +74969,29 @@
                     "topicLabel": {
                       "type": "string"
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "run": {
                       "type": "object",
                       "properties": {
@@ -75397,6 +75576,7 @@
                     "brand",
                     "heading",
                     "topicLabel",
+                    "shownIn",
                     "document",
                     "vars",
                     "languages",
@@ -75522,6 +75702,29 @@
                     "topicLabel": {
                       "type": "string"
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "run": {
                       "type": "object",
                       "properties": {
@@ -76106,6 +76309,7 @@
                     "brand",
                     "heading",
                     "topicLabel",
+                    "shownIn",
                     "document",
                     "vars",
                     "languages",
@@ -76494,6 +76698,29 @@
                     "topicLabel": {
                       "type": "string"
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "run": {
                       "type": "object",
                       "properties": {
@@ -77078,6 +77305,7 @@
                     "brand",
                     "heading",
                     "topicLabel",
+                    "shownIn",
                     "document",
                     "vars",
                     "languages",
@@ -77122,6 +77350,31 @@
                     "type": "boolean",
                     "enum": [
                       true
+                    ]
+                  },
+                  "shownIn": {
+                    "type": "object",
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "all",
+                          "chosen"
+                        ]
+                      },
+                      "workspaceIds": {
+                        "default": [],
+                        "maxItems": 500,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36
+                        }
+                      }
+                    },
+                    "required": [
+                      "mode"
                     ]
                   }
                 }
@@ -77237,6 +77490,29 @@
                     },
                     "topicLabel": {
                       "type": "string"
+                    },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
                     },
                     "run": {
                       "type": "object",
@@ -77487,7 +77763,8 @@
                     "starter",
                     "brand",
                     "heading",
-                    "topicLabel"
+                    "topicLabel",
+                    "shownIn"
                   ],
                   "additionalProperties": false
                 }
@@ -77606,6 +77883,29 @@
                     "topicLabel": {
                       "type": "string"
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "run": {
                       "type": "object",
                       "properties": {
@@ -78190,6 +78490,7 @@
                     "brand",
                     "heading",
                     "topicLabel",
+                    "shownIn",
                     "document",
                     "vars",
                     "languages",
@@ -78389,6 +78690,29 @@
                     "topicLabel": {
                       "type": "string"
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "run": {
                       "type": "object",
                       "properties": {
@@ -78973,6 +79297,7 @@
                     "brand",
                     "heading",
                     "topicLabel",
+                    "shownIn",
                     "document",
                     "vars",
                     "languages",
@@ -79118,6 +79443,29 @@
                     "topicLabel": {
                       "type": "string"
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "run": {
                       "type": "object",
                       "properties": {
@@ -79702,6 +80050,7 @@
                     "brand",
                     "heading",
                     "topicLabel",
+                    "shownIn",
                     "document",
                     "vars",
                     "languages",
@@ -79844,6 +80193,29 @@
                     "topicLabel": {
                       "type": "string"
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "run": {
                       "type": "object",
                       "properties": {
@@ -80428,6 +80800,7 @@
                     "brand",
                     "heading",
                     "topicLabel",
+                    "shownIn",
                     "document",
                     "vars",
                     "languages",
@@ -84578,6 +84951,16 @@
             "in": "query",
             "name": "kind",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "workspaceId",
+            "required": false
           }
         ],
         "responses": {
@@ -84705,6 +85088,29 @@
                               "itemCount"
                             ],
                             "additionalProperties": false
+                          },
+                          "shownIn": {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "enum": [
+                                  "all",
+                                  "chosen"
+                                ]
+                              },
+                              "workspaceIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "mode",
+                              "workspaceIds"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -84718,7 +85124,8 @@
                           "originId",
                           "createdAt",
                           "updatedAt",
-                          "summary"
+                          "summary",
+                          "shownIn"
                         ],
                         "additionalProperties": false
                       }
@@ -84908,6 +85315,29 @@
                         "cents",
                         "totalMinor",
                         "itemCount"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
                       ],
                       "additionalProperties": false
                     },
@@ -85601,6 +86031,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body",
                     "languages"
                   ],
@@ -85804,6 +86235,29 @@
                       ],
                       "additionalProperties": false
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "body": {
                       "type": "object",
                       "properties": {
@@ -86494,6 +86948,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body",
                     "languages"
                   ],
@@ -87216,6 +87671,29 @@
                       ],
                       "additionalProperties": false
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "body": {
                       "type": "object",
                       "properties": {
@@ -87906,6 +88384,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body",
                     "languages"
                   ],
@@ -87928,6 +88407,31 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 120
+                  },
+                  "shownIn": {
+                    "type": "object",
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "all",
+                          "chosen"
+                        ]
+                      },
+                      "workspaceIds": {
+                        "default": [],
+                        "maxItems": 500,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36
+                        }
+                      }
+                    },
+                    "required": [
+                      "mode"
+                    ]
                   }
                 }
               }
@@ -88066,6 +88570,29 @@
                         "itemCount"
                       ],
                       "additionalProperties": false
+                    },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -88079,7 +88606,8 @@
                     "originId",
                     "createdAt",
                     "updatedAt",
-                    "summary"
+                    "summary",
+                    "shownIn"
                   ],
                   "additionalProperties": false
                 }
@@ -88243,6 +88771,29 @@
                       ],
                       "additionalProperties": false
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "body": {
                       "type": "object",
                       "properties": {
@@ -88933,6 +89484,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body",
                     "languages"
                   ],
@@ -89099,6 +89651,29 @@
                       ],
                       "additionalProperties": false
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "body": {
                       "type": "object",
                       "properties": {
@@ -89789,6 +90364,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body",
                     "languages"
                   ],
@@ -89952,6 +90528,29 @@
                       ],
                       "additionalProperties": false
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "body": {
                       "type": "object",
                       "properties": {
@@ -90642,6 +91241,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body",
                     "languages"
                   ],
@@ -90666,6 +91266,16 @@
             },
             "in": "query",
             "name": "kind",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "workspaceId",
             "required": false
           }
         ],
@@ -90763,6 +91373,29 @@
                               "starterIcon"
                             ],
                             "additionalProperties": false
+                          },
+                          "shownIn": {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "enum": [
+                                  "all",
+                                  "chosen"
+                                ]
+                              },
+                              "workspaceIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "mode",
+                              "workspaceIds"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -90774,7 +91407,8 @@
                           "originId",
                           "createdAt",
                           "updatedAt",
-                          "summary"
+                          "summary",
+                          "shownIn"
                         ],
                         "additionalProperties": false
                       }
@@ -90933,6 +91567,29 @@
                         "kpiCount",
                         "series",
                         "starterIcon"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
                       ],
                       "additionalProperties": false
                     },
@@ -92209,6 +92866,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body"
                   ],
                   "additionalProperties": false
@@ -92391,6 +93049,29 @@
                       ],
                       "additionalProperties": false
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "body": {
                       "type": "object",
                       "properties": {
@@ -93664,6 +94345,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body"
                   ],
                   "additionalProperties": false
@@ -94193,6 +94875,29 @@
                       ],
                       "additionalProperties": false
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "body": {
                       "type": "object",
                       "properties": {
@@ -95466,6 +96171,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body"
                   ],
                   "additionalProperties": false
@@ -95487,6 +96193,31 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 120
+                  },
+                  "shownIn": {
+                    "type": "object",
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "all",
+                          "chosen"
+                        ]
+                      },
+                      "workspaceIds": {
+                        "default": [],
+                        "maxItems": 500,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 36
+                        }
+                      }
+                    },
+                    "required": [
+                      "mode"
+                    ]
                   }
                 }
               }
@@ -95594,6 +96325,29 @@
                         "starterIcon"
                       ],
                       "additionalProperties": false
+                    },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -95605,7 +96359,8 @@
                     "originId",
                     "createdAt",
                     "updatedAt",
-                    "summary"
+                    "summary",
+                    "shownIn"
                   ],
                   "additionalProperties": false
                 }
@@ -95738,6 +96493,29 @@
                       ],
                       "additionalProperties": false
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "body": {
                       "type": "object",
                       "properties": {
@@ -97011,6 +97789,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body"
                   ],
                   "additionalProperties": false
@@ -97142,6 +97921,29 @@
                       ],
                       "additionalProperties": false
                     },
+                    "shownIn": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "chosen"
+                          ]
+                        },
+                        "workspaceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "workspaceIds"
+                      ],
+                      "additionalProperties": false
+                    },
                     "body": {
                       "type": "object",
                       "properties": {
@@ -98415,6 +99217,7 @@
                     "createdAt",
                     "updatedAt",
                     "summary",
+                    "shownIn",
                     "body"
                   ],
                   "additionalProperties": false

@@ -129,7 +129,7 @@ function migrateKindLabel(kind: MigrateKind): string {
     case 'import':
       return t('studio:storage.kind.import', 'Uploaded CSVs and their error reports');
     case 'branding':
-      return t('studio:storage.kind.branding', 'The workspace logo');
+      return t('studio:storage.kind.branding', 'The server’s logo');
     case 'schema':
       return t('studio:storage.kind.schema', 'Imported schema files');
     case 'archive':

@@ -23,7 +23,7 @@ goes ahead:
 
 | Warning | What to do |
 |---|---|
-| The public API is switched off | Turn on **Public API** in **Workspace settings** |
+| The public API is switched off | Turn on **Public API** in **Server settings** |
 | The allowed origins do not include "self" | Add `self` to `ADMINIUM_PUBLIC_API_ORIGINS` and restart ([below](https://docs.adminium.dev/guides/apps/public-access/#origins)) |
 | This database has no time zone set | Set the connection's time zone; dates and times need it |
 | Email is not set up | Set up email, or guests get no confirmation, no reminder and no emailed code |

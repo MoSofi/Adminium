@@ -835,7 +835,7 @@
       },
       "privacyGrants": {
         "title": "Un rôle peut effacer des personnes",
-        "body": "{roles} peut trouver, télécharger et effacer tout ce que cet espace de travail conserve sur une personne, sur la page de confidentialité."
+        "body": "{roles} peut trouver, télécharger et effacer tout ce que ce serveur conserve sur une personne, sur la page de confidentialité."
       }
     },
     "installed": {
@@ -1279,7 +1279,7 @@
     },
     "attachments": {
       "accept": "Types de fichiers acceptés",
-      "acceptHint": "N’en choisir aucun accepte tout ce que cet espace de travail autorise. Un choix ici ne peut que restreindre cette liste, jamais l’élargir.",
+      "acceptHint": "N’en choisir aucun accepte tout ce que ce serveur autorise. Un choix ici ne peut que restreindre cette liste, jamais l’élargir.",
       "column": {
         "adoptHint": "Cette table possède déjà cette colonne ; rien n’est créé — elle est utilisée telle quelle.",
         "bound": "Les fichiers sont stockés dans la colonne {column} de cette table.",
@@ -1306,7 +1306,7 @@
       "enableHintColumn": "Les fichiers sont stockés dans une colonne de cette table : ils apparaissent donc dans les boîtes de dialogue Nouveau et Modifier ainsi que sur chaque enregistrement.",
       "enableHintSidecar": "Les fichiers sont liés du côté d’Adminium à la place. Ils apparaissent sur la page de chaque enregistrement, pas dans la boîte de dialogue Nouveau.",
       "maxBytes": "Fichier le plus volumineux (Mo)",
-      "maxBytesHint": "Laissez vide pour suivre la limite de l’espace de travail. Un nombre ici ne peut que l’abaisser.",
+      "maxBytesHint": "Laissez vide pour suivre la limite du serveur. Un nombre ici ne peut que l’abaisser.",
       "maxCount": "Nombre maximal de fichiers par enregistrement",
       "maxCountHint": "Laissez vide pour en accepter autant qu’un enregistrement en a besoin.",
       "sidecar": {
@@ -1338,7 +1338,7 @@
       "dragHandle": "Réordonner {name}",
       "empty": "Pas encore de colonnes — ajoutez-en ci-dessous.",
       "file": {
-        "acceptHelp": "Ne cochez aucun type pour accepter tout ce que cet espace de travail accepte. Choisir des types ne peut que restreindre cette liste — une colonne ne peut jamais accepter un type que l’espace de travail refuse.",
+        "acceptHelp": "Ne cochez aucun type pour accepter tout ce que ce serveur accepte. Choisir des types ne peut que restreindre cette liste — une colonne ne peut jamais accepter un type que le serveur refuse.",
         "acceptLabel": "Types acceptés",
         "badge": "Fichier",
         "destinationDefault": "La destination par défaut",
@@ -1349,7 +1349,7 @@
         "maxCountHelp": "Laissez vide pour accepter autant de fichiers qu’un enregistrement en a besoin.",
         "maxCountLabel": "Nombre maximal de fichiers par enregistrement",
         "maxCountToggle": "Nombre maximal de fichiers pour {name}",
-        "maxHelp": "Laissez vide pour utiliser la limite de l’espace de travail. Une colonne ne peut qu’en demander moins.",
+        "maxHelp": "Laissez vide pour utiliser la limite du serveur. Une colonne ne peut qu’en demander moins.",
         "maxLabel": "Fichier le plus volumineux (Mo)",
         "maxToggle": "Fichier le plus volumineux accepté par {name}, en Mo",
         "multipleHelp": "La colonne stocke une liste de fichiers au lieu d’un seul. Les valeurs uniques existantes continuent de fonctionner — elles sont lues comme une liste d’un élément.",
@@ -2093,7 +2093,7 @@
       "optionsListHelp": "Les listes elles-mêmes se modifient dans Studio → Listes.",
       "optionsListLabel": "Liste",
       "optionsListUnavailable": "Les listes n’ont pas pu être lues.",
-      "optionsMissingList": "{key} (absente de cet espace de travail)",
+      "optionsMissingList": "{key} (absente de ce serveur)",
       "optionsPickList": "Choisir une liste…",
       "optionsSource": "Valeurs autorisées",
       "optionsSourceHelp": "Une liste s’écrit une fois dans Studio et sert à toutes les colonnes qui la nomment.",
@@ -2218,7 +2218,7 @@
   "settings": {
     "globalDefaultsNav": "Valeurs par défaut globales",
     "title": "Paramètres",
-    "workspaceSection": "Espace de travail"
+    "workspaceSection": "Serveur"
   },
   "settingsAi": {
     "assistant": {
@@ -2398,7 +2398,7 @@
       "change": "Modifier",
       "changeWhat": "Modifier une ligne ou un document enregistré. Vous confirmez chaque action.",
       "send": "Envoyer",
-      "sendWhat": "Envoyer un modèle d’e-mail existant à des personnes de cet espace de travail. Vous confirmez chaque envoi.",
+      "sendWhat": "Envoyer un modèle d’e-mail existant à des personnes de ce serveur. Vous confirmez chaque envoi.",
       "delete": "Supprimer",
       "deleteWhat": "Supprimer une ligne ou un document. Vous confirmez chaque action.",
       "rows": "Lignes par confirmation",
@@ -2467,7 +2467,7 @@
       "subtitle": "Actions irréversibles."
     },
     "defaultsCard": {
-      "body": "Le thème, la couleur d’accent, la densité et la langue de tout l’espace de travail se trouvent dans les valeurs par défaut globales.",
+      "body": "Le thème, la couleur d’accent, la densité et la langue de tout le serveur se trouvent dans les valeurs par défaut globales.",
       "cta": "Ouvrir les valeurs par défaut globales",
       "heading": "Valeurs par défaut d’apparence et de langue"
     },
@@ -2533,7 +2533,7 @@
         "helper": "Affiché dans la barre latérale, le titre du navigateur et les e-mails.",
         "label": "Nom de l’application"
       },
-      "heading": "Identité de l’espace de travail",
+      "heading": "Identité du serveur",
       "logo": {
         "badType": "Choisissez une image PNG, JPEG, WebP, GIF ou SVG.",
         "drop": "Déposez une image ici",
@@ -2577,14 +2577,14 @@
       "on": "Activé",
       "shown": "Affiché",
       "subtitle": "Vérifiez vos modifications avant d’enregistrer.",
-      "title": "Enregistrer les paramètres de l’espace de travail"
+      "title": "Enregistrer les paramètres du serveur"
     },
     "save": "Enregistrer les modifications",
-    "saveFailed": "Impossible d’enregistrer les paramètres de l’espace de travail. Réessayez.",
-    "saved": "Paramètres de l’espace de travail mis à jour",
+    "saveFailed": "Impossible d’enregistrer les paramètres du serveur. Réessayez.",
+    "saved": "Paramètres du serveur mis à jour",
     "security": {
       "allowSignup": {
-        "desc": "N’importe qui peut créer un compte — désactivé, l’espace de travail reste sur invitation uniquement.",
+        "desc": "N’importe qui peut créer un compte — désactivé, le serveur reste sur invitation uniquement.",
         "label": "Autoriser l’auto-inscription"
       },
       "heading": "Sécurité",
@@ -2607,10 +2607,10 @@
       "cta": "Ouvrir le stockage",
       "heading": "Stockage"
     },
-    "subtitle": "Identité, sécurité et actions destructrices pour cet espace de travail.",
-    "superAdminOnly": "Seul un super administrateur peut modifier l’identité et les paramètres de sécurité de l’espace de travail.",
+    "subtitle": "Identité, sécurité et actions destructrices pour ce serveur.",
+    "superAdminOnly": "Seul un super administrateur peut modifier l’identité et les paramètres de sécurité du serveur.",
     "superAdminOnlyTitle": "Super administrateur requis",
-    "title": "Paramètres de l’espace de travail",
+    "title": "Paramètres du serveur",
     "translationsCard": {
       "body": "Reformulez n’importe quel texte d’Adminium, choisissez les langues proposées et ajoutez les vôtres.",
       "cta": "Ouvrir les traductions",
@@ -2765,7 +2765,7 @@
     "fileCount": "{count, plural, one {# fichier} other {# fichiers}}",
     "kind": {
       "archive": "Lots archivés du journal d’audit",
-      "branding": "Le logo de l’espace de travail",
+      "branding": "Le logo du serveur",
       "export": "Fichiers issus des exports de données",
       "import": "CSV téléversés et leurs rapports d’erreurs",
       "schema": "Fichiers de schéma importés",
@@ -2909,7 +2909,7 @@
     "andMore": "et {count} de plus",
     "builtin": "Intégrée",
     "builtinCount": "{count} valeurs",
-    "builtinSubtitle": "Une liste fournie par Adminium. Elle est la même dans chaque espace de travail, et ses noms s’affichent dans la langue de chaque personne.",
+    "builtinSubtitle": "Une liste fournie par Adminium. Elle est la même sur chaque serveur, et ses noms s’affichent dans la langue de chaque personne.",
     "cancel": "Annuler",
     "close": "Fermer",
     "copiedFrom": "une copie de {key}",
@@ -2945,7 +2945,7 @@
     "removeValue": "Retirer {value}",
     "save": "Enregistrer les modifications",
     "storeLabel": "Enregistrer le libellé à la place",
-    "storeLabelHelp": "Une copie enregistre le code, par exemple DE. « Enregistrer le libellé à la place » enregistre son nom ici, par exemple Allemagne — dans la langue de cet espace de travail, à partir de maintenant.",
+    "storeLabelHelp": "Une copie enregistre le code, par exemple DE. « Enregistrer le libellé à la place » enregistre son nom ici, par exemple Allemagne — dans la langue de ce serveur, à partir de maintenant.",
     "subtitle": "Les réponses qu’accepte une colonne, nommées une fois et utilisables partout.",
     "title": "Listes",
     "valueAt": "Valeur {n}",
@@ -3130,7 +3130,7 @@
     "note": {
       "notRegistered": "L’API publique n’est pas activée sur ce serveur. Définissez ADMINIUM_PUBLIC_API_ORIGINS et redémarrez — les clés créées ici fonctionneront dès lors.",
       "off": "L’API publique est désactivée, donc aucune clé ne fonctionne pour le moment.",
-      "offLink": "Ouvrir les paramètres de l’espace de travail"
+      "offLink": "Ouvrir les paramètres du serveur"
     },
     "quick": {
       "body": "Authentifiez les requêtes avec votre clé dans l’en-tête Authorization.",
@@ -3194,7 +3194,7 @@
       "keys": "Clés actives",
       "requests": "Requêtes · 24 h"
     },
-    "subtitle": "Gérez l’accès programmatique à votre espace de travail",
+    "subtitle": "Gérez l’accès programmatique à votre serveur",
     "summary": "{endpoints, plural, one {# point de terminaison} other {# points de terminaison}} · {methods, plural, one {# méthode} other {# méthodes}}",
     "title": "Clés d’API et jetons"
   },
@@ -4307,7 +4307,7 @@
     },
     "person": {
       "locked": "Ce serveur ne peut pas lire ses clés d’adresse (son secret a été changé) : personne ne peut être trouvé ni effacé. Demandez à la personne qui gère ce serveur.",
-      "staffAddress": "Cette adresse appartient à un membre de l’équipe ici. Seule une personne qui gère la confidentialité de tout l’espace de travail peut la rechercher ou l’effacer.",
+      "staffAddress": "Cette adresse appartient à un membre de l’équipe ici. Seule une personne qui gère la confidentialité de tout le serveur peut la rechercher ou l’effacer.",
       "copyOf": "{label} (copies)",
       "inApp": "{label} — {app}",
       "kind": {
@@ -4835,7 +4835,7 @@
         "title": "Envoyer la campagne",
         "unfilled": "Rien ne remplit {names} : chaque destinataire le recevrait tel quel. Donnez-lui un texte de secours dans l’éditeur, ou retirez-le.",
         "when": "Quand",
-        "workspaceUsers": "Utilisateurs de l’espace de travail"
+        "workspaceUsers": "Utilisateurs de ce serveur"
       }
     }
   }

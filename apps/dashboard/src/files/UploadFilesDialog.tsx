@@ -134,7 +134,7 @@ export function UploadFilesDialog({
       <ModalHeader
         icon={<Upload />}
         title={t('files:upload.title', 'Upload files')}
-        subtitle={t('files:upload.subtitle', 'Add files to this workspace.')}
+        subtitle={t('files:upload.subtitle', 'Add files to this server.')}
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody className="flex flex-col gap-4">

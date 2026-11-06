@@ -13,7 +13,7 @@ export type SetThemePref = <K extends keyof ThemePrefs>(key: K, value: ThemePref
 /**
  * Drop the optimistic session override for one axis so the resolved value falls
  * back through to the server-resolved props. The Preferences page calls this on
- * "Reset to workspace default" — clearing an axis server-side does not change
+ * "Reset to the server default" — clearing an axis server-side does not change
  * the in-session `setPref` layer, which would otherwise keep masking the
  * refetched default until a reload.
  */

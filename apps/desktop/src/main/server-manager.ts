@@ -199,7 +199,7 @@ export const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
 
 /**
  * A project's first start builds its apps' screens and migrates its own
- * database before it listens; thirty seconds is the classic workspace's
+ * database before it listens; thirty seconds is the classic server's
  * number, for a store that is already there.
  */
 export const PROJECT_READY_TIMEOUT_MS = 120_000;
@@ -212,7 +212,7 @@ export const BUSY_ANSWER_TIMEOUT_MS = 2_000;
 export type ServerBusy = NonNullable<ServerBusyMessage['busy']>;
 
 /**
- * A manager that serves a project folder instead of the classic workspace
+ * A manager that serves a project folder instead of the classic server
  * (plan 66, spec 05). The folder is one the person already said yes to, and
  * that is ready to start: this object forks, it does not ask.
  */
@@ -324,10 +324,10 @@ export interface CreateServerManagerOptions {
   /** Absolute path of `out/server/index.js`. */
   entry: string;
   /** `dataDir`, absolute. */
-  /** The classic workspace's. Not read when {@link project} is given. */
+  /** The classic server's. Not read when {@link project} is given. */
   dataDir?: string | undefined;
   /** The decrypted `ADMINIUM_SECRET`. */
-  /** The classic workspace's. Not read when {@link project} is given. */
+  /** The classic server's. Not read when {@link project} is given. */
   secret?: string | undefined;
   /**
    * Mints boot token. Called ONCE PER FORK, not once per app launch — read
@@ -359,9 +359,9 @@ export interface CreateServerManagerOptions {
    * BuildServerEnvInput.singleUser} gives: forgetting it is a silent 403 on
    * every launch, not a compile error.
    */
-  /** The classic workspace's. Not read when {@link project} is given. */
+  /** The classic server's. Not read when {@link project} is given. */
   singleUser?: boolean | undefined;
-  /** Serve this project folder instead of the classic workspace. */
+  /** Serve this project folder instead of the classic server. */
   project?: ProjectServerOptions | undefined;
   /** Defaults to loopback; only the LAN toggle passes `0.0.0.0`. */
   host?: string | undefined;
@@ -415,19 +415,19 @@ export interface ServerManager {
   /**
    * The app's own programs changed while a project is open (git was fetched):
    * the live child is told, and every later fork starts with the new value.
-   * Nothing for the classic workspace.
+   * Nothing for the classic server.
    */
   setPrograms(value: string): void;
   /**
    * The keys the app keeps, for a project that is being built: told to the
    * running server, and to every later one as soon as it is up. Never part of
-   * a child's environment. A shared project and the classic workspace are told
+   * a child's environment. A shared project and the classic server are told
    * nothing.
    */
   setModels(models: KeptModels): void;
   /** What a project's model screen saved, to be kept by the app. Returns an unsubscribe. */
   onKeepModel(listener: (values: ServerKeepModelMessage['values']) => void): () => void;
-  /** The project this manager serves and how, or `null` for the classic workspace. */
+  /** The project this manager serves and how, or `null` for the classic server. */
   readonly project: { readonly root: string; readonly mode: DesktopProjectMode } | null;
   /**
    * What the server is in the middle of, or `null` (also when it does not
@@ -719,7 +719,7 @@ class ServerManagerImpl implements ServerManager {
       });
     }
     if (this.#opts.dataDir === undefined || this.#opts.secret === undefined || this.#opts.singleUser === undefined) {
-      throw new Error('the classic workspace needs its data folder, its secret and its sign-in rule');
+      throw new Error('the app’s own server needs its data folder, its secret and its sign-in rule');
     }
     const input: BuildServerEnvInput = {
       dataDir: this.#opts.dataDir,

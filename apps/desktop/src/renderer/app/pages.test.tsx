@@ -170,7 +170,7 @@ describe('Start', () => {
     expect(await screen.findByText('What would you like to do?')).toBeTruthy();
   });
 
-  it('chooses the classic workspace', async () => {
+  it('chooses the classic server', async () => {
     const start = fakeStart();
     show(start);
     fireEvent.click(screen.getByText('Use my own database'));

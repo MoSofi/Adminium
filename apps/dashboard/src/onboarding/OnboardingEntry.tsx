@@ -54,7 +54,7 @@ function EntryBanner({ done, total, onDismiss, onContinue }: { done: number; tot
         </Button>
       }
     >
-      {t('onboarding.entry.banner', 'Finish setting up your workspace — {done} of {total} steps done.', {
+      {t('onboarding.entry.banner', 'Finish setting up your server — {done} of {total} steps done.', {
         done,
         total,
       })}

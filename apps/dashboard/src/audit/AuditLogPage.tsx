@@ -129,7 +129,7 @@ export function AuditLogPage(): ReactNode {
     <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
         title={t('audit.title', 'Audit log')}
-        subtitle={t('audit.subtitle', 'Every change made in this workspace, who made it, and what it changed.')}
+        subtitle={t('audit.subtitle', 'Every change made on this server, who made it, and what it changed.')}
       />
 
       <Card padded={false}>

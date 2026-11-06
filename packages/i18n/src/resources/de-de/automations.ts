@@ -114,7 +114,7 @@ export default {
     "email": "E-Mail senden",
     "emailDesc": "Aus einer gespeicherten Vorlage",
     "notification": "Benachrichtigung senden",
-    "notificationDesc": "Personen in diesem Workspace informieren",
+    "notificationDesc": "Personen auf diesem Server informieren",
     "create": "Datensatz anlegen",
     "createDesc": "Eine Zeile in einer Tabelle anlegen",
     "update": "Feld aktualisieren",

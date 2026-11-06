@@ -10,7 +10,7 @@ example after a restart or when you queue one yourself. Each row is sent:
   links, else what the linked visit carries for a first visit. The address, and the language
   found with it, are written into the row once it is sent. The person's reminder opt-out is not
   asked here: it only stops the producers;
-- **in the row's language,** when it is one Adminium speaks, else the workspace's. A template
+- **in the row's language,** when it is one Adminium speaks, else the server's. A template
   with no version in that language is sent in US English. Another language picks the nearest one
   Adminium speaks (`en-GB` gets the US English email), and its dates, times and money are still
   written the recipient's way (`en-GB` reads "09:30", not "9:30 AM");

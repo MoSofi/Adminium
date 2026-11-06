@@ -114,7 +114,7 @@ export default {
     "email": "Envoyer un e-mail",
     "emailDesc": "Depuis un modèle enregistré",
     "notification": "Envoyer une notification",
-    "notificationDesc": "Prévenir des personnes de cet espace",
+    "notificationDesc": "Prévenir des personnes de ce serveur",
     "create": "Créer un enregistrement",
     "createDesc": "Ajouter une ligne à une table",
     "update": "Mettre à jour un champ",

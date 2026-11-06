@@ -68,7 +68,7 @@ export function tablesSummary(connections: readonly ConnectionFacts[]): { tables
 export const PROMPT_TABLES_PER_CONNECTION = 60;
 
 export function connectionsSection(connections: readonly ConnectionFacts[]): string {
-  if (connections.length === 0) return 'No database is connected to this workspace.';
+  if (connections.length === 0) return 'No database is connected here.';
   return connections
     .map((connection) => {
       if (connection.tables.length === 0) {

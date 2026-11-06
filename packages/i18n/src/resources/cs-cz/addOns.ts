@@ -11,7 +11,7 @@
 export default {
   "notInstalled": {
     "title": "Tento add-on není nainstalovaný",
-    "body": "Stránka, kterou jste otevřeli, patří add-onu, který v tomto pracovním prostoru není nainstalovaný nebo byl vypnutý. Správce jej může nainstalovat ve Studiu."
+    "body": "Stránka, kterou jste otevřeli, patří add-onu, který na tomto serveru není nainstalovaný nebo byl vypnutý. Správce jej může nainstalovat ve Studiu."
   },
   "unknown": {
     "title": "Taková stránka neexistuje",

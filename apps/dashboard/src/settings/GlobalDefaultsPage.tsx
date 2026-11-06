@@ -96,12 +96,12 @@ function DefaultsForm({ initial }: { initial: SettingsDefaultsData }): ReactNode
         queryClient.setQueryData(SETTINGS_DEFAULTS_QUERY_KEY, data);
         // Sessions following a default re-resolve; ours included.
         void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
-        toasts.push({ variant: 'success', title: t('settings.defaults.saved', 'Workspace defaults updated') });
+        toasts.push({ variant: 'success', title: t('settings.defaults.saved', 'Server defaults updated') });
       })
       .catch(() => {
         toasts.push({
           variant: 'error',
-          title: t('settings.defaults.saveFailed', 'Could not save workspace defaults. Try again.'),
+          title: t('settings.defaults.saveFailed', 'Could not save the server defaults. Try again.'),
         });
       })
       .finally(() => {
@@ -195,7 +195,7 @@ function GlobalDefaultsBody(): ReactNode {
     <PageSurface width="page">
       <PageActions
         title={t('settings.defaults.title', 'Global defaults')}
-        subtitle={t('settings.defaults.subtitle', 'Workspace-wide appearance and language defaults.')}
+        subtitle={t('settings.defaults.subtitle', 'Server-wide appearance and language defaults.')}
       />
       {/* Remount the form when the server state changes (realtime refetch). */}
       <DefaultsForm key={`${data.theme}|${data.accent}|${data.density}|${data.locale}`} initial={data} />

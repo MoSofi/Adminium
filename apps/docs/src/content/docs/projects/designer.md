@@ -190,7 +190,7 @@ picture can come from four places:
 | **Search pictures** | One source at a time, searched with the spot's own words. Each picture shows its licence as a badge and what it asks of you |
 | **Upload** | A PNG, JPEG, WebP or GIF of yours, up to 5 MB. Use only pictures you made or have permission to use |
 | **Already in this app** | A picture the app has, or one you attached in this session |
-| **Make one** | A picture made with AI by the picture service your workspace chose. See [Make a picture with AI](#make-a-picture-with-ai) |
+| **Make one** | A picture made with AI by the picture service your server uses. See [Make a picture with AI](#make-a-picture-with-ai) |
 
 Each choice goes into **What changes**, with the words that describe it for people who cannot see
 it (or **Decorative: say nothing**). **Apply** writes them all at once, with no turn and no model:

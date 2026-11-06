@@ -89,8 +89,8 @@ export function isPermissionAllowed(permission: string): boolean {
 // ─── The one exception: the microphone, for speaking to the assistant ────────
 
 /**
- * Asks the app's own server whether people may speak to the assistant in this
- * workspace (its switch, which is off until an administrator turns it on).
+ * Asks the app's own server whether people may speak to the assistant on this
+ * server (its switch, which is off until an administrator turns it on).
  * Read at every prompt, so turning the switch off takes the microphone away
  * at the next press with nothing to push.
  */
@@ -107,7 +107,7 @@ export interface MicrophoneAsk {
   origin: string | null | undefined;
   /** The app's own server, the only origin this window shows. */
   appOrigin: string | null;
-  /** The workspace's switch, as the server last answered. */
+  /** The server's switch, as the server last answered. */
   switchedOn: boolean;
 }
 
@@ -124,7 +124,7 @@ function originOrNull(value: string): string | null {
  * alone. The microphone is allowed by a DECISION, and only when all of it
  * holds: the permission is `media`; what is asked for is audio and nothing
  * else (never the camera, alone or beside it); the asker is the app's own
- * origin; and the workspace has speaking to the assistant switched on.
+ * origin; and the server has speaking to the assistant switched on.
  */
 export function isMicrophoneAllowed(ask: MicrophoneAsk): boolean {
   if (ask.permission !== 'media' || !ask.switchedOn) return false;

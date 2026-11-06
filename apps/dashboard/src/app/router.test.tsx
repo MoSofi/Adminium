@@ -158,7 +158,7 @@ describe('system-state routes', () => {
   it('404s the Cloud-only suspended state rather than rendering it', async () => {
     await renderAt('/state/suspended', { authed: false });
     expect(await screen.findByText('This page went missing')).toBeDefined();
-    expect(screen.queryByText('This workspace is suspended')).toBeNull();
+    expect(screen.queryByText('This server is suspended')).toBeNull();
     expect(screen.queryByRole('button', { name: /Contact owner/ })).toBeNull();
   });
 

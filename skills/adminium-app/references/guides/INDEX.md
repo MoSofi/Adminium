@@ -42,7 +42,7 @@
 | `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 2210 |
 | `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 3295 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
-| `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1762 |
+| `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1753 |
 | `references/guides/settings--overview.md` | An app's settings page | 769 |
 | `references/guides/settings--sets-of-screens.md` | Sets of screens | 1654 |
 | `references/guides/settings--addresses-and-domains.md` | Addresses and domains | 1801 |

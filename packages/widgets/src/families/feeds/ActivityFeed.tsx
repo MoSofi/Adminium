@@ -58,7 +58,7 @@ export function ActivityFeed({
         compact
         preset="all-caught-up"
         title={emptyTitle ?? t('ui:widgets.feeds.activityFeed.emptyTitle', 'No recent activity')}
-        body={emptyBody ?? t('ui:widgets.feeds.activityFeed.emptyBody', 'Actions across your workspace will show up here.')}
+        body={emptyBody ?? t('ui:widgets.feeds.activityFeed.emptyBody', 'Actions across your server will show up here.')}
       />
     );
   }

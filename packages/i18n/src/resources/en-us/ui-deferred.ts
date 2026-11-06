@@ -288,9 +288,9 @@ export default {
     },
     "feeds": {
       "activityFeed": {
-        "description": "A running feed of who did what across your workspace, newest first.",
+        "description": "A running feed of who did what across your server, newest first.",
         "emptyTitle": "No recent activity",
-        "emptyBody": "Actions across your workspace will show up here.",
+        "emptyBody": "Actions across your server will show up here.",
         "viewAllLabel": "View all"
       },
       "notificationFeed": {
@@ -1441,7 +1441,7 @@ export default {
         "offlineTitle": "You are offline",
         "offlineBody": "Check your connection — the dashboard reconnects automatically.",
         "forbiddenTitle": "You do not have access",
-        "forbiddenBody": "Ask a workspace admin to grant you permission for this page.",
+        "forbiddenBody": "Ask an administrator to grant you permission for this page.",
         "maintenanceTitle": "Down for maintenance",
         "maintenanceBody": "We are making things better. This usually takes a few minutes.",
         "connErrorTitle": "Cannot reach the database",
@@ -2040,7 +2040,7 @@ export default {
         "emptyBody": "Files kept with this record appear here.",
         "loading": "Loading files",
         "removed": "{name} was moved to the trash.",
-        "tooLarge": "That file is larger than this workspace allows.",
+        "tooLarge": "That file is larger than this server allows.",
         "lead": "Files kept with this record.",
         "allFiles": "All files are on the Files page",
         "inColumn": "In {column}",

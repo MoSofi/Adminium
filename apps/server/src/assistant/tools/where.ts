@@ -113,7 +113,7 @@ export async function whereIs(deps: AssistantToolDeps, q: string): Promise<Where
 export const whereIsTool: AssistantTool = {
   name: 'where_is',
   description:
-    'The places of this workspace the person can open: its pages (title, kind, table, path) and the settings and Studio screens their permissions open (name, path, what is done there). Call it for any "where do I…", "how do I get to…", "which page shows…" question, and before you name any page or screen. Optional "q": a few words to narrow a long list.',
+    'The places on this server the person can open: its pages (title, kind, table, path) and the settings and Studio screens their permissions open (name, path, what is done there). Call it for any "where do I…", "how do I get to…", "which page shows…" question, and before you name any page or screen. Optional "q": a few words to narrow a long list.',
   args: {
     type: 'object',
     properties: { q: { type: 'string', description: 'Words to narrow the list by, e.g. "invoice numbering". Leave out to list everything.' } },

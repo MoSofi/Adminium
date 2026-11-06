@@ -16,7 +16,7 @@ export default {
     "trashFailed": "Diese Datei konnte nicht in den Papierkorb verschoben werden"
   },
   "title": "Dateien",
-  "subtitle": "Jede Datei in diesem Arbeitsbereich: die an Datensätzen und die in der Bibliothek. Und wo jede liegt.",
+  "subtitle": "Jede Datei auf diesem Server: die an Datensätzen und die in der Bibliothek. Und wo jede liegt.",
   "search": "Nach Dateiname suchen",
   "trash": {
     "notice": {
@@ -103,7 +103,7 @@ export default {
   "upload": {
     "open": "Hochladen",
     "title": "Dateien hochladen",
-    "subtitle": "Fügen Sie diesem Arbeitsbereich Dateien hinzu.",
+    "subtitle": "Fügen Sie diesem Server Dateien hinzu.",
     "connection": "Zu welcher Verbindung sie gehören",
     "drop": "Dateien hierher ziehen",
     "browse": "Auf Ihrem Computer suchen",

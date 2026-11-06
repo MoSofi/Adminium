@@ -21,7 +21,7 @@
 | `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 6333 |
 | `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7046 |
 | `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 6181 |
-| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7818 |
+| `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 7815 |
 | `references/manifest/requiredschema--column-rules-7.md` | requiredSchema — Column rules (part 7) | 6589 |
 | `references/manifest/requiredschema--column-rules-8.md` | requiredSchema — Column rules (part 8) | 7742 |
 | `references/manifest/requiredschema--column-rules-9.md` | requiredSchema — Column rules (part 9) | 7540 |
@@ -50,8 +50,8 @@
 | `references/manifest/maps.md` | Maps | 4830 |
 | `references/manifest/option-lists.md` | Option lists | 851 |
 | `references/manifest/pages.md` | Pages | 6557 |
-| `references/manifest/pages-2.md` | Pages (part 2) | 7055 |
-| `references/manifest/pages-3.md` | Pages (part 3) | 2610 |
+| `references/manifest/pages-2.md` | Pages (part 2) | 7053 |
+| `references/manifest/pages-3.md` | Pages (part 3) | 2608 |
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 5603 |
 | `references/manifest/pages--navgroups.md` | Pages — navGroups | 789 |
 | `references/manifest/pages--a-page-kept-off-the-sidebar.md` | Pages — A page kept off the sidebar | 1236 |
@@ -60,7 +60,7 @@
 | `references/manifest/whose-a-row-is.md` | Whose a row is | 7636 |
 | `references/manifest/whose-a-row-is-2.md` | Whose a row is (part 2) | 7680 |
 | `references/manifest/whose-a-row-is-3.md` | Whose a row is (part 3) | 1960 |
-| `references/manifest/roles.md` | Roles | 7203 |
+| `references/manifest/roles.md` | Roles | 7200 |
 | `references/manifest/roles-2.md` | Roles (part 2) | 4198 |
 | `references/manifest/roles--a-role-on-an-add-on-s-tables.md` | Roles — A role on an add-on's tables | 3087 |
 | `references/manifest/settings.md` | Settings | 1211 |
@@ -72,7 +72,7 @@
 | `references/manifest/documents--a-list-of-an-add-on-s-rows.md` | Documents — A list of an add-on's rows | 1524 |
 | `references/manifest/documents--documents-that-print-a-money-code.md` | Documents — Documents that print a money code | 987 |
 | `references/manifest/emails.md` | Emails | 850 |
-| `references/manifest/emails--outbox.md` | Emails — outbox | 7313 |
+| `references/manifest/emails--outbox.md` | Emails — outbox | 7310 |
 | `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 4433 |
 | `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 6445 |
 | `references/manifest/emails--a-reply-to-the-rep.md` | Emails — A reply to the rep | 1672 |

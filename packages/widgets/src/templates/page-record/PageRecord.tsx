@@ -779,7 +779,7 @@ function AttachmentsPanel({
           }}
           onReject={() =>
             setError(
-              t('ui:templates.record.attachments.tooLarge', 'That file is larger than this workspace allows.'),
+              t('ui:templates.record.attachments.tooLarge', 'That file is larger than this server allows.'),
             )
           }
         />

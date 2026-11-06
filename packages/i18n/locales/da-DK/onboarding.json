@@ -74,11 +74,11 @@
     "invited": "{count, plural, one {# invitation} other {# invitationer}} oprettet.",
     "label": "Klar",
     "next": {
-      "blank": "Dit arbejdsrum er klar. Tilføj en side, når du vil — der blev ikke genereret noget, præcis som du bad om.",
-      "connected": "Dit arbejdsrum er klar. Siderne lavet ud fra din database ligger på dashboardet.",
-      "connectedNoPages": "Dit arbejdsrum er klar. Din database er forbundet; tilføj sider fra Studio, når du vil.",
-      "generate": "Dit arbejdsrum er klar. Nu vælger vi tabellerne og genererer dine sider.",
-      "ready": "Dit arbejdsrum er klar."
+      "blank": "Din server er klar. Tilføj en side, når du vil — der blev ikke genereret noget, præcis som du bad om.",
+      "connected": "Din server er klar. Siderne lavet ud fra din database ligger på dashboardet.",
+      "connectedNoPages": "Din server er klar. Din database er forbundet; tilføj sider fra Studio, når du vil.",
+      "generate": "Din server er klar. Nu vælger vi tabellerne og genererer dine sider.",
+      "ready": "Din server er klar."
     },
     "storage": {
       "local": "Adminium gemmer sine egne data i en fil på denne maskine.",

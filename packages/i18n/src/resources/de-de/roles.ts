@@ -18,7 +18,7 @@ export default {
     "access": "Zugriff",
     "data": "Daten",
     "operations": "Betrieb",
-    "workspace": "Workspace",
+    "workspace": "Server",
     "records": "Seiten & Datensätze",
     "apps": "Apps"
   },
@@ -83,7 +83,7 @@ export default {
     "rolesManage": "Rollen und Berechtigungen verwalten",
     "schemaRemap": "Schema-Bezeichnungen und -Überschreibungen bearbeiten",
     "schemaDdl": "Tabellen erstellen, bearbeiten und löschen",
-    "settingsManage": "Workspace-Einstellungen verwalten",
+    "settingsManage": "Server-Einstellungen verwalten",
     "usersManage": "Benutzer verwalten",
     "filesManage": "Dateien aller Benutzer verwalten",
     "storageManage": "Speicherziele verwalten",

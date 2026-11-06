@@ -74,11 +74,11 @@
     "invited": "Vytvořeno {count, plural, one {# pozvání} few {# pozvání} other {# pozvání}}.",
     "label": "Hotovo",
     "next": {
-      "blank": "Váš pracovní prostor je připraven. Přidejte stránku, až budete chtít — nic jsme nevygenerovali, přesně jak jste si přáli.",
-      "connected": "Váš pracovní prostor je připraven. Stránky vytvořené z vaší databáze najdete na nástěnce.",
-      "connectedNoPages": "Váš pracovní prostor je připraven. Databáze je připojena; stránky přidáte ve Studiu, až budete chtít.",
-      "generate": "Váš pracovní prostor je připraven. Teď vybereme tabulky a vygenerujeme vaše stránky.",
-      "ready": "Váš pracovní prostor je připraven."
+      "blank": "Váš server je připraven. Přidejte stránku, až budete chtít — nic jsme nevygenerovali, přesně jak jste si přáli.",
+      "connected": "Váš server je připraven. Stránky vytvořené z vaší databáze najdete na nástěnce.",
+      "connectedNoPages": "Váš server je připraven. Databáze je připojena; stránky přidáte ve Studiu, až budete chtít.",
+      "generate": "Váš server je připraven. Teď vybereme tabulky a vygenerujeme vaše stránky.",
+      "ready": "Váš server je připraven."
     },
     "storage": {
       "local": "Adminium ukládá svá vlastní data do souboru na tomto počítači.",

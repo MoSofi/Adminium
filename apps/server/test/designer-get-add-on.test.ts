@@ -196,7 +196,7 @@ describe('getting one', () => {
     installAddOn.mockRejectedValueOnce(new AppError(409, 'ADD_ON_SCHEMA_CONNECTION', 'This instance has more than one database. Choose the one this add-on\'s tables go in.'));
     expect(await getter().get('design-studio', OWNER, signal(), V)).toEqual({
       ok: false,
-      why: 'Design Studio keeps its tables in one database, and this server has more than one. Tell the person to install it from Workspace settings → Add-ons, where they choose the database; then call the tool again.',
+      why: 'Design Studio keeps its tables in one database, and this server has more than one. Tell the person to install it from Server settings → Add-ons, where they choose the database; then call the tool again.',
     });
     installAddOn.mockRejectedValueOnce(new AddOnUntrustedError('design-studio', '1.0.0'));
     expect(await getter().get('design-studio', OWNER, signal(), V)).toEqual({

@@ -65,7 +65,7 @@ import { hasStudioAccess } from '../studio/StudioGuard.js';
 import { distinctConnectionCount, sectionNavItems } from './navSections.js';
 
 const GROUP_LABELS: Record<NavGroupKey, string> = {
-  workspace: 'Workspace',
+  workspace: 'Pages',
   library: 'Library',
   planning: 'Planning',
   people: 'People',

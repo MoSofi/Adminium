@@ -721,7 +721,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
                       showing "Choose a list…" over a rule that still exists. */}
                   {namedList !== null && !(optionLists.data ?? []).some((list) => list.key === namedList) ? (
                     <option value={namedList}>
-                      {t('studio:remap.rules.optionsMissingList', '{key} (not in this workspace)', { key: namedList })}
+                      {t('studio:remap.rules.optionsMissingList', '{key} (not on this server)', { key: namedList })}
                     </option>
                   ) : null}
                 </Select>

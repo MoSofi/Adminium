@@ -48,7 +48,7 @@ const GROUP_LABEL_KEY: Record<NavGroup, string> = {
 };
 
 const GROUP_FALLBACK: Record<NavGroup, string> = {
-  workspace: 'Workspace',
+  workspace: 'Pages',
   library: 'Library',
   planning: 'Planning',
   people: 'People',

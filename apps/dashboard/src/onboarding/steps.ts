@@ -76,7 +76,7 @@ export const ONBOARDING_STEP_META: readonly OnboardingStepMeta[] = [
     key: 'workspace-defaults',
     icon: 'SlidersHorizontal',
     titleKey: 'onboarding.steps.workspaceDefaults.title',
-    titleFallback: 'Set workspace defaults',
+    titleFallback: 'Set server defaults',
     descKey: 'onboarding.steps.workspaceDefaults.desc',
     descFallback: 'Theme, accent, density and locale everyone starts with.',
     timeKey: 'onboarding.steps.workspaceDefaults.time',

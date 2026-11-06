@@ -22,14 +22,14 @@
 | `references/guides/building-on-an-add-on--an-add-on-with-tables-of-its-own.md` | An add-on with tables of its own | 4279 |
 | `references/guides/emails--overview.md` | An app's emails | 915 |
 | `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |
-| `references/guides/emails--what-queues-a-row.md` | What queues a row | 6745 |
+| `references/guides/emails--what-queues-a-row.md` | What queues a row | 6742 |
 | `references/guides/emails--messages-about-changes.md` | Messages about changes | 4152 |
 | `references/guides/emails--messages-about-a-row-that-is-removed.md` | Messages about a row that is removed | 4950 |
-| `references/guides/emails--sending.md` | Sending | 4391 |
+| `references/guides/emails--sending.md` | Sending | 4388 |
 | `references/guides/emails--held-messages.md` | Held messages | 1454 |
 | `references/guides/emails--attachments.md` | Attachments | 1887 |
 | `references/guides/emails--the-templates.md` | The templates | 1273 |
-| `references/guides/emails--variables.md` | Variables | 7565 |
+| `references/guides/emails--variables.md` | Variables | 7562 |
 | `references/guides/emails--variables--the-person-a-staff-column-names.md` | Variables — The person a staff column names | 1053 |
 | `references/guides/emails--emails-that-list-rows.md` | Emails that list rows | 7245 |
 | `references/guides/emails--links.md` | Links | 850 |
@@ -44,7 +44,7 @@
 | `references/guides/postings--every-way-of-writing-a-row.md` | Every way of writing a row | 1718 |
 | `references/guides/postings--trying-a-save-first.md` | Trying a save first | 868 |
 | `references/guides/postings--when-the-add-on-cannot-be-asked.md` | When the add-on cannot be asked | 1366 |
-| `references/guides/postings--what-the-owner-can-change.md` | What the owner can change | 753 |
+| `references/guides/postings--what-the-owner-can-change.md` | What the owner can change | 747 |
 | `references/guides/postings--what-a-writer-is-told.md` | What a writer is told | 1569 |
 | `references/guides/inventory--overview.md` | The Inventory add-on | 667 |
 | `references/guides/inventory--places-stock-and-batches.md` | Places, stock and batches | 1160 |

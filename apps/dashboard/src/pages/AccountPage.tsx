@@ -191,7 +191,7 @@ function ProfileCard({ user }: { user: SessionUser }): ReactNode {
               title={t('account.saved', 'Profile updated')}
               body={t(
                 'account.savedBody',
-                'Your new details are in use across this workspace. If you changed your email, sign in with the new address from now on.',
+                'Your new details are in use across this server. If you changed your email, sign in with the new address from now on.',
               )}
               data-testid="account-saved"
             />

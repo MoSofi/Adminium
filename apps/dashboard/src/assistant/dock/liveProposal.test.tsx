@@ -262,7 +262,7 @@ describe('a proposal that waits for a yes', () => {
     const { props } = show(open([change('INV-1', 'sent', 'paid'), refusedChange('INV-9', 'You may not change total on invoices.'), refusedChange('INV-8', '', 'SWITCHED_OFF')]));
     expect(screen.getByText('2 of 3 changes cannot be made.')).toBeTruthy();
     expect(screen.getByText('You may not change total on invoices.')).toBeTruthy();
-    expect(screen.getByText('This is switched off for Milo in this workspace.')).toBeTruthy();
+    expect(screen.getByText('This is switched off for Milo on this server.')).toBeTruthy();
     // What can be done still can.
     expect(screen.getByRole('button', { name: 'Change 1 row' })).toBeTruthy();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Ask Milo to fix this' }));

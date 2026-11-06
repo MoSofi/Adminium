@@ -90,7 +90,7 @@ const GROUP_LABEL_KEY = {
 } as const satisfies Record<NavGroup, string>;
 
 const GROUP_FALLBACK = {
-  workspace: 'Workspace',
+  workspace: 'Pages',
   library: 'Library',
   planning: 'Planning',
   people: 'People',

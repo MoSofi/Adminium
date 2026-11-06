@@ -845,7 +845,7 @@ export default {
       },
       "privacyGrants": {
         "title": "Role může mazat osoby",
-        "body": "{roles} může na stránce soukromí najít, stáhnout a vymazat vše, co tento pracovní prostor o osobě uchovává."
+        "body": "{roles} může na stránce soukromí najít, stáhnout a vymazat vše, co tento server o osobě uchovává."
       }
     },
     "installed": {
@@ -1289,7 +1289,7 @@ export default {
     },
     "attachments": {
       "accept": "Povolené typy souborů",
-      "acceptHint": "Když nevyberete žádný, přijme se vše, co tento workspace povoluje. Volba zde může seznam jen zúžit, nikdy rozšířit.",
+      "acceptHint": "Když nevyberete žádný, přijme se vše, co tento server povoluje. Volba zde může seznam jen zúžit, nikdy rozšířit.",
       "column": {
         "adoptHint": "Tato tabulka už tento sloupec má, takže se nic nevytváří — použije se tak, jak je.",
         "bound": "Soubory jsou uloženy ve sloupci {column} této tabulky.",
@@ -1316,7 +1316,7 @@ export default {
       "enableHintColumn": "Soubory se ukládají do jednoho sloupce této tabulky, takže se objeví v dialozích Nový a Upravit i u každého záznamu.",
       "enableHintSidecar": "Soubory se místo toho propojí na straně Adminia. Objeví se na stránce každého záznamu, ne v dialogu Nový.",
       "maxBytes": "Největší soubor (MB)",
-      "maxBytesHint": "Nechte prázdné a bude se řídit limitem workspace. Číslo zde ho může jen snížit.",
+      "maxBytesHint": "Nechte prázdné a bude se řídit limitem serveru. Číslo zde ho může jen snížit.",
       "maxCount": "Nejvíc souborů na záznam",
       "maxCountHint": "Nechte prázdné a přijme se jich tolik, kolik záznam potřebuje.",
       "sidecar": {
@@ -1348,7 +1348,7 @@ export default {
       "dragHandle": "Přesunout {name}",
       "empty": "Zatím žádné sloupce — přidejte je níže.",
       "file": {
-        "acceptHelp": "Nechte všechny typy vypnuté a sloupec přijme vše, co přijímá tento workspace. Výběrem typů lze seznam jen zúžit — sloupec nikdy nepřijme typ, který workspace odmítá.",
+        "acceptHelp": "Nechte všechny typy vypnuté a sloupec přijme vše, co přijímá tento server. Výběrem typů lze seznam jen zúžit — sloupec nikdy nepřijme typ, který server odmítá.",
         "acceptLabel": "Povolené typy",
         "badge": "Soubor",
         "destinationDefault": "Výchozí cíl úložiště",
@@ -1359,7 +1359,7 @@ export default {
         "maxCountHelp": "Nechte prázdné, aby se přijalo tolik souborů, kolik záznam potřebuje.",
         "maxCountLabel": "Nejvíce souborů na záznam",
         "maxCountToggle": "Nejvíce souborů pro {name}",
-        "maxHelp": "Nechte prázdné a použije se limit workspace. Sloupec může chtít jen méně.",
+        "maxHelp": "Nechte prázdné a použije se limit serveru. Sloupec může chtít jen méně.",
         "maxLabel": "Největší soubor (MB)",
         "maxToggle": "Největší soubor, který {name} přijme, v MB",
         "multipleHelp": "Sloupec ukládá seznam souborů místo jednoho. Stávající jednotlivé hodnoty fungují dál — čtou se jako seznam s jednou položkou.",
@@ -2103,7 +2103,7 @@ export default {
       "optionsListHelp": "Samotné seznamy upravíte ve Studiu → Seznamy.",
       "optionsListLabel": "Seznam",
       "optionsListUnavailable": "Seznamy se nepodařilo načíst.",
-      "optionsMissingList": "{key} (není v tomto pracovním prostoru)",
+      "optionsMissingList": "{key} (není na tomto serveru)",
       "optionsPickList": "Vyberte seznam…",
       "optionsSource": "Povolené hodnoty",
       "optionsSourceHelp": "Seznam se napíše jednou ve Studiu a použije jej každý sloupec, který jej pojmenuje.",
@@ -2228,7 +2228,7 @@ export default {
   "settings": {
     "globalDefaultsNav": "Globální výchozí nastavení",
     "title": "Nastavení",
-    "workspaceSection": "Pracovní prostor"
+    "workspaceSection": "Server"
   },
   "settingsAi": {
     "assistant": {
@@ -2408,7 +2408,7 @@ export default {
       "change": "Měnit",
       "changeWhat": "Upravit řádek nebo uložený dokument. Každou akci potvrzujete.",
       "send": "Odesílat",
-      "sendWhat": "Odeslat existující e-mailovou šablonu lidem v tomto pracovním prostoru. Každé odeslání potvrzujete.",
+      "sendWhat": "Odeslat existující e-mailovou šablonu lidem na tomto serveru. Každé odeslání potvrzujete.",
       "delete": "Mazat",
       "deleteWhat": "Odstranit řádek nebo dokument. Každou akci potvrzujete.",
       "rows": "Řádků v jednom potvrzení",
@@ -2477,7 +2477,7 @@ export default {
       "subtitle": "Nevratné akce."
     },
     "defaultsCard": {
-      "body": "Motiv, akcentová barva, hustota a jazyk pro celý workspace najdete ve výchozím globálním nastavení.",
+      "body": "Motiv, akcentovou barvu, hustotu a jazyk pro celý server najdete v Globálním výchozím nastavení.",
       "cta": "Otevřít globální výchozí nastavení",
       "heading": "Výchozí vzhled a jazyk"
     },
@@ -2543,7 +2543,7 @@ export default {
         "helper": "Zobrazuje se v postranním panelu, v titulku prohlížeče a v e-mailech.",
         "label": "Název aplikace"
       },
-      "heading": "Identita workspace",
+      "heading": "Identita serveru",
       "logo": {
         "badType": "Vyberte obrázek PNG, JPEG, WebP, GIF nebo SVG.",
         "drop": "Přetáhněte sem obrázek",
@@ -2587,14 +2587,14 @@ export default {
       "on": "Zapnuto",
       "shown": "Zobrazeno",
       "subtitle": "Před uložením zkontrolujte změny.",
-      "title": "Uložit nastavení workspace"
+      "title": "Uložit nastavení serveru"
     },
     "save": "Uložit změny",
-    "saveFailed": "Nastavení workspace se nepodařilo uložit. Zkuste to znovu.",
-    "saved": "Nastavení workspace aktualizováno",
+    "saveFailed": "Nastavení serveru se nepodařilo uložit. Zkuste to znovu.",
+    "saved": "Nastavení serveru aktualizováno",
     "security": {
       "allowSignup": {
-        "desc": "Účet si může založit kdokoli — při vypnutí zůstává workspace jen na pozvánky.",
+        "desc": "Účet si může založit kdokoli — při vypnutí zůstává server jen na pozvánky.",
         "label": "Povolit samoregistraci"
       },
       "heading": "Zabezpečení",
@@ -2617,10 +2617,10 @@ export default {
       "cta": "Otevřít úložiště",
       "heading": "Úložiště"
     },
-    "subtitle": "Identita, zabezpečení a destruktivní akce tohoto workspace.",
-    "superAdminOnly": "Identitu a zabezpečení workspace může měnit pouze super admin.",
+    "subtitle": "Identita, zabezpečení a destruktivní akce tohoto serveru.",
+    "superAdminOnly": "Identitu a zabezpečení serveru může měnit pouze super admin.",
     "superAdminOnlyTitle": "Vyžadován super admin",
-    "title": "Nastavení workspace",
+    "title": "Nastavení serveru",
     "translationsCard": {
       "body": "Přeformulujte v Adminiu cokoli, vyberte, které jazyky si lidé mohou zvolit, a přidejte vlastní.",
       "cta": "Otevřít překlady",
@@ -2775,7 +2775,7 @@ export default {
     "fileCount": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}",
     "kind": {
       "archive": "Archivované dávky auditního logu",
-      "branding": "Logo workspace",
+      "branding": "Logo serveru",
       "export": "Soubory z exportů dat",
       "import": "Nahrané soubory CSV a jejich chybové reporty",
       "schema": "Importované soubory schématu",
@@ -2919,7 +2919,7 @@ export default {
     "andMore": "a dalších {count}",
     "builtin": "Vestavěný",
     "builtinCount": "{count} hodnot",
-    "builtinSubtitle": "Seznam, který Adminium dodává. Je stejný v každém pracovním prostoru a jeho názvy se zobrazují v jazyce každého čtenáře.",
+    "builtinSubtitle": "Seznam, který Adminium dodává. Je stejný na každém serveru a jeho názvy se zobrazují v jazyce každého čtenáře.",
     "cancel": "Zrušit",
     "close": "Zavřít",
     "copiedFrom": "kopie seznamu {key}",
@@ -2955,7 +2955,7 @@ export default {
     "removeValue": "Odebrat {value}",
     "save": "Uložit změny",
     "storeLabel": "Ukládat místo toho popisek",
-    "storeLabelHelp": "Kopie ukládá kód, například DE. „Ukládat místo toho popisek“ ukládá, jak se zde jmenuje, například Německo — v jazyce tohoto pracovního prostoru, od této chvíle.",
+    "storeLabelHelp": "Kopie ukládá kód, například DE. „Ukládat místo toho popisek“ ukládá, jak se zde jmenuje, například Německo — v jazyce tohoto serveru, od této chvíle.",
     "subtitle": "Odpovědi, které sloupec přijímá — pojmenované jednou a použitelné odkudkoli.",
     "title": "Seznamy",
     "valueAt": "Hodnota {n}",
@@ -3140,7 +3140,7 @@ export default {
     "note": {
       "notRegistered": "Veřejné API není na tomto serveru zapnuto. Nastavte ADMINIUM_PUBLIC_API_ORIGINS a restartujte — klíče vytvořené zde budou od té chvíle fungovat.",
       "off": "Veřejné API je vypnuté, takže teď nefunguje žádný klíč.",
-      "offLink": "Otevřít nastavení workspace"
+      "offLink": "Otevřít nastavení serveru"
     },
     "quick": {
       "body": "Požadavky ověřujte klíčem v hlavičce Authorization.",
@@ -3204,7 +3204,7 @@ export default {
       "keys": "Aktivní klíče",
       "requests": "Požadavky · 24 h"
     },
-    "subtitle": "Spravujte programový přístup ke svému pracovnímu prostoru",
+    "subtitle": "Spravujte programový přístup ke svému serveru",
     "summary": "{endpoints, plural, one {# koncový bod} few {# koncové body} many {# koncového bodu} other {# koncových bodů}} · {methods, plural, one {# metoda} few {# metody} many {# metody} other {# metod}}",
     "title": "Klíče API a tokeny"
   },
@@ -4317,7 +4317,7 @@ export default {
     },
     "person": {
       "locked": "Tento server nemůže přečíst své klíče adres (jeho tajný klíč byl změněn), takže nikoho nelze najít ani vymazat. Obraťte se na toho, kdo server spravuje.",
-      "staffAddress": "Tato adresa patří zdejšímu zaměstnanci. Vyhledat nebo vymazat ji může jen ten, kdo spravuje ochranu soukromí celého pracovního prostoru.",
+      "staffAddress": "Tato adresa patří zdejšímu zaměstnanci. Vyhledat nebo vymazat ji může jen ten, kdo spravuje ochranu soukromí celého serveru.",
       "copyOf": "{label} (jejich kopie)",
       "inApp": "{label} — {app}",
       "kind": {
@@ -4845,7 +4845,7 @@ export default {
         "title": "Odeslat kampaň",
         "unfilled": "Nic nevyplní {names}: každý příjemce by to dostal tak, jak je to napsáno. Dejte tomu v editoru náhradní text, nebo to odstraňte.",
         "when": "Kdy",
-        "workspaceUsers": "Uživatelé pracovního prostoru"
+        "workspaceUsers": "Uživatelé tohoto serveru"
       }
     }
   }

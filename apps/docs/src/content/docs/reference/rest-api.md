@@ -152,13 +152,13 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/scheduled-reports/*` | 4 | Recurring exports delivered on a schedule |
 | `/api/v1/schema-import` | 1 | Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR |
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
-| `/api/v1/settings/*` | 12 | Instance settings — defaults, branding, email, security, telemetry, workspace |
+| `/api/v1/settings/*` | 12 | Instance settings — defaults, branding, email, security, telemetry |
 | `/api/v1/setup/*` | 4 | First-boot super-admin creation, whether setup is still open, and — in that same window — checking a database for an Adminium store already in it and adopting that store |
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
 | `/api/v1/system` | 1 | Version and instance information |
 | `/api/v1/teams/*` | 6 | Teams and who leads them: a lead reaches the rows of the people in the team |
-| `/api/v1/users/*` | 11 | People in the workspace — invite, suspend, delete, assign roles |
+| `/api/v1/users/*` | 11 | People on the server — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
 | `/api/v1/words` | 1 | What staff are told of the rows a screen shows, in an add-on's stock words — in, low or out for up to sixty rows of a table named as it is stored, and for a caller who reads the add-on's stock tables the figure behind the word: the exact count, the batch and its expiry, the line that runs out first, and whether stock or the day's portions bind |
 | `/api/v1/workspaces/*` | 9 | Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be in several workspaces or in none, and deleting a workspace leaves its databases where they are |

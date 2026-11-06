@@ -73,7 +73,7 @@ reverse relation or a derived column, which have nothing to write to.
 - **Picture** — the column holds a picture: PNG, JPEG, WebP or GIF, never SVG.
   Its **Accepted types** offer only those four, and the last one ticked cannot
   be unticked, so the column never turns into a File column by itself.
-- **File** — the column holds any file the workspace accepts, or the kinds you
+- **File** — the column holds any file the server accepts, or the kinds you
   tick.
 - **Text** — no file at all. Setting a Picture or File column back to Text
   keeps every value already stored; the form shows them as text.
@@ -93,9 +93,9 @@ Choose Picture or File and the column gets a small block of settings:
 - **Destination** — where the bytes go. Leave it on *The default destination*
   unless this one column belongs somewhere else. See
   [Where your files are stored](/guides/files/storage-destinations/).
-- **Accepted types** — chips. Choosing none accepts whatever the workspace
+- **Accepted types** — chips. Choosing none accepts whatever the server
   accepts; choosing some can only **narrow** that list, never widen it.
-- **Largest file (MB)** — empty follows the workspace limit; a number here can
+- **Largest file (MB)** — empty follows the server limit; a number here can
   only lower it.
 - **Show it in the table** — draws images in the grid cell. Everything else
   stays a chip with its name and size however this is set.
@@ -230,7 +230,7 @@ file — and served back on download — is always the sniffed one, never the on
 the browser claimed.
 
 Rename a PDF to `.png` and Adminium still knows it is a PDF: it is stored as
-`application/pdf`, and if the column or the workspace does not accept PDFs it is
+`application/pdf`, and if the column or the server does not accept PDFs it is
 refused with *"Files of type application/pdf are not accepted here."* The
 extension cannot talk it past the gate.
 
@@ -239,7 +239,7 @@ so those are the one case where the extension counts, and they are additionally
 required to be valid UTF-8 with no NUL bytes. A `.csv` whose bytes are not text
 is refused.
 
-The workspace settings behind all of this — a column or a page can narrow the
+The server settings behind all of this — a column or a page can narrow the
 first two, never widen them:
 
 | Setting | Default |
@@ -279,9 +279,9 @@ left exactly as it is.
 ## Uploading a file that belongs to no record
 
 Not every file is a row's. A price list, a logo, a template you will attach to
-something later — these belong to the workspace.
+something later — these belong to the server.
 
-**Files** in the sidebar lists every file in this workspace: the ones on
+**Files** in the sidebar lists every file on this server: the ones on
 records, and the ones uploaded there. Its **Upload** button puts a file straight
 into it:
 
@@ -326,7 +326,7 @@ they uploaded themselves.
 
 ## Who can do what
 
-Uploading and attaching are authorised by the **table**, not by a workspace-wide
+Uploading and attaching are authorised by the **table**, not by a server-wide
 "can upload":
 
 - Uploading a file for a record that does not exist yet needs `create` **or**

@@ -18,7 +18,7 @@ export default {
     "access": "الوصول",
     "data": "البيانات",
     "operations": "العمليات",
-    "workspace": "مساحة العمل",
+    "workspace": "الخادم",
     "records": "الصفحات والسجلات",
     "apps": "التطبيقات"
   },
@@ -83,7 +83,7 @@ export default {
     "rolesManage": "إدارة الأدوار والصلاحيات",
     "schemaRemap": "تعديل تسميات المخطط وتجاوزاته",
     "schemaDdl": "إنشاء الجداول وتعديلها وحذفها",
-    "settingsManage": "إدارة إعدادات مساحة العمل",
+    "settingsManage": "إدارة إعدادات الخادم",
     "usersManage": "إدارة المستخدمين",
     "filesManage": "إدارة ملفات الجميع",
     "storageManage": "إدارة وجهات التخزين",

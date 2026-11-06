@@ -16,7 +16,7 @@ afterEach(cleanup);
 
 const signInLabels: SignInFormLabels = {
   title: 'Welcome back',
-  subtitle: 'Sign in to your Adminium workspace.',
+  subtitle: 'Sign in to your Adminium server.',
   email: 'Email',
   password: 'Password',
   forgot: 'Forgot?',

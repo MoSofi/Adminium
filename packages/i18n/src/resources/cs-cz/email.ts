@@ -167,7 +167,7 @@ export default {
   "campaign": {
     "title": "Odeslat kampaň",
     "sendTo": "Odeslat na",
-    "workspaceUsers": "Uživatelé pracovního prostoru",
+    "workspaceUsers": "Uživatelé tohoto serveru",
     "rolesHint": "Všichni, nebo jen držitelé vybraných rolí.",
     "when": "Kdy",
     "now": "Teď",
@@ -376,9 +376,9 @@ export default {
   },
   "imagePicker": {
     "title": "Vybrat obrázek",
-    "subtitle": "Vyberte ze souborů pracovního prostoru, nahrajte nový nebo vložte URL.",
+    "subtitle": "Vyberte ze souborů tohoto serveru, nahrajte nový nebo vložte URL.",
     "source": "Zdroj",
-    "workspaceFiles": "Soubory pracovního prostoru",
+    "workspaceFiles": "Soubory serveru",
     "upload": "Nahrát",
     "noImages": "V knihovně zatím nejsou žádné obrázky — nahrajte nějaký.",
     "connection": "Nahrát do",
@@ -444,7 +444,7 @@ export default {
     "resolvedPerRecipient": "Doplní se u každého příjemce při odeslání.",
     "removeAttachment": "Odebrat přílohu",
     "addGeneratedFile": "Přidat generovaný soubor",
-    "workspaceDocuments": "Dokumenty pracovního prostoru",
+    "workspaceDocuments": "Dokumenty serveru",
     "chooseImage": "Vybrat obrázek",
     "addRow": "Přidat {noun}",
     "duplicateRow": "Duplikovat {noun}",
@@ -819,11 +819,11 @@ export default {
   "userInvite": {
     "action": "Přijmout pozvánku",
     "heading": "Byli jste pozváni",
-    "intro": "{inviterName} vás pozval(a) do pracovního prostoru {appName}. Přijměte pozvánku, nastavte si heslo k účtu {email} a přihlaste se.",
+    "intro": "{inviterName} vás pozval(a) do aplikace {appName}. Přijměte pozvánku, nastavte si heslo k účtu {email} a přihlaste se.",
     "inviterFallback": "Správce",
     "name": "Pozvánka do týmu",
     "notice": "Tato pozvánka funguje jen jednou a její platnost vyprší po {expiresInDays} dnech. Pokud jste ji nečekali, můžete tento e-mail ignorovat.",
-    "subject": "Byli jste pozváni do pracovního prostoru {appName}"
+    "subject": "Byli jste pozváni do aplikace {appName}"
   },
   "documentReady": {
     "name": "Doklad připraven",

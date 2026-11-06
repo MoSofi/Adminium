@@ -156,7 +156,7 @@ describe('the dashboard of a project that is shared', () => {
     expect(showShared).toHaveBeenCalledTimes(1);
   });
 
-  it('is nothing while a project is being built, in the classic workspace, in an older app, and when the app does not answer', async () => {
+  it('is nothing while a project is being built, in the classic server, in an older app, and when the app does not answer', async () => {
     for (const project of [{ shareInfo: () => Promise.resolve(null), showShared: vi.fn() }, {}, undefined, { shareInfo: () => Promise.reject(new Error('gone')), showShared: vi.fn() }]) {
       withBridge(project);
       render(<ShareBanner />);

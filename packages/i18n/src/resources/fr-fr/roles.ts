@@ -18,7 +18,7 @@ export default {
     "access": "Accès",
     "data": "Données",
     "operations": "Opérations",
-    "workspace": "Espace de travail",
+    "workspace": "Serveur",
     "records": "Pages et enregistrements",
     "apps": "Apps"
   },
@@ -83,7 +83,7 @@ export default {
     "rolesManage": "Gérer les rôles et les permissions",
     "schemaRemap": "Modifier les libellés et les remplacements du schéma",
     "schemaDdl": "Créer, modifier et supprimer des tables",
-    "settingsManage": "Gérer les paramètres de l’espace de travail",
+    "settingsManage": "Gérer les paramètres du serveur",
     "usersManage": "Gérer les utilisateurs",
     "filesManage": "Gérer les fichiers de tout le monde",
     "storageManage": "Gérer les destinations de stockage",

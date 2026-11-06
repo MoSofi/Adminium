@@ -1,13 +1,13 @@
 ---
 title: Email templates
-description: Design the emails your workspace sends — the built-ins, your own templates, language variations, attachments, senders, and how a template is tested and exported.
+description: Design the emails your server sends — the built-ins, your own templates, language variations, attachments, senders, and how a template is tested and exported.
 ---
 
 Adminium sends email for two reasons: because something happened (a
 notification, a password reset, an invitation) and because a person decided
 to write to the team (a campaign). **Email templates** is where both kinds are
 designed. A *template* is a reusable design; a *campaign* is a template that is
-sent, once, to the people in your workspace. This guide covers templates; the
+sent, once, to the people on your server. This guide covers templates; the
 [campaigns guide](/guides/email/campaigns/) covers sending.
 
 ## Templates and campaigns
@@ -16,7 +16,7 @@ Open **Email templates** in the sidebar. The page has two tabs:
 
 - **Templates** — the emails the product sends on its own (the built-ins) and
   the designs you keep for later.
-- **Campaigns** — emails you send to your workspace's users, on demand or at a
+- **Campaigns** — emails you send to your server's users, on demand or at a
   chosen time.
 
 Both are edited in the same editor and share the same blocks. The difference
@@ -70,7 +70,7 @@ reusable block and picked again in any template.
 ### Brand and sender
 
 The **Brand & sender** panel sets the brand name, the mark (twelve shipped
-marks, or your workspace logo), the accent colour and the **from** name and
+marks, or your server's logo), the accent colour and the **from** name and
 address. The from address is chosen from the senders configured under
 *Studio → Settings → Email*; an address that is not configured cannot be
 picked, so a template can never send from an identity the relay would reject.
@@ -135,8 +135,8 @@ save); *Only this language* keeps it here. Text edits never mirror.
 
 The **Attachments** panel adds files to every send of the template:
 
-- **Fixed files** come from your workspace's file library (*Files* in the
-  sidebar, or the *Workspace documents* list in the panel). The bytes are read
+- **Fixed files** come from your server's file library (*Files* in the
+  sidebar, or the *Server documents* list in the panel). The bytes are read
   at send time, so a file you replace in the library goes out in its new form.
   A file that has been trashed in the library makes the send **fail loudly**
   rather than go out incomplete.

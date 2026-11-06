@@ -24,6 +24,8 @@ import {
 
 import { emailDocumentInputSchema, emailDocumentSchema } from '../../email/document.js';
 import { MARKETING_REFUSALS } from '../../email/sender/refusals.js';
+import { workspaceIdQuery } from '../../workspaces/list-filter.js';
+import { shownInInput, shownInView } from '../../workspaces/shown-in.js';
 
 /** A campaign's latest run, as the manager shows it. */
 export const emailRunView = z.object({
@@ -84,6 +86,8 @@ export const emailDocumentSummary = z.object({
   /** The family's label — the `en_US` sibling's name, else the first sibling's.
    * */
   topicLabel: z.string(),
+  /** Where it is listed: every workspace, or the chosen ones. It narrows lists and pickers, never a send. */
+  shownIn: shownInView,
   run: emailRunView.optional(),
 });
 export type EmailDocumentSummaryView = z.infer<typeof emailDocumentSummary>;
@@ -98,6 +102,8 @@ export const emailDocumentsListQuery = z.object({
    * app holds answers an empty list.
    */
   app: z.string().regex(/^[a-z][a-z0-9-]{0,62}$/, 'an app key').optional(),
+  /** Only what is shown in this workspace (shown in all, or chosen there). It only narrows the list. */
+  workspaceId: workspaceIdQuery,
 });
 
 export const emailDocumentsListReply = z.object({
@@ -195,6 +201,8 @@ export const emailPatchBody = z
     archived: z.boolean().optional(),
     /** A person has read what the assistant wrote and says it looks right. Only `true` means anything. */
     reviewed: z.literal(true).optional(),
+    /** Where it is listed. On an email template, every language of its key follows. */
+    shownIn: shownInInput.optional(),
   })
   .refine((body) => Object.keys(body).length > 0, 'nothing to change');
 

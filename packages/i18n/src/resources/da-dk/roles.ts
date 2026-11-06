@@ -18,7 +18,7 @@ export default {
     "access": "Adgang",
     "data": "Data",
     "operations": "Drift",
-    "workspace": "Arbejdsområde",
+    "workspace": "Server",
     "records": "Sider og poster",
     "apps": "Apps"
   },
@@ -83,7 +83,7 @@ export default {
     "rolesManage": "Administrér roller og rettigheder",
     "schemaRemap": "Redigér skemaetiketter og tilsidesættelser",
     "schemaDdl": "Opret, redigér og slet tabeller",
-    "settingsManage": "Administrér arbejdsområdeindstillinger",
+    "settingsManage": "Administrér serverindstillinger",
     "usersManage": "Administrér brugere",
     "filesManage": "Administrér alles filer",
     "storageManage": "Administrér lagringsdestinationer",

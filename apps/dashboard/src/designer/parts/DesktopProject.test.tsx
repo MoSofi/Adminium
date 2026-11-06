@@ -38,7 +38,7 @@ function Probe() {
 }
 
 describe('the project a window holds', () => {
-  it('is none in a browser, in an app older than the call, and in the classic workspace', async () => {
+  it('is none in a browser, in an app older than the call, and in the classic server', async () => {
     render(<Probe />);
     expect(screen.getByText('none')).toBeTruthy();
     cleanup();

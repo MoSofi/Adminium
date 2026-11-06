@@ -19,7 +19,7 @@ export function PrivacyGrantsCard({ grants }: { grants: readonly { role: string;
         {t('studio:hostedApps.install.privacyGrants.title', 'A role can erase people')}
       </h3>
       <p className="mt-1 text-[12px] leading-[1.5] text-fg-muted">
-        {t('studio:hostedApps.install.privacyGrants.body', '{roles} can find, download and erase everything this workspace keeps about a person, on the privacy page.', {
+        {t('studio:hostedApps.install.privacyGrants.body', '{roles} can find, download and erase everything this server keeps about a person, on the privacy page.', {
           roles: namesList(grants.map((grant) => grant.roleName)),
         })}
       </p>
@@ -50,7 +50,7 @@ export function RoleGrantsAddedCard({
       </h3>
       {privacy.length === 0 ? null : (
         <p className="mt-1 text-[12px] leading-[1.5] text-fg-muted">
-          {t('studio:hostedApps.install.privacyGrants.body', '{roles} can find, download and erase everything this workspace keeps about a person, on the privacy page.', {
+          {t('studio:hostedApps.install.privacyGrants.body', '{roles} can find, download and erase everything this server keeps about a person, on the privacy page.', {
             roles: namesList(privacy.map((grant) => grant.roleName)),
           })}
         </p>

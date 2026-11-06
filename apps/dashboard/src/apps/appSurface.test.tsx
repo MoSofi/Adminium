@@ -150,7 +150,7 @@ describe('the sidebar section (D7)', () => {
     // `NAV_GROUP_KEYS` is a closed set; an app section is a PARALLEL thing, not
     // a sixth group, and the generated pages must still be there beside it.
     await renderAt('/a/clients/home');
-    expect(screen.getByText('Workspace')).toBeTruthy();
+    expect(screen.getByText('Pages')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Customers' })).toBeTruthy();
   });
 });

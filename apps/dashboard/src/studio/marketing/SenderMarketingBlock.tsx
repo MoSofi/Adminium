@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The "Marketing mail" block under a sender in Workspace settings › Senders
+ * The "Marketing mail" block under a sender in Server settings › Senders
  * (comp `Email To Contacts.dc.html` 5a 694-715, 5b 763-789, 5c 797-809):
  * what a sender needs before marketing mail may go from it.
  *

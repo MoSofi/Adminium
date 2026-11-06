@@ -65,7 +65,7 @@ test.afterAll(async () => {
 test('opens on Start, from the disk, with nothing started', async () => {
   await expect(page.getByRole('heading', { name: 'What would you like to do?' })).toBeVisible({ timeout: 60_000 });
   expect(page.url()).toMatch(/^file:.*\/renderer\/app\/index\.html/);
-  // A first launch: no recent project, no classic workspace.
+  // A first launch: no recent project, no classic server.
   await expect(page.getByText('Welcome to Adminium.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Recent projects' })).toHaveCount(0);
   await expect(page.locator('[data-choice]')).toHaveCount(4);

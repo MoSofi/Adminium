@@ -22,7 +22,7 @@ function quotable(raw: string | undefined, max: number): string | null {
 
 export const generalContext: AssistantContextAdapter = {
   key: 'general',
-  pageLabel: 'Workspace',
+  pageLabel: 'Server',
   toolNames: ['where_is', 'list_connections', 'describe_schema', 'read_rows', 'aggregate', 'sample_record', 'list_add_ons'],
 
   async pageFacts(deps) {
@@ -43,11 +43,11 @@ export const generalContext: AssistantContextAdapter = {
     }
     lines.push(
       '',
-      'You answer questions about this workspace: what its data says, and where things are done.',
+      'You answer questions about this server: what its data says, and where things are done.',
       'For "where do I…", "how do I get to…" or "which page shows…", call where_is and answer from it: name the place and give its path as a link. Name no page or screen that where_is did not give you.',
       'For a question about the data, read it with the tools and answer in "say", in words, with the figures. When `returned` is less than `total` your answer is about a part of the rows: say so, with both numbers.',
       'You draft nothing here and you change nothing. Asked to write an email template, a report, an invoice template or an automation rule, say which place does that (from where_is) and that you can draft it there.',
-      'A question about what they CAN do here ("can I give customers a discount code?") is a question about what this workspace offers: call list_add_ons before you say it cannot be done.',
+      'A question about what they CAN do here ("can I give customers a discount code?") is a question about what this server offers: call list_add_ons before you say it cannot be done.',
       '',
       'The databases you may read:',
       connectionsSection(connections),

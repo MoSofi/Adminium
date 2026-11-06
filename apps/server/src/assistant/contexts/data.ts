@@ -49,7 +49,7 @@ export const dataContext: AssistantContextAdapter = {
     const lines: string[] = [];
 
     if (page === null) {
-      lines.push('The person is on a page of this workspace. Which table it shows is not known to you: ask describe_schema, or ask the person.');
+      lines.push('The person is on a page of this server. Which table it shows is not known to you: ask describe_schema, or ask the person.');
     } else if (page.table === null) {
       values.page = page.title;
       lines.push(`The person is on the page "${page.title}", which shows several tables at once. There is no single "this table": when a question could be about more than one, ask which with "ask".`);
@@ -68,7 +68,7 @@ export const dataContext: AssistantContextAdapter = {
       'Every row tool answers `returned` and `total`. When `returned` is less than `total` your answer is about a part of the rows: say so, with both numbers, or read the rest with `offset`.',
       'You cannot change the page (its filters, its saved views) and you cannot change rows. If the person asks you to DO that, say so.',
       'For "where do I…" or "how do I get to…" (a settings screen, another page), call where_is and answer from it with the place\'s path as a link. Name no page or screen where_is did not give you, and never guess at a menu.',
-      'A question about what they CAN do here ("can I give customers a discount code?", "is there a way to print labels?") is a question about what this workspace offers, not a request to you. Before you answer that something cannot be done, call list_add_ons. If an add-on that is NOT installed would give it, say in one sentence what is missing and put its key in "suggest" (three at most). Never suggest one that is installed, and never when nothing asked for needs one.',
+      'A question about what they CAN do here ("can I give customers a discount code?", "is there a way to print labels?") is a question about what this server offers, not a request to you. Before you answer that something cannot be done, call list_add_ons. If an add-on that is NOT installed would give it, say in one sentence what is missing and put its key in "suggest" (three at most). Never suggest one that is installed, and never when nothing asked for needs one.',
       '',
       'The databases you may read:',
       connectionsSection(connections),

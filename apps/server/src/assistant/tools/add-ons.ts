@@ -38,7 +38,7 @@ export async function listedAddOns(read: (() => Promise<AssistantAddOn[]>) | und
 export const listAddOnsTool: AssistantTool = {
   name: 'list_add_ons',
   description:
-    'The add-ons installed in this workspace and the ones it could install, each with its key, its name and one line on what it adds. Call it when the person asks for something the workspace does not seem able to do.',
+    'The add-ons installed on this server and the ones it could install, each with its key, its name and one line on what it adds. Call it when the person asks for something the server does not seem able to do.',
   args: { type: 'object', properties: {}, additionalProperties: false },
   async run(_args, deps) {
     const list = await listedAddOns(deps.addOns);

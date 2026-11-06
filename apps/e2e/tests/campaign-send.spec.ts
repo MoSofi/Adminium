@@ -284,7 +284,7 @@ test('a real send at one an hour: Sending, Pause, Paused, Go on, and Stop throug
   await page.goto(`/email-templates/${campaignId}`);
   await page.getByTestId('email-send').click();
   const dialog = page.getByRole('dialog', { name: 'Send campaign' });
-  await dialog.getByRole('radio', { name: 'Workspace users' }).click();
+  await dialog.getByRole('radio', { name: 'Users on this server' }).click();
   await expect(dialog.getByTestId('email-campaign-count')).toContainText('recipients');
   await dialog.getByTestId('email-send-rate').fill('1');
   const sending = page.waitForResponse((reply) => reply.request().method() === 'POST' && reply.url().endsWith(`/api/v1/email-templates/${campaignId}/send`));

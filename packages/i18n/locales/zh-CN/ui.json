@@ -416,9 +416,9 @@
     },
     "feeds": {
       "activityFeed": {
-        "description": "按时间倒序显示工作区中谁做了什么的动态信息流。",
+        "description": "按时间倒序显示服务器上谁做了什么的动态信息流。",
         "emptyTitle": "暂无近期动态",
-        "emptyBody": "工作区中的操作将显示在这里。",
+        "emptyBody": "服务器上的操作将显示在这里。",
         "viewAllLabel": "查看全部"
       },
       "notificationFeed": {
@@ -1569,7 +1569,7 @@
         "offlineTitle": "您已离线",
         "offlineBody": "请检查网络连接——仪表板会自动重连。",
         "forbiddenTitle": "您没有访问权限",
-        "forbiddenBody": "请联系工作区管理员为您授予此页面的权限。",
+        "forbiddenBody": "请联系管理员为您授予此页面的权限。",
         "maintenanceTitle": "正在维护",
         "maintenanceBody": "我们正在改进。通常只需几分钟。",
         "connErrorTitle": "无法连接数据库",
@@ -2180,7 +2180,7 @@
         "emptyBody": "随此记录保存的文件会显示在这里。",
         "loading": "正在加载文件",
         "removed": "{name} 已移入回收站。",
-        "tooLarge": "该文件超过此工作区允许的大小。",
+        "tooLarge": "该文件超过此服务器允许的大小。",
         "lead": "随此记录保存的文件。",
         "allFiles": "所有文件都在“文件”页面",
         "inColumn": "在{column}中",

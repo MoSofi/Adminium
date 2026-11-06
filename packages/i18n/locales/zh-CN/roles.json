@@ -8,7 +8,7 @@
     "access": "访问",
     "data": "数据",
     "operations": "运维",
-    "workspace": "工作区",
+    "workspace": "服务器",
     "records": "页面与记录",
     "apps": "应用"
   },
@@ -73,7 +73,7 @@
     "rolesManage": "管理角色和权限",
     "schemaRemap": "编辑架构标签和覆盖",
     "schemaDdl": "创建、编辑和删除表",
-    "settingsManage": "管理工作区设置",
+    "settingsManage": "管理服务器设置",
     "usersManage": "管理用户",
     "filesManage": "管理所有人的文件",
     "storageManage": "管理存储目标",

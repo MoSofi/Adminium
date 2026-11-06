@@ -29,7 +29,7 @@ export default {
     "trust": "Jádro pod licencí AGPL · Vlastní hosting · Vaše data zůstávají vaše",
     "signIn": {
       "title": "Vítejte zpět",
-      "subtitle": "Přihlaste se do svého pracovního prostoru Adminium.",
+      "subtitle": "Přihlaste se ke svému serveru Adminium.",
       "passwordSetTitle": "Heslo uloženo",
       "passwordSetSubtitle": "Přihlaste se svým e-mailem a heslem, které jste právě zvolili.",
       "email": "E-mail",
@@ -122,7 +122,7 @@ export default {
     "notificationSettings": "Nastavení oznámení",
     "scheduledReports": "Naplánované sestavy",
     "group": {
-      "workspace": "Pracovní prostor",
+      "workspace": "Stránky",
       "library": "Knihovna",
       "planning": "Plánování",
       "people": "Lidé",
@@ -162,7 +162,7 @@ export default {
     "preferences": "Předvolby",
     "studio": "Studio",
     "dataConnections": "Datová připojení",
-    "workspaceSettings": "Nastavení workspace",
+    "workspaceSettings": "Nastavení serveru",
     "help": "Centrum nápovědy",
     "changelog": "Novinky",
     "signOut": "Odhlásit se",
@@ -220,7 +220,7 @@ export default {
     },
     "forbidden": {
       "title": "Nemáte přístup",
-      "body": "Tato stránka je omezená. Požádejte správce pracovního prostoru, aby vám přístup udělil.",
+      "body": "Tato stránka je omezená. Požádejte správce, aby vám přístup udělil.",
       "primary": "Požádat o přístup",
       "secondary": "Zpět"
     },
@@ -283,13 +283,13 @@ export default {
     },
     "readOnly": {
       "title": "Režim jen pro čtení",
-      "body": "V tomto pracovním prostoru máte roli Viewer. Přehledy si můžete procházet, ale úpravy a destruktivní akce jsou vypnuté.",
+      "body": "Na tomto serveru máte roli Viewer. Přehledy si můžete procházet, ale úpravy a destruktivní akce jsou vypnuté.",
       "primary": "Požádat o práva k úpravám",
       "secondary": "Rozumím"
     },
     "suspended": {
-      "title": "Tento pracovní prostor je pozastavený",
-      "body": "Tento pracovní prostor pozastavil správce. Vaše data zůstávají zachována — o obnovení přístupu požádejte vlastníka prostoru.",
+      "title": "Tento server je pozastavený",
+      "body": "Tento server pozastavil správce. Vaše data zůstávají zachována — o obnovení přístupu požádejte vlastníka serveru.",
       "primary": "Kontaktovat vlastníka",
       "secondary": "Zpět"
     },
@@ -429,7 +429,7 @@ export default {
     "save": "Uložit změny",
     "saveFailed": "Váš profil se nepodařilo uložit",
     "saved": "Profil aktualizován",
-    "savedBody": "Vaše nové údaje platí v celém pracovním prostoru. Pokud jste změnili e-mail, přihlašujte se od teď novou adresou.",
+    "savedBody": "Vaše nové údaje platí na celém serveru. Pokud jste změnili e-mail, přihlašujte se od teď novou adresou.",
     "accessTitle": "Přístup",
     "accessSubtitle": "Co tento účet smí a jak prokazuje svou totožnost.",
     "rolesHelper": "Role uděluje správce a z vlastního účtu je nelze změnit.",
@@ -439,10 +439,10 @@ export default {
     "preferences": {
       "title": "Předvolby",
       "subtitle": "Jak Adminium vypadá a v jakém jazyce se vám zobrazuje — na tomto i na každém dalším zařízení, kde se přihlásíte.",
-      "workspaceDefault": "Výchozí nastavení prostoru",
+      "workspaceDefault": "Výchozí nastavení serveru",
       "personal": "Osobní",
-      "usingDefault": "Používá se výchozí nastavení prostoru ({value})",
-      "reset": "Vrátit na výchozí nastavení prostoru",
+      "usingDefault": "Používá se výchozí nastavení serveru ({value})",
+      "reset": "Vrátit na výchozí nastavení serveru",
       "resetFailed": "Tuto předvolbu se nepodařilo obnovit. Zkuste to znovu.",
       "appliesInstantly": "Změny se projeví okamžitě a uloží se do vašeho profilu."
     }
@@ -450,15 +450,15 @@ export default {
   "settings": {
     "defaults": {
       "title": "Globální výchozí nastavení",
-      "subtitle": "Výchozí vzhled a jazyk pro celý pracovní prostor.",
+      "subtitle": "Výchozí vzhled a jazyk pro celý server.",
       "explainer": "Tato výchozí nastavení platí pro všechny uživatele, dokud si je nepřenastaví. Každý si může nastavit vlastní předvolby v Profil → Předvolby — osobní předvolby mají pro daného uživatele vždy přednost.",
       "appearanceHeading": "Výchozí vzhled",
       "languageHeading": "Výchozí jazyk a region",
       "adoption": "Tímto výchozím nastavením se řídí {following, number} z {total, plural, one {# uživatele} few {# uživatelů} many {# uživatele} other {# uživatelů}}.",
       "weekStartNote": "Začátek týdne a formáty čísel se řídí jazykem.",
       "save": "Uložit výchozí nastavení",
-      "saved": "Výchozí nastavení prostoru aktualizována",
-      "saveFailed": "Výchozí nastavení prostoru se nepodařilo uložit. Zkuste to znovu.",
+      "saved": "Výchozí nastavení serveru aktualizována",
+      "saveFailed": "Výchozí nastavení serveru se nepodařilo uložit. Zkuste to znovu.",
       "liveNote": "Uložení rozešle změnu naživo — přihlášení uživatelé, kteří se řídí výchozím nastavením, ji uvidí bez opětovného načtení."
     },
     "notifications": {
@@ -519,7 +519,7 @@ export default {
         "disable": "Vypnout",
         "delete": "Smazat",
         "deleted": "Jazyk odebrán",
-        "deletedDetail": "{users, plural, one {# člověk se vrátil} few {# lidé se vrátili} many {# člověka se vrátilo} other {# lidí se vrátilo}} k výchozímu jazyku pracovního prostoru; {strings, plural, one {smazán # překlad} few {smazány # překlady} many {smazáno # překladu} other {smazáno # překladů}}.",
+        "deletedDetail": "{users, plural, one {# člověk se vrátil} few {# lidé se vrátili} many {# člověka se vrátilo} other {# lidí se vrátilo}} k výchozímu jazyku serveru; {strings, plural, one {smazán # překlad} few {smazány # překlady} many {smazáno # překladu} other {smazáno # překladů}}.",
         "deleteFailed": "Tento jazyk se nepodařilo odebrat",
         "add": "Přidat jazyk",
         "added": "Jazyk přidán",
@@ -541,15 +541,15 @@ export default {
   },
   "onboarding": {
     "title": "Začínáme",
-    "subtitle": "Několik kroků k přípravě vašeho pracovního prostoru.",
+    "subtitle": "Několik kroků k přípravě vašeho serveru.",
     "loading": "Načítání kontrolního seznamu…",
     "welcome": "Vítejte v Adminiu, {name} 👋",
-    "progressBody": "Dokončili jste {done} z {total} kroků nastavení. Dokončete zbytek a odemkněte plný pracovní prostor.",
-    "completeBody": "Hotovo — váš pracovní prostor je plně nastaven.",
+    "progressBody": "Dokončili jste {done} z {total} kroků nastavení. Dokončete zbytek a odemkněte vše.",
+    "completeBody": "Hotovo — váš server je plně nastaven.",
     "ringLabel": "{done} z {total} kroků dokončeno",
     "done": "Hotovo",
     "skip": "Zatím přeskočit",
-    "goToWorkspace": "Přejít do prostoru",
+    "goToWorkspace": "Přejít na přehled",
     "help": {
       "title": "Potřebujete pomoc?",
       "body": "Rádi vám pomůžeme s rychlým nastavením."
@@ -574,7 +574,7 @@ export default {
         "action": "Pozvat"
       },
       "workspaceDefaults": {
-        "title": "Nastavit výchozí hodnoty",
+        "title": "Nastavit výchozí hodnoty serveru",
         "desc": "Motiv, akcent, hustota a jazyk pro všechny.",
         "time": "1 min",
         "action": "Nastavit"
@@ -584,7 +584,7 @@ export default {
       "wayBack": "Začínáme · {done}/{total}",
       "dismiss": "Skrýt kontrolní seznam",
       "continue": "Pokračovat v nastavení",
-      "banner": "Dokončete nastavení prostoru — hotovo {done} z {total} kroků."
+      "banner": "Dokončete nastavení serveru — hotovo {done} z {total} kroků."
     },
     "desktopSetup": {
       "title": "Vítejte v Adminiu",
@@ -1242,7 +1242,7 @@ export default {
   },
   "desktop": {
     "settings": {
-      "explainer": "Tato nastavení platí pouze pro aplikaci Adminium na tomto počítači. Ukládají se na tomto zařízení, ne ve vašem pracovním prostoru.",
+      "explainer": "Tato nastavení platí pouze pro aplikaci Adminium na tomto počítači. Ukládají se na tomto zařízení, ne v nastavení serveru.",
       "title": "Nastavení aplikace"
     },
     "security": {
@@ -1622,7 +1622,7 @@ export default {
       "title": "Auditní log se nepodařilo načíst"
     },
     "loadMore": "Načíst starší záznamy",
-    "subtitle": "Každá změna provedená v tomto pracovním prostoru — kdo ji provedl a co změnila.",
+    "subtitle": "Každá změna provedená na tomto serveru — kdo ji provedl a co změnila.",
     "title": "Auditní log",
     "via": "přes {name}"
   },

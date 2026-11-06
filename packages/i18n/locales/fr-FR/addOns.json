@@ -1,7 +1,7 @@
 {
   "notInstalled": {
     "title": "Ce module n’est pas installé",
-    "body": "La page que vous avez ouverte appartient à un module qui n’est pas installé dans cet espace de travail, ou qui a été désactivé. Un administrateur peut l’installer depuis le Studio."
+    "body": "La page que vous avez ouverte appartient à un module qui n’est pas installé sur ce serveur, ou qui a été désactivé. Un administrateur peut l’installer depuis le Studio."
   },
   "unknown": {
     "title": "Page introuvable",

@@ -300,7 +300,7 @@ export async function roleSlugProblems(meta: MetaDb, manifest: Manifest, install
       code: 'ROLE_INVALID',
       message:
         `The role "${declared.key}": the role name "${slug}" is taken by ` +
-        `${held.appKey === null ? 'a role of this workspace' : `the app "${held.appKey}"`}, so the app cannot make its own. ` +
+        `${held.appKey === null ? 'a role of this server' : `the app "${held.appKey}"`}, so the app cannot make its own. ` +
         'Rename that role, then install again.',
     });
   }

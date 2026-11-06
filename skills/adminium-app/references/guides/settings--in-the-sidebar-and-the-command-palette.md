@@ -2,7 +2,7 @@
 
 # An app's settings page: In the sidebar and the command palette
 
-An installed app has a section of its own in the sidebar, after your workspace pages, headed by its
+An installed app has a section of its own in the sidebar, after your **Pages** group, headed by its
 name and version. It holds the pages the app made, grouped as the app groups them, and its staff
 screens: as rows when they live inside the dashboard, or as an **Open the staff screens** link when
 they live on their own address. An extra instance on its own address adds an

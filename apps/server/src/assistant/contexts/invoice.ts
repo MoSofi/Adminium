@@ -308,7 +308,7 @@ const invoiceTemplateDocument: AssistantDocument = {
       return {
         artefact,
         refreshed: 0,
-        refused: [{ blockId: '', message: 'There is no invoice in this workspace to draw a sample from.' }],
+        refused: [{ blockId: '', message: 'There is no invoice on this server to draw a sample from.' }],
       };
     }
     const full = await invoiceDocumentsRepo(deps.meta).findById(source.id);

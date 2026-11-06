@@ -123,7 +123,7 @@ export function DesktopSettingsPage(): ReactNode {
         <p>
           {t(
             'desktop.settings.explainer',
-            'These settings apply to the Adminium app on this computer only. They are stored on this machine, not in your workspace.',
+            'These settings apply to the Adminium app on this computer only. They are stored on this machine, not in the server’s settings.',
           )}
         </p>
       </div>

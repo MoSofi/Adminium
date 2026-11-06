@@ -112,7 +112,7 @@ test('opens the folder in the Designer, signed in, on this machine only', async 
   // Its data is its own: the store is in the folder, not in the app's data folder.
   expect(existsSync(join(project.root, 'data', 'meta.db'))).toBe(true);
   expect(existsSync(join(userDataDir, 'data', 'meta.db'))).toBe(false);
-  // The classic workspace's own routes are not this server's.
+  // The classic server's own routes are not this server's.
   const statuses = await page.evaluate(async () => Promise.all(['/api/v1/desktop/lan-share', '/api/v1/system/info'].map(async (path) => (await fetch(path)).status)));
   expect(statuses).toEqual([404, 200]);
 });

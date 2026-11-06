@@ -131,7 +131,7 @@ export const ACTION_STEPS: readonly StepDefinition[] = [
     icon: 'bell',
     label: 'Send notification',
     sub: 'Choose who to tell',
-    desc: 'Tell people in this workspace',
+    desc: 'Tell people on this server',
     action: { kind: 'notification', to: null, title: '', body: null },
   },
   {

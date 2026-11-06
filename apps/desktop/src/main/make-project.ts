@@ -101,7 +101,7 @@ export function createMakeProject(
     for (const [key, value] of Object.entries(deps.env)) if (value !== undefined) env[key] = value;
     env.ELECTRON_RUN_AS_NODE = '1';
     if (programs !== undefined) env.ADMINIUM_DESKTOP_PROGRAMS = programs;
-    // A secret of the classic workspace, or of whatever started the app, is never a new project's.
+    // A secret of the classic server, or of whatever started the app, is never a new project's.
     delete env.ADMINIUM_SECRET;
 
     // Read as it is printed, for one thing only: the moment the files are laid and the download starts.

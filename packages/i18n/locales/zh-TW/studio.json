@@ -835,7 +835,7 @@
       },
       "privacyGrants": {
         "title": "某個角色可以刪除個人資料",
-        "body": "{roles} 可以在隱私頁面尋找、下載並刪除此工作區保存的關於某人的全部資料。"
+        "body": "{roles} 可以在隱私頁面尋找、下載並刪除此伺服器保存的關於某人的全部資料。"
       }
     },
     "installed": {
@@ -1279,7 +1279,7 @@
     },
     "attachments": {
       "accept": "接受的檔案類型",
-      "acceptHint": "一個都不選，即接受此工作區允許的一切。這裡的選擇只會縮小那份清單，永遠不會擴大。",
+      "acceptHint": "一個都不選，即接受此伺服器允許的一切。這裡的選擇只會縮小那份清單，永遠不會擴大。",
       "column": {
         "adoptHint": "此資料表已有該欄位，因此不會建立——將直接使用它。",
         "bound": "檔案存放在此資料表的 {column} 欄位中。",
@@ -1306,7 +1306,7 @@
       "enableHintColumn": "檔案存放在此資料表的一個欄位中，因此會同時出現在「新增」和「編輯」對話方塊以及每筆記錄上。",
       "enableHintSidecar": "檔案改為在 Adminium 這一側關聯。它們出現在每筆記錄的頁面上，而不是「新增」對話方塊中。",
       "maxBytes": "最大檔案（MB）",
-      "maxBytesHint": "留空即遵循工作區的上限。在此填數字只會把它調得更低。",
+      "maxBytesHint": "留空即遵循伺服器的上限。在此填數字只會把它調得更低。",
       "maxCount": "每筆記錄最多檔案數",
       "maxCountHint": "留空即接受一筆記錄所需的任意數量。",
       "sidecar": {
@@ -1338,7 +1338,7 @@
       "dragHandle": "調整 {name} 的順序",
       "empty": "尚無欄位——請在下方新增。",
       "file": {
-        "acceptHelp": "所有類型都不勾選，即接受此工作區所接受的一切。選擇類型只會縮小那份清單——欄位永遠無法接受工作區拒絕的類型。",
+        "acceptHelp": "所有類型都不勾選，即接受此伺服器所接受的一切。選擇類型只會縮小那份清單——欄位永遠無法接受伺服器拒絕的類型。",
         "acceptLabel": "接受的類型",
         "badge": "檔案",
         "destinationDefault": "預設目的地",
@@ -1349,7 +1349,7 @@
         "maxCountHelp": "留空則接受記錄所需的任意數量。",
         "maxCountLabel": "每筆記錄最多檔案數",
         "maxCountToggle": "{name} 最多可存放的檔案數",
-        "maxHelp": "留空即採用工作區的上限。欄位只能要求更小的值。",
+        "maxHelp": "留空即採用伺服器的上限。欄位只能要求更小的值。",
         "maxLabel": "最大檔案（MB）",
         "maxToggle": "{name} 接受的最大檔案，單位為 MB",
         "multipleHelp": "該欄位儲存檔案清單而不是單一檔案。現有的單一值仍然有效——會被讀作只有一項的清單。",
@@ -2093,7 +2093,7 @@
       "optionsListHelp": "清單本身可在 Studio → 清單 中編輯。",
       "optionsListLabel": "清單",
       "optionsListUnavailable": "無法讀取清單。",
-      "optionsMissingList": "{key}（不在此工作區中）",
+      "optionsMissingList": "{key}（不在此伺服器上）",
       "optionsPickList": "選擇一份清單…",
       "optionsSource": "允許的值",
       "optionsSourceHelp": "清單在 Studio 中寫一次，指向它的每個欄位都能使用。",
@@ -2218,7 +2218,7 @@
   "settings": {
     "globalDefaultsNav": "全域預設值",
     "title": "設定",
-    "workspaceSection": "工作區"
+    "workspaceSection": "伺服器"
   },
   "settingsAi": {
     "assistant": {
@@ -2398,7 +2398,7 @@
       "change": "變更",
       "changeWhat": "編輯一列或已儲存的文件。每一項都由您確認。",
       "send": "傳送",
-      "sendWhat": "將現有的電子郵件範本傳送給此工作區中的人員。每一次都由您確認。",
+      "sendWhat": "將現有的電子郵件範本傳送給此伺服器上的人員。每一次都由您確認。",
       "delete": "刪除",
       "deleteWhat": "移除一列或一份文件。每一項都由您確認。",
       "rows": "一次確認的列數",
@@ -2467,7 +2467,7 @@
       "subtitle": "不可逆的操作。"
     },
     "defaultsCard": {
-      "body": "整個工作區的主題、強調色、密度與語言設定位於全域預設值。",
+      "body": "整台伺服器的主題、強調色、密度與語言設定位於全域預設值。",
       "cta": "開啟全域預設值",
       "heading": "外觀與語言預設值"
     },
@@ -2533,7 +2533,7 @@
         "helper": "顯示在側邊欄、瀏覽器標題與電子郵件中。",
         "label": "應用程式名稱"
       },
-      "heading": "工作區識別",
+      "heading": "伺服器識別",
       "logo": {
         "badType": "請選擇 PNG、JPEG、WebP、GIF 或 SVG 圖片。",
         "drop": "將圖片拖放到此處",
@@ -2577,14 +2577,14 @@
       "on": "開",
       "shown": "顯示",
       "subtitle": "儲存前請確認您的變更。",
-      "title": "儲存工作區設定"
+      "title": "儲存伺服器設定"
     },
     "save": "儲存變更",
-    "saveFailed": "無法儲存工作區設定，請再試一次。",
-    "saved": "工作區設定已更新",
+    "saveFailed": "無法儲存伺服器設定，請再試一次。",
+    "saved": "伺服器設定已更新",
     "security": {
       "allowSignup": {
-        "desc": "任何人都可以建立帳戶——關閉後此工作區僅限邀請。",
+        "desc": "任何人都可以建立帳戶——關閉後此伺服器僅限邀請。",
         "label": "允許自行註冊"
       },
       "heading": "安全性",
@@ -2607,10 +2607,10 @@
       "cta": "開啟儲存空間",
       "heading": "儲存空間"
     },
-    "subtitle": "此工作區的識別、安全性與危險操作。",
-    "superAdminOnly": "只有超級管理員才能變更工作區識別與安全性設定。",
+    "subtitle": "此伺服器的識別、安全性與危險操作。",
+    "superAdminOnly": "只有超級管理員才能變更伺服器識別與安全性設定。",
     "superAdminOnlyTitle": "需要超級管理員",
-    "title": "工作區設定",
+    "title": "伺服器設定",
     "translationsCard": {
       "body": "重寫 Adminium 中的任何文字，決定使用者可以選哪些語言，並加入你自己的語言。",
       "cta": "開啟翻譯",
@@ -2765,7 +2765,7 @@
     "fileCount": "{count, plural, other {# 個檔案}}",
     "kind": {
       "archive": "已封存的稽核記錄批次",
-      "branding": "工作區標誌",
+      "branding": "伺服器標誌",
       "export": "資料匯出產生的檔案",
       "import": "上傳的 CSV 檔案及其錯誤報告",
       "schema": "匯入的結構描述檔案",
@@ -2909,7 +2909,7 @@
     "andMore": "另有 {count} 項",
     "builtin": "內建",
     "builtinCount": "{count} 個值",
-    "builtinSubtitle": "Adminium 內附的清單。它在每個工作區都相同，名稱會以各人自己的語言顯示。",
+    "builtinSubtitle": "Adminium 內附的清單。它在每台伺服器上都相同，名稱會以各人自己的語言顯示。",
     "cancel": "取消",
     "close": "關閉",
     "copiedFrom": "{key} 的副本",
@@ -2945,7 +2945,7 @@
     "removeValue": "移除 {value}",
     "save": "儲存變更",
     "storeLabel": "改為儲存標籤",
-    "storeLabelHelp": "副本儲存代碼，例如 DE。「改為儲存標籤」則儲存它在這裡的名稱，例如「德國」——採用本工作區的語言，自此生效。",
+    "storeLabelHelp": "副本儲存代碼，例如 DE。「改為儲存標籤」則儲存它在這裡的名稱，例如「德國」——採用本伺服器的語言，自此生效。",
     "subtitle": "一個欄位所接受的答案：命名一次，處處可用。",
     "title": "清單",
     "valueAt": "值 {n}",
@@ -3130,7 +3130,7 @@
     "note": {
       "notRegistered": "此伺服器未啟用公開 API。請設定 ADMINIUM_PUBLIC_API_ORIGINS 並重新啟動——之後在這裡建立的金鑰就能使用。",
       "off": "公開 API 已關閉，因此目前所有金鑰都無法使用。",
-      "offLink": "開啟工作區設定"
+      "offLink": "開啟伺服器設定"
     },
     "quick": {
       "body": "在 Authorization 標頭中帶入金鑰完成驗證。",
@@ -3194,7 +3194,7 @@
       "keys": "有效金鑰",
       "requests": "請求數 · 24 小時"
     },
-    "subtitle": "管理對工作區的程式化存取",
+    "subtitle": "管理對伺服器的程式化存取",
     "summary": "{endpoints, plural, other {# 個端點}} · {methods, plural, other {# 個方法}}",
     "title": "API 金鑰與權杖"
   },
@@ -4307,7 +4307,7 @@
     },
     "person": {
       "locked": "此伺服器無法讀取其地址金鑰（其密鑰已變更），因此無法尋找或刪除任何人。請聯絡執行此伺服器的人。",
-      "staffAddress": "此地址屬於這裡的一名員工。只有管理整個工作區隱私的人才能查詢或刪除它。",
+      "staffAddress": "此地址屬於這裡的一名員工。只有管理整台伺服器隱私的人才能查詢或刪除它。",
       "copyOf": "{label}（其副本）",
       "inApp": "{label} — {app}",
       "kind": {
@@ -4835,7 +4835,7 @@
         "title": "寄送活動",
         "unfilled": "沒有內容可填入 {names}：每位收件人都會收到原樣的文字。請在編輯器中為它設定備用文字，或將其移除。",
         "when": "時間",
-        "workspaceUsers": "工作區使用者"
+        "workspaceUsers": "此伺服器上的使用者"
       }
     }
   }

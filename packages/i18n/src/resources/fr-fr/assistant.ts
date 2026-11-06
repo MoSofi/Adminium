@@ -77,7 +77,7 @@ export default {
     "noticeProvider": "Ce que vous dites est envoyé à {provider} pour être transcrit. Rien n’est conservé.",
     "noticeBrowser": "Ce que vous dites est transcrit par le service vocal de votre navigateur.",
     "noticeOk": "OK",
-    "ownService": "le service de modèles de votre espace de travail"
+    "ownService": "le service de modèles de votre serveur"
   },
   "speak": {
     "play": "Lire à voix haute",
@@ -250,9 +250,9 @@ export default {
   "readOnly": {
     "noWrite": "Votre rôle peut consulter, rédiger et prévisualiser ici, mais pas enregistrer.",
     "noWriteTitle": "Votre rôle ne peut pas faire cela ici",
-    "switchedOff": "L’enregistrement est désactivé pour {name} dans cet espace de travail.",
+    "switchedOff": "L’enregistrement est désactivé pour {name} sur ce serveur.",
     "openSettings": "Ouvrir les réglages",
-    "switchedOffTitle": "L’enregistrement est désactivé pour {name} dans cet espace de travail"
+    "switchedOffTitle": "L’enregistrement est désactivé pour {name} sur ce serveur"
   },
   "report": {
     "action1": "Lancer l’aperçu complet",
@@ -353,16 +353,16 @@ export default {
     }
   },
   "general": {
-    "page": "Cet espace de travail",
-    "blurb": "Connaît cet espace de travail · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "page": "Ce serveur",
+    "blurb": "Connaît ce serveur · {tables, plural, one {# table lisible} other {# tables lisibles}}",
     "greeting": "Je peux lire les tables que votre rôle peut lire et vous dire où les choses se font.",
     "greetingSub": "Posez une question sur vos données ou sur l’endroit où modifier quelque chose. Je réponds en mots, avec un lien vers l’endroit.",
-    "placeholder": "Posez une question sur cet espace de travail…",
+    "placeholder": "Posez une question sur ce serveur…",
     "chip1": "Où inviter un collègue ?",
-    "chip2": "Que puis-je voir dans cet espace de travail ?",
+    "chip2": "Que puis-je voir sur ce serveur ?",
     "chip3": "Quelle table contient le plus de lignes ?",
     "workTitle": "Recherche effectuée",
-    "scopePrimary": "espace de travail",
+    "scopePrimary": "serveur",
     "readPage": "{tables, plural, one {# table lisible} other {# tables lisibles}}"
   },
   "answer": {
@@ -488,7 +488,7 @@ export default {
     },
     "refused": {
       "generic": "Le serveur a refusé.",
-      "switchedOff": "C’est désactivé pour {name} dans cet espace de travail.",
+      "switchedOff": "C’est désactivé pour {name} sur ce serveur.",
       "notThisTable": "D’ici, seule la table de la page où la question a été posée peut être modifiée.",
       "notData": "Ce n’est pas une table de vos données.",
       "noChange": "La ligne contient déjà ces valeurs.",

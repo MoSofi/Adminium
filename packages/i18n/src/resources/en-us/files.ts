@@ -16,7 +16,7 @@ export default {
     "trashFailed": "Could not move this file to the trash"
   },
   "title": "Files",
-  "subtitle": "Every file in this workspace: the ones on records, and the library. And where each one is kept.",
+  "subtitle": "Every file on this server: the ones on records, and the library. And where each one is kept.",
   "search": "Search by file name",
   "trash": {
     "notice": {
@@ -103,7 +103,7 @@ export default {
   "upload": {
     "open": "Upload",
     "title": "Upload files",
-    "subtitle": "Add files to this workspace.",
+    "subtitle": "Add files to this server.",
     "connection": "Which connection these belong to",
     "drop": "Drag files here",
     "browse": "Browse your computer",

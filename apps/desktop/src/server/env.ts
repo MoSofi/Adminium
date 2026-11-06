@@ -471,7 +471,7 @@ export interface BuildProjectServerEnvInput {
  *
  * What it does NOT set is the point: `ADMINIUM_SECRET`, `ADMINIUM_DATA_DIR`
  * and `ADMINIUM_META_URL` are the project's own (its `.env`, its `data/`),
- * never the classic workspace's. Every name that decides where the server
+ * never the classic server's. Every name that decides where the server
  * listens, what it trusts and where the app's own files are is stated here or
  * left out on purpose, and the child refuses those names from the folder's
  * `.env` (`HOST_DECIDED_ENV` in the server package).

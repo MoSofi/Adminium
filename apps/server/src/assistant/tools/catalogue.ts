@@ -48,7 +48,7 @@ export const ROW_TOOL_NAMES: readonly string[] = [readRowsTool.name, aggregateTo
 
 /** What the prompt says instead, when the row tools are absent. */
 export const ROWS_UNAVAILABLE_NOTE =
-  'Reading rows from the connected databases is turned off for this workspace, so there are no tools for it. Work from the documents and the schema, and say plainly when an answer would need row data.';
+  'Reading rows from the connected databases is turned off on this server, so there are no tools for it. Work from the documents and the schema, and say plainly when an answer would need row data.';
 
 /**
  * The tools one session may call: the page's subset, minus the row tools when

@@ -106,7 +106,7 @@ describe('isMicrophoneAllowed', () => {
   const ask = (over: Partial<Parameters<typeof isMicrophoneAllowed>[0]>) =>
     isMicrophoneAllowed({ permission: 'media', mediaTypes: ['audio'], origin: `${APP}/p/orders`, appOrigin: APP, switchedOn: true, ...over });
 
-  it('allows audio, asked by the app itself, while the workspace has speaking switched on', () => {
+  it('allows audio, asked by the app itself, while the server has speaking switched on', () => {
     expect(ask({})).toBe(true);
     // The synchronous check names one type and gives an origin.
     expect(isMicrophoneAllowed({ permission: 'media', mediaType: 'audio', origin: APP, appOrigin: APP, switchedOn: true })).toBe(true);

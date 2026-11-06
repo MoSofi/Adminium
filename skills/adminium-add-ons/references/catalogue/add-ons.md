@@ -4,7 +4,7 @@
 
 The add-ons this version of Adminium bundles in its Docker image and desktop app, with the exact
 version of each. A newer one may exist: the live list is on the person's own Adminium, under
-Workspace settings → Add-ons.
+Server settings → Add-ons.
 
 | Key | Version | Package | Fingerprint file |
 |---|---|---|---|

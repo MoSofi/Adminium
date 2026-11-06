@@ -1069,6 +1069,6 @@ describe('re-sampling an invoice template', () => {
     if (rows.length > 0) return; // another case left one behind; its own assertions cover it
     const run = await page.adapter.document!.resample?.(draftedTemplate(), page.deps);
     expect(run?.refreshed).toBe(0);
-    expect(run?.refused[0]?.message).toContain('no invoice in this workspace');
+    expect(run?.refused[0]?.message).toContain('no invoice on this server');
   });
 });

@@ -79,7 +79,7 @@ function sentence(key: AbilityKey): { label: string; what: string } {
     case 'send':
       return {
         label: t('studio:settingsAi.abilities.send', 'Send'),
-        what: t('studio:settingsAi.abilities.sendWhat', 'Send an existing email template to people in this workspace. You confirm each one.'),
+        what: t('studio:settingsAi.abilities.sendWhat', 'Send an existing email template to people on this server. You confirm each one.'),
       };
     case 'delete':
       return {

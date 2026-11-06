@@ -778,15 +778,15 @@ export default {
   },
   "onboarding": {
     "title": "Getting started",
-    "subtitle": "A few steps to get your workspace ready.",
+    "subtitle": "A few steps to get your server ready.",
     "loading": "Loading your setup checklist…",
     "welcome": "Welcome to Adminium, {name} 👋",
-    "progressBody": "You’ve completed {done} of {total} setup steps. Finish the rest to unlock the full workspace.",
-    "completeBody": "You’re all set — your workspace is fully configured.",
+    "progressBody": "You’ve completed {done} of {total} setup steps. Finish the rest to unlock everything.",
+    "completeBody": "You’re all set — your server is fully configured.",
     "ringLabel": "{done} of {total} steps complete",
     "done": "Done",
     "skip": "Skip for now",
-    "goToWorkspace": "Go to workspace",
+    "goToWorkspace": "Go to the dashboard",
     "help": {
       "title": "Need a hand?",
       "body": "We’re here to help you get set up fast."
@@ -811,7 +811,7 @@ export default {
         "action": "Invite"
       },
       "workspaceDefaults": {
-        "title": "Set workspace defaults",
+        "title": "Set server defaults",
         "desc": "Theme, accent, density and language everyone starts with.",
         "time": "1 min",
         "action": "Set defaults"
@@ -821,7 +821,7 @@ export default {
       "wayBack": "Getting started · {done}/{total}",
       "dismiss": "Dismiss setup checklist",
       "continue": "Continue setup",
-      "banner": "Finish setting up your workspace — {done} of {total} steps done."
+      "banner": "Finish setting up your server — {done} of {total} steps done."
     },
     "desktopSetup": {
       "title": "Welcome to Adminium",
@@ -1002,7 +1002,7 @@ export default {
       "title": "Could not load the audit log"
     },
     "loadMore": "Load older entries",
-    "subtitle": "Every change made in this workspace, who made it, and what it changed.",
+    "subtitle": "Every change made on this server, who made it, and what it changed.",
     "title": "Audit log",
     "via": "through {name}"
   },
@@ -1079,7 +1079,7 @@ export default {
     "save": "Save changes",
     "saveFailed": "Could not save your profile",
     "saved": "Profile updated",
-    "savedBody": "Your new details are in use across this workspace. If you changed your email, sign in with the new address from now on.",
+    "savedBody": "Your new details are in use across this server. If you changed your email, sign in with the new address from now on.",
     "accessTitle": "Access",
     "accessSubtitle": "What this account may do, and how it proves who it is.",
     "rolesHelper": "Roles are granted by an administrator and cannot be changed from your own account.",
@@ -1089,10 +1089,10 @@ export default {
     "preferences": {
       "title": "Preferences",
       "subtitle": "How Adminium looks and reads for you — on this and every device you sign in from.",
-      "workspaceDefault": "Workspace default",
+      "workspaceDefault": "Server default",
       "personal": "Personal",
-      "usingDefault": "Using workspace default ({value})",
-      "reset": "Reset to workspace default",
+      "usingDefault": "Using the server default ({value})",
+      "reset": "Reset to the server default",
       "resetFailed": "Could not reset this preference. Try again.",
       "appliesInstantly": "Changes apply instantly and are saved to your profile."
     }

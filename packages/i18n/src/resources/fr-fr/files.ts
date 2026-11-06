@@ -16,7 +16,7 @@ export default {
     "trashFailed": "Impossible de déplacer ce fichier dans la corbeille"
   },
   "title": "Fichiers",
-  "subtitle": "Tous les fichiers de cet espace de travail : ceux des fiches et ceux de la bibliothèque. Et où chacun est conservé.",
+  "subtitle": "Tous les fichiers de ce serveur : ceux des fiches et ceux de la bibliothèque. Et où chacun est conservé.",
   "search": "Rechercher par nom de fichier",
   "trash": {
     "notice": {
@@ -103,7 +103,7 @@ export default {
   "upload": {
     "open": "Téléverser",
     "title": "Téléverser des fichiers",
-    "subtitle": "Ajoutez des fichiers à cet espace de travail.",
+    "subtitle": "Ajoutez des fichiers à ce serveur.",
     "connection": "Connexion à laquelle ils appartiennent",
     "drop": "Déposez les fichiers ici",
     "browse": "Parcourir votre ordinateur",

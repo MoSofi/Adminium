@@ -67,7 +67,7 @@
     "noticeProvider": "To, co říkáte, se odesílá k zapsání službě {provider}. Nic se neuchovává.",
     "noticeBrowser": "To, co říkáte, zapisuje hlasová služba vašeho prohlížeče.",
     "noticeOk": "OK",
-    "ownService": "modelová služba vašeho pracovního prostoru"
+    "ownService": "modelová služba vašeho serveru"
   },
   "speak": {
     "play": "Přečíst nahlas",
@@ -240,9 +240,9 @@
   "readOnly": {
     "noWrite": "Tvoje role si tu může prohlížet, navrhovat a zobrazovat náhledy, ale ne ukládat.",
     "noWriteTitle": "Tvoje role tohle tady nemůže",
-    "switchedOff": "Ukládání je pro {name} v tomto pracovním prostoru vypnuté.",
+    "switchedOff": "Ukládání je pro {name} na tomto serveru vypnuté.",
     "openSettings": "Otevřít nastavení",
-    "switchedOffTitle": "Ukládání je pro {name} v tomto pracovním prostoru vypnuté"
+    "switchedOffTitle": "Ukládání je pro {name} na tomto serveru vypnuté"
   },
   "report": {
     "action1": "Spustit plný náhled",
@@ -343,16 +343,16 @@
     }
   },
   "general": {
-    "page": "Tento pracovní prostor",
-    "blurb": "Zná tento pracovní prostor · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
+    "page": "Tento server",
+    "blurb": "Zná tento server · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}",
     "greeting": "Mohu číst tabulky, které smí číst vaše role, a říct vám, kde se co dělá.",
     "greetingSub": "Zeptejte se na svá data nebo na to, kde něco změnit. Odpovím slovy a přidám odkaz na dané místo.",
-    "placeholder": "Zeptejte se na tento pracovní prostor…",
+    "placeholder": "Zeptejte se na tento server…",
     "chip1": "Kde pozvu kolegu?",
-    "chip2": "Co v tomto pracovním prostoru uvidím?",
+    "chip2": "Co na tomto serveru uvidím?",
     "chip3": "Která tabulka má nejvíce řádků?",
     "workTitle": "Vyhledáno",
-    "scopePrimary": "pracovní prostor",
+    "scopePrimary": "server",
     "readPage": "{tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} many {# čitelné tabulky} other {# čitelných tabulek}}"
   },
   "answer": {
@@ -478,7 +478,7 @@
     },
     "refused": {
       "generic": "Server to odmítl.",
-      "switchedOff": "Tohle je pro {name} v tomto pracovním prostoru vypnuté.",
+      "switchedOff": "Tohle je pro {name} na tomto serveru vypnuté.",
       "notThisTable": "Odtud lze měnit jen tabulku stránky, na které byl dotaz položen.",
       "notData": "To není tabulka vašich dat.",
       "noChange": "Řádek už tyto hodnoty má.",

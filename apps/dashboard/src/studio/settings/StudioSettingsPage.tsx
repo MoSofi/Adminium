@@ -878,13 +878,13 @@ function WorkspaceForm({
         );
         toasts.push({
           variant: 'success',
-          title: t('studio:settingsHub.saved', 'Workspace settings updated'),
+          title: t('studio:settingsHub.saved', 'Server settings updated'),
         });
         setReviewOpen(false);
       } catch {
         toasts.push({
           variant: 'error',
-          title: t('studio:settingsHub.saveFailed', 'Could not save workspace settings. Try again.'),
+          title: t('studio:settingsHub.saveFailed', 'Could not save the server settings. Try again.'),
         });
       } finally {
         setSaving(false);
@@ -901,7 +901,7 @@ function WorkspaceForm({
         <CardHeader className="flex items-center justify-start gap-3">
           <IconTile tone="accent" size="md" icon={<Building2 />} />
           <h3 className="text-section text-fg">
-            {t('studio:settingsHub.identity.heading', 'Workspace identity')}
+            {t('studio:settingsHub.identity.heading', 'Server identity')}
           </h3>
         </CardHeader>
         <CardBody>
@@ -1380,7 +1380,7 @@ function WorkspaceForm({
         }}
       >
         <ModalHeader
-          title={t('studio:settingsHub.review.title', 'Save workspace settings')}
+          title={t('studio:settingsHub.review.title', 'Save server settings')}
           subtitle={t('studio:settingsHub.review.subtitle', 'Review your changes before saving.')}
           closeLabel={t('studio:settingsHub.review.close', 'Close')}
         />
@@ -1733,10 +1733,10 @@ function StudioSettingsHub({
           otherwise say "Home" above a page that names itself, and the h1 would
           scroll away from the surface it labels. */}
       <PageActions
-        title={t('studio:settingsHub.title', 'Workspace settings')}
+        title={t('studio:settingsHub.title', 'Server settings')}
         subtitle={t(
           'studio:settingsHub.subtitle',
-          'Identity, security and destructive actions for this workspace.',
+          'Identity, security and destructive actions for this server.',
         )}
       />
 
@@ -1750,7 +1750,7 @@ function StudioSettingsHub({
           title={t('studio:settingsHub.superAdminOnlyTitle', 'Super admin required')}
           body={t(
             'studio:settingsHub.superAdminOnly',
-            'Only a super admin can change workspace identity and security settings.',
+            'Only a super admin can change the server’s identity and security settings.',
           )}
         />
       )}
@@ -1947,7 +1947,7 @@ function StudioSettingsHub({
             heading={t('studio:settingsHub.defaultsCard.heading', 'Appearance & language defaults')}
             body={t(
               'studio:settingsHub.defaultsCard.body',
-              'Workspace-wide theme, accent, density and language live under Global defaults.',
+              'Server-wide theme, accent, density and language live under Global defaults.',
             )}
             cta={t('studio:settingsHub.defaultsCard.cta', 'Open global defaults')}
             onOpen={onOpenGlobalDefaults}

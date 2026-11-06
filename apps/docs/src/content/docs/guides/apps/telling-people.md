@@ -75,7 +75,7 @@ columns as they were that the rule reads, never a secret one.
 
 Give a notice's title and message in every language your app speaks, as an e-mail template's
 `locales` are: each person is told in theirs (or another of the same language), and anybody else in
-the workspace's language. Their bell keeps what they were told.
+the server's language. Their bell keeps what they were told.
 
 ```json
 "title": { "en-US": "Won: {{record.name}}", "de-DE": "Gewonnen: {{record.name}}" },

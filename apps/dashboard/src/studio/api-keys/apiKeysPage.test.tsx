@@ -205,7 +205,7 @@ describe('the page body', () => {
   it('renders the comp’s header, stats, keys and endpoints', async () => {
     await renderPage();
     expect(screen.getByRole('heading', { level: 1, name: 'API keys & tokens' })).toBeTruthy();
-    expect(screen.getByText('Manage programmatic access to your workspace')).toBeTruthy();
+    expect(screen.getByText('Manage programmatic access to your server')).toBeTruthy();
     expect(await screen.findByText('128K')).toBeTruthy();
     const keys = screen.getAllByRole('table')[0] as HTMLElement;
     expect(within(keys).getByText('Storefront web')).toBeTruthy();

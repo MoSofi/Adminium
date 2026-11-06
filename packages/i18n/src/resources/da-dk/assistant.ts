@@ -77,7 +77,7 @@ export default {
     "noticeProvider": "Det, du siger, sendes til {provider} for at blive skrevet ned. Intet gemmes.",
     "noticeBrowser": "Det, du siger, skrives ned af din browsers egen taletjeneste.",
     "noticeOk": "OK",
-    "ownService": "dit arbejdsområdes modeltjeneste"
+    "ownService": "din servers modeltjeneste"
   },
   "speak": {
     "play": "Læs højt",
@@ -250,9 +250,9 @@ export default {
   "readOnly": {
     "noWrite": "Din rolle kan se, skrive udkast og forhåndsvise her, men ikke gemme.",
     "noWriteTitle": "Din rolle kan ikke det her",
-    "switchedOff": "Gemning er slået fra for {name} i dette arbejdsområde.",
+    "switchedOff": "Gemning er slået fra for {name} på denne server.",
     "openSettings": "Åbn indstillinger",
-    "switchedOffTitle": "Gemning er slået fra for {name} i dette arbejdsområde"
+    "switchedOffTitle": "Gemning er slået fra for {name} på denne server"
   },
   "report": {
     "action1": "Kør fuld forhåndsvisning",
@@ -353,16 +353,16 @@ export default {
     }
   },
   "general": {
-    "page": "Dette arbejdsområde",
-    "blurb": "Kender dette arbejdsområde · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "page": "Denne server",
+    "blurb": "Kender denne server · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
     "greeting": "Jeg kan læse de tabeller, din rolle må læse, og fortælle dig, hvor tingene gøres.",
     "greetingSub": "Spørg om dine data, eller hvor noget ændres. Jeg svarer med ord og linker til stedet.",
-    "placeholder": "Spørg om dette arbejdsområde…",
+    "placeholder": "Spørg om denne server…",
     "chip1": "Hvor inviterer jeg en kollega?",
-    "chip2": "Hvad kan jeg se i dette arbejdsområde?",
+    "chip2": "Hvad kan jeg se på denne server?",
     "chip3": "Hvilken tabel har flest rækker?",
     "workTitle": "Slået op",
-    "scopePrimary": "arbejdsområde",
+    "scopePrimary": "server",
     "readPage": "{tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}"
   },
   "answer": {
@@ -488,7 +488,7 @@ export default {
     },
     "refused": {
       "generic": "Serveren afviste dette.",
-      "switchedOff": "Dette er slået fra for {name} i dette arbejdsområde.",
+      "switchedOff": "Dette er slået fra for {name} på denne server.",
       "notThisTable": "Herfra kan kun tabellen på den side, der blev spurgt på, ændres.",
       "notData": "Det er ikke en tabel med dine data.",
       "noChange": "Rækken har allerede disse værdier.",

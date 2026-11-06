@@ -21,7 +21,7 @@
   },
   "addOns.notInstalled.body": {
     "status": "mt",
-    "srcHash": "5758c38c183d"
+    "srcHash": "180d86ecbcf2"
   },
   "addOns.notInstalled.title": {
     "status": "mt",
@@ -837,7 +837,7 @@
   },
   "assistant.general.blurb": {
     "status": "mt",
-    "srcHash": "67cd14620b24"
+    "srcHash": "6a719445ead2"
   },
   "assistant.general.chip1": {
     "status": "mt",
@@ -845,7 +845,7 @@
   },
   "assistant.general.chip2": {
     "status": "mt",
-    "srcHash": "d9c7e54f9e34"
+    "srcHash": "e05b8db165a0"
   },
   "assistant.general.chip3": {
     "status": "mt",
@@ -861,11 +861,11 @@
   },
   "assistant.general.page": {
     "status": "mt",
-    "srcHash": "c3a7ef1fffd0"
+    "srcHash": "d75b2349294e"
   },
   "assistant.general.placeholder": {
     "status": "mt",
-    "srcHash": "fecad416e6cd"
+    "srcHash": "625fc543285e"
   },
   "assistant.general.readPage": {
     "status": "mt",
@@ -873,7 +873,7 @@
   },
   "assistant.general.scopePrimary": {
     "status": "mt",
-    "srcHash": "a279fe916f63"
+    "srcHash": "3de4f901fffb"
   },
   "assistant.general.workTitle": {
     "status": "mt",
@@ -1105,7 +1105,7 @@
   },
   "assistant.mic.ownService": {
     "status": "mt",
-    "srcHash": "ffb9fb901480"
+    "srcHash": "ed890346d9ca"
   },
   "assistant.mic.speak": {
     "status": "mt",
@@ -1501,7 +1501,7 @@
   },
   "assistant.proposal.refused.switchedOff": {
     "status": "mt",
-    "srcHash": "0c9c8cb453d4"
+    "srcHash": "8a91112e9daf"
   },
   "assistant.proposal.refused.unsafeKey": {
     "status": "mt",
@@ -1593,11 +1593,11 @@
   },
   "assistant.readOnly.switchedOff": {
     "status": "mt",
-    "srcHash": "082aa2986d41"
+    "srcHash": "a93d763f2a5d"
   },
   "assistant.readOnly.switchedOffTitle": {
     "status": "mt",
-    "srcHash": "6f53ace140a9"
+    "srcHash": "d2b2f971d80c"
   },
   "assistant.report.action1": {
     "status": "mt",
@@ -2913,7 +2913,7 @@
   },
   "automations.pick.notificationDesc": {
     "status": "mt",
-    "srcHash": "a67fd1adf8a3"
+    "srcHash": "859306d8a490"
   },
   "automations.pick.slack": {
     "status": "mt",
@@ -3768,7 +3768,7 @@
     "status": "mt"
   },
   "common.account.preferences.reset": {
-    "srcHash": "20f1928536ae",
+    "srcHash": "9d0df1e852d2",
     "status": "mt"
   },
   "common.account.preferences.resetFailed": {
@@ -3784,11 +3784,11 @@
     "status": "mt"
   },
   "common.account.preferences.usingDefault": {
-    "srcHash": "e075b22ae7b7",
+    "srcHash": "e1b23252899d",
     "status": "mt"
   },
   "common.account.preferences.workspaceDefault": {
-    "srcHash": "b81e277f3c90",
+    "srcHash": "a7860d3ea6e6",
     "status": "mt"
   },
   "common.account.preferencesLink": {
@@ -3817,7 +3817,7 @@
   },
   "common.account.savedBody": {
     "status": "mt",
-    "srcHash": "edaea3b0d274"
+    "srcHash": "c4a6a1dd14b8"
   },
   "common.account.securityLink": {
     "status": "mt",
@@ -4049,7 +4049,7 @@
   },
   "common.audit.subtitle": {
     "status": "mt",
-    "srcHash": "916b52a6c7ba"
+    "srcHash": "06d6d9893594"
   },
   "common.audit.title": {
     "status": "mt",
@@ -4276,7 +4276,7 @@
     "status": "mt"
   },
   "common.auth.signIn.subtitle": {
-    "srcHash": "47f8a540c799",
+    "srcHash": "19b167cc59bf",
     "status": "mt"
   },
   "common.auth.signIn.title": {
@@ -5832,7 +5832,7 @@
     "status": "mt"
   },
   "common.desktop.settings.explainer": {
-    "srcHash": "171218afd106",
+    "srcHash": "30307e066f28",
     "status": "mt"
   },
   "common.desktop.settings.title": {
@@ -6272,7 +6272,7 @@
     "status": "mt"
   },
   "common.nav.group.workspace": {
-    "srcHash": "4ca0a75c2b7f",
+    "srcHash": "600584c2d5cc",
     "status": "mt"
   },
   "common.nav.home": {
@@ -6396,7 +6396,7 @@
     "srcHash": "08581d27e4c9"
   },
   "common.onboarding.completeBody": {
-    "srcHash": "f952083bc23b",
+    "srcHash": "5d26b21da40a",
     "status": "mt"
   },
   "common.onboarding.desktopSetup.account.alreadyExists": {
@@ -6756,7 +6756,7 @@
     "status": "mt"
   },
   "common.onboarding.entry.banner": {
-    "srcHash": "e586e8bcb988",
+    "srcHash": "fa3439ef6428",
     "status": "mt"
   },
   "common.onboarding.entry.continue": {
@@ -6772,7 +6772,7 @@
     "status": "mt"
   },
   "common.onboarding.goToWorkspace": {
-    "srcHash": "1a549bf88855",
+    "srcHash": "89e1f45250a4",
     "status": "mt"
   },
   "common.onboarding.help.body": {
@@ -6788,7 +6788,7 @@
     "status": "mt"
   },
   "common.onboarding.progressBody": {
-    "srcHash": "7dc63f28aa30",
+    "srcHash": "83494f4892d6",
     "status": "mt"
   },
   "common.onboarding.ringLabel": {
@@ -6860,11 +6860,11 @@
     "status": "mt"
   },
   "common.onboarding.steps.workspaceDefaults.title": {
-    "srcHash": "8c1035385ec0",
+    "srcHash": "6036a246dc60",
     "status": "mt"
   },
   "common.onboarding.subtitle": {
-    "srcHash": "99a1f623daa6",
+    "srcHash": "b4030304bbb0",
     "status": "mt"
   },
   "common.onboarding.title": {
@@ -7680,15 +7680,15 @@
     "status": "mt"
   },
   "common.settings.defaults.saveFailed": {
-    "srcHash": "47702256ee51",
+    "srcHash": "4ec79f1bb785",
     "status": "mt"
   },
   "common.settings.defaults.saved": {
-    "srcHash": "e7e114fde696",
+    "srcHash": "905828d2c84a",
     "status": "mt"
   },
   "common.settings.defaults.subtitle": {
-    "srcHash": "b0c21ddb3e28",
+    "srcHash": "64d56ebf8721",
     "status": "mt"
   },
   "common.settings.defaults.title": {
@@ -7817,7 +7817,7 @@
   },
   "common.settings.translations.locale.deletedDetail": {
     "status": "mt",
-    "srcHash": "29c061372ec1"
+    "srcHash": "7e9e0b03669b"
   },
   "common.settings.translations.locale.dir": {
     "status": "mt",
@@ -8316,7 +8316,7 @@
     "status": "mt"
   },
   "common.states.forbidden.body": {
-    "srcHash": "12bd4ae45c2c",
+    "srcHash": "dc730ae4a512",
     "status": "mt"
   },
   "common.states.forbidden.primary": {
@@ -8412,7 +8412,7 @@
     "status": "mt"
   },
   "common.states.readOnly.body": {
-    "srcHash": "5c36aa78a015",
+    "srcHash": "42998b37925d",
     "status": "mt"
   },
   "common.states.readOnly.primary": {
@@ -8456,7 +8456,7 @@
     "srcHash": "de5af6d8fceb"
   },
   "common.states.suspended.body": {
-    "srcHash": "3428f26f6b33",
+    "srcHash": "976ede1e6a60",
     "status": "mt"
   },
   "common.states.suspended.primary": {
@@ -8468,7 +8468,7 @@
     "status": "mt"
   },
   "common.states.suspended.title": {
-    "srcHash": "86ed280cb63d",
+    "srcHash": "5c374eab35b9",
     "status": "mt"
   },
   "common.team.action.handOn": {
@@ -9336,7 +9336,7 @@
     "status": "mt"
   },
   "common.topbar.workspaceSettings": {
-    "srcHash": "432fa10a36a6",
+    "srcHash": "28af3cc7375d",
     "status": "mt"
   },
   "common.undo.done": {
@@ -16833,7 +16833,7 @@
   },
   "email.campaign.workspaceUsers": {
     "status": "mt",
-    "srcHash": "cbe627b0e44f"
+    "srcHash": "957e1f9b67f0"
   },
   "email.campaignSent.body": {
     "status": "mt",
@@ -17517,7 +17517,7 @@
   },
   "email.imagePicker.subtitle": {
     "status": "mt",
-    "srcHash": "ee5b91b6c399"
+    "srcHash": "68f570be06a2"
   },
   "email.imagePicker.title": {
     "status": "mt",
@@ -17545,7 +17545,7 @@
   },
   "email.imagePicker.workspaceFiles": {
     "status": "mt",
-    "srcHash": "7e02947a4b46"
+    "srcHash": "7a099e4da609"
   },
   "email.import.choose": {
     "status": "mt",
@@ -17797,7 +17797,7 @@
   },
   "email.inspector.workspaceDocuments": {
     "status": "mt",
-    "srcHash": "af5d99ad157e"
+    "srcHash": "3e0500ae0641"
   },
   "email.layout.gallery": {
     "status": "mt",
@@ -19785,7 +19785,7 @@
   },
   "files.subtitle": {
     "status": "mt",
-    "srcHash": "2a89410e3513"
+    "srcHash": "a4fd54ec8fdc"
   },
   "files.title": {
     "status": "mt",
@@ -19869,7 +19869,7 @@
   },
   "files.upload.subtitle": {
     "status": "mt",
-    "srcHash": "b2963014d6f6"
+    "srcHash": "a6e314986463"
   },
   "files.upload.title": {
     "status": "mt",
@@ -20293,23 +20293,23 @@
   },
   "onboarding.done.next.blank": {
     "status": "mt",
-    "srcHash": "b0c2d3c2eacf"
+    "srcHash": "51dd704dc422"
   },
   "onboarding.done.next.connected": {
     "status": "mt",
-    "srcHash": "4396bed457a3"
+    "srcHash": "38dec6b8b3e3"
   },
   "onboarding.done.next.connectedNoPages": {
     "status": "mt",
-    "srcHash": "4fda5f5fa99c"
+    "srcHash": "a65c5fa978a3"
   },
   "onboarding.done.next.generate": {
     "status": "mt",
-    "srcHash": "d94609f8a3fa"
+    "srcHash": "0e9993c568af"
   },
   "onboarding.done.next.ready": {
     "status": "mt",
-    "srcHash": "66fcf674ae23"
+    "srcHash": "c69556afc906"
   },
   "onboarding.done.storage.local": {
     "status": "mt",
@@ -22853,7 +22853,7 @@
   },
   "roles.category.workspace": {
     "status": "mt",
-    "srcHash": "4ca0a75c2b7f"
+    "srcHash": "cb0cb170d106"
   },
   "roles.column.actions": {
     "status": "mt",
@@ -23117,7 +23117,7 @@
   },
   "roles.permission.settingsManage": {
     "status": "mt",
-    "srcHash": "687e00456e85"
+    "srcHash": "2e38dd338230"
   },
   "roles.permission.storageManage": {
     "status": "mt",
@@ -24557,7 +24557,7 @@
   },
   "studio.apiKeys.note.offLink": {
     "status": "mt",
-    "srcHash": "098712d232d8"
+    "srcHash": "299d6fd9b864"
   },
   "studio.apiKeys.quick.body": {
     "status": "mt",
@@ -24737,7 +24737,7 @@
   },
   "studio.apiKeys.subtitle": {
     "status": "mt",
-    "srcHash": "c94ba083e8ef"
+    "srcHash": "0aa3996b71d1"
   },
   "studio.apiKeys.summary": {
     "status": "mt",
@@ -26949,7 +26949,7 @@
   },
   "studio.email.send.dialog.workspaceUsers": {
     "status": "mt",
-    "srcHash": "cbe627b0e44f"
+    "srcHash": "957e1f9b67f0"
   },
   "studio.email.send.estimate": {
     "status": "mt",
@@ -28389,7 +28389,7 @@
   },
   "studio.hostedApps.install.privacyGrants.body": {
     "status": "mt",
-    "srcHash": "fa0d3696a9a4"
+    "srcHash": "895d9a9d1409"
   },
   "studio.hostedApps.install.privacyGrants.title": {
     "status": "mt",
@@ -29361,7 +29361,7 @@
   },
   "studio.lists.builtinSubtitle": {
     "status": "mt",
-    "srcHash": "a1114b732b8b"
+    "srcHash": "f3491daff9b7"
   },
   "studio.lists.cancel": {
     "status": "mt",
@@ -29505,7 +29505,7 @@
   },
   "studio.lists.storeLabelHelp": {
     "status": "mt",
-    "srcHash": "e8674ae29b3c"
+    "srcHash": "549dd88515f7"
   },
   "studio.lists.subtitle": {
     "status": "mt",
@@ -30469,7 +30469,7 @@
   },
   "studio.pages.attachments.acceptHint": {
     "status": "mt",
-    "srcHash": "a7e4afdf26dc"
+    "srcHash": "c3001b66ee6c"
   },
   "studio.pages.attachments.column.adoptHint": {
     "status": "mt",
@@ -30569,7 +30569,7 @@
   },
   "studio.pages.attachments.maxBytesHint": {
     "status": "mt",
-    "srcHash": "b7ec5d580ce2"
+    "srcHash": "766fa68190b0"
   },
   "studio.pages.attachments.maxCount": {
     "status": "mt",
@@ -30689,7 +30689,7 @@
   },
   "studio.pages.columns.file.acceptHelp": {
     "status": "mt",
-    "srcHash": "700b2e746e19"
+    "srcHash": "e8217a6a69ae"
   },
   "studio.pages.columns.file.acceptLabel": {
     "status": "mt",
@@ -30737,7 +30737,7 @@
   },
   "studio.pages.columns.file.maxHelp": {
     "status": "mt",
-    "srcHash": "a1b478717d43"
+    "srcHash": "7543b8c77760"
   },
   "studio.pages.columns.file.maxLabel": {
     "status": "mt",
@@ -34957,7 +34957,7 @@
   },
   "studio.privacy.person.staffAddress": {
     "status": "mt",
-    "srcHash": "d7cb0070d6e2"
+    "srcHash": "88a157878715"
   },
   "studio.privacy.tab.keeping": {
     "status": "mt",
@@ -36113,7 +36113,7 @@
   },
   "studio.remap.rules.optionsMissingList": {
     "status": "mt",
-    "srcHash": "629189e73c37"
+    "srcHash": "1bcf7d270686"
   },
   "studio.remap.rules.optionsPickList": {
     "status": "mt",
@@ -36496,7 +36496,7 @@
     "status": "mt"
   },
   "studio.settings.workspaceSection": {
-    "srcHash": "4ca0a75c2b7f",
+    "srcHash": "cb0cb170d106",
     "status": "mt"
   },
   "studio.settingsAi.abilities.can": {
@@ -36561,7 +36561,7 @@
   },
   "studio.settingsAi.abilities.sendWhat": {
     "status": "mt",
-    "srcHash": "f9d10e670cde"
+    "srcHash": "e4ca650d9e6c"
   },
   "studio.settingsAi.abilities.staffAddresses": {
     "status": "mt",
@@ -37256,7 +37256,7 @@
     "status": "mt"
   },
   "studio.settingsHub.defaultsCard.body": {
-    "srcHash": "fa19bf696ed2",
+    "srcHash": "c000c04d4660",
     "status": "mt"
   },
   "studio.settingsHub.defaultsCard.cta": {
@@ -37428,7 +37428,7 @@
     "status": "mt"
   },
   "studio.settingsHub.identity.heading": {
-    "srcHash": "ddcd2975143c",
+    "srcHash": "8c66ee8b660b",
     "status": "mt"
   },
   "studio.settingsHub.identity.logo.badType": {
@@ -37592,7 +37592,7 @@
     "status": "mt"
   },
   "studio.settingsHub.review.title": {
-    "srcHash": "290d6e2954e7",
+    "srcHash": "3acbc6a7c70e",
     "status": "mt"
   },
   "studio.settingsHub.save": {
@@ -37600,15 +37600,15 @@
     "status": "mt"
   },
   "studio.settingsHub.saveFailed": {
-    "srcHash": "f3b68f4a4062",
+    "srcHash": "42fe1363d903",
     "status": "mt"
   },
   "studio.settingsHub.saved": {
-    "srcHash": "c9b3ca1c27cd",
+    "srcHash": "ebd3ddca95ed",
     "status": "mt"
   },
   "studio.settingsHub.security.allowSignup.desc": {
-    "srcHash": "693401bbed15",
+    "srcHash": "038c5b870465",
     "status": "mt"
   },
   "studio.settingsHub.security.allowSignup.label": {
@@ -37660,11 +37660,11 @@
     "srcHash": "9e092dda4f0e"
   },
   "studio.settingsHub.subtitle": {
-    "srcHash": "8dd1c0741e12",
+    "srcHash": "94f4b7a70f58",
     "status": "mt"
   },
   "studio.settingsHub.superAdminOnly": {
-    "srcHash": "517a3e9e1b80",
+    "srcHash": "53176b1423b3",
     "status": "mt"
   },
   "studio.settingsHub.superAdminOnlyTitle": {
@@ -37672,7 +37672,7 @@
     "status": "mt"
   },
   "studio.settingsHub.title": {
-    "srcHash": "432fa10a36a6",
+    "srcHash": "28af3cc7375d",
     "status": "mt"
   },
   "studio.settingsHub.translationsCard.body": {
@@ -38169,7 +38169,7 @@
   },
   "studio.storage.kind.branding": {
     "status": "mt",
-    "srcHash": "0ba10fea746c"
+    "srcHash": "4cae39ae2639"
   },
   "studio.storage.kind.export": {
     "status": "mt",
@@ -41077,7 +41077,7 @@
   },
   "ui.templates.record.attachments.tooLarge": {
     "status": "mt",
-    "srcHash": "bb3d9d332fae"
+    "srcHash": "fd709f370aa8"
   },
   "ui.templates.record.attachmentsTab": {
     "status": "mt",
@@ -43620,11 +43620,11 @@
     "status": "mt"
   },
   "ui.widgets.feeds.activityFeed.description": {
-    "srcHash": "d918061f209e",
+    "srcHash": "1a60babec703",
     "status": "mt"
   },
   "ui.widgets.feeds.activityFeed.emptyBody": {
-    "srcHash": "e645342f4cc1",
+    "srcHash": "b3f897cd02b0",
     "status": "mt"
   },
   "ui.widgets.feeds.activityFeed.emptyTitle": {
@@ -45164,7 +45164,7 @@
     "status": "mt"
   },
   "ui.widgets.system.stateHero.forbiddenBody": {
-    "srcHash": "1b978f840eef",
+    "srcHash": "57f9d58b19e1",
     "status": "mt"
   },
   "ui.widgets.system.stateHero.forbiddenTitle": {

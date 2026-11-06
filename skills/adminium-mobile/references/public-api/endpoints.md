@@ -3,7 +3,7 @@
 # Endpoints and keys: Endpoints
 
 An endpoint is one route, such as `/orders`, over one table or view. Open **API keys**
-from Workspace settings to see them.
+from Server settings to see them.
 
 Every table has an endpoint generated from your schema. It stays virtual until a key
 grants it or you edit it, and then it is stored. A generated endpoint:

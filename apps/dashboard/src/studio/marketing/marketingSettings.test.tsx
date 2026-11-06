@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The marketing mail settings in Workspace settings, as the marketer they are
+ * The marketing mail settings in Server settings, as the marketer they are
  * for (a role holding `settings.manage`, not an Admin), router-mounted:
  *
  *  - each saved sender gets its "Marketing mail" block: the postal address and

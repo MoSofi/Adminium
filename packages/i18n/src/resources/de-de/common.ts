@@ -29,7 +29,7 @@ export default {
     "trust": "AGPL-Kern · Selbst gehostet · Ihre Daten bleiben Ihre",
     "signIn": {
       "title": "Willkommen zurück",
-      "subtitle": "Melden Sie sich in Ihrem Adminium-Workspace an.",
+      "subtitle": "Melden Sie sich bei Ihrem Adminium-Server an.",
       "passwordSetTitle": "Passwort gespeichert",
       "passwordSetSubtitle": "Melde dich mit deiner E-Mail-Adresse und dem gerade gewählten Passwort an.",
       "email": "E-Mail",
@@ -122,7 +122,7 @@ export default {
     "notificationSettings": "Benachrichtigungseinstellungen",
     "scheduledReports": "Geplante Berichte",
     "group": {
-      "workspace": "Arbeitsbereich",
+      "workspace": "Seiten",
       "library": "Bibliothek",
       "planning": "Planung",
       "people": "Personen",
@@ -162,7 +162,7 @@ export default {
     "preferences": "Einstellungen",
     "studio": "Studio",
     "dataConnections": "Datenverbindungen",
-    "workspaceSettings": "Workspace-Einstellungen",
+    "workspaceSettings": "Server-Einstellungen",
     "help": "Hilfe-Center",
     "changelog": "Neuerungen",
     "signOut": "Abmelden",
@@ -220,7 +220,7 @@ export default {
     },
     "forbidden": {
       "title": "Sie haben keinen Zugriff",
-      "body": "Diese Seite ist eingeschränkt. Bitten Sie eine Administratorin oder einen Administrator des Workspace, Ihnen Zugriff zu gewähren.",
+      "body": "Diese Seite ist eingeschränkt. Bitten Sie eine Administratorin oder einen Administrator, Ihnen Zugriff zu gewähren.",
       "primary": "Zugriff anfordern",
       "secondary": "Zurück"
     },
@@ -283,13 +283,13 @@ export default {
     },
     "readOnly": {
       "title": "Nur-Lese-Modus",
-      "body": "Sie haben Viewer-Zugriff auf diesen Workspace. Sie können Dashboards erkunden, Bearbeiten und löschende Aktionen sind jedoch deaktiviert.",
+      "body": "Sie haben Viewer-Zugriff auf diesen Server. Sie können Dashboards erkunden, Bearbeiten und löschende Aktionen sind jedoch deaktiviert.",
       "primary": "Bearbeitungszugriff anfordern",
       "secondary": "Verstanden"
     },
     "suspended": {
-      "title": "Dieser Workspace ist gesperrt",
-      "body": "Dieser Workspace wurde von einer Administratorin oder einem Administrator gesperrt. Ihre Daten bleiben erhalten — wenden Sie sich an die Inhaberin oder den Inhaber des Workspace, um den Zugriff wiederherzustellen.",
+      "title": "Dieser Server ist gesperrt",
+      "body": "Dieser Server wurde von einer Administratorin oder einem Administrator gesperrt. Ihre Daten bleiben erhalten — wenden Sie sich an die Inhaberin oder den Inhaber des Servers, um den Zugriff wiederherzustellen.",
       "primary": "Inhaber kontaktieren",
       "secondary": "Zurück"
     },
@@ -429,7 +429,7 @@ export default {
     "save": "Änderungen speichern",
     "saveFailed": "Ihr Profil konnte nicht gespeichert werden",
     "saved": "Profil aktualisiert",
-    "savedBody": "Ihre neuen Angaben gelten ab sofort im gesamten Workspace. Wenn Sie Ihre E-Mail-Adresse geändert haben, melden Sie sich künftig mit der neuen Adresse an.",
+    "savedBody": "Ihre neuen Angaben gelten ab sofort auf dem gesamten Server. Wenn Sie Ihre E-Mail-Adresse geändert haben, melden Sie sich künftig mit der neuen Adresse an.",
     "accessTitle": "Zugriff",
     "accessSubtitle": "Was dieses Konto darf und wie es seine Identität nachweist.",
     "rolesHelper": "Rollen werden von einer Administratorin oder einem Administrator vergeben und lassen sich nicht im eigenen Konto ändern.",
@@ -439,10 +439,10 @@ export default {
     "preferences": {
       "title": "Einstellungen",
       "subtitle": "Wie Adminium für Sie aussieht und sich liest — auf diesem und jedem anderen Gerät, an dem Sie sich anmelden.",
-      "workspaceDefault": "Workspace-Standard",
+      "workspaceDefault": "Server-Standard",
       "personal": "Persönlich",
-      "usingDefault": "Workspace-Standard wird verwendet ({value})",
-      "reset": "Auf Workspace-Standard zurücksetzen",
+      "usingDefault": "Server-Standard wird verwendet ({value})",
+      "reset": "Auf den Server-Standard zurücksetzen",
       "resetFailed": "Diese Einstellung konnte nicht zurückgesetzt werden. Versuchen Sie es erneut.",
       "appliesInstantly": "Änderungen gelten sofort und werden in Ihrem Profil gespeichert."
     }
@@ -450,15 +450,15 @@ export default {
   "settings": {
     "defaults": {
       "title": "Globale Standards",
-      "subtitle": "Workspace-weite Standards für Darstellung und Sprache.",
+      "subtitle": "Serverweite Standards für Darstellung und Sprache.",
       "explainer": "Diese Standards gelten für alle Benutzer, sofern sie sie nicht überschreiben. Jeder kann unter Profil → Einstellungen eigene Werte festlegen — persönliche Einstellungen haben für diesen Benutzer immer Vorrang.",
       "appearanceHeading": "Darstellungs-Standards",
       "languageHeading": "Standards für Sprache & Region",
       "adoption": "{following, number} von {total, plural, one {# Benutzer} other {# Benutzern}} folgen diesem Standard.",
       "weekStartNote": "Wochenbeginn und Zahlenformate richten sich nach der Sprache.",
       "save": "Standards speichern",
-      "saved": "Workspace-Standards aktualisiert",
-      "saveFailed": "Die Workspace-Standards konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+      "saved": "Server-Standards aktualisiert",
+      "saveFailed": "Die Server-Standards konnten nicht gespeichert werden. Versuchen Sie es erneut.",
       "liveNote": "Beim Speichern wird die Änderung live übertragen — angemeldete Benutzer, die einem Standard folgen, sehen sie ohne Neuladen."
     },
     "notifications": {
@@ -519,7 +519,7 @@ export default {
         "disable": "Ausschalten",
         "delete": "Löschen",
         "deleted": "Sprache entfernt",
-        "deletedDetail": "{users, plural, one {# Person wurde} other {# Personen wurden}} auf den Workspace-Standard zurückgesetzt; {strings, plural, one {# Übersetzung} other {# Übersetzungen}} gelöscht.",
+        "deletedDetail": "{users, plural, one {# Person wurde} other {# Personen wurden}} auf den Server-Standard zurückgesetzt; {strings, plural, one {# Übersetzung} other {# Übersetzungen}} gelöscht.",
         "deleteFailed": "Diese Sprache konnte nicht entfernt werden",
         "add": "Sprache hinzufügen",
         "added": "Sprache hinzugefügt",
@@ -541,15 +541,15 @@ export default {
   },
   "onboarding": {
     "title": "Erste Schritte",
-    "subtitle": "Ein paar Schritte, um Ihren Workspace einzurichten.",
+    "subtitle": "Ein paar Schritte, um Ihren Server einzurichten.",
     "loading": "Setup-Checkliste wird geladen…",
     "welcome": "Willkommen bei Adminium, {name} 👋",
-    "progressBody": "Sie haben {done} von {total} Einrichtungsschritten abgeschlossen. Schließen Sie die übrigen ab, um den vollen Workspace freizuschalten.",
-    "completeBody": "Alles erledigt — Ihr Workspace ist vollständig eingerichtet.",
+    "progressBody": "Sie haben {done} von {total} Einrichtungsschritten abgeschlossen. Schließen Sie die übrigen ab, um alles freizuschalten.",
+    "completeBody": "Alles erledigt — Ihr Server ist vollständig eingerichtet.",
     "ringLabel": "{done} von {total} Schritten abgeschlossen",
     "done": "Erledigt",
     "skip": "Später",
-    "goToWorkspace": "Zum Workspace",
+    "goToWorkspace": "Zum Dashboard",
     "help": {
       "title": "Brauchen Sie Hilfe?",
       "body": "Wir helfen Ihnen gern beim schnellen Einrichten."
@@ -574,7 +574,7 @@ export default {
         "action": "Einladen"
       },
       "workspaceDefaults": {
-        "title": "Workspace-Standards festlegen",
+        "title": "Server-Standards festlegen",
         "desc": "Design, Akzent, Dichte und Sprache für alle.",
         "time": "1 Min.",
         "action": "Festlegen"
@@ -584,7 +584,7 @@ export default {
       "wayBack": "Erste Schritte · {done}/{total}",
       "dismiss": "Setup-Checkliste ausblenden",
       "continue": "Setup fortsetzen",
-      "banner": "Richten Sie Ihren Workspace fertig ein — {done} von {total} Schritten erledigt."
+      "banner": "Richten Sie Ihren Server fertig ein — {done} von {total} Schritten erledigt."
     },
     "desktopSetup": {
       "title": "Willkommen bei Adminium",
@@ -1242,7 +1242,7 @@ export default {
   },
   "desktop": {
     "settings": {
-      "explainer": "Diese Einstellungen gelten nur für die Adminium-App auf diesem Computer. Sie werden auf diesem Gerät gespeichert, nicht in Ihrem Workspace.",
+      "explainer": "Diese Einstellungen gelten nur für die Adminium-App auf diesem Computer. Sie werden auf diesem Gerät gespeichert, nicht in den Einstellungen des Servers.",
       "title": "Desktop-Einstellungen"
     },
     "security": {
@@ -1622,7 +1622,7 @@ export default {
       "title": "Das Audit-Log konnte nicht geladen werden"
     },
     "loadMore": "Ältere Einträge laden",
-    "subtitle": "Jede Änderung in diesem Workspace, wer sie vorgenommen hat und was sie geändert hat.",
+    "subtitle": "Jede Änderung auf diesem Server, wer sie vorgenommen hat und was sie geändert hat.",
     "title": "Audit-Log",
     "via": "über {name}"
   },

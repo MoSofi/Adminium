@@ -300,7 +300,7 @@ export async function runServerEntry(opts: RunServerEntryOptions): Promise<Boote
         log(`[server] ignoring unrecognized parent message: ${parsed.error}`);
         return;
       }
-      // The classic workspace has no folder for anything to hold.
+      // The classic server has no folder for anything to hold.
       if (parsed.message.type === 'busy?') {
         post({ type: 'busy', busy: null });
         return;

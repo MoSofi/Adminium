@@ -325,7 +325,7 @@ describe('the Add-ons card', () => {
     await user.click(details.querySelector('summary')!);
     const lines = [...details.querySelectorAll('[data-role-table]')].map((line) => [...line.querySelectorAll('p')].map((p) => p.textContent));
     expect(lines).toEqual([['filesMaker', 'Reads id, name', 'Sees personal details in what it reads', 'Removes rows']]);
-    expect(screen.getByTestId('privacy-grants').textContent).toBe('A role can erase peopleStudio manager can find, download and erase everything this workspace keeps about a person, on the privacy page.');
+    expect(screen.getByTestId('privacy-grants').textContent).toBe('A role can erase peopleStudio manager can find, download and erase everything this server keeps about a person, on the privacy page.');
   });
 
   it('leaves an unticked suggestion out, and says it won’t be connected', async () => {

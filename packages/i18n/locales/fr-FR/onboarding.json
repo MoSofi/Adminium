@@ -74,11 +74,11 @@
     "invited": "{count, plural, one {# invitation créée} other {# invitations créées}}.",
     "label": "Tout est prêt",
     "next": {
-      "blank": "Votre espace est prêt. Ajoutez une page quand vous voulez — rien n’a été généré, exactement comme demandé.",
-      "connected": "Votre espace est prêt. Les pages créées à partir de votre base sont sur le tableau de bord.",
-      "connectedNoPages": "Votre espace est prêt. Votre base est connectée ; ajoutez des pages depuis le Studio quand vous voulez.",
-      "generate": "Votre espace est prêt. Nous allons maintenant choisir les tables à inclure et générer vos pages.",
-      "ready": "Votre espace est prêt."
+      "blank": "Votre serveur est prêt. Ajoutez une page quand vous voulez — rien n’a été généré, exactement comme demandé.",
+      "connected": "Votre serveur est prêt. Les pages créées à partir de votre base sont sur le tableau de bord.",
+      "connectedNoPages": "Votre serveur est prêt. Votre base est connectée ; ajoutez des pages depuis le Studio quand vous voulez.",
+      "generate": "Votre serveur est prêt. Nous allons maintenant choisir les tables à inclure et générer vos pages.",
+      "ready": "Votre serveur est prêt."
     },
     "storage": {
       "local": "Adminium conserve ses propres données dans un fichier sur cette machine.",

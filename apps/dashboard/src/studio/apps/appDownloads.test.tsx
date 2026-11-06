@@ -956,7 +956,7 @@ describe('checking a new version and renaming to the prefix', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Check what this version’s roles are newly given.')).toBeTruthy();
     const card = within(dialog).getByTestId('role-grants-added');
-    expect(within(card).getByText('Owner can find, download and erase everything this workspace keeps about a person, on the privacy page.')).toBeTruthy();
+    expect(within(card).getByText('Owner can find, download and erase everything this server keeps about a person, on the privacy page.')).toBeTruthy();
     expect(within(card).getByText('Owner can change the settings of holiday-calendars, which every app it serves shares.')).toBeTruthy();
     expect(within(card).queryByText(/invoices/)).toBeNull();
     expect(posted('/api/v1/apps/clinic/update')).toHaveLength(0);

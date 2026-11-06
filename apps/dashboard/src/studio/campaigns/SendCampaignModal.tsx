@@ -4,7 +4,7 @@
  * editor loads it lazily (`lazy.ts`) and saves the draft
  * before it POSTs `/send` (D1).
  *
- *  - "Send to": two radio cards, "Workspace users" (everyone, or the holders
+ *  - "Send to": two radio cards, "Users on this server" (everyone, or the holders
  *    of the roles picked as chips) and "People in a table". The table card is
  *    the default once the server lists a table this person may send to.
  *  - A table: "Table" (the picker lists the tables an app declares as people
@@ -160,7 +160,7 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
   const [error, setError] = useState<string | null>(null);
   const [sentRefusals, setSentRefusals] = useState<EmailSenderRefusal[] | null>(null);
 
-  // A table is the default once the server lists one this person may pick; "Workspace users" otherwise.
+  // A table is the default once the server lists one this person may pick; "Users on this server" otherwise.
   // Until the list is in, nothing is counted: the dialog would count one audience and then another.
   const decided = chosenTo !== null || !tablesQuery.isPending;
   const to: To = chosenTo ?? (tables.length > 0 ? 'table' : 'users');
@@ -312,7 +312,7 @@ function SendCampaignDialog({ documentId, documentName, subject, onSend, onClose
                   hideIndicator
                   className="rounded-[10px] p-3 data-[state=checked]:border-[1.5px]"
                   icon={<RadioDot />}
-                  title={<span className="font-bold">{t('studio:email.send.dialog.workspaceUsers', 'Workspace users')}</span>}
+                  title={<span className="font-bold">{t('studio:email.send.dialog.workspaceUsers', 'Users on this server')}</span>}
                   description={t('studio:email.send.dialog.rolesHint', 'Everyone, or only the holders of the roles you pick.')}
                 />
                 <RadioCard
