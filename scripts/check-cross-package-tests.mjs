@@ -93,6 +93,14 @@ const TESTS = [
     phase: 'source',
   },
   {
+    // "Workspace" only for the group of databases: reads product words in five
+    // trees @adminium/i18n depends on none of.
+    dir: 'packages/i18n',
+    file: 'src/workspace-wording.test.ts',
+    reads: ['apps/dashboard/src', 'apps/server/src', 'apps/desktop/src', 'skills', 'apps/docs/src/content/docs'],
+    phase: 'source',
+  },
+  {
     // The generated IR schema is served at the URL the guide publishes.
     // ir-schema-check covers this file's other four tests; not this one.
     dir: 'packages/engine',
