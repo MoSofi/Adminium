@@ -160,7 +160,8 @@ export interface WorkspaceFile {
   minAdminiumVersion: string;
   integrity: string;
   state: 'staged' | 'running' | 'stopped' | 'done' | 'discarded';
-  workspace: { mode: 'create' | 'existing' | 'none'; workspaceId?: string; name?: string } | null;
+  /** `gone`: the workspace an earlier run made or chose was deleted since, so the rest install in none. */
+  workspace: { mode: 'create' | 'existing' | 'none'; workspaceId?: string; name?: string; gone?: boolean } | null;
   apps: WorkspaceFileApp[];
   createdAt: number;
   updatedAt: number;
@@ -170,7 +171,15 @@ export type WorkspaceChoice = { mode: 'create'; name: string } | { mode: 'existi
 
 export interface WorkspaceInstallBody {
   workspace?: WorkspaceChoice;
-  apps: { key: string; connectionId: string | null; install?: InstallAnswers & { planChecksum?: string; publicAccess?: boolean }; update?: UpdateAnswers }[];
+  apps: {
+    key: string;
+    connectionId: string | null;
+    install?: InstallAnswers & { planChecksum?: string; publicAccess?: boolean };
+    /** The answers for the app's only copy. */
+    update?: UpdateAnswers;
+    /** Each copy's own answers, by its install id; a copy with none is updated with none. */
+    updates?: Record<string, UpdateAnswers>;
+  }[];
 }
 
 export const WORKSPACE_FILES_QUERY_KEY = ['workspace-files'] as const;

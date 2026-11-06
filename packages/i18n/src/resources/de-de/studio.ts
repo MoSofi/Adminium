@@ -5541,7 +5541,8 @@ export default {
       "title": "{done} von {total} Apps sind installiert",
       "waiting": "noch nicht installiert",
       "what": "Was passiert ist",
-      "workspace": "Arbeitsbereich"
+      "workspace": "Arbeitsbereich",
+      "workspaceGone": "Sie sind auf {server}. Der Arbeitsbereich {workspace} wurde gelöscht, daher ist der Rest in keinem Arbeitsbereich."
     },
     "error": "Etwas ist schiefgelaufen",
     "install": {
@@ -5574,7 +5575,11 @@ export default {
         "waiting": "{ready} {count, plural, one {wird jetzt installiert.} other {werden jetzt installiert.}} Treffen Sie die Entscheidungen für {apps}, um {others, plural, one {sie} other {sie}} hinzuzufügen.",
         "waitingAll": "Wählen Sie eine Datenbank für {apps} und beantworten Sie die Prüfung."
       },
-      "title": "Arbeitsbereich-Datei installieren"
+      "title": "Arbeitsbereich-Datei installieren",
+      "workspaceGone": {
+        "title": "Der Arbeitsbereich wurde gelöscht",
+        "body": "Der Arbeitsbereich {workspace} wurde gelöscht, nachdem die ersten Apps installiert waren. Der Rest wird ohne Arbeitsbereich installiert."
+      }
     },
     "refusal": {
       "extra": "Die Datei enthält etwas, das ihre Liste der Apps nicht nennt.",
@@ -5609,7 +5614,8 @@ export default {
       "tooBig": "Diese Arbeitsbereich-Datei wäre größer als {size}. Lassen Sie eine Datenbank oder ihre Beispielzeilen weg und versuchen Sie es erneut.",
       "useMoreChoices": "Nutzen Sie „Weitere Optionen“ bei einer App, um ihre Entscheidungen zu treffen.",
       "useChoices": "Diese Optionen übernehmen",
-      "version": "Version"
+      "version": "Version",
+      "leaks": "Die Arbeitsbereich-Datei würde in einem Namen eines Arbeitsbereichs, einer Datenbank oder einer Bezeichnung ein Geheimnis oder eine ID dieses Servers enthalten. Benennen Sie ihn um und speichern Sie erneut."
     },
     "saved": {
       "copyApp": "Fingerabdruck von {file} kopieren",

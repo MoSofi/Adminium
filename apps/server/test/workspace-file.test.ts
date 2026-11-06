@@ -15,7 +15,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { appUpdatesRepo, manifestsRepo, workspaceInstallsRepo, workspacesRepo } from '@adminium/meta';
+import { appSavesRepo, appUpdatesRepo, manifestsRepo, settingsRepo, workspaceInstallsRepo, workspaceSavesRepo, workspacesRepo } from '@adminium/meta';
 import { WORKSPACE_FILE_FLOOR } from '@adminium/manifest';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -76,7 +76,7 @@ async function source(dialect: Dialect, open: Harness[]): Promise<Source> {
     displayName: async () => 'Corner shop, Leith',
     dataDb: async (connectionId) => (await h.manager.data(connectionId)).db,
   });
-  const service = createWorkspaceSaveService({ meta: h.meta, save, adminiumVersion: '0.3.49', dialectOf, displayName: async () => 'Corner shop, Leith' });
+  const service = createWorkspaceSaveService({ meta: h.meta, save, adminiumVersion: '0.3.49', masterSecret: 'a-test-master-secret-of-enough-length', dialectOf, displayName: async () => 'Corner shop, Leith' });
   return { h, archive: archive.id, workspaceId: workspace.id, library, service };
 }
 
@@ -323,6 +323,51 @@ describe.each(ENGINES)('save workspace and install it, on %s', (dialect, availab
   });
 });
 
+describe.each(ENGINES)('a workspace deleted between runs, on %s', (dialect, available) => {
+  const open: Harness[] = [];
+  afterEach(async () => {
+    for (const h of open.splice(0)) await h.close();
+  });
+
+  it.runIf(available)('never makes a deleted workspace again: the rest install with none, and the review says so', async () => {
+    const src = await source(dialect, open);
+    const saved = await src.service.save(src.workspaceId, {}, HOST);
+    const dst = await target(dialect, open);
+    const file = fileOf(await upload(dst.h, saved.tarball));
+    const installed: string[] = [];
+    const installer = createWorkspaceInstaller({
+      meta: dst.h.meta,
+      stagedIntegrity: async (key, version) => (await dst.h.deps.store.verifyTree(key, version)).integrity,
+      discardStaged: async () => undefined,
+      copiesOf: async () => [],
+      install: async ({ key }) => {
+        installed.push(key);
+      },
+      update: async () => undefined,
+      connectionExists: async () => true,
+    });
+    const actor = { userId: null, managesConnections: true };
+    const first = await installer.run(file.id, { workspace: { mode: 'create', name: 'Corner Shop' }, apps: [{ key: 'archive', connectionId: dst.archive }] }, actor);
+    const made = first.workspaceChoice?.workspaceId;
+    expect(made).toBeDefined();
+    expect(await workspacesRepo(dst.h.meta).remove(made!)).toBe(true);
+
+    // The review reads it as gone before the next run.
+    const review = fileOf(await dst.h.inject({ method: 'GET', url: `/apps/workspace/${file.id}/install` }));
+    expect(review.workspace).toEqual({ mode: 'none', name: 'Corner Shop', gone: true });
+
+    // "Install the rest", still asking to create it: none is made, and the row keeps saying why.
+    const rest = await installer.run(file.id, { workspace: { mode: 'create', name: 'Corner Shop' }, apps: [{ key: 'clinic', connectionId: dst.h.connectionId }] }, actor);
+    expect(rest.state).toBe('done');
+    expect(rest.workspaceChoice).toEqual({ mode: 'none', name: 'Corner Shop', gone: true });
+    expect(installed).toEqual(['archive', 'clinic']);
+    expect(await workspacesRepo(dst.h.meta).list()).toEqual([]);
+    expect(await workspacesRepo(dst.h.meta).forConnection(dst.h.connectionId)).toEqual([]);
+    const after = fileOf(await dst.h.inject({ method: 'GET', url: `/apps/workspace/${file.id}/install` }));
+    expect(after.workspace).toEqual({ mode: 'none', name: 'Corner Shop', gone: true });
+  });
+});
+
 describe('workspace files on one engine', () => {
   const open: Harness[] = [];
   afterEach(async () => {
@@ -410,6 +455,71 @@ describe('workspace files on one engine', () => {
     expect(rest.state).toBe('done');
     expect(installs).toEqual(['archive', 'clinic', 'clinic']);
     expect((await copies('clinic')).map((copy) => copy.status)).toEqual(['installed']);
+  });
+
+  it('gives each copy its own update answers, and never installs an app with none', async () => {
+    const src = await source('sqlite', open);
+    const saved = await src.service.save(src.workspaceId, {}, HOST);
+    const dst = await target('sqlite', open);
+    const file = fileOf(await upload(dst.h, saved.tarball));
+    const copies = new Map([
+      ['clinic', [{ installId: 'man_a', connectionId: 'con_a', version: '0.9.0' }, { installId: 'man_b', connectionId: 'con_b', version: '0.9.0' }]],
+      ['archive', [{ installId: 'man_c', connectionId: 'con_c', version: '0.9.0' }]],
+    ]);
+    const calls: unknown[] = [];
+    const installer = createWorkspaceInstaller({
+      meta: dst.h.meta,
+      stagedIntegrity: async (key, version) => (await dst.h.deps.store.verifyTree(key, version)).integrity,
+      discardStaged: async () => undefined,
+      copiesOf: async (key) => copies.get(key) ?? [],
+      install: async ({ key, connectionId, answers }) => {
+        calls.push(['install', key, connectionId, answers]);
+      },
+      update: async ({ key, installId, answers }) => {
+        calls.push(['update', key, installId, answers]);
+        for (const copy of copies.get(key) ?? []) if (copy.installId === installId) copy.version = '1.0.0';
+      },
+      connectionExists: async () => true,
+    });
+    const actor = { userId: null, managesConnections: false };
+
+    // Two copies: each takes its own answers; one given none is updated with none, never with another's.
+    const first = await installer.run(file.id, { apps: [{ key: 'clinic', connectionId: dst.h.connectionId, update: { publicAccess: true }, updates: { man_a: { publicAccess: true, roleGrants: true } } }] }, actor);
+    expect(calls).toEqual([
+      ['update', 'clinic', 'man_a', { publicAccess: true, roleGrants: true }],
+      ['update', 'clinic', 'man_b', {}],
+      // Named without install answers: the safe ones, public access not allowed.
+      ['install', 'clinic', dst.h.connectionId, { publicAccess: false }],
+    ]);
+    // The archive was not named in this run: it waits, though an earlier run could have given it a place.
+    expect(first.apps.map((app) => [app.key, app.state])).toEqual([['archive', 'pending'], ['clinic', 'updated']]);
+    expect(first.state).toBe('staged');
+
+    // Its only copy takes the single set.
+    calls.length = 0;
+    const rest = await installer.run(file.id, { apps: [{ key: 'archive', connectionId: dst.archive, update: { publicAccess: true } }] }, actor);
+    expect(calls).toEqual([
+      ['update', 'archive', 'man_c', { publicAccess: true }],
+      ['install', 'archive', dst.archive, { publicAccess: false }],
+    ]);
+    expect(rest.state).toBe('done');
+  });
+
+  it('refuses a workspace file whose own list would carry an id or a secret of this server', async () => {
+    const src = await source('sqlite', open);
+    // A key pasted into the workspace's name: in workspace.json, and in the stub manifest's key made from it.
+    await settingsRepo(src.h.meta).set('llm.apiKey', 'corner-assistant-key-not-real-0001');
+    await workspacesRepo(src.h.meta).rename(src.workspaceId, 'Shop corner-assistant-key-not-real-0001');
+    const secret = await src.service.save(src.workspaceId, {}, HOST).catch((error: unknown) => error);
+    expect(secret).toMatchObject({ statusCode: 409, details: { reason: 'WORKSPACE_FILE_LEAKS' } });
+    expect((secret as { details: { leaks: unknown[] } }).details.leaks).toContainEqual({ kind: 'secret', file: 'workspace.json', line: 3 });
+    expect(JSON.stringify(secret)).not.toContain('corner-assistant-key-not-real-0001');
+    // A database's id in it.
+    await workspacesRepo(src.h.meta).rename(src.workspaceId, `Shop ${src.archive}`);
+    await expect(src.service.save(src.workspaceId, {}, HOST)).rejects.toMatchObject({ details: { reason: 'WORKSPACE_FILE_LEAKS', leaks: [{ kind: 'id', file: 'workspace.json', line: 3 }] } });
+    // Refused whole: no app's version was used up.
+    expect(await appSavesRepo(src.h.meta).list()).toEqual([]);
+    expect(await workspaceSavesRepo(src.h.meta).list()).toEqual([]);
   });
 
   it('runs one install at a time per row', async () => {
