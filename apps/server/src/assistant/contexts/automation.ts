@@ -45,6 +45,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { connectionsSection, countLabel, documentNamesSection, readableConnections, tablesSummary } from '../page-facts.js';
 import type { AssistantArtefactCheck, AssistantContextAdapter, AssistantDocument, AssistantToolDeps } from '../types.js';
 import { addressColumnsOf } from '../tools/rule-parts.js';
+import { inTabWorkspace, OUTSIDE_WORKSPACE } from '../tools/schema.js';
 import { ruleFormat } from './automation-format.js';
 import { diffPieces } from './format.js';
 
@@ -316,6 +317,10 @@ const automationDocument: AssistantDocument = {
     }
     const { trigger } = parsed.data;
     const connectionId = connectionOf(trigger);
+    // A rule on a database outside the tab's workspace: as if it were not connected.
+    if (connectionId !== null && !inTabWorkspace(deps, connectionId)) {
+      return { ok: false, errors: [{ path: 'trigger.connectionId', code: OUTSIDE_WORKSPACE.code, message: OUTSIDE_WORKSPACE.message }] };
+    }
     // The steps installed add-ons give on the rule's own database, as they stand now.
     const installs = deps.installs === undefined ? null : await deps.installs().catch(() => null);
     const steps: RuleSteps = (addOn, step) => (installs === null || connectionId === null ? { state: 'no-add-on' } : findStep(installs, connectionId, addOn, step));
@@ -451,7 +456,7 @@ export const automationContext: AssistantContextAdapter = {
         `An email step fills a placeholder only from: ${RULE_EMAIL_VARS.map((name) => `{{${name}}}`).join(' ')}, a column of the triggering record or of a row it links to, and the step's own \`vars\`. A draft that leaves one unfilled is sent back to you.`,
         '',
         'Connected databases and the tables this person may read:',
-        connectionsSection(connections),
+        connectionsSection(connections, deps.host),
       ].join('\n'),
     };
   },

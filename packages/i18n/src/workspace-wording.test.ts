@@ -159,6 +159,14 @@ const GROUP_STRINGS: ReadonlyMap<string, string> = new Map([
   ['No app is installed on this workspace’s databases', 'Hosted apps in One at a time: the apps on the tab’s workspace’s databases'],
   ['There is no such workspace.', 'a `workspaceId` the person cannot see (assistant host, last-chosen workspace)'],
   ['That database is not in this workspace. Call list_connections for the ones here.', 'Milo narrowed to the tab’s workspace'],
+  [
+    "The person is working in one workspace (a group of this server's databases). These are its databases, the only ones you work with here. Asked about another database, say it may be in another workspace, which they can switch to in the menu.",
+    'Milo’s prompt when the tab is on a workspace',
+  ],
+  [
+    "The connected databases, with how many of their tables you may read. When the person is working in one workspace (a group of the server's databases), only that workspace's databases are listed, and only those can be read.",
+    'Milo’s list_connections tool, narrowed to the tab’s workspace',
+  ],
   ['Workspaces group databases: names and memberships, not rows.', 'row-coverage reason of the /workspaces routes'],
   ['A workspace file.', 'the app upload handing a workspace file, by its name, to the workspace upload'],
   ["A workspace file's app files staged as uploads: no source row.", 'row-coverage reason of the workspace upload'],

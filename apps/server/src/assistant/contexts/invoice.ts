@@ -246,7 +246,7 @@ async function invoicePageFacts(deps: AssistantToolDeps, primary: string, canWri
       `A template's number reads ${TEMPLATE_NUMBER}; an invoice's is minted when the row is created.`,
       '',
       'Connected databases and the tables this person may read:',
-      connectionsSection(connections),
+      connectionsSection(connections, deps.host),
     ].join('\n'),
   };
 }

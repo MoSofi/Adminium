@@ -18,13 +18,18 @@
  *
  * i18n is not installed, as in the window's test: the English renders.
  */
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { bootstrapQuery } from '../../app/bootstrap.js';
+import { createQueryClient } from '../../app/query.js';
 import { PageActions, PageActionsProvider } from '../../shell/PageActionsProvider.js';
+import { chooseGroup } from '../../shell/workspaces/current.js';
+import { chooseTabWorkspace, KILN, resetTabWorkspace, workspacesBootstrap } from '../../test/workspaceLists.js';
 import { AssistantDock } from './AssistantDock.js';
 import type { DockLayout } from './dockLayout.js';
 import { resetDock, setDockOpen, useDockOpen, useDockSignal } from './dockStore.js';
@@ -133,8 +138,11 @@ afterEach(() => {
 
 const CUSTOMERS = { context: 'data', host: { connectionIds: ['c1'], pageId: 'page_1' } };
 
-/** The shell's row: the page column, then the panel, sharing the page channel. */
-function mount(page: ReactNode = <PageActions assistant={CUSTOMERS} assistantShown={{ title: 'Customers' }} />, visible: boolean | 'store' = true) {
+/**
+ * The shell's row: the page column, then the panel, sharing the page channel. `client`: a query
+ * client holding the bootstrap, as the shell leaves it (the tab's workspace is read from it).
+ */
+function mount(page: ReactNode = <PageActions assistant={CUSTOMERS} assistantShown={{ title: 'Customers' }} />, visible: boolean | 'store' = true, client?: QueryClient) {
   function Signals() {
     return <output data-testid="signals">{`${String(useDockOpen())}|${useDockSignal()}`}</output>;
   }
@@ -155,7 +163,12 @@ function mount(page: ReactNode = <PageActions assistant={CUSTOMERS} assistantSho
     ),
   });
   const router = createRouter({ routeTree: rootRoute, history: createMemoryHistory({ initialEntries: ['/'] }) });
-  return render(<RouterProvider router={router} />);
+  if (client === undefined) return render(<RouterProvider router={router} />);
+  return render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
 }
 
 const posts = (suffix: string) => calls.filter((call) => call.method === 'POST' && call.url.endsWith(suffix)).map((call) => call.body as Record<string, unknown>);
@@ -611,5 +624,59 @@ describe('the chip, on another page', () => {
     expect(screen.queryByTestId('assistant-chip-scope')).toBeNull();
     act(() => setPage?.('page_2'));
     expect(await screen.findByTestId('assistant-chip-scope')).toBeTruthy();
+  });
+});
+
+describe('the tab\'s workspace', () => {
+  /** A server with two workspaces and a database in none, the tab on `workspaceId`. */
+  function inWorkspace(workspaceId: string | null) {
+    resetTabWorkspace();
+    const boot = workspacesBootstrap('one');
+    if (workspaceId !== null) chooseTabWorkspace(boot, workspaceId);
+    const client = createQueryClient();
+    client.setQueryData(bootstrapQuery().queryKey, boot);
+    return { boot, client };
+  }
+  afterEach(() => resetTabWorkspace());
+
+  it('goes with the page facts, the conversation and every question, on a data page and on a screen that said nothing', async () => {
+    routes[key('POST', `${BASE}/sessions`)] = () => ({ session, facts: facts().facts, nextTurnTokens: 3300 });
+    routes[key('POST', `${BASE}/sessions/ast_1/turns`)] = () => ({ turn: turn(), jobId: 'job_1', nextTurnTokens: 9 });
+    const { client } = inWorkspace(KILN.id);
+    const { unmount } = mount(undefined, true, client);
+    const user = userEvent.setup();
+    await user.type(await screen.findByTestId('assistant-input'), 'How many customers?{Enter}');
+    await screen.findByText('There are 12 rows shown here.');
+    const onKiln = { connectionIds: ['c1'], workspaceId: KILN.id, pageId: 'page_1' };
+    await waitFor(() => expect(posts('/facts')).toHaveLength(1));
+    expect(posts('/facts')[0]).toEqual({ context: 'data', host: onKiln });
+    expect(posts('/sessions')).toEqual([{ kind: 'panel', context: 'data', host: onKiln }]);
+    expect(posts('/turns')).toEqual([{ text: 'How many customers?', context: 'data', host: onKiln }]);
+    unmount();
+
+    calls = [];
+    mount(null, true, client);
+    await waitFor(() => expect(posts('/facts')).toHaveLength(1));
+    expect(posts('/facts')[0]).toMatchObject({ context: 'general', host: { connectionIds: [], workspaceId: KILN.id } });
+  });
+
+  it('says "other" for Other databases, and asks the facts again when the tab switches', async () => {
+    const { boot, client } = inWorkspace('other');
+    mount(null, true, client);
+    await waitFor(() => expect(posts('/facts')).toHaveLength(1));
+    expect(posts('/facts')[0]).toMatchObject({ host: { workspaceId: 'other' } });
+    act(() => chooseGroup(boot.user.id, KILN.id));
+    await waitFor(() => expect(posts('/facts')).toHaveLength(2));
+    expect(posts('/facts')[1]).toMatchObject({ host: { workspaceId: KILN.id } });
+  });
+
+  it('sends none while the menu does not group by workspace: every database the person reaches, as before', async () => {
+    resetTabWorkspace();
+    const client = createQueryClient();
+    client.setQueryData(bootstrapQuery().queryKey, workspacesBootstrap(null));
+    mount(null, true, client);
+    await waitFor(() => expect(posts('/facts')).toHaveLength(1));
+    expect(posts('/facts')[0]).toMatchObject({ context: 'general', host: { connectionIds: [] } });
+    expect(posts('/facts')[0]!.host).not.toHaveProperty('workspaceId');
   });
 });

@@ -71,7 +71,7 @@ export const dataContext: AssistantContextAdapter = {
       'A question about what they CAN do here ("can I give customers a discount code?", "is there a way to print labels?") is a question about what this server offers, not a request to you. Before you answer that something cannot be done, call list_add_ons. If an add-on that is NOT installed would give it, say in one sentence what is missing and put its key in "suggest" (three at most). Never suggest one that is installed, and never when nothing asked for needs one.',
       '',
       'The databases you may read:',
-      connectionsSection(connections),
+      connectionsSection(connections, deps.host),
     );
 
     return {

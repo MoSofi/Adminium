@@ -321,7 +321,7 @@ export const emailContext: AssistantContextAdapter = {
         `Languages in use: ${locales.length === 0 ? 'none yet' : locales.join(', ')}.`,
         '',
         'Connected databases and the tables this person may read:',
-        connectionsSection(connections),
+        connectionsSection(connections, deps.host),
       ].join('\n'),
     };
   },
