@@ -43,7 +43,7 @@ test.describe('workspace settings', () => {
     await page.goto(SETTINGS);
 
     // The three cards of the one form.
-    await expect(page.getByRole('heading', { name: 'Workspace identity' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Server identity' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Security' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Email (SMTP)' })).toBeVisible();
 
@@ -69,7 +69,7 @@ test.describe('workspace settings', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByText(`— → ${HOST}`)).toBeVisible();
     await dialog.getByRole('button', { name: 'Save changes' }).click();
-    await expect(page.getByText('Workspace settings updated')).toBeVisible();
+    await expect(page.getByText('Server settings updated')).toBeVisible();
 
     // The round trip: a reload re-reads `GET /settings/email`, so these values
     // came back out of the meta store rather than out of the form's own state.
@@ -96,7 +96,7 @@ test.describe('workspace settings', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByText('Removed')).toBeVisible();
     await dialog.getByRole('button', { name: 'Save changes' }).click();
-    await expect(page.getByText('Workspace settings updated')).toBeVisible();
+    await expect(page.getByText('Server settings updated')).toBeVisible();
 
     await page.reload();
     await expect(

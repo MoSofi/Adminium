@@ -835,7 +835,7 @@
       },
       "privacyGrants": {
         "title": "某个角色可以删除个人数据",
-        "body": "{roles} 可以在隐私页面查找、下载并删除此工作区保存的关于某人的全部数据。"
+        "body": "{roles} 可以在隐私页面查找、下载并删除此服务器保存的关于某人的全部数据。"
       }
     },
     "installed": {
@@ -1279,7 +1279,7 @@
     },
     "attachments": {
       "accept": "接受的文件类型",
-      "acceptHint": "一个都不选，则接受此工作区允许的一切。在这里的选择只会缩小范围，绝不会扩大。",
+      "acceptHint": "一个都不选，则接受此服务器允许的一切。在这里的选择只会缩小范围，绝不会扩大。",
       "column": {
         "adoptHint": "该表已有此列，因此不会新建——将直接使用它。",
         "bound": "文件存放在此表的 {column} 列中。",
@@ -1306,7 +1306,7 @@
       "enableHintColumn": "文件存放在此表的一个列中，因此会同时出现在“新建”和“编辑”对话框以及每条记录上。",
       "enableHintSidecar": "文件改为在 Adminium 一侧关联。它们出现在每条记录的页面上，而不是“新建”对话框中。",
       "maxBytes": "最大文件（MB）",
-      "maxBytesHint": "留空则沿用工作区的限制。在这里填写的数字只能把它调低。",
+      "maxBytesHint": "留空则沿用服务器的限制。在这里填写的数字只能把它调低。",
       "maxCount": "每条记录最多文件数",
       "maxCountHint": "留空则一条记录需要多少就接受多少。",
       "sidecar": {
@@ -1338,7 +1338,7 @@
       "dragHandle": "调整 {name} 的顺序",
       "empty": "还没有列——在下方添加。",
       "file": {
-        "acceptHelp": "全部不勾选，则接受此工作区所接受的一切。在这里选择类型只会缩小范围——某一列永远无法接受工作区拒绝的类型。",
+        "acceptHelp": "全部不勾选，则接受此服务器所接受的一切。在这里选择类型只会缩小范围——某一列永远无法接受服务器拒绝的类型。",
         "acceptLabel": "接受的类型",
         "badge": "文件",
         "destinationDefault": "默认存储目标",
@@ -1349,7 +1349,7 @@
         "maxCountHelp": "留空则接受记录所需的任意数量。",
         "maxCountLabel": "每条记录最多文件数",
         "maxCountToggle": "{name} 最多可存放的文件数",
-        "maxHelp": "留空则使用工作区的限制。列只能要求更小的值。",
+        "maxHelp": "留空则使用服务器的限制。列只能要求更小的值。",
         "maxLabel": "最大文件（MB）",
         "maxToggle": "{name} 接受的最大文件，单位 MB",
         "multipleHelp": "该列存储文件列表而不是单个文件。现有的单个值仍然有效——会被读作只有一项的列表。",
@@ -2093,7 +2093,7 @@
       "optionsListHelp": "列表本身在 Studio → 列表 中编辑。",
       "optionsListLabel": "列表",
       "optionsListUnavailable": "无法读取列表。",
-      "optionsMissingList": "{key}（不在此工作区中）",
+      "optionsMissingList": "{key}（不在此服务器上）",
       "optionsPickList": "选择一个列表…",
       "optionsSource": "允许的值",
       "optionsSourceHelp": "列表在 Studio 中写一次，引用它的每一列都能使用。",
@@ -2218,7 +2218,7 @@
   "settings": {
     "globalDefaultsNav": "全局默认值",
     "title": "设置",
-    "workspaceSection": "工作区"
+    "workspaceSection": "服务器"
   },
   "settingsAi": {
     "assistant": {
@@ -2398,7 +2398,7 @@
       "change": "更改",
       "changeWhat": "编辑一行或已保存的文档。每一项都由您确认。",
       "send": "发送",
-      "sendWhat": "将现有的电子邮件模板发送给此工作区中的人员。每一次都由您确认。",
+      "sendWhat": "将现有的电子邮件模板发送给此服务器上的人员。每一次都由您确认。",
       "delete": "删除",
       "deleteWhat": "移除一行或一个文档。每一项都由您确认。",
       "rows": "一次确认的行数",
@@ -2467,7 +2467,7 @@
       "subtitle": "不可逆的操作。"
     },
     "defaultsCard": {
-      "body": "工作区级的主题、强调色、密度和语言设置位于全局默认值中。",
+      "body": "服务器级的主题、强调色、密度和语言设置位于全局默认值中。",
       "cta": "打开全局默认值",
       "heading": "外观与语言默认值"
     },
@@ -2533,7 +2533,7 @@
         "helper": "显示在侧边栏、浏览器标题和邮件中。",
         "label": "应用名称"
       },
-      "heading": "工作区标识",
+      "heading": "服务器标识",
       "logo": {
         "badType": "请选择 PNG、JPEG、WebP、GIF 或 SVG 图片。",
         "drop": "将图片拖放到此处",
@@ -2577,14 +2577,14 @@
       "on": "开",
       "shown": "显示",
       "subtitle": "保存前请确认您的更改。",
-      "title": "保存工作区设置"
+      "title": "保存服务器设置"
     },
     "save": "保存更改",
-    "saveFailed": "无法保存工作区设置，请重试。",
-    "saved": "工作区设置已更新",
+    "saveFailed": "无法保存服务器设置，请重试。",
+    "saved": "服务器设置已更新",
     "security": {
       "allowSignup": {
-        "desc": "任何人都可以创建账户——关闭后此工作区仅限邀请。",
+        "desc": "任何人都可以创建账户——关闭后此服务器仅限邀请。",
         "label": "允许自助注册"
       },
       "heading": "安全",
@@ -2607,10 +2607,10 @@
       "cta": "打开存储",
       "heading": "存储"
     },
-    "subtitle": "此工作区的标识、安全与危险操作。",
-    "superAdminOnly": "只有超级管理员才能更改工作区标识和安全设置。",
+    "subtitle": "此服务器的标识、安全与危险操作。",
+    "superAdminOnly": "只有超级管理员才能更改服务器的标识和安全设置。",
     "superAdminOnlyTitle": "需要超级管理员",
-    "title": "工作区设置",
+    "title": "服务器设置",
     "translationsCard": {
       "body": "重写 Adminium 中的任何文案，决定用户可以选择哪些语言，并添加你自己的语言。",
       "cta": "打开翻译",
@@ -2765,7 +2765,7 @@
     "fileCount": "{count, plural, other {# 个文件}}",
     "kind": {
       "archive": "归档的审计日志批次",
-      "branding": "工作区标志",
+      "branding": "服务器标志",
       "export": "数据导出生成的文件",
       "import": "上传的 CSV 文件及其错误报告",
       "schema": "导入的架构文件",
@@ -2909,7 +2909,7 @@
     "andMore": "另有 {count} 项",
     "builtin": "内置",
     "builtinCount": "{count} 个值",
-    "builtinSubtitle": "Adminium 自带的列表。它在每个工作区都相同，名称按各人自己的语言显示。",
+    "builtinSubtitle": "Adminium 自带的列表。它在每台服务器上都相同，名称按各人自己的语言显示。",
     "cancel": "取消",
     "close": "关闭",
     "copiedFrom": "{key} 的副本",
@@ -2945,7 +2945,7 @@
     "removeValue": "移除 {value}",
     "save": "保存更改",
     "storeLabel": "改为保存标签",
-    "storeLabelHelp": "副本保存代码，例如 DE。“改为保存标签”保存它在这里的名称，例如“德国”——采用本工作区的语言，从现在起生效。",
+    "storeLabelHelp": "副本保存代码，例如 DE。“改为保存标签”保存它在这里的名称，例如“德国”——采用本服务器的语言，从现在起生效。",
     "subtitle": "一列所接受的答案：命名一次，随处使用。",
     "title": "列表",
     "valueAt": "值 {n}",
@@ -3130,7 +3130,7 @@
     "note": {
       "notRegistered": "此服务器未启用公开 API。请设置 ADMINIUM_PUBLIC_API_ORIGINS 并重启——此后在这里创建的密钥即可使用。",
       "off": "公开 API 已关闭，因此目前所有密钥都无法使用。",
-      "offLink": "打开工作区设置"
+      "offLink": "打开服务器设置"
     },
     "quick": {
       "body": "在 Authorization 标头中携带密钥来认证请求。",
@@ -3194,7 +3194,7 @@
       "keys": "有效密钥",
       "requests": "请求数 · 24 小时"
     },
-    "subtitle": "管理对工作区的程序化访问",
+    "subtitle": "管理对服务器的程序化访问",
     "summary": "{endpoints, plural, other {# 个端点}} · {methods, plural, other {# 个方法}}",
     "title": "API 密钥与令牌"
   },
@@ -4307,7 +4307,7 @@
     },
     "person": {
       "locked": "此服务器无法读取其地址密钥（其密钥已更改），因此无法查找或删除任何人。请联系运行此服务器的人。",
-      "staffAddress": "此地址属于这里的一名员工。只有管理整个工作区隐私的人才能查找或删除它。",
+      "staffAddress": "此地址属于这里的一名员工。只有管理整个服务器隐私的人才能查找或删除它。",
       "copyOf": "{label}（其副本）",
       "inApp": "{label} — {app}",
       "kind": {
@@ -4835,7 +4835,7 @@
         "title": "发送活动",
         "unfilled": "没有内容可填充 {names}：每位收件人都会收到原样的文字。请在编辑器中为它设置备用文字，或将其删除。",
         "when": "时间",
-        "workspaceUsers": "工作区用户"
+        "workspaceUsers": "此服务器上的用户"
       }
     }
   }

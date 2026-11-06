@@ -16,7 +16,7 @@ export default {
     "trashFailed": "Denne fil kunne ikke flyttes til papirkurven"
   },
   "title": "Filer",
-  "subtitle": "Alle filer i dette arbejdsområde: dem på poster og i biblioteket. Og hvor hver enkelt opbevares.",
+  "subtitle": "Alle filer på denne server: dem på poster og i biblioteket. Og hvor hver enkelt opbevares.",
   "search": "Søg efter filnavn",
   "trash": {
     "notice": {
@@ -103,7 +103,7 @@ export default {
   "upload": {
     "open": "Upload",
     "title": "Upload filer",
-    "subtitle": "Føj filer til dette arbejdsområde.",
+    "subtitle": "Føj filer til denne server.",
     "connection": "Hvilken forbindelse de hører til",
     "drop": "Træk filer hertil",
     "browse": "Gennemse din computer",

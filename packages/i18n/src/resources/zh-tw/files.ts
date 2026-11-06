@@ -16,7 +16,7 @@ export default {
     "trashFailed": "無法將此檔案移至垃圾桶"
   },
   "title": "檔案",
-  "subtitle": "此工作區中的所有檔案：記錄上的檔案和檔案庫中的檔案，以及每個檔案的存放位置。",
+  "subtitle": "此伺服器上的所有檔案：記錄上的檔案和檔案庫中的檔案，以及每個檔案的存放位置。",
   "search": "依檔案名稱搜尋",
   "trash": {
     "notice": {
@@ -103,7 +103,7 @@ export default {
   "upload": {
     "open": "上傳",
     "title": "上傳檔案",
-    "subtitle": "為此工作區新增檔案。",
+    "subtitle": "為此伺服器新增檔案。",
     "connection": "它們屬於哪個連線",
     "drop": "將檔案拖曳至此",
     "browse": "瀏覽你的電腦",

@@ -114,7 +114,7 @@ export default {
     "email": "Send email",
     "emailDesc": "From a saved template",
     "notification": "Send notification",
-    "notificationDesc": "Tell people in this workspace",
+    "notificationDesc": "Tell people on this server",
     "create": "Create record",
     "createDesc": "Add a row to a table",
     "update": "Update field",

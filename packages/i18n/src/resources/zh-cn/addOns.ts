@@ -11,7 +11,7 @@
 export default {
   "notInstalled": {
     "title": "尚未安装此 Add-on",
-    "body": "您打开的页面属于某个 Add-on，但该 Add-on 未安装在此工作区，或已被关闭。管理员可以在 Studio 中安装它。"
+    "body": "您打开的页面属于某个 Add-on，但该 Add-on 未安装在此服务器上，或已被关闭。管理员可以在 Studio 中安装它。"
   },
   "unknown": {
     "title": "页面不存在",

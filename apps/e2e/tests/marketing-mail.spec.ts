@@ -6,7 +6,7 @@
  *
  *  1. Email templates ⋯ → "Do-not-email list": the entries, "Add addresses"
  *     with one address per line, and no "Remove" (the Super Admin's alone).
- *  2. Workspace settings › Senders: the "Marketing mail" block under each
+ *  2. Server settings › Senders: the "Marketing mail" block under each
  *     sender; "Make a key" shows the DNS record; the postal address and the
  *     reply address saved through the page's one review.
  *  3. The bounce card: Mailgun's signing key saved and never shown back.
@@ -141,11 +141,11 @@ test('the marketer makes a key, sets the postal and reply addresses, and saves M
   await page.getByLabel('Postal address').fill('Meridian Workplace Ltd, 4 Wharf Lane, Leeds LS1 4BR, United Kingdom');
   await page.getByLabel('Replies to marketing mail go to').fill('hello@meridian.example');
   await page.getByRole('button', { name: 'Save changes' }).click();
-  const review = page.getByRole('dialog', { name: 'Save workspace settings' });
+  const review = page.getByRole('dialog', { name: 'Save server settings' });
   await expect(review).toContainText('Postal address');
   await expect(review).toContainText('Replies to marketing mail go to');
   await review.getByRole('button', { name: 'Save changes' }).click();
-  await expect(page.getByText('Workspace settings updated')).toBeVisible();
+  await expect(page.getByText('Server settings updated')).toBeVisible();
   await news.scrollIntoViewIfNeeded();
   await shot(page, 'settings-senders-desktop');
 

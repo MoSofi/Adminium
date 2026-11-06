@@ -77,7 +77,7 @@ export default {
     "noticeProvider": "您说的话会发送给 {provider} 进行记录。不会保留任何内容。",
     "noticeBrowser": "您说的话由浏览器自带的语音服务记录。",
     "noticeOk": "好的",
-    "ownService": "您工作区的模型服务"
+    "ownService": "您服务器的模型服务"
   },
   "speak": {
     "play": "朗读",
@@ -250,9 +250,9 @@ export default {
   "readOnly": {
     "noWrite": "你的角色在这里可以查看、起草和预览，但不能保存。",
     "noWriteTitle": "你的角色在这里无法执行此操作",
-    "switchedOff": "此工作区已为 {name} 关闭保存。",
+    "switchedOff": "此服务器已为 {name} 关闭保存。",
     "openSettings": "打开设置",
-    "switchedOffTitle": "此工作区已为 {name} 关闭保存"
+    "switchedOffTitle": "此服务器已为 {name} 关闭保存"
   },
   "report": {
     "action1": "运行完整预览",
@@ -353,16 +353,16 @@ export default {
     }
   },
   "general": {
-    "page": "此工作区",
-    "blurb": "了解此工作区 · {tables, plural, other {# 张可读的表}}",
+    "page": "此服务器",
+    "blurb": "了解此服务器 · {tables, plural, other {# 张可读的表}}",
     "greeting": "我可以读取您的角色有权读取的表，并告诉您在哪里完成各项操作。",
     "greetingSub": "可以询问您的数据，或在哪里更改某项内容。我会用文字回答，并附上该位置的链接。",
-    "placeholder": "询问此工作区…",
+    "placeholder": "询问此服务器…",
     "chip1": "在哪里邀请同事？",
-    "chip2": "我在此工作区能看到什么？",
+    "chip2": "我在此服务器上能看到什么？",
     "chip3": "哪个表的行数最多？",
     "workTitle": "已查找",
-    "scopePrimary": "工作区",
+    "scopePrimary": "服务器",
     "readPage": "{tables, plural, other {# 张可读的表}}"
   },
   "answer": {
@@ -488,7 +488,7 @@ export default {
     },
     "refused": {
       "generic": "服务器拒绝了此操作。",
-      "switchedOff": "此工作区已为 {name} 关闭此功能。",
+      "switchedOff": "此服务器已为 {name} 关闭此功能。",
       "notThisTable": "在这里只能更改提问所在页面的表。",
       "notData": "这不是你的数据表。",
       "noChange": "该行已是这些值。",

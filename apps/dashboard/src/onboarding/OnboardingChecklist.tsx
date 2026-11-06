@@ -103,7 +103,7 @@ function OnboardingBody({ bootstrap }: { bootstrap: BootstrapData }): ReactNode 
     <PageSurface width="narrow" className="flex flex-col gap-6">
       <PageActions
         title={t('onboarding.title', 'Getting started')}
-        subtitle={t('onboarding.subtitle', 'A few steps to get your workspace ready.')}
+        subtitle={t('onboarding.subtitle', 'A few steps to get your server ready.')}
       />
 
       <Card>
@@ -125,10 +125,10 @@ function OnboardingBody({ bootstrap }: { bootstrap: BootstrapData }): ReactNode 
             </h3>
             <p className="mt-1 text-body-sm text-fg-muted">
               {checklist.complete
-                ? t('onboarding.completeBody', "You're all set — your workspace is fully configured.")
+                ? t('onboarding.completeBody', "You're all set — your server is fully configured.")
                 : t(
                     'onboarding.progressBody',
-                    "You've completed {done} of {total} setup steps. Finish the rest to unlock the full workspace.",
+                    "You've completed {done} of {total} setup steps. Finish the rest to unlock everything.",
                     { done: checklist.doneCount, total: checklist.totalCount },
                   )}
             </p>
@@ -154,7 +154,7 @@ function OnboardingBody({ bootstrap }: { bootstrap: BootstrapData }): ReactNode 
         </div>
         {checklist.complete ? (
           <Button onClick={() => void navigate({ to: '/' })}>
-            {t('onboarding.goToWorkspace', 'Go to workspace')}
+            {t('onboarding.goToWorkspace', 'Go to the dashboard')}
           </Button>
         ) : (
           <Button variant="ghost" onClick={skip} loading={isDismissing}>

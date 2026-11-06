@@ -416,9 +416,9 @@
     },
     "feeds": {
       "activityFeed": {
-        "description": "Un fil continu de qui a fait quoi dans votre espace de travail, du plus récent au plus ancien.",
+        "description": "Un fil continu de qui a fait quoi sur votre serveur, du plus récent au plus ancien.",
         "emptyTitle": "Aucune activité récente",
-        "emptyBody": "Les actions de votre espace de travail apparaîtront ici.",
+        "emptyBody": "Les actions effectuées sur votre serveur apparaîtront ici.",
         "viewAllLabel": "Tout afficher"
       },
       "notificationFeed": {
@@ -1569,7 +1569,7 @@
         "offlineTitle": "Vous êtes hors ligne",
         "offlineBody": "Vérifiez votre connexion — le tableau de bord se reconnecte automatiquement.",
         "forbiddenTitle": "Vous n’avez pas accès",
-        "forbiddenBody": "Demandez à un administrateur de l’espace de travail de vous accorder l’accès.",
+        "forbiddenBody": "Demandez à un administrateur de vous accorder l’accès à cette page.",
         "maintenanceTitle": "Maintenance en cours",
         "maintenanceBody": "Nous améliorons les choses. Cela prend généralement quelques minutes.",
         "connErrorTitle": "Base de données injoignable",
@@ -2180,7 +2180,7 @@
         "emptyBody": "Les fichiers conservés avec cette fiche apparaissent ici.",
         "loading": "Chargement des fichiers",
         "removed": "{name} a été déplacé vers la corbeille.",
-        "tooLarge": "Ce fichier dépasse ce que cet espace de travail autorise.",
+        "tooLarge": "Ce fichier dépasse ce que ce serveur autorise.",
         "lead": "Fichiers conservés avec cette fiche.",
         "allFiles": "Tous les fichiers sont sur la page Fichiers",
         "inColumn": "Dans {column}",

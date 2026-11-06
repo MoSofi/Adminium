@@ -99,11 +99,11 @@ afterEach(() => {
 describe('PreferencesPage', () => {
   it('shows inheritance affordances when every axis is NULL', async () => {
     await renderPreferences();
-    expect(screen.getAllByText('Workspace default', { selector: ':not(option)' })).toHaveLength(4);
+    expect(screen.getAllByText('Server default', { selector: ':not(option)' })).toHaveLength(4);
     expect(screen.queryAllByText('Personal')).toHaveLength(0);
     // Effective (workspace default) value surfaces in the caption.
     expect(screen.getByText('Using workspace default (Light)')).toBeDefined();
-    expect(screen.queryByText('Reset to workspace default')).toBeNull();
+    expect(screen.queryByText('Reset to the server default')).toBeNull();
   });
 
   it('override: picking a value PATCHes the axis and flips the badge to Personal', async () => {
@@ -118,7 +118,7 @@ describe('PreferencesPage', () => {
     });
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     expect(screen.getAllByText('Personal')).toHaveLength(1);
-    expect(screen.getByText('Reset to workspace default')).toBeDefined();
+    expect(screen.getByText('Reset to the server default')).toBeDefined();
   });
 
   it('reset: sends the explicit null and returns the axis to inheritance', async () => {
@@ -131,13 +131,13 @@ describe('PreferencesPage', () => {
     });
     expect(document.documentElement.getAttribute('data-density')).toBe('compact');
 
-    await user.click(screen.getByText('Reset to workspace default'));
+    await user.click(screen.getByText('Reset to the server default'));
     await waitFor(() => {
       expect(patchCalls.some((call) => call.body['density'] === null)).toBe(true);
     });
     // Badge back to inheritance for all four axes.
     await waitFor(() => {
-      expect(screen.getAllByText('Workspace default', { selector: ':not(option)' })).toHaveLength(4);
+      expect(screen.getAllByText('Server default', { selector: ':not(option)' })).toHaveLength(4);
     });
     // The optimistic session override is dropped, so the workspace default
     // applies visually right away — not only after a reload (ThemeProvider).
@@ -167,12 +167,12 @@ describe('PreferencesPage', () => {
     });
     expect(picker().value).toBe('de_DE');
 
-    await user.selectOptions(picker(), 'Workspace default');
+    await user.selectOptions(picker(), 'Server default');
     await waitFor(() => {
       expect(patchCalls.some((call) => call.body['locale'] === null)).toBe(true);
     });
     await waitFor(() => {
-      expect(screen.getAllByText('Workspace default', { selector: ':not(option)' })).toHaveLength(4);
+      expect(screen.getAllByText('Server default', { selector: ':not(option)' })).toHaveLength(4);
     });
     expect(picker().value).toBe('');
   });
@@ -189,6 +189,6 @@ describe('PreferencesPage', () => {
     await router.navigate({ to: '/account/preferences' });
     await screen.findByRole('heading', { name: 'Preferences' });
     expect(screen.getAllByText('Personal')).toHaveLength(1);
-    expect(screen.getByText('Reset to workspace default')).toBeDefined();
+    expect(screen.getByText('Reset to the server default')).toBeDefined();
   });
 });

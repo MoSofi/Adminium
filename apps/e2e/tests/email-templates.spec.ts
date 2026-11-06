@@ -369,7 +369,7 @@ test.describe('email templates manager', () => {
       await page.getByTestId('email-send').click();
       const modal = page.getByRole('dialog', { name: 'Send campaign' });
       await expect(modal).toBeVisible();
-      await expect(modal.getByText('Workspace users')).toBeVisible();
+      await expect(modal.getByText('Users on this server')).toBeVisible();
       // The count is the live audience: every active user minus opt-outs.
       await expect(modal.getByTestId('email-campaign-count')).toHaveText(/^\d+ recipients?/);
       await testInfo.attach('campaign-modal', { body: await page.screenshot(), contentType: 'image/png' });

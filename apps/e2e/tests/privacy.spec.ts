@@ -3,7 +3,7 @@
  * Privacy & public pages, walked by the Super Admin (the one role that
  * holds `privacy.manage`):
  *
- *  1. Workspace settings → "Open privacy": the three tabs. The notice's
+ *  1. Server settings → "Open privacy": the three tabs. The notice's
  *     address refuses `http://` as it is typed; an https one is saved.
  *  2. A person's data: find an address the install keeps (on the
  *     do-not-email list, with a consent entry), "Download everything", and

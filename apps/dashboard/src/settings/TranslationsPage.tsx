@@ -486,7 +486,7 @@ function LocaleManager({ locales, onChanged }: { locales: LocaleManifestEntry[];
         title: t('settings.translations.locale.deleted', 'Language removed'),
         description: t(
           'settings.translations.locale.deletedDetail',
-          '{users, plural, one {# person} other {# people}} moved back to the workspace default; {strings, plural, one {# translation} other {# translations}} deleted.',
+          '{users, plural, one {# person} other {# people}} moved back to the server default; {strings, plural, one {# translation} other {# translations}} deleted.',
           { users: result.reassignedUsers, strings: result.deletedOverrides },
         ),
       });

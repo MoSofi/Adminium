@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * White-label chrome: what an operator sets in Workspace settings has to be
+ * White-label chrome: what an operator sets in Server settings has to be
  * what every screen shows.
  *
  * The three facts worth a test are the three that were hardcoded before:

@@ -11,7 +11,7 @@
 export default {
   "notInstalled": {
     "title": "Dieses Add-on ist nicht installiert",
-    "body": "Die aufgerufene Seite gehört zu einem Add-on, das in diesem Arbeitsbereich nicht installiert oder abgeschaltet ist. Eine Administratorin oder ein Administrator kann es im Studio installieren."
+    "body": "Die aufgerufene Seite gehört zu einem Add-on, das auf diesem Server nicht installiert oder abgeschaltet ist. Eine Administratorin oder ein Administrator kann es im Studio installieren."
   },
   "unknown": {
     "title": "Seite nicht vorhanden",

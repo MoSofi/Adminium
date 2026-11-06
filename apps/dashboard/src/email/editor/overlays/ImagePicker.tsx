@@ -81,7 +81,7 @@ export function ImagePicker({ onPick, onClose }: ImagePickerProps) {
       <ModalHeader
         icon={<ImageIcon />}
         title={t('email:imagePicker.title', 'Choose an image')}
-        subtitle={t('email:imagePicker.subtitle', 'Pick from your workspace files, upload one, or paste a URL.')}
+        subtitle={t('email:imagePicker.subtitle', 'Pick from this server’s files, upload one, or paste a URL.')}
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody className="flex flex-col gap-4">
@@ -89,7 +89,7 @@ export function ImagePicker({ onPick, onClose }: ImagePickerProps) {
           <TabsList aria-label={t('email:imagePicker.source', 'Source')} className="w-full">
             <TabsTrigger value="files" className="flex-1">
               <FolderOpen className="size-3.5" aria-hidden="true" />
-              {t('email:imagePicker.workspaceFiles', 'Workspace files')}
+              {t('email:imagePicker.workspaceFiles', 'Server files')}
             </TabsTrigger>
             <TabsTrigger value="upload" className="flex-1">
               <Upload className="size-3.5" aria-hidden="true" />

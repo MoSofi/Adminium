@@ -416,9 +416,9 @@
     },
     "feeds": {
       "activityFeed": {
-        "description": "Ein fortlaufender Feed, wer was in Ihrem Workspace getan hat – neueste zuerst.",
+        "description": "Ein fortlaufender Feed, wer was auf Ihrem Server getan hat – neueste zuerst.",
         "emptyTitle": "Keine aktuelle Aktivität",
-        "emptyBody": "Aktionen in Ihrem Workspace erscheinen hier.",
+        "emptyBody": "Aktionen auf Ihrem Server erscheinen hier.",
         "viewAllLabel": "Alle anzeigen"
       },
       "notificationFeed": {
@@ -1569,7 +1569,7 @@
         "offlineTitle": "Sie sind offline",
         "offlineBody": "Prüfen Sie Ihre Verbindung — das Dashboard verbindet sich automatisch neu.",
         "forbiddenTitle": "Sie haben keinen Zugriff",
-        "forbiddenBody": "Bitten Sie eine Workspace-Administration um die Berechtigung für diese Seite.",
+        "forbiddenBody": "Bitten Sie eine Administratorin oder einen Administrator um die Berechtigung für diese Seite.",
         "maintenanceTitle": "Wartungsarbeiten",
         "maintenanceBody": "Wir verbessern gerade etwas. Das dauert meist nur wenige Minuten.",
         "connErrorTitle": "Datenbank nicht erreichbar",
@@ -2180,7 +2180,7 @@
         "emptyBody": "Hier erscheinen die Dateien, die bei diesem Datensatz liegen.",
         "loading": "Dateien werden geladen",
         "removed": "{name} wurde in den Papierkorb verschoben.",
-        "tooLarge": "Diese Datei ist größer, als dieser Arbeitsbereich erlaubt.",
+        "tooLarge": "Diese Datei ist größer, als dieser Server erlaubt.",
         "lead": "Dateien, die bei diesem Datensatz liegen.",
         "allFiles": "Alle Dateien sind auf der Seite Dateien",
         "inColumn": "In {column}",

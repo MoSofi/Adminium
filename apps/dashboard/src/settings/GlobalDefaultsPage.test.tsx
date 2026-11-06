@@ -143,7 +143,7 @@ describe('GlobalDefaultsPage', () => {
       density: 'compact',
       locale: 'en_US',
     });
-    expect(await screen.findByText('Workspace defaults updated')).toBeDefined();
+    expect(await screen.findByText('Server defaults updated')).toBeDefined();
   });
 
   it('renders the 403 system state for non-super-admins (client-side gate)', async () => {

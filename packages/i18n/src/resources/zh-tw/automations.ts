@@ -114,7 +114,7 @@ export default {
     "email": "傳送郵件",
     "emailDesc": "使用已儲存的範本",
     "notification": "傳送通知",
-    "notificationDesc": "通知此工作區的成員",
+    "notificationDesc": "通知此伺服器上的成員",
     "create": "建立記錄",
     "createDesc": "在表格中新增一列",
     "update": "更新欄位",

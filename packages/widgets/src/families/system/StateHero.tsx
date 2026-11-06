@@ -66,7 +66,7 @@ const DEFAULT_STATE_MAP: Record<StateHeroViewId, Required<Pick<StateHeroEntryCon
     tone: 'warn',
     code: '403',
     title: 'You do not have access',
-    body: 'Ask a workspace admin to grant you permission for this page.',
+    body: 'Ask an administrator to grant you permission for this page.',
     primaryLabel: 'Back to dashboard',
     primaryHref: '/',
   },
@@ -135,7 +135,7 @@ export function useStateHeroEntry(
     },
     forbidden: {
       title: t('ui:widgets.system.stateHero.forbiddenTitle', 'You do not have access'),
-      body: t('ui:widgets.system.stateHero.forbiddenBody', 'Ask a workspace admin to grant you permission for this page.'),
+      body: t('ui:widgets.system.stateHero.forbiddenBody', 'Ask an administrator to grant you permission for this page.'),
       primaryLabel: t('ui:widgets.system.stateHero.backToDashboard', 'Back to dashboard'),
     },
     maintenance: {

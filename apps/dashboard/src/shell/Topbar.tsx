@@ -406,11 +406,11 @@ export function Topbar({
                     {t('topbar.dataConnections', 'Data connections')}
                   </DropdownMenuItem>
                 ) : null}
-                {/* Pages is deliberately absent: Workspace settings owns the
+                {/* Pages is deliberately absent: Server settings owns the
                     entry point ("Manage pages"), so the menu lists one door per
                     destination instead of two paths to the same surface. */}
                 <DropdownMenuItem icon={<SlidersHorizontal />} onSelect={onOpenStudioSettings}>
-                  {t('topbar.workspaceSettings', 'Workspace settings')}
+                  {t('topbar.workspaceSettings', 'Server settings')}
                 </DropdownMenuItem>
               </>
             ) : null}

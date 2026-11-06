@@ -11,7 +11,7 @@
 export default {
   "notInstalled": {
     "title": "Dette add-on er ikke installeret",
-    "body": "Siden, du fulgte, hører til et add-on, som ikke er installeret i dette arbejdsområde, eller som er slået fra. En administrator kan installere det i Studio."
+    "body": "Siden, du fulgte, hører til et add-on, som ikke er installeret på denne server, eller som er slået fra. En administrator kan installere det i Studio."
   },
   "unknown": {
     "title": "Siden findes ikke",

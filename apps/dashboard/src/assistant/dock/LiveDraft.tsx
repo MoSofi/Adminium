@@ -217,7 +217,7 @@ export function LiveDraft({ turn, result, host, copy, name, enabled, canWrite, o
       {enabled || !canWrite ? null : (
         // The draft can still be put in the editor and saved there by hand: that save is the person's own.
         <p data-testid="assistant-save-off" className="flex flex-wrap items-center gap-x-2 gap-y-1 ps-1 text-[11.5px] font-medium leading-[1.5] text-fg-muted">
-          {t('assistant:readOnly.switchedOff', 'Saving is switched off for {name} in this workspace.', { name })}
+          {t('assistant:readOnly.switchedOff', 'Saving is switched off for {name} on this server.', { name })}
           {onOpenSettings === undefined ? null : (
             <button type="button" onClick={onOpenSettings} className="font-bold text-accent underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
               {t('assistant:readOnly.openSettings', 'Open settings')}

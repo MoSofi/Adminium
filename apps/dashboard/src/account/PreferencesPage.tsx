@@ -5,13 +5,13 @@
  * four axes with inheritance affordances.
  *
  * - An axis with a `NULL` override shows the *effective* (workspace default)
- *   value plus a neutral "Workspace default" badge and a
+ *   value plus a neutral "Server default" badge and a
  *   "Using workspace default (X)" caption.
  * - First interaction writes an override through ThemeProvider's `setPref`
  *   (optimistic, applies instantly; the app-root `onPrefChange` persists it
  *   via PATCH /api/v1/me/prefs) and swaps the badge to accent-tone
  *   "Personal".
- * - "Reset to workspace default" sends the explicit `null` per the route
+ * - "Reset to the server default" sends the explicit `null` per the route
  *   contract, drops any optimistic session override via `clearSessionPref` (so
  *   the workspace default shows immediately, not after a reload), and returns
  *   the axis to live inheritance.
@@ -54,7 +54,7 @@ function PrefRow(props: {
       <div className="flex items-center gap-2">
         <span className="text-body font-semibold text-fg">{props.label}</span>
         {props.inherited ? (
-          <Badge tone="neutral">{t('account.preferences.workspaceDefault', 'Workspace default')}</Badge>
+          <Badge tone="neutral">{t('account.preferences.workspaceDefault', 'Server default')}</Badge>
         ) : (
           <Badge tone="accent">{t('account.preferences.personal', 'Personal')}</Badge>
         )}
@@ -62,14 +62,14 @@ function PrefRow(props: {
       {props.children}
       {props.inherited ? (
         <p className="text-body-sm text-fg-muted">
-          {t('account.preferences.usingDefault', 'Using workspace default ({value})', {
+          {t('account.preferences.usingDefault', 'Using the server default ({value})', {
             value: props.effectiveLabel,
           })}
         </p>
       ) : (
         <div>
           <Button variant="link" onClick={props.onReset} loading={props.resetting}>
-            {t('account.preferences.reset', 'Reset to workspace default')}
+            {t('account.preferences.reset', 'Reset to the server default')}
           </Button>
         </div>
       )}
@@ -104,7 +104,7 @@ export function PreferencesPage(): ReactNode {
     setPref(axis, value as never);
     setLocalOverrides((prev) => ({ ...prev, [axis]: value }));
     // And in the cached read: leaving the page drops the overlay above, and a
-    // return before a refetch lands would otherwise say "Workspace default" and
+    // return before a refetch lands would otherwise say "Server default" and
     // offer no way back to it.
     queryClient.setQueryData<MePrefsData>(ME_PREFS_QUERY_KEY, (prev) =>
       prev === undefined ? prev : { ...prev, prefs: { ...prev.prefs, [axis]: value } },
@@ -203,7 +203,7 @@ export function PreferencesPage(): ReactNode {
               // may not read: going back is offered where the choice was made,
               // not only as the link under it.
               inherit={{
-                label: t('account.preferences.workspaceDefault', 'Workspace default'),
+                label: t('account.preferences.workspaceDefault', 'Server default'),
                 selected: raw.locale === null,
                 onSelect: () => {
                   if (raw.locale !== null) reset('locale');

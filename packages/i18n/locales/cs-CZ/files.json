@@ -6,7 +6,7 @@
     "trashFailed": "Tento soubor se nepodařilo přesunout do koše"
   },
   "title": "Soubory",
-  "subtitle": "Všechny soubory v tomto pracovním prostoru: ty u záznamů i v knihovně. A kde je každý uložen.",
+  "subtitle": "Všechny soubory na tomto serveru: ty u záznamů i v knihovně. A kde je každý uložen.",
   "search": "Hledat podle názvu souboru",
   "trash": {
     "notice": {
@@ -93,7 +93,7 @@
   "upload": {
     "open": "Nahrát",
     "title": "Nahrát soubory",
-    "subtitle": "Přidejte soubory do tohoto pracovního prostoru.",
+    "subtitle": "Přidejte soubory na tento server.",
     "connection": "Ke kterému připojení patří",
     "drop": "Přetáhněte soubory sem",
     "browse": "Procházet v počítači",

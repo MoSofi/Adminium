@@ -309,8 +309,8 @@ describe('what this session is allowed to do', () => {
 
     const save = await screen.findByRole('button', { name: 'Save template' });
     expect(save.hasAttribute('disabled')).toBe(true);
-    expect(save.getAttribute('title')).toBe('Saving is switched off for Milo in this workspace');
-    expect(screen.getByTestId('assistant-save-off').textContent).toContain('Saving is switched off for Milo in this workspace.');
+    expect(save.getAttribute('title')).toBe('Saving is switched off for Milo on this server');
+    expect(screen.getByTestId('assistant-save-off').textContent).toContain('Saving is switched off for Milo on this server.');
     expect(screen.getByRole('button', { name: 'Open settings' })).toBeTruthy();
     // There is no switch in the panel to flip: what the assistant may do is the workspace's.
     expect(screen.queryByRole('button', { name: 'Enable actions' })).toBeNull();

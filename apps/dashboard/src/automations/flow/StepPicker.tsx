@@ -36,7 +36,7 @@ const TILE_TEXT: Readonly<Record<string, { label: [string, string]; desc: [strin
   },
   notification: {
     label: ['automations:pick.notification', 'Send notification'],
-    desc: ['automations:pick.notificationDesc', 'Tell people in this workspace'],
+    desc: ['automations:pick.notificationDesc', 'Tell people on this server'],
   },
   digest: {
     label: ['automations:pick.digest', 'Send each person a summary'],

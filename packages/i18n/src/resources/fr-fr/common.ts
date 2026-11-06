@@ -29,7 +29,7 @@ export default {
     "trust": "Cœur AGPL · Auto-hébergé · Vos données restent les vôtres",
     "signIn": {
       "title": "Bon retour",
-      "subtitle": "Connectez-vous à votre espace de travail Adminium.",
+      "subtitle": "Connectez-vous à votre serveur Adminium.",
       "passwordSetTitle": "Mot de passe enregistré",
       "passwordSetSubtitle": "Connectez-vous avec votre e-mail et le mot de passe que vous venez de choisir.",
       "email": "E-mail",
@@ -122,7 +122,7 @@ export default {
     "notificationSettings": "Paramètres de notification",
     "scheduledReports": "Rapports planifiés",
     "group": {
-      "workspace": "Espace de travail",
+      "workspace": "Pages",
       "library": "Bibliothèque",
       "planning": "Planification",
       "people": "Personnes",
@@ -162,7 +162,7 @@ export default {
     "preferences": "Préférences",
     "studio": "Studio",
     "dataConnections": "Connexions de données",
-    "workspaceSettings": "Paramètres de l’espace de travail",
+    "workspaceSettings": "Paramètres du serveur",
     "help": "Centre d’aide",
     "changelog": "Nouveautés",
     "signOut": "Se déconnecter",
@@ -220,7 +220,7 @@ export default {
     },
     "forbidden": {
       "title": "Vous n’avez pas accès",
-      "body": "Cette page est restreinte. Demandez à un administrateur de l’espace de travail de vous donner accès.",
+      "body": "Cette page est restreinte. Demandez à un administrateur de vous donner accès.",
       "primary": "Demander l’accès",
       "secondary": "Retour"
     },
@@ -283,13 +283,13 @@ export default {
     },
     "readOnly": {
       "title": "Mode lecture seule",
-      "body": "Vous disposez d’un accès Viewer à cet espace de travail. Vous pouvez explorer les tableaux de bord, mais l’édition et les actions destructrices sont désactivées.",
+      "body": "Vous disposez d’un accès Viewer à ce serveur. Vous pouvez explorer les tableaux de bord, mais l’édition et les actions destructrices sont désactivées.",
       "primary": "Demander l’accès en écriture",
       "secondary": "J’ai compris"
     },
     "suspended": {
-      "title": "Cet espace de travail est suspendu",
-      "body": "Cet espace de travail a été suspendu par un administrateur. Vos données sont conservées — contactez le propriétaire de l’espace de travail pour rétablir l’accès.",
+      "title": "Ce serveur est suspendu",
+      "body": "Ce serveur a été suspendu par un administrateur. Vos données sont conservées — contactez le propriétaire du serveur pour rétablir l’accès.",
       "primary": "Contacter le propriétaire",
       "secondary": "Retour"
     },
@@ -429,7 +429,7 @@ export default {
     "save": "Enregistrer les modifications",
     "saveFailed": "Impossible d’enregistrer votre profil",
     "saved": "Profil mis à jour",
-    "savedBody": "Vos nouvelles informations s’appliquent à tout l’espace de travail. Si vous avez changé d’e-mail, connectez-vous désormais avec la nouvelle adresse.",
+    "savedBody": "Vos nouvelles informations s’appliquent à tout le serveur. Si vous avez changé d’e-mail, connectez-vous désormais avec la nouvelle adresse.",
     "accessTitle": "Accès",
     "accessSubtitle": "Ce que ce compte peut faire, et comment il prouve son identité.",
     "rolesHelper": "Les rôles sont attribués par un administrateur et ne peuvent pas être modifiés depuis votre propre compte.",
@@ -439,10 +439,10 @@ export default {
     "preferences": {
       "title": "Préférences",
       "subtitle": "L’apparence et la langue d’Adminium pour vous — sur cet appareil et tous ceux où vous vous connectez.",
-      "workspaceDefault": "Valeur de l’espace de travail",
+      "workspaceDefault": "Valeur du serveur",
       "personal": "Personnel",
-      "usingDefault": "Valeur par défaut de l’espace de travail utilisée ({value})",
-      "reset": "Rétablir la valeur de l’espace de travail",
+      "usingDefault": "Valeur par défaut du serveur utilisée ({value})",
+      "reset": "Rétablir la valeur du serveur",
       "resetFailed": "Impossible de réinitialiser cette préférence. Réessayez.",
       "appliesInstantly": "Les changements s’appliquent immédiatement et sont enregistrés dans votre profil."
     }
@@ -450,15 +450,15 @@ export default {
   "settings": {
     "defaults": {
       "title": "Valeurs par défaut globales",
-      "subtitle": "Apparence et langue par défaut pour tout l’espace de travail.",
+      "subtitle": "Apparence et langue par défaut pour tout le serveur.",
       "explainer": "Ces valeurs par défaut s’appliquent à tous les utilisateurs tant qu’ils ne les remplacent pas. Chacun peut définir ses propres préférences dans Profil → Préférences — les préférences personnelles l’emportent toujours pour cet utilisateur.",
       "appearanceHeading": "Apparence par défaut",
       "languageHeading": "Langue et région par défaut",
       "adoption": "{following, number} sur {total, plural, one {# utilisateur} other {# utilisateurs}} suivent cette valeur par défaut.",
       "weekStartNote": "Le premier jour de la semaine et les formats de nombres suivent la langue.",
       "save": "Enregistrer les valeurs par défaut",
-      "saved": "Valeurs par défaut de l’espace de travail mises à jour",
-      "saveFailed": "Impossible d’enregistrer les valeurs par défaut. Réessayez.",
+      "saved": "Valeurs par défaut du serveur mises à jour",
+      "saveFailed": "Impossible d’enregistrer les valeurs par défaut du serveur. Réessayez.",
       "liveNote": "L’enregistrement diffuse le changement en direct — les utilisateurs connectés qui suivent une valeur par défaut la voient s’appliquer sans recharger."
     },
     "notifications": {
@@ -519,7 +519,7 @@ export default {
         "disable": "Désactiver",
         "delete": "Supprimer",
         "deleted": "Langue supprimée",
-        "deletedDetail": "{users, plural, one {# personne est revenue} other {# personnes sont revenues}} à la langue par défaut de l’espace de travail ; {strings, plural, one {# traduction supprimée} other {# traductions supprimées}}.",
+        "deletedDetail": "{users, plural, one {# personne est revenue} other {# personnes sont revenues}} à la langue par défaut du serveur ; {strings, plural, one {# traduction supprimée} other {# traductions supprimées}}.",
         "deleteFailed": "Impossible de supprimer cette langue",
         "add": "Ajouter une langue",
         "added": "Langue ajoutée",
@@ -541,15 +541,15 @@ export default {
   },
   "onboarding": {
     "title": "Prise en main",
-    "subtitle": "Quelques étapes pour préparer votre espace de travail.",
+    "subtitle": "Quelques étapes pour préparer votre serveur.",
     "loading": "Chargement de votre liste de configuration…",
     "welcome": "Bienvenue sur Adminium, {name} 👋",
-    "progressBody": "Vous avez terminé {done} étapes de configuration sur {total}. Terminez les autres pour débloquer tout l’espace de travail.",
-    "completeBody": "Tout est prêt — votre espace de travail est entièrement configuré.",
+    "progressBody": "Vous avez terminé {done} étapes de configuration sur {total}. Terminez les autres pour tout débloquer.",
+    "completeBody": "Tout est prêt — votre serveur est entièrement configuré.",
     "ringLabel": "{done} étapes sur {total} terminées",
     "done": "Terminé",
     "skip": "Plus tard",
-    "goToWorkspace": "Aller à l’espace de travail",
+    "goToWorkspace": "Aller au tableau de bord",
     "help": {
       "title": "Besoin d’aide ?",
       "body": "Nous sommes là pour vous aider à configurer rapidement."
@@ -574,7 +574,7 @@ export default {
         "action": "Inviter"
       },
       "workspaceDefaults": {
-        "title": "Définir les valeurs par défaut",
+        "title": "Définir les valeurs par défaut du serveur",
         "desc": "Thème, accent, densité et langue pour tout le monde.",
         "time": "1 min",
         "action": "Définir"
@@ -584,7 +584,7 @@ export default {
       "wayBack": "Prise en main · {done}/{total}",
       "dismiss": "Masquer la liste de configuration",
       "continue": "Continuer la configuration",
-      "banner": "Terminez la configuration de votre espace — {done} étapes sur {total} effectuées."
+      "banner": "Terminez la configuration de votre serveur — {done} étapes sur {total} effectuées."
     },
     "desktopSetup": {
       "title": "Bienvenue dans Adminium",
@@ -1242,7 +1242,7 @@ export default {
   },
   "desktop": {
     "settings": {
-      "explainer": "Ces paramètres s’appliquent uniquement à l’application Adminium sur cet ordinateur. Ils sont enregistrés sur cette machine, pas dans votre espace de travail.",
+      "explainer": "Ces paramètres s’appliquent uniquement à l’application Adminium sur cet ordinateur. Ils sont enregistrés sur cette machine, pas dans les paramètres du serveur.",
       "title": "Paramètres du bureau"
     },
     "security": {
@@ -1622,7 +1622,7 @@ export default {
       "title": "Impossible de charger le journal d’audit"
     },
     "loadMore": "Charger les entrées plus anciennes",
-    "subtitle": "Chaque modification apportée à cet espace de travail, son auteur, et ce qu’elle a changé.",
+    "subtitle": "Chaque modification effectuée sur ce serveur, son auteur, et ce qu’elle a changé.",
     "title": "Journal d’audit",
     "via": "via {name}"
   },

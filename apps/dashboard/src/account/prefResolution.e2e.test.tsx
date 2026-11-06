@@ -413,14 +413,14 @@ describe('reset to workspace default', () => {
     });
     expect(screen.getAllByText('Personal')).toHaveLength(1);
 
-    await user.click(screen.getByText('Reset to workspace default'));
+    await user.click(screen.getByText('Reset to the server default'));
     await waitFor(() => {
       expect(server.patchCalls.some((call) => call.density === null)).toBe(true);
     });
     // clearSessionPref + the refetched resolution: the axis returns to
     // inheritance and the workspace default shows immediately.
     await waitFor(() => {
-      expect(screen.getAllByText('Workspace default', { selector: ':not(option)' })).toHaveLength(4);
+      expect(screen.getAllByText('Server default', { selector: ':not(option)' })).toHaveLength(4);
     });
     expect(html().getAttribute(THEME_ATTRIBUTES.density)).toBe('comfortable');
     expect(window.localStorage.getItem(STORAGE_KEYS.density)).toBe('comfortable');
@@ -435,14 +435,14 @@ describe('reset to workspace default', () => {
 
     // No optimistic entry exists this session — the fallback must arrive
     // through PATCH null → bootstrap invalidation → refetched resolution.
-    await user.click(screen.getByText('Reset to workspace default'));
+    await user.click(screen.getByText('Reset to the server default'));
     await waitFor(() => {
       expect(server.patchCalls.some((call) => call.theme === null)).toBe(true);
     });
     await waitFor(() => {
       expect(html().getAttribute(THEME_ATTRIBUTES.theme)).toBe('light');
     });
-    expect(screen.getAllByText('Workspace default', { selector: ':not(option)' })).toHaveLength(4);
+    expect(screen.getAllByText('Server default', { selector: ':not(option)' })).toHaveLength(4);
     expect(window.localStorage.getItem(STORAGE_KEYS.theme)).toBe('light');
   });
 });

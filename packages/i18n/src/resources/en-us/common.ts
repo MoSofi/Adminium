@@ -29,7 +29,7 @@ export default {
     "trust": "AGPL core · Self-hosted · Your data stays yours",
     "signIn": {
       "title": "Welcome back",
-      "subtitle": "Sign in to your Adminium workspace.",
+      "subtitle": "Sign in to your Adminium server.",
       "passwordSetTitle": "Password saved",
       "passwordSetSubtitle": "Sign in with your email and the password you just chose.",
       "email": "Email",
@@ -122,7 +122,7 @@ export default {
     "notificationSettings": "Notification settings",
     "scheduledReports": "Scheduled reports",
     "group": {
-      "workspace": "Workspace",
+      "workspace": "Pages",
       "library": "Library",
       "planning": "Planning",
       "people": "People",
@@ -162,7 +162,7 @@ export default {
     "preferences": "Preferences",
     "studio": "Studio",
     "dataConnections": "Data connections",
-    "workspaceSettings": "Workspace settings",
+    "workspaceSettings": "Server settings",
     "help": "Help centre",
     "changelog": "What’s new",
     "signOut": "Sign out",
@@ -201,7 +201,7 @@ export default {
     },
     "forbidden": {
       "title": "You don’t have access",
-      "body": "This page is restricted. Ask a workspace admin to grant you access.",
+      "body": "This page is restricted. Ask an administrator to grant you access.",
       "primary": "Request access",
       "secondary": "Go back"
     },
@@ -264,13 +264,13 @@ export default {
     },
     "readOnly": {
       "title": "Read-only mode",
-      "body": "You have Viewer access to this workspace. You can explore dashboards, but editing and destructive actions are disabled.",
+      "body": "You have Viewer access to this server. You can explore dashboards, but editing and destructive actions are disabled.",
       "primary": "Request edit access",
       "secondary": "Got it"
     },
     "suspended": {
-      "title": "This workspace is suspended",
-      "body": "This workspace has been suspended by an administrator. Your data is preserved — contact the workspace owner to restore access.",
+      "title": "This server is suspended",
+      "body": "This server has been suspended by an administrator. Your data is preserved — contact the server’s owner to restore access.",
       "primary": "Contact owner",
       "secondary": "Go back"
     },
@@ -395,15 +395,15 @@ export default {
   "settings": {
     "defaults": {
       "title": "Global defaults",
-      "subtitle": "Workspace-wide appearance and language defaults.",
+      "subtitle": "Server-wide appearance and language defaults.",
       "explainer": "These defaults apply to all users unless they override them. Anyone can set their own preference under Profile → Preferences — personal preferences always win for that user.",
       "appearanceHeading": "Appearance defaults",
       "languageHeading": "Language & region defaults",
       "adoption": "{following, number} of {total, plural, one {# user} other {# users}} follow this default.",
       "weekStartNote": "Week start and number formats follow the language.",
       "save": "Save defaults",
-      "saved": "Workspace defaults updated",
-      "saveFailed": "Could not save workspace defaults. Try again.",
+      "saved": "Server defaults updated",
+      "saveFailed": "Could not save the server defaults. Try again.",
       "liveNote": "Saving broadcasts the change live — signed-in users who follow a default see it apply without a reload."
     },
     "notifications": {
@@ -464,7 +464,7 @@ export default {
         "disable": "Turn off",
         "delete": "Delete",
         "deleted": "Language removed",
-        "deletedDetail": "{users, plural, one {# person} other {# people}} moved back to the workspace default; {strings, plural, one {# translation} other {# translations}} deleted.",
+        "deletedDetail": "{users, plural, one {# person} other {# people}} moved back to the server default; {strings, plural, one {# translation} other {# translations}} deleted.",
         "deleteFailed": "Could not remove that language",
         "add": "Add a language",
         "added": "Language added",
@@ -570,7 +570,7 @@ export default {
   },
   "desktop": {
     "settings": {
-      "explainer": "These settings apply to the Adminium app on this computer only. They are stored on this machine, not in your workspace.",
+      "explainer": "These settings apply to the Adminium app on this computer only. They are stored on this machine, not in the server’s settings.",
       "title": "Desktop settings"
     },
     "security": {

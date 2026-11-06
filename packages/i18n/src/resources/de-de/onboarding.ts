@@ -84,11 +84,11 @@ export default {
     "invited": "{count, plural, one {# Einladung} other {# Einladungen}} erstellt.",
     "label": "Fertig",
     "next": {
-      "blank": "Ihr Arbeitsbereich ist bereit. Legen Sie eine Seite an, wann immer Sie möchten — es wurde nichts generiert, genau wie gewünscht.",
-      "connected": "Ihr Arbeitsbereich ist bereit. Die aus Ihrer Datenbank erstellten Seiten finden Sie im Dashboard.",
-      "connectedNoPages": "Ihr Arbeitsbereich ist bereit. Ihre Datenbank ist verbunden; legen Sie Seiten im Studio an, wann immer Sie möchten.",
-      "generate": "Ihr Arbeitsbereich ist bereit. Als Nächstes wählen wir die Tabellen aus und generieren Ihre Seiten.",
-      "ready": "Ihr Arbeitsbereich ist bereit."
+      "blank": "Ihr Server ist bereit. Legen Sie eine Seite an, wann immer Sie möchten — es wurde nichts generiert, genau wie gewünscht.",
+      "connected": "Ihr Server ist bereit. Die aus Ihrer Datenbank erstellten Seiten finden Sie im Dashboard.",
+      "connectedNoPages": "Ihr Server ist bereit. Ihre Datenbank ist verbunden; legen Sie Seiten im Studio an, wann immer Sie möchten.",
+      "generate": "Ihr Server ist bereit. Als Nächstes wählen wir die Tabellen aus und generieren Ihre Seiten.",
+      "ready": "Ihr Server ist bereit."
     },
     "storage": {
       "local": "Adminium bewahrt seine eigenen Daten in einer Datei auf diesem Rechner auf.",

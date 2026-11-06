@@ -29,7 +29,7 @@ export default {
     "trust": "AGPL 核心 · 自行架設 · 資料永遠屬於你",
     "signIn": {
       "title": "歡迎回來",
-      "subtitle": "登入你的 Adminium 工作區。",
+      "subtitle": "登入你的 Adminium 伺服器。",
       "passwordSetTitle": "密碼已儲存",
       "passwordSetSubtitle": "請使用你的電子郵件和剛剛設定的密碼登入。",
       "email": "電子郵件",
@@ -122,7 +122,7 @@ export default {
     "notificationSettings": "通知設定",
     "scheduledReports": "排程報表",
     "group": {
-      "workspace": "工作區",
+      "workspace": "頁面",
       "library": "資源庫",
       "planning": "規劃",
       "people": "人員",
@@ -162,7 +162,7 @@ export default {
     "preferences": "偏好設定",
     "studio": "Studio",
     "dataConnections": "資料連線",
-    "workspaceSettings": "工作區設定",
+    "workspaceSettings": "伺服器設定",
     "help": "說明中心",
     "changelog": "新功能",
     "signOut": "登出",
@@ -220,7 +220,7 @@ export default {
     },
     "forbidden": {
       "title": "你沒有存取權限",
-      "body": "這個頁面受到限制。請向工作區管理員申請存取權限。",
+      "body": "這個頁面受到限制。請向管理員申請存取權限。",
       "primary": "申請存取權限",
       "secondary": "返回上頁"
     },
@@ -283,13 +283,13 @@ export default {
     },
     "readOnly": {
       "title": "唯讀模式",
-      "body": "你在這個工作區擁有 Viewer 權限。你可以瀏覽儀表板，但編輯與危險操作已停用。",
+      "body": "你在這台伺服器上擁有 Viewer 權限。你可以瀏覽儀表板，但編輯與危險操作已停用。",
       "primary": "申請編輯權限",
       "secondary": "我知道了"
     },
     "suspended": {
-      "title": "這個工作區已停權",
-      "body": "這個工作區已被管理員停權。你的資料仍完整保留——請聯絡工作區擁有者以恢復存取權限。",
+      "title": "這台伺服器已停權",
+      "body": "這台伺服器已被管理員停權。你的資料仍完整保留——請聯絡伺服器擁有者以恢復存取權限。",
       "primary": "聯絡擁有者",
       "secondary": "返回上頁"
     },
@@ -429,7 +429,7 @@ export default {
     "save": "儲存變更",
     "saveFailed": "無法儲存你的個人資料",
     "saved": "個人資料已更新",
-    "savedBody": "新的資訊已在整個工作區生效。若你變更了電子郵件，日後請使用新地址登入。",
+    "savedBody": "新的資訊已在整台伺服器上生效。若你變更了電子郵件，日後請使用新地址登入。",
     "accessTitle": "存取權限",
     "accessSubtitle": "此帳戶可以做什麼，以及它如何證明身分。",
     "rolesHelper": "角色由管理員授予，無法在自己的帳戶中變更。",
@@ -439,10 +439,10 @@ export default {
     "preferences": {
       "title": "偏好設定",
       "subtitle": "Adminium 為你呈現的外觀與語言——在這部裝置以及你登入的每部裝置上都適用。",
-      "workspaceDefault": "工作區預設",
+      "workspaceDefault": "伺服器預設",
       "personal": "個人",
-      "usingDefault": "正在使用工作區預設值（{value}）",
-      "reset": "還原為工作區預設值",
+      "usingDefault": "正在使用伺服器預設值（{value}）",
+      "reset": "還原為伺服器預設值",
       "resetFailed": "無法重設此偏好設定。請再試一次。",
       "appliesInstantly": "變更會立即生效，並儲存至你的個人資料。"
     }
@@ -450,15 +450,15 @@ export default {
   "settings": {
     "defaults": {
       "title": "全域預設值",
-      "subtitle": "套用於整個工作區的外觀與語言預設值。",
+      "subtitle": "套用於整台伺服器的外觀與語言預設值。",
       "explainer": "這些預設值適用於所有未自行覆寫的使用者。任何人都可以在「個人資料 → 偏好設定」中設定自己的偏好——對該使用者而言，個人偏好永遠優先。",
       "appearanceHeading": "外觀預設值",
       "languageHeading": "語言與地區預設值",
       "adoption": "共 {total, plural, other {# 位使用者}}，其中 {following, number} 位遵循此預設值。",
       "weekStartNote": "每週起始日與數字格式依語言而定。",
       "save": "儲存預設值",
-      "saved": "已更新工作區預設值",
-      "saveFailed": "無法儲存工作區預設值。請再試一次。",
+      "saved": "已更新伺服器預設值",
+      "saveFailed": "無法儲存伺服器預設值。請再試一次。",
       "liveNote": "儲存後變更會即時廣播——遵循預設值的線上使用者不必重新載入就會看到。"
     },
     "notifications": {
@@ -519,7 +519,7 @@ export default {
         "disable": "關閉",
         "delete": "刪除",
         "deleted": "已移除語言",
-        "deletedDetail": "{users, plural, other {# 位使用者}}已改回工作區預設語言；已刪除 {strings, plural, other {# 則翻譯}}。",
+        "deletedDetail": "{users, plural, other {# 位使用者}}已改回伺服器預設語言；已刪除 {strings, plural, other {# 則翻譯}}。",
         "deleteFailed": "無法移除該語言",
         "add": "新增語言",
         "added": "已新增語言",
@@ -541,15 +541,15 @@ export default {
   },
   "onboarding": {
     "title": "開始使用",
-    "subtitle": "幾個步驟，讓你的工作區準備就緒。",
+    "subtitle": "幾個步驟，讓你的伺服器準備就緒。",
     "loading": "正在載入設定清單…",
     "welcome": "歡迎使用 Adminium，{name} 👋",
-    "progressBody": "你已完成 {total} 個設定步驟中的 {done} 個。完成其餘步驟以解鎖完整工作區。",
-    "completeBody": "全部就緒 — 你的工作區已完全設定。",
+    "progressBody": "你已完成 {total} 個設定步驟中的 {done} 個。完成其餘步驟即可解鎖所有功能。",
+    "completeBody": "全部就緒 — 你的伺服器已完全設定。",
     "ringLabel": "已完成 {total} 個步驟中的 {done} 個",
     "done": "完成",
     "skip": "暫時略過",
-    "goToWorkspace": "前往工作區",
+    "goToWorkspace": "前往儀表板",
     "help": {
       "title": "需要協助？",
       "body": "我們隨時協助你快速完成設定。"
@@ -574,7 +574,7 @@ export default {
         "action": "邀請"
       },
       "workspaceDefaults": {
-        "title": "設定工作區預設值",
+        "title": "設定伺服器預設值",
         "desc": "為所有人設定主題、強調色、密度與語言。",
         "time": "1 分鐘",
         "action": "設定"
@@ -584,7 +584,7 @@ export default {
       "wayBack": "開始使用 · {done}/{total}",
       "dismiss": "隱藏設定清單",
       "continue": "繼續設定",
-      "banner": "完成工作區設定 — 已完成 {total} 個步驟中的 {done} 個。"
+      "banner": "完成伺服器設定 — 已完成 {total} 個步驟中的 {done} 個。"
     },
     "desktopSetup": {
       "title": "歡迎使用 Adminium",
@@ -1242,7 +1242,7 @@ export default {
   },
   "desktop": {
     "settings": {
-      "explainer": "這些設定僅適用於這台電腦上的 Adminium 應用程式，會儲存在本機，不會儲存到你的工作區。",
+      "explainer": "這些設定僅適用於這台電腦上的 Adminium 應用程式，會儲存在本機，不會儲存到伺服器的設定中。",
       "title": "桌面設定"
     },
     "security": {
@@ -1622,7 +1622,7 @@ export default {
       "title": "無法載入稽核紀錄"
     },
     "loadMore": "載入較舊的項目",
-    "subtitle": "這個工作區中的每一項變更、由誰執行，以及變更了什麼。",
+    "subtitle": "這台伺服器上的每一項變更、由誰執行，以及變更了什麼。",
     "title": "稽核紀錄",
     "via": "透過 {name}"
   },

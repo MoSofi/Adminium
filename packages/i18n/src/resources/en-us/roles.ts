@@ -18,7 +18,7 @@ export default {
     "access": "Access",
     "data": "Data",
     "operations": "Operations",
-    "workspace": "Workspace",
+    "workspace": "Server",
     "records": "Pages & records",
     "apps": "Apps"
   },
@@ -83,7 +83,7 @@ export default {
     "rolesManage": "Manage roles and permissions",
     "schemaRemap": "Edit schema labels and overrides",
     "schemaDdl": "Create, edit and delete tables",
-    "settingsManage": "Manage workspace settings",
+    "settingsManage": "Manage server settings",
     "usersManage": "Manage users",
     "filesManage": "Manage everyone’s files",
     "storageManage": "Manage storage destinations",

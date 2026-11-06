@@ -157,7 +157,7 @@ export function refusalText(refused: { code: string; message: string; fields?: r
   }
   switch (refused.code) {
     case 'SWITCHED_OFF':
-      return t('assistant:proposal.refused.switchedOff', 'This is switched off for {name} in this workspace.', { name });
+      return t('assistant:proposal.refused.switchedOff', 'This is switched off for {name} on this server.', { name });
     case 'NOT_THIS_TABLE':
       return t('assistant:proposal.refused.notThisTable', 'Only the table of the page this was asked on can be changed from here.');
     case 'NOT_A_DATA_TABLE':

@@ -15,7 +15,7 @@ export function noticeUrlError(value: string): string | null {
 
 /** 403 `STAFF_ADDRESS`: a staff account's address, refused to whoever does not manage privacy for the whole workspace. */
 export function staffAddressWords(): string {
-  return t('studio:privacy.person.staffAddress', 'This address belongs to a member of staff here. Only someone who manages privacy for the whole workspace can look it up or erase it.');
+  return t('studio:privacy.person.staffAddress', 'This address belongs to a member of staff here. Only someone who manages privacy for the whole server can look it up or erase it.');
 }
 
 /** Whether a refusal is the staff-address one. */

@@ -67,7 +67,7 @@
     "noticeProvider": "Was Sie sagen, wird zum Aufschreiben an {provider} gesendet. Nichts wird aufbewahrt.",
     "noticeBrowser": "Was Sie sagen, schreibt der Sprachdienst Ihres Browsers auf.",
     "noticeOk": "OK",
-    "ownService": "den Modelldienst Ihres Arbeitsbereichs"
+    "ownService": "den Modelldienst Ihres Servers"
   },
   "speak": {
     "play": "Vorlesen",
@@ -240,9 +240,9 @@
   "readOnly": {
     "noWrite": "Deine Rolle darf hier ansehen, entwerfen und vorschauen, aber nicht speichern.",
     "noWriteTitle": "Deine Rolle darf das hier nicht",
-    "switchedOff": "Speichern ist für {name} in diesem Arbeitsbereich ausgeschaltet.",
+    "switchedOff": "Speichern ist für {name} auf diesem Server ausgeschaltet.",
     "openSettings": "Einstellungen öffnen",
-    "switchedOffTitle": "Speichern ist für {name} in diesem Arbeitsbereich ausgeschaltet"
+    "switchedOffTitle": "Speichern ist für {name} auf diesem Server ausgeschaltet"
   },
   "report": {
     "action1": "Vollständige Vorschau ausführen",
@@ -343,16 +343,16 @@
     }
   },
   "general": {
-    "page": "Dieser Arbeitsbereich",
-    "blurb": "Kennt diesen Arbeitsbereich · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "page": "Dieser Server",
+    "blurb": "Kennt diesen Server · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
     "greeting": "Ich kann die Tabellen lesen, die Ihre Rolle lesen darf, und Ihnen sagen, wo etwas erledigt wird.",
     "greetingSub": "Fragen Sie nach Ihren Daten oder danach, wo sich etwas ändern lässt. Ich antworte in Worten und verlinke die Stelle.",
-    "placeholder": "Fragen Sie nach diesem Arbeitsbereich …",
+    "placeholder": "Fragen Sie nach diesem Server …",
     "chip1": "Wo lade ich eine Kollegin oder einen Kollegen ein?",
-    "chip2": "Was kann ich in diesem Arbeitsbereich sehen?",
+    "chip2": "Was kann ich auf diesem Server sehen?",
     "chip3": "Welche Tabelle hat die meisten Zeilen?",
     "workTitle": "Nachgeschlagen",
-    "scopePrimary": "Arbeitsbereich",
+    "scopePrimary": "Server",
     "readPage": "{tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}"
   },
   "answer": {
@@ -478,7 +478,7 @@
     },
     "refused": {
       "generic": "Der Server hat das abgelehnt.",
-      "switchedOff": "Das ist für {name} in diesem Arbeitsbereich ausgeschaltet.",
+      "switchedOff": "Das ist für {name} auf diesem Server ausgeschaltet.",
       "notThisTable": "Von hier aus lässt sich nur die Tabelle der Seite ändern, auf der gefragt wurde.",
       "notData": "Das ist keine Tabelle deiner Daten.",
       "noChange": "Die Zeile enthält diese Werte bereits.",

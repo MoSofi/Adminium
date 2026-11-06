@@ -88,7 +88,7 @@ const GROUP_LABEL_KEY: Record<NavGroup, string> = {
 };
 
 const GROUP_FALLBACK: Record<NavGroup, string> = {
-  workspace: 'Workspace',
+  workspace: 'Pages',
   library: 'Library',
   planning: 'Planning',
   people: 'People',
@@ -1413,7 +1413,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
                   <p className="text-[11.5px] leading-4 text-fg-muted">
                     {t(
                       'studio:pages.attachments.acceptHint',
-                      'Choosing none accepts everything this workspace allows. A choice here can only narrow that list, never widen it.',
+                      'Choosing none accepts everything this server allows. A choice here can only narrow that list, never widen it.',
                     )}
                   </p>
                 </div>
@@ -1422,7 +1422,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
                   label={t('studio:pages.attachments.maxBytes', 'Largest file (MB)')}
                   helper={t(
                     'studio:pages.attachments.maxBytesHint',
-                    'Leave empty to follow the workspace limit. A number here can only lower it.',
+                    'Leave empty to follow the server’s limit. A number here can only lower it.',
                   )}
                 >
                   <Input

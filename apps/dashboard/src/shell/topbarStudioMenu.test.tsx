@@ -104,16 +104,16 @@ describe('avatar menu Studio section', () => {
     expect(onOpenStudio).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole('button', { name: 'Account menu' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Workspace settings' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Server settings' }));
     expect(onOpenStudioSettings).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves Pages out of the menu — Workspace settings owns that entry point', async () => {
+  it('leaves Pages out of the menu — Server settings owns that entry point', async () => {
     const user = userEvent.setup();
     renderTopbar(['admin']);
 
     await user.click(screen.getByRole('button', { name: 'Account menu' }));
-    expect(await screen.findByRole('menuitem', { name: 'Workspace settings' })).toBeTruthy();
+    expect(await screen.findByRole('menuitem', { name: 'Server settings' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: 'Pages' })).toBeNull();
   });
 
@@ -123,14 +123,14 @@ describe('avatar menu Studio section', () => {
     await user.click(screen.getByRole('button', { name: 'Account menu' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Payments' }));
     expect(onOpenPayments).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('menuitem', { name: 'Workspace settings' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Server settings' })).toBeNull();
   });
 
-  it('keeps Payments out of an admin menu — Workspace settings owns that door', async () => {
+  it('keeps Payments out of an admin menu — Server settings owns that door', async () => {
     const user = userEvent.setup();
     renderTopbar(['admin'], ['connections.manage', 'settings.manage', 'payments.manage']);
     await user.click(screen.getByRole('button', { name: 'Account menu' }));
-    expect(await screen.findByRole('menuitem', { name: 'Workspace settings' })).toBeTruthy();
+    expect(await screen.findByRole('menuitem', { name: 'Server settings' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: 'Payments' })).toBeNull();
   });
 
@@ -150,7 +150,7 @@ describe('avatar menu Studio section', () => {
     // The personal-account items still render — this gates Studio, not the menu.
     expect(await screen.findByRole('menuitem', { name: 'Profile' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: 'Data connections' })).toBeNull();
-    expect(screen.queryByRole('menuitem', { name: 'Workspace settings' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Server settings' })).toBeNull();
   });
 
   /**

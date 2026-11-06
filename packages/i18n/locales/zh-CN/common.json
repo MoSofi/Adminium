@@ -19,7 +19,7 @@
     "trust": "AGPL 核心 · 自托管 · 数据始终归你所有",
     "signIn": {
       "title": "欢迎回来",
-      "subtitle": "登录你的 Adminium 工作区。",
+      "subtitle": "登录你的 Adminium 服务器。",
       "passwordSetTitle": "密码已保存",
       "passwordSetSubtitle": "请使用你的邮箱和刚刚设置的密码登录。",
       "email": "邮箱",
@@ -112,7 +112,7 @@
     "notificationSettings": "通知设置",
     "scheduledReports": "定时报告",
     "group": {
-      "workspace": "工作区",
+      "workspace": "页面",
       "library": "资源库",
       "planning": "规划",
       "people": "人员",
@@ -152,7 +152,7 @@
     "preferences": "偏好设置",
     "studio": "Studio",
     "dataConnections": "数据连接",
-    "workspaceSettings": "工作区设置",
+    "workspaceSettings": "服务器设置",
     "help": "帮助中心",
     "changelog": "新功能",
     "signOut": "退出登录",
@@ -210,7 +210,7 @@
     },
     "forbidden": {
       "title": "你没有访问权限",
-      "body": "此页面已受限。请让工作区管理员为你开通访问权限。",
+      "body": "此页面已受限。请让管理员为你开通访问权限。",
       "primary": "申请访问权限",
       "secondary": "返回"
     },
@@ -273,13 +273,13 @@
     },
     "readOnly": {
       "title": "只读模式",
-      "body": "你对此工作区拥有 Viewer 权限。你可以浏览仪表盘，但编辑和危险操作已被禁用。",
+      "body": "你对此服务器拥有 Viewer 权限。你可以浏览仪表盘，但编辑和危险操作已被禁用。",
       "primary": "申请编辑权限",
       "secondary": "知道了"
     },
     "suspended": {
-      "title": "此工作区已被暂停",
-      "body": "管理员已暂停此工作区。你的数据仍完整保留——请联系工作区所有者以恢复访问权限。",
+      "title": "此服务器已被暂停",
+      "body": "管理员已暂停此服务器。你的数据仍完整保留——请联系服务器所有者以恢复访问权限。",
       "primary": "联系所有者",
       "secondary": "返回"
     },
@@ -419,7 +419,7 @@
     "save": "保存更改",
     "saveFailed": "无法保存你的个人资料",
     "saved": "个人资料已更新",
-    "savedBody": "新的信息已在整个工作区生效。如果你更改了邮箱，今后请使用新地址登录。",
+    "savedBody": "新的信息已在整个服务器上生效。如果你更改了邮箱，今后请使用新地址登录。",
     "accessTitle": "访问权限",
     "accessSubtitle": "此账户可以做什么，以及它如何证明身份。",
     "rolesHelper": "角色由管理员授予，无法在自己的账户中更改。",
@@ -429,10 +429,10 @@
     "preferences": {
       "title": "偏好设置",
       "subtitle": "Adminium 在你这里的外观与语言——在这台设备和你登录的每台设备上生效。",
-      "workspaceDefault": "工作区默认",
+      "workspaceDefault": "服务器默认",
       "personal": "个人",
-      "usingDefault": "正在使用工作区默认值（{value}）",
-      "reset": "恢复为工作区默认值",
+      "usingDefault": "正在使用服务器默认值（{value}）",
+      "reset": "恢复为服务器默认值",
       "resetFailed": "无法重置此偏好。请重试。",
       "appliesInstantly": "更改会立即生效，并保存到你的个人资料。"
     }
@@ -440,15 +440,15 @@
   "settings": {
     "defaults": {
       "title": "全局默认值",
-      "subtitle": "适用于整个工作区的外观与语言默认值。",
+      "subtitle": "适用于整个服务器的外观与语言默认值。",
       "explainer": "这些默认值适用于所有未自行覆盖的用户。任何人都可以在「个人资料 → 偏好设置」中设置自己的偏好——对该用户而言，个人偏好始终优先。",
       "appearanceHeading": "外观默认值",
       "languageHeading": "语言与区域默认值",
       "adoption": "共 {total, plural, other {# 位用户}}，其中 {following, number} 位遵循此默认值。",
       "weekStartNote": "每周起始日与数字格式跟随所选语言。",
       "save": "保存默认值",
-      "saved": "工作区默认值已更新",
-      "saveFailed": "无法保存工作区默认值。请重试。",
+      "saved": "服务器默认值已更新",
+      "saveFailed": "无法保存服务器默认值。请重试。",
       "liveNote": "保存后更改会实时推送——遵循默认值的在线用户无需刷新即可看到。"
     },
     "notifications": {
@@ -509,7 +509,7 @@
         "disable": "关闭",
         "delete": "删除",
         "deleted": "语言已移除",
-        "deletedDetail": "{users, plural, other {# 位用户}}已改回工作区默认语言；已删除 {strings, plural, other {# 条翻译}}。",
+        "deletedDetail": "{users, plural, other {# 位用户}}已改回服务器默认语言；已删除 {strings, plural, other {# 条翻译}}。",
         "deleteFailed": "无法移除该语言",
         "add": "添加语言",
         "added": "语言已添加",
@@ -531,15 +531,15 @@
   },
   "onboarding": {
     "title": "开始使用",
-    "subtitle": "几个步骤，让你的工作区准备就绪。",
+    "subtitle": "几个步骤，让你的服务器准备就绪。",
     "loading": "正在加载设置清单…",
     "welcome": "欢迎使用 Adminium，{name} 👋",
-    "progressBody": "你已完成 {total} 个设置步骤中的 {done} 个。完成其余步骤以解锁完整工作区。",
-    "completeBody": "全部就绪 — 你的工作区已完全配置。",
+    "progressBody": "你已完成 {total} 个设置步骤中的 {done} 个。完成其余步骤即可解锁全部功能。",
+    "completeBody": "全部就绪 — 你的服务器已完全配置。",
     "ringLabel": "已完成 {total} 个步骤中的 {done} 个",
     "done": "完成",
     "skip": "暂时跳过",
-    "goToWorkspace": "前往工作区",
+    "goToWorkspace": "前往仪表盘",
     "help": {
       "title": "需要帮助？",
       "body": "我们随时帮助你快速完成设置。"
@@ -564,7 +564,7 @@
         "action": "邀请"
       },
       "workspaceDefaults": {
-        "title": "设置工作区默认值",
+        "title": "设置服务器默认值",
         "desc": "为所有人设置主题、强调色、密度和语言。",
         "time": "1 分钟",
         "action": "设置"
@@ -574,7 +574,7 @@
       "wayBack": "开始使用 · {done}/{total}",
       "dismiss": "隐藏设置清单",
       "continue": "继续设置",
-      "banner": "完成工作区设置 — 已完成 {total} 个步骤中的 {done} 个。"
+      "banner": "完成服务器设置 — 已完成 {total} 个步骤中的 {done} 个。"
     },
     "desktopSetup": {
       "title": "欢迎使用 Adminium",
@@ -1232,7 +1232,7 @@
   },
   "desktop": {
     "settings": {
-      "explainer": "这些设置仅适用于这台电脑上的 Adminium 应用，保存在本机，不会保存到你的工作区。",
+      "explainer": "这些设置仅适用于这台电脑上的 Adminium 应用，保存在本机，不会保存到服务器的设置中。",
       "title": "桌面设置"
     },
     "security": {
@@ -1612,7 +1612,7 @@
       "title": "无法加载审计日志"
     },
     "loadMore": "加载更早的记录",
-    "subtitle": "此工作区中的每一项更改、由谁做出，以及改动了什么。",
+    "subtitle": "此服务器上的每一项更改、由谁做出，以及改动了什么。",
     "title": "审计日志",
     "via": "通过 {name}"
   },

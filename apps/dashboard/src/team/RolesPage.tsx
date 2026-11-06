@@ -107,7 +107,7 @@ function categoryLabel(category: PermissionCategory): string {
     case 'data':
       return t('roles:category.data', 'Data');
     case 'workspace':
-      return t('roles:category.workspace', 'Workspace');
+      return t('roles:category.workspace', 'Server');
     case 'operations':
       return t('roles:category.operations', 'Operations');
   }
@@ -133,7 +133,7 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
     case 'system:api-keys:manage':
       return t('roles:permission.apiKeysManage', 'Manage API keys');
     case 'system:settings:manage':
-      return t('roles:permission.settingsManage', 'Manage workspace settings');
+      return t('roles:permission.settingsManage', 'Manage server settings');
     case 'system:audit:read':
       return t('roles:permission.auditRead', 'Read the audit log');
     case 'system:pages:manage':

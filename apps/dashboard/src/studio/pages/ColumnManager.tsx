@@ -1301,7 +1301,7 @@ function ColumnFileSection({
             ? t('studio:pages.columns.file.acceptPictures', 'Pictures only. Untick the kinds this column should refuse.')
             : t(
                 'studio:pages.columns.file.acceptHelp',
-                'Leave every type off to accept whatever this workspace accepts. Choosing types can only narrow that list — a column can never accept a type the workspace refuses.',
+                'Leave every type off to accept whatever this server accepts. Choosing types can only narrow that list — a column can never accept a type the server refuses.',
               )}
         </p>
       </div>
@@ -1310,7 +1310,7 @@ function ColumnFileSection({
         label={t('studio:pages.columns.file.maxLabel', 'Largest file (MB)')}
         helper={t(
           'studio:pages.columns.file.maxHelp',
-          'Leave empty to use the workspace limit. A column can only ask for less.',
+          'Leave empty to use the server’s limit. A column can only ask for less.',
         )}
       >
         <Input

@@ -195,7 +195,7 @@ export function ApiKeysPage() {
     <PageSurface className="pb-10">
       <PageActions
         title={t('studio:apiKeys.title', 'API keys & tokens')}
-        subtitle={t('studio:apiKeys.subtitle', 'Manage programmatic access to your workspace')}
+        subtitle={t('studio:apiKeys.subtitle', 'Manage programmatic access to your server')}
       >
         {connections.length > 1 && connectionId !== null ? (
           <label className="flex items-center">
@@ -232,7 +232,7 @@ export function ApiKeysPage() {
           <Note>
             {t('studio:apiKeys.note.off', 'The public API is switched off, so no key works right now.')}{' '}
             <a href="/studio/settings" className="font-bold underline">
-              {t('studio:apiKeys.note.offLink', 'Open Workspace settings')}
+              {t('studio:apiKeys.note.offLink', 'Open Server settings')}
             </a>
           </Note>
         ) : null}

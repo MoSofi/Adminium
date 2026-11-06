@@ -416,9 +416,9 @@
     },
     "feeds": {
       "activityFeed": {
-        "description": "Et løbende feed over hvem der gjorde hvad i dit arbejdsområde, nyeste først.",
+        "description": "Et løbende feed over hvem der gjorde hvad på din server, nyeste først.",
         "emptyTitle": "Ingen nylig aktivitet",
-        "emptyBody": "Handlinger i dit arbejdsområde vises her.",
+        "emptyBody": "Handlinger på din server vises her.",
         "viewAllLabel": "Vis alle"
       },
       "notificationFeed": {
@@ -1569,7 +1569,7 @@
         "offlineTitle": "Du er offline",
         "offlineBody": "Tjek din forbindelse — dashboardet forbinder automatisk igen.",
         "forbiddenTitle": "Du har ikke adgang",
-        "forbiddenBody": "Bed en arbejdsområde-administrator om adgang til denne side.",
+        "forbiddenBody": "Bed en administrator om adgang til denne side.",
         "maintenanceTitle": "Nede til vedligeholdelse",
         "maintenanceBody": "Vi gør tingene bedre. Det tager som regel få minutter.",
         "connErrorTitle": "Kan ikke nå databasen",
@@ -2180,7 +2180,7 @@
         "emptyBody": "Filer, der opbevares med denne post, vises her.",
         "loading": "Indlæser filer",
         "removed": "{name} blev flyttet til papirkurven.",
-        "tooLarge": "Filen er større, end dette arbejdsområde tillader.",
+        "tooLarge": "Filen er større, end denne server tillader.",
         "lead": "Filer, der opbevares med denne post.",
         "allFiles": "Alle filer er på siden Filer",
         "inColumn": "I {column}",

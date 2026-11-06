@@ -270,7 +270,7 @@ describe('who opens the privacy page', () => {
     await renderAt('/studio/privacy?tab=person');
     await userEvent.type(await screen.findByLabelText('E-mail address'), STAFF_ADDRESS);
     await userEvent.click(screen.getByTestId('privacy-person-find'));
-    expect(await screen.findByText('This address belongs to a member of staff here. Only someone who manages privacy for the whole workspace can look it up or erase it.')).toBeDefined();
+    expect(await screen.findByText('This address belongs to a member of staff here. Only someone who manages privacy for the whole server can look it up or erase it.')).toBeDefined();
     expect(screen.queryByTestId('privacy-result')).toBeNull();
   });
 

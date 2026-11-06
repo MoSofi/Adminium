@@ -122,7 +122,7 @@ function languageName(locale: string): string {
 /** Who writes the words down, for the one-time notice. */
 function providerName(provider: string | null): string {
   if (provider === 'openai') return 'OpenAI';
-  return t('assistant:mic.ownService', 'your workspace’s model service');
+  return t('assistant:mic.ownService', 'your server’s model service');
 }
 
 /** The page the person is on, for the assistant: what the page published, or the general one. */

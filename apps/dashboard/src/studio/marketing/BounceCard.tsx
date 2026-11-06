@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Bounces and spam reports", the card after Senders in Workspace settings
+ * "Bounces and spam reports", the card after Senders in Server settings
  * (comp `Email To Contacts.dc.html` 5a 723-751, 5d 816-831): which mail
  * service this install sends through, the address it calls when a mail
  * bounces or is marked as spam, and what proves its calls.

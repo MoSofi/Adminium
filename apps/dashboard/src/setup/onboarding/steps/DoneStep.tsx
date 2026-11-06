@@ -152,26 +152,26 @@ export function DoneStep({
   let next: string;
   if (connectedDatabases !== undefined && connectedDatabases.length === 0) {
     // The list is still loading (or could not be read): claim nothing either way.
-    next = t('onboarding:done.next.ready', 'Your workspace is ready.');
+    next = t('onboarding:done.next.ready', 'Your server is ready.');
   } else if (connectedDatabases !== undefined) {
     next = generated
       ? t(
           'onboarding:done.next.connected',
-          'Your workspace is ready. The pages made from your database are on the dashboard.',
+          'Your server is ready. The pages made from your database are on the dashboard.',
         )
       : t(
           'onboarding:done.next.connectedNoPages',
-          'Your workspace is ready. Your database is connected; add pages from Studio whenever you are.',
+          'Your server is ready. Your database is connected; add pages from Studio whenever you are.',
         );
   } else if (generating) {
     next = t(
       'onboarding:done.next.generate',
-      'Your workspace is ready. Next we will pick the tables to include and generate your pages.',
+      'Your server is ready. Next we will pick the tables to include and generate your pages.',
     );
   } else {
     next = t(
       'onboarding:done.next.blank',
-      'Your workspace is ready. Add a page whenever you are — nothing was generated, exactly as you asked.',
+      'Your server is ready. Add a page whenever you are — nothing was generated, exactly as you asked.',
     );
   }
 

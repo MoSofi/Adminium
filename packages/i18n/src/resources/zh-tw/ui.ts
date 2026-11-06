@@ -426,9 +426,9 @@ export default {
     },
     "feeds": {
       "activityFeed": {
-        "description": "依時間倒序顯示工作區中誰做了什麼的動態資訊流。",
+        "description": "依時間倒序顯示伺服器上誰做了什麼的動態資訊流。",
         "emptyTitle": "尚無近期動態",
-        "emptyBody": "工作區中的操作將顯示在這裡。",
+        "emptyBody": "伺服器上的操作將顯示在這裡。",
         "viewAllLabel": "檢視全部"
       },
       "notificationFeed": {
@@ -1579,7 +1579,7 @@ export default {
         "offlineTitle": "您已離線",
         "offlineBody": "請檢查網路連線——儀表板會自動重新連線。",
         "forbiddenTitle": "您沒有存取權限",
-        "forbiddenBody": "請聯絡工作區管理員為您授予此頁面的權限。",
+        "forbiddenBody": "請聯絡管理員為您授予此頁面的權限。",
         "maintenanceTitle": "維護中",
         "maintenanceBody": "我們正在改進。通常只需幾分鐘。",
         "connErrorTitle": "無法連線資料庫",
@@ -2190,7 +2190,7 @@ export default {
         "emptyBody": "隨此記錄保存的檔案會顯示在這裡。",
         "loading": "正在載入檔案",
         "removed": "{name} 已移至回收桶。",
-        "tooLarge": "該檔案超過此工作區允許的大小。",
+        "tooLarge": "該檔案超過此伺服器允許的大小。",
         "lead": "隨此記錄保存的檔案。",
         "allFiles": "所有檔案都在「檔案」頁面",
         "inColumn": "在{column}中",

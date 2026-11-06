@@ -78,7 +78,7 @@ export function LoginPage() {
           ...(passwordSet === '1'
             ? { subtitle: t('auth.signIn.passwordSetSubtitle', 'Sign in with your email and the password you just chose.') }
             : surface === undefined
-              ? { subtitle: t('auth.signIn.subtitle', 'Sign in to your Adminium workspace.') }
+              ? { subtitle: t('auth.signIn.subtitle', 'Sign in to your Adminium server.') }
               : {}),
           email: t('auth.signIn.email', 'Email'),
           password: t('auth.signIn.password', 'Password'),

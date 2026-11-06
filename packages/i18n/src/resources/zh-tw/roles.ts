@@ -18,7 +18,7 @@ export default {
     "access": "存取",
     "data": "資料",
     "operations": "維運",
-    "workspace": "工作區",
+    "workspace": "伺服器",
     "records": "頁面與記錄",
     "apps": "應用程式"
   },
@@ -83,7 +83,7 @@ export default {
     "rolesManage": "管理角色與權限",
     "schemaRemap": "編輯結構描述的標籤與覆寫",
     "schemaDdl": "建立、編輯與刪除資料表",
-    "settingsManage": "管理工作區設定",
+    "settingsManage": "管理伺服器設定",
     "usersManage": "管理使用者",
     "filesManage": "管理所有人的檔案",
     "storageManage": "管理儲存目的地",

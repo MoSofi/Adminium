@@ -276,7 +276,7 @@ function ResolvedAddOnPage() {
         title={t('addOns:notInstalled.title', 'This add-on is not installed')}
         body={t(
           'addOns:notInstalled.body',
-          'The page you followed belongs to an add-on this workspace does not have installed, or that has been switched off. An administrator can install it from Studio.',
+          'The page you followed belongs to an add-on this server does not have installed, or that has been switched off. An administrator can install it from Studio.',
         )}
       />
     );

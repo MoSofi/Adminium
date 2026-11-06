@@ -72,7 +72,7 @@ function statusBadge(status: ProjectFileStatus): { tone: 'warn' | 'danger' | 'ne
 function groupLabel(group: string): string {
   switch (group) {
     case 'workspace':
-      return t('nav.group.workspace', 'Workspace');
+      return t('nav.group.workspace', 'Pages');
     case 'library':
       return t('nav.group.library', 'Library');
     case 'planning':

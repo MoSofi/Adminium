@@ -296,7 +296,7 @@ export function FilesPage(): ReactNode {
         title={t('files:title', 'Files')}
         subtitle={t(
           'files:subtitle',
-          'Every file in this workspace: the ones on records, and the library. And where each one is kept.',
+          'Every file on this server: the ones on records, and the library. And where each one is kept.',
         )}
       />
 

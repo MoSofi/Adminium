@@ -29,7 +29,7 @@ export default {
     "trust": "AGPL-kerne · Selvhostet · Dine data forbliver dine",
     "signIn": {
       "title": "Velkommen tilbage",
-      "subtitle": "Log ind på dit Adminium-arbejdsområde.",
+      "subtitle": "Log ind på din Adminium-server.",
       "passwordSetTitle": "Adgangskode gemt",
       "passwordSetSubtitle": "Log ind med din e-mail og den adgangskode, du lige har valgt.",
       "email": "E-mail",
@@ -122,7 +122,7 @@ export default {
     "notificationSettings": "Notifikationsindstillinger",
     "scheduledReports": "Planlagte rapporter",
     "group": {
-      "workspace": "Arbejdsområde",
+      "workspace": "Sider",
       "library": "Bibliotek",
       "planning": "Planlægning",
       "people": "Personer",
@@ -162,7 +162,7 @@ export default {
     "preferences": "Præferencer",
     "studio": "Studio",
     "dataConnections": "Dataforbindelser",
-    "workspaceSettings": "Arbejdsområdeindstillinger",
+    "workspaceSettings": "Serverindstillinger",
     "help": "Hjælpecenter",
     "changelog": "Nyheder",
     "signOut": "Log ud",
@@ -220,7 +220,7 @@ export default {
     },
     "forbidden": {
       "title": "Du har ikke adgang",
-      "body": "Denne side er adgangsbegrænset. Bed en administrator i arbejdsområdet om at give dig adgang.",
+      "body": "Denne side er adgangsbegrænset. Bed en administrator om at give dig adgang.",
       "primary": "Anmod om adgang",
       "secondary": "Gå tilbage"
     },
@@ -283,13 +283,13 @@ export default {
     },
     "readOnly": {
       "title": "Skrivebeskyttet tilstand",
-      "body": "Du har Viewer-adgang til dette arbejdsområde. Du kan udforske dashboards, men redigering og destruktive handlinger er slået fra.",
+      "body": "Du har Viewer-adgang til denne server. Du kan udforske dashboards, men redigering og destruktive handlinger er slået fra.",
       "primary": "Anmod om redigeringsadgang",
       "secondary": "Forstået"
     },
     "suspended": {
-      "title": "Dette arbejdsområde er suspenderet",
-      "body": "Dette arbejdsområde er suspenderet af en administrator. Dine data er bevaret — kontakt ejeren af arbejdsområdet for at få adgang igen.",
+      "title": "Denne server er suspenderet",
+      "body": "Denne server er suspenderet af en administrator. Dine data er bevaret — kontakt serverens ejer for at få adgang igen.",
       "primary": "Kontakt ejeren",
       "secondary": "Gå tilbage"
     },
@@ -429,7 +429,7 @@ export default {
     "save": "Gem ændringer",
     "saveFailed": "Din profil kunne ikke gemmes",
     "saved": "Profil opdateret",
-    "savedBody": "Dine nye oplysninger gælder i hele arbejdsområdet. Hvis du har ændret din e-mail, skal du fremover logge ind med den nye adresse.",
+    "savedBody": "Dine nye oplysninger gælder på hele serveren. Hvis du har ændret din e-mail, skal du fremover logge ind med den nye adresse.",
     "accessTitle": "Adgang",
     "accessSubtitle": "Hvad denne konto må, og hvordan den beviser, hvem den er.",
     "rolesHelper": "Roller tildeles af en administrator og kan ikke ændres fra din egen konto.",
@@ -439,10 +439,10 @@ export default {
     "preferences": {
       "title": "Præferencer",
       "subtitle": "Hvordan Adminium ser ud og læses for dig — på denne og alle andre enheder, du logger ind fra.",
-      "workspaceDefault": "Arbejdsområdets standard",
+      "workspaceDefault": "Serverens standard",
       "personal": "Personlig",
-      "usingDefault": "Bruger arbejdsområdets standard ({value})",
-      "reset": "Nulstil til arbejdsområdets standard",
+      "usingDefault": "Bruger serverens standard ({value})",
+      "reset": "Nulstil til serverens standard",
       "resetFailed": "Denne præference kunne ikke nulstilles. Prøv igen.",
       "appliesInstantly": "Ændringer træder i kraft med det samme og gemmes i din profil."
     }
@@ -450,15 +450,15 @@ export default {
   "settings": {
     "defaults": {
       "title": "Globale standarder",
-      "subtitle": "Standarder for udseende og sprog for hele arbejdsområdet.",
+      "subtitle": "Standarder for udseende og sprog for hele serveren.",
       "explainer": "Disse standarder gælder for alle brugere, medmindre de tilsidesætter dem. Alle kan vælge deres egne præferencer under Profil → Præferencer — personlige præferencer vinder altid for den bruger.",
       "appearanceHeading": "Standarder for udseende",
       "languageHeading": "Standarder for sprog og region",
       "adoption": "{following, number} af {total, plural, one {# bruger} other {# brugere}} følger denne standard.",
       "weekStartNote": "Ugens første dag og talformater følger sproget.",
       "save": "Gem standarder",
-      "saved": "Arbejdsområdets standarder er opdateret",
-      "saveFailed": "Arbejdsområdets standarder kunne ikke gemmes. Prøv igen.",
+      "saved": "Serverens standarder er opdateret",
+      "saveFailed": "Serverens standarder kunne ikke gemmes. Prøv igen.",
       "liveNote": "Når du gemmer, udsendes ændringen live — loggede brugere, der følger en standard, ser den uden at genindlæse."
     },
     "notifications": {
@@ -519,7 +519,7 @@ export default {
         "disable": "Slå fra",
         "delete": "Slet",
         "deleted": "Sprog fjernet",
-        "deletedDetail": "{users, plural, one {# person} other {# personer}} er sat tilbage til arbejdsområdets standard; {strings, plural, one {# oversættelse} other {# oversættelser}} er slettet.",
+        "deletedDetail": "{users, plural, one {# person} other {# personer}} er sat tilbage til serverens standard; {strings, plural, one {# oversættelse} other {# oversættelser}} er slettet.",
         "deleteFailed": "Sproget kunne ikke fjernes",
         "add": "Tilføj et sprog",
         "added": "Sprog tilføjet",
@@ -541,15 +541,15 @@ export default {
   },
   "onboarding": {
     "title": "Kom godt i gang",
-    "subtitle": "Nogle få trin for at gøre dit arbejdsområde klar.",
+    "subtitle": "Nogle få trin for at gøre din server klar.",
     "loading": "Indlæser din tjekliste…",
     "welcome": "Velkommen til Adminium, {name} 👋",
-    "progressBody": "Du har gennemført {done} af {total} opsætningstrin. Gennemfør resten for at låse hele arbejdsområdet op.",
-    "completeBody": "Alt er klar — dit arbejdsområde er fuldt konfigureret.",
+    "progressBody": "Du har gennemført {done} af {total} opsætningstrin. Gennemfør resten for at låse op for det hele.",
+    "completeBody": "Alt er klar — din server er fuldt konfigureret.",
     "ringLabel": "{done} af {total} trin gennemført",
     "done": "Færdig",
     "skip": "Spring over for nu",
-    "goToWorkspace": "Gå til arbejdsområde",
+    "goToWorkspace": "Gå til dashboardet",
     "help": {
       "title": "Brug for hjælp?",
       "body": "Vi er her for at hjælpe dig hurtigt i gang."
@@ -574,7 +574,7 @@ export default {
         "action": "Inviter"
       },
       "workspaceDefaults": {
-        "title": "Angiv standarder",
+        "title": "Angiv serverens standarder",
         "desc": "Tema, accent, tæthed og sprog for alle.",
         "time": "1 min",
         "action": "Angiv"
@@ -584,7 +584,7 @@ export default {
       "wayBack": "Kom godt i gang · {done}/{total}",
       "dismiss": "Skjul tjeklisten",
       "continue": "Fortsæt opsætning",
-      "banner": "Færdiggør opsætningen af dit arbejdsområde — {done} af {total} trin klaret."
+      "banner": "Færdiggør opsætningen af din server — {done} af {total} trin klaret."
     },
     "desktopSetup": {
       "title": "Velkommen til Adminium",
@@ -1242,7 +1242,7 @@ export default {
   },
   "desktop": {
     "settings": {
-      "explainer": "Disse indstillinger gælder kun for Adminium-appen på denne computer. De gemmes på denne maskine, ikke i dit workspace.",
+      "explainer": "Disse indstillinger gælder kun for Adminium-appen på denne computer. De gemmes på denne maskine, ikke i serverens indstillinger.",
       "title": "Skrivebordsindstillinger"
     },
     "security": {
@@ -1622,7 +1622,7 @@ export default {
       "title": "Auditloggen kunne ikke indlæses"
     },
     "loadMore": "Indlæs ældre hændelser",
-    "subtitle": "Hver ændring i dette arbejdsområde, hvem der foretog den, og hvad den ændrede.",
+    "subtitle": "Hver ændring på denne server, hvem der foretog den, og hvad den ændrede.",
     "title": "Auditlog",
     "via": "gennem {name}"
   },

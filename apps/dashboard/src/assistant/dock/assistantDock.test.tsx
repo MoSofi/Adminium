@@ -245,7 +245,7 @@ describe('the conversation', () => {
     await waitFor(() => expect(posts('/facts')).toHaveLength(1));
     expect(posts('/facts')[0]).toMatchObject({ context: 'general', host: { connectionIds: [] } });
     expect(await screen.findByText('I can read the tables your role can read, and tell you where things are done.')).toBeTruthy();
-    expect(lookingAt()).toBe('This workspace');
+    expect(lookingAt()).toBe('This server');
   });
 
   it('stops a question that is being answered', async () => {

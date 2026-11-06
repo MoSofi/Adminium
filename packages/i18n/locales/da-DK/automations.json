@@ -104,7 +104,7 @@
     "email": "Send e-mail",
     "emailDesc": "Fra en gemt skabelon",
     "notification": "Send notifikation",
-    "notificationDesc": "Giv besked til folk i dette workspace",
+    "notificationDesc": "Giv besked til folk på denne server",
     "create": "Opret post",
     "createDesc": "Tilføj en række i en tabel",
     "update": "Opdater felt",

@@ -104,7 +104,7 @@
     "email": "发送邮件",
     "emailDesc": "使用已保存的模板",
     "notification": "发送通知",
-    "notificationDesc": "通知此工作区中的成员",
+    "notificationDesc": "通知此服务器上的成员",
     "create": "创建记录",
     "createDesc": "向表中新增一行",
     "update": "更新字段",

@@ -18,7 +18,7 @@ export default {
     "access": "Přístup",
     "data": "Data",
     "operations": "Provoz",
-    "workspace": "Pracovní prostor",
+    "workspace": "Server",
     "records": "Stránky a záznamy",
     "apps": "Aplikace"
   },
@@ -83,7 +83,7 @@ export default {
     "rolesManage": "Spravovat role a oprávnění",
     "schemaRemap": "Upravovat popisky a úpravy schématu",
     "schemaDdl": "Vytvářet, upravovat a mazat tabulky",
-    "settingsManage": "Spravovat nastavení pracovního prostoru",
+    "settingsManage": "Spravovat nastavení serveru",
     "usersManage": "Spravovat uživatele",
     "filesManage": "Spravovat soubory všech uživatelů",
     "storageManage": "Spravovat cíle úložiště",

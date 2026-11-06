@@ -166,7 +166,7 @@ export function OptionListEditor({
           draft === null
             ? t(
                 'studio:lists.builtinSubtitle',
-                'A list Adminium ships. It is the same in every workspace, and its names are written in each person’s own language.',
+                'A list Adminium ships. It is the same on every server, and its names are written in each person’s own language.',
               )
             : t('studio:lists.editSubtitle', 'The answers a column with this list accepts, in the order a form offers them.')
         }
@@ -218,7 +218,7 @@ export function OptionListEditor({
             <p className="text-caption text-fg-subtle">
               {t(
                 'studio:lists.storeLabelHelp',
-                'A copy stores the code, e.g. DE. "Store the label instead" stores what it is called here, e.g. Germany — in this workspace’s language, from now on.',
+                'A copy stores the code, e.g. DE. "Store the label instead" stores what it is called here, e.g. Germany — in this server’s language, from now on.',
               )}
             </p>
           </>

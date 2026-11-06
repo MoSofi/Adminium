@@ -16,7 +16,7 @@ export default {
     "trashFailed": "无法将此文件移至回收站"
   },
   "title": "文件",
-  "subtitle": "此工作区中的所有文件：记录上的文件和文件库中的文件，以及每个文件的存放位置。",
+  "subtitle": "此服务器上的所有文件：记录上的文件和文件库中的文件，以及每个文件的存放位置。",
   "search": "按文件名搜索",
   "trash": {
     "notice": {
@@ -103,7 +103,7 @@ export default {
   "upload": {
     "open": "上传",
     "title": "上传文件",
-    "subtitle": "向此工作区添加文件。",
+    "subtitle": "向此服务器添加文件。",
     "connection": "它们属于哪个连接",
     "drop": "将文件拖到此处",
     "browse": "浏览你的电脑",

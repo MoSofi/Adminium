@@ -114,7 +114,7 @@ export default {
     "email": "إرسال بريد إلكتروني",
     "emailDesc": "من قالب محفوظ",
     "notification": "إرسال إشعار",
-    "notificationDesc": "إبلاغ أشخاص في مساحة العمل هذه",
+    "notificationDesc": "إبلاغ أشخاص على هذا الخادم",
     "create": "إنشاء سجل",
     "createDesc": "إضافة صف إلى جدول",
     "update": "تحديث حقل",
