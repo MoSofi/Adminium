@@ -77,9 +77,8 @@ test.describe('installing an app', () => {
     // Nothing about WHICH app this is gets typed: the server reads the key and
     // version out of the bundle's manifest, and the footer names what it read.
     await expect(page.getByLabel('App key')).toHaveCount(0);
-    // The operator's own hash: the one path where the integrity check is real
-    // end to end rather than self-referential.
-    await page.getByLabel(/Integrity/).fill(bundle.integrity);
+    // No fingerprint is typed on the upload: the browser hashes the file it sends.
+    await expect(page.getByLabel(/Integrity/)).toHaveCount(0);
     await page.getByRole('button', { name: 'Upload' }).click();
 
     // ── Step 2: where it goes ─────────────────────────────────────────────
@@ -110,7 +109,7 @@ test.describe('installing an app', () => {
     );
 
     await page.getByRole('button', { name: 'Install', exact: true }).click();
-    await expect(page.getByText('E2E Desk is installed')).toBeVisible();
+    await expect(page.getByText('E2E Desk 1.0.0 is installed on northwind')).toBeVisible();
     await expect(page.getByText(`/apps/${APP_KEY}/staff/`).first()).toBeVisible();
 
     // ── Served, on the next request, with no restart ──────────────────────
@@ -185,7 +184,7 @@ test.describe('installing an app', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
     await useShippersAsItIs(page);
     await page.getByRole('button', { name: 'Install', exact: true }).click();
-    await expect(page.getByText('E2E Desk is installed')).toBeVisible();
+    await expect(page.getByText('E2E Desk 1.0.0 is installed on northwind')).toBeVisible();
 
     // Back on the shelf the card says so, instead of offering to do it again.
     await page.getByRole('button', { name: 'Manage apps' }).click();
@@ -213,7 +212,6 @@ test.describe('installing an app', () => {
       mimeType: 'application/gzip',
       buffer: bundle.buffer,
     });
-    await page.getByLabel(/Integrity/).fill(bundle.integrity);
     await page.getByRole('button', { name: 'Upload' }).click();
 
     await expect(page.getByText('Install into which database?')).toBeVisible();
