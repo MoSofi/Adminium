@@ -67,7 +67,9 @@ export function UninstallAppDialog({ appKey, name, subtitle, onClose, onUninstal
   const data = plan.data;
   const droppable = data?.tables.filter((table) => table.droppable) ?? [];
   const offerDrop = data !== undefined && data.canDropTables && droppable.length > 0;
-  const blocked = drop && typed.trim() !== appKey;
+  // What it wrote over the whole server is put back only by someone who may change the server's settings.
+  const restoreLocked = data?.instance !== undefined && !data.instance.canRestore;
+  const blocked = (drop && typed.trim() !== appKey) || restoreLocked;
 
   const removed: string[] = [];
   const kept: string[] = [];
@@ -84,6 +86,7 @@ export function UninstallAppDialog({ appKey, name, subtitle, onClose, onUninstal
       );
     }
     removed.push(t('studio:uninstall.settings', 'Its settings'));
+    if (data.instance?.canRestore === true) removed.push(t('studio:uninstall.instance', 'The look and languages it applied, put back as they were'));
     if ((data.rules ?? 0) > 0) {
       removed.push(
         t('studio:uninstall.rules', '{count, plural, one {Its column rule} other {Its # column rules}}', { count: data.rules ?? 0 }),
@@ -178,6 +181,14 @@ export function UninstallAppDialog({ appKey, name, subtitle, onClose, onUninstal
               <List tone="removed" title={t('studio:uninstall.removed', 'Removed')} items={removed} />
               <List tone="kept" title={t('studio:uninstall.kept', 'Kept')} items={kept} />
             </div>
+            {restoreLocked ? (
+              <Alert tone="warn" title={t('studio:uninstall.instance', 'The look and languages it applied, put back as they were')}>
+                {t(
+                  'studio:uninstall.instanceLocked',
+                  'It changed the look and languages of the whole server. Putting them back needs the permission to change the server’s settings: ask someone who has it to uninstall this app.',
+                )}
+              </Alert>
+            ) : null}
             {cascading.map((role) => (
               <Alert key={role.slug} tone="warn" title={role.name}>
                 {t(

@@ -60,6 +60,8 @@ export interface CoreCheck {
 export interface CoreDropOptions {
   dropTables: boolean;
   superAdmin: boolean;
+  /** Whether the person may change the server's settings: what a deployment-wide part wrote is put back only by them. */
+  settingsManage?: boolean | undefined;
 }
 
 /** What an uninstall would remove and keep. Opaque here: made by `listOf`, handed back to `checkDrop` and `remove`. */

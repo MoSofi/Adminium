@@ -1535,6 +1535,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             plan.connectionId === null
               ? 0
               : (await ownRules(deps.meta, plan.tables.map((entry) => entry.record), plan.connectionId)).length,
+          ...(plan.instanceValues === 0 ? {} : { instance: { values: plan.instanceValues, canRestore: await canOf(request)(PERMISSIONS.settingsManage) } }),
           roles: plan.roles.map((entry) => ({
             slug: entry.role.slug,
             name: entry.role.name,
@@ -2523,8 +2524,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const plan = await uninstallPlanOf(row);
         const superAdmin = await isSuperAdmin(request);
         // Everything that could refuse the drop is asked first; then the steps, in order (`apps/removal.ts`).
-        await service.removals.checkDrop(plan, { dropTables, superAdmin });
-        const { rulesRemoved, emailsRemoved, dropped, kept, instanceRestored } = await service.removals.remove(plan, { dropTables, superAdmin, createdBy: userId });
+        const settingsManage = await canOf(request)(PERMISSIONS.settingsManage);
+        await service.removals.checkDrop(plan, { dropTables, superAdmin, settingsManage });
+        const { rulesRemoved, emailsRemoved, dropped, kept, instanceRestored } = await service.removals.remove(plan, { dropTables, superAdmin, settingsManage, createdBy: userId });
         // Its own settings go with it (the row's cascade too); a reinstall starts from the manifest's defaults.
         await addOnSettingsRepo(deps.meta).clearForInstall(row.row.id);
         /*

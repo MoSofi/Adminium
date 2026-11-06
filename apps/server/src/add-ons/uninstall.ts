@@ -16,7 +16,7 @@
  * parts go; a stop leaves it `updating`, and the same call finishes: every
  * step is safe to run twice.
  */
-import { addOnSettingsRef } from '../rbac/permissions.js';
+import { addOnSettingsRef, PERMISSIONS } from '../rbac/permissions.js';
 import { installsLikeAnApp, isAddOnManifest, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { appTablesRepo, auditRepo, manifestsRepo, permissionsRepo, realTableOf, type InstalledManifest } from '@adminium/meta';
 import { grantKeyOf, resolveInstall, type InstallSelector } from '../installs/resolve.js';
@@ -124,7 +124,9 @@ export async function uninstallAddOn(deps: AddOnInstallerDeps, input: UninstallA
     if (input.confirmKey !== key) throw new ValidationFailedError(`Type "${key}" to delete its tables and everything in them.`, { reason: 'CONFIRM_KEY_MISMATCH' });
   }
   const list = likeApp ? await core.removals.listOf(installed) : null;
-  if (list !== null) await core!.removals.checkDrop(list, { dropTables, superAdmin });
+  // A caller with no permission layer holds every permission (`Actor.can`).
+  const settingsManage = (await input.actor.can?.(PERMISSIONS.settingsManage)) ?? true;
+  if (list !== null) await core!.removals.checkDrop(list, { dropTables, superAdmin, settingsManage });
 
   const result: UninstallAddOnResult = { key, version: installed.row.version, likeApp, removed: { pages: 0, roles: 0, rules: 0, emails: 0, endpoints: 0, keys: 0 }, kept: { pages: [], tables: [] }, dropped: [], packageRemoved: true };
   const work = async (): Promise<void> => {
@@ -146,7 +148,7 @@ export async function uninstallAddOn(deps: AddOnInstallerDeps, input: UninstallA
     }
     if (list !== null) {
       const listed = list as unknown as { pages: { removed: { slug: string }[]; kept: { slug: string }[] }; roles: unknown[]; endpoints: unknown[]; keys: unknown[] };
-      const done = await core!.removals.remove(list, { dropTables, superAdmin, createdBy: input.actor.id });
+      const done = await core!.removals.remove(list, { dropTables, superAdmin, settingsManage, createdBy: input.actor.id });
       result.removed = { pages: listed.pages.removed.length, roles: listed.roles.length, rules: done.rulesRemoved, emails: done.emailsRemoved, endpoints: listed.endpoints.length, keys: listed.keys.length };
       result.kept.pages = listed.pages.kept.map((page) => page.slug);
       result.dropped = done.dropped;

