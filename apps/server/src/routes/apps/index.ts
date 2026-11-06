@@ -2272,7 +2272,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const superAdmin = await isSuperAdmin(request);
         // Everything that could refuse the drop is asked first; then the steps, in order (`apps/removal.ts`).
         await service.removals.checkDrop(plan, { dropTables, superAdmin });
-        const { rulesRemoved, emailsRemoved, dropped, kept } = await service.removals.remove(plan, { dropTables, superAdmin, createdBy: userId });
+        const { rulesRemoved, emailsRemoved, dropped, kept, instanceRestored } = await service.removals.remove(plan, { dropTables, superAdmin, createdBy: userId });
         // Its own settings go with it (the row's cascade too); a reinstall starts from the manifest's defaults.
         await addOnSettingsRepo(deps.meta).clearForInstall(row.row.id);
         /*
@@ -2339,6 +2339,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           roles: plan.roles.length,
           rules: rulesRemoved,
           emails: emailsRemoved,
+          ...(instanceRestored === 0 ? {} : { instance: instanceRestored }),
         };
         const keptSummary = {
           pages: plan.pages.kept.length,

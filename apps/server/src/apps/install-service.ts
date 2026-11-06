@@ -159,6 +159,7 @@ import { installAutomations, plannedAfterInstallOfRules } from './manifest-autom
 import { recordAfterInstall, type AfterInstallItem } from './after-install.js';
 import { requiredAppsHere, requiredTablesGone } from './required-apps.js';
 import { deliveryItems, installSavedParts, plannedAfterInstallOfParts, savedPartsRefusal } from './saved-parts.js';
+import { INSTANCE_EVENTS, applyInstance, carriesInstance, instanceFileProblems, instanceRefusal, reviewInstance, type InstanceResult } from './manifest-instance.js';
 import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { addOnsNamedBy, liveAddOnsFor } from './live-add-ons.js';
 import { addOnGrantsWider, roleTablesAsked, roleTablesChecked, settleRoleTables, widerWords, type AddOnGrantWider, type RoleTableCheck, type RoleTableResult } from './manifest-role-tables.js';
@@ -579,6 +580,11 @@ function shapeRecordOf(
 function tableModuleOf(manifest: Manifest, ref: string): string | null {
   const table = (manifest.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === ref);
   return table !== undefined && 'module' in table && typeof table.module === 'string' ? table.module : null;
+}
+
+/** The install or update reply's account of the deployment-wide part, when it was applied. */
+function instanceReply(done: InstanceResult | undefined): { instance?: { written: string[]; restored: string[]; left: { item: string; reason: string }[] } } {
+  return done === undefined ? {} : { instance: { written: done.written, restored: done.restored, left: done.left } };
 }
 
 /**
@@ -1251,6 +1257,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       ...pageConfigProblems(manifest),
       ...templateProblems(manifest).map((message) => ({ code: 'EMAIL_TEMPLATE_INVALID' as const, table: manifest.key, message })),
       ...(await mailFileProblems(manifest)).map((message) => ({ code: 'EMAIL_TEMPLATE_INVALID' as const, table: manifest.key, message })),
+      // The deployment-wide part's logo and favicon, as its package holds them.
+      ...(carriesInstance(manifest) ? await instanceFileProblems(manifest, async (path) => (await files.readVerifiedFile(manifest.key, manifest.version, path)).bytes, deps.library) : []).map((message) => ({ code: 'INSTANCE_INVALID' as const, table: manifest.key, message })),
       ...roleIssues(manifest).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
       ...(await roleSlugProblems(deps.meta, manifest)).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
       // A role's grant of an add-on's page or panel, against that add-on's manifest where one is at hand.
@@ -1335,6 +1343,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
             }),
         ...(plan.names === undefined ? {} : { names: plan.names }),
         ...reviewOf(manifest),
+        ...(carriesInstance(manifest) ? { instance: await reviewInstance(deps.meta, manifest) } : {}),
         ...(plan.shareOffers === undefined
           ? {}
           : {
@@ -2965,6 +2974,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     // What only a file made on an Adminium carries is made only by someone who could make it by hand.
     const partsRefused = await savedPartsRefusal(manifest, actor.can);
     if (partsRefused !== null) throw partsRefused;
+    // The server's own look and words, ticked: only by someone who may change its settings.
+    const instanceRefused = await instanceRefusal(manifest, input.instance, actor.can);
+    if (instanceRefused !== null) throw instanceRefused;
 
     const wanted = manifest.requiredSchema?.tables ?? [];
     if (wanted.length > 0 && connectionId === undefined) {
@@ -3152,11 +3164,12 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     await deps.installed.refresh();
 
     const tableRecords = appTablesRepo(deps.meta);
-    let stage: 'add-ons' | 'tables' | 'pages' | 'seeds' | 'finish' = 'add-ons';
+    let stage: 'add-ons' | 'tables' | 'pages' | 'seeds' | 'instance' | 'finish' = 'add-ons';
     let applied: { created: string[]; reused: string[] } | undefined;
     let writtenPages: Awaited<ReturnType<typeof writePages>>;
     let seeded: { written: Record<string, number>; kept: string[] } | undefined;
     let addOnsDone: AddOnsDone | undefined;
+    let instanceDone: InstanceResult | undefined;
     try {
       /*
        * THE ADD-ONS FIRST, into the app's own database, so its tables can
@@ -3251,6 +3264,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         });
         seeded = { written: rows.written, kept: rows.kept };
       }
+      // The server's own look and words, when ticked: one transaction, its undo kept with the install.
+      stage = 'instance';
+      if (input.instance === true) instanceDone = await applyInstanceFor(manifest, rowId, input, userId, host);
       stage = 'finish';
       await placeFromManifest(manifest, userId);
       // Maps, asked once for the whole install by the first app that shows them: shown unless the installer said no.
@@ -3339,7 +3355,31 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       ...documentsWaiting(writtenPages?.documents),
       ...(seeded === undefined ? {} : { seeds: seeded }),
       ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }),
+      ...instanceReply(instanceDone),
     };
+  }
+
+  /** Applies a file's deployment-wide part to this server, and tells open screens. */
+  async function applyInstanceFor(
+    manifest: Manifest,
+    manifestId: string,
+    answers: { instanceHosts?: Readonly<Record<string, readonly string[]>> | undefined },
+    userId: string | null,
+    host: InstallHost,
+  ): Promise<InstanceResult | undefined> {
+    const done = await applyInstance({
+      meta: deps.meta,
+      manifest,
+      manifestId,
+      answers: { instance: true, instanceHosts: answers.instanceHosts },
+      readFile: async (path) => (await files.readVerifiedFile(manifest.key, manifest.version, path)).bytes,
+      library: deps.library,
+      userId,
+    });
+    if (done?.branding === true) host.publish?.('config-changed', INSTANCE_EVENTS.branding, {});
+    if (done?.words === true) host.publish?.('config-changed', INSTANCE_EVENTS.i18n, {});
+    if (done !== undefined && done.left.length > 0) host.log.info({ app: manifest.key, left: done.left }, 'parts of the server-wide part were left out');
+    return done;
   }
 
   async function update(actor: InstallActor, host: InstallHost, input: UpdateInput): Promise<UpdateAppReply> {
@@ -3439,6 +3479,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     }
     const partsRefused = await savedPartsRefusal(manifest, actor.can);
     if (partsRefused !== null) throw partsRefused;
+    const instanceRefused = await instanceRefusal(manifest, input.body?.instance, actor.can);
+    if (instanceRefused !== null) throw instanceRefused;
 
     /*
      * AN ADD-ON MOUNTED ON THIS APP MUST STILL WORK WITH IT. A new version
@@ -3685,9 +3727,10 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const surfaces = surfacesOfInstalled(files, { key, version: to });
     const canGrantKeys = await actor.can(PERMISSIONS.apiKeysManage);
     const addOnInstaller = addOnDeps();
-    let stage: 'pages' | 'seeds' = 'pages';
+    let stage: 'pages' | 'seeds' | 'instance' = 'pages';
     let writtenPages: Awaited<ReturnType<typeof writePages>>;
     let seeded: { written: Record<string, number>; kept: string[] } | undefined;
+    let instanceDone: InstanceResult | undefined;
     try {
       await deps.installed.refresh();
       // New pages are added, untouched ones rebuilt for this version, and
@@ -3749,6 +3792,17 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           });
           seeded = { written: rows.written, kept: rows.kept };
         }
+      }
+      /*
+       * The new version's deployment-wide part, when ticked: written again in
+       * one transaction, the first undo kept, and what this version no longer
+       * carries put back. Asked again here: a resumed update comes this way.
+       */
+      stage = 'instance';
+      if (input.body?.instance === true) {
+        const refused = await instanceRefusal(manifest, true, actor.can);
+        if (refused !== null) throw refused;
+        instanceDone = await applyInstanceFor(manifest, installed.row.id, input.body, userId, host);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -3816,6 +3870,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         ...documentsWaiting(writtenPages?.documents),
         ...(seeded === undefined ? {} : { seeds: seeded }),
         ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }),
+        ...instanceReply(instanceDone),
       },
       from,
       to,

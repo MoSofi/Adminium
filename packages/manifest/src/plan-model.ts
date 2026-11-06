@@ -163,7 +163,9 @@ export interface PlanProblem {
     // changed, renamed, or is not offered for reuse).
     | 'EXISTING_TABLE_UNUSABLE'
     // Added by the server: a self-made app's file installed onto the very database it was saved from (D12).
-    | 'SAVED_FROM_HERE';
+    | 'SAVED_FROM_HERE'
+    // Added by the server: a deployment-wide part whose logo or favicon its package does not hold as it says.
+    | 'INSTANCE_INVALID';
   message: string;
   table: string;
   column?: string;
