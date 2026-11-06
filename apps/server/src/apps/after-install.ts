@@ -5,8 +5,9 @@
  * A file never carries what only the place it lands on may say: a webhook's
  * address and its header's value, the addresses a rule mails, the slot a
  * document is mailed to, who a scheduled report goes to, a payment service's
- * keys, a bank account. Those parts arrive empty (and their rule switched
- * off); each is one item of the app's "After you install" list, said by what
+ * keys, a bank account, the address a mail is sent from, a console
+ * permission a role held where the file was made. Those parts arrive empty
+ * (and their rule switched off, the permission not given); each is one item of the app's "After you install" list, said by what
  * it is (`kind`), the entry of the file it belongs to (`item`: a rule's key,
  * a report's key, a document's table and kind) and the field to fill.
  *
@@ -14,11 +15,11 @@
  */
 import { appAfterInstallRepo, type MetaDb } from '@adminium/meta';
 
-export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account';
+export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant';
 
 export interface AfterInstallItem {
   kind: AfterInstallKind;
-  /** The entry of the file: a rule's key, a scheduled report's key, `<table>/<kind>` of a document, a payment way. */
+  /** The entry of the file: a rule's key, a scheduled report's key, `<table>/<kind>` of a document, a payment way, a mail's key, a role's key. */
   item: string;
   /** What to fill in, inside that entry. */
   field: string;

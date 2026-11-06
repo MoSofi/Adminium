@@ -38,7 +38,9 @@
  * Refused at plan time: a `system:` grant (an app may not hand out the
  * console), a wildcard, a reference to a table or page the app does not
  * declare, `cloneFrom` anything but another of its own roles, and a slug
- * longer than the column holds.
+ * longer than the column holds. A file made on an Adminium may name a
+ * `system:` grant its role held there: it is never given, only listed for the
+ * owner to give by hand after installing.
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest, RowReach } from '@adminium/manifest';
@@ -47,6 +49,7 @@ import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, typ
 import { matrixRowsFromGrants } from '../rbac/permissions.js';
 import type { RoleTableResult } from '@adminium/manifest';
 import { grantKeyOf, installRoleSlug, type InstallAddress } from '../installs/resolve.js';
+import type { AfterInstallItem } from './after-install.js';
 import { ownsBlocks } from './owns-blocks.js';
 
 type ManifestRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[number];
@@ -177,6 +180,26 @@ function codePagesOf(manifest: Manifest): string[] {
   return manifest.kind === 'add-on' ? [...(manifest.addOn.pages ?? []).map((page) => page.ref), ...(manifest.addOn.panels ?? []).map((panel) => panel.id)] : [];
 }
 
+/** A file made on an Adminium (`publisher: local`). */
+function isLocalFile(manifest: Manifest): boolean {
+  return manifest.kind === 'app' && (manifest.publisher as { id?: string } | undefined)?.id === 'local';
+}
+
+/** A console permission the RBAC grammar knows, other than people's data (an app's role carries that as `privacy:@:people`). */
+function isSystemGrant(grant: string): boolean {
+  return grant.startsWith('system:') && grant !== PRIVACY_PEOPLE_GRANT && matrixRowsFromGrants([grant]).invalid.length === 0;
+}
+
+/**
+ * The console permissions a file made on an Adminium names for its roles:
+ * what the role held where it was made. The install never gives one; each is
+ * an "after you install" item, for the owner to give by hand.
+ */
+export function plannedAfterInstallOfRoles(manifest: Manifest): AfterInstallItem[] {
+  if (!isLocalFile(manifest) || manifest.kind !== 'app') return [];
+  return (manifest.roles ?? []).flatMap((role) => (role.permissions ?? []).filter(isSystemGrant).map((grant) => ({ kind: 'system-grant' as const, item: role.key, field: grant })));
+}
+
 /** What is wrong with the manifest's roles, one message per problem. */
 export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIER_TOO_LONG' | 'ROLE_INVALID'; message: string }[] {
   if (!ownsBlocks(manifest)) return [];
@@ -212,7 +235,8 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         continue;
       }
       if (grant.startsWith('system:')) {
-        refuse(`"${grant}" gives a console permission, which an app cannot`);
+        // A file made on an Adminium names a console permission its role held there: never given, listed for the owner.
+        if (!isLocalFile(manifest) || !isSystemGrant(grant)) refuse(`"${grant}" gives a console permission, which an app cannot`);
         continue;
       }
       if (grant.includes('*')) {
