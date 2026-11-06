@@ -440,7 +440,7 @@ export function WorkspaceFileInstall({ file, resumeId, onClose }: WorkspaceFileI
       )}
 
       {staged !== null && step === 'review' && refusal === null ? (
-        <footer className="sticky bottom-0 -mx-6 mt-auto flex flex-wrap items-center gap-3 border-t border-border bg-surface px-6 py-3.5">
+        <footer data-sticky-footer className="sticky bottom-0 -mx-6 mt-auto flex flex-wrap items-center gap-3 border-t border-border bg-surface px-6 py-3.5">
           {fingerprintHold ? (
             <HoldHint id={holdId}>{t('studio:hostedApps.review.fingerprint.hold', 'The fingerprint does not match. Clear it, or paste the one shown when it was saved.')}</HoldHint>
           ) : (

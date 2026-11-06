@@ -473,6 +473,7 @@ export function ConnectWizard({
         — there is visibly no step to go back to.
       */}
       <footer
+        data-sticky-footer
         className={`sticky bottom-0 -mx-6 mt-auto flex items-center border-t border-border bg-surface px-6 py-3.5 ${
           stepIndex === 0 ? 'justify-end' : 'justify-between'
         }`}

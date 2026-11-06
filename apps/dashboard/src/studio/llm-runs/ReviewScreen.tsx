@@ -302,7 +302,7 @@ function ReviewScreenBody({ runId }: ReviewScreenProps) {
       )}
 
       {readOnly ? null : (
-        <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur md:px-6">
+        <div data-sticky-footer className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur md:px-6">
           <div className="mx-auto flex max-w-wide items-center justify-between gap-3">
             <span className="text-body-sm text-fg-muted">
               {t('studio:llmRuns.review.footer.count', '{n} suggestions selected', { n: nAccepted })}

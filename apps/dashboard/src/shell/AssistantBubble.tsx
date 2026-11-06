@@ -30,13 +30,16 @@ export function AssistantBubble({ bootstrap }: { bootstrap: BootstrapData }) {
   const signal = useDockSignal();
   const shown = allowed && !open;
 
-  // Both want the same corner: the toasts stand above the bubble while it is there.
+  // Both want the same corner: the toasts stand above the bubble while it is there. And a bar stuck
+  // to the page's foot (`data-sticky-footer`) keeps the corner free, by the stylesheet's rule on this mark.
   useEffect(() => {
     if (!shown) return;
     const root = document.documentElement;
     root.style.setProperty('--toast-lift', TOAST_LIFT);
+    root.setAttribute('data-assistant-bubble', '');
     return () => {
       root.style.removeProperty('--toast-lift');
+      root.removeAttribute('data-assistant-bubble');
     };
   }, [shown]);
 

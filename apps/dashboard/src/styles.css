@@ -26,3 +26,16 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
 }
+
+/* The assistant's bubble is fixed in the bottom inline-end corner (`bottom-4 end-4 size-12` in
+   shell/AssistantBubble.tsx), above the page. A bar stuck to the page's foot keeps that corner free
+   while the bubble is there, so its last button is never under it: the bubble's 16 px inset, its
+   48 px, and a 12 px gap. Inline-end, so it is the left corner in a right-to-left language. Not in a
+   layer, so it wins over the bar's own `px-*` without a specificity contest; the bar marks itself
+   with `data-sticky-footer`, and `shell/stickyFooterRoom.test.ts` holds both ends of this to it. */
+:root {
+  --assistant-bubble-room: calc(var(--spacing) * (4 + 12 + 3));
+}
+:root[data-assistant-bubble] [data-sticky-footer] {
+  padding-inline-end: var(--assistant-bubble-room);
+}

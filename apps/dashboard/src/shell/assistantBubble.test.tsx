@@ -31,6 +31,7 @@ afterEach(() => {
   resetDock();
   window.localStorage.clear();
   document.documentElement.style.removeProperty('--toast-lift');
+  document.documentElement.removeAttribute('data-assistant-bubble');
 });
 
 const allowed = () => makeBootstrap({ assistant: { allowed: true, name: 'Milo' } } as never);
@@ -79,6 +80,23 @@ describe('the bubble', () => {
     render(<AssistantBubble bootstrap={other} />);
     expect(screen.getByTestId('assistant-bubble')).toBeTruthy();
     expect(screen.queryByTestId('dock')).toBeNull();
+  });
+
+  it('marks the page while it stands in the corner, so a bar at the page`s foot keeps the corner free', () => {
+    const marked = () => document.documentElement.hasAttribute('data-assistant-bubble');
+    const nobody = render(<AssistantBubble bootstrap={makeBootstrap()} />);
+    expect(marked()).toBe(false);
+    nobody.unmount();
+
+    const view = render(<AssistantBubble bootstrap={allowed()} />);
+    expect(marked()).toBe(true);
+    // The panel open: no bubble, so the bars have their own padding back.
+    act(() => setDockOpen(true));
+    expect(marked()).toBe(false);
+    act(() => setDockOpen(false));
+    expect(marked()).toBe(true);
+    view.unmount();
+    expect(marked()).toBe(false);
   });
 
   it('opens and closes from the keyboard, with a shortcut the registry lists', async () => {
