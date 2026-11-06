@@ -163,7 +163,25 @@ export function createSaveService(deps: SaveServiceDeps) {
       ...(request.rows === undefined ? {} : { rows: request.rows }),
       ...definedOf(request.answers ?? {}),
     };
-    const source: SaveSource = { meta: deps.meta, connectionId: request.connectionId, dialect, model, adminiumVersion: deps.adminiumVersion };
+    const storage = deps.storage;
+    const source: SaveSource = {
+      meta: deps.meta,
+      connectionId: request.connectionId,
+      dialect,
+      model,
+      adminiumVersion: deps.adminiumVersion,
+      ...(storage === null
+        ? {}
+        : {
+            readFile: async (fileId: string) => {
+              const file = await filesRepo(deps.meta).findById(fileId);
+              if (file === null || file.deletedAt !== null) return null;
+              const chunks: Buffer[] = [];
+              for await (const chunk of await storage.read(file)) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+              return new Uint8Array(Buffer.concat(chunks));
+            },
+          }),
+    };
     const made = await convertToApp(source, choices);
     // The gates' answers carried out on the file itself, before the gates look again.
     const converted = { ...made, ...carryOutAnswers(made.manifest, made.files, choices) };

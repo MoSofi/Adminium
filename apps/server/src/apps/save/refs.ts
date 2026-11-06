@@ -27,12 +27,17 @@ import { slugify } from '@adminium/engine';
 import type { DatabaseModel, TableModel } from '@adminium/engine';
 import { appTablesRepo, emailTemplatesRepo, optionListsRepo, pagesRepo, permissionsRepo, rolesRepo, type AppTableRecord, type Page, type Role } from '@adminium/meta';
 
+import { BUILTIN_EMAIL_TEMPLATE_KEYS } from '../../email/builtins.js';
 import type { SaveChoices, SaveSource } from './types.js';
 
 /** Postgres's limit on a page address the manifest accepts (`manifest-pages.ts` `PAGE_SLUG`). */
 const PAGE_REF_MAX = 31;
 /** `<appkey>-<name>` is at most 80 characters (`outbox.ts`). */
 const TEMPLATE_KEY_MAX = 80;
+/** An installed app role's slug, `<appkey>-<key>`. */
+const ROLE_SLUG_MAX = 40;
+/** A column ref the manifest accepts: the column travels under its own name only when it is one. */
+const COLUMN_REF = /^[a-z][a-z0-9_]*$/;
 
 export interface SavedTable {
   /** The model's id (`public.orders`). */
@@ -59,6 +64,12 @@ export interface SaveRefs {
   tableByName(real: string): string | null;
   /** A table an install holds on this database (an add-on's, a catalog app's), by model id. */
   heldBy(id: string): HeldTable | null;
+  /**
+   * A column's ref in the file: its own name, when that is a snake_case ref.
+   * Null otherwise: a file names columns by their real name, so a column such
+   * as `orderDate` cannot travel, and the part that meets one says so in Check.
+   */
+  column(tableId: string, name: string): string | null;
 
   pages(): readonly { page: Page; ref: string }[];
   page(id: string): string | null;
@@ -140,7 +151,8 @@ export async function buildSaveRefs(source: SaveSource, choices: SaveChoices): P
 
   // Roles: not built in, no app's, holding a grant here.
   const chosenRoles = choices.roles === undefined ? null : new Set(choices.roles);
-  const roleKey = allocator('-', 60);
+  // The install names the role `<appkey>-<key>`, at most 40 characters.
+  const roleKey = allocator('-', Math.max(1, ROLE_SLUG_MAX - choices.key.length - 1));
   const roles: { role: Role; key: string }[] = [];
   const permissions = permissionsRepo(meta);
   const connectionPageIds = new Set((await pagesRepo(meta).listForConnection(connectionId)).map((page) => page.id));
@@ -157,7 +169,9 @@ export async function buildSaveRefs(source: SaveSource, choices: SaveChoices): P
   // Templates and option lists: named lazily, on first use.
   const appKey = choices.key;
   const templateRows = await emailTemplatesRepo(meta).list();
-  const travellingTemplates = new Set(templateRows.filter((t) => t.managedBy === null).map((t) => t.key));
+  const builtins: ReadonlySet<string> = new Set(BUILTIN_EMAIL_TEMPLATE_KEYS);
+  // A built-in mail never travels in an app: an edited one goes with the deployment-wide part.
+  const travellingTemplates = new Set(templateRows.filter((t) => t.managedBy === null && !builtins.has(t.key)).map((t) => t.key));
   const templateName = allocator('-', TEMPLATE_KEY_MAX - appKey.length - 1);
   const templates = new Map<string, string>();
   const optionRows = await optionListsRepo(meta).list();
@@ -173,6 +187,10 @@ export async function buildSaveRefs(source: SaveSource, choices: SaveChoices): P
       return id === null ? null : (tableById.get(id) ?? null);
     },
     heldBy: (id) => held.get(id) ?? null,
+    column: (tableId, name) => {
+      const table = model.tables.find((one) => one.id === tableId);
+      return table !== undefined && table.columns.some((column) => column.name === name) && COLUMN_REF.test(name) ? name : null;
+    },
     pages: () => pages,
     page: (id) => pageById.get(id) ?? null,
     roles: () => roles,

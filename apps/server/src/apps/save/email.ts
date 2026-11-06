@@ -14,18 +14,13 @@
  * part. No outbox is written: a database saved here has none of its own (an
  * outbox is an installed app's), and a rule sends its mail without one.
  */
-import { Readable } from 'node:stream';
-
 import { emailTemplatesRepo, filesRepo, type EmailTemplate } from '@adminium/meta';
 
 import { BUILTIN_EMAIL_TEMPLATE_KEYS } from '../../email/builtins.js';
-import type { FileStore } from '../../files/store.js';
 import { mailCarries } from '../manifest-outbox.js';
 import { mapTableRefs } from '../real-refs.js';
-import type { ConvertContext, ConvertPart, ManifestPart, SaveSource } from './types.js';
+import type { ConvertContext, ConvertPart, ManifestPart } from './types.js';
 
-/** The Files library a mail's files are read from, when the save was given one. */
-export type SaveSourceWithLibrary = SaveSource & { library?: Pick<FileStore, 'read'> | undefined };
 
 const BUILTIN_KEYS: ReadonlySet<string> = new Set(BUILTIN_EMAIL_TEMPLATE_KEYS);
 const ENGLISH = 'en_US';
@@ -58,11 +53,6 @@ export const emailTarget = (key: string) => `email:${key}`;
 
 const tagOf = (locale: string) => locale.replace('_', '-');
 
-async function bytesOf(stream: Readable): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string));
-  return Buffer.concat(chunks);
-}
 
 /** A file name a package path may hold. */
 function safeName(filename: string): string {
@@ -105,7 +95,7 @@ export const convertEmail: ConvertPart = async (ctx) => {
     check.add({ group: 'info', code: 'BUILTIN_EMAIL_EDITED', kind: 'email', item: row?.name ?? key, message: 'An edited built-in mail travels with the deployment\'s settings, not in this app.' });
   }
 
-  const library = (ctx.source as SaveSourceWithLibrary).library;
+  const read = ctx.source.readFile;
   /** Package path per library file id, so a file two mails carry is packed once. */
   const packed = new Map<string, string>();
   const takenPaths = new Set<string>();
@@ -113,11 +103,12 @@ export const convertEmail: ConvertPart = async (ctx) => {
     const known = packed.get(fileId);
     if (known !== undefined) return known;
     const file = await filesRepo(ctx.source.meta).findById(fileId);
-    if (library === undefined || file === null || file.deletedAt !== null) {
+    const read8 = read === undefined || file === null || file.deletedAt !== null ? null : await read(fileId);
+    const bytes = read8 === null ? null : Buffer.from(read8);
+    if (file === null || bytes === null) {
       check.add({ group: 'info', code: 'EMAIL_FILE_MISSING', kind: 'email', item, field: 'attachments', message: 'A file this mail carries could not be read, so it is left out.' });
       return null;
     }
-    const bytes = await bytesOf(await library.read(file));
     if (!mailCarries(bytes, file.filename)) {
       check.add({ group: 'info', code: 'EMAIL_FILE_KIND', kind: 'email', item, field: 'attachments', message: 'A file this mail carries is not a kind an app\'s mail may carry, so it is left out.' });
       return null;

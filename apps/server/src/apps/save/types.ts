@@ -32,6 +32,8 @@ export interface SaveSource {
   model: DatabaseModel;
   /** The running Adminium version, stamped as `minAdminiumVersion` when a page carries an envelope or views. */
   adminiumVersion: string;
+  /** A Files library file's bytes by its id (mail attachments, pictures, a logo); null when it is gone. Absent: no file travels. */
+  readFile?: ((fileId: string) => Promise<Uint8Array | null>) | undefined;
 }
 
 /** Rows a table carries. */

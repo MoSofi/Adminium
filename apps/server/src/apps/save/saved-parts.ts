@@ -36,8 +36,7 @@ const IMAGE_TYPES: Readonly<Record<string, string>> = { 'image/png': 'png', 'ima
 type FileReader = (fileId: string) => Promise<Uint8Array | null>;
 
 function readerOf(ctx: ConvertContext): FileReader | null {
-  const read = (ctx.source as { readFile?: FileReader }).readFile;
-  return typeof read === 'function' ? read : null;
+  return ctx.source.readFile ?? null;
 }
 
 /** A unique key from a name: `weekly-sales`, `weekly-sales-2`… */

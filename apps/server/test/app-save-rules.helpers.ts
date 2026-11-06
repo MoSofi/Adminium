@@ -14,7 +14,7 @@ import { Readable } from 'node:stream';
 
 import { parseDatabaseModel } from '@adminium/engine';
 import { validateManifest } from '@adminium/manifest';
-import { appAfterInstallRepo, pagesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
+import { appAfterInstallRepo, filesRepo, pagesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
 import { expect } from 'vitest';
 
 import { runIntrospection } from '../src/connections/introspect.js';
@@ -115,8 +115,12 @@ export async function save(source: Source, over: Partial<SaveChoices> = {}): Pro
       dialect: source.dialect as SaveDialect,
       model: await modelOf(source.h.meta, source.h.connectionId),
       adminiumVersion: '0.3.49',
-      library: source.library,
-    } as never,
+      readFile: async (fileId: string) => {
+        const file = await filesRepo(source.h.meta).findById(fileId);
+        const bytes = file === null ? undefined : source.library.kept.get(file.storageKey);
+        return bytes === undefined ? null : new Uint8Array(bytes);
+      },
+    },
     {
       key: APP_KEY,
       name: 'Corner shop',
