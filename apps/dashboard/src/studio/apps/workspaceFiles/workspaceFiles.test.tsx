@@ -311,6 +311,21 @@ describe('installing a workspace file', () => {
     expect(sent.apps[1]!.install?.planChecksum).toBe('sum-fernhill-archive');
     expect(screen.getByText('They are on Fernhill new, in the new workspace Fernhill Coffee.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Choose a database for the rest' })).toBeTruthy();
+
+    // "Open the workspace" reads the menu again (the workspace is new) and moves the tab into it, as the menu does.
+    const workspaces = {
+      workspaces: [{ id: 'wsp-new', name: 'Fernhill Coffee', initials: 'FC', position: 0, connectionIds: ['c-fernhill', 'c-archive'] }],
+      otherDatabases: ['c-suppliers'],
+      workspaceView: 'one',
+      lastWorkspaceId: null,
+      manage: true,
+    };
+    routes['GET /api/v1/bootstrap'] = () => ({ status: 200, body: { data: makeBootstrap({ systemActions: ['manifests.manage', 'connections.manage'] as never, workspaces: workspaces as never }) } });
+    routes['PATCH /api/v1/me/prefs'] = () => ({ status: 200, body: {} });
+    await user.click(screen.getByRole('button', { name: 'Open the workspace' }));
+    await waitFor(() => expect(window.sessionStorage.getItem('adminium-workspace:usr_test')).toBe('wsp-new'));
+    expect(calls.find((call) => call.method === 'PATCH' && call.url === '/api/v1/me/prefs')?.body).toEqual({ workspaceId: 'wsp-new' });
+    window.sessionStorage.clear();
   });
 
   it('holds Install while the pasted fingerprint is not the file’s', async () => {

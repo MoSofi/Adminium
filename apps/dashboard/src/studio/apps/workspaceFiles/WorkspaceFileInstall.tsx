@@ -31,8 +31,8 @@
  *  **W3 — "Add to an existing workspace" is disabled on a server with none**,
  *  and "No workspace" then reads "The databases stay as they are in the
  *  menu." The first workspace's notice is drawn from notes.
- *  **W4 — "Open the workspace" opens Data connections**, where its card is:
- *  switching the menu to a workspace belongs to the sidebar.
+ *  **W4 — "Open the workspace" moves the tab to it**, as the menu does, and
+ *  opens its first page.
  *  **W5 — the review of an update shows the update's plan** with the same
  *  cards; its answers go with the update of every copy.
  */
@@ -45,7 +45,8 @@ import { ApiError, api } from '../../../app/api.js';
 import { bootstrapQuery, holdsSystemAction } from '../../../app/bootstrap.js';
 import { brandingQuery } from '../../../app/branding.js';
 import { t } from '../../../i18n/t.js';
-import { connectionsQuery } from '../../hub/ConnectionsHub.js';
+import { useOpenWorkspace } from '../../../workspaces/open.js';
+import { connectionsQuery } from '../../hub/connectionsQuery.js';
 import { namesList, sentence } from '../addOnWords.js';
 import { APPS_QUERY_KEY, planApp, sha512Of } from '../appsApi.js';
 import { TableCheck, type TakenPick } from '../InstallCheck.js';
@@ -780,6 +781,7 @@ function DoneScreen({
   connections: readonly { id: string; name: string }[];
   workspaces: readonly WorkspaceRow[];
 }) {
+  const openWorkspace = useOpenWorkspace();
   const done = doneCount(file);
   const total = file.apps.length;
   const stopped = file.apps.find((app) => app.state === 'stopped');
@@ -868,9 +870,9 @@ function DoneScreen({
           </Button>
         ) : null}
         {workspace === null ? null : (
-          <a href="/studio" className="inline-flex items-center gap-2 self-start rounded-[11px] border border-border-strong bg-surface px-4 py-2.5 text-[13.5px] font-bold hover:border-fg-subtle">
+          <Button variant="secondary" onClick={() => void openWorkspace(workspace.id)}>
             {t('studio:workspaceFiles.done.openWorkspace', 'Open the workspace')}
-          </a>
+          </Button>
         )}
       </div>
     </div>
