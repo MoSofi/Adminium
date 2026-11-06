@@ -63,13 +63,18 @@ function formatters() {
 export function SaveAppWizard(props: SaveAppWizardProps) {
   const { step, onStep, draft, connectionId, saved, saving, onClose } = props;
   const toasts = useAppToasts();
+  // Choices for one app of a workspace file: its database is fixed, and there is no file of its own to download.
+  const applying = props.applying === true;
+  const total = applying ? 4 : 5;
   const steps: Step[] = [
     { id: 'database', label: t('studio:saveApp.step.database', 'Database') },
     { id: 'include', label: t('studio:saveApp.step.include', 'What to include') },
     { id: 'about', label: t('studio:saveApp.step.about', 'About the app') },
     { id: 'check', label: t('studio:saveApp.step.check', 'Check') },
     { id: 'download', label: t('studio:saveApp.step.download', 'Download') },
-  ].map((one, index) => ({ ...one, state: index < step || (index === 4 && saved !== null) ? 'done' : index === step ? 'active' : 'pending' }));
+  ]
+    .slice(0, total)
+    .map((one, index) => ({ ...one, state: index < step || (index === 4 && saved !== null) ? 'done' : index === step ? 'active' : 'pending' }));
   const problems = draft === null ? null : aboutProblems(draft, props.saves, connectionId, props.catalogKeys);
   const canContinue = step === 0 ? connectionId !== null && props.inventory !== undefined : step === 1 ? draft !== null : step === 2 ? problems === null : false;
   const note = step === 3 ? checkFooterNote(props) : null;
@@ -83,7 +88,7 @@ export function SaveAppWizard(props: SaveAppWizardProps) {
           label={t('studio:saveApp.progress', 'Save as app progress')}
           onStepClick={(index) => {
             // Back only, and never out of a finished save.
-            if (saved === null && index < step) onStep(index as WizardStep);
+            if (saved === null && index < step && !(applying && index === 0)) onStep(index as WizardStep);
           }}
         />
       </header>
@@ -111,8 +116,8 @@ export function SaveAppWizard(props: SaveAppWizardProps) {
           ) : (
             <span>
               {draft === null || draft.key === ''
-                ? t('studio:saveApp.footerStep', 'Step {n} of {total}', { n: step + 1, total: 5 })
-                : monoSentence((m) => t('studio:saveApp.footerStepKey', 'Step {n} of {total} · {key}', { n: step + 1, total: 5, key: m['key']! }), { key: draft.key })}
+                ? t('studio:saveApp.footerStep', 'Step {n} of {total}', { n: step + 1, total })
+                : monoSentence((m) => t('studio:saveApp.footerStepKey', 'Step {n} of {total} · {key}', { n: step + 1, total, key: m['key']! }), { key: draft.key })}
             </span>
           )}
           {step === 1 ? <span>{t('studio:saveApp.include.nothingChanges', 'Saving changes nothing on this server.')}</span> : null}
@@ -141,12 +146,20 @@ export function SaveAppWizard(props: SaveAppWizardProps) {
               <Button variant="ghost" disabled={saving} onClick={onClose}>
                 {t('studio:saveApp.cancel', 'Cancel')}
               </Button>
-              {step > 0 ? (
+              {step > 0 && !(applying && step === 1) ? (
                 <Button variant="secondary" disabled={saving} onClick={() => onStep((step - 1) as WizardStep)}>
                   {t('studio:saveApp.back', 'Back')}
                 </Button>
               ) : null}
-              {step === 3 ? (
+              {step === 3 && applying ? (
+                <Button
+                  disabled={props.apply === undefined || props.plan === undefined || props.planPending}
+                  {...(note === null ? {} : { 'aria-describedby': 'save-app-note' })}
+                  onClick={props.apply}
+                >
+                  {t('studio:workspaceFiles.save.useChoices', 'Use these choices')}
+                </Button>
+              ) : step === 3 ? (
                 <Button
                   loading={saving}
                   disabled={props.plan === undefined || !props.plan.ready || props.planPending}

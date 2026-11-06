@@ -44,6 +44,9 @@ export interface WorkspaceAppRequest {
   key: string;
   name: string;
   version?: string;
+  /** Save as app's About step, when "More choices" set them. */
+  description?: string;
+  icon?: string;
   include?: Record<string, unknown>;
   rows?: Record<string, { mode: 'none' | 'starting' | 'sample'; viewId?: string }>;
   answers?: Record<string, string[]>;

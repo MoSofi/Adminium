@@ -21,12 +21,13 @@ import { useId, useState, type FormEvent } from 'react';
 import { Alert, Button, Checkbox, FormField, Input, Modal, ModalBody, ModalFooter, ModalHeader, MonoText } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
+import { ShownOnlyInList } from '../../shown-in/ShownIn.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { initialsOf } from '../../shell/workspaces/model.js';
 import { WorkspaceTile } from '../../shell/workspaces/WorkspaceTile.js';
 import type { ConnectionDto } from '../api.js';
-import { deletePlanQuery, refreshWorkspaces, workspacesApi, type ShownOnlyIn, type WorkspaceDto } from './workspacesApi.js';
+import { deletePlanQuery, refreshWorkspaces, workspacesApi, type WorkspaceDto } from './workspacesApi.js';
 
 const MAX_NAME = 80;
 
@@ -241,17 +242,6 @@ export function RenameWorkspaceModal({ workspace, workspaces, onClose }: { works
   );
 }
 
-function kindLabel(kind: ShownOnlyIn['kind']): string {
-  switch (kind) {
-    case 'email-template':
-      return t('studio:hub.workspaces.kind.emailTemplate', 'Email template');
-    case 'report':
-      return t('studio:hub.workspaces.kind.report', 'Report layout');
-    default:
-      return t('studio:hub.workspaces.kind.invoice', 'Invoice layout');
-  }
-}
-
 export function DeleteWorkspaceModal({ workspace, onClose }: { workspace: WorkspaceDto; onClose: () => void }) {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
@@ -264,26 +254,13 @@ export function DeleteWorkspaceModal({ workspace, onClose }: { workspace: Worksp
       onClose();
     },
   });
-  const shownOnlyIn = plan.data?.shownOnlyIn ?? [];
   return (
     <Modal open size="sm" role="alertdialog" onOpenChange={(next) => (next ? undefined : onClose())}>
       <ModalHeader icon={<Trash2 />} tone="danger" title={t('studio:hub.workspaces.delete.title', 'Delete {name}?', { name: workspace.name })} closeLabel={t('common.close', 'Close')} />
       <ModalBody className="flex flex-col gap-3">
         <p className="text-[13px] leading-[1.5] text-fg">{t('studio:hub.workspaces.delete.body', 'Its databases stay. They leave this workspace.')}</p>
-        {shownOnlyIn.length > 0 ? (
-          <div data-testid="delete-shown-only-in">
-            <p className="text-[13px] leading-[1.5] text-fg-muted">
-              {t('studio:hub.workspaces.delete.shownOnlyIn', 'These are shown in this workspace alone. After the delete they are shown in none:')}
-            </p>
-            <ul className="mt-1.5 list-disc ps-5 text-[13px]">
-              {shownOnlyIn.map((item) => (
-                <li key={`${item.kind}:${item.itemId}`}>
-                  {item.name} <span className="text-fg-subtle">· {kindLabel(item.kind)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+        {/* What this workspace alone lists: after the delete it is listed in none. */}
+        <ShownOnlyInList items={plan.data?.shownOnlyIn ?? []} />
         {plan.data?.last === true ? (
           <p className="text-[13px] leading-[1.5] text-fg-muted">{t('studio:hub.workspaces.delete.last', 'It is the last workspace: everyone’s menu goes back to one list.')}</p>
         ) : null}

@@ -16,7 +16,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient, useSuspenseQue
 import { useEffect, useMemo, useState } from 'react';
 
 import { bootstrapQuery } from '../../app/bootstrap.js';
-import { connectionsQuery } from '../hub/ConnectionsHub.js';
+import { connectionsQuery } from '../hub/connectionsQuery.js';
 import { LOCAL_PUBLISHER_ID, appCatalogQuery } from './appsApi.js';
 import { QuickSaveDialog } from './QuickSaveDialog.js';
 import { SaveAppWizard, type WizardStep } from './SaveAppWizard.js';
@@ -28,9 +28,11 @@ import {
   saveInventoryQuery,
   type SavedFile,
   type SaveInventory,
+  type SaveRequest,
 } from './saveAppApi.js';
 import { KEY_PATTERN, VERSION_PATTERN, draftFromInventory, keyFromName, learnViewItems, requestOf, type SaveDraft } from './saveAppDraft.js';
 import { saveDatabases } from './saveAppDatabases.js';
+import { useCurrentWorkspace } from '../../workspaces/current.js';
 import type { SaveFlowShared } from './saveAppShared.js';
 
 export type { SaveFlowShared };
@@ -39,8 +41,8 @@ export type { SaveFlowShared };
 export interface SaveStart {
   connectionId: string | null;
   mode: 'quick' | 'wizard';
-  /** "Save a newer version": the last save's words. */
-  prefill?: { key: string; name: string; description: string; icon?: string | null; label: string };
+  /** "Save a newer version": the last save's words. A version, when one was already chosen (a workspace save's row). */
+  prefill?: { key: string; name: string; description: string; icon?: string | null; label: string; version?: string | null };
 }
 
 export interface SaveAsAppFlowProps {
@@ -48,6 +50,12 @@ export interface SaveAsAppFlowProps {
   onClose: () => void;
   /** The wizard replaces the page's body; the page hides its own while it shows. */
   onModeChange?: (mode: 'quick' | 'wizard') => void;
+  /**
+   * The choices are for another save (one app of a workspace file): the
+   * wizard opens on the start's database, which it keeps, and its last step
+   * hands the request back here instead of saving a file.
+   */
+  onApply?: ((request: SaveRequest) => void) | undefined;
 }
 
 /** The fields a plan needs before it can be asked. */
@@ -55,13 +63,15 @@ export function draftIsPlannable(draft: SaveDraft): boolean {
   return draft.name.trim() !== '' && KEY_PATTERN.test(draft.key) && (draft.version === null || VERSION_PATTERN.test(draft.version));
 }
 
-export function SaveAsAppFlow({ start, onClose, onModeChange }: SaveAsAppFlowProps) {
+export function SaveAsAppFlow({ start, onClose, onModeChange, onApply }: SaveAsAppFlowProps) {
   const queryClient = useQueryClient();
   const { data: connections } = useSuspenseQuery(connectionsQuery());
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
-  const databases = useMemo(() => saveDatabases(connections, bootstrap), [connections, bootstrap]);
-  const [mode, setModeState] = useState(start.mode);
-  const [step, setStep] = useState<WizardStep>(start.connectionId === null ? 0 : start.mode === 'wizard' ? 1 : 0);
+  const { currentWorkspaceId } = useCurrentWorkspace();
+  const databases = useMemo(() => saveDatabases(connections, bootstrap, currentWorkspaceId), [connections, bootstrap, currentWorkspaceId]);
+  const applying = onApply !== undefined && start.connectionId !== null;
+  const [mode, setModeState] = useState(applying ? 'wizard' : start.mode);
+  const [step, setStep] = useState<WizardStep>(start.connectionId === null ? 0 : applying || start.mode === 'wizard' ? 1 : 0);
   const [connectionId, setConnectionId] = useState<string | null>(start.connectionId ?? databases[0]?.connection.id ?? null);
   const [draft, setDraft] = useState<SaveDraft | null>(null);
   const [saved, setSaved] = useState<SavedFile | null>(null);
@@ -83,15 +93,15 @@ export function SaveAsAppFlow({ start, onClose, onModeChange }: SaveAsAppFlowPro
     if (inventory === undefined || draft?.connectionId === inventory.connectionId) return;
     const connection = connections.find((one) => one.id === inventory.connectionId);
     const name = draft?.name ?? start.prefill?.name ?? connection?.name ?? '';
-    setDraft(
-      draftFromInventory(inventory, {
-        name,
-        key: draft?.key ?? start.prefill?.key ?? keyFromName(name),
-        description: draft?.description ?? start.prefill?.description ?? '',
-        icon: draft?.icon ?? start.prefill?.icon ?? null,
-        label: draft?.label ?? start.prefill?.label ?? '',
-      }),
-    );
+    const fresh = draftFromInventory(inventory, {
+      name,
+      key: draft?.key ?? start.prefill?.key ?? keyFromName(name),
+      description: draft?.description ?? start.prefill?.description ?? '',
+      icon: draft?.icon ?? start.prefill?.icon ?? null,
+      label: draft?.label ?? start.prefill?.label ?? '',
+    });
+    // A workspace save's row brings the version it chose; a database chosen here starts at the next one.
+    setDraft(draft === null ? { ...fresh, version: start.prefill?.version ?? null } : fresh);
   }, [inventory, draft, connections, start.prefill]);
 
   const request = draft !== null && inventory !== undefined && draft.connectionId === inventory.connectionId && draftIsPlannable(draft) ? requestOf(draft, inventory) : null;
@@ -140,6 +150,15 @@ export function SaveAsAppFlow({ start, onClose, onModeChange }: SaveAsAppFlowPro
     saved,
     catalogKeys,
     onClose,
+    ...(applying && onApply !== undefined && request !== null
+      ? {
+          apply: () => {
+            onApply(request);
+            onClose();
+          },
+        }
+      : {}),
+    applying,
   };
 
   if (mode === 'quick') {

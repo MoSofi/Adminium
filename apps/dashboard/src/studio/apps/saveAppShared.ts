@@ -26,4 +26,11 @@ export type SaveFlowShared = {
   /** Keys the apps of adminium.dev use: a save may not take one. */
   catalogKeys: ReadonlySet<string>;
   onClose: () => void;
+  /**
+   * The choices are for another save (one app of a workspace file): the
+   * database is fixed, there is no Download, and the last step hands the
+   * choices back. `apply` is there once a request can be made.
+   */
+  applying?: boolean;
+  apply?: () => void;
 };

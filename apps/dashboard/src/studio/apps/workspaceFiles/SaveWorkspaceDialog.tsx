@@ -84,7 +84,7 @@ interface Row {
   key: string;
   version: string;
   /** The answers Save as app's wizard brought back ("More choices"). */
-  extra: Pick<WorkspaceAppRequest, 'include' | 'rows' | 'answers'>;
+  extra: Pick<WorkspaceAppRequest, 'include' | 'rows' | 'answers' | 'description' | 'icon'>;
 }
 
 function requestOf(rows: readonly Row[], instanceFrom: string | null): WorkspaceSaveRequest {
@@ -254,7 +254,18 @@ export function SaveWorkspaceDialog({ workspace, onClose, onMoreChoices }: { wor
                         disabled={!row.include}
                         onClick={() =>
                           onMoreChoices({ connectionId: row.connectionId, key: row.key, name: row.name, ...(row.version === '' ? {} : { version: row.version }), ...row.extra }, (next) =>
-                            update(row.connectionId, { name: next.name, key: next.key, version: next.version ?? row.version, extra: { ...(next.include === undefined ? {} : { include: next.include }), ...(next.rows === undefined ? {} : { rows: next.rows }), ...(next.answers === undefined ? {} : { answers: next.answers }) } }),
+                            update(row.connectionId, {
+                              name: next.name,
+                              key: next.key,
+                              version: next.version ?? row.version,
+                              extra: {
+                                ...(next.include === undefined ? {} : { include: next.include }),
+                                ...(next.rows === undefined ? {} : { rows: next.rows }),
+                                ...(next.answers === undefined ? {} : { answers: next.answers }),
+                                ...(next.description === undefined ? {} : { description: next.description }),
+                                ...(next.icon === undefined ? {} : { icon: next.icon }),
+                              },
+                            }),
                           )
                         }
                       >
