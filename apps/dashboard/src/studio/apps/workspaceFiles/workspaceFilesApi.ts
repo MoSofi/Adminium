@@ -9,6 +9,7 @@
  *  - `POST /apps/upload-workspace`, `GET /apps/workspace-files`,
  *    `GET|POST|DELETE /apps/workspace/:id/install`.
  */
+import { SAVES_FRESH_MS } from '../saveAppApi.js';
 import { queryOptions } from '@tanstack/react-query';
 
 import { ApiError, api, csrfHeaders } from '../../../app/api.js';
@@ -128,7 +129,7 @@ export interface AppSavesReply {
 export const APP_SAVES_QUERY_KEY = ['app-saves'] as const;
 
 export function appSavesQuery() {
-  return queryOptions({ queryKey: APP_SAVES_QUERY_KEY, queryFn: () => api.get<AppSavesReply>('/api/v1/apps/saves') });
+  return queryOptions({ queryKey: APP_SAVES_QUERY_KEY, queryFn: () => api.get<AppSavesReply>('/api/v1/apps/saves'), staleTime: SAVES_FRESH_MS });
 }
 
 // ── Installing ─────────────────────────────────────────────────────────────
@@ -179,6 +180,7 @@ export function workspaceFilesQuery() {
   return queryOptions({
     queryKey: WORKSPACE_FILES_QUERY_KEY,
     queryFn: async () => (await api.get<{ workspaceFiles: WorkspaceFile[] }>('/api/v1/apps/workspace-files')).workspaceFiles,
+    staleTime: SAVES_FRESH_MS,
   });
 }
 

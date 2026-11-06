@@ -167,10 +167,15 @@ export interface SaveInventory {
 
 export const APP_SAVES_QUERY_KEY = ['studio', 'apps', 'saves'] as const;
 
+/** How long the saves and staged workspace files stay fresh: a save or an upload invalidates them sooner. */
+export const SAVES_FRESH_MS = 60_000;
+
 export function appSavesQuery() {
   return queryOptions({
     queryKey: APP_SAVES_QUERY_KEY,
     queryFn: async () => (await api.get<{ saves: AppSaveRow[] }>('/api/v1/apps/saves')).saves,
+    // Saves change only when someone here saves, and a save invalidates this: no refetch on every mount and focus.
+    staleTime: SAVES_FRESH_MS,
   });
 }
 
