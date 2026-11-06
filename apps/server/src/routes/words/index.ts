@@ -16,6 +16,7 @@
  *  - Where the rows are also limited a day (a dish's portions), the smaller
  *    of the two is the answer, and which one it was is said.
  */
+import { installReachOf } from '../../installs/reach.js';
 import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { rowTestOf } from '../../crud/row-limit-context.js';
 import { rowsForRequest } from '../../crud/row-reach-request.js';
@@ -110,7 +111,7 @@ export function wordsRoutes(deps: WordsRoutesDeps): FastifyPluginAsyncZod {
         const { addOn, wordsId } = request.params;
         const nothing = (): NotFoundError => new NotFoundError('There are no such stock words here.', { addOn, words: wordsId });
         // The install the request names (the header, or ?connectionId=), else the key's only one.
-        const found = await resolveInstall(installsOf(meta), addOn, selectorOf(request), { kind: 'add-on' });
+        const found = await resolveInstall(installsOf(meta), addOn, selectorOf(request), { kind: 'add-on', reaches: installReachOf(meta, request) });
         const row = found === null ? undefined : { manifest: found.document as unknown, status: found.row.status, connectionId: found.row.connectionId };
         if (row === undefined || row.connectionId === null) throw nothing();
         const connectionId = row.connectionId;

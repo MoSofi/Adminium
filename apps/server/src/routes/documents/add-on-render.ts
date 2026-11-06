@@ -16,6 +16,7 @@
  * such (409 FEATURE_OFF); a paper the kind does not list is refused by name
  * (400 DOCUMENT_VALUE_REFUSED, slot `paper`).
  */
+import { installReachOf, type InstallReach } from '../../installs/reach.js';
 import { resolveInstall, selectorOf, type InstallSelector } from '../../installs/resolve.js';
 import type { Manifest } from '@adminium/manifest';
 import { appTablesRepo, auditRepo, documentProfilesRepo, manifestsRepo, realTableOf, type DocumentProfile, type DocumentRow, type MetaDb } from '@adminium/meta';
@@ -130,10 +131,10 @@ const NO_SECRETS = {
 export async function addOnDocumentFor(
   deps: Pick<AddOnRenderDeps, 'meta'>,
   helpers: Pick<AddOnRenderHelpers, 'notFound'>,
-  input: { addOnKey: string; table: string; kind: string; key: string | number; selector?: InstallSelector },
+  input: { addOnKey: string; table: string; kind: string; key: string | number; selector?: InstallSelector; reaches?: InstallReach },
 ): Promise<{ manifest: Manifest; connectionId: string; view: SnapshotView; tableId: string; profile: DocumentProfile; pk: Readonly<Record<string, unknown>> }> {
   // The install the request names (or the key's only one): its own tables, on its own database.
-  const installed = await resolveInstall(manifestsRepo(deps.meta, NO_SECRETS), input.addOnKey, input.selector ?? {}, { kind: 'add-on' });
+  const installed = await resolveInstall(manifestsRepo(deps.meta, NO_SECRETS), input.addOnKey, input.selector ?? {}, { kind: 'add-on', ...(input.reaches === undefined ? {} : { reaches: input.reaches }) });
   const manifest = installed?.document as Manifest | undefined;
   const connectionId = installed?.row.connectionId ?? null;
   if (installed === null || installed === undefined || installed.row.kind !== 'add-on' || installed.row.status !== 'installed' || connectionId === null || manifest?.kind !== 'add-on') helpers.notFound();
@@ -176,7 +177,7 @@ export function registerAddOnRender(instance: FastifyInstance, deps: AddOnRender
       const pipeline = deps.pipeline;
       if (pipeline === undefined) throw new AppError(503, 'DOCUMENTS_UNAVAILABLE', 'Documents cannot be drawn on this server.');
       const body = request.body;
-      const found = await addOnDocumentFor(deps, helpers, { addOnKey: request.params.key, table: body.table, kind: body.kind, key: body.key, selector: selectorOf(request) });
+      const found = await addOnDocumentFor(deps, helpers, { addOnKey: request.params.key, table: body.table, kind: body.kind, key: body.key, selector: selectorOf(request), reaches: installReachOf(deps.meta, request) });
       const { profile } = found;
       const prints = deps.prints ?? printStore;
       const userId = request.user?.id ?? null;

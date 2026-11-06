@@ -84,7 +84,8 @@ import {
   jobsRepo,
 } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { rememberInstall, rememberedInstall, requireInstall, selectorOf } from '../../installs/resolve.js';
+import { installReachOf } from '../../installs/reach.js';
+import { rememberInstall, rememberedInstall, requireInstall, resolveInstall, selectorOf } from '../../installs/resolve.js';
 
 import { addOnPagePermission, appsSwitchedOn, pagesAreGated, pagesOnDashboard } from '../../add-ons/page-gate.js';
 import { panelOpen, panelsOn } from '../../add-ons/record-panels.js';
@@ -403,7 +404,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
    * nothing naming which answers 409 `APP_INSTALL_AMBIGUOUS`; none, 404.
    */
   const addOnInstallOf = (request: FastifyRequest, key: string): Promise<InstalledManifest> =>
-    requireInstall(manifests, key, selectorOf(request), { kind: 'add-on', connectionNames });
+    requireInstall(manifests, key, selectorOf(request), { kind: 'add-on', connectionNames, reaches: installReachOf(deps.meta, request) });
   /**
    * What is the same for every copy of an add-on (its package: one version per
    * server), with every copy: what each has attached is its own, so its pages
@@ -2218,12 +2219,23 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     const manifestsGuard = app.rbac.require(PERMISSIONS.manifestsManage);
     async function settingsGuard(request: FastifyRequest, reply: FastifyReply): Promise<void> {
       const { key } = request.params as { key: string };
-      // The install FIRST, from the request's selector; then that install's grant. No fallback to another install.
-      const install = await addOnInstallOf(request, key);
-      rememberInstall(request, install);
-      if (typeof request.can === 'function' && (await request.can(PERMISSIONS.manifestsManage))) return;
+      const mayManage = typeof request.can === 'function' && (await request.can(PERMISSIONS.manifestsManage));
       const principal = getPrincipal(request);
-      if (principal !== null && (await addOnSettingsGrantHeld(deps.meta, principal, install))) return;
+      const holdsGrant = async (install: InstalledManifest): Promise<boolean> => principal !== null && (await addOnSettingsGrantHeld(deps.meta, principal, install));
+      /*
+       * The install FIRST, from the request's selector; then that install's
+       * grant. No fallback to another install. With several and none named,
+       * the choice lists only the copies whose settings this person keeps.
+       */
+      const selector = selectorOf(request);
+      const install = await resolveInstall(manifests, key, selector, { kind: 'add-on', connectionNames, reaches: async (one) => mayManage || (await holdsGrant(one)) });
+      if (install === null) {
+        // Several copies and none of them theirs: the refusal of somebody who may not, never a list.
+        if (!mayManage && (await manifests.listByKey(key)).filter((one) => one.row.kind === 'add-on').length > 1) await manifestsGuard(request, reply);
+        throw new NotFoundError(`${key} is not installed${selector.connectionId === undefined ? '' : ' on that database'}.`);
+      }
+      rememberInstall(request, install);
+      if (mayManage || (await holdsGrant(install))) return;
       await manifestsGuard(request, reply);
     }
 

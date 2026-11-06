@@ -29,6 +29,7 @@ import { collectKnownSecrets } from '../../apps/save/gates/secrets.js';
 import type { AppStore } from '../../apps/store.js';
 import { audited } from '../../audit/coverage.js';
 import { NotFoundError, ValidationFailedError } from '../../errors.js';
+import { installReachOf } from '../../installs/reach.js';
 import { installsOf, requireInstall, selectorOf } from '../../installs/resolve.js';
 import type { LoadBundler } from '../../project/build.js';
 import { copySourceToFolder, editableState, type EditableRefusal } from '../../project/apps/make-editable.js';
@@ -166,7 +167,7 @@ export function ownSurfaceRoutes(deps: OwnSurfaceRoutesDeps): FastifyPluginAsync
       },
       async (request) => {
         const { key } = request.params;
-        const install = await requireInstall(manifests, key, selectorOf(request), { kind: 'app', connectionNames });
+        const install = await requireInstall(manifests, key, selectorOf(request), { kind: 'app', connectionNames, reaches: installReachOf(deps.meta, request) });
         return editableState({ install, installs: await manifests.listByKey(key), store: deps.store, projectRoot: deps.projectRoot, folderSource: FOLDER_SOURCE });
       },
     );
@@ -180,7 +181,7 @@ export function ownSurfaceRoutes(deps: OwnSurfaceRoutesDeps): FastifyPluginAsync
       },
       async (request) => {
         const { key } = request.params;
-        const install = await requireInstall(manifests, key, selectorOf(request), { kind: 'app', connectionNames });
+        const install = await requireInstall(manifests, key, selectorOf(request), { kind: 'app', connectionNames, reaches: installReachOf(deps.meta, request) });
         const state = await editableState({ install, installs: await manifests.listByKey(key), store: deps.store, projectRoot: deps.projectRoot, folderSource: FOLDER_SOURCE });
         if (state.state === 'none') {
           throw new ValidationFailedError(`This file of "${key}" carries no source, so there is nothing to make editable.`, { reason: 'NO_SOURCE' });

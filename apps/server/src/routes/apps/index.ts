@@ -36,6 +36,7 @@
  */
 
 import { narrowToWorkspace, workspaceIdQuery } from '../../workspaces/list-filter.js';
+import { installReachOf } from '../../installs/reach.js';
 import { grantKeyOf, installOnConnection, requireInstall, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { rowTestOf } from '../../crud/row-limit-context.js';
 import { reachOfRequest } from '../../crud/row-reach-request.js';
@@ -1400,7 +1401,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
      * naming which: 409 `APP_INSTALL_AMBIGUOUS`. None: a 404 naming the key.
      */
     async function installedRow(request: FastifyRequest, key: string): Promise<InstalledApp> {
-      return (await requireInstall(manifests, key, selectorOf(request), { kind: 'app', connectionNames })) as InstalledApp;
+      return (await requireInstall(manifests, key, selectorOf(request), { kind: 'app', connectionNames, reaches: installReachOf(deps.meta, request) })) as InstalledApp;
     }
 
     /** What an uninstall would remove and keep — the dialog's list, and the route's own. */
@@ -2193,10 +2194,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          */
         let found: InstalledApp | null;
         try {
-          found = (await resolveInstall(manifests, key, selectorOf(request), { kind: 'app', connectionNames })) as InstalledApp | null;
+          // Several and none named: the choice lists only the copies whose screens this person opens; none, the refusal.
+          found = (await resolveInstall(manifests, key, selectorOf(request), { kind: 'app', connectionNames, reaches: (one) => may(grantKeyOf(one.row)), unreached: refuse })) as InstalledApp | null;
         } catch (error) {
-          if (!(await may(key))) throw refuse();
-          throw error;
+          if (error instanceof ConflictError || (await may(key))) throw error;
+          throw refuse();
         }
         if (found === null) {
           if (!(await may(key))) throw refuse();

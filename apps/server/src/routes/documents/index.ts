@@ -35,6 +35,7 @@
  */
 
 import { narrowToWorkspace } from '../../workspaces/list-filter.js';
+import { installReachOf } from '../../installs/reach.js';
 import { installOnConnection, installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import type { AppManifest } from '@adminium/manifest';
 import {
@@ -772,7 +773,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         const { key } = request.params;
         const body = request.body;
         // The install the request names (the header, or ?connectionId=), else the key's only one.
-        const installed = await resolveInstall(manifestsRepo(deps.meta, NO_SECRETS), key, selectorOf(request), { kind: 'app' });
+        const installed = await resolveInstall(manifestsRepo(deps.meta, NO_SECRETS), key, selectorOf(request), { kind: 'app', reaches: installReachOf(deps.meta, request) });
         const manifest = installed?.document as AppManifest | undefined;
         const connectionId = installed?.row.connectionId ?? null;
         if (installed === null || installed === undefined || installed.row.kind !== 'app' || installed.row.status !== 'installed' || connectionId === null || manifest?.kind !== 'app') {

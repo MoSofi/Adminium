@@ -24,6 +24,7 @@
  * the read or the write itself; the page only stops offering what would be
  * refused.
  */
+import { installReachOf } from '../../installs/reach.js';
 import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { addOnManifestSchema, formsEntriesOf, formsOf, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, pagesRepo, realTableOf, userPrefsRepo, type MetaDb } from '@adminium/meta';
@@ -199,7 +200,7 @@ export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
       async (request) => {
         const { key } = request.params;
         // The install the request names (the header, or ?connectionId=), else the key's only one.
-        const found = await resolveInstall(installsOf(deps.meta), key, selectorOf(request), { kind: 'add-on' });
+        const found = await resolveInstall(installsOf(deps.meta), key, selectorOf(request), { kind: 'add-on', reaches: installReachOf(deps.meta, request) });
         const row = found === null ? undefined : { manifest: found.document as unknown, status: found.row.status, connectionId: found.row.connectionId };
         const parsed = row === undefined ? null : addOnManifestSchema.safeParse(typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest);
         // Not there, switched off, being changed, or with no tables of its own on any database: one answer.

@@ -13,6 +13,7 @@
  * invitations table, the reply says how many were invited and how many of
  * them answered.
  */
+import { installReachOf } from '../../installs/reach.js';
 import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { FORM_LANGUAGES, parseForm } from '@adminium/add-on-contracts/forms';
 import type { MetaDb } from '@adminium/meta';
@@ -69,7 +70,7 @@ export function formSummaryRoutes(deps: FormSummaryRouteDeps): FastifyPluginAsyn
       async (request) => {
         const { key, id } = request.params;
         // The install the request names (the header, or ?connectionId=), else the key's only one.
-        const found = await resolveInstall(installsOf(deps.meta), key, selectorOf(request), { kind: 'add-on' });
+        const found = await resolveInstall(installsOf(deps.meta), key, selectorOf(request), { kind: 'add-on', reaches: installReachOf(deps.meta, request) });
         const row = found === null ? undefined : { manifest: found.document as unknown, status: found.row.status, connectionId: found.row.connectionId };
         if (row === undefined || row.status !== 'installed' || row.connectionId === null) throw new NotFoundError('This add-on has no forms here.', { addOn: key });
         const connectionId = row.connectionId;
