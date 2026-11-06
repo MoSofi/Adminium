@@ -20,7 +20,7 @@ import { useSyncExternalStore } from 'react';
 
 import { api } from '../../app/api.js';
 import type { BootstrapData } from '../../app/bootstrap.js';
-import { OTHER_GROUP, resolveGroup, workspaceGroups, type WorkspaceGroup } from './model.js';
+import { OTHER_GROUP, resolveGroup, workspaceGroups, type WorkspaceGroup } from './groups.js';
 
 const listeners = new Set<() => void>();
 /** What this tab chose, per person: the fallback when storage is not there (a private window, a test). */

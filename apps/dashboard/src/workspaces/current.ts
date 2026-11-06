@@ -19,10 +19,10 @@ import { useContext } from 'react';
 
 import { bootstrapQuery, type BootstrapData } from '../app/bootstrap.js';
 import { useCurrentGroup } from '../shell/workspaces/current.js';
-import type { WorkspaceGroup } from '../shell/workspaces/model.js';
+import type { WorkspaceGroup } from '../shell/workspaces/groups.js';
 
-export { OTHER_GROUP } from '../shell/workspaces/model.js';
-export type { WorkspaceGroup } from '../shell/workspaces/model.js';
+export { OTHER_GROUP } from '../shell/workspaces/groups.js';
+export type { WorkspaceGroup } from '../shell/workspaces/groups.js';
 // The bootstrap's typed `workspaces` field, for pieces that read it themselves.
 export type { BootstrapWorkspace, BootstrapWorkspaces } from '../app/bootstrap.js';
 

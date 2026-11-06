@@ -12,47 +12,14 @@
  * or none (a server with no workspace), the rail is the one it always was.
  */
 import type { AppSection, BootstrapData, NavItem, NavTree } from '../../app/bootstrap.js';
+import type { WorkspaceGroup } from './groups.js';
 
-/** "Other databases", as a group id and as a list's `workspaceId`. */
-export const OTHER_GROUP = 'other';
-
-export interface WorkspaceGroup {
-  /** The workspace's id, or {@link OTHER_GROUP}. */
-  id: string;
-  kind: 'workspace' | 'other';
-  /** The workspace's name; empty for "Other databases" (its words are the reader's). */
-  name: string;
-  initials: string;
-  connectionIds: readonly string[];
-}
-
-/** The groups this person sees, in menu order: the workspaces by position, then "Other databases". */
-export function workspaceGroups(bootstrap: Pick<BootstrapData, 'workspaces'>): WorkspaceGroup[] {
-  const block = bootstrap.workspaces;
-  if (block === undefined) return [];
-  const groups: WorkspaceGroup[] = [...block.workspaces]
-    .sort((a, b) => a.position - b.position)
-    .map((workspace) => ({ id: workspace.id, kind: 'workspace', name: workspace.name, initials: workspace.initials, connectionIds: workspace.connectionIds }));
-  if (block.otherDatabases !== null && block.otherDatabases.length > 0) {
-    groups.push({ id: OTHER_GROUP, kind: 'other', name: '', initials: '', connectionIds: block.otherDatabases });
-  }
-  return groups;
-}
-
+export { OTHER_GROUP, resolveGroup, workspaceGroups, type WorkspaceGroup } from './groups.js';
 export { workspacesShown } from './shown.js';
 
 /** The groups that hold a database, in menu order. */
 export function groupsHolding(groups: readonly WorkspaceGroup[], connectionId: string): WorkspaceGroup[] {
   return groups.filter((group) => group.connectionIds.includes(connectionId));
-}
-
-/**
- * Where a tab is: its own choice while it still names a group this person
- * sees, else their last choice on the server (where a new tab starts), else
- * the first group.
- */
-export function resolveGroup(groups: readonly WorkspaceGroup[], stored: string | null, last: string | null): WorkspaceGroup | null {
-  return groups.find((group) => group.id === stored) ?? groups.find((group) => group.id === last) ?? groups[0] ?? null;
 }
 
 /**
