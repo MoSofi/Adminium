@@ -68,6 +68,8 @@ interface Fixture {
   campaigns?: EmailDocumentSummary[];
   archived?: EmailDocumentSummary[];
   counts?: Partial<EmailCounts>;
+  /** Bootstrap's `workspaces` block: the server has workspaces. */
+  workspaces?: unknown;
 }
 
 interface Call {
@@ -97,7 +99,7 @@ function stubFetch(fixture: Fixture) {
     const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : null;
     calls.push({ method, url, body });
     if (url.startsWith('/api/v1/bootstrap')) {
-      return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ roles: ['super-admin'], nav: { groups: [] } }) }));
+      return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ roles: ['super-admin'], nav: { groups: [] }, ...(fixture.workspaces === undefined ? {} : { workspaces: fixture.workspaces }) } as never) }));
     }
     if (method === 'GET' && (url === '/api/v1/email-templates' || url.startsWith('/api/v1/email-templates?'))) {
       const params = new URL(url, 'http://test').searchParams;
@@ -508,5 +510,37 @@ describe('EmailManager — gallery, list and groups', () => {
       names.push(document.activeElement?.getAttribute('aria-label') ?? '');
     }
     expect(names).toEqual(['Duplicate', 'Rename', 'Delete']);
+  });
+});
+
+describe('"Shown in" (a server with workspaces)', () => {
+  const WORKSPACES = {
+    workspaces: [
+      { id: 'wsp_fc', name: 'Fernhill Coffee', initials: 'FC', position: 0, connectionIds: ['c1'] },
+      { id: 'wsp_ks', name: 'Kiln Street Pottery', initials: 'KS', position: 1, connectionIds: ['c2'] },
+    ],
+    otherDatabases: ['c3'],
+    workspaceView: 'all',
+    lastWorkspaceId: null,
+    manage: true,
+  };
+
+  it('lists a "Shown in" column, and Other databases keeps only what is shown in all', async () => {
+    window.localStorage.setItem(MANAGER_PREFS_KEY, JSON.stringify({ layout: 'list', groupBy: 'none' }));
+    const templates = [
+      doc({ id: 'et_a', name: 'Order confirmation', shownIn: { mode: 'all', workspaceIds: [] } }),
+      doc({ id: 'et_b', key: 'wholesale', name: 'Wholesale invoice', shownIn: { mode: 'chosen', workspaceIds: ['wsp_fc', 'wsp_ks'] } }),
+    ];
+    const { user, calls } = await renderPage({ templates, workspaces: WORKSPACES });
+    const table = screen.getByRole('table');
+    expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent)).toContain('Shown in');
+    const rows = screen.getAllByTestId('email-row');
+    expect(within(rows[1]!).getAllByTestId('workspace-chip').map((chip) => chip.textContent)).toEqual(['FCFernhill Coffee', 'KSKiln Street Pottery']);
+
+    await user.selectOptions(screen.getByLabelText('Workspace'), 'wsp_ks');
+    await waitFor(() => expect(calls.some((call) => call.url.includes('workspaceId=wsp_ks'))).toBe(true));
+    // "Other databases" is no workspace the server knows: the list is cut here.
+    await user.selectOptions(screen.getByLabelText('Workspace'), '~other');
+    await waitFor(() => expect(screen.getAllByTestId('email-row').map((row) => row.getAttribute('data-id'))).toEqual(['et_a']));
   });
 });

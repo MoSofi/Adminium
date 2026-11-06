@@ -29,6 +29,7 @@
 @source "../../../../apps/dashboard/src/automations/**/*.{ts,tsx}";
 @source "../../../../apps/dashboard/src/account/**/*.{ts,tsx}";
 @source "../../../../apps/dashboard/src/studio/apps/**/*.{ts,tsx}";
+@source "../../../../apps/dashboard/src/shown-in/**/*.{ts,tsx}";
 
 /* Paint the theme onto the preview surface.
 

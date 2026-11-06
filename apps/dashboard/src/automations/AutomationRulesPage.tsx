@@ -43,8 +43,9 @@ import { useAppToasts } from '../pages/toasts.js';
 import { assistantName, bootstrapQuery } from '../app/bootstrap.js';
 import { useAutomationAssistant } from './assistant.js';
 import { automationIcon } from './icons.js';
-import { automationsApi, tableForTrigger, type RuleView, type SourceTable } from './api.js';
-import { invalidateRules, rulesQuery, rulesStatsQuery, sourcesQuery } from './queries.js';
+import { automationsApi, tableForTrigger, type RuleView, type SourceTable, type Sources } from './api.js';
+import { cutTemplates, invalidateRules, rulesQuery, rulesStatsQuery, sourcesQuery } from './queries.js';
+import { useShownInPicker } from '../shown-in/useShownInList.js';
 import { FlowBuilder } from './flow/FlowBuilder.js';
 import { StepInspector } from './flow/StepInspector.js';
 import { StepPicker } from './flow/StepPicker.js';
@@ -116,7 +117,11 @@ export function AutomationRulesPage(): ReactNode {
 
   const rules = useQuery(rulesQuery());
   const stats = useQuery(rulesStatsQuery());
-  const sources = useQuery(sourcesQuery());
+  // The template selects offer what is listed in the tab's workspace; a step naming another still sends it.
+  const picker = useShownInPicker();
+  const { keeps } = picker;
+  const selectSources = useCallback((data: Sources) => cutTemplates(data, keeps), [keeps]);
+  const sources = useQuery({ ...sourcesQuery(picker.workspaceId), select: selectSources });
 
   const [filter, setFilter] = useState<FilterKey>('all');
   const [draft, setDraft] = useState<{ id: string; graph: Graph; trigger: Trigger } | null>(null);

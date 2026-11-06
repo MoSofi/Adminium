@@ -10,6 +10,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
+import { ShownInChips } from '../../shown-in/ShownIn.js';
 import type { ReportDocumentKind, ReportSummary } from '../api.js';
 import { reportIcon } from '../icons.js';
 import { ReportMiniPreview } from './MiniPreview.js';
@@ -38,6 +39,8 @@ export interface DocumentCardProps {
   tab: ReportDocumentKind;
   actions: DocumentActions;
   rename: RenameState | null;
+  /** Draw where it is listed (the server has workspaces). */
+  shownIn?: boolean | undefined;
 }
 
 /** The comp's rename input (196): accent border, surface-2 fill; Enter commits, Escape cancels, blur commits. */
@@ -111,7 +114,7 @@ export const ACTION_ROW_REVEAL =
   'pointer-events-none transition-transform duration-[180ms] ease-[cubic-bezier(.2,.7,.3,1)] ' +
   'group-hover:pointer-events-auto group-hover:translate-y-0 group-focus-within:pointer-events-auto group-focus-within:translate-y-0';
 
-export function GalleryCard({ doc, tab, actions, rename }: DocumentCardProps) {
+export function GalleryCard({ doc, tab, actions, rename, shownIn = false }: DocumentCardProps) {
   const renaming = rename !== null && rename.id === doc.id;
   const open = () => actions.onOpen(doc);
   const Glyph = reportIcon(rowIcon(doc));
@@ -146,6 +149,7 @@ export function GalleryCard({ doc, tab, actions, rename }: DocumentCardProps) {
           </div>
           <DocumentStatusPill status={doc.status} />
         </div>
+        {shownIn ? <ShownInChips shownIn={doc.shownIn} className="mt-2.5" /> : null}
         <div data-testid="report-card-actions" className={cn('flex gap-[5px]', ACTION_ROW_REVEAL)}>
           <button
             type="button"

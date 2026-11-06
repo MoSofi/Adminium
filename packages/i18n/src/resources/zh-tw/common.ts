@@ -2026,5 +2026,32 @@ export default {
       "save": "記錄同意",
       "close": "關閉"
     }
+  },
+  "shownIn": {
+    "label": "顯示於",
+    "all": "所有工作區",
+    "chosen": "僅這些工作區",
+    "none": "無工作區",
+    "noneHint": "未在任何工作區列出。勾選一個即可在那裡列出。已在使用它的內容仍會傳送它。",
+    "unseen": "{count, plural, other {也顯示在 # 個你看不到的工作區中。}}",
+    "unseenChip": "{count, plural, other {另外 # 個工作區}}",
+    "filter": {
+      "label": "工作區",
+      "other": "其他資料庫"
+    },
+    "hidden": {
+      "here": "未在 {workspace} 中列出。使用它的內容仍會傳送它。",
+      "other": "未在此處列出。使用它的內容仍會傳送它。"
+    },
+    "kind": {
+      "emailTemplate": "郵件範本",
+      "report": "報表版面",
+      "invoice": "發票版面"
+    },
+    "deletePlan": {
+      "lead": "{count, plural, other {有 # 項僅在此處列出。刪除後，它們將不在任何工作區中列出：}}",
+      "after": "它們會保留，使用它們的內容仍會傳送它們。你之後可以為它們選擇新的工作區。"
+    },
+    "saveFailed": "無法變更它的列出位置"
   }
 } as const;

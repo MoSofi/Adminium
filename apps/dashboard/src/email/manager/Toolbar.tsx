@@ -9,6 +9,7 @@ import { FolderTree, Languages, LayoutGrid, LayoutTemplate, List, Send } from 'l
 import { FilterChip, SearchInput, SegmentedControl, TabsList, TabsTrigger } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
+import { WorkspaceFilter } from '../../shown-in/ShownIn.js';
 import type { EmailCounts, EmailDocumentKind } from '../api.js';
 import type { ManagerGroupBy, ManagerLayout } from './useManagerPrefs.js';
 
@@ -23,6 +24,8 @@ export interface ToolbarProps {
   onLayoutChange: (layout: ManagerLayout) => void;
   archived: boolean;
   onLeaveArchived: () => void;
+  /** The Workspace filter (All in one menu, with workspaces on the server); null draws none. */
+  workspaceFilter?: { value: string; onChange: (next: string) => void } | null | undefined;
 }
 
 export function searchPlaceholder(tab: EmailDocumentKind): string {
@@ -42,6 +45,7 @@ export function Toolbar({
   onLayoutChange,
   archived,
   onLeaveArchived,
+  workspaceFilter = null,
 }: ToolbarProps) {
   return (
     <div data-testid="email-toolbar" className="mb-5 flex flex-wrap items-center gap-3">
@@ -81,6 +85,7 @@ export function Toolbar({
           ]}
         />
       </div>
+      {workspaceFilter === null ? null : <WorkspaceFilter value={workspaceFilter.value} onChange={workspaceFilter.onChange} />}
       <SearchInput
         className="w-52 max-w-[40vw]"
         placeholder={searchPlaceholder(tab)}

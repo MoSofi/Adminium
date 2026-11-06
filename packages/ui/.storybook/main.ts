@@ -25,6 +25,8 @@ const config: StorybookConfig = {
     '../../../apps/dashboard/src/account/**/*.stories.tsx',
     // Installing an app file: the review's cards and the upload's choice, fed by props.
     '../../../apps/dashboard/src/studio/apps/**/*.stories.tsx',
+    // "Shown in": where an email template or a layout is listed, by workspace.
+    '../../../apps/dashboard/src/shown-in/**/*.stories.tsx',
   ],
   addons: ['@storybook/addon-a11y'],
   async viteFinal(viteConfig) {

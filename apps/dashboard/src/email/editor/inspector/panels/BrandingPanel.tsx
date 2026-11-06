@@ -5,10 +5,13 @@
  * from name, from email — a Combobox over the configured senders, never
  * free text (D7) — brand colour swatches, category, the status pills (D13:
  * a template's toggle `enabled`; a campaign's are display-only) and the
- * language variations rows (D3).
+ * language variations rows (D3). Then, on a server with workspaces, "Shown in"
+ * for the whole family (every language of its key), beside the sender as the
+ * Workspaces comp groups them.
  */
 import { Box, Circle, Command, Flame, Gem, Heart, Hexagon, Leaf, Square, Star, Triangle, Zap, type LucideIcon } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 import { Combobox, FormField, Input, cn } from '@adminium/ui';
 
 import { t } from '../../../../i18n/t.js';
@@ -61,6 +64,8 @@ export interface BrandingPanelProps {
   onEnabled: (enabled: boolean) => void;
   onOpenLanguage: (id: string) => void;
   onAddLanguage: (locale: string) => void;
+  /** "Shown in", drawn last; absent on a server with no workspaces. */
+  shownIn?: ReactNode;
 }
 
 export function BrandingPanel({
@@ -80,6 +85,7 @@ export function BrandingPanel({
   onEnabled,
   onOpenLanguage,
   onAddLanguage,
+  shownIn,
 }: BrandingPanelProps) {
   const senderOptions = senders.map((sender) => ({ value: sender.address, label: sender.address, description: sender.name }));
   const fromEmail = brand.fromEmail;
@@ -256,6 +262,12 @@ export function BrandingPanel({
           {t('email:branding.languageHint', 'Adding a language creates a linked copy. Variations stay grouped under {topic}.', { topic: topicLabel })}
         </span>
       </div>
+      {shownIn === undefined || shownIn === null ? null : (
+        <>
+          <Divider />
+          {shownIn}
+        </>
+      )}
     </div>
   );
 }

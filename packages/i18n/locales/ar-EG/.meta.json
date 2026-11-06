@@ -8175,6 +8175,74 @@
     "srcHash": "266695479a94",
     "status": "mt"
   },
+  "common.shownIn.all": {
+    "status": "mt",
+    "srcHash": "22e3fb740a3a"
+  },
+  "common.shownIn.chosen": {
+    "status": "mt",
+    "srcHash": "33401e184bea"
+  },
+  "common.shownIn.deletePlan.after": {
+    "status": "mt",
+    "srcHash": "c80a56cc483b"
+  },
+  "common.shownIn.deletePlan.lead": {
+    "status": "mt",
+    "srcHash": "7e07507d2c6f"
+  },
+  "common.shownIn.filter.label": {
+    "status": "mt",
+    "srcHash": "4ca0a75c2b7f"
+  },
+  "common.shownIn.filter.other": {
+    "status": "mt",
+    "srcHash": "5cb93deb997e"
+  },
+  "common.shownIn.hidden.here": {
+    "status": "mt",
+    "srcHash": "41991e8dd241"
+  },
+  "common.shownIn.hidden.other": {
+    "status": "mt",
+    "srcHash": "2d141b872191"
+  },
+  "common.shownIn.kind.emailTemplate": {
+    "status": "mt",
+    "srcHash": "19fce65389ab"
+  },
+  "common.shownIn.kind.invoice": {
+    "status": "mt",
+    "srcHash": "f73c10e3ef57"
+  },
+  "common.shownIn.kind.report": {
+    "status": "mt",
+    "srcHash": "dcbe772e5ff6"
+  },
+  "common.shownIn.label": {
+    "status": "mt",
+    "srcHash": "3554c957cc80"
+  },
+  "common.shownIn.none": {
+    "status": "mt",
+    "srcHash": "df398e4cbf96"
+  },
+  "common.shownIn.noneHint": {
+    "status": "mt",
+    "srcHash": "f244e8189981"
+  },
+  "common.shownIn.saveFailed": {
+    "status": "mt",
+    "srcHash": "b10b42534ea7"
+  },
+  "common.shownIn.unseen": {
+    "status": "mt",
+    "srcHash": "49327c96d526"
+  },
+  "common.shownIn.unseenChip": {
+    "status": "mt",
+    "srcHash": "a0a206cabf7e"
+  },
   "common.states.appDisabled.body": {
     "status": "mt",
     "srcHash": "0f2554674eec"
