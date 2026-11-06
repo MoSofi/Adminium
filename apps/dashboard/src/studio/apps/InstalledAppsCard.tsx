@@ -46,10 +46,11 @@ import {
   IconTile,
   MonoText,
 } from '@adminium/ui';
-import { ArrowUp, ArrowUpCircle, Download, Package, Trash2, TriangleAlert, Wand2 } from 'lucide-react';
+import { ArrowUp, ArrowUpCircle, CircleAlert, Download, Package, RotateCw, Trash2, TriangleAlert, Wand2 } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
+import { stoppedWords } from './UpdateReviewDialog.js';
 import {
   LOCAL_PUBLISHER_ID,
   APP_CATALOG_QUERY_KEY,
@@ -84,11 +85,13 @@ export interface InstalledAppsCardProps {
    * not on disk, shows the tables a new version would create, then updates.
    */
   onUpdate: (app: InstalledApp, row: CatalogApp) => void;
+  /** Finish this copy's update that stopped part way (`app.unfinishedUpdate`): the update dialog, then the same update again. */
+  onFinishUpdate?: ((app: InstalledApp) => void) | undefined;
   /** A download or update is in flight. */
   busy?: boolean;
 }
 
-export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: InstalledAppsCardProps) {
+export function InstalledAppsCard({ onInstall, onUpdate, onFinishUpdate, busy = false }: InstalledAppsCardProps) {
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(installedAppsQuery());
   // The same reply the shelf reads, so the two cannot disagree about an update.
@@ -368,6 +371,22 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                           </Button>
                         )}
                       </div>
+                    </div>
+                  )}
+                  {/* An update of this copy that moved its version and stopped: said after a reload too, with the press that finishes it. */}
+                  {app.unfinishedUpdate === undefined || onFinishUpdate === undefined ? null : (
+                    <div
+                      data-part="unfinished-update"
+                      className="mt-2 flex flex-wrap items-center gap-2.5 rounded-[10px] border border-danger/25 bg-danger-soft px-3 py-2"
+                    >
+                      <CircleAlert aria-hidden className="size-4 shrink-0 text-danger" />
+                      <span className="min-w-0 flex-1 text-xs font-semibold text-fg">
+                        {stoppedWords({ ...app.unfinishedUpdate, stage: app.unfinishedUpdate.stage ?? '', cause: '' })}
+                      </span>
+                      <Button size="sm" disabled={busy} onClick={() => onFinishUpdate(app)}>
+                        <RotateCw aria-hidden className="size-4" />
+                        {t('studio:hostedApps.update.finish', 'Finish the update')}
+                      </Button>
                     </div>
                   )}
                   {/* An install made before its app was prefixed: the offer to

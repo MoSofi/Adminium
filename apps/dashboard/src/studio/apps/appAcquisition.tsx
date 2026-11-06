@@ -107,6 +107,8 @@ interface UpdateConsent {
   plan: AppInstallPlan;
   /** Where the app's tables live, for re-checking with the operator's answers. */
   connectionId?: string;
+  /** Opened on an update that stopped before (read from the installed list): the dialog finishes it. */
+  stopped?: UpdateStoppedDetails;
 }
 
 /** What the operator checked before an update: that plan's checksum, their answers, and their says on what it adds. */
@@ -344,6 +346,27 @@ export function useAppAcquisition() {
       return attempt(() => applyUpdate(pending.key, checked, pending.connectionId ?? null), 'installed');
     },
 
+    /**
+     * A copy whose update stopped before, read from the installed list after a
+     * reload: its review opens on the version it moved to, saying where it
+     * stopped, and Finish the update sends the same update with the answers
+     * on screen. Without a check to show, the alert's Finish the update does.
+     */
+    finishUnfinished: (app: InstalledApp): Promise<void> =>
+      attempt(async () => {
+        const pending = app.unfinishedUpdate;
+        if (pending === undefined) return;
+        const details: UpdateStoppedDetails = { stage: pending.stage ?? '', from: pending.from, to: pending.to, cause: '' };
+        if (app.connectionId !== null) {
+          const checked = await planApp({ key: app.key, version: pending.to, connectionId: app.connectionId }).catch(() => null);
+          if (checked !== null) {
+            setConsent({ key: app.key, to: pending.to, plan: checked.plan, connectionId: app.connectionId, stopped: details });
+            return;
+          }
+        }
+        setStopped({ key: app.key, connectionId: app.connectionId, checked: undefined, details });
+      }, 'installed'),
+
     /** "Finish the update": the same update, sent again, carries on from where it stopped. */
     finishUpdate: (): Promise<void> => {
       const pending = stopped;
@@ -439,12 +462,14 @@ export function AppAcquisitionAlerts({
 export function UpdateConsentDialog({ state }: { state: AppAcquisition }) {
   const consent = state.consent;
   if (consent === null) return null;
-  if (consent.plan.tables !== undefined && consent.connectionId !== undefined) {
+  if ((consent.plan.tables !== undefined || consent.stopped !== undefined) && consent.connectionId !== undefined) {
     return (
       <UpdateReviewDialog
         appKey={consent.key}
         appName={consent.key}
         to={consent.to}
+        from={consent.stopped?.from}
+        stopped={consent.stopped}
         plan={consent.plan}
         connectionId={consent.connectionId}
         busy={state.busy}
