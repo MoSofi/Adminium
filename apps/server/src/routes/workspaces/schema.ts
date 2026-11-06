@@ -12,6 +12,27 @@ export const workspaceSenderDto = z.object({
   postal: z.string().nullable(),
 });
 
+/**
+ * A workspace's sender, as the form sends it. The From address is what makes
+ * a sender: name, reply-to and postal address go with it, each optional (a
+ * blank one is none). Clearing the sender is `DELETE /workspaces/:id/sender`.
+ */
+export const workspaceSenderBody = z.object({
+  // eslint-disable-next-line no-control-regex -- a header must hold no control character
+  name: z.string().trim().max(120).regex(/^[^\u0000-\u001f\u007f]*$/, 'must not contain line breaks or control characters').nullable().optional(),
+  from: z.string().trim().min(3).max(320),
+  replyTo: z.string().trim().max(254).nullable().optional(),
+  postal: z.string().trim().max(300).nullable().optional(),
+});
+
+/** Where the server can send from: the form says which domains a From may be at. */
+export const workspaceSenderDomainsReply = z.object({
+  /** Any address at these domains. */
+  domains: z.array(z.string()),
+  /** These addresses one by one (the server's own senders, one at a public mailbox included). */
+  addresses: z.array(z.string()),
+});
+
 export const workspaceDto = z.object({
   id: z.string(),
   name: z.string(),

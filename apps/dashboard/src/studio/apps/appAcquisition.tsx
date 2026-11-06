@@ -50,9 +50,9 @@
  * such an update without it.
  */
 import { useRef, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Modal, ModalBody, ModalFooter, ModalHeader, MonoText, Spinner } from '@adminium/ui';
-import { ArrowUpCircle } from 'lucide-react';
+import { ArrowUpCircle, RotateCw } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
@@ -69,16 +69,21 @@ import {
   type AppInstallPlan,
   type CatalogApp,
   type DocumentsWaiting,
-  type InstallAnswers,
   type InstalledApp,
-  type PlannedAppTable,
+  type UpdateAnswers,
+  type UpdateStoppedDetails,
 } from './appsApi.js';
 import { DocumentsWaitingNotice } from './DocumentsWaitingNotice.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
-import { CheckHint, TableCheck, type TakenPick } from './InstallCheck.js';
-import { RoleGrantsAddedCard } from './PrivacyGrantsCard.js';
-import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
-import { AppsRoleTablesWiderCard, RoleTablesUpdateCard } from './RoleTablesList.js';
+import { existingTables } from './installReview.js';
+import {
+  UpdateReviewDialog,
+  asksGrants,
+  checkAsks,
+  publicAccessAdded,
+  roleTablesWider,
+  stoppedWords,
+} from './UpdateReviewDialog.js';
 
 /** Which card an action belongs to, so its answer renders beside it. */
 export type AcquisitionOrigin = 'shelf' | 'installed';
@@ -100,64 +105,21 @@ interface UpdateConsent {
   key: string;
   to: string;
   plan: AppInstallPlan;
-  /** Which copy: the same app may be installed once per database, and each copy is updated through its own check. */
-  installId?: string | null;
-  /** Where that copy is, for the check's title. */
-  connectionName?: string | null;
   /** Where the app's tables live, for re-checking with the operator's answers. */
   connectionId?: string;
+  /** Opened on an update that stopped before (read from the installed list): the dialog finishes it. */
+  stopped?: UpdateStoppedDetails;
 }
 
-/** What the operator checked before an update: that plan's checksum, their answers, and their say on its public access. */
-export interface UpdateChecked {
-  planChecksum?: string;
-  choices?: InstallAnswers['choices'];
-  shares?: InstallAnswers['shares'];
-  publicAccess?: boolean;
-  /** The operator saw what the new version's roles hold more of add-ons' tables, and allows it. */
-  roleTables?: boolean;
-  /** The operator saw the grants the new version's roles are newly given (erasing people, an add-on's settings), and allows them. */
-  roleGrants?: boolean;
-}
+/** What the operator checked before an update: that plan's checksum, their answers, and their says on what it adds. */
+export type UpdateChecked = UpdateAnswers;
 
-/** The grants a new version's roles are given that the running one's were not: the update asks before it gives them. */
-export function grantsAddedOf(plan: AppInstallPlan): { privacy: NonNullable<AppInstallPlan['privacyGrants']>; addOn: NonNullable<AppInstallPlan['addOnGrants']> } {
-  return {
-    privacy: (plan.privacyGrants ?? []).filter((grant) => grant.added === true),
-    addOn: (plan.addOnGrants ?? []).filter((grant) => grant.added === true),
-  };
-}
-
-const asksGrants = (plan: AppInstallPlan): boolean => {
-  const added = grantsAddedOf(plan);
-  return added.privacy.length > 0 || added.addOn.length > 0;
-};
-
-/** What a new version's roles hold more of add-ons' tables than the running one's: the update asks before it gives it. */
-function roleTablesWider(plan: AppInstallPlan): NonNullable<AppInstallPlan['roleTables']> {
-  return (plan.roleTables ?? []).filter((entry) => entry.wider !== undefined);
-}
-
-/** Whether a new version's check has anything to show or ask. */
-function checkAsks(tables: readonly PlannedAppTable[]): boolean {
-  return tables.some(
-    (table) => table.class === 'new' || table.class === 'taken' || table.edits.length > 0,
-  );
-}
-
-/**
- * What a new version adds to what the app's guests can do — the entries its
- * keys would gain, and a staff screen's key it would open to a shared link,
- * for the operator to allow as at install — or null when it adds nothing.
- * Nothing is given unless the answer is sent: the server grants only on yes.
- */
-function publicAccessAdded(plan: AppInstallPlan): NonNullable<AppInstallPlan['publicAccess']> | null {
-  const access = plan.publicAccess;
-  const added = (access?.endpoints ?? []).filter((endpoint) => endpoint.onUpdate === 'granted');
-  const unlocked = access?.opensWithoutStaff ?? [];
-  // A key for the app's phone app is a new key: asked like a new entry.
-  const phone = access?.phoneKey === 'made';
-  return access === undefined || (added.length === 0 && unlocked.length === 0 && !phone) ? null : { ...access, endpoints: added };
+/** An update that stopped part way: the same update, sent again, finishes it. */
+export interface StoppedUpdate {
+  key: string;
+  connectionId: string | null;
+  checked: UpdateChecked | undefined;
+  details: UpdateStoppedDetails;
 }
 
 /** An update waiting on columns the operator has been asked to add. */
@@ -204,12 +166,13 @@ export function useAppAcquisition() {
   /** An update's documents that wait for an add-on update, said under its notice. */
   const [waiting, setWaiting] = useState<DocumentsWaiting['waiting'] | null>(null);
   const [consent, setConsent] = useState<UpdateConsent | null>(null);
+  const [stopped, setStopped] = useState<StoppedUpdate | null>(null);
   const [columnsConsent, setColumnsConsent] = useState<ColumnsConsent | null>(null);
   const [origin, setOrigin] = useState<AcquisitionOrigin>('shelf');
   /**
    * "Update every copy": the copies still to update after this one, in order.
    * Every copy runs one version, so they all move, each through its own check;
-   * a check the operator cancels stops the rest.
+   * a check the operator cancels, or a copy that stops, stops the rest.
    */
   const queue = useRef<InstalledApp[]>([]);
 
@@ -253,8 +216,26 @@ export function useAppAcquisition() {
     });
   };
 
-  const applyUpdate = async (key: string, checked?: UpdateChecked, install: string | null = null): Promise<void> => {
-    const result = await updateApp(key, checked, install);
+  const applyUpdate = async (key: string, checked?: UpdateChecked, connectionId: string | null = null): Promise<void> => {
+    let result;
+    try {
+      result = await updateApp(key, checked, connectionId);
+    } catch (caught) {
+      // Stopped part way: nothing is undone, and the same update finishes it.
+      if (caught instanceof ApiError && caught.code === 'APP_UPDATE_INCOMPLETE') {
+        const details = (caught.details ?? {}) as Partial<UpdateStoppedDetails>;
+        queue.current = [];
+        setStopped({
+          key,
+          connectionId,
+          checked,
+          details: { stage: details.stage ?? '', from: details.from ?? '', to: details.to ?? '', cause: details.cause ?? caught.message },
+        });
+        return;
+      }
+      throw caught;
+    }
+    setStopped(null);
     setNotice(
       t('studio:hostedApps.update.done', '{app} updated to v{version}', {
         app: key,
@@ -262,7 +243,7 @@ export function useAppAcquisition() {
       }),
     );
     setWaiting(result.app.documents?.waiting ?? null);
-    // The next copy, when every copy is being updated.
+    // The next copy, when every copy is being updated: the file is on disk now.
     const next = queue.current.shift();
     if (next !== undefined) await updateCopy(next, result.to, true);
   };
@@ -273,8 +254,6 @@ export function useAppAcquisition() {
    * check is on screen (the operator's answer continues from there).
    */
   const updateCopy = async (app: InstalledApp, to: string, staged: boolean): Promise<void> => {
-    const install = app.installId ?? null;
-    const copy = { installId: install, connectionName: app.connectionName ?? null };
     if (!staged) {
       await follow(
         () => downloadApp(app.key, to),
@@ -291,13 +270,15 @@ export function useAppAcquisition() {
        * server's.
        */
       if (plan.tables !== undefined) {
-        const askable = plan.problems.every((problem) => problem.code === 'TABLE_TAKEN');
+        // A taken table's name and a taken page address are both answered on the check.
+        const askable = plan.problems.every((problem) => problem.code === 'TABLE_TAKEN' || problem.code === 'PAGE_SLUG_UNANSWERED' || problem.code === 'EXISTING_TABLE_UNUSABLE');
         const asksShare = (plan.shareOffers ?? []).length > 0;
-        if ((checkAsks(plan.tables) || asksShare || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0 || asksGrants(plan)) && (plan.installable || askable)) {
-          setConsent({ key: app.key, to, plan, connectionId: app.connectionId, ...copy });
+        const asksPages = (plan.pageClashes ?? []).length > 0 || existingTables(plan).length > 0;
+        if ((checkAsks(plan.tables) || asksShare || asksPages || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0 || asksGrants(plan)) && (plan.installable || askable)) {
+          setConsent({ key: app.key, to, plan, connectionId: app.connectionId });
           return;
         }
-        await applyUpdate(app.key, plan.checksum === undefined ? undefined : { planChecksum: plan.checksum }, install);
+        await applyUpdate(app.key, plan.checksum === undefined ? undefined : { planChecksum: plan.checksum }, app.connectionId);
         return;
       }
       const short = plan.reuse.some((table) => table.missingColumns.length > 0);
@@ -308,17 +289,23 @@ export function useAppAcquisition() {
       // Missing columns are a problem of their own (COLUMNS_REQUIRED) and
       // the one this offer resolves; any OTHER problem still refuses.
       const onlyMissing = plan.problems.every((problem) => problem.code === 'COLUMNS_REQUIRED');
-      if (onlyMissing && short && edit !== undefined && edit.blocked.length === 0 && edit.addColumns.length > 0) {
-        setColumnsConsent({ key: app.key, to, plan, connectionId: app.connectionId, ...copy });
+      if (
+        onlyMissing &&
+        short &&
+        edit !== undefined &&
+        edit.blocked.length === 0 &&
+        edit.addColumns.length > 0
+      ) {
+        setColumnsConsent({ key: app.key, to, plan, connectionId: app.connectionId });
         return;
       }
       const refused = !plan.installable || short;
       if (!refused && plan.create.length > 0) {
-        setConsent({ key: app.key, to, plan, ...copy });
+        setConsent({ key: app.key, to, plan, connectionId: app.connectionId });
         return;
       }
     }
-    await applyUpdate(app.key, undefined, install);
+    await applyUpdate(app.key, undefined, app.connectionId);
   };
 
   return {
@@ -331,6 +318,7 @@ export function useAppAcquisition() {
     consent,
     columnsConsent,
     origin,
+    stopped,
 
     /** Resolves to whether the list is on now: a switch the environment vetoes, or one that failed, is not. */
     toggleOnline: async (next: boolean): Promise<boolean> => {
@@ -389,7 +377,35 @@ export function useAppAcquisition() {
       const pending = consent;
       setConsent(null);
       if (pending === null) return Promise.resolve();
-      return attempt(() => applyUpdate(pending.key, checked, pending.installId ?? null), 'installed');
+      return attempt(() => applyUpdate(pending.key, checked, pending.connectionId ?? null), 'installed');
+    },
+
+    /**
+     * A copy whose update stopped before, read from the installed list after a
+     * reload: its review opens on the version it moved to, saying where it
+     * stopped, and Finish the update sends the same update with the answers
+     * on screen. Without a check to show, the alert's Finish the update does.
+     */
+    finishUnfinished: (app: InstalledApp): Promise<void> =>
+      attempt(async () => {
+        const pending = app.unfinishedUpdate;
+        if (pending === undefined) return;
+        const details: UpdateStoppedDetails = { stage: pending.stage ?? '', from: pending.from, to: pending.to, cause: '' };
+        if (app.connectionId !== null) {
+          const checked = await planApp({ key: app.key, version: pending.to, connectionId: app.connectionId }).catch(() => null);
+          if (checked !== null) {
+            setConsent({ key: app.key, to: pending.to, plan: checked.plan, connectionId: app.connectionId, stopped: details });
+            return;
+          }
+        }
+        setStopped({ key: app.key, connectionId: app.connectionId, checked: undefined, details });
+      }, 'installed'),
+
+    /** "Finish the update": the same update, sent again, carries on from where it stopped. */
+    finishUpdate: (): Promise<void> => {
+      const pending = stopped;
+      if (pending === null) return Promise.resolve();
+      return attempt(() => applyUpdate(pending.key, pending.checked, pending.connectionId), 'installed');
     },
 
     /** The downloaded version stays on disk, and the list keeps offering it. A cancelled copy stops the rest. */
@@ -403,7 +419,7 @@ export function useAppAcquisition() {
       const pending = columnsConsent;
       setColumnsConsent(null);
       if (pending === null) return Promise.resolve();
-      return attempt(() => applyUpdate(pending.key, undefined, pending.installId ?? null), 'installed');
+      return attempt(() => applyUpdate(pending.key, undefined, pending.connectionId), 'installed');
     },
 
     cancelColumnsUpdate: (): void => {
@@ -460,6 +476,20 @@ export function AppAcquisitionAlerts({
           <strong>{`${String(Math.round(state.progress.pct))}%`}</strong>
         </Alert>
       )}
+      {!mine || state.stopped === null ? null : (
+        <Alert
+          ref={revealOnMount}
+          role="alert"
+          tone="danger"
+          title={stoppedWords(state.stopped.details)}
+          action={
+            <Button size="sm" disabled={state.busy} onClick={() => void state.finishUpdate()}>
+              {state.busy ? <Spinner size="sm" /> : <RotateCw aria-hidden className="size-4" />}
+              {t('studio:hostedApps.update.finish', 'Finish the update')}
+            </Button>
+          }
+        />
+      )}
       {!mine || state.notice === null ? null : (
         <Alert ref={revealOnMount} tone="pos" title={state.notice} />
       )}
@@ -472,8 +502,21 @@ export function AppAcquisitionAlerts({
 export function UpdateConsentDialog({ state }: { state: AppAcquisition }) {
   const consent = state.consent;
   if (consent === null) return null;
-  if (consent.plan.tables !== undefined && consent.connectionId !== undefined) {
-    return <UpdateCheckDialog state={state} consent={{ ...consent, connectionId: consent.connectionId }} />;
+  if ((consent.plan.tables !== undefined || consent.stopped !== undefined) && consent.connectionId !== undefined) {
+    return (
+      <UpdateReviewDialog
+        appKey={consent.key}
+        appName={consent.key}
+        to={consent.to}
+        from={consent.stopped?.from}
+        stopped={consent.stopped}
+        plan={consent.plan}
+        connectionId={consent.connectionId}
+        busy={state.busy}
+        onCancel={state.cancelUpdate}
+        onConfirm={(checked) => void state.confirmUpdate(checked)}
+      />
+    );
   }
   return (
     <Modal
@@ -519,190 +562,6 @@ export function UpdateConsentDialog({ state }: { state: AppAcquisition }) {
         <Button disabled={state.busy} onClick={() => void state.confirmUpdate()}>
           {t('studio:hostedApps.update.confirm', 'Update')}
         </Button>
-      </ModalFooter>
-    </Modal>
-  );
-}
-
-/**
- * A new version's tables, checked the way the install wizard checks them: what
- * it creates, what it takes back, the safe edits, and the one question — a new
- * table whose name somebody else holds. The update sends the answers and the
- * checksum of the check it showed.
- */
-function UpdateCheckDialog({
-  state,
-  consent,
-}: {
-  state: AppAcquisition;
-  consent: UpdateConsent & { connectionId: string };
-}) {
-  const [plan, setPlan] = useState(consent.plan);
-  const [open, setOpen] = useState<Record<string, boolean>>({});
-  const [picks, setPicks] = useState<Record<string, TakenPick>>({});
-  const [renameTo, setRenameTo] = useState<Record<string, string>>({});
-  const [checked, setChecked] = useState<InstallAnswers['choices']>(undefined);
-  // A new version's tables of a shape another app has: that app's, or separate ones.
-  const [sharePicks, setSharePicks] = useState<NonNullable<InstallAnswers['shares']>>({});
-  const [checkedShares, setCheckedShares] = useState<InstallAnswers['shares']>(undefined);
-  const sharesOf = (next: NonNullable<InstallAnswers['shares']>): InstallAnswers['shares'] =>
-    Object.keys(next).length === 0 ? undefined : Object.fromEntries(Object.keys(next).sort().map((shape) => [shape, next[shape]!]));
-
-  const choicesOf = (
-    nextPicks: Record<string, TakenPick>,
-    nextRename: Record<string, string>,
-  ): InstallAnswers['choices'] => {
-    const choices: NonNullable<InstallAnswers['choices']> = {};
-    for (const ref of Object.keys(nextPicks).sort()) {
-      if (nextPicks[ref] === 'reuse') choices[ref] = { action: 'reuse' };
-      if (nextPicks[ref] === 'rename-existing') choices[ref] = { action: 'rename-existing', to: nextRename[ref] ?? '' };
-    }
-    return Object.keys(choices).length === 0 ? undefined : choices;
-  };
-  const choices = choicesOf(picks, renameTo);
-  const dirty =
-    JSON.stringify(choices ?? null) !== JSON.stringify(checked ?? null) ||
-    JSON.stringify(sharesOf(sharePicks) ?? null) !== JSON.stringify(checkedShares ?? null);
-
-  const recheck = useMutation({
-    mutationFn: ({ next, shares }: { next: InstallAnswers['choices']; shares: InstallAnswers['shares'] }) =>
-      planApp({
-        key: consent.key,
-        version: consent.to,
-        connectionId: consent.connectionId,
-        ...(next === undefined ? {} : { choices: next }),
-        ...(shares === undefined ? {} : { shares }),
-      }),
-    onSuccess: (reply, { next, shares }) => {
-      setPlan(reply.plan);
-      setChecked(next);
-      setCheckedShares(shares);
-    },
-  });
-
-  /*
-   * Ticked by default, as at install, where the app already has its public
-   * access (the new customer screens need the rest). An app installed
-   * without it is asked afresh, unticked: the operator said no once. So is
-   * a version that opens a staff screen's key to anyone with a link.
-   */
-  const [allowPublic, setAllowPublic] = useState(
-    () =>
-      consent.plan.publicAccess?.endpoints.some((endpoint) => endpoint.onUpdate === 'held') === true &&
-      (consent.plan.publicAccess.opensWithoutStaff ?? []).length === 0,
-  );
-
-  const tables = plan.tables ?? [];
-  // A menu another app already has is a question too: its own, or that app's.
-  const asksTables = checkAsks(tables) || (plan.shareOffers ?? []).length > 0;
-  const access = publicAccessAdded(plan);
-  const wider = roleTablesWider(plan);
-  const grants = grantsAddedOf(plan);
-  return (
-    <Modal
-      open
-      onOpenChange={(next) => {
-        if (!next) state.cancelUpdate();
-      }}
-    >
-      <ModalHeader
-        icon={<ArrowUpCircle />}
-        title={t('studio:hostedApps.update.title', 'Update {app} to v{version}', {
-          app: consent.key,
-          version: consent.to,
-        })}
-        subtitle={
-          asksTables
-            ? t('studio:hostedApps.update.checkSubtitle', 'Check the tables this version uses.')
-            : access !== null
-              ? t('studio:hostedApps.update.accessSubtitle', 'Check what this version lets the app’s customers do.')
-              : wider.length === 0 && asksGrants(plan)
-                ? t('studio:hostedApps.update.grantsSubtitle', 'Check what this version’s roles are newly given.')
-                : t('studio:hostedApps.update.rolesSubtitle', 'Check what this version’s roles may do with add-ons’ tables.')
-        }
-        closeLabel={t('studio:hostedApps.update.close', 'Close')}
-      />
-      <ModalBody>
-        <div className="flex flex-col gap-3">
-          {recheck.error === null ? null : (
-            <Alert tone="danger" title={t('studio:hostedApps.error', 'Something went wrong')}>
-              {recheck.error.message}
-            </Alert>
-          )}
-          {!asksTables ? null : (
-            <TableCheck
-              plan={{ ...plan, tables }}
-              appName={consent.key}
-              connectionName=""
-              heading={false}
-              allowAltPrefix={false}
-              open={open}
-              onToggle={(ref) => setOpen((rows) => ({ ...rows, [ref]: rows[ref] !== true }))}
-              picks={picks}
-              onPick={(ref, pick) => {
-                const table = tables.find((candidate) => candidate.ref === ref);
-                const nextPicks = { ...picks, [ref]: pick };
-                const nextRename =
-                  pick === 'rename-existing' && renameTo[ref] === undefined && table !== undefined
-                    ? { ...renameTo, [ref]: table.renameExistingTo ?? `${table.table}_old` }
-                    : renameTo;
-                setPicks(nextPicks);
-                setRenameTo(nextRename);
-                recheck.mutate({ next: choicesOf(nextPicks, nextRename), shares: sharesOf(sharePicks) });
-              }}
-              onShare={(shape, pick) => {
-                const next = { ...sharePicks, [shape]: pick };
-                setSharePicks(next);
-                recheck.mutate({ next: choices, shares: sharesOf(next) });
-              }}
-              renameTo={renameTo}
-              onRenameTo={(ref, value) => setRenameTo((names) => ({ ...names, [ref]: value }))}
-              prefix=""
-              onPrefix={() => undefined}
-              altPrefixInUse={null}
-              onUsualPrefix={() => undefined}
-              busy={recheck.isPending || state.busy}
-            />
-          )}
-          {access === null ? null : (
-            <PublicAccessInstallCard access={access} checked={allowPublic} onChange={setAllowPublic} />
-          )}
-          <RoleTablesUpdateCard entries={wider} />
-          <AppsRoleTablesWiderCard entries={wider} />
-          <RoleGrantsAddedCard privacy={grants.privacy} addOn={grants.addOn} />
-        </div>
-      </ModalBody>
-      <ModalFooter>
-        <span className="me-auto">
-          <CheckHint plan={plan} picks={picks} dirty={dirty} forUpdate />
-        </span>
-        <Button variant="ghost" onClick={state.cancelUpdate}>
-          {t('studio:hostedApps.update.cancel', 'Cancel')}
-        </Button>
-        {dirty ? (
-          <Button disabled={recheck.isPending} onClick={() => recheck.mutate({ next: choices, shares: sharesOf(sharePicks) })}>
-            {recheck.isPending ? <Spinner size="sm" /> : null}
-            {t('studio:hostedApps.install.check.again', 'Check again')}
-          </Button>
-        ) : (
-          <Button
-            disabled={state.busy || recheck.isPending || !plan.installable}
-            onClick={() =>
-              void state.confirmUpdate({
-                ...(plan.checksum === undefined ? {} : { planChecksum: plan.checksum }),
-                ...(checked === undefined ? {} : { choices: checked }),
-                ...(checkedShares === undefined ? {} : { shares: checkedShares }),
-                ...(access === null ? {} : { publicAccess: allowPublic && !publicAccessBlocked(access) }),
-                // Shown above: the Update button is the say.
-                ...(wider.length === 0 ? {} : { roleTables: true }),
-                // …and so is it for what the roles are newly given.
-                ...(grants.privacy.length === 0 && grants.addOn.length === 0 ? {} : { roleGrants: true }),
-              })
-            }
-          >
-            {t('studio:hostedApps.update.confirm', 'Update')}
-          </Button>
-        )}
       </ModalFooter>
     </Modal>
   );

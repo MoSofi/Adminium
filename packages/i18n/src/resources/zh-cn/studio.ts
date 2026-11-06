@@ -689,11 +689,9 @@ export default {
       "failed": "安装失败",
       "bundle": {
         "title": "上传应用安装包",
-        "hint": "应用的发布文件（.tgz）——其中包含 manifest.json 以及 staff/ 或 customer/ 目录。",
         "file": "安装包文件（.tgz）",
         "fileHint": "在你于架构计划这一步确认之前，不会创建任何内容。",
-        "integrity": "完整性校验（可选）",
-        "integrityHint": "粘贴随版本发布的 sha512- 值，服务器将据此校验这些字节。留空则在本页计算。"
+        "fileOnly": "应用文件（.tgz）。"
       },
       "database": {
         "title": "安装到哪个数据库？",
@@ -702,7 +700,13 @@ export default {
         "readOnly": "只读",
         "writable": "可写",
         "noWritable": "没有可写连接",
-        "allReadOnly": "这里的所有连接都使用只读角色，因此任何应用都无法创建自己的表。请先连接一个可以执行 DDL 的连接。"
+        "allReadOnly": "这里的所有连接都使用只读角色，因此任何应用都无法创建自己的表。请先连接一个可以执行 DDL 的连接。",
+        "version": "正在安装 {app} {version}。",
+        "ownCopy": "每个数据库都可以有自己的一份 {app}。",
+        "noneTitle": "还没有数据库",
+        "none": "请先连接一个数据库。应用只装进此服务器已有的数据库。",
+        "installed": "已安装 · {version}",
+        "notTouched": "这一份有自己的设置、角色和邮件模板。{databases} 上的 {app} 不受影响。"
       },
       "plan": {
         "title": "检查架构计划",
@@ -716,7 +720,7 @@ export default {
         "summary": "创建 {created} · 复用 {reused}",
         "ruleWarnings": "此应用的部分规则会显示你的表中隐藏的内容，因此不会应用",
         "pageWarnings": "此应用的部分页面将在没有表的情况下创建",
-        "installedElsewhere": "{app} 已安装在连接 {connection} 上。一个应用只在一个连接上运行：请在那里更新它，或先在那里卸载，再安装到其他连接。"
+        "oneVersion": "{database} 已有 {app} {version}，而一个应用的每一份都运行同一版本。请先更新各份，再在这里安装这一份。"
       },
       "done": {
         "body": "{key} 已开始提供服务。请在下方选择其员工端的显示位置。",
@@ -727,7 +731,12 @@ export default {
         "sampleNotAdded": "未添加",
         "sampleAdding": "正在添加…",
         "sampleAdded": "已添加",
-        "sampleLater": "你可以稍后在应用页面中添加。"
+        "sampleLater": "你可以稍后在应用页面中添加。",
+        "titleOn": "{app} {version} 已安装到 {database}",
+        "rulesOff": "向外发送数据的规则",
+        "rulesOffValue": "{count} 条，已关闭",
+        "toDo": "{count, plural, other {# 件待办}}",
+        "openPage": "打开应用页面"
       },
       "cancel": "取消",
       "back": "上一步",
@@ -737,7 +746,6 @@ export default {
       "finish": "管理应用",
       "staged": "已解包文件：{files}",
       "footerStep": "第 {n} 步，共 {total} 步",
-      "footerStepApp": "第 {n} 步，共 {total} 步 · {app}",
       "chosen": {
         "title": "安装 {app}",
         "hint": "这个应用随你的构建附带，已经在磁盘上。在你确认架构计划之前不会创建任何内容。"
@@ -806,7 +814,9 @@ export default {
           "labelMenu": "{app} 使用哪个菜单",
           "labelTables": "{app} 使用哪些表",
           "recommended": "推荐"
-        }
+        },
+        "summaryUsed": "{count, plural, other {# 个按原样使用}}",
+        "badgeUsed": "按原样使用"
       },
       "running": {
         "title": "正在安装 {app}",
@@ -846,7 +856,8 @@ export default {
       "privacyGrants": {
         "title": "某个角色可以删除个人数据",
         "body": "{roles} 可以在隐私页面查找、下载并删除此服务器保存的关于某人的全部数据。"
-      }
+      },
+      "footerStepVersion": "第 {n} 步，共 {total} 步 · {app} {version}"
     },
     "installed": {
       "title": "已安装的应用",
@@ -945,7 +956,18 @@ export default {
       "grantsAdded": {
         "title": "此版本给了它的角色更多权限",
         "addOnSettings": "{roles} 可以更改 {addOn} 的设置，这些设置由它服务的所有应用共享。"
-      }
+      },
+      "stopped": {
+        "pages": "更新到 {to} 时在写入页面期间停止。没有丢失任何内容；{from} 的页面仍在。",
+        "other": "更新到 {to} 时中途停止。没有丢失任何内容，完成更新会从停止处继续。",
+        "seeds": "更新到 {to} 时在添加初始行期间停止。没有丢失任何内容，完成更新会添加其余的行。",
+        "instance": "更新到 {to} 时在应用外观和语言期间停止。没有丢失任何内容，完成更新会应用它们。"
+      },
+      "titleOn": "将 {database} 上的 {app} 更新到 v{version}",
+      "copyOf": "第 {n} 份，共 {total} 份 · {from} → {to}",
+      "reviewSubtitle": "查看此版本带来的内容。",
+      "onlyThis": "此对话框中只更改 {database} 上的 {app}。它在那里的设置、角色和邮件模板会保留。",
+      "finish": "完成更新"
     },
     "veto": {
       "title": "此部署无法在线浏览",
@@ -972,6 +994,138 @@ export default {
       "repair": "Adminium 也会更新指向旧名称的自有页面和规则。",
       "cancel": "取消",
       "confirm": "重命名数据表"
+    },
+    "review": {
+      "source": {
+        "title": "来源",
+        "badge": "你自己的应用",
+        "madeOn": "制作于 {date} · Adminium {version}",
+        "madeAt": "在 {label} 于 {date} 制作 · Adminium {version}",
+        "publisher": "发布者：{publisher}",
+        "warning": "它保存于另一台 Adminium 服务器，而非 adminium.dev。只有在你知道是谁保存的时才安装它。"
+      },
+      "fingerprint": {
+        "label": "与保存时显示的指纹比对",
+        "labelRelease": "与随版本发布的指纹比对",
+        "check": "比对",
+        "ok": "一致。这就是保存的那个文件。",
+        "okRelease": "一致。这就是发布的那个文件。",
+        "bad": "不一致。这不是保存的那个文件。",
+        "badRelease": "不一致。这不是发布的那个文件。",
+        "none": "未比对",
+        "hold": "指纹不一致。请清空该栏，或粘贴保存时显示的指纹。"
+      },
+      "existing": {
+        "title": "{count, plural, other {这里已有 # 个同名的表。}}",
+        "use": "使用现有的表",
+        "useNote": "按原样使用它们及其中的行。从不重命名。",
+        "used": "{count, plural, other {# 个按原样使用 · 不做任何更改}}",
+        "cannot": "{table} 无法按原样使用。",
+        "cannotHelp": "请在这里重命名该表，或不带它重新保存应用。"
+      },
+      "change": "更改",
+      "pages": {
+        "title": "{count, plural, other {# 个页面的名称在这里已被使用}}",
+        "untouched": "— 这里的页面与 Adminium 生成时一致。",
+        "changed": "— 已在这里修改。",
+        "replace": "替换它",
+        "rename": "重命名这里的页面",
+        "skip": "跳过它",
+        "replaced": "已由应用的页面替换。",
+        "skipped": "已跳过。这里的页面保留。",
+        "renamed": "这里的页面移到 {address}。",
+        "renameField": "这里页面的新地址",
+        "hold": "请选择如何处理 {pages}。"
+      },
+      "outside": {
+        "title": "这些规则会向外发送数据",
+        "bodyUpdate": "新规则到达时处于关闭且为空。已在这里的规则保留其地址。",
+        "body": "它们到达时处于关闭且为空。管理自动化的人可以开启它们。",
+        "webhook": "发送到网址 · 地址留空",
+        "address": "发邮件到固定地址 · 地址留空",
+        "off": "关闭"
+      },
+      "instance": {
+        "title": "外观和语言",
+        "tick": "同时应用外观和语言",
+        "locked": "请让管理设置的人来应用这一部分。",
+        "what": "包含内容",
+        "languagesOn": "开启的语言：{languages}",
+        "languagesOff": "关闭的语言：{languages}",
+        "wording": "{count, plural, other {# 处修改过的文字}}",
+        "emails": "修改过的系统邮件：{count}",
+        "left": "此处未采用：",
+        "caption": "密码、密钥和邮件服务器设置从不在文件中。你可以在应用页面撤销这一部分。",
+        "hideChanges": "隐藏更改",
+        "showChanges": "显示更改",
+        "noLinks": "它没有链接，因此随这一部分一起应用。",
+        "links": "此邮件中的链接指向：",
+        "subject": "主题：{from} → {to}",
+        "blocks": "区块：新增 {added} · 删除 {removed} · 修改 {changed}",
+        "preheader": "预览文字已修改",
+        "footer": "页脚已修改"
+      },
+      "screens": {
+        "title": "界面",
+        "lead": "此应用有自己的界面。",
+        "body": "它们以打开者的权限运行。只有在你信任保存它的人时才安装。"
+      },
+      "after": {
+        "webhook": "规则 {item} 的网址",
+        "address": "规则 {item} 发邮件给谁",
+        "document": "规则 {item} 生成的文档",
+        "delivery": "文档 {item} 发送到哪里",
+        "paymentKey": "支付服务 {item} 的密钥",
+        "bankAccount": "{item} 的银行账户",
+        "recipients": "{count, plural, =1 {谁接收定时报表 {item}} other {谁接收这 # 份定时报表}}",
+        "sender": "{count, plural, =1 {邮件 {item} 的发件地址} other {# 个邮件模板的发件地址}}",
+        "systemGrant": "角色 {item} 的控制台权限",
+        "title": "安装之后",
+        "note": "这些会一直留在应用页面，直到完成。"
+      },
+      "title": "安装前检查",
+      "intro": "{app} 将装入 {database}。按下“安装”之前不会有任何更改。"
+    },
+    "refusal": {
+      "back": "返回",
+      "older": {
+        "copy": "{database} 已有 {version}",
+        "title": "较旧的文件",
+        "body": "{copies}。此文件是较旧的 {version}。"
+      },
+      "lineage": {
+        "title": "同一键名的另一个应用",
+        "body": "此服务器在 {database} 上已有另一个 {key}。请用另一个键名保存这个。"
+      },
+      "newer": {
+        "title": "需要更新版本的 Adminium",
+        "body": "此文件需要 Adminium {needed} 或更新版本。此服务器运行的是 {running}。"
+      },
+      "savedHere": {
+        "title": "从此数据库保存",
+        "body": "此文件是从此服务器上的 {database} 保存的。装回那里会让每个自动化运行两次。请选择另一个数据库，或在测试服务器上试用。"
+      },
+      "everywhere": {
+        "title": "每个数据库都已安装",
+        "body": "{app} {version} 已安装在这里的每个数据库上。"
+      }
+    },
+    "route": {
+      "update": {
+        "button": "更新每一份（{databases}）",
+        "rest": "更新其余的（{databases}）",
+        "also": "也安装到另一个数据库",
+        "title": "将 {app} 更新到 {version}",
+        "body": "此文件比此服务器上的每一份都新。每一份都运行同一版本，因此每一份都会更新，并各自检查。",
+        "updated": "已更新",
+        "waiting": "尚未更新",
+        "done": "每个数据库上的 {app} 都已是 {version}。"
+      },
+      "another": {
+        "button": "安装到另一个数据库",
+        "title": "将 {app} 安装到另一个数据库",
+        "body": "{app} {version} 已安装在 {databases} 上。每个数据库都可以有自己的一份。"
+      }
     }
   },
   "hub": {
@@ -985,7 +1139,8 @@ export default {
       "remap": "重映射架构",
       "rename": "重命名",
       "resume": "恢复",
-      "test": "测试"
+      "test": "测试",
+      "saveAsApp": "另存为应用"
     },
     "card": {
       "lastIntrospected": "上次内省",
@@ -4847,6 +5002,302 @@ export default {
         "when": "时间",
         "workspaceUsers": "此服务器上的用户"
       }
+    }
+  },
+  "workspaceSender": {
+    "title": "{workspace} 的发件人",
+    "subtitle": "与此工作区数据库中记录相关的邮件将以此发件人发送。",
+    "close": "关闭",
+    "loading": "正在加载",
+    "accepted": {
+      "title": "此服务器可用于发信的地址",
+      "domains": "以下域名的任意地址：",
+      "addresses": "或仅限："
+    },
+    "noMail": {
+      "title": "此服务器尚无发件人",
+      "body": "请先在设置中配置邮件。在此之前，工作区无法拥有自己的发件人。",
+      "action": "打开邮件设置"
+    },
+    "name": {
+      "label": "发件人名称",
+      "helper": "邮件显示的发件方，例如 Kiln Street Pottery。"
+    },
+    "from": {
+      "label": "发件地址",
+      "helper": "须为上方所列位置中的地址。"
+    },
+    "replyTo": {
+      "label": "回复地址",
+      "helper": "回复发往的地址。留空则使用发件地址。"
+    },
+    "postal": {
+      "label": "邮寄地址",
+      "helper": "印在此工作区营销邮件的底部。留空则使用服务器的地址。"
+    },
+    "sharedList": "禁止发信名单属于整个服务器：在一家企业退订的人，将不会再收到此服务器上任何企业的营销邮件。",
+    "refusal": {
+      "notSendingDomain": "此服务器只能从 {accepted} 发信。请使用那里的地址。",
+      "noMail": "此服务器尚无发件人。请先在设置中配置邮件。",
+      "notAnAddress": "请输入一个邮件地址，例如 hello@example.com。"
+    },
+    "failed": "无法保存发件人。请重试。",
+    "footer": {
+      "own": "其邮件从 {from} 发出。",
+      "server": "在保存发件地址之前，其邮件将以服务器的发件人发出。"
+    },
+    "clear": "使用服务器的发件人",
+    "cancel": "取消",
+    "save": "保存发件人"
+  },
+  "saveApp": {
+    "step": {
+      "database": "数据库",
+      "include": "包含内容",
+      "about": "应用信息",
+      "check": "检查",
+      "download": "下载"
+    },
+    "progress": "另存为应用的进度",
+    "loading": "正在读取数据库…",
+    "footerStep": "第 {n} 步，共 {total} 步",
+    "footerStepKey": "第 {n} 步，共 {total} 步 · {key}",
+    "include": {
+      "nothingChanges": "保存不会更改此服务器上的任何内容。",
+      "title": "包含内容",
+      "body": "取消勾选即可排除某项。只有你选择的地方才会包含数据行。",
+      "searchLabel": "搜索包含内容",
+      "search": "搜索数据表、页面、角色…",
+      "nothing": "没有可包含的内容",
+      "showMore": "再显示 {count} 项",
+      "paymentsBody": "哪些数据表收款，以及如何收款。付款密钥绝不会放入文件。",
+      "instanceBody": "外观、徽标、语言、改过的文字和编辑过的系统邮件。只有安装者勾选时，新服务器才会应用它们。",
+      "pageMade": "保持 Adminium 生成的样子",
+      "pageChanged": "已手动修改",
+      "pagesNote": "{total, plural, other {# 个页面}}：{made} 个保持 Adminium 生成的样子，{changed} 个已手动修改。",
+      "brought": "随之一并包含：{names}",
+      "columns": "{count, plural, other {# 列}}",
+      "rows": "{count, plural, other {# 行}}",
+      "rowsAbout": "{count, plural, other {约 # 行}}",
+      "rowsFor": "{table} 的数据行",
+      "rowsNone": "无",
+      "rowsStarting": "初始数据行",
+      "rowsSample": "示例数据行",
+      "leftOut": "已排除",
+      "rowsNotYours": "你无法读取 {table}，因此不能包含它的数据行，但仍可包含它的结构。",
+      "chooseWhich": "{rows} 行 — 选择其中 {cap} 行",
+      "whichRows": "{table} 中的哪 {cap} 行",
+      "pageOrder": "页面的排序",
+      "byView": "已保存视图：{view}",
+      "personal": "个人：",
+      "included": "— 已包含",
+      "leftOutDash": "— 已排除",
+      "leaveThemOut": "排除它们",
+      "includeThem": "包含它们",
+      "secretLike": "{count, plural, other {看起来像密钥}}",
+      "leaveItOut": "{count, plural, other {排除}}",
+      "includeIt": "{count, plural, other {包含}}"
+    },
+    "done": "完成",
+    "download": {
+      "done": "已下载 {file}",
+      "failed": "无法下载该文件",
+      "button": "下载",
+      "body": "{app} {version} 已保存为文件。下载后即可安装到另一台服务器上。",
+      "fingerprint": "指纹",
+      "copied": "指纹已复制",
+      "copyFailed": "无法复制指纹",
+      "copy": "复制",
+      "keep": "请将指纹与文件一起保存。新服务器会要求输入指纹，以确认文件就是你保存的那个。"
+    },
+    "cancel": "取消",
+    "back": "上一步",
+    "save": "保存",
+    "continue": "继续",
+    "database": {
+      "title": "数据库",
+      "body": "一个应用对应一个数据库。",
+      "none": "此服务器尚未连接任何数据库。",
+      "tables": "表：{count}",
+      "other": "其他数据库"
+    },
+    "about": {
+      "title": "应用信息",
+      "body": "应用在安装位置的名称和显示方式。",
+      "name": "名称",
+      "key": "标识",
+      "keyFree": "没有其他应用使用 {key}",
+      "version": "版本",
+      "lastSaved": "上次保存：{last}，于 {date}。本次：{next}。",
+      "description": "说明",
+      "label": "制作于",
+      "labelHint": "在安装应用的地方显示。请填写名称，而不是地址。",
+      "labelPlaceholder": "此服务器的名称",
+      "nameMissing": "请为应用命名。",
+      "keyShape": "标识由 2 到 80 个小写字母、数字和 - 组成，并以字母开头。",
+      "keyTaken": "该标识已被 adminium.dev 上的应用使用。请另选一个。",
+      "keyElsewhere": "该标识是从另一个数据库保存的。请另选一个。",
+      "versionShape": "版本由三个数字组成，例如 1.2.0。",
+      "versionSaved": "{version} 已保存过。已保存的版本不能再次保存。",
+      "versionOlder": "{version} 低于上次保存的 {last}。请使用更高的版本。",
+      "labelAddress": "这看起来像地址。请填写名称，而不是地址。",
+      "icon": "图标"
+    },
+    "group": {
+      "tables": "数据表",
+      "pages": "页面",
+      "roles": "角色",
+      "automations": "自动化",
+      "emailTemplates": "邮件模板",
+      "documents": "文档",
+      "reports": "报告",
+      "invoiceLayouts": "发票版式",
+      "scheduledReports": "定时报告",
+      "publicEndpoints": "公开访问",
+      "views": "已保存视图",
+      "payments": "付款设置",
+      "instance": "此服务器的外观和文字"
+    },
+    "views": {
+      "sharedOf": "已共享 {shared}/{total}",
+      "isShared": "已在应用中共享",
+      "notShared": "未共享 · 见“检查”",
+      "shared": "{shared}/{total}"
+    },
+    "deps": {
+      "title": "还有其他内容在使用 {name}",
+      "body": "如果排除 {name}，这些内容将失去它们指向的对象。",
+      "group": "{group}（{count}）",
+      "links": "链接到它的数据表（{count}）",
+      "leaveAll": "全部排除",
+      "keepColumns": "保留列，去掉链接",
+      "keep": "保留 {name}"
+    },
+    "check": {
+      "noteProblems": "请先解决阻止保存的问题，然后再保存。",
+      "noteSecret": "请清除或排除已保存的机密，然后再保存。",
+      "noteChoices": "{count, plural, other {请先做出 # 项选择，然后再保存。}}",
+      "body": "哪些内容会放入文件，哪些需要你先处理。",
+      "blocks": "阻止保存",
+      "choices": "需要选择",
+      "after": "安装之后",
+      "info": "供你参考",
+      "checking": "正在重新检查文件…",
+      "backToInclude": "返回“包含内容”",
+      "afterNote": "密码、密钥和地址绝不会放入文件。新服务器会列出这些项，直到它们处理完毕。",
+      "undo": "撤销",
+      "views": "{count, plural, other {# 个已保存视图属于个人。请在应用中将视图设为共享，才能一并带走。}}",
+      "answer": {
+        "makeShared": "设为共享",
+        "carry": "作为文本带入",
+        "leaveOut": "排除",
+        "clear": "清空此字段",
+        "keep": "这不是密钥",
+        "carryKey": "保持组合唯一"
+      },
+      "done": {
+        "clear": "该字段在文件中将为空。此服务器上的任何内容都不会改变。",
+        "leaveOutColumn": "该列已从文件中排除。此服务器上的数据表保持不变。",
+        "leaveOut": "已从文件中排除。此服务器上的任何内容都不会改变。",
+        "keep": "已标记为非密钥。将按原样包含。",
+        "carry": "将作为文本包含。此服务器上的该列保持不变。",
+        "makeShared": "将作为应用的共享视图包含。在这里保持不变。",
+        "carryKey": "将以这些列组合唯一、且不设键的方式包含。此服务器上的该数据表保持不变。"
+      },
+      "secret": "{kind}“{item}” · {field} · 存有此服务器已保存的机密。",
+      "secretLikely": "{kind}“{item}” · {field} · 看起来像密钥。",
+      "noType": "{column} 没有匹配的类型。请将其作为文本带入，或将其排除。",
+      "columnName": "{column} 的名称无法放入应用文件。请将其排除，或先重命名。",
+      "compositeKey": "{table} 由多个列共同作为键。请将它们作为组合唯一带入，或排除该数据表。",
+      "pageTable": "“{page}”显示的数据表不在应用中。请排除该页面，或包含它的数据表。",
+      "emailEnglish": "“{email}”没有美式英语文本，而应用的邮件需要它。请将其排除，或先写一份。",
+      "rowsPersonal": "{column} 属于个人信息或看起来像密钥，而且每一行都必须有值。请包含它的值，或排除 {table} 的数据行。",
+      "rowsCycle": "{table} 的数据行需要另一个数据表的数据行，而后者又反过来需要它们。请排除其中一个数据表的数据行。",
+      "noPage": "应用至少需要一个页面。请包含此数据库的一个页面。"
+    },
+    "planFailed": "无法检查该文件",
+    "saveFailed": "无法保存。未写入任何内容。请重试。",
+    "tryAgain": "重试",
+    "quick": {
+      "title": "将 {database} 另存为应用",
+      "body": "{database} 中的所有内容都会包含在内，但不含数据行。此服务器上的任何内容都不会改变。",
+      "summary": "{tables, plural, other {# 个数据表}}、{pages, plural, other {# 个页面}}、{roles, plural, other {# 个角色}}、{automations, plural, other {# 个自动化}}以及{more, plural, other {另外 # 项}}。",
+      "hide": "隐藏",
+      "show": "显示",
+      "viewsNote": "已保存视图属于个人，因此在共享之前都不会包含在内。",
+      "checking": "正在检查文件将包含的内容…",
+      "ready": "可以保存",
+      "needs": "{count, plural, other {# 项需要选择}}",
+      "viewsNeed": "{count, plural, other {# 个已保存视图属于个人}}",
+      "more": "更多选项",
+      "review": "查看选择"
+    },
+    "inventoryFailed": "无法读取此数据库以进行保存",
+    "saved": {
+      "title": "从这里保存的",
+      "emptyTitle": "尚未保存任何内容",
+      "empty": "“另存为应用”会把一个数据库的仪表盘变成一个文件，你可以将其安装到另一台服务器上。",
+      "when": "保存于 {date}",
+      "by": "由 {person} 保存",
+      "copy": "复制指纹",
+      "again": "再次下载",
+      "newer": "保存新版本"
+    },
+    "entry": {
+      "button": "另存为应用",
+      "which": "要保存哪个数据库？",
+      "tables": "{count, plural, other {# 个数据表}}"
+    },
+    "kind": {
+      "table": "数据表",
+      "column": "列",
+      "page": "页面",
+      "view": "已保存视图",
+      "role": "角色",
+      "automation": "自动化",
+      "email": "邮件模板",
+      "document": "文档",
+      "report": "报告",
+      "invoice": "发票版式",
+      "schedule": "定时报告",
+      "public": "公开访问",
+      "payments": "付款设置",
+      "rows": "数据行",
+      "addOn": "附加组件",
+      "optionList": "选项列表",
+      "setting": "设置",
+      "instance": "外观和文字",
+      "file": "文件",
+      "app": "应用"
+    },
+    "after": {
+      "webhook": "“{rule}”的网址",
+      "webhookHeader": "“{rule}”的请求头值",
+      "addresses": "“{rule}”的固定地址",
+      "systemGrant": "{role} 角色的控制台权限（它们永远不会随之迁移）",
+      "paymentKey": "{item} 的付款密钥",
+      "documentRecipient": "“{document}”的接收人",
+      "senders": "{count, plural, other {# 个邮件模板的发件人地址}}",
+      "schedules": "{count, plural, other {# 个定时报告的接收人}}"
+    },
+    "info": {
+      "wildcard": "{roles, plural, other {# 个角色可以使用所有数据表。}}{tables, plural, other {在应用中，它们只涵盖这 # 个数据表。}}",
+      "builtinRoles": "{count, plural, other {# 个内置角色不会随之迁移。}}",
+      "minVersion": "需要 Adminium {version} 或更高版本。"
+    },
+    "icon": {
+      "coffee": "咖啡",
+      "bean": "咖啡豆",
+      "flame": "火焰",
+      "package": "包裹",
+      "store": "商店",
+      "truck": "卡车",
+      "leaf": "叶子",
+      "sprout": "嫩芽",
+      "shoppingBag": "购物袋",
+      "receipt": "收据",
+      "warehouse": "仓库",
+      "cupSoda": "杯子"
     }
   },
   "apps": {

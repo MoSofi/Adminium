@@ -66,6 +66,8 @@ export interface ReportDocument {
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
+  /** "Shown in": every workspace, or the chosen ones (the links are in `adminium_item_workspaces`). */
+  shownIn: 'all' | 'chosen';
 }
 
 export interface CreateReportDocumentInput {
@@ -114,6 +116,7 @@ function decode(row: Selectable<AdminiumReportDocumentsTable>): ReportDocument {
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    shownIn: row.shownIn === 'chosen' ? 'chosen' : 'all',
   };
 }
 
@@ -247,6 +250,8 @@ export function reportDocumentsRepo(meta: MetaDb) {
      * */
     async removeById(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_report_documents').where('id', '=', id).executeTakeFirst();
+      // Its "Shown in" links name it by kind and id (no foreign key): they go with it.
+      await db.deleteFrom('adminium_item_workspaces').where('kind', '=', 'report').where('itemId', '=', id).execute();
       return affected(res.numDeletedRows as bigint | undefined) === 1;
     },
   };

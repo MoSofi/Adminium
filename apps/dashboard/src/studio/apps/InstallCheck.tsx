@@ -139,7 +139,9 @@ export function TableCheck(props: TableCheckProps) {
   const fresh = count('new');
   const earlier = count('own-leftover');
   const shared = count('shared');
-  const taken = count('taken');
+  // A taken table the check uses as it is (picked, or every one by "Use the existing tables") reads as used, not as a question.
+  const used = plan.tables.filter((table) => table.class === 'taken' && table.action === 'reuse').length;
+  const taken = count('taken') - used;
 
   return (
     <div className="flex flex-col gap-4">
@@ -184,6 +186,12 @@ export function TableCheck(props: TableCheckProps) {
             {t('studio:hostedApps.install.check.summaryShared', '{count} shared with another app', {
               count: shared,
             })}
+          </span>
+        )}
+        {used === 0 ? null : (
+          <span className={`${PILL} bg-pos-soft text-pos`}>
+            <Check aria-hidden className="size-[13px]" />
+            {t('studio:hostedApps.install.check.summaryUsed', '{count, plural, one {# used as it is} other {# used as they are}}', { count: used })}
           </span>
         )}
         {taken === 0 ? null : (
@@ -238,7 +246,9 @@ function TableRow({ table, ...props }: TableCheckProps & { table: PlannedAppTabl
                 app: table.sharedWithName ?? table.sharedWith ?? '',
               }),
             }
-          : { tone: 'warn' as const, label: t('studio:hostedApps.install.check.badgeTaken', 'Name taken') };
+          : table.action === 'reuse'
+            ? { tone: 'pos' as const, label: t('studio:hostedApps.install.check.badgeUsed', 'Used as it is') }
+            : { tone: 'warn' as const, label: t('studio:hostedApps.install.check.badgeTaken', 'Name taken') };
 
   return (
     <div

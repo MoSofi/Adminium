@@ -531,7 +531,7 @@ export function createAnswerDoor(deps: AnswerDoorDeps) {
       const askToConfirm = async (to: string) => {
         const install = String((await settingsRepo(meta).get('system.instanceId')) ?? '');
         const token = makeConfirmToken(confirmSecret, install, { addOn: live.addOn, form: live.id, answer: answerId, purpose: tick.purpose, issuedAt: at, addressHash: confirmAddressHash(confirmSecret, to) });
-        await sendConfirmMail({ meta, secret: deps.secret, caps, capKey: capSecret, to, language: body.language, name: checked.name, purpose: tick.purpose, token, at, logger: request.log }).catch((error: unknown) => {
+        await sendConfirmMail({ meta, secret: deps.secret, caps, capKey: capSecret, to, language: body.language, name: checked.name, purpose: tick.purpose, token, at, logger: request.log, connectionId: live.connectionId }).catch((error: unknown) => {
           request.log.warn({ err: error, form: live.id }, 'forms door: the confirmation mail could not be queued');
         });
       };

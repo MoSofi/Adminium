@@ -28,6 +28,7 @@
  */
 
 import { narrowToWorkspace } from '../../workspaces/list-filter.js';
+import { shownInFilter, shownInOf } from '../../workspaces/shown-in.js';
 import { assertNotPrivate } from '../../crud/row-limit.js';
 import { reachOfRequest, requestReadsWhole } from '../../crud/row-reach-request.js';
 import type { FastifyRequest } from 'fastify';
@@ -37,6 +38,7 @@ import {
   automationsRepo,
   pagesRepo,
   rolesRepo,
+  workspacesRepo,
   type Automation,
   type EnqueueJobInput,
   type Job,
@@ -72,6 +74,7 @@ import {
   automationDeleteReply,
   automationIdParams,
   automationPatchBody,
+  automationSourcesQuery,
   automationSourcesReply,
   automationStatsQuery,
   automationStatsReply,
@@ -386,9 +389,11 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       {
         preHandler: guard,
         config: { audit: auditExempt('read-only source catalogue') },
-        schema: { response: { 200: automationSourcesReply } },
+        schema: { querystring: automationSourcesQuery, response: { 200: automationSourcesReply } },
       },
       async (request) => {
+        // Asked first: a workspace this person cannot see is not found, before any work.
+        const inWorkspace = await shownInFilter(meta, request, 'email-template', request.query.workspaceId);
         const connections = await manager.connections.list();
         const out: (typeof automationSourcesReply)['_output']['connections'] = [];
         for (const connection of connections) {
@@ -474,9 +479,13 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
         }
         const families = await templateFamilies(meta);
         const roles = await rolesRepo(meta).list();
+        const links = await workspacesRepo(meta).linksOfKind('email-template');
+        const listed = families.live.map((family) => ({ ...family, shownIn: shownInOf(family.shownIn, links, family.faceId) }));
+        const here = (family: (typeof families.live)[number]): boolean => inWorkspace === null || inWorkspace({ id: family.faceId, shownIn: family.shownIn });
         return {
           connections: out,
-          templates: families.live,
+          templates: listed.filter((_family, index) => here(families.live[index]!)),
+          hiddenTemplates: listed.filter((_family, index) => !here(families.live[index]!)),
           templatesOff: families.off,
           roles: roles.map((role) => ({ id: role.id, name: role.name })),
         };

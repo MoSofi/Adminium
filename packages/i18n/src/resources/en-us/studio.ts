@@ -689,11 +689,9 @@ export default {
       "failed": "Install failed",
       "bundle": {
         "title": "Upload the app bundle",
-        "hint": "The app’s release file (.tgz) — it holds manifest.json and a staff/ or customer/ directory.",
         "file": "Bundle file (.tgz)",
         "fileHint": "Nothing is created until you confirm on the schema-plan step.",
-        "integrity": "Integrity (optional)",
-        "integrityHint": "Paste the sha512- fingerprint published with the release to have the server check these exact bytes. Left empty, it is computed here."
+        "fileOnly": "The app’s file (.tgz)."
       },
       "database": {
         "title": "Install into which database?",
@@ -702,7 +700,13 @@ export default {
         "readOnly": "Read-only",
         "writable": "Writable",
         "noWritable": "No writable connection",
-        "allReadOnly": "Every connection here uses a read-only role, so no app can create its tables. Connect one that can run DDL first."
+        "allReadOnly": "Every connection here uses a read-only role, so no app can create its tables. Connect one that can run DDL first.",
+        "version": "Installing {app} {version}.",
+        "ownCopy": "Each database can have its own copy of {app}.",
+        "noneTitle": "No database yet",
+        "none": "Connect a database first. An app goes into a database this server already has.",
+        "installed": "Installed · {version}",
+        "notTouched": "This copy gets its own settings, roles and email templates. {app} on {databases} is not touched."
       },
       "plan": {
         "title": "Review the schema plan",
@@ -716,7 +720,7 @@ export default {
         "summary": "{created} created · {reused} reused",
         "ruleWarnings": "Some of this app’s rules would show what a table of yours keeps hidden, and are left out",
         "pageWarnings": "Some of this app’s pages will arrive without a table",
-        "installedElsewhere": "{app} is already installed on the connection {connection}. An app runs on one connection: update it there, or uninstall it there before installing it on another."
+        "oneVersion": "{database} has {app} {version}, and every copy of an app runs one version. Update the copies first, then install this one here."
       },
       "done": {
         "body": "{key} is being served now. Choose where its staff side appears below.",
@@ -727,7 +731,12 @@ export default {
         "sampleNotAdded": "not added",
         "sampleAdding": "adding…",
         "sampleAdded": "added",
-        "sampleLater": "You can add it later from the app’s page."
+        "sampleLater": "You can add it later from the app’s page.",
+        "titleOn": "{app} {version} is installed on {database}",
+        "rulesOff": "Rules that send data out",
+        "rulesOffValue": "{count}, switched off",
+        "toDo": "{count, plural, one {# thing to do} other {# things to do}}",
+        "openPage": "Open the app’s page"
       },
       "cancel": "Cancel",
       "back": "Back",
@@ -737,7 +746,6 @@ export default {
       "finish": "Manage apps",
       "staged": "Files unpacked: {files}",
       "footerStep": "Step {n} of {total}",
-      "footerStepApp": "Step {n} of {total} · {app}",
       "chosen": {
         "title": "Install {app}",
         "hint": "This app came with your build and is already on disk. Nothing is created until you confirm the schema plan."
@@ -806,7 +814,9 @@ export default {
           "labelMenu": "Which menu {app} uses",
           "labelTables": "Which tables {app} uses",
           "recommended": "Recommended"
-        }
+        },
+        "summaryUsed": "{count, plural, one {# used as it is} other {# used as they are}}",
+        "badgeUsed": "Used as it is"
       },
       "running": {
         "title": "Installing {app}",
@@ -846,7 +856,8 @@ export default {
       "privacyGrants": {
         "title": "A role can erase people",
         "body": "{roles} can find, download and erase everything this server keeps about a person, on the privacy page."
-      }
+      },
+      "footerStepVersion": "Step {n} of {total} · {app} {version}"
     },
     "installed": {
       "title": "Installed apps",
@@ -945,7 +956,18 @@ export default {
       "grantsAdded": {
         "title": "This version gives its roles more",
         "addOnSettings": "{roles} can change the settings of {addOn}, which every app it serves shares."
-      }
+      },
+      "stopped": {
+        "pages": "The update to {to} stopped while writing pages. Nothing was lost; {from}’s pages are still here.",
+        "other": "The update to {to} stopped part way. Nothing was lost, and finishing it carries on from where it stopped.",
+        "seeds": "The update to {to} stopped while adding its starting rows. Nothing was lost, and finishing it adds the rest.",
+        "instance": "The update to {to} stopped while applying the look and languages. Nothing was lost, and finishing it applies them."
+      },
+      "titleOn": "Update {app} on {database} to v{version}",
+      "copyOf": "Copy {n} of {total} · {from} → {to}",
+      "reviewSubtitle": "Check what this version brings.",
+      "onlyThis": "Only {app} on {database} changes in this dialog. Its settings, roles and email templates there are kept.",
+      "finish": "Finish the update"
     },
     "veto": {
       "title": "This deployment cannot browse online",
@@ -972,6 +994,138 @@ export default {
       "repair": "Adminium also updates its own pages and rules that point at the old names.",
       "cancel": "Cancel",
       "confirm": "Rename tables"
+    },
+    "review": {
+      "source": {
+        "title": "Where it came from",
+        "badge": "Your own app",
+        "madeOn": "Made on {date} · Adminium {version}",
+        "madeAt": "Made at {label} on {date} · Adminium {version}",
+        "publisher": "Published by {publisher}",
+        "warning": "It was saved on another Adminium server, not on adminium.dev. Install it only if you know who saved it."
+      },
+      "fingerprint": {
+        "label": "Check against the fingerprint shown when it was saved",
+        "labelRelease": "Check against the fingerprint published with the release",
+        "check": "Check",
+        "ok": "Matches. This is the file that was saved.",
+        "okRelease": "Matches. This is the file that was published.",
+        "bad": "Does not match. This is not the file that was saved.",
+        "badRelease": "Does not match. This is not the file that was published.",
+        "none": "Not checked",
+        "hold": "The fingerprint does not match. Clear it, or paste the one shown when it was saved."
+      },
+      "existing": {
+        "title": "{count, plural, one {# table already exists here with this name.} other {# tables already exist here with these names.}}",
+        "use": "Use the existing tables",
+        "useNote": "Uses them as they are, with their rows. Never renames them.",
+        "used": "{count, plural, one {# used as it is · 0 changes to it} other {# used as they are · 0 changes to them}}",
+        "cannot": "{table} can’t be used as it is.",
+        "cannotHelp": "Rename the table here, or save the app again without it."
+      },
+      "change": "Change",
+      "pages": {
+        "title": "{count, plural, one {# page has a name already used here} other {# pages have names already used here}}",
+        "untouched": "— the page here is as Adminium made it.",
+        "changed": "— changed here.",
+        "replace": "Replace it",
+        "rename": "Rename the page here",
+        "skip": "Skip it",
+        "replaced": "Replaced by the app’s page.",
+        "skipped": "Skipped. The page here stays.",
+        "renamed": "The page here moves to {address}.",
+        "renameField": "New address for the page here",
+        "hold": "Choose what to do with {pages}."
+      },
+      "outside": {
+        "title": "These rules would send data out",
+        "bodyUpdate": "A new one arrives switched off and empty. One already here keeps its address.",
+        "body": "They arrive switched off and empty. Someone who manages automations can turn them on.",
+        "webhook": "sends to a web address · address left empty",
+        "address": "emails a fixed address · address left empty",
+        "off": "Off"
+      },
+      "instance": {
+        "title": "The look and languages",
+        "tick": "Also apply the look and languages",
+        "locked": "Ask someone who manages settings to apply this part.",
+        "what": "What’s in it",
+        "languagesOn": "Languages switched on: {languages}",
+        "languagesOff": "Languages switched off: {languages}",
+        "wording": "{count, plural, one {# edited wording} other {# edited wordings}}",
+        "emails": "System emails changed: {count}",
+        "left": "Not taken here:",
+        "caption": "Passwords, keys and email server settings are never in the file. You can undo this part from the app’s page.",
+        "hideChanges": "Hide changes",
+        "showChanges": "Show changes",
+        "noLinks": "It has no links, so it is applied with this part.",
+        "links": "Links in this email go to:",
+        "subject": "Subject: {from} → {to}",
+        "blocks": "Blocks: {added} added · {removed} removed · {changed} changed",
+        "preheader": "Preview text changed",
+        "footer": "Footer changed"
+      },
+      "screens": {
+        "title": "Screens",
+        "lead": "This app has its own screens.",
+        "body": "They run with the rights of whoever opens them. Install it only if you trust who saved it."
+      },
+      "after": {
+        "webhook": "The web address of the rule {item}",
+        "address": "Who the rule {item} emails",
+        "document": "The document the rule {item} makes",
+        "delivery": "Where the document {item} is mailed",
+        "paymentKey": "The keys of the payment service {item}",
+        "bankAccount": "The bank account for {item}",
+        "recipients": "{count, plural, one {Who receives the scheduled report {item}} other {Who receives the # scheduled reports}}",
+        "sender": "{count, plural, one {The sender address of the email {item}} other {The sender address for # email templates}}",
+        "systemGrant": "The {item} role’s console rights",
+        "title": "After you install",
+        "note": "These stay on the app’s page until they are done."
+      },
+      "title": "Check before you install",
+      "intro": "{app} goes into {database}. Nothing changes until you press Install."
+    },
+    "refusal": {
+      "back": "Back",
+      "older": {
+        "copy": "{database} already has {version}",
+        "title": "An older file",
+        "body": "{copies}. The file is the older {version}."
+      },
+      "lineage": {
+        "title": "A different app with this key",
+        "body": "This server already has a different {key}, on {database}. Save this one with another key."
+      },
+      "newer": {
+        "title": "Needs a newer Adminium",
+        "body": "This file needs Adminium {needed} or newer. This server runs {running}."
+      },
+      "savedHere": {
+        "title": "Saved from this database",
+        "body": "This file was saved from {database} on this server. Installing it there would run every automation twice. Pick another database, or try it on a test server."
+      },
+      "everywhere": {
+        "title": "Installed on every database",
+        "body": "{app} {version} is already installed on every database here."
+      }
+    },
+    "route": {
+      "update": {
+        "button": "Update every copy ({databases})",
+        "rest": "Update the rest ({databases})",
+        "also": "Also install on another database",
+        "title": "Update {app} to {version}",
+        "body": "This file is newer than every copy on this server. Every copy runs one version, so each one is updated, with its own review.",
+        "updated": "Updated",
+        "waiting": "Not updated yet",
+        "done": "{app} is on {version} on every database."
+      },
+      "another": {
+        "button": "Install on another database",
+        "title": "Install {app} on another database",
+        "body": "{app} {version} is installed on {databases}. Each database can have its own copy."
+      }
     }
   },
   "hub": {
@@ -985,7 +1139,8 @@ export default {
       "remap": "Remap schema",
       "rename": "Rename",
       "resume": "Resume",
-      "test": "Test"
+      "test": "Test",
+      "saveAsApp": "Save as app"
     },
     "card": {
       "lastIntrospected": "Last introspected",
@@ -4847,6 +5002,302 @@ export default {
         "when": "When",
         "workspaceUsers": "Users on this server"
       }
+    }
+  },
+  "workspaceSender": {
+    "title": "Sender for {workspace}",
+    "subtitle": "Mail about the records in this workspace’s databases goes from this sender.",
+    "close": "Close",
+    "loading": "Loading",
+    "accepted": {
+      "title": "Addresses this server can send from",
+      "domains": "Any address at:",
+      "addresses": "Or exactly:"
+    },
+    "noMail": {
+      "title": "This server has no sender yet",
+      "body": "Set up e-mail in Settings first. Until then, a workspace cannot have a sender of its own.",
+      "action": "Open e-mail settings"
+    },
+    "name": {
+      "label": "Sender name",
+      "helper": "Who the mail says it is from, such as Kiln Street Pottery."
+    },
+    "from": {
+      "label": "From address",
+      "helper": "An address at one of the places above."
+    },
+    "replyTo": {
+      "label": "Reply-to",
+      "helper": "Where replies go. Leave it blank for the From address."
+    },
+    "postal": {
+      "label": "Postal address",
+      "helper": "Printed at the foot of this workspace’s marketing mail. Leave it blank for the server’s."
+    },
+    "sharedList": "The do-not-email list belongs to the whole server: someone who unsubscribes from one business gets no marketing mail from any business on it.",
+    "refusal": {
+      "notSendingDomain": "This server can only send from {accepted}. Use an address there.",
+      "noMail": "This server has no sender yet. Set up e-mail in Settings first.",
+      "notAnAddress": "Enter one e-mail address, such as hello@example.com."
+    },
+    "failed": "The sender could not be saved. Try again.",
+    "footer": {
+      "own": "Its mail goes from {from}.",
+      "server": "Until a From address is saved, its mail goes from the server’s sender."
+    },
+    "clear": "Use the server’s sender",
+    "cancel": "Cancel",
+    "save": "Save sender"
+  },
+  "saveApp": {
+    "step": {
+      "database": "Database",
+      "include": "What to include",
+      "about": "About the app",
+      "check": "Check",
+      "download": "Download"
+    },
+    "progress": "Save as app progress",
+    "loading": "Reading the database…",
+    "footerStep": "Step {n} of {total}",
+    "footerStepKey": "Step {n} of {total} · {key}",
+    "include": {
+      "nothingChanges": "Saving changes nothing on this server.",
+      "title": "What to include",
+      "body": "Untick anything to leave it out. Rows go in only where you choose them.",
+      "searchLabel": "Search what to include",
+      "search": "Search tables, pages, roles…",
+      "nothing": "Nothing to include",
+      "showMore": "Show {count} more",
+      "paymentsBody": "Which tables take payments, and how. Payment keys never go in the file.",
+      "instanceBody": "The look, the logo, the languages, changed wording and edited system emails. The new server applies them only if the person installing ticks them.",
+      "pageMade": "As Adminium made it",
+      "pageChanged": "Changed by hand",
+      "pagesNote": "{total, plural, one {# page} other {# pages}}: {made} as Adminium made them, {changed} changed by hand.",
+      "brought": "Brought in with it: {names}",
+      "columns": "{count, plural, one {# column} other {# columns}}",
+      "rows": "{count, plural, one {# row} other {# rows}}",
+      "rowsAbout": "{count, plural, one {about # row} other {about # rows}}",
+      "rowsFor": "Rows for {table}",
+      "rowsNone": "Nothing",
+      "rowsStarting": "Starting rows",
+      "rowsSample": "Sample rows",
+      "leftOut": "Left out",
+      "rowsNotYours": "You can’t read {table}, so its rows can’t go in. Its structure still can.",
+      "chooseWhich": "{rows} rows — choose which {cap}",
+      "whichRows": "Which {cap} rows of {table}",
+      "pageOrder": "The page’s order",
+      "byView": "Saved view: {view}",
+      "personal": "Personal:",
+      "included": "— included",
+      "leftOutDash": "— left out",
+      "leaveThemOut": "Leave them out",
+      "includeThem": "Include them",
+      "secretLike": "{count, plural, one {looks like a key} other {look like keys}}",
+      "leaveItOut": "{count, plural, one {Leave it out} other {Leave them out}}",
+      "includeIt": "{count, plural, one {Include it} other {Include them}}"
+    },
+    "done": "Done",
+    "download": {
+      "done": "{file} downloaded",
+      "failed": "The file could not be downloaded",
+      "button": "Download",
+      "body": "{app} {version} is saved as a file. Download it to install it on another server.",
+      "fingerprint": "Fingerprint",
+      "copied": "Fingerprint copied",
+      "copyFailed": "The fingerprint could not be copied",
+      "copy": "Copy",
+      "keep": "Keep the fingerprint with the file. The new server asks for it to check the file is the one you saved."
+    },
+    "cancel": "Cancel",
+    "back": "Back",
+    "save": "Save",
+    "continue": "Continue",
+    "database": {
+      "title": "Database",
+      "body": "One app describes one database.",
+      "none": "This server has no database connected yet.",
+      "tables": "Tables: {count}",
+      "other": "Other databases"
+    },
+    "about": {
+      "title": "About the app",
+      "body": "How the app is named and shown where it is installed.",
+      "name": "Name",
+      "key": "Key",
+      "keyFree": "No other app uses {key}",
+      "version": "Version",
+      "lastSaved": "Last saved: {last} on {date}. This one: {next}.",
+      "description": "Description",
+      "label": "Made at",
+      "labelHint": "Shown where the app is installed. Use a name, not an address.",
+      "labelPlaceholder": "This server’s name",
+      "nameMissing": "Give the app a name.",
+      "keyShape": "A key is 2 to 80 lower-case letters, digits and -, starting with a letter.",
+      "keyTaken": "That key belongs to an app on adminium.dev. Pick another.",
+      "keyElsewhere": "That key was saved from another database. Pick another.",
+      "versionShape": "A version is three numbers, like 1.2.0.",
+      "versionSaved": "{version} was already saved. A saved version can’t be saved again.",
+      "versionOlder": "{version} is older than {last}, the last one saved. Use a higher version.",
+      "labelAddress": "That looks like an address. Use a name, not an address.",
+      "icon": "Icon"
+    },
+    "group": {
+      "tables": "Tables",
+      "pages": "Pages",
+      "roles": "Roles",
+      "automations": "Automations",
+      "emailTemplates": "Email templates",
+      "documents": "Documents",
+      "reports": "Reports",
+      "invoiceLayouts": "Invoice layouts",
+      "scheduledReports": "Scheduled reports",
+      "publicEndpoints": "Public access",
+      "views": "Saved views",
+      "payments": "Payments setup",
+      "instance": "This server’s look and words"
+    },
+    "views": {
+      "sharedOf": "{shared} of {total} shared",
+      "isShared": "Shared in the app",
+      "notShared": "Not shared · see Check",
+      "shared": "{shared} of {total}"
+    },
+    "deps": {
+      "title": "Other things use {name}",
+      "body": "If {name} stays out, these lose what they point to.",
+      "group": "{group} ({count})",
+      "links": "Tables that link to it ({count})",
+      "leaveAll": "Leave them all out",
+      "keepColumns": "Keep the columns, drop the links",
+      "keep": "Keep {name}"
+    },
+    "check": {
+      "noteProblems": "Fix what blocks saving to save.",
+      "noteSecret": "Clear or leave out the saved secret to save.",
+      "noteChoices": "{count, plural, one {Answer # choice to save.} other {Answer # choices to save.}}",
+      "body": "What goes in the file, and what needs you first.",
+      "blocks": "Blocks saving",
+      "choices": "Needs a choice",
+      "after": "After you install",
+      "info": "For your information",
+      "checking": "Checking the file again…",
+      "backToInclude": "Back to What to include",
+      "afterNote": "Passwords, keys and addresses are never in the file. The new server lists these until they are done.",
+      "undo": "Undo",
+      "views": "{count, plural, one {# saved view belongs to a person. Make it shared in the app to take it along.} other {# saved views belong to people. Make a view shared in the app to take it along.}}",
+      "answer": {
+        "makeShared": "Make shared",
+        "carry": "Carry as text",
+        "leaveOut": "Leave it out",
+        "clear": "Clear this field",
+        "keep": "It is not a key",
+        "carryKey": "Keep them unique together"
+      },
+      "done": {
+        "clear": "The field will be empty in the file. Nothing on this server changes.",
+        "leaveOutColumn": "The column is left out of the file. The table on this server is unchanged.",
+        "leaveOut": "It is left out of the file. Nothing on this server changes.",
+        "keep": "Marked as not a key. It goes in as written.",
+        "carry": "It goes in as text. The column on this server is unchanged.",
+        "makeShared": "It goes in as a shared view of the app. Here it stays as it is.",
+        "carryKey": "It goes in with those columns kept unique together, and no key. The table on this server is unchanged."
+      },
+      "secret": "{kind} ‘{item}’ · {field} · holds a saved secret of this server.",
+      "secretLikely": "{kind} ‘{item}’ · {field} · looks like a key.",
+      "noType": "{column} has no matching type. Carry it as text, or leave it out.",
+      "columnName": "{column} has a name an app file cannot hold. Leave it out, or rename it first.",
+      "compositeKey": "{table} is keyed by several columns together. Carry them kept unique together, or leave the table out.",
+      "pageTable": "‘{page}’ shows a table that is not in the app. Leave the page out, or put its table in.",
+      "emailEnglish": "‘{email}’ has no US English text, which an app’s mail needs. Leave it out, or write one first.",
+      "rowsPersonal": "{column} is personal or looks like a key, and every row needs a value in it. Include its values, or leave the rows of {table} out.",
+      "rowsCycle": "The rows of {table} need rows of another table that need them back. Leave the rows of one of them out.",
+      "noPage": "An app needs at least one page. Include a page of this database."
+    },
+    "planFailed": "The file could not be checked",
+    "saveFailed": "Could not save. Nothing was written. Try again.",
+    "tryAgain": "Try again",
+    "quick": {
+      "title": "Save {database} as an app",
+      "body": "Everything on {database} goes in, without rows. Nothing on this server changes.",
+      "summary": "{tables, plural, one {# table} other {# tables}}, {pages, plural, one {# page} other {# pages}}, {roles, plural, one {# role} other {# roles}}, {automations, plural, one {# automation} other {# automations}} and {more, plural, one {# more thing} other {# more things}}.",
+      "hide": "Hide them",
+      "show": "Show them",
+      "viewsNote": "Saved views belong to people, so none go in until they are shared.",
+      "checking": "Checking what the file would hold…",
+      "ready": "Ready to save",
+      "needs": "{count, plural, one {# thing needs a choice} other {# things need a choice}}",
+      "viewsNeed": "{count, plural, one {# saved view belongs to a person} other {# saved views belong to people}}",
+      "more": "More choices",
+      "review": "Review choices"
+    },
+    "inventoryFailed": "This database could not be read for saving",
+    "saved": {
+      "title": "Saved from here",
+      "emptyTitle": "Nothing saved yet",
+      "empty": "Save as app turns a database’s dashboard into a file you can install on another server.",
+      "when": "saved {date}",
+      "by": "by {person}",
+      "copy": "Copy fingerprint",
+      "again": "Download again",
+      "newer": "Save a newer version"
+    },
+    "entry": {
+      "button": "Save as app",
+      "which": "Save which database?",
+      "tables": "{count, plural, one {# table} other {# tables}}"
+    },
+    "kind": {
+      "table": "Table",
+      "column": "Column",
+      "page": "Page",
+      "view": "Saved view",
+      "role": "Role",
+      "automation": "Automation",
+      "email": "Email template",
+      "document": "Document",
+      "report": "Report",
+      "invoice": "Invoice layout",
+      "schedule": "Scheduled report",
+      "public": "Public access",
+      "payments": "Payments setup",
+      "rows": "Rows",
+      "addOn": "Add-on",
+      "optionList": "Option list",
+      "setting": "Setting",
+      "instance": "Look and words",
+      "file": "File",
+      "app": "App"
+    },
+    "after": {
+      "webhook": "The web address of ‘{rule}’",
+      "webhookHeader": "The header values of ‘{rule}’",
+      "addresses": "The fixed addresses of ‘{rule}’",
+      "systemGrant": "The {role} role’s console rights (they never travel)",
+      "paymentKey": "The payment keys for {item}",
+      "documentRecipient": "Who receives ‘{document}’",
+      "senders": "{count, plural, one {The sender address for # email template} other {The sender address for # email templates}}",
+      "schedules": "{count, plural, one {Who receives the # scheduled report} other {Who receives the # scheduled reports}}"
+    },
+    "info": {
+      "wildcard": "{roles, plural, one {# role can use every table.} other {# roles can use every table.}} {tables, plural, one {In the app they cover this # table only.} other {In the app they cover these # tables only.}}",
+      "builtinRoles": "{count, plural, one {The # built-in role stays behind.} other {The # built-in roles stay behind.}}",
+      "minVersion": "Needs Adminium {version} or newer."
+    },
+    "icon": {
+      "coffee": "Coffee",
+      "bean": "Bean",
+      "flame": "Flame",
+      "package": "Package",
+      "store": "Shop",
+      "truck": "Truck",
+      "leaf": "Leaf",
+      "sprout": "Sprout",
+      "shoppingBag": "Shopping bag",
+      "receipt": "Receipt",
+      "warehouse": "Warehouse",
+      "cupSoda": "Cup"
     }
   },
   "apps": {

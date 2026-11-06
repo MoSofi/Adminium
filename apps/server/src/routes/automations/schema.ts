@@ -13,6 +13,7 @@
  */
 
 import { workspaceIdQuery } from '../../workspaces/list-filter.js';
+import { shownInView } from '../../workspaces/shown-in.js';
 import { z } from 'zod';
 import {
   automationGraphSchema,
@@ -216,6 +217,22 @@ const sourceStepSchema = z.object({
   ),
 });
 
+/** One live template key, as the email step's select lists it. */
+const sourceTemplateSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  /** Every `{{name}}` the template reads, in reading order. */
+  placeholders: z.array(z.string()),
+  backed: z.array(z.string()),
+  /** An app shipped it, and that app's own sender is what fills it. */
+  ownedByApp: z.boolean(),
+  /** The workspaces it is listed in (every language of a key alike). */
+  shownIn: shownInView,
+});
+
+/** The template select narrows to one workspace (never a send: a rule naming a hidden key still sends it). */
+export const automationSourcesQuery = z.object({ workspaceId: workspaceIdQuery });
+
 export const automationSourcesReply = z.object({
   connections: z.array(
     z.object({
@@ -233,18 +250,17 @@ export const automationSourcesReply = z.object({
    * in `templates`, and said under the list so nobody wonders where one went.
    */
   templatesOff: z.number().int(),
-  /** Live template keys for the email step's select: one row a key, whatever its languages. */
-  templates: z.array(
-    z.object({
-      key: z.string(),
-      name: z.string(),
-      /** Every `{{name}}` the template reads, in reading order. */
-      placeholders: z.array(z.string()),
-      backed: z.array(z.string()),
-      /** An app shipped it, and that app's own sender is what fills it. */
-      ownedByApp: z.boolean(),
-    }),
-  ),
+  /**
+   * Live template keys for the email step's select: one row a key, whatever
+   * its languages. With `workspaceId`, only those shown in that workspace.
+   */
+  templates: z.array(sourceTemplateSchema),
+  /**
+   * With `workspaceId`: the live keys NOT shown in that workspace. Never
+   * offered, but a rule that already names one still sends it, and its step
+   * reads it as hidden here, with its chips. Empty without `workspaceId`.
+   */
+  hiddenTemplates: z.array(sourceTemplateSchema),
   /** Roles a notification can address. */
   roles: z.array(z.object({ id: z.string(), name: z.string() })),
 });

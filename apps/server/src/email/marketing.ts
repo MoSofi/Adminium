@@ -134,6 +134,14 @@ export interface MarketingCarryInput {
   replyTo?: string | null | undefined;
   /** The campaign send (ledger row) it goes in. */
   send?: string | null | undefined;
+  /** The postal address of the sender it goes as (a workspace's, `workspace-sender.ts`); the server's when absent or null. */
+  postal?: string | null | undefined;
+}
+
+/** What the sender checks read of the sender a mail goes as, beside its From. */
+export interface MarketingSenderFacts {
+  /** Its postal address (a workspace's); the server's when absent or null. */
+  postal?: string | null | undefined;
 }
 
 /** Facts of this server the public-address check reads (`door-reach.ts`, the same check the mail door makes). */
@@ -160,14 +168,14 @@ export interface MarketingMail {
   consent: ConsentService;
   verdict(input: MarketingVerdictInput): Promise<MarketingVerdict>;
   /** The first refusal a marketing send from `from` meets now, or null when it may go. */
-  refusal(from: string): Promise<MarketingRefusal | null>;
+  refusal(from: string, sender?: MarketingSenderFacts): Promise<MarketingRefusal | null>;
   /**
    * Every refusal a marketing send from `from` meets now, in the send
    * dialog's order (empty when it may go): what the dialog lists before a
    * send, and what the send refuses with, so the two never disagree with
    * the run's own first-batch check ({@link refusal} is the first of these).
    */
-  refusals(from: string): Promise<MarketingRefusal[]>;
+  refusals(from: string, sender?: MarketingSenderFacts): Promise<MarketingRefusal[]>;
   carry(input: MarketingCarryInput): Promise<MarketingCarry>;
   /** At delivery: Adminium's DKIM options for the From (when a key exists) and the relay's tracking-off headers. */
   signing(from: string, smtpHost: string): Promise<{ dkim: OutboundDkim | null; headers: Record<string, string> }>;
@@ -265,11 +273,17 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
   /** Adminium's key for mail from `domain`: the domain's own, else the nearest parent's. */
   const keyFor = (domain: string) => signingKeyFor(keys, domain);
 
+  /** The postal address a mail prints: its sender's own, else the server's. */
+  async function postalOf(own: string | null | undefined): Promise<string | null> {
+    const mine = own?.trim() ?? '';
+    return mine !== '' ? mine : await (deps.postalAddress ?? postalAddressOf)(meta);
+  }
+
   /** Every refusal a marketing send from `from` meets now: the postal address, the From's DNS, the public address. */
-  async function refusalsOf(from: string): Promise<MarketingRefusal[]> {
+  async function refusalsOf(from: string, sender: MarketingSenderFacts = {}): Promise<MarketingRefusal[]> {
     const address = bareAddress(from);
     const { origin, open } = await mailDoorReach(meta, reach);
-    const postal = await (deps.postalAddress ?? postalAddressOf)(meta);
+    const postal = await postalOf(sender.postal);
     const domain = domainOfAddress(address);
     const key = domain === null ? null : await keyFor(domain);
     const facts = await senderFacts(lookup, address, key === null ? null : { domain: key.domain, selector: key.selector, publicKey: key.publicKey });
@@ -313,8 +327,8 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
       return { skip: 'not-agreed' };
     },
 
-    async refusal(from) {
-      return (await refusalsOf(from))[0] ?? null;
+    async refusal(from, sender) {
+      return (await refusalsOf(from, sender))[0] ?? null;
     },
 
     refusals: refusalsOf,
@@ -343,7 +357,7 @@ export function createMarketingMail(deps: MarketingMailDeps): MarketingMail {
           : input.purpose === 'surveys'
             ? t('email:marketingFooter.surveys', { business, defaultValue: 'Unsubscribe from {business}’s surveys' })
             : t('email:marketingFooter.newsletter', { business, defaultValue: 'Unsubscribe from {business}’s newsletter' });
-      const postal = await (deps.postalAddress ?? postalAddressOf)(meta);
+      const postal = await postalOf(input.postal);
       return { headers, locked: { lines: postal === null ? [] : [postal], link: { text, href: url } }, replyTo: replyTo === '' ? null : replyTo };
     },
 

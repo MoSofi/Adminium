@@ -13,6 +13,7 @@
  * (trap 1).
  */
 import { api } from '../app/api.js';
+import type { ShownIn } from '../shown-in/model.js';
 import type { ReportBody, ReportDocumentKind, ReportStatus } from './model/envelope.js';
 
 const BASE = '/api/v1/report-documents';
@@ -50,6 +51,8 @@ export interface ReportSummary {
   createdAt: number;
   updatedAt: number;
   summary: ReportSummaryFacts;
+  /** Where it is listed: every workspace, or the chosen ones. Absent in a reply cached from before, which reads as every workspace. */
+  shownIn?: ShownIn | undefined;
 }
 
 export interface ReportCounts {
@@ -83,6 +86,8 @@ export interface ReportStarterCard {
 
 export interface ReportListParams {
   kind?: ReportDocumentKind | undefined;
+  /** Only those listed in this workspace (it only narrows; the badges count the same cut). */
+  workspaceId?: string | undefined;
 }
 
 export interface ReportCreateBody {
@@ -100,11 +105,14 @@ export interface ReportPutBody {
 
 export interface ReportPatchBody {
   name?: string | undefined;
+  /** Where it is listed. */
+  shownIn?: ShownIn | undefined;
 }
 
 function listPath(params: ReportListParams): string {
   const query = new URLSearchParams();
   if (params.kind !== undefined) query.set('kind', params.kind);
+  if (params.workspaceId !== undefined) query.set('workspaceId', params.workspaceId);
   const qs = query.toString();
   return qs === '' ? BASE : `${BASE}?${qs}`;
 }

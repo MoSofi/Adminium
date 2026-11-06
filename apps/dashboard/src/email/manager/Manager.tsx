@@ -47,6 +47,8 @@ import { AppFilterNote } from '../../shell/AppFilterNote.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { formatSince } from '../../team/teamApi.js';
+import { CurrentWorkspaceChip } from '../../shown-in/ShownIn.js';
+import { useShownInList } from '../../shown-in/useShownInList.js';
 import { emailApi, emailExportUrl, type EmailDocumentDetail, type EmailDocumentKind, type EmailDocumentSummary, type EmailImportReply } from '../api.js';
 import { useEmailManagerAssistant } from '../assistant.js';
 import { emailDocumentsQuery, invalidateEmailDocuments } from '../queries.js';
@@ -138,8 +140,13 @@ export function EmailManager({ initialTab = 'template', initialArchived = false,
   const [link, setLink] = useState(startLink);
   const [importOpen, setImportOpen] = useState(false);
 
-  const list = useQuery(emailDocumentsQuery({ kind: tab, archived, ...(app === undefined ? {} : { app }) }));
-  const items = useMemo(() => list.data?.items ?? [], [list.data]);
+  // Where the list is cut to: the tab's workspace (One at a time) or the Workspace filter (All in one menu).
+  const shown = useShownInList();
+  const list = useQuery(
+    emailDocumentsQuery({ kind: tab, archived, ...(app === undefined ? {} : { app }), ...(shown.workspaceId === undefined ? {} : { workspaceId: shown.workspaceId }) }),
+  );
+  const { keeps } = shown;
+  const items = useMemo(() => (list.data?.items ?? []).filter((doc) => keeps(doc.shownIn)), [list.data, keeps]);
   const counts = list.data?.counts ?? { template: 0, campaign: 0, archived: 0 };
   const now = useMemo(() => Date.now(), [list.dataUpdatedAt]);
 
@@ -383,6 +390,9 @@ export function EmailManager({ initialTab = 'template', initialArchived = false,
             onClear={onShowAll}
           />
         )}
+        <div className="mx-auto max-w-wide">
+          <CurrentWorkspaceChip />
+        </div>
         <Tabs
           variant="pill"
           value={tab}
@@ -400,6 +410,7 @@ export function EmailManager({ initialTab = 'template', initialArchived = false,
             onLayoutChange={(layout) => updatePrefs({ layout })}
             archived={archived}
             onLeaveArchived={() => setArchived(false)}
+            workspaceFilter={shown.filter}
           />
 
           <TabsContent value={tab}>
@@ -442,7 +453,7 @@ export function EmailManager({ initialTab = 'template', initialArchived = false,
                   {group.header === null ? null : <GroupHeader icon={group.header.icon} label={group.header.label} sub={group.header.sub} />}
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(252px,1fr))] gap-4">
                     {group.items.map((doc) => (
-                      <GalleryCard key={doc.id} doc={doc} facts={factsOf(doc.locale)} archived={archived} actions={actions} rename={renameState} />
+                      <GalleryCard key={doc.id} doc={doc} facts={factsOf(doc.locale)} archived={archived} actions={actions} rename={renameState} shownIn={shown.showColumn} />
                     ))}
                   </div>
                 </section>
@@ -453,7 +464,7 @@ export function EmailManager({ initialTab = 'template', initialArchived = false,
               {groups.map((group) => (
                 <section key={group.key} data-testid="email-group" aria-label={group.header?.label}>
                   {group.header === null ? null : <GroupHeader dense icon={group.header.icon} label={group.header.label} sub={group.header.sub} />}
-                  <ListTable label={group.header?.label ?? (tab === 'template' ? t('email:tabs.templates', 'Templates') : t('email:tabs.campaigns', 'Campaigns'))}>
+                  <ListTable shownIn={shown.showColumn} label={group.header?.label ?? (tab === 'template' ? t('email:tabs.templates', 'Templates') : t('email:tabs.campaigns', 'Campaigns'))}>
                     {group.items.map((doc) => (
                       <ListRow
                         key={doc.id}
@@ -463,6 +474,7 @@ export function EmailManager({ initialTab = 'template', initialArchived = false,
                         actions={actions}
                         rename={renameState}
                         updated={formatSince(doc.updatedAt, localeTag, now)}
+                        shownIn={shown.showColumn}
                       />
                     ))}
                   </ListTable>

@@ -679,11 +679,9 @@
       "failed": "安裝失敗",
       "bundle": {
         "title": "上傳應用程式安裝包",
-        "hint": "應用程式的發布檔（.tgz）——其中含有 manifest.json 以及 staff/ 或 customer/ 目錄。",
         "file": "安裝包檔案（.tgz）",
         "fileHint": "在你於結構計畫這一步確認之前，不會建立任何東西。",
-        "integrity": "完整性校驗（選填）",
-        "integrityHint": "貼上隨版本發布的 sha512- 值，伺服器會據此檢查這些位元組。留空則在本頁計算。"
+        "fileOnly": "應用程式檔案（.tgz）。"
       },
       "database": {
         "title": "要安裝到哪個資料庫？",
@@ -692,7 +690,13 @@
         "readOnly": "唯讀",
         "writable": "可寫入",
         "noWritable": "沒有可寫入的連線",
-        "allReadOnly": "這裡所有連線都使用唯讀角色，因此任何應用程式都無法建立自己的資料表。請先連接一個可以執行 DDL 的連線。"
+        "allReadOnly": "這裡所有連線都使用唯讀角色，因此任何應用程式都無法建立自己的資料表。請先連接一個可以執行 DDL 的連線。",
+        "version": "正在安裝 {app} {version}。",
+        "ownCopy": "每個資料庫都可以有自己的一份 {app}。",
+        "noneTitle": "還沒有資料庫",
+        "none": "請先連接一個資料庫。應用程式只裝進此伺服器已有的資料庫。",
+        "installed": "已安裝 · {version}",
+        "notTouched": "這一份有自己的設定、角色和郵件範本。{databases} 上的 {app} 不受影響。"
       },
       "plan": {
         "title": "檢視結構計畫",
@@ -706,7 +710,7 @@
         "summary": "建立 {created} · 沿用 {reused}",
         "ruleWarnings": "此應用程式的部分規則會顯示你的資料表中隱藏的內容，因此不會套用",
         "pageWarnings": "此應用程式的部分頁面將在沒有資料表的情況下建立",
-        "installedElsewhere": "{app} 已安裝在連線 {connection} 上。一個應用程式只在一個連線上執行：請在那裡更新它，或先在那裡解除安裝，再安裝到其他連線。"
+        "oneVersion": "{database} 已有 {app} {version}，而一個應用程式的每一份都執行同一版本。請先更新各份，再在這裡安裝這一份。"
       },
       "done": {
         "body": "{key} 已開始提供服務。請在下方選擇其員工端的顯示位置。",
@@ -717,7 +721,12 @@
         "sampleNotAdded": "未新增",
         "sampleAdding": "正在新增…",
         "sampleAdded": "已新增",
-        "sampleLater": "你可以稍後在應用程式頁面中新增。"
+        "sampleLater": "你可以稍後在應用程式頁面中新增。",
+        "titleOn": "{app} {version} 已安裝到 {database}",
+        "rulesOff": "向外傳送資料的規則",
+        "rulesOffValue": "{count} 條，已關閉",
+        "toDo": "{count, plural, other {# 件待辦}}",
+        "openPage": "開啟應用程式頁面"
       },
       "cancel": "取消",
       "back": "上一步",
@@ -727,7 +736,6 @@
       "finish": "管理應用程式",
       "staged": "已解開的檔案：{files}",
       "footerStep": "第 {n} 步，共 {total} 步",
-      "footerStepApp": "第 {n} 步，共 {total} 步 · {app}",
       "chosen": {
         "title": "安裝 {app}",
         "hint": "這個應用程式隨你的建置附帶，已經在磁碟上。在你確認結構計畫之前不會建立任何東西。"
@@ -796,7 +804,9 @@
           "labelMenu": "{app} 使用哪個菜單",
           "labelTables": "{app} 使用哪些資料表",
           "recommended": "推薦"
-        }
+        },
+        "summaryUsed": "{count, plural, other {# 個依原樣使用}}",
+        "badgeUsed": "依原樣使用"
       },
       "running": {
         "title": "正在安裝 {app}",
@@ -836,7 +846,8 @@
       "privacyGrants": {
         "title": "某個角色可以刪除個人資料",
         "body": "{roles} 可以在隱私頁面尋找、下載並刪除此伺服器保存的關於某人的全部資料。"
-      }
+      },
+      "footerStepVersion": "第 {n} 步，共 {total} 步 · {app} {version}"
     },
     "installed": {
       "title": "已安裝的應用程式",
@@ -935,7 +946,18 @@
       "grantsAdded": {
         "title": "此版本給了它的角色更多權限",
         "addOnSettings": "{roles} 可以變更 {addOn} 的設定，這些設定由它服務的所有應用程式共用。"
-      }
+      },
+      "stopped": {
+        "pages": "更新至 {to} 時在寫入頁面期間停止。沒有遺失任何內容；{from} 的頁面仍在。",
+        "other": "更新至 {to} 時中途停止。沒有遺失任何內容，完成更新會從停止處繼續。",
+        "seeds": "更新至 {to} 時在新增初始列期間停止。沒有遺失任何內容，完成更新會新增其餘的列。",
+        "instance": "更新至 {to} 時在套用外觀與語言期間停止。沒有遺失任何內容，完成更新會套用它們。"
+      },
+      "titleOn": "將 {database} 上的 {app} 更新至 v{version}",
+      "copyOf": "第 {n} 份，共 {total} 份 · {from} → {to}",
+      "reviewSubtitle": "查看此版本帶來的內容。",
+      "onlyThis": "此對話框中只變更 {database} 上的 {app}。它在那裡的設定、角色和郵件範本會保留。",
+      "finish": "完成更新"
     },
     "veto": {
       "title": "此部署無法線上瀏覽",
@@ -962,6 +984,138 @@
       "repair": "Adminium 也會更新指向舊名稱的自有頁面與規則。",
       "cancel": "取消",
       "confirm": "重新命名資料表"
+    },
+    "review": {
+      "source": {
+        "title": "來源",
+        "badge": "你自己的應用程式",
+        "madeOn": "製作於 {date} · Adminium {version}",
+        "madeAt": "在 {label} 於 {date} 製作 · Adminium {version}",
+        "publisher": "發布者：{publisher}",
+        "warning": "它儲存於另一台 Adminium 伺服器，而非 adminium.dev。只有在你知道是誰儲存的時才安裝它。"
+      },
+      "fingerprint": {
+        "label": "與儲存時顯示的指紋比對",
+        "labelRelease": "與隨版本發布的指紋比對",
+        "check": "比對",
+        "ok": "一致。這就是儲存的那個檔案。",
+        "okRelease": "一致。這就是發布的那個檔案。",
+        "bad": "不一致。這不是儲存的那個檔案。",
+        "badRelease": "不一致。這不是發布的那個檔案。",
+        "none": "未比對",
+        "hold": "指紋不一致。請清空該欄，或貼上儲存時顯示的指紋。"
+      },
+      "existing": {
+        "title": "{count, plural, other {這裡已有 # 個同名的資料表。}}",
+        "use": "使用現有的資料表",
+        "useNote": "依原樣使用它們及其中的列。從不重新命名。",
+        "used": "{count, plural, other {# 個依原樣使用 · 不做任何變更}}",
+        "cannot": "{table} 無法依原樣使用。",
+        "cannotHelp": "請在這裡重新命名該資料表，或不帶它重新儲存應用程式。"
+      },
+      "change": "變更",
+      "pages": {
+        "title": "{count, plural, other {# 個頁面的名稱在這裡已被使用}}",
+        "untouched": "— 這裡的頁面與 Adminium 產生時一致。",
+        "changed": "— 已在這裡修改。",
+        "replace": "取代它",
+        "rename": "重新命名這裡的頁面",
+        "skip": "略過它",
+        "replaced": "已由應用程式的頁面取代。",
+        "skipped": "已略過。這裡的頁面保留。",
+        "renamed": "這裡的頁面移到 {address}。",
+        "renameField": "這裡頁面的新位址",
+        "hold": "請選擇如何處理 {pages}。"
+      },
+      "outside": {
+        "title": "這些規則會向外傳送資料",
+        "bodyUpdate": "新規則到達時為關閉且空白。已在這裡的規則保留其位址。",
+        "body": "它們到達時為關閉且空白。管理自動化的人可以開啟它們。",
+        "webhook": "傳送到網址 · 位址留空",
+        "address": "寄信到固定位址 · 位址留空",
+        "off": "關閉"
+      },
+      "instance": {
+        "title": "外觀與語言",
+        "tick": "同時套用外觀與語言",
+        "locked": "請讓管理設定的人來套用這一部分。",
+        "what": "包含內容",
+        "languagesOn": "開啟的語言：{languages}",
+        "languagesOff": "關閉的語言：{languages}",
+        "wording": "{count, plural, other {# 處修改過的文字}}",
+        "emails": "修改過的系統郵件：{count}",
+        "left": "此處未採用：",
+        "caption": "密碼、金鑰和郵件伺服器設定從不在檔案中。你可以在應用程式頁面復原這一部分。",
+        "hideChanges": "隱藏變更",
+        "showChanges": "顯示變更",
+        "noLinks": "它沒有連結，因此隨這一部分一起套用。",
+        "links": "此郵件中的連結指向：",
+        "subject": "主旨：{from} → {to}",
+        "blocks": "區塊：新增 {added} · 移除 {removed} · 修改 {changed}",
+        "preheader": "預覽文字已修改",
+        "footer": "頁尾已修改"
+      },
+      "screens": {
+        "title": "畫面",
+        "lead": "此應用程式有自己的畫面。",
+        "body": "它們以開啟者的權限執行。只有在你信任儲存它的人時才安裝。"
+      },
+      "after": {
+        "webhook": "規則 {item} 的網址",
+        "address": "規則 {item} 寄信給誰",
+        "document": "規則 {item} 產生的文件",
+        "delivery": "文件 {item} 寄到哪裡",
+        "paymentKey": "付款服務 {item} 的金鑰",
+        "bankAccount": "{item} 的銀行帳戶",
+        "recipients": "{count, plural, =1 {誰接收排程報表 {item}} other {誰接收這 # 份排程報表}}",
+        "sender": "{count, plural, =1 {郵件 {item} 的寄件位址} other {# 個郵件範本的寄件位址}}",
+        "systemGrant": "角色 {item} 的主控台權限",
+        "title": "安裝之後",
+        "note": "這些會一直留在應用程式頁面，直到完成。"
+      },
+      "title": "安裝前檢查",
+      "intro": "{app} 將裝入 {database}。按下「安裝」之前不會有任何變更。"
+    },
+    "refusal": {
+      "back": "返回",
+      "older": {
+        "copy": "{database} 已有 {version}",
+        "title": "較舊的檔案",
+        "body": "{copies}。此檔案是較舊的 {version}。"
+      },
+      "lineage": {
+        "title": "同一鍵名的另一個應用程式",
+        "body": "此伺服器在 {database} 上已有另一個 {key}。請用另一個鍵名儲存這個。"
+      },
+      "newer": {
+        "title": "需要更新版本的 Adminium",
+        "body": "此檔案需要 Adminium {needed} 或更新版本。此伺服器執行的是 {running}。"
+      },
+      "savedHere": {
+        "title": "從此資料庫儲存",
+        "body": "此檔案是從此伺服器上的 {database} 儲存的。裝回那裡會讓每個自動化執行兩次。請選擇另一個資料庫，或在測試伺服器上試用。"
+      },
+      "everywhere": {
+        "title": "每個資料庫都已安裝",
+        "body": "{app} {version} 已安裝在這裡的每個資料庫上。"
+      }
+    },
+    "route": {
+      "update": {
+        "button": "更新每一份（{databases}）",
+        "rest": "更新其餘的（{databases}）",
+        "also": "也安裝到另一個資料庫",
+        "title": "將 {app} 更新至 {version}",
+        "body": "此檔案比此伺服器上的每一份都新。每一份都執行同一版本，因此每一份都會更新，並各自檢查。",
+        "updated": "已更新",
+        "waiting": "尚未更新",
+        "done": "每個資料庫上的 {app} 都已是 {version}。"
+      },
+      "another": {
+        "button": "安裝到另一個資料庫",
+        "title": "將 {app} 安裝到另一個資料庫",
+        "body": "{app} {version} 已安裝在 {databases} 上。每個資料庫都可以有自己的一份。"
+      }
     }
   },
   "hub": {
@@ -975,7 +1129,8 @@
       "remap": "重新對應結構",
       "rename": "重新命名",
       "resume": "恢復",
-      "test": "測試"
+      "test": "測試",
+      "saveAsApp": "另存為應用程式"
     },
     "card": {
       "lastIntrospected": "上次內省",
@@ -4837,6 +4992,302 @@
         "when": "時間",
         "workspaceUsers": "此伺服器上的使用者"
       }
+    }
+  },
+  "workspaceSender": {
+    "title": "{workspace} 的寄件者",
+    "subtitle": "與此工作區資料庫中記錄相關的郵件，將以此寄件者寄出。",
+    "close": "關閉",
+    "loading": "正在載入",
+    "accepted": {
+      "title": "此伺服器可用於寄信的地址",
+      "domains": "以下網域的任何地址：",
+      "addresses": "或僅限："
+    },
+    "noMail": {
+      "title": "此伺服器尚無寄件者",
+      "body": "請先在設定中設定電子郵件。在此之前，工作區無法擁有自己的寄件者。",
+      "action": "開啟電子郵件設定"
+    },
+    "name": {
+      "label": "寄件者名稱",
+      "helper": "郵件顯示的寄件方，例如 Kiln Street Pottery。"
+    },
+    "from": {
+      "label": "寄件地址",
+      "helper": "須為上方所列位置中的地址。"
+    },
+    "replyTo": {
+      "label": "回覆地址",
+      "helper": "回覆寄往的地址。留空則使用寄件地址。"
+    },
+    "postal": {
+      "label": "郵寄地址",
+      "helper": "印在此工作區行銷郵件的底部。留空則使用伺服器的地址。"
+    },
+    "sharedList": "禁止寄信名單屬於整台伺服器：在一家企業取消訂閱的人，將不會再收到此伺服器上任何企業的行銷郵件。",
+    "refusal": {
+      "notSendingDomain": "此伺服器只能從 {accepted} 寄信。請使用那裡的地址。",
+      "noMail": "此伺服器尚無寄件者。請先在設定中設定電子郵件。",
+      "notAnAddress": "請輸入一個電子郵件地址，例如 hello@example.com。"
+    },
+    "failed": "無法儲存寄件者。請再試一次。",
+    "footer": {
+      "own": "其郵件從 {from} 寄出。",
+      "server": "在儲存寄件地址之前，其郵件將以伺服器的寄件者寄出。"
+    },
+    "clear": "使用伺服器的寄件者",
+    "cancel": "取消",
+    "save": "儲存寄件者"
+  },
+  "saveApp": {
+    "step": {
+      "database": "資料庫",
+      "include": "包含內容",
+      "about": "應用程式資訊",
+      "check": "檢查",
+      "download": "下載"
+    },
+    "progress": "另存為應用程式的進度",
+    "loading": "正在讀取資料庫…",
+    "footerStep": "第 {n} 步，共 {total} 步",
+    "footerStepKey": "第 {n} 步，共 {total} 步 · {key}",
+    "include": {
+      "nothingChanges": "儲存不會變更此伺服器上的任何內容。",
+      "title": "包含內容",
+      "body": "取消勾選即可排除某項。只有你選擇的地方才會包含資料列。",
+      "searchLabel": "搜尋包含內容",
+      "search": "搜尋資料表、頁面、角色…",
+      "nothing": "沒有可包含的內容",
+      "showMore": "再顯示 {count} 項",
+      "paymentsBody": "哪些資料表收款，以及如何收款。付款金鑰絕不會放入檔案。",
+      "instanceBody": "外觀、標誌、語言、改過的文字與編輯過的系統郵件。只有安裝者勾選時，新伺服器才會套用它們。",
+      "pageMade": "維持 Adminium 產生的樣子",
+      "pageChanged": "已手動修改",
+      "pagesNote": "{total, plural, other {# 個頁面}}：{made} 個維持 Adminium 產生的樣子，{changed} 個已手動修改。",
+      "brought": "隨之一併包含：{names}",
+      "columns": "{count, plural, other {# 欄}}",
+      "rows": "{count, plural, other {# 列}}",
+      "rowsAbout": "{count, plural, other {約 # 列}}",
+      "rowsFor": "{table} 的資料列",
+      "rowsNone": "無",
+      "rowsStarting": "初始資料列",
+      "rowsSample": "範例資料列",
+      "leftOut": "已排除",
+      "rowsNotYours": "你無法讀取 {table}，因此不能包含它的資料列，但仍可包含它的結構。",
+      "chooseWhich": "{rows} 列 — 選擇其中 {cap} 列",
+      "whichRows": "{table} 中的哪 {cap} 列",
+      "pageOrder": "頁面的排序",
+      "byView": "已儲存檢視：{view}",
+      "personal": "個人：",
+      "included": "— 已包含",
+      "leftOutDash": "— 已排除",
+      "leaveThemOut": "排除它們",
+      "includeThem": "包含它們",
+      "secretLike": "{count, plural, other {看起來像金鑰}}",
+      "leaveItOut": "{count, plural, other {排除}}",
+      "includeIt": "{count, plural, other {包含}}"
+    },
+    "done": "完成",
+    "download": {
+      "done": "已下載 {file}",
+      "failed": "無法下載該檔案",
+      "button": "下載",
+      "body": "{app} {version} 已儲存為檔案。下載後即可安裝到另一台伺服器上。",
+      "fingerprint": "指紋",
+      "copied": "已複製指紋",
+      "copyFailed": "無法複製指紋",
+      "copy": "複製",
+      "keep": "請將指紋與檔案一起保存。新伺服器會要求輸入指紋，以確認檔案就是你儲存的那一個。"
+    },
+    "cancel": "取消",
+    "back": "上一步",
+    "save": "儲存",
+    "continue": "繼續",
+    "database": {
+      "title": "資料庫",
+      "body": "一個應用程式對應一個資料庫。",
+      "none": "此伺服器尚未連接任何資料庫。",
+      "tables": "資料表：{count}",
+      "other": "其他資料庫"
+    },
+    "about": {
+      "title": "應用程式資訊",
+      "body": "應用程式在安裝處的名稱與顯示方式。",
+      "name": "名稱",
+      "key": "識別碼",
+      "keyFree": "沒有其他應用程式使用 {key}",
+      "version": "版本",
+      "lastSaved": "上次儲存：{last}，於 {date}。本次：{next}。",
+      "description": "說明",
+      "label": "製作於",
+      "labelHint": "會顯示在安裝應用程式的地方。請填寫名稱，而不是位址。",
+      "labelPlaceholder": "此伺服器的名稱",
+      "nameMissing": "請為應用程式命名。",
+      "keyShape": "識別碼由 2 到 80 個小寫字母、數字和 - 組成，並以字母開頭。",
+      "keyTaken": "此識別碼已被 adminium.dev 上的應用程式使用。請另選一個。",
+      "keyElsewhere": "此識別碼是從另一個資料庫儲存的。請另選一個。",
+      "versionShape": "版本由三個數字組成，例如 1.2.0。",
+      "versionSaved": "{version} 已儲存過。已儲存的版本不能再次儲存。",
+      "versionOlder": "{version} 低於上次儲存的 {last}。請使用更高的版本。",
+      "labelAddress": "這看起來像位址。請填寫名稱，而不是位址。",
+      "icon": "圖示"
+    },
+    "group": {
+      "tables": "資料表",
+      "pages": "頁面",
+      "roles": "角色",
+      "automations": "自動化",
+      "emailTemplates": "郵件範本",
+      "documents": "文件",
+      "reports": "報表",
+      "invoiceLayouts": "發票版面",
+      "scheduledReports": "排程報表",
+      "publicEndpoints": "公開存取",
+      "views": "已儲存檢視",
+      "payments": "付款設定",
+      "instance": "此伺服器的外觀與文字"
+    },
+    "views": {
+      "sharedOf": "已共用 {shared}/{total}",
+      "isShared": "已在應用程式中共用",
+      "notShared": "未共用 · 請見「檢查」",
+      "shared": "{shared}/{total}"
+    },
+    "deps": {
+      "title": "還有其他項目在使用 {name}",
+      "body": "如果排除 {name}，這些項目將失去它們指向的對象。",
+      "group": "{group}（{count}）",
+      "links": "連結到它的資料表（{count}）",
+      "leaveAll": "全部排除",
+      "keepColumns": "保留欄位，移除連結",
+      "keep": "保留 {name}"
+    },
+    "check": {
+      "noteProblems": "請先解決阻止儲存的問題，再進行儲存。",
+      "noteSecret": "請清除或排除已儲存的機密，再進行儲存。",
+      "noteChoices": "{count, plural, other {請先做出 # 項選擇，再進行儲存。}}",
+      "body": "哪些內容會放入檔案，哪些需要你先處理。",
+      "blocks": "阻止儲存",
+      "choices": "需要選擇",
+      "after": "安裝之後",
+      "info": "供你參考",
+      "checking": "正在重新檢查檔案…",
+      "backToInclude": "返回「包含內容」",
+      "afterNote": "密碼、金鑰和位址絕不會放入檔案。新伺服器會列出這些項目，直到處理完畢。",
+      "undo": "復原",
+      "views": "{count, plural, other {# 個已儲存檢視屬於個人。請在應用程式中將檢視設為共用，才能一併帶走。}}",
+      "answer": {
+        "makeShared": "設為共用",
+        "carry": "以文字帶入",
+        "leaveOut": "排除",
+        "clear": "清空此欄位",
+        "keep": "這不是金鑰",
+        "carryKey": "保持組合唯一"
+      },
+      "done": {
+        "clear": "該欄位在檔案中將為空白。此伺服器上的任何內容都不會改變。",
+        "leaveOutColumn": "該欄位已從檔案中排除。此伺服器上的資料表維持不變。",
+        "leaveOut": "已從檔案中排除。此伺服器上的任何內容都不會改變。",
+        "keep": "已標記為非金鑰。將按原樣包含。",
+        "carry": "將以文字包含。此伺服器上的該欄位維持不變。",
+        "makeShared": "將作為應用程式的共用檢視包含。在這裡維持原樣。",
+        "carryKey": "將以這些欄位組合唯一、且不設鍵的方式包含。此伺服器上的該資料表維持不變。"
+      },
+      "secret": "{kind}「{item}」 · {field} · 存有此伺服器已儲存的機密。",
+      "secretLikely": "{kind}「{item}」 · {field} · 看起來像金鑰。",
+      "noType": "{column} 沒有相符的類型。請以文字帶入，或將其排除。",
+      "columnName": "{column} 的名稱無法放入應用程式檔案。請將其排除，或先重新命名。",
+      "compositeKey": "{table} 由多個欄位共同作為鍵。請將它們以組合唯一的方式帶入，或排除該資料表。",
+      "pageTable": "「{page}」顯示的資料表不在應用程式中。請排除該頁面，或包含它的資料表。",
+      "emailEnglish": "「{email}」沒有美式英文文字，而應用程式的郵件需要它。請將其排除，或先撰寫一份。",
+      "rowsPersonal": "{column} 屬於個人資訊或看起來像金鑰，而且每一列都必須有值。請包含它的值，或排除 {table} 的資料列。",
+      "rowsCycle": "{table} 的資料列需要另一個資料表的資料列，而後者又反過來需要它們。請排除其中一個資料表的資料列。",
+      "noPage": "應用程式至少需要一個頁面。請包含此資料庫的一個頁面。"
+    },
+    "planFailed": "無法檢查該檔案",
+    "saveFailed": "無法儲存。未寫入任何內容。請重試。",
+    "tryAgain": "重試",
+    "quick": {
+      "title": "將 {database} 另存為應用程式",
+      "body": "{database} 中的所有內容都會包含在內，但不含資料列。此伺服器上的任何內容都不會改變。",
+      "summary": "{tables, plural, other {# 個資料表}}、{pages, plural, other {# 個頁面}}、{roles, plural, other {# 個角色}}、{automations, plural, other {# 個自動化}}以及{more, plural, other {另外 # 項}}。",
+      "hide": "隱藏",
+      "show": "顯示",
+      "viewsNote": "已儲存檢視屬於個人，因此在共用之前都不會包含在內。",
+      "checking": "正在檢查檔案將包含的內容…",
+      "ready": "可以儲存",
+      "needs": "{count, plural, other {# 項需要選擇}}",
+      "viewsNeed": "{count, plural, other {# 個已儲存檢視屬於個人}}",
+      "more": "更多選項",
+      "review": "檢視選擇"
+    },
+    "inventoryFailed": "無法讀取此資料庫以進行儲存",
+    "saved": {
+      "title": "從這裡儲存的",
+      "emptyTitle": "尚未儲存任何內容",
+      "empty": "「另存為應用程式」會把一個資料庫的儀表板變成檔案，讓你安裝到另一台伺服器上。",
+      "when": "儲存於 {date}",
+      "by": "由 {person} 儲存",
+      "copy": "複製指紋",
+      "again": "再次下載",
+      "newer": "儲存新版本"
+    },
+    "entry": {
+      "button": "另存為應用程式",
+      "which": "要儲存哪個資料庫？",
+      "tables": "{count, plural, other {# 個資料表}}"
+    },
+    "kind": {
+      "table": "資料表",
+      "column": "欄位",
+      "page": "頁面",
+      "view": "已儲存檢視",
+      "role": "角色",
+      "automation": "自動化",
+      "email": "郵件範本",
+      "document": "文件",
+      "report": "報表",
+      "invoice": "發票版面",
+      "schedule": "排程報表",
+      "public": "公開存取",
+      "payments": "付款設定",
+      "rows": "資料列",
+      "addOn": "附加元件",
+      "optionList": "選項清單",
+      "setting": "設定",
+      "instance": "外觀與文字",
+      "file": "檔案",
+      "app": "應用程式"
+    },
+    "after": {
+      "webhook": "「{rule}」的網址",
+      "webhookHeader": "「{rule}」的標頭值",
+      "addresses": "「{rule}」的固定位址",
+      "systemGrant": "{role} 角色的主控台權限（它們永遠不會隨之移轉）",
+      "paymentKey": "{item} 的付款金鑰",
+      "documentRecipient": "「{document}」的收件人",
+      "senders": "{count, plural, other {# 個郵件範本的寄件者位址}}",
+      "schedules": "{count, plural, other {# 個排程報表的收件人}}"
+    },
+    "info": {
+      "wildcard": "{roles, plural, other {# 個角色可以使用所有資料表。}}{tables, plural, other {在應用程式中，它們只涵蓋這 # 個資料表。}}",
+      "builtinRoles": "{count, plural, other {# 個內建角色不會隨之移轉。}}",
+      "minVersion": "需要 Adminium {version} 或更新版本。"
+    },
+    "icon": {
+      "coffee": "咖啡",
+      "bean": "咖啡豆",
+      "flame": "火焰",
+      "package": "包裹",
+      "store": "商店",
+      "truck": "卡車",
+      "leaf": "葉子",
+      "sprout": "嫩芽",
+      "shoppingBag": "購物袋",
+      "receipt": "收據",
+      "warehouse": "倉庫",
+      "cupSoda": "杯子"
     }
   },
   "apps": {

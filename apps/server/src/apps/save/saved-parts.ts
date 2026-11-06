@@ -24,7 +24,7 @@ import { createHash } from 'node:crypto';
 
 import { slugify } from '@adminium/engine';
 import { INVOICE_LAYOUT_LANGS, INVOICE_LAYOUT_TOPICS, type SavedInvoiceLayout, type SavedReport, type SavedScheduledReport } from '@adminium/manifest';
-import { filesRepo, invoiceDocumentsRepo, reportDocumentsRepo, scheduledReportsRepo, workspacesRepo, type ShownInKind } from '@adminium/meta';
+import { filesRepo, invoiceDocumentsRepo, reportDocumentsRepo, scheduledReportsRepo, workspacesRepo, type MetaDb, type ShownInKind } from '@adminium/meta';
 
 import { PACKAGE_IMAGE_PREFIX } from '../saved-parts.js';
 import type { ConvertContext, ConvertPart } from './types.js';
@@ -56,15 +56,15 @@ function keyMaker() {
 const partName = (name: string, fallback: string): string => (name.trim() === '' ? fallback : name.trim().slice(0, 120));
 
 /** Whether an item is shown where this database is: in every workspace, or in one it is in. */
-async function shownHere(ctx: ConvertContext, kind: ShownInKind, id: string, here: ReadonlySet<string>): Promise<boolean> {
-  const shown = await workspacesRepo(ctx.source.meta).shownIn(kind, id);
+export async function shownHere(meta: MetaDb, kind: ShownInKind, id: string, here: ReadonlySet<string>): Promise<boolean> {
+  const shown = await workspacesRepo(meta).shownIn(kind, id);
   if (shown === null || shown.mode === 'all') return true;
   return shown.workspaceIds.some((workspace) => here.has(workspace));
 }
 
 /** The rows an install made: they are that install's. */
-async function madeByInstalls(ctx: ConvertContext): Promise<Set<string>> {
-  const rows = await ctx.source.meta.db.selectFrom('adminium_app_parts').select(['kind', 'targetId']).execute();
+export async function madeByInstalls(meta: MetaDb): Promise<Set<string>> {
+  const rows = await meta.db.selectFrom('adminium_app_parts').select(['kind', 'targetId']).execute();
   return new Set(rows.map((row) => `${row.kind}:${row.targetId}`));
 }
 
@@ -144,7 +144,7 @@ async function invoiceBody(ctx: ConvertContext, body: Record<string, unknown>, n
 
 export const convertSavedParts: ConvertPart = async (ctx) => {
   const { meta, connectionId } = ctx.source;
-  const made = await madeByInstalls(ctx);
+  const made = await madeByInstalls(ctx.source.meta);
   const here = new Set(await workspacesRepo(meta).forConnection(connectionId));
 
   const reportKey = keyMaker();
@@ -152,7 +152,7 @@ export const convertSavedParts: ConvertPart = async (ctx) => {
   const chosenReports = ctx.choices.reports === undefined ? null : new Set(ctx.choices.reports);
   for (const row of await reportDocumentsRepo(meta).list()) {
     if (made.has(`report:${row.id}`)) continue;
-    if (chosenReports === null ? !(await shownHere(ctx, 'report', row.id, here)) : !chosenReports.has(row.id)) continue;
+    if (chosenReports === null ? !(await shownHere(ctx.source.meta, 'report', row.id, here)) : !chosenReports.has(row.id)) continue;
     const name = partName(row.name, 'Report');
     reports.push({ key: reportKey(name, 'report'), kind: row.kind, name, status: row.status, body: await reportBody(ctx, row.body as Record<string, unknown>, name) });
   }
@@ -162,7 +162,7 @@ export const convertSavedParts: ConvertPart = async (ctx) => {
   const chosenLayouts = ctx.choices.invoiceLayouts === undefined ? null : new Set(ctx.choices.invoiceLayouts);
   for (const row of await invoiceDocumentsRepo(meta).list({ kind: 'template' })) {
     if (made.has(`invoice-layout:${row.id}`)) continue;
-    if (chosenLayouts === null ? !(await shownHere(ctx, 'invoice', row.id, here)) : !chosenLayouts.has(row.id)) continue;
+    if (chosenLayouts === null ? !(await shownHere(ctx.source.meta, 'invoice', row.id, here)) : !chosenLayouts.has(row.id)) continue;
     const name = partName(row.name, 'Invoice');
     invoiceLayouts.push({
       key: layoutKey(name, 'invoice'),

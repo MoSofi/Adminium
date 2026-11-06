@@ -2017,6 +2017,33 @@
       "close": "Luk"
     }
   },
+  "shownIn": {
+    "label": "Vises i",
+    "all": "Alle arbejdsområder",
+    "chosen": "Kun disse arbejdsområder",
+    "none": "Intet arbejdsområde",
+    "noneHint": "Står ikke i noget arbejdsområde. Sæt flueben ved et for at vise det der. Det, der allerede bruger det, sender det stadig.",
+    "unseen": "{count, plural, one {Vises også i # arbejdsområde, du ikke kan se.} other {Vises også i # arbejdsområder, du ikke kan se.}}",
+    "unseenChip": "{count, plural, one {# andet arbejdsområde} other {# andre arbejdsområder}}",
+    "filter": {
+      "label": "Arbejdsområde",
+      "other": "Andre databaser"
+    },
+    "hidden": {
+      "here": "Står ikke i {workspace}. Det, der bruger det, sender det stadig.",
+      "other": "Står ikke her. Det, der bruger det, sender det stadig."
+    },
+    "kind": {
+      "emailTemplate": "E-mailskabelon",
+      "report": "Rapportlayout",
+      "invoice": "Fakturalayout"
+    },
+    "deletePlan": {
+      "lead": "{count, plural, one {# element står kun her. Efter sletningen står det ikke i noget arbejdsområde:} other {# elementer står kun her. Efter sletningen står de ikke i noget arbejdsområde:}}",
+      "after": "De bliver, og det, der bruger dem, sender dem stadig. Du kan vælge nye arbejdsområder til dem senere."
+    },
+    "saveFailed": "Kunne ikke ændre, hvor det står"
+  },
   "appCopies": {
     "retired": {
       "body": "Den er ikke længere på denne adresse. Åbn den kopi, du mente:",

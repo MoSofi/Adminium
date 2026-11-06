@@ -371,7 +371,7 @@ async function portableViews(scope: PageScope): Promise<PageView[]> {
         kind: 'view',
         item,
         message: `"${view.name}" is somebody's own view of "${scope.item}". Make it a shared view of the app, or leave it out.`,
-        answer: { choices: ['make-shared', 'leave-out'], target: view.id },
+        answer: { choices: ['make-shared', 'leave-out'], target: view.id, targets: { 'leave-out': `view:${view.id}` } },
       });
       continue;
     }

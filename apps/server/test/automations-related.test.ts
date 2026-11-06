@@ -289,7 +289,7 @@ for (const [dialect, available] of legs) {
       await templates.upsert('p64-all-off', 'en_US', doc('Off', false));
       const families = await templateFamilies(s.meta);
       // What it reads, and which of those nothing has to fill: a name with its own backup, a name that only decides whether a block is shown.
-      expect(families.live.filter((family) => family.key === 'p64-de-only')).toEqual([{ key: 'p64-de-only', name: 'English, off', placeholders: ['name', 'order', 'city'], backed: ['name', 'city'], ownedByApp: false }]);
+      expect(families.live.filter((family) => family.key === 'p64-de-only')).toEqual([{ key: 'p64-de-only', name: 'English, off', placeholders: ['name', 'order', 'city'], backed: ['name', 'city'], ownedByApp: false, faceId: expect.any(String), shownIn: 'all' }]);
       expect(families.live.some((family) => family.key === 'p64-all-off')).toBe(false);
       expect(families.off).toBeGreaterThanOrEqual(1);
       expect((await resolveRuleTemplate(s.meta, 'p64-de-only', 'en_US'))?.subject).toBe('Deutsch, an');

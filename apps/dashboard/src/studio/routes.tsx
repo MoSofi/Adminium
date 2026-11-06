@@ -267,6 +267,7 @@ function HubRouteComponent() {
             void navigate({ to: '/studio/remap/$connectionId', params: { connectionId } })
           }
           onOpenHostedApps={() => void navigate({ to: '/studio/apps' })}
+          onSaveAsApp={(connectionId) => void navigate({ to: '/studio/apps', search: { save: connectionId } as never })}
         />
       </StudioBody>
     </StudioGuard>
@@ -602,9 +603,11 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
   const hostedAppsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/apps',
-    // `?upload=1` opens the install's upload step: an own app's "Upload a newer version".
-    validateSearch: (search: Record<string, unknown>): { upload?: boolean } =>
-      search['upload'] === true || search['upload'] === '1' || search['upload'] === 'true' ? { upload: true } : {},
+    // `?upload=1` opens the install's upload step (an own app's "Upload a newer version"); `?save=<connection>` opens Save as app.
+    validateSearch: (search: Record<string, unknown>): { upload?: boolean; save?: string } => ({
+      ...(search['upload'] === true || search['upload'] === '1' || search['upload'] === 'true' ? { upload: true } : {}),
+      ...(typeof search['save'] === 'string' ? { save: search['save'] } : {}),
+    }),
     component: HostedAppsRouteComponent,
   });
 

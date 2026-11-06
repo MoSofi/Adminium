@@ -22,8 +22,8 @@
  * which key a surface would serve (`surface-config.json`) and links across.
  */
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { Link, useSearch } from '@tanstack/react-router';
-import { useState } from 'react';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import { AppWindow, Globe2, PanelsTopLeft, Tag } from 'lucide-react';
 import {
   Alert,
@@ -72,6 +72,9 @@ import { AppAcquisitionAlerts, UpdateConsentDialog, useAppAcquisition } from './
 import { UpdateColumnsDialog } from './UpdateColumnsDialog.js';
 import { InstallAppWizard } from './InstallAppWizard.js';
 import { InstalledAppsCard } from './InstalledAppsCard.js';
+import { SaveAsAppButton } from './SaveAsAppButton.js';
+import { SaveAsAppFlow, type SaveStart } from './SaveAsAppFlow.js';
+import { SavedFromHereCard } from './SavedFromHereCard.js';
 
 export function HostedAppsPage() {
   const queryClient = useQueryClient();
@@ -91,7 +94,8 @@ export function HostedAppsPage() {
    * has one.
    */
   // An own app's "Upload a newer version" lands here with `?upload=1`: the upload step, at once.
-  const search = useSearch({ strict: false }) as { upload?: boolean };
+  // A connection card's "Save as app" lands here with `?save=<connection>`.
+  const search = useSearch({ strict: false }) as { upload?: boolean; save?: unknown };
   const [installing, setInstalling] = useState(search.upload === true);
   /** The shelf app the wizard opens on, when it was opened from a card. */
   const [chosen, setChosen] = useState<
@@ -106,6 +110,26 @@ export function HostedAppsPage() {
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<DomainIssue[]>([]);
   const [savedNote, setSavedNote] = useState(false);
+  /*
+   * Save as app: the quick save opens over the page, the wizard replaces its
+   * body (the install flow's shape). One flow, mounted once for both, so
+   * "More choices" keeps what the quick save was about to save.
+   */
+  const [saving, setSaving] = useState<(SaveStart & { seq: number }) | null>(null);
+  const [savingMode, setSavingMode] = useState<'quick' | 'wizard'>('quick');
+  const startSave = (start: SaveStart) => {
+    setSavingMode(start.mode);
+    setSaving({ ...start, seq: (saving?.seq ?? 0) + 1 });
+  };
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (typeof search.save !== 'string') return;
+    const id = search.save;
+    void navigate({ to: '/studio/apps', search: {} as never, replace: true });
+    if (connections.some((connection) => connection.id === id)) startSave({ connectionId: id, mode: 'quick' });
+    // Once per arrival: the search is cleared above.
+  }, [search.save]);
+  const saveButton = <SaveAsAppButton onSave={(connectionId) => startSave({ connectionId, mode: 'quick' })} />;
 
   const refresh = async (): Promise<void> => {
     await queryClient.invalidateQueries({ queryKey: SURFACES_QUERY_KEY });
@@ -171,7 +195,19 @@ export function HostedAppsPage() {
         </Modal>
       ) : null}
 
-      {installing ? (
+      {saving === null ? null : (
+        <SaveAsAppFlow
+          key={saving.seq}
+          start={saving}
+          onModeChange={setSavingMode}
+          onClose={() => {
+            setSaving(null);
+            setSavingMode('quick');
+          }}
+        />
+      )}
+
+      {saving !== null && savingMode === 'wizard' ? null : installing ? (
         <InstallAppWizard
           preselected={chosen}
           onClose={() => {
@@ -219,10 +255,24 @@ export function HostedAppsPage() {
         busy={acquisition.busy}
         onUpdate={(app, row) => void acquisition.update(app, row)}
         onUpdateEvery={(copies, row) => void acquisition.updateEvery(copies, row)}
+        onFinishUpdate={(app) => void acquisition.finishUnfinished(app)}
         onInstall={() => {
           setChosen(undefined);
           setInstalling(true);
         }}
+        beforeInstall={saveButton}
+      />
+
+      <SavedFromHereCard
+        connections={connections}
+        saveButton={saveButton}
+        onSaveNewer={(save) =>
+          startSave({
+            connectionId: save.connectionId,
+            mode: 'quick',
+            prefill: { key: save.key, name: save.name ?? save.key, description: save.description ?? '', icon: save.icon, label: save.label },
+          })
+        }
       />
 
       {data.surfaces.length === 0 ? (

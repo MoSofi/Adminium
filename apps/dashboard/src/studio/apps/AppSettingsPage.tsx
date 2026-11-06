@@ -57,7 +57,6 @@ import {
   History,
   LayoutPanelLeft,
   Smartphone,
-  Package,
   PauseCircle,
   PlugZap,
   Plus,
@@ -104,7 +103,7 @@ export { SampleDataBanner } from './SampleData.js';
 /** For the page route (`pages/PageRenderer.tsx`), which loads it from here, in this chunk. */
 export { FeaturePageNotice } from './FeaturePageNotice.js';
 import { AppPartsCard } from './AppPartsCard.js';
-import { CARD, CardTitle, workspacesHolding, workspacesOf } from './appPageParts.js';
+import { AppIcon, CARD, CardTitle, workspacesHolding, workspacesOf } from './appPageParts.js';
 import { InstallScope, addressOf, splitAddress, useInstallId } from './installScope.js';
 import { AfterInstallCard, EditScreensCard, LookCard, WhatItAddedCard, monoDigits } from './OwnAppCards.js';
 import { RetiredAddress } from '../../apps/RetiredAddress.js';
@@ -278,7 +277,7 @@ function Loaded({ app, copies }: { app: InstalledApp; copies: readonly Installed
       <PageActions title={name} subtitle={t('studio:appSettings.crumb', 'Apps')} />
       <header className="flex flex-wrap items-start gap-4">
         <IconTile size="lg" className="size-[52px] rounded-[15px]">
-          <Package aria-hidden className="size-[26px]" />
+          <AppIcon icon={app.icon} className="size-[26px]" />
         </IconTile>
         <div className="min-w-[200px] flex-1">
           <div className="flex flex-wrap items-center gap-2.5">

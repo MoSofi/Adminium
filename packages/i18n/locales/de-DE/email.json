@@ -966,5 +966,20 @@
     "limitEmail": "Eine E-Mail-Adresse wurde in {form} so oft angegeben, wie es an einem Tag erlaubt ist.",
     "limitEntry": "Die Tabelle, in die {form} schreibt, hat so viele neue Zeilen von Besuchern erhalten, wie ihre App erlaubt.",
     "limitBody": "Es öffnet wieder um {time}. Erhöhen Sie das Limit oder nutzen Sie eine strengere Prüfung unter „Limits“ des Formulars."
+  },
+  "sendAs": {
+    "label": "Senden als",
+    "server": "Der Server",
+    "serverFrom": "Der Server · {from}",
+    "byRecord": "Nach dem Arbeitsbereich des Datensatzes",
+    "workspaceFrom": "{workspace} · {from}",
+    "workspaceNoSender": "{workspace} · noch kein Absender",
+    "helper": {
+      "byRecord": "E-Mails zu einem Datensatz gehen vom Absender des Arbeitsbereichs aus, in dem seine Datenbank liegt.",
+      "server": "Jede E-Mail dieser Vorlage geht vom Absender des Servers aus.",
+      "noSender": "{workspace} hat noch keinen eigenen Absender, daher geht diese Vorlage vom Absender des Servers aus.",
+      "workspace": "Jede E-Mail dieser Vorlage geht vom Absender von {workspace} aus, unabhängig vom Datensatz."
+    },
+    "failed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut."
   }
 }

@@ -366,6 +366,7 @@ import { createTelemetryService } from './telemetry/service.js';
 import { APP_VERSION } from './version.js';
 import { SOURCE_ENGINES } from '@adminium/engine';
 import { createSaveService } from './apps/save/service.js';
+import { createWorkspaceSaveService } from './apps/save/workspace.js';
 import type { SaveDialect } from './apps/save/types.js';
 import { appSaveRoutes } from './routes/apps/save.js';
 import { ownSurfaceRoutes } from './routes/apps/own-surfaces.js';
@@ -2507,22 +2508,26 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       };
       await api.register(appRoutes(appDeps));
       // Save as app: a database's configuration made into an app file, kept here and downloaded.
+      const saveDialectOf = async (connectionId: string): Promise<SaveDialect | null> => {
+        const row = await meta.db.selectFrom('adminium_connections').select('engine').where('id', '=', connectionId).executeTakeFirst();
+        return row === undefined || !(SOURCE_ENGINES as readonly string[]).includes(row.engine) ? null : (row.engine as SaveDialect);
+      };
+      const saveService = createSaveService({
+        meta,
+        storage,
+        masterSecret: env.ADMINIUM_SECRET,
+        adminiumVersion: APP_VERSION,
+        projectEnvFile: projectRoot === null ? null : join(projectRoot, '.env'),
+        dialectOf: saveDialectOf,
+        displayName: async () => settingsRepo(meta).get('branding.appName'),
+        dataDb: async (connectionId) => (await manager.data(connectionId)).db,
+      });
       await api.register(
         appSaveRoutes({
           meta,
-          service: createSaveService({
-            meta,
-            storage,
-            masterSecret: env.ADMINIUM_SECRET,
-            adminiumVersion: APP_VERSION,
-            projectEnvFile: projectRoot === null ? null : join(projectRoot, '.env'),
-            dialectOf: async (connectionId) => {
-              const row = await meta.db.selectFrom('adminium_connections').select('engine').where('id', '=', connectionId).executeTakeFirst();
-              return row === undefined || !(SOURCE_ENGINES as readonly string[]).includes(row.engine) ? null : (row.engine as SaveDialect);
-            },
-            displayName: async () => settingsRepo(meta).get('branding.appName'),
-            dataDb: async (connectionId) => (await manager.data(connectionId)).db,
-          }),
+          service: saveService,
+          // Save workspace: one app per database, each made by the service above, in one file.
+          workspaces: createWorkspaceSaveService({ meta, save: saveService, adminiumVersion: APP_VERSION, dialectOf: saveDialectOf, displayName: async () => settingsRepo(meta).get('branding.appName') }),
         }),
       );
       // An app's own screens as a file: Download of a project app, and Make it editable here of an installed one.

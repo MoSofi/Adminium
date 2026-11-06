@@ -57,6 +57,7 @@ export function carryOutAnswers(manifest: AppManifest, files: ReadonlyMap<string
     }
   }
 
+  const seedFilesBefore = seedFilesOf(doc);
   if (leaveOut.size > 0) {
     for (const [top, block] of Object.entries(doc)) {
       if (!Array.isArray(block)) continue;
@@ -67,5 +68,39 @@ export function carryOutAnswers(manifest: AppManifest, files: ReadonlyMap<string
     }
   }
 
+  if (leaveOut.size > 0) dropLeftRows(doc, out, leaveOut, seedFilesBefore);
+
   return { manifest: doc as unknown as AppManifest, files: out };
+}
+
+/** The package files the manifest's seeds name. */
+function seedFilesOf(doc: Record<string, unknown>): Set<string> {
+  const named = new Set<string>();
+  const seeds = doc['seeds'];
+  if (Array.isArray(seeds)) for (const seed of seeds as { file?: unknown }[]) if (typeof seed.file === 'string') named.add(seed.file);
+  return named;
+}
+
+/**
+ * Rows answered "leave out" (`rows:<table ref>`) leave the PACKAGE too: a
+ * starting-rows file no seed names any more goes, and a sample file loses that
+ * table. Dropping only the manifest's entry would pack the file with the value
+ * the answer was about.
+ */
+function dropLeftRows(doc: Record<string, unknown>, files: Map<string, Uint8Array>, leaveOut: ReadonlySet<string>, before: ReadonlySet<string>): void {
+  const named = seedFilesOf(doc);
+  const sample = doc['sampleData'] as { file?: unknown } | undefined;
+  for (const [path, bytes] of [...files]) {
+    if (typeof sample?.file === 'string' && path === sample.file) {
+      const decoded = decodeFile(path, bytes);
+      if (decoded.kind !== 'json') continue;
+      const bundle = decoded.value as { tables?: { ref?: unknown }[] };
+      if (!Array.isArray(bundle.tables)) continue;
+      const kept = bundle.tables.filter((table) => !leaveOut.has(itemTargetOf({ kind: 'rows', item: String(table.ref) })));
+      if (kept.length === bundle.tables.length) continue;
+      files.set(path, new TextEncoder().encode(JSON.stringify({ ...bundle, tables: kept })));
+      continue;
+    }
+    if (before.has(path) && !named.has(path)) files.delete(path);
+  }
 }

@@ -76,6 +76,7 @@ import {
 import type { MarketingCarry } from './marketing-carry.js';
 import { PLAIN_DOTTED, PLAIN_RECIPIENT } from './plain-address.js';
 import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
+import { resolveMailSender, SERVER_SENDER, type MailSender, type SendAbout } from './workspace-sender.js';
 
 /** The `adminium_jobs.kind` of a queued outbound email. */
 export const EMAIL_SEND_JOB_KIND = 'email.send';
@@ -341,6 +342,15 @@ export interface EnqueueEmailInput {
   standing?: MarketingStanding | undefined;
   /** A service mail's consent purpose, asked again at the hand-over (service mail only). */
   objection?: ServiceObjection | undefined;
+  /**
+   * Mail about a record: the database it is in (null for none). Present, the
+   * mail goes as the sender of that database's workspace, or as the one its
+   * template names ("Send as"; `workspace-sender.ts`). Absent, it is mail
+   * with no record (sign-in, invitations, notices) and goes as the server.
+   */
+  about?: { connectionId: string | null } | undefined;
+  /** The sender as the caller already resolved it (for its marketing checks): used as it is, never asked again. */
+  sender?: MailSender | undefined;
 }
 
 /** The template with a person's wording in place of its own; unchanged where they wrote nothing. */
@@ -453,8 +463,10 @@ export interface EmailSendPayload {
 /** Everything a stored document contributes to one send, resolved once. */
 export interface PreparedEmail {
   render: Pick<RenderEmailInput, 'document' | 'brand' | 'mark' | 'imageFiles'>;
-  /** A configured sender's `Name <addr>`, or undefined for the transport's own. */
+  /** A workspace's sender, else a configured sender's `Name <addr>`, or undefined for the transport's own. */
   from: string | undefined;
+  /** The sender it goes as (`workspace-sender.ts`): its reply-to and postal address, or the server's (all null). */
+  sender: MailSender;
   /** Fixed attachments — the library files that exist. */
   attachments: EmailSendAttachmentRef[];
   /** Fixed attachments whose file is missing or trashed — reported, never silently dropped. */
@@ -474,6 +486,10 @@ export interface PreparedEmail {
 /** What a caller knows of whose mail it is: an app's (see `EnqueueEmailInput.brandName`). */
 export interface PrepareEmailOptions {
   brandName?: string | undefined;
+  /** Mail about a record: whose sender it goes as. Absent, the server's. */
+  about?: SendAbout | undefined;
+  /** The sender as the caller already resolved it; wins over `about`. */
+  sender?: MailSender | undefined;
 }
 
 export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource, options: PrepareEmailOptions = {}): Promise<PreparedEmail> {
@@ -523,10 +539,14 @@ export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource, options
     else attachments.push({ fileId: row.id, filename: row.filename });
   }
 
-  const from = senderHeader(doc.brand, [
-    ...(smtp === null ? [] : [smtp.from]),
-    ...senders.map((s) => (s.name.trim() === '' ? s.address : `${s.name} <${s.address}>`)),
-  ]);
+  // A workspace's sender wins over the document's own; the document's, over the relay's.
+  const sender = options.sender ?? (options.about === undefined ? SERVER_SENDER : await resolveMailSender(meta, options.about));
+  const from =
+    sender.from ??
+    senderHeader(doc.brand, [
+      ...(smtp === null ? [] : [smtp.from]),
+      ...senders.map((s) => (s.name.trim() === '' ? s.address : `${s.name} <${s.address}>`)),
+    ]);
 
   return {
     render: {
@@ -536,6 +556,7 @@ export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource, options
       imageFiles,
     },
     from,
+    sender,
     attachments,
     missing,
   };
@@ -736,7 +757,12 @@ export async function enqueueEmail(
       ? input.vars
       : { ...input.vars, ...Object.fromEntries(Object.entries(input.counts).map(([name, value]) => [name, proseNumber(value, written)])) };
 
-  const prepared = await prepareEmail(meta, row, { brandName: input.brandName });
+  const prepared = await prepareEmail(meta, row, {
+    brandName: input.brandName,
+    ...(input.sender !== undefined ? { sender: input.sender } : input.about === undefined ? {} : { about: { connectionId: input.about.connectionId, templateKey: input.templateKey } }),
+  });
+  // Where a reply goes: the mail's own address, else its sender's.
+  const replyTo = input.replyTo ?? prepared.sender.replyTo ?? undefined;
   for (const gone of prepared.missing) {
     deps.logger?.warn(
       { templateKey: input.templateKey, attachmentId: gone.id, fileId: gone.fileId },
@@ -770,7 +796,7 @@ export async function enqueueEmail(
       locale,
       rendered,
       from: prepared.from,
-      ...(input.replyTo === undefined ? {} : { replyTo: input.replyTo }),
+      ...(replyTo === undefined ? {} : { replyTo }),
       attachments: [...prepared.attachments, ...generated, ...(input.attachments ?? [])],
       report: input.report,
       ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
@@ -783,15 +809,23 @@ export async function enqueueEmail(
 }
 
 /**
- * The From a document goes out with: its configured sender, else the
- * transport's `email.smtp.from`; null with no mail set up. What a marketing
- * send's sender checks are about.
+ * The From a document goes out with: its sender's (a workspace's, for mail
+ * about a record: `about`), else its configured sender, else the transport's
+ * `email.smtp.from`; null with no mail set up. What a marketing send's sender
+ * checks are about.
  */
-export async function fromOf(meta: MetaDb, brand: EmailBrand | null): Promise<string | null> {
+export async function fromOf(meta: MetaDb, brand: EmailBrand | null, about?: SendAbout | MailSender): Promise<string | null> {
+  return (await senderFor(meta, brand, about)).from;
+}
+
+/** {@link fromOf}, with the sender it goes as (its postal address and reply-to, for the marketing checks and carry). */
+export async function senderFor(meta: MetaDb, brand: EmailBrand | null, about?: SendAbout | MailSender): Promise<{ from: string | null; sender: MailSender }> {
+  const sender = about === undefined ? SERVER_SENDER : 'workspace' in about ? about : await resolveMailSender(meta, about);
+  if (sender.from !== null) return { from: sender.from, sender };
   const settings = settingsRepo(meta);
   const [smtp, senders] = await Promise.all([settings.get('email.smtp'), settings.get('email.senders')]);
   const configured = [...(smtp === null ? [] : [smtp.from]), ...senders.map((s) => (s.name.trim() === '' ? s.address : `${s.name} <${s.address}>`))];
-  return senderHeader(brand, configured) ?? smtp?.from ?? null;
+  return { from: senderHeader(brand, configured) ?? smtp?.from ?? null, sender };
 }
 
 /** True when this instance can actually deliver mail right now. */

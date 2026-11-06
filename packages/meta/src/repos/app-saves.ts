@@ -32,6 +32,9 @@ export interface CreateAppSaveInput {
   integrity: string;
   bytes: number;
   fileId?: string | null;
+  name?: string | null;
+  description?: string | null;
+  icon?: string | null;
 }
 
 /** A version of a key that was saved before: it is never saved again. */
@@ -51,7 +54,7 @@ export function appSavesRepo(meta: MetaDb) {
         .where('version', '=', input.version)
         .executeTakeFirst();
       if (held !== undefined) throw new AppVersionSaved(`${input.appKey} ${input.version}`);
-      const row: AppSave = { id: newId('asv'), ...input, fileId: input.fileId ?? null, savedAt: at };
+      const row: AppSave = { id: newId('asv'), ...input, fileId: input.fileId ?? null, name: input.name ?? null, description: input.description ?? null, icon: input.icon ?? null, savedAt: at };
       await db.insertInto('adminium_app_saves').values(row).execute();
       return row;
     },
@@ -209,7 +212,16 @@ export interface WorkspaceInstallApp {
   integrity: string;
   /** The connection chosen to install on; null until chosen. */
   target: string | null;
-  state: 'pending' | 'installed' | 'refused' | 'stopped';
+  /**
+   * `pending` until run; `installed` or `updated` when done (an app already at
+   * its version on its target is `installed`); `refused` when its own checks
+   * said no, the others still installing; `stopped` when the run stopped at it.
+   */
+  state: 'pending' | 'installed' | 'updated' | 'refused' | 'stopped';
+  /** The app's name, as its manifest gives it. */
+  name?: string;
+  /** Why it was refused or where it stopped: a stable reason and a sentence. */
+  reason?: string;
   error?: string;
 }
 
@@ -223,6 +235,8 @@ export interface WorkspaceInstall {
   state: WorkspaceInstallState;
   runLock: string | null;
   lockedAt: number | null;
+  /** The file's `workspace.json` as uploaded; null on a row from before 0082. */
+  document: string | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -245,13 +259,24 @@ export function workspaceInstallsRepo(meta: MetaDb) {
   }
   return {
     findById,
-    async create(input: { integrity: string; staged: string; name: string; apps: WorkspaceInstallApp[]; createdBy: string | null }, at: number = Date.now()): Promise<WorkspaceInstall> {
+    async create(input: { integrity: string; staged: string; name: string; apps: WorkspaceInstallApp[]; document?: string | null; createdBy: string | null }, at: number = Date.now()): Promise<WorkspaceInstall> {
       const id = newId('wsi');
       await db
         .insertInto('adminium_workspace_installs')
-        .values({ id, ...input, apps: packJson(input.apps), workspaceChoice: null, state: 'staged', runLock: null, lockedAt: null, createdAt: at, updatedAt: at })
+        .values({ id, ...input, document: input.document ?? null, apps: packJson(input.apps), workspaceChoice: null, state: 'staged', runLock: null, lockedAt: null, createdAt: at, updatedAt: at })
         .execute();
       return (await findById(id))!;
+    },
+    /** The installs not done and not discarded, newest first: what the review may still finish. */
+    async listOpen(): Promise<WorkspaceInstall[]> {
+      const rows = await db
+        .selectFrom('adminium_workspace_installs')
+        .selectAll()
+        .where('state', 'not in', ['done', 'discarded'])
+        .orderBy('createdAt', 'desc')
+        .orderBy('id', 'desc')
+        .execute();
+      return rows.map(workspaceInstall);
     },
     async update(id: string, patch: { apps?: WorkspaceInstallApp[]; workspaceChoice?: WorkspaceInstall['workspaceChoice']; state?: WorkspaceInstallState }, at: number = Date.now()): Promise<void> {
       await db

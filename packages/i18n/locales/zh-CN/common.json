@@ -2017,6 +2017,33 @@
       "close": "关闭"
     }
   },
+  "shownIn": {
+    "label": "显示于",
+    "all": "所有工作区",
+    "chosen": "仅这些工作区",
+    "none": "无工作区",
+    "noneHint": "未在任何工作区列出。勾选一个即可在那里列出。已在使用它的内容仍会发送它。",
+    "unseen": "{count, plural, other {还显示在 # 个你看不到的工作区中。}}",
+    "unseenChip": "{count, plural, other {另外 # 个工作区}}",
+    "filter": {
+      "label": "工作区",
+      "other": "其他数据库"
+    },
+    "hidden": {
+      "here": "未在 {workspace} 中列出。使用它的内容仍会发送它。",
+      "other": "未在此处列出。使用它的内容仍会发送它。"
+    },
+    "kind": {
+      "emailTemplate": "邮件模板",
+      "report": "报告布局",
+      "invoice": "发票布局"
+    },
+    "deletePlan": {
+      "lead": "{count, plural, other {有 # 项仅在此处列出。删除后，它们将不在任何工作区中列出：}}",
+      "after": "它们会保留，使用它们的内容仍会发送它们。你之后可以为它们选择新的工作区。"
+    },
+    "saveFailed": "无法更改它的列出位置"
+  },
   "appCopies": {
     "retired": {
       "body": "它已不在这个地址。请打开你要找的那一份：",

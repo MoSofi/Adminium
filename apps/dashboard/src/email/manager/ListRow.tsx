@@ -10,12 +10,15 @@ import type { MouseEvent, ReactNode } from 'react';
 import { cn } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
+import { ShownInChips, ShownInHeader } from '../../shown-in/ShownIn.js';
 import { RenameInput, type DocumentCardProps } from './GalleryCard.js';
 import { CategoryIcon } from './GroupHeader.js';
 import { DocumentStatusPill, LangPill } from './Pills.js';
 import { accentOf, statusOf } from './model.js';
 
 const GRID = 'grid grid-cols-[minmax(150px,1.6fr)_74px_92px_96px_108px] gap-2.5 px-[18px]';
+/** With workspaces on the server: a "Shown in" column before Updated (the Workspaces comp's `s5-mail`). */
+const GRID_SHOWN_IN = 'grid grid-cols-[minmax(150px,1.6fr)_74px_92px_minmax(130px,1.1fr)_96px_108px] gap-2.5 px-[18px]';
 
 /** The 30 px square action of a row (comp 445-447): surface fill, not surface-2. */
 function RowAction({ label, onClick, children, testId }: { label: string; onClick: () => void; children: ReactNode; testId?: string | undefined }) {
@@ -36,18 +39,19 @@ function RowAction({ label, onClick, children, testId }: { label: string; onClic
   );
 }
 
-export function ListHeader() {
+export function ListHeader({ shownIn = false }: { shownIn?: boolean | undefined }) {
   return (
     <div
       role="row"
       className={cn(
-        GRID,
+        shownIn ? GRID_SHOWN_IN : GRID,
         'border-b border-border bg-surface-2 py-[11px] text-[10.5px] font-bold uppercase tracking-[.05em] text-fg-subtle',
       )}
     >
       <span role="columnheader">{t('email:list.name', 'Name')}</span>
       <span role="columnheader">{t('email:list.lang', 'Lang')}</span>
       <span role="columnheader">{t('email:list.status', 'Status')}</span>
+      {shownIn ? <ShownInHeader /> : null}
       <span role="columnheader">{t('email:list.updated', 'Updated')}</span>
       <span role="columnheader" className="text-end">
         {t('email:list.actions', 'Actions')}
@@ -59,9 +63,11 @@ export function ListHeader() {
 export interface ListRowProps extends DocumentCardProps {
   /** "2 days ago" — `null` renders the dash. */
   updated: string | null;
+  /** Draw the "Shown in" cell (the server has workspaces). */
+  shownIn?: boolean | undefined;
 }
 
-export function ListRow({ doc, facts, archived, actions, rename, updated }: ListRowProps) {
+export function ListRow({ doc, facts, archived, actions, rename, updated, shownIn = false }: ListRowProps) {
   const accent = accentOf(doc);
   const status = statusOf(doc);
   const renaming = rename !== null && rename.id === doc.id;
@@ -81,7 +87,7 @@ export function ListRow({ doc, facts, archived, actions, rename, updated }: List
       data-id={doc.id}
       onClick={onRowClick}
       className={cn(
-        GRID,
+        shownIn ? GRID_SHOWN_IN : GRID,
         'group items-center border-b border-border py-[13px] transition-colors last:border-b-0 hover:bg-surface-2',
         archived ? 'opacity-80' : 'cursor-pointer',
       )}
@@ -117,6 +123,11 @@ export function ListRow({ doc, facts, archived, actions, rename, updated }: List
       <span role="cell">
         <DocumentStatusPill status={status} />
       </span>
+      {shownIn ? (
+        <span role="cell" className="min-w-0">
+          <ShownInChips shownIn={doc.shownIn} />
+        </span>
+      ) : null}
       <span role="cell" className="text-[12px] text-fg-muted">
         {updated ?? '—'}
       </span>
@@ -155,10 +166,10 @@ export function ListRow({ doc, facts, archived, actions, rename, updated }: List
 }
 
 /** The surrounding card + header (comp 417-421); rows go inside. */
-export function ListTable({ label, children }: { label: string; children: ReactNode }) {
+export function ListTable({ label, children, shownIn = false }: { label: string; children: ReactNode; shownIn?: boolean | undefined }) {
   return (
     <div role="table" aria-label={label} className="overflow-hidden rounded-[15px] border border-border bg-surface shadow-card">
-      <ListHeader />
+      <ListHeader shownIn={shownIn} />
       {children}
     </div>
   );

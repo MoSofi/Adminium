@@ -13,6 +13,7 @@
  * a "template" and a "campaign" are the same row with a different `kind`.
  */
 import { api } from '../app/api.js';
+import type { ShownIn } from '../shown-in/model.js';
 
 const BASE = '/api/v1/email-templates';
 
@@ -295,6 +296,8 @@ export interface EmailDocumentSummary {
   /** The family's label — the `en_US` sibling's name, else the first sibling's.
    * */
   topicLabel: string;
+  /** Where it is listed: every workspace, or the chosen ones. Absent in a reply cached from before, which reads as every workspace. */
+  shownIn?: ShownIn | undefined;
   run?: EmailRunView | undefined;
 }
 
@@ -334,6 +337,8 @@ export interface EmailDocumentDetail extends EmailDocumentSummary {
   vars: string[];
   languages: EmailLanguageView[];
   attachmentsResolved: EmailAttachmentResolved[];
+  /** "Send as" (`sendAs.ts`): null = by the record's workspace, `server`, or a workspace id. Optional for older fixtures. */
+  sendAs?: string | null;
 }
 
 export interface EmailStarterCard {
@@ -363,6 +368,8 @@ export interface EmailListParams {
   q?: string | undefined;
   /** Only the documents one installed app brought. */
   app?: string | undefined;
+  /** Only those listed in this workspace (it only narrows). */
+  workspaceId?: string | undefined;
 }
 
 export interface EmailCreateBody {
@@ -390,6 +397,8 @@ export interface EmailPatchBody {
   archived?: boolean | undefined;
   /** A person has read what the assistant wrote and says it looks right. */
   reviewed?: true | undefined;
+  /** Where it is listed; every language of its key follows. */
+  shownIn?: ShownIn | undefined;
 }
 
 export interface EmailTestSendReply {
@@ -438,6 +447,7 @@ function listPath(params: EmailListParams): string {
   if (params.archived === true) query.set('archived', 'true');
   if (params.q !== undefined && params.q !== '') query.set('q', params.q);
   if (params.app !== undefined) query.set('app', params.app);
+  if (params.workspaceId !== undefined) query.set('workspaceId', params.workspaceId);
   const qs = query.toString();
   return qs === '' ? BASE : `${BASE}?${qs}`;
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -1305,5 +1305,32 @@ export default {
       "save": "Record consent",
       "close": "Close"
     }
+  },
+  "shownIn": {
+    "label": "Shown in",
+    "all": "All workspaces",
+    "chosen": "Only these workspaces",
+    "none": "No workspace",
+    "noneHint": "Listed in no workspace. Tick one to list it there. Anything that already uses it still sends it.",
+    "unseen": "{count, plural, one {Also shown in # workspace you can’t see.} other {Also shown in # workspaces you can’t see.}}",
+    "unseenChip": "{count, plural, one {# other workspace} other {# other workspaces}}",
+    "filter": {
+      "label": "Workspace",
+      "other": "Other databases"
+    },
+    "hidden": {
+      "here": "Not listed in {workspace}. Anything that uses it still sends it.",
+      "other": "Not listed here. Anything that uses it still sends it."
+    },
+    "kind": {
+      "emailTemplate": "Email template",
+      "report": "Report layout",
+      "invoice": "Invoice layout"
+    },
+    "deletePlan": {
+      "lead": "{count, plural, one {# item is listed only here. After the delete it is listed in no workspace:} other {# items are listed only here. After the delete they are listed in no workspace:}}",
+      "after": "They stay, and anything that uses them still sends them. You can choose new workspaces for them later."
+    },
+    "saveFailed": "Couldn’t change where it is listed"
   }
 } as const;

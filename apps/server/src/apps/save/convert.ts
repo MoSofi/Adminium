@@ -78,6 +78,7 @@ export async function convertToApp(source: SaveSource, choices: SaveChoices): Pr
     publisher: { id: 'local', name: choices.label },
     license: 'UNLICENSED',
     description: { key: `${choices.key}.description`, fallback: choices.description?.trim() || choices.name },
+    ...(choices.icon === undefined ? {} : { icon: choices.icon }),
     categories: ['operations'],
     compatibility: { minAdminiumVersion: '0.0.0' },
     requiredSchema: { tables: [] },
@@ -96,19 +97,20 @@ export async function convertToApp(source: SaveSource, choices: SaveChoices): Pr
 }
 
 /**
- * The running version when a page carries an envelope or views
- * (their config is this version's, and an older target cannot be trusted to
- * read it); otherwise the highest word floor the file uses.
+ * The highest word floor the file uses; when a page carries an envelope or
+ * views, at least the running version too (their config is this version's,
+ * and an older target cannot be trusted to read it). Never below a floor: a
+ * build running before the release that brings a word would otherwise stamp
+ * a version the file's own words refuse.
  */
 export function minimumVersion(manifest: AppManifest, running: string): string {
-  const carriesConfig = manifest.pages.some((page) => page.envelope !== undefined || page.views !== undefined);
-  if (carriesConfig) return running;
   let highest = '0.0.0';
   for (const { word } of installFloorWords(manifest)) {
     const floor = (WORD_FLOORS as Record<string, string | undefined>)[word];
     if (floor !== undefined && compareVersions(floor, highest) > 0) highest = floor;
   }
-  return highest;
+  const carriesConfig = manifest.pages.some((page) => page.envelope !== undefined || page.views !== undefined);
+  return carriesConfig && compareVersions(running, highest) > 0 ? running : highest;
 }
 
 function compareVersions(a: string, b: string): number {

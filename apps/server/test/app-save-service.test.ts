@@ -14,12 +14,15 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { gunzipSync } from 'node:zlib';
 
+import { WORD_FLOORS, type AppManifest } from '@adminium/manifest';
 import { appSavesRepo, filesRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { runCli } from '../src/cli/run.js';
 import type { CliRuntime } from '../src/cli/runtime.js';
+import { minimumVersion } from '../src/apps/save/convert.js';
 import { createSaveService, nextVersion, packManifest, type SaveRights } from '../src/apps/save/service.js';
+import { createWorkspaceSaveService } from '../src/apps/save/workspace.js';
 import { runIntrospection } from '../src/connections/introspect.js';
 import { runGeneration } from '../src/generate/run.js';
 import { AppError, errorEnvelope } from '../src/errors.js';
@@ -63,7 +66,8 @@ async function serve(h: Harness, dialect: Dialect, files: FileStore) {
     if (error instanceof AppError) return reply.status(error.statusCode).send(errorEnvelope(error.code, error.message, 'req_test', error.details));
     return reply.status(500).send(errorEnvelope('INTERNAL', String(error), 'req_test'));
   });
-  await app.register(appSaveRoutes({ meta: h.meta, service }));
+  const workspaces = createWorkspaceSaveService({ meta: h.meta, save: service, adminiumVersion: '0.3.49', dialectOf: async (id) => (id === h.connectionId ? dialect : null), displayName: async () => 'Corner shop' });
+  await app.register(appSaveRoutes({ meta: h.meta, service, workspaces }));
   await app.ready();
   return { service, app };
 }
@@ -130,6 +134,38 @@ describe.each(ENGINES)('save as app: the service on %s', (dialect, available) =>
   });
 });
 
+describe.each(ENGINES)('save as app: what a database could include, on %s', (dialect, available) => {
+  let harness: Harness | null = null;
+  afterEach(async () => {
+    await harness?.close();
+    harness = null;
+  });
+
+  it.runIf(available)('lists the tables with their links, the generated pages with their tables, and what the saver may do', async () => {
+    harness = await installHarness(dialect);
+    const h = harness;
+    await shopTables(h);
+    const { service } = await serve(h, dialect, library());
+    const inventory = await service.inventory(h.connectionId, ALL);
+    const byName = new Map(inventory.tables.map((table) => [table.name, table]));
+    expect([...byName.keys()].sort()).toEqual(['customers', 'orders']);
+    const customers = byName.get('customers')!;
+    expect(byName.get('orders')!.links).toEqual([{ column: 'customer_id', to: customers.id, required: false }]);
+    expect(customers).toMatchObject({ columns: 2, rowsAllowed: true, personalAllowed: true });
+    expect(inventory.pages.length).toBeGreaterThan(0);
+    expect(inventory.pages.every((page) => page.generated)).toBe(true);
+    expect(new Set(inventory.pages.map((page) => page.tableId).filter((id) => id !== null))).toEqual(new Set([customers.id, byName.get('orders')!.id]));
+    expect(inventory).toMatchObject({ views: [], roles: [], automations: [], emailTemplates: [], payments: false, instance: true });
+
+    // A person who may not export: the structure goes, the rows may not.
+    const noExport: SaveRights = { userId: null, can: async (grant) => !grant.endsWith(':export') && grant !== 'system:settings:manage', readsWhole: async () => true };
+    const theirs = await service.inventory(h.connectionId, noExport);
+    expect(theirs.tables.every((table) => !table.rowsAllowed)).toBe(true);
+    expect(theirs.instance).toBe(false);
+    await expect(service.inventory('conn_missing', ALL)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
 describe('save as app: the routes', () => {
   let harness: Harness | null = null;
   afterEach(async () => {
@@ -150,7 +186,7 @@ describe('save as app: the routes', () => {
     expect(Object.keys(plan).sort()).toEqual(['check', 'counts', 'key', 'label', 'lineage', 'minAdminiumVersion', 'problems', 'ready', 'version']);
     expect(plan['ready'], JSON.stringify(plan)).toBe(true);
 
-    const saved = await app.inject({ method: 'POST', url: '/apps/save', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop' } });
+    const saved = await app.inject({ method: 'POST', url: '/apps/save', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', icon: 'shopping-bag' } });
     expect(saved.statusCode, saved.body).toBe(200);
     const save = saved.json().save as { id: string; integrity: string; bytes: number; filename: string };
     expect(save).toMatchObject({ key: 'corner-shop', version: '1.0.0', filename: 'corner-shop-1.0.0.tgz' });
@@ -162,6 +198,15 @@ describe('save as app: the routes', () => {
     const list = await app.inject({ method: 'GET', url: '/apps/saves' });
     expect(list.statusCode).toBe(200);
     expect(list.json().saves).toEqual([expect.objectContaining({ id: save.id, key: 'corner-shop', version: '1.0.0', connectionId: h.connectionId, label: 'Corner shop', downloadable: true, integrity: save.integrity, bytes: save.bytes })]);
+    expect(Object.keys(list.json().saves[0]).sort()).toEqual(['bytes', 'connectionId', 'description', 'downloadable', 'icon', 'id', 'integrity', 'key', 'label', 'name', 'savedAt', 'savedBy', 'savedByName', 'version']);
+    expect(list.json().saves[0]).toMatchObject({ name: 'Corner shop', description: null, icon: 'shopping-bag', savedBy: null, savedByName: null });
+
+    const inventory = await app.inject({ method: 'GET', url: `/apps/save/inventory?connectionId=${h.connectionId}` });
+    expect(inventory.statusCode, inventory.body).toBe(200);
+    expect(Object.keys(inventory.json().inventory).sort()).toEqual([
+      'automations', 'connectionId', 'documents', 'emailTemplates', 'instance', 'invoiceLayouts', 'pages', 'payments', 'publicEndpoints', 'reports', 'roles', 'scheduledReports', 'tables', 'views',
+    ]);
+    expect(Object.keys(inventory.json().inventory.tables[0]).sort()).toEqual(['columns', 'id', 'links', 'name', 'personal', 'personalAllowed', 'rows', 'rowsAllowed', 'rowsExact', 'secretLike']);
 
     const download = await app.inject({ method: 'GET', url: `/apps/save/${save.id}/file` });
     expect(download.statusCode).toBe(200);
@@ -172,12 +217,25 @@ describe('save as app: the routes', () => {
     const row = (await appSavesRepo(h.meta).findById(save.id))!;
     expect(await filesRepo(h.meta).findById(row.fileId!)).toMatchObject({ kind: 'export', filename: 'corner-shop-1.0.0.tgz' });
     expect(gunzipSync(bytes).toString('latin1')).toContain('package/manifest.json');
+    // The icon is in the file, as a self-made app's own word.
+    expect(gunzipSync(bytes).toString('utf8')).toContain('"icon": "shopping-bag"');
+    expect((await app.inject({ method: 'POST', url: '/apps/save/plan', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', icon: 'Not An Icon' } })).statusCode).not.toBe(200);
 
     expect((await app.inject({ method: 'GET', url: '/apps/save/asv_missing/file' })).statusCode).toBe(404);
   });
 });
 
 describe('save as app: the version and the package', () => {
+  it('stamps the minimum Adminium at the file\'s word floors, and at the running version for a page\'s own config', () => {
+    const page = { ref: 'orders', template: 'page-crud', title: { key: 't', fallback: 'Orders' }, nav: { group: 'records', icon: 'list', order: 1 } };
+    const plain = { pages: [page] } as unknown as AppManifest;
+    const arranged = { pages: [{ ...page, envelope: { v: 1, kind: 'page', template: 'page-crud', config: {} } }], provenance: { lineage: 'l', savedAt: 'x', adminiumVersion: '0.3.48', label: 'x' } } as unknown as AppManifest;
+    expect(minimumVersion(plain, '0.4.0')).toBe('0.0.0');
+    // A build running below the floor of the words it writes still stamps the floor.
+    expect(minimumVersion(arranged, '0.3.48')).toBe(WORD_FLOORS['page.envelope']);
+    expect(minimumVersion(arranged, '0.4.0')).toBe('0.4.0');
+  });
+
   it('numbers versions from 1.0.0, then the patch after the highest', () => {
     expect(nextVersion([])).toBe('1.0.0');
     expect(nextVersion([{ version: '1.0.9' }, { version: '1.0.10' }, { version: '1.0.2' }])).toBe('1.0.11');

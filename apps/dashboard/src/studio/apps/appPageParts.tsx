@@ -5,9 +5,21 @@
  * and its workspace chips.
  */
 import type { ReactNode } from 'react';
-import { MonoText, cn } from '@adminium/ui';
+import { MonoText, cn, pascalCaseIconName, useLucideIcon } from '@adminium/ui';
+import { Package } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
+
+/**
+ * An app's glyph: the icon its manifest names (a self-made app's, a lucide
+ * name), else the package glyph every app had. An unknown name, or one still
+ * loading, draws the package too.
+ */
+export function AppIcon({ icon, className }: { icon?: string | undefined; className?: string }) {
+  const glyph = useLucideIcon(icon === undefined || icon === '' ? '' : pascalCaseIconName(icon));
+  const Glyph = icon === undefined || icon === '' || glyph == null ? Package : glyph;
+  return <Glyph aria-hidden className={className} />;
+}
 
 export const CARD = 'rounded-[14px] border border-border bg-surface px-[19px] py-[18px] shadow-sm';
 

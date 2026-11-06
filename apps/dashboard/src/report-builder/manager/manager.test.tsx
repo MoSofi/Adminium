@@ -79,6 +79,8 @@ function detail(summary: ReportSummary): ReportDetail {
 interface Fixture {
   templates?: ReportSummary[];
   reports?: ReportSummary[];
+  /** Bootstrap's `workspaces` block: the server has workspaces. */
+  workspaces?: unknown;
 }
 
 interface Call {
@@ -107,7 +109,7 @@ function stubFetch(fixture: Fixture) {
     const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : null;
     calls.push({ method, url, body });
     if (url.startsWith('/api/v1/bootstrap')) {
-      return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ roles: ['super-admin'], nav: { groups: [] } }) }));
+      return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ roles: ['super-admin'], nav: { groups: [] }, ...(fixture.workspaces === undefined ? {} : { workspaces: fixture.workspaces }) } as never) }));
     }
     if (method === 'GET' && (url === '/api/v1/report-documents' || url.startsWith('/api/v1/report-documents?'))) {
       const kind = new URL(url, 'http://test').searchParams.get('kind');
@@ -389,3 +391,39 @@ describe('the empty states (M8) and the New modal (M15)', () => {
     expect(screen.queryByTestId('report-your-templates')).toBeNull();
   });
 });
+
+describe('"Shown in" (a server with workspaces)', () => {
+  const WORKSPACES = {
+    workspaces: [
+      { id: 'wsp_fc', name: 'Fernhill Coffee', initials: 'FC', position: 0, connectionIds: ['c1'] },
+      { id: 'wsp_ks', name: 'Kiln Street Pottery', initials: 'KS', position: 1, connectionIds: ['c2'] },
+    ],
+    otherDatabases: null,
+    workspaceView: 'all',
+    lastWorkspaceId: null,
+    manage: true,
+  };
+  const shown = (doc: ReportSummary, workspaceIds: string[] | null): ReportSummary => ({ ...doc, shownIn: workspaceIds === null ? { mode: 'all', workspaceIds: [] } : { mode: 'chosen', workspaceIds } });
+
+  it('draws where each layout is listed, and the Workspace filter narrows the list it asks for', async () => {
+    const [exec, weekly, score, sales] = seedTemplates();
+    const templates = [shown(exec!, null), shown(weekly!, ['wsp_ks']), shown(score!, ['wsp_fc', 'wsp_ks']), shown(sales!, [])];
+    const { user, calls } = await renderPage({ templates, reports: seedReports(), workspaces: WORKSPACES });
+    const cards = screen.getAllByTestId('report-card');
+    expect(within(cards[0]!).getByTestId('shown-in-all').textContent).toBe('All workspaces');
+    expect(within(cards[1]!).getAllByTestId('workspace-chip').map((chip) => chip.textContent)).toEqual(['KSKiln Street Pottery']);
+    expect(within(cards[3]!).getByTestId('shown-in-none').textContent).toBe('No workspace');
+
+    await user.selectOptions(screen.getByLabelText('Workspace'), 'wsp_fc');
+    await waitFor(() => expect(calls.some((call) => call.method === 'GET' && call.url.includes('workspaceId=wsp_fc'))).toBe(true));
+    // Shown in all, or chosen there: the cut is the server's and the list's own.
+    await waitFor(() => expect(cardNames()).toEqual(['Executive summary', 'KPI scorecard']));
+  });
+
+  it('draws nothing of it on a server with no workspaces', async () => {
+    await renderPage({ templates: seedTemplates() });
+    expect(screen.queryByLabelText('Workspace')).toBeNull();
+    expect(screen.queryByTestId('shown-in-all')).toBeNull();
+  });
+});
+

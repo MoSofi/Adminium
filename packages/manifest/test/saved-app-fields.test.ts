@@ -200,6 +200,22 @@ describe('the fields a dashboard\'s tables are described with', () => {
   });
 });
 
+describe('a self-made app\'s icon', () => {
+  it('is a lucide name a self-made app carries, and nothing else', () => {
+    const validated = local(shop({ icon: 'shopping-bag' }));
+    expect(validated.ok && validated.manifest.kind === 'app' ? validated.manifest.icon : null).toBe('shopping-bag');
+    expect(issues(shop({ icon: 'coffee' }))).toBe('');
+    for (const bad of ['Coffee', 'shopping_bag', 'cup--soda', '-leaf', '<svg>', 'x'.repeat(61)]) expect(issues(shop({ icon: bad })), bad).toContain('icon');
+    expect(issues(shop({ publisher: { id: 'adminium', name: 'Adminium' }, icon: 'coffee' }))).toContain('icon: "icon" is carried only by a self-made app');
+  });
+
+  it('is read from 0.3.49, and found where the file writes it', () => {
+    expect(WORD_FLOORS['app.icon']).toBe('0.3.49');
+    expect(installFloorWords(shop({ icon: 'leaf' })).filter((word) => word.word === 'app.icon')).toEqual([{ word: 'app.icon', path: 'icon' }]);
+    expect(issues(shop({ icon: 'leaf', compatibility: { minAdminiumVersion: '0.3.48' } }))).toContain('"app.icon" is read by Adminium 0.3.49');
+  });
+});
+
 describe('an app\'s mail: its kind, what it is for, its brand, the files it carries', () => {
   const template = (over: Doc = {}): Doc => ({
     key: 'shop-news',
@@ -245,6 +261,7 @@ describe('the words and their floor', () => {
     'page.envelope',
     'page.views',
     'app.provenance',
+    'app.icon',
     'column.time',
     'column.precision',
     'column.hidden',
@@ -272,6 +289,7 @@ describe('the words and their floor', () => {
   it('are found where the document writes them', () => {
     const m = shop({
       provenance: PROVENANCE,
+      icon: 'coffee',
       pages: [page({ envelope: ENVELOPE, views: VIEWS })],
       optionLists: { sizes: { label: 'Sizes', values: [{ value: 's', description: 'Small' }] } },
       emailTemplates: [{ key: 'shop-news', kind: 'campaign', category: 'marketing', brand: {}, attachments: [], locales: {} }],

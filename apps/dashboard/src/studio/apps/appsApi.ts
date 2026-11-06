@@ -15,7 +15,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import type { DesiredColumn, SchemaPlan } from '../remap/design/types.js';
-import { api, csrfHeaders, installOptions } from '../../app/api.js';
+import { ApiError, api, csrfHeaders, installOptions } from '../../app/api.js';
 import type { SurfaceSide } from './hostedAppsApi.js';
 
 export interface InstalledAppSide {
@@ -62,6 +62,8 @@ export interface InstalledApp {
   connectionName?: string | null;
   /** The manifest's display name. */
   name?: string;
+  /** A self-made app's icon: a lucide name from the pinned set. */
+  icon?: string;
   /** A self-made app's file: where and when it was made. */
   madeAt?: { label: string | null; savedAt: string; adminiumVersion: string };
   /** A later install of an app whose screens know one database: its screens open for the first install only. */
@@ -81,6 +83,12 @@ export interface InstalledApp {
   };
   installedAt: number;
   connectionId: string | null;
+  /**
+   * This copy's update moved its version and stopped part way: from, to, and
+   * the step it stopped at (null when unknown). The same update finishes it.
+   * Absent otherwise, and from an older server.
+   */
+  unfinishedUpdate?: { from: string; to: string; stage: string | null };
   sides: InstalledAppSide[];
   /** The app has a phone app for customers: served to nobody, with a key of its own. Absent otherwise, and from an older server. */
   phone?: true;
@@ -205,15 +213,41 @@ export function downloadApp(key: string, version: string): Promise<{ jobId: stri
 export function updateApp(
   key: string,
   /** The check the operator saw for the new version: its checksum, what they chose, and their say on its public access. */
-  checked?: { planChecksum?: string; choices?: InstallAnswers['choices']; shares?: InstallAnswers['shares']; publicAccess?: boolean; roleTables?: boolean; roleGrants?: boolean },
-  /** Which copy: every copy of a key moves to the same version, one at a time. */
-  install: string | null = null,
+  checked?: UpdateAnswers,
+  /** Which copy: the database it is installed on. Absent for a key installed once. */
+  connectionId?: string | null,
 ): Promise<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }> {
+  const copy = connectionId === undefined || connectionId === null ? '' : `?connectionId=${encodeURIComponent(connectionId)}`;
   return api.post<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }>(
-    `/api/v1/apps/${encodeURIComponent(key)}/update`,
+    `/api/v1/apps/${encodeURIComponent(key)}/update${copy}`,
     checked,
-    installOptions(install),
   );
+}
+
+/** What an update sends of its check: the plan's checksum, the answers, and the says on what it adds. Mirrors `updateAppBody`. */
+export interface UpdateAnswers {
+  planChecksum?: string;
+  choices?: InstallAnswers['choices'];
+  shares?: InstallAnswers['shares'];
+  pages?: InstallAnswers['pages'];
+  existing?: InstallAnswers['existing'];
+  instance?: InstallAnswers['instance'];
+  instanceHosts?: InstallAnswers['instanceHosts'];
+  publicAccess?: boolean;
+  roleTables?: boolean;
+  roleGrants?: boolean;
+}
+
+/**
+ * The details of a 409 `APP_UPDATE_INCOMPLETE`: the step the update stopped
+ * at, the version it came from and the one it goes to. The same update sent
+ * again finishes it.
+ */
+export interface UpdateStoppedDetails {
+  stage: string;
+  from: string;
+  to: string;
+  cause: string;
 }
 
 /** One table the rename to the app's prefix moves. */
@@ -645,6 +679,28 @@ export interface StagedApp {
   sides: SurfaceSide[];
   /** Who the manifest says made it; `local` is an app made on this install. Absent from an older server. */
   publisher?: { id: string; name: string };
+  /**
+   * Where the file goes (one version per app, a copy per database):
+   * `install` — the key is installed nowhere; `update` — newer than every
+   * copy, which it updates one review each; `install-another` — the same
+   * version, for a database without a copy. Absent from an older server and
+   * for an app picked off the shelf, which read as `install`.
+   */
+  route?: 'install' | 'update' | 'install-another';
+  /** The copies already installed, each on its database. */
+  installs?: StagedInstall[];
+  /** The databases with no copy of the key yet. */
+  databasesFree?: number;
+}
+
+/** One copy of an app already installed, as the upload's reply lists it. */
+export interface StagedInstall {
+  installId: string;
+  connectionId: string | null;
+  connectionName: string;
+  slug: string;
+  version: string;
+  status: string;
 }
 
 /** The publisher id of an app made on the install it runs on. */
@@ -700,13 +756,18 @@ export async function uploadApp(
     body: file,
   });
   const body = (await response.json().catch(() => null)) as
-    | (StagedApp & { error?: { message?: unknown } })
+    | (StagedApp & { error?: { code?: unknown; message?: unknown; details?: unknown } })
     | null;
   if (!response.ok) {
-    throw new Error(
+    // An ApiError, so a refusal's reason and details (which database has which version) reach the screen.
+    throw new ApiError(
+      response.status,
+      typeof body?.error?.code === 'string' ? body.error.code : 'UPLOAD_FAILED',
       typeof body?.error?.message === 'string'
         ? body.error.message
         : `Upload failed with status ${String(response.status)}.`,
+      null,
+      body?.error?.details,
     );
   }
   if (body === null) throw new Error('The server returned nothing.');
@@ -731,7 +792,7 @@ export interface AppInstallPlan {
     to: string;
     resolution: 'internal' | 'host' | 'unresolved';
   }[];
-  /** `connectionId`: on `APP_INSTALLED_ELSEWHERE` only, the connection the app is installed on. */
+  /** `connectionId`: on `ONE_VERSION_PER_APP` only, the database another copy of the app (on another version) is on. */
   problems: { code: string; message: string; table: string; column?: string; connectionId?: string }[];
   requiresSchemaChange: boolean;
   /**
@@ -834,6 +895,70 @@ export interface AppInstallPlan {
    * none, and from an older server.
    */
   roleTables?: PlanRoleTable[];
+  /**
+   * The app's pages whose address a page here already has: each is answered
+   * in `pages` — replace one nobody edited, rename the one here, or skip the
+   * app's. Absent when there is none.
+   */
+  pageClashes?: PageClash[];
+  /** A self-made file: "Made at {label} on {date}, Adminium {version}". */
+  madeAt?: { label: string | null; savedAt: string; adminiumVersion: string };
+  /** What the owner fills in once it is installed, each by kind, the file's entry and its field. */
+  afterInstall?: AfterInstallItem[];
+  /** The parts only a self-made file carries, counted. */
+  savedParts?: { reports: number; invoiceLayouts: number; scheduledReports: number; payments: boolean };
+  /** A self-made file's deployment-wide part, applied only when ticked. Absent for a file without one. */
+  instance?: InstancePart;
+}
+
+/** One page of the app whose address a page here already has. Mirrors `plan.pageClashes[]`. */
+export interface PageClash {
+  /** The address both pages want (`/p/<page>`). */
+  page: string;
+  /** The title of the page here. */
+  title: string;
+  holder: 'yours' | 'generated' | 'orphan';
+  /** Nobody edited the page here since it was made: only then can it be replaced. */
+  untouched: boolean;
+  offers: ('replace' | 'rename-existing' | 'skip')[];
+  action: 'replace' | 'rename-existing' | 'skip' | 'undecided';
+  renameTo?: string;
+}
+
+export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant';
+
+/** One thing the owner fills in after the install. Mirrors `plan.afterInstall[]`. */
+export interface AfterInstallItem {
+  kind: AfterInstallKind;
+  /** The file's entry: a rule's key, a schedule's key, `<table>/<kind>` of a document, a payment way, a mail's key, a role's key. */
+  item: string;
+  field: string;
+}
+
+/** A self-made file's deployment-wide part, as the review shows it. Mirrors `plan.instance`. */
+export interface InstancePart {
+  /** The permission applying it needs. */
+  needs: string;
+  settings: { key: string; from: unknown; to: unknown }[];
+  files: { setting: string; file: string; replaces: boolean }[];
+  languages: { on: string[]; off: string[] };
+  wording: { changed: number; same: number };
+  systemEmails: InstanceEmail[];
+  left: { item: string; reason: string }[];
+}
+
+/** One edited system email of the deployment-wide part. */
+export interface InstanceEmail {
+  /** `<key>/<locale>`: what `instanceHosts` is keyed by. */
+  id: string;
+  key: string;
+  locale: string;
+  subject: { from: string; to: string } | null;
+  preheaderChanged: boolean;
+  footerChanged: boolean;
+  blocks: { added: string[]; removed: string[]; changed: string[] };
+  /** Every link host it holds: each is ticked on its own, and an email with one unticked is left out. */
+  hosts: string[];
 }
 
 /** One role's hold on one of an add-on's tables, as the check shows it (mirrors the server's `roleTables`). */
@@ -921,6 +1046,14 @@ export interface InstallAnswers {
   altPrefix?: string;
   /** By shape (`menu@1`): use another installed app's tables of it, or keep separate ones. */
   shares?: Record<string, { action: 'share'; with: string } | { action: 'separate' }>;
+  /** By the app page's address: what to do where a page here already has it. */
+  pages?: Record<string, { action: 'replace' } | { action: 'rename-existing'; to: string } | { action: 'skip' }>;
+  /** `use`: every table of the app that is here already is used as it is, all at once. Never a rename. */
+  existing?: 'use';
+  /** The deployment-wide part's tick: applied over this whole server only when true. */
+  instance?: boolean;
+  /** Per edited system email (`id`): the link hosts ticked. An email with one unticked is left out. */
+  instanceHosts?: Record<string, string[]>;
 }
 
 /** Mirrors the server's `MissingColumnsEdit` (`apps/server/src/apps/missing-columns.ts`). */

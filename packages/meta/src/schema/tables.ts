@@ -741,6 +741,8 @@ export interface AdminiumEmailTemplatesTable {
   shownIn: ColumnType<string, string | undefined, string>;
   /** The hash of what the app shipped; a row that no longer hashes to it was edited. */
   contentHash: string | null;
+  /** "Send as" (wave 0080): NULL = by the record's workspace, `server`, or a workspace id. One value per key. */
+  sendAs: ColumnType<string | null, string | null | undefined, string | null>;
 }
 
 /** Saved reusable email blocks, workspace-wide. */
@@ -2052,6 +2054,10 @@ export interface AdminiumAppSavesTable {
   bytes: number;
   /** The kept copy, for "Download again". */
   fileId: Id | null;
+  /** The app's name and description as saved (wave 0086); null on a save from before it. */
+  name: string | null;
+  description: string | null;
+  icon: string | null;
 }
 
 /** What an install still needs from a person (wave 0075). */
@@ -2129,6 +2135,8 @@ export interface AdminiumWorkspaceInstallsTable {
   state: string;
   runLock: string | null;
   lockedAt: Ts | null;
+  /** The file's `workspace.json` as uploaded (0082). */
+  document: string | null;
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;

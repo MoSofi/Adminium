@@ -9,6 +9,8 @@
  *    the form's builder reads to say why); the answer is kept all the same;
  *  - every link is written on the public address, never on the host a
  *    request came to: a forged `Host` changes no link;
+ *  - the sign-up confirmation goes as the sender of the workspace the form's
+ *    database is in (its name and postal address too), else the server's;
  *  - the sign-up confirmation is service mail in the owner's fixed words (the
  *    built-in `sign-up-confirm`, reworded per language in Email templates);
  *    the one word the stranger typed in it is their first name, and only
@@ -29,6 +31,7 @@ import { signUpConfirmLines, translatorForLocale } from '../email/builtins.js';
 import { storedPublicOrigin } from '../email/door-reach.js';
 import { postalAddressOf } from '../email/sender/marketing-settings.js';
 import { enqueueEmail, isEmailConfigured, SIGN_UP_CONFIRM_TEMPLATE_KEY, type EmailLogger } from '../email/send.js';
+import { resolveMailSender } from '../email/workspace-sender.js';
 import { translatorFor } from '../i18n/server-i18n.js';
 import { businessZone, notify, type NotificationPublisher } from '../notifications/notify.js';
 import { HOUR_MS, linkFreeText, mailboxOf, NAME_RULE } from '../public-api/anonymous-caps.js';
@@ -83,6 +86,8 @@ export interface ConfirmMailInput {
   token: string;
   at: number;
   logger?: EmailLogger | undefined;
+  /** The database the form writes to: the confirmation goes as its workspace's sender. Absent or null, the server's. */
+  connectionId?: string | null | undefined;
 }
 
 /**
@@ -100,7 +105,9 @@ export async function sendConfirmMail(input: ConfirmMailInput): Promise<'sent' |
   if (!(await input.caps.once(subject, 'confirm-mail', 1, DAY_MS, input.at))) return 'held';
   const locale = localeOf(input.language);
   const { t } = await translatorForLocale(meta, locale);
-  const business = await businessName(meta, { origin });
+  // As the business whose form it is: the sender of the workspace its database is in, else the server.
+  const sender = await resolveMailSender(meta, { connectionId: input.connectionId ?? null, templateKey: SIGN_UP_CONFIRM_TEMPLATE_KEY });
+  const business = sender.name ?? (await businessName(meta, { origin }));
   const lines = signUpConfirmLines(t, { firstName: firstNameOf(input.name), purpose: input.purpose, business });
   const queued = await enqueueEmail(
     { meta, secret: input.secret, ...(input.logger === undefined ? {} : { logger: input.logger }) },
@@ -109,7 +116,8 @@ export async function sendConfirmMail(input: ConfirmMailInput): Promise<'sent' |
       templateKey: SIGN_UP_CONFIRM_TEMPLATE_KEY,
       locale,
       mailClass: 'service',
-      vars: { business, greeting: lines.greeting, purposeLine: lines.purposeLine, link: confirmUrl(origin, input.token), postal: (await postalAddressOf(meta)) ?? business },
+      sender,
+      vars: { business, greeting: lines.greeting, purposeLine: lines.purposeLine, link: confirmUrl(origin, input.token), postal: sender.postal ?? (await postalAddressOf(meta)) ?? business },
       counts: { days: CONFIRM_LINK_DAYS },
     },
   );

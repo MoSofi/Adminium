@@ -59,4 +59,22 @@ describe('save as app: answers carried out', () => {
     const answered = carryOutAnswers(m, new Map(), { leaveOut: [`${kind}:notes`] });
     expect(answered.manifest.pages.map((page) => page.ref)).toEqual(['orders']);
   });
+
+  it('takes rows answered "leave out" out of the package too, and keeps other files', () => {
+    const m = { ...manifest(), sampleData: { file: 'seeds/sample.json' } } as unknown as AppManifest;
+    const enc = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
+    const files = new Map([
+      ['seeds/orders.json', enc([{ id: 1, note: PLANTED }])],
+      ['seeds/sample.json', enc({ format: 1, tables: [{ ref: 'orders', rows: [{ id: 2, note: PLANTED }] }, { ref: 'notes', rows: [{ id: 3 }] }] })],
+      ['seeds/pictures/a.png', new Uint8Array([1, 2, 3])],
+    ]);
+    const answered = carryOutAnswers(m, files, { leaveOut: ['rows:orders'] });
+    expect(answered.manifest.seeds ?? []).toEqual([]);
+    expect(answered.files.has('seeds/orders.json')).toBe(false);
+    const sample = JSON.parse(new TextDecoder().decode(answered.files.get('seeds/sample.json'))) as { tables: { ref: string }[] };
+    expect(sample.tables.map((table) => table.ref)).toEqual(['notes']);
+    expect(answered.files.has('seeds/pictures/a.png')).toBe(true);
+    const text = [...answered.files.values()].map((bytes) => new TextDecoder().decode(bytes)).join('');
+    expect(text).not.toContain(PLANTED);
+  });
 });

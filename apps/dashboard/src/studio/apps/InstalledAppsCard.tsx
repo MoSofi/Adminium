@@ -32,7 +32,7 @@
  * invisible, undeletable package and their next upload of that key silently
  * replaces it.
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import {
@@ -46,15 +46,16 @@ import {
   IconTile,
   MonoText,
 } from '@adminium/ui';
-import { ArrowUp, ArrowUpCircle, Download, HardDrive, Info, Package, Trash2, TriangleAlert, Wand2 } from 'lucide-react';
+import { ArrowUp, ArrowUpCircle, CircleAlert, Download, HardDrive, Info, RotateCw, Trash2, TriangleAlert, Wand2 } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
 
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { DEFAULT_BRANDING, brandingQuery } from '../../app/branding.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
-import { OnDatabase, WorkspaceChips, workspacesOf } from './appPageParts.js';
+import { AppIcon, OnDatabase, WorkspaceChips, workspacesOf } from './appPageParts.js';
 import { DownloadAppDialog } from '../../apps/DownloadAppDialog.js';
 import { InstallScope, addressOf } from './installScope.js';
+import { stoppedWords } from './UpdateReviewDialog.js';
 import {
   LOCAL_PUBLISHER_ID,
   APP_CATALOG_QUERY_KEY,
@@ -96,8 +97,12 @@ export interface InstalledAppsCardProps {
   onUpdate: (app: InstalledApp, row: CatalogApp) => void;
   /** Every copy of an app to `row.updateTo`: one version per app on a server. Absent: each row updates its own copy. */
   onUpdateEvery?: (copies: InstalledApp[], row: CatalogApp) => void;
+  /** Finish this copy's update that stopped part way (`app.unfinishedUpdate`): the update dialog, then the same update again. */
+  onFinishUpdate?: ((app: InstalledApp) => void) | undefined;
   /** A download or update is in flight. */
   busy?: boolean;
+  /** A secondary action before "Install an app" in the header ("Save as app"). */
+  beforeInstall?: ReactNode;
 }
 
 /** The copies of one key next to each other, keeping the server's order of first appearance. */
@@ -114,7 +119,7 @@ export function groupCopies(apps: readonly InstalledApp[]): InstalledApp[] {
 /** The row's identity: its install, or its key on a server that names none. */
 const rowId = (app: InstalledApp): string => app.installId ?? app.key;
 
-export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, busy = false }: InstalledAppsCardProps) {
+export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, onFinishUpdate, busy = false, beforeInstall }: InstalledAppsCardProps) {
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(installedAppsQuery());
   // The workspaces for the chips: none until the bootstrap is in (it always is under the shell).
@@ -175,7 +180,8 @@ export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, busy = f
             )}
           </Badge>
         )}
-        <Button className={updateCount === 0 ? 'ms-auto' : undefined} size="sm" onClick={onInstall}>
+        {beforeInstall === undefined ? null : <span className={updateCount === 0 ? 'ms-auto' : undefined}>{beforeInstall}</span>}
+        <Button className={updateCount === 0 && beforeInstall === undefined ? 'ms-auto' : undefined} size="sm" onClick={onInstall}>
           {t('studio:hostedApps.installed.install', 'Install an app')}
         </Button>
       </CardHeader>
@@ -213,7 +219,7 @@ export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, busy = f
               return (
               <li key={rowId(app)} className="flex flex-wrap items-center gap-4" data-testid="installed-app-row">
                 <IconTile>
-                  <Package aria-hidden className="size-5" />
+                  <AppIcon icon={app.icon} className="size-5" />
                 </IconTile>
                 <div className="min-w-0 flex-[1_1_300px]">
                   <div className="flex flex-wrap items-center gap-2">
@@ -435,6 +441,22 @@ export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, busy = f
                           </Button>
                         )}
                       </div>
+                    </div>
+                  )}
+                  {/* An update of this copy that moved its version and stopped: said after a reload too, with the press that finishes it. */}
+                  {app.unfinishedUpdate === undefined || onFinishUpdate === undefined ? null : (
+                    <div
+                      data-part="unfinished-update"
+                      className="mt-2 flex flex-wrap items-center gap-2.5 rounded-[10px] border border-danger/25 bg-danger-soft px-3 py-2"
+                    >
+                      <CircleAlert aria-hidden className="size-4 shrink-0 text-danger" />
+                      <span className="min-w-0 flex-1 text-xs font-semibold text-fg">
+                        {stoppedWords({ ...app.unfinishedUpdate, stage: app.unfinishedUpdate.stage ?? '', cause: '' })}
+                      </span>
+                      <Button size="sm" disabled={busy} onClick={() => onFinishUpdate(app)}>
+                        <RotateCw aria-hidden className="size-4" />
+                        {t('studio:hostedApps.update.finish', 'Finish the update')}
+                      </Button>
                     </div>
                   )}
                   {/* An install made before its app was prefixed: the offer to

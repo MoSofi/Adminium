@@ -29,7 +29,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { invoiceDocumentsRepo, type InvoiceDocument, type MetaDb } from '@adminium/meta';
+import { invoiceDocumentsRepo, workspacesRepo, type InvoiceDocument, type MetaDb } from '@adminium/meta';
 
 import { audited } from '../../audit/coverage.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
@@ -42,6 +42,7 @@ import { summaryOf } from '../../invoices/summary.js';
 import { documentBalance, documentRef, followDocumentStatus, statusAfter } from '../../payments/document-status.js';
 import type { PayableSources } from '../../payments/payables.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { saveShownIn, shownInFilter, shownInOf } from '../../workspaces/shown-in.js';
 import {
   invoiceAddLanguageBody,
   invoiceCreateBody,
@@ -112,7 +113,8 @@ function assertDesignerCurrency(code: string | null): void {
   }
 }
 
-function summaryView(row: InvoiceDocument): InvoiceSummaryView {
+/** `links`: every invoice document's chosen workspaces (`workspacesRepo.linksOfKind`), read once per reply. */
+function summaryView(row: InvoiceDocument, links: ReadonlyMap<string, readonly string[]>): InvoiceSummaryView {
   return {
     id: row.id,
     kind: row.kind,
@@ -125,6 +127,7 @@ function summaryView(row: InvoiceDocument): InvoiceSummaryView {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     summary: row.summary,
+    shownIn: shownInOf(row.shownIn, links, row.id),
   };
 }
 
@@ -136,11 +139,20 @@ function variantName(name: string, lang: InvoiceLang): string {
 export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod {
   const { meta } = deps;
   const repo = invoiceDocumentsRepo(meta);
+  const workspaces = workspacesRepo(meta);
+  const links = () => workspaces.linksOfKind('invoice');
+
+  /** A copy (a duplicate, another language) is listed where its source is. */
+  async function shownAsSource(sourceId: string, copyId: string): Promise<InvoiceDocument | null> {
+    const shown = await workspaces.shownIn('invoice', sourceId);
+    if (shown !== null && shown.mode === 'chosen') await workspaces.setShownIn('invoice', copyId, shown.workspaceIds);
+    return repo.findById(copyId);
+  }
 
   async function detailOf(row: InvoiceDocument): Promise<InvoiceDetailView> {
     const siblings = await repo.siblings(row.kind, row.topic);
     return {
-      ...summaryView(row),
+      ...summaryView(row, await links()),
       body: normalizeInvoiceBody(row.body),
       languages: siblings.map((s) => ({ id: s.id, lang: s.lang, name: s.name, status: s.status })),
     };
@@ -164,10 +176,18 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
 
     app.get('/invoices', { schema: { querystring: invoicesListQuery, response: { 200: invoicesListReply } } }, async (request) => {
       requireUserId(request);
+      const shown = await shownInFilter(meta, request, 'invoice', request.query.workspaceId);
       const rows = await repo.list({ kind: request.query.kind });
+      const linked = await links();
       // Counts are unfiltered on purpose: the tab badges say how many of each
       // kind exist, whichever tab is open (comp 1423).
-      return { items: rows.map(summaryView), counts: await repo.counts() };
+      if (shown === null) return { items: rows.map((row) => summaryView(row, linked)), counts: await repo.counts() };
+      // In one workspace, "exist" means shown there: the badges count the same cut as the list.
+      const here = (await repo.list()).filter(shown);
+      return {
+        items: rows.filter(shown).map((row) => summaryView(row, linked)),
+        counts: { template: here.filter((row) => row.kind === 'template').length, invoice: here.filter((row) => row.kind === 'invoice').length },
+      };
     });
 
     app.get('/invoices/starters', { schema: { response: { 200: invoiceStartersReply } } }, async (request) => {
@@ -317,15 +337,25 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
         requireUserId(request);
         await requireSettingsManage(request, 'edit invoice documents');
         const row = await mustFind(request.params.id);
-        const { name } = request.body;
+        const { name, shownIn } = request.body;
         const next = name === undefined ? row : await repo.patch(row.id, { name }, app.rbac.now());
         if (next === null) throw new NotFoundError(`Invoice document ${row.id} not found.`);
-        await app.rbac.audit(request, {
-          category: 'settings',
-          action: 'invoice-document.rename',
-          changes: { before: { name: row.name }, after: { name: next.name } },
-        });
-        return summaryView(next);
+        if (name !== undefined) {
+          await app.rbac.audit(request, {
+            category: 'settings',
+            action: 'invoice-document.rename',
+            changes: { before: { name: row.name }, after: { name: next.name } },
+          });
+        }
+        if (shownIn !== undefined) {
+          const moved = await saveShownIn(meta, 'invoice', [row.id], shownIn);
+          await app.rbac.audit(request, {
+            category: 'settings',
+            action: 'invoice-document.shown-in',
+            changes: { before: { id: row.id, shownIn: moved.before }, after: { shownIn: moved.after } },
+          });
+        }
+        return summaryView((await repo.findById(row.id)) ?? next, await links());
       },
     );
 
@@ -387,7 +417,7 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
           action: 'invoice-document.duplicate',
           changes: { before: { id: row.id, name: row.name }, after: { id: copy.id, name } },
         });
-        return await reply.status(201).send(await detailOf(copy));
+        return await reply.status(201).send(await detailOf((await shownAsSource(row.id, copy.id)) ?? copy));
       },
     );
 
@@ -436,7 +466,7 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
           action: 'invoice-document.language.add',
           changes: { before: { id: row.id, lang: row.lang }, after: { id: created.id, lang, name } },
         });
-        return await reply.status(201).send(await detailOf(created));
+        return await reply.status(201).send(await detailOf((await shownAsSource(row.id, created.id)) ?? created));
       },
     );
 

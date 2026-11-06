@@ -24,6 +24,8 @@ import {
 
 import { emailDocumentInputSchema, emailDocumentSchema } from '../../email/document.js';
 import { MARKETING_REFUSALS } from '../../email/sender/refusals.js';
+import { workspaceIdQuery } from '../../workspaces/list-filter.js';
+import { shownInInput, shownInView } from '../../workspaces/shown-in.js';
 
 /** A campaign's latest run, as the manager shows it. */
 export const emailRunView = z.object({
@@ -84,6 +86,8 @@ export const emailDocumentSummary = z.object({
   /** The family's label — the `en_US` sibling's name, else the first sibling's.
    * */
   topicLabel: z.string(),
+  /** Where it is listed: every workspace, or the chosen ones. It narrows lists and pickers, never a send. */
+  shownIn: shownInView,
   run: emailRunView.optional(),
 });
 export type EmailDocumentSummaryView = z.infer<typeof emailDocumentSummary>;
@@ -98,6 +102,8 @@ export const emailDocumentsListQuery = z.object({
    * app holds answers an empty list.
    */
   app: z.string().regex(/^[a-z][a-z0-9-]{0,62}$/, 'an app key').optional(),
+  /** Only what is shown in this workspace (shown in all, or chosen there). It only narrows the list. */
+  workspaceId: workspaceIdQuery,
 });
 
 export const emailDocumentsListReply = z.object({
@@ -130,6 +136,13 @@ export const emailDocumentDetail = emailDocumentSummary.extend({
   vars: z.array(z.string()),
   languages: z.array(emailLanguageView),
   attachmentsResolved: z.array(emailAttachmentResolvedView),
+  /**
+   * "Send as", one value for every language of the template: null = the
+   * sender of the workspace the mail's record is in (the server's for a
+   * database in none, and for mail about no record); `server`; or a
+   * workspace id.
+   */
+  sendAs: z.string().nullable(),
 });
 export type EmailDocumentDetailView = z.infer<typeof emailDocumentDetail>;
 
@@ -188,8 +201,19 @@ export const emailPatchBody = z
     archived: z.boolean().optional(),
     /** A person has read what the assistant wrote and says it looks right. Only `true` means anything. */
     reviewed: z.literal(true).optional(),
+    /** Where it is listed. On an email template, every language of its key follows. */
+    shownIn: shownInInput.optional(),
   })
   .refine((body) => Object.keys(body).length > 0, 'nothing to change');
+
+/** "Send as": null (by the record's workspace), `server`, or a workspace id. */
+export const emailSendAsBody = z.object({ sendAs: z.string().trim().min(1).max(40).nullable() });
+export const emailSendAsReply = z.object({ key: z.string(), sendAs: z.string().nullable() });
+/** What "Send as" offers: the server's From (null with no mail set up), and every workspace with its own From (null: none). */
+export const emailSendAsOptionsReply = z.object({
+  server: z.string().nullable(),
+  workspaces: z.array(z.object({ id: z.string(), name: z.string(), from: z.string().nullable() })),
+});
 
 /**
  * Addresses to send the sample to. Deliberately NOT `z.string().email()`: the
