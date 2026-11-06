@@ -88,7 +88,9 @@ node scripts/release/fetch-add-ons-bundle.mjs /tmp/add-ons-bundle   # downloads 
 
 The folder needs only `invoices-<version>.tgz` and its `.integrity` file, at
 the version pinned in `apps/server/src/add-ons/bundled-pins.ts`. Without it,
-step 7 stops and says so.
+step 7 stops and says so. `buildKiln({ addOn: false })` leaves steps 7 and 8
+out instead, for a server with no bundled add-ons; `name` gives the
+connection another name.
 
 ## The smoke
 
