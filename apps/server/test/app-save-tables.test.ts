@@ -162,7 +162,7 @@ for (const [dialect, available] of ENGINES) {
       const choices = asked.check.filter((item) => item.group === 'choice' && item.code !== 'NO_PAGE');
       expect(choices).toEqual([
         expect.objectContaining({ code: 'TYPE_NO_FORM', kind: 'column', item: 'gauges', field: 'reading', answer: { choices: ['carry-as-text', 'leave-out'], target: `${gauges}.reading` } }),
-        expect.objectContaining({ code: 'COMPOSITE_KEY', kind: 'table', item: 'pairs', answer: { choices: ['carry-as-text', 'leave-out'], target: pairs } }),
+        expect.objectContaining({ code: 'COMPOSITE_KEY', kind: 'table', item: 'pairs', answer: { choices: ['carry-as-text', 'leave-out'], target: pairs, targets: { 'leave-out': `table:${pairs}` } } }),
       ]);
       // Unanswered, the column is not written: nothing is decided for the person.
       expect(tablesOf(asked.manifest as unknown as Doc).find((one) => one.ref === 'gauges')!.columns.map((column) => column.ref)).toEqual(['id', 'label']);
@@ -178,6 +178,11 @@ for (const [dialect, available] of ENGINES) {
       const leftOut = await save(h, dialect, { leaveOut: [`column:${gauges}.reading`], tables: [gauges] });
       expect(leftOut.check.filter((item) => item.group === 'choice' && item.code !== 'NO_PAGE')).toEqual([]);
       expect(tablesOf(leftOut.manifest as unknown as Doc).map((table) => table.columns.map((column) => column.ref))).toEqual([['id', 'label']]);
+
+      // Each answer recorded exactly as its item says leaves nothing to ask.
+      const byItem = await save(h, dialect, { leaveOut: [`${gauges}.reading`, `table:${pairs}`] });
+      expect(byItem.check.filter((item) => item.group === 'choice' && item.code !== 'NO_PAGE')).toEqual([]);
+      expect(tablesOf(byItem.manifest as unknown as Doc).map((table) => table.ref)).toEqual(['gauges']);
     });
 
     it('names a link to a table that is not in the file, and keeps the column plain', async () => {

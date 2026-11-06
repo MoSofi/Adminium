@@ -241,7 +241,7 @@ function planTable(c: Context, saved: SavedTable): PlannedTable {
         item: table.name,
         field: table.primaryKey.join(', '),
         message: `"${table.name}" is keyed by ${String(table.primaryKey.length)} columns together, which an app file cannot hold. Carry it with those columns kept unique together and no key, or leave the table out.`,
-        answer: { choices: ['carry-as-text', 'leave-out'], target },
+        answer: { choices: ['carry-as-text', 'leave-out'], target, targets: { 'leave-out': `table:${saved.id}` } },
       });
     }
   }

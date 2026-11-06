@@ -130,6 +130,38 @@ describe.each(ENGINES)('save as app: the service on %s', (dialect, available) =>
   });
 });
 
+describe.each(ENGINES)('save as app: what a database could include, on %s', (dialect, available) => {
+  let harness: Harness | null = null;
+  afterEach(async () => {
+    await harness?.close();
+    harness = null;
+  });
+
+  it.runIf(available)('lists the tables with their links, the generated pages with their tables, and what the saver may do', async () => {
+    harness = await installHarness(dialect);
+    const h = harness;
+    await shopTables(h);
+    const { service } = await serve(h, dialect, library());
+    const inventory = await service.inventory(h.connectionId, ALL);
+    const byName = new Map(inventory.tables.map((table) => [table.name, table]));
+    expect([...byName.keys()].sort()).toEqual(['customers', 'orders']);
+    const customers = byName.get('customers')!;
+    expect(byName.get('orders')!.links).toEqual([{ column: 'customer_id', to: customers.id, required: false }]);
+    expect(customers).toMatchObject({ columns: 2, rowsAllowed: true, personalAllowed: true });
+    expect(inventory.pages.length).toBeGreaterThan(0);
+    expect(inventory.pages.every((page) => page.generated)).toBe(true);
+    expect(new Set(inventory.pages.map((page) => page.tableId).filter((id) => id !== null))).toEqual(new Set([customers.id, byName.get('orders')!.id]));
+    expect(inventory).toMatchObject({ views: [], roles: [], automations: [], emailTemplates: [], payments: false, instance: true });
+
+    // A person who may not export: the structure goes, the rows may not.
+    const noExport: SaveRights = { userId: null, can: async (grant) => !grant.endsWith(':export') && grant !== 'system:settings:manage', readsWhole: async () => true };
+    const theirs = await service.inventory(h.connectionId, noExport);
+    expect(theirs.tables.every((table) => !table.rowsAllowed)).toBe(true);
+    expect(theirs.instance).toBe(false);
+    await expect(service.inventory('conn_missing', ALL)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
 describe('save as app: the routes', () => {
   let harness: Harness | null = null;
   afterEach(async () => {
@@ -162,6 +194,15 @@ describe('save as app: the routes', () => {
     const list = await app.inject({ method: 'GET', url: '/apps/saves' });
     expect(list.statusCode).toBe(200);
     expect(list.json().saves).toEqual([expect.objectContaining({ id: save.id, key: 'corner-shop', version: '1.0.0', connectionId: h.connectionId, label: 'Corner shop', downloadable: true, integrity: save.integrity, bytes: save.bytes })]);
+    expect(Object.keys(list.json().saves[0]).sort()).toEqual(['bytes', 'connectionId', 'description', 'downloadable', 'id', 'integrity', 'key', 'label', 'name', 'savedAt', 'savedBy', 'savedByName', 'version']);
+    expect(list.json().saves[0]).toMatchObject({ name: 'Corner shop', description: null, savedBy: null, savedByName: null });
+
+    const inventory = await app.inject({ method: 'GET', url: `/apps/save/inventory?connectionId=${h.connectionId}` });
+    expect(inventory.statusCode, inventory.body).toBe(200);
+    expect(Object.keys(inventory.json().inventory).sort()).toEqual([
+      'automations', 'connectionId', 'documents', 'emailTemplates', 'instance', 'invoiceLayouts', 'pages', 'payments', 'publicEndpoints', 'reports', 'roles', 'scheduledReports', 'tables', 'views',
+    ]);
+    expect(Object.keys(inventory.json().inventory.tables[0]).sort()).toEqual(['columns', 'id', 'links', 'name', 'personal', 'personalAllowed', 'rows', 'rowsAllowed', 'rowsExact', 'secretLike']);
 
     const download = await app.inject({ method: 'GET', url: `/apps/save/${save.id}/file` });
     expect(download.statusCode).toBe(200);

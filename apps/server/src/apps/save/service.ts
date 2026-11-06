@@ -37,6 +37,7 @@ import type { FileStore } from '../../files/store.js';
 import type { CheckItem } from './check.js';
 import { carryOutAnswers } from './answers.js';
 import { convertToApp } from './convert.js';
+import { saveInventory, type SaveInventory } from './inventory.js';
 import { runSaveGates, type GateProblem } from './gates/index.js';
 import type { RowChoice, SaveChoices, SaveDialect, SaveSource } from './types.js';
 
@@ -273,7 +274,7 @@ export function createSaveService(deps: SaveServiceDeps) {
         );
       }
       const row = await appSavesRepo(deps.meta).create(
-        { appKey: request.key, version: plan.version, lineage, connectionId: request.connectionId, label: plan.label, savedBy: rights.userId, integrity, bytes: tarball.byteLength, fileId },
+        { appKey: request.key, version: plan.version, lineage, connectionId: request.connectionId, label: plan.label, savedBy: rights.userId, integrity, bytes: tarball.byteLength, fileId, name: request.name, description: request.description?.trim() || null },
         at,
       );
       return { id: row.id, key: row.appKey, version: row.version, integrity, bytes: tarball.byteLength, filename, savedAt: row.savedAt, tarball };
@@ -293,6 +294,15 @@ export function createSaveService(deps: SaveServiceDeps) {
 
     async list(): Promise<AppSave[]> {
       return appSavesRepo(deps.meta).list();
+    },
+
+    /** What the database could put in its app, for the wizard's "What to include". */
+    async inventory(connectionId: string, rights: SaveRights): Promise<SaveInventory> {
+      const dialect = await deps.dialectOf(connectionId);
+      if (dialect === null) throw new NotFoundError('That database is not connected here.');
+      const snapshot = await snapshotsRepo(deps.meta).latest(connectionId);
+      if (snapshot === null) throw new ConflictError('This database has not been read yet. Refresh its schema, then save.', 'CONFLICT', { reason: 'SNAPSHOT_MISSING' });
+      return saveInventory({ meta: deps.meta, connectionId, dialect, model: parseDatabaseModel(snapshot.schema), adminiumVersion: deps.adminiumVersion }, rights);
     },
   };
 }

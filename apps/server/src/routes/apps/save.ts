@@ -15,7 +15,7 @@
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import type { MetaDb } from '@adminium/meta';
+import { usersRepo, type MetaDb } from '@adminium/meta';
 
 import type { SaveRights, SaveService } from '../../apps/save/service.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
@@ -73,7 +73,14 @@ const checkItem = z.object({
   item: z.string(),
   field: z.string().optional(),
   message: z.string(),
-  answer: z.object({ choices: z.array(z.string()).readonly(), target: z.string() }).optional(),
+  answer: z
+    .object({
+      choices: z.array(z.string()).readonly(),
+      target: z.string(),
+      /** A choice that records another value than `target`, by choice. */
+      targets: z.record(z.string(), z.string()).optional(),
+    })
+    .optional(),
   afterKind: z.string().optional(),
 });
 
@@ -110,8 +117,13 @@ export const appSavesReply = z.object({
       key: z.string(),
       version: z.string(),
       connectionId: z.string().nullable(),
+      /** The app's name and description as saved; null on a save from before they were kept. */
+      name: z.string().nullable(),
+      description: z.string().nullable(),
       label: z.string(),
       savedBy: z.string().nullable(),
+      /** Who saved it, by name; null when nobody (the command line) or they are gone. */
+      savedByName: z.string().nullable(),
       savedAt: z.number(),
       integrity: z.string(),
       bytes: z.number(),
@@ -122,6 +134,42 @@ export const appSavesReply = z.object({
 });
 
 const saveIdParams = z.object({ id: z.string().min(1) });
+
+const inventoryItem = z.object({ id: z.string(), name: z.string(), tableIds: z.array(z.string()), pageId: z.string().optional() });
+
+export const saveInventoryReply = z.object({
+  inventory: z.object({
+    connectionId: z.string(),
+    tables: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        columns: z.number().int(),
+        rows: z.number().int().nullable(),
+        rowsExact: z.boolean(),
+        links: z.array(z.object({ column: z.string(), to: z.string(), required: z.boolean() })),
+        personal: z.array(z.string()),
+        secretLike: z.array(z.string()),
+        rowsAllowed: z.boolean(),
+        personalAllowed: z.boolean(),
+      }),
+    ),
+    pages: z.array(z.object({ id: z.string(), title: z.string(), tableId: z.string().nullable(), generated: z.boolean() })),
+    views: z.array(z.object({ id: z.string(), name: z.string(), pageId: z.string(), ownerId: z.string().nullable(), ownerName: z.string().nullable() })),
+    roles: z.array(z.object({ id: z.string(), name: z.string() })),
+    automations: z.array(inventoryItem),
+    emailTemplates: z.array(z.object({ key: z.string(), name: z.string() })),
+    documents: z.array(inventoryItem),
+    reports: z.array(inventoryItem),
+    invoiceLayouts: z.array(inventoryItem),
+    scheduledReports: z.array(inventoryItem),
+    publicEndpoints: z.array(inventoryItem),
+    payments: z.boolean(),
+    instance: z.boolean(),
+  }),
+});
+
+const inventoryQuery = z.object({ connectionId: z.string().min(1) }).strict();
 
 export interface AppSaveRoutesDeps {
   meta: MetaDb;
@@ -160,25 +208,40 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
     );
 
     app.get(
+      '/apps/save/inventory',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { querystring: inventoryQuery, response: { 200: saveInventoryReply } },
+      },
+      async (request) => ({ inventory: await deps.service.inventory(request.query.connectionId, rightsOf(request)) }),
+    );
+
+    app.get(
       '/apps/saves',
       {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         schema: { response: { 200: appSavesReply } },
       },
-      async () => ({
-        saves: (await deps.service.list()).map((save) => ({
+      async () => {
+        const saves = await deps.service.list();
+        const people = new Map<string, string | null>();
+        for (const id of new Set(saves.flatMap((save) => (save.savedBy === null ? [] : [save.savedBy])))) people.set(id, (await usersRepo(deps.meta).findById(id))?.name ?? null);
+        return { saves: saves.map((save) => ({
           id: save.id,
           key: save.appKey,
           version: save.version,
           connectionId: save.connectionId,
+          name: save.name,
+          description: save.description,
           label: save.label,
           savedBy: save.savedBy,
+          savedByName: save.savedBy === null ? null : (people.get(save.savedBy) ?? null),
           savedAt: save.savedAt,
           integrity: save.integrity,
           bytes: save.bytes,
           downloadable: save.fileId !== null,
-        })),
-      }),
+        })) };
+      },
     );
 
     app.get(

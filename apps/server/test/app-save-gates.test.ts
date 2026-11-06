@@ -273,7 +273,7 @@ describe('the secret scan', () => {
       const text = `Backup notes: ${Buffer.from(`${lead}pw=${SECRETS.dbPassword};`).toString('base64')}`;
       const found = scan(shop({ pages: [{ ...shop().pages[0], title: { key: 'shop.orders', fallback: text } }] }), ordersFile(cleanRows));
       expect(found, lead).toHaveLength(1);
-      expect(found[0]).toMatchObject({ group: 'choice', code: 'SECRET_FOUND', kind: 'page', item: 'orders', field: 'title.fallback', answer: { choices: ['clear', 'leave-out'], target: 'page:orders:title.fallback' } });
+      expect(found[0]).toMatchObject({ group: 'choice', code: 'SECRET_FOUND', kind: 'page', item: 'orders', field: 'title.fallback', answer: { choices: ['clear', 'leave-out'], target: 'page:orders:title.fallback', targets: { 'leave-out': 'page:orders' } } });
     }
   });
 

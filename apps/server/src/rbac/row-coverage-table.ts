@@ -91,6 +91,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/apps/plan': rows('system', 'An install makes tables and writes starting rows as the system, under the manifests grant.'),
   'POST /api/v1/apps/save/plan': rows('system', 'A save reads the rows the person chose, as the system, only once their own read, export and whole-table reach on each table are checked.'),
   'POST /api/v1/apps/save': rows('system', 'A save reads the rows the person chose, as the system, only once their own read, export and whole-table reach on each table are checked.'),
+  'GET /api/v1/apps/save/inventory': noRows('What a database could put in its app: names, column counts and the last schema read’s row estimates, no source row.'),
   'GET /api/v1/apps/saves': noRows('The saves made here: keys, versions and fingerprints, no source row.'),
   'GET /api/v1/apps/save/:id/file': noRows('A saved app file kept in the Files library: no source row is read.'),
   'DELETE /api/v1/apps/staged/:key/:version': noRows('The list of apps, their packages, their settings and where they are served: no source row.'),

@@ -584,7 +584,7 @@ export function scanForSecrets(content: GateContent, secrets: readonly KnownSecr
       item: place.item,
       ...(place.field === '' ? {} : { field: place.field }),
       message: `${place.path} holds ${label}. Clear it, or leave the ${place.kind} out of the file.`,
-      answer: { choices: ['clear', 'leave-out'], target },
+      answer: { choices: ['clear', 'leave-out'], target, targets: { 'leave-out': itemTargetOf(place) } },
     });
   }
   return out;

@@ -2044,6 +2044,9 @@ export interface AdminiumAppSavesTable {
   bytes: number;
   /** The kept copy, for "Download again". */
   fileId: Id | null;
+  /** The app's name and description as saved (wave 0086); null on a save from before it. */
+  name: string | null;
+  description: string | null;
 }
 
 /** What an install still needs from a person (wave 0075). */
