@@ -111,7 +111,7 @@ import { ApiError } from '../../app/api.js';
 import { bootstrapQuery, type BootstrapData } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 import { addOnCatalogQuery, downloadAddOn, getAddOnJob } from '../add-ons/addOnsApi.js';
-import { connectionsQuery } from '../hub/ConnectionsHub.js';
+import { connectionsQuery } from '../hub/connectionsQuery.js';
 import {
   AddOnsInstallCard,
   addOnBlock,
@@ -222,7 +222,7 @@ export function answersOf(
 
 /** The workspaces of each database, as the bootstrap lists them (none while the server has none). */
 function workspacesByConnection(bootstrap: BootstrapData | undefined): Map<string, { id: string; name: string; initials: string }[]> {
-  const listed = (bootstrap as { workspaces?: { workspaces?: { id: string; name: string; initials: string; connectionIds: string[] }[] } } | undefined)?.workspaces?.workspaces ?? [];
+  const listed = bootstrap?.workspaces?.workspaces ?? [];
   const out = new Map<string, { id: string; name: string; initials: string }[]>();
   for (const workspace of listed) {
     for (const id of workspace.connectionIds) out.set(id, [...(out.get(id) ?? []), { id: workspace.id, name: workspace.name, initials: workspace.initials }]);

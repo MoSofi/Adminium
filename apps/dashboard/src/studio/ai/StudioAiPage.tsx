@@ -38,7 +38,7 @@ import {
 
 import { llmAffordances, systemInfoQuery } from '../../app/capabilities.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
-import { connectionsQuery } from '../hub/ConnectionsHub.js';
+import { connectionsQuery } from '../hub/connectionsQuery.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import type { ConnectionDto } from '../api.js';

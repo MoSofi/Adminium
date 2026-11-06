@@ -29,7 +29,7 @@ import { ArrowRight, Wand2 } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
-import { connectionsQuery } from '../hub/ConnectionsHub.js';
+import { connectionsQuery } from '../hub/connectionsQuery.js';
 import {
   APPS_QUERY_KEY,
   planRenameTables,

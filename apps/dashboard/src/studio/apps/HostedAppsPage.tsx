@@ -66,7 +66,7 @@ import {
   type SurfaceInstance,
   type SurfaceSummaryDto,
 } from './hostedAppsApi.js';
-import { connectionsQuery } from '../hub/ConnectionsHub.js';
+import { connectionsQuery } from '../hub/connectionsQuery.js';
 import { AppBrowser } from './AppBrowser.js';
 import { AppAcquisitionAlerts, UpdateConsentDialog, useAppAcquisition } from './appAcquisition.js';
 import { UpdateColumnsDialog } from './UpdateColumnsDialog.js';

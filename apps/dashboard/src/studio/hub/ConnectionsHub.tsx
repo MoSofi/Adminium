@@ -9,7 +9,7 @@
  * (meta wave 0019), and the type-to-confirm delete (server re-enforces
  * `confirmName`).
  */
-import { queryOptions, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { CircleCheckBig, Database, FileCode2, LayoutGrid, Pause, Play, Plus, RefreshCw, Table2 } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
@@ -48,13 +48,9 @@ import { ConnectionWorkspacesModal } from './WorkspaceDialogs.js';
 import { WorkspacesCard } from './WorkspacesCard.js';
 import { workspacesQuery, type WorkspaceList } from './workspacesApi.js';
 import { RenameConnectionModal } from './RenameConnectionModal.js';
+import { connectionsQuery } from './connectionsQuery.js';
 
-export function connectionsQuery() {
-  return queryOptions({
-    queryKey: ['studio', 'connections'] as const,
-    queryFn: () => studioApi.listConnections(),
-  });
-}
+export { connectionsQuery } from './connectionsQuery.js';
 
 /** Locale-bound Intl formatters, test-safe (wizardState.ts precedent). */
 function fmt() {
