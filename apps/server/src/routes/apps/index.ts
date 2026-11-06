@@ -39,6 +39,7 @@ import { narrowToWorkspace, workspaceIdQuery } from '../../workspaces/list-filte
 import { grantKeyOf, installOnConnection, requireInstall, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { rowTestOf } from '../../crud/row-limit-context.js';
 import { reachOfRequest } from '../../crud/row-reach-request.js';
+import { tableOfReal } from '../../installs/table-id.js';
 import {
   compareSemver,
   isAddOnManifest,
@@ -68,6 +69,8 @@ import {
   automationsRepo,
   rolesRepo,
   roleNameFor,
+  realTableOf,
+  type AppTableRecord,
 } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -1463,7 +1466,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             apiKeys: entry.apiKeys.length,
           })),
           tables: plan.tables.map((entry) => ({
-            table: entry.record.tableName,
+            table: realTableOf(entry.record),
             droppable: entry.droppable,
             ...(entry.sharedWith.length === 0 ? {} : { sharedWith: entry.sharedWith }),
           })),
@@ -1661,15 +1664,18 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const live =
           manager === undefined || connectionId === null || model === null
             ? new Map<string, number>()
-            : await liveRowCounts(manager, connectionId, model, records.map((record) => record.tableName));
+            : await liveRowCounts(manager, connectionId, model, records.map((record) => realTableOf(record)));
         // How many rows a table holds is told to somebody who reads them all: a count of a table read in part is left out.
+        // By the table's id: `sales.orders` read in part says nothing of `public.orders`, nor the other way round.
         const inPart = new Set<string>();
+        let noCounts = false;
         if (connectionId !== null && model !== null) {
           const reach = await reachOfRequest(deps.meta, request, connectionId);
           // Somebody something could limit, and no schema to say on which tables: no count of any.
-          if (reach === 'unreadable') for (const record of records) inPart.add(record.tableName);
-          else if (reach !== null) for (const table of reach.view.model.tables) if (rowTestOf(reach.rows, table.id, 'read') !== null) inPart.add(table.name);
+          if (reach === 'unreadable') noCounts = true;
+          else if (reach !== null) for (const table of reach.view.model.tables) if (rowTestOf(reach.rows, table.id, 'read') !== null) inPart.add(table.id);
         }
+        const modelTableOf = (record: AppTableRecord) => (model === null ? undefined : tableOfReal(model, realTableOf(record)));
         const tables = records
           .filter(
             (record) =>
@@ -1679,17 +1685,16 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           )
           // The ledger last, as the list of what the app keeps about itself.
           .sort((a, b) => Number(a.role === 'sample-ledger') - Number(b.role === 'sample-ledger'))
-          .map((record) => ({
-            ref: record.ref,
-            table: record.tableName,
-            state: record.state,
-            role: record.role === 'sample-ledger' ? ('sample-ledger' as const) : ('app' as const),
-            rows: inPart.has(record.tableName)
-              ? null
-              : (live.get(record.tableName) ??
-                model?.tables.find((table) => table.name === record.tableName)?.rowCountEstimate ??
-                null),
-          }));
+          .map((record) => {
+            const found = modelTableOf(record);
+            return {
+              ref: record.ref,
+              table: realTableOf(record),
+              state: record.state,
+              role: record.role === 'sample-ledger' ? ('sample-ledger' as const) : ('app' as const),
+              rows: noCounts || (found !== undefined && inPart.has(found.id)) ? null : (live.get(realTableOf(record)) ?? found?.rowCountEstimate ?? null),
+            };
+          });
         // This app's own lines, newest first. The key is in the row's JSON, so
         // the filter is here; a busy instance's app log is small.
         const entries = await auditRepo(deps.meta).list({ category: 'app', limit: 200 });
@@ -1852,20 +1857,21 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const open: { table: string; label: string; rows: number }[] = [];
         const handle = connectionId === null || model === null || manager === undefined ? null : await manager.mustFind(connectionId).then((found) => manager.data(found)).catch(() => null);
         // How many rows a table holds is told to somebody who reads them all: a table read in part is left out, as on the app's page.
+        // By the table's id: a table in a schema of its own (`sales.jobs`) is found as itself, never missed and counted.
         const inPart = new Set<string>();
         if (connectionId !== null && model !== null) {
           const reach = await reachOfRequest(deps.meta, request, connectionId);
-          if (reach === 'unreadable') for (const table of model.tables) inPart.add(table.name);
-          else if (reach !== null) for (const table of reach.view.model.tables) if (rowTestOf(reach.rows, table.id, 'read') !== null) inPart.add(table.name);
+          if (reach === 'unreadable') for (const table of model.tables) inPart.add(table.id);
+          else if (reach !== null) for (const table of reach.view.model.tables) if (rowTestOf(reach.rows, table.id, 'read') !== null) inPart.add(table.id);
         }
         if (connectionId !== null && model !== null && handle !== null) {
           for (const table of document.requiredSchema?.tables ?? []) {
             if (!('module' in table) || table.module !== module.id || table.states === undefined) continue;
-            if (inPart.has(names[table.ref] ?? table.ref)) continue;
+            const real = tableOfReal(model, names[table.ref] ?? table.ref);
+            if (real === undefined || inPart.has(real.id)) continue;
             // A state something still moves out of: the row is not at its end.
             const unfinished = Object.entries(table.states.moves).filter(([, moves]) => moves.length > 0).map(([state]) => state);
-            const real = model.tables.find((candidate) => candidate.name === (names[table.ref] ?? table.ref));
-            if (real === undefined || unfinished.length === 0) continue;
+            if (unfinished.length === 0) continue;
             const counted = await handle.db
               .selectFrom(real.id as never)
               .select((eb) => eb.fn.countAll().as('n'))
@@ -2342,7 +2348,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         };
         const keptSummary = {
           pages: plan.pages.kept.length,
-          tables: kept.map((entry) => entry.record.tableName),
+          tables: kept.map((entry) => realTableOf(entry.record)),
           ...(plan.addOns.length === 0 ? {} : { addOns: plan.addOns.map((addOn) => addOn.key) }),
         };
         await auditAppEvent(
