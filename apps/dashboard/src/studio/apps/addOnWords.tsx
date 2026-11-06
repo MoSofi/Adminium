@@ -16,7 +16,7 @@ import { getI18nInstance, t } from '../../i18n/t.js';
 import type { AppAddOnRow, AppNeed, ManifestWords } from './appsApi.js';
 
 /** The reader's language tag, as a manifest spells one (`de-DE`). */
-function readerTag(): string {
+export function readerTag(): string {
   return (getI18nInstance()?.language ?? 'en-US').replace(/_/g, '-').toLowerCase();
 }
 

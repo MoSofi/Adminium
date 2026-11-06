@@ -188,7 +188,6 @@ async function toBundleStep(page: Page, tx: Text, shape: 'reuse' | 'create'): Pr
     mimeType: 'application/gzip',
     buffer: bundle.buffer,
   });
-  await page.getByLabel(tx('studio:hostedApps.install.bundle.integrity')).fill(bundle.integrity);
 }
 
 type Text = ReturnType<typeof textIn>;
@@ -370,7 +369,9 @@ test.describe('/studio/apps under axe', () => {
       await expect(page.getByText(tx('studio:hostedApps.install.stopped.title'))).toBeVisible();
       await sweep(page, at('wizard, install stopped part way'), tally, testInfo);
       await page.getByRole('button', { name: tx('studio:hostedApps.install.stopped.retry') }).click();
-      await expect(page.getByText(tx('studio:hostedApps.install.done.titleApp', { app: 'E2E Desk' }))).toBeVisible({
+      // "E2E Desk 1.0.0 is installed on <database>": matched up to the database's name.
+      const doneTitle = tx('studio:hostedApps.install.done.titleOn', { app: 'E2E Desk', version: APP_VERSION, database: '\u0000' }).split('\u0000')[0] ?? '';
+      await expect(page.getByText(doneTitle)).toBeVisible({
         timeout: 60_000,
       });
       await page.unroute('**/api/v1/apps/install');

@@ -689,11 +689,9 @@ export default {
       "failed": "Échec de l’installation",
       "bundle": {
         "title": "Téléverser le paquet de l’application",
-        "hint": "Le fichier de publication de l’app (.tgz) — il contient manifest.json et un dossier staff/ ou customer/.",
         "file": "Fichier du paquet (.tgz)",
         "fileHint": "Rien n’est créé tant que vous n’avez pas confirmé à l’étape du plan de schéma.",
-        "integrity": "Intégrité (facultatif)",
-        "integrityHint": "Collez l’empreinte sha512- publiée avec la version pour que le serveur vérifie ces octets exacts. Laissée vide, elle est calculée ici."
+        "fileOnly": "Le fichier de l’application (.tgz)."
       },
       "database": {
         "title": "Dans quelle base de données installer ?",
@@ -702,7 +700,13 @@ export default {
         "readOnly": "Lecture seule",
         "writable": "Accessible en écriture",
         "noWritable": "Aucune connexion en écriture",
-        "allReadOnly": "Toutes les connexions ici utilisent un rôle en lecture seule, aucune application ne peut donc créer ses tables. Connectez-en d’abord une capable d’exécuter du DDL."
+        "allReadOnly": "Toutes les connexions ici utilisent un rôle en lecture seule, aucune application ne peut donc créer ses tables. Connectez-en d’abord une capable d’exécuter du DDL.",
+        "version": "Installation de {app} {version}.",
+        "ownCopy": "Chaque base de données peut avoir sa propre copie de {app}.",
+        "noneTitle": "Aucune base de données",
+        "none": "Connectez d’abord une base de données. Une application s’installe dans une base de données que ce serveur a déjà.",
+        "installed": "Installée · {version}",
+        "notTouched": "Cette copie a ses propres paramètres, rôles et modèles d’e-mail. {app} sur {databases} n’est pas touchée."
       },
       "plan": {
         "title": "Vérifier le plan de schéma",
@@ -716,7 +720,7 @@ export default {
         "summary": "{created} créées · {reused} réutilisées",
         "ruleWarnings": "Certaines règles de cette app montreraient ce qu’une de vos tables garde caché : elles sont laissées de côté",
         "pageWarnings": "Certaines pages de cette app arriveront sans table",
-        "installedElsewhere": "{app} est déjà installée sur la connexion {connection}. Une application fonctionne sur une seule connexion : mettez-la à jour là-bas, ou désinstallez-la là-bas avant de l’installer sur une autre."
+        "oneVersion": "{database} a {app} {version}, et chaque copie d’une application utilise la même version. Mettez d’abord les copies à jour, puis installez celle-ci ici."
       },
       "done": {
         "body": "{key} est désormais servie. Choisissez ci-dessous où apparaît son côté personnel.",
@@ -727,7 +731,12 @@ export default {
         "sampleNotAdded": "non ajoutées",
         "sampleAdding": "ajout en cours…",
         "sampleAdded": "ajoutées",
-        "sampleLater": "Vous pourrez les ajouter plus tard depuis la page de l’app."
+        "sampleLater": "Vous pourrez les ajouter plus tard depuis la page de l’app.",
+        "titleOn": "{app} {version} est installée sur {database}",
+        "rulesOff": "Règles qui envoient des données à l’extérieur",
+        "rulesOffValue": "{count}, désactivées",
+        "toDo": "{count, plural, one {# chose à faire} other {# choses à faire}}",
+        "openPage": "Ouvrir la page de l’application"
       },
       "cancel": "Annuler",
       "back": "Retour",
@@ -737,7 +746,6 @@ export default {
       "finish": "Gérer les applications",
       "staged": "Fichiers décompressés : {files}",
       "footerStep": "Étape {n} sur {total}",
-      "footerStepApp": "Étape {n} sur {total} · {app}",
       "chosen": {
         "title": "Installer {app}",
         "hint": "Cette application est livrée avec votre version et se trouve déjà sur le disque. Rien n’est créé tant que vous n’avez pas confirmé le plan de schéma."
@@ -806,7 +814,9 @@ export default {
           "labelMenu": "La carte qu’utilise {app}",
           "labelTables": "Les tables qu’utilise {app}",
           "recommended": "Recommandé"
-        }
+        },
+        "summaryUsed": "{count, plural, one {# utilisée telle quelle} other {# utilisées telles quelles}}",
+        "badgeUsed": "Utilisée telle quelle"
       },
       "running": {
         "title": "Installation de {app}",
@@ -846,7 +856,8 @@ export default {
       "privacyGrants": {
         "title": "Un rôle peut effacer des personnes",
         "body": "{roles} peut trouver, télécharger et effacer tout ce que ce serveur conserve sur une personne, sur la page de confidentialité."
-      }
+      },
+      "footerStepVersion": "Étape {n} sur {total} · {app} {version}"
     },
     "installed": {
       "title": "Applications installées",
@@ -945,7 +956,16 @@ export default {
       "grantsAdded": {
         "title": "Cette version donne plus à ses rôles",
         "addOnSettings": "{roles} peut modifier les réglages de {addOn}, partagés par toutes les apps qu’il sert."
-      }
+      },
+      "stopped": {
+        "pages": "La mise à jour vers {to} s’est arrêtée pendant l’écriture des pages. Rien n’a été perdu ; les pages de {from} sont toujours là.",
+        "other": "La mise à jour vers {to} s’est arrêtée en cours de route. Rien n’a été perdu, et la terminer reprend là où elle s’est arrêtée."
+      },
+      "titleOn": "Mettre à jour {app} sur {database} vers v{version}",
+      "copyOf": "Copie {n} sur {total} · {from} → {to}",
+      "reviewSubtitle": "Vérifiez ce qu’apporte cette version.",
+      "onlyThis": "Seule {app} sur {database} change dans cette fenêtre. Ses paramètres, rôles et modèles d’e-mail y sont conservés.",
+      "finish": "Terminer la mise à jour"
     },
     "veto": {
       "title": "Ce déploiement ne peut pas consulter le catalogue en ligne",
@@ -972,6 +992,138 @@ export default {
       "repair": "Adminium met aussi à jour ses propres pages et règles qui pointent vers les anciens noms.",
       "cancel": "Annuler",
       "confirm": "Renommer les tables"
+    },
+    "review": {
+      "source": {
+        "title": "D’où elle vient",
+        "badge": "Votre propre application",
+        "madeOn": "Créée le {date} · Adminium {version}",
+        "madeAt": "Créée sur {label} le {date} · Adminium {version}",
+        "publisher": "Publiée par {publisher}",
+        "warning": "Elle a été enregistrée sur un autre serveur Adminium, pas sur adminium.dev. Ne l’installez que si vous savez qui l’a enregistrée."
+      },
+      "fingerprint": {
+        "label": "Comparer avec l’empreinte affichée lors de l’enregistrement",
+        "labelRelease": "Comparer avec l’empreinte publiée avec la version",
+        "check": "Vérifier",
+        "ok": "Correspond. C’est le fichier qui a été enregistré.",
+        "okRelease": "Correspond. C’est le fichier qui a été publié.",
+        "bad": "Ne correspond pas. Ce n’est pas le fichier qui a été enregistré.",
+        "badRelease": "Ne correspond pas. Ce n’est pas le fichier qui a été publié.",
+        "none": "Non vérifiée",
+        "hold": "L’empreinte ne correspond pas. Videz le champ, ou collez celle affichée lors de l’enregistrement."
+      },
+      "existing": {
+        "title": "{count, plural, one {# table existe déjà ici sous ce nom.} other {# tables existent déjà ici sous ces noms.}}",
+        "use": "Utiliser les tables existantes",
+        "useNote": "Les utilise telles quelles, avec leurs lignes. Ne les renomme jamais.",
+        "used": "{count, plural, one {# utilisée telle quelle · 0 modification} other {# utilisées telles quelles · 0 modification}}",
+        "cannot": "{table} ne peut pas être utilisée telle quelle.",
+        "cannotHelp": "Renommez la table ici, ou enregistrez à nouveau l’application sans elle."
+      },
+      "change": "Modifier",
+      "pages": {
+        "title": "{count, plural, one {# page porte un nom déjà utilisé ici} other {# pages portent des noms déjà utilisés ici}}",
+        "untouched": "— la page d’ici est telle qu’Adminium l’a créée.",
+        "changed": "— modifiée ici.",
+        "replace": "La remplacer",
+        "rename": "Renommer la page d’ici",
+        "skip": "L’ignorer",
+        "replaced": "Remplacée par la page de l’application.",
+        "skipped": "Ignorée. La page d’ici reste.",
+        "renamed": "La page d’ici passe à {address}.",
+        "renameField": "Nouvelle adresse de la page d’ici",
+        "hold": "Choisissez quoi faire de {pages}."
+      },
+      "outside": {
+        "title": "Ces règles enverraient des données à l’extérieur",
+        "bodyUpdate": "Une nouvelle arrive désactivée et vide. Celle qui est déjà ici garde son adresse.",
+        "body": "Elles arrivent désactivées et vides. Une personne qui gère les automatisations peut les activer.",
+        "webhook": "envoie vers une adresse web · adresse laissée vide",
+        "address": "envoie un e-mail à une adresse fixe · adresse laissée vide",
+        "off": "Désactivée"
+      },
+      "instance": {
+        "title": "L’apparence et les langues",
+        "tick": "Appliquer aussi l’apparence et les langues",
+        "locked": "Demandez à une personne qui gère les paramètres d’appliquer cette partie.",
+        "what": "Ce qu’elle contient",
+        "languagesOn": "Langues activées : {languages}",
+        "languagesOff": "Langues désactivées : {languages}",
+        "wording": "{count, plural, one {# texte modifié} other {# textes modifiés}}",
+        "emails": "E-mails système modifiés : {count}",
+        "left": "Non repris ici :",
+        "caption": "Les mots de passe, les clés et les réglages du serveur d’e-mail ne sont jamais dans le fichier. Vous pouvez annuler cette partie depuis la page de l’application.",
+        "hideChanges": "Masquer les modifications",
+        "showChanges": "Voir les modifications",
+        "noLinks": "Il ne contient aucun lien : il est appliqué avec cette partie.",
+        "links": "Les liens de cet e-mail mènent à :",
+        "subject": "Objet : {from} → {to}",
+        "blocks": "Blocs : {added} ajoutés · {removed} retirés · {changed} modifiés",
+        "preheader": "Texte d’aperçu modifié",
+        "footer": "Pied de page modifié"
+      },
+      "screens": {
+        "title": "Écrans",
+        "lead": "Cette application a ses propres écrans.",
+        "body": "Ils s’exécutent avec les droits de la personne qui les ouvre. Ne l’installez que si vous faites confiance à qui l’a enregistrée."
+      },
+      "after": {
+        "webhook": "L’adresse web de la règle {item}",
+        "address": "À qui la règle {item} envoie un e-mail",
+        "document": "Le document que crée la règle {item}",
+        "delivery": "Où le document {item} est envoyé",
+        "paymentKey": "Les clés du service de paiement {item}",
+        "bankAccount": "Le compte bancaire de {item}",
+        "recipients": "{count, plural, one {Qui reçoit le rapport planifié {item}} other {Qui reçoit les # rapports planifiés}}",
+        "sender": "{count, plural, one {L’adresse d’expéditeur de l’e-mail {item}} other {L’adresse d’expéditeur de # modèles d’e-mail}}",
+        "systemGrant": "Les droits de console du rôle {item}",
+        "title": "Après l’installation",
+        "note": "Ils restent sur la page de l’application jusqu’à ce qu’ils soient faits."
+      },
+      "title": "Vérifier avant d’installer",
+      "intro": "{app} s’installe dans {database}. Rien ne change tant que vous n’avez pas cliqué sur Installer."
+    },
+    "refusal": {
+      "back": "Retour",
+      "older": {
+        "copy": "{database} a déjà {version}",
+        "title": "Un fichier plus ancien",
+        "body": "{copies}. Le fichier est la version plus ancienne {version}."
+      },
+      "lineage": {
+        "title": "Une autre application avec cette clé",
+        "body": "Ce serveur a déjà une autre {key}, sur {database}. Enregistrez celle-ci sous une autre clé."
+      },
+      "newer": {
+        "title": "Nécessite un Adminium plus récent",
+        "body": "Ce fichier nécessite Adminium {needed} ou plus récent. Ce serveur utilise {running}."
+      },
+      "savedHere": {
+        "title": "Enregistrée depuis cette base de données",
+        "body": "Ce fichier a été enregistré depuis {database} sur ce serveur. L’y installer exécuterait chaque automatisation deux fois. Choisissez une autre base de données, ou essayez-le sur un serveur de test."
+      },
+      "everywhere": {
+        "title": "Installée sur chaque base de données",
+        "body": "{app} {version} est déjà installée sur chaque base de données d’ici."
+      }
+    },
+    "route": {
+      "update": {
+        "button": "Mettre à jour chaque copie ({databases})",
+        "rest": "Mettre à jour les autres ({databases})",
+        "also": "L’installer aussi sur une autre base de données",
+        "title": "Mettre à jour {app} vers {version}",
+        "body": "Ce fichier est plus récent que chaque copie de ce serveur. Chaque copie utilise la même version, donc chacune est mise à jour, avec sa propre vérification.",
+        "updated": "Mise à jour",
+        "waiting": "Pas encore mise à jour",
+        "done": "{app} est en {version} sur chaque base de données."
+      },
+      "another": {
+        "button": "Installer sur une autre base de données",
+        "title": "Installer {app} sur une autre base de données",
+        "body": "{app} {version} est installée sur {databases}. Chaque base de données peut avoir sa propre copie."
+      }
     }
   },
   "hub": {

@@ -199,7 +199,6 @@ async function reachCheck(user: ReturnType<typeof userEvent.setup>) {
   );
   const file = new File(['pretend'], 'clients-1.0.0.tgz', { type: 'application/gzip' });
   await user.upload(await screen.findByLabelText(/Bundle file/i), file);
-  await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
   await user.click(screen.getByRole('button', { name: 'Upload' }));
   await screen.findByText(/Install into which database/i);
   await user.click(screen.getByRole('radio', { name: /Practice/i }));
@@ -240,7 +239,7 @@ describe('the Add-ons card', () => {
 
     expect(hint()).toBeNull();
     await user.click(installButton());
-    await screen.findByText('Client Portal is installed');
+    await screen.findByText(/^Client Portal \S+ is installed on /);
     expect(sentAddOns()).toEqual([
       { key: 'invoices', version: '1.1.0' },
       { key: 'holiday-calendars', version: '1.1.0' },
@@ -262,7 +261,7 @@ describe('the Add-ons card', () => {
     );
     await user.click(within(sample).getByRole('checkbox'));
     await user.click(installButton());
-    await screen.findByText('Client Portal is installed');
+    await screen.findByText(/^Client Portal \S+ is installed on /);
     await waitFor(() => expect(calls.some((call) => call.url === '/api/v1/apps/clients/sample-data' && call.method === 'POST')).toBe(true));
     // Invoices was installed by this install; Holiday calendars was already here and only connected.
     expect(calls.find((call) => call.url === '/api/v1/apps/clients/sample-data' && call.method === 'POST')?.body).toEqual({ addOns: ['invoices'] });
@@ -335,7 +334,7 @@ describe('the Add-ons card', () => {
     await user.click(within(holidays).getByRole('checkbox', { name: 'Holiday calendars' }));
     expect(statusOf(holidays)).toBe('Installed · v1.1.0 · won’t be connected');
     await user.click(installButton());
-    await screen.findByText('Client Portal is installed');
+    await screen.findByText(/^Client Portal \S+ is installed on /);
     expect(sentAddOns()).toEqual([{ key: 'invoices', version: '1.1.0' }]);
   });
 
@@ -422,7 +421,7 @@ describe('the Add-ons card', () => {
     await user.click(update);
     expect(hint()).toBeNull();
     await user.click(installButton());
-    await screen.findByText('Client Portal is installed');
+    await screen.findByText(/^Client Portal \S+ is installed on /);
     expect(sentAddOns()).toEqual([{ key: 'invoices', version: '1.1.0', update: true }]);
   });
 
@@ -448,7 +447,7 @@ describe('the Add-ons card', () => {
     await user.click(box);
     expect(statusOf(invoices)).toBe('Will be installed');
     await user.click(installButton());
-    await screen.findByText('Client Portal is installed');
+    await screen.findByText(/^Client Portal \S+ is installed on /);
     expect(sentAddOns()).toEqual([{ key: 'invoices', version: '1.1.0' }]);
   });
 
@@ -490,7 +489,7 @@ describe('the Add-ons card', () => {
     expect((await screen.findByText('Invoices & Receipts is on this server now. Read what it adds, above, then press Install.')).closest('[data-part="quick-read"]')).not.toBeNull();
     expect(calls.some((call) => call.url === '/api/v1/apps/install')).toBe(false);
     await user.click(installButton());
-    await screen.findByText('Client Portal is installed');
+    await screen.findByText(/^Client Portal \S+ is installed on /);
     // The required one only (a suggestion is left for the person to tick), then the check again, then the install: in that order.
     const order = calls.filter((call) => ['/api/v1/add-ons/download', '/api/v1/apps/plan', '/api/v1/apps/install'].includes(call.url)).map((call) => call.url.split('/').pop());
     expect(order).toEqual(['plan', 'download', 'plan', 'install']);
@@ -508,7 +507,7 @@ describe('the Add-ons card', () => {
     );
     await screen.findByText(/Install first downloads Invoices & Receipts/);
     await user.click(installButton());
-    await screen.findByText('Client Portal is installed');
+    await screen.findByText(/^Client Portal \S+ is installed on /);
     expect(calls.filter((call) => call.url === '/api/v1/apps/install')).toHaveLength(1);
   });
 
@@ -608,7 +607,6 @@ describe('the Add-ons card', () => {
     );
     const file = new File(['pretend'], 'clients-1.0.0.tgz', { type: 'application/gzip' });
     await user.upload(await screen.findByLabelText(/Bundle file/i), file);
-    await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
     await user.click(screen.getByRole('button', { name: 'Upload' }));
     await screen.findByText(/Install into which database/i);
     await user.click(screen.getByRole('radio', { name: /Practice/i }));
@@ -617,7 +615,7 @@ describe('the Add-ons card', () => {
     expect(screen.queryByTestId('install-add-ons')).toBeNull();
     installReply = () => Promise.resolve(jsonResponse(200, INSTALLED));
     await user.click(installButton());
-    await screen.findByText('Client Portal is installed');
+    await screen.findByText(/^Client Portal \S+ is installed on /);
     expect(sentAddOns()).toBeUndefined();
     expect(document.querySelector('[data-part="done-add-ons"]')).toBeNull();
   });

@@ -78,6 +78,8 @@ interface Call {
 }
 
 let calls: Call[];
+/** The databases each update named its copy by. */
+let copies: string[] = [];
 let catalog: AppCatalogReply;
 let installed: { apps: InstalledApp[]; staged: { key: string; version: string }[] };
 let switchReply: { onlineEnabled: boolean; vetoed: boolean };
@@ -93,6 +95,7 @@ let schemaAuthoring: { authorable: boolean; reason: string | null } | undefined;
 beforeEach(() => {
   forgetStaleAsk();
   calls = [];
+  copies = [];
   catalog = { apps: [], catalogFetchedAt: null, onlineEnabled: false };
   installed = { apps: [], staged: [] };
   switchReply = { onlineEnabled: true, vetoed: false };
@@ -119,7 +122,10 @@ beforeEach(() => {
 
 function stubFetch() {
   const fetchMock = vi.fn((input: unknown, init?: RequestInit) => {
-    const url = String(input);
+    // An update names its copy by database (`?connectionId=`); the routes below match the path.
+    const copy = /[?&]connectionId=([^&]*)/.exec(String(input))?.[1];
+    if (copy !== undefined) copies.push(decodeURIComponent(copy));
+    const url = String(input).replace(/\?connectionId=[^&]*$/, '');
     const method = init?.method ?? 'GET';
     const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;
     calls.push({ method, url, ...(body === undefined ? {} : { body }) });
@@ -618,6 +624,35 @@ describe('updating an installed app', () => {
     expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
     expect(posted('/api/v1/apps/download')).toHaveLength(0);
     expect(screen.queryByRole('dialog')).toBeNull();
+    // The update names its copy by the database it is on: a key may be installed once per database.
+    expect(copies).toEqual([INSTALLED.connectionId]);
+  });
+
+  it('says where an update stopped, and finishes it with the same update', async () => {
+    withUpdate({ updateStaged: true });
+    updateReply = {
+      status: 409,
+      body: {
+        error: {
+          code: 'APP_UPDATE_INCOMPLETE',
+          message: 'Updating "clinic" to 0.1.2 stopped at the pages step.',
+          requestId: 'r',
+          details: { stage: 'pages', from: '0.1.1', to: '0.1.2', cause: 'a page failed' },
+        },
+      },
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+
+    const stopped = await screen.findByText('The update to 0.1.2 stopped while writing pages. Nothing was lost; 0.1.1’s pages are still here.');
+    expect(stopped.closest('[role="alert"]')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')).toHaveLength(1);
+
+    updateReply = { status: 200, body: { app: { ...INSTALLED, version: '0.1.2' }, from: '0.1.1', to: '0.1.2', pruned: [] } };
+    await userEvent.click(screen.getByRole('button', { name: 'Finish the update' }));
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')).toHaveLength(2);
+    expect(screen.queryByText(/stopped while writing pages/)).toBeNull();
   });
 
   /*
