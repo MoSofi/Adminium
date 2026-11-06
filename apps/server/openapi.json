@@ -142969,6 +142969,15 @@
                                   },
                                   "target": {
                                     "type": "string"
+                                  },
+                                  "targets": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    }
                                   }
                                 },
                                 "required": [
@@ -143340,6 +143349,437 @@
         }
       }
     },
+    "/api/v1/apps/save/inventory": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "inventory": {
+                      "type": "object",
+                      "properties": {
+                        "connectionId": {
+                          "type": "string"
+                        },
+                        "tables": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "columns": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "rows": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "rowsExact": {
+                                "type": "boolean"
+                              },
+                              "links": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "to": {
+                                      "type": "string"
+                                    },
+                                    "required": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "to",
+                                    "required"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "personal": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "secretLike": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "rowsAllowed": {
+                                "type": "boolean"
+                              },
+                              "personalAllowed": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "columns",
+                              "rows",
+                              "rowsExact",
+                              "links",
+                              "personal",
+                              "secretLike",
+                              "rowsAllowed",
+                              "personalAllowed"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "pages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "tableId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "generated": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title",
+                              "tableId",
+                              "generated"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "views": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "pageId": {
+                                "type": "string"
+                              },
+                              "ownerId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ownerName": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "pageId",
+                              "ownerId",
+                              "ownerName"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "automations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "tableIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "pageId": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "tableIds"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "emailTemplates": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "documents": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "tableIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "pageId": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "tableIds"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "reports": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "tableIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "pageId": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "tableIds"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "invoiceLayouts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "tableIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "pageId": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "tableIds"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "scheduledReports": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "tableIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "pageId": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "tableIds"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "publicEndpoints": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "tableIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "pageId": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "tableIds"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "payments": {
+                          "type": "boolean"
+                        },
+                        "instance": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "connectionId",
+                        "tables",
+                        "pages",
+                        "views",
+                        "roles",
+                        "automations",
+                        "emailTemplates",
+                        "documents",
+                        "reports",
+                        "invoiceLayouts",
+                        "scheduledReports",
+                        "publicEndpoints",
+                        "payments",
+                        "instance"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "inventory"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apps/saves": {
       "get": {
         "responses": {
@@ -143370,10 +143810,28 @@
                               "null"
                             ]
                           },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "description": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "label": {
                             "type": "string"
                           },
                           "savedBy": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "savedByName": {
                             "type": [
                               "string",
                               "null"
@@ -143397,8 +143855,11 @@
                           "key",
                           "version",
                           "connectionId",
+                          "name",
+                          "description",
                           "label",
                           "savedBy",
+                          "savedByName",
                           "savedAt",
                           "integrity",
                           "bytes",
