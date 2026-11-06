@@ -102,6 +102,8 @@ export interface ListRunsOptions {
   since: number;
   filter?: AutomationRunFilter | undefined;
   automationId?: string | undefined;
+  /** Runs of rules on any of these databases (a workspace's). Empty matches nothing. */
+  connectionIds?: readonly string[] | undefined;
   limit?: number | undefined;
   before?: AutomationRunCursor | undefined;
 }
@@ -148,6 +150,9 @@ function decode(row: Selectable<AdminiumAutomationRunsTable>): AutomationRun {
 
 export function automationRunsRepo(meta: MetaDb) {
   const { db } = meta;
+
+  /** The rules on these databases: a run's database is its rule's. */
+  const rulesOn = (connectionIds: readonly string[]) => db.selectFrom('adminium_automations').select('id').where('connectionId', 'in', [...connectionIds]);
 
   /**
    * Runs by ids a sorted read found, in its order. A run carries its trigger
@@ -381,6 +386,11 @@ export function automationRunsRepo(meta: MetaDb) {
       if (options.automationId !== undefined) {
         query = query.where('automationId', '=', options.automationId);
       }
+      if (options.connectionIds !== undefined) {
+        // Narrowed in the query, before the page is cut: a page is never short for runs of other databases.
+        if (options.connectionIds.length === 0) return [];
+        query = query.where('automationId', 'in', rulesOn(options.connectionIds));
+      }
       if (options.before) {
         const { startedAt, id } = options.before;
         query = query.where((eb) =>
@@ -402,7 +412,7 @@ export function automationRunsRepo(meta: MetaDb) {
 
     /** The four filter-pill badges over the same window (D22). */
     async counts(
-      options: { since: number; automationId?: string | undefined },
+      options: { since: number; automationId?: string | undefined; connectionIds?: readonly string[] | undefined },
     ): Promise<AutomationRunCounts> {
       let query = db
         .selectFrom('adminium_automation_runs')
@@ -411,6 +421,10 @@ export function automationRunsRepo(meta: MetaDb) {
         .groupBy('status');
       if (options.automationId !== undefined) {
         query = query.where('automationId', '=', options.automationId);
+      }
+      if (options.connectionIds !== undefined) {
+        if (options.connectionIds.length === 0) return { all: 0, success: 0, failed: 0, running: 0 };
+        query = query.where('automationId', 'in', rulesOn(options.connectionIds));
       }
       const rows = await query.execute();
       const counts: AutomationRunCounts = { all: 0, success: 0, failed: 0, running: 0 };

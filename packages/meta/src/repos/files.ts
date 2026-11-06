@@ -489,6 +489,8 @@ export function filesRepo(meta: MetaDb) {
       q?: string;
       kind?: FileKind;
       entityConnectionId?: string;
+      /** Files of a record in any of these databases (a workspace's). Empty matches nothing. */
+      entityConnectionIds?: readonly string[];
       entityTable?: string;
       entityId?: string;
       destinationId?: string | null;
@@ -532,6 +534,11 @@ export function filesRepo(meta: MetaDb) {
         q = q.where(sql<boolean>`${sql.ref('filename')} like ${`%${escaped}%`} escape '\\'`);
       }
       if (input.entityConnectionId !== undefined) q = q.where('entityConnectionId', '=', input.entityConnectionId);
+      if (input.entityConnectionIds !== undefined) {
+        // Narrowed in the query, before the page is cut: a page is never short for rows of other databases.
+        if (input.entityConnectionIds.length === 0) return { rows: [], nextCursor: null };
+        q = q.where('entityConnectionId', 'in', [...input.entityConnectionIds]);
+      }
       if (input.entityTable !== undefined) q = q.where('entityTable', '=', auditEntityKeyPart(input.entityTable));
       if (input.entityId !== undefined) q = q.where('entityId', '=', auditEntityKeyPart(input.entityId));
       if (input.destinationId !== undefined) {

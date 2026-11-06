@@ -29,7 +29,7 @@
  * stores anything but commas re-written as comma CSV: the job and every other
  * reader of a stored file read one shape.
  */
-import { narrowToWorkspace } from '../../workspaces/list-filter.js';
+import { workspaceScope } from '../../workspaces/list-filter.js';
 import { assertNotPrivate } from '../../crud/row-limit.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -587,13 +587,15 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
 
     app.get(
       '/imports',
-      { preSerialization: narrowToWorkspace(() => app.rbac.meta, 'data', (row) => row['connectionId'] as string | null),
-        schema: { querystring: importsListQuery, response: { 200: importsListReply } } },
+      { schema: { querystring: importsListQuery, response: { 200: importsListReply } } },
       async (request) => {
         const userId = requireUserId(request);
         const manage = await request.can(IMPORTS_MANAGE_PERMISSION);
+        // A workspace's databases, narrowed before the limit: the newest of their imports.
+        const scope = await workspaceScope(app.rbac.meta, request);
         const rows = await imports.list({
           ...(manage ? {} : { requestedBy: userId }),
+          ...(scope === undefined ? {} : { connectionIds: [...scope] }),
           limit: request.query.limit,
         });
         const shown: DataImport[] = [];

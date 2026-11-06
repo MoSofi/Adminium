@@ -22,7 +22,7 @@
  * finished. `skipped` and `cancelled` appear under All with their own glyph.
  */
 
-import { narrowToWorkspace } from '../../workspaces/list-filter.js';
+import { workspaceScope } from '../../workspaces/list-filter.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   automationRunsRepo,
@@ -147,15 +147,17 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
       {
         preHandler: guard,
         config: { audit: auditExempt('read-only run list') },
-        // A run's database is its rule's.
-        preSerialization: narrowToWorkspace(() => app.rbac.meta, 'runs', async (row) => (await rules.findById(String(row['automationId'])))?.connectionId ?? null),
         schema: { querystring: automationRunsListQuery, response: { 200: automationRunsListReply } },
       },
       async (request) => {
         const since = now() - RUNS_WINDOW_MS;
         const cursor = parseCursor(request.query.cursor);
+        // A run's database is its rule's: a workspace's runs are narrowed in the query, before the page is cut.
+        const scope = await workspaceScope(app.rbac.meta, request);
+        const inScope = scope === undefined ? {} : { connectionIds: [...scope] };
         const rows = await runs.list({
           since,
+          ...inScope,
           ...(request.query.status === undefined ? {} : { filter: request.query.status }),
           ...(request.query.automationId === undefined
             ? {}
@@ -178,6 +180,7 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
           },
           counts: await runs.counts({
             since,
+            ...inScope,
             ...(request.query.automationId === undefined
               ? {}
               : { automationId: request.query.automationId }),

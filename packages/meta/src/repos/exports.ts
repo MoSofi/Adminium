@@ -117,10 +117,15 @@ export function exportsRepo(meta: MetaDb) {
 
     /** Newest first; `requestedBy` scopes to one user (the "mine" list). */
     async list(
-      opts: { requestedBy?: string; limit?: number } = {},
+      opts: { requestedBy?: string; limit?: number; connectionIds?: readonly string[] } = {},
     ): Promise<DataExport[]> {
       let query = db.selectFrom('adminium_exports').selectAll();
       if (opts.requestedBy !== undefined) query = query.where('requestedBy', '=', opts.requestedBy);
+      if (opts.connectionIds !== undefined) {
+        // A workspace's databases, narrowed before the limit: the newest of THEIR exports.
+        if (opts.connectionIds.length === 0) return [];
+        query = query.where('connectionId', 'in', [...opts.connectionIds]);
+      }
       const rows = await query
         .orderBy('createdAt', 'desc')
         .orderBy('id', 'desc')

@@ -16,7 +16,7 @@
  * dependency — it is rejected here with a clear 422 (documented
  * deviation).
  */
-import { narrowToWorkspace } from '../../workspaces/list-filter.js';
+import { workspaceScope } from '../../workspaces/list-filter.js';
 import { assertNotPrivate } from '../../crud/row-limit.js';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -231,13 +231,15 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
 
     app.get(
       '/exports',
-      { preSerialization: narrowToWorkspace(() => app.rbac.meta, 'data', (row) => row['connectionId'] as string | null),
-        schema: { querystring: exportsListQuery, response: { 200: exportsListReply } } },
+      { schema: { querystring: exportsListQuery, response: { 200: exportsListReply } } },
       async (request) => {
         const userId = requireUserId(request);
         const manage = await request.can(EXPORTS_MANAGE_PERMISSION);
+        // A workspace's databases, narrowed before the limit: the newest of their exports.
+        const scope = await workspaceScope(app.rbac.meta, request);
         const rows = await exports.list({
           ...(manage ? {} : { requestedBy: userId }),
+          ...(scope === undefined ? {} : { connectionIds: [...scope] }),
           limit: request.query.limit,
         });
         const views: ExportView[] = [];

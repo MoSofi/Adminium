@@ -32,7 +32,7 @@
  * cannot change how any other route reads a body.
  */
 
-import { narrowToWorkspace } from '../../workspaces/list-filter.js';
+import { workspaceScope } from '../../workspaces/list-filter.js';
 import type { FileRecord } from '../../files/read-limited.js';
 import type { Readable } from 'node:stream';
 
@@ -790,10 +790,11 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
 
     app.get(
       '/files',
-      { preSerialization: narrowToWorkspace(() => app.rbac.meta, 'data', (row) => row['connectionId'] as string | null),
-        schema: { querystring: filesListQuery, response: { 200: filesListReply } } },
+      { schema: { querystring: filesListQuery, response: { 200: filesListReply } } },
       async (request) => {
         const userId = requireUserId(request);
+        // A workspace's databases, narrowed in the query: a page is cut from their files, and so is its cursor.
+        const scope = await workspaceScope(app.rbac.meta, request);
         const manage = await request.can(FILES_MANAGE_PERMISSION);
         const query = request.query;
         const ofRecord = query.connectionId !== undefined && query.table !== undefined && query.recordId !== undefined;
@@ -840,6 +841,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
           ...(query.q === undefined ? {} : { q: query.q }),
           ...(query.kind === undefined ? {} : { kind: query.kind }),
           ...(query.connectionId === undefined ? {} : { entityConnectionId: query.connectionId }),
+          ...(scope === undefined ? {} : { entityConnectionIds: [...scope] }),
           ...(usedTable !== undefined ? { entityTable: usedTable } : query.table === undefined ? {} : { entityTable: query.table }),
           ...(query.recordId === undefined ? {} : { entityId: query.recordId }),
           ...(query.since === undefined ? {} : { since: query.since }),

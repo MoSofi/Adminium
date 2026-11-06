@@ -7,7 +7,7 @@
  *
  * Requires `system:audit:read` (meta closed-set key `audit.read`).
  */
-import { narrowToWorkspace } from '../../workspaces/list-filter.js';
+import { workspaceScope } from '../../workspaces/list-filter.js';
 import type { RowLimitContext } from '../../crud/row-limit.js';
 import { rowTestOf } from '../../crud/row-limit-context.js';
 import { reachOfRequest } from '../../crud/row-reach-request.js';
@@ -205,12 +205,14 @@ export const auditRoutes: FastifyPluginAsyncZod = async (app) => {
     '/audit',
     {
       preHandler: app.rbac.require(PERMISSIONS.auditRead),
-      preSerialization: narrowToWorkspace(() => app.rbac.meta, 'entries', (row) => row['connectionId'] as string | null),
-        schema: { querystring: auditListQuery, response: { 200: auditListReply } },
+      schema: { querystring: auditListQuery, response: { 200: auditListReply } },
     },
     async (request) => {
       const { actorId, category, resource, connectionId, entityTable, entityId, from, to, cursor, limit } =
         request.query;
+      // A workspace's databases, narrowed in the query: a page is cut from their entries, and so is its cursor.
+      const scope = await workspaceScope(app.rbac.meta, request);
+      if (scope !== undefined && scope.size === 0) return { entries: [], nextCursor: null };
 
       const limited = await limitsOf(request);
       const inPart = tablesInPart(limited);
@@ -222,6 +224,7 @@ export const auditRoutes: FastifyPluginAsyncZod = async (app) => {
         // columns. Clamped through the same helper the write side uses, so an
         // over-long key still matches the truncated form it was stored as.
         if (connectionId !== undefined) q = q.where('connectionId', '=', connectionId);
+        if (scope !== undefined) q = q.where('connectionId', 'in', [...scope]);
         if (entityTable !== undefined) q = q.where('entityTable', '=', auditEntityKeyPart(entityTable));
         if (entityId !== undefined) q = q.where('entityId', '=', auditEntityKeyPart(entityId));
         if (from !== undefined) q = q.where('createdAt', '>=', from);

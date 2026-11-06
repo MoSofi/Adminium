@@ -10,7 +10,9 @@
  *  - the view is one server setting, written beside the other defaults;
  *  - a person's last choice is a workspace they can see, or refused;
  *  - `?workspaceId=` only ever narrows a list: what it returns is a subset of
- *    the list without it, and an unseen workspace is not found.
+ *    the list without it, and an unseen workspace is not found;
+ *  - a paged list narrows in its query, so a page is full of the workspace's
+ *    rows and its cursor leads to the next of them.
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -33,6 +35,7 @@ import {
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
+import { auditRoutes } from '../src/routes/audit/index.js';
 import { pagesRoutes } from '../src/routes/pages/index.js';
 import { workspacesRoutes } from '../src/routes/workspaces/index.js';
 import { makeEnv } from './helpers.js';
@@ -84,6 +87,7 @@ async function build(): Promise<Ctx> {
     async (api) => {
       await api.register(workspacesRoutes);
       await api.register(pagesRoutes({ meta }));
+      await api.register(auditRoutes);
     },
     { prefix: '/api/v1' },
   );
@@ -167,5 +171,33 @@ describe('workspaces', () => {
     // Both a workspace and a database: refused. A workspace that is not there: not found.
     expect((await call('GET', `/pages?workspaceId=${kiln}&connectionId=${conn.kiln}`, owner)).statusCode).toBe(422);
     expect((await call('GET', '/pages?workspaceId=wsp_absent', owner)).statusCode).toBe(404);
+  });
+
+  it('pages the audit of a workspace from its own entries, the cursor included', async () => {
+    ctx = await build();
+    const { owner, conn } = ctx;
+    const kiln = (await call('POST', '/workspaces', owner, { name: 'Kiln', connectionIds: [conn.kiln] })).json().workspace.id as string;
+    const audit = auditRepo(ctx.meta);
+    const T0 = Date.now() - 60_000;
+    // Three kiln entries, then many newer ones of fernhill: cut after the page, kiln's first pages would be empty.
+    for (let n = 0; n < 3; n += 1) await audit.append({ actorKind: 'user', actorLabel: 'Owner', category: 'data', action: 'record.update', connectionId: conn.kiln }, T0 + n);
+    for (let n = 3; n < 12; n += 1) await audit.append({ actorKind: 'user', actorLabel: 'Owner', category: 'data', action: 'record.update', connectionId: conn.fernhill }, T0 + n);
+
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < 3; page += 1) {
+      const reply = await call('GET', `/audit?workspaceId=${kiln}&category=data&limit=2${cursor === null ? '' : `&cursor=${cursor}`}`, owner);
+      expect(reply.statusCode, reply.body).toBe(200);
+      const body = reply.json() as { entries: { connectionId: string | null; id: string }[]; nextCursor: string | null };
+      expect(body.entries.length).toBeGreaterThan(0);
+      for (const entry of body.entries) expect(entry.connectionId).toBe(conn.kiln);
+      seen.push(...body.entries.map((entry) => entry.id));
+      cursor = body.nextCursor;
+      if (cursor === null) break;
+    }
+    expect(seen).toHaveLength(3);
+    expect(cursor).toBeNull();
+    expect((await call('GET', `/audit?workspaceId=${kiln}&connectionId=${conn.kiln}`, owner)).statusCode).toBe(422);
+    expect((await call('GET', '/audit?workspaceId=wsp_absent', owner)).statusCode).toBe(404);
   });
 });
