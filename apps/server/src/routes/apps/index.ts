@@ -53,9 +53,12 @@ import {
 import { type DatabaseModel } from '@adminium/engine';
 import {
   addOnSettingsRepo,
+  appAfterInstallRepo,
+  appPartsRepo,
   appTablesRepo,
   appUpdatesRepo,
   auditRepo,
+  emailTemplatesRepo,
   connectionTenantConfig,
   connectionsRepo,
   pagesRepo,
@@ -93,6 +96,8 @@ import {
 } from '../../apps/catalog.js';
 import { addOnsHereFor, asInstalledHere, partsLeftOut, planModulesOf, planWholeOf, tickedByDefault } from '../../apps/app-modules.js';
 import { surfacesOfInstalled } from '../../apps/installed.js';
+import { afterInstallView, rightOf as afterInstallRightOf } from '../../apps/after-install-view.js';
+import { INSTANCE_EVENTS, instanceValuesNow, undoInstance } from '../../apps/manifest-instance.js';
 import { workspaceFileRefusal } from '../../apps/workspace-files.js';
 import { workspaceFileRoutes } from './workspace-files.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
@@ -108,7 +113,7 @@ import { CATALOG_REFRESH_KIND } from '../../jobs/add-on-acquire.js';
 import { forgetClosedDoors, loadAppParts, roleIsOffered, switchOf } from '../../rbac/app-parts.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { pickLabel, sameLanguage } from '../../i18n/bcp47.js';
-import { forgetAppSurfaceSettings, NO_SURFACE_SETTINGS, sideOffOf } from '../../surfaces/settings.js';
+import { forgetAppSurfaceSettings, instancesOf, NO_SURFACE_SETTINGS, sideOffOf } from '../../surfaces/settings.js';
 import { validateDomainEntries, validateInstanceEntries } from '../../surfaces/validate.js';
 import { normalizeHost } from '../../security/csrf.js';
 import { settingValueIssues, settingValuesWithDefaults } from '../../apps/settings-values.js';
@@ -179,6 +184,12 @@ import {
   appInstanceAdoptPlanReply,
   appInstanceAdoptBody,
   appInstanceAdoptReply,
+  afterInstallHiddenBody,
+  afterInstallParams,
+  afterInstallReply,
+  afterInstallTickBody,
+  appLookReply,
+  appLookUndoReply,
   uninstallAppReply,
   updateAppBody,
   updateAppReply,
@@ -326,6 +337,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     for (const keyed of new Set(installedRows.map((installed) => installed.row.manifestKey))) copiesByKey.set(keyed, await copiesOf(keyed));
     const installedVersions = new Map(installedRows.map((installed) => [installed.row.manifestKey, installed.row.version]));
     const installedPublishers = new Map(installedRows.map((installed) => [installed.row.manifestKey, publisherIdOf(installed.document)]));
+    // Keys an install runs from the project folder, as well as the folders the build lists: a copy made editable here is the folder's at once.
+    const folderKeys = new Set(installedRows.filter((installed) => installed.row.source === FOLDER_SOURCE).map((installed) => installed.row.manifestKey));
     // The keys the cached catalogue lists, when there is one: a self-made
     // app may not take the key of an app the catalogue offers.
     const cachedCatalog = await deps.store.readCatalogCache();
@@ -399,7 +412,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           // here too, before it sits in the store offering an update the
           // update route would refuse.
           // A key the project folder carries is the folder's: a package of it would be shadowed, never served.
-          if (files.sourceOf(manifest.key) === 'folder') {
+          if (files.sourceOf(manifest.key) === 'folder' || folderKeys.has(manifest.key)) {
             throw new ValidationFailedError(
               `"${manifest.key}" is an app of this project (apps/${manifest.key}/). Change it there, or give this package another key.`,
               { reason: 'KEY_IN_PROJECT' },
@@ -556,15 +569,36 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const folderState = rows.some((installed) => installed.row.source === FOLDER_SOURCE)
           ? new Map((await projectAppsRepo(deps.meta).list()).map((state) => [state.appKey, state]))
           : new Map<string, never>();
+        const names = rows.some((installed) => installed.row.connectionId !== null) ? await connectionNames() : new Map<string, string>();
         const apps: z.infer<typeof installedAppReply>[] = await Promise.all(rows.map(async (installed) => {
           const { row } = installed;
-          const surfaces = surfacesOfInstalled(files, {
+          const slug = row.instanceSlug;
+          const address = grantKeyOf(row);
+          const packaged = surfacesOfInstalled(files, {
             key: row.manifestKey,
             version: row.version,
           });
+          // A later install's screens are its own mount, when its sides serve every install; otherwise they open for the first only.
+          const mounted = slug === '' || instancesOf(placements, row.manifestKey).some((instance) => instance.slug === slug);
+          const surfaces = mounted
+            ? packaged.map((surface) => (slug === '' ? surface : { ...surface, prefix: `/apps/${row.manifestKey}/${slug}/${surface.side}` }))
+            : [];
+          const document = (installed.document ?? null) as { name?: unknown; provenance?: { label?: unknown; savedAt?: unknown; adminiumVersion?: unknown } } | null;
+          const provenance = document?.provenance;
           return {
             key: row.manifestKey,
             version: row.version,
+            installId: row.id,
+            slug,
+            address,
+            connectionName: row.connectionId === null ? null : (names.get(row.connectionId) ?? null),
+            name: typeof document?.name === 'string' && document.name !== '' ? document.name : row.manifestKey,
+            // A self-made app's icon (a lucide name); the page falls back to its package glyph.
+            ...(typeof (document as { icon?: unknown } | null)?.icon === 'string' ? { icon: (document as { icon: string }).icon } : {}),
+            ...(provenance !== undefined && typeof provenance.savedAt === 'string' && typeof provenance.adminiumVersion === 'string'
+              ? { madeAt: { label: typeof provenance.label === 'string' ? provenance.label : null, savedAt: provenance.savedAt, adminiumVersion: provenance.adminiumVersion } }
+              : {}),
+            ...(mounted || packaged.length === 0 ? {} : { screensFirstOnly: true as const }),
             source: row.source,
             ...(row.source === FOLDER_SOURCE
               ? {
@@ -591,10 +625,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               ? { unfinishedUpdate: { from: unfinished.get(row.id)!.fromVersion, to: row.version, stage: unfinished.get(row.id)!.stoppedAt } }
               : {}),
             sides: surfaces.map((surface) => {
-              // Its own host when one is mapped to the app's own mount, else its prefix.
+              // Its own host when one is mapped to this install's own mount, else its prefix.
               const host = Object.entries(placements.domains).find(
                 ([, target]) =>
-                  target.appKey === row.manifestKey && target.side === surface.side && target.instance === undefined,
+                  target.appKey === row.manifestKey && target.side === surface.side && target.instance === (slug === '' ? undefined : slug),
               )?.[0];
               return {
                 side: surface.side,
@@ -604,7 +638,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                 state:
                   statusOf(row.status) === 'disabled'
                     ? ('disabled' as const)
-                    : sideOffOf(placements, row.manifestKey, surface.side)
+                    : sideOffOf(placements, address, surface.side)
                       ? ('off' as const)
                       : ('on' as const),
               };
@@ -614,7 +648,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             // No side served, unless the app declares none: that one is whole.
             // …while its package is still here: one whose files are gone is missing like any other.
             missing:
-              surfaces.length === 0 &&
+              packaged.length === 0 &&
               !(manifestOnlyDocument(installed.document) && (await files.has(row.manifestKey, row.version))),
             status: statusOf(row.status),
           };
@@ -1679,6 +1713,22 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+    /** What one install put here, counted from its own records. */
+    async function addedBy(row: InstalledApp): Promise<{ pages: number; emailTemplates: number; scheduledReports: number; roles: number }> {
+      const pages = await deps.meta.db
+        .selectFrom('adminium_pages')
+        .select((eb) => eb.fn.countAll<number | string>().as('n'))
+        .where('manifestId', '=', row.row.id)
+        .executeTakeFirst();
+      const templates = await emailTemplatesRepo(deps.meta).listManagedBy(row.row.manifestKey, row.row.id);
+      return {
+        pages: Number(pages?.n ?? 0),
+        emailTemplates: new Set(templates.filter((template) => template.archivedAt === null).map((template) => template.key)).size,
+        scheduledReports: (await appPartsRepo(deps.meta).list(row.row.id, 'scheduled-report')).length,
+        roles: (await rolesRepo(deps.meta).listForInstall(row.row.id)).length,
+      };
+    }
+
     app.get(
       '/apps/:key/overview',
       {
@@ -1733,6 +1783,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               ref: record.ref,
               table: realTableOf(record),
               state: record.state,
+              // Found here and used, or another app's: the install did not make it.
+              ...(record.role === 'app' && (record.state === 'adopted' || record.state === 'shared') ? { before: true as const } : {}),
               role: record.role === 'sample-ledger' ? ('sample-ledger' as const) : ('app' as const),
               rows: noCounts || (found !== undefined && inPart.has(found.id)) ? null : (live.get(realTableOf(record)) ?? found?.rowCountEstimate ?? null),
             };
@@ -1742,8 +1794,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const entries = await auditRepo(deps.meta).list({ category: 'app', limit: 200 });
         const activity = entries
           .filter((entry) => {
-            const after = (entry.changes as { after?: { key?: unknown } } | null)?.after;
-            return after?.key === key;
+            const after = (entry.changes as { after?: { key?: unknown; installId?: unknown } } | null)?.after;
+            // A line that names its install is this install's only.
+            return after?.key === key && (after.installId === undefined || after.installId === row.row.id);
           })
           .slice(0, 8)
           .map((entry) => {
@@ -1759,6 +1812,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         return {
           key,
           connection: connection === undefined ? null : connection,
+          added: await addedBy(row),
           tables,
           activity,
         };
@@ -1812,6 +1866,156 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         },
       );
     }
+
+    // ── After you install ──────────────────────────────────────────────────
+
+    /** Whether the caller holds a permission; a composition with no grants (a test) holds every one. */
+    const canOf = (request: FastifyRequest) => async (permission: string): Promise<boolean> =>
+      typeof request.can !== 'function' || (await request.can(permission as never));
+
+    const afterInstallOf = (request: FastifyRequest, row: InstalledApp) =>
+      afterInstallView(
+        deps.meta,
+        { id: row.row.id, manifestKey: row.row.manifestKey, connectionId: row.row.connectionId, instanceSlug: row.row.instanceSlug },
+        canOf(request),
+      );
+
+    app.get(
+      '/apps/:key/after-install',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { params: appKeyParams, response: { 200: afterInstallReply } },
+      },
+      async (request) => afterInstallOf(request, await installedRow(request, request.params.key)),
+    );
+
+    /*
+     * Put the list away once everything on it is done. Registered before the
+     * item route: `hidden` is never an item's id.
+     */
+    app.put(
+      '/apps/:key/after-install/hidden',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: appKeyParams, body: afterInstallHiddenBody, response: { 200: afterInstallReply } },
+      },
+      async (request) => {
+        const row = await installedRow(request, request.params.key);
+        const view = await afterInstallOf(request, row);
+        if (request.body.hidden && view.items.some((item) => !item.done)) {
+          throw new AppError(409, 'AFTER_INSTALL_NOT_DONE', 'Something after the install is still to do, so the list stays.', {
+            open: view.items.filter((item) => !item.done).length,
+          });
+        }
+        await appAfterInstallRepo(deps.meta).setHidden(row.row.id, request.body.hidden, request.user?.id ?? null);
+        await auditAppEvent(
+          request.body.hidden ? 'app.after-install-hidden' : 'app.after-install-shown',
+          { key: row.row.manifestKey, installId: row.row.id },
+          request.user?.id ?? null,
+          request.user?.email ?? 'unknown',
+        );
+        return afterInstallOf(request, row);
+      },
+    );
+
+    app.put(
+      '/apps/:key/after-install/:id',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: afterInstallParams, body: afterInstallTickBody, response: { 200: afterInstallReply } },
+      },
+      async (request) => {
+        const row = await installedRow(request, request.params.key);
+        const repo = appAfterInstallRepo(deps.meta);
+        // Of this install only: another install's item is not here.
+        const item = await repo.findById(row.row.id, request.params.id);
+        if (item === null) throw new NotFoundError('That item is not on this install\'s list.');
+        const right = afterInstallRightOf(item.kind);
+        if (!(await canOf(request)(right))) {
+          throw new ForbiddenError('Ticking this off needs the permission to do it.', 'FORBIDDEN', { reason: 'AFTER_INSTALL_RIGHT', right });
+        }
+        await repo.setDone(row.row.id, item.id, request.body.done, request.user?.id ?? null);
+        // What was done, never the value it was done with.
+        await auditAppEvent(
+          'app.after-install-ticked',
+          { key: row.row.manifestKey, installId: row.row.id, kind: item.kind, item: item.item, done: request.body.done },
+          request.user?.id ?? null,
+          request.user?.email ?? 'unknown',
+        );
+        return afterInstallOf(request, row);
+      },
+    );
+
+    // ── The look and languages a self-made app's file brought ──────────────
+
+    app.get(
+      '/apps/:key/look',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { params: appKeyParams, response: { 200: appLookReply } },
+      },
+      async (request) => {
+        const row = await installedRow(request, request.params.key);
+        const values = await instanceValuesNow(deps.meta, row.row.id);
+        if (values.length === 0) return { look: null };
+        type Group = 'logo' | 'colours' | 'languages' | 'wordings' | 'systemEmails' | 'settings';
+        const groupOf = (value: (typeof values)[number]): Group => {
+          if (value.kind === 'word') return 'wordings';
+          if (value.kind === 'email') return 'systemEmails';
+          if (value.kind === 'locale') return 'languages';
+          if (value.item === 'branding.logoFileId' || value.item === 'branding.faviconFileId') return 'logo';
+          if (value.item.startsWith('appearance.')) return 'colours';
+          return 'settings';
+        };
+        const changed = new Set<Group>();
+        for (const value of values) if (value.changed) changed.add(groupOf(value));
+        const of = (group: Group) => values.filter((value) => groupOf(value) === group);
+        return {
+          look: {
+            appliedAt: Math.min(...values.map((value) => value.at)),
+            logo: of('logo').length > 0,
+            colours: of('colours').length > 0,
+            // The languages it switched on; one it switched off is a change of wording, said nowhere.
+            languages: of('languages').filter((value) => value.applied === true).map((value) => value.item),
+            wordings: of('wordings').length,
+            systemEmails: new Set(of('systemEmails').map((value) => value.item.slice(0, value.item.indexOf('/')))).size,
+            settings: of('settings').length,
+            changed: (['logo', 'colours', 'languages', 'wordings', 'systemEmails', 'settings'] as const).filter((group) => changed.has(group)),
+            canUndo: await canOf(request)(PERMISSIONS.settingsManage),
+          },
+        };
+      },
+    );
+
+    app.post(
+      '/apps/:key/look/undo',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: appKeyParams, response: { 200: appLookUndoReply } },
+      },
+      async (request) => {
+        const row = await installedRow(request, request.params.key);
+        // It is written over the whole server: only someone who may change the server's settings puts it back.
+        if (!(await canOf(request)(PERMISSIONS.settingsManage))) {
+          throw new ForbiddenError('Putting back the look and languages needs the permission to change the server\'s settings.', 'FORBIDDEN', { reason: 'SETTINGS_MANAGE' });
+        }
+        const done = await undoInstance(deps.meta, row.row.id, request.user?.id ?? null);
+        // The screens repaint the look and the words they show.
+        const host = hostOf(request);
+        if (done.branding) host.publish?.('config-changed', INSTANCE_EVENTS.branding, {});
+        if (done.words) host.publish?.('config-changed', INSTANCE_EVENTS.i18n, {});
+        await auditAppEvent(
+          'app.look-undone',
+          { key: row.row.manifestKey, installId: row.row.id, restored: done.restored.length, kept: done.kept.length },
+          request.user?.id ?? null,
+          request.user?.email ?? 'unknown',
+        );
+        return { restored: done.restored, kept: done.kept };
+      },
+    );
 
     // ── Parts ──────────────────────────────────────────────────────────────
 

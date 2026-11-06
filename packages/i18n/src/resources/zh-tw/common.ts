@@ -2053,5 +2053,40 @@ export default {
       "after": "它們會保留，使用它們的內容仍會傳送它們。你之後可以為它們選擇新的工作區。"
     },
     "saveFailed": "無法變更它的列出位置"
+  },
+  "appCopies": {
+    "retired": {
+      "body": "它已不在這個地址。請開啟你要找的那一份：",
+      "open": "在 {database} 上開啟",
+      "title": "{app} 安裝在 {databases} 上"
+    }
+  },
+  "appFiles": {
+    "download": {
+      "action": "下載",
+      "again": "再次下載",
+      "appLabel": "下載 {name}",
+      "body": "檔案包含畫面及其原始碼，另一台伺服器可以繼續編輯。建置設定和指令碼不包含在內。",
+      "buildFailed": "畫面建置失敗，因此無法封裝。{message}",
+      "cancel": "取消",
+      "catalog": "這個應用程式來自目錄。它的畫面在這裡永遠不會被重新封裝。",
+      "checkFailed": "應用程式沒有通過檢查，因此無法封裝。",
+      "close": "完成",
+      "closeLabel": "關閉",
+      "copied": "已複製",
+      "copy": "複製",
+      "downloading": "正在下載 {file}",
+      "fingerprint": "指紋",
+      "fingerprintHint": "安裝它的人可以用它核對檔案。",
+      "noVersions": "還沒有建置任何內容，因此沒有可下載的。",
+      "notInstalled": "這個應用程式還沒有從其資料夾安裝，因此沒有起始版本。",
+      "notYet": "按下「下載」時產生",
+      "packing": "正在檢查、建置並封裝…",
+      "title": "下載 {app}",
+      "tooLarge": "檔案將有 {size}，而上傳最多 32 MB。通常是畫面或範例列中的大圖片造成的。",
+      "version": "版本",
+      "versionBelow": "不能低於應用程式目前的版本 {version}。",
+      "versionShape": "版本是三個數字，例如 1.2.0。"
+    }
   }
 } as const;

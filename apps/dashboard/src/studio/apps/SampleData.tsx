@@ -57,6 +57,7 @@ import {
   type AppOverview,
   type SampleDataStatus,
 } from './appsApi.js';
+import { useInstallId } from './installScope.js';
 
 const CARD = 'rounded-[14px] border border-border bg-surface p-[18px] shadow-sm';
 
@@ -67,9 +68,10 @@ function formatters() {
 /** Everything that reads the sample data or the tables it lives in. */
 export async function refreshSampleData(queryClient: ReturnType<typeof useQueryClient>, appKey: string, kind: SampleOwnerKind = 'app'): Promise<void> {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: sampleDataKey(appKey, kind) }),
+    // Every copy's: the key's prefix (each install's read is keyed by it too).
+    queryClient.invalidateQueries({ queryKey: sampleDataKey(appKey, kind).slice(0, 2) }),
     // An app's overview counts its rows; an add-on has none here, and its tables are read as data.
-    kind === 'app' ? queryClient.invalidateQueries({ queryKey: appOverviewKey(appKey) }) : queryClient.invalidateQueries({ queryKey: ['data'] }),
+    kind === 'app' ? queryClient.invalidateQueries({ queryKey: appOverviewKey(appKey).slice(0, 2) }) : queryClient.invalidateQueries({ queryKey: ['data'] }),
   ]);
 }
 
@@ -87,8 +89,10 @@ export async function runSampleAdd(
   onProgress: (progress: { pct: number; message: string | null }) => void,
   kind: SampleOwnerKind = 'app',
   addOns: readonly string[] = [],
+  /** Which copy, when the key is installed on several databases. */
+  install: string | null = null,
 ): Promise<void> {
-  const { jobId } = await addSampleData(appKey, kind, addOns);
+  const { jobId } = await addSampleData(appKey, kind, addOns, install);
   await followAppJob(jobId, {
     onProgress,
     failed: t('studio:sampleData.addFailedBody', 'The sample data was not added. Nothing was written.'),
@@ -139,7 +143,8 @@ export function SampleInstallCard({ checked, onChange, withAddOns = false }: { c
 
 /** Drawn only for an app that ships sample data, or has some loaded. */
 export function SampleDataCard({ appKey, connectionName, kind = 'app' }: { appKey: string; connectionName: string | null; kind?: SampleOwnerKind }) {
-  const status = useQuery(sampleDataQuery(appKey, kind));
+  const install = useInstallId();
+  const status = useQuery(sampleDataQuery(appKey, kind, install));
   const [dialog, setDialog] = useState<'add' | 'remove' | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const data = status.data;
@@ -245,13 +250,14 @@ export function AddSampleDataDialog({
   onAdded: () => void;
 }) {
   const queryClient = useQueryClient();
-  const status = useQuery(sampleDataQuery(appKey, kind));
-  const overview = useQuery({ ...appOverviewQuery(appKey), enabled: kind === 'app' });
+  const install = useInstallId();
+  const status = useQuery(sampleDataQuery(appKey, kind, install));
+  const overview = useQuery({ ...appOverviewQuery(appKey, install), enabled: kind === 'app' });
   const [progress, setProgress] = useState<{ pct: number; message: string | null } | null>(null);
   const available = status.data?.available ?? null;
 
   const add = useMutation({
-    mutationFn: () => runSampleAdd(appKey, setProgress, kind),
+    mutationFn: () => runSampleAdd(appKey, setProgress, kind, [], install),
     onSuccess: async () => {
       await refreshSampleData(queryClient, appKey, kind);
       onAdded();
@@ -365,13 +371,14 @@ export function RemoveSampleDataDialog({
 }) {
   const queryClient = useQueryClient();
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
-  const status = useQuery(sampleDataQuery(appKey, kind));
-  const overview = useQuery({ ...appOverviewQuery(appKey), enabled: kind === 'app' });
-  const plan = useQuery(sampleRemovePlanQuery(appKey, kind));
+  const install = useInstallId();
+  const status = useQuery(sampleDataQuery(appKey, kind, install));
+  const overview = useQuery({ ...appOverviewQuery(appKey, install), enabled: kind === 'app' });
+  const plan = useQuery(sampleRemovePlanQuery(appKey, kind, install));
   const [keepChanged, setKeepChanged] = useState(true);
 
   const remove = useMutation({
-    mutationFn: () => removeSampleData(appKey, keepChanged, kind),
+    mutationFn: () => removeSampleData(appKey, keepChanged, kind, install),
     onSuccess: async (result) => {
       await refreshSampleData(queryClient, appKey, kind);
       // The app's pages show these rows.
@@ -537,7 +544,8 @@ export function RemoveSampleDataDialog({
  */
 export function SampleDataBanner({ appKey, kind = 'app' }: { appKey: string; kind?: SampleOwnerKind }) {
   use(studioMessagesReady());
-  const status = useQuery(sampleDataQuery(appKey, kind));
+  const install = useInstallId();
+  const status = useQuery(sampleDataQuery(appKey, kind, install));
   const [removing, setRemoving] = useState(false);
   if (status.data?.loaded !== true) return null;
   return (

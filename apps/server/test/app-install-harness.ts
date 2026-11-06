@@ -36,6 +36,7 @@ import { registerAdapters } from '../src/connections/register-adapters.js';
 import { AppError, errorEnvelope } from '../src/errors.js';
 import { createAppInstallService, type AppRoutesDeps } from '../src/apps/install-service.js';
 import { appRoutes } from '../src/routes/apps/index.js';
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { packageTarball } from './app-bundle-helpers.js';
 import { TEST_SECRET } from './helpers.js';
 
@@ -92,6 +93,10 @@ export interface HarnessOptions {
   addOns?: boolean;
   /** The Files library an app's emails keep their files in. */
   library?: FileStore;
+  /** What the signed-in owner holds, one permission at a time; left out, every one. */
+  can?: (permission: string) => boolean;
+  /** More routes beside the app routes, built from the same deps (signed in the same way). */
+  routes?: (deps: AppRoutesDeps) => readonly FastifyPluginAsyncZod[];
 }
 
 const memoryFiles = {
@@ -160,8 +165,11 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
     return reply.status(500).send(errorEnvelope('INTERNAL', String(error), 'req_test'));
   });
   app.decorateRequest('user', null);
+  if (options.can !== undefined) app.decorateRequest('can', null as never);
   app.addHook('onRequest', async (request) => {
     (request as { user?: unknown }).user = { id: user.id, email: 'owner@test' };
+    const can = options.can;
+    if (can !== undefined) (request as { can?: unknown }).can = async (permission: string) => can(permission);
   });
   const store = createAppStore({ dataDir });
   const appFiles = createAppFiles({ store, ...(options.folder === undefined ? {} : { folder: options.folder }) });
@@ -218,6 +226,7 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
       : {}),
   };
   await app.register(appRoutes(appDeps));
+  for (const routes of options.routes?.(appDeps) ?? []) await app.register(routes);
   if (addOnStore !== null) installCore = createAppInstallService(appDeps).core;
   await app.ready();
   const handle = await manager.data(connection.id);

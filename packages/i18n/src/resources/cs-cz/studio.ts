@@ -5452,5 +5452,123 @@ export default {
       "staged": "{workspace} je nahrán a čeká na instalaci.",
       "stopped": "{workspace}: nainstalováno {done} z {total}. Instalace se v průběhu zastavila."
     }
+  },
+  "apps": {
+    "added": {
+      "emailTemplates": "E-mailové šablony",
+      "nothing": "Zatím nic vlastního.",
+      "onlyHere": "Jen na {database}.",
+      "pages": "Stránky",
+      "pagesOnly": "Jen stránky. Tato aplikace nemá vlastní obrazovky.",
+      "roles": "Role",
+      "scheduledReports": "Naplánované sestavy",
+      "title": "Co přidala"
+    },
+    "afterInstall": {
+      "allSet": "Vše hotovo",
+      "allSetBody": "Každý krok po instalaci je hotový.",
+      "count": "Hotovo {done} z {total}",
+      "doneBy": "Udělal(a) {name} {when}",
+      "hidden": "„Po instalaci“ je skryté",
+      "hide": "Skrýt",
+      "item": {
+        "address": "Doplnit e-mailovou adresu do '{name}'",
+        "bankAccount": "Doplnit bankovní účet pro '{name}'",
+        "delivery": "Zvolit, kam se '{name}' posílá",
+        "document": "Zvolit dokument, který '{name}' posílá",
+        "other": "Vyplnit '{name}'",
+        "paymentKey": "Doplnit klíče pro '{name}'",
+        "recipients": "{count, plural, one {Zvolit, kdo dostává naplánovanou sestavu} few {Zvolit, kdo dostává # naplánované sestavy} many {Zvolit, kdo dostává # naplánované sestavy} other {Zvolit, kdo dostává # naplánovaných sestav}}",
+        "sender": "{count, plural, one {Nastavit adresu odesílatele pro # e-mailovou šablonu} few {Nastavit adresu odesílatele pro # e-mailové šablony} many {Nastavit adresu odesílatele pro # e-mailové šablony} other {Nastavit adresu odesílatele pro # e-mailových šablon}}",
+        "systemGrant": "Dát roli {name} její práva v konzoli",
+        "webhook": "Doplnit webovou adresu do '{name}'",
+        "webhookHeader": "Vyplnit hodnotu hlavičky v '{name}'"
+      },
+      "link": {
+        "automation": "Otevřít pravidlo",
+        "documents": "Otevřít dokumenty",
+        "emailTemplates": "Otevřít nastavení e-mailu",
+        "payments": "Otevřít platby",
+        "reports": "Otevřít sestavy",
+        "roles": "Otevřít role",
+        "settings": "Otevřít nastavení"
+      },
+      "needs": {
+        "apps": "Potřebuje někoho, kdo spravuje aplikace",
+        "automations": "Potřebuje někoho, kdo spravuje automatizace",
+        "payments": "Potřebuje někoho, kdo spravuje platby",
+        "reports": "Potřebuje někoho, kdo spravuje sestavy",
+        "roles": "Potřebuje někoho, kdo spravuje role",
+        "settings": "Potřebuje někoho, kdo spravuje nastavení"
+      },
+      "seenDone": "Hotovo",
+      "title": "Po instalaci"
+    },
+    "copies": {
+      "on": "na {database}",
+      "screensFirstOnly": "Obrazovky této aplikace se otevírají jen pro její první instalaci. Její stránky, tabulky a pravidla tu fungují.",
+      "screensFirstOnlyOn": "Obrazovky této aplikace se otevírají jen pro její první instalaci, na {database}. Její stránky, tabulky a pravidla tu fungují.",
+      "uninstall": "Odinstalovat {app} z {database}",
+      "uninstallNote": "Odebere {app} z {database}: její stránky a pravidla tam. Tabulky a jejich řádky zůstanou.",
+      "updateEvery": "Aktualizovat každou kopii"
+    },
+    "editable": {
+      "action": "Zpřístupnit k úpravám tady",
+      "after": "Otevřete tento server v Designeru, abyste obrazovky změnili.",
+      "body": "Soubor obsahuje zdrojový kód těchto obrazovek. Zkopírujte ho do projektové složky tohoto serveru, abyste je mohli měnit v Designeru.",
+      "confirm": "Zpřístupnit k úpravám",
+      "confirmBody": "Zdrojový kód se zkopíruje do {folder}, aby ho Designer mohl měnit. Od té doby aplikace pochází z této složky: její novější soubory sem nelze nahrát.",
+      "confirmTitle": "Zpřístupnit {app} k úpravám tady?",
+      "done": "{app} je tady k úpravám",
+      "folderExists": "{folder} tu už existuje. Nejdřív tu složku přejmenujte nebo odeberte.",
+      "noProject": "Úpravy obrazovek potřebují projektovou složku. Otevřete tento server v Designeru, který ji vytvoří.",
+      "severalInstalls": "{app} je nainstalovaná na {count, plural, one {# databázi} few {# databázích} many {# databázích} other {# databázích}}. Nejdřív odeberte ostatní.",
+      "title": "Upravit tyto obrazovky"
+    },
+    "look": {
+      "body": "Použito ze souboru {date}: {parts}.",
+      "changedSince": "od té doby změněno, ponecháno",
+      "confirmBody": "Toto bylo použito ze souboru {date}. Zpět vrátí, co tento server měl předtím.",
+      "confirmSubtitle": "Vzhled a jazyky · {app}",
+      "confirmTitle": "Vrátit, co tu bylo předtím?",
+      "part": {
+        "colours": "barvy",
+        "languages": "{count, plural, one {# jazyk} few {# jazyky} many {# jazyka} other {# jazyků}}",
+        "logo": "logo",
+        "settings": "{count, plural, one {# nastavení} few {# nastavení} many {# nastavení} other {# nastavení}}",
+        "systemEmails": "{count, plural, one {# systémový e-mail} few {# systémové e-maily} many {# systémového e-mailu} other {# systémových e-mailů}}",
+        "wordings": "{count, plural, one {# text} few {# texty} many {# textu} other {# textů}}"
+      },
+      "putBack": "Vrátit",
+      "row": {
+        "colours": "Barvy",
+        "languages": "{count, plural, one {# jazyk · {names}} few {# jazyky · {names}} many {# jazyka · {names}} other {# jazyků · {names}}}",
+        "logo": "Logo",
+        "settings": "{count, plural, one {# nastavení} few {# nastavení} many {# nastavení} other {# nastavení}}",
+        "systemEmails": "{count, plural, one {# systémový e-mail} few {# systémové e-maily} many {# systémového e-mailu} other {# systémových e-mailů}}",
+        "wordings": "{count, plural, one {# text} few {# texty} many {# textu} other {# textů}}"
+      },
+      "title": "Vzhled a jazyky",
+      "undo": "Zpět",
+      "undone": "Vzhled a jazyky jsou zpět, jak tu byly předtím",
+      "untouched": "Stránek, pravidel a dat se to nedotkne."
+    },
+    "own": {
+      "badge": "Vaše vlastní aplikace",
+      "madeAtList": "Vytvořeno v {label} · {date}",
+      "madeOn": "Vytvořeno {date}"
+    },
+    "page": {
+      "madeAt": "Verze {version} · Vaše vlastní aplikace · vytvořeno v {label} {date}",
+      "madeOn": "Verze {version} · Vaše vlastní aplikace · vytvořeno {date}",
+      "ownVersion": "Verze {version} · Vaše vlastní aplikace",
+      "uninstallNote": "Odebere stránky a pravidla aplikace. Tabulky a jejich řádky zůstanou.",
+      "uninstallNoteBefore": "Odebere stránky a pravidla aplikace. Tabulky a jejich řádky zůstanou – byly tu před aplikací.",
+      "uploadNewer": "Nahrát novější verzi",
+      "versionOnly": "Verze {version}"
+    },
+    "data": {
+      "before": "{count, plural, one {# tabulka} few {# tabulky} many {# tabulky} other {# tabulek}}. {before} z nich tu byly před aplikací."
+    }
   }
 } as const;

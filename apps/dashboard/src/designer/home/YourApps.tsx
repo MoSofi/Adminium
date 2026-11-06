@@ -5,11 +5,13 @@
  * session built (copied in, or made by hand) gets a new session, with no
  * first message, on the model in use.
  */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useMutation } from '@tanstack/react-query';
-import { ArrowRight, Boxes, MessageSquarePlus } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { ArrowRight, Boxes, Download, MessageSquarePlus } from 'lucide-react';
 
+import { DEFAULT_BRANDING, brandingQuery } from '../../app/branding.js';
+import { DownloadAppDialog } from '../../apps/DownloadAppDialog.js';
 import { ApiError } from '../../app/api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
@@ -38,6 +40,9 @@ export function editedWhen(at: number, now = Date.now(), locale = getI18nInstanc
 export function YourApps({ apps, model, target }: { apps: YourApp[]; model: PickedModel | null; target: DesignerTarget }): ReactNode {
   const navigate = useNavigate();
   const toasts = useAppToasts();
+  const serverName = (useQuery(brandingQuery()).data ?? DEFAULT_BRANDING).appName;
+  /** The app whose file is being made, for another server. */
+  const [downloading, setDownloading] = useState<YourApp | null>(null);
   const open = useMutation({
     mutationFn: async ({ app, fresh }: { app: YourApp; fresh: boolean }) => {
       if (app.sessionId !== null && !fresh) return app.sessionId;
@@ -85,6 +90,18 @@ export function YourApps({ apps, model, target }: { apps: YourApp[]; model: Pick
                 )}
               </div>
             </div>
+            {/* The app as a file, for another server: nothing to pack before its first version. */}
+            <button
+              type="button"
+              disabled={app.version === null}
+              onClick={() => setDownloading(app)}
+              aria-label={t('appFiles.download.appLabel', 'Download {name}', { name: app.name })}
+              title={app.version === null ? t('appFiles.download.noVersions', 'Nothing is built yet, so there is nothing to download.') : undefined}
+              className="inline-flex items-center gap-1.5 rounded-[9px] px-3 py-2 text-[12.5px] font-bold text-fg-muted hover:bg-surface-2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download aria-hidden="true" className="size-3.5" />
+              {t('appFiles.download.action', 'Download')}
+            </button>
             {app.sessionId === null ? null : (
               <button
                 type="button"
@@ -111,6 +128,9 @@ export function YourApps({ apps, model, target }: { apps: YourApp[]; model: Pick
           </li>
         ))}
       </ul>
+      {downloading === null ? null : (
+        <DownloadAppDialog appKey={downloading.key} appName={downloading.name} version={null} serverName={serverName} onClose={() => setDownloading(null)} />
+      )}
     </section>
   );
 }

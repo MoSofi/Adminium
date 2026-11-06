@@ -37,6 +37,7 @@ import {
   type InstalledApp,
 } from './appsApi.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
+import { useInstallId } from './installScope.js';
 
 export interface RenameTablesDialogProps {
   app: InstalledApp & { oldTableNames: { prefix: string; count: number } };
@@ -47,10 +48,11 @@ export interface RenameTablesDialogProps {
 
 export function RenameTablesDialog({ app, onClose, onRenamed }: RenameTablesDialogProps) {
   const queryClient = useQueryClient();
+  const install = useInstallId();
   const [error, setError] = useState<string | null>(null);
   const preview = useQuery({
     queryKey: ['app-rename-tables', app.key] as const,
-    queryFn: () => planRenameTables(app.key),
+    queryFn: () => planRenameTables(app.key, install),
     retry: false,
     // Always the database as it is now, never a plan read earlier.
     staleTime: 0,
@@ -63,7 +65,7 @@ export function RenameTablesDialog({ app, onClose, onRenamed }: RenameTablesDial
   const rename = useMutation({
     mutationFn: () => {
       if (preview.data === undefined) throw new Error('no plan');
-      return renameTables(app.key, preview.data.plan.checksum);
+      return renameTables(app.key, preview.data.plan.checksum, install);
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });

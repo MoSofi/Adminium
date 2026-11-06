@@ -5442,5 +5442,123 @@
       "staged": "{workspace} er uploadet og venter på at blive installeret.",
       "stopped": "{workspace}: {done} af {total} installeret. Installationen stoppede undervejs."
     }
+  },
+  "apps": {
+    "added": {
+      "emailTemplates": "E-mailskabeloner",
+      "nothing": "Intet af sit eget endnu.",
+      "onlyHere": "Kun på {database}.",
+      "pages": "Sider",
+      "pagesOnly": "Kun sider. Denne app har ingen skærme af sine egne.",
+      "roles": "Roller",
+      "scheduledReports": "Planlagte rapporter",
+      "title": "Hvad den tilføjede"
+    },
+    "afterInstall": {
+      "allSet": "Alt er klar",
+      "allSetBody": "Alle trin efter installationen er udført.",
+      "count": "{done} af {total} udført",
+      "doneBy": "Udført af {name} {when}",
+      "hidden": "\"Efter installationen\" er skjult",
+      "hide": "Skjul",
+      "item": {
+        "address": "Tilføj e-mailadressen til '{name}'",
+        "bankAccount": "Tilføj bankkontoen til '{name}'",
+        "delivery": "Vælg, hvor '{name}' sendes hen",
+        "document": "Vælg det dokument, '{name}' sender",
+        "other": "Udfyld '{name}'",
+        "paymentKey": "Tilføj nøglerne til '{name}'",
+        "recipients": "{count, plural, one {Vælg, hvem der modtager den planlagte rapport} other {Vælg, hvem der modtager de # planlagte rapporter}}",
+        "sender": "{count, plural, one {Angiv afsenderadressen for # e-mailskabelon} other {Angiv afsenderadressen for # e-mailskabeloner}}",
+        "systemGrant": "Giv rollen {name} dens konsolrettigheder",
+        "webhook": "Tilføj webadressen til '{name}'",
+        "webhookHeader": "Udfyld headerværdien i '{name}'"
+      },
+      "link": {
+        "automation": "Åbn reglen",
+        "documents": "Åbn dokumenter",
+        "emailTemplates": "Åbn e-mailindstillinger",
+        "payments": "Åbn betalinger",
+        "reports": "Åbn rapporter",
+        "roles": "Åbn roller",
+        "settings": "Åbn indstillinger"
+      },
+      "needs": {
+        "apps": "Kræver en, der administrerer apps",
+        "automations": "Kræver en, der administrerer automatiseringer",
+        "payments": "Kræver en, der administrerer betalinger",
+        "reports": "Kræver en, der administrerer rapporter",
+        "roles": "Kræver en, der administrerer roller",
+        "settings": "Kræver en, der administrerer indstillinger"
+      },
+      "seenDone": "Udført",
+      "title": "Efter installationen"
+    },
+    "copies": {
+      "on": "på {database}",
+      "screensFirstOnly": "Appens skærme åbner kun for dens første installation. Dens sider, tabeller og regler virker her.",
+      "screensFirstOnlyOn": "Appens skærme åbner kun for dens første installation, på {database}. Dens sider, tabeller og regler virker her.",
+      "uninstall": "Afinstaller {app} fra {database}",
+      "uninstallNote": "Fjerner {app} fra {database}: dens sider og regler dér. Tabellerne og deres rækker bliver.",
+      "updateEvery": "Opdater hver kopi"
+    },
+    "editable": {
+      "action": "Gør den redigerbar her",
+      "after": "Åbn denne server med Designeren for at ændre skærmene.",
+      "body": "Filen har kildekoden til disse skærme. Kopiér den ind i denne servers projektmappe for at ændre dem i Designeren.",
+      "confirm": "Gør den redigerbar",
+      "confirmBody": "Kildekoden kopieres til {folder}, så Designeren kan ændre den. Derefter kommer appen fra den mappe: nyere filer af den kan ikke uploades her.",
+      "confirmTitle": "Gør {app} redigerbar her?",
+      "done": "{app} kan redigeres her",
+      "folderExists": "{folder} findes allerede her. Omdøb eller fjern den mappe først.",
+      "noProject": "Redigering af skærme kræver en projektmappe. Åbn denne server med Designeren for at lave en.",
+      "severalInstalls": "{app} er installeret på {count, plural, one {# database} other {# databaser}}. Fjern de andre først.",
+      "title": "Rediger disse skærme"
+    },
+    "look": {
+      "body": "Anvendt fra filen den {date}: {parts}.",
+      "changedSince": "ændret siden, lades som de er",
+      "confirmBody": "Disse blev anvendt fra filen den {date}. Fortryd sætter det tilbage, som serveren havde før.",
+      "confirmSubtitle": "Udseende og sprog · {app}",
+      "confirmTitle": "Sæt det tilbage, der var her før?",
+      "part": {
+        "colours": "farver",
+        "languages": "{count, plural, one {# sprog} other {# sprog}}",
+        "logo": "logo",
+        "settings": "{count, plural, one {# indstilling} other {# indstillinger}}",
+        "systemEmails": "{count, plural, one {# systemmail} other {# systemmails}}",
+        "wordings": "{count, plural, one {# formulering} other {# formuleringer}}"
+      },
+      "putBack": "Sæt det tilbage",
+      "row": {
+        "colours": "Farver",
+        "languages": "{count, plural, one {# sprog · {names}} other {# sprog · {names}}}",
+        "logo": "Logo",
+        "settings": "{count, plural, one {# indstilling} other {# indstillinger}}",
+        "systemEmails": "{count, plural, one {# systemmail} other {# systemmails}}",
+        "wordings": "{count, plural, one {# formulering} other {# formuleringer}}"
+      },
+      "title": "Udseende og sprog",
+      "undo": "Fortryd",
+      "undone": "Udseende og sprog er tilbage til det, der var her før",
+      "untouched": "Sider, regler og data røres ikke."
+    },
+    "own": {
+      "badge": "Din egen app",
+      "madeAtList": "Lavet hos {label} · {date}",
+      "madeOn": "Lavet den {date}"
+    },
+    "page": {
+      "madeAt": "Version {version} · Din egen app · lavet hos {label} den {date}",
+      "madeOn": "Version {version} · Din egen app · lavet den {date}",
+      "ownVersion": "Version {version} · Din egen app",
+      "uninstallNote": "Fjerner appens sider og regler. Tabellerne og deres rækker bliver.",
+      "uninstallNoteBefore": "Fjerner appens sider og regler. Tabellerne og deres rækker bliver – de var her før appen.",
+      "uploadNewer": "Upload en nyere version",
+      "versionOnly": "Version {version}"
+    },
+    "data": {
+      "before": "{count, plural, one {# tabel} other {# tabeller}}. {before} af dem var her før appen."
+    }
   }
 }

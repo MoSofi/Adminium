@@ -1961,6 +1961,14 @@ export interface AdminiumFormMarksTable {
   createdAt: Ts;
 }
 
+/** Wave 0083 — an install whose "After you install" list was hidden once everything was done. */
+export interface AdminiumAppAfterInstallHiddenTable {
+  /** The install (`adminium_manifests.id`). */
+  manifestId: Id;
+  hiddenBy: Id | null;
+  hiddenAt: Ts;
+}
+
 /** Wave 0079 — a value an app's deployment-wide part wrote, and what was there before it. */
 export interface AdminiumAppInstanceUndoTable {
   id: Id;
@@ -2234,6 +2242,7 @@ export interface MetaDB {
   adminium_app_parts: AdminiumAppPartsTable;
   adminium_app_updates: AdminiumAppUpdatesTable;
   adminium_app_instance_undo: AdminiumAppInstanceUndoTable;
+  adminium_app_after_install_hidden: AdminiumAppAfterInstallHiddenTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -2335,4 +2344,5 @@ export const META_TABLE_NAMES = [
   'adminium_app_parts',
   'adminium_app_updates',
   'adminium_app_instance_undo',
+  'adminium_app_after_install_hidden',
 ] as const satisfies readonly (keyof MetaDB)[];

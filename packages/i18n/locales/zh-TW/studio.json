@@ -5442,5 +5442,123 @@
       "staged": "{workspace} 已上傳，等待安裝。",
       "stopped": "{workspace}：已安裝 {done}/{total}。安裝中途停止。"
     }
+  },
+  "apps": {
+    "added": {
+      "emailTemplates": "郵件範本",
+      "nothing": "還沒有它自己的內容。",
+      "onlyHere": "僅在 {database} 上。",
+      "pages": "頁面",
+      "pagesOnly": "只有頁面。這個應用程式沒有自己的畫面。",
+      "roles": "角色",
+      "scheduledReports": "排程報表",
+      "title": "它新增了什麼"
+    },
+    "afterInstall": {
+      "allSet": "全部完成",
+      "allSetBody": "安裝後的每一步都已完成。",
+      "count": "已完成 {done} / {total}",
+      "doneBy": "由 {name} 完成 · {when}",
+      "hidden": "已隱藏「安裝之後」",
+      "hide": "隱藏",
+      "item": {
+        "address": "為 '{name}' 新增電子郵件地址",
+        "bankAccount": "為 '{name}' 新增銀行帳戶",
+        "delivery": "選擇 '{name}' 傳送到哪裡",
+        "document": "選擇 '{name}' 傳送的文件",
+        "other": "填寫 '{name}'",
+        "paymentKey": "為 '{name}' 新增金鑰",
+        "recipients": "{count, plural, other {選擇這 # 份排程報表的收件人}}",
+        "sender": "{count, plural, other {為 # 個郵件範本設定寄件地址}}",
+        "systemGrant": "授予 {name} 角色其主控台權限",
+        "webhook": "為 '{name}' 新增網址",
+        "webhookHeader": "填寫 '{name}' 的標頭值"
+      },
+      "link": {
+        "automation": "開啟規則",
+        "documents": "開啟文件",
+        "emailTemplates": "開啟郵件設定",
+        "payments": "開啟付款",
+        "reports": "開啟報表",
+        "roles": "開啟角色",
+        "settings": "開啟設定"
+      },
+      "needs": {
+        "apps": "需要管理應用程式的人來完成",
+        "automations": "需要管理自動化的人來完成",
+        "payments": "需要管理付款的人來完成",
+        "reports": "需要管理報表的人來完成",
+        "roles": "需要管理角色的人來完成",
+        "settings": "需要管理設定的人來完成"
+      },
+      "seenDone": "已完成",
+      "title": "安裝之後"
+    },
+    "copies": {
+      "on": "在 {database} 上",
+      "screensFirstOnly": "這個應用程式的畫面只為它的第一次安裝開啟。它的頁面、資料表和規則在這裡可以使用。",
+      "screensFirstOnlyOn": "這個應用程式的畫面只為它的第一次安裝（在 {database} 上）開啟。它的頁面、資料表和規則在這裡可以使用。",
+      "uninstall": "從 {database} 解除安裝 {app}",
+      "uninstallNote": "從 {database} 移除 {app}：移除它在那裡的頁面和規則。資料表及其中的列會保留。",
+      "updateEvery": "更新每一份"
+    },
+    "editable": {
+      "action": "在這裡設為可編輯",
+      "after": "用 Designer 開啟這台伺服器來修改畫面。",
+      "body": "檔案包含這些畫面的原始碼。將它複製到這台伺服器的專案資料夾，即可在 Designer 中修改。",
+      "confirm": "設為可編輯",
+      "confirmBody": "它的原始碼會複製到 {folder}，以便 Designer 修改。從此應用程式來自該資料夾：它的新版檔案無法再上傳到這裡。",
+      "confirmTitle": "要在這裡將 {app} 設為可編輯嗎？",
+      "done": "{app} 已可在這裡編輯",
+      "folderExists": "{folder} 在這裡已存在。請先重新命名或移除該資料夾。",
+      "noProject": "編輯畫面需要專案資料夾。用 Designer 開啟這台伺服器即可建立一個。",
+      "severalInstalls": "{app} 安裝在 {count, plural, other {# 個資料庫}}上。請先移除其他的。",
+      "title": "編輯這些畫面"
+    },
+    "look": {
+      "body": "於 {date} 從檔案套用：{parts}。",
+      "changedSince": "之後已被修改，保持原樣",
+      "confirmBody": "這些於 {date} 從檔案套用。復原會還原這台伺服器之前的內容。",
+      "confirmSubtitle": "外觀和語言 · {app}",
+      "confirmTitle": "還原之前的內容？",
+      "part": {
+        "colours": "顏色",
+        "languages": "{count, plural, other {# 種語言}}",
+        "logo": "標誌",
+        "settings": "{count, plural, other {# 項設定}}",
+        "systemEmails": "{count, plural, other {# 封系統郵件}}",
+        "wordings": "{count, plural, other {# 處措辭}}"
+      },
+      "putBack": "還原",
+      "row": {
+        "colours": "顏色",
+        "languages": "{count, plural, other {# 種語言 · {names}}}",
+        "logo": "標誌",
+        "settings": "{count, plural, other {# 項設定}}",
+        "systemEmails": "{count, plural, other {# 封系統郵件}}",
+        "wordings": "{count, plural, other {# 處措辭}}"
+      },
+      "title": "外觀和語言",
+      "undo": "復原",
+      "undone": "外觀和語言已還原為之前的樣子",
+      "untouched": "頁面、規則和資料不受影響。"
+    },
+    "own": {
+      "badge": "你自己的應用程式",
+      "madeAtList": "製作於 {label} · {date}",
+      "madeOn": "製作於 {date}"
+    },
+    "page": {
+      "madeAt": "版本 {version} · 你自己的應用程式 · {date} 製作於 {label}",
+      "madeOn": "版本 {version} · 你自己的應用程式 · 製作於 {date}",
+      "ownVersion": "版本 {version} · 你自己的應用程式",
+      "uninstallNote": "移除應用程式的頁面和規則。資料表及其中的列會保留。",
+      "uninstallNoteBefore": "移除應用程式的頁面和規則。資料表及其中的列會保留——它們在應用程式之前就在這裡。",
+      "uploadNewer": "上傳新版本",
+      "versionOnly": "版本 {version}"
+    },
+    "data": {
+      "before": "{count, plural, other {共 # 張資料表}}，其中 {before} 張在應用程式之前就已存在。"
+    }
   }
 }

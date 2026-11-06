@@ -15,3 +15,15 @@ export function useAddOnKey(): string {
   if (key === null) throw new Error('The data kit\'s hooks are for an add-on\'s own page: this is not one.');
   return key;
 }
+
+/**
+ * WHICH COPY. The same add-on may be installed once per database; the host
+ * sets the install whose page this is (null: the key's only install). The
+ * kit's reads are keyed by it, so one copy's tables are never shown for the
+ * other's while the cache still holds them.
+ */
+export const AddOnInstallContext = createContext<string | null>(null);
+
+export function useAddOnInstall(): string | null {
+  return useContext(AddOnInstallContext);
+}

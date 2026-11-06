@@ -788,11 +788,18 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * dashboards saved with one key, or a file made elsewhere. Refused per
    * server, whichever database it is for: the key names the app across the
    * server, so this one is saved with another key.
+   *
+   * A copy installed from a file that said no lineage (an app packed before
+   * packages said where they were made) is not another app: the first file
+   * that says one gives it its lineage.
    */
   function lineageRefusal(manifest: Manifest, installed: readonly { document: unknown; connectionName: string }[]): ValidationFailedError | null {
     if (manifest.publisher.id !== LOCAL_PUBLISHER_ID) return null;
     const mine = lineageOf(manifest);
-    const other = installed.find((copy) => lineageOf(copy.document) !== mine);
+    const other = installed.find((copy) => {
+      const theirs = lineageOf(copy.document);
+      return theirs !== mine && !(theirs === null && mine !== null);
+    });
     if (other === undefined) return null;
     return new ValidationFailedError(
       `This server already has a different ${manifest.key}, on ${other.connectionName}. Save this one with another key.`,

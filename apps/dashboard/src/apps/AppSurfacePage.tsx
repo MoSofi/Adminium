@@ -23,12 +23,15 @@ import { useNavigate, useParams, useRouteContext } from '@tanstack/react-router'
 
 import {
   activeHostedItem,
+  appSectionsOf,
+  flattenNav,
   hostedAppByKey,
   type BootstrapData,
   type UnavailableApp,
 } from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { NotFoundPage } from '../states/NotFoundPage.js';
+import { RetiredAddress } from './RetiredAddress.js';
 import { StatePage } from '../states/StatePage.js';
 import { Button, IconTile } from '@adminium/ui';
 import { Compass } from 'lucide-react';
@@ -95,7 +98,20 @@ export function AppSurfacePage() {
      * or placed on its own address. Each says so, and the last links there.
      */
     const unavailable = unavailableAppByKey(bootstrap, appKey);
-    if (unavailable === null) return <NotFoundPage />;
+    if (unavailable === null) {
+      // A plain address whose copy is gone, while later copies stay: where they are, and none opened by itself.
+      const copies = appKey.includes('~') ? [] : appSectionsOf(bootstrap).filter((section) => section.kind !== 'add-on' && section.appKey.startsWith(`${appKey}~`));
+      if (copies.length > 0) {
+        return (
+          <RetiredAddress
+            appName={copies[0]?.label ?? appKey}
+            copies={copies.map((copy) => ({ key: appKey, address: copy.appKey, connectionName: databaseNameOf(bootstrap, copy as { connectionId?: string | null }) }))}
+            linkTo="surface"
+          />
+        );
+      }
+      return <NotFoundPage />;
+    }
     if (unavailable.reason === 'external') {
       /*
        * Drawn here rather than as a system state: this lazy page is the only
@@ -149,4 +165,11 @@ export function AppSurfacePage() {
       />
     </>
   );
+}
+
+/** The database a copy's section is for, by name, read off the menu's pages of that database. */
+function databaseNameOf(bootstrap: BootstrapData, section: { connectionId?: string | null | undefined }): string | null {
+  const id = section.connectionId;
+  if (typeof id !== 'string') return null;
+  return flattenNav(bootstrap.nav).find((item) => item.connectionId === id && item.connectionName !== null)?.connectionName ?? null;
 }

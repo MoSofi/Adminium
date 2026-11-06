@@ -7,6 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 
 import { packApp, type PackedApp } from '../../../project/apps/pack-app.js';
+import { PACKS_DIR } from '../../../project/apps/pack-folder.js';
 import { resolveAppKey } from '../../../project/apps/read-app.js';
 import type { ProjectLocation } from '../../../project/locate.js';
 import { parseFlags, type FlagSpecs } from '../../args.js';
@@ -16,7 +17,7 @@ import { checkAndBuild, type BuiltApp } from './build.js';
 import { requireProject } from './shared.js';
 
 /** Where packs go unless told otherwise: inside the folder a project already keeps out of git. */
-export const PACKS_DIR = join('.adminium', 'packs');
+export { PACKS_DIR };
 
 const flags: FlagSpecs = {
   out: { type: 'string', placeholder: '<dir>', describe: 'Where to write the package', defaultDescription: '.adminium/packs' },
@@ -41,7 +42,9 @@ export const appPackCommand: Command = {
   describe:
     'Checks the app, builds its sides, and writes <key>-<version>.tgz with its\n' +
     'fingerprint beside it (<key>-<version>.tgz.integrity). The package holds the\n' +
-    'manifest as one manifest.json, each built side, and seeds/. Install it from\n' +
+    'manifest as one manifest.json, each built side, seeds/, and the app folder as\n' +
+    'source/ without what runs (build.json, tool configs, package.json scripts),\n' +
+    'so a server with a project folder can make it editable there. Install it from\n' +
     'Studio → Hosted apps → Install an app: upload the file and paste the\n' +
     'fingerprint. Hooks and actions are not part of an app package.',
   flags,

@@ -95,7 +95,10 @@ export function HostedAppsPage() {
    * would put a four-step flow with its own footer inside a dialog that already
    * has one.
    */
-  const [installing, setInstalling] = useState(false);
+  // An own app's "Upload a newer version" lands here with `?upload=1`: the upload step, at once.
+  // A connection card's "Save as app" lands here with `?save=<connection>`.
+  const search = useSearch({ strict: false }) as { upload?: boolean; save?: unknown };
+  const [installing, setInstalling] = useState(search.upload === true);
   /** A workspace file on its own screen: one just uploaded, or one staged before (a reload) to finish. */
   const [workspaceFile, setWorkspaceFile] = useState<{ file?: File; resumeId?: string } | null>(null);
   /** The shelf app the wizard opens on, when it was opened from a card. */
@@ -122,8 +125,6 @@ export function HostedAppsPage() {
     setSavingMode(start.mode);
     setSaving({ ...start, seq: (saving?.seq ?? 0) + 1 });
   };
-  // A connection card's "Save as app" lands here with `?save=<connection>`.
-  const search = useSearch({ strict: false }) as { save?: unknown };
   const navigate = useNavigate();
   useEffect(() => {
     if (typeof search.save !== 'string') return;
@@ -265,6 +266,7 @@ export function HostedAppsPage() {
       <InstalledAppsCard
         busy={acquisition.busy}
         onUpdate={(app, row) => void acquisition.update(app, row)}
+        onUpdateEvery={(copies, row) => void acquisition.updateEvery(copies, row)}
         onFinishUpdate={(app) => void acquisition.finishUnfinished(app)}
         onInstall={() => {
           setChosen(undefined);

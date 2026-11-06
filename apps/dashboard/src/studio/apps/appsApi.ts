@@ -15,7 +15,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import type { DesiredColumn, SchemaPlan } from '../remap/design/types.js';
-import { ApiError, api, csrfHeaders } from '../../app/api.js';
+import { ApiError, api, csrfHeaders, installOptions } from '../../app/api.js';
 import type { SurfaceSide } from './hostedAppsApi.js';
 
 export interface InstalledAppSide {
@@ -52,6 +52,22 @@ export function answerAppRemoval(key: string, accept: boolean) {
 export interface InstalledApp {
   key: string;
   version: string;
+  /** Which install the row is: the same app may be installed once per database. Absent from an older server. */
+  installId?: string;
+  /** Its address slug: `''` for the install that owns the plain addresses. */
+  slug?: string;
+  /** `key`, or `key~slug` for a later install: its page's name. */
+  address?: string;
+  /** The database it is installed on, by name. */
+  connectionName?: string | null;
+  /** The manifest's display name. */
+  name?: string;
+  /** A self-made app's icon: a lucide name from the pinned set. */
+  icon?: string;
+  /** A self-made app's file: where and when it was made. */
+  madeAt?: { label: string | null; savedAt: string; adminiumVersion: string };
+  /** A later install of an app whose screens know one database: its screens open for the first install only. */
+  screensFirstOnly?: true;
   source: string;
   /**
    * Set for an app that runs from the project folder: `here` while
@@ -250,18 +266,20 @@ export interface RenameTablesPreview {
 }
 
 /** What renaming to the prefix would do. Writes nothing. */
-export function planRenameTables(key: string): Promise<RenameTablesPreview> {
-  return api.post<RenameTablesPreview>(`/api/v1/apps/${encodeURIComponent(key)}/rename-tables/plan`);
+export function planRenameTables(key: string, install: string | null = null): Promise<RenameTablesPreview> {
+  return api.post<RenameTablesPreview>(`/api/v1/apps/${encodeURIComponent(key)}/rename-tables/plan`, undefined, installOptions(install));
 }
 
 /** Run the reviewed rename. A database that changed since answers 409 `SCHEMA_DRIFT`. */
 export function renameTables(
   key: string,
   checksum: string,
+  install: string | null = null,
 ): Promise<{ prefix: string; renamed: PrefixRename[]; changeId: string }> {
   return api.post<{ prefix: string; renamed: PrefixRename[]; changeId: string }>(
     `/api/v1/apps/${encodeURIComponent(key)}/rename-tables`,
     { checksum },
+    installOptions(install),
   );
 }
 
@@ -376,27 +394,138 @@ export interface AddOnChoice {
 export interface AppOverview {
   key: string;
   connection: { id: string; name: string; engine: string } | null;
-  /** `sample-ledger`: Adminium's list of the sample rows it added (listed last). */
-  tables: { ref: string; table: string; state: string; role?: 'app' | 'sample-ledger'; rows: number | null }[];
+  /** What this install put here. Absent from an older server. */
+  added?: { pages: number; emailTemplates: number; scheduledReports: number; roles: number };
+  /** `sample-ledger`: Adminium's list of the sample rows it added (listed last). `before`: it was here before the app. */
+  tables: { ref: string; table: string; state: string; role?: 'app' | 'sample-ledger'; rows: number | null; before?: true }[];
   activity: { action: string; at: number; actor: string; subject?: string }[];
 }
 
-export const appSettingsKey = (key: string) => ['app-settings', key] as const;
-export const appOverviewKey = (key: string) => ['app-overview', key] as const;
+/**
+ * Every one-install read is keyed by the install as well as the key: two
+ * copies of an app on two databases are two pages, and one's answer is never
+ * the other's. `null` is a server that names none (one install per key).
+ */
+export const appSettingsKey = (key: string, install: string | null = null) => ['app-settings', key, install] as const;
+export const appOverviewKey = (key: string, install: string | null = null) => ['app-overview', key, install] as const;
 
-export function appSettingsQuery(key: string) {
+export function appSettingsQuery(key: string, install: string | null = null) {
   return queryOptions({
-    queryKey: appSettingsKey(key),
-    queryFn: () => api.get<AppSettingsView>(`/api/v1/apps/${encodeURIComponent(key)}/settings`),
+    queryKey: appSettingsKey(key, install),
+    queryFn: () => api.get<AppSettingsView>(`/api/v1/apps/${encodeURIComponent(key)}/settings`, installOptions(install)),
   });
 }
 
-export function appOverviewQuery(key: string) {
+export function appOverviewQuery(key: string, install: string | null = null) {
   return queryOptions({
-    queryKey: appOverviewKey(key),
-    queryFn: () => api.get<AppOverview>(`/api/v1/apps/${encodeURIComponent(key)}/overview`),
+    queryKey: appOverviewKey(key, install),
+    queryFn: () => api.get<AppOverview>(`/api/v1/apps/${encodeURIComponent(key)}/overview`, installOptions(install)),
   });
 }
+
+// ── After you install ───────────────────────────────────────────────────────
+
+/** Mirrors `afterInstallReply`'s item. */
+export interface AfterInstallEntry {
+  id: string;
+  kind: 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant' | string;
+  item: string;
+  field: string;
+  /** What it points at, by name; null when it is gone. */
+  name: string | null;
+  /** Ticked, or seen done. */
+  done: boolean;
+  doneBy: { id: string; name: string } | null;
+  doneAt: number | null;
+  /** The server sees it done without anybody ticking it. */
+  seen: boolean;
+  /** The permission it needs. */
+  right: string;
+  canTick: boolean;
+  link: { to: 'automation' | 'email-templates' | 'reports' | 'roles' | 'payments' | 'documents' | 'settings'; id?: string } | null;
+}
+
+export interface AfterInstallList {
+  items: AfterInstallEntry[];
+  /** Put away once everything was done. */
+  hidden: boolean;
+}
+
+export const afterInstallKey = (key: string, install: string | null = null) => ['app-after-install', key, install] as const;
+
+export function afterInstallQuery(key: string, install: string | null = null) {
+  return queryOptions({
+    queryKey: afterInstallKey(key, install),
+    queryFn: () => api.get<AfterInstallList>(`/api/v1/apps/${encodeURIComponent(key)}/after-install`, installOptions(install)),
+  });
+}
+
+/** Tick one item off, or back on. Only someone who holds its right may. */
+export function tickAfterInstall(key: string, id: string, done: boolean, install: string | null = null): Promise<AfterInstallList> {
+  return api.put<AfterInstallList>(`/api/v1/apps/${encodeURIComponent(key)}/after-install/${encodeURIComponent(id)}`, { done }, installOptions(install));
+}
+
+/** Put the finished list away (or show it again). Refused while anything is open. */
+export function hideAfterInstall(key: string, hidden: boolean, install: string | null = null): Promise<AfterInstallList> {
+  return api.put<AfterInstallList>(`/api/v1/apps/${encodeURIComponent(key)}/after-install/hidden`, { hidden }, installOptions(install));
+}
+
+// ── The look and languages a self-made app's file brought ───────────────────
+
+export type LookGroup = 'logo' | 'colours' | 'languages' | 'wordings' | 'systemEmails' | 'settings';
+
+/** Mirrors `appLookReply`. */
+export interface AppLook {
+  appliedAt: number;
+  logo: boolean;
+  colours: boolean;
+  languages: string[];
+  wordings: number;
+  systemEmails: number;
+  settings: number;
+  changed: LookGroup[];
+  canUndo: boolean;
+}
+
+export const appLookKey = (key: string, install: string | null = null) => ['app-look', key, install] as const;
+
+export function appLookQuery(key: string, install: string | null = null) {
+  return queryOptions({
+    queryKey: appLookKey(key, install),
+    queryFn: () => api.get<{ look: AppLook | null }>(`/api/v1/apps/${encodeURIComponent(key)}/look`, installOptions(install)),
+  });
+}
+
+/** Put back what this server had before the file's look and languages. */
+export function undoAppLook(key: string, install: string | null = null): Promise<{ restored: string[]; kept: string[] }> {
+  return api.post<{ restored: string[]; kept: string[] }>(`/api/v1/apps/${encodeURIComponent(key)}/look/undo`, undefined, installOptions(install));
+}
+
+// ── An app's own screens as a file ──────────────────────────────────────────
+
+/** Mirrors `editableReply`: whether "Make it editable here" is offered, and why not. */
+export interface EditableState {
+  state: 'offered' | 'refused' | 'none';
+  reason?: 'NO_PROJECT' | 'FOLDER_EXISTS' | 'SEVERAL_INSTALLS' | 'FROM_FOLDER';
+  folder: string;
+  installs?: number;
+}
+
+export const editableKey = (key: string, install: string | null = null) => ['app-editable', key, install] as const;
+
+export function editableQuery(key: string, install: string | null = null) {
+  return queryOptions({
+    queryKey: editableKey(key, install),
+    queryFn: () => api.get<EditableState>(`/api/v1/apps/${encodeURIComponent(key)}/editable`, installOptions(install)),
+  });
+}
+
+/** Copy the file's source into this server's project folder; the app comes from the folder from then on. */
+export function makeEditable(key: string, install: string | null = null): Promise<{ key: string; folder: string }> {
+  return api.post<{ key: string; folder: string }>(`/api/v1/apps/${encodeURIComponent(key)}/editable`, undefined, installOptions(install));
+}
+
+export { packProjectApp, packedFileUrl, type PackedAppFile } from '../../apps/appFilesApi.js';
 
 // ── Sample data ─────────────────────────────────────────────────────────────
 
@@ -432,12 +561,12 @@ export type SampleOwnerKind = 'app' | 'add-on';
 
 const sampleDataUrl = (key: string, kind: SampleOwnerKind): string => `/api/v1/${kind === 'add-on' ? 'add-ons' : 'apps'}/${encodeURIComponent(key)}/sample-data`;
 
-export const sampleDataKey = (key: string, kind: SampleOwnerKind = 'app') => [kind === 'add-on' ? 'add-on-sample-data' : 'app-sample-data', key] as const;
+export const sampleDataKey = (key: string, kind: SampleOwnerKind = 'app', install: string | null = null) => [kind === 'add-on' ? 'add-on-sample-data' : 'app-sample-data', key, install] as const;
 
-export function sampleDataQuery(key: string, kind: SampleOwnerKind = 'app') {
+export function sampleDataQuery(key: string, kind: SampleOwnerKind = 'app', install: string | null = null) {
   return queryOptions({
-    queryKey: sampleDataKey(key, kind),
-    queryFn: () => api.get<SampleDataStatus>(sampleDataUrl(key, kind)),
+    queryKey: sampleDataKey(key, kind, install),
+    queryFn: () => api.get<SampleDataStatus>(sampleDataUrl(key, kind), installOptions(install)),
   });
 }
 
@@ -447,15 +576,15 @@ export function sampleDataQuery(key: string, kind: SampleOwnerKind = 'app') {
  * added after the app's, so the app's rows that point at it are not left
  * waiting for a second step on another screen.
  */
-export function addSampleData(key: string, kind: SampleOwnerKind = 'app', addOns: readonly string[] = []): Promise<{ jobId: string }> {
-  return api.post<{ jobId: string }>(sampleDataUrl(key, kind), kind === 'app' && addOns.length > 0 ? { addOns } : undefined);
+export function addSampleData(key: string, kind: SampleOwnerKind = 'app', addOns: readonly string[] = [], install: string | null = null): Promise<{ jobId: string }> {
+  return api.post<{ jobId: string }>(sampleDataUrl(key, kind), kind === 'app' && addOns.length > 0 ? { addOns } : undefined, installOptions(install));
 }
 
 /** What a removal would take and keep, read fresh each time the dialog opens. */
-export function sampleRemovePlanQuery(key: string, kind: SampleOwnerKind = 'app') {
+export function sampleRemovePlanQuery(key: string, kind: SampleOwnerKind = 'app', install: string | null = null) {
   return queryOptions({
-    queryKey: [kind === 'add-on' ? 'add-on-sample-remove-plan' : 'app-sample-remove-plan', key] as const,
-    queryFn: () => api.post<SampleRemovePlan>(`${sampleDataUrl(key, kind)}/remove-plan`),
+    queryKey: [kind === 'add-on' ? 'add-on-sample-remove-plan' : 'app-sample-remove-plan', key, install] as const,
+    queryFn: () => api.post<SampleRemovePlan>(`${sampleDataUrl(key, kind)}/remove-plan`, undefined, installOptions(install)),
     staleTime: 0,
     gcTime: 0,
   });
@@ -465,32 +594,36 @@ export function removeSampleData(
   key: string,
   keepChanged: boolean,
   kind: SampleOwnerKind = 'app',
+  install: string | null = null,
 ): Promise<{ removed: number; kept: number; byTable: Record<string, number> }> {
-  return api.post(`${sampleDataUrl(key, kind)}/remove`, { keepChanged });
+  return api.post(`${sampleDataUrl(key, kind)}/remove`, { keepChanged }, installOptions(install));
 }
 
 /** Change only what is sent. */
 export function patchAppSettings(
   key: string,
   change: Partial<Pick<AppSettingsView, 'name' | 'placement' | 'connectionId' | 'off' | 'values'>>,
+  install: string | null = null,
 ): Promise<AppSettingsView> {
-  return api.patch<AppSettingsView>(`/api/v1/apps/${encodeURIComponent(key)}/settings`, change);
+  return api.patch<AppSettingsView>(`/api/v1/apps/${encodeURIComponent(key)}/settings`, change, installOptions(install));
 }
 
 /** Switch the whole app off, or back on. Nothing is deleted either way. */
 export function setAppEnabled(
   key: string,
   enabled: boolean,
+  install: string | null = null,
 ): Promise<{ key: string; status: 'installing' | 'installed' | 'disabled' | 'error' }> {
-  return api.post(`/api/v1/apps/${encodeURIComponent(key)}/${enabled ? 'enable' : 'disable'}`);
+  return api.post(`/api/v1/apps/${encodeURIComponent(key)}/${enabled ? 'enable' : 'disable'}`, undefined, installOptions(install));
 }
 
 /** This app's hosts, all of them. Other apps' hosts are untouched. */
 export function putAppDomains(
   key: string,
   domains: Record<string, { side: SurfaceSide; instance?: string }>,
+  install: string | null = null,
 ): Promise<{ domains: Record<string, { side: SurfaceSide; instance?: string }> }> {
-  return api.put(`/api/v1/apps/${encodeURIComponent(key)}/domains`, { domains });
+  return api.put(`/api/v1/apps/${encodeURIComponent(key)}/domains`, { domains }, installOptions(install));
 }
 
 /** Mirrors the jobs route's view of a download or refresh. */
@@ -1034,10 +1167,10 @@ export interface UninstallPlan {
   addOns?: { key: string; name: string; version: string }[];
 }
 
-export function uninstallPlanQuery(key: string) {
+export function uninstallPlanQuery(key: string, install: string | null = null) {
   return queryOptions({
-    queryKey: ['app-uninstall-plan', key] as const,
-    queryFn: () => api.get<UninstallPlan>(`/api/v1/apps/${encodeURIComponent(key)}/uninstall-plan`),
+    queryKey: ['app-uninstall-plan', key, install] as const,
+    queryFn: () => api.get<UninstallPlan>(`/api/v1/apps/${encodeURIComponent(key)}/uninstall-plan`, installOptions(install)),
     staleTime: 0,
     gcTime: 0,
   });
@@ -1050,10 +1183,12 @@ export function uninstallPlanQuery(key: string) {
 export function uninstallApp(
   key: string,
   options: { dropTables?: boolean; confirmKey?: string } = {},
+  install: string | null = null,
 ): Promise<{ key: string; uninstalled: boolean; dropped?: string[] }> {
   return api.delete<{ key: string; uninstalled: boolean; dropped?: string[] }>(
     `/api/v1/apps/${encodeURIComponent(key)}`,
     options.dropTables === true ? options : undefined,
+    installOptions(install),
   );
 }
 
@@ -1130,19 +1265,19 @@ export interface AppPartOpen {
   stranded: number;
 }
 
-export const appPartsKey = (key: string) => ['app-parts', key] as const;
+export const appPartsKey = (key: string, install: string | null = null) => ['app-parts', key, install] as const;
 
-export function appPartsQuery(key: string) {
+export function appPartsQuery(key: string, install: string | null = null) {
   return queryOptions({
-    queryKey: appPartsKey(key),
-    queryFn: () => api.get<{ parts: AppPart[] }>(`/api/v1/apps/${encodeURIComponent(key)}/parts`),
+    queryKey: appPartsKey(key, install),
+    queryFn: () => api.get<{ parts: AppPart[] }>(`/api/v1/apps/${encodeURIComponent(key)}/parts`, installOptions(install)),
   });
 }
 
-export function fetchAppPartOpen(key: string, part: string): Promise<AppPartOpen> {
-  return api.get<AppPartOpen>(`/api/v1/apps/${encodeURIComponent(key)}/parts/${encodeURIComponent(part)}/open`);
+export function fetchAppPartOpen(key: string, part: string, install: string | null = null): Promise<AppPartOpen> {
+  return api.get<AppPartOpen>(`/api/v1/apps/${encodeURIComponent(key)}/parts/${encodeURIComponent(part)}/open`, installOptions(install));
 }
 
-export function setAppPart(key: string, part: string, on: boolean): Promise<{ parts: AppPart[] }> {
-  return api.put<{ parts: AppPart[] }>(`/api/v1/apps/${encodeURIComponent(key)}/parts/${encodeURIComponent(part)}`, { on });
+export function setAppPart(key: string, part: string, on: boolean, install: string | null = null): Promise<{ parts: AppPart[] }> {
+  return api.put<{ parts: AppPart[] }>(`/api/v1/apps/${encodeURIComponent(key)}/parts/${encodeURIComponent(part)}`, { on }, installOptions(install));
 }

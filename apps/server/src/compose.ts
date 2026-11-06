@@ -133,7 +133,7 @@ import { createAppCatalogClient } from './apps/catalog.js';
 import { createAppStore } from './apps/store.js';
 import { createAppsBuildReader, folderAppsOf } from './project/apps/build-apps.js';
 import { stopOwnBuilds } from './project/apps/own-build.js';
-import { projectBundlerManifest } from './project/build.js';
+import { projectBundlerManifest, rebuildApps } from './project/build.js';
 import { addOnLines, readAddOnManifest } from './designer/add-on-lines.js';
 import { createAttachments } from './designer/attachments.js';
 import { createAddOnGetter } from './designer/get-add-on.js';
@@ -369,6 +369,7 @@ import { createSaveService } from './apps/save/service.js';
 import { createWorkspaceSaveService } from './apps/save/workspace.js';
 import type { SaveDialect } from './apps/save/types.js';
 import { appSaveRoutes } from './routes/apps/save.js';
+import { ownSurfaceRoutes } from './routes/apps/own-surfaces.js';
 import { publicApiRegistrationBlocked, publicRoutes } from './routes/public/index.js';
 import type { PublicRateLimiter } from './public-api/limiter.js';
 import { publicAdminRoutes } from './routes/public-admin/index.js';
@@ -2527,6 +2528,26 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           service: saveService,
           // Save workspace: one app per database, each made by the service above, in one file.
           workspaces: createWorkspaceSaveService({ meta, save: saveService, adminiumVersion: APP_VERSION, dialectOf: saveDialectOf, displayName: async () => settingsRepo(meta).get('branding.appName') }),
+        }),
+      );
+      // An app's own screens as a file: Download of a project app, and Make it editable here of an installed one.
+      await api.register(
+        ownSurfaceRoutes({
+          meta,
+          store: appStore,
+          projectRoot,
+          adminiumVersion: APP_VERSION,
+          displayName: async () => settingsRepo(meta).get('branding.appName'),
+          // A folder made from an installed app is built and applied at once, as a change to the folder is.
+          ...(projectRoot === null
+            ? {}
+            : {
+                refreshProject: async () => {
+                  await rebuildApps({ root: projectRoot, configFile: join(projectRoot, 'adminium.config.ts') }, { version: APP_VERSION });
+                  await projectApps?.reconcile();
+                },
+              }),
+          log: (message) => app.log.warn(message),
         }),
       );
       // One service for the folder's apps, the Designer and the add-on installer: it keeps no state between calls.

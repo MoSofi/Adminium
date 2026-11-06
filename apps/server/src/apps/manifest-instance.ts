@@ -658,6 +658,26 @@ async function restoreOne(m: MetaDb, record: { manifestId: string; kind: AppInst
   return untouched;
 }
 
+/** One value an install's part wrote, and whether somebody changed it since (an undo then leaves it). */
+export interface InstanceValueNow {
+  kind: AppInstanceValueKind;
+  item: string;
+  applied: unknown;
+  /** When the install first wrote it. */
+  at: number;
+  changed: boolean;
+}
+
+/** Every value one install's deployment-wide part wrote, as it stands now. Reads only. */
+export async function instanceValuesNow(meta: MetaDb, manifestId: string): Promise<InstanceValueNow[]> {
+  const out: InstanceValueNow[] = [];
+  for (const record of await appInstanceUndoRepo(meta).list(manifestId)) {
+    const now = await readHeld(meta, record.kind, record.item);
+    out.push({ kind: record.kind, item: record.item, applied: record.applied, at: record.createdAt, changed: !sameValue(record.kind, now, record.applied) });
+  }
+  return out;
+}
+
 export interface UndoResult {
   /** Values put back: `<kind>:<item>`. */
   restored: string[];

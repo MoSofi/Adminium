@@ -7,21 +7,49 @@
  * built side as `staff/` and `customer/`, and `seeds/` for the sample data.
  * It is written by the same tar writer that repacks an installed app, so it is
  * the one archive shape the server's reader accepts.
+ *
+ * The app's own folder goes along under `source/`, stripped of anything that
+ * runs (`pack-source.ts`), so a server with a project folder can copy it in
+ * and keep editing the screens. It is never served: only `staff/` and
+ * `customer/` are.
  */
 
 import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
+import { compareSemver, WORD_FLOORS, type Provenance } from '@adminium/manifest';
+
+import { DEFAULT_ARCHIVE_LIMITS } from '../../add-ons/archive.js';
 import { packStagedTree } from '../../add-ons/pack.js';
 import { sha512Integrity } from '../../add-ons/store.js';
 import { CliError } from '../../cli/exit.js';
 import type { AppCheck } from './check-app.js';
+import { SOURCE_DIR, readAppSource } from './pack-source.js';
 import { appPath } from './read-app.js';
 import type { BuiltSide } from './side-build.js';
 
 /** The most the upload route takes; a package over it is refused here, where it can be said why. */
 export const MAX_PACKAGE_BYTES = 32 * 1024 * 1024;
+
+/** A package over {@link MAX_PACKAGE_BYTES}: refused, with its size. */
+export class PackTooLargeError extends CliError {
+  constructor(
+    readonly bytes: number,
+    readonly limit: number,
+  ) {
+    super(
+      `The package is ${String(Math.ceil(bytes / (1024 * 1024)))} MB, and an upload takes at most ${String(limit / (1024 * 1024))} MB.`,
+      { hint: 'Large images in a side, in seeds/ or in the app’s folder are the usual cause.' },
+    );
+  }
+}
+
+/** What a server adds to the package it makes: where and when it was made. */
+export interface PackOptions {
+  /** Written into the packed manifest (never into the folder), with the oldest Adminium that reads it. */
+  provenance?: Provenance | undefined;
+}
 
 export interface PackedApp {
   key: string;
@@ -54,7 +82,7 @@ function unpackable(dir: string, prefix: string): string | null {
  * Pack a checked, built app. `check.manifest` must be set (the check passed)
  * and `sides` are the builds to carry.
  */
-export async function packApp(check: AppCheck, sides: readonly BuiltSide[]): Promise<PackedApp> {
+export async function packApp(check: AppCheck, sides: readonly BuiltSide[], opts: PackOptions = {}): Promise<PackedApp> {
   const manifest = check.manifest;
   const document = check.folder.document;
   if (manifest === null || document === null) throw new CliError('The app did not pass its check, so it cannot be packed.');
@@ -63,7 +91,7 @@ export async function packApp(check: AppCheck, sides: readonly BuiltSide[]): Pro
   const staging = mkdtempSync(join(tmpdir(), `adminium-app-pack-${key}-`));
   try {
     // One document, with `kind` said outright: a reader should not have to know it defaults to "app".
-    writeFileSync(join(staging, 'manifest.json'), `${JSON.stringify({ kind: 'app', ...document }, null, 2)}\n`);
+    writeFileSync(join(staging, 'manifest.json'), `${JSON.stringify({ kind: 'app', ...withProvenance(document, opts.provenance) }, null, 2)}\n`);
     for (const side of sides) {
       const refused = unpackable(side.dir, side.side);
       if (refused !== null) throw new CliError(`The built ${side.side} side cannot be packed: ${refused}.`);
@@ -77,13 +105,23 @@ export async function packApp(check: AppCheck, sides: readonly BuiltSide[]): Pro
       cpSync(seeds, join(staging, 'seeds'), { recursive: true });
     }
 
-    const packed = await packStagedTree(staging);
-    if (packed.tarball.byteLength > MAX_PACKAGE_BYTES) {
+    // The app's own folder, without what runs: what another server copies in to keep editing it.
+    const source = readAppSource(check.folder.dir);
+    for (const file of source) {
+      const target = join(staging, SOURCE_DIR, ...file.path.split('/'));
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, file.bytes);
+    }
+    const entries = countFiles(staging);
+    if (entries > DEFAULT_ARCHIVE_LIMITS.maxEntries) {
       throw new CliError(
-        `The package is ${String(Math.ceil(packed.tarball.byteLength / (1024 * 1024)))} MB, and an upload takes at most ${String(MAX_PACKAGE_BYTES / (1024 * 1024))} MB.`,
-        { hint: 'Large images in a side or in seeds/ are the usual cause.' },
+        `The package would hold ${String(entries)} files, and an upload takes at most ${String(DEFAULT_ARCHIVE_LIMITS.maxEntries)}.`,
+        { hint: `Files in ${appPath(key)} count too: move what the app does not need out of its folder.` },
       );
     }
+
+    const packed = await packStagedTree(staging);
+    if (packed.tarball.byteLength > MAX_PACKAGE_BYTES) throw new PackTooLargeError(packed.tarball.byteLength, MAX_PACKAGE_BYTES);
     return {
       key,
       version: manifest.version,
@@ -95,4 +133,27 @@ export async function packApp(check: AppCheck, sides: readonly BuiltSide[]): Pro
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
+}
+
+/** Every plain file under `dir`. */
+function countFiles(dir: string): number {
+  let count = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    count += entry.isDirectory() ? countFiles(join(dir, entry.name)) : 1;
+  }
+  return count;
+}
+
+/**
+ * The document with where it was made, and an oldest Adminium no lower than
+ * the one that reads `provenance` (an older server refuses the whole file
+ * otherwise, and says so).
+ */
+function withProvenance(document: Record<string, unknown>, provenance: Provenance | undefined): Record<string, unknown> {
+  if (provenance === undefined) return document;
+  const floor = WORD_FLOORS['app.provenance'];
+  const compatibility = (document['compatibility'] ?? {}) as { minAdminiumVersion?: unknown };
+  const current = typeof compatibility.minAdminiumVersion === 'string' ? compatibility.minAdminiumVersion : '0.0.0';
+  const raised = floor !== undefined && compareSemver(current, floor) < 0 ? floor : current;
+  return { ...document, compatibility: { ...compatibility, minAdminiumVersion: raised }, provenance };
 }

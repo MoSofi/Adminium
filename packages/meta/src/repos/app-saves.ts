@@ -140,6 +140,20 @@ export function appAfterInstallRepo(meta: MetaDb) {
         .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
     },
+    async findById(manifestId: string, id: string): Promise<AfterInstallItem | null> {
+      const row = await db.selectFrom('adminium_app_after_install').selectAll().where('id', '=', id).where('manifestId', '=', manifestId).executeTakeFirst();
+      return row === undefined ? null : afterItem(row);
+    },
+    /** When the install's list was put away, or null. It counts only while every item is done. */
+    async hiddenAt(manifestId: string): Promise<number | null> {
+      const row = await db.selectFrom('adminium_app_after_install_hidden').select('hiddenAt').where('manifestId', '=', manifestId).executeTakeFirst();
+      return row === undefined ? null : Number(row.hiddenAt);
+    },
+    /** Put the list away, or bring it back. */
+    async setHidden(manifestId: string, hidden: boolean, by: string | null, at: number = Date.now()): Promise<void> {
+      await db.deleteFrom('adminium_app_after_install_hidden').where('manifestId', '=', manifestId).execute();
+      if (hidden) await db.insertInto('adminium_app_after_install_hidden').values({ manifestId, hiddenBy: by, hiddenAt: at }).execute();
+    },
     /** An update whose file no longer names an item: it goes. */
     async remove(manifestId: string, keep: readonly { kind: string; item: string; field: string }[]): Promise<number> {
       const rows = await this.list(manifestId);

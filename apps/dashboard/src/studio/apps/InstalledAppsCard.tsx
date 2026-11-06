@@ -33,7 +33,7 @@
  * replaces it.
  */
 import { useState, type ReactNode } from 'react';
-import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import {
   Alert,
@@ -46,10 +46,15 @@ import {
   IconTile,
   MonoText,
 } from '@adminium/ui';
-import { ArrowUp, ArrowUpCircle, CircleAlert, Download, Package, RotateCw, Trash2, TriangleAlert, Wand2 } from 'lucide-react';
+import { ArrowUp, ArrowUpCircle, CircleAlert, Download, HardDrive, Info, RotateCw, Trash2, TriangleAlert, Wand2 } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
 
+import { bootstrapQuery } from '../../app/bootstrap.js';
+import { DEFAULT_BRANDING, brandingQuery } from '../../app/branding.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
+import { AppIcon, OnDatabase, WorkspaceChips, workspacesOf } from './appPageParts.js';
+import { DownloadAppDialog } from '../../apps/DownloadAppDialog.js';
+import { InstallScope, addressOf } from './installScope.js';
 import { stoppedWords } from './UpdateReviewDialog.js';
 import {
   LOCAL_PUBLISHER_ID,
@@ -78,6 +83,11 @@ function FromFolder({ appKey }: { appKey: string }) {
   );
 }
 
+/** "1 Nov 2026", in the reader's language. */
+function madeOn(savedAt: string): string {
+  return getFormatters(getI18nInstance()?.language ?? 'en-US').date(savedAt, 'medium');
+}
+
 export interface InstalledAppsCardProps {
   onInstall: () => void;
   /**
@@ -85,6 +95,8 @@ export interface InstalledAppsCardProps {
    * not on disk, shows the tables a new version would create, then updates.
    */
   onUpdate: (app: InstalledApp, row: CatalogApp) => void;
+  /** Every copy of an app to `row.updateTo`: one version per app on a server. Absent: each row updates its own copy. */
+  onUpdateEvery?: (copies: InstalledApp[], row: CatalogApp) => void;
   /** Finish this copy's update that stopped part way (`app.unfinishedUpdate`): the update dialog, then the same update again. */
   onFinishUpdate?: ((app: InstalledApp) => void) | undefined;
   /** A download or update is in flight. */
@@ -93,19 +105,42 @@ export interface InstalledAppsCardProps {
   beforeInstall?: ReactNode;
 }
 
-export function InstalledAppsCard({ onInstall, onUpdate, onFinishUpdate, busy = false, beforeInstall }: InstalledAppsCardProps) {
+/** The copies of one key next to each other, keeping the server's order of first appearance. */
+export function groupCopies(apps: readonly InstalledApp[]): InstalledApp[] {
+  const order: string[] = [];
+  const byKey = new Map<string, InstalledApp[]>();
+  for (const app of apps) {
+    if (!byKey.has(app.key)) order.push(app.key);
+    byKey.set(app.key, [...(byKey.get(app.key) ?? []), app]);
+  }
+  return order.flatMap((key) => byKey.get(key) ?? []);
+}
+
+/** The row's identity: its install, or its key on a server that names none. */
+const rowId = (app: InstalledApp): string => app.installId ?? app.key;
+
+export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, onFinishUpdate, busy = false, beforeInstall }: InstalledAppsCardProps) {
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(installedAppsQuery());
+  // The workspaces for the chips: none until the bootstrap is in (it always is under the shell).
+  const workspaces = workspacesOf(useQuery(bootstrapQuery()).data);
+  const serverName = (useQuery(brandingQuery()).data ?? DEFAULT_BRANDING).appName;
+  const apps = groupCopies(data.apps);
+  // "on fernhill" says something once apps sit on more than one database, or databases sit in workspaces.
+  const databasesShown = workspaces.length > 0 || new Set(data.apps.map((app) => app.connectionId).filter((id) => id !== null)).size > 1;
+  const [downloading, setDownloading] = useState<InstalledApp | null>(null);
   // The same reply the shelf reads, so the two cannot disagree about an update.
   const { data: catalog } = useSuspenseQuery(appCatalogQuery());
   const rowByKey = new Map(
     catalog.apps.filter((row) => row.installed).map((row) => [row.key, row] as const),
   );
-  const updateCount = data.apps.filter((app) => rowByKey.get(app.key)?.updateTo != null).length;
+  // One update per key: every copy moves together.
+  const updateCount = new Set(data.apps.filter((app) => rowByKey.get(app.key)?.updateTo != null).map((app) => app.key)).size;
   const [confirming, setConfirming] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renamed, setRenamed] = useState<string | null>(null);
-  const renamingApp = data.apps.find((app) => app.key === renaming);
+  const renamingApp = data.apps.find((app) => rowId(app) === renaming);
+  const confirmingApp = data.apps.find((app) => rowId(app) === confirming);
 
   // A removal's "yes" destroys data, so it takes a second click on the same row.
   const [removing, setRemoving] = useState<string | null>(null);
@@ -168,8 +203,13 @@ export function InstalledAppsCard({ onInstall, onUpdate, onFinishUpdate, busy = 
           />
         ) : (
           <ul className="flex flex-col gap-3">
-            {data.apps.map((app) => {
+            {apps.map((app, index) => {
               const row = rowByKey.get(app.key);
+              const copies = apps.filter((other) => other.key === app.key);
+              // The key's Update is drawn once, on its first copy.
+              const firstOfKey = apps.findIndex((other) => other.key === app.key) === index;
+              const own = app.publisher?.id === LOCAL_PUBLISHER_ID && app.folder === undefined;
+              const name = app.name ?? row?.name ?? app.key;
               const updateTo = row?.updateTo ?? null;
               const blocked = row?.needsNewerAdminium ?? null;
               const cannotUpdate = row?.cannotUpdate ?? null;
@@ -177,24 +217,32 @@ export function InstalledAppsCard({ onInstall, onUpdate, onFinishUpdate, busy = 
               // it is data rather than a key (the shelf card's badge is the same).
               const category = row?.categories[0] ?? null;
               return (
-              <li key={app.key} className="flex items-center gap-4">
+              <li key={rowId(app)} className="flex flex-wrap items-center gap-4" data-testid="installed-app-row">
                 <IconTile>
-                  <Package aria-hidden className="size-5" />
+                  <AppIcon icon={app.icon} className="size-5" />
                 </IconTile>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-[1_1_300px]">
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* The app's own page: its switches, settings, data and danger zone. */}
+                    {/* A package that names itself only by its key shows the key once. */}
+                    {name === app.key ? null : <span className="text-sm font-bold tracking-tight">{name}</span>}
+                    {/* The install's own page: its switches, settings, data and danger zone. */}
                     <Link
                       to="/studio/apps/$key"
-                      params={{ key: app.key }}
-                      className="text-sm font-bold tracking-tight underline-offset-2 hover:underline"
+                      params={{ key: addressOf(app) }}
+                      className="font-mono text-xs font-semibold text-accent underline-offset-2 hover:underline"
                     >
                       {app.key}
                     </Link>
+                    {databasesShown && app.connectionName != null ? <OnDatabase name={app.connectionName} /> : null}
                     <Badge>
                       <MonoText>{app.version}</MonoText>
                     </Badge>
-                    {app.publisher?.id === LOCAL_PUBLISHER_ID ? (
+                    {own ? (
+                      <Badge tone="accent">
+                        <HardDrive aria-hidden className="size-3" />
+                        {t('studio:apps.own.badge', 'Your own app')}
+                      </Badge>
+                    ) : app.publisher?.id === LOCAL_PUBLISHER_ID ? (
                       <Badge>{t('studio:hostedApps.installed.madeHere', 'Made on this install')}</Badge>
                     ) : null}
                     {app.folder === undefined ? null : app.folder.state === 'here' ? (
@@ -225,7 +273,15 @@ export function InstalledAppsCard({ onInstall, onUpdate, onFinishUpdate, busy = 
                     )}
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-fg-subtle">
-                    {category === null ? null : (
+                    {own && app.madeAt !== undefined ? (
+                      <span className="flex items-center gap-2">
+                        {app.madeAt.label === null
+                          ? t('studio:apps.own.madeOn', 'Made on {date}', { date: madeOn(app.madeAt.savedAt) })
+                          : t('studio:apps.own.madeAtList', 'Made at {label} · {date}', { label: app.madeAt.label, date: madeOn(app.madeAt.savedAt) })}
+                        <span aria-hidden>·</span>
+                      </span>
+                    ) : null}
+                    {category === null || own ? null : (
                       <span className="flex items-center gap-2">
                         {category}
                         <span aria-hidden>·</span>
@@ -297,6 +353,17 @@ export function InstalledAppsCard({ onInstall, onUpdate, onFinishUpdate, busy = 
                       </span>
                     )}
                   </div>
+                  {databasesShown ? (
+                    <div className="mt-1.5">
+                      <WorkspaceChips workspaces={workspaces} connectionId={app.connectionId} />
+                    </div>
+                  ) : null}
+                  {app.screensFirstOnly === true ? (
+                    <div role="note" className="mt-2 flex items-start gap-[11px] rounded-[10px] border border-info/25 bg-info-soft px-[15px] py-[13px] text-[12.5px] leading-[1.5] text-fg">
+                      <Info aria-hidden className="mt-px size-[17px] shrink-0 text-info" />
+                      {t('studio:apps.copies.screensFirstOnly', 'This app’s screens open for its first install only. Its pages, tables and rules work here.')}
+                    </div>
+                  ) : null}
                   {/* What the folder's manifest dropped that holds data: nothing
                       went, and the answer is this person's to give. */}
                   {app.folder?.removals === undefined || app.folder.removals.length === 0 ? null : (
@@ -408,7 +475,7 @@ export function InstalledAppsCard({ onInstall, onUpdate, onFinishUpdate, busy = 
                           {t('studio:hostedApps.installed.oldNamesWhy', 'They were made before prefixes.')}
                         </span>
                       </span>
-                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => setRenaming(app.key)}>
+                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => setRenaming(rowId(app))}>
                         <Wand2 aria-hidden className="size-4" />
                         {t('studio:hostedApps.installed.renameTo', 'Rename to {prefix}…', {
                           prefix: app.oldTableNames.prefix,
@@ -417,10 +484,22 @@ export function InstalledAppsCard({ onInstall, onUpdate, onFinishUpdate, busy = 
                     </div>
                   )}
                 </div>
-                {updateTo === null || row === undefined ? null : (
-                  <Button size="sm" disabled={busy} onClick={() => onUpdate(app, row)}>
+                {/* An app of the project folder: its file, for another server. */}
+                {app.folder?.state === 'here' && app.publisher?.id === LOCAL_PUBLISHER_ID ? (
+                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => setDownloading(app)}>
                     <Download aria-hidden className="size-4" />
-                    {t('studio:hostedApps.installed.update', 'Update')}
+                    {t('appFiles.download.action', 'Download')}
+                  </Button>
+                ) : null}
+                {/* One version per app: the key's Update moves every copy, so it is drawn once. An own app updates by a newer file, on its page. */}
+                {updateTo === null || row === undefined || own || !firstOfKey ? null : (
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => (copies.length > 1 && onUpdateEvery !== undefined ? onUpdateEvery(copies, row) : onUpdate(app, row))}
+                  >
+                    <ArrowUpCircle aria-hidden className="size-4" />
+                    {copies.length > 1 ? t('studio:apps.copies.updateEvery', 'Update every copy') : t('studio:hostedApps.installed.update', 'Update')}
                   </Button>
                 )}
                 {/* While its folder is in the project the app would only be
@@ -429,7 +508,7 @@ export function InstalledAppsCard({ onInstall, onUpdate, onFinishUpdate, busy = 
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => setConfirming(app.key)}
+                    onClick={() => setConfirming(rowId(app))}
                     disabled={busy}
                   >
                     <Trash2 aria-hidden className="size-4" />
@@ -492,22 +571,40 @@ export function InstalledAppsCard({ onInstall, onUpdate, onFinishUpdate, busy = 
       </CardBody>
 
       {renamingApp?.oldTableNames === undefined ? null : (
-        <RenameTablesDialog
-          app={{ ...renamingApp, oldTableNames: renamingApp.oldTableNames }}
-          onClose={() => setRenaming(null)}
-          onRenamed={(prefix) => {
-            setRenaming(null);
-            setRenamed(prefix);
-          }}
-        />
+        <InstallScope installId={renamingApp.installId ?? null}>
+          <RenameTablesDialog
+            app={{ ...renamingApp, oldTableNames: renamingApp.oldTableNames }}
+            onClose={() => setRenaming(null)}
+            onRenamed={(prefix) => {
+              setRenaming(null);
+              setRenamed(prefix);
+            }}
+          />
+        </InstallScope>
       )}
 
-      {confirming === null ? null : (
-        <UninstallAppDialog
-          appKey={confirming}
-          name={rowByKey.get(confirming)?.name ?? confirming}
-          onClose={() => setConfirming(null)}
-          onUninstalled={() => setConfirming(null)}
+      {confirmingApp === undefined ? null : (
+        // The copy the row is: its own plan, its own uninstall.
+        <InstallScope installId={confirmingApp.installId ?? null}>
+          <UninstallAppDialog
+            appKey={confirmingApp.key}
+            name={confirmingApp.name ?? rowByKey.get(confirmingApp.key)?.name ?? confirmingApp.key}
+            {...(confirmingApp.connectionName == null || data.apps.filter((other) => other.key === confirmingApp.key).length < 2
+              ? {}
+              : { subtitle: t('studio:apps.copies.on', 'on {database}', { database: confirmingApp.connectionName }) })}
+            onClose={() => setConfirming(null)}
+            onUninstalled={() => setConfirming(null)}
+          />
+        </InstallScope>
+      )}
+
+      {downloading === null ? null : (
+        <DownloadAppDialog
+          appKey={downloading.key}
+          appName={downloading.name ?? rowByKey.get(downloading.key)?.name ?? downloading.key}
+          version={downloading.version}
+          serverName={serverName}
+          onClose={() => setDownloading(null)}
         />
       )}
     </Card>

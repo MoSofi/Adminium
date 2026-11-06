@@ -10,7 +10,7 @@ import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { api } from '../../app/api.js';
-import { useAddOnKey } from './context.js';
+import { useAddOnInstall, useAddOnKey } from './context.js';
 
 export interface KitTable {
   id: string;
@@ -43,9 +43,10 @@ export interface KitReply {
   currency?: string | null;
 }
 
-export const addOnKitQuery = (addOnKey: string) =>
+export const addOnKitQuery = (addOnKey: string, install: string | null = null) =>
   queryOptions({
-    queryKey: ['add-on-kit', addOnKey] as const,
+    // The key's only install keeps the plain key; a copy adds its install, so two copies never share a read.
+    queryKey: (install === null ? ['add-on-kit', addOnKey] : ['add-on-kit', addOnKey, install]) as readonly string[],
     queryFn: () => api.get<KitReply>(`/api/v1/add-ons/${encodeURIComponent(addOnKey)}/kit`),
     // A grant changed by an owner is felt within a minute, and at once after any refusal (the hooks refetch on a 403).
     staleTime: 60_000,
@@ -59,7 +60,7 @@ export interface Kit {
 /** The kit's one read for the add-on whose page this is. Suspends until it is in. */
 export function useKit(): Kit {
   const addOnKey = useAddOnKey();
-  const { data } = useSuspenseQuery(addOnKitQuery(addOnKey));
+  const { data } = useSuspenseQuery(addOnKitQuery(addOnKey, useAddOnInstall()));
   // The same object while the read is the same: a hook that keys on it (`useRead`, `useAccess`) hands a page the
   // same value on every draw, so a page's effect keyed on that value runs once and not for ever.
   return useMemo(() => ({ addOnKey, reply: data }), [addOnKey, data]);

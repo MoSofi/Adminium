@@ -75,6 +75,7 @@ interface Call {
   method: string;
   url: string;
   body?: unknown;
+  install?: string;
 }
 
 let calls: Call[];
@@ -128,7 +129,8 @@ function stubFetch() {
     const url = String(input).replace(/\?connectionId=[^&]*$/, '');
     const method = init?.method ?? 'GET';
     const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;
-    calls.push({ method, url, ...(body === undefined ? {} : { body }) });
+    const install = ((init?.headers ?? {}) as Record<string, string>)['x-adminium-install'];
+    calls.push({ method, url, ...(body === undefined ? {} : { body }), ...(install === undefined ? {} : { install }) });
 
     if (url.startsWith('/api/v1/bootstrap')) {
       return Promise.resolve(
@@ -393,17 +395,22 @@ describe('installing an app only the catalogue offers', () => {
   });
 });
 
-describe('an app made on this install', () => {
-  it('carries a badge saying so, and one from adminium does not', async () => {
-    installed = { apps: [{ ...INSTALLED, publisher: { id: 'local', name: 'Local' } }], staged: [] };
+describe('an app someone made', () => {
+  it('reads as your own app, with where it was made, and offers no catalogue update', async () => {
+    installed = {
+      apps: [{ ...INSTALLED, publisher: { id: 'local', name: 'Local' }, madeAt: { label: 'Fernhill main', savedAt: '2026-11-01T10:00:00.000Z', adminiumVersion: '0.3.49' } }],
+      staged: [],
+    };
     await renderPage();
-    expect(screen.getByText('Made on this install')).toBeTruthy();
+    expect(screen.getByText('Your own app')).toBeTruthy();
+    expect(screen.getByText(/Made at Fernhill main · Nov 1, 2026/)).toBeTruthy();
+    expect(screen.queryByText('Made on this install')).toBeNull();
   });
 
   it('is not marked on an app from adminium', async () => {
     installed = { apps: [{ ...INSTALLED, publisher: { id: 'adminium', name: 'Adminium' } }], staged: [] };
     await renderPage();
-    expect(screen.queryByText('Made on this install')).toBeNull();
+    expect(screen.queryByText('Your own app')).toBeNull();
   });
 });
 
@@ -1116,5 +1123,31 @@ describe('checking a new version and renaming to the prefix', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Rename tables' }));
     expect(await screen.findByText('Tables renamed to clinic_…')).toBeTruthy();
     expect(posted('/api/v1/apps/clinic/rename-tables')[1]?.body).toEqual({ checksum: 'sum_2' });
+  });
+});
+
+describe('an app on two databases', () => {
+  it('lists one row per copy with its database, and updates every copy, each named', async () => {
+    installed = {
+      apps: [
+        { ...INSTALLED, installId: 'mf_a', slug: '', address: 'clinic', connectionName: 'fernhill', name: 'Clinic Desk' },
+        { ...INSTALLED, connectionId: 'con_2', installId: 'mf_b', slug: 'kiln', address: 'clinic~kiln', connectionName: 'kiln', name: 'Clinic Desk' },
+      ],
+      staged: [],
+    };
+    catalog = { apps: [row({ installed: true, source: 'disk', state: 'installed', updateTo: '0.1.2', updateStaged: true })], catalogFetchedAt: 1, onlineEnabled: false };
+    plan = { ...plan, tables: [], create: [], reuse: [], problems: [], installable: true };
+    await renderPage();
+    const rows = await screen.findAllByTestId('installed-app-row');
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]!).getByText('on fernhill')).toBeTruthy();
+    expect(within(rows[1]!).getByText('on kiln')).toBeTruthy();
+    expect(within(rows[1]!).getByRole('link', { name: 'clinic' }).getAttribute('href')).toBe('/studio/apps/clinic~kiln');
+    // One version per app: one button for the key.
+    expect(screen.getAllByRole('button', { name: 'Update every copy' })).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Update every copy' }));
+    await waitFor(() => expect(posted('/api/v1/apps/clinic/update')).toHaveLength(2));
+    // Each copy by its own database, in order (the plan's reads name the database in their body).
+    expect(copies).toEqual(['con_1', 'con_2']);
   });
 });
