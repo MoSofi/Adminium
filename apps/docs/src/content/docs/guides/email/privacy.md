@@ -13,7 +13,7 @@ the **Super Admin** holds it. Give it to another role on purpose (Team →
 Roles) — for example to the person who answers access requests. The built-in
 Admin role does not get it, on a new install or an old one.
 
-On screen it is **Workspace settings → Privacy & public pages**, shown only to
+On screen it is **Server settings → Privacy & public pages**, shown only to
 whoever holds the permission. Its three tabs are the privacy notice, **A
 person's data** (find, download, erase) and **How long we keep things**. The
 address you search for stays on the page: it is sent to the server in the
@@ -163,7 +163,7 @@ set, and show no link before.
 
 One name is used everywhere a stranger looks — the pay page and its mails,
 the marketing mail's footer, the unsubscribe pages: the pay page's own shop
-name first, then the Business name, then the workspace's name, then the host
+name first, then the Business name, then the server's name, then the host
 of the public address. It is never "Adminium".
 
 Nothing written about a search or a download names the address: the audit log

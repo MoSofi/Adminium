@@ -43,7 +43,7 @@ the Super Admin. It reaches only the apps whose roles give it to the person: tho
 tables, the copies they declare (with the add-on rows those copies' links reach) and their
 outboxes, the consent rows about those rows, and what Adminium keeps about them (campaign mail,
 documents, payments, rule runs, notifications and files of those rows). Never another app's people,
-never the do-not-email list or a forms add-on's answers (the workspace's), never a store that only
+never the do-not-email list or a forms add-on's answers (the server's), never a store that only
 names the address, and never an address that is a staff account's: that is refused (403
 `STAFF_ADDRESS`), since erasing it would rewrite the audit log. The erasure deletes the downloads
 the holder made, not other people's. Whoever holds `system:privacy:manage` reaches everything, as

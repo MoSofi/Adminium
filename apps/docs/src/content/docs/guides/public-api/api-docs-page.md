@@ -8,7 +8,7 @@ dashboard around it. It is **off** until you switch it on.
 
 ## Switch it on
 
-In **Workspace settings → Public API**, turn on **API documentation page**. The page
+In **Server settings → Public API**, turn on **API documentation page**. The page
 and its data route (`GET /api/v1/api-docs`) are served from the next request. Switched
 off, both answer the ordinary not-found response, exactly as on a server that never had
 the page.

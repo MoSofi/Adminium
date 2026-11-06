@@ -24,7 +24,7 @@
 | `references/guides/postings--every-way-of-writing-a-row.md` | Every way of writing a row | 1718 |
 | `references/guides/postings--trying-a-save-first.md` | Trying a save first | 868 |
 | `references/guides/postings--when-the-add-on-cannot-be-asked.md` | When the add-on cannot be asked | 1366 |
-| `references/guides/postings--what-the-owner-can-change.md` | What the owner can change | 753 |
+| `references/guides/postings--what-the-owner-can-change.md` | What the owner can change | 747 |
 | `references/guides/postings--what-a-writer-is-told.md` | What a writer is told | 1569 |
 | `references/guides/discounts-and-codes--overview.md` | Discounts, codes and refunds worked out by Adminium | 879 |
 | `references/guides/discounts-and-codes--a-price-rule.md` | A price rule | 1737 |
@@ -59,20 +59,20 @@
 | `references/guides/shared-menu--upgrading.md` | Upgrading | 366 |
 | `references/guides/emails--overview.md` | An app's emails | 915 |
 | `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |
-| `references/guides/emails--what-queues-a-row.md` | What queues a row | 6745 |
+| `references/guides/emails--what-queues-a-row.md` | What queues a row | 6742 |
 | `references/guides/emails--messages-about-changes.md` | Messages about changes | 4152 |
 | `references/guides/emails--messages-about-a-row-that-is-removed.md` | Messages about a row that is removed | 4950 |
-| `references/guides/emails--sending.md` | Sending | 4391 |
+| `references/guides/emails--sending.md` | Sending | 4388 |
 | `references/guides/emails--held-messages.md` | Held messages | 1454 |
 | `references/guides/emails--attachments.md` | Attachments | 1887 |
 | `references/guides/emails--the-templates.md` | The templates | 1273 |
-| `references/guides/emails--variables.md` | Variables | 7565 |
+| `references/guides/emails--variables.md` | Variables | 7562 |
 | `references/guides/emails--variables--the-person-a-staff-column-names.md` | Variables — The person a staff column names | 1053 |
 | `references/guides/emails--emails-that-list-rows.md` | Emails that list rows | 7245 |
 | `references/guides/emails--links.md` | Links | 850 |
 | `references/guides/emails--upgrading.md` | Upgrading | 1762 |
 | `references/guides/public-access--overview.md` | An app's public access | 539 |
-| `references/guides/public-access--what-the-install-shows-first.md` | What the install shows first | 1593 |
+| `references/guides/public-access--what-the-install-shows-first.md` | What the install shows first | 1590 |
 | `references/guides/public-access--what-the-install-makes.md` | What the install makes | 1820 |
 | `references/guides/public-access--orders-with-their-lines.md` | Orders with their lines | 592 |
 | `references/guides/public-access--guests-finding-their-own-booking.md` | Guests finding their own booking | 1498 |

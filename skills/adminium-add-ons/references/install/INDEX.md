@@ -4,7 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
-| `references/install/overview.md` | Installing add-ons | 635 |
+| `references/install/overview.md` | Installing add-ons | 632 |
 | `references/install/what-the-page-shows.md` | What the page shows | 1176 |
 | `references/install/the-bundled-set-zero-network.md` | The bundled set: zero network | 983 |
 | `references/install/the-list-from-adminium-dev.md` | The list from adminium.dev | 4305 |

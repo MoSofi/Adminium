@@ -7,7 +7,7 @@ The manifest is refused when `column` is not a link to `columnsFrom.table` (or, 
 a number or money column, when `only` names the board's own `column`, a column of another type
 or a value its column cannot hold, when a `card` names a link that is no link, a person that is no
 staff column, an amount that is no number or a day that is no date, when a `note` opens anything
-but a path of the workspace, and on a page that is not a `page-board`. The install checks the
+but a path on this server, and on a page that is not a `page-board`. The install checks the
 same against the tables as they really are: a board that cannot be built as named is not built as
 another one. Its page is created empty and the install reports why (`PAGE_BOARD_INVALID`).
 Without `board`, a board's columns are the values of the workflow column Adminium finds, as

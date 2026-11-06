@@ -31,7 +31,7 @@
 | `title` | `fallback` is the text; `key` names a translation when there is one |
 | `source.database` | A **key** from `adminium.config.ts`, never a connection id |
 | `source.table` | The table, schema-qualified |
-| `nav` | Where it sits in the sidebar: `group` (`workspace`, `library`, `planning`, `people` or `account`), `icon`, `order`, and `slug`, which restates the address and must equal the file name |
+| `nav` | Where it sits in the sidebar: `group` (`workspace`, shown as **Pages**; `library`, `planning`, `people` or `account`), `icon`, `order`, and `slug`, which restates the address and must equal the file name |
 | `access` | Part of the stored page. The real gate is the role's **View** grant — **See every page** under **People → Roles & permissions**, or one on this page — which lives in Adminium's database, not here |
 | `config` | The page itself: columns, filters, the form, dashboard layout — whatever that template takes |
 | `generated` | Only on pages Adminium generated ([below](https://docs.adminium.dev/projects/page-files/#edited-by-hand-or-not)) |

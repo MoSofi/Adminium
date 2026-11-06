@@ -55,7 +55,7 @@ lower. A column may also say what a guest may upload into it (`upload`, below).
 
 - **The upload.** `POST /api/v1/files?connectionId=…&table=…&column=…&filename=…`, the body the file
   itself, from a person who may create or change rows of the table. The column's kinds and size
-  narrow the workspace's own (`files.allowedTypes`, `files.maxBytes`), never widen them: a file of
+  narrow the server's own (`files.allowedTypes`, `files.maxBytes`), never widen them: a file of
   another kind is refused `415`, a larger one `413`. A PNG, JPEG, WebP or GIF is kept without what a
   camera writes beside it: the place it was taken, the device, comments, XMP. A picture that cannot be
   read as one is refused `415`. The reply's `data.id` is what the column holds; for an SVG it also

@@ -97,7 +97,7 @@ credentials) sets the cookie *for that domain* and returns you to the page you a
 `/login` there returns you to the surface, never to a dashboard page. One extra sign-in per domain
 is the cost of the placement.
 
-Everything else about the dashboard is deliberately **not** reachable on a mapped host — workspace
+Everything else about the dashboard is deliberately **not** reachable on a mapped host — server
 management happens on the admin host. A customer domain has no sign-in at all: its guests use the
 public API. And because the dashboard still serves normally on every unmapped host, a mistaken
 mapping is always recoverable from the host you did not map.

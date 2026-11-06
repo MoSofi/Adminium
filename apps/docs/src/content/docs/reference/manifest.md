@@ -680,7 +680,7 @@ lower. A column may also say what a guest may upload into it (`upload`, below).
 
 - **The upload.** `POST /api/v1/files?connectionId=…&table=…&column=…&filename=…`, the body the file
   itself, from a person who may create or change rows of the table. The column's kinds and size
-  narrow the workspace's own (`files.allowedTypes`, `files.maxBytes`), never widen them: a file of
+  narrow the server's own (`files.allowedTypes`, `files.maxBytes`), never widen them: a file of
   another kind is refused `415`, a larger one `413`. A PNG, JPEG, WebP or GIF is kept without what a
   camera writes beside it: the place it was taken, the device, comments, XMP. A picture that cannot be
   read as one is refused `415`. The reply's `data.id` is what the column holds; for an SVG it also
@@ -2774,7 +2774,7 @@ open that form, with the day filled in.
 | `only` | no | Which rows of the page's table are cards on the board: one to three `"column": value` or `"column": [values]` (up to 20 values each). A row is a card when every column named holds its value, or one of its values. Left out: every row. |
 | `card` | no | What a card shows under its title, each from a column of the page's table; at least one of: `link` (`"<link column>.<column>"`: a column of the row the link points at, such as a company's name), `person` (a staff column, `rules.staff`, shown as the person's name), `amount` (a number or money column), `secondAmount` (`{ "column", "label", "labels" }`: a second number or money column, drawn at the end of the amount's line after its short `label`, such as a deal's weighted value "w €1,240"; `labels` gives the label in other languages by their tag; needs `minAdminiumVersion` 0.3.35), `daysSince` (`{ "column", "warnFrom", "alertFrom", "label", "labels" }`: whole days from a date or time column to today; from `warnFrom` days the figure is amber and from `alertFrom` red, both optional, 1 to 3650, `warnFrom` the smaller; `label` says what the days are, after the figure: "12 days in stage", with `labels` by language; the label needs `minAdminiumVersion` 0.3.35) and `date` (a date or time column, shown as a day). A label is 1 to 40 characters, and `labels` needs `label`. |
 | `toolbar` | no | `{ "total", "person" }`, at least one (0.3.35): a line drawn above the board. `"total": true` shows how many cards the board holds and each of its `totals` over all of them. `person` (a staff column, `rules.staff`) is a filter: "Everyone" and each person who holds a card on the board. The board's `note` is drawn at the line's end. |
-| `note` | no | `{ "text", "texts", "href" }`: one sentence of up to 200 characters drawn above the board; `texts` gives it in other languages by their tag, as a page's `titles` does; with `href`, a path of the workspace starting with one `/` (a page is `/p/<its ref>`), the sentence is a link. |
+| `note` | no | `{ "text", "texts", "href" }`: one sentence of up to 200 characters drawn above the board; `texts` gives it in other languages by their tag, as a page's `titles` does; with `href`, a path on this server starting with one `/` (a page is `/p/<its ref>`), the sentence is a link. |
 
 With `columnsFrom` the board draws one column for each row of that table, a row with no card
 too, and reads them when the page opens. A row added, renamed, moved or removed there changes the
@@ -2828,7 +2828,7 @@ The manifest is refused when `column` is not a link to `columnsFrom.table` (or, 
 a number or money column, when `only` names the board's own `column`, a column of another type
 or a value its column cannot hold, when a `card` names a link that is no link, a person that is no
 staff column, an amount that is no number or a day that is no date, when a `note` opens anything
-but a path of the workspace, and on a page that is not a `page-board`. The install checks the
+but a path on this server, and on a page that is not a `page-board`. The install checks the
 same against the tables as they really are: a board that cannot be built as named is not built as
 another one. Its page is created empty and the install reports why (`PAGE_BOARD_INVALID`).
 Without `board`, a board's columns are the values of the workflow column Adminium finds, as
@@ -3380,7 +3380,7 @@ the Super Admin. It reaches only the apps whose roles give it to the person: tho
 tables, the copies they declare (with the add-on rows those copies' links reach) and their
 outboxes, the consent rows about those rows, and what Adminium keeps about them (campaign mail,
 documents, payments, rule runs, notifications and files of those rows). Never another app's people,
-never the do-not-email list or a forms add-on's answers (the workspace's), never a store that only
+never the do-not-email list or a forms add-on's answers (the server's), never a store that only
 names the address, and never an address that is a staff account's: that is refused (403
 `STAFF_ADDRESS`), since erasing it would rewrite the audit log. The erasure deletes the downloads
 the holder made, not other people's. Whoever holds `system:privacy:manage` reaches everything, as
@@ -3874,7 +3874,7 @@ there for the same kind and source is what stops a second send.
 | `columns` | yes | The outbox's columns. `kind` is an enum of the kinds. `status` is an enum holding at least `queued`, `sent`, `failed` and `skipped`, and `held` when a producer holds. `to` is `text`, the address. Optional: `language` (`text`), `due` (`timestamptz`, required by a `before` producer and by one with `hold` or `due`), `sentAt` (`timestamptz`) and `error` (`text`), and the columns of [held messages](#held-messages): `skipReason` (`text` or `enum`), `subjectOverride`, `bodyOverride`, `approvedBy` and `effectError` (`text`), and `effectAt` (`timestamptz`). `repeatKey` (`text` of at least 43 characters) keeps which value a `repeatBy` producer sent for; `was` (`text`, unbounded or at least 1000 characters) keeps a `was` producer's values from before the change. |
 | `links` | no | The outbox's foreign keys, by the name a template reads them under: `{ "appointment": "appointment_id" }` gives a template `appointment.*`. Names are snake_case. Every foreign key of the outbox table that the outbox names must be nullable: not every email is about one. |
 | `recipient` | yes | Who the email goes to. See below. |
-| `settings` | no | The app's one-row settings table: `{ "table", "enabled"?, "name"?, "phone"? }`. Templates read it as `practice.*`. `enabled` is a bool that pauses producers with `gate: "enabled"`. `name` is a `text` column the app's emails are signed with, the [emailed code](#public-access) included; without it, the workspace's name is used. `phone` is a `text` column: when it holds a number, the notice sent to a person's old address after a change of email tells them to ring it; without one, the notice says to contact you. `replyTo` is a `text` column: when it holds one plain address, every message the app sends carries it as its Reply-To, so a guest's reply reaches the house rather than the no-reply sender; empty, or anything but one address, adds none. |
+| `settings` | no | The app's one-row settings table: `{ "table", "enabled"?, "name"?, "phone"? }`. Templates read it as `practice.*`. `enabled` is a bool that pauses producers with `gate: "enabled"`. `name` is a `text` column the app's emails are signed with, the [emailed code](#public-access) included; without it, the server's name is used. `phone` is a `text` column: when it holds a number, the notice sent to a person's old address after a change of email tells them to ring it; without one, the notice says to contact you. `replyTo` is a `text` column: when it holds one plain address, every message the app sends carries it as its Reply-To, so a guest's reply reaches the house rather than the no-reply sender; empty, or anything but one address, adds none. |
 | `pages` | no | `{ "manage"?, "booking"? }`: paths on the app's customer side (`/my-visits`) that a template's `manage_url` and `booking_url` lead to. Up to 120 characters. Default: the side's front page. |
 | `kinds` | yes | Each value of the kind column, and the key of the template it is sent with. Every value must be one of the enum's, and every template one of `emailTemplates`. |
 | `classes` | from 0.3.38 | Each kind's class, `marketing` or `service`; see [Marketing or service](#marketing-or-service). Needs Adminium 0.3.38, and from that floor every kind has one. |
@@ -5291,7 +5291,7 @@ that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
 | Field | Rule |
 |---|---|
 | `key` | kebab-case, up to 80 characters, unique in the manifest. It is how an update finds the rule it shipped before. |
-| `name`, `description` | One text, or one per language with `en-US` among them. The install keeps the one the workspace speaks. So for a step's `title` and `sub`. A notice's `title` and `body` keep every language: each person is told [in their own language](#a-notice-in-the-readers-language). |
+| `name`, `description` | One text, or one per language with `en-US` among them. The install keeps the one the server speaks. So for a step's `title` and `sub`. A notice's `title` and `body` keep every language: each person is told [in their own language](#a-notice-in-the-readers-language). |
 | `enabled` | Whether the rule is switched on when it is first installed. After that the owner's switch stands. |
 | `trigger` | `{ "kind": "record", "event", "table", "changedColumn"?, "when"? }` with `event` one of `created`, `updated`, `deleted`; or `{ "kind": "schedule", "schedule", "forEach"? }`. A schedule is `{ "kind": "interval", "everyMinutes" }` (`"5"`, `"10"`, `"15"`, `"30"`, `"60"`) or `daily`, `weekly` (with `dayOfWeek`, 0 = Sunday) or `monthly` (with `dayOfMonth`, 1–28) at a `time` such as `"17:00"`. `forEach` is `{ "table", "where", "once" }`: the rows a run visits. |
 | `module` | Optional. The [part](#parts) of the app the rule belongs to: it starts no run while that part is off. Needs Adminium 0.3.28. |
@@ -5332,9 +5332,9 @@ so give such a placeholder a backup, `{{record.cost|-}}`.
 
 A notice's `title` and `body` may each be given in several languages, `en-US` among them, as an
 email template's `locales` are. The install keeps them all on the rule, beside the text in the
-workspace's language, and each person is told in their own language as the notice is written: their
+server's language, and each person is told in their own language as the notice is written: their
 language's text (`de-DE`), else another of the same language (`de-AT` reads `de-DE`), else the
-rule's own text in the workspace's language. Their bell shows what they were told, and an email
+rule's own text in the server's language. Their bell shows what they were told, and an email
 copy of the notice says the same. A notice already in the bell keeps the words it was told in when
 the person later changes language.
 
@@ -5348,7 +5348,7 @@ A title and a body both given in several languages give the same ones (a reader 
 a notice in theirs); one text on either side is the same for everybody. Each language's text is
 held to the same placeholders. The rules page shows that a step carries other languages; a title or
 message changed there is one text for everybody from then on. Needs Adminium 0.3.35 to be told per
-language; an older server tells everybody in the workspace's language.
+language; an older server tells everybody in its default language.
 
 ### The lead of the person on the row
 

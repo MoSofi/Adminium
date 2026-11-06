@@ -162,12 +162,12 @@ const DESCRIPTIONS = {
   'schema-import': 'Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR',
   search: 'Cross-resource search for the command palette',
   surfaces: 'Hosted app surfaces — placement in the dashboard, and attaching your own domains',
-  settings: 'Instance settings — defaults, branding, email, security, telemetry, workspace',
+  settings: 'Instance settings — defaults, branding, email, security, telemetry',
   setup:
     'First-boot super-admin creation, whether setup is still open, and — in that same ' +
     'window — checking a database for an Adminium store already in it and adopting that store',
   system: 'Version and instance information',
-  users: 'People in the workspace — invite, suspend, delete, assign roles',
+  users: 'People on the server — invite, suspend, delete, assign roles',
   teams: 'Teams and who leads them: a lead reaches the rows of the people in the team',
   workspaces:
     'Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be ' +

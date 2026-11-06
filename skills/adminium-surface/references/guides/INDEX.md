@@ -27,7 +27,7 @@
 | `references/guides/from-a-template--a-cart-becomes-an-order.md` | A cart becomes an order | 2317 |
 | `references/guides/from-a-template--before-you-say-it-works.md` | Before you say it works | 913 |
 | `references/guides/public-access--overview.md` | An app's public access | 539 |
-| `references/guides/public-access--what-the-install-shows-first.md` | What the install shows first | 1593 |
+| `references/guides/public-access--what-the-install-shows-first.md` | What the install shows first | 1590 |
 | `references/guides/public-access--what-the-install-makes.md` | What the install makes | 1820 |
 | `references/guides/public-access--orders-with-their-lines.md` | Orders with their lines | 592 |
 | `references/guides/public-access--guests-finding-their-own-booking.md` | Guests finding their own booking | 1498 |
@@ -77,7 +77,7 @@
 | `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 2210 |
 | `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 3295 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
-| `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1762 |
+| `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1753 |
 | `references/guides/orders-with-lines--overview.md` | An order with its lines | 1439 |
 | `references/guides/orders-with-lines--the-tables.md` | The tables | 2063 |
 | `references/guides/orders-with-lines--the-create-entry.md` | The create entry | 6922 |

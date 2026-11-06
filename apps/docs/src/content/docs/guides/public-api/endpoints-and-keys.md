@@ -16,14 +16,14 @@ Two switches, and both must be on.
    origins browser pages may call from, such as `https://shop.example.com`. Add `self` to
    let pages this instance serves itself call it (the `/api-docs` playground is one). With
    the variable unset, the public routes are not served at all.
-2. **In Workspace settings.** The **Public API** card has a **Public API** switch. It
+2. **In Server settings.** The **Public API** card has a **Public API** switch. It
    applies the moment you click it. Off, every key stops working at once and nothing is
    deleted.
 
 ## Endpoints
 
 An endpoint is one route, such as `/orders`, over one table or view. Open **API keys**
-from Workspace settings to see them.
+from Server settings to see them.
 
 Every table has an endpoint generated from your schema. It stays virtual until a key
 grants it or you edit it, and then it is stored. A generated endpoint:

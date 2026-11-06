@@ -105,7 +105,7 @@ outbox must name one, and every producer's row must have the column. A producer 
 address its row holds reads its own `recipient.language` instead. The row's language is used only
 when it is one usable tag (`de`, `pt-BR`, `zh_TW`, never a list such as `de, en`), of a language
 Adminium can write in, that fits the outbox's language column. Anything else leaves the person's
-own language in place, and then the workspace's.
+own language in place, and then the server's.
 
 ### Opting out and pausing
 
@@ -316,7 +316,7 @@ example after a restart or when you queue one yourself. Each row is sent:
   links, else what the linked visit carries for a first visit. The address, and the language
   found with it, are written into the row once it is sent. The person's reminder opt-out is not
   asked here: it only stops the producers;
-- **in the row's language,** when it is one Adminium speaks, else the workspace's. A template
+- **in the row's language,** when it is one Adminium speaks, else the server's. A template
   with no version in that language is sent in US English. Another language picks the nearest one
   Adminium speaks (`en-GB` gets the US English email), and its dates, times and money are still
   written the recipient's way (`en-GB` reads "09:30", not "9:30 AM");
@@ -481,7 +481,7 @@ or the person whose import makes a message, may link it only to rows they can re
 | `practice.`*column* | A column of the app's settings row: `practice.phone`, `practice.address`. |
 | `was.`*column* | For a message about a change, the column as it was before it ([above](#messages-about-changes)); for a message about a removed row, the column as the row held it ([above](#messages-about-a-row-that-is-removed)). |
 | `row.`*column* | Inside a block that lists rows, a column of each row ([below](#emails-that-list-rows)). |
-| `appName` | The name the app's emails are signed with, from its settings row, else the workspace's name. |
+| `appName` | The name the app's emails are signed with, from its settings row, else the server's name. |
 | `manage_url`, `booking_url` | Links to the app's customer pages ([below](#links)). |
 
 A column's value is shown by its type:

@@ -78,7 +78,7 @@ documents and your schema.
 ## Speaking to it
 
 With **Settings → AI → Voice → Speak to the assistant** switched on (it is off
-on a new workspace), the field has a microphone at its start.
+on a new server), the field has a microphone at its start.
 
 1. Press it. The first time, a line says where your voice goes; press **OK**.
 2. Speak. The field shows the language being listened in and the seconds.
@@ -89,7 +89,7 @@ on a new workspace), the field has a microphone at its start.
 A recording stops by itself at two minutes. Leaving the panel while it listens
 stops it and throws away what was heard.
 
-**Who writes the words down** depends on the workspace's AI provider:
+**Who writes the words down** depends on the server's AI provider:
 
 | Provider | Who writes it down |
 |---|---|
@@ -131,7 +131,7 @@ anywhere for it.
 - Where your browser has no voice for your language, there is no speaker.
 - Confirming a change is always a click. Nothing is confirmed by voice.
 
-An administrator can switch reading aloud off for the whole workspace in
+An administrator can switch reading aloud off for the whole server in
 **Settings → AI → Voice**.
 
 ## What it never does
@@ -171,7 +171,7 @@ footer. Reading is not audited; saving, sending a test and adding a language
 variation are.
 
 Each conversation is stored as a session with its turns, and swept away on the
-retention schedule you set for the workspace.
+retention schedule you set for the server.
 
 ## You need a provider
 
@@ -192,7 +192,7 @@ enrichment paths, where BYO **is** a first-class option.
 ## Naming it
 
 **Settings → AI** also decides what the assistant is called. The name shows on
-the Ask button and throughout the window. It is per instance, so a workspace
+the Ask button and throughout the window. It is per instance, so a server
 can call it whatever suits the people using it.
 
 The reasoning behind the shape of all this is on

@@ -1,9 +1,9 @@
 ---
 title: Campaigns
-description: Send an email to the people in your workspace — now or at a chosen time — what the run counts, who can opt out, and what is deliberately not tracked.
+description: Send an email to the people on your server — now or at a chosen time — what the run counts, who can opt out, and what is deliberately not tracked.
 ---
 
-A **campaign** is an email you send to your workspace's users: a weekly digest,
+A **campaign** is an email you send to your server's users: a weekly digest,
 a monthly report, an announcement. It is designed in the same editor as a
 [template](/guides/email/) and differs in one thing — its primary button is
 **Send campaign**.
@@ -22,7 +22,7 @@ the design you are looking at.
 
 **Send campaign** opens a short form:
 
-- **Send to** — *Workspace users*: every active user, or only the holders of
+- **Send to** — *Users on this server*: every active user, or only the holders of
   the roles you pick. The count of recipients — and how many have opted out —
   updates as you choose.
 - **When** — *Now*, or *Schedule* with a date and time in your own time zone.
@@ -55,7 +55,7 @@ applies to your next send, not to this one.
 The recipients are then handed to the mail queue a few at a time, each in the
 language variation that matches their language when one exists and is
 translated. A send can be capped at a number of emails an hour; the cap counts
-every campaign the workspace is sending in that hour, not only this one. The
+every campaign the server is sending in that hour, not only this one. The
 mail queue tries a refused email again several times over a few minutes before
 it counts the address as failed, keeping the first hundred failures with their
 reason.
@@ -71,7 +71,7 @@ notification. Deleting a campaign keeps its sends and their logs.
 
 ## Opting out
 
-Every workspace user can turn campaign email off for themselves under their
+Every user on the server can turn campaign email off for themselves under their
 notification preferences (the *Campaigns* kind). Opted-out users are counted
 as *skipped* — shown in the send form as *opted out* — and never contacted.
 System email such as password resets and invitations is not affected by this
@@ -84,9 +84,9 @@ public, unauthenticated endpoint and a per-recipient beacon that most mail
 clients now block or proxy — so the number would be both invasive and wrong.
 A campaign reports what the relay accepted and what it refused; nothing more.
 
-## Audiences beyond the workspace
+## Audiences beyond the server's users
 
 Sending to a customer table — an audience drawn from your own data rather than
-from workspace users — is not part of this release. A marketing send to
+from the server's users — is not part of this release. A marketing send to
 outside addresses needs a working unsubscribe link and the mail headers that
 go with it, and those ship together, in a later wave.

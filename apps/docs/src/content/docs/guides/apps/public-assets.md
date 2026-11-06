@@ -28,7 +28,7 @@ points at files outside it (a "uri"). Export it with everything embedded (one .g
 is not a 3MF: it has no package parts". A plain zip renamed `.3mf` is refused as no 3MF. A small
 file declaring a huge entry is refused before anything is unpacked.
 
-The workspace's `files.allowedTypes` takes these kinds by default. A workspace whose list was
+The server's `files.allowedTypes` takes these kinds by default. A server whose list was
 changed before this release keeps its own list: add the kinds there to take them.
 
 ## Declaring them

@@ -3,7 +3,7 @@
 # Installing add-ons
 
 Add-ons are packages that extend a deployment — extra blocks, data packs,
-integrations — installed and managed from **Workspace settings → Add-ons**. Every package,
+integrations — installed and managed from **Server settings → Add-ons**. Every package,
 whatever its source, goes through the same pipeline on the way in: its sha512
 hash is verified against a pinned value, the archive is unpacked under hardened
 limits, and its manifest is validated before anything is registered.

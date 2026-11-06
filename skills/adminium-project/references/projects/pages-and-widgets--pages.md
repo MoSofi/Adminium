@@ -39,7 +39,7 @@ an address: `pages/revenue.json` beside `pages/revenue.tsx` fails the build.
 |---|---|
 | `title` | The page's name, in the sidebar and the top bar |
 | `icon` | A [Lucide](https://lucide.dev/icons/) icon name. Default `file`. |
-| `nav.group` | The sidebar group: `workspace` (the default), `library`, `planning`, `people` or `account` |
+| `nav.group` | The sidebar group: `workspace` (the default, shown as **Pages**), `library`, `planning`, `people` or `account` |
 | `nav.order` | The place in that group. Without it, a new page goes last, and a reorder in Studio sticks. |
 | `nav.hidden` | Leave the page out of the sidebar; its address still opens it |
 | `component` | The page body. It gets `slug`, the page's address. |

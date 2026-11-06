@@ -68,7 +68,7 @@ outbox must name one, and every producer's row must have the column. A producer 
 address its row holds reads its own `recipient.language` instead. The row's language is used only
 when it is one usable tag (`de`, `pt-BR`, `zh_TW`, never a list such as `de, en`), of a language
 Adminium can write in, that fits the outbox's language column. Anything else leaves the person's
-own language in place, and then the workspace's.
+own language in place, and then the server's.
 
 ### Opting out and pausing
 
