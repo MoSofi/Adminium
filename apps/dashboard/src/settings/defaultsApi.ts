@@ -19,6 +19,8 @@ export interface SettingsDefaultsValues {
 }
 
 export interface SettingsDefaultsData extends SettingsDefaultsValues {
+  /** How the menu shows workspaces, for everyone. Absent from an older server. */
+  workspaceView?: 'one' | 'all';
   adoption: {
     totalUsers: number;
     following: { theme: number; accent: number; density: number; locale: number };
@@ -34,7 +36,17 @@ export function settingsDefaultsQuery() {
   });
 }
 
-/** Full-object write — never a partial patch. */
-export async function putSettingsDefaults(values: SettingsDefaultsValues): Promise<SettingsDefaultsData> {
+/** Full-object write — never a partial patch. The view of workspaces rides along only when given. */
+export async function putSettingsDefaults(values: SettingsDefaultsValues & { workspaceView?: 'one' | 'all' }): Promise<SettingsDefaultsData> {
   return (await api.put<{ data: SettingsDefaultsData }>('/api/v1/settings/defaults', values)).data;
+}
+
+/**
+ * The menu's view of workspaces, from the rail's switcher: the same server
+ * setting as the Global defaults row. The route writes every axis at once, so
+ * the four defaults are read first and sent back as they are.
+ */
+export async function putWorkspaceView(workspaceView: 'one' | 'all'): Promise<SettingsDefaultsData> {
+  const current = (await api.get<{ data: SettingsDefaultsData }>('/api/v1/settings/defaults')).data;
+  return putSettingsDefaults({ theme: current.theme, accent: current.accent, density: current.density, locale: current.locale, workspaceView });
 }

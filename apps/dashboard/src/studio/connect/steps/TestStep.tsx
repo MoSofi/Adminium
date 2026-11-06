@@ -15,12 +15,14 @@
  * SQLite CHECK-enum synthesis, schema files' missing live signals) straight
  * from the @adminium/engine capability matrix.
  */
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button } from '@adminium/ui';
 
 import { ApiError } from '../../../app/api.js';
 import { t } from '../../../i18n/t.js';
 import { studioApi, type IntrospectResult, type SchemaTable } from '../../api.js';
+import { workspacesApi } from '../../hub/workspacesApi.js';
 import { capabilityNotes, wizardCapabilitySource } from '../capabilityNotes.js';
 import { LogConsole, type LogLine } from '../LogConsole.js';
 import {
@@ -55,6 +57,7 @@ export function TestStep({
   lineDelayMs = 250,
   pollIntervalMs = 700,
 }: TestStepProps) {
+  const queryClient = useQueryClient();
   const [lines, setLines] = useState<LogLine[]>([]);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const runningRef = useRef(false);
@@ -212,6 +215,11 @@ export function TestStep({
           ...(intent === null ? {} : { settings: { intent } }),
         });
         onPatch({ connectionId: created.id, readOnly: created.readOnly });
+        // The workspaces ticked on the source step. Not putting it in one is not worth failing the connection for.
+        if ((state.workspaceIds ?? []).length > 0) {
+          await workspacesApi.setForConnection(created.id, state.workspaceIds ?? []).catch(() => undefined);
+          void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
+        }
         return created.id;
       };
 

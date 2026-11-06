@@ -492,6 +492,12 @@ export interface WizardState {
   /** Always contains `en_US` (locked on). */
   enrichLocales: LlmLocale[];
   enrichSampling: boolean;
+  /**
+   * The workspaces the new connection goes in, ticked on the source step.
+   * Undefined until that step has offered them (a server with workspaces);
+   * empty puts it in "Other databases".
+   */
+  workspaceIds?: string[];
 }
 
 export const INITIAL_WIZARD_STATE: WizardState = {

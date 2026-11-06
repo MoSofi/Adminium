@@ -40,6 +40,7 @@ import { ApiError } from '../../../app/api.js';
 import { t } from '../../../i18n/t.js';
 import { studioApi, type ConnectionEngine, type SchemaTable } from '../../api.js';
 import { Dropzone } from '../Dropzone.js';
+import { WorkspacesField } from './WorkspacesField.js';
 import {
   FILE_FORMATS,
   SOURCE_ENGINES,
@@ -152,6 +153,8 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
           placeholder={t('studio:source.namePlaceholder', 'Production Postgres')}
         />
       </FormField>
+
+      <WorkspacesField state={state} onPatch={onPatch} />
 
       <SegmentedControl
         // `modeLabel`, not `mode`: the bundles nest `studio.source.mode.*` for

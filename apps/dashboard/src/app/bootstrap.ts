@@ -88,6 +88,14 @@ export interface AddOnNav {
 
 export interface NavItem {
   pageId: string;
+  /** The install whose page or entry this is (an app or add-on installed once per database). Absent from an older server. */
+  installId?: string;
+  /**
+   * The workspaces of the item's database this person sees: absent while the
+   * server has none, or on an item of no database; empty for a database in
+   * no workspace ("Other databases").
+   */
+  workspaceIds?: string[];
   slug: string;
   labelKey: string;
   fallback: string;
@@ -211,8 +219,38 @@ export interface BootstrapProject {
   } | null;
 }
 
+/** A workspace this person sees: a named group of the server's databases. */
+export interface BootstrapWorkspace {
+  id: string;
+  name: string;
+  /** Up to two letters for its tile. */
+  initials: string;
+  position: number;
+  connectionIds: string[];
+}
+
+/** The server's workspaces this person sees, and how the menu shows them. */
+export interface BootstrapWorkspaces {
+  workspaces: BootstrapWorkspace[];
+  /** The databases in no workspace, when this person sees that group; null when there is none for them. */
+  otherDatabases: string[] | null;
+  /** For everyone on the server: one workspace at a time, or all in one menu. */
+  workspaceView: 'one' | 'all';
+  /** Where a new tab starts: the workspace this person chose last, while they still see it. */
+  lastWorkspaceId: string | null;
+  /** They manage connections, and so workspaces. */
+  manage: boolean;
+  /** The engine of each database the groups hold, by connection id. Absent from an older server. */
+  engines?: Record<string, string>;
+}
+
 export interface BootstrapData {
   user: SessionUser;
+  /**
+   * The server's workspaces this person sees. Absent while the server has
+   * none: the menu is then exactly the one it always was.
+   */
+  workspaces?: BootstrapWorkspaces;
   roles: string[];
   /**
    * The `system:` actions this session holds, as dotted keys (`users.manage`).
@@ -442,6 +480,10 @@ export interface AppSection {
   /** An add-on's section; `appKey` is then the add-on's key. */
   kind?: 'add-on';
   appKey: string;
+  /** The install the section is: the same app may be installed once per database. Absent from an older server. */
+  installId?: string;
+  /** The database the install is for; null for one kept once per server. Absent from an older server. */
+  connectionId?: string | null;
   label: string;
   version: string;
   /** The first group's label is null when it holds the app's ungrouped pages. */

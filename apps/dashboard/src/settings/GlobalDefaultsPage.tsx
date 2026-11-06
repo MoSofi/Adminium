@@ -17,7 +17,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Globe2, Info, Palette } from 'lucide-react';
 import type { LocaleId } from '@adminium/i18n/registry';
-import { Button, Card, CardBody, CardHeader, IconTile } from '@adminium/ui';
+import { Button, Card, CardBody, CardHeader, IconTile, SegmentedControl } from '@adminium/ui';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
@@ -76,6 +76,7 @@ function DefaultsForm({ initial }: { initial: SettingsDefaultsData }): ReactNode
     density: initial.density,
     locale: initial.locale,
   });
+  const [workspaceView, setWorkspaceView] = useState<'one' | 'all'>(initial.workspaceView ?? 'all');
   const [saving, setSaving] = useState(false);
 
   const { adoption } = initial;
@@ -83,7 +84,8 @@ function DefaultsForm({ initial }: { initial: SettingsDefaultsData }): ReactNode
     values.theme !== initial.theme ||
     values.accent !== initial.accent ||
     values.density !== initial.density ||
-    values.locale !== initial.locale;
+    values.locale !== initial.locale ||
+    workspaceView !== (initial.workspaceView ?? 'all');
 
   function set<K extends keyof SettingsDefaultsValues>(axis: K, value: SettingsDefaultsValues[K]): void {
     setValues((prev) => ({ ...prev, [axis]: value }));
@@ -91,7 +93,7 @@ function DefaultsForm({ initial }: { initial: SettingsDefaultsData }): ReactNode
 
   function save(): void {
     setSaving(true);
-    putSettingsDefaults(values)
+    putSettingsDefaults({ ...values, workspaceView })
       .then((data) => {
         queryClient.setQueryData(SETTINGS_DEFAULTS_QUERY_KEY, data);
         // Sessions following a default re-resolve; ours included.
@@ -138,6 +140,26 @@ function DefaultsForm({ initial }: { initial: SettingsDefaultsData }): ReactNode
           <AxisField label={t('prefs.density.label', 'Density')} following={adoption.following.density} total={adoption.totalUsers}>
             <DensityControl label={t('prefs.density.label', 'Density')} value={values.density} onChange={(v) => set('density', v)} />
           </AxisField>
+          {/* Not a default anyone overrides: one view of workspaces for the whole server. */}
+          <div className="flex flex-col gap-2 py-3" data-testid="defaults-workspace-view">
+            <span id="defaults-workspace-view" className="text-body font-semibold text-fg">
+              {t('settings.defaults.workspaceView.label', 'Workspaces in the menu')}
+            </span>
+            <SegmentedControl
+              aria-labelledby="defaults-workspace-view"
+              aria-describedby="defaults-workspace-view-caption"
+              className="self-start"
+              value={workspaceView}
+              onValueChange={(next) => setWorkspaceView(next === 'one' ? 'one' : 'all')}
+              options={[
+                { value: 'one', label: t('workspaces.view.one', 'One at a time') },
+                { value: 'all', label: t('workspaces.view.all', 'All in one menu') },
+              ]}
+            />
+            <p id="defaults-workspace-view-caption" className="text-body-sm text-fg-muted">
+              {t('workspaces.view.caption', 'Applies to everyone on this server.')}
+            </p>
+          </div>
         </CardBody>
       </Card>
 
@@ -198,7 +220,7 @@ function GlobalDefaultsBody(): ReactNode {
         subtitle={t('settings.defaults.subtitle', 'Server-wide appearance and language defaults.')}
       />
       {/* Remount the form when the server state changes (realtime refetch). */}
-      <DefaultsForm key={`${data.theme}|${data.accent}|${data.density}|${data.locale}`} initial={data} />
+      <DefaultsForm key={`${data.theme}|${data.accent}|${data.density}|${data.locale}|${data.workspaceView ?? 'all'}`} initial={data} />
     </PageSurface>
   );
 }

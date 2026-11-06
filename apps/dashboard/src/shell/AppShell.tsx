@@ -60,6 +60,7 @@ const SidebarDrawer = lazy(async () => ({
   default: (await import('./SidebarDrawer.js')).SidebarDrawer,
 }));
 import { Topbar } from './Topbar.js';
+import { WorkspaceFollower } from './workspaces/WorkspaceFollower.js';
 
 /** Desktop only: the update toaster's module is loaded only where the desktop bridge is. */
 const DesktopUpdateToaster = lazy(async () => ({ default: (await import('../desktop/updates.js')).DesktopUpdateToaster }));
@@ -282,6 +283,8 @@ export function AppShell() {
 
   return (
     <AppToastProvider>
+    {/* A link to a page of another workspace's database moves the tab there. */}
+    <WorkspaceFollower bootstrap={bootstrap} />
     <div className="flex min-h-dvh bg-bg text-fg">
       {offline ? (
         <div

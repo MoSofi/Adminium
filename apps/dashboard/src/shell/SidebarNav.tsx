@@ -16,7 +16,7 @@
  * same-named tables from different sources stay unambiguous; with a single
  * connection the rail renders flat (no redundant label).
  */
-import { Fragment } from 'react';
+import { Fragment, Suspense, lazy } from 'react';
 import { Link, useMatchRoute, useRouter, useRouterState } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -63,8 +63,16 @@ import { t } from '../i18n/t.js';
 import { lucideByName } from '../lib/lucide.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
 import { distinctConnectionCount, sectionNavItems } from './navSections.js';
+import { workspacesShown } from './workspaces/model.js';
 
-const GROUP_LABELS: Record<NavGroupKey, string> = {
+/*
+ * The menu grouped by workspace: its own chunk. A server with no workspace (or
+ * a person who sees one group) never loads it, and draws the rail it always
+ * drew; one that has them asks for it with the bootstrap.
+ */
+const WorkspaceRail = lazy(async () => ({ default: (await import('./workspaces/WorkspaceRail.js')).WorkspaceRail }));
+
+export const GROUP_LABELS: Record<NavGroupKey, string> = {
   workspace: 'Pages',
   library: 'Library',
   planning: 'Planning',
@@ -77,7 +85,7 @@ const GROUP_LABELS: Record<NavGroupKey, string> = {
  * (`NAV_GROUP_KEYS`), so `satisfies` makes a sixth group a compile error here
  * rather than a raw `nav.group.<new>` heading in the rail.
  */
-const GROUP_LABEL_KEY = {
+export const GROUP_LABEL_KEY = {
   workspace: 'nav.group.workspace',
   library: 'nav.group.library',
   planning: 'nav.group.planning',
@@ -108,7 +116,7 @@ export interface SidebarNavProps {
  * only (Email templates writes need `system:settings:manage`); the server
  * stays the security boundary.
  */
-interface PlatformNavLink {
+export interface PlatformNavLink {
   to: string;
   labelKey: string;
   fallback: string;
@@ -252,10 +260,10 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
  * The comp draws no hover state at all (it is a static mock); `--surface-2` is
  * kept because a nav with no hover feedback reads as inert.
  */
-const NAV_LINK_CLASS =
+export const NAV_LINK_CLASS =
   'group flex items-center gap-[11px] rounded-md px-[11px] py-2 text-[13.5px] font-semibold text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg data-[status=active]:bg-accent-soft data-[status=active]:font-bold data-[status=active]:text-accent';
 
-function PlatformLinkList({ links }: { links: readonly PlatformNavLink[] }) {
+export function PlatformLinkList({ links }: { links: readonly PlatformNavLink[] }) {
   if (links.length === 0) return null;
   return (
     <ul className="m-0 flex list-none flex-col gap-1 p-0">
@@ -272,14 +280,14 @@ function PlatformLinkList({ links }: { links: readonly PlatformNavLink[] }) {
 }
 
 /** The group the settings an app's role keeps of an add-on are linked in: beside imports, exports and files. */
-const SETTINGS_GROUP: NavGroupKey = 'library';
+export const SETTINGS_GROUP: NavGroupKey = 'library';
 
 /**
  * One row per add-on whose settings the reader keeps through the per-add-on
  * grant (`addOn:<key>:settings`, an app's role carries it) without managing
  * add-ons: its own settings screen, as the add-ons page would draw them.
  */
-function AddOnSettingsLinkList({ addOns }: { addOns: readonly { key: string; name: string }[] }) {
+export function AddOnSettingsLinkList({ addOns }: { addOns: readonly { key: string; name: string }[] }) {
   if (addOns.length === 0) return null;
   return (
     <ul className="m-0 flex list-none flex-col gap-1 p-0" data-part="nav-add-on-settings">
@@ -307,7 +315,7 @@ function AddOnSettingsLinkList({ addOns }: { addOns: readonly { key: string; nam
  * add-on naming an icon that does not exist gets the neutral glyph rather than
  * a crash.
  */
-function AddOnLinkList({ pages }: { pages: readonly AddOnNavPage[] }) {
+export function AddOnLinkList({ pages }: { pages: readonly AddOnNavPage[] }) {
   if (pages.length === 0) return null;
   return (
     <ul className="m-0 flex list-none flex-col gap-1 p-0" data-part="nav-add-on-pages">
@@ -337,7 +345,7 @@ function AddOnLinkList({ pages }: { pages: readonly AddOnNavPage[] }) {
  * tabs; zero renders nothing. `pending-count` has no producer yet and is
  * deliberately not faked here.
  */
-function UnreadCountBadge() {
+export function UnreadCountBadge() {
   const count = useQuery(unreadCountQuery());
   if (count.data === undefined || count.data === 0) return null;
   return (
@@ -356,7 +364,7 @@ function UnreadCountBadge() {
  * and marked while it is the address shown, or the app's staff side, opened
  * as a document like "Open the staff screens".
  */
-function NavLinkRow({ item, link }: { item: NavItem; link: NonNullable<NavItem['link']> }) {
+export function NavLinkRow({ item, link }: { item: NavItem; link: NonNullable<NavItem['link']> }) {
   const router = useRouter();
   const here = useRouterState({ select: (state) => state.location.href });
   const Icon = lucideByName(item.icon);
@@ -389,7 +397,7 @@ function NavLinkRow({ item, link }: { item: NavItem; link: NonNullable<NavItem['
   );
 }
 
-function NavItemList({ items }: { items: readonly NavItem[] }) {
+export function NavItemList({ items }: { items: readonly NavItem[] }) {
   return (
     <ul className="m-0 flex list-none flex-col gap-1 p-0">
       {items.map((item) => {
@@ -455,7 +463,7 @@ export function splitAppKeyParam(param: string): { appKey: string; instance: str
   return { appKey: param.slice(0, at), instance: param.slice(at + 1) };
 }
 
-function HostedAppSection({ app }: { app: HostedApp }) {
+export function HostedAppSection({ app }: { app: HostedApp }) {
   return (
     <div className="mb-1" data-part="nav-hosted-app">
       <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
@@ -466,7 +474,7 @@ function HostedAppSection({ app }: { app: HostedApp }) {
   );
 }
 
-function HostedAppRows({ app }: { app: HostedApp }) {
+export function HostedAppRows({ app, inert = false }: { app: HostedApp; inert?: boolean }) {
   const matchRoute = useMatchRoute();
   const match = matchRoute({ to: '/a/$appKey/$', fuzzy: true });
   const here =
@@ -485,8 +493,10 @@ function HostedAppRows({ app }: { app: HostedApp }) {
                 to="/a/$appKey/$"
                 params={{ appKey: appKeyParam(app), _splat: item.path }}
                 className={NAV_LINK_CLASS}
-                // The row's own `data-status`, not the router's — see above.
-                data-status={active?.id === item.id ? 'active' : undefined}
+                // The row's own `data-status`, not the router's — see above. A
+                // second copy of the section (its database is in two workspaces)
+                // marks nothing: one row is where the reader is.
+                data-status={!inert && active?.id === item.id ? 'active' : undefined}
               >
                 <Icon className="size-[18px] shrink-0" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -563,11 +573,13 @@ function AppSection({ section }: { section: AppSectionData }) {
   );
 }
 
-export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
-  const { nav, version } = bootstrap;
-  const { showVersion } = useBranding();
-  // 2+ sources → sub-label items per connection; else stay flat.
-  const multiConnection = distinctConnectionCount(nav) >= 2;
+/**
+ * What both rails offer besides the generated pages: the platform rows each
+ * group carries, the add-on rows, the add-on settings rows, the groups an
+ * add-on brought, and the installed apps' sections. One reading, so the rail
+ * grouped by workspace offers exactly what the plain one does.
+ */
+export function useRailRows(bootstrap: BootstrapData) {
   const admin = hasStudioAccess(bootstrap.roles);
   const platformLinksFor = (group: NavGroupKey): readonly PlatformNavLink[] =>
     (PLATFORM_NAV.find((entry) => entry.group === group)?.links ?? []).filter((link) =>
@@ -588,22 +600,6 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
   const addOnPagesFor = (group: string): readonly AddOnNavPage[] =>
     visibleAddOnPages.filter((page) => page.group === group);
 
-  // Groups with only platform links or only add-on rows (no generated pages
-  // yet) still render — a built-in group is drawn when ANYTHING lands in it.
-  const navGroupKeys = new Set(nav.groups.map((group) => group.key));
-  const platformOnlyGroups = PLATFORM_NAV.filter((entry) => !navGroupKeys.has(entry.group));
-  const platformOnlyKeys = new Set(platformOnlyGroups.map((entry) => entry.group));
-  /*
-   * A built-in group an add-on landed in that neither of the two lists above
-   * would have drawn: no generated pages, and no platform links either
-   * (`planning` and `people` are empty on a stock instance). Without this the
-   * page installs, the rail has no heading to hang it under, and the row
-   * silently does not exist.
-   */
-  const addOnOnlyBuiltinGroups = NAV_GROUP_KEYS.filter(
-    (key) =>
-      !navGroupKeys.has(key) && !platformOnlyKeys.has(key) && addOnPagesFor(key).length > 0,
-  );
   /*
    * The trailing band of groups an add-on brought: built-in groups keep their
    * order, and an add-on cannot push one of them down the rail. A group whose
@@ -614,37 +610,21 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
   const declaredGroups = addOnNav.groups.filter(
     (group) => addOnPagesFor(group.key).length > 0,
   );
-
-  /*
-   * Blended apps sit AFTER `workspace` (D7): they are the operator's daily
-   * work, so burying them under Library/Planning/People/Account would put the
-   * thing this wave exists to surface at the bottom of the rail.
-   *
-   * When there is no `workspace` group at all — a fresh instance with no
-   * connection — they render first instead of vanishing, which is the case
-   * that matters most: an operator whose ONLY installed thing is an app.
-   */
+  const appSections = appSectionsOf(bootstrap);
   /*
    * An installed app's own section carries its staff screens too, so its
    * hosted section is not drawn a second time; an extra instance's still is.
    */
-  const appSections = appSectionsOf(bootstrap);
   const hostedApps = hostedAppsOf(bootstrap).filter(
     (app) => app.instance !== undefined || !appSections.some((section) => section.appKey === app.appKey),
   );
-  const hostedSections =
-    hostedApps.length === 0 && appSections.length === 0 ? null : (
-      <>
-        {/* Keyed by the route param: an app and its instances share `appKey`. */}
-        {hostedApps.map((app) => (
-          <HostedAppSection key={appKeyParam(app)} app={app} />
-        ))}
-        {appSections.map((section) => (
-          <AppSection key={section.appKey} section={section} />
-        ))}
-      </>
-    );
-  const hostedAfter = nav.groups.some((group) => group.key === 'workspace') ? 'workspace' : null;
+  return { platformLinksFor, addOnPagesFor, addOnSettings, declaredGroups, appSections, hostedApps };
+}
+
+export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
+  const { version } = bootstrap;
+  const { showVersion } = useBranding();
+  const grouped = workspacesShown(bootstrap);
 
   return (
     <aside
@@ -675,7 +655,65 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
         ) : null}
       </div>
 
-      {/* Nav groups */}
+      {grouped ? (
+        <Suspense fallback={<div className="min-h-0 flex-1" />}>
+          <WorkspaceRail bootstrap={bootstrap} />
+        </Suspense>
+      ) : (
+        <PlainNav bootstrap={bootstrap} />
+      )}
+    </aside>
+  );
+}
+
+/** The rail with no workspaces (or one group for this person): the one it always was. */
+function PlainNav({ bootstrap }: { bootstrap: BootstrapData }) {
+  const { nav } = bootstrap;
+  // 2+ sources → sub-label items per connection; else stay flat.
+  const multiConnection = distinctConnectionCount(nav) >= 2;
+  const { platformLinksFor, addOnPagesFor, addOnSettings, declaredGroups, appSections, hostedApps } = useRailRows(bootstrap);
+
+  // Groups with only platform links or only add-on rows (no generated pages
+  // yet) still render — a built-in group is drawn when ANYTHING lands in it.
+  const navGroupKeys = new Set(nav.groups.map((group) => group.key));
+  const platformOnlyGroups = PLATFORM_NAV.filter((entry) => !navGroupKeys.has(entry.group));
+  const platformOnlyKeys = new Set(platformOnlyGroups.map((entry) => entry.group));
+  /*
+   * A built-in group an add-on landed in that neither of the two lists above
+   * would have drawn: no generated pages, and no platform links either
+   * (`planning` and `people` are empty on a stock instance). Without this the
+   * page installs, the rail has no heading to hang it under, and the row
+   * silently does not exist.
+   */
+  const addOnOnlyBuiltinGroups = NAV_GROUP_KEYS.filter(
+    (key) =>
+      !navGroupKeys.has(key) && !platformOnlyKeys.has(key) && addOnPagesFor(key).length > 0,
+  );
+
+  /*
+   * Blended apps sit AFTER `workspace` (D7): they are the operator's daily
+   * work, so burying them under Library/Planning/People/Account would put the
+   * thing this wave exists to surface at the bottom of the rail.
+   *
+   * When there is no `workspace` group at all — a fresh instance with no
+   * connection — they render first instead of vanishing, which is the case
+   * that matters most: an operator whose ONLY installed thing is an app.
+   */
+  const hostedSections =
+    hostedApps.length === 0 && appSections.length === 0 ? null : (
+      <>
+        {/* Keyed by the route param: an app and its instances share `appKey`. */}
+        {hostedApps.map((app) => (
+          <HostedAppSection key={appKeyParam(app)} app={app} />
+        ))}
+        {appSections.map((section) => (
+          <AppSection key={section.appKey} section={section} />
+        ))}
+      </>
+    );
+  const hostedAfter = nav.groups.some((group) => group.key === 'workspace') ? 'workspace' : null;
+
+  return (
       <nav aria-label={t('nav.primary', 'Primary')} className="nb-scroll min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
         {/*
           * The platform tail is NOT conditional on having generated pages.
@@ -777,6 +815,5 @@ export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
           </div>
         ))}
       </nav>
-    </aside>
   );
 }
