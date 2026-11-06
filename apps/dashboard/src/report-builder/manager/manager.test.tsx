@@ -23,6 +23,7 @@ import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { ReportDetail, ReportDocumentKind, ReportStatus, ReportSummary, ReportSummaryFacts } from '../api.js';
 import { emptyBody } from '../model/envelope.js';
 import { MANAGER_PREFS_KEY } from './useManagerPrefs.js';
+import { chooseGroup, resetCurrentGroups } from '../../shell/workspaces/current.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -418,6 +419,21 @@ describe('"Shown in" (a server with workspaces)', () => {
     await waitFor(() => expect(calls.some((call) => call.method === 'GET' && call.url.includes('workspaceId=wsp_fc'))).toBe(true));
     // Shown in all, or chosen there: the cut is the server's and the list's own.
     await waitFor(() => expect(cardNames()).toEqual(['Executive summary', 'KPI scorecard']));
+  });
+
+  it('in One at a time, asks for the tab’s workspace from the menu, with no filter of its own', async () => {
+    const [exec, weekly, score, sales] = seedTemplates();
+    const templates = [shown(exec!, null), shown(weekly!, ['wsp_ks']), shown(score!, ['wsp_fc', 'wsp_ks']), shown(sales!, [])];
+    chooseGroup('usr_test', 'wsp_fc');
+    try {
+      const { calls } = await renderPage({ templates, reports: seedReports(), workspaces: { ...WORKSPACES, workspaceView: 'one' } });
+      await waitFor(() => expect(calls.some((call) => call.method === 'GET' && call.url.includes('workspaceId=wsp_fc'))).toBe(true));
+      expect(calls.some((call) => call.url.includes('workspaceId=wsp_ks'))).toBe(false);
+      expect(screen.queryByLabelText('Workspace')).toBeNull();
+      await waitFor(() => expect(cardNames()).toEqual(['Executive summary', 'KPI scorecard']));
+    } finally {
+      resetCurrentGroups();
+    }
   });
 
   it('draws nothing of it on a server with no workspaces', async () => {

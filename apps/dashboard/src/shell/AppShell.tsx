@@ -60,6 +60,9 @@ const SidebarDrawer = lazy(async () => ({
   default: (await import('./SidebarDrawer.js')).SidebarDrawer,
 }));
 import { Topbar } from './Topbar.js';
+import { OTHER_DATABASES, ShownInScopeProvider } from '../shown-in/scope.js';
+import { useCurrentGroup } from './workspaces/current.js';
+import { OTHER_GROUP } from './workspaces/model.js';
 import { workspacesShown } from './workspaces/shown.js';
 /* Lazy: only a server whose menu groups by workspace follows links between them. */
 const WorkspaceFollower = lazy(async () => ({ default: (await import('./workspaces/WorkspaceFollower.js')).WorkspaceFollower }));
@@ -72,6 +75,9 @@ export function AppShell() {
   const navigate = useNavigate();
   const router = useRouter();
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // The tab's workspace, for every "Shown in" list and picker. The menu calls "Other databases" `other`; "Shown in" calls it `~other`.
+  const tabGroup = useCurrentGroup(bootstrap);
+  const shownInWorkspace = tabGroup.current === null ? null : tabGroup.current.id === OTHER_GROUP ? OTHER_DATABASES : tabGroup.current.id;
   // A cached read the capabilities provider already made: no second request.
   const designMode = useQuery(systemInfoQuery()).data?.designer?.mode === 'local';
   const resolved = useTheme();
@@ -285,6 +291,7 @@ export function AppShell() {
 
   return (
     <AppToastProvider>
+    <ShownInScopeProvider currentWorkspaceId={shownInWorkspace} view={tabGroup.view}>
     {/* A link to a page of another workspace's database moves the tab there. */}
     {workspacesShown(bootstrap) ? (
       <Suspense fallback={null}>
@@ -398,6 +405,7 @@ export function AppShell() {
         </Suspense>
       )}
     </div>
+    </ShownInScopeProvider>
     </AppToastProvider>
   );
 }

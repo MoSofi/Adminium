@@ -17,6 +17,7 @@ import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { EmailCounts, EmailDocumentDetail, EmailDocumentSummary } from '../api.js';
 import { MANAGER_PREFS_KEY } from './useManagerPrefs.js';
+import { chooseGroup, resetCurrentGroups } from '../../shell/workspaces/current.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -542,5 +543,29 @@ describe('"Shown in" (a server with workspaces)', () => {
     // "Other databases" is no workspace the server knows: the list is cut here.
     await user.selectOptions(screen.getByLabelText('Workspace'), '~other');
     await waitFor(() => expect(screen.getAllByTestId('email-row').map((row) => row.getAttribute('data-id'))).toEqual(['et_a']));
+  });
+
+  describe('in One at a time, from the menu', () => {
+    afterEach(() => resetCurrentGroups());
+    const templates = () => [
+      doc({ id: 'et_a', name: 'Order confirmation', shownIn: { mode: 'all', workspaceIds: [] } }),
+      doc({ id: 'et_b', key: 'wholesale', name: 'Wholesale invoice', shownIn: { mode: 'chosen', workspaceIds: ['wsp_fc', 'wsp_ks'] } }),
+    ];
+
+    it('asks for the tab’s workspace, with no filter of its own', async () => {
+      window.localStorage.setItem(MANAGER_PREFS_KEY, JSON.stringify({ layout: 'list', groupBy: 'none' }));
+      chooseGroup('usr_test', 'wsp_ks');
+      const { calls } = await renderPage({ templates: templates(), workspaces: { ...WORKSPACES, workspaceView: 'one' } });
+      await waitFor(() => expect(calls.some((call) => call.url.includes('workspaceId=wsp_ks'))).toBe(true));
+      expect(calls.some((call) => call.url.includes('workspaceId=wsp_fc'))).toBe(false);
+      expect(screen.queryByLabelText('Workspace')).toBeNull();
+    });
+
+    it('in Other databases, keeps only what is shown in all', async () => {
+      window.localStorage.setItem(MANAGER_PREFS_KEY, JSON.stringify({ layout: 'list', groupBy: 'none' }));
+      chooseGroup('usr_test', 'other');
+      await renderPage({ templates: templates(), workspaces: { ...WORKSPACES, workspaceView: 'one' } });
+      await waitFor(() => expect(screen.getAllByTestId('email-row').map((row) => row.getAttribute('data-id'))).toEqual(['et_a']));
+    });
   });
 });
