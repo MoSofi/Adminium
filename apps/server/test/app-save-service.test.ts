@@ -15,7 +15,7 @@ import { Readable } from 'node:stream';
 import { gunzipSync } from 'node:zlib';
 
 import { WORD_FLOORS, type AppManifest } from '@adminium/manifest';
-import { appSavesRepo, filesRepo } from '@adminium/meta';
+import { appSavesRepo, emailTemplatesRepo, filesRepo, newId, usersRepo, workspacesRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { runCli } from '../src/cli/run.js';
@@ -29,6 +29,7 @@ import { AppError, errorEnvelope } from '../src/errors.js';
 import type { FileStore } from '../src/files/store.js';
 import { appSaveRoutes } from '../src/routes/apps/save.js';
 import { ENGINES, installHarness, type Dialect, type Harness } from './app-install-harness.js';
+import { tableId } from './app-save-source.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
 
 /** A library that keeps the bytes in memory. */
@@ -45,9 +46,12 @@ function library(): FileStore & { kept: Map<string, Buffer> } {
   } as unknown as FileStore & { kept: Map<string, Buffer> };
 }
 
-const ALL: SaveRights = { userId: null, can: async () => true, readsWhole: async () => true };
+const ALL: SaveRights = { userId: null, can: async () => true, readsWhole: async () => true, permissions: async () => ({ superAdmin: true }) };
 
-async function serve(h: Harness, dialect: Dialect, files: FileStore) {
+/** People the routes know by an `x-test-user` header, each with the grants they hold (`*` for every one). */
+type People = Record<string, ReadonlySet<string>>;
+
+async function serve(h: Harness, dialect: Dialect, files: FileStore, people: People = {}) {
   const service = createSaveService({
     meta: h.meta,
     storage: files,
@@ -55,6 +59,7 @@ async function serve(h: Harness, dialect: Dialect, files: FileStore) {
     adminiumVersion: '0.3.49',
     dialectOf: async (id) => (id === h.connectionId ? dialect : null),
     displayName: async () => 'Corner shop',
+    dataDb: async (connectionId) => (await h.manager.data(connectionId)).db,
   });
   const Fastify = (await import('fastify')).default;
   const { serializerCompiler, validatorCompiler } = await import('fastify-type-provider-zod');
@@ -62,6 +67,12 @@ async function serve(h: Harness, dialect: Dialect, files: FileStore) {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   app.decorate('rbac', { require: () => async () => {} } as never);
+  app.addHook('onRequest', async (request) => {
+    const who = request.headers['x-test-user'];
+    const grants = typeof who === 'string' ? people[who] : undefined;
+    if (grants === undefined) return;
+    Object.assign(request, { user: { id: who, name: who, email: `${String(who)}@corner.test` }, can: async (grant: string) => grants.has('*') || grants.has(grant) });
+  });
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) return reply.status(error.statusCode).send(errorEnvelope(error.code, error.message, 'req_test', error.details));
     return reply.status(500).send(errorEnvelope('INTERNAL', String(error), 'req_test'));
@@ -125,12 +136,19 @@ describe.each(ENGINES)('save as app: the service on %s', (dialect, available) =>
     const { service } = await serve(h, dialect, library());
     const ordersId = dialect === 'mysql' ? (await h.rows('SELECT DATABASE() AS db'))[0]!['db'] + '.orders' : dialect === 'postgres' ? 'public.orders' : 'main.orders';
     const request = { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', rows: { [String(ordersId)]: { mode: 'starting' as const } } };
-    const readsOnly: SaveRights = { userId: null, can: async (grant) => !grant.endsWith(':export'), readsWhole: async () => true };
+    const readsOnly: SaveRights = { userId: null, can: async (grant) => !grant.endsWith(':export'), readsWhole: async () => true, permissions: async () => ({ superAdmin: true }) };
     await expect(service.plan(request, readsOnly)).rejects.toMatchObject({ details: { reason: 'SAVE_ROWS_NOT_YOURS' } });
-    const part: SaveRights = { userId: null, can: async () => true, readsWhole: async () => false };
+    const part: SaveRights = { userId: null, can: async () => true, readsWhole: async () => false, permissions: async () => ({ superAdmin: true }) };
     await expect(service.plan(request, part)).rejects.toMatchObject({ details: { reason: 'SAVE_ROWS_NOT_YOURS' } });
-    const pii: SaveRights = { userId: null, can: async (grant) => !grant.endsWith(':read_pii'), readsWhole: async () => true };
+    const pii: SaveRights = { userId: null, can: async (grant) => !grant.endsWith(':read_pii'), readsWhole: async () => true, permissions: async () => ({ superAdmin: true }) };
     await expect(service.plan({ ...request, answers: { personalColumns: [`${String(ordersId)}.note`] } }, pii)).rejects.toMatchObject({ details: { reason: 'SAVE_ROWS_NOT_YOURS' } });
+
+    // The file's own rows are no Files library file: saving them needs no managing files.
+    await h.run(`INSERT INTO orders (id, note) VALUES (1, 'first')`);
+    const noFiles: SaveRights = { userId: null, can: async (grant) => grant !== 'system:files:manage', readsWhole: async () => true, permissions: async () => ({ superAdmin: true }) };
+    const saved = await service.save(request, noFiles);
+    expect(saved.version).toBe('1.0.0');
+    expect((await appSavesRepo(h.meta).findById(saved.id))?.carried).toMatchObject({ files: false, rows: { [String(ordersId)]: ['note'] } });
   });
 });
 
@@ -158,7 +176,7 @@ describe.each(ENGINES)('save as app: what a database could include, on %s', (dia
     expect(inventory).toMatchObject({ views: [], roles: [], automations: [], emailTemplates: [], payments: false, instance: true });
 
     // A person who may not export: the structure goes, the rows may not.
-    const noExport: SaveRights = { userId: null, can: async (grant) => !grant.endsWith(':export') && grant !== 'system:settings:manage', readsWhole: async () => true };
+    const noExport: SaveRights = { userId: null, can: async (grant) => !grant.endsWith(':export') && grant !== 'system:settings:manage', readsWhole: async () => true, permissions: async () => ({ superAdmin: true }) };
     const theirs = await service.inventory(h.connectionId, noExport);
     expect(theirs.tables.every((table) => !table.rowsAllowed)).toBe(true);
     expect(theirs.instance).toBe(false);
@@ -222,6 +240,94 @@ describe('save as app: the routes', () => {
     expect((await app.inject({ method: 'POST', url: '/apps/save/plan', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', icon: 'Not An Icon' } })).statusCode).not.toBe(200);
 
     expect((await app.inject({ method: 'GET', url: '/apps/save/asv_missing/file' })).statusCode).toBe(404);
+  });
+
+  it('downloads a file again only for someone who holds every right its save needed', async () => {
+    harness = await installHarness('sqlite');
+    const h = harness;
+    await shopTables(h);
+    await h.run(`INSERT INTO customers (id, name) VALUES (1, 'Ann Customer')`);
+    await runIntrospection({ manager: h.manager, meta: h.meta, connectionId: h.connectionId });
+    const customersId = await tableId(h, 'customers');
+    const base = `table:${h.connectionId}:${customersId}`;
+    const user = async (name: string) => (await usersRepo(h.meta).create({ email: `${name}@corner.test`, name, status: 'active' })).id;
+    const [ann, bob, cy] = [await user('ann'), await user('bob'), await user('cy')];
+    const people: People = {
+      [ann]: new Set(['*']),
+      // Manages apps, and nothing of the table.
+      [bob]: new Set(['system:manifests:manage']),
+      // Reads and exports the customers.
+      [cy]: new Set(['system:manifests:manage', `${base}:read`, `${base}:export`]),
+    };
+    const { app } = await serve(h, 'sqlite', library(), people);
+    const as = (who: string) => ({ 'x-test-user': who });
+    const withRows = { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', rows: { [customersId]: { mode: 'starting' } } };
+
+    // Bob may not make it.
+    expect((await app.inject({ method: 'POST', url: '/apps/save', headers: as(bob), payload: withRows })).statusCode).toBe(409);
+    const saved = await app.inject({ method: 'POST', url: '/apps/save', headers: as(ann), payload: withRows });
+    expect(saved.statusCode, saved.body).toBe(200);
+    const id = (saved.json().save as { id: string }).id;
+    expect((await appSavesRepo(h.meta).findById(id))?.carried).toEqual({ rows: { [customersId]: ['name'] }, personal: [], files: false, instance: false });
+
+    // Nor download it again: it carries rows he may not read.
+    const refused = await app.inject({ method: 'GET', url: `/apps/save/${id}/file`, headers: as(bob) });
+    expect(refused.statusCode, refused.body).toBe(403);
+    expect(refused.json().error.details).toMatchObject({ reason: 'SAVE_DOWNLOAD_NOT_YOURS' });
+    const listed = (who: string) => app.inject({ method: 'GET', url: '/apps/saves', headers: as(who) }).then((reply) => (reply.json().saves as { id: string; downloadable: boolean }[]).find((one) => one.id === id)?.downloadable);
+    expect(await listed(bob)).toBe(false);
+    // Cy reads and exports the table: the same rights the save needed.
+    expect((await app.inject({ method: 'GET', url: `/apps/save/${id}/file`, headers: as(cy) })).statusCode).toBe(200);
+    expect(await listed(cy)).toBe(true);
+    expect((await app.inject({ method: 'GET', url: `/apps/save/${id}/file`, headers: as(ann) })).statusCode).toBe(200);
+
+    // A save from before the record was kept is its saver's alone.
+    await appSavesRepo(h.meta).create({ appKey: 'older-shop', version: '1.0.0', lineage: 'lin-older-shop-1', connectionId: h.connectionId, label: 'Corner shop', savedBy: ann, integrity: 'sha512-x', bytes: 1, fileId: (await appSavesRepo(h.meta).findById(id))!.fileId });
+    const older = (await appSavesRepo(h.meta).listForKey('older-shop'))[0]!.id;
+    expect((await app.inject({ method: 'GET', url: `/apps/save/${older}/file`, headers: as(cy) })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'GET', url: `/apps/save/${older}/file`, headers: as(ann) })).statusCode).toBe(200);
+
+    // The workspace file asks the same of each app inside.
+    const workspace = await workspacesRepo(h.meta).create({ name: 'Corner', connectionIds: [h.connectionId] });
+    const whole = await app.inject({ method: 'POST', url: `/workspaces/${workspace.id}/save`, headers: as(ann), payload: { apps: [{ ...withRows, key: 'corner-whole' }] } });
+    expect(whole.statusCode, whole.body).toBe(200);
+    const wholeId = (whole.json().save as { id: string }).id;
+    expect((await app.inject({ method: 'GET', url: `/workspaces/save/${wholeId}/file`, headers: as(bob) })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'GET', url: `/workspaces/save/${wholeId}/file`, headers: as(cy) })).statusCode).toBe(200);
+  });
+
+  it('asks managing files only when a Files library file travels, and asks it again of whoever downloads it', async () => {
+    harness = await installHarness('sqlite');
+    const h = harness;
+    await shopTables(h);
+    const files = library();
+    const fileId = newId('file');
+    const pdf = Buffer.from('%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n');
+    const stored = await files.write({ id: fileId, kind: 'upload', filename: 'terms.pdf', mime: 'application/pdf', bytes: pdf });
+    await filesRepo(h.meta).create({ id: fileId, filename: 'terms.pdf', mime: 'application/pdf', sizeBytes: pdf.length, sha256: stored.sha256, storageKey: stored.storageKey, storage: 'memory', destinationId: null, kind: 'upload', attachedAt: Date.now() });
+    await emailTemplatesRepo(h.meta).upsert('news', 'en_US', {
+      name: 'News',
+      subject: 'News from the shop',
+      blocks: [{ id: 'text-1', block: 'email.text', data: { text: 'Hello' }, style: {} }],
+      enabled: true,
+      kind: 'campaign',
+      category: 'marketing',
+      attachments: [{ id: 'att-terms', kind: 'file', fileId }],
+    });
+    const user = async (name: string) => (await usersRepo(h.meta).create({ email: `${name}@corner.test`, name, status: 'active' })).id;
+    const [ann, dee] = [await user('ann'), await user('dee')];
+    const { app } = await serve(h, 'sqlite', files, { [ann]: new Set(['*']), [dee]: new Set(['system:manifests:manage']) });
+    const payload = { connectionId: h.connectionId, key: 'corner-news', name: 'Corner news', include: { emailTemplates: ['news'] } };
+
+    const refused = await app.inject({ method: 'POST', url: '/apps/save', headers: { 'x-test-user': dee }, payload });
+    expect(refused.statusCode, refused.body).toBe(409);
+    expect(refused.json().error.details).toMatchObject({ reason: 'SAVE_FILES_NOT_YOURS' });
+    const saved = await app.inject({ method: 'POST', url: '/apps/save', headers: { 'x-test-user': ann }, payload });
+    expect(saved.statusCode, saved.body).toBe(200);
+    const id = (saved.json().save as { id: string }).id;
+    expect((await appSavesRepo(h.meta).findById(id))?.carried).toEqual({ rows: {}, personal: [], files: true, instance: false });
+    expect((await app.inject({ method: 'GET', url: `/apps/save/${id}/file`, headers: { 'x-test-user': dee } })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'GET', url: `/apps/save/${id}/file`, headers: { 'x-test-user': ann } })).statusCode).toBe(200);
   });
 });
 

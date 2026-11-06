@@ -20,7 +20,22 @@ import { newId } from '../ids.js';
 import type { AdminiumAppAfterInstallTable, AdminiumAppSavesTable, AdminiumWorkspaceInstallsTable, AdminiumWorkspaceSavesTable } from '../schema/tables.js';
 import { affected, packJson, readBool, readJson, readJsonOrNull, writeBool } from './util.js';
 
-export type AppSave = Selectable<AdminiumAppSavesTable>;
+/** What a saved file carried that needs the saver's own rights (wave 0087). */
+export interface AppSaveCarried {
+  /** Rows, by model table id: the columns whose values travel, the key left out. */
+  rows: Record<string, string[]>;
+  /** Tables whose personal (or secret-looking) columns' values travel. */
+  personal: string[];
+  /** A Files library file travels. */
+  files: boolean;
+  /** The deployment-wide part travels. */
+  instance: boolean;
+}
+
+export type AppSave = Omit<Selectable<AdminiumAppSavesTable>, 'carried'> & {
+  /** Null on a save from before the record was kept. */
+  carried: AppSaveCarried | null;
+};
 
 export interface CreateAppSaveInput {
   appKey: string;
@@ -35,6 +50,7 @@ export interface CreateAppSaveInput {
   name?: string | null;
   description?: string | null;
   icon?: string | null;
+  carried?: AppSaveCarried | null;
 }
 
 /** A version of a key that was saved before: it is never saved again. */
@@ -44,7 +60,7 @@ export class AppVersionSaved extends Error {
 
 export function appSavesRepo(meta: MetaDb) {
   const { db } = meta;
-  const read = (row: AppSave): AppSave => ({ ...row, bytes: Number(row.bytes) });
+  const read = (row: Selectable<AdminiumAppSavesTable>): AppSave => ({ ...row, bytes: Number(row.bytes), carried: readJsonOrNull<AppSaveCarried>(row.carried) });
   return {
     async create(input: CreateAppSaveInput, at: number = Date.now()): Promise<AppSave> {
       const held = await db
@@ -54,8 +70,11 @@ export function appSavesRepo(meta: MetaDb) {
         .where('version', '=', input.version)
         .executeTakeFirst();
       if (held !== undefined) throw new AppVersionSaved(`${input.appKey} ${input.version}`);
-      const row: AppSave = { id: newId('asv'), ...input, fileId: input.fileId ?? null, name: input.name ?? null, description: input.description ?? null, icon: input.icon ?? null, savedAt: at };
-      await db.insertInto('adminium_app_saves').values(row).execute();
+      const row: AppSave = { id: newId('asv'), ...input, fileId: input.fileId ?? null, name: input.name ?? null, description: input.description ?? null, icon: input.icon ?? null, carried: input.carried ?? null, savedAt: at };
+      await db
+        .insertInto('adminium_app_saves')
+        .values({ ...row, carried: row.carried === null ? null : packJson(row.carried) })
+        .execute();
       return row;
     },
     async findById(id: string): Promise<AppSave | null> {

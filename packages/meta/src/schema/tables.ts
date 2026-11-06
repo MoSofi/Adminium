@@ -2058,6 +2058,13 @@ export interface AdminiumAppSavesTable {
   name: string | null;
   description: string | null;
   icon: string | null;
+  /**
+   * What the file carried that needs the saver's own rights (wave 0087):
+   * `{ rows: { <tableId>: [columns] }, personal: [tableIds], files, instance }`.
+   * "Download again" asks the same of whoever downloads it. Null on a save
+   * from before the wave: only its saver downloads it again.
+   */
+  carried: JsonColumn | null;
 }
 
 /** What an install still needs from a person (wave 0075). */

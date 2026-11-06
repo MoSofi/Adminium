@@ -276,14 +276,17 @@ export function createWorkspaceSaveService(deps: WorkspaceSaveDeps) {
       };
     },
 
-    /** The saved workspace file again ("Download again"), or null when an app's copy is gone. */
-    async file(id: string): Promise<{ save: WorkspaceSave; filename: string; bytes: Uint8Array } | null> {
+    /**
+     * The saved workspace file again ("Download again"), or null when an app's
+     * copy is gone. Each app inside asks the rights its save needed (403).
+     */
+    async file(id: string, rights: SaveRights): Promise<{ save: WorkspaceSave; filename: string; bytes: Uint8Array } | null> {
       const save = await workspaceSavesRepo(deps.meta).findById(id);
       if (save === null) return null;
       const document = JSON.parse(save.document) as WorkspaceFile;
       const inner = new Map<string, Uint8Array>();
       for (const [n, appSaveId] of save.appSaveIds.entries()) {
-        const found = await deps.save.file(appSaveId);
+        const found = await deps.save.file(appSaveId, rights);
         const entry = document.apps[n];
         if (found === null || entry === undefined || integrityOf(found.bytes) !== entry.integrity) return null;
         inner.set(entry.file, found.bytes);
