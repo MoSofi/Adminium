@@ -149,7 +149,7 @@ export interface StartDeps {
   readConfig: () => DesktopConfig;
   saveConfig: (next: DesktopConfig) => Promise<void>;
   folder: FolderDeps;
-  /** The classic workspace has been used on this computer. */
+  /** The classic server has been used on this computer. */
   classicUsed: () => boolean;
   /** The system's folder picker. */
   chooseDirectory: (opts: { title: string; defaultPath?: string | undefined }) => Promise<string | null>;

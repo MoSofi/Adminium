@@ -1572,7 +1572,7 @@ describe('createDesktopApp opening a project folder', () => {
     for (let i = 0; i < 10; i += 1) await Promise.resolve();
   };
 
-  it('serves the folder, not the classic workspace: no secret, no backup, no schedule', async () => {
+  it('serves the folder, not the classic server: no secret, no backup, no schedule', async () => {
     const p = projectHarness();
     await createDesktopApp(p.deps).start();
 
@@ -1786,7 +1786,7 @@ describe('createDesktopApp opening a project folder', () => {
     expect(p.h.bridge()?.runtime()).toMatchObject({ dataDir: ROOT, serverPort: 4700, secretStorage: 'plain' });
   });
 
-  it('refuses the classic workspace’s network switch and data folder while the project is open', async () => {
+  it('refuses the classic server’s network switch and data folder while the project is open', async () => {
     const p = projectHarness();
     await createDesktopApp(p.deps).start();
     const bridge = p.h.bridge();
@@ -2019,7 +2019,7 @@ describe('createDesktopApp opening on Start', () => {
     expect(s.h.menuHandlers()).not.toHaveProperty('checkForUpdates');
   });
 
-  it('"Use my own database" goes on into the classic workspace as a launch without Start does', async () => {
+  it('"Use my own database" goes on into the classic server as a launch without Start does', async () => {
     const s = startHarness({ classicUsed: true });
     const started = createDesktopApp(s.deps).start();
     await settle();
@@ -2032,7 +2032,7 @@ describe('createDesktopApp opening on Start', () => {
     expect(s.h.bridge()?.start?.()).toBeNull();
   });
 
-  it('sends a classic workspace that was never set up to its setup, whether or not config.json exists', async () => {
+  it('sends a classic server that was never set up to its setup, whether or not config.json exists', async () => {
     // config.json was written by Start itself (a project was remembered), so "first run" is read from the data folder.
     const s = startHarness({ classicUsed: false, firstRun: false });
     const started = createDesktopApp(s.deps).start();
@@ -2042,7 +2042,7 @@ describe('createDesktopApp opening on Start', () => {
     expect(s.h.loaded[0]).toMatch(/\/desktop\/setup$/);
   });
 
-  it('skips Start for a file handed to the app at launch: that belongs to the classic workspace', async () => {
+  it('skips Start for a file handed to the app at launch: that belongs to the classic server', async () => {
     const s = startHarness({ pendingFile: '/home/ava/backup.zip' });
     await createDesktopApp(s.deps).start();
     expect(s.h.calls).not.toContain('showStart');
@@ -2136,7 +2136,7 @@ describe('createDesktopApp opening on Start', () => {
       await expect(start?.openProject({ path: root })).resolves.toEqual({ status: 'opened' });
       await settle();
       expect(s.projectOptions).toHaveLength(2);
-      // And from there the classic workspace is one choice away, as at launch.
+      // And from there the classic server is one choice away, as at launch.
       await expect(bridge?.project?.close()).resolves.toBe(true);
       await settle();
       bridge?.start?.()?.useClassic();
@@ -2149,7 +2149,7 @@ describe('createDesktopApp opening on Start', () => {
     }
   });
 
-  it('without the screens (every boot before them) goes to the classic workspace at once', async () => {
+  it('without the screens (every boot before them) goes to the classic server at once', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
     expect(h.calls).not.toContain('showStart');

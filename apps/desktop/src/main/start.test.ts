@@ -128,7 +128,7 @@ describe('the fingerprint of a folder’s code', () => {
 });
 
 describe('Start’s state', () => {
-  it('welcomes a first launch: no recent project and no classic workspace', () => {
+  it('welcomes a first launch: no recent project and no classic server', () => {
     expect(service().start.state()).toMatchObject({ firstLaunch: true, recent: [], proposedParent: join(home, 'Adminium'), proposedParentDisplay: '~/Adminium', language: null, theme: 'system' });
     expect(service({ classicUsed: () => true }).start.state().firstLaunch).toBe(false);
   });
@@ -426,7 +426,7 @@ describe('the recent list’s buttons', () => {
     expect(chooseDirectory).toHaveBeenCalledWith({ title: 'Where to keep it', defaultPath: '/from' });
   });
 
-  it('chooses the classic workspace', () => {
+  it('chooses the classic server', () => {
     service().start.useClassic();
     expect(chosen).toEqual([{ kind: 'classic' }]);
   });

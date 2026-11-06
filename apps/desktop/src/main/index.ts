@@ -192,8 +192,8 @@ export interface AppUrlOptions {
  * by our own auth route, and would drop a session cookie on an origin every
  * other device on the network can reach.
  */
-/** Said when a setting of the classic workspace is asked for while a project is open. */
-export const CLASSIC_ONLY_SETTING = 'This setting belongs to the classic workspace. Close the project to change it.';
+/** Said when a setting of the classic server is asked for while a project is open. */
+export const CLASSIC_ONLY_SETTING = 'This setting belongs to the app’s own server, not to a project. Close the project to change it.';
 
 /**
  * Where the window goes for a project.
@@ -418,7 +418,7 @@ export interface DesktopBridgeContext {
   setMenuLabels: (labels: PushedMenuLabels) => void;
   /** The first screens' service while Start is what the window holds; `null` otherwise. */
   start?: (() => StartService | null) | undefined;
-  /** The project the window holds (`info` is `null` in the classic workspace), and the way out of it. */
+  /** The project the window holds (`info` is `null` in the classic server), and the way out of it. */
   project?:
     | {
         info: () => { root: string; displayPath: string; name: string; mode: 'design' | 'serve' } | null;
@@ -585,7 +585,7 @@ export interface DesktopBootDeps {
 
   // ── a project folder (plan 66) ──
   /**
-   * The project folder to open instead of the classic workspace, or
+   * The project folder to open instead of the classic server, or
    * `undefined`.
    *
    * WHOEVER SETS THIS HAS ALREADY ASKED. Opening a folder builds and runs the
@@ -599,10 +599,10 @@ export interface DesktopBootDeps {
   /**
    * The first screens (Start, New app). Present: a launch with nothing to open
    * shows Start and waits for the person's choice; "Use my own database" then
-   * goes on into the classic workspace exactly as a launch without this does.
-   * Absent (every boot test that predates the screens): the classic workspace
+   * goes on into the classic server exactly as a launch without this does.
+   * Absent (every boot test that predates the screens): the classic server
    * at once. A file handed to the app at launch belongs to the classic
-   * workspace and skips Start.
+   * server and skips Start.
    */
   startScreen?:
     | {
@@ -614,7 +614,7 @@ export interface DesktopBootDeps {
         readonly updateProject?: StartDeps['updateProject'];
         readonly chooseFile?: StartDeps['chooseFile'];
         readonly checkGuest?: StartDeps['checkGuest'];
-        /** Whether the classic workspace was ever set up in this data folder. */
+        /** Whether the classic server was ever set up in this data folder. */
         readonly classicUsed: (config: DesktopConfig) => boolean;
       }
     | undefined;
@@ -653,7 +653,7 @@ export interface DesktopBootDeps {
    * is laid over it (and the stripped names are taken out). A terminal's
    * server has the person's environment: their PATH is where `git` is found
    * (versions), their proxy settings are how a package is fetched. The classic
-   * workspace's child inherits nothing, and still does.
+   * server's child inherits nothing, and still does.
    */
   projectEnv?: NodeJS.ProcessEnv | undefined;
   /**
@@ -1006,7 +1006,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           const previous = config;
           const next = applyConfigPatch(previous, patch);
           // With a project open, the network switch would restart the PROJECT's
-          // server on the classic workspace's port. Sharing a project is its own state.
+          // server on the classic server's port. Sharing a project is its own state.
           if (manager?.project != null && patch.lanShare !== undefined) {
             throw new Error(CLASSIC_ONLY_SETTING);
           }
@@ -1216,7 +1216,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       // `canRestart: false` because none of them is fixed by forking the server
       // again; the messages config.ts raises already say what to do instead.
       /*
-       * A project folder instead of the classic workspace (plan 66, spec 05).
+       * A project folder instead of the classic server (plan 66, spec 05).
        *
        * What is NOT here is the point. No secret is resolved (the project's is
        * its `.env`'s; resolving the classic one may write to the key store). No
@@ -1243,7 +1243,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           return;
         }
         runtime = { dataDir: project.root, firstRun: false, secretStorage: 'plain', serverPort: -1 };
-        // Its own cookie jar: the classic workspace's session and a project's never meet.
+        // Its own cookie jar: the classic server's session and a project's never meet.
         windows.useProjectSession?.(project.root);
         // Where the app's own Node and npm are, and the git it found: looked for now, before the fork.
         const programs = deps.projectPrograms === undefined ? undefined : await deps.projectPrograms();
@@ -1591,7 +1591,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
               return;
             }
             // "Use my own database". Writing the recent list made `config.json`, so its absence no longer says
-            // whether the classic workspace was ever set up: the data folder does.
+            // whether the classic server was ever set up: the data folder does.
             firstRun = !classicUsed;
           }
           const resolved = await deps.config.resolveSecret(loaded.config);
@@ -2239,7 +2239,7 @@ const backupReplySchema = z.object({
 });
 
 /**
- * Whether people may speak to the assistant in this workspace: `GET
+ * Whether people may speak to the assistant on this server: `GET
  * /api/v1/assistant/availability`, carrying the WINDOW'S session cookie like
  * the grant reader below. `false` for everything that is not a clear yes: no
  * server yet, nobody signed in, a person who may not use the assistant, an
@@ -2281,7 +2281,7 @@ export function microphoneSwitchedOn(body: unknown): boolean {
  */
 function electronCapabilityGrantReader(
   serverOrigin: () => string | null,
-  /** The project that is open, whose cookies are in a jar of their own under a name of their own; `null` for the classic workspace. */
+  /** The project that is open, whose cookies are in a jar of their own under a name of their own; `null` for the classic server. */
   project: () => { readonly root: string } | null = () => null,
 ): CapabilityGrantReader {
   return async () => {
@@ -2746,7 +2746,7 @@ export function electronBootDeps(): DesktopBootDeps {
     // A project folder (plan 66). Until the app's own first screens exist, the
     // only way in is the test seam, which a packaged app does not read.
     openProject: openedProject,
-    // The app's own first screens: Start, and from it a new project, a recent one, or the classic workspace.
+    // The app's own first screens: Start, and from it a new project, a recent one, or the classic server.
     startScreen: {
       folder: realFolderDeps(app.isPackaged ? dirname(process.resourcesPath) : resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')),
       chooseDirectory: (opts) => dialogs.chooseDirectory(opts),

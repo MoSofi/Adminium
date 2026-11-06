@@ -5,7 +5,7 @@
  * now", and the same offer in a dialog for the build page's version menu.
  *
  * Nothing here renders anywhere else: in a browser there is no bridge, in the
- * classic workspace and in an app older than the offer the bridge has no
+ * classic server and in an app older than the offer the bridge has no
  * `versions`, and with a git on the computer there is nothing to offer.
  *
  * Nothing is fetched until the person presses "Download git".

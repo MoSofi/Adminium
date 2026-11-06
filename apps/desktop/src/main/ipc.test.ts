@@ -799,7 +799,7 @@ describe('the project’s channels', () => {
     expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectInfo))).toEqual({ name: 'Shop', displayPath: '~/Adminium/shop', mode: 'design' });
   });
 
-  it('answer null in the classic workspace, and refuse the two that act', async () => {
+  it('answer null in the classic server, and refuse the two that act', async () => {
     for (const h of [harness(), harness({ project: { info: () => null, close: () => Promise.resolve(true) } })]) {
       expect(expectOk(await h.ipc.invoke(IPC_CHANNELS.projectInfo))).toBeNull();
       expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.projectShowInFolder)).code).toBe('UNAVAILABLE');
@@ -923,7 +923,7 @@ describe('the project’s channels', () => {
 
     const stranger: IpcInvokeEventLike = { senderFrame: { url: 'https://example.com/' } };
     for (const channel of VERSIONS_CHANNELS) expect(expectFail(await h.ipc.invoke(channel, undefined, stranger)).code).toBe('UNTRUSTED_SENDER');
-    // The classic workspace, a build with no offer, and a project whose offer is gone: unavailable, each.
+    // The classic server, a build with no offer, and a project whose offer is gone: unavailable, each.
     for (const none of [harness(), harness({ project: { info: () => INFO, close: () => Promise.resolve(true) } }), harness({ project: { info: () => INFO, close: () => Promise.resolve(true), versions: () => null } })]) {
       for (const channel of VERSIONS_CHANNELS) expect(expectFail(await none.ipc.invoke(channel)).code).toBe('UNAVAILABLE');
     }

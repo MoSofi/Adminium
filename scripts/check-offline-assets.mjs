@@ -432,9 +432,9 @@ const ALLOWED_HOSTS = [
  *
  * Each entry is one thing a person did, said in `when`. An address that is not
  * here and not in ALLOWED_HOSTS fails the gate in the code that serves a
- * project; and every address here STILL FAILS in the classic workspace's own
+ * project; and every address here STILL FAILS in the classic server's own
  * outputs (the window, the dashboard, the main process), which is how "the
- * classic workspace makes no request" stays checked.
+ * classic server makes no request" stays checked.
  */
 const PROJECT_REACHES = [
   {
@@ -625,7 +625,7 @@ function checkFile(file, kind = 'classic') {
         file: where,
         url,
         rule: 'project-address-in-the-classic-workspace',
-        why: `'${host}' is an address only a project's server may reach (PROJECT_REACHES). Here it is in the classic workspace's own output, which makes no request at all`,
+        why: `'${host}' is an address only a project's server may reach (PROJECT_REACHES). Here it is in the classic server's own output, which makes no request at all`,
       });
       continue;
     }

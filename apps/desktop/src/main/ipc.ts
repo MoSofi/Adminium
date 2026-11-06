@@ -540,7 +540,7 @@ export interface RegisterIpcHandlersOptions {
    * (a build or a moment in which Start is not offered). Read at each call.
    */
   start?: (() => StartService | null) | undefined;
-  /** The project the window holds: what it is (`null` in the classic workspace) and the way out of it. */
+  /** The project the window holds: what it is (`null` in the classic server) and the way out of it. */
   project?:
     | {
         info: () => (DesktopProjectInfo & { root: string }) | null;

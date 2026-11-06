@@ -378,7 +378,7 @@ describe('check-offline-assets — what it must NOT flag', () => {
 
 // ─── the second half: what a project may reach ───────────────────────────────
 
-describe('check-offline-assets — a project reaches a written list, and the classic workspace still reaches nothing', () => {
+describe('check-offline-assets — a project reaches a written list, and the classic server still reaches nothing', () => {
   const inProject = (code: string): Run => run(fixture({ 'server.js': code }), '--project-root');
   const inClassic = (code: string): Run => run(fixture({ 'main.js': code }));
 
@@ -400,7 +400,7 @@ describe('check-offline-assets — a project reaches a written list, and the cla
     ['the npm registry', 'const REGISTRY = "https://registry.npmjs.org/";', 'registry.npmjs.org'],
     ['an app’s archive', 'fetch("https://codeload.github.com/a/b/tar.gz/refs/tags/v1");', 'codeload.github.com'],
     ['a picture site', 'fetch("https://api.pexels.com/v1/search");', 'api.pexels.com'],
-  ])('the classic workspace’s own output may not name %s: it makes no request', (_label, code, host) => {
+  ])('the classic server’s own output may not name %s: it makes no request', (_label, code, host) => {
     const result = inClassic(code);
     expect(result.status).toBe(1);
     expect(result.output).toContain('rule: project-address-in-the-classic-workspace');

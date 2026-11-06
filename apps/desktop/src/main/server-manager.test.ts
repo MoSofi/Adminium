@@ -745,7 +745,7 @@ describe('ServerManager serving a project', () => {
     await tick();
   }
 
-  it('forks with the project’s block: the folder, a port picked first, and nothing of the classic workspace', async () => {
+  it('forks with the project’s block: the folder, a port picked first, and nothing of the classic server', async () => {
     const h = project();
     const started = h.manager.start();
     await up(h, 0, 4700);
@@ -923,7 +923,7 @@ describe('ServerManager serving a project', () => {
     expect(childAt(shared, 0).posted).toEqual([]);
     childAt(shared, 0).send({ type: 'keep-model', values: { ADMINIUM_AI_MODEL: 'x/y' } });
     expect(taken).toEqual([]);
-    // And the classic workspace is told nothing.
+    // And the classic server is told nothing.
     const classic = harness();
     classic.manager.setModels({ values: { ADMINIUM_AI_MODEL: 'a/b' }, keeping: 'key-store' });
     void classic.manager.start();
@@ -931,7 +931,7 @@ describe('ServerManager serving a project', () => {
     expect(childAt(classic, 0).posted).toEqual([]);
   });
 
-  it('the classic workspace has no programs to be told of', async () => {
+  it('the classic server has no programs to be told of', async () => {
     const h = harness();
     void h.manager.start();
     await up(h, 0, 4600);
@@ -1019,7 +1019,7 @@ describe('ServerManager serving a project', () => {
     expect(classic.forkCalls[1]?.env).not.toHaveProperty('ADMINIUM_DESKTOP_PROJECT_MODE');
   });
 
-  it('the classic workspace still needs its own three', async () => {
+  it('the classic server still needs its own three', async () => {
     const h = harness({ secret: undefined });
     await expect(h.manager.start()).rejects.toThrow(/needs its data folder, its secret and its sign-in rule/);
   });
