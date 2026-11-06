@@ -120,4 +120,71 @@ describe.each(ENGINES)('save as app, end to end, on %s', (dialect, available) =>
       [2, 'Bo', 'Fife'],
     ]);
   });
+
+  it.runIf(available)('carries columns under their own names, a space and all, with their index, a role limit and rows', async () => {
+    const q = (name: string) => (dialect === 'mysql' ? `\`${name}\`` : `"${name}"`);
+    const key = dialect === 'postgres' ? 'SERIAL PRIMARY KEY' : dialect === 'mysql' ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY';
+    const library = memoryLibrary();
+    const source = await installHarness(dialect, { library, full: true });
+    open.push(source);
+    await source.run(`CREATE TABLE deliveries (id ${key}, ${q('orderDate')} DATE, ${q('Order Total')} DECIMAL(10,2), ${q('driver-name')} VARCHAR(80))`);
+    await source.run(`CREATE INDEX deliveries_total ON deliveries (${q('Order Total')})`);
+    await source.run(`INSERT INTO deliveries (id, ${q('orderDate')}, ${q('Order Total')}, ${q('driver-name')}) VALUES (1, '2026-11-01', 12.50, 'Sam')`);
+    await runIntrospection({ manager: source.manager, meta: source.meta, connectionId: source.connectionId });
+    await runGeneration({ manager: source.manager, meta: source.meta, connectionId: source.connectionId, createdBy: null });
+    const model = await modelOf(source);
+    const deliveries = model.tables.find((table) => table.name === 'deliveries')!.id;
+    const driver = await rolesRepo(source.meta).create({ slug: 'driver', name: 'Driver' });
+    await permissionsRepo(source.meta).grant(driver.id, 'table', `${source.connectionId}/${deliveries}`, { ...NONE, read: true, update: true, updateLimit: { writable: ['orderDate'] } });
+
+    const service = createSaveService({
+      meta: source.meta,
+      storage: library,
+      masterSecret: 'a-test-master-secret-of-enough-length',
+      adminiumVersion: '0.3.49',
+      dialectOf: async () => dialect,
+      displayName: async () => 'Depot',
+      dataDb: async (connectionId) => (await source.manager.data(connectionId)).db,
+    });
+    const request = { connectionId: source.connectionId, key: 'depot', name: 'Depot', rows: { [deliveries]: { mode: 'starting' as const } }, answers: { personalColumns: [`${deliveries}.driver-name`] } };
+    const plan = await service.plan(request, HOST);
+    expect(plan.problems, JSON.stringify(plan.problems)).toEqual([]);
+    expect(plan.check.filter((item) => item.group === 'choice'), JSON.stringify(plan.check)).toEqual([]);
+    const saved = await service.save(request, HOST);
+    const entries = readAddOnTarball(saved.tarball);
+    const manifest = JSON.parse(new TextDecoder().decode(entries.find((entry) => entry.path === 'manifest.json')!.bytes)) as Record<string, unknown>;
+    const files = Object.fromEntries(entries.filter((entry) => entry.path !== 'manifest.json').map((entry) => [entry.path, Buffer.from(entry.bytes).toString('latin1')]));
+    const refs = (manifest['requiredSchema'] as { tables: { columns: { ref: string }[] }[] }).tables[0]!.columns.map((column) => column.ref);
+    expect(refs).toEqual(expect.arrayContaining(['orderDate', 'Order Total', 'driver-name']));
+
+    const target = await installHarness(dialect, { library: memoryLibrary(), full: true });
+    open.push(target);
+    const installed = await target.install(manifest, {}, files);
+    expect(installed.statusCode, installed.body).toBe(200);
+    await runIntrospection({ manager: target.manager, meta: target.meta, connectionId: target.connectionId });
+    expect(await shapeOf(target, 'deliveries')).toEqual(await shapeOf(source, 'deliveries'));
+    const made = (await modelOf(target)).tables.find((table) => table.name === 'deliveries')!;
+    expect(JSON.stringify(made.indexes)).toContain('Order Total');
+    const row = (await target.rows('SELECT * FROM deliveries'))[0]!;
+    expect([Number(row['Order Total']), row['driver-name']]).toEqual([12.5, 'Sam']);
+    const role = (await rolesRepo(target.meta).list()).find((one) => one.slug === 'depot-driver')!;
+    const grants = await permissionsRepo(target.meta).listForRole(role.id);
+    expect(JSON.stringify(grants)).toContain('"writable":["orderDate"]');
+  });
+
+  it.runIf(available)('still asks about a column name no file can carry, and leaves it out on the answer', async () => {
+    const q = (name: string) => (dialect === 'mysql' ? `\`${name}\`` : `"${name}"`);
+    const key = dialect === 'postgres' ? 'SERIAL PRIMARY KEY' : dialect === 'mysql' ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY';
+    const source = await installHarness(dialect, { library: memoryLibrary(), full: true });
+    open.push(source);
+    await source.run(`CREATE TABLE prices (id ${key}, ${q('unit.price')} DECIMAL(10,2), ${q('label')} VARCHAR(40))`);
+    await runIntrospection({ manager: source.manager, meta: source.meta, connectionId: source.connectionId });
+    await runGeneration({ manager: source.manager, meta: source.meta, connectionId: source.connectionId, createdBy: null });
+    const prices = (await modelOf(source)).tables.find((table) => table.name === 'prices')!.id;
+    const service = createSaveService({ meta: source.meta, storage: null, masterSecret: 'a-test-master-secret-of-enough-length', adminiumVersion: '0.3.49', dialectOf: async () => dialect, displayName: async () => 'Depot' });
+    const asked = await service.plan({ connectionId: source.connectionId, key: 'prices', name: 'Prices' }, HOST);
+    expect(asked.check.filter((item) => item.group === 'choice').map((item) => [item.code, item.answer?.target])).toEqual([['COLUMN_NAME_NO_FORM', `${prices}.unit.price`]]);
+    const answered = await service.plan({ connectionId: source.connectionId, key: 'prices', name: 'Prices', answers: { leaveOut: [`${prices}.unit.price`] } }, HOST);
+    expect(answered.ready, JSON.stringify(answered.check)).toBe(true);
+  });
 });

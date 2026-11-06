@@ -147,9 +147,9 @@ export interface SaveRefs {
   /** A table an install holds on this database (an add-on's, a catalog app's), by model id. */
   heldBy(id: string): HeldTable | null;
   /**
-   * A column's ref in the file: its own name, when that is a snake_case ref.
-   * Null otherwise: a file names columns by their real name, so a column such
-   * as `orderDate` cannot travel, and the part that meets one says so in Check.
+   * A column's ref in the file: its own name (`order_date`, `orderDate`).
+   * Null for a name no file can carry (a dot, a colon, a leading digit): the
+   * part that meets one says so in Check.
    */
   column(tableId: string, name: string): string | null;
 

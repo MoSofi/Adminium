@@ -28,6 +28,7 @@ import {
   MAX_TEXT_LENGTH,
   appManifestSchema,
   columnRulesSchema,
+  isRef,
   requiredColumnSchema,
   requiredTableSchema,
   validateManifest,
@@ -48,7 +49,6 @@ type Writable<T> = { -readonly [K in keyof T]: T[K] };
 const isRecord = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** A column name the manifest can carry as a ref. */
-const REF = /^[a-z][a-z0-9_]*$/;
 /** A label map's key in the file (`en-US`), from the store's (`en_US`). */
 const BCP47 = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 
@@ -252,7 +252,7 @@ function planTable(c: Context, saved: SavedTable): PlannedTable {
 
   for (const planned of columns) {
     const col = planned.model;
-    if (!REF.test(col.name)) {
+    if (!isRef(col.name)) {
       if (!leftOutByAnswer(c.ctx, `${saved.id}.${col.name}`)) {
         c.ctx.check.add({
           group: 'choice',
@@ -260,7 +260,7 @@ function planTable(c: Context, saved: SavedTable): PlannedTable {
           kind: 'column',
           item: table.name,
           field: col.name,
-          message: `"${table.name}.${col.name}" has a name an app file cannot give a column (lower-case letters, digits and _). Leave it out, or rename it first.`,
+          message: `"${table.name}.${col.name}" has a name an app file cannot give a column (a letter or _ first, then letters, digits, _, $, - and spaces; no dot). Leave it out, or rename it first.`,
           answer: { choices: ['leave-out'], target: `${saved.id}.${col.name}` },
         });
       }

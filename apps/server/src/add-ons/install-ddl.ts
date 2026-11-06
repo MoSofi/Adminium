@@ -598,7 +598,7 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
           if (column.index !== true) continue;
           const name = plainIndexName(table.ref, column.ref, taken);
           taken.add(name);
-          await db.schema.createIndex(name).ifNotExists().on(table.ref).column(column.ref).execute();
+          await createPlainIndex(db, dialect, name, table.ref, [column.ref], true);
           made.push([column.ref]);
         }
       }
@@ -615,8 +615,7 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
         const name = indexSetName(table.ref, set, taken);
         taken.add(name);
         // The table was made a moment ago, so the index cannot be there; and MySQL has no `if not exists` for one.
-        const index = db.schema.createIndex(name).on(table.ref).columns([...set]);
-        await (dialect === 'mysql' ? index : index.ifNotExists()).execute();
+        await createPlainIndex(db, dialect, name, table.ref, set, dialect !== 'mysql');
         made.push([...set]);
       }
       created.push(table.ref);
@@ -749,4 +748,20 @@ function literal(value: string, dialect: Dialect): string {
       ? value.replace(/\\/g, '\\\\').replace(/'/g, "''")
       : value.replace(/'/g, "''");
   return `'${escaped}'`;
+}
+
+/**
+ * A plain index. Kysely reads a column string as `name [asc|desc]`, so a
+ * self-made app's column with a space in its name (`Order Date`) would split;
+ * such an index is written with each column quoted instead. Every other index
+ * is made exactly as before.
+ */
+async function createPlainIndex(db: Kysely<Record<string, Record<string, unknown>>>, dialect: string, name: string, table: string, columns: readonly string[], ifNotExists: boolean): Promise<void> {
+  if (columns.every((column) => !column.includes(' '))) {
+    const index = db.schema.createIndex(name).on(table).columns([...columns]);
+    await (ifNotExists ? index.ifNotExists() : index).execute();
+    return;
+  }
+  const guard = ifNotExists && dialect !== 'mysql' ? sql`if not exists ` : sql``;
+  await sql`create index ${guard}${sql.id(name)} on ${sql.table(table)} (${sql.join(columns.map((column) => sql.id(column)))})`.execute(db);
 }

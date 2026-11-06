@@ -422,7 +422,7 @@ export {
   type ShapePart,
 } from './shapes.js';
 
-export { addOnSettingRefSchema, settingSourceSchema, type SettingSource } from './refs.js';
+export { addOnSettingRefSchema, isRef, settingSourceSchema, type SettingSource } from './refs.js';
 
 export { TABLE_SHAPES, shapeTables, tableShapeIssues, tableShapeOf, type TableShapeIssue } from './table-shapes.js';
 

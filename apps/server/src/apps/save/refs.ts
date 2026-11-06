@@ -25,6 +25,7 @@
  */
 import { slugify } from '@adminium/engine';
 import type { DatabaseModel, TableModel } from '@adminium/engine';
+import { isRef } from '@adminium/manifest';
 import { appTablesRepo, emailTemplatesRepo, optionListsRepo, pagesRepo, permissionsRepo, rolesRepo, type Role } from '@adminium/meta';
 
 import { BUILTIN_EMAIL_TEMPLATE_KEYS } from '../../email/builtins.js';
@@ -38,8 +39,6 @@ const PAGE_REF_MAX = 31;
 const TEMPLATE_KEY_MAX = 80;
 /** An installed app role's slug, `<appkey>-<key>`. */
 const ROLE_SLUG_MAX = 40;
-/** A column ref the manifest accepts: the column travels under its own name only when it is one. */
-const COLUMN_REF = /^[a-z][a-z0-9_]*$/;
 
 
 /** A unique name from a registry: `orders`, `orders_2`, `orders_3`, … */
@@ -145,7 +144,7 @@ export async function buildSaveRefs(source: SaveSource, choices: SaveChoices): P
     heldBy: (id) => held.get(id) ?? null,
     column: (tableId, name) => {
       const table = model.tables.find((one) => one.id === tableId);
-      return table !== undefined && table.columns.some((column) => column.name === name) && COLUMN_REF.test(name) ? name : null;
+      return table !== undefined && table.columns.some((column) => column.name === name) && isRef(name) ? name : null;
     },
     pages: () => pages,
     page: (id) => pageById.get(id) ?? null,

@@ -5,6 +5,8 @@
  * the add-ons part reads the notes and writes `addOns` from them. Kept per
  * save (by its context), so two saves never share notes.
  */
+import { isRef } from '@adminium/manifest';
+
 import type { ConvertContext } from './types.js';
 
 export interface AddOnUse {
@@ -27,9 +29,9 @@ export function addOnUsesOf(ctx: ConvertContext): readonly AddOnUse[] {
   return notes.get(ctx) ?? [];
 }
 
-/** A column's name as a ref, or null when it is not snake_case (the tables part names it otherwise). */
+/** A column's name as a ref (a file names a column by its own name), or null when no file can name it. */
 export function columnRef(name: unknown): string | null {
-  return typeof name === 'string' && /^[a-z][a-z0-9_]*$/.test(name) ? name : null;
+  return typeof name === 'string' && isRef(name) ? name : null;
 }
 
 /** A source table id (`public.orders`) or real name → its ref in the file, or null. */
