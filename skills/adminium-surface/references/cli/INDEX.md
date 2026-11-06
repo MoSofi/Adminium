@@ -18,7 +18,7 @@
 | `references/cli/folder-facts.md` | `folder-facts` | 595 |
 | `references/cli/build.md` | `build` | 1221 |
 | `references/cli/check.md` | `check` | 1558 |
-| `references/cli/app.md` | `app` | 6150 |
+| `references/cli/app.md` | `app` | 7277 |
 | `references/cli/pull.md` | `pull` | 1333 |
 | `references/cli/eject.md` | `eject` | 1119 |
 | `references/cli/try.md` | `try` | 1463 |
