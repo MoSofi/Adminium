@@ -30,7 +30,7 @@ const MAPPING = {
 
 async function setUp(h: Harness): Promise<{ profileId: string }> {
   const orders = (await sourceOf(h)).model.tables.find((table) => table.name === 'orders')!;
-  const profile = await payableProfilesRepo(h.meta).create({ connectionId: h.connectionId, tableName: orders.id, mapping: MAPPING, createdBy: null });
+  const profile = await payableProfilesRepo(h.meta).create({ connectionId: h.connectionId, tableName: orders.id, mapping: MAPPING, ownerApp: null, createdBy: null });
   const ways = paymentMethodsRepo(h.meta);
   await ways.put({ source: 'manual', method: 'bank-transfer', label: { en: 'Bank transfer' }, enabled: true, rules: { ...NO_RULES, currencies: ['GBP'] }, details: { accounts: [{ holder: 'Corner Shop Ltd', iban: 'GB33BUKB20201555555555' }] }, position: 1 });
   await ways.put({ source: 'manual', method: 'cash-on-delivery', label: null, enabled: true, rules: { ...NO_RULES, onlyFor: [profile!.id] }, details: null, position: 2 });
