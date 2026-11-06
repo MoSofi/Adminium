@@ -353,7 +353,7 @@ for (const engine of META_ENGINES) {
           return (await documentsRepo(meta).markRendered(made.id, { number, fileId: file.id, htmlFileId: null, format: 'pdf' }, Date.now()))!;
         };
         const deliver = async (connectionId: string | null, number: string) => {
-          expect(await emailDocument({ meta, secret: TEST_SECRET }, { document: await draw(connectionId, number), to: 'mo@clayclub.example' })).toBe('sent');
+          expect(await emailDocument({ meta, secret: TEST_SECRET }, { document: await draw(connectionId, number), profile: null, to: 'mo@clayclub.example' })).toBe('sent');
           const [job] = await meta.db.selectFrom('adminium_jobs').select('id').where('kind', '=', 'email.send').orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(1).execute();
           return opened(meta, job!.id);
         };
