@@ -133,6 +133,29 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.setShownIn('report', 'rpt_absent', null)).toBe(false);
     });
 
+    it('reads a kind\'s links in one go, and an item\'s delete takes its links', async () => {
+      await migrate();
+      const repo = workspacesRepo(t.meta);
+      const a = await repo.create({ name: 'A' });
+      const b = await repo.create({ name: 'B' });
+      const templates = emailTemplatesRepo(t.meta);
+      const one = await templates.upsert('one', 'en_US', { name: 'One', subject: 's', blocks: [], enabled: true });
+      const two = await templates.upsert('two', 'en_US', { name: 'Two', subject: 's', blocks: [], enabled: true });
+      await repo.setShownIn('email-template', one.id, [b.id, a.id]);
+      await repo.setShownIn('email-template', two.id, [b.id]);
+      expect(await repo.linksOfKind('email-template')).toEqual(new Map([[one.id, [a.id, b.id].sort()], [two.id, [b.id]]]));
+      expect(await repo.linksOfKind('report')).toEqual(new Map());
+      expect(await repo.chosenIn('email-template', a.id)).toEqual(new Set([one.id]));
+      expect((await templates.findById(one.id))?.shownIn).toBe('chosen');
+      // Only workspaces that exist, once each, in the order given.
+      expect(await repo.existing([b.id, 'wsp_absent', b.id, a.id])).toEqual([b.id, a.id]);
+      expect(await repo.existing([])).toEqual([]);
+      // Both ways an email row is deleted take its links.
+      await templates.removeById(one.id);
+      await templates.remove('two', 'en_US');
+      expect(await repo.linksOfKind('email-template')).toEqual(new Map());
+    });
+
     it('saves a version once, keeps after-install ticks, and holds a workspace install to one run', async () => {
       await migrate();
       const conn = await connection(t.meta, 'fernhill');

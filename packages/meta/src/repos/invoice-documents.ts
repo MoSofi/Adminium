@@ -76,6 +76,8 @@ export interface InvoiceDocument {
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
+  /** "Shown in": every workspace, or the chosen ones (the links are in `adminium_item_workspaces`). */
+  shownIn: 'all' | 'chosen';
 }
 
 export interface CreateInvoiceDocumentInput {
@@ -136,6 +138,7 @@ function decode(row: Selectable<AdminiumInvoiceDocumentsTable>): InvoiceDocument
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    shownIn: row.shownIn === 'chosen' ? 'chosen' : 'all',
   };
 }
 
@@ -332,6 +335,8 @@ export function invoiceDocumentsRepo(meta: MetaDb) {
     /** Hard delete — this surface has no archive (the comp's `doDelete`, 1386). */
     async removeById(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_invoice_documents').where('id', '=', id).executeTakeFirst();
+      // Its "Shown in" links name it by kind and id (no foreign key): they go with it.
+      await db.deleteFrom('adminium_item_workspaces').where('kind', '=', 'invoice').where('itemId', '=', id).execute();
       return affected(res.numDeletedRows as bigint | undefined) === 1;
     },
   };

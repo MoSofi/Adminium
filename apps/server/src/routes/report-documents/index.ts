@@ -32,7 +32,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { reportDocumentsRepo, type MetaDb, type ReportDocument } from '@adminium/meta';
+import { reportDocumentsRepo, workspacesRepo, type MetaDb, type ReportDocument } from '@adminium/meta';
 
 import { audited } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
@@ -41,6 +41,7 @@ import { acceptReportBody, bodyColumn, normalizeReportBody, type ReportBody } fr
 import { BLANK_ICON, blankBody, isReportStarterKey, renderStarter, starterCards } from '../../report-documents/starters.js';
 import { summaryOf } from '../../report-documents/summary.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { saveShownIn, shownInFilter, shownInOf } from '../../workspaces/shown-in.js';
 import {
   reportCreateBody,
   reportDetailView,
@@ -67,7 +68,8 @@ function requireUserId(request: FastifyRequest): string {
   return id;
 }
 
-function summaryView(row: ReportDocument): ReportSummaryView {
+/** `links`: every report's chosen workspaces (`workspacesRepo.linksOfKind`), read once per reply. */
+function summaryView(row: ReportDocument, links: ReadonlyMap<string, readonly string[]>): ReportSummaryView {
   return {
     id: row.id,
     kind: row.kind,
@@ -78,11 +80,12 @@ function summaryView(row: ReportDocument): ReportSummaryView {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     summary: row.summary,
+    shownIn: shownInOf(row.shownIn, links, row.id),
   };
 }
 
-function detailOf(row: ReportDocument): ReportDetailView {
-  return { ...summaryView(row), body: normalizeReportBody(row.body) };
+function detailOf(row: ReportDocument, links: ReadonlyMap<string, readonly string[]>): ReportDetailView {
+  return { ...summaryView(row, links), body: normalizeReportBody(row.body) };
 }
 
 /** The icon a row's card draws — the starter's, or `file-text` for a blank one.
@@ -95,6 +98,8 @@ function starterIcon(starter: string | null): string {
 export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyPluginAsyncZod {
   const { meta } = deps;
   const repo = reportDocumentsRepo(meta);
+  const workspaces = workspacesRepo(meta);
+  const links = () => workspaces.linksOfKind('report');
 
   async function mustFind(id: string): Promise<ReportDocument> {
     const row = await repo.findById(id);
@@ -117,10 +122,18 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
       { schema: { querystring: reportsListQuery, response: { 200: reportsListReply } } },
       async (request) => {
         requireUserId(request);
+        const shown = await shownInFilter(meta, request, 'report', request.query.workspaceId);
         const rows = await repo.list({ kind: request.query.kind });
+        const linked = await links();
         // Counts are unfiltered on purpose: the tab badges say how many of each
         // kind exist, whichever tab is open (comp 580).
-        return { items: rows.map(summaryView), counts: await repo.counts() };
+        if (shown === null) return { items: rows.map((row) => summaryView(row, linked)), counts: await repo.counts() };
+        // In one workspace, "exist" means shown there: the badges count the same cut as the list.
+        const here = (await repo.list()).filter(shown);
+        return {
+          items: rows.filter(shown).map((row) => summaryView(row, linked)),
+          counts: { template: here.filter((row) => row.kind === 'template').length, report: here.filter((row) => row.kind === 'report').length },
+        };
       },
     );
 
@@ -131,7 +144,7 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
 
     app.get('/report-documents/:id', { schema: { params: reportIdParams, response: { 200: reportDetailView } } }, async (request) => {
       requireUserId(request);
-      return detailOf(await mustFind(request.params.id));
+      return detailOf(await mustFind(request.params.id), await links());
     });
 
     // ── create ─────────────────────────────────────────────────────────────
@@ -188,7 +201,7 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
           action: 'report-document.create',
           changes: { after: { id: row.id, kind, name, starter: starterKey } },
         });
-        return await reply.status(201).send(detailOf(row));
+        return await reply.status(201).send(detailOf(row, await links()));
       },
     );
 
@@ -220,7 +233,7 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
             after: { name, status, blocks: body.blocks.length },
           },
         });
-        return detailOf(updated);
+        return detailOf(updated, await links());
       },
     );
 
@@ -234,15 +247,25 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
         requireUserId(request);
         await requireSettingsManage(request, 'edit report documents');
         const row = await mustFind(request.params.id);
-        const { name } = request.body;
+        const { name, shownIn } = request.body;
         const next = name === undefined ? row : await repo.patch(row.id, { name }, app.rbac.now());
         if (next === null) throw new NotFoundError(`Report document ${row.id} not found.`);
-        await app.rbac.audit(request, {
-          category: 'settings',
-          action: 'report-document.rename',
-          changes: { before: { name: row.name }, after: { name: next.name } },
-        });
-        return summaryView(next);
+        if (name !== undefined) {
+          await app.rbac.audit(request, {
+            category: 'settings',
+            action: 'report-document.rename',
+            changes: { before: { name: row.name }, after: { name: next.name } },
+          });
+        }
+        if (shownIn !== undefined) {
+          const moved = await saveShownIn(meta, 'report', [row.id], shownIn);
+          await app.rbac.audit(request, {
+            category: 'settings',
+            action: 'report-document.shown-in',
+            changes: { before: { id: row.id, shownIn: moved.before }, after: { shownIn: moved.after } },
+          });
+        }
+        return summaryView((await repo.findById(row.id)) ?? next, await links());
       },
     );
 
@@ -296,12 +319,15 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
           app.rbac.now(),
           { after: row.id },
         );
+        // A copy is listed where its source is.
+        const shown = await workspaces.shownIn('report', row.id);
+        if (shown !== null && shown.mode === 'chosen') await workspaces.setShownIn('report', copy.id, shown.workspaceIds);
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'report-document.duplicate',
           changes: { before: { id: row.id, name: row.name }, after: { id: copy.id, name } },
         });
-        return await reply.status(201).send(detailOf(copy));
+        return await reply.status(201).send(detailOf((await repo.findById(copy.id)) ?? copy, await links()));
       },
     );
 
@@ -341,7 +367,7 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
           action: 'report-document.from-template',
           changes: { after: { id: created.id, name, templateId: source.id } },
         });
-        return await reply.status(201).send(detailOf(created));
+        return await reply.status(201).send(detailOf(created, await links()));
       },
     );
   };

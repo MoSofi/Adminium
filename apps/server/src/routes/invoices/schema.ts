@@ -11,6 +11,8 @@ import { z } from 'zod';
 import { invoiceDocumentKindSchema, invoiceLangSchema, invoiceStatusSchema, invoiceSummarySchema, invoiceTopicSchema } from '@adminium/meta';
 
 import { invoiceBodyInputSchema, invoiceBodySchema } from '../../invoices/document.js';
+import { workspaceIdQuery } from '../../workspaces/list-filter.js';
+import { shownInInput, shownInView } from '../../workspaces/shown-in.js';
 
 /** One card / row of the manager (`InvoiceSummary` in api.ts). */
 export const invoiceSummaryView = z.object({
@@ -27,13 +29,19 @@ export const invoiceSummaryView = z.object({
   createdAt: z.number(),
   updatedAt: z.number(),
   summary: invoiceSummarySchema,
+  /** Where it is listed: every workspace, or the chosen ones. It narrows lists and pickers, never a send. */
+  shownIn: shownInView,
 });
 export type InvoiceSummaryView = z.infer<typeof invoiceSummaryView>;
 
 /** Unfiltered — the comp's badges never respond to the search box (1423). */
 export const invoiceCountsView = z.object({ template: z.number(), invoice: z.number() });
 
-export const invoicesListQuery = z.object({ kind: invoiceDocumentKindSchema.optional() });
+export const invoicesListQuery = z.object({
+  kind: invoiceDocumentKindSchema.optional(),
+  /** Only what is shown in this workspace (shown in all, or chosen there). It only narrows the list. */
+  workspaceId: workspaceIdQuery,
+});
 
 export const invoicesListReply = z.object({
   items: z.array(invoiceSummaryView),
@@ -87,7 +95,11 @@ export type InvoicePutBody = z.infer<typeof invoicePutBody>;
 
 /** The rename (comp `commitRename`, 1391). */
 export const invoicePatchBody = z
-  .object({ name: z.string().trim().min(1).max(120).optional() })
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    /** Where it is listed. */
+    shownIn: shownInInput.optional(),
+  })
   .refine((body) => Object.keys(body).length > 0, 'nothing to change');
 
 /** One of the six document languages — checked in the route so the 422 names it. */
