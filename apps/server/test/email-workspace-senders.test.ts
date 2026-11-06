@@ -46,7 +46,7 @@ import { emailDocument } from '../src/documents/deliver.js';
 import { seedBuiltinEmailTemplates } from '../src/email/builtins.js';
 import { emailSecretKey } from '../src/email/config.js';
 import { createMarketingMail, type MarketingMail } from '../src/email/marketing.js';
-import { emailEnvelopeKey, enqueueEmail, resetEmailRuntime } from '../src/email/send.js';
+import { configureEmailRuntime, emailEnvelopeKey, enqueueEmail, resetEmailRuntime } from '../src/email/send.js';
 import { createDkimKeys, createTxtLookup } from '../src/email/sender/index.js';
 import { maySendFrom, resolveMailSender, sendingDomains, SERVER_SENDER } from '../src/email/workspace-sender.js';
 import { campaignMarketingChecks } from '../src/jobs/email-campaign-checks.js';
@@ -55,7 +55,9 @@ import { registerEmailSendHandler } from '../src/jobs/email-send.js';
 import { withMarketingChecks } from '../src/jobs/register.js';
 import { createJobRegistry } from '../src/jobs/registry.js';
 import { JobWorker } from '../src/jobs/worker.js';
+import { sendConfirmMail } from '../src/forms/mail.js';
 import { sendPayLinkEmail } from '../src/payments/emails.js';
+import { sendConfirmation } from '../src/public-api/confirm.js';
 import type { PayableSources, ResolvedPayable } from '../src/payments/payables.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { RealtimeHub } from '../src/realtime/hub.js';
@@ -374,6 +376,50 @@ for (const engine of META_ENGINES) {
         expect(mail.html).not.toContain('Shared Host');
       });
 
+      it('a form’s sign-up confirmation goes as the workspace of the form’s database, with its name and postal address; a form of none as the server', async () => {
+        const latest = async () => {
+          const [job] = await meta.db.selectFrom('adminium_jobs').select('id').where('kind', '=', 'email.send').orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(1).execute();
+          return opened(meta, job!.id);
+        };
+        const confirm = (to: string, connectionId: string | null) =>
+          sendConfirmMail({ meta, secret: TEST_SECRET, caps: { once: async () => true } as never, capKey: Buffer.alloc(32), to, language: 'en-US', name: 'Mo', purpose: 'newsletter', token: 'tok', at: Date.now(), connectionId });
+        expect(await confirm('mo@clayclub.example', conn.kiln)).toBe('sent');
+        const kilnMail = await latest();
+        expect(kilnMail).toMatchObject({ from: '"Kiln Street Pottery" <studio@kilnstreet.example>', replyTo: 'hello@kilnstreet.example' });
+        expect(kilnMail.html).toContain(KILN_POSTAL);
+        expect(kilnMail.html).toContain('Kiln Street Pottery');
+        expect(await confirm('bo@clayclub.example', conn.loose)).toBe('sent');
+        const looseMail = await latest();
+        expect(looseMail.from).toBeUndefined();
+        // The server's own postal address and business name.
+        expect(looseMail.html).not.toContain(KILN_POSTAL);
+      });
+
+      it('a booking’s confirmation goes as the workspace of the booking’s database; one with no database as the server', async () => {
+        const book = (connectionId: string | undefined) =>
+          sendConfirmation({
+            meta,
+            request: { headers: {}, server: {}, log: { warn: (obj: unknown) => console.warn(obj), info: () => undefined }, protocol: 'https', host: 'book.kilnstreet.example', hostname: 'book.kilnstreet.example' } as never,
+            confirm: { template: 'booking-confirmation', to: 'email' },
+            row: { email: 'mo@clayclub.example' },
+            db: null as never,
+            table: { table: { capacityRules: undefined } } as never,
+            timezone: 'UTC',
+            appKey: null,
+            ...(connectionId === undefined ? {} : { connectionId }),
+          });
+        const latest = async () => {
+          const [job] = await meta.db.selectFrom('adminium_jobs').select('id').where('kind', '=', 'email.send').orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(1).execute();
+          return opened(meta, job!.id);
+        };
+        // The booking path reads the secret the composition root hands the mail layer.
+        configureEmailRuntime({ secret: TEST_SECRET });
+        expect(await book(conn.kiln)).toBe(true);
+        expect(await latest()).toMatchObject({ from: '"Kiln Street Pottery" <studio@kilnstreet.example>', replyTo: 'hello@kilnstreet.example' });
+        expect(await book(undefined)).toBe(true);
+        expect((await latest()).from).toBeUndefined();
+      });
+
       it('a campaign to kiln’s people goes as Kiln, with its postal address; one sent as Kiln to the server’s own people too', async () => {
         const checks = campaignMarketingChecks({ meta, marketing: kit, secret: TEST_SECRET });
         const run = { id: 'erun_k', audience: { kind: 'table', connectionId: conn.kiln, table: 'public.contacts', purpose: 'newsletter' }, mailClass: 'marketing', basis: 'consent' } as unknown as EmailRun;
@@ -554,6 +600,19 @@ for (const engine of META_ENGINES) {
         const actions = (await auditRepo(meta).list({ category: 'connection', limit: 50 })).map((entry) => entry.action);
         expect(actions).toEqual(expect.arrayContaining(['workspace.sender', 'workspace.sender.clear']));
         expect(publish).toHaveBeenCalledTimes(2);
+      });
+
+      it('offers "Send as": the server’s From and each workspace with its own From, to whoever edits templates', async () => {
+        await workspacesRepo(meta).create({ name: 'Archive' });
+        expect((await call('GET', '/email-templates/send-as-options', reader)).statusCode).toBe(403);
+        expect((await call('GET', '/email-templates/send-as-options', owner)).json()).toEqual({
+          server: 'Shared Host <news@shared-host.example>',
+          workspaces: [
+            { id: coffee.id, name: 'Fernhill Coffee', from: 'orders@fernhill.example' },
+            { id: kiln.id, name: 'Kiln Street Pottery', from: 'studio@kilnstreet.example' },
+            { id: expect.any(String), name: 'Archive', from: null },
+          ],
+        });
       });
 
       it('names a template’s sender: a workspace, the server, or by the record; a workspace that is not there is not found', async () => {

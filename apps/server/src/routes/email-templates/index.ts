@@ -118,6 +118,7 @@ import {
   emailRunStopReply,
   emailRunsReply,
   emailSendAsBody,
+  emailSendAsOptionsReply,
   emailSendAsReply,
   emailSendLogCsvQuery,
   emailSendLogQuery,
@@ -922,6 +923,17 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         return await reply.status(204).send(null);
       },
     );
+
+    // What "Send as" offers: the server's own From, and each workspace with the From it has (null: it goes as the server).
+    app.get('/email-templates/send-as-options', { schema: { response: { 200: emailSendAsOptionsReply } } }, async (request) => {
+      requireUserId(request);
+      await requireSettingsManage(request, 'edit email templates');
+      const all = await workspacesRepo(meta).list();
+      return {
+        server: (await senderFor(meta, null)).from,
+        workspaces: all.map((workspace) => ({ id: workspace.id, name: workspace.name, from: workspace.sender.from })),
+      };
+    });
 
     // "Send as": the sender every language of the template goes as. Null = the sender of the workspace the mail's
     // record is in (the server's for a database in none); `server`; or one workspace, whatever the record.
