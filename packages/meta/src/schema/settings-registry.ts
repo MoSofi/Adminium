@@ -695,6 +695,17 @@ export const SETTINGS_REGISTRY = {
    * admin can be created and nobody can log in. The instance is scrap.
    */
   'system.superAdminCreatedAt': def<number | null>(z.number().nullable(), null, 'First-super-admin bootstrap claim (epoch ms)'),
+  /**
+   * The one-time setup token's salt and hash (`setup-token.ts`), never the
+   * token. Present only while setup is open on a server that asks for one;
+   * `createFirstSuperAdmin` deletes it in the transaction that claims the first
+   * account. Never portable: it means "this instance is waiting for its owner".
+   */
+  'system.setupToken': def<{ salt: string; hash: string } | null>(
+    z.object({ salt: z.string().regex(/^[0-9a-f]{32}$/), hash: z.string().regex(/^[0-9a-f]{64}$/) }).nullable(),
+    null,
+    'One-time setup token salt + hash, while first-run setup is open',
+  ),
   /*
    * The first-boot source-connection seed, in two keys because the seed has two
    * distinct facts to remember and collapsing them into one produces a dead

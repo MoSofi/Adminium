@@ -533,6 +533,12 @@ function accountErrorCopy(cause: unknown): string {
       'This instance has already been set up. Sign in with the existing admin account.',
     );
   }
+  if (cause instanceof ApiError && cause.code === 'SETUP_TOKEN_INVALID') {
+    return t(
+      'onboarding:error.setupToken',
+      'The server no longer accepts the setup token you entered. Reload this page and enter the one in its latest log.',
+    );
+  }
   if (cause instanceof ApiError && cause.status === 422) {
     return t(
       'onboarding:error.rejected',

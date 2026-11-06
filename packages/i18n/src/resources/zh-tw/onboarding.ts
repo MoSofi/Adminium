@@ -103,7 +103,8 @@ export default {
     "connectionFailed": "你的帳戶已建立，而且已登入——但無法連線到那個資料庫：{detail}",
     "connectionUnknown": "資料庫沒有回應",
     "failed": "設定失敗。請檢查連線後重試。",
-    "rejected": "伺服器拒絕了這些資訊。請檢查電子郵件與密碼後重試。"
+    "rejected": "伺服器拒絕了這些資訊。請檢查電子郵件與密碼後重試。",
+    "setupToken": "伺服器已不再接受你輸入的設定權杖。請重新載入此頁面，並輸入其最新記錄中的權杖。"
   },
   "finish": "前往儀表板",
   "kicker": "第 {n} 步，共 {total} 步",
@@ -196,5 +197,16 @@ export default {
     "placeholder": "tongshi@gongsi.com",
     "sub": "新增成員",
     "title": "邀請你的團隊"
+  },
+  "token": {
+    "body": "Adminium 啟動時在記錄中印出了一個一次性設定權杖。它證明這台伺服器由你執行，之後你才能建立它的第一個帳戶。",
+    "empty": "請先貼上設定權杖。",
+    "failed": "無法驗證權杖。請檢查網路連線後再試。",
+    "helper": "在伺服器或容器記錄中尋找以「Setup token:」開頭的那一行。",
+    "label": "設定權杖",
+    "rateLimited": "嘗試次數過多。請等待一分鐘後再試。",
+    "submit": "繼續",
+    "title": "輸入設定權杖",
+    "wrong": "這不是此伺服器的設定權杖。請從記錄中重新複製。"
   }
 } as const;

@@ -164,7 +164,7 @@ const DESCRIPTIONS = {
   surfaces: 'Hosted app surfaces — placement in the dashboard, and attaching your own domains',
   settings: 'Instance settings — defaults, branding, email, security, telemetry',
   setup:
-    'First-boot super-admin creation, whether setup is still open, and — in that same ' +
+    'First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same ' +
     'window — checking a database for an Adminium store already in it and adopting that store',
   system: 'Version and instance information',
   users: 'People on the server — invite, suspend, delete, assign roles',

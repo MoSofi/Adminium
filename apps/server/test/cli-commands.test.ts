@@ -16,6 +16,14 @@ import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
+// The setup token's boot step reads and writes the meta store, which the fake
+// runtime does not have. Its behaviour is setup-token.test.ts's; what belongs
+// here is the wiring: which mode `start` asks for, and that the log says it.
+vi.mock('../src/setup/token.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/setup/token.js')>()),
+  prepareSetupToken: vi.fn(async () => Promise.resolve(null)),
+}));
+
 import { chunkFileName, SAMPLING_MAX_VALUES } from '../src/cli/commands/generate-prompt.js';
 import { composeDsn } from '../src/cli/commands/init.js';
 import { formatBytes } from '../src/cli/commands/export-zip.js';
@@ -26,6 +34,7 @@ import { ImportZipError, type ImportZipOptions } from '../src/export/import-serv
 import type { ExportZipOptions } from '../src/export/zip-service.js';
 import { PlaintextSecretError } from '../src/export/redaction.js';
 import { fakeDeps, fakeIo, fakeRuntime, TEST_SECRET } from './cli-helpers.js';
+import { prepareSetupToken } from '../src/setup/token.js';
 
 const ENV = { ADMINIUM_SECRET: TEST_SECRET };
 
@@ -129,6 +138,26 @@ describe('adminium start', () => {
     await expect(runCli(['start', '--skip-migrate'], { io, deps })).resolves.toBe(0);
     expect(deps.startServer).toHaveBeenCalledOnce();
     expect(io.stdout()).toContain('http://localhost:4600');
+  });
+
+  it('prints the setup token under the URL, as a server', async () => {
+    vi.mocked(prepareSetupToken).mockResolvedValueOnce({ token: 'K7QD-9MXR-2FTB-WH4N', fromEnv: false });
+    const io = fakeIo();
+    const deps = fakeDeps({ env: ENV });
+    await expect(runCli(['start', '--skip-migrate'], { io, deps })).resolves.toBe(0);
+    expect(vi.mocked(prepareSetupToken).mock.calls.at(-1)?.[0]).toMatchObject({ mode: 'server' });
+    const out = io.stdout();
+    expect(out).toContain('Setup token: K7QD-9MXR-2FTB-WH4N');
+    expect(out.indexOf('Setup token:')).toBeGreaterThan(out.indexOf('http://localhost:4600'));
+  });
+
+  it('will not boot open when the setup token cannot be written', async () => {
+    vi.mocked(prepareSetupToken).mockRejectedValueOnce(new Error('no such table: adminium_settings'));
+    const io = fakeIo();
+    const deps = fakeDeps({ env: ENV });
+    await expect(runCli(['start', '--skip-migrate'], { io, deps })).resolves.not.toBe(0);
+    expect(io.stderr()).toContain('Could not prepare the first-run setup token');
+    expect(deps.startServer).not.toHaveBeenCalled();
   });
 
   it('passes --port through to the env the runtime is opened with', async () => {

@@ -586,6 +586,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/setup/probe': noRows('First-run setup.'),
   'GET /api/v1/setup/state': noRows('First-run setup.'),
   'POST /api/v1/setup/super-admin': noRows('First-run setup.'),
+  'POST /api/v1/setup/token': noRows('First-run setup.'),
   // --- /storage
   'GET /api/v1/storage/destinations': noRows('Where files are kept.'),
   'POST /api/v1/storage/destinations': noRows('Where files are kept.'),

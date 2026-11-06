@@ -87,7 +87,7 @@ describe('first-run super-admin bootstrap', () => {
       projectKey: 'main',
     });
     const connected = (await getState()).json() as { data: Record<string, unknown> };
-    expect(connected.data).toEqual({ required: true, passwordMinLength: 10, databaseConnected: true });
+    expect(connected.data).toEqual({ required: true, passwordMinLength: 10, databaseConnected: true, tokenRequired: false });
 
     expect((await postSetup(GOOD)).statusCode).toBe(201);
     const closed = (await getState()).json() as { data: { required: boolean; databaseConnected: boolean } };

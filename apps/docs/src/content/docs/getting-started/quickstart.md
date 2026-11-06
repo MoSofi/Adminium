@@ -135,6 +135,11 @@ Then it introspects, generates and starts the server. Its data goes to
 `~/.adminium`, and `adminium new --import ~/.adminium` turns it into a project
 later without losing anything.
 
+`try` listens on every address by default, so its wizard asks for the
+[setup token](/self-hosting/security/#the-setup-token) it prints. The browser it
+opens for you already has it; you type it only when you open the wizard from
+another device. With `--host 127.0.0.1` it asks for none.
+
 You don't need to set `ADMINIUM_SECRET` first. With none set, `try` makes one
 for a new data folder and keeps it there, in `~/.adminium/secret`, readable by
 you only. `adminium start` on the same folder reads it back, and
@@ -163,8 +168,10 @@ adminium migrate   # optional; start does this too
 adminium start
 ```
 
-Connections are then added through Studio or the REST API. Every variable:
-[Environment variables](/self-hosting/env-vars/).
+It prints a one-time [setup token](/self-hosting/security/#the-setup-token)
+under its URL; the first-run wizard asks for it before it creates the first
+account. Connections are then added through Studio or the REST API. Every
+variable: [Environment variables](/self-hosting/env-vars/).
 
 **On a server, pin the version.** With no version in the spec, `npx` checks the
 registry on every run and installs any newer release it finds — and with no

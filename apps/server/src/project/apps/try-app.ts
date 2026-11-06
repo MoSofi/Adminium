@@ -138,7 +138,7 @@ export async function tryApp(opts: TryOptions): Promise<TryResult> {
     await firstRun(meta);
     const password = randomBytes(24).toString('base64url');
     const email = 'owner@try.adminium.invalid';
-    await createFirstSuperAdmin(meta, { email, name: 'Try', passwordHash: await hashPassword(password) });
+    await createFirstSuperAdmin(meta, { email, name: 'Try', passwordHash: await hashPassword(password) }, undefined, { local: true });
     await settingsRepo(meta).set('publicApi.enabled', true, { updatedBy: null, at: Date.now() });
 
     const composed = (

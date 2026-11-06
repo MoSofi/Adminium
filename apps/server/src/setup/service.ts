@@ -16,14 +16,22 @@
  * inside the same transaction that inserts the user, so a second or concurrent
  * attempt loses atomically on every dialect. This service adds no second,
  * weaker gate of its own: it asks meta and reports what meta decided.
+ *
+ * THE SETUP TOKEN (`setup/token.ts`) is the same shape: `createFirstSuperAdmin`
+ * checks and consumes it inside that transaction. `checkToken` here is the
+ * cheap, non-consuming read the wizard's first screen and the two store routes
+ * use; it is never what lets an account be created.
  */
 import {
   FirstUserExistsError,
+  SetupTokenError,
   createFirstSuperAdmin,
   isBootstrapRequired,
+  readSetupToken,
   seedBuiltinRoles,
   seedSystemSettings,
   settingsRepo,
+  setupTokenMatches,
   type MetaDb,
   type User,
 } from '@adminium/meta';
@@ -42,6 +50,8 @@ export interface CreateSuperAdminInput {
   name?: string | undefined;
   /** Omitted ⇒ both stay at their registry defaults (false). */
   consent?: SetupConsent | undefined;
+  /** What the wizard's first screen collected; checked only when this server asks for one. */
+  setupToken?: string | undefined;
 }
 
 export interface SetupState {
@@ -57,12 +67,28 @@ export interface SetupState {
    * time (walkthrough finding V7). Always `false` once setup is closed.
    */
   databaseConnected: boolean;
+  /**
+   * This server asks for its one-time setup token before anything else
+   * (`setup/token.ts`). Always `false` once setup is closed.
+   */
+  tokenRequired: boolean;
 }
 
 /** Bootstrap already happened — permanently closed. Front doors map this to 409. */
 export class SetupClosedError extends Error {
   override readonly name = 'SetupClosedError';
   constructor(message = 'Setup has already been completed.') {
+    super(message);
+  }
+}
+
+/**
+ * The setup token is missing or wrong. Front doors map this to 403. Nothing was
+ * created or claimed, and the token is still good for the right person.
+ */
+export class SetupTokenInvalidError extends Error {
+  override readonly name = 'SetupTokenInvalidError';
+  constructor(message = 'That setup token is not right. Copy it from the server log, where Adminium printed it when it started.') {
     super(message);
   }
 }
@@ -86,6 +112,11 @@ export interface SetupServiceDeps {
 
 export interface SetupService {
   state(): Promise<SetupState>;
+  /**
+   * Setup is open and `token` opens it. Throws {@link SetupClosedError} or
+   * {@link SetupTokenInvalidError}; resolves on a server that asks for no token.
+   */
+  checkToken(token: string | undefined): Promise<void>;
   createSuperAdmin(input: CreateSuperAdminInput): Promise<User>;
 }
 
@@ -99,7 +130,18 @@ export function createSetupService(deps: SetupServiceDeps): SetupService {
       isBootstrapRequired(meta),
       settings.get('auth.passwordMinLength'),
     ]);
-    return { required, passwordMinLength, databaseConnected: required && (await hasConnection()) };
+    return {
+      required,
+      passwordMinLength,
+      databaseConnected: required && (await hasConnection()),
+      tokenRequired: required && (await readSetupToken(meta)) !== null,
+    };
+  }
+
+  async function checkToken(token: string | undefined): Promise<void> {
+    if (!(await isBootstrapRequired(meta))) throw new SetupClosedError();
+    const stored = await readSetupToken(meta);
+    if (stored !== null && !setupTokenMatches(stored, token)) throw new SetupTokenInvalidError();
   }
 
   /** Any connection row at all, healthy or not: either way it is not the wizard's to make. */
@@ -110,6 +152,7 @@ export function createSetupService(deps: SetupServiceDeps): SetupService {
 
   return {
     state,
+    checkToken,
 
     async createSuperAdmin(input: CreateSuperAdminInput): Promise<User> {
       const passwordMinLength = await settings.get('auth.passwordMinLength');
@@ -120,6 +163,9 @@ export function createSetupService(deps: SetupServiceDeps): SetupService {
       // racing double-submit safe. This only spares the argon2 hash on the
       // common already-set-up call.
       if (!(await isBootstrapRequired(meta))) throw new SetupClosedError();
+      // Same again for the token: spares the hash on a wrong one. The check
+      // that counts is inside the claim below.
+      await checkToken(input.setupToken);
 
       const at = now();
 
@@ -148,10 +194,12 @@ export function createSetupService(deps: SetupServiceDeps): SetupService {
             passwordHash: await hashPassword(input.password),
           },
           at,
+          { setupToken: input.setupToken },
         );
       } catch (error) {
         // The racer that lost the PK claim lands here.
         if (error instanceof FirstUserExistsError) throw new SetupClosedError();
+        if (error instanceof SetupTokenError) throw new SetupTokenInvalidError();
         throw error;
       }
 

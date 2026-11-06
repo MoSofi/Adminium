@@ -58,6 +58,7 @@ import { CliError, EXIT_OK } from '../exit.js';
 import type { CliIo, SelectChoice, Style } from '../io.js';
 import { createStyle, supportsColor } from '../io.js';
 import { loadCliEnv } from '../runtime.js';
+import { prepareSetupToken, setupTokenLines, type PreparedSetupToken } from '../../setup/token.js';
 import type { CliDeps, StartedServer } from '../runtime.js';
 
 /**
@@ -269,17 +270,26 @@ async function openAndClose(opts: {
   tips: readonly string[];
   logNote: string;
   style: Style;
+  /** The first-run wizard's one-time token, when this `try` listens beyond this computer. */
+  setupToken: PreparedSetupToken | null;
 }): Promise<void> {
-  const { io, server } = opts;
+  const { io, server, setupToken } = opts;
 
   // The URL is printed BEFORE the launch is attempted, never after it. Opening
   // a browser means spawning a process and waiting on its first event, and a
   // desktop that is slow to answer would otherwise hold the one line the user
   // is waiting for behind it — the URL does not depend on the launch working.
   io.step(`Adminium is running at ${server.url}`);
-  const opened = opts.noOpen ? false : await opts.deps.openBrowser(server.url);
+  // The browser this command opens is the owner's: it carries the token in the
+  // fragment (never sent to the server, never in a log), so it is not asked.
+  const openUrl = setupToken === null ? server.url : `${server.url}/setup#setup-token=${encodeURIComponent(setupToken.token)}`;
+  const opened = opts.noOpen ? false : await opts.deps.openBrowser(openUrl);
   io.note(opened ? 'Opening it in your browser…' : 'Open that URL to continue.');
   io.note();
+  if (setupToken !== null) {
+    for (const line of setupTokenLines(setupToken)) io.note(line);
+    io.note();
+  }
   for (const line of opts.lead) io.note(line);
   io.note();
   printPairing(io, opts.style, server.bridgePairingCode);
@@ -500,6 +510,8 @@ export const initCommand: Command = {
           ? `Meta store ready (${runtime.metaStore.engine}).`
           : `Meta store ready (${runtime.metaStore.engine}) — ${String(appliedMigrations.length)} migration(s) applied.`,
       );
+      // Asked for only when this listens beyond this computer (`setup/token.ts`).
+      const setupToken = await prepareSetupToken({ meta: runtime.metaStore.meta, env, mode: 'try' });
 
       if (surface === 'browser') {
         // Browser mode is the ONLY path where the meta question is still open
@@ -532,6 +544,7 @@ export const initCommand: Command = {
             'Prefer the terminal? adminium --terminal',
           ],
           logNote: quietNote(logLevel, deps.env.ADMINIUM_LOG_LEVEL),
+          setupToken,
         });
         return EXIT_OK;
       }
@@ -634,6 +647,7 @@ export const initCommand: Command = {
           `AI-enrich your schema: adminium generate-prompt --connection ${connection.id}`,
         ],
         logNote: quietNote(logLevel, deps.env.ADMINIUM_LOG_LEVEL),
+        setupToken,
       });
       return EXIT_OK;
     } finally {

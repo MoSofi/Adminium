@@ -103,7 +103,8 @@ export default {
     "connectionFailed": "Your account was created and you are signed in — but that database could not be reached: {detail}",
     "connectionUnknown": "the database did not answer",
     "failed": "Setup failed. Check your connection and try again.",
-    "rejected": "The server rejected those details. Check the email and password and try again."
+    "rejected": "The server rejected those details. Check the email and password and try again.",
+    "setupToken": "The server no longer accepts the setup token you entered. Reload this page and enter the one in its latest log."
   },
   "finish": "Go to dashboard",
   "kicker": "Step {n} of {total}",
@@ -196,5 +197,16 @@ export default {
     "placeholder": "teammate@company.com",
     "sub": "Add people",
     "title": "Bring your team"
+  },
+  "token": {
+    "body": "Adminium printed a one-time setup token in its log when it started. It proves you run this server before you create its first account.",
+    "empty": "Paste the setup token first.",
+    "failed": "Could not check the token. Check your connection and try again.",
+    "helper": "Look for the line that starts with “Setup token:” in the server or container log.",
+    "label": "Setup token",
+    "rateLimited": "Too many tries. Wait a minute, then try again.",
+    "submit": "Continue",
+    "title": "Enter your setup token",
+    "wrong": "That is not this server’s setup token. Copy it again from the log."
   }
 } as const;

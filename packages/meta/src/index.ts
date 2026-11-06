@@ -22,3 +22,4 @@ export * from './migrator.js';
 export * from './relocate.js';
 export * from './repos/index.js';
 export * from './bootstrap.js';
+export * from './setup-token.js';

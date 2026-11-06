@@ -252,7 +252,12 @@ curl -s https://admin.example.com/api/v1/healthz
 Caddy requests a certificate for the name as soon as it loads the file, and
 renews it on its own, so the `curl` can fail for a few seconds at first. Caddy
 also redirects HTTP to HTTPS. Open `https://admin.example.com` and create the
-first super admin.
+first super admin. The wizard asks first for the setup token Adminium printed
+when it started:
+
+```bash
+sudo journalctl -u adminium | grep 'Setup token'
+```
 
 ## Running `adminium` commands
 

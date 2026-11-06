@@ -20735,6 +20735,10 @@
     "status": "mt",
     "srcHash": "62958c019ad8"
   },
+  "onboarding.error.setupToken": {
+    "status": "mt",
+    "srcHash": "a2a596c7e64f"
+  },
   "onboarding.finish": {
     "status": "mt",
     "srcHash": "e5fa87580e11"
@@ -20990,6 +20994,42 @@
   "onboarding.team.title": {
     "status": "mt",
     "srcHash": "158764b2c6dd"
+  },
+  "onboarding.token.body": {
+    "status": "mt",
+    "srcHash": "081cd88273e6"
+  },
+  "onboarding.token.empty": {
+    "status": "mt",
+    "srcHash": "d8fa2197632e"
+  },
+  "onboarding.token.failed": {
+    "status": "mt",
+    "srcHash": "7475d1b4242f"
+  },
+  "onboarding.token.helper": {
+    "status": "mt",
+    "srcHash": "aff3c07d07ff"
+  },
+  "onboarding.token.label": {
+    "status": "mt",
+    "srcHash": "33e3d3dd2218"
+  },
+  "onboarding.token.rateLimited": {
+    "status": "mt",
+    "srcHash": "67184e918cf9"
+  },
+  "onboarding.token.submit": {
+    "status": "mt",
+    "srcHash": "2e02623966f9"
+  },
+  "onboarding.token.title": {
+    "status": "mt",
+    "srcHash": "c0c2743eaf65"
+  },
+  "onboarding.token.wrong": {
+    "status": "mt",
+    "srcHash": "a9bbc9167ef3"
   },
   "pay.bank.accountNumber": {
     "status": "mt",

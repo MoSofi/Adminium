@@ -11,6 +11,8 @@ often write — your production data. Treat it as production infrastructure.
 ## The checklist
 
 - [ ] `ADMINIUM_SECRET` is random, ≥ 32 bytes, in a secret manager, backed up
+- [ ] You created the first account yourself, with the setup token from the
+      log, before anyone else reached the address
 - [ ] The database role is the narrowest one that does the job
 - [ ] TLS in front, `ADMINIUM_TRUST_PROXY=on`, port not otherwise reachable
 - [ ] The meta store is not published to the internet
@@ -38,6 +40,49 @@ key at rest, and it signs the session cookie.
   ciphertext.
 - **Do not rotate it casually.** Rotation invalidates every stored secret; they
   must be re-entered by hand.
+
+## The setup token
+
+A fresh instance has no account. Whoever finishes the first-run wizard first
+becomes its super admin. On a one-click host (Railway, Render, Fly.io, a
+Droplet on a public IP) there are a few minutes between the deploy finishing
+and you opening the address, and anyone who finds it in that window could take
+the instance.
+
+So a server asks for a **setup token** first. Adminium prints it in its log
+every time it starts, until the first account exists:
+
+```
+Adminium is running at http://localhost:4600
+
+Setup token: K7QD-9MXR-2FTB-WH4N
+The first-run wizard asks for it before it creates the first account.
+```
+
+Copy it from wherever your host shows the log (`docker logs <container>`,
+`docker compose logs adminium`, `journalctl -u adminium`, the host's log
+viewer) and paste it into the wizard's first screen. Case, spaces and dashes
+don't matter.
+
+- **One account, then gone.** The token is checked and deleted in the same
+  database transaction that creates the first account. After that, nothing is
+  printed and setup answers "already set up" whatever is sent.
+- **Not stored.** Adminium keeps a salted hash, never the token. The printed
+  token is derived from `ADMINIUM_SECRET`, so a restart prints the same one;
+  change the secret before setup and a new one is printed.
+- **Choose your own** with `ADMINIUM_SETUP_TOKEN` (at least 16 characters). A
+  deploy template can generate one and show it beside the other variables;
+  Adminium then logs that the token is the variable's value, not the value.
+- **What it guards.** Creating the first account, and the two other things the
+  wizard can do before one exists: checking a database for an existing
+  Adminium store (`/setup/probe`) and adopting one (`/setup/adopt`). A wrong
+  token is a 403, audited as `setup_token_denied`, and shares the sign-in rate
+  limit (5 tries a minute per address).
+- **Where it is not asked.** The desktop app, and `adminium dev`, `design` and
+  `try` while they listen on this computer only (`127.0.0.1`). `try` on every
+  address (its default) asks, but hands the token to the browser it opens, so
+  you only type it from another device. `adminium start` always asks, even on
+  `127.0.0.1`, because behind a reverse proxy that address is public.
 
 ## The database role is the real boundary
 

@@ -187,6 +187,21 @@ export const envSchema = z.object({
    */
   ADMINIUM_SOURCE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   /**
+   * The one-time setup token, chosen by whoever deploys (a template's generated
+   * secret, a Droplet's first boot). Unset ⇒ the server derives one from
+   * `ADMINIUM_SECRET` and prints it. Either way the first-run wizard asks for it
+   * before it creates the first account (`setup/token.ts`). Spaces and dashes
+   * do not count toward the 16.
+   */
+  ADMINIUM_SETUP_TOKEN: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(200)
+      .refine((value) => value.replace(/[\s-]+/g, '').length >= 16, 'must be at least 16 characters, not counting spaces and dashes')
+      .optional(),
+  ),
+  /**
    * Where uploaded and generated FILES live, seeded once on a boot that has no
    * storage destination configured.
    *
@@ -729,6 +744,8 @@ export type Env = z.infer<typeof envSchema>;
 
 const ENV_HINTS: Record<string, string> = {
   ADMINIUM_SECRET: 'set a random string of at least 16 characters, e.g. `openssl rand -hex 32`',
+  ADMINIUM_SETUP_TOKEN:
+    'optional one-time token the first-run wizard asks for, at least 16 characters (default: derived from ADMINIUM_SECRET and printed at boot)',
   PORT: 'integer between 1 and 65535 (default 4600)',
   HOST: 'bind address, e.g. 0.0.0.0 or 127.0.0.1',
   ADMINIUM_AI_ANTHROPIC_API_KEY: 'an Anthropic API key',

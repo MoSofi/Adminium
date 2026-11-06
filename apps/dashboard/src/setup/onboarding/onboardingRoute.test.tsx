@@ -20,6 +20,7 @@ import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
+import { setSetupToken } from '../setupApi.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -52,11 +53,14 @@ interface StubOptions {
    * connections list answers with it once signed in.
    */
   connected?: { name: string; status: string; tableCount: number | null; pageCount: number }[];
+  /** The server printed this setup token and asks for it (`tokenRequired`). */
+  token?: string;
 }
 
 function stubFetch(opts: StubOptions) {
   const setupCalls: SetupCall[] = [];
   const telemetryCalls: TelemetryCall[] = [];
+  const tokenChecks: string[] = [];
   let authed = opts.authed ?? false;
   let connectionReads = 0;
   let connectionCreates = 0;
@@ -81,8 +85,20 @@ function stubFetch(opts: StubOptions) {
             required: opts.required,
             passwordMinLength: 10,
             ...(opts.connected === undefined ? {} : { databaseConnected: true }),
+            ...(opts.token === undefined ? {} : { tokenRequired: true }),
           },
         }),
+      );
+    }
+    if (url === '/api/v1/setup/token' && method === 'POST') {
+      const body = JSON.parse(String(init?.body)) as { setupToken: string };
+      tokenChecks.push(body.setupToken);
+      return Promise.resolve(
+        body.setupToken === opts.token
+          ? new Response(null, { status: 204 })
+          : jsonResponse(403, {
+              error: { code: 'SETUP_TOKEN_INVALID', message: 'wrong token', requestId: 'req_t' },
+            }),
       );
     }
     if (url === '/api/v1/connections' && method === 'GET' && authed) {
@@ -138,6 +154,7 @@ function stubFetch(opts: StubOptions) {
     fetchMock,
     setupCalls,
     telemetryCalls,
+    tokenChecks,
     connectionReads: () => connectionReads,
     connectionCreates: () => connectionCreates,
   };
@@ -167,6 +184,8 @@ afterAll(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  // Module state, as on a real page: only a reload clears it between tests.
+  setSetupToken(null);
 });
 
 describe('first-run routing gate', () => {
@@ -433,5 +452,63 @@ describe('an instance whose database the project already connected', () => {
 
     expect(await screen.findByText(/“main” could not be reached/)).toBeDefined();
     expect(screen.queryByText(/nothing was generated/)).toBeNull();
+  });
+});
+
+describe('the one-time setup token', () => {
+  const TOKEN = 'K7QD-9MXR-2FTB-WH4N';
+  const tokenField = () => screen.getByLabelText(/^Setup token/);
+
+  async function createAccount(user: ReturnType<typeof userEvent.setup>) {
+    await screen.findByRole('heading', { name: 'What will you build first?' });
+    await user.click(screen.getByRole('button', { name: /Continue/ }));
+    await user.click(screen.getByRole('button', { name: /Continue/ }));
+    await screen.findByRole('heading', { name: 'Create your account' });
+    await user.type(screen.getByLabelText(/^Email/), 'ada@adminium.test');
+    await user.type(screen.getByLabelText(/^Password/), 'correct-horse-battery');
+    await user.type(screen.getByLabelText(/^Confirm password/), 'correct-horse-battery');
+    await user.click(screen.getByRole('button', { name: /Create account/ }));
+  }
+
+  it('asks for it before anything else, refuses a wrong one, and sends the right one with the account', async () => {
+    const user = userEvent.setup();
+    const { setupCalls, tokenChecks } = await renderAt('/setup', { required: true, token: TOKEN });
+
+    expect(await screen.findByRole('heading', { name: 'Enter your setup token' })).toBeDefined();
+    expect(screen.queryByRole('heading', { name: 'What will you build first?' })).toBeNull();
+
+    await user.type(tokenField(), 'AAAA-BBBB-CCCC-DDDD');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText(/not this server’s setup token/)).toBeDefined();
+
+    await user.clear(tokenField());
+    await user.type(tokenField(), TOKEN);
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(tokenChecks).toEqual(['AAAA-BBBB-CCCC-DDDD', TOKEN]);
+
+    await createAccount(user);
+    await waitFor(() => {
+      expect(setupCalls).toHaveLength(1);
+    });
+    expect(setupCalls[0]?.body.setupToken).toBe(TOKEN);
+  });
+
+  it('takes the token `adminium try` put in the address, and wipes it from the address bar', async () => {
+    window.history.replaceState(null, '', `/setup#setup-token=${TOKEN}`);
+    const { tokenChecks } = await renderAt('/setup', { required: true, token: TOKEN });
+    expect(await screen.findByRole('heading', { name: 'What will you build first?' })).toBeDefined();
+    expect(tokenChecks).toEqual([TOKEN]);
+    expect(window.location.hash).toBe('');
+  });
+
+  it('a server that asks for none shows no token screen and sends no token', async () => {
+    const user = userEvent.setup();
+    const { setupCalls, tokenChecks } = await renderAt('/setup', { required: true });
+    await createAccount(user);
+    await waitFor(() => {
+      expect(setupCalls).toHaveLength(1);
+    });
+    expect(tokenChecks).toEqual([]);
+    expect('setupToken' in (setupCalls[0]?.body ?? {})).toBe(false);
   });
 });

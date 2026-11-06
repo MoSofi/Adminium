@@ -28,7 +28,16 @@ docker run --rm -p 4600:4600 \
   ghcr.io/mosofi/adminium:latest
 ```
 
-Open `http://localhost:4600` and create the first super admin.
+Open `http://localhost:4600` and create the first super admin. The wizard asks
+first for the setup token the container printed when it started, under its URL:
+
+```
+Setup token: K7QD-9MXR-2FTB-WH4N
+```
+
+The command above runs in the foreground, so it is right there in the
+terminal; started with `-d`, `docker logs <container>` shows it.
+[Why it asks](/self-hosting/security/#the-setup-token).
 
 :::caution[This is a look, not a deployment]
 With no `ADMINIUM_META_URL`, Adminium falls back to an **embedded SQLite meta
