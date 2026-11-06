@@ -32,6 +32,7 @@ import { packStagedTree } from '../../add-ons/pack.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import type { FileStore } from '../../files/store.js';
 import type { CheckItem } from './check.js';
+import { carryOutAnswers } from './answers.js';
 import { convertToApp } from './convert.js';
 import { runSaveGates, type GateProblem } from './gates/index.js';
 import type { RowChoice, SaveChoices, SaveDialect, SaveSource } from './types.js';
@@ -163,7 +164,9 @@ export function createSaveService(deps: SaveServiceDeps) {
       ...definedOf(request.answers ?? {}),
     };
     const source: SaveSource = { meta: deps.meta, connectionId: request.connectionId, dialect, model, adminiumVersion: deps.adminiumVersion };
-    const converted = await convertToApp(source, choices);
+    const made = await convertToApp(source, choices);
+    // The gates' answers carried out on the file itself, before the gates look again.
+    const converted = { ...made, ...carryOutAnswers(made.manifest, made.files, choices) };
     const gates = await runSaveGates({ manifest: converted.manifest, files: converted.files, source, choices }, { masterSecret: deps.masterSecret, projectEnvFile: deps.projectEnvFile ?? null });
     const check = [...converted.check, ...gates.choices];
     const plan: SavePlan = {
