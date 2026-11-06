@@ -689,11 +689,9 @@ export default {
       "failed": "Installationen mislykkedes",
       "bundle": {
         "title": "Upload app-pakken",
-        "hint": "Appens udgivelsesfil (.tgz) — den indeholder manifest.json og en staff/- eller customer/-mappe.",
         "file": "Pakkefil (.tgz)",
         "fileHint": "Der oprettes intet, før du bekræfter på skemaplan-trinnet.",
-        "integrity": "Integritet (valgfrit)",
-        "integrityHint": "Indsæt den sha512-værdi, der er udgivet med versionen, så serveren kontrollerer netop disse bytes. Står feltet tomt, beregnes den her."
+        "fileOnly": "Appens fil (.tgz)."
       },
       "database": {
         "title": "Hvilken database skal den installeres i?",
@@ -702,7 +700,13 @@ export default {
         "readOnly": "Skrivebeskyttet",
         "writable": "Skrivbar",
         "noWritable": "Ingen skrivbar forbindelse",
-        "allReadOnly": "Alle forbindelser her bruger en skrivebeskyttet rolle, så ingen app kan oprette sine tabeller. Tilslut først en, der må køre DDL."
+        "allReadOnly": "Alle forbindelser her bruger en skrivebeskyttet rolle, så ingen app kan oprette sine tabeller. Tilslut først en, der må køre DDL.",
+        "version": "Installerer {app} {version}.",
+        "ownCopy": "Hver database kan have sin egen kopi af {app}.",
+        "noneTitle": "Ingen database endnu",
+        "none": "Forbind en database først. En app installeres i en database, som serveren allerede har.",
+        "installed": "Installeret · {version}",
+        "notTouched": "Denne kopi får sine egne indstillinger, roller og mailskabeloner. {app} på {databases} røres ikke."
       },
       "plan": {
         "title": "Gennemgå skemaplanen",
@@ -716,7 +720,7 @@ export default {
         "summary": "{created} oprettet · {reused} genbrugt",
         "ruleWarnings": "Nogle af appens regler ville vise det, en af dine tabeller holder skjult, og udelades",
         "pageWarnings": "Nogle af appens sider kommer uden en tabel",
-        "installedElsewhere": "{app} er allerede installeret på forbindelsen {connection}. En app kører på én forbindelse: Opdater den der, eller afinstaller den der, før du installerer den på en anden."
+        "oneVersion": "{database} har {app} {version}, og hver kopi af en app kører den samme version. Opdatér kopierne først, og installér så denne her."
       },
       "done": {
         "body": "{key} serveres nu. Vælg nedenfor, hvor medarbejdersiden skal vises.",
@@ -727,7 +731,12 @@ export default {
         "sampleNotAdded": "ikke tilføjet",
         "sampleAdding": "tilføjer…",
         "sampleAdded": "tilføjet",
-        "sampleLater": "Du kan tilføje dem senere fra appens side."
+        "sampleLater": "Du kan tilføje dem senere fra appens side.",
+        "titleOn": "{app} {version} er installeret på {database}",
+        "rulesOff": "Regler, der sender data ud",
+        "rulesOffValue": "{count}, slået fra",
+        "toDo": "{count, plural, one {# ting at gøre} other {# ting at gøre}}",
+        "openPage": "Åbn appens side"
       },
       "cancel": "Annullér",
       "back": "Tilbage",
@@ -737,7 +746,6 @@ export default {
       "finish": "Administrér apps",
       "staged": "Udpakkede filer: {files}",
       "footerStep": "Trin {n} af {total}",
-      "footerStepApp": "Trin {n} af {total} · {app}",
       "chosen": {
         "title": "Installér {app}",
         "hint": "Denne app fulgte med dit build og ligger allerede på disken. Der oprettes intet, før du bekræfter skemaplanen."
@@ -806,7 +814,9 @@ export default {
           "labelMenu": "Hvilken menu {app} bruger",
           "labelTables": "Hvilke tabeller {app} bruger",
           "recommended": "Anbefalet"
-        }
+        },
+        "summaryUsed": "{count, plural, one {# brugt, som den er} other {# brugt, som de er}}",
+        "badgeUsed": "Brugt, som den er"
       },
       "running": {
         "title": "Installerer {app}",
@@ -846,7 +856,8 @@ export default {
       "privacyGrants": {
         "title": "En rolle kan slette personer",
         "body": "{roles} kan finde, hente og slette alt, hvad denne server gemmer om en person, på privatlivssiden."
-      }
+      },
+      "footerStepVersion": "Trin {n} af {total} · {app} {version}"
     },
     "installed": {
       "title": "Installerede apps",
@@ -945,7 +956,18 @@ export default {
       "grantsAdded": {
         "title": "Denne version giver sine roller mere",
         "addOnSettings": "{roles} kan ændre indstillingerne for {addOn}, som alle de apps, den betjener, deler."
-      }
+      },
+      "stopped": {
+        "pages": "Opdateringen til {to} stoppede under skrivning af siderne. Intet gik tabt; siderne fra {from} er her stadig.",
+        "other": "Opdateringen til {to} stoppede undervejs. Intet gik tabt, og når du gør den færdig, fortsætter den, hvor den stoppede.",
+        "seeds": "Opdateringen til {to} stoppede, mens dens startrækker blev tilføjet. Intet gik tabt, og når du gør den færdig, tilføjes resten.",
+        "instance": "Opdateringen til {to} stoppede, mens udseende og sprog blev anvendt. Intet gik tabt, og når du gør den færdig, anvendes de."
+      },
+      "titleOn": "Opdatér {app} på {database} til v{version}",
+      "copyOf": "Kopi {n} af {total} · {from} → {to}",
+      "reviewSubtitle": "Kontrollér, hvad denne version bringer.",
+      "onlyThis": "Kun {app} på {database} ændres i denne dialog. Dens indstillinger, roller og mailskabeloner der beholdes.",
+      "finish": "Gør opdateringen færdig"
     },
     "veto": {
       "title": "Denne installation kan ikke gennemse online",
@@ -972,6 +994,138 @@ export default {
       "repair": "Adminium opdaterer også sine egne sider og regler, der peger på de gamle navne.",
       "cancel": "Annuller",
       "confirm": "Omdøb tabeller"
+    },
+    "review": {
+      "source": {
+        "title": "Hvor den kommer fra",
+        "badge": "Din egen app",
+        "madeOn": "Lavet den {date} · Adminium {version}",
+        "madeAt": "Lavet på {label} den {date} · Adminium {version}",
+        "publisher": "Udgivet af {publisher}",
+        "warning": "Den blev gemt på en anden Adminium-server, ikke på adminium.dev. Installér den kun, hvis du ved, hvem der gemte den."
+      },
+      "fingerprint": {
+        "label": "Sammenlign med det fingeraftryk, der blev vist, da den blev gemt",
+        "labelRelease": "Sammenlign med det fingeraftryk, der blev udgivet med versionen",
+        "check": "Kontrollér",
+        "ok": "Passer. Det er den fil, der blev gemt.",
+        "okRelease": "Passer. Det er den fil, der blev udgivet.",
+        "bad": "Passer ikke. Det er ikke den fil, der blev gemt.",
+        "badRelease": "Passer ikke. Det er ikke den fil, der blev udgivet.",
+        "none": "Ikke kontrolleret",
+        "hold": "Fingeraftrykket passer ikke. Ryd feltet, eller indsæt det, der blev vist, da den blev gemt."
+      },
+      "existing": {
+        "title": "{count, plural, one {# tabel med dette navn findes allerede her.} other {# tabeller med disse navne findes allerede her.}}",
+        "use": "Brug de eksisterende tabeller",
+        "useNote": "Bruger dem, som de er, med deres rækker. Omdøber dem aldrig.",
+        "used": "{count, plural, one {# brugt, som den er · 0 ændringer i den} other {# brugt, som de er · 0 ændringer i dem}}",
+        "cannot": "{table} kan ikke bruges, som den er.",
+        "cannotHelp": "Omdøb tabellen her, eller gem appen igen uden den."
+      },
+      "change": "Skift",
+      "pages": {
+        "title": "{count, plural, one {# side har et navn, der allerede bruges her} other {# sider har navne, der allerede bruges her}}",
+        "untouched": "— siden her er, som Adminium lavede den.",
+        "changed": "— ændret her.",
+        "replace": "Erstat den",
+        "rename": "Omdøb siden her",
+        "skip": "Spring den over",
+        "replaced": "Erstattet af appens side.",
+        "skipped": "Sprunget over. Siden her bliver.",
+        "renamed": "Siden her flytter til {address}.",
+        "renameField": "Ny adresse til siden her",
+        "hold": "Vælg, hvad der skal ske med {pages}."
+      },
+      "outside": {
+        "title": "Disse regler ville sende data ud",
+        "bodyUpdate": "En ny ankommer slået fra og tom. En, der allerede er her, beholder sin adresse.",
+        "body": "De ankommer slået fra og tomme. En, der administrerer automatiseringer, kan slå dem til.",
+        "webhook": "sender til en webadresse · adressen er tom",
+        "address": "mailer til en fast adresse · adressen er tom",
+        "off": "Fra"
+      },
+      "instance": {
+        "title": "Udseende og sprog",
+        "tick": "Anvend også udseende og sprog",
+        "locked": "Bed en, der administrerer indstillinger, om at anvende denne del.",
+        "what": "Hvad den indeholder",
+        "languagesOn": "Sprog slået til: {languages}",
+        "languagesOff": "Sprog slået fra: {languages}",
+        "wording": "{count, plural, one {# ændret tekst} other {# ændrede tekster}}",
+        "emails": "Ændrede systemmails: {count}",
+        "left": "Ikke taget med her:",
+        "caption": "Adgangskoder, nøgler og mailserverindstillinger er aldrig i filen. Du kan fortryde denne del fra appens side.",
+        "hideChanges": "Skjul ændringer",
+        "showChanges": "Vis ændringer",
+        "noLinks": "Den har ingen links, så den anvendes med denne del.",
+        "links": "Links i denne mail går til:",
+        "subject": "Emne: {from} → {to}",
+        "blocks": "Blokke: {added} tilføjet · {removed} fjernet · {changed} ændret",
+        "preheader": "Forhåndsvisningstekst ændret",
+        "footer": "Sidefod ændret"
+      },
+      "screens": {
+        "title": "Skærme",
+        "lead": "Denne app har sine egne skærme.",
+        "body": "De kører med rettighederne hos den, der åbner dem. Installér den kun, hvis du stoler på, hvem der gemte den."
+      },
+      "after": {
+        "webhook": "Webadressen for reglen {item}",
+        "address": "Hvem reglen {item} mailer til",
+        "document": "Dokumentet, som reglen {item} laver",
+        "delivery": "Hvor dokumentet {item} mailes hen",
+        "paymentKey": "Nøglerne til betalingstjenesten {item}",
+        "bankAccount": "Bankkontoen til {item}",
+        "recipients": "{count, plural, one {Hvem der får den planlagte rapport {item}} other {Hvem der får de # planlagte rapporter}}",
+        "sender": "{count, plural, one {Afsenderadressen for mailen {item}} other {Afsenderadressen for # mailskabeloner}}",
+        "systemGrant": "Konsolrettighederne for rollen {item}",
+        "title": "Efter installationen",
+        "note": "De bliver på appens side, til de er gjort."
+      },
+      "title": "Kontrollér før du installerer",
+      "intro": "{app} installeres i {database}. Intet ændres, før du trykker på Installer."
+    },
+    "refusal": {
+      "back": "Tilbage",
+      "older": {
+        "copy": "{database} har allerede {version}",
+        "title": "En ældre fil",
+        "body": "{copies}. Filen er den ældre {version}."
+      },
+      "lineage": {
+        "title": "En anden app med denne nøgle",
+        "body": "Denne server har allerede en anden {key}, på {database}. Gem denne med en anden nøgle."
+      },
+      "newer": {
+        "title": "Kræver en nyere Adminium",
+        "body": "Denne fil kræver Adminium {needed} eller nyere. Denne server kører {running}."
+      },
+      "savedHere": {
+        "title": "Gemt fra denne database",
+        "body": "Denne fil blev gemt fra {database} på denne server. At installere den der ville køre hver automatisering to gange. Vælg en anden database, eller prøv den på en testserver."
+      },
+      "everywhere": {
+        "title": "Installeret på hver database",
+        "body": "{app} {version} er allerede installeret på hver database her."
+      }
+    },
+    "route": {
+      "update": {
+        "button": "Opdatér hver kopi ({databases})",
+        "rest": "Opdatér resten ({databases})",
+        "also": "Installér også på en anden database",
+        "title": "Opdatér {app} til {version}",
+        "body": "Denne fil er nyere end hver kopi på denne server. Hver kopi kører den samme version, så hver enkelt opdateres med sin egen kontrol.",
+        "updated": "Opdateret",
+        "waiting": "Ikke opdateret endnu",
+        "done": "{app} kører {version} på hver database."
+      },
+      "another": {
+        "button": "Installér på en anden database",
+        "title": "Installér {app} på en anden database",
+        "body": "{app} {version} er installeret på {databases}. Hver database kan have sin egen kopi."
+      }
     }
   },
   "hub": {
@@ -4849,6 +5003,52 @@ export default {
         "workspaceUsers": "Brugere på denne server"
       }
     }
+  },
+  "workspaceSender": {
+    "title": "Afsender for {workspace}",
+    "subtitle": "Mails om poster i dette arbejdsområdes databaser sendes fra denne afsender.",
+    "close": "Luk",
+    "loading": "Indlæser",
+    "accepted": {
+      "title": "Adresser, som denne server kan sende fra",
+      "domains": "Enhver adresse på:",
+      "addresses": "Eller præcis:"
+    },
+    "noMail": {
+      "title": "Denne server har endnu ingen afsender",
+      "body": "Konfigurer først e-mail under Indstillinger. Indtil da kan et arbejdsområde ikke have sin egen afsender.",
+      "action": "Åbn e-mailindstillinger"
+    },
+    "name": {
+      "label": "Afsendernavn",
+      "helper": "Hvem mailen siger, den er fra, fx Kiln Street Pottery."
+    },
+    "from": {
+      "label": "Afsenderadresse",
+      "helper": "En adresse på et af stederne ovenfor."
+    },
+    "replyTo": {
+      "label": "Svaradresse",
+      "helper": "Hvor svar sendes hen. Lad feltet stå tomt for afsenderadressen."
+    },
+    "postal": {
+      "label": "Postadresse",
+      "helper": "Står nederst i dette arbejdsområdes marketingmails. Lad feltet stå tomt for serverens."
+    },
+    "sharedList": "Listen over personer, der ikke må mailes, gælder hele serveren: Den, der afmelder sig hos én virksomhed, får ingen marketingmails fra nogen virksomhed på den.",
+    "refusal": {
+      "notSendingDomain": "Denne server kan kun sende fra {accepted}. Brug en adresse der.",
+      "noMail": "Denne server har endnu ingen afsender. Konfigurer først e-mail under Indstillinger.",
+      "notAnAddress": "Skriv én e-mailadresse, fx hello@example.com."
+    },
+    "failed": "Afsenderen kunne ikke gemmes. Prøv igen.",
+    "footer": {
+      "own": "Dets mails sendes fra {from}.",
+      "server": "Indtil en afsenderadresse er gemt, sendes dets mails fra serverens afsender."
+    },
+    "clear": "Brug serverens afsender",
+    "cancel": "Annuller",
+    "save": "Gem afsender"
   },
   "saveApp": {
     "step": {

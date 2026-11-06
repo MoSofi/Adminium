@@ -186,9 +186,10 @@ export interface RateBucket {
  *  20 assists per person per hour, not per install. `apply`/`undo`/`diff` are
  *  NOT in it: they replay a run that was already paid for.
  * - `file-bytes` — the row (30/hour). There is no `files` route group, so the
- *  budget lands on the four surfaces that actually move file bytes: `POST
- *  /branding/logo`, `POST /imports/upload`, `GET /imports/:id/error-report` and
- *  `GET /exports/:id/download`.
+ *  budget lands on the surfaces that actually move file bytes: `POST
+ *  /branding/logo`, `POST /imports/upload`, `GET /imports/:id/error-report`,
+ *  `GET /exports/:id/download`, `POST /add-ons/upload`, and `POST
+ *  /apps/upload-workspace` (a workspace file, up to 128 MB).
  * - `app-shell` — the SPA's COLD-START payload (900/min): the six routes a
  *  browser must GET to render the shell at all, before the user has asked for
  *  anything — nine requests, since the i18n bundle is fetched per namespace. Not
@@ -423,7 +424,7 @@ const AUTO_BUCKETS: readonly {
    */
   {
     methods: ['POST'],
-    pattern: /\/(?:branding\/logo|imports\/upload|add-ons\/upload)$/,
+    pattern: /\/(?:branding\/logo|imports\/upload|add-ons\/upload|apps\/upload-workspace)$/,
     bucket: 'file-bytes',
   },
   {

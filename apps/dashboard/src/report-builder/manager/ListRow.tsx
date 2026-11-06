@@ -10,6 +10,7 @@ import type { MouseEvent, ReactNode } from 'react';
 import { cn } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
+import { ShownInChips, ShownInHeader } from '../../shown-in/ShownIn.js';
 import { reportIcon } from '../icons.js';
 import { CopyGlyph, RenameGlyph, RenameInput, TrashGlyph, type DocumentCardProps } from './GalleryCard.js';
 import { DocumentStatusPill } from './Pills.js';
@@ -27,6 +28,8 @@ import { rowIcon, rowSub } from './model.js';
  * readable in the gallery, which is the layout a phone opens on.
  */
 const GRID = 'grid grid-cols-[minmax(0,1fr)_128px] gap-3 px-[18px] sm:grid-cols-[minmax(0,1fr)_130px_120px_128px]';
+/** With workspaces on the server: a "Shown in" track before Updated (the Workspaces comp's `s5-mail`), collapsing below `sm` with the others. */
+const GRID_SHOWN_IN = 'grid grid-cols-[minmax(0,1fr)_128px] gap-3 px-[18px] sm:grid-cols-[minmax(0,1fr)_130px_minmax(130px,1fr)_120px_128px]';
 
 /** Status and Updated — the two tracks that collapse below `sm`. */
 const MIDDLE = 'hidden sm:block';
@@ -50,13 +53,18 @@ function RowAction({ label, onClick, children, testId }: { label: string; onClic
   );
 }
 
-export function ListHeader() {
+export function ListHeader({ shownIn = false }: { shownIn?: boolean | undefined }) {
   return (
-    <div role="row" className={cn(GRID, 'border-b border-border bg-surface-2 py-[11px] text-[10.5px] font-bold uppercase tracking-[.05em] text-fg-subtle')}>
+    <div role="row" className={cn(shownIn ? GRID_SHOWN_IN : GRID, 'border-b border-border bg-surface-2 py-[11px] text-[10.5px] font-bold uppercase tracking-[.05em] text-fg-subtle')}>
       <span role="columnheader">{t('reportBuilder:list.name', 'Name')}</span>
       <span role="columnheader" className={MIDDLE}>
         {t('reportBuilder:list.status', 'Status')}
       </span>
+      {shownIn ? (
+        <span className={MIDDLE}>
+          <ShownInHeader />
+        </span>
+      ) : null}
       <span role="columnheader" className={MIDDLE}>
         {t('reportBuilder:list.updated', 'Updated')}
       </span>
@@ -72,7 +80,7 @@ export interface ListRowProps extends DocumentCardProps {
   updated: string | null;
 }
 
-export function ListRow({ doc, actions, rename, updated }: ListRowProps) {
+export function ListRow({ doc, actions, rename, updated, shownIn = false }: ListRowProps) {
   const Glyph = reportIcon(rowIcon(doc));
   const renaming = rename !== null && rename.id === doc.id;
   const open = () => actions.onOpen(doc);
@@ -88,7 +96,7 @@ export function ListRow({ doc, actions, rename, updated }: ListRowProps) {
       data-testid="report-row"
       data-id={doc.id}
       onClick={onRowClick}
-      className={cn(GRID, 'group cursor-pointer items-center border-b border-border py-[13px] transition-colors hover:bg-surface-2')}
+      className={cn(shownIn ? GRID_SHOWN_IN : GRID, 'group cursor-pointer items-center border-b border-border py-[13px] transition-colors hover:bg-surface-2')}
     >
       <div role="cell" className="flex min-w-0 items-center gap-3" style={{ '--adm-report-accent': doc.summary.accent }}>
         <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[color-mix(in_srgb,var(--adm-report-accent)_12%,transparent)] text-[var(--adm-report-accent)] dark:bg-[color-mix(in_srgb,var(--adm-report-accent)_20%,transparent)]">
@@ -112,6 +120,11 @@ export function ListRow({ doc, actions, rename, updated }: ListRowProps) {
       <span role="cell" className={MIDDLE}>
         <DocumentStatusPill status={doc.status} />
       </span>
+      {shownIn ? (
+        <span role="cell" className={cn(MIDDLE, 'min-w-0')}>
+          <ShownInChips shownIn={doc.shownIn} />
+        </span>
+      ) : null}
       <span role="cell" className={cn(MIDDLE, 'text-[12px] text-fg-muted')}>
         {updated ?? '—'}
       </span>
@@ -131,10 +144,10 @@ export function ListRow({ doc, actions, rename, updated }: ListRowProps) {
 }
 
 /** The surrounding card + the one column header (comp 215-217); rows go inside. */
-export function ListTable({ label, children }: { label: string; children: ReactNode }) {
+export function ListTable({ label, children, shownIn = false }: { label: string; children: ReactNode; shownIn?: boolean | undefined }) {
   return (
     <div role="table" aria-label={label} data-testid="report-list" className="overflow-hidden rounded-[15px] border border-border bg-surface shadow-card">
-      <ListHeader />
+      <ListHeader shownIn={shownIn} />
       {children}
     </div>
   );

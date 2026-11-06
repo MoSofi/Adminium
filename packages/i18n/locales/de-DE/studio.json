@@ -679,11 +679,9 @@
       "failed": "Installation fehlgeschlagen",
       "bundle": {
         "title": "App-Paket hochladen",
-        "hint": "Die Release-Datei der App (.tgz) — sie enthält manifest.json und ein Verzeichnis staff/ oder customer/.",
         "file": "Paketdatei (.tgz)",
         "fileHint": "Es wird nichts angelegt, bevor Sie den Schemaplan bestätigen.",
-        "integrity": "Prüfsumme (optional)",
-        "integrityHint": "Fügen Sie die mit dem Release veröffentlichte sha512-Prüfsumme ein, damit der Server genau diese Bytes prüft. Bleibt das Feld leer, wird sie hier berechnet."
+        "fileOnly": "Die Datei der App (.tgz)."
       },
       "database": {
         "title": "In welche Datenbank installieren?",
@@ -692,7 +690,13 @@
         "readOnly": "Nur lesend",
         "writable": "Beschreibbar",
         "noWritable": "Keine beschreibbare Verbindung",
-        "allReadOnly": "Alle Verbindungen hier verwenden eine nur lesende Rolle, daher kann keine App ihre Tabellen anlegen. Verbinden Sie zuerst eine, die DDL ausführen darf."
+        "allReadOnly": "Alle Verbindungen hier verwenden eine nur lesende Rolle, daher kann keine App ihre Tabellen anlegen. Verbinden Sie zuerst eine, die DDL ausführen darf.",
+        "version": "{app} {version} wird installiert.",
+        "ownCopy": "Jede Datenbank kann ihre eigene Kopie von {app} haben.",
+        "noneTitle": "Noch keine Datenbank",
+        "none": "Verbinden Sie zuerst eine Datenbank. Eine App kommt in eine Datenbank, die dieser Server schon hat.",
+        "installed": "Installiert · {version}",
+        "notTouched": "Diese Kopie bekommt eigene Einstellungen, Rollen und Mailvorlagen. {app} auf {databases} wird nicht angetastet."
       },
       "plan": {
         "title": "Schemaplan prüfen",
@@ -706,7 +710,7 @@
         "summary": "{created} angelegt · {reused} wiederverwendet",
         "ruleWarnings": "Einige Regeln dieser App würden zeigen, was eine Ihrer Tabellen verbirgt, und werden ausgelassen",
         "pageWarnings": "Einige Seiten dieser App kommen ohne Tabelle an",
-        "installedElsewhere": "{app} ist bereits auf der Verbindung {connection} installiert. Eine App läuft auf einer Verbindung: Aktualisieren Sie sie dort oder deinstallieren Sie sie dort, bevor Sie sie auf einer anderen installieren."
+        "oneVersion": "{database} hat {app} {version}, und jede Kopie einer App läuft mit derselben Version. Aktualisieren Sie zuerst die Kopien und installieren Sie diese dann hier."
       },
       "done": {
         "body": "{key} wird jetzt ausgeliefert. Wählen Sie unten, wo die Mitarbeiterseite erscheint.",
@@ -717,7 +721,12 @@
         "sampleNotAdded": "nicht hinzugefügt",
         "sampleAdding": "wird hinzugefügt…",
         "sampleAdded": "hinzugefügt",
-        "sampleLater": "Sie können sie später auf der Seite der App hinzufügen."
+        "sampleLater": "Sie können sie später auf der Seite der App hinzufügen.",
+        "titleOn": "{app} {version} ist auf {database} installiert",
+        "rulesOff": "Regeln, die Daten nach außen senden",
+        "rulesOffValue": "{count}, ausgeschaltet",
+        "toDo": "{count, plural, one {# Sache zu erledigen} other {# Sachen zu erledigen}}",
+        "openPage": "Seite der App öffnen"
       },
       "cancel": "Abbrechen",
       "back": "Zurück",
@@ -727,7 +736,6 @@
       "finish": "Apps verwalten",
       "staged": "Entpackte Dateien: {files}",
       "footerStep": "Schritt {n} von {total}",
-      "footerStepApp": "Schritt {n} von {total} · {app}",
       "chosen": {
         "title": "{app} installieren",
         "hint": "Diese App kam mit Ihrem Build und liegt bereits auf der Festplatte. Es wird nichts angelegt, bevor Sie den Schemaplan bestätigen."
@@ -796,7 +804,9 @@
           "labelMenu": "Welche Speisekarte {app} verwendet",
           "labelTables": "Welche Tabellen {app} verwendet",
           "recommended": "Empfohlen"
-        }
+        },
+        "summaryUsed": "{count, plural, one {# so verwendet, wie sie ist} other {# so verwendet, wie sie sind}}",
+        "badgeUsed": "Wie sie ist verwendet"
       },
       "running": {
         "title": "{app} wird installiert",
@@ -836,7 +846,8 @@
       "privacyGrants": {
         "title": "Eine Rolle kann Personen löschen",
         "body": "{roles} kann auf der Datenschutzseite alles finden, herunterladen und löschen, was dieser Server über eine Person speichert."
-      }
+      },
+      "footerStepVersion": "Schritt {n} von {total} · {app} {version}"
     },
     "installed": {
       "title": "Installierte Apps",
@@ -935,7 +946,18 @@
       "grantsAdded": {
         "title": "Diese Version gibt ihren Rollen mehr",
         "addOnSettings": "{roles} kann die Einstellungen von {addOn} ändern, die alle Apps teilen, für die es arbeitet."
-      }
+      },
+      "stopped": {
+        "pages": "Die Aktualisierung auf {to} wurde beim Schreiben der Seiten unterbrochen. Nichts ging verloren; die Seiten von {from} sind noch da.",
+        "other": "Die Aktualisierung auf {to} wurde unterwegs unterbrochen. Nichts ging verloren, und das Abschließen macht dort weiter, wo sie stoppte.",
+        "seeds": "Die Aktualisierung auf {to} wurde beim Hinzufügen der Startzeilen unterbrochen. Nichts ging verloren, und das Abschließen fügt den Rest hinzu.",
+        "instance": "Die Aktualisierung auf {to} wurde beim Übernehmen von Aussehen und Sprachen unterbrochen. Nichts ging verloren, und das Abschließen übernimmt sie."
+      },
+      "titleOn": "{app} auf {database} auf v{version} aktualisieren",
+      "copyOf": "Kopie {n} von {total} · {from} → {to}",
+      "reviewSubtitle": "Prüfen Sie, was diese Version mitbringt.",
+      "onlyThis": "In diesem Dialog ändert sich nur {app} auf {database}. Ihre Einstellungen, Rollen und Mailvorlagen dort bleiben erhalten.",
+      "finish": "Aktualisierung abschließen"
     },
     "veto": {
       "title": "Diese Installation kann nicht online suchen",
@@ -962,6 +984,138 @@
       "repair": "Adminium aktualisiert auch seine eigenen Seiten und Regeln, die auf die alten Namen verweisen.",
       "cancel": "Abbrechen",
       "confirm": "Tabellen umbenennen"
+    },
+    "review": {
+      "source": {
+        "title": "Woher sie kommt",
+        "badge": "Eigene App",
+        "madeOn": "Erstellt am {date} · Adminium {version}",
+        "madeAt": "Erstellt auf {label} am {date} · Adminium {version}",
+        "publisher": "Veröffentlicht von {publisher}",
+        "warning": "Sie wurde auf einem anderen Adminium-Server gespeichert, nicht auf adminium.dev. Installieren Sie sie nur, wenn Sie wissen, wer sie gespeichert hat."
+      },
+      "fingerprint": {
+        "label": "Mit dem Fingerabdruck vergleichen, der beim Speichern angezeigt wurde",
+        "labelRelease": "Mit dem Fingerabdruck vergleichen, der mit dem Release veröffentlicht wurde",
+        "check": "Prüfen",
+        "ok": "Stimmt überein. Das ist die gespeicherte Datei.",
+        "okRelease": "Stimmt überein. Das ist die veröffentlichte Datei.",
+        "bad": "Stimmt nicht überein. Das ist nicht die gespeicherte Datei.",
+        "badRelease": "Stimmt nicht überein. Das ist nicht die veröffentlichte Datei.",
+        "none": "Nicht geprüft",
+        "hold": "Der Fingerabdruck stimmt nicht überein. Leeren Sie das Feld, oder fügen Sie den ein, der beim Speichern angezeigt wurde."
+      },
+      "existing": {
+        "title": "{count, plural, one {# Tabelle mit diesem Namen gibt es hier schon.} other {# Tabellen mit diesen Namen gibt es hier schon.}}",
+        "use": "Vorhandene Tabellen verwenden",
+        "useNote": "Verwendet sie so, wie sie sind, mit ihren Zeilen. Benennt sie nie um.",
+        "used": "{count, plural, one {# so verwendet, wie sie ist · 0 Änderungen daran} other {# so verwendet, wie sie sind · 0 Änderungen daran}}",
+        "cannot": "{table} kann nicht so verwendet werden, wie sie ist.",
+        "cannotHelp": "Benennen Sie die Tabelle hier um, oder speichern Sie die App ohne sie erneut."
+      },
+      "change": "Ändern",
+      "pages": {
+        "title": "{count, plural, one {# Seite hat einen Namen, der hier schon vergeben ist} other {# Seiten haben Namen, die hier schon vergeben sind}}",
+        "untouched": "— die Seite hier ist so, wie Adminium sie erstellt hat.",
+        "changed": "— hier geändert.",
+        "replace": "Ersetzen",
+        "rename": "Die Seite hier umbenennen",
+        "skip": "Überspringen",
+        "replaced": "Durch die Seite der App ersetzt.",
+        "skipped": "Übersprungen. Die Seite hier bleibt.",
+        "renamed": "Die Seite hier zieht nach {address} um.",
+        "renameField": "Neue Adresse für die Seite hier",
+        "hold": "Wählen Sie, was mit {pages} geschehen soll."
+      },
+      "outside": {
+        "title": "Diese Regeln würden Daten nach außen senden",
+        "bodyUpdate": "Eine neue kommt ausgeschaltet und leer an. Eine, die schon hier ist, behält ihre Adresse.",
+        "body": "Sie kommen ausgeschaltet und leer an. Wer Automatisierungen verwaltet, kann sie einschalten.",
+        "webhook": "sendet an eine Webadresse · Adresse leer gelassen",
+        "address": "mailt an eine feste Adresse · Adresse leer gelassen",
+        "off": "Aus"
+      },
+      "instance": {
+        "title": "Aussehen und Sprachen",
+        "tick": "Auch Aussehen und Sprachen übernehmen",
+        "locked": "Bitten Sie jemanden, der Einstellungen verwaltet, diesen Teil zu übernehmen.",
+        "what": "Was darin ist",
+        "languagesOn": "Eingeschaltete Sprachen: {languages}",
+        "languagesOff": "Ausgeschaltete Sprachen: {languages}",
+        "wording": "{count, plural, one {# geänderter Text} other {# geänderte Texte}}",
+        "emails": "Geänderte Systemmails: {count}",
+        "left": "Hier nicht übernommen:",
+        "caption": "Passwörter, Schlüssel und Mailserver-Einstellungen sind nie in der Datei. Sie können diesen Teil auf der Seite der App rückgängig machen.",
+        "hideChanges": "Änderungen ausblenden",
+        "showChanges": "Änderungen zeigen",
+        "noLinks": "Sie enthält keine Links und wird mit diesem Teil übernommen.",
+        "links": "Links in dieser Mail führen zu:",
+        "subject": "Betreff: {from} → {to}",
+        "blocks": "Blöcke: {added} hinzugefügt · {removed} entfernt · {changed} geändert",
+        "preheader": "Vorschautext geändert",
+        "footer": "Fußzeile geändert"
+      },
+      "screens": {
+        "title": "Bildschirme",
+        "lead": "Diese App hat eigene Bildschirme.",
+        "body": "Sie laufen mit den Rechten dessen, der sie öffnet. Installieren Sie sie nur, wenn Sie dem vertrauen, der sie gespeichert hat."
+      },
+      "after": {
+        "webhook": "Die Webadresse der Regel {item}",
+        "address": "An wen die Regel {item} mailt",
+        "document": "Das Dokument, das die Regel {item} erstellt",
+        "delivery": "Wohin das Dokument {item} gemailt wird",
+        "paymentKey": "Die Schlüssel des Zahlungsdienstes {item}",
+        "bankAccount": "Das Bankkonto für {item}",
+        "recipients": "{count, plural, one {Wer den geplanten Bericht {item} erhält} other {Wer die # geplanten Berichte erhält}}",
+        "sender": "{count, plural, one {Die Absenderadresse der Mail {item}} other {Die Absenderadresse für # Mailvorlagen}}",
+        "systemGrant": "Die Konsolenrechte der Rolle {item}",
+        "title": "Nach der Installation",
+        "note": "Sie bleiben auf der Seite der App, bis sie erledigt sind."
+      },
+      "title": "Vor dem Installieren prüfen",
+      "intro": "{app} kommt in {database}. Nichts ändert sich, bevor Sie auf Installieren klicken."
+    },
+    "refusal": {
+      "back": "Zurück",
+      "older": {
+        "copy": "{database} hat schon {version}",
+        "title": "Eine ältere Datei",
+        "body": "{copies}. Die Datei ist die ältere {version}."
+      },
+      "lineage": {
+        "title": "Eine andere App mit diesem Schlüssel",
+        "body": "Dieser Server hat schon eine andere {key}, auf {database}. Speichern Sie diese unter einem anderen Schlüssel."
+      },
+      "newer": {
+        "title": "Braucht ein neueres Adminium",
+        "body": "Diese Datei braucht Adminium {needed} oder neuer. Dieser Server läuft mit {running}."
+      },
+      "savedHere": {
+        "title": "Aus dieser Datenbank gespeichert",
+        "body": "Diese Datei wurde aus {database} auf diesem Server gespeichert. Sie dort zu installieren, würde jede Automatisierung doppelt laufen lassen. Wählen Sie eine andere Datenbank, oder probieren Sie sie auf einem Testserver aus."
+      },
+      "everywhere": {
+        "title": "In jeder Datenbank installiert",
+        "body": "{app} {version} ist schon in jeder Datenbank hier installiert."
+      }
+    },
+    "route": {
+      "update": {
+        "button": "Jede Kopie aktualisieren ({databases})",
+        "rest": "Die übrigen aktualisieren ({databases})",
+        "also": "Auch in einer anderen Datenbank installieren",
+        "title": "{app} auf {version} aktualisieren",
+        "body": "Diese Datei ist neuer als jede Kopie auf diesem Server. Jede Kopie läuft mit derselben Version, also wird jede aktualisiert, mit ihrer eigenen Prüfung.",
+        "updated": "Aktualisiert",
+        "waiting": "Noch nicht aktualisiert",
+        "done": "{app} läuft in jeder Datenbank mit {version}."
+      },
+      "another": {
+        "button": "In einer anderen Datenbank installieren",
+        "title": "{app} in einer anderen Datenbank installieren",
+        "body": "{app} {version} ist auf {databases} installiert. Jede Datenbank kann ihre eigene Kopie haben."
+      }
     }
   },
   "hub": {
@@ -4839,6 +4993,52 @@
         "workspaceUsers": "Benutzer auf diesem Server"
       }
     }
+  },
+  "workspaceSender": {
+    "title": "Absender für {workspace}",
+    "subtitle": "E-Mails zu Datensätzen in den Datenbanken dieses Arbeitsbereichs werden von diesem Absender verschickt.",
+    "close": "Schließen",
+    "loading": "Wird geladen",
+    "accepted": {
+      "title": "Adressen, von denen dieser Server senden kann",
+      "domains": "Jede Adresse unter:",
+      "addresses": "Oder genau:"
+    },
+    "noMail": {
+      "title": "Dieser Server hat noch keinen Absender",
+      "body": "Richten Sie zuerst E-Mail in den Einstellungen ein. Bis dahin kann ein Arbeitsbereich keinen eigenen Absender haben.",
+      "action": "E-Mail-Einstellungen öffnen"
+    },
+    "name": {
+      "label": "Absendername",
+      "helper": "Von wem die E-Mail laut Absender kommt, zum Beispiel Kiln Street Pottery."
+    },
+    "from": {
+      "label": "Absenderadresse",
+      "helper": "Eine Adresse unter einer der oben genannten Angaben."
+    },
+    "replyTo": {
+      "label": "Antwortadresse",
+      "helper": "Wohin Antworten gehen. Leer lassen für die Absenderadresse."
+    },
+    "postal": {
+      "label": "Postanschrift",
+      "helper": "Steht am Ende der Marketing-E-Mails dieses Arbeitsbereichs. Leer lassen für die des Servers."
+    },
+    "sharedList": "Die Nicht-anschreiben-Liste gilt für den ganzen Server: Wer sich bei einem Unternehmen abmeldet, erhält von keinem Unternehmen auf diesem Server mehr Marketing-E-Mails.",
+    "refusal": {
+      "notSendingDomain": "Dieser Server kann nur von {accepted} senden. Verwenden Sie dort eine Adresse.",
+      "noMail": "Dieser Server hat noch keinen Absender. Richten Sie zuerst E-Mail in den Einstellungen ein.",
+      "notAnAddress": "Geben Sie eine E-Mail-Adresse ein, zum Beispiel hello@example.com."
+    },
+    "failed": "Der Absender konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+    "footer": {
+      "own": "Seine E-Mails gehen von {from} aus.",
+      "server": "Solange keine Absenderadresse gespeichert ist, gehen seine E-Mails vom Absender des Servers aus."
+    },
+    "clear": "Absender des Servers verwenden",
+    "cancel": "Abbrechen",
+    "save": "Absender speichern"
   },
   "saveApp": {
     "step": {

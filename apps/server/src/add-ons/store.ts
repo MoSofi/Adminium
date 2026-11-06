@@ -214,11 +214,13 @@ interface StageSource {
  * package names itself. `identify` receives the bytes of the package's own
  * `manifest.json`, read from the verified in-memory unpack before anything
  * touches the disk, so the identity is taken from exactly the bytes that are
- * then written and pinned. Whatever it throws propagates unchanged, with
- * nothing written. The store still grammar-checks what it returns.
+ * then written and pinned, and the paths of every member beside it (a
+ * workspace file is told from an app file by its `workspace.json`). Whatever
+ * it throws propagates unchanged, with nothing written. The store still
+ * grammar-checks what it returns.
  */
 export type StageInput = StageSource &
-  (PackageIdentity | { identify: (manifest: Buffer) => PackageIdentity });
+  (PackageIdentity | { identify: (manifest: Buffer, paths: readonly string[]) => PackageIdentity });
 
 /** npm's Subresource-Integrity spelling of a tarball hash. */
 export function sha512Integrity(bytes: Uint8Array): string {
@@ -390,7 +392,7 @@ export function createAddOnStore(opts: {
         );
       }
       const { key, version } =
-        'identify' in input ? input.identify(Buffer.from(manifest.bytes)) : input;
+        'identify' in input ? input.identify(Buffer.from(manifest.bytes), entries.map((entry) => entry.path)) : input;
       const target = dirFor(key, version);
 
       // 3. Write into a temp directory INSIDE the store root, so the rename

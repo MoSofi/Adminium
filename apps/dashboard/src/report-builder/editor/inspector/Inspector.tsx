@@ -15,6 +15,7 @@
  * `opacity: .75` on the accent-soft wash (351), which measures 3.3:1 and
  * fails WCAG AA. Same colour, no opacity.
  */
+import type { ReactNode } from 'react';
 import { cn } from '@adminium/ui';
 
 import { t } from '../../../i18n/t.js';
@@ -36,6 +37,8 @@ export interface InspectorProps {
   onImageRejected: (result: ImageRejection) => void;
   /** `drawer` is the below-`lg` instance under the canvas (D18). */
   variant?: 'aside' | 'drawer' | undefined;
+  /** "Shown in" for the header panel; absent on a server with no workspaces. */
+  shownIn?: ReactNode;
 }
 
 /** The comp's `insHeadMeta` (632). */
@@ -68,7 +71,7 @@ function NonePanel() {
   );
 }
 
-export function Inspector({ body, status, selection, edits, onImageRejected, variant = 'aside' }: InspectorProps) {
+export function Inspector({ body, status, selection, edits, onImageRejected, variant = 'aside', shownIn }: InspectorProps) {
   const head = banner(selection, body);
   const Glyph = reportIcon(head.glyph);
   const block = selection === 'header' ? null : blockAt(body, selection);
@@ -107,7 +110,7 @@ export function Inspector({ body, status, selection, edits, onImageRejected, var
       </div>
 
       {selection === 'header' ? (
-        <HeaderPanel body={body} status={status} edits={edits} onImageRejected={onImageRejected} />
+        <HeaderPanel body={body} status={status} edits={edits} onImageRejected={onImageRejected} shownIn={shownIn} />
       ) : block === null ? (
         <NonePanel />
       ) : (

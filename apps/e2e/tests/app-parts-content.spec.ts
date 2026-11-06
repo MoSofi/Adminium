@@ -152,7 +152,6 @@ test.describe('the Parts card’s content', () => {
       await page.getByRole('button', { name: tx('studio:hostedApps.installed.install') }).click();
       const bundle = appBundle('create');
       await page.locator('input[type="file"]').setInputFiles({ name: `${APP_KEY}-${APP_VERSION}.tgz`, mimeType: 'application/gzip', buffer: bundle.buffer });
-      await page.getByLabel(tx('studio:hostedApps.install.bundle.integrity')).fill(bundle.integrity);
       await page.getByRole('button', { name: tx('studio:hostedApps.install.upload') }).click();
       await page.getByRole('radio', { name: /northwind/i }).click();
       await page.getByRole('button', { name: tx('studio:hostedApps.install.continue') }).click();

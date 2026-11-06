@@ -689,11 +689,9 @@ export default {
       "failed": "Instalace selhala",
       "bundle": {
         "title": "Nahrát balíček aplikace",
-        "hint": "Soubor vydání aplikace (.tgz) — obsahuje manifest.json a složku staff/ nebo customer/.",
         "file": "Soubor balíčku (.tgz)",
         "fileHint": "Dokud nepotvrdíte krok s plánem schématu, nic se nevytvoří.",
-        "integrity": "Kontrolní součet (volitelné)",
-        "integrityHint": "Vložte kontrolní součet sha512- zveřejněný s vydáním, aby server ověřil právě tyto bajty. Necháte-li pole prázdné, spočítá se zde."
+        "fileOnly": "Soubor aplikace (.tgz)."
       },
       "database": {
         "title": "Do které databáze instalovat?",
@@ -702,7 +700,13 @@ export default {
         "readOnly": "Jen pro čtení",
         "writable": "Zapisovatelné",
         "noWritable": "Žádné zapisovatelné připojení",
-        "allReadOnly": "Všechna zdejší připojení používají roli jen pro čtení, takže žádná aplikace nemůže vytvořit své tabulky. Připojte nejdřív takové, které smí spouštět DDL."
+        "allReadOnly": "Všechna zdejší připojení používají roli jen pro čtení, takže žádná aplikace nemůže vytvořit své tabulky. Připojte nejdřív takové, které smí spouštět DDL.",
+        "version": "Instaluje se {app} {version}.",
+        "ownCopy": "Každá databáze může mít vlastní kopii aplikace {app}.",
+        "noneTitle": "Zatím žádná databáze",
+        "none": "Nejdřív připojte databázi. Aplikace se instaluje do databáze, kterou tento server už má.",
+        "installed": "Nainstalováno · {version}",
+        "notTouched": "Tato kopie dostane vlastní nastavení, role a e-mailové šablony. {app} na {databases} zůstane nedotčena."
       },
       "plan": {
         "title": "Zkontrolujte plán schématu",
@@ -716,7 +720,7 @@ export default {
         "summary": "{created} vytvořeno · {reused} znovu použito",
         "ruleWarnings": "Některá pravidla této aplikace by ukázala, co vaše tabulka skrývá, a proto se vynechají",
         "pageWarnings": "Některé stránky této aplikace dorazí bez tabulky",
-        "installedElsewhere": "Aplikace {app} je už nainstalovaná na připojení {connection}. Aplikace běží na jednom připojení: aktualizujte ji tam, nebo ji tam odinstalujte, než ji nainstalujete na jiné."
+        "oneVersion": "{database} má {app} {version} a každá kopie aplikace běží ve stejné verzi. Nejdřív aktualizujte kopie a pak tuto nainstalujte sem."
       },
       "done": {
         "body": "{key} se už servíruje. Níže vyberte, kde se má objevit její část pro personál.",
@@ -727,7 +731,12 @@ export default {
         "sampleNotAdded": "nepřidána",
         "sampleAdding": "přidávají se…",
         "sampleAdded": "přidána",
-        "sampleLater": "Můžete je přidat později na stránce aplikace."
+        "sampleLater": "Můžete je přidat později na stránce aplikace.",
+        "titleOn": "{app} {version} je nainstalována na {database}",
+        "rulesOff": "Pravidla, která posílají data ven",
+        "rulesOffValue": "{count}, vypnuto",
+        "toDo": "{count, plural, one {# věc k udělání} few {# věci k udělání} many {# věci k udělání} other {# věcí k udělání}}",
+        "openPage": "Otevřít stránku aplikace"
       },
       "cancel": "Zrušit",
       "back": "Zpět",
@@ -737,7 +746,6 @@ export default {
       "finish": "Spravovat aplikace",
       "staged": "Rozbalené soubory: {files}",
       "footerStep": "Krok {n} z {total}",
-      "footerStepApp": "Krok {n} z {total} · {app}",
       "chosen": {
         "title": "Nainstalovat {app}",
         "hint": "Tato aplikace přišla s vaším buildem a už je na disku. Dokud nepotvrdíte plán schématu, nic se nevytvoří."
@@ -806,7 +814,9 @@ export default {
           "labelMenu": "Které menu používá {app}",
           "labelTables": "Které tabulky používá {app}",
           "recommended": "Doporučeno"
-        }
+        },
+        "summaryUsed": "{count, plural, one {# použita tak, jak je} few {# použity tak, jak jsou} many {# použito tak, jak jsou} other {# použito tak, jak jsou}}",
+        "badgeUsed": "Použita tak, jak je"
       },
       "running": {
         "title": "Instaluje se {app}",
@@ -846,7 +856,8 @@ export default {
       "privacyGrants": {
         "title": "Role může mazat osoby",
         "body": "{roles} může na stránce soukromí najít, stáhnout a vymazat vše, co tento server o osobě uchovává."
-      }
+      },
+      "footerStepVersion": "Krok {n} z {total} · {app} {version}"
     },
     "installed": {
       "title": "Nainstalované aplikace",
@@ -945,7 +956,18 @@ export default {
       "grantsAdded": {
         "title": "Tato verze dává svým rolím víc",
         "addOnSettings": "{roles} může měnit nastavení doplňku {addOn}, která sdílejí všechny aplikace, jimž slouží."
-      }
+      },
+      "stopped": {
+        "pages": "Aktualizace na {to} se zastavila při zápisu stránek. Nic se neztratilo; stránky verze {from} tu stále jsou.",
+        "other": "Aktualizace na {to} se zastavila v půli. Nic se neztratilo a dokončení naváže tam, kde se zastavila.",
+        "seeds": "Aktualizace na {to} se zastavila při přidávání počátečních řádků. Nic se neztratilo a dokončení přidá zbytek.",
+        "instance": "Aktualizace na {to} se zastavila při použití vzhledu a jazyků. Nic se neztratilo a dokončení je použije."
+      },
+      "titleOn": "Aktualizovat {app} na {database} na v{version}",
+      "copyOf": "Kopie {n} z {total} · {from} → {to}",
+      "reviewSubtitle": "Zkontrolujte, co tato verze přináší.",
+      "onlyThis": "V tomto dialogu se mění jen {app} na {database}. Její nastavení, role a e-mailové šablony tam zůstanou.",
+      "finish": "Dokončit aktualizaci"
     },
     "veto": {
       "title": "Toto nasazení nemůže procházet online",
@@ -972,6 +994,138 @@ export default {
       "repair": "Adminium také aktualizuje své vlastní stránky a pravidla, která odkazují na staré názvy.",
       "cancel": "Zrušit",
       "confirm": "Přejmenovat tabulky"
+    },
+    "review": {
+      "source": {
+        "title": "Odkud pochází",
+        "badge": "Vlastní aplikace",
+        "madeOn": "Vytvořeno {date} · Adminium {version}",
+        "madeAt": "Vytvořeno na {label} dne {date} · Adminium {version}",
+        "publisher": "Vydal {publisher}",
+        "warning": "Byla uložena na jiném serveru Adminium, ne na adminium.dev. Instalujte ji, jen pokud víte, kdo ji uložil."
+      },
+      "fingerprint": {
+        "label": "Porovnat s otiskem zobrazeným při uložení",
+        "labelRelease": "Porovnat s otiskem zveřejněným s vydáním",
+        "check": "Ověřit",
+        "ok": "Shoduje se. Je to soubor, který byl uložen.",
+        "okRelease": "Shoduje se. Je to soubor, který byl zveřejněn.",
+        "bad": "Neshoduje se. Není to soubor, který byl uložen.",
+        "badRelease": "Neshoduje se. Není to soubor, který byl zveřejněn.",
+        "none": "Neověřeno",
+        "hold": "Otisk se neshoduje. Vymažte pole, nebo vložte ten, který byl zobrazen při uložení."
+      },
+      "existing": {
+        "title": "{count, plural, one {# tabulka s tímto názvem tu už existuje.} few {# tabulky s těmito názvy tu už existují.} many {# tabulky s těmito názvy tu už existuje.} other {# tabulek s těmito názvy tu už existuje.}}",
+        "use": "Použít existující tabulky",
+        "useNote": "Použije je tak, jak jsou, i s jejich řádky. Nikdy je nepřejmenuje.",
+        "used": "{count, plural, one {# použita tak, jak je · 0 změn} few {# použity tak, jak jsou · 0 změn} many {# použito tak, jak jsou · 0 změn} other {# použito tak, jak jsou · 0 změn}}",
+        "cannot": "{table} nelze použít tak, jak je.",
+        "cannotHelp": "Přejmenujte tabulku zde, nebo aplikaci uložte znovu bez ní."
+      },
+      "change": "Změnit",
+      "pages": {
+        "title": "{count, plural, one {# stránka má název, který se tu už používá} few {# stránky mají názvy, které se tu už používají} many {# stránky má názvy, které se tu už používají} other {# stránek má názvy, které se tu už používají}}",
+        "untouched": "— stránka tady je taková, jak ji Adminium vytvořil.",
+        "changed": "— tady změněná.",
+        "replace": "Nahradit ji",
+        "rename": "Přejmenovat stránku tady",
+        "skip": "Přeskočit ji",
+        "replaced": "Nahrazena stránkou aplikace.",
+        "skipped": "Přeskočeno. Stránka tady zůstane.",
+        "renamed": "Stránka tady se přesune na {address}.",
+        "renameField": "Nová adresa stránky tady",
+        "hold": "Vyberte, co udělat se stránkami {pages}."
+      },
+      "outside": {
+        "title": "Tato pravidla by posílala data ven",
+        "bodyUpdate": "Nové přijde vypnuté a prázdné. To, které tu už je, si ponechá svou adresu.",
+        "body": "Přijdou vypnutá a prázdná. Zapnout je může ten, kdo spravuje automatizace.",
+        "webhook": "posílá na webovou adresu · adresa ponechána prázdná",
+        "address": "posílá e-mail na pevnou adresu · adresa ponechána prázdná",
+        "off": "Vypnuto"
+      },
+      "instance": {
+        "title": "Vzhled a jazyky",
+        "tick": "Použít také vzhled a jazyky",
+        "locked": "Požádejte někoho, kdo spravuje nastavení, aby tuto část použil.",
+        "what": "Co obsahuje",
+        "languagesOn": "Zapnuté jazyky: {languages}",
+        "languagesOff": "Vypnuté jazyky: {languages}",
+        "wording": "{count, plural, one {# upravený text} few {# upravené texty} many {# upraveného textu} other {# upravených textů}}",
+        "emails": "Změněné systémové e-maily: {count}",
+        "left": "Zde nepřevzato:",
+        "caption": "Hesla, klíče a nastavení poštovního serveru v souboru nikdy nejsou. Tuto část můžete vrátit na stránce aplikace.",
+        "hideChanges": "Skrýt změny",
+        "showChanges": "Zobrazit změny",
+        "noLinks": "Nemá žádné odkazy, takže se použije s touto částí.",
+        "links": "Odkazy v tomto e-mailu vedou na:",
+        "subject": "Předmět: {from} → {to}",
+        "blocks": "Bloky: přidáno {added} · odebráno {removed} · změněno {changed}",
+        "preheader": "Text náhledu změněn",
+        "footer": "Zápatí změněno"
+      },
+      "screens": {
+        "title": "Obrazovky",
+        "lead": "Tato aplikace má vlastní obrazovky.",
+        "body": "Běží s právy toho, kdo je otevře. Instalujte ji, jen pokud důvěřujete tomu, kdo ji uložil."
+      },
+      "after": {
+        "webhook": "Webová adresa pravidla {item}",
+        "address": "Komu pravidlo {item} posílá e-mail",
+        "document": "Dokument, který pravidlo {item} vytváří",
+        "delivery": "Kam se dokument {item} posílá",
+        "paymentKey": "Klíče platební služby {item}",
+        "bankAccount": "Bankovní účet pro {item}",
+        "recipients": "{count, plural, one {Kdo dostává plánovaný přehled {item}} few {Kdo dostává # plánované přehledy} many {Kdo dostává # plánovaného přehledu} other {Kdo dostává # plánovaných přehledů}}",
+        "sender": "{count, plural, one {Adresa odesílatele e-mailu {item}} few {Adresa odesílatele pro # e-mailové šablony} many {Adresa odesílatele pro # e-mailové šablony} other {Adresa odesílatele pro # e-mailových šablon}}",
+        "systemGrant": "Práva konzole role {item}",
+        "title": "Po instalaci",
+        "note": "Zůstanou na stránce aplikace, dokud nebudou hotové."
+      },
+      "title": "Před instalací zkontrolujte",
+      "intro": "{app} se nainstaluje do {database}. Dokud nestisknete Instalovat, nic se nezmění."
+    },
+    "refusal": {
+      "back": "Zpět",
+      "older": {
+        "copy": "{database} už má {version}",
+        "title": "Starší soubor",
+        "body": "{copies}. Soubor je starší verze {version}."
+      },
+      "lineage": {
+        "title": "Jiná aplikace s tímto klíčem",
+        "body": "Tento server už má jinou {key}, na {database}. Uložte tuto pod jiným klíčem."
+      },
+      "newer": {
+        "title": "Vyžaduje novější Adminium",
+        "body": "Tento soubor vyžaduje Adminium {needed} nebo novější. Tento server běží na {running}."
+      },
+      "savedHere": {
+        "title": "Uloženo z této databáze",
+        "body": "Tento soubor byl uložen z {database} na tomto serveru. Instalace tam by spustila každou automatizaci dvakrát. Vyberte jinou databázi, nebo ho vyzkoušejte na testovacím serveru."
+      },
+      "everywhere": {
+        "title": "Nainstalováno v každé databázi",
+        "body": "{app} {version} je už nainstalována v každé databázi tady."
+      }
+    },
+    "route": {
+      "update": {
+        "button": "Aktualizovat každou kopii ({databases})",
+        "rest": "Aktualizovat zbytek ({databases})",
+        "also": "Nainstalovat také do jiné databáze",
+        "title": "Aktualizovat {app} na {version}",
+        "body": "Tento soubor je novější než každá kopie na tomto serveru. Každá kopie běží ve stejné verzi, takže se aktualizuje každá, s vlastní kontrolou.",
+        "updated": "Aktualizováno",
+        "waiting": "Zatím neaktualizováno",
+        "done": "{app} běží ve verzi {version} v každé databázi."
+      },
+      "another": {
+        "button": "Nainstalovat do jiné databáze",
+        "title": "Nainstalovat {app} do jiné databáze",
+        "body": "{app} {version} je nainstalována na {databases}. Každá databáze může mít vlastní kopii."
+      }
     }
   },
   "hub": {
@@ -4849,6 +5003,52 @@ export default {
         "workspaceUsers": "Uživatelé tohoto serveru"
       }
     }
+  },
+  "workspaceSender": {
+    "title": "Odesílatel pro {workspace}",
+    "subtitle": "E-maily o záznamech v databázích tohoto pracovního prostoru se odesílají od tohoto odesílatele.",
+    "close": "Zavřít",
+    "loading": "Načítání",
+    "accepted": {
+      "title": "Adresy, ze kterých tento server může odesílat",
+      "domains": "Libovolná adresa na:",
+      "addresses": "Nebo přesně:"
+    },
+    "noMail": {
+      "title": "Tento server zatím nemá odesílatele",
+      "body": "Nejdříve nastavte e-mail v Nastavení. Do té doby nemůže mít pracovní prostor vlastního odesílatele.",
+      "action": "Otevřít nastavení e-mailu"
+    },
+    "name": {
+      "label": "Jméno odesílatele",
+      "helper": "Od koho e-mail podle záhlaví přichází, například Kiln Street Pottery."
+    },
+    "from": {
+      "label": "Adresa odesílatele",
+      "helper": "Adresa na jednom z výše uvedených míst."
+    },
+    "replyTo": {
+      "label": "Adresa pro odpovědi",
+      "helper": "Kam chodí odpovědi. Ponechte prázdné pro adresu odesílatele."
+    },
+    "postal": {
+      "label": "Poštovní adresa",
+      "helper": "Tiskne se v patičce marketingových e-mailů tohoto pracovního prostoru. Ponechte prázdné pro adresu serveru."
+    },
+    "sharedList": "Seznam adres, kterým se nemá psát, patří celému serveru: kdo se odhlásí u jedné firmy, nedostane marketingové e-maily od žádné firmy na tomto serveru.",
+    "refusal": {
+      "notSendingDomain": "Tento server může odesílat jen z {accepted}. Použijte adresu odtamtud.",
+      "noMail": "Tento server zatím nemá odesílatele. Nejdříve nastavte e-mail v Nastavení.",
+      "notAnAddress": "Zadejte jednu e-mailovou adresu, například hello@example.com."
+    },
+    "failed": "Odesílatele se nepodařilo uložit. Zkuste to znovu.",
+    "footer": {
+      "own": "Jeho e-maily odcházejí z {from}.",
+      "server": "Dokud není uložena adresa odesílatele, jeho e-maily odcházejí od odesílatele serveru."
+    },
+    "clear": "Použít odesílatele serveru",
+    "cancel": "Zrušit",
+    "save": "Uložit odesílatele"
   },
   "saveApp": {
     "step": {

@@ -8,7 +8,11 @@
  *  - `POST /apps/save` makes the file again from the same answers, keeps a
  *    copy and records the save; it refuses while Check holds a question;
  *  - `GET /apps/saves` lists the saves made here (the "Saved from here" card);
- *  - `GET /apps/save/:id/file` downloads a saved file again.
+ *  - `GET /apps/save/:id/file` downloads a saved file again;
+ *  - `POST /workspaces/:id/save/plan`, `POST /workspaces/:id/save` and
+ *    `GET /workspaces/save/:id/file` do the same for a whole workspace: one
+ *    app per database, in one file ("Save workspace"). The saves list names
+ *    the workspace files saved here too.
  *
  * All of them need `system:manifests:manage`. Rows and personal columns need
  * the saver's own rights on each table besides (the service asks them).
@@ -18,6 +22,7 @@ import { z } from 'zod';
 import { usersRepo, type MetaDb } from '@adminium/meta';
 
 import type { SaveRights, SaveService } from '../../apps/save/service.js';
+import type { WorkspaceSaveService } from '../../apps/save/workspace.js';
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { requestReadsWhole } from '../../crud/row-reach-request.js';
 import { NotFoundError } from '../../errors.js';
@@ -131,7 +136,75 @@ export const appSavesReply = z.object({
       downloadable: z.boolean(),
     }),
   ),
+  /** The workspace files saved here, newest first. */
+  workspaces: z.array(
+    z.object({
+      id: z.string(),
+      workspaceId: z.string().nullable(),
+      name: z.string(),
+      label: z.string(),
+      savedBy: z.string().nullable(),
+      savedAt: z.number(),
+      integrity: z.string(),
+      bytes: z.number(),
+      /** The app saves inside, in the file's order. */
+      appSaveIds: z.array(z.string()),
+    }),
+  ),
 });
+
+/** One app of a workspace file: Save as app's body, without the label (the file has one). */
+export const workspaceAppBody = saveAppBody.omit({ label: true });
+
+export const saveWorkspaceBody = z
+  .object({
+    label: z.string().trim().min(1).max(120).optional(),
+    /** The database whose server settings travel with its app ("Server settings: from {database}"); none when absent. */
+    instanceFrom: z.string().min(1).nullable().optional(),
+    /** One app per database; every database of the workspace when absent. */
+    apps: z.array(workspaceAppBody).min(1).max(8).optional(),
+  })
+  .strict();
+
+const savePlanDto = savePlanReply.shape.plan;
+
+export const workspaceSavePlanReply = z.object({
+  plan: z.object({
+    workspaceId: z.string(),
+    name: z.string(),
+    label: z.string(),
+    filename: z.string(),
+    minAdminiumVersion: z.string(),
+    ready: z.boolean(),
+    instanceFrom: z.string().nullable(),
+    /** Each app's Check, grouped per app, in the order the file would hold them. */
+    apps: z.array(
+      z.object({
+        connectionId: z.string(),
+        database: z.object({ name: z.string(), engine: z.string() }),
+        key: z.string(),
+        name: z.string(),
+        plan: savePlanDto,
+      }),
+    ),
+    /** The workspaces the databases are in, by name: for your information. */
+    workspaces: z.array(z.string()),
+  }),
+});
+
+export const saveWorkspaceReply = z.object({
+  save: z.object({
+    id: z.string(),
+    name: z.string(),
+    filename: z.string(),
+    integrity: z.string(),
+    bytes: z.number(),
+    savedAt: z.number(),
+    apps: z.array(z.object({ key: z.string(), version: z.string(), integrity: z.string(), bytes: z.number() })),
+  }),
+});
+
+const workspaceIdParams = z.object({ id: z.string().min(1) });
 
 const saveIdParams = z.object({ id: z.string().min(1) });
 
@@ -174,6 +247,7 @@ const inventoryQuery = z.object({ connectionId: z.string().min(1) }).strict();
 export interface AppSaveRoutesDeps {
   meta: MetaDb;
   service: SaveService;
+  workspaces: WorkspaceSaveService;
 }
 
 export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
@@ -240,7 +314,19 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
           integrity: save.integrity,
           bytes: save.bytes,
           downloadable: save.fileId !== null,
-        })) };
+        })),
+        workspaces: (await deps.workspaces.list()).map((save) => ({
+          id: save.id,
+          workspaceId: save.workspaceId,
+          name: save.name,
+          label: save.label,
+          savedBy: save.savedBy,
+          savedAt: save.savedAt,
+          integrity: save.integrity,
+          bytes: save.bytes,
+          appSaveIds: save.appSaveIds,
+        })),
+      };
       },
     );
 
@@ -253,6 +339,50 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
       async (request, reply) => {
         const found = await deps.service.file(request.params.id);
         if (found === null) throw new NotFoundError('That saved file is no longer kept. Save the app again.');
+        const safeName = found.filename.replaceAll(/["\\\r\n]/g, '_');
+        return reply
+          .header('content-type', 'application/gzip')
+          .header('content-length', String(found.bytes.byteLength))
+          .header('content-disposition', `attachment; filename="${safeName}"`)
+          .header('x-adminium-integrity', found.save.integrity)
+          .send(Buffer.from(found.bytes));
+      },
+    );
+
+    // ── Save workspace: one app per database, in one file ─────────────────────
+
+    app.post(
+      '/workspaces/:id/save/plan',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: auditExempt('a preview of the workspace file a save would make; it reads configuration and writes nothing. The save it precedes is audited.') },
+        schema: { params: workspaceIdParams, body: saveWorkspaceBody, response: { 200: workspaceSavePlanReply } },
+      },
+      async (request) => ({ plan: await deps.workspaces.plan(request.params.id, request.body, rightsOf(request)) }),
+    );
+
+    app.post(
+      '/workspaces/:id/save',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: workspaceIdParams, body: saveWorkspaceBody, response: { 200: saveWorkspaceReply } },
+      },
+      async (request) => {
+        const { tarball: _bytes, ...save } = await deps.workspaces.save(request.params.id, request.body, rightsOf(request));
+        return { save };
+      },
+    );
+
+    app.get(
+      '/workspaces/save/:id/file',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { params: saveIdParams },
+      },
+      async (request, reply) => {
+        const found = await deps.workspaces.file(request.params.id);
+        if (found === null) throw new NotFoundError('An app in that workspace file is no longer kept. Save the workspace again.');
         const safeName = found.filename.replaceAll(/["\\\r\n]/g, '_');
         return reply
           .header('content-type', 'application/gzip')

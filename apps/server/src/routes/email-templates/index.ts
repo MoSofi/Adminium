@@ -46,6 +46,8 @@ import {
   localesRepo,
   newId,
   settingsRepo,
+  TEMPLATE_SEND_AS_SERVER,
+  workspacesRepo,
   type EmailAttachment,
   type EmailDocumentKind,
   type EmailRun,
@@ -80,8 +82,8 @@ import type { MarketingRefusal } from '../../email/sender/index.js';
 import { renderEmail } from '../../email/render.js';
 import {
   enqueueRenderedEmail,
-  fromOf,
   isEmailConfigured,
+  senderFor,
   prepareEmail,
   resolveGeneratedAttachments,
 } from '../../email/send.js';
@@ -91,6 +93,7 @@ import type { FileStore } from '../../files/store.js';
 import { translatorFor } from '../../i18n/server-i18n.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { linkOrigin } from '../../security/public-origin.js';
+import { saveShownIn, shownInFilter, shownInOf } from '../../workspaces/shown-in.js';
 import {
   emailAddLanguageBody,
   emailAudiencePreviewBody,
@@ -114,6 +117,9 @@ import {
   emailRunProgressReply,
   emailRunStopReply,
   emailRunsReply,
+  emailSendAsBody,
+  emailSendAsOptionsReply,
+  emailSendAsReply,
   emailSendLogCsvQuery,
   emailSendLogQuery,
   emailSendLogReply,
@@ -306,6 +312,20 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
   const settings = settingsRepo(meta);
   const jobs = jobsRepo(meta);
   const sends = emailSendsRepo(meta);
+  const workspaces = workspacesRepo(meta);
+  /** Every email document's chosen workspaces, read once per reply. */
+  const shownLinks = () => workspaces.linksOfKind('email-template');
+
+  /**
+   * A new row of a family (another language) is listed where its family is;
+   * a copy (a new key) where its source is.
+   */
+  async function shownAsSource(sourceId: string, created: EmailTemplate): Promise<EmailTemplate> {
+    const shown = await workspaces.shownIn('email-template', sourceId);
+    if (shown === null || shown.mode === 'all') return created;
+    await workspaces.setShownIn('email-template', created.id, shown.workspaceIds);
+    return (await templates.findById(created.id)) ?? created;
+  }
 
   async function knownLocale(locale: string): Promise<boolean> {
     if (!isLocaleId(locale)) return false;
@@ -318,6 +338,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
     labels: Map<string, string>,
     latest: Map<string, EmailRun>,
     sight: (run: EmailRun) => Promise<boolean>,
+    links: ReadonlyMap<string, readonly string[]>,
   ): Promise<EmailDocumentSummaryView> {
     const run = latest.get(row.id);
     return {
@@ -339,6 +360,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       brand: row.brand === null ? null : { accent: row.brand.accent, mark: row.brand.mark },
       heading: headingOf(row),
       topicLabel: labels.get(row.key) ?? row.name,
+      shownIn: shownInOf(row.shownIn, links, row.id),
       ...(run === undefined ? {} : { run: await runView(run, sight) }),
     };
   }
@@ -362,7 +384,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       });
     }
     return {
-      ...(await summaryOf(row, labels, latest, sight)),
+      ...(await summaryOf(row, labels, latest, sight, await shownLinks())),
       document: normalizeDocument(row),
       vars: [...documentVars(row.key, row.starter)],
       languages: siblings.map((s) => ({
@@ -373,6 +395,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         archived: s.archivedAt !== null,
       })),
       attachmentsResolved,
+      sendAs: await templates.sendAsOf(row.key),
     };
   }
 
@@ -523,18 +546,21 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
     let marketingKit: Pick<MarketingMail, 'refusals'> | null = deps.marketing ?? null;
     /**
      * What would refuse a marketing send of this campaign now: the sender's
-     * checks, for the From the campaign goes from (its brand's sender, else
-     * the mail server's). The same function the run asks at its first batch,
-     * so the dialog, the send and the run never disagree.
+     * checks, for the From the campaign goes from (the sender of its
+     * audience's workspace, or the one it names, else its brand's sender,
+     * else the mail server's) and that sender's postal address. The same
+     * function the run asks at its first batch, so the dialog, the send and
+     * the run never disagree.
      */
-    async function senderRefusals(row: EmailTemplate): Promise<{ sender: string | null; refusals: MarketingRefusal[] }> {
-      const from = (await fromOf(meta, row.brand)) ?? '';
+    async function senderRefusals(row: EmailTemplate, connectionId: string | null): Promise<{ sender: string | null; refusals: MarketingRefusal[] }> {
+      const resolved = await senderFor(meta, row.brand, { connectionId, templateKey: row.key });
+      const from = resolved.from ?? '';
       const sender = bareAddress(from) === '' ? null : bareAddress(from);
       if (marketingKit === null) {
         if (secret === null) return { sender, refusals: [] };
         marketingKit = createMarketingMail({ meta, secret });
       }
-      return { sender, refusals: await marketingKit.refusals(from) };
+      return { sender, refusals: await marketingKit.refusals(from, { postal: resolved.sender.postal }) };
     }
 
     /** Whether this reader sees a run's per-recipient failures (`runView`): the e-mail managers only. */
@@ -583,9 +609,11 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       { schema: { querystring: emailDocumentsListQuery, response: { 200: emailDocumentsListReply } } },
       async (request) => {
         requireUserId(request);
-        const { kind, archived, q, app: appKey } = request.query;
-        // One app's documents: a cut of the rows the list answers anyway, made after the read, so it can only narrow.
-        const ofApp = (list: EmailTemplate[]): EmailTemplate[] => (appKey === undefined ? list : list.filter((row) => row.managedBy === appKey));
+        const { kind, archived, q, app: appKey, workspaceId } = request.query;
+        const inWorkspace = await shownInFilter(meta, request, 'email-template', workspaceId);
+        // One app's documents, and those shown in one workspace: cuts of the rows the list answers anyway, made after the read, so they can only narrow.
+        const ofApp = (list: EmailTemplate[]): EmailTemplate[] =>
+          list.filter((row) => (appKey === undefined || row.managedBy === appKey) && (inWorkspace === null || inWorkspace(row)));
         const rows = ofApp(await templates.list({ kind, archived: archived ?? false, q }));
         // Topic labels come from the whole family, not the filtered page: a
         // search that matches only the German variant still labels the topic
@@ -595,9 +623,10 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const latest = await runs.latestByTemplates(rows.filter((r) => r.kind === 'campaign').map((r) => r.id));
         const items = [];
         const sight = failureSight(request);
-        for (const row of rows) items.push(await summaryOf(row, labels, latest, sight));
-        if (appKey === undefined) return { items, counts: await templates.counts(archived ?? false) };
-        // The badges count the same cut: this app's documents of each kind, and its archived ones.
+        const links = await shownLinks();
+        for (const row of rows) items.push(await summaryOf(row, labels, latest, sight, links));
+        if (appKey === undefined && inWorkspace === null) return { items, counts: await templates.counts(archived ?? false) };
+        // The badges count the same cut: this app's (or this workspace's) documents of each kind, and its archived ones.
         const shown = ofApp(await templates.list({ archived: archived ?? false }));
         const gone = archived === true ? shown : ofApp(await templates.list({ archived: true }));
         return { items, counts: { template: shown.filter((row) => row.kind === 'template').length, campaign: shown.filter((row) => row.kind === 'campaign').length, archived: gone.length } };
@@ -810,7 +839,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         await requireSettingsManage(request, 'edit email templates');
         const row = await mustFind(request.params.id);
         const at = app.rbac.now();
-        const { name, enabled, category, archived } = request.body;
+        const { name, enabled, category, archived, shownIn } = request.body;
         // "Looks right" is a person's word: never the assistant's own request.
         const reviewed = request.body.reviewed === true && request.assistantVia === null;
         let next: EmailTemplate | null = row;
@@ -837,14 +866,28 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           next = await templates.restore(row.id, at);
         }
         if (next === null) throw new NotFoundError(`Email document ${row.id} not found.`);
-        await app.rbac.audit(request, {
-          category: 'settings',
-          action: archived === undefined ? 'email-template.update' : archived ? 'email-template.archive' : 'email-template.restore',
-          changes: { before: { name: row.name, enabled: row.enabled, archived: row.archivedAt !== null }, after: { ...request.body } },
-        });
+        const { shownIn: _shownIn, ...edited } = request.body;
+        if (Object.keys(edited).length > 0) {
+          await app.rbac.audit(request, {
+            category: 'settings',
+            action: archived === undefined ? 'email-template.update' : archived ? 'email-template.archive' : 'email-template.restore',
+            changes: { before: { name: row.name, enabled: row.enabled, archived: row.archivedAt !== null }, after: { ...edited } },
+          });
+        }
         const siblings = await templates.siblings(next.key, { localeOrder: localeOrder() });
+        if (shownIn !== undefined) {
+          // A rule names the key: every language of it is listed in the same workspaces.
+          const family = siblings.some((one) => one.id === row.id) ? siblings.map((one) => one.id) : [row.id];
+          const moved = await saveShownIn(meta, 'email-template', [row.id, ...family.filter((id) => id !== row.id)], shownIn);
+          await app.rbac.audit(request, {
+            category: 'settings',
+            action: 'email-template.shown-in',
+            changes: { before: { id: row.id, key: row.key, shownIn: moved.before }, after: { shownIn: moved.after, languages: family.length } },
+          });
+          next = (await templates.findById(row.id)) ?? next;
+        }
         const latest = next.kind === 'campaign' ? await runs.latestByTemplates([next.id]) : new Map<string, EmailRun>();
-        return await summaryOf(next, topicLabels(siblings), latest, failureSight(request));
+        return await summaryOf(next, topicLabels(siblings), latest, failureSight(request), await shownLinks());
       },
     );
 
@@ -878,6 +921,44 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           changes: { before: { id: row.id, kind: row.kind, key: row.key, locale: row.locale, name: row.name } },
         });
         return await reply.status(204).send(null);
+      },
+    );
+
+    // What "Send as" offers: the server's own From, and each workspace with the From it has (null: it goes as the server).
+    app.get('/email-templates/send-as-options', { schema: { response: { 200: emailSendAsOptionsReply } } }, async (request) => {
+      requireUserId(request);
+      await requireSettingsManage(request, 'edit email templates');
+      const all = await workspacesRepo(meta).list();
+      return {
+        server: (await senderFor(meta, null)).from,
+        workspaces: all.map((workspace) => ({ id: workspace.id, name: workspace.name, from: workspace.sender.from })),
+      };
+    });
+
+    // "Send as": the sender every language of the template goes as. Null = the sender of the workspace the mail's
+    // record is in (the server's for a database in none); `server`; or one workspace, whatever the record.
+    app.put(
+      '/email-templates/:id/send-as',
+      {
+        config: { audit: audited('rbac') },
+        schema: { params: emailIdParams, body: emailSendAsBody, response: { 200: emailSendAsReply } },
+      },
+      async (request) => {
+        requireUserId(request);
+        await requireSettingsManage(request, 'edit email templates');
+        const row = await mustFind(request.params.id);
+        const wanted = request.body.sendAs;
+        if (wanted !== null && wanted !== TEMPLATE_SEND_AS_SERVER && (await workspacesRepo(meta).findById(wanted)) === null) {
+          throw new NotFoundError('There is no such workspace.', { sendAs: wanted });
+        }
+        const before = await templates.sendAsOf(row.key);
+        if (before !== wanted) await templates.setSendAs(row.key, wanted, app.rbac.now());
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'email-template.send-as',
+          changes: { before: { key: row.key, sendAs: before }, after: { sendAs: wanted } },
+        });
+        return { key: row.key, sendAs: wanted };
       },
     );
 
@@ -917,7 +998,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: 'email-template.duplicate',
           changes: { before: { id: row.id, key: row.key }, after: { id: copy.id, key: copy.key, name } },
         });
-        return await reply.status(201).send(await detailOf(copy, failureSight(request)));
+        return await reply.status(201).send(await detailOf(await shownAsSource(row.id, copy), failureSight(request)));
       },
     );
 
@@ -988,7 +1069,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           action: 'email-template.language.add',
           changes: { after: { id: created.id, key: row.key, locale, needsTranslation } },
         });
-        return await reply.status(201).send(await detailOf(created, failureSight(request)));
+        return await reply.status(201).send(await detailOf(await shownAsSource(row.id, created), failureSight(request)));
       },
     );
 
@@ -1074,7 +1155,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const doc = await acceptDocument(request.body.document);
         const appName = await settings.get('branding.appName');
         const origin = await linkOrigin(meta, request);
-        const prepared = await prepareEmail(meta, doc);
+        // As the sender the template names ("Send as"), if any: a test send is about no record.
+        const prepared = await prepareEmail(meta, doc, { about: { templateKey: row.key } });
         const locale = row.locale;
         let queued = 0;
         for (const to of request.body.to) {
@@ -1132,7 +1214,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         if (request.body.audience.kind === 'table') {
           const preview = await tableAudiencePreview(audienceDeps(), signedInUserId(request), request.body.audience, await sentVariants(row), request.body.ratePerHour ?? null);
           // Mail to a table's people is marketing: what would refuse it, so the dialog shows it before the send.
-          return { ...preview, ...(await senderRefusals(row)) };
+          return { ...preview, ...(await senderRefusals(row, request.body.audience.connectionId)) };
         }
         const audience = await resolveCampaignAudience(meta, request.body.audience);
         return {
@@ -1173,7 +1255,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const toTable = request.body.audience.kind === 'table' ? await openedTableAudience(request, request.body.audience) : null;
         // Marketing mail the sender's checks refuse is refused here, before a run is made (the run would stop at its first batch).
         if (toTable !== null) {
-          const { refusals } = await senderRefusals(row);
+          const { refusals } = await senderRefusals(row, toTable.audience.connectionId);
           if (refusals.length > 0) {
             throw new AppError(409, 'SENDER_REFUSED', `This campaign can't go out yet. ${refusals.map(marketingRefusalSentence).join('. ')}.`, { refusals });
           }

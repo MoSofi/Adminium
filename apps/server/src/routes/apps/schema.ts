@@ -824,6 +824,14 @@ export const installedAppReply = z.object({
     .optional(),
   installedAt: z.number(),
   connectionId: z.string().nullable(),
+  /**
+   * An update of this copy that moved its version and stopped before it wrote
+   * all the version brings (`adminium_app_updates`): the version it came
+   * from, the one it runs now, and the step it stopped at (null when the
+   * server stopped while it ran). The same update, sent again, finishes it.
+   * Absent when there is none.
+   */
+  unfinishedUpdate: z.object({ from: z.string(), to: z.string(), stage: z.string().nullable() }).optional(),
   sides: z.array(installedSide),
   /** True for an app with a phone side (a phone app for customers): it is served to nobody, and has a key of its own. Absent otherwise. */
   phone: z.literal(true).optional(),

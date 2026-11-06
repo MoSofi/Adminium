@@ -304,6 +304,24 @@ export {
   instanceSchema,
   type InstancePart,
 } from './instance.js';
+export {
+  WORKSPACE_FILE,
+  WORKSPACE_FILE_APPS_MAX,
+  WORKSPACE_FILE_FLOOR,
+  WORKSPACE_FILE_FORMAT,
+  WORKSPACE_FILE_NAME_MAX,
+  WORKSPACE_FILE_SUFFIX,
+  readWorkspaceFile,
+  workspaceFileAppSchema,
+  workspaceFileFloor,
+  workspaceFileKey,
+  workspaceFileName,
+  workspaceFileSchema,
+  workspaceStubManifest,
+  type WorkspaceFile,
+  type WorkspaceFileApp,
+  type WorkspaceFileReading,
+} from './workspace-file.js';
 
 export {
   TABLE_NAME_MAX_BYTES,

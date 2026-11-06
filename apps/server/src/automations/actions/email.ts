@@ -78,6 +78,7 @@ import {
 import { pkLabel } from '../../crud/records.js';
 import { renderEmail } from '../../email/render.js';
 import { inlineRefs, prepareEmail } from '../../email/send.js';
+import { resolveMailSender, type SendAbout } from '../../email/workspace-sender.js';
 import { formatTag } from '../../i18n/bcp47.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { resolveEmailParts } from '../../jobs/email-send.js';
@@ -254,6 +255,11 @@ function listed(names: readonly string[]): string {
   return names.length > 5 ? `${shown} +${String(names.length - 5)}` : shown;
 }
 
+/** Whose mail a step's is: the database the run is about (its workspace's sender), and the template's "Send as". */
+function aboutOf(ctx: ActionContext, templateKey: string): SendAbout {
+  return { connectionId: ctx.source?.connectionId ?? ctx.rule.connectionId ?? null, templateKey };
+}
+
 /**
  * To the person on the row. Their address is looked up, the mail is written
  * in their language, and it goes through the queue like a notice's email —
@@ -305,7 +311,7 @@ async function mailPerson(action: EmailAction, ctx: ActionContext, user: User, r
   const vars = { ...(await varsFor(action, ctx, template.locale, reader)), recordUrl: await recordUrlFor(ctx, user) };
   const unfilled = unfilledIn(template, vars);
   if (dryRun) {
-    const prepared = await prepareEmail(ctx.meta, template);
+    const prepared = await prepareEmail(ctx.meta, template, { about: aboutOf(ctx, templateKey) });
     const rendered = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: 'ltr' });
     if (unfilled.length > 0) throw new ActionFailure(ctx.text.emailUnfilledStop(listed(unfilled)));
     return ctx.text.emailWould(rendered.subject, user.name);
@@ -314,7 +320,7 @@ async function mailPerson(action: EmailAction, ctx: ActionContext, user: User, r
   const replyTo = await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff);
   const job = await enqueueEmail(
     { meta: ctx.meta, secret: ctx.secret, ...(held === null ? {} : { runAt: held }) },
-    { to: user.email, templateKey, locale, vars, template, ...(replyTo === null ? {} : { replyTo }) } as never,
+    { to: user.email, templateKey, locale, vars, template, about: { connectionId: aboutOf(ctx, templateKey).connectionId ?? null }, ...(replyTo === null ? {} : { replyTo }) } as never,
   );
   if (job === null) throw new ActionFailure(ctx.text.emailNoSmtp());
   const said = [held === null ? ctx.text.emailQueued(user.name) : ctx.text.heldUntil(user.name, new Date(held).toISOString())];
@@ -333,7 +339,9 @@ export async function runEmailAction(
   const config = await resolveSmtpConfig(ctx.meta, emailSecretKey(ctx.secret));
   if (config === null) throw new ActionFailure(ctx.text.emailNoSmtp());
 
-  const prepared = await prepareEmail(ctx.meta, template);
+  // The sender it goes as: the workspace of the run's database, or the one the template names.
+  const sender = await resolveMailSender(ctx.meta, aboutOf(ctx, template.key));
+  const prepared = await prepareEmail(ctx.meta, template, { sender });
   const vars = await varsFor(action, ctx, template.locale);
   const probe = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: 'ltr' });
   const parts = await resolveEmailParts(
@@ -341,8 +349,9 @@ export async function runEmailAction(
     { inline: inlineRefs(probe), attachments: prepared.attachments },
   );
   const transport = (ctx.createTransport ?? createSmtpTransport)(config);
-  // A reply goes to the person on the row, by the address they sign in with now; nobody there, and the mail has no Reply-To.
-  const replyTo = await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff);
+  // A reply goes to the person on the row, by the address they sign in with now; nobody there, to the sender's reply-to, else
+  // the mail has no Reply-To.
+  const replyTo = (await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff)) ?? sender.replyTo;
   // Marketing or service: said of a mail to the record's own address only (see the header).
   const mailClass = action.to?.kind === 'field' ? (action.class ?? 'service') : null;
   // Why a marketing mail writes to them: the step's own purpose, else the newsletter (a step written before it could say).
@@ -363,7 +372,7 @@ export async function runEmailAction(
         continue;
       }
       if (!senderChecked) {
-        const refused = await kit.refusal(from);
+        const refused = await kit.refusal(from, { postal: sender.postal });
         if (refused !== null) throw new ActionFailure(ctx.text.emailFail(marketingRefusalSentence(refused)));
         senderChecked = true;
       }
@@ -372,6 +381,9 @@ export async function runEmailAction(
         purpose: verdict.send === 'existing-customers' ? null : purpose,
         locale: template.locale,
         replyTo,
+        // The business and postal address of the sender it goes as; the server's when that is the server.
+        ...(sender.name === null ? {} : { business: sender.name }),
+        postal: sender.postal,
       });
       signed = await kit.signing(from, config.host);
     }
@@ -414,7 +426,7 @@ export async function dryRunEmailAction(
   const { template, recipients } = await resolve(action, ctx);
   // Everything the real send does except the last line: the document is
   // resolved and RENDERED, so a broken template fails the test too.
-  const prepared = await prepareEmail(ctx.meta, template);
+  const prepared = await prepareEmail(ctx.meta, template, { about: aboutOf(ctx, template.key) });
   const vars = await varsFor(action, ctx, template.locale);
   const rendered = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: 'ltr' });
   const would = ctx.text.emailWould(rendered.subject, recipients.join(', '));

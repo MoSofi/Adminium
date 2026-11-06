@@ -35,6 +35,8 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.find(installed.row.id)).toBeNull();
       await repo.begin({ manifestId: installed.row.id, fromVersion: '1.0.0', toVersion: '1.1.0', fromTables: ['orders', 'items'] }, T0 + 1);
       await repo.stopped(installed.row.id, 'pages', T0 + 2);
+      // Listed for the installed apps, so a copy stopped part way says so after a reload.
+      expect((await repo.list()).map((update) => [update.manifestId, update.toVersion, update.stoppedAt])).toEqual([[installed.row.id, '1.1.0', 'pages']]);
       expect(await repo.find(installed.row.id)).toEqual({
         manifestId: installed.row.id,
         fromVersion: '1.0.0',
@@ -51,6 +53,7 @@ for (const dialect of TEST_DIALECTS) {
 
       await repo.finish(installed.row.id);
       expect(await repo.find(installed.row.id)).toBeNull();
+      expect(await repo.list()).toEqual([]);
     });
 
     it('goes with the install', async () => {
