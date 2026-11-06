@@ -63,7 +63,7 @@ import {
 } from '../add-ons/install.js';
 import { featuresNeeding, needKindOf, needsOf, type AppNeed, type FeatureNeed, type NeedKind } from '../add-ons/needs.js';
 import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
-import { installOnConnection } from '../installs/resolve.js';
+import { installOnConnection, serverWideOrOnly } from '../installs/resolve.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
 
 export interface AppAddOnDeps {
@@ -251,7 +251,7 @@ export async function resolveAppAddOns(
     const key = entry.key;
     const need = needKindOf(needs, key) ?? 'suggests';
     // The add-on as this database has it: its own install here, or a server-wide one.
-    const installed = input.connectionId === null ? ((await manifests.listByKey(key))[0] ?? null) : await installOnConnection(manifests, key, input.connectionId);
+    const installed = input.connectionId === null ? await serverWideOrOnly(manifests, key) : await installOnConnection(manifests, key, input.connectionId);
     const isAddOn = installed !== null && installed.row.kind === 'add-on';
     const offers = await offersFor(deps, key, bundled, feed);
     const inRange = offers.filter((offer) => satisfiesSemverRange(offer.version, entry.range));
@@ -421,15 +421,17 @@ async function planFor(
      * would be one that does not work. Said now, before anything moves.
      */
     if (dto.requiresSchemaChange) {
-      // One version per app on a server: any copy of the host says which runs.
-      const running = (await manifestsRepo(installer.meta, installer.credentialCrypto).listByKey(host.key))[0]?.row.version ?? null;
-      const stale = running === null || running === host.version ? null : attachRangeRefusal(manifest, { key: host.key, version: running });
-      if (stale !== null) {
+      // Every copy of the host: an update moves them one at a time, so each runs its own version meanwhile.
+      const running = [...new Set((await manifestsRepo(installer.meta, installer.credentialCrypto).listByKey(host.key)).filter((one) => one.row.kind === 'app').map((one) => one.row.version))];
+      for (const version of running.filter((one) => one !== host.version)) {
+        const stale = attachRangeRefusal(manifest, { key: host.key, version });
+        if (stale === null) continue;
         extra.push({
           code: 'ADD_ON_RANGE',
           table: host.key,
-          message: `${manifest.name} ${manifest.version} brings tables, so it is updated before this app is — and it does not work with the version of this app that is running (${running ?? ''}). ${stale}`,
+          message: `${manifest.name} ${manifest.version} brings tables, so it is updated before this app is — and it does not work with the version of this app that is running (${version}). ${stale}`,
         });
+        break;
       }
     }
     return extra.length === 0 ? dto : { ...dto, installable: false, problems: [...dto.problems, ...extra] };
@@ -738,7 +740,7 @@ export async function pruneNamedAddOns(installer: AddOnInstallerDeps, manifest: 
   const needs = addOnNeedsOf(manifest);
   const manifests = manifestsRepo(installer.meta, installer.credentialCrypto);
   for (const key of new Set([...(needs?.requires ?? []), ...(needs?.suggests ?? [])].map((need) => need.key))) {
-    // One version per add-on on a server: every install names the same one, so older ones go.
+    // key-wide: older versions go, and a version any copy still names is kept (`pruneOlderVersions`).
     const installed = (await manifests.listByKey(key)).find((one) => one.row.kind === 'add-on');
     if (installed === undefined) continue;
     await pruneOlderVersions(installer, key, installed.row.version);

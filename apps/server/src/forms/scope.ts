@@ -39,6 +39,8 @@ const NO_SECRETS = {
 export interface FormsTable {
   /** The app that opened it, and its short name for the table. */
   appKey: string;
+  /** The install of the app that opened it: its own switches decide whether the entry is open. */
+  installId: string;
   ref: string;
   connectionId: string;
   /** The table's id in the database's snapshot: what a form's "becomes" names. */
@@ -145,7 +147,7 @@ export function createFormsScopes(deps: FormsScopesDeps) {
         const table = real === undefined ? undefined : tableOfReal(snapshot, real);
         if (table === undefined) continue;
         const ref = `forms:${one.row.manifestKey}:${entry.table}`;
-        const opened: FormsTable = { appKey: one.row.manifestKey, ref: entry.table, connectionId, tableId: table.id, entry, resource: formsResource(entry, table.id, ref) };
+        const opened: FormsTable = { appKey: one.row.manifestKey, installId: one.row.id, ref: entry.table, connectionId, tableId: table.id, entry, resource: formsResource(entry, table.id, ref) };
         tables.set(table.id, opened);
         byRef.set(`${one.row.manifestKey}:${entry.table}`, opened);
       }

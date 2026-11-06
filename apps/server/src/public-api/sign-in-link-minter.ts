@@ -74,7 +74,7 @@ async function customerRoutes(meta: MetaDb, appKey: string): Promise<string[]> {
   const refuse = () => {
     throw new Error('credentials are not read here');
   };
-  // One version per app on a server: any copy of it declares the same routes.
+  // key-wide: one version per app on a server, so any copy's document declares the same routes.
   const installed = (await manifestsRepo(meta, { encrypt: refuse, decrypt: refuse }).listByKey(appKey))[0] ?? null;
   const frontends = (installed?.document as { frontends?: { side?: string; routes?: Record<string, string> }[] } | undefined)?.frontends ?? [];
   return frontends.filter((frontend) => frontend.side === 'customer').flatMap((frontend) => Object.values(frontend.routes ?? {}));

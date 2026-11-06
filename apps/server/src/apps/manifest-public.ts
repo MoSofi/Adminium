@@ -49,7 +49,7 @@ import { tableIdIn, tableOfReal } from '../installs/table-id.js';
 import { EndpointSaveRefused, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
 import { generatePublishableKey, isPhoneAppKey, managedKeyKind, sealPublishableKey } from '../public-api/keys.js';
 import { managedGrantIssues } from '../public-api/managed-key.js';
-import { guestBase } from '../public-api/guest-base.js';
+import { guestBase, hasPublicOrigin, installSlugOn } from '../public-api/guest-base.js';
 import { addAndReadRefusal, anonymousAddAndRead } from './anonymous-access.js';
 import { installsOf, type InstallAddress } from '../installs/resolve.js';
 import { roleSlugFor } from './manifest-roles.js';
@@ -688,6 +688,20 @@ export function keepsMoney(manifest: Manifest): boolean {
   return manifest.kind === 'app' && (manifest.requiredSchema?.tables ?? []).some((table) => table.columns.some((column) => column.type === 'money'));
 }
 
+/**
+ * Whether a sign-in link of the app's install on `connectionId` would have an
+ * address to point at. Its own install's address when it is there; one not
+ * made yet is the bare install when the key is installed nowhere, else a
+ * later install, which no host is mapped to yet: the server's public address.
+ */
+async function guestSideReachable(meta: MetaDb, appKey: string, connectionId: string): Promise<boolean> {
+  const slug = await installSlugOn(meta, appKey, connectionId);
+  if (slug !== null) return (await guestBase({ meta }, appKey, slug)) !== null;
+  // key-wide: whether the key is installed anywhere decides whether this one takes the bare addresses.
+  const elsewhere = await meta.db.selectFrom('adminium_manifests').select('version').where('manifestKey', '=', appKey).where('kind', '=', 'app').executeTakeFirst();
+  return elsewhere === undefined ? (await guestBase({ meta }, appKey)) !== null : await hasPublicOrigin(meta);
+}
+
 /** What would stop an app's key working on this instance, said before install. */
 export async function publicAccessWarnings(
   meta: MetaDb,
@@ -718,7 +732,7 @@ export async function publicAccessWarnings(
     );
   }
   // A sign-in link names the app's own public address — never the address a request came in on.
-  if (byLink && signIn !== undefined && (await guestBase({ meta }, signIn.appKey)) === null) {
+  if (byLink && signIn !== undefined && !(await guestSideReachable(meta, signIn.appKey, connectionId))) {
     out.push({
       code: 'NO_PUBLIC_ADDRESS',
       message: 'This app has no public address, so no sign-in link can be sent. Map a domain to its customer side, or set the server’s public address.',
@@ -849,12 +863,20 @@ export async function installPublicAccess(input: {
   const guest = (entry: PlannedPublicEndpoint) => input.manifest.kind !== 'app' || entry.owner !== input.manifest.key;
   const storedOwner = new Map((await publicEndpointsRepo(input.meta).listByConnection(input.connectionId)).map((endpoint) => [endpoint.ref, endpoint.managedBy]));
   const planned: PlannedPublicEndpoint[] = [];
+  const takenHere: string[] = [];
   for (const entry of every.filter((candidate) => !unsound(candidate))) {
-    if (guest(entry) && storedOwner.has(entry.ref) && storedOwner.get(entry.ref) !== entry.owner) {
-      skipped.push({ ref: entry.ref, reason: `an endpoint "${entry.ref}" is here already and is not this add-on's: it is left as it is` });
-      continue;
+    if (storedOwner.has(entry.ref) && storedOwner.get(entry.ref) !== entry.owner) {
+      if (guest(entry)) {
+        skipped.push({ ref: entry.ref, reason: `an endpoint "${entry.ref}" is here already and is not this add-on's: it is left as it is` });
+        continue;
+      }
+      // The app's own entry is held to the same: another's endpoint is never written over (the check refused it already).
+      takenHere.push(entry.ref);
     }
     planned.push(entry);
+  }
+  if (takenHere.length > 0) {
+    throw new Error(`The public access this app asks for has the name of an endpoint here that is not the app's (${takenHere.map((ref) => `"${ref}"`).join(', ')}). It is never written over: rename or remove that endpoint first.`);
   }
   for (const entry of planned) {
     try {

@@ -88,7 +88,7 @@ import { resolveLabel, type HostedSurface, type SurfaceSide } from '../cli/surfa
 import { AppError, AppUnavailableError, ForbiddenError, NotFoundError } from '../errors.js';
 import { MAPS_OFF } from '../geo/map-policy.js';
 import { bcp47, sameLanguage } from '../i18n/bcp47.js';
-import { loadAppParts, offeredRoles } from '../rbac/app-parts.js';
+import { loadAppParts, offeredRoles, partsOfOwner } from '../rbac/app-parts.js';
 import { loadOverrideMap, recipientLocale } from '../i18n/server-i18n.js';
 import { openPublishableKey, storedPageKey } from '../public-api/keys.js';
 import { CSRF_FORM_FIELD, normalizeHost } from '../security/csrf.js';
@@ -931,7 +931,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
     async function partsOf(appKey: string, installId: string | null): Promise<{ modules?: Record<string, boolean> }> {
       if (opts.metaDb === undefined) return {};
       const all = await loadAppParts(opts.metaDb, [appKey]);
-      const parts = (installId === null ? undefined : all.get(installId)) ?? all.get(appKey);
+      // The mount's own install: a copy that is not there borrows no other copy's switches.
+      const parts = partsOfOwner(all, appKey, { installId });
       if (parts === undefined || parts.modules === null) return {};
       return { modules: Object.fromEntries(parts.modules.defs.map((def) => [def.id, !parts.off.has(def.id)])) };
     }

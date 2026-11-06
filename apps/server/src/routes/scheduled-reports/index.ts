@@ -176,7 +176,7 @@ export function scheduledReportsRoutes(deps: ScheduledReportsRoutesDeps): Fastif
           throw new ValidationFailedError(`Page ${pageId} does not exist.`, { pageId });
         }
         // A report over a page of a part of its app that is switched off would never be sent: refused, as the page is.
-        await assertPagePartOn(meta, page.config);
+        await assertPagePartOn(meta, page);
         await requireExportGrantForPage(request, page);
         const at = now();
         const row = await reports.create(
@@ -224,7 +224,7 @@ export function scheduledReportsRoutes(deps: ScheduledReportsRoutesDeps): Fastif
               pageId: patch.pageId,
             });
           }
-          await assertPagePartOn(meta, nextPage.config);
+          await assertPagePartOn(meta, nextPage);
           // Retargeting a schedule is scheduling: same export-grant guard.
           await requireExportGrantForPage(request, nextPage);
         }

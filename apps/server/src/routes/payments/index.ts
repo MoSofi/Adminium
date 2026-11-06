@@ -32,7 +32,7 @@ import {
   type PaymentMode,
 } from '@adminium/add-on-contracts';
 import { addOnManifestSchema, type AddOnManifest } from '@adminium/manifest';
-import { SERVER_SCOPE, paymentCountersRepo, paymentSettingsRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
+import { paymentCountersRepo, paymentSettingsRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
@@ -40,6 +40,7 @@ import { addOnHttpClientFor } from '../../add-ons/egress.js';
 import { providerByKey, type AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { serverWideOrOnly } from '../../installs/resolve.js';
 import { modeCredentials, withField } from '../../payments/credentials.js';
 import { payAddress } from '../../payments/links.js';
 import { checkPaste } from '../../payments/paste-checks.js';
@@ -155,7 +156,9 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
 
   async function paymentAddOn(key: string): Promise<PaymentAddOn> {
     // A payment service is kept once per server.
-    const installed = (await manifests.findInScope(key, SERVER_SCOPE)) ?? (await manifests.listByKey(key)).find((one) => one.row.kind === 'add-on') ?? null;
+    // The one kept per server, else the key's one install: never the first of several.
+    const found = await serverWideOrOnly(manifests, key);
+    const installed = found !== null && found.row.kind === 'add-on' ? found : null;
     const parsed = installed === null ? null : addOnManifestSchema.safeParse(installed.document);
     if (installed === null || parsed === null || !parsed.success || !isPaymentAddOn(parsed.data)) {
       throw new NotFoundError(`"${key}" is not an installed payment service.`);

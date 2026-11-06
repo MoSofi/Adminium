@@ -45,10 +45,11 @@ import {
   type ProviderError,
 } from '@adminium/add-on-contracts';
 import { addOnManifestSchema, type AddOnManifest } from '@adminium/manifest';
-import { SERVER_SCOPE, type CredentialEnvelope, type InstalledManifest } from '@adminium/meta';
+import { type CredentialEnvelope, type InstalledManifest } from '@adminium/meta';
 
 import { hostnameAllowed } from '../add-ons/egress-policy.js';
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
+import { serverWideOrOnly } from '../installs/resolve.js';
 import { watchingClock } from './clock.js';
 import { modeCredentials } from './credentials.js';
 
@@ -186,7 +187,9 @@ export async function paymentProviderFor(deps: PaymentSeamDeps, key: string, mod
   }
 
   // A payment service is kept once per server (two businesses share one provider account).
-  const installed = (await deps.manifests.findInScope(key, SERVER_SCOPE)) ?? (await deps.manifests.listByKey(key)).find((one) => one.row.kind === 'add-on') ?? null;
+  // An older one kept per database is used only while it is the key's one install: never the first of several.
+  const found = await serverWideOrOnly(deps.manifests, key);
+  const installed = found !== null && found.row.kind === 'add-on' ? found : null;
   if (installed === null) return refuse('NOT_INSTALLED', `The payment add-on "${key}" is not installed.`);
   if (installed.row.status !== 'installed') return refuse('SWITCHED_OFF', `The payment add-on "${key}" is switched off.`);
   const manifest = addOnManifestSchema.safeParse(installed.document);

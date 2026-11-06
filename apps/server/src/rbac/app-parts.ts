@@ -25,6 +25,8 @@ export interface AppParts {
   key: string;
   /** The installed row's id. */
   id: string;
+  /** The database it is installed on; null for one kept once per server. */
+  connectionId: string | null;
   /** Whether the app itself is switched on (`installed`). */
   running: boolean;
   /** Whether its owner switched the whole app off (`disabled`): its roles then grant nothing. */
@@ -94,18 +96,50 @@ export async function loadAppParts(meta: MetaDb, keys?: readonly string[]): Prom
       if (missing.length > 0) waiting.set(def.id, missing);
       if (missing.length > 0 || !switchOf(row.modules!, def.id)) off.add(def.id);
     }
-    const parts: AppParts = { key: row.key, id: row.id, running: row.status === 'installed', disabled: row.status === 'disabled', modules: row.modules, off, waiting };
+    const parts: AppParts = { key: row.key, id: row.id, connectionId: row.connectionId, running: row.status === 'installed', disabled: row.status === 'disabled', modules: row.modules, off, waiting };
     out.set(row.id, parts);
     if ((slugs.get(row.id) ?? '') === '' || !out.has(row.key)) out.set(row.key, parts);
   }
   return out;
 }
 
-/** Whether `module` of the app `appKey` is on — of one install when it is named. True for an app that is not installed: its own gate answers for that. */
-export async function appPartIsOn(meta: MetaDb, appKey: string | null | undefined, module: string | null | undefined, installId?: string | null): Promise<boolean> {
+/**
+ * Which install of a key a part's question is about. A row that knows its
+ * install names it (`installId`); one that only knows its database names that
+ * (`connectionId`), and the key's install on it answers. Each copy of an app
+ * has its own switches, so neither ever falls back to another copy's.
+ */
+export interface PartsOwner {
+  installId: string | null | undefined;
+  connectionId?: string | null | undefined;
+}
+
+/**
+ * The parts of `key` an owner means: the install it names; else the key's
+ * install on its database, or the one kept once per server. Only an owner
+ * that names neither (a caller with nothing to go by) reads the key's bare
+ * install. Undefined when the install it names is not there: no switch of
+ * another copy answers for it.
+ */
+export function partsOfOwner(all: ReadonlyMap<string, AppParts>, key: string, owner: PartsOwner): AppParts | undefined {
+  const installId = owner.installId ?? null;
+  const connectionId = owner.connectionId ?? null;
+  if (installId !== null) {
+    const named = all.get(installId);
+    if (named !== undefined && named.key === key) return named;
+  }
+  if (connectionId !== null) {
+    const installs = [...new Map([...all.values()].filter((one) => one.key === key).map((one) => [one.id, one])).values()];
+    return installs.find((one) => one.connectionId === connectionId) ?? installs.find((one) => one.connectionId === null);
+  }
+  return installId === null ? all.get(key) : undefined;
+}
+
+/** Whether `module` of the app `appKey` is on, for the install `owner` names. True for an app that is not installed: its own gate answers for that. */
+export async function appPartIsOn(meta: MetaDb, appKey: string | null | undefined, module: string | null | undefined, owner: PartsOwner): Promise<boolean> {
   if (appKey === null || appKey === undefined || module === null || module === undefined) return true;
   const parts = await loadAppParts(meta, [appKey]);
-  return partIsOn((installId === undefined || installId === null ? undefined : parts.get(installId)) ?? parts.get(appKey), module);
+  return partIsOn(partsOfOwner(parts, appKey, owner), module);
 }
 
 /**
@@ -156,16 +190,28 @@ export function refNamesTable(ref: string, connectionId: string, table: string, 
   return id === table || id.endsWith(`.${table}`);
 }
 
-/** Refuses with `PART_OFF` when `module` of `appKey` is off. */
-export async function assertAppPartOn(meta: MetaDb, appKey: string | null | undefined, module: string | null | undefined, installId?: string | null): Promise<void> {
+/** Refuses with `PART_OFF` when `module` of `appKey` is off on the install `owner` names. */
+export async function assertAppPartOn(meta: MetaDb, appKey: string | null | undefined, module: string | null | undefined, owner: PartsOwner): Promise<void> {
   if (appKey === null || appKey === undefined || module === null || module === undefined) return;
-  if (!(await appPartIsOn(meta, appKey, module, installId))) throw new PartOffError(appKey, module);
+  if (!(await appPartIsOn(meta, appKey, module, owner))) throw new PartOffError(appKey, module);
 }
 
-/** Refuses with `PART_OFF` when a stored page belongs to a part of its app that is off. */
-export async function assertPagePartOn(meta: MetaDb, config: unknown): Promise<void> {
-  const part = pageAppPart(config);
-  if (part !== null) await assertAppPartOn(meta, part.app, part.module);
+/** A stored page, as much as says whose part it is: its envelope, the install that made it, and its database. */
+export interface PartPage {
+  config: unknown;
+  manifestId?: string | null | undefined;
+  connectionId?: string | null | undefined;
+}
+
+/** The install a stored page belongs to: the one that made it, else its app's install on the page's database. */
+function ownerOfPage(page: Pick<PartPage, 'manifestId' | 'connectionId'>): PartsOwner {
+  return { installId: page.manifestId ?? null, connectionId: page.connectionId ?? null };
+}
+
+/** Refuses with `PART_OFF` when a stored page belongs to a part of its app's install that is off. */
+export async function assertPagePartOn(meta: MetaDb, page: PartPage): Promise<void> {
+  const part = pageAppPart(page.config);
+  if (part !== null) await assertAppPartOn(meta, part.app, part.module, ownerOfPage(page));
 }
 
 /**
@@ -173,10 +219,10 @@ export async function assertPagePartOn(meta: MetaDb, config: unknown): Promise<v
  * rule starts no run and is passed over by one already waiting. A rule an
  * owner made, and one of no part, never is.
  */
-export async function rulePartOff(meta: MetaDb, rule: { managedBy: string | null; module: string | null; installId?: string | null }): Promise<boolean> {
+export async function rulePartOff(meta: MetaDb, rule: { managedBy: string | null; module: string | null; installId?: string | null; connectionId?: string | null }): Promise<boolean> {
   if (rule.managedBy === null || rule.module === null) return false;
   // The part of the install that shipped the rule: another copy's switch is not this one's.
-  return !(await appPartIsOn(meta, rule.managedBy, rule.module, rule.installId));
+  return !(await appPartIsOn(meta, rule.managedBy, rule.module, { installId: rule.installId ?? null, connectionId: rule.connectionId ?? null }));
 }
 
 /** The roles among `roles` that are offered now: not one whose every part is off, nor one of an app that is switched off. */
@@ -199,8 +245,8 @@ export async function offeredRoles<R extends Pick<Role, 'appKey' | 'modules'> & 
 const DOORS_TTL_MS = 3_000;
 const closedDoors = new WeakMap<MetaDb, Map<string, { at: number; closed: ReadonlySet<string> }>>();
 
-/** The refs of the app's public entries that are closed now: those of a part that is off. */
-export async function closedDoorsOf(meta: MetaDb, appKey: string | null, installId?: string | null): Promise<ReadonlySet<string>> {
+/** The refs of the app's public entries that are closed now: those of a part of the install `owner` names that is off. */
+export async function closedDoorsOf(meta: MetaDb, appKey: string | null, owner: PartsOwner): Promise<ReadonlySet<string>> {
   if (appKey === null) return NO_DOORS;
   let known = closedDoors.get(meta);
   if (known === undefined) {
@@ -208,12 +254,11 @@ export async function closedDoorsOf(meta: MetaDb, appKey: string | null, install
     closedDoors.set(meta, known);
   }
   // The key's install the asking public key belongs to: each copy of an app has its own switches.
-  const slot = installId === undefined || installId === null ? appKey : installId;
+  const slot = `${appKey}\u0000${owner.installId ?? ''}\u0000${owner.connectionId ?? ''}`;
   const held = known.get(slot);
   const now = Date.now();
   if (held !== undefined && now - held.at < DOORS_TTL_MS) return held.closed;
-  const all = await loadAppParts(meta, [appKey]);
-  const parts = all.get(slot) ?? all.get(appKey);
+  const parts = partsOfOwner(await loadAppParts(meta, [appKey]), appKey, owner);
   const closed = new Set(Object.entries(parts?.modules?.doors ?? {}).flatMap(([ref, module]) => (partIsOn(parts, module) ? [] : [ref])));
   known.set(slot, { at: now, closed: closed.size === 0 ? NO_DOORS : closed });
   return closed.size === 0 ? NO_DOORS : closed;
@@ -225,9 +270,9 @@ export function forgetClosedDoors(meta: MetaDb): void {
   closedDoors.delete(meta);
 }
 
-/** Whether a public entry an app declares (by the ref it is served under) belongs to a part of it that is off. */
-export async function publicEntryPartOff(meta: MetaDb, appKey: string | null, ref: string): Promise<boolean> {
-  return (await closedDoorsOf(meta, appKey)).has(ref);
+/** Whether a public entry an install of an app declares (by the ref it is served under) belongs to a part of that install that is off. */
+export async function publicEntryPartOff(meta: MetaDb, appKey: string | null, ref: string, installId: string | null): Promise<boolean> {
+  return (await closedDoorsOf(meta, appKey, { installId })).has(ref);
 }
 
 /**
@@ -236,29 +281,29 @@ export async function publicEntryPartOff(meta: MetaDb, appKey: string | null, re
  * Every door of the public API reads a key through this, so an entry of a
  * part that is off is answered as one that is not there, by all of them.
  */
-export async function withOpenDoors<K extends { managedBy: string | null; connectionId?: string; scope: { byRef: ReadonlyMap<string, unknown> } }>(meta: MetaDb, key: K): Promise<K> {
-  // The app's install on the key's database: its parts decide, not another copy's.
-  const install =
-    key.managedBy === null || key.connectionId === undefined
-      ? undefined
-      : (await meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', key.managedBy).where('scopeKey', '=', key.connectionId).executeTakeFirst())?.id;
-  const closed = await closedDoorsOf(meta, key.managedBy, install);
+export async function withOpenDoors<K extends { managedBy: string | null; installId?: string | null; connectionId?: string; scope: { byRef: ReadonlyMap<string, unknown> } }>(meta: MetaDb, key: K): Promise<K> {
+  // The install the key was made for, else the app's install on the key's database: its parts decide, not another copy's.
+  const closed = await closedDoorsOf(meta, key.managedBy, { installId: key.installId ?? null, connectionId: key.connectionId ?? null });
   if (closed.size === 0 || ![...closed].some((ref) => key.scope.byRef.has(ref))) return key;
   return { ...key, scope: { ...key.scope, byRef: new Map([...key.scope.byRef].filter(([ref]) => !closed.has(ref))) } };
 }
 
 /** The ids of the pages among `rows` that belong to a part of their app that is off: listed and offered by nothing. */
-export async function pagesOfPartsOff(meta: MetaDb, rows: readonly { id: string; appKey?: string | null; appModule?: string | null }[]): Promise<ReadonlySet<string>> {
+export async function pagesOfPartsOff(
+  meta: MetaDb,
+  rows: readonly { id: string; appKey?: string | null; appModule?: string | null; manifestId?: string | null; connectionId?: string | null }[],
+): Promise<ReadonlySet<string>> {
   const named = rows.filter((row) => row.appKey != null && row.appModule != null);
   if (named.length === 0) return new Set();
   const parts = await loadAppParts(meta, [...new Set(named.map((row) => row.appKey as string))]);
-  return new Set(named.filter((row) => !partIsOn(parts.get(row.appKey as string), row.appModule)).map((row) => row.id));
+  // Each page answers to its own install's switch: Kiln's part off hides Kiln's page, never Fernhill's.
+  return new Set(named.filter((row) => !partIsOn(partsOfOwner(parts, row.appKey as string, ownerOfPage(row)), row.appModule)).map((row) => row.id));
 }
 
-/** Whether a stored page belongs to a part of its app that is off. */
-export async function pagePartOff(meta: MetaDb, config: unknown): Promise<boolean> {
-  const part = pageAppPart(config);
-  return part !== null && !(await appPartIsOn(meta, part.app, part.module));
+/** Whether a stored page belongs to a part of its app's install that is off. */
+export async function pagePartOff(meta: MetaDb, page: PartPage): Promise<boolean> {
+  const part = pageAppPart(page.config);
+  return part !== null && !(await appPartIsOn(meta, part.app, part.module, ownerOfPage(page)));
 }
 
 /**
@@ -266,29 +311,31 @@ export async function pagePartOff(meta: MetaDb, config: unknown): Promise<boolea
  * names its part (`layout.items[].module`) and is not drawn while that part
  * is off, as a page of it is not. Nothing to drop answers the same array.
  */
-export async function cardsOfPartsOn<I extends { module?: string | undefined }>(meta: MetaDb, appKey: string | null | undefined, items: readonly I[]): Promise<readonly I[]> {
-  if (appKey === null || appKey === undefined || !items.some((item) => typeof item.module === 'string')) return items;
-  const parts = (await loadAppParts(meta, [appKey])).get(appKey);
+export async function cardsOfPartsOn<I extends { module?: string | undefined }>(meta: MetaDb, page: PartPage, items: readonly I[]): Promise<readonly I[]> {
+  const appKey = pageAppPart(page.config)?.app;
+  if (appKey === undefined || !items.some((item) => typeof item.module === 'string')) return items;
+  const parts = partsOfOwner(await loadAppParts(meta, [appKey]), appKey, ownerOfPage(page));
   const kept = items.filter((item) => partIsOn(parts, item.module));
   return kept.length === items.length ? items : kept;
 }
 
 /** The cards among `items` of parts of the app that are off: what a layout saved without them keeps (they were not drawn to be moved). */
-export async function cardsOfPartsOff<I extends { module?: string | undefined }>(meta: MetaDb, appKey: string | null | undefined, items: readonly I[]): Promise<I[]> {
-  if (appKey === null || appKey === undefined || !items.some((item) => typeof item.module === 'string')) return [];
-  const parts = (await loadAppParts(meta, [appKey])).get(appKey);
+export async function cardsOfPartsOff<I extends { module?: string | undefined }>(meta: MetaDb, page: PartPage, items: readonly I[]): Promise<I[]> {
+  const appKey = pageAppPart(page.config)?.app;
+  if (appKey === undefined || !items.some((item) => typeof item.module === 'string')) return [];
+  const parts = partsOfOwner(await loadAppParts(meta, [appKey]), appKey, ownerOfPage(page));
   return items.filter((item) => !partIsOn(parts, item.module));
 }
 
-/** A stored page's envelope with {@link cardsOfPartsOn} applied to its layout (`config.layout.items`). */
-export async function withCardsOfPartsOn(meta: MetaDb, envelope: unknown): Promise<unknown> {
+/** A stored page's envelope (`envelope`, as it is served) with {@link cardsOfPartsOn} applied to its layout (`config.layout.items`), for the page's own install. */
+export async function withCardsOfPartsOn(meta: MetaDb, page: Pick<PartPage, 'manifestId' | 'connectionId'>, envelope: unknown): Promise<unknown> {
   const part = pageAppPart(envelope);
   if (part === null || typeof envelope !== 'object' || envelope === null) return envelope;
   const body = (envelope as { config?: unknown }).config;
   const layout = typeof body === 'object' && body !== null ? (body as { layout?: unknown }).layout : undefined;
   const items = typeof layout === 'object' && layout !== null ? (layout as { items?: unknown }).items : undefined;
   if (!Array.isArray(items)) return envelope;
-  const kept = await cardsOfPartsOn(meta, part.app, items as { module?: string }[]);
+  const kept = await cardsOfPartsOn(meta, { config: envelope, manifestId: page.manifestId, connectionId: page.connectionId }, items as { module?: string }[]);
   if (kept === items) return envelope;
   return { ...envelope, config: { ...(body as object), layout: { ...(layout as object), items: kept } } };
 }

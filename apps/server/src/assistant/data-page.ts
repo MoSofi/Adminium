@@ -54,7 +54,7 @@ export async function dataPageOf(deps: AssistantToolDeps): Promise<DataPage | nu
   const page = await pagesRepo(deps.meta).findById(host.pageId);
   if (page === null || !page.isEnabled) return null;
   // A page of a part of its app that is switched off is no page to work on: its route refuses it too.
-  if (await pagePartOff(deps.meta, page.config)) return null;
+  if (await pagePartOff(deps.meta, page)) return null;
   // The page's own view gate, as its route asks it.
   if (!(await deps.can(`page:${page.id}:view`)) && !(await deps.can('system:pages:manage'))) return null;
   const source = (page.config as { source?: { connectionId?: unknown; table?: unknown } } | null)?.source;

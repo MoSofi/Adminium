@@ -30,9 +30,9 @@ import { readBool, realTableOf, settingsRepo, type MetaDb } from '@adminium/meta
 
 import { SURFACES_URL_ROOT } from '../cli/surfaces-root.js';
 import { defaultSchemaOf } from '../installs/table-id.js';
-import { loadAppParts, partIsOn } from '../rbac/app-parts.js';
+import { loadAppParts, partIsOn, partsOfOwner } from '../rbac/app-parts.js';
 import { permissionSetAllows, resolvePermissionSet, type PermissionSet } from '../rbac/resolver.js';
-import { availabilityOf, instancesOf, staffConnectionOf, staffPlacementOf, type SurfaceSettings } from '../surfaces/settings.js';
+import { addressKey, availabilityOf, instancesOf, sideOffOf, staffConnectionOf, staffPlacementOf, type SurfaceSettings } from '../surfaces/settings.js';
 
 /** The record a link is about, as a notice's `entity` and a search hit name it. */
 export interface RecordAt {
@@ -45,6 +45,8 @@ export interface RecordAt {
 
 export interface RecordPlace {
   appKey: string;
+  /** The install's address: the key, or `<key>~<slug>` for a later install. */
+  address: string;
   /** The address under the staff side: `/deals/12`. An app's own screen routes on it. */
   path: string;
   /** The address on this server: `/apps/crm/staff/deals/12`, or `/a/crm/deals/12` for a side shown inside the dashboard. */
@@ -55,6 +57,8 @@ export interface RecordPlace {
 
 interface AppAddresses {
   appKey: string;
+  /** The install's address (`crm`, or `crm~kiln` for a later install): its staff grant is `app:<address>:staff`. */
+  address: string;
   /** Real table (`realTableOf`: `orders`, `sales.orders`) → its name and schema, the address its records open at, and the part of the app it belongs to. */
   tables: Map<string, { name: string; address: string; schema: string | null; module: string | null; owned: boolean }>;
   /** The base of the mount that reads this connection, on this server. */
@@ -86,12 +90,16 @@ async function surfaceSettings(meta: MetaDb): Promise<SurfaceSettings> {
   const [apps, domains, rows] = await Promise.all([
     settings.get('surfaces.apps'),
     settings.get('surfaces.domains'),
-    meta.db.selectFrom('adminium_manifests').select(['manifestKey', 'status']).where('kind', '=', 'app').execute(),
+    meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'instanceSlug', 'connectionId', 'status']).where('kind', '=', 'app').execute(),
   ]);
   return {
     apps: (apps ?? {}) as SurfaceSettings['apps'],
     domains: (domains ?? {}) as SurfaceSettings['domains'],
-    statuses: Object.fromEntries(rows.map((row) => [row.manifestKey, row.status === 'installed' || row.status === 'installing' || row.status === 'disabled' ? row.status : 'error'])) as SurfaceSettings['statuses'],
+    // By address, as the registry keeps them: each install's own status.
+    statuses: Object.fromEntries(
+      rows.map((row) => [addressKey(row.manifestKey, row.instanceSlug), row.status === 'installed' || row.status === 'installing' || row.status === 'disabled' ? row.status : 'error']),
+    ) as SurfaceSettings['statuses'],
+    installs: Object.fromEntries(rows.map((row) => [addressKey(row.manifestKey, row.instanceSlug), { id: row.id, connectionId: row.connectionId }])),
   };
 }
 
@@ -113,7 +121,7 @@ export async function recordAddressBook(meta: MetaDb, connectionId: string, give
   let defaultSchema: string | null | undefined;
   const rows = await meta.db
     .selectFrom('adminium_manifests')
-    .select(['id', 'manifestKey', 'connectionId', 'version', 'updatedAt'])
+    .select(['id', 'manifestKey', 'instanceSlug', 'connectionId', 'version', 'updatedAt'])
     .where('kind', '=', 'app')
     .where('status', '=', 'installed')
     .execute();
@@ -122,13 +130,27 @@ export async function recordAddressBook(meta: MetaDb, connectionId: string, give
   const apps: AppAddresses[] = [];
   const parts = await loadAppParts(meta, rows.map((row) => row.manifestKey));
 
-  for (const row of [...rows].sort((a, b) => a.manifestKey.localeCompare(b.manifestKey))) {
+  // The keys installed again on this database: there, that install's own mount is where its records open.
+  const laterHere = new Set(rows.filter((row) => row.instanceSlug !== '' && row.connectionId === connectionId).map((row) => row.manifestKey));
+  for (const row of [...rows].sort((a, b) => a.manifestKey.localeCompare(b.manifestKey) || a.instanceSlug.localeCompare(b.instanceSlug))) {
     const key = row.manifestKey;
-    // The mount that reads this database: the app's own, or one extra tenant's.
-    const own = staffConnectionOf(settings, key) ?? row.connectionId;
-    const instance = own === connectionId ? null : (instancesOf(settings, key).find((entry) => entry.connectionId === connectionId)?.slug ?? undefined);
-    if (instance === undefined) continue;
-    if (availabilityOf(settings, key, 'staff') !== 'ok') continue;
+    const address = addressKey(key, row.instanceSlug);
+    let instance: string | null | undefined;
+    if (row.instanceSlug !== '') {
+      // A later install reads its own database only, at its own mount, under its own grant and switches.
+      if (row.connectionId !== connectionId) continue;
+      if (settings.statuses[address] === 'disabled' || sideOffOf(settings, key, 'staff')) continue;
+      // Its screens open only where its side serves every install (its address was claimed at install); else the dashboard's page.
+      if (!instancesOf(settings, key).some((entry) => entry.slug === row.instanceSlug && entry.connectionId === connectionId)) continue;
+      instance = row.instanceSlug;
+    } else {
+      if (laterHere.has(key)) continue;
+      // The mount that reads this database: the app's own, or one extra tenant's.
+      const own = staffConnectionOf(settings, key) ?? row.connectionId;
+      instance = own === connectionId ? null : (instancesOf(settings, key).find((entry) => entry.connectionId === connectionId)?.slug ?? undefined);
+      if (instance === undefined) continue;
+      if (availabilityOf(settings, key, 'staff') !== 'ok') continue;
+    }
 
     const stamp = `${row.version}:${String(row.updatedAt)}`;
     let known = declared.get(row.id);
@@ -149,10 +171,10 @@ export async function recordAddressBook(meta: MetaDb, connectionId: string, give
       .execute();
     const tables: AppAddresses['tables'] = new Map();
     for (const table of tableRows) {
-      const address = known.addresses[table.ref];
+      const at = known.addresses[table.ref];
       // A table of a part that is off opens nowhere in the app: its screens are off with it.
-      if (address === undefined || !partIsOn(parts.get(key), table.module)) continue;
-      tables.set(realTableOf(table), { name: table.tableName, address, schema: table.schemaName, module: table.module, owned: readBool(table.owned) });
+      if (at === undefined || !partIsOn(partsOfOwner(parts, key, { installId: row.id }), table.module)) continue;
+      tables.set(realTableOf(table), { name: table.tableName, address: at, schema: table.schemaName, module: table.module, owned: readBool(table.owned) });
     }
     if (tables.size === 0) continue;
 
@@ -163,7 +185,7 @@ export async function recordAddressBook(meta: MetaDb, connectionId: string, give
         : staffPlacementOf(settings, key) === 'internal'
           ? `/a/${key}`
           : `${SURFACES_URL_ROOT}/${key}/staff`;
-    apps.push({ appKey: key, tables, base, host });
+    apps.push({ appKey: key, address, tables, base, host });
   }
   if (apps.length === 0) return NO_ADDRESSES;
 
@@ -190,7 +212,7 @@ export async function recordAddressBook(meta: MetaDb, connectionId: string, give
         if (!named) continue;
         const path = recordAddressOf(table.address, record.recordId);
         if (path === null) continue;
-        const place = { appKey: app.appKey, path, url: `${app.base}${path}`, host: app.host };
+        const place = { appKey: app.appKey, address: app.address, path, url: `${app.base}${path}`, host: app.host };
         if (table.owned) return place;
         shared ??= place;
       }
@@ -201,7 +223,8 @@ export async function recordAddressBook(meta: MetaDb, connectionId: string, give
     placeOf,
     placeFor(set, record) {
       const place = placeOf(record);
-      return place !== null && permissionSetAllows(set, `app:${place.appKey}:staff`) ? place : null;
+      // The grant of the install whose record it is: Fernhill's staff grant opens nothing of Kiln's.
+      return place !== null && permissionSetAllows(set, `app:${place.address}:staff`) ? place : null;
     },
   };
 }

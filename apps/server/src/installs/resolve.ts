@@ -232,6 +232,30 @@ export async function installOnConnection(manifests: ManifestsRepo, key: string,
 }
 
 /**
+ * The version and status of the add-on install a database uses: its own, else
+ * the one kept once per server. Each copy's status is its own: another copy
+ * updating, stopped or switched off says nothing of this one.
+ */
+export async function addOnStateOn(meta: MetaDb, key: string, connectionId: string): Promise<{ version: string; status: string } | null> {
+  const on = (scopeKey: string) =>
+    meta.db.selectFrom('adminium_manifests').select(['version', 'status']).where('manifestKey', '=', key).where('kind', '=', 'add-on').where('scopeKey', '=', scopeKey).executeTakeFirst();
+  const row = (await on(connectionId)) ?? (await on(SERVER_SCOPE));
+  return row === undefined ? null : { version: row.version, status: row.status };
+}
+
+/**
+ * The install a caller with no database means: the one kept once per server,
+ * else the key's only install. With several and none server-wide there is no
+ * answer, and null says so: never the first of them.
+ */
+export async function serverWideOrOnly(manifests: Pick<ManifestsRepo, 'findInScope' | 'listByKey'>, key: string): Promise<InstalledManifest | null> {
+  const server = await manifests.findInScope(key, SERVER_SCOPE);
+  if (server !== null) return server;
+  const all = await manifests.listByKey(key);
+  return all.length === 1 ? all[0]! : null;
+}
+
+/**
  * The install a row or a job payload names. A payload written before installs
  * were per database carries none: it means the key's only install, and with
  * several there is no answer — it fails loudly instead of picking one.

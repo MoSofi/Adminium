@@ -503,7 +503,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       if (await isSample(db, box, source, sourceKey)) return null;
       if (about.row !== row && (await isSample(db, box, about.table, Object.fromEntries(about.table.primaryKey.map((c) => [c, about.row[c]]))))) return null;
       // An email of a part of the app that is switched off is not queued.
-      if (producer.module !== undefined && !(await appPartIsOn(deps.meta, box.appKey, producer.module))) return null;
+      if (producer.module !== undefined && !(await appPartIsOn(deps.meta, box.appKey, producer.module, { installId: box.row.manifestId, connectionId: box.connectionId }))) return null;
       if (producer.gate !== undefined && !(await switchedOn(db, box, producer.gate))) return null;
       const read = settingReader(deps.meta, db, view, box.connectionId);
       // The log is the dedupe.

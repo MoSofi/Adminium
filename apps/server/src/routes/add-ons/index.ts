@@ -404,8 +404,21 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
    */
   const addOnInstallOf = (request: FastifyRequest, key: string): Promise<InstalledManifest> =>
     requireInstall(manifests, key, selectorOf(request), { kind: 'add-on', connectionNames });
-  /** Any install of the key: what is the same for every copy (its package, one version per server). */
-  const anyInstallOf = async (key: string): Promise<InstalledManifest | null> => (await manifests.listByKey(key)).find((one) => one.row.kind === 'add-on') ?? null;
+  /**
+   * What is the same for every copy of an add-on (its package: one version per
+   * server), with every copy: what each has attached is its own, so its pages
+   * are on the dashboard while any copy's are.
+   */
+  const addOnPackageOf = async (key: string): Promise<{ document: unknown; version: string; copies: InstalledManifest[] } | null> => {
+    const copies = (await manifests.listByKey(key)).filter((one) => one.row.kind === 'add-on');
+    const first = copies.at(0);
+    return first === undefined ? null : { document: first.document, version: first.row.version, copies };
+  };
+  /** Whether an add-on's pages are on the dashboard: on any copy, by what that copy is attached to. */
+  const anyCopyOnDashboard = async (copies: readonly InstalledManifest[]): Promise<boolean> => {
+    const appsOn = await appsSwitchedOn(deps.meta);
+    return copies.some((copy) => pagesOnDashboard(copy.attachments, appsOn));
+  };
   const serverVersion = deps.serverVersion ?? APP_VERSION;
   // One store per composed server: in memory, single-use, short-lived, bounded
   // (see `add-ons/oauth.ts` on why, and on the multi-process limitation).
@@ -1403,6 +1416,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          * rebuild, so rebuild here rather than leave it off until something
          * unrelated triggers one.
          */
+        // key-wide: whether this version is the one installed, on any database (one version per server).
         const installed = (await manifests.listByKey(staged.key)).find((one) => one.row.version === staged.version) ?? null;
         if (installed !== null && installed.row.version === staged.version) {
           await deps.rebuildRuntime?.();
@@ -1439,6 +1453,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // them first. Refusing to discard an INSTALLED version is the one
         // guard — that path is uninstall, which has different consequences and
         // a different confirm.
+        // key-wide: installed at this version on any database is installed.
         const installed = (await manifests.listByKey(key)).find((one) => one.row.version === version) ?? null;
         if (installed !== null && installed.row.version === version) {
           throw new ConflictError(
@@ -1733,7 +1748,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const file = request.params['*'];
 
         // One package per key, whichever install asks: a script tag sends no header.
-        const installed = await anyInstallOf(key);
+        const installed = await addOnPackageOf(key);
         if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
         const manifest = parseManifest(installed.document, key);
 
@@ -1746,7 +1761,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         if (!openBundlePathsOf(manifest).includes(file)) {
           throw new NotFoundError(`"${key}" does not ship a bundle at "${file}".`);
         }
-        return sendBundle(reply, key, installed.row.version, file);
+        return sendBundle(reply, key, installed.version, file);
       },
     );
 
@@ -1759,13 +1774,13 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request, reply) => {
         const { key, ref } = request.params;
-        const installed = await anyInstallOf(key);
+        const installed = await addOnPackageOf(key);
         if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
         const manifest = parseManifest(installed.document, key);
         const page = (manifest.addOn.pages ?? []).find((candidate) => candidate.ref === ref);
         if (page === undefined) throw new NotFoundError(`"${key}" has no page "${ref}".`);
         // Not on the dashboard (switched off there, or every app it serves is off), the page is not there for anybody: its rail entry is gone, and so is its code.
-        if (pagesAreGated(manifest) && !pagesOnDashboard(installed.attachments, await appsSwitchedOn(deps.meta))) {
+        if (pagesAreGated(manifest) && !(await anyCopyOnDashboard(installed.copies))) {
           throw new NotFoundError(`"${key}" has no page "${ref}".`);
         }
         /*
@@ -1777,7 +1792,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         if (pagesAreGated(manifest) && typeof request.can === 'function' && !(await request.can(addOnPagePermission(ref)))) {
           throw new ForbiddenError(`You may not open the page "${ref}".`, 'FORBIDDEN', { page: ref });
         }
-        return sendBundle(reply, key, installed.row.version, page.client);
+        return sendBundle(reply, key, installed.version, page.client);
       },
     );
 
@@ -1799,12 +1814,12 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const { key, ref } = request.params;
         const asked = request.params['*'];
         // key-wide: one version of an add-on's pages is served (one bundle per key), as for its bundle above.
-        const installed = await anyInstallOf(key);
+        const installed = await addOnPackageOf(key);
         if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
         const manifest = parseManifest(installed.document, key);
         const page = (manifest.addOn.pages ?? []).find((candidate) => candidate.ref === ref);
         if (page === undefined) throw new NotFoundError(`"${key}" has no page "${ref}".`);
-        if (pagesAreGated(manifest) && !pagesOnDashboard(installed.attachments, await appsSwitchedOn(deps.meta))) {
+        if (pagesAreGated(manifest) && !(await anyCopyOnDashboard(installed.copies))) {
           throw new NotFoundError(`"${key}" has no page "${ref}".`);
         }
         if (pagesAreGated(manifest) && typeof request.can === 'function' && !(await request.can(addOnPagePermission(ref)))) {
@@ -1817,7 +1832,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         if (!plain || type === undefined) throw new NotFoundError(`"${key}" ships no file "${asked}" for the page "${ref}".`);
         let bytes: Buffer;
         try {
-          ({ bytes } = await deps.store.readVerifiedFile(key, installed.row.version, `${folder}${asked}`));
+          ({ bytes } = await deps.store.readVerifiedFile(key, installed.version, `${folder}${asked}`));
         } catch {
           throw new NotFoundError(`"${key}" ships no file "${asked}" for the page "${ref}".`);
         }

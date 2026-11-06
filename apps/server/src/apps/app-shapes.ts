@@ -85,7 +85,7 @@ export async function shapesForPlan(
         document = null;
       }
     } else {
-      // One version per add-on on a server: any install of it has the shapes.
+      // key-wide: one version per add-on on a server, so any install's document has the shapes.
       const installed = (await manifests.listByKey(key)).find((one) => one.row.kind === 'add-on');
       if (installed !== undefined) document = installed.document;
     }

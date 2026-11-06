@@ -615,7 +615,7 @@ export function createAdjuster(kit: AdjustKit) {
     if (long.length > 0) codes = codes.filter((code) => code.typed.length <= TYPED_MAX);
     // The add-on's tables were read on this handle: inside a save, a change of them now waits for it. Asked about once more, an update
     // that began in another process before those reads is seen here.
-    const installed = await kit.ledgers!.versionNow(adjuster.addOn);
+    const installed = await kit.ledgers!.versionNow(adjuster.addOn, target.connectionId);
     if (installed === null || installed.status !== 'installed' || installed.version !== decider.version) throw writeConflict();
 
     const keyOf = kit.customerKey;

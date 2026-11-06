@@ -1190,8 +1190,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const declared = await verifiedManifest(key, version);
         // The preview an update is checked with: the same refusal the update
         // route gives, before the operator is shown tables to consent to.
-        // Any install of the key: one publisher names a key across the server.
-        const installed = (await manifests.listByKey(key)).find((m) => m.row.kind === 'app');
+        // The copy on the database asked about, whose version an update there moves from; else any copy.
+        const copyHere = await manifests.findInScope(key, connectionId);
+        // key-wide: one publisher names a key across the server, so any copy's document says it.
+        const installed = (copyHere !== null && copyHere.row.kind === 'app' ? copyHere : undefined) ?? (await manifests.listByKey(key)).find((m) => m.row.kind === 'app');
         if (installed !== undefined) {
           // Never the plan of a takeover: the same refusal install and update give.
           const changed = publisherChangeRefusal(declared, publisherIdOf(installed.document));
@@ -2472,7 +2474,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          * the same one add-ons make: that path is uninstall, which stops
          * surfaces answering and asks for the key back first.
          */
-        // Installed on any database at this version: one version per app, so that is every copy's.
+        // key-wide: installed on any database at this version, one version per app, so that is every copy's.
         const installed = (await manifests.listByKey(key)).find((m) => m.row.kind === 'app' && m.row.version === version);
         if (installed !== undefined) {
           throw new ConflictError(

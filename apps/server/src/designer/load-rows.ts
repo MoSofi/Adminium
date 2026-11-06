@@ -10,11 +10,12 @@
  * own, by the name the engine gave it, never a name a model wrote), and the
  * words a person reads before saying yes.
  */
-import { appTablesRepo, filesRepo, importsRepo, jobsRepo, manifestsRepo, newId, type EnqueueJobInput, type Job, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, filesRepo, importsRepo, jobsRepo, manifestsRepo, newId, type EnqueueJobInput, type InstalledManifest, type Job, type MetaDb } from '@adminium/meta';
 
 import type { ConnectionManager } from '../connections/manager.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import type { FileStore } from '../files/store.js';
+import { resolveInstall } from '../installs/resolve.js';
 import { IMPORT_RUN_KIND } from '../jobs/import-run.js';
 import { validateRows } from '../routes/imports/index.js';
 import type { Actor } from './tool-types.js';
@@ -59,8 +60,13 @@ const said = (error: unknown): string => (error instanceof Error ? error.message
 export function createRowLoader(deps: RowLoaderDeps): RowLoader {
   return {
     async plan(appKey, ref, csv, columns, by) {
-      // A project app is installed once per server.
-      const installed = (await manifestsRepo(deps.meta, deps.credentialCrypto).listByKey(appKey))[0] ?? null;
+      // A project app is installed once per server: its one install, never the first of several.
+      let installed: InstalledManifest | null;
+      try {
+        installed = await resolveInstall(manifestsRepo(deps.meta, deps.credentialCrypto), appKey, {}, { kind: 'app' });
+      } catch (error) {
+        return { ok: false, problem: said(error) };
+      }
       const connectionId = installed?.row.connectionId ?? null;
       if (installed === null || installed.row.kind !== 'app' || connectionId === null) {
         return { ok: false, problem: 'The app is not applied yet, so it has no table to load into. apply_app first, then call this again.' };

@@ -18,7 +18,7 @@
 
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';
-import { pageAppPart, pagesRepo, viewsRepo, type MetaDb, type Page } from '@adminium/meta';
+import { pagesRepo, viewsRepo, type MetaDb, type Page } from '@adminium/meta';
 
 import { NotFoundError, UnauthorizedError } from '../../errors.js';
 import { cardsOfPartsOff } from '../../rbac/app-parts.js';
@@ -76,7 +76,7 @@ export function meViewsRoutes(deps: MeViewsRoutesDeps): FastifyPluginAsyncZod {
         // The cards of a part that is off were not drawn, so a layout saved without them keeps them: from the person's own, else the page's.
         const own = await views.findLayoutOverride(pageId, userId);
         const before = pageLayoutSchema.safeParse(own?.config ?? ((page.config as { config?: { layout?: unknown } } | null)?.config ?? {}).layout);
-        const hidden = before.success ? await cardsOfPartsOff(deps.meta, pageAppPart(page.config)?.app, before.data.items) : [];
+        const hidden = before.success ? await cardsOfPartsOff(deps.meta, page, before.data.items) : [];
         const sent = new Set(request.body.items.map((item) => item.i));
         const kept = hidden.filter((item) => !sent.has(item.i));
         await views.upsertLayoutOverride(pageId, userId, {

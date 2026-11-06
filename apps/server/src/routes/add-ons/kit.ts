@@ -135,7 +135,7 @@ async function formsHosts(
     for (const page of pages) {
       const source = (page.config as { source?: { table?: unknown } } | null)?.source;
       if (source?.table !== tableId) continue;
-      if (await pagePartOff(meta, page.config)) continue;
+      if (await pagePartOff(meta, page)) continue;
       if (await can(`page:${page.id}:view`)) return page.slug;
     }
     return null;

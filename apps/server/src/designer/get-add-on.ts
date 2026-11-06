@@ -100,7 +100,7 @@ export function createAddOnGetter(deps: AddOnGetterDeps): AddOnGetter {
 
   async function look(key: string): Promise<AddOnLook> {
     if (!KEY.test(key)) return { state: 'unknown' };
-    // One version per add-on on a server: any install of it says which.
+    // key-wide: one version per add-on on a server, so any install says its name and version.
     const installed = (await manifests().listByKey(key)).find((one) => one.row.kind === 'add-on') ?? null;
     if (installed !== null) {
       const document = (installed.document ?? {}) as { name?: unknown };

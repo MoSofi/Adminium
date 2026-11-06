@@ -16,7 +16,7 @@
  * Meta and the snapshot only: no source read, no lock.
  */
 import { addOnManifestSchema } from '@adminium/manifest';
-import { appTablesRepo, pagesRepo, rolesRepo, type MetaDb } from '@adminium/meta';
+import { SERVER_SCOPE, appTablesRepo, pagesRepo, rolesRepo, type MetaDb } from '@adminium/meta';
 
 import { addOnPagePermission, pagesAreGated } from '../../add-ons/page-gate.js';
 import type { EffectiveColumn, StateActionRule, StateActionTone, StateMoveRule, StoredWords } from '../../connections/effective-schema.js';
@@ -115,10 +115,12 @@ export function movesFor(moves: Readonly<Record<string, readonly (string | State
   return out;
 }
 
-/** The installed add-on a link names, as much of it as the gate asks. */
-async function addOnPage(meta: MetaDb, key: string, ref: string): Promise<{ gated: boolean } | null> {
-  // key-wide: an add-on's pages are its version's, the same on every copy.
-  const row = await meta.db.selectFrom('adminium_manifests').select(['manifest', 'status']).where('manifestKey', '=', key).where('kind', '=', 'add-on').executeTakeFirst();
+/** The installed add-on a link names, as the database the page is on has it (its own install, else one kept per server): as much of it as the gate asks. */
+async function addOnPage(meta: MetaDb, key: string, ref: string, connectionId: string): Promise<{ gated: boolean } | null> {
+  // Its status is that install's own: another copy switched off, or updating, says nothing of this one.
+  const on = (scopeKey: string) =>
+    meta.db.selectFrom('adminium_manifests').select(['manifest', 'status']).where('manifestKey', '=', key).where('kind', '=', 'add-on').where('scopeKey', '=', scopeKey).executeTakeFirst();
+  const row = (await on(connectionId)) ?? (await on(SERVER_SCOPE));
   if (row === undefined || row.status !== 'installed') return null;
   const parsed = addOnManifestSchema.safeParse(typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest);
   if (!parsed.success || !(parsed.data.addOn.pages ?? []).some((page) => page.ref === ref)) return null;
@@ -199,7 +201,7 @@ export async function stateActionFacts(meta: MetaDb, asker: StateActionAsker, vi
           if (at < 0 && owner === undefined) owner = (await appTablesRepo(meta).forConnection(connectionId)).find((record) => recordIsTable(record, resolved, view.model.defaultSchema))?.appKey ?? null;
           const key = at < 0 ? owner : link.addOnPage.slice(0, at);
           const ref = at < 0 ? link.addOnPage : link.addOnPage.slice(at + 1);
-          const target = key === null || key === undefined ? null : await addOnPage(meta, key, ref);
+          const target = key === null || key === undefined ? null : await addOnPage(meta, key, ref, connectionId);
           if (key !== null && key !== undefined && target !== null && (!target.gated || (await asker.can(addOnPagePermission(ref))))) {
             from = [...action.in];
             fact.href = `/add-ons/${encodeURIComponent(key)}/${ref.split('/').map(encodeURIComponent).join('/')}?${link.param}=`;
