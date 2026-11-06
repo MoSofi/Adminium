@@ -3129,7 +3129,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
            */
           onAddOnRemoved: async (install) => {
             // One install's: another database's copy of the add-on keeps rendering, firing and its settings.
-            const which = { addOnKey: install.row.manifestKey, installId: install.row.id };
+            // A profile made before the add-on was there carries no install: it is the copy's on its own database.
+            const copies = await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).listByKey(install.row.manifestKey);
+            const which = {
+              addOnKey: install.row.manifestKey,
+              installId: install.row.id,
+              connectionId: install.row.connectionId,
+              ownedElsewhere: copies.flatMap((one) => (one.row.id !== install.row.id && one.row.kind === 'add-on' && one.row.connectionId !== null ? [one.row.connectionId] : [])),
+            };
             await documentProfilesRepo(meta).setEnabledForAddOn(which, false);
             // …and through to the RULES those mappings own (D55). Disabling
             // the mapping alone would leave a rule that still fires on every

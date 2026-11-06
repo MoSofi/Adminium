@@ -29,7 +29,7 @@
  * thing an operator edits.
  */
 
-import type { Kysely, Selectable } from 'kysely';
+import type { Expression, ExpressionBuilder, Kysely, Selectable, SqlBool } from 'kysely';
 
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
@@ -101,6 +101,22 @@ export interface CreateDocumentProfileInput {
   installId?: string | null | undefined;
 }
 
+/**
+ * One install of an add-on, as its profiles are found by. A profile records
+ * the install that renders it; one made where the add-on was not installed
+ * yet (or left unmarked by the store's upgrade) records none, and is the
+ * install's on its own database: the one there, else the one kept once per
+ * server.
+ */
+export interface ProfileInstall {
+  addOnKey: string;
+  installId: string;
+  /** The install's database; null for one kept once per server. */
+  connectionId: string | null;
+  /** For one kept once per server: the databases with a copy of their own, whose unmarked profiles are that copy's. */
+  ownedElsewhere?: readonly string[] | undefined;
+}
+
 export interface PatchDocumentProfileInput {
   name?: string | undefined;
   mapping?: Record<string, unknown> | undefined;
@@ -109,6 +125,18 @@ export interface PatchDocumentProfileInput {
   deliver?: Record<string, unknown> | undefined;
   enabled?: boolean | undefined;
   orderBy?: string | null | undefined;
+}
+
+/** Marked with the install, or unmarked on a database it serves. */
+function ofInstall(eb: ExpressionBuilder<MetaDB, 'adminium_document_profiles'>, install: ProfileInstall): Expression<SqlBool> {
+  const unmarked = eb('installId', 'is', null);
+  const where =
+    install.connectionId !== null
+      ? eb.and([unmarked, eb('connectionId', '=', install.connectionId)])
+      : (install.ownedElsewhere ?? []).length === 0
+        ? unmarked
+        : eb.and([unmarked, eb('connectionId', 'not in', [...install.ownedElsewhere!])]);
+  return eb.or([eb('installId', '=', install.installId), where]);
 }
 
 function hydrate(row: Selectable<AdminiumDocumentProfilesTable>): DocumentProfile {
@@ -244,19 +272,27 @@ export function documentProfilesRepo(meta: MetaDb) {
    * stops it — in the same transaction as the manifest change, so no job is
    * ever enqueued for a provider that is already gone.
    */
-  async function setEnabledForAddOn(
-    install: { addOnKey: string; installId: string },
-    enabled: boolean,
-    at = Date.now(),
-  ): Promise<number> {
-    // One install's profiles (wave 0076): removing Kiln's Invoices leaves Fernhill's rendering.
+  async function setEnabledForAddOn(install: ProfileInstall, enabled: boolean, at = Date.now()): Promise<number> {
+    // One install's profiles: removing Kiln's Invoices leaves Fernhill's rendering.
     const rows = await db
       .updateTable('adminium_document_profiles')
       .set({ enabled: writeBool(meta, enabled), updatedAt: at } as never)
       .where('addOnKey', '=', install.addOnKey)
-      .where('installId', '=', install.installId)
+      .where((eb) => ofInstall(eb, install))
       .executeTakeFirst();
     return affected(rows.numUpdatedRows);
+  }
+
+  /** The profiles one install of an add-on renders: those marked with it, and its database's unmarked ones. */
+  async function listForInstall(install: ProfileInstall): Promise<DocumentProfile[]> {
+    const rows = await db
+      .selectFrom('adminium_document_profiles')
+      .selectAll()
+      .where('addOnKey', '=', install.addOnKey)
+      .where((eb) => ofInstall(eb, install))
+      .orderBy('name', 'asc')
+      .execute();
+    return rows.map(hydrate);
   }
 
   /** The profiles one app's install made on a connection. */
@@ -281,7 +317,7 @@ export function documentProfilesRepo(meta: MetaDb) {
     return affected(rows.numDeletedRows);
   }
 
-  return { findById, list, listTriggeredBy, listOwnedBy, create, patch, remove, removeOwnedBy, setEnabledForAddOn };
+  return { findById, list, listForInstall, listTriggeredBy, listOwnedBy, create, patch, remove, removeOwnedBy, setEnabledForAddOn };
 }
 
 export type DocumentProfilesRepo = ReturnType<typeof documentProfilesRepo>;

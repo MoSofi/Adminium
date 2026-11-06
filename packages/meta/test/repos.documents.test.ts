@@ -143,13 +143,46 @@ for (const dialect of TEST_DIALECTS) {
         // mean doing that again.
         await makeProfile({ name: 'One' });
         await makeProfile({ name: 'Two' });
-        expect(await profiles.setEnabledForAddOn({ addOnKey: 'invoices', installId: 'mft_other' }, false, T0)).toBe(0);
-        expect(await profiles.setEnabledForAddOn({ addOnKey: 'invoices', installId: 'mft_invoices' }, false, T0)).toBe(2);
+        expect(await profiles.setEnabledForAddOn({ addOnKey: 'invoices', installId: 'mft_other', connectionId }, false, T0)).toBe(0);
+        expect(await profiles.setEnabledForAddOn({ addOnKey: 'invoices', installId: 'mft_invoices', connectionId }, false, T0)).toBe(2);
 
         const after = await profiles.list({ addOnKey: 'invoices' });
         expect(after).toHaveLength(2);
         expect(after.every((profile) => !profile.enabled)).toBe(true);
         expect(after[0]?.mapping).toEqual({ customerName: { column: 'customer' } });
+      });
+
+      it('finds a profile with no install by its add-on and database, never another database’s', async () => {
+        // Made before the add-on was installed there, or left unmarked by the store's upgrade.
+        const other = (await connectionsRepo(meta(), testCrypto).create({ name: 'other', engine: 'postgres', introspectDsn: 'postgres://ro@localhost/other' })).id;
+        const unmarked = (name: string, where: string) =>
+          profiles.create({ addOnKey: 'invoices', installId: null, kind: 'invoice', name, connectionId: where, table: 'public.orders', mapping: {} }, T0);
+        const marked = await makeProfile({ name: 'Marked' });
+        const here = await unmarked('Here', connectionId);
+        const there = await unmarked('There', other);
+        const mine = { addOnKey: 'invoices', installId: 'mft_invoices', connectionId };
+
+        expect((await profiles.listForInstall(mine)).map((profile) => profile.name)).toEqual(['Here', 'Marked']);
+        expect(await profiles.setEnabledForAddOn(mine, false, T0)).toBe(2);
+        expect((await profiles.findById(marked.id))?.enabled).toBe(false);
+        expect((await profiles.findById(here.id))?.enabled).toBe(false);
+        expect((await profiles.findById(there.id))?.enabled).toBe(true);
+        // Another add-on's unmarked profile on the same database is not this one's.
+        expect(await profiles.setEnabledForAddOn({ addOnKey: 'barcode-labels', installId: 'mft_invoices', connectionId }, false, T0)).toBe(0);
+      });
+
+      it('gives a copy kept once per server the unmarked profiles of every database without a copy of its own', async () => {
+        const other = (await connectionsRepo(meta(), testCrypto).create({ name: 'other', engine: 'postgres', introspectDsn: 'postgres://ro@localhost/other' })).id;
+        const unmarked = (name: string, where: string) =>
+          profiles.create({ addOnKey: 'invoices', installId: null, kind: 'invoice', name, connectionId: where, table: 'public.orders', mapping: {} }, T0);
+        await unmarked('Here', connectionId);
+        const there = await unmarked('There', other);
+        const serverWide = { addOnKey: 'invoices', installId: 'mft_server', connectionId: null, ownedElsewhere: [other] };
+
+        expect((await profiles.listForInstall(serverWide)).map((profile) => profile.name)).toEqual(['Here']);
+        expect(await profiles.setEnabledForAddOn(serverWide, false, T0)).toBe(1);
+        expect((await profiles.findById(there.id))?.enabled).toBe(true);
+        expect(await profiles.setEnabledForAddOn({ addOnKey: 'invoices', installId: 'mft_server', connectionId: null }, false, T0 + 1)).toBe(2);
       });
     });
 

@@ -54,7 +54,8 @@ async function freshMeta(): Promise<MetaDb> {
 /** Exactly what `compose.ts` hands the add-on routes as `onAddOnRemoved`. */
 async function onAddOnRemoved(meta: MetaDb, key: string): Promise<void> {
   const install = await onlyInstall(meta, key);
-  await documentProfilesRepo(meta).setEnabledForAddOn(install, false);
+  // Installed with no database here: kept once per server, as compose reads the row.
+  await documentProfilesRepo(meta).setEnabledForAddOn({ ...install, connectionId: null }, false);
   await addOnSettingsRepo(meta).clearForInstall(install.manifestId);
 }
 
@@ -97,8 +98,11 @@ describe('uninstall reaches the document tables, and stops there', () => {
     await addOnSettingsRepo(meta).patch(await onlyInstall(meta, 'invoices'), { business_name: 'Northwind' }, [
       { key: 'business_name' },
     ]);
+    // Made before the add-on was there, so it names no install: it is the install's all the same.
+    const unmarked = await documentProfilesRepo(meta).create({ addOnKey: 'invoices', installId: null, kind: 'invoice', name: 'Older', connectionId, table: 'public.orders', mapping: {} });
 
     await onAddOnRemoved(meta, 'invoices');
+    expect((await documentProfilesRepo(meta).findById(unmarked.id))?.enabled).toBe(false);
 
     // The mapping SURVIVES, switched off: reinstalling should not mean
     // pointing twenty columns at twenty slots again.
