@@ -281,7 +281,8 @@ export function useAppAcquisition() {
         // A taken table's name and a taken page address are both answered on the check.
         const askable = plan.problems.every((problem) => problem.code === 'TABLE_TAKEN' || problem.code === 'PAGE_SLUG_UNANSWERED' || problem.code === 'EXISTING_TABLE_UNUSABLE');
         const asksShare = (plan.shareOffers ?? []).length > 0;
-        const asksPages = (plan.pageClashes ?? []).length > 0 || existingTables(plan).length > 0;
+        // A table the copy already took as it was is its own: only a stranger's table here is asked about.
+        const asksPages = (plan.pageClashes ?? []).length > 0 || existingTables(plan).some((table) => table.class === 'taken');
         if ((checkAsks(plan.tables) || asksShare || asksPages || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0 || asksGrants(plan)) && (plan.installable || askable)) {
           setConsent({ key: app.key, to, plan, connectionId: app.connectionId, ...copyNamed(app) });
           return;

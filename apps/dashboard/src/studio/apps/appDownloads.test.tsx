@@ -942,6 +942,21 @@ describe('checking a new version and renaming to the prefix', () => {
     });
   });
 
+  it('applies at once when the only tables here are the copy’s own, even one it took as it was', async () => {
+    catalog = {
+      apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    };
+    // `visits` was a table here that the installed version took as it was: it is the copy's, not a stranger's.
+    plan = { ...contextPlan({ action: 'reuse', class: 'own-leftover', offers: ['reuse'], adopted: true }), checksum: 'a'.repeat(64), installable: true, problems: [] };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({ planChecksum: 'a'.repeat(64) });
+  });
+
   it('shows only what a new version adds to the public access, and sends the operator’s say with the update', async () => {
     catalog = {
       apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],

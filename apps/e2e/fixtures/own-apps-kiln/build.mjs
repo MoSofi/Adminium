@@ -65,7 +65,8 @@ async function insertRows(c, connId, tableId, rows) {
 }
 
 export async function buildKiln(options) {
-  const { url, email, password, sessionFile = null, setup = false, replace = false } = options;
+  const { url, email, password, sessionFile = null, setup = false, replace = false, addOn = true } = options;
+  const business = options.name ?? K.BUSINESS;
   const c = await signIn({ url, email, password, sessionFile, setup });
   say(`signed in at ${url}`);
 
@@ -79,9 +80,9 @@ export async function buildKiln(options) {
     engine = 'sqlite';
   }
   if (engine === null) engine = dsn.startsWith('postgres') ? 'postgres' : dsn.startsWith('mysql') ? 'mysql' : 'sqlite';
-  const existing = (await c.get('/connections')).connections.find((x) => x.name === K.BUSINESS);
-  if (existing !== undefined) throw new Error(`a connection named "${K.BUSINESS}" is already here: build on a fresh server`);
-  const conn = await c.post('/connections', { name: K.BUSINESS, engine, dsn });
+  const existing = (await c.get('/connections')).connections.find((x) => x.name === business);
+  if (existing !== undefined) throw new Error(`a connection named "${business}" is already here: build on a fresh server`);
+  const conn = await c.post('/connections', { name: business, engine, dsn });
   if (conn.readOnly || conn.status === 'error') throw new Error(`the new connection is not writable: ${JSON.stringify(conn).slice(0, 600)}`);
   await c.patch(`/connections/${conn.id}`, { timezone: K.TIMEZONE, currency: K.CURRENCY });
   // An empty database: introspect it (generate does that first) so Studio has a base snapshot.
@@ -157,29 +158,34 @@ export async function buildKiln(options) {
   await c.put(`/public-endpoints/${conn.id}/${K.ENDPOINT.ref}`, { definition: JSON.stringify(endpoint) });
   say(`public endpoint /${K.ENDPOINT.ref} over ${T.classes}`);
 
-  // ── 7. an add-on: the bundled Invoices & Receipts ──────────────────────────
-  // The server stages its bundled add-ons just after it starts listening: give it a few seconds.
-  const staged = (a) => a !== undefined && (a.state === 'staged' || a.state === 'installed');
-  let invoices;
-  for (let tries = 0; tries < 20; tries += 1) {
-    invoices = (await c.get('/add-ons/catalog')).addOns.find((a) => a.key === 'invoices');
-    if (staged(invoices)) break;
-    await new Promise((done) => setTimeout(done, 500));
-  }
-  if (!staged(invoices)) {
-    throw new Error('the invoices add-on is not staged on this server: start it with its bundled add-ons (README.md, "The add-on")');
-  }
-  if (invoices.state !== 'installed') await c.post('/add-ons', { key: 'invoices', version: invoices.version, attachTo: [] });
-  say(`add-on invoices ${invoices.version}`);
+  // ── 7 and 8 (unless left out): the add-on, and a receipt drawn by it ───────
+  let invoices = null;
+  let profile = null;
+  if (addOn) {
+    // ── 7. an add-on: the bundled Invoices & Receipts ──────────────────────────
+    // The server stages its bundled add-ons just after it starts listening: give it a few seconds.
+    const staged = (a) => a !== undefined && (a.state === 'staged' || a.state === 'installed');
+    invoices = undefined;
+    for (let tries = 0; tries < 20; tries += 1) {
+      invoices = (await c.get('/add-ons/catalog')).addOns.find((a) => a.key === 'invoices');
+      if (staged(invoices)) break;
+      await new Promise((done) => setTimeout(done, 500));
+    }
+    if (!staged(invoices)) {
+      throw new Error('the invoices add-on is not staged on this server: start it with its bundled add-ons (README.md, "The add-on")');
+    }
+    if (invoices.state !== 'installed') await c.post('/add-ons', { key: 'invoices', version: invoices.version, attachTo: [] });
+    say(`add-on invoices ${invoices.version}`);
 
-  // ── 8. a document profile: a receipt for each shop order ───────────────────
-  const kinds = (await c.get('/documents/kinds')).kinds.filter((k) => k.addOnKey === 'invoices');
-  const kind = kinds.find((k) => k.kind === 'receipt') ?? kinds.find((k) => k.kind === 'invoice') ?? kinds[0];
-  if (kind === undefined) throw new Error('the invoices add-on offers no document kind here');
-  const profile = await c.post('/documents/profiles', {
-    addOnKey: 'invoices', kind: kind.kind, name: 'Shop receipt', connectionId: conn.id, table: T.shop_orders, mapping: {},
-  });
-  say(`document profile "${profile.name}" (${kind.kind}) on ${T.shop_orders}`);
+    // ── 8. a document profile: a receipt for each shop order ───────────────────
+    const kinds = (await c.get('/documents/kinds')).kinds.filter((k) => k.addOnKey === 'invoices');
+    const kind = kinds.find((k) => k.kind === 'receipt') ?? kinds.find((k) => k.kind === 'invoice') ?? kinds[0];
+    if (kind === undefined) throw new Error('the invoices add-on offers no document kind here');
+    profile = await c.post('/documents/profiles', {
+      addOnKey: 'invoices', kind: kind.kind, name: 'Shop receipt', connectionId: conn.id, table: T.shop_orders, mapping: {},
+    });
+    say(`document profile "${profile.name}" (${kind.kind}) on ${T.shop_orders}`);
+  }
 
   // ── 9. a payment profile: shop orders are payable; pay at the counter ──────
   const payable = await c.post('/payments/payables', {
@@ -215,8 +221,8 @@ export async function buildKiln(options) {
     optionList: K.OPTION_LIST.key,
     locale: K.LOCALE,
     endpointRef: K.ENDPOINT.ref,
-    addOn: { key: 'invoices', version: invoices.version },
-    documentProfileId: profile.id,
+    addOn: invoices === null ? null : { key: 'invoices', version: invoices.version },
+    documentProfileId: profile === null ? null : profile.id,
     payableProfileId: payable.data.id,
     client: c,
   };

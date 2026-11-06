@@ -531,7 +531,7 @@ test.describe('/studio/apps under axe', () => {
       await page.reload();
       await page.getByRole('button', { name: tx('studio:hostedApps.installed.update') }).click();
       await expect(
-        page.getByText(tx('studio:hostedApps.update.title', { app: APP_KEY, version: APP_NEXT_VERSION })),
+        page.getByText(tx('studio:hostedApps.update.titleOn', { app: 'E2E Desk', database: 'northwind', version: APP_NEXT_VERSION })),
       ).toBeVisible({ timeout: 30_000 });
       // The update shows the same table check as the install; open the new
       // table's row so its create preview is part of the sweep.
