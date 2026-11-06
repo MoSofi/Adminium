@@ -1655,9 +1655,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     if (installed && deps.publicAccess !== undefined) {
       const at = Date.now();
       const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
-      // This install's keys only: a key another copy's operator took back withholds nothing here.
+      // This install's keys (and the app's keys made for no install): a key another copy's operator took back withholds nothing here.
       const install = await manifests.findInScope(manifest.key, connectionId);
-      const own = install === null ? [] : await publicKeysRepo(deps.meta).listManagedBy(manifest.key, install.row.id);
+      const own = install === null ? [] : (await publicKeysRepo(deps.meta).listManagedBy(manifest.key)).filter((k) => k.installId === null || k.installId === install.row.id);
       if (hasPhoneSide(manifest) && planned.length > 0) {
         const phones = own.filter((k) => phoneKey(k.kind));
         // One is made from the customer key: with that key taken back by the operator, none is.

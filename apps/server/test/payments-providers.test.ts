@@ -125,7 +125,7 @@ function seam(over: Partial<Omit<PaymentSeamDeps, 'runtime'>> & { status?: strin
   const calls: string[] = [];
   const logs: string[] = [];
   const manifest = manifestFor('pay-x');
-  const row = { id: 'man_1', status: over.status ?? 'installed' } as InstalledManifest['row'];
+  const row = { id: 'man_1', kind: 'add-on', status: over.status ?? 'installed' } as InstalledManifest['row'];
   const runtime: AddOnRuntimeState =
     over.state ??
     ({
