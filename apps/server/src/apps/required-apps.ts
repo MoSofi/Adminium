@@ -21,7 +21,7 @@
  * and the uninstall is refused, as an add-on an app requires is.
  */
 import { requiredAppTables, satisfiesSemverRange, type Manifest, type PlanProblem, type RequiredApp } from '@adminium/manifest';
-import type { AppTableRecord, InstalledManifest, ManifestsRepo } from '@adminium/meta';
+import { realTableOf, type AppTableRecord, type InstalledManifest, type ManifestsRepo } from '@adminium/meta';
 
 import { AppError } from '../errors.js';
 import { installOnConnection } from '../installs/resolve.js';
@@ -109,8 +109,9 @@ export async function requiredAppsHere(
         });
         continue;
       }
-      out.records[ref] = { table: record.tableName, owned: false, state: 'shared' };
-      out.names.add(record.tableName);
+      // Its table as it really is: one the required app keeps in a schema of its own is that schema's.
+      out.records[ref] = { table: realTableOf(record), owned: false, state: 'shared' };
+      out.names.add(realTableOf(record));
     }
   }
   return out;

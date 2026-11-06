@@ -24,6 +24,7 @@ import { appTablesRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
 
 import { addOnInstallsStamp } from '../apps/add-on-tables.js';
 import type { CompiledResource } from '../public-api/scope.js';
+import { tableIdModelOf, tableOfReal, type LooseTableIdModel } from '../installs/table-id.js';
 
 const NO_SECRETS = {
   encrypt: (): string => {
@@ -66,8 +67,8 @@ export function openedTable(scope: FormsScope, table: string): FormsTable | unde
 
 export interface FormsScopesDeps {
   meta: MetaDb;
-  /** A database's tables as its latest snapshot names them. */
-  tablesOf: (connectionId: string) => Promise<readonly { id: string; name: string }[] | null>;
+  /** A database's tables as its latest snapshot names them, with the schema a table recorded with none is in. */
+  modelOf: (connectionId: string) => Promise<LooseTableIdModel | null>;
   /** The stamp that moves whenever something installed moves; the store's own by default. */
   stamp?: () => Promise<string>;
 }
@@ -125,8 +126,9 @@ export function createFormsScopes(deps: FormsScopesDeps) {
   async function build(connectionId: string, addOnKey: string): Promise<FormsScope> {
     const tables = new Map<string, FormsTable>();
     const byRef = new Map<string, FormsTable>();
-    const snapshot = await deps.tablesOf(connectionId);
-    if (snapshot === null) return { tables, byRef };
+    const read = await deps.modelOf(connectionId);
+    if (read === null) return { tables, byRef };
+    const snapshot = tableIdModelOf(read);
     const entries = await manifestsRepo(deps.meta, NO_SECRETS).list();
     // The apps the add-on is attached to, and switched on for, on its own database.
     const self = entries.find((one) => one.row.kind === 'add-on' && one.row.manifestKey === addOnKey && one.row.connectionId === connectionId);
@@ -140,7 +142,7 @@ export function createFormsScopes(deps: FormsScopesDeps) {
       const names = await appTablesRepo(deps.meta).realNames(connectionId, one.row.manifestKey);
       for (const entry of opened) {
         const real = names[entry.table];
-        const table = real === undefined ? undefined : snapshot.find((candidate) => candidate.name === real);
+        const table = real === undefined ? undefined : tableOfReal(snapshot, real);
         if (table === undefined) continue;
         const ref = `forms:${one.row.manifestKey}:${entry.table}`;
         const opened: FormsTable = { appKey: one.row.manifestKey, ref: entry.table, connectionId, tableId: table.id, entry, resource: formsResource(entry, table.id, ref) };

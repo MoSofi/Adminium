@@ -28,6 +28,7 @@ import { readLimitsOn } from '../../rbac/read-limits.js';
 import { SUPER_ADMIN_SLUG, type PermissionSet } from '../../rbac/resolver.js';
 import { assertWithinCreateLimit, assertWithinLimit, createLimitOf, updateLimitOf } from '../../rbac/update-limits.js';
 import { rowReachesOf } from '../../rbac/row-limits.js';
+import { recordIsTable } from '../../installs/table-id.js';
 
 type Scalar = string | number | boolean;
 
@@ -195,7 +196,7 @@ export async function stateActionFacts(meta: MetaDb, asker: StateActionAsker, vi
           }
         } else if (link.addOnPage !== undefined) {
           const at = link.addOnPage.indexOf(':');
-          if (at < 0 && owner === undefined) owner = (await appTablesRepo(meta).forConnection(connectionId)).find((record) => record.tableName === resolved.name)?.appKey ?? null;
+          if (at < 0 && owner === undefined) owner = (await appTablesRepo(meta).forConnection(connectionId)).find((record) => recordIsTable(record, resolved, view.model.defaultSchema))?.appKey ?? null;
           const key = at < 0 ? owner : link.addOnPage.slice(0, at);
           const ref = at < 0 ? link.addOnPage : link.addOnPage.slice(at + 1);
           const target = key === null || key === undefined ? null : await addOnPage(meta, key, ref);

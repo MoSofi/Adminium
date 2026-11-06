@@ -16,27 +16,37 @@
  * This is the ONE place that writes or reads the form. Nobody else splits it.
  */
 import { isAddOnManifest, validateManifest, type AddOnManifest } from '@adminium/manifest';
-import { appTablesRepo, manifestsRepo, type AppTableRecord, type ManifestStatus, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, manifestsRepo, realTableOf, type AppTableRecord, type ManifestStatus, type MetaDb } from '@adminium/meta';
 
+import { realOfTable, tableIdModelOf, tableIdOrNull, tableOfReal, type LooseTableIdModel, type TableIdEntry } from '../installs/table-id.js';
 import { addOnInstallsStamp } from './add-on-tables.js';
 
 export interface TableRefIndex {
   /** Every record of the connection, oldest first. */
   records: readonly AppTableRecord[];
-  tables: readonly { id: string; name: string }[];
+  /** The database's tables, each with its schema: `sales.orders` and `public.orders` are two tables. */
+  tables: readonly TableIdEntry[];
+  /** The schema a record with none means (`public`, SQLite `main`, MySQL the database). */
+  defaultSchema: string;
 }
 
+/** What a model gives an index. A table read without its schema has it in its id (`<schema>.<name>`). */
+export type TableRefModel = LooseTableIdModel;
+
+/** A model's tables and default schema, as an index reads them. */
+const indexTablesOf = (model: TableRefModel | null): Pick<TableRefIndex, 'tables' | 'defaultSchema'> => tableIdModelOf(model);
+
 /** The records and tables a stored name is read against: one meta read, made before any source transaction. */
-export async function tableRefIndex(meta: MetaDb, connectionId: string, model: { tables: readonly { id: string; name: string }[] }): Promise<TableRefIndex> {
-  return { records: await appTablesRepo(meta).forConnection(connectionId), tables: model.tables.map((table) => ({ id: table.id, name: table.name })) };
+export async function tableRefIndex(meta: MetaDb, connectionId: string, model: TableRefModel): Promise<TableRefIndex> {
+  return { records: await appTablesRepo(meta).forConnection(connectionId), ...indexTablesOf(model) };
 }
 
 /** A record that still stands for a table: not one whose table was dropped. */
 const live = (record: AppTableRecord): boolean => record.state !== 'dropped';
 
-/** The manifest that made a real table: its earliest record that owns it. None for a table nobody made. */
-function makerOf(index: TableRefIndex, tableName: string): AppTableRecord | null {
-  return index.records.find((record) => record.tableName === tableName && record.owned && live(record)) ?? null;
+/** The manifest that made a real table (`realTableOf`): its earliest record that owns it. None for a table nobody made. */
+function makerOf(index: TableRefIndex, real: string): AppTableRecord | null {
+  return index.records.find((record) => realTableOf(record) === real && record.owned && live(record)) ?? null;
 }
 
 /**
@@ -54,9 +64,9 @@ export function resolveTableRef(index: TableRefIndex, stored: string): { tableId
   const ref = stored.slice(cut + 1);
   const record = index.records.find((candidate) => candidate.appKey === maker && candidate.ref === ref && live(candidate));
   if (record === undefined) return null;
-  const table = index.tables.find((candidate) => candidate.name === record.tableName);
+  const table = tableOfReal(index, realTableOf(record));
   // Only the maker's own name for it is a name: another manifest's record of the same table says nothing here.
-  if (table === undefined || makerOf(index, record.tableName)?.id !== record.id) return null;
+  if (table === undefined || makerOf(index, realTableOf(record))?.id !== record.id) return null;
   return { tableId: table.id, maker, ref };
 }
 
@@ -64,7 +74,7 @@ export function resolveTableRef(index: TableRefIndex, stored: string): { tableId
 export function storedTableRef(index: TableRefIndex, tableId: string): string {
   const table = index.tables.find((candidate) => candidate.id === tableId);
   if (table === undefined) return tableId;
-  const maker = makerOf(index, table.name);
+  const maker = makerOf(index, realOfTable(index, table));
   return maker === null ? tableId : `${maker.appKey}:${maker.ref}`;
 }
 
@@ -111,7 +121,7 @@ const NO_SECRETS = {
   },
 };
 
-type ModelOf = (connectionId: string) => Promise<{ tables: readonly { id: string; name: string }[] } | null>;
+type ModelOf = (connectionId: string) => Promise<TableRefModel | null>;
 
 /** Reads everything once; the answers never touch the store again. Rebuilt, never patched. */
 export async function loadAddOnInstalls(meta: MetaDb, models: ModelOf): Promise<AddOnInstalls> {
@@ -121,7 +131,7 @@ export async function loadAddOnInstalls(meta: MetaDb, models: ModelOf): Promise<
   const connectionIds = new Set(manifests.flatMap((entry) => (entry.row.connectionId === null ? [] : [entry.row.connectionId])));
   for (const connectionId of connectionIds) {
     const model = await models(connectionId);
-    indexes.set(connectionId, { records: await records.forConnection(connectionId), tables: (model?.tables ?? []).map((table) => ({ id: table.id, name: table.name })) });
+    indexes.set(connectionId, { records: await records.forConnection(connectionId), ...indexTablesOf(model) });
   }
 
   const addOns = new Map<string, InstalledAddOn>();
@@ -156,7 +166,7 @@ export async function loadAddOnInstalls(meta: MetaDb, models: ModelOf): Promise<
       if (index === undefined || !addOns.has(at(connectionId, addOnKey))) return null;
       // Only a table it made or took: one still to be made, let go or dropped is not there to write.
       const record = index.records.find((candidate) => candidate.appKey === addOnKey && candidate.ref === ref && (candidate.state === 'created' || candidate.state === 'adopted'));
-      return record === undefined ? null : (index.tables.find((table) => table.name === record.tableName)?.id ?? null);
+      return record === undefined ? null : tableIdOrNull(index, realTableOf(record));
     },
     refOf(connectionId, tableId) {
       const index = indexes.get(connectionId);

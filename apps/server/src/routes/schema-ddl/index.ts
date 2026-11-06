@@ -310,14 +310,16 @@ export function schemaDdlRoutes(deps: SchemaDdlRoutesDeps): FastifyPluginAsyncZo
            */
           reintrospectTable: async (tableId) => {
             const bare = tableId.slice(tableId.lastIndexOf('.') + 1);
+            // The table of that id, in its own schema: `sales.orders` is never `public.orders` read again.
+            const schema = tableId.includes('.') ? tableId.slice(0, tableId.lastIndexOf('.')) : null;
             const adapter = await manager.introspectAdapter(connection.id);
             try {
               const fresh = await adapter.introspect({
-                tableFilter: (t) => t.name === bare,
+                tableFilter: (t) => t.name === bare && (schema === null || t.schema === schema),
                 collectRowEstimates: false,
                 collectActivityStats: false,
               });
-              return fresh.tables.find((t) => t.name === bare) ?? null;
+              return fresh.tables.find((t) => t.id === tableId) ?? fresh.tables.find((t) => t.name === bare && (schema === null || t.schema === schema)) ?? null;
             } finally {
               await adapter.close().catch(() => undefined);
             }

@@ -13,7 +13,7 @@
  * the snapshot: nothing is written.
  */
 import { FORMS_ANSWERS_MONTHS_COLUMN, formsOf, isAddOnManifest, validateManifest, type AddOnForms, type AddOnManifest } from '@adminium/manifest';
-import { appTablesRepo, manifestsRepo, type AppTableRecord, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, manifestsRepo, realTableOf, type AppTableRecord, type MetaDb } from '@adminium/meta';
 
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 
@@ -74,17 +74,18 @@ export async function storedFormsAddOns(meta: MetaDb): Promise<StoredFormsAddOn[
   return out.sort((a, b) => a.key.localeCompare(b.key));
 }
 
-/** A table of the view, or null when it is gone. */
+/**
+ * A table of the view, or null when it is gone. By the one string its record
+ * names it by: a bare name is the default schema's, so `sales.forms` gone is
+ * never answered with `public.forms`.
+ */
 function tableIn(view: SnapshotView, record: AppTableRecord | undefined): ResolvedTable | null {
   if (record === undefined) return null;
-  for (const name of [record.schemaName === null ? record.tableName : `${record.schemaName}.${record.tableName}`, record.tableName]) {
-    try {
-      return view.table(name);
-    } catch {
-      // Not under that name: the next spelling, or gone.
-    }
+  try {
+    return view.table(realTableOf(record));
+  } catch {
+    return null;
   }
-  return null;
 }
 
 /** The forms add-ons on one database, each with its tables as that database's snapshot has them. */

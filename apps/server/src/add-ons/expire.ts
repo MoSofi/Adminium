@@ -29,7 +29,8 @@
  */
 import type { Dialect } from '@adminium/engine';
 import type { AddOnManifest, Expire } from '@adminium/manifest';
-import { appTablesRepo, manifestsRepo, type MetaDb, type RecordRef } from '@adminium/meta';
+import { appTablesRepo, manifestsRepo, realTableOf, type MetaDb, type RecordRef } from '@adminium/meta';
+import { tableOfReal } from '../installs/table-id.js';
 import { sql, type Kysely } from 'kysely';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
@@ -182,7 +183,7 @@ export async function sweepExpiredRows(deps: ExpireSweepDeps): Promise<Record<st
       const records = (await appTablesRepo(deps.meta).forInstall(connectionId, addOn)).filter((record) => record.state === 'created' || record.state === 'adopted');
       for (const declared of expiring) {
         const record = records.find((one) => one.ref === declared.ref);
-        const model = record === undefined ? undefined : view.model.tables.find((table) => table.name === record.tableName);
+        const model = record === undefined ? undefined : tableOfReal(view.model, realTableOf(record));
         if (model === undefined) continue;
         const gone = await sweepTable(deps, { db, dialect, view, connectionId, addOn, ref: declared.ref, table: view.table(model.id), expire: declared.expire!, now });
         if (gone > 0) out[`${addOn}:${declared.ref}`] = gone;

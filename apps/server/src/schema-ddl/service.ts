@@ -498,8 +498,13 @@ function indexDesired(
   const byId = new Map(desired.map((t) => [t.id, t]));
   for (const rename of edit.renames.tables) {
     // `from` may be an id or a bare name; the desired table is the one whose
-    // name is now `to`, whatever schema it ended up qualified with.
-    const table = desired.find((t) => t.name === rename.to) ?? renamed?.tables.find((t) => t.name === rename.to);
+    // name is now `to`: in `from`'s own schema first (a rename keeps its
+    // schema, and `sales.y` must not take `public.y`'s place), else whatever
+    // schema it ended up qualified with.
+    const fromSchema = rename.from.includes('.') ? rename.from.slice(0, rename.from.lastIndexOf('.')) : null;
+    const inSchema = (t: TableModel): boolean => t.name === rename.to && (fromSchema === null || t.schema === fromSchema);
+    const table =
+      desired.find(inSchema) ?? renamed?.tables.find(inSchema) ?? desired.find((t) => t.name === rename.to) ?? renamed?.tables.find((t) => t.name === rename.to);
     if (table !== undefined && !byId.has(rename.from)) byId.set(rename.from, table);
   }
   return byId;

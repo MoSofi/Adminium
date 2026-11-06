@@ -31,10 +31,11 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import { addOnRoleTableHold, holdWider, type RoleTableResult, type AddOnManifest, type Manifest, type RoleTableHold } from '@adminium/manifest';
-import { appTablesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
+import { appTablesRepo, permissionsRepo, realTableOf, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { addOnOfPageGrant, addOnScreensOf, roleGrantsOf, roleSlugFor, SEEDED_APP_ROLE_GRANTS_KEY, storedRowLimit } from './manifest-roles.js';
 import { addOnGrantsWider, holdOf, roleTablesOf, widerWords, type AddOnGrantWider, type RoleTableCheck } from '../add-ons/grants-wider.js';
+import { tableIdOrNull } from '../installs/table-id.js';
 
 export { addOnGrantsWider, roleTablesOf, widerWords, type AddOnGrantWider, type RoleTableCheck };
 
@@ -230,7 +231,7 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
   /** One of an add-on's own tables as it stands here: made or taken by it, and still its own. A released record answers nothing. */
   const tableId = (addOn: string, ref: string): string | null => {
     const record = records.find((one) => one.appKey === addOn && one.ref === ref && (one.state === 'created' || one.state === 'adopted'));
-    return record === undefined ? null : (model?.tables.find((table) => table.name === record.tableName)?.id ?? null);
+    return record === undefined || model === null ? null : tableIdOrNull(model, realTableOf(record));
   };
   let changed = false;
 
@@ -249,8 +250,8 @@ export async function settleRoleTables(input: { meta: MetaDb; app: Manifest; con
     let forget: readonly string[] = actions;
     if (role !== null) {
       // The table wherever it still stands — a record the add-on has let go of names it too: the row must be found to be narrowed.
-      const name = records.find((one) => one.appKey === addOn && one.ref === table)?.tableName;
-      const real = tableId(addOn, table) ?? (name === undefined ? null : (model?.tables.find((one) => one.name === name)?.id ?? null));
+      const recorded = records.find((one) => one.appKey === addOn && one.ref === table);
+      const real = tableId(addOn, table) ?? (recorded === undefined || model === null ? null : tableIdOrNull(model, realTableOf(recorded)));
       if (real === null) return;
       const ref = `${connectionId}/${real}`;
       const existing = await permissions.find(role.id, 'table', ref);

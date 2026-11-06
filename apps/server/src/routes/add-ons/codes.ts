@@ -17,8 +17,9 @@
  * user.
  */
 import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
+import { tableOfReal } from '../../installs/table-id.js';
 import { addOnManifestSchema, adjusterOf, type Manifest } from '@adminium/manifest';
-import { appTablesRepo, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, realTableOf, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -79,7 +80,7 @@ export function addOnCodesRoutes(deps: CodesMakeDeps): FastifyPluginAsyncZod {
         const records = (await appTablesRepo(deps.meta).forConnection(connectionId)).filter((record) => record.appKey === addOnKey && (record.state === 'created' || record.state === 'adopted'));
         const tableOf = (ref: string): ResolvedTable | null => {
           const record = records.find((candidate) => candidate.ref === ref);
-          const model = record === undefined ? undefined : view.model.tables.find((table) => table.name === record.tableName);
+          const model = record === undefined ? undefined : tableOfReal(view.model, realTableOf(record));
           if (model === undefined) return null;
           try {
             return view.table(model.id);

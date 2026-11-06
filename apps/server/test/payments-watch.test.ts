@@ -217,7 +217,7 @@ describe.each(META_ENGINES)('payment notices, integrity and the moves around liv
   it.runIf(available)('holds a request to pay about a row while a live payment for it waits for the bank: live only, 14 days at most, keys kept', async () => {
     const table = { id: 'main.invoices', primaryKey: ['id'] } as never;
     const ref: PayableRef = { kind: 'profile', connectionId: 'conn_1', tableName: 'main.invoices', rowKey: '42' };
-    const holds = () => createPaymentHolds(meta, 'conn_1', T0);
+    const holds = () => createPaymentHolds(meta, 'conn_1', T0, 'main');
     // Not a payable table: nothing is ever held, and nothing is asked of the attempts.
     expect(await holds()(table, { id: 42 })).toBeNull();
     await meta.db

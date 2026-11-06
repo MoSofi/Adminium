@@ -39,6 +39,7 @@ import { bindForm } from './manifest-page-config.js';
 import { resolveTableRefs, tableRefsOf, type RefTarget, type TargetTable } from './envelope-refs.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { findInstanceIds } from '../project/instance-ids.js';
+import { tableOfReal } from '../installs/table-id.js';
 import { viewConfigSchema } from '../routes/views/schema.js';
 
 type ManifestPage = NonNullable<Extract<Manifest, { kind: 'app' }>['pages']>[number];
@@ -61,7 +62,7 @@ export function appTableRefs(manifest: Manifest): Set<string> {
 export function targetTableFor(model: DatabaseModel, names: Readonly<Record<string, string>>, known: ReadonlySet<string>, ref: string): TargetTable | null {
   if (!known.has(ref)) return null;
   const real = names[ref] ?? ref;
-  const table = model.tables.find((candidate) => candidate.name === real);
+  const table = tableOfReal(model, real);
   return table === undefined ? null : { id: table.id, name: table.name, schema: table.schema };
 }
 

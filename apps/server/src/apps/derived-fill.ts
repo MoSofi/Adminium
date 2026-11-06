@@ -48,6 +48,7 @@ import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { settleBalances, settleParent, storableValues } from '../crud/write-service.js';
 import { sameValue } from '../crud/write-values.js';
 import { canonicalJson } from './sample-data.js';
+import { tableOfReal } from '../installs/table-id.js';
 
 type Db = Kysely<SourceDatabase>;
 type Row = Record<string, unknown>;
@@ -271,7 +272,7 @@ export async function fillDerivedColumns(input: {
   const result: DerivedFillResult = { filled: [], skipped: [] };
   for (const derived of input.columns) {
     const name = input.realName(derived.table);
-    const found = view.model.tables.find((table) => table.name === name);
+    const found = tableOfReal(view.model, name);
     if (found === undefined) {
       result.skipped.push({ ...derived, reason: `there is no table ${name}` });
       continue;

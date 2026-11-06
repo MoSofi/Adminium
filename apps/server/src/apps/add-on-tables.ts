@@ -17,9 +17,10 @@
  * Whose link it is is read from who made the linking table. One meta read,
  * made before any source transaction; the answer is a plain function.
  */
-import { appTablesRepo, manifestsRepo, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, manifestsRepo, realTableOf, type AppTableRecord, type MetaDb } from '@adminium/meta';
 
 import { listedColumnsOf, type ListedColumns } from '../crud/adjust/listed.js';
+import { realOfTable, tableIdModelOf, tableIdOrNull } from '../installs/table-id.js';
 
 /** The real table an add-on link points at, and its one-column key; null while the link is inert. */
 export type AddOnTables = (
@@ -45,6 +46,7 @@ const NO_SECRETS = {
 interface ModelTable {
   id: string;
   name: string;
+  schema?: string | undefined;
   primaryKey?: readonly string[] | null | undefined;
 }
 
@@ -79,12 +81,19 @@ export async function addOnInstallsStamp(meta: MetaDb): Promise<string> {
   return [row.manifests, row.manifestsAt, row.attachments, row.switchedOff, row.attachmentsAt, row.switchedOffAt, row.records, row.recordsAt, row.snapshots, row.snapshotsAt].map((part) => String(part ?? '')).join(':');
 }
 
-export async function addOnTablesFor(meta: MetaDb, connectionId: string, model: { tables: readonly ModelTable[] }): Promise<AddOnTables> {
+export async function addOnTablesFor(meta: MetaDb, connectionId: string, model: { tables: readonly ModelTable[]; defaultSchema?: string | undefined }): Promise<AddOnTables> {
   const manifests = await manifestsRepo(meta, NO_SECRETS).list();
   const kindOf = new Map(manifests.map((entry) => [entry.row.manifestKey, entry.row.kind]));
   const records = await appTablesRepo(meta).forConnection(connectionId);
-  const byName = new Map(model.tables.map((table) => [table.name, table]));
-  const nameOf = new Map(model.tables.map((table) => [table.id, table.name]));
+  // A table by its id; a record finds its own through `realTableOf` (`sales.items` is not `public.items`).
+  const named = tableIdModelOf(model);
+  const byId = new Map(model.tables.map((table) => [table.id, table]));
+  const tableOfRecord = (record: AppTableRecord): ModelTable | undefined => {
+    const id = tableIdOrNull(named, realTableOf(record));
+    return id === null ? undefined : byId.get(id);
+  };
+  /** A table id as a record names its table. */
+  const realOf = new Map(named.tables.map((table) => [table.id, realOfTable(named, table)]));
 
   /** An installed add-on's own tables on this database, by its short name for each. */
   const own = new Map<string, Map<string, ModelTable>>();
@@ -98,7 +107,7 @@ export async function addOnTablesFor(meta: MetaDb, connectionId: string, model: 
     const tables = new Map<string, ModelTable>();
     for (const record of records) {
       if (record.appKey !== key || (record.state !== 'created' && record.state !== 'adopted')) continue;
-      const table = byName.get(record.tableName);
+      const table = tableOfRecord(record);
       if (table !== undefined) tables.set(record.ref, table);
     }
     own.set(key, tables);
@@ -110,9 +119,9 @@ export async function addOnTablesFor(meta: MetaDb, connectionId: string, model: 
 
   /** The app whose table a link sits on: the earliest record that owns it, when that is an app's. */
   const appOf = (tableId: string | null): string | null => {
-    const name = tableId === null ? undefined : nameOf.get(tableId);
-    if (name === undefined) return null;
-    const maker = records.find((record) => record.tableName === name && record.owned && record.state !== 'dropped');
+    const real = tableId === null ? undefined : realOf.get(tableId);
+    if (real === undefined) return null;
+    const maker = records.find((record) => realTableOf(record) === real && record.owned && record.state !== 'dropped');
     return maker !== undefined && kindOf.get(maker.appKey) === 'app' ? maker.appKey : null;
   };
 

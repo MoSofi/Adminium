@@ -60,6 +60,7 @@ import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { grantKeyOf } from '../installs/resolve.js';
 import { dependentsOf, requiredByError } from './required-apps.js';
 import { forgetAppRoleGrants, roleSlugFor } from './manifest-roles.js';
+import { tableIdIn } from '../installs/table-id.js';
 import { removeManifestRules } from './manifest-rules.js';
 import type { AppSchemaTarget, RowTest } from './schema-target.js';
 
@@ -179,19 +180,8 @@ export interface RemovalActor {
   superAdmin: () => Promise<boolean>;
 }
 
-/**
- * The table of that name in the default schema; one elsewhere only when it is
- * the only one so named. A self-made app's table in its own schema
- * (`sales.Order Lines`) is that schema's.
- */
-const idOf = (model: DatabaseModel, name: string): string => {
-  const dot = name.indexOf('.');
-  if (dot > 0) return model.tables.find((t) => t.schema === name.slice(0, dot) && t.name === name.slice(dot + 1))?.id ?? name;
-  const here = model.tables.find((t) => t.name === name && (t.schema === model.defaultSchema || t.schema === null));
-  if (here !== undefined) return here.id;
-  const named = model.tables.filter((t) => t.name === name);
-  return named.length === 1 ? (named[0] as (typeof named)[number]).id : name;
-};
+/** The model's id of a real table string (`../installs/table-id.ts`): a bare name is the default schema's. */
+const idOf = tableIdIn;
 
 export function createRemovals(deps: RemovalDeps) {
   const tables = appTablesRepo(deps.meta);
@@ -205,7 +195,7 @@ export function createRemovals(deps: RemovalDeps) {
     );
     if (others.length > 0) return false;
     // Another add-on's table is never this manifest's to drop; an add-on's own table is its own.
-    const holder = (await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto })).get(record.tableName);
+    const holder = (await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto })).get(realTableOf(record));
     return holder === undefined || holder === record.appKey;
   }
 
@@ -367,7 +357,7 @@ export function createRemovals(deps: RemovalDeps) {
         record,
         sharedWith: sharedWith(realTableOf(record)),
         // Made by this app, and no other app's record names it.
-        droppable: record.owned && record.state === 'created' && !others.some((other) => realTableOf(other) === realTableOf(record)) && (addOnTables.get(record.tableName) ?? key) === key,
+        droppable: record.owned && record.state === 'created' && !others.some((other) => realTableOf(other) === realTableOf(record)) && (addOnTables.get(realTableOf(record)) ?? key) === key,
       })),
       hosts: Object.entries(domains)
         .filter(([, target]) => target.appKey === grantKeyOf(row.row))
@@ -571,9 +561,11 @@ export function createRemovals(deps: RemovalDeps) {
       const empty: { tables: AppTableRecord[]; columns: { record: AppTableRecord; column: string }[] } = { tables: [], columns: [] };
       const declined = (await state.find(key))?.declinedHash === input.hash;
       /** Columns that stay in a table the app goes on writing to. */
-      const staying: { table: string; column: string }[] = carried.flatMap((change) =>
-        change.kind === 'column' && change.column !== undefined ? [{ table: change.tableName, column: change.column }] : [],
-      );
+      // Its table as the record names it now: a question asked before kept the bare name, which misses a table in a schema of its own.
+      const staying: { table: string; column: string }[] = carried.flatMap((change) => {
+        const held = byRef.get(change.table);
+        return change.kind === 'column' && change.column !== undefined ? [{ table: held === undefined ? change.tableName : realTableOf(held), column: change.column }] : [];
+      });
 
       /*
        * THE TABLES COME FROM WHAT IS RECORDED, not from the manifest before:
@@ -593,38 +585,38 @@ export function createRemovals(deps: RemovalDeps) {
       for (const ref of goneTables) {
         const record = byRef.get(ref);
         if (record === undefined || asked.has(`table:${ref}.`)) continue;
-        const rows = await count(connectionId, record.tableName, { kind: 'all' });
+        const rows = await count(connectionId, realTableOf(record), { kind: 'all' });
         const mine = await droppable(record);
         if (rows === 'gone') {
           await letGo(record, 'dropped');
         } else if (rows === 'unknown') {
           // Could not be read now: left exactly as it is, and looked at again on the next apply.
-          input.log(`"${record.tableName}" could not be read, so nothing was decided about it.`);
+          input.log(`"${realTableOf(record)}" could not be read, so nothing was decided about it.`);
         } else if (input.drops === 'never' || declined || !mine) {
           await letGo(record, 'released');
-          outcome.kept.push(record.tableName);
+          outcome.kept.push(realTableOf(record));
           input.log(
-            `kept "${record.tableName}": ${
+            `kept "${realTableOf(record)}": ${
               !mine ? 'the app did not make it' : declined ? 'that was the answer' : 'removing data is done from `adminium dev` or Studio'
             }.`,
           );
         } else if (rows === 0) {
           empty.tables.push(record);
         } else {
-          changes.push({ kind: 'table', table: ref, tableName: record.tableName, rows });
+          changes.push({ kind: 'table', table: ref, tableName: realTableOf(record), rows });
         }
       }
       for (const { table: ref, column } of goneColumns) {
         const record = byRef.get(ref);
         if (record === undefined || asked.has(`column:${ref}.${column}`)) continue;
-        const rows = await count(connectionId, record.tableName, { kind: 'not-null', column });
+        const rows = await count(connectionId, realTableOf(record), { kind: 'not-null', column });
         if (rows === 'gone' || rows === 'unknown') continue; // not there, or not readable now
         // A column of a table another app or an add-on uses is theirs too: never dropped for this app.
         const mine = await droppable(record);
         if (input.drops === 'never' || declined || !mine) {
-          outcome.kept.push(`${record.tableName}.${column}`);
+          outcome.kept.push(`${realTableOf(record)}.${column}`);
           input.log(
-            `kept "${record.tableName}.${column}": ${
+            `kept "${realTableOf(record)}.${column}": ${
               !mine
                 ? 'the app did not make that table, or does not use it alone'
                 : declined
@@ -632,25 +624,25 @@ export function createRemovals(deps: RemovalDeps) {
                   : 'removing data is done from `adminium dev` or Studio'
             }.`,
           );
-          if (mine) staying.push({ table: record.tableName, column });
+          if (mine) staying.push({ table: realTableOf(record), column });
         } else if (rows === 0) {
           empty.columns.push({ record, column });
         } else {
-          changes.push({ kind: 'column', table: ref, tableName: record.tableName, column, rows });
-          staying.push({ table: record.tableName, column });
+          changes.push({ kind: 'column', table: ref, tableName: realTableOf(record), column, rows });
+          staying.push({ table: realTableOf(record), column });
         }
       }
       for (const narrowed of diff.narrowings) {
         const record = byRef.get(narrowed.table);
         if (record === undefined) continue;
-        const rows = await count(connectionId, record.tableName, narrowed.test);
+        const rows = await count(connectionId, realTableOf(record), narrowed.test);
         if (typeof rows !== 'number' || rows === 0) continue;
         // A server asks nothing: it says what it found.
         if (input.drops === 'never') {
-          input.log(`"${record.tableName}.${narrowed.column}": ${narrowed.detail}; ${String(rows)} row(s) do not fit and stay as they are.`);
+          input.log(`"${realTableOf(record)}.${narrowed.column}": ${narrowed.detail}; ${String(rows)} row(s) do not fit and stay as they are.`);
           continue;
         }
-        changes.push({ kind: 'narrow', table: narrowed.table, tableName: record.tableName, column: narrowed.column, rows, detail: narrowed.detail });
+        changes.push({ kind: 'narrow', table: narrowed.table, tableName: realTableOf(record), column: narrowed.column, rows, detail: narrowed.detail });
       }
 
       // What holds nothing loses nothing by going.
@@ -659,23 +651,23 @@ export function createRemovals(deps: RemovalDeps) {
           await drop(
             connectionId,
             {
-              tables: empty.tables.map((record) => record.tableName),
-              columns: empty.columns.map((entry) => ({ table: entry.record.tableName, column: entry.column })),
+              tables: empty.tables.map((record) => realTableOf(record)),
+              columns: empty.columns.map((entry) => ({ table: realTableOf(entry.record), column: entry.column })),
             },
             { superAdmin: await input.actor.superAdmin(), createdBy: input.actor.id },
           );
           for (const record of empty.tables) await letGo(record, 'dropped');
-          outcome.dropped.tables.push(...empty.tables.map((record) => record.tableName));
-          outcome.dropped.columns.push(...empty.columns.map((entry) => `${entry.record.tableName}.${entry.column}`));
+          outcome.dropped.tables.push(...empty.tables.map((record) => realTableOf(record)));
+          outcome.dropped.columns.push(...empty.columns.map((entry) => `${realTableOf(entry.record)}.${entry.column}`));
         } catch (error) {
           // Could not be dropped (another table links to it): kept, and said, never half an answer.
           for (const record of empty.tables) {
             await letGo(record, 'released');
-            outcome.kept.push(record.tableName);
+            outcome.kept.push(realTableOf(record));
           }
           for (const entry of empty.columns) {
-            outcome.kept.push(`${entry.record.tableName}.${entry.column}`);
-            staying.push({ table: entry.record.tableName, column: entry.column });
+            outcome.kept.push(`${realTableOf(entry.record)}.${entry.column}`);
+            staying.push({ table: realTableOf(entry.record), column: entry.column });
           }
           input.log(`kept what the manifest dropped: it could not be removed (${error instanceof Error ? error.message : String(error)}).`);
         }
@@ -756,13 +748,13 @@ export function createRemovals(deps: RemovalDeps) {
           if (record === undefined) continue;
           if (change.kind === 'table') {
             if (await droppable(record)) droppedTables.push(record);
-            else kept.push(record.tableName);
+            else kept.push(realTableOf(record));
           } else if (change.kind === 'column' && change.column !== undefined) {
-            if (await droppable(record)) droppedColumns.push({ table: record.tableName, column: change.column });
-            else kept.push(`${record.tableName}.${change.column}`);
+            if (await droppable(record)) droppedColumns.push({ table: realTableOf(record), column: change.column });
+            else kept.push(`${realTableOf(record)}.${change.column}`);
           }
         }
-        await drop(connectionId, { tables: droppedTables.map((record) => record.tableName), columns: droppedColumns }, { superAdmin, createdBy: input.actor.id });
+        await drop(connectionId, { tables: droppedTables.map((record) => realTableOf(record)), columns: droppedColumns }, { superAdmin, createdBy: input.actor.id });
         for (const record of droppedTables) await letGo(record, 'dropped');
         // A table that could not be the app's to drop is released, like a declined one.
         for (const change of waiting.changes) {
@@ -776,9 +768,9 @@ export function createRemovals(deps: RemovalDeps) {
           if (record === undefined) continue;
           if (change.kind === 'table') {
             await letGo(record, 'released');
-            kept.push(record.tableName);
+            kept.push(realTableOf(record));
           } else if (change.kind === 'column') {
-            kept.push(`${record.tableName}.${change.column ?? ''}`);
+            kept.push(`${realTableOf(record)}.${change.column ?? ''}`);
           }
         }
         await state.decline(key, waiting.hash);
@@ -786,7 +778,7 @@ export function createRemovals(deps: RemovalDeps) {
       return {
         key,
         accepted: input.accept,
-        dropped: { tables: droppedTables.map((record) => record.tableName), columns: droppedColumns.map((entry) => `${entry.table}.${entry.column}`) },
+        dropped: { tables: droppedTables.map((record) => realTableOf(record)), columns: droppedColumns.map((entry) => `${entry.table}.${entry.column}`) },
         kept,
       };
     },

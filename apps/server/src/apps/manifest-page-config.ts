@@ -34,6 +34,7 @@ import { childRelations } from '../crud/child-rows.js';
 import { filterProblem, type DayColumnKind } from '../widget-data/filter-checks.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { linkableRelations } from '../crud/links.js';
+import { tableOfReal } from '../installs/table-id.js';
 
 type ManifestPage = NonNullable<Extract<Manifest, { kind: 'app' }>['pages']>[number];
 
@@ -197,7 +198,7 @@ export function calendarOf(page: ManifestPage): CalendarColumns | null {
 export function boardOf(page: ManifestPage, model: DatabaseModel, names: Readonly<Record<string, string>> | undefined): BoardColumns | null {
   return boardColumnsOf(page.config?.['board'], (short) => {
     const real = names === undefined ? short : names[short];
-    return real === undefined ? undefined : model.tables.find((table) => table.name === real)?.id;
+    return real === undefined ? undefined : tableOfReal(model, real)?.id;
   });
 }
 
@@ -227,7 +228,7 @@ export function bindLayout(
     if (node['shape'] !== undefined && typeof source === 'object' && source !== null && typeof (source as { name?: unknown }).name === 'string') {
       const short = (source as { name: string }).name;
       const real = names[short] ?? short;
-      const table = model.tables.find((t) => t.name === real);
+      const table = tableOfReal(model, real);
       if (table === undefined) {
         problem ??= `"${short}" is not a table of this connection`;
       } else {
@@ -241,7 +242,7 @@ export function bindLayout(
       const counts = node['counts'];
       if (typeof counts === 'object' && counts !== null && typeof (counts as { table?: unknown }).table === 'string') {
         const named = (counts as { table: string }).table;
-        const limited = model.tables.find((t) => t.name === (names[named] ?? named));
+        const limited = tableOfReal(model, names[named] ?? named);
         if (limited === undefined) problem ??= `"${named}" is not a table of this connection`;
         else node['counts'] = { ...(counts as object), table: model.dialect === 'postgres' && limited.schema !== null ? `${limited.schema}.${limited.name}` : limited.name };
       }
@@ -250,7 +251,7 @@ export function bindLayout(
       const target = typeof team === 'object' && team !== null ? (team as { target?: unknown }).target : undefined;
       if (typeof target === 'object' && target !== null && typeof (target as { table?: unknown }).table === 'string') {
         const named = (target as { table: string }).table;
-        const goals = model.tables.find((t) => t.name === (names[named] ?? named));
+        const goals = tableOfReal(model, names[named] ?? named);
         if (goals === undefined) problem ??= `"${named}" is not a table of this connection`;
         else node['team'] = { ...(team as object), target: { ...(target as object), table: model.dialect === 'postgres' && goals.schema !== null ? `${goals.schema}.${goals.name}` : goals.name } };
       }
@@ -392,7 +393,8 @@ export function bindListConfig(raw: Readonly<Record<string, unknown>> | undefine
   if (raw === undefined) return out;
   const realTable = (ref: string): ResolvedTable | null => {
     const name = names[ref] ?? ref;
-    const model = view.model.tables.find((candidate) => candidate.name === name || candidate.id === name);
+    // A model id (`public.x`) is itself; a real string is read as `realTableOf` names it, a bare one in the default schema.
+    const model = view.model.tables.find((candidate) => candidate.id === name) ?? tableOfReal(view.model, name);
     if (model === undefined) return null;
     try {
       return view.table(model.id);

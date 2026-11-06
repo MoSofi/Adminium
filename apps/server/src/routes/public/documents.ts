@@ -49,6 +49,7 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 import { publicDocumentRequestSchema } from '@adminium/add-on-contracts';
+import { realOfTable } from '../../installs/table-id.js';
 import type { Dialect } from '@adminium/engine';
 
 import { planPublicEndpoints } from '../../apps/manifest-public.js';
@@ -728,7 +729,10 @@ export function createDocumentAccess(deps: {
       const manifest = installed?.document as AppManifest | undefined;
       if (manifest?.kind !== 'app') return null;
       const names = await appTablesRepo(deps.meta).realNames(key.connectionId, key.managedBy);
-      const table = (await deps.viewFor(key.connectionId))?.model.tables.find((t) => t.id === profile.table)?.name;
+      // The profile's table as the app's records name it: `sales.orders` for one in a schema of its own.
+      const model = (await deps.viewFor(key.connectionId))?.model;
+      const found = model?.tables.find((t) => t.id === profile.table);
+      const table = model === undefined || found === undefined ? undefined : realOfTable(model, found);
       const ref = Object.entries(names).find(([, real]) => real === table)?.[0] ?? '';
       if ((await appDocumentOff({ meta: deps.meta, manifest, profile, table: ref, runtime: deps.runtime })) !== null) return null;
     }

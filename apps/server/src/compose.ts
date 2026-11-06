@@ -95,6 +95,7 @@ import {
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
 import { installOfRecord } from './installs/resolve.js';
+import type { LooseTableIdModel } from './installs/table-id.js';
 import { keepAddOnInstalls } from './apps/table-ref.js';
 import { createAnswerDoor } from './forms/answer.js';
 import { createFormsCatalog } from './forms/catalog.js';
@@ -3211,7 +3212,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const formsData = async (connectionId: string) => manager.data(connectionId);
   const formsViews = (connectionId: string) => publicViews.viewFor(connectionId);
-  const formsScopes = createFormsScopes({ meta, tablesOf: async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined)?.tables ?? null });
+  const formsScopes = createFormsScopes({ meta, modelOf: async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as LooseTableIdModel | undefined) ?? null });
   const formsWebsites = listedWebsitesOf(meta);
   const formsConfirm = createFormsConfirm({ meta, secret: env.ADMINIUM_SECRET, consent, installs: () => addOnInstalls.fresh(), data: formsData, viewFor: formsViews });
   // A named survey's invitations: found by the token their links carry, spent by the answer.

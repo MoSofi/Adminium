@@ -24,7 +24,10 @@
  * fire for a write that can still roll back — the same rule links follow.
  */
 
+import { realTableOf } from '@adminium/meta';
+
 import type { EffectiveModel } from '../connections/effective-schema.js';
+import { realOfTable } from '../installs/table-id.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
 
@@ -61,6 +64,8 @@ export interface ShortNamedTable {
   appKey: string;
   ref: string;
   tableName: string;
+  /** The schema of a self-made app's table in one of its own; null (or absent) for the default schema. */
+  schemaName?: string | null | undefined;
   state: string;
 }
 
@@ -79,13 +84,16 @@ export function childRelationByName(view: SnapshotView, parent: ResolvedTable, n
   const standing = records.filter((record) => record.state === 'created' || record.state === 'adopted');
   const cut = name.indexOf(':');
   const named = cut > 0 ? standing.filter((record) => record.appKey === name.slice(0, cut) && record.ref === name.slice(cut + 1)) : standing.filter((record) => record.ref === name);
-  const parentMakers = new Set(standing.filter((record) => record.tableName === parent.name).map((record) => record.appKey));
+  // Each table as its record names it (`sales.lines` is not `public.lines`).
+  const real = (record: ShortNamedTable): string => realTableOf({ tableName: record.tableName, schemaName: record.schemaName ?? null });
+  const parentReal = realOfTable(view.model, parent);
+  const parentMakers = new Set(standing.filter((record) => real(record) === parentReal).map((record) => record.appKey));
   const own = named.filter((record) => parentMakers.has(record.appKey));
-  const candidates = new Set((own.length > 0 ? own : named).map((record) => record.tableName));
+  const candidates = new Set((own.length > 0 ? own : named).map(real));
   const relations = view.model.relations.filter((relation) => {
     if (relation.through !== null || relation.to.tableId !== parent.table.id || relation.from.columns.length !== 1) return false;
     const from = view.model.tables.find((table) => table.id === relation.from.tableId);
-    return from !== undefined && candidates.has(from.name);
+    return from !== undefined && candidates.has(realOfTable(view.model, from));
   });
   return relations.length === 1 ? relations[0]!.id : name;
 }

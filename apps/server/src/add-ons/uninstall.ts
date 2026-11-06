@@ -18,7 +18,7 @@
  */
 import { addOnSettingsRef } from '../rbac/permissions.js';
 import { installsLikeAnApp, isAddOnManifest, validateManifest, type AddOnManifest } from '@adminium/manifest';
-import { appTablesRepo, auditRepo, manifestsRepo, permissionsRepo, type InstalledManifest } from '@adminium/meta';
+import { appTablesRepo, auditRepo, manifestsRepo, permissionsRepo, realTableOf, type InstalledManifest } from '@adminium/meta';
 import { grantKeyOf, resolveInstall, type InstallSelector } from '../installs/resolve.js';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
@@ -89,14 +89,14 @@ export async function addOnUninstallPlan(deps: AddOnInstallerDeps, key: string, 
   const inUse = await addOnInUse(deps.meta, key, installed.row);
   const likeApp = manifest !== null && installsLikeAnApp(manifest) && core !== null;
   const list = likeApp ? await core.removals.listOf(installed) : null;
-  const listed = list as null | { pages?: { removed: { slug: string }[]; kept: { slug: string }[] }; roles?: { role: { slug: string }; members: unknown[] }[]; tables: readonly { droppable: boolean; record: { tableName: string } }[] };
+  const listed = list as null | { pages?: { removed: { slug: string }[]; kept: { slug: string }[] }; roles?: { role: { slug: string }; members: unknown[] }[]; tables: readonly { droppable: boolean; record: { tableName: string; schemaName: string | null } }[] };
   return {
     key,
     version: installed.row.version,
     likeApp,
     pages: { removed: (listed?.pages?.removed ?? []).map((page) => page.slug), kept: (listed?.pages?.kept ?? []).map((page) => page.slug) },
     roles: (listed?.roles ?? []).map((entry) => ({ slug: entry.role.slug, members: entry.members.length })),
-    tables: (listed?.tables ?? []).map((entry) => ({ table: entry.record.tableName, droppable: entry.droppable })),
+    tables: (listed?.tables ?? []).map((entry) => ({ table: realTableOf(entry.record), droppable: entry.droppable })),
     inUse: {
       postings: inUse.postings.map((posting) => ({ table: posting.table.slice(posting.table.lastIndexOf('.') + 1), posting: posting.posting })),
       features: inUse.features.map((feature) => ({ app: feature.app, name: feature.appName, feature: feature.feature })),
@@ -150,13 +150,14 @@ export async function uninstallAddOn(deps: AddOnInstallerDeps, input: UninstallA
       result.removed = { pages: listed.pages.removed.length, roles: listed.roles.length, rules: done.rulesRemoved, emails: done.emailsRemoved, endpoints: listed.endpoints.length, keys: listed.keys.length };
       result.kept.pages = listed.pages.kept.map((page) => page.slug);
       result.dropped = done.dropped;
-      result.kept.tables = list.tables.map((entry) => entry.record.tableName).filter((name) => !done.dropped.includes(name));
+      // Each by the one string the drop named it by: `sales.items` dropped is not `items` kept.
+      result.kept.tables = list.tables.map((entry) => realTableOf(entry.record)).filter((name) => !done.dropped.includes(name));
     } else if (installed.row.connectionId !== null) {
       // An add-on from before: its tables stay, as always; its records are let go so a reinstall finds them.
       const records = appTablesRepo(deps.meta);
       for (const record of await records.forInstall(installed.row.connectionId, key)) {
         if (record.state !== 'dropped') await records.setState(record.id, 'released');
-        result.kept.tables.push(record.tableName);
+        result.kept.tables.push(realTableOf(record));
       }
     }
     // A page of its own code has no page row: whoever was granted it by its ref — a role of the owner's too — holds nothing now.

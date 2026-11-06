@@ -17,7 +17,7 @@
  * `check` answers both without saving, with a preview of three real rows as
  * the pay page would resolve them, so the wizard shows the effect live.
  */
-import { payableMappingSchema, payableProfilesRepo, appTablesRepo, type MetaDb, type ParsedPayableMapping } from '@adminium/meta';
+import { payableMappingSchema, payableProfilesRepo, appTablesRepo, realTableOf, type MetaDb, type ParsedPayableMapping } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -196,7 +196,7 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
       for (const connection of await meta.db.selectFrom('adminium_connections').select('id').execute()) {
         for (const record of await appTablesRepo(meta).forConnection(connection.id)) {
           const match = /^invoices\/invoice@(\d+)#document$/.exec(record.builtOn ?? '');
-          if (match !== null) shapes.push({ connectionId: connection.id, tableName: record.tableName, version: Number(match[1]) });
+          if (match !== null) shapes.push({ connectionId: connection.id, tableName: realTableOf(record), version: Number(match[1]) });
         }
       }
       return { data: { profiles: (await profiles.list()).map(viewOf), shapes } };

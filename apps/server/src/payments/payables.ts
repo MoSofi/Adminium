@@ -29,6 +29,7 @@ import {
   invoiceDocumentsRepo,
   keptPaymentsRepo,
   payableProfilesRepo,
+  realTableOf,
   type MetaDb,
   type ParsedPayableMapping,
   type PayableRef,
@@ -43,6 +44,7 @@ import type { WriteTarget } from '../crud/write-context.js';
 import { isDesignerCurrency } from '../invoices/document.js';
 import { createPublicViews } from '../public-api/runtime.js';
 import { isTestPayable, readTestPayable } from './test-payables.js';
+import { realOfTableId, tableIdOrNull } from '../installs/table-id.js';
 
 // ─── Row keys ───────────────────────────────────────────────────────────────
 
@@ -444,6 +446,14 @@ export interface PayableSourceDeps {
 export function createPayableSources(deps: PayableSourceDeps): PayableSources {
   const viewFor = deps.viewFor ?? createPublicViews(deps.meta).viewFor;
 
+  /**
+   * A payable's table (a snapshot id, `public.invoices`) as an app's record
+   * names it: only the default schema's prefix comes off, so `sales.invoices`
+   * stays itself. With no view yet, the bare name, as before there were schemas.
+   */
+  const recordedAs = (view: Awaited<ReturnType<typeof viewFor>>, tableName: string): string =>
+    view !== null ? realOfTableId(view.model, tableName) : tableName.includes('.') ? tableName.slice(tableName.indexOf('.') + 1) : tableName;
+
   async function table(connectionId: string, tableName: string): Promise<{ table: ResolvedTable; target: WriteTarget } | null> {
     const view = await viewFor(connectionId);
     // No view yet (the schema is being read again) is a moment, not a missing
@@ -470,15 +480,15 @@ export function createPayableSources(deps: PayableSourceDeps): PayableSources {
       return (await fetchByPk(found.target.db, found.table, pk)) ?? null;
     },
     async shapeOf(connectionId, tableName) {
-      const records = await appTablesRepo(deps.meta).byTable(connectionId, tableName.includes('.') ? tableName.slice(tableName.indexOf('.') + 1) : tableName);
+      const view = await viewFor(connectionId);
+      const records = await appTablesRepo(deps.meta).byTable(connectionId, recordedAs(view, tableName));
       const document = records.find((record) => /^invoices\/invoice@\d+#document$/.test(record.builtOn ?? ''));
       if (document === undefined) return null;
       const version = Number(/@(\d+)#/.exec(document.builtOn!)![1]);
       const siblings = await appTablesRepo(deps.meta).forInstall(connectionId, document.appKey);
       const payments = siblings.find((record) => record.builtOn === `invoices/invoice@${version}#payments`);
       if (payments === undefined) return { version, paymentsTable: null };
-      const view = await viewFor(connectionId);
-      const id = view?.model.tables.find((candidate) => candidate.name === payments.tableName)?.id ?? null;
+      const id = view === null ? null : tableIdOrNull(view.model, realTableOf(payments));
       return { version, paymentsTable: id };
     },
     async connectionCurrency(connectionId) {
@@ -508,14 +518,14 @@ export function createPayableSources(deps: PayableSourceDeps): PayableSources {
       }
       if (ref.kind !== 'shape' || ref.connectionId === null || ref.tableName === null) return null;
       const { connectionId, tableName } = ref;
-      const records = await appTablesRepo(deps.meta).byTable(connectionId, tableName.includes('.') ? tableName.slice(tableName.indexOf('.') + 1) : tableName);
+      const view = await viewFor(connectionId);
+      const records = await appTablesRepo(deps.meta).byTable(connectionId, recordedAs(view, tableName));
       const document = records.find((record) => /^invoices\/invoice@\d+#document$/.test(record.builtOn ?? ''));
       if (document === undefined) return null;
       const version = /@(\d+)#/.exec(document.builtOn!)![1];
       const part = (await appTablesRepo(deps.meta).forInstall(connectionId, document.appKey)).find((record) => record.builtOn === `invoices/invoice@${version}#lines`);
       if (part === undefined) return null;
-      const view = await viewFor(connectionId);
-      const linesId = view?.model.tables.find((candidate) => candidate.name === part.tableName)?.id ?? null;
+      const linesId = view === null ? null : tableIdOrNull(view.model, realTableOf(part));
       const head = await table(connectionId, tableName);
       if (linesId === null || head === null) return null;
       const lines = await table(connectionId, linesId);

@@ -25,6 +25,7 @@ import { appTablesRepo, payableProfilesRepo, paymentAttemptsRepo, paymentSetting
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { rowKeyOf } from './payables.js';
+import { realOfTableId } from '../installs/table-id.js';
 import { emptyServiceState, serviceDocName, serviceStateSchema } from './services.js';
 
 /** How long a held message waits before it is judged again. */
@@ -41,15 +42,16 @@ export function asksForPayment(producer: { dropWhen?: readonly { reason?: string
  * Since when a live payment for a row has been waiting for the bank, or null.
  * One per batch of messages: which tables take payments is read once per table.
  */
-export function createPaymentHolds(meta: MetaDb, connectionId: string, now: number): (table: ResolvedTable, row: Row) => Promise<number | null> {
+export function createPaymentHolds(meta: MetaDb, connectionId: string, now: number, defaultSchema: string): (table: ResolvedTable, row: Row) => Promise<number | null> {
   const payable = new Map<string, Promise<readonly ('shape' | 'profile')[]>>();
   const kindsOf = (table: ResolvedTable): Promise<readonly ('shape' | 'profile')[]> => {
     let known = payable.get(table.id);
     if (known === undefined) {
       known = (async () => {
         const out: ('shape' | 'profile')[] = [];
-        const short = table.id.includes('.') ? table.id.slice(table.id.indexOf('.') + 1) : table.id;
-        if ((await appTablesRepo(meta).byTable(connectionId, short)).some((record) => /^invoices\/invoice@\d+#document$/.test(record.builtOn ?? ''))) out.push('shape');
+        // The table as an app's record names it: `sales.invoices` is not `public.invoices`.
+        const real = realOfTableId({ defaultSchema }, table.id);
+        if ((await appTablesRepo(meta).byTable(connectionId, real)).some((record) => /^invoices\/invoice@\d+#document$/.test(record.builtOn ?? ''))) out.push('shape');
         const profile = await payableProfilesRepo(meta).byTable(connectionId, table.id);
         if (profile !== null && profile.enabled) out.push('profile');
         return out;

@@ -26,13 +26,14 @@
  */
 import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { addOnManifestSchema, formsEntriesOf, formsOf, validateManifest, type AddOnManifest } from '@adminium/manifest';
-import { appTablesRepo, manifestsRepo, pagesRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, manifestsRepo, pagesRepo, realTableOf, userPrefsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { hostTablesOf } from '../../add-ons/host-tables.js';
 import { addOnPagePermission } from '../../add-ons/page-gate.js';
 import { storedTableRef, type TableRefIndex } from '../../apps/table-ref.js';
+import { tableOfReal } from '../../installs/table-id.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { NotFoundError } from '../../errors.js';
@@ -147,7 +148,7 @@ async function formsHosts(
     for (const opened of formsEntriesOf(read.manifest)) {
       const record = index.records.find((candidate) => candidate.appKey === entry.row.manifestKey && candidate.ref === opened.table && ['created', 'adopted', 'shared'].includes(candidate.state));
       if (record === undefined) continue;
-      const model = view.model.tables.find((table) => table.name === record.tableName && (record.schemaName === null || table.schema === record.schemaName));
+      const model = tableOfReal(view.model, realTableOf(record));
       if (model === undefined || own.has(model.id)) continue;
       let table;
       try {
@@ -214,13 +215,13 @@ export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
         const permissions = await request.server.rbac.resolve(request);
         const roles = await rolesOf(deps.meta, permissions);
         const records = await appTablesRepo(deps.meta).forConnection(connectionId);
-        const index = { records, tables: view.model.tables.map((table) => ({ id: table.id, name: table.name })) };
+        const index: TableRefIndex = { records, tables: view.model.tables.map((table) => ({ id: table.id, schema: table.schema, name: table.name })), defaultSchema: view.model.defaultSchema };
         const can = (permission: string): Promise<boolean> => request.can(permission);
 
         const tables: z.infer<typeof addOnKitReply>['tables'] = {};
         for (const record of records) {
           if (record.appKey !== key || (record.state !== 'created' && record.state !== 'adopted')) continue;
-          const model = view.model.tables.find((table) => table.name === record.tableName);
+          const model = tableOfReal(view.model, realTableOf(record));
           if (model === undefined) continue;
           let table;
           try {

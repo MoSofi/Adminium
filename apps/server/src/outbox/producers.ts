@@ -87,6 +87,7 @@ import { appPartIsOn } from '../rbac/app-parts.js';
 import type { Dialect } from '@adminium/engine';
 import { removalTableOf, resendAddressOf, sameDecimal, type Outbox, type OutboxProducer, type SettingSource } from '@adminium/manifest';
 import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, manifestsRepo, type AppOutboxRow, type MetaDb } from '@adminium/meta';
+import { tableIdIn, tableIdOrNull } from '../installs/table-id.js';
 import { sql, type Kysely } from 'kysely';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
@@ -368,7 +369,7 @@ export interface KindInput {
  * in the app's list; a row two samples share is in both).
  */
 export async function isSampleRow(meta: MetaDb, db: Kysely<SourceDatabase>, box: LiveOutbox, table: ResolvedTable, key: Row): Promise<boolean> {
-  return (await ledgersListing(meta, db, box.connectionId, table.name, key)).length > 0;
+  return (await ledgersListing(meta, db, box.connectionId, table, key)).length > 0;
 }
 
 export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
@@ -397,7 +398,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
         const realId = (name: string): string => {
           if (view === null || view.model.tables.some((table) => table.id === name)) return name;
           const real = names[name];
-          return real === undefined ? name : (view.model.tables.find((table) => table.name === real)?.id ?? real);
+          return real === undefined ? name : tableIdIn(view.model, real);
         };
         definition = withRealTables(definition, realId);
       } catch (error) {
@@ -878,8 +879,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       const names = await appTablesRepo(deps.meta).realNames(connectionId, entry.row.manifestKey);
       for (const table of tables) {
         const real = names[table.ref];
-        const id = real === undefined ? undefined : view.model.tables.find((model) => model.name === real)?.id;
-        if (id !== undefined) out.add(id);
+        const id = real === undefined ? null : tableIdOrNull(view.model, real);
+        if (id !== null) out.add(id);
       }
     }
     expiringCache.byConnection.set(connectionId, out);

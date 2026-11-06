@@ -44,7 +44,8 @@ import { SELF_ORIGIN_SENTINEL } from '../config/env.js';
 import { isEmailConfigured } from '../email/send.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { copyPlainText } from '../public-api/anonymous-caps.js';
-import { endpointIssues, type PublicEndpointDefinition, type PublicMethod } from '../public-api/endpoint.js';
+import { ENDPOINT_REF_PATTERN, endpointIssues, type PublicEndpointDefinition, type PublicMethod } from '../public-api/endpoint.js';
+import { tableIdIn, tableOfReal } from '../installs/table-id.js';
 import { EndpointSaveRefused, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
 import { generatePublishableKey, isPhoneAppKey, managedKeyKind, sealPublishableKey } from '../public-api/keys.js';
 import { managedGrantIssues } from '../public-api/managed-key.js';
@@ -449,6 +450,19 @@ function sessionOnly(entry: PublicAccessEntry): boolean {
 }
 
 /**
+ * A real table as the start of an endpoint ref. A name a ref may hold is kept
+ * as it is, so no endpoint made before is renamed; a self-made app's
+ * `sales.Order Lines` (a dot, a space) becomes `sales_order_lines`, which a
+ * ref, and a URL, can carry. The same-named table of another schema
+ * (`orders` beside `sales.orders`) keeps a ref of its own.
+ */
+function refBaseOf(real: string): string {
+  if (ENDPOINT_REF_PATTERN.test(real)) return real;
+  const plain = real.replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase();
+  return /^[a-z]/.test(plain) ? plain : `t_${plain}`;
+}
+
+/**
  * The ref of the endpoint each `publicAccess` entry becomes, in order: the
  * real table name, with `_claimed`, `_verified`, `_unlocked` or
  * `_availability` as the entry asks, and `_2`, `_3`… for a second of the same.
@@ -456,7 +470,7 @@ function sessionOnly(entry: PublicAccessEntry): boolean {
 export function publicEntryRefs(entries: readonly PublicAccessEntry[], names: Readonly<Record<string, string>>): string[] {
   const taken = new Set<string>();
   return entries.map((entry) => {
-    const real = names[entry.table] ?? entry.table;
+    const real = refBaseOf(names[entry.table] ?? entry.table);
     // An endpoint a file made on an Adminium names itself keeps its own address.
     const base =
       entry.path !== undefined
@@ -610,13 +624,13 @@ export function planPublicEndpoints(
     // A table made under a prefix is known by its record alone: with none, an entry never opens whatever table of the
     // database happens to carry the short name.
     const unrecorded = opts.tablesMadeLater !== true && (manifest.requiredSchema as { prefixed?: boolean } | undefined)?.prefixed === true && names[entry.table] === undefined;
-    const table = unrecorded ? undefined : view.model.tables.find((candidate) => candidate.name === real);
+    const table = unrecorded ? undefined : tableOfReal(view.model, real);
     if (table === undefined) {
       return opts.tablesMadeLater === true
         ? { ...planned, issues: safety }
         : { ...planned, issues: [`"${real}" is not a table of this connection`, ...safety] };
     }
-    const found = (short: string) => view.model.tables.find((t) => t.name === (names[short] ?? short))?.id;
+    const found = (short: string) => tableOfReal(view.model, names[short] ?? short)?.id;
     const idOf = (short: string) => found(short) ?? short;
     // The live-model check every nested table gets: named, but not here, is an issue.
     const unfound = nestedRefs(entry, found).missing.map((short) => `"${entry.table}" names "${short}", which this app does not have here`);
@@ -1176,5 +1190,5 @@ export function staffBindingOf(
 /** A manifest table's id in the snapshot, by its real name. */
 function idOfTable(input: { names: Readonly<Record<string, string>>; view: SnapshotView }, short: string): string {
   const real = input.names[short] ?? short;
-  return input.view.model.tables.find((table) => table.name === real)?.id ?? real;
+  return tableIdIn(input.view.model, real);
 }

@@ -62,6 +62,7 @@ import {
   appTablesRepo,
   optionListsRepo,
   overridesRepo,
+  realTableOf,
   snapshotsRepo,
   validateOverrideInput,
   type AppTableRecord,
@@ -79,6 +80,7 @@ import { applyOverrides, columnsShown } from '../connections/effective-schema.js
 import { ValidationFailedError } from '../errors.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import { roleSlugFor } from './manifest-roles.js';
+import { tableIdOrNull, tableOfReal } from '../installs/table-id.js';
 
 export type RuleOp =
   | 'column.options'
@@ -553,7 +555,7 @@ export async function rulesKeptBack(
   const active = (await overridesRepo(meta).listForConnection(connectionId)).filter((o) => o.status === 'active');
   const out: { table: string; column: string; message: string }[] = [];
   for (const { ref, tableName } of reused) {
-    const real = model.tables.find((t) => t.name === tableName);
+    const real = tableOfReal(model, tableName);
     const table = manifest.requiredSchema?.tables.find((t) => t.ref === ref);
     if (real === undefined || table === undefined) continue;
     for (const column of table.columns) {
@@ -720,7 +722,7 @@ export async function writeManifestRules(input: {
   // What this version asks for, against the real tables.
   const realOf = (ref: string) => {
     const record = records.find((r) => r.ref === ref);
-    return record === undefined ? undefined : model.tables.find((t) => t.name === record.tableName);
+    return record === undefined ? undefined : tableOfReal(model, realTableOf(record));
   };
   /** An app table's short name → its id in the snapshot; '' when it is not there (the check refuses it). */
   const realId = (ref: string) => realOf(ref)?.id ?? '';
@@ -774,7 +776,7 @@ export async function writeManifestRules(input: {
         desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.yesNo', value: { yesNo: true } });
       }
       if (column.relation !== undefined && column.type === 'fk' && column.references !== undefined) {
-        const target = realOf(column.references) ?? model.tables.find((t) => t.name === column.references);
+        const target = realOf(column.references) ?? tableOfReal(model, column.references);
         desired.push(...relationRules(table.ref, real.id, column.ref, column.relation, column.references, target));
       }
       /*
@@ -927,7 +929,7 @@ export async function writeManifestRules(input: {
       if (rule.ownTableOnly === true) return;
       const shown = secretsShownBy(model, active, { connectionId, table: rule.table, column: rule.column, op: rule.op, value: rule.value, held });
       if (shown.length > 0) {
-        skip(notOursToShow(record.tableName, shown));
+        skip(notOursToShow(realTableOf(record), shown));
         return;
       }
     }
@@ -1157,7 +1159,7 @@ export async function shapeRules(
  */
 async function survivorOf(meta: MetaDb, record: AppTableRecord, connectionId: string): Promise<AppTableRecord | null> {
   if (record.role !== 'app') return null;
-  const live = (await appTablesRepo(meta).byTable(connectionId, record.tableName)).filter(
+  const live = (await appTablesRepo(meta).byTable(connectionId, realTableOf(record))).filter(
     (other) => other.appKey !== record.appKey && other.role === 'app' && (other.state === 'created' || other.state === 'adopted' || other.state === 'shared'),
   );
   return live.sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))[0] ?? null;
@@ -1196,6 +1198,8 @@ export async function removeManifestRules(meta: MetaDb, records: readonly AppTab
   const byId = new Map(all.map((o) => [o.id, o]));
   const overrides = overridesRepo(meta);
   const repo = appTablesRepo(meta);
+  // A rule names its table by the snapshot's id (`public.x`), never by the bare name a record keeps.
+  const model = records.some((record) => record.rules.length > 0) ? await latestModel(meta, connectionId) : null;
   let removed = 0;
   for (const record of records) {
     if (record.rules.length === 0) continue;
@@ -1219,7 +1223,10 @@ export async function removeManifestRules(meta: MetaDb, records: readonly AppTab
        * then on, and read as before). Dropped with its table, they name
        * nothing and do nothing.
        */
-      const keepsPrivate = active.some((o) => o.op === 'table.private' && o.tableName === record.tableName);
+      const ids = new Set(ours.flatMap((rule) => byId.get(rule.overrideId)?.tableName ?? []));
+      const id = model === null ? null : tableIdOrNull(model, realTableOf(record));
+      if (id !== null) ids.add(id);
+      const keepsPrivate = active.some((o) => o.op === 'table.private' && ids.has(o.tableName));
       const gone = ours.filter((rule) => !(keepsPrivate && WHOSE_ROWS_OPS.has(byId.get(rule.overrideId)?.op ?? '')));
       for (const rule of gone) await overrides.delete(rule.overrideId);
       removed += gone.length;

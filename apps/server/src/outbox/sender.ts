@@ -120,6 +120,7 @@
  * reason, for a day after the send.
  */
 import { installOnConnection, installsOf } from '../installs/resolve.js';
+import { recordIsTable } from '../installs/table-id.js';
 import { guestBase as guestBaseOf } from '../public-api/guest-base.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import { linkedRowsOf, withheldColumns, withholdRulesOf, type TableWithholds, type WithholdReader } from '../public-api/withhold.js';
@@ -1756,7 +1757,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const rows = (await query.orderBy(key as never).limit(OUTBOX_BATCH).execute()) as Row[];
     // Judged again, all together, just before they go.
     const verdicts = await verdictsFor(
-      { db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db, view, box.connectionId), now, paymentHold: createPaymentHolds(deps.meta, box.connectionId, now) },
+      { db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db, view, box.connectionId), now, paymentHold: createPaymentHolds(deps.meta, box.connectionId, now, view.model.defaultSchema) },
       rows,
       'send',
     );
@@ -1951,7 +1952,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const table = view.table(tableId);
     const key = table.primaryKey[0];
     const facts = await appFacts(box.row.manifestId);
-    const ref = (await appTablesRepo(deps.meta).forInstall(box.connectionId, box.appKey)).find((record) => record.tableName === table.name)?.ref;
+    const ref = (await appTablesRepo(deps.meta).forInstall(box.connectionId, box.appKey)).find((record) => recordIsTable(record, table, view.model.defaultSchema))?.ref;
     const profile = await appProfileFor(deps.meta, box.connectionId, box.appKey, tableId, wanted.kind);
     // Absent also when the add-on that draws it is here and does not draw the kind yet: the document waits for its update.
     const kindsOf = async () => (await addOnAvailability(deps.meta, box.appKey, pipeline.runtime, box.connectionId)).kindsOf;

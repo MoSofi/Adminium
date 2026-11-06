@@ -22,6 +22,7 @@ import type { AppAddOnRow } from '../apps/add-ons.js';
 import { accessInWords, checkApp } from '../project/apps/check-app.js';
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { nameFromKey } from '../project/apps/scaffold-app.js';
+import { tableIdOrNull } from '../installs/table-id.js';
 import { readSideNav } from '../project/apps/side-build.js';
 
 /** How long one table's row count may take before it is left out. */
@@ -272,8 +273,9 @@ export async function architectureOf(deps: ArchitectureDeps, appKey: string): Pr
   const model = connectionId === null ? null : await snapshotsRepo(deps.meta).latest(connectionId).then((snapshot) => (snapshot === null ? null : parseDatabaseModel(snapshot.schema)));
   const tableIdToRef = new Map<string, string>();
   for (const table of doc.tables) {
-    const id = model?.tables.find((entry) => entry.name === table.name)?.id;
-    if (id !== undefined) tableIdToRef.set(`${String(connectionId)}/${id}`, table.ref);
+    // `table.name` is the real string (`sales.orders` for one in a schema of its own).
+    const id = model === null ? null : tableIdOrNull(model, table.name);
+    if (id !== null) tableIdToRef.set(`${String(connectionId)}/${id}`, table.ref);
   }
   const permissions = permissionsRepo(deps.meta);
   const appRoles = (await rolesRepo(deps.meta).list()).filter((role) => role.appKey === appKey);

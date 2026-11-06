@@ -49,6 +49,7 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { tableIdOrNull } from '../../installs/table-id.js';
 import { z } from 'zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
@@ -784,7 +785,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         const names = await appTablesRepo(deps.meta).realNames(connectionId, key);
         const view = await loadSnapshotView(deps.meta, connectionId).catch(() => null);
         const real = names[body.ref];
-        const tableId = real === undefined ? undefined : view?.model.tables.find((t) => t.name === real)?.id;
+        const tableId = real === undefined || view === null ? undefined : (tableIdOrNull(view.model, real) ?? undefined);
         if (view === null || tableId === undefined) notFound();
 
         // A kind the app declares for this table: its own entry, or its shape's profile.

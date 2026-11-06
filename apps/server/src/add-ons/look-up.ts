@@ -23,7 +23,8 @@ import { fetchVisible, type RowLimitContext } from '../crud/row-limit.js';
 import { rowTestOf } from '../crud/row-limit-context.js';
 import { rowsForRequest } from '../crud/row-reach-request.js';
 import { addOnManifestSchema, lookUpOf, type LookUp, type LookUpKind, type Manifest } from '@adminium/manifest';
-import { appTablesRepo, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, realTableOf, type MetaDb } from '@adminium/meta';
+import { tableOfReal } from '../installs/table-id.js';
 import type { FastifyRequest } from 'fastify';
 import { sql, type Expression, type Kysely, type SqlBool } from 'kysely';
 
@@ -221,7 +222,7 @@ export async function lookUp(deps: LookUpDeps, request: FastifyRequest, addOnKey
     readView: await readViewFor(request, view),
     tableOf(ref) {
       const record = records.find((candidate) => candidate.ref === ref);
-      const model = record === undefined ? undefined : view.model.tables.find((table) => table.name === record.tableName);
+      const model = record === undefined ? undefined : tableOfReal(view.model, realTableOf(record));
       if (model === undefined) return null;
       try {
         return view.table(model.id);

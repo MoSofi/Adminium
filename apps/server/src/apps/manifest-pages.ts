@@ -67,6 +67,7 @@ import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
 import { newId, overridesRepo, pagesRepo, permissionsRepo, snapshotsRepo, type MetaDb, type PageSummary } from '@adminium/meta';
 
 import { ownsBlocks } from './owns-blocks.js';
+import { tableIdOrNull } from '../installs/table-id.js';
 import type { RefTarget } from './envelope-refs.js';
 import { appTableRefs, envelopeFromFile, targetTableFor } from './manifest-envelopes.js';
 import { bindForm, bindLayout, bindListConfig, boardOf, calendarOf } from './manifest-page-config.js';
@@ -441,7 +442,7 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
     const tableId =
       tableRef === null || model === null
         ? null
-        : (model.tables.find((t) => t.name === tableRef)?.id ?? null);
+        : tableIdOrNull(model, tableRef);
 
     let envelope: Record<string, unknown> | null = null;
     if (bound && tableRef === null) {

@@ -18,7 +18,7 @@
  */
 import { resolveInstall, selectorOf, type InstallSelector } from '../../installs/resolve.js';
 import type { Manifest } from '@adminium/manifest';
-import { appTablesRepo, auditRepo, documentProfilesRepo, manifestsRepo, type DocumentProfile, type DocumentRow, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, auditRepo, documentProfilesRepo, manifestsRepo, realTableOf, type DocumentProfile, type DocumentRow, type MetaDb } from '@adminium/meta';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -36,6 +36,7 @@ import { renderingProviderOf } from '../../documents/provider.js';
 import { renderDocument, renderEphemeral, type RenderDeps } from '../../documents/render.js';
 import { AppError, NotFoundError } from '../../errors.js';
 import { canReadTableFor } from '../../rbac/table-grants.js';
+import { tableIdOrNull } from '../../installs/table-id.js';
 import { recordKeyOf } from '../public/documents.js';
 import { appDocumentRenderReply } from './schema.js';
 
@@ -144,7 +145,7 @@ export async function addOnDocumentFor(
   const records = await appTablesRepo(deps.meta).forConnection(connectionId);
   const record = records.find((one) => one.appKey === input.addOnKey && one.ref === input.table && (one.state === 'created' || one.state === 'adopted'));
   const view = await loadSnapshotView(deps.meta, connectionId).catch(() => null);
-  const tableId = record === undefined ? undefined : view?.model.tables.find((table) => table.name === record.tableName)?.id;
+  const tableId = record === undefined || view === null ? undefined : (tableIdOrNull(view.model, realTableOf(record)) ?? undefined);
   if (view === null || tableId === undefined) helpers.notFound();
 
   const profile = await appProfileFor(deps.meta, connectionId, input.addOnKey, tableId, input.kind);

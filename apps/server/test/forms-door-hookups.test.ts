@@ -468,7 +468,7 @@ describe.each(LEGS)('the forms door’s hook-ups — %s', (dialect, available) =
   it.skipIf(!available)('an invitation found open but answered before its send is spent once: the second spend changes nothing', async () => {
     const { id, token } = await invite('frm_quiet', null);
     const installs = keepAddOnInstalls(h.meta, async (connectionId) => ((await snapshotsRepo(h.meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined) ?? null);
-    const invitations = createSurveyInvitations({ installs: () => installs.fresh(), viewFor: (connectionId) => views.viewFor(connectionId), data: (connectionId) => h.manager.data(connectionId), scopes: createFormsScopes({ meta: h.meta, tablesOf: async (connectionId) => ((await snapshotsRepo(h.meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined)?.tables ?? null }) });
+    const invitations = createSurveyInvitations({ installs: () => installs.fresh(), viewFor: (connectionId) => views.viewFor(connectionId), data: (connectionId) => h.manager.data(connectionId), scopes: createFormsScopes({ meta: h.meta, modelOf: async (connectionId) => ((await snapshotsRepo(h.meta).latest(connectionId))?.schema as { tables: { id: string; name: string }[] } | undefined) ?? null }) });
     const parsed = parseForm(FIT_OUT, { survey: { mode: 'named', linkNames: false }, limits: { perHour: 500, harder: false } });
     if (!parsed.ok) throw new Error('the survey does not parse');
     const live: LiveForm = { id: 'frm_quiet', slug: 'quiet-survey', addOn: 'forms', connectionId: h.connectionId, form: parsed.form };

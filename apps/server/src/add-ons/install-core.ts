@@ -66,7 +66,7 @@ export interface CoreDropOptions {
 export interface CoreUninstallList {
   key: string;
   connectionId: string | null;
-  tables: readonly { droppable: boolean; record: { tableName: string } }[];
+  tables: readonly { droppable: boolean; record: { tableName: string; schemaName: string | null } }[];
 }
 
 /** What settling an app after one of its add-ons moved did to the app's public key. */
