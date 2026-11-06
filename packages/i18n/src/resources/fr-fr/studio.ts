@@ -959,7 +959,9 @@ export default {
       },
       "stopped": {
         "pages": "La mise à jour vers {to} s’est arrêtée pendant l’écriture des pages. Rien n’a été perdu ; les pages de {from} sont toujours là.",
-        "other": "La mise à jour vers {to} s’est arrêtée en cours de route. Rien n’a été perdu, et la terminer reprend là où elle s’est arrêtée."
+        "other": "La mise à jour vers {to} s’est arrêtée en cours de route. Rien n’a été perdu, et la terminer reprend là où elle s’est arrêtée.",
+        "seeds": "La mise à jour vers {to} s’est arrêtée pendant l’ajout de ses lignes de départ. Rien n’a été perdu, et la terminer ajoute le reste.",
+        "instance": "La mise à jour vers {to} s’est arrêtée pendant l’application de l’apparence et des langues. Rien n’a été perdu, et la terminer les applique."
       },
       "titleOn": "Mettre à jour {app} sur {database} vers v{version}",
       "copyOf": "Copie {n} sur {total} · {from} → {to}",

@@ -959,7 +959,9 @@ export default {
       },
       "stopped": {
         "pages": "Aktualizace na {to} se zastavila při zápisu stránek. Nic se neztratilo; stránky verze {from} tu stále jsou.",
-        "other": "Aktualizace na {to} se zastavila v půli. Nic se neztratilo a dokončení naváže tam, kde se zastavila."
+        "other": "Aktualizace na {to} se zastavila v půli. Nic se neztratilo a dokončení naváže tam, kde se zastavila.",
+        "seeds": "Aktualizace na {to} se zastavila při přidávání počátečních řádků. Nic se neztratilo a dokončení přidá zbytek.",
+        "instance": "Aktualizace na {to} se zastavila při použití vzhledu a jazyků. Nic se neztratilo a dokončení je použije."
       },
       "titleOn": "Aktualizovat {app} na {database} na v{version}",
       "copyOf": "Kopie {n} z {total} · {from} → {to}",
