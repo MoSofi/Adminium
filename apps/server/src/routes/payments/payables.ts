@@ -34,6 +34,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { readLimitOf } from '../../rbac/read-limits.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
 import { createLimitOf, updateLimitOf } from '../../rbac/update-limits.js';
+import { workspaceIdQuery, workspaceScope } from '../../workspaces/list-filter.js';
 
 export interface PaymentPayablesDeps {
   meta: MetaDb;
@@ -187,19 +188,24 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
   }
 
   return async (app) => {
-    app.get('/payments/payables', { schema: { response: { 200: listReply } } }, async (request) => {
+    app.get('/payments/payables', { schema: { querystring: z.object({ workspaceId: workspaceIdQuery }), response: { 200: listReply } } }, async (request) => {
       if (!((await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView)))) {
         throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');
       }
+      // A workspace's databases, narrowed in the query: its payable tables and the invoice tables that may become one.
+      const scope = await workspaceScope(meta, request);
+      if (scope !== undefined && scope.size === 0) return { data: { profiles: [], shapes: [] } };
       const shapes: { connectionId: string; tableName: string; version: number }[] = [];
       // Ids only, so no connection's DSN is decrypted to list them.
-      for (const connection of await meta.db.selectFrom('adminium_connections').select('id').execute()) {
+      let connections = meta.db.selectFrom('adminium_connections').select('id');
+      if (scope !== undefined) connections = connections.where('id', 'in', [...scope]);
+      for (const connection of await connections.execute()) {
         for (const record of await appTablesRepo(meta).forConnection(connection.id)) {
           const match = /^invoices\/invoice@(\d+)#document$/.exec(record.builtOn ?? '');
           if (match !== null) shapes.push({ connectionId: connection.id, tableName: realTableOf(record), version: Number(match[1]) });
         }
       }
-      return { data: { profiles: (await profiles.list()).map(viewOf), shapes } };
+      return { data: { profiles: (await profiles.list(scope === undefined ? undefined : [...scope])).map(viewOf), shapes } };
     });
 
     app.post(

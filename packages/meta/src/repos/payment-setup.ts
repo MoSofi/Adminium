@@ -293,9 +293,14 @@ export function payableProfilesRepo(meta: MetaDb) {
       return row === undefined ? null : decodeProfile(row);
     },
 
-    async list(connectionId?: string): Promise<PayableProfile[]> {
+    /** One database's, or any of a list (a workspace's databases; empty matches nothing), or every one. */
+    async list(connectionId?: string | readonly string[]): Promise<PayableProfile[]> {
       let query = db.selectFrom('adminium_payable_profiles').selectAll();
-      if (connectionId !== undefined) query = query.where('connectionId', '=', connectionId);
+      if (typeof connectionId === 'string') query = query.where('connectionId', '=', connectionId);
+      else if (connectionId !== undefined) {
+        if (connectionId.length === 0) return [];
+        query = query.where('connectionId', 'in', [...connectionId]);
+      }
       const rows = await query.orderBy('tableName', 'asc').execute();
       return rows.map(decodeProfile);
     },

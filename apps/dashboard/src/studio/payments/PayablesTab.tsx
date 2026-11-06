@@ -48,6 +48,7 @@ import {
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
+import { CurrentWorkspaceChip, WorkspaceChips, WorkspaceFilter, showsWorkspaceColumn, useTabListWorkspace, workspaceColumnLabel, type ListWorkspace } from '../../shell/workspaces/listWorkspace.js';
 import { studioApi, type SchemaColumn, type SchemaTable } from '../api.js';
 import {
   PAYMENTS_PAYABLES_QUERY_KEY,
@@ -622,7 +623,7 @@ function Wizard({ onClose, onDone }: { onClose: () => void; onDone: (table: stri
 
 // ─── The list ───────────────────────────────────────────────────────────────
 
-function ProfileRow({ profile, canManage, tableName }: { profile: PayableProfileView; canManage: boolean; tableName: string }) {
+function ProfileRow({ profile, canManage, tableName, workspace }: { profile: PayableProfileView; canManage: boolean; tableName: string; workspace: ListWorkspace }) {
   const client = useQueryClient();
   const [stopping, setStopping] = useState(false);
   const toggle = useMutation({
@@ -639,6 +640,11 @@ function ProfileRow({ profile, canManage, tableName }: { profile: PayableProfile
   return (
     <tr className="border-t border-border" data-testid={`payments-payable-${profile.id}`}>
       <td className="py-2 pe-3 text-[13px] font-semibold">{tableName}</td>
+      {showsWorkspaceColumn(workspace) ? (
+        <td className="py-2 pe-3">
+          <WorkspaceChips list={workspace} connectionId={profile.connectionId} />
+        </td>
+      ) : null}
       <td className="py-2 pe-3">
         {!profile.valid ? (
           <Badge tone="warn">{t('studio:payments.payables.needsSaving', 'Needs setting up again')}</Badge>
@@ -677,7 +683,9 @@ function ProfileRow({ profile, canManage, tableName }: { profile: PayableProfile
 }
 
 export function PayablesTab({ canManage }: { canManage: boolean }): ReactNode {
-  const list = useQuery(paymentsPayablesQuery());
+  // The tab's workspace's tables (One at a time), or the ones the filter names (All in one menu).
+  const workspace = useTabListWorkspace();
+  const list = useQuery(paymentsPayablesQuery(workspace.workspaceId));
   const [wizard, setWizard] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   if (list.isPending) return <p className="text-[13px] text-fg-muted">{t('studio:payments.loading', 'Loading…')}</p>;
@@ -689,9 +697,13 @@ export function PayablesTab({ canManage }: { canManage: boolean }): ReactNode {
         <CardHeader className="flex flex-wrap items-center gap-3">
           <IconTile icon={<Table2 />} />
           <div className="min-w-0 flex-1">
-            <h2 className="text-[14.5px] font-bold">{t('studio:payments.payables.title', 'What can be paid')}</h2>
+            <h2 className="flex flex-wrap items-center gap-2 text-[14.5px] font-bold">
+              {t('studio:payments.payables.title', 'What can be paid')}
+              <CurrentWorkspaceChip list={workspace} />
+            </h2>
             <p className="text-[12.5px] text-fg-muted">{t('studio:payments.payables.intro', 'Customers can pay a row from these tables with a pay link.')}</p>
           </div>
+          <WorkspaceFilter list={workspace} />
           {canManage && !wizard ? (
             <Button onClick={() => { setDone(null); setWizard(true); }} data-testid="payments-payables-set-up">
               {t('studio:payments.payables.setUp', 'Set up a table')}
@@ -709,6 +721,7 @@ export function PayablesTab({ canManage }: { canManage: boolean }): ReactNode {
               <thead>
                 <tr className="text-[12px] text-fg-muted">
                   <th className="py-1 pe-3 text-start font-semibold">{t('studio:payments.payables.table', 'Table')}</th>
+                  {showsWorkspaceColumn(workspace) ? <th className="py-1 pe-3 text-start font-semibold">{workspaceColumnLabel()}</th> : null}
                   <th className="py-1 pe-3 text-start font-semibold">{t('studio:payments.payables.canBePaid', 'Can be paid')}</th>
                   <th className="py-1 text-end font-semibold">{t('studio:payments.payables.actions', 'Actions')}</th>
                 </tr>
@@ -717,6 +730,11 @@ export function PayablesTab({ canManage }: { canManage: boolean }): ReactNode {
                 {shapes.map((shape) => (
                   <tr key={`${shape.connectionId}:${shape.tableName}`} className="border-t border-border" data-testid={`payments-shape-${shape.tableName}`}>
                     <td className="py-2 pe-3 text-[13px] font-semibold">{shortName(shape.tableName)}</td>
+                    {showsWorkspaceColumn(workspace) ? (
+                      <td className="py-2 pe-3">
+                        <WorkspaceChips list={workspace} connectionId={shape.connectionId} />
+                      </td>
+                    ) : null}
                     <td className="py-2 pe-3">
                       <Badge tone="pos">{t('studio:payments.payables.ready', 'Ready')}</Badge>
                       <span className="ms-2 text-[12px] text-fg-muted">
@@ -729,7 +747,7 @@ export function PayablesTab({ canManage }: { canManage: boolean }): ReactNode {
                   </tr>
                 ))}
                 {profiles.map((profile) => (
-                  <ProfileRow key={profile.id} profile={profile} canManage={canManage} tableName={shortName(profile.tableName)} />
+                  <ProfileRow key={profile.id} profile={profile} canManage={canManage} tableName={shortName(profile.tableName)} workspace={workspace} />
                 ))}
               </tbody>
             </table>

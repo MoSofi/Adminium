@@ -21,7 +21,7 @@
  * anonymous visitor who cannot read it, and turns a typo into an outage.
  */
 import { z } from 'zod';
-import { narrowToWorkspace, workspaceIdQuery } from '../../workspaces/list-filter.js';
+import { workspaceIdQuery, workspaceScope } from '../../workspaces/list-filter.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   LivePublicKeysError,
@@ -487,10 +487,11 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
       '/public-scopes',
       {
         preHandler: app.rbac.require(PERMISSIONS.apiKeysManage),
-        preSerialization: narrowToWorkspace(() => app.rbac.meta, 'scopes', (row) => row['connectionId'] as string | null),
         schema: { querystring: z.object({ workspaceId: workspaceIdQuery }), response: { 200: publicScopeListReply } },
       },
-      async () => {
+      async (request) => {
+        // A workspace's databases, narrowed in the query.
+        const scope = await workspaceScope(app.rbac.meta, request);
         const all = await keys.list();
         const counts = new Map<string, number>();
         for (const k of all) counts.set(k.scopeId, (counts.get(k.scopeId) ?? 0) + 1);
@@ -498,7 +499,7 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
         // rather than making the page discover it from a failed request.
         // A derived scope is its key's, not the operator's.
         return {
-          scopes: (await scopes.list())
+          scopes: (await scopes.list(scope === undefined ? {} : { connectionIds: [...scope] }))
             .filter((r) => r.derivedForKey === null)
             .map((r) => scopeToDto(r, counts.get(r.id) ?? 0)),
         };

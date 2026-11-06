@@ -120600,6 +120600,18 @@
     },
     "/api/v1/payments/payables": {
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "workspaceId",
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -131902,6 +131914,16 @@
             },
             "in": "query",
             "name": "connectionIds",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "workspaceId",
             "required": false
           }
         ],

@@ -13,6 +13,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { publicEndpointsRepo } from '@adminium/meta';
 
 import { columnPolicyFor } from '../../connections/effective-schema.js';
+import { workspaceScope } from '../../workspaces/list-filter.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
@@ -133,8 +134,10 @@ export function registerEndpointRoutes(app: ZodApp, deps: EndpointRoutesDeps): v
       schema: { querystring: publicEndpointsQuery, response: { 200: publicEndpointListReply } },
     },
     async (request) => {
-      // One database, or each of a list in turn: every database's endpoints are its own, side by side.
-      const ids = request.query.connectionIds ?? [request.query.connectionId!];
+      // One database, a list, or a workspace's (read before anything else, so an unseen one is not found):
+      // every database's endpoints are its own, side by side.
+      const scope = await workspaceScope(app.rbac.meta, request);
+      const ids = scope !== undefined ? [...scope].sort() : (request.query.connectionIds ?? [request.query.connectionId!]);
       const out = { snapshot: true, endpoints: [] as ReturnType<typeof endpointToDto>[], methods: [...PUBLIC_METHODS], sources: [] as ReturnType<typeof sourcesOf>, unaddressable: [] as ReturnType<typeof effectiveEndpoints>['unaddressable'] };
       for (const connectionId of ids) {
         const view = await viewFor(connectionId);
