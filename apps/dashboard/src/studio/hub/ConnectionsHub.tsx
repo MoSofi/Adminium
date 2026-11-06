@@ -33,6 +33,7 @@ import {
 
 import { ApiError } from '../../app/api.js';
 import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
@@ -868,6 +869,8 @@ export function ConnectionsHub({
 }: ConnectionsHubProps) {
   const { data: connections } = useSuspenseQuery(connectionsQuery());
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // The workspaces' words (the filter, the chips) are a deferred group of common.
+  useCommonWords();
   // Delete rides `system:connections:manage`. The list above needs it too, so
   // today whoever sees a card holds it — but a list opened up to more roles
   // later must not start offering a delete that 403s, so the button asks.
@@ -989,7 +992,7 @@ export function ConnectionsHub({
                       {workspace.name}
                     </option>
                   ))}
-                {workspaceList.otherDatabases === null ? null : <option value={OTHER_GROUP}>{t('workspaces.other', 'Other databases')}</option>}
+                {workspaceList.otherDatabases === null ? null : <option value={OTHER_GROUP}>{t('nav.otherDatabases', 'Other databases')}</option>}
               </Select>
             </div>
           ) : null}

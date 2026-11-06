@@ -38,7 +38,7 @@ import {
   appKeyParam,
   useRailRows,
 } from './railParts.js';
-import { workspacesShown } from './workspaces/model.js';
+import { workspacesShown } from './workspaces/shown.js';
 
 // Read from here by the app frame; they live with the rail's other pieces.
 export { appKeyParam, splitAppKeyParam } from './railParts.js';

@@ -110,7 +110,7 @@ import {
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
-import { CurrentWorkspaceChip, WorkspaceChips, WorkspaceFilter, showsWorkspaceColumn, useListWorkspace, type ListWorkspace } from '../shell/workspaces/listWorkspace.js';
+import { CurrentWorkspaceChip, WorkspaceChips, WorkspaceFilter, showsWorkspaceColumn, useListWorkspace, type ListWorkspace, workspaceColumnLabel } from '../shell/workspaces/listWorkspace.js';
 import { t } from '../i18n/t.js';
 import { formatStamp } from '../team/teamApi.js';
 import { useAppToasts } from '../pages/toasts.js';
@@ -842,7 +842,7 @@ function FilesTable(props: FilesTableProps): ReactNode {
             </th>
             {props.workspaces === undefined ? null : (
               <th scope="col" className="px-4 py-2 text-start font-bold">
-                {t('workspaces.column', 'Workspaces')}
+                {workspaceColumnLabel()}
               </th>
             )}
             <th scope="col" className="px-4 py-2 text-start font-bold">

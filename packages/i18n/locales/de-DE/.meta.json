@@ -6291,6 +6291,10 @@
     "srcHash": "f512a17e0a63",
     "status": "mt"
   },
+  "common.nav.otherDatabases": {
+    "status": "mt",
+    "srcHash": "5cb93deb997e"
+  },
   "common.nav.primary": {
     "srcHash": "a9a96ec01949",
     "status": "mt"
@@ -9550,10 +9554,6 @@
   "common.workspaces.menu.title": {
     "status": "mt",
     "srcHash": "ba7db4df7bc4"
-  },
-  "common.workspaces.other": {
-    "status": "mt",
-    "srcHash": "5cb93deb997e"
   },
   "common.workspaces.section.addOn": {
     "status": "src",

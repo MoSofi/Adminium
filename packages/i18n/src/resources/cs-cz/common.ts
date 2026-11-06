@@ -143,7 +143,8 @@ export default {
     },
     "drawerTitle": "Navigace",
     "emptyPartsOff": "Právě pro vás není nic zapnuto. Obraťte se na správce.",
-    "teams": "Týmy"
+    "teams": "Týmy",
+    "otherDatabases": "Ostatní databáze"
   },
   "apps": {
     "frame": {
@@ -2058,7 +2059,6 @@ export default {
     "saveFailed": "Nepodařilo se změnit, kde je uvedeno"
   },
   "workspaces": {
-    "other": "Ostatní databáze",
     "filter": {
       "label": "Pracovní prostor",
       "all": "Všechny pracovní prostory"

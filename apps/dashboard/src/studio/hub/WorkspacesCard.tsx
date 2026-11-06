@@ -167,7 +167,7 @@ export function WorkspacesCard({ list, connections }: { list: WorkspaceList; con
                 <span className="w-7 shrink-0" />
                 <WorkspaceTile group={{ kind: 'other', initials: '' }} size={32} />
                 <div className="min-w-[180px] flex-1">
-                  <div className="text-[13px] font-bold text-fg">{t('workspaces.other', 'Other databases')}</div>
+                  <div className="text-[13px] font-bold text-fg">{t('nav.otherDatabases', 'Other databases')}</div>
                   <DatabasesLine ids={list.otherDatabases} connections={connections} />
                 </div>
                 <span className="inline-flex items-center gap-1.5 text-[12.5px] text-fg-subtle">

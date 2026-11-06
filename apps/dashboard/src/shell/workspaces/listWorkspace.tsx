@@ -17,6 +17,7 @@ import { useId, useState } from 'react';
 import { Select, cn } from '@adminium/ui';
 
 import type { BootstrapData } from '../../app/bootstrap.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { t } from '../../i18n/t.js';
 import { useCurrentGroup } from './current.js';
 import { groupsHolding, type WorkspaceGroup } from './model.js';
@@ -40,6 +41,8 @@ export interface ListWorkspace {
 }
 
 export function useListWorkspace(bootstrap: Pick<BootstrapData, 'workspaces' | 'user'>): ListWorkspace {
+  // The chip, filter and column words are a deferred group: the list waits for them once.
+  useCommonWords();
   const { groups, shown, current, view } = useCurrentGroup(bootstrap);
   const [filter, setFilter] = useState(ALL_GROUPS);
   // A filter naming a group that went is All workspaces again.
@@ -78,6 +81,11 @@ export function WorkspaceFilter({ list, className }: { list: ListWorkspace; clas
       </Select>
     </div>
   );
+}
+
+/** The Workspaces column's heading. */
+export function workspaceColumnLabel(): string {
+  return t('workspaces.column', 'Workspaces');
 }
 
 /** Whether a list draws its Workspaces column: All in one menu only. */

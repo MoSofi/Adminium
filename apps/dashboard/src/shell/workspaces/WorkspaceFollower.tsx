@@ -15,6 +15,7 @@ import { useEffect, useRef } from 'react';
 import { useRouterState } from '@tanstack/react-router';
 
 import { appSectionsOf, findPageBySlug, type BootstrapData } from '../../app/bootstrap.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { chooseGroup, useCurrentGroup } from './current.js';
@@ -57,6 +58,7 @@ export function useFollowDatabase(bootstrap: BootstrapData, connectionId: string
 
 /** Rendered once by the shell: follows the address. */
 export function WorkspaceFollower({ bootstrap }: { bootstrap: BootstrapData }) {
+  useCommonWords();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   useFollowDatabase(bootstrap, databaseOfPath(bootstrap, pathname));
   return null;

@@ -143,7 +143,8 @@ export default {
     },
     "drawerTitle": "導覽",
     "emptyPartsOff": "目前沒有為你開啟的內容。請聯絡管理員。",
-    "teams": "團隊"
+    "teams": "團隊",
+    "otherDatabases": "其他資料庫"
   },
   "apps": {
     "frame": {
@@ -2058,7 +2059,6 @@ export default {
     "saveFailed": "無法變更它的列出位置"
   },
   "workspaces": {
-    "other": "其他資料庫",
     "filter": {
       "label": "工作區",
       "all": "所有工作區"

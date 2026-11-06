@@ -133,7 +133,8 @@
     },
     "drawerTitle": "Navigation",
     "emptyPartsOff": "Intet er slået til for dig lige nu. Spørg en administrator.",
-    "teams": "Teams"
+    "teams": "Teams",
+    "otherDatabases": "Andre databaser"
   },
   "apps": {
     "frame": {
@@ -2048,7 +2049,6 @@
     "saveFailed": "Kunne ikke ændre, hvor det står"
   },
   "workspaces": {
-    "other": "Andre databaser",
     "filter": {
       "label": "Arbejdsområde",
       "all": "Alle arbejdsområder"

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -1332,5 +1332,34 @@ export default {
       "after": "They stay, and anything that uses them still sends them. You can choose new workspaces for them later."
     },
     "saveFailed": "Couldn’t change where it is listed"
+  },
+  "workspaces": {
+    "filter": {
+      "label": "Workspace",
+      "all": "All workspaces"
+    },
+    "column": "Workspaces",
+    "alsoIn": "also in {workspace}",
+    "section": {
+      "addOn": "Add-on"
+    },
+    "serverNav": "Server",
+    "card": {
+      "server": "Server",
+      "notInOne": "Not in a workspace",
+      "workspace": "Workspace"
+    },
+    "menu": {
+      "title": "Workspaces on {server}",
+      "manage": "Manage workspaces"
+    },
+    "databases": "{count, plural, one {# database} other {# databases}}",
+    "view": {
+      "label": "Show workspaces",
+      "one": "One at a time",
+      "all": "All in one menu",
+      "caption": "Applies to everyone on this server."
+    },
+    "switched": "Switched to {name}"
   }
 } as const;

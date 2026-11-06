@@ -76,6 +76,12 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   // "Shown in" (`shownIn`): each piece waits for its words wherever a lazy screen draws it (email, reports, rules, a workspace's delete).
   'shown-in/ShownIn.tsx': [],
   'shown-in/ShownInField.tsx': [],
+  // Workspaces (`workspaces`): the grouped rail and its menu, the link rule, the lists that follow them, Data connections and the defaults row.
+  'shell/workspaces/WorkspaceRail.tsx': ['shell/workspaces/WorkspaceSwitcher.tsx'],
+  'shell/workspaces/WorkspaceFollower.tsx': [],
+  'shell/workspaces/listWorkspace.tsx': [],
+  'studio/hub/ConnectionsHub.tsx': ['studio/hub/WorkspaceDialogs.tsx', 'studio/hub/WorkspacesCard.tsx'],
+  'settings/GlobalDefaultsPage.tsx': [],
   'pages/dashboard-builder/DashboardBuilder.tsx': [
     'pages/dashboard-builder/BuilderGrid.tsx',
     'pages/dashboard-builder/ConfigInspector.tsx',

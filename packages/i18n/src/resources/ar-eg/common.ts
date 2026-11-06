@@ -143,7 +143,8 @@ export default {
     },
     "drawerTitle": "التنقل",
     "emptyPartsOff": "لا يوجد شيء مشغَّل لك الآن. اسأل أحد المسؤولين.",
-    "teams": "الفِرق"
+    "teams": "الفِرق",
+    "otherDatabases": "قواعد بيانات أخرى"
   },
   "apps": {
     "frame": {
@@ -2058,7 +2059,6 @@ export default {
     "saveFailed": "تعذّر تغيير مكان إدراجه"
   },
   "workspaces": {
-    "other": "قواعد بيانات أخرى",
     "filter": {
       "label": "مساحة العمل",
       "all": "كل مساحات العمل"

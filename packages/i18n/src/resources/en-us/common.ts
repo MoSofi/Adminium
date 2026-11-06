@@ -143,7 +143,8 @@ export default {
     },
     "drawerTitle": "Navigation",
     "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator.",
-    "teams": "Teams"
+    "teams": "Teams",
+    "otherDatabases": "Other databases"
   },
   "apps": {
     "frame": {
@@ -732,35 +733,5 @@ export default {
       "unread": "1 unread answer",
       "proposal": "A change is waiting for you"
     }
-  },
-  "workspaces": {
-    "other": "Other databases",
-    "filter": {
-      "label": "Workspace",
-      "all": "All workspaces"
-    },
-    "column": "Workspaces",
-    "alsoIn": "also in {workspace}",
-    "section": {
-      "addOn": "Add-on"
-    },
-    "serverNav": "Server",
-    "card": {
-      "server": "Server",
-      "notInOne": "Not in a workspace",
-      "workspace": "Workspace"
-    },
-    "menu": {
-      "title": "Workspaces on {server}",
-      "manage": "Manage workspaces"
-    },
-    "databases": "{count, plural, one {# database} other {# databases}}",
-    "view": {
-      "label": "Show workspaces",
-      "one": "One at a time",
-      "all": "All in one menu",
-      "caption": "Applies to everyone on this server."
-    },
-    "switched": "Switched to {name}"
   }
 } as const;

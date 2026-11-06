@@ -20,6 +20,7 @@ import type { LocaleId } from '@adminium/i18n/registry';
 import { Button, Card, CardBody, CardHeader, IconTile, SegmentedControl } from '@adminium/ui';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
@@ -68,6 +69,8 @@ function AxisField(props: {
 }
 
 function DefaultsForm({ initial }: { initial: SettingsDefaultsData }): ReactNode {
+  // The view of workspaces is worded by a deferred group.
+  useCommonWords();
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
   const [values, setValues] = useState<SettingsDefaultsValues>({

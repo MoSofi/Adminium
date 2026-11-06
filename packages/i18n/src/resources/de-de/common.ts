@@ -143,7 +143,8 @@ export default {
     },
     "drawerTitle": "Navigation",
     "emptyPartsOff": "Für Sie ist gerade nichts eingeschaltet. Fragen Sie einen Administrator.",
-    "teams": "Teams"
+    "teams": "Teams",
+    "otherDatabases": "Weitere Datenbanken"
   },
   "apps": {
     "frame": {
@@ -2058,7 +2059,6 @@ export default {
     "saveFailed": "Konnte nicht ändern, wo es aufgeführt ist"
   },
   "workspaces": {
-    "other": "Weitere Datenbanken",
     "filter": {
       "label": "Arbeitsbereich",
       "all": "Alle Arbeitsbereiche"

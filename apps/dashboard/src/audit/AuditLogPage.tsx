@@ -47,7 +47,7 @@ import { tagForLocale, type LocaleId } from '@adminium/i18n';
 import { assistantName, bootstrapQuery } from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
-import { CurrentWorkspaceChip, WorkspaceChips, WorkspaceFilter, showsWorkspaceColumn, useListWorkspace } from '../shell/workspaces/listWorkspace.js';
+import { CurrentWorkspaceChip, WorkspaceChips, WorkspaceFilter, showsWorkspaceColumn, useListWorkspace, workspaceColumnLabel } from '../shell/workspaces/listWorkspace.js';
 import { t } from '../i18n/t.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { formatStamp } from '../team/teamApi.js';
@@ -239,7 +239,7 @@ export function AuditLogPage(): ReactNode {
                     </th>
                     {withWorkspaces ? (
                       <th scope="col" className="px-4 py-2 text-start font-bold">
-                        {t('workspaces.column', 'Workspaces')}
+                        {workspaceColumnLabel()}
                       </th>
                     ) : null}
                     <th scope="col" className="px-4 py-2 text-end font-bold">

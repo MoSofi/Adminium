@@ -143,7 +143,8 @@ export default {
     },
     "drawerTitle": "Navigation",
     "emptyPartsOff": "Rien n’est activé pour vous pour le moment. Adressez-vous à un administrateur.",
-    "teams": "Équipes"
+    "teams": "Équipes",
+    "otherDatabases": "Autres bases de données"
   },
   "apps": {
     "frame": {
@@ -2058,7 +2059,6 @@ export default {
     "saveFailed": "Impossible de changer où il est répertorié"
   },
   "workspaces": {
-    "other": "Autres bases de données",
     "filter": {
       "label": "Espace de travail",
       "all": "Tous les espaces de travail"

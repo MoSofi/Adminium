@@ -54,7 +54,7 @@ export function WorkspaceTile({
 
 /** A group's name as the reader reads it: "Other databases" is the reader's words, a workspace's name is as typed. */
 export function groupName(group: Pick<WorkspaceGroup, 'kind' | 'name'>): string {
-  return group.kind === 'other' ? t('workspaces.other', 'Other databases') : group.name;
+  return group.kind === 'other' ? t('nav.otherDatabases', 'Other databases') : group.name;
 }
 
 /** A workspace chip: its tile and name, on the neutral chip tint. */

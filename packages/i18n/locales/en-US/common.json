@@ -133,7 +133,8 @@
     },
     "drawerTitle": "Navigation",
     "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator.",
-    "teams": "Teams"
+    "teams": "Teams",
+    "otherDatabases": "Other databases"
   },
   "apps": {
     "frame": {
@@ -2048,7 +2049,6 @@
     "saveFailed": "Couldn’t change where it is listed"
   },
   "workspaces": {
-    "other": "Other databases",
     "filter": {
       "label": "Workspace",
       "all": "All workspaces"

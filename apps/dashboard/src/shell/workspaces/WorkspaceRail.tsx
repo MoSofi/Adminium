@@ -31,6 +31,7 @@ import { cn } from '@adminium/ui';
 
 import type { AppSection, BootstrapData, NavItem } from '../../app/bootstrap.js';
 import { isDashboardPath, isDocumentHref } from '../../app/openHref.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { t } from '../../i18n/t.js';
 import { lucideByName } from '../../lib/lucide.js';
 import { sectionNavItems } from '../navSections.js';
@@ -247,6 +248,8 @@ function FoldBlock({
 }
 
 export function WorkspaceRail({ bootstrap }: { bootstrap: BootstrapData }) {
+  // Its words are a group of their own, out of the entry chunk: wait for them, under the rail's Suspense.
+  useCommonWords();
   const { groups, current, view } = useCurrentGroup(bootstrap);
   const { platformLinksFor, addOnPagesFor, addOnSettings, declaredGroups, appSections, hostedApps } = useRailRows(bootstrap);
   const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());

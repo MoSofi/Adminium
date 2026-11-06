@@ -39,10 +39,7 @@ export function workspaceGroups(bootstrap: Pick<BootstrapData, 'workspaces'>): W
   return groups;
 }
 
-/** Whether the menu groups by workspace for this person: two groups or more. */
-export function workspacesShown(bootstrap: Pick<BootstrapData, 'workspaces'>): boolean {
-  return workspaceGroups(bootstrap).length >= 2;
-}
+export { workspacesShown } from './shown.js';
 
 /** The groups that hold a database, in menu order. */
 export function groupsHolding(groups: readonly WorkspaceGroup[], connectionId: string): WorkspaceGroup[] {
