@@ -34,6 +34,7 @@ import { classPatch, classUnsaid, mailClassOf, purposeOf, recipientPatch } from 
 import { columnOfValue, holdsAddresses, linkedColumns, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
 import { writeValueText } from '../../model/summaries.js';
 import { Card, Field } from './primitives.js';
+import { HiddenHereNote } from '../../../shown-in/ShownIn.js';
 
 export interface ActionSettingsProps {
   action: Action;
@@ -372,6 +373,32 @@ function RowPicker({ input, value, connectionId, label, onChange, testId }: { in
 
 // --- email (D15) ------------------------------------------------------------
 
+/**
+ * A template select's options: the keys listed in the tab's workspace, and
+ * the one the step already names when it is not listed here (it still
+ * sends; {@link HiddenTemplateNote} says so).
+ */
+function TemplateOptions({ sources, selected }: { sources: Sources | null; selected: string | null }): ReactNode {
+  const hidden = selected === null ? undefined : sources?.hiddenTemplates?.find((row) => row.key === selected);
+  return (
+    <>
+      {(sources?.templates ?? []).map((template) => (
+        <option key={template.key} value={template.key}>
+          {template.name}
+        </option>
+      ))}
+      {hidden === undefined ? null : <option value={hidden.key}>{hidden.name}</option>}
+    </>
+  );
+}
+
+/** Under a template select: the chosen key is not listed in the tab's workspace, and where it is. */
+function HiddenTemplateNote({ sources, selected }: { sources: Sources | null; selected: string | null }): ReactNode {
+  const hidden = selected === null ? undefined : sources?.hiddenTemplates?.find((row) => row.key === selected);
+  return hidden?.shownIn === undefined ? null : <HiddenHereNote shownIn={hidden.shownIn} />;
+}
+
+
 function EmailSettings({
   action,
   sources,
@@ -396,18 +423,15 @@ function EmailSettings({
           onChange={(event) => {
             const templateKey = event.target.value === '' ? null : event.target.value;
             // What the step fills belongs to the template it was filled for.
-            const picked = sources?.templates.find((row) => row.key === templateKey) ?? null;
+            const picked = templateOf(sources, { ...action, templateKey });
             onChange({ templateKey, vars: varsFor(action, picked) } as Partial<Action>);
           }}
           data-testid="email-template"
         >
           <option value="">{t('automations:email.template', 'Template')}</option>
-          {(sources?.templates ?? []).map((template) => (
-            <option key={template.key} value={template.key}>
-              {template.name}
-            </option>
-          ))}
+          <TemplateOptions sources={sources} selected={action.templateKey} />
         </Select>
+        <HiddenTemplateNote sources={sources} selected={action.templateKey} />
         {off === 0 ? null : (
           // A template that is off in every language is not in the list: said, so nobody wonders where it went.
           <p className="mt-1 text-[11px] leading-[1.45] text-fg-subtle" data-testid="email-templates-off">
@@ -875,12 +899,9 @@ function DigestSettings({ action, sources, connectionId, onChange }: ActionSetti
       <Field label={t('automations:email.template', 'Template')}>
         <Select value={action.templateKey ?? ''} onChange={(event) => onChange({ templateKey: event.target.value === '' ? null : event.target.value } as Partial<Action>)} data-testid="digest-template">
           <option value="">{t('automations:email.template', 'Template')}</option>
-          {(sources?.templates ?? []).map((template) => (
-            <option key={template.key} value={template.key}>
-              {template.name}
-            </option>
-          ))}
+          <TemplateOptions sources={sources} selected={action.templateKey} />
         </Select>
+        <HiddenTemplateNote sources={sources} selected={action.templateKey} />
       </Field>
       <Field label={t('automations:notif.roles', 'Everyone with a role')}>
         <Select

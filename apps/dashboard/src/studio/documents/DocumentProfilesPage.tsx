@@ -318,7 +318,7 @@ function ProfileEditor({
 }) {
   const locale = currentLocale();
   const queryClient = useQueryClient();
-  const sources = useQuery({ queryKey: ['automations', 'sources'], queryFn: automationsApi.sources });
+  const sources = useQuery({ queryKey: ['automations', 'sources'], queryFn: () => automationsApi.sources() });
 
   const stored = profile?.options as { prefix?: string; literals?: Record<string, string> } | undefined;
   const [name, setName] = useState(profile?.name ?? pick(kind.label, locale, kind.kind));

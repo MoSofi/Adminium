@@ -11,6 +11,7 @@
  */
 
 import { api } from '../app/api.js';
+import type { ShownIn } from '../shown-in/model.js';
 import type { Graph, RecordEvent, Trigger } from './model/graph.js';
 import type { RunStatus } from './model/vocabulary.js';
 
@@ -188,6 +189,8 @@ export interface SourceTemplate {
   backed?: string[] | undefined;
   /** An app shipped it, and that app's own sender is what fills it. */
   ownedByApp: boolean;
+  /** Where it is listed (every language of a key alike). Absent from an older server: every workspace. */
+  shownIn?: ShownIn | undefined;
 }
 
 export interface Sources {
@@ -195,6 +198,11 @@ export interface Sources {
   templates: SourceTemplate[];
   /** Template keys that exist and are switched off in every language: not in `templates`. */
   templatesOff?: number;
+  /**
+   * Live keys not listed in the tab's workspace: never offered, but a step
+   * that already names one still sends it, and reads it from here.
+   */
+  hiddenTemplates?: SourceTemplate[] | undefined;
   roles: { id: string; name: string }[];
 }
 
@@ -358,7 +366,8 @@ export const automationsApi = {
       `${BASE}/${id}/test`,
       body,
     ),
-  sources: () => api.get<Sources>(`${BASE}/sources`),
+  /** With `workspaceId`, the templates are cut to those listed there (the rest come back as `hiddenTemplates`). */
+  sources: (workspaceId?: string) => api.get<Sources>(`${BASE}/sources${query({ workspaceId })}`),
   stats: () => api.get<RulesStats>(`${BASE}/stats${query({ tz: tz() })}`),
 
   runs: (params: RunsQuery) => api.get<RunsPage>(`${RUNS}${query({ ...params, tz: tz() })}`),
