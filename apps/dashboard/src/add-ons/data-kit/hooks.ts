@@ -96,7 +96,7 @@ export function listParams(options: UseRecordsOptions): { params: CrudListParams
 
 /** Run something the kit read told us to; a 403 means the read is stale, so it is read again for the next try. */
 function refreshOnRefusal(client: QueryClient, kit: Kit, caught: unknown): void {
-  if (caught instanceof ApiError && caught.status === 403) void client.invalidateQueries({ queryKey: addOnKitQuery(kit.addOnKey).queryKey });
+  if (caught instanceof ApiError && caught.status === 403) void client.invalidateQueries({ queryKey: addOnKitQuery(kit.addOnKey).queryKey.slice(0, 2) });
 }
 
 export function useRecords(table: string, options: UseRecordsOptions = {}): UseRecordsResult {

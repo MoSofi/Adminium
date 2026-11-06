@@ -21,18 +21,21 @@
  * lists every page an enabled add-on declares — and the add-ons list reply
  * supplies the URL and the integrity to pin for the module.
  */
-import { Component, Suspense, use, useEffect, useState, type ReactNode } from 'react';
+import { Component, Suspense, use, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@adminium/ui';
 
-import { addOnNavOf, bootstrapQuery, type AddOnNavPage } from '../app/bootstrap.js';
+import { scopeInstall } from '../app/api.js';
+import { addOnNavOf, appSectionsOf, bootstrapQuery, flattenNav, type AddOnNavPage } from '../app/bootstrap.js';
+import { splitAddress } from '../apps/installAddress.js';
+import { RetiredAddress } from '../apps/RetiredAddress.js';
 import { addOnsQuery } from '../studio/add-ons/addOnsApi.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { addOnMessagesReady } from './addOnMessages.js';
 import { isComponent, loadAddOnModule } from './client.js';
-import { AddOnKeyContext } from './data-kit/context.js';
+import { AddOnInstallContext, AddOnKeyContext } from './data-kit/context.js';
 
 /** What an add-on page module's default export must be: a component. */
 type PageComponent = (props: Record<string, never>) => ReactNode;
@@ -256,10 +259,32 @@ function AddOnPageHostMessages() {
   return <ResolvedAddOnPage />;
 }
 
+/**
+ * While a page of one copy of an add-on is open, every call it makes to its
+ * add-on's routes names that copy (`X-Adminium-Install`): the page's own code
+ * cannot know which database it was opened for. The page is drawn only once
+ * the scope is set, so its first request already carries it.
+ */
+function InstallScoped({ addOnKey, installId, children }: { addOnKey: string; installId: string | null; children: ReactNode }) {
+  const [ready, setReady] = useState(installId === null);
+  useLayoutEffect(() => {
+    if (installId === null) return undefined;
+    const off = scopeInstall(`/api/v1/add-ons/${encodeURIComponent(addOnKey)}`, installId);
+    setReady(true);
+    return off;
+  }, [addOnKey, installId]);
+  return ready ? <>{children}</> : null;
+}
+
 function ResolvedAddOnPage() {
-  const { key, _splat } = useParams({ from: '/app/add-ons/$key/$' });
+  const { key: address, _splat } = useParams({ from: '/app/add-ons/$key/$' });
   const bootstrap = useSuspenseQuery(bootstrapQuery());
+  // `invoices~kiln` is a later copy's address: the pages are the add-on's, the install is that copy.
+  const { key } = splitAddress(address);
   const pages = addOnNavOf(bootstrap.data).pages.filter((page) => page.addOnKey === key);
+  const sections = appSectionsOf(bootstrap.data).filter((section) => section.kind === 'add-on' && splitAddress(section.appKey).key === key);
+  const section = sections.find((candidate) => candidate.appKey === address) ?? null;
+  const installId = (section as { installId?: string | undefined } | null)?.installId ?? null;
 
   /*
    * The first segment of the splat is the page ref; the rest belongs to the
@@ -269,6 +294,18 @@ function ResolvedAddOnPage() {
    */
   const ref = (_splat ?? '').split('/')[0] ?? '';
   const page = ref === '' ? pages[0] : pages.find((candidate) => candidate.ref === ref);
+
+  // A plain address whose copy is gone, while other copies stay: it says where they are, and opens none by itself.
+  if (pages.length > 0 && section === null && sections.length > 0) {
+    return (
+      <RetiredAddress
+        appName={sections[0]?.label ?? key}
+        copies={sections.map((copy) => ({ key, address: copy.appKey, connectionName: connectionNameOf(bootstrap.data, copy as { connectionId?: string | null }) }))}
+        linkTo="add-on"
+        rest={_splat ?? ''}
+      />
+    );
+  }
 
   if (pages.length === 0) {
     return (
@@ -300,7 +337,18 @@ function ResolvedAddOnPage() {
     <>
       {/* The page's name in the top bar and the browser tab: the shell only knows `/p/…`, and answers "Home" for the rest. */}
       <PageActions title={t(page.labelKey, page.fallback)} />
-      <MountedPage key={`${page.addOnKey}/${page.ref}`} page={page} />
+      <InstallScoped key={address} addOnKey={key} installId={installId}>
+        <AddOnInstallContext.Provider value={installId}>
+          <MountedPage key={`${address}/${page.ref}`} page={page} />
+        </AddOnInstallContext.Provider>
+      </InstallScoped>
     </>
   );
+}
+
+/** The database a copy's section is for, by name: read off the menu's pages of that database. */
+function connectionNameOf(bootstrap: Parameters<typeof appSectionsOf>[0], section: { connectionId?: string | null | undefined }): string | null {
+  const id = section.connectionId;
+  if (typeof id !== 'string') return null;
+  return flattenNav(bootstrap.nav).find((item) => item.connectionId === id && item.connectionName !== null)?.connectionName ?? null;
 }

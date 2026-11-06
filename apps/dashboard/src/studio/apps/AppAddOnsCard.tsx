@@ -33,6 +33,7 @@ import {
 } from '../add-ons/addOnsApi.js';
 import { PlanSummary } from '../add-ons/PlanSummary.js';
 import { appSettingsKey, type AppAddOnRow } from './appsApi.js';
+import { useInstallId } from './installScope.js';
 import { NeedPill, featureWords, needsVersion, sourceWords, unavailableSourceWords } from './addOnWords.js';
 
 const CARD = 'rounded-[14px] border border-border bg-surface px-[19px] py-[18px] shadow-sm';
@@ -40,6 +41,7 @@ const ROW_BUTTON = 'h-auto gap-1.5 rounded-[9px] px-3 py-2 text-xs font-bold lea
 
 export function AppAddOnsCard({ appKey, appName, rows }: { appKey: string; appName: string; rows: readonly AppAddOnRow[] }) {
   const queryClient = useQueryClient();
+  const installId = useInstallId();
   const catalogue = useQuery({ ...addOnCatalogQuery, enabled: rows.some((row) => row.state === 'unavailable') });
   const [consent, setConsent] = useState<{ row: AppAddOnRow; plan: InstallPlan } | null>(null);
   const [progress, setProgress] = useState<{ key: string; pct: number } | null>(null);
@@ -47,7 +49,7 @@ export function AppAddOnsCard({ appKey, appName, rows }: { appKey: string; appNa
 
   const refresh = async (): Promise<void> => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: appSettingsKey(appKey) }),
+      queryClient.invalidateQueries({ queryKey: appSettingsKey(appKey, installId) }),
       queryClient.invalidateQueries({ queryKey: ADD_ONS_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: ADD_ON_CATALOG_QUERY_KEY }),
       // A feature's pages come back to the sidebar once its add-on is here.

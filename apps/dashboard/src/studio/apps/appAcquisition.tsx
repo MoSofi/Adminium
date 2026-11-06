@@ -49,7 +49,7 @@
  * new on the same check; Update is the say, and sends it. The server refuses
  * such an update without it.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Modal, ModalBody, ModalFooter, ModalHeader, MonoText, Spinner } from '@adminium/ui';
 import { ArrowUpCircle } from 'lucide-react';
@@ -100,6 +100,10 @@ interface UpdateConsent {
   key: string;
   to: string;
   plan: AppInstallPlan;
+  /** Which copy: the same app may be installed once per database, and each copy is updated through its own check. */
+  installId?: string | null;
+  /** Where that copy is, for the check's title. */
+  connectionName?: string | null;
   /** Where the app's tables live, for re-checking with the operator's answers. */
   connectionId?: string;
 }
@@ -202,6 +206,12 @@ export function useAppAcquisition() {
   const [consent, setConsent] = useState<UpdateConsent | null>(null);
   const [columnsConsent, setColumnsConsent] = useState<ColumnsConsent | null>(null);
   const [origin, setOrigin] = useState<AcquisitionOrigin>('shelf');
+  /**
+   * "Update every copy": the copies still to update after this one, in order.
+   * Every copy runs one version, so they all move, each through its own check;
+   * a check the operator cancels stops the rest.
+   */
+  const queue = useRef<InstalledApp[]>([]);
 
   /** Everything a download, refresh or update can change. */
   const refreshLists = async (): Promise<void> => {
@@ -243,8 +253,8 @@ export function useAppAcquisition() {
     });
   };
 
-  const applyUpdate = async (key: string, checked?: UpdateChecked): Promise<void> => {
-    const result = await updateApp(key, checked);
+  const applyUpdate = async (key: string, checked?: UpdateChecked, install: string | null = null): Promise<void> => {
+    const result = await updateApp(key, checked, install);
     setNotice(
       t('studio:hostedApps.update.done', '{app} updated to v{version}', {
         app: key,
@@ -252,6 +262,63 @@ export function useAppAcquisition() {
       }),
     );
     setWaiting(result.app.documents?.waiting ?? null);
+    // The next copy, when every copy is being updated.
+    const next = queue.current.shift();
+    if (next !== undefined) await updateCopy(next, result.to, true);
+  };
+
+  /**
+   * One copy of an app to version `to`: checked against its own database, and
+   * asked about when the check asks. Resolves once it is updated, or once its
+   * check is on screen (the operator's answer continues from there).
+   */
+  const updateCopy = async (app: InstalledApp, to: string, staged: boolean): Promise<void> => {
+    const install = app.installId ?? null;
+    const copy = { installId: install, connectionName: app.connectionName ?? null };
+    if (!staged) {
+      await follow(
+        () => downloadApp(app.key, to),
+        t('studio:hostedApps.job.downloadTitle', 'Downloading {app}', { app: app.key }),
+      );
+    }
+    if (app.connectionId !== null) {
+      const { plan } = await planApp({ key: app.key, version: to, connectionId: app.connectionId });
+      /*
+       * A server that checks with the install's context: the new version's
+       * tables are shown the way the install wizard shows them, and a new
+       * table whose name is taken is asked about. A plan refused for any
+       * other reason is sent anyway, so the refusal on the page is the
+       * server's.
+       */
+      if (plan.tables !== undefined) {
+        const askable = plan.problems.every((problem) => problem.code === 'TABLE_TAKEN');
+        const asksShare = (plan.shareOffers ?? []).length > 0;
+        if ((checkAsks(plan.tables) || asksShare || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0 || asksGrants(plan)) && (plan.installable || askable)) {
+          setConsent({ key: app.key, to, plan, connectionId: app.connectionId, ...copy });
+          return;
+        }
+        await applyUpdate(app.key, plan.checksum === undefined ? undefined : { planChecksum: plan.checksum }, install);
+        return;
+      }
+      const short = plan.reuse.some((table) => table.missingColumns.length > 0);
+      const edit = plan.missingColumnsEdit;
+      // Offered only when EVERY missing column can be added this way; a
+      // blocked one (a foreign key) means the update would still refuse,
+      // and the server's refusal names it better than a half-offer would.
+      // Missing columns are a problem of their own (COLUMNS_REQUIRED) and
+      // the one this offer resolves; any OTHER problem still refuses.
+      const onlyMissing = plan.problems.every((problem) => problem.code === 'COLUMNS_REQUIRED');
+      if (onlyMissing && short && edit !== undefined && edit.blocked.length === 0 && edit.addColumns.length > 0) {
+        setColumnsConsent({ key: app.key, to, plan, connectionId: app.connectionId, ...copy });
+        return;
+      }
+      const refused = !plan.installable || short;
+      if (!refused && plan.create.length > 0) {
+        setConsent({ key: app.key, to, plan, ...copy });
+        return;
+      }
+    }
+    await applyUpdate(app.key, undefined, install);
   };
 
   return {
@@ -298,79 +365,51 @@ export function useAppAcquisition() {
 
     update: (app: InstalledApp, row: CatalogApp): Promise<void> =>
       attempt(async () => {
+        queue.current = [];
         const to = row.updateTo;
         if (to === null) return;
-        if (!row.updateStaged) {
-          await follow(
-            () => downloadApp(app.key, to),
-            t('studio:hostedApps.job.downloadTitle', 'Downloading {app}', { app: app.key }),
-          );
-        }
-        if (app.connectionId !== null) {
-          const { plan } = await planApp({ key: app.key, version: to, connectionId: app.connectionId });
-          /*
-           * A server that checks with the install's context: the new version's
-           * tables are shown the way the install wizard shows them, and a new
-           * table whose name is taken is asked about. A plan refused for any
-           * other reason is sent anyway, so the refusal on the page is the
-           * server's.
-           */
-          if (plan.tables !== undefined) {
-            const askable = plan.problems.every((problem) => problem.code === 'TABLE_TAKEN');
-            const asksShare = (plan.shareOffers ?? []).length > 0;
-            if ((checkAsks(plan.tables) || asksShare || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0 || asksGrants(plan)) && (plan.installable || askable)) {
-              setConsent({ key: app.key, to, plan, connectionId: app.connectionId });
-              return;
-            }
-            await applyUpdate(app.key, plan.checksum === undefined ? undefined : { planChecksum: plan.checksum });
-            return;
-          }
-          const short = plan.reuse.some((table) => table.missingColumns.length > 0);
-          const edit = plan.missingColumnsEdit;
-          // Offered only when EVERY missing column can be added this way; a
-          // blocked one (a foreign key) means the update would still refuse,
-          // and the server's refusal names it better than a half-offer would.
-          // Missing columns are a problem of their own (COLUMNS_REQUIRED) and
-          // the one this offer resolves; any OTHER problem still refuses.
-          const onlyMissing = plan.problems.every((problem) => problem.code === 'COLUMNS_REQUIRED');
-          if (
-            onlyMissing &&
-            short &&
-            edit !== undefined &&
-            edit.blocked.length === 0 &&
-            edit.addColumns.length > 0
-          ) {
-            setColumnsConsent({ key: app.key, to, plan, connectionId: app.connectionId });
-            return;
-          }
-          const refused = !plan.installable || short;
-          if (!refused && plan.create.length > 0) {
-            setConsent({ key: app.key, to, plan });
-            return;
-          }
-        }
-        await applyUpdate(app.key);
+        await updateCopy(app, to, row.updateStaged);
+      }, 'installed'),
+
+    /**
+     * Every copy of an app to `row.updateTo` (one version per app on a
+     * server): the first copy, then each of the rest in order, each through
+     * its own check. The file is fetched once.
+     */
+    updateEvery: (copies: readonly InstalledApp[], row: CatalogApp): Promise<void> =>
+      attempt(async () => {
+        const to = row.updateTo;
+        const [first, ...rest] = copies;
+        if (to === null || first === undefined) return;
+        queue.current = [...rest];
+        await updateCopy(first, to, row.updateStaged);
       }, 'installed'),
 
     confirmUpdate: (checked?: UpdateChecked): Promise<void> => {
       const pending = consent;
       setConsent(null);
       if (pending === null) return Promise.resolve();
-      return attempt(() => applyUpdate(pending.key, checked), 'installed');
+      return attempt(() => applyUpdate(pending.key, checked, pending.installId ?? null), 'installed');
     },
 
-    /** The downloaded version stays on disk, and the list keeps offering it. */
-    cancelUpdate: (): void => setConsent(null),
+    /** The downloaded version stays on disk, and the list keeps offering it. A cancelled copy stops the rest. */
+    cancelUpdate: (): void => {
+      queue.current = [];
+      setConsent(null);
+    },
 
     /** The columns exist now (the dialog ran them); the update can go through. */
     confirmColumnsUpdate: (): Promise<void> => {
       const pending = columnsConsent;
       setColumnsConsent(null);
       if (pending === null) return Promise.resolve();
-      return attempt(() => applyUpdate(pending.key), 'installed');
+      return attempt(() => applyUpdate(pending.key, undefined, pending.installId ?? null), 'installed');
     },
 
-    cancelColumnsUpdate: (): void => setColumnsConsent(null),
+    cancelColumnsUpdate: (): void => {
+      queue.current = [];
+      setColumnsConsent(null);
+    },
   };
 }
 

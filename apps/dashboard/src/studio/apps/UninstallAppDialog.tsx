@@ -33,6 +33,7 @@ import { Check, Minus, Trash2 } from 'lucide-react';
 import { t } from '../../i18n/t.js';
 import { APP_CATALOG_QUERY_KEY, APPS_QUERY_KEY, uninstallApp, uninstallPlanQuery } from './appsApi.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
+import { useInstallId } from './installScope.js';
 
 export interface UninstallAppDialogProps {
   appKey: string;
@@ -46,12 +47,13 @@ export interface UninstallAppDialogProps {
 
 export function UninstallAppDialog({ appKey, name, subtitle, onClose, onUninstalled }: UninstallAppDialogProps) {
   const queryClient = useQueryClient();
-  const plan = useQuery(uninstallPlanQuery(appKey));
+  const install = useInstallId();
+  const plan = useQuery(uninstallPlanQuery(appKey, install));
   const [drop, setDrop] = useState(false);
   const [typed, setTyped] = useState('');
 
   const remove = useMutation({
-    mutationFn: () => uninstallApp(appKey, drop ? { dropTables: true, confirmKey: typed.trim() } : {}),
+    mutationFn: () => uninstallApp(appKey, drop ? { dropTables: true, confirmKey: typed.trim() } : {}, install),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
       await queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY });

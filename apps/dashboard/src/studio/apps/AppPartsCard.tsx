@@ -28,6 +28,7 @@ import { LayoutGrid, Map as MapIcon, Power, PowerOff } from 'lucide-react';
 import { t } from '../../i18n/t.js';
 import { appPartsKey, appPartsQuery, fetchAppPartOpen, setAppPart, type AppAddOnRow, type AppPart, type AppPartOpen, type PlanModule, type PlanWhole } from './appsApi.js';
 import { manifestWords, namesList } from './addOnWords.js';
+import { useInstallId } from './installScope.js';
 
 const CARD = 'rounded-[14px] border border-border bg-surface px-[19px] py-[18px] shadow-sm';
 const PILL = 'gap-[5px] px-[9px] py-[3px] leading-[normal]';
@@ -70,18 +71,19 @@ export function strandedRoles(parts: readonly AppPart[]): string[] {
 
 export function AppPartsCard({ appKey }: { appKey: string }) {
   const queryClient = useQueryClient();
-  const parts = useQuery(appPartsQuery(appKey));
+  const install = useInstallId();
+  const parts = useQuery(appPartsQuery(appKey, install));
   const [asking, setAsking] = useState<{ part: AppPart; on: boolean; open: AppPartOpen | null } | null>(null);
 
   const ask = useMutation({
-    mutationFn: async (input: { part: AppPart; on: boolean }) => ({ ...input, open: input.on ? null : await fetchAppPartOpen(appKey, input.part.id) }),
+    mutationFn: async (input: { part: AppPart; on: boolean }) => ({ ...input, open: input.on ? null : await fetchAppPartOpen(appKey, input.part.id, install) }),
     onSuccess: (next) => setAsking(next),
   });
 
   const flip = useMutation({
-    mutationFn: (input: { part: AppPart; on: boolean }) => setAppPart(appKey, input.part.id, input.on),
+    mutationFn: (input: { part: AppPart; on: boolean }) => setAppPart(appKey, input.part.id, input.on, install),
     onSuccess: async (next) => {
-      queryClient.setQueryData(appPartsKey(appKey), next);
+      queryClient.setQueryData(appPartsKey(appKey, install), next);
       setAsking(null);
       // Its pages and its roles moved: the sidebar, and what each person holds, are read again.
       await Promise.all([queryClient.invalidateQueries({ queryKey: ['bootstrap'] }), queryClient.invalidateQueries({ queryKey: ['roles'] })]);

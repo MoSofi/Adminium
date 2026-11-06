@@ -111,6 +111,48 @@ function isMutating(method: string | undefined): boolean {
   return verb !== 'GET' && verb !== 'HEAD';
 }
 
+/**
+ * The header that says which install of an app or add-on a request means: the
+ * same app may be installed once per database, and a key alone no longer
+ * names one (`installs/resolve.ts` on the server).
+ */
+export const INSTALL_HEADER = 'x-adminium-install';
+
+/** Per-call options: today only extra headers. */
+export interface ApiOptions {
+  headers?: Record<string, string>;
+}
+
+/** The options that name one install, or none when there is no install to name. */
+export function installOptions(installId: string | null | undefined): ApiOptions | undefined {
+  return installId === null || installId === undefined || installId === '' ? undefined : { headers: { [INSTALL_HEADER]: installId } };
+}
+
+/**
+ * Paths whose requests name an install without their caller saying so: an
+ * add-on's own page calls its routes through this client (the host API's
+ * `api`), and cannot know which copy of the add-on it was opened for. The
+ * page host scopes its add-on's paths to the install it shows while it is
+ * mounted. Longest prefix wins; an explicit header always does.
+ */
+const installScopes = new Map<string, string>();
+
+/** Name `installId` on every request under `prefix` until the returned function is called. */
+export function scopeInstall(prefix: string, installId: string): () => void {
+  installScopes.set(prefix, installId);
+  return () => {
+    if (installScopes.get(prefix) === installId) installScopes.delete(prefix);
+  };
+}
+
+function scopedInstall(path: string): Record<string, string> {
+  let best: string | null = null;
+  for (const prefix of installScopes.keys()) {
+    if ((path === prefix || path.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`) || path.startsWith(`${prefix}?`)) && (best === null || prefix.length > best.length)) best = prefix;
+  }
+  return best === null ? {} : { [INSTALL_HEADER]: installScopes.get(best) as string };
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: 'same-origin',
@@ -119,6 +161,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       accept: 'application/json',
       ...(init?.body !== undefined ? { 'content-type': 'application/json' } : {}),
       ...(isMutating(init?.method) ? csrfHeaders() : {}),
+      ...scopedInstall(path),
       ...init?.headers,
     },
   });
@@ -148,19 +191,21 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  get: <T>(path: string) => apiFetch<T>(path),
-  post: <T>(path: string, payload?: unknown) =>
+  get: <T>(path: string, options?: ApiOptions) => apiFetch<T>(path, options?.headers === undefined ? undefined : { headers: options.headers }),
+  post: <T>(path: string, payload?: unknown, options?: ApiOptions) =>
     apiFetch<T>(path, {
       method: 'POST',
       ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
+      ...(options?.headers === undefined ? {} : { headers: options.headers }),
     }),
-  put: <T>(path: string, payload: unknown) =>
-    apiFetch<T>(path, { method: 'PUT', body: JSON.stringify(payload) }),
-  patch: <T>(path: string, payload: unknown) =>
-    apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(payload) }),
-  delete: <T>(path: string, payload?: unknown) =>
+  put: <T>(path: string, payload: unknown, options?: ApiOptions) =>
+    apiFetch<T>(path, { method: 'PUT', body: JSON.stringify(payload), ...(options?.headers === undefined ? {} : { headers: options.headers }) }),
+  patch: <T>(path: string, payload: unknown, options?: ApiOptions) =>
+    apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(payload), ...(options?.headers === undefined ? {} : { headers: options.headers }) }),
+  delete: <T>(path: string, payload?: unknown, options?: ApiOptions) =>
     apiFetch<T>(path, {
       method: 'DELETE',
       ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
+      ...(options?.headers === undefined ? {} : { headers: options.headers }),
     }),
 };
