@@ -1959,6 +1959,23 @@ export interface AdminiumFormMarksTable {
   createdAt: Ts;
 }
 
+/** Wave 0079 — a value an app's deployment-wide part wrote, and what was there before it. */
+export interface AdminiumAppInstanceUndoTable {
+  id: Id;
+  /** The install (`adminium_manifests.id`). */
+  manifestId: Id;
+  /** `setting` | `word` | `email` | `locale`. */
+  kind: string;
+  /** The value's name in its store: a setting key, `<locale>:<namespace>:<key>`, `<key>/<locale>`, a language id. */
+  item: string;
+  /** `{ v }` as it was before the first install wrote it; null when nothing was set. */
+  before: JsonColumn | null;
+  /** `{ v }` as the install last wrote it. */
+  applied: JsonColumn;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
 /** Wave 0078 — an app update that moved its version and has not finished writing what it brings. */
 export interface AdminiumAppUpdatesTable {
   /** The install (`adminium_manifests.id`): one unfinished update each at most. */
@@ -2208,6 +2225,7 @@ export interface MetaDB {
   adminium_workspace_installs: AdminiumWorkspaceInstallsTable;
   adminium_app_parts: AdminiumAppPartsTable;
   adminium_app_updates: AdminiumAppUpdatesTable;
+  adminium_app_instance_undo: AdminiumAppInstanceUndoTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -2308,4 +2326,5 @@ export const META_TABLE_NAMES = [
   'adminium_workspace_installs',
   'adminium_app_parts',
   'adminium_app_updates',
+  'adminium_app_instance_undo',
 ] as const satisfies readonly (keyof MetaDB)[];

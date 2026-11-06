@@ -415,6 +415,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'publicAccess.pagination',
   'publicAccess.rateLimit',
   'publicAccess.response',
+  // A self-made app's deployment-wide part: applied only when ticked, by who may change the settings, in one
+  // transaction with what it replaced kept for the undo (apps/manifest-instance.ts).
+  'instance',
 ];
 
 /**
@@ -423,9 +426,7 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
  * a dry plan), and its install, update or apply is refused before anything is
  * made. Each moves to {@link MANIFEST_WORDS_RUN} in the change that installs it.
  */
-export const MANIFEST_WORDS_PLANNED: Readonly<Partial<Record<ManifestWordName, string>>> = {
-  'instance':"the deployment's look, languages, wording, system emails and settings",
-};
+export const MANIFEST_WORDS_PLANNED: Readonly<Partial<Record<ManifestWordName, string>>> = {};
 
 /** Refuses to install a manifest that uses a word only planned so far: 422, naming each with its place. */
 export function refusePlannedOnly(document: unknown, subject: string, words: Readonly<Record<string, string>> = MANIFEST_WORDS_PLANNED): void {

@@ -56,6 +56,7 @@ import { builtOnTables } from './app-shapes.js';
 import { removeOutbox } from './manifest-outbox.js';
 import { removeAutomations } from './manifest-automations.js';
 import { removeSavedParts } from './saved-parts.js';
+import { undoInstance } from './manifest-instance.js';
 import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { grantKeyOf } from '../installs/resolve.js';
 import { dependentsOf, requiredByError } from './required-apps.js';
@@ -455,6 +456,8 @@ export function createRemovals(deps: RemovalDeps) {
     if (list.connectionId !== null) await uninstallAppDocuments(deps.meta, list.connectionId, list.key);
     // The reports, invoice layouts and schedules it made that nobody changed, and its payable tables.
     await removeSavedParts(deps.meta, list.installId, list.connectionId, list.key);
+    // What its deployment-wide part wrote over this server, put back as it was (a value somebody changed since stays theirs).
+    const instance = await undoInstance(deps.meta, list.installId, opts.createdBy);
     /*
      * 5. Its tables: dropped only when asked, and only the ones it made and
      *    nothing else names. Every other table is kept and its record
@@ -470,7 +473,7 @@ export function createRemovals(deps: RemovalDeps) {
     }
     const kept = list.tables.filter((entry) => !dropped.includes(realTableOf(entry.record)));
     for (const entry of kept) await tables.setState(entry.record.id, 'released');
-    return { rulesRemoved, emailsRemoved, dropped, kept };
+    return { rulesRemoved, emailsRemoved, dropped, kept, instanceRestored: instance.restored.length };
   }
 
   return {

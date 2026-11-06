@@ -118,6 +118,18 @@ export const installAnswers = {
    */
   existing: z.literal('use').optional(),
   /**
+   * The review's tick for a self-made file's deployment-wide part (`plan.instance`):
+   * its look, languages, wording, edited system emails and plain settings,
+   * written over this whole server. Off unless `true`, and applied only by
+   * someone who may change the server's settings (otherwise 403).
+   */
+  instance: z.boolean().optional(),
+  /**
+   * The link hosts ticked for each edited system email (`plan.instance.systemEmails[].id`
+   * → hosts). An email with a host left unticked is not applied, and the reply says so.
+   */
+  instanceHosts: z.record(z.string().regex(/^[a-z][a-z0-9-]*\/[A-Za-z0-9_]{2,24}$/), z.array(z.string().min(1).max(253)).max(50)).optional(),
+  /**
    * Per shape the app declares (`menu@1`): use another installed app's tables
    * of that shape (`with` = its key) or keep separate ones. No answer uses the
    * first installed app's, when there is one.
@@ -498,6 +510,36 @@ export const appInstallPlanDto = z.object({
     .optional(),
   /** The parts only a self-made file carries, counted: they are made beside its pages. */
   savedParts: z.object({ reports: z.number().int(), invoiceLayouts: z.number().int(), scheduledReports: z.number().int(), payments: z.boolean() }).optional(),
+  /**
+   * A self-made file's deployment-wide part: what it would change on this
+   * whole server if ticked (`instance: true`). Each setting with its value now
+   * and the file's; the pictures; the languages switched on and off; how many
+   * words change; each edited system email as a diff, with every link host
+   * it holds to tick one by one; and what this server would not take, with
+   * why. Absent for a file without one.
+   */
+  instance: z
+    .object({
+      needs: z.string(),
+      settings: z.array(z.object({ key: z.string(), from: z.unknown(), to: z.unknown() })),
+      files: z.array(z.object({ setting: z.string(), file: z.string(), replaces: z.boolean() })),
+      languages: z.object({ on: z.array(z.string()), off: z.array(z.string()) }),
+      wording: z.object({ changed: z.number().int(), same: z.number().int() }),
+      systemEmails: z.array(
+        z.object({
+          id: z.string(),
+          key: z.string(),
+          locale: z.string(),
+          subject: z.object({ from: z.string(), to: z.string() }).nullable(),
+          preheaderChanged: z.boolean(),
+          footerChanged: z.boolean(),
+          blocks: z.object({ added: z.array(z.string()), removed: z.array(z.string()), changed: z.array(z.string()) }),
+          hosts: z.array(z.string()),
+        }),
+      ),
+      left: z.array(z.object({ item: z.string(), reason: z.string() })),
+    })
+    .optional(),
   /** The app shows maps and nobody has yet said whether this install shows them: the check step asks. */
   maps: z.boolean().optional(),
   /**
@@ -897,6 +939,19 @@ export const installedAppReply = z.object({
    */
   seeds: z.object({ written: z.record(z.string(), z.number()), kept: z.array(z.string()) }).optional(),
   /**
+   * The deployment-wide part, when it was ticked: the values written
+   * (`<kind>:<item>`), those an earlier version wrote and this one put back,
+   * and what was left out with why (an email with a host not ticked among
+   * them). Absent when it was not applied.
+   */
+  instance: z
+    .object({
+      written: z.array(z.string()),
+      restored: z.array(z.string()),
+      left: z.array(z.object({ item: z.string(), reason: z.string() })),
+    })
+    .optional(),
+  /**
    * The app's documents that wait: each of a kind the add-on attached to the
    * app does not draw yet (a version of the add-on that draws it is not
    * installed). Left off, with the attachment a message makes of it, until the
@@ -1076,6 +1131,9 @@ export const updateAppBody = z
     pages: installAnswers.pages,
     /** As the install's: the tables the new version brings that are here already are used as they are. */
     existing: installAnswers.existing,
+    /** As the install's: the new version's deployment-wide part, written only when ticked, and the hosts ticked. */
+    instance: installAnswers.instance,
+    instanceHosts: installAnswers.instanceHosts,
     /**
      * The check's "Allow this public access", for what the new version adds
      * to it: an entry its keys do not hold (`onUpdate: granted`), a key it
@@ -1368,6 +1426,8 @@ export const uninstallAppReply = z.object({
       rules: z.number().optional(),
       /** The app's email templates nobody edited. */
       emails: z.number().optional(),
+      /** The values its deployment-wide part had written, put back as they were. */
+      instance: z.number().optional(),
     })
     .optional(),
   /** What stayed: pages someone edited, and every table not dropped. */

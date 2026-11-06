@@ -19,7 +19,7 @@
  */
 import { BUILTIN_EMAIL_TEMPLATE_KEYS } from '../src/email/builtins.js';
 import { INSTANCE_SETTING_KEYS, INSTANCE_SYSTEM_EMAIL_KEYS } from '@adminium/manifest';
-import { SETTINGS_REGISTRY, appTablesRepo, manifestsRepo } from '@adminium/meta';
+import { SETTINGS_REGISTRY, appTablesRepo, manifestsRepo, settingsRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createAppInstallService } from '../src/apps/install-service.js';
@@ -201,16 +201,18 @@ describe.each(ENGINES)('an app that requires another, on %s', (dialect, availabl
     expect(after.find((record) => record.appKey === 'shop-desk' && record.ref === 'orders')).toMatchObject({ state: 'released', owned: false });
   });
 
-  it.skipIf(!available)('plans an instance part, and refuses to install it until applying it is built', async () => {
+  it.skipIf(!available)('plans an instance part, and installs without it when it is not ticked', async () => {
     harness = await installHarness(dialect);
     const h = harness;
     const m = desk({ apps: undefined, requiredSchema: { tables: [{ ref: 'desk_notes', columns: [id, { ref: 'body', type: 'text', nullable: true }] }] }, instance: { branding: { appName: 'Fernhill' }, settings: { 'assistant.name': 'Fern' } } });
     await h.stage(m);
     expect(await planProblems(h)).toEqual([]);
     const install = await h.inject({ method: 'POST', url: '/apps/install', payload: { key: 'shop-desk', version: '1.0.0', connectionId: h.connectionId } });
-    expect(install.statusCode, install.body).toBe(422);
-    expect(JSON.parse(install.body)).toMatchObject({ error: { details: { reason: 'INSTALL_PATH_NOT_BUILT', words: [{ word: 'instance', path: 'instance' }] } } });
-    expect(await tablesOf(h, dialect)).toEqual([]);
+    expect(install.statusCode, install.body).toBe(200);
+    expect(JSON.parse(install.body)).not.toHaveProperty('instance');
+    expect(await tablesOf(h, dialect)).toEqual(['desk_notes']);
+    expect(await settingsRepo(h.meta).get('branding.appName')).toBe('Adminium');
+    expect(await settingsRepo(h.meta).get('assistant.name')).toBe('Milo');
   });
 });
 
