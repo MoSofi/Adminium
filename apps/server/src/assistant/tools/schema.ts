@@ -42,7 +42,8 @@ export const OUTSIDE_WORKSPACE = {
  * narrows: rights are still asked table by table.
  */
 export function inTabWorkspace(deps: Pick<AssistantToolDeps, 'host'>, connectionId: string): boolean {
-  const held = deps.host.workspaceConnectionIds;
+  // No host (a caller with no tab): every database the person reaches, as without a workspace.
+  const held = deps.host?.workspaceConnectionIds;
   return held === undefined || held.includes(connectionId);
 }
 

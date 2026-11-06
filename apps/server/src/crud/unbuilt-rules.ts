@@ -378,6 +378,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'column.yesNo',
   // A self-made app's column under its own name: created, ruled and read by that name (add-ons/install-ddl.ts, apps/manifest-rules.ts).
   'column.name',
+  // A self-made app's icon: stored with its manifest and drawn on its page (apps/save, studio/apps).
+  'app.icon',
   'table.exclude',
   'table.switchedOff',
   'relation.label',

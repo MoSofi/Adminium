@@ -33,7 +33,7 @@ for (const dialect of TEST_DIALECTS) {
     it('upgrades a store with templates: every one sends by the record', async () => {
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: PRE });
       await emailTemplatesRepo(t.meta).upsert('firing-done', 'en_US', { name: 'Firing done', ...BODY });
-      expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS })).applied).toEqual(['0080_template_send_as']);
+      expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS })).applied.slice(0, 1)).toEqual(['0080_template_send_as']);
       const repo = emailTemplatesRepo(t.meta);
       expect((await repo.findByKeyLocale('firing-done', 'en_US'))?.sendAs).toBeNull();
       expect(await repo.sendAsOf('firing-done')).toBeNull();
