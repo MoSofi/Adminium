@@ -16,13 +16,12 @@ import { WifiOff } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useCommandK, useTheme, useThemePrefs } from '@adminium/ui';
 
-import { invalidateForRealtimeEvent, resyncConfigOnConnect } from '../api/realtime.js';
 import { bootstrapQuery, findPageBySlug, flattenNav, holdsSystemAction } from '../app/bootstrap.js';
 import { systemInfoQuery } from '../app/capabilities.js';
 import { openHref } from '../app/openHref.js';
 import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
-import { createRealtimeClient } from '../app/ws.js';
+import type { RealtimeClient } from '../app/ws.js';
 import { logout } from '../auth/authApi.js';
 import { resyncOverrides } from '../i18n/setup.js';
 import { t, useWordsRevision } from '../i18n/t.js';
@@ -62,7 +61,7 @@ const SidebarDrawer = lazy(async () => ({
 import { Topbar } from './Topbar.js';
 import { OTHER_DATABASES, ShownInScopeProvider } from '../shown-in/scope.js';
 import { useCurrentGroup } from './workspaces/current.js';
-import { OTHER_GROUP } from './workspaces/model.js';
+import { OTHER_GROUP } from './workspaces/groups.js';
 import { workspacesShown } from './workspaces/shown.js';
 /* Lazy: only a server whose menu groups by workspace follows links between them. */
 const WorkspaceFollower = lazy(async () => ({ default: (await import('./workspaces/WorkspaceFollower.js')).WorkspaceFollower }));
@@ -141,39 +140,51 @@ export function AppShell() {
 
   // --- realtime: config-changed → invalidate; offline banner signal --------
   useEffect(() => {
-    const client = createRealtimeClient({
-      // notifications:<userId> feeds the sidebar unread badge + feeds (M7 T6).
-      channels: ['config-changed', `notifications:${bootstrap.user.id}`],
-      // config-changed → bootstrap + page invalidation; table/widget-data
-      // publications → data-list + widget-data invalidation; notifications:*
-      // → the ['notifications'] prefix (src/api/realtime.ts).
-      onEvent: (event) => {
-        invalidateForRealtimeEvent(queryClient, event);
-        // A translation edit changes no query — it changes what every key
-        // resolves to — so it needs its own reaction.
-        if (event.type === 'i18n.changed') void resyncOverrides();
+    /*
+     * The socket and what it invalidates load after the first paint: nothing
+     * on screen is drawn from them before an event comes, and the resync on
+     * connect (below) covers anything published while they loaded.
+     */
+    let stopped = false;
+    let client: RealtimeClient | null = null;
+    void Promise.all([import('../app/ws.js'), import('../api/realtime.js')]).then(
+      ([{ createRealtimeClient }, { invalidateForRealtimeEvent, resyncConfigOnConnect }]) => {
+        if (stopped) return;
+        client = createRealtimeClient({
+          // notifications:<userId> feeds the sidebar unread badge + feeds (M7 T6).
+          channels: ['config-changed', `notifications:${bootstrap.user.id}`],
+          // config-changed → bootstrap + page invalidation; table/widget-data
+          // publications → data-list + widget-data invalidation; notifications:*
+          // → the ['notifications'] prefix (src/api/realtime.ts).
+          onEvent: (event) => {
+            invalidateForRealtimeEvent(queryClient, event);
+            // A translation edit changes no query — it changes what every key
+            // resolves to — so it needs its own reaction.
+            if (event.type === 'i18n.changed') void resyncOverrides();
+          },
+          onStatusChange: (connected) => {
+            setOffline(!connected);
+            // The at-least-once floor: the hub is in-process with no
+            // cross-node fan-out, and a socket that dropped during the backoff
+            // window silently missed every event published in it. Comparing the
+            // version on reconnect is what stops a tab serving stale strings
+            // forever.
+            if (!connected) return;
+            void resyncOverrides();
+            // The same floor for everything `config-changed` feeds, and it is
+            // needed on the FIRST open too, not only after a drop: this fires
+            // once the socket is up, which is strictly after the page fetched
+            // its bootstrap, so a build that landed in between published to
+            // nobody. `['bootstrap']` never goes stale on its own, so without
+            // this the page holds that payload for its whole life — which is how
+            // `/p/<slug>` could sit on "This page is not in the running build"
+            // until a reload. One read, and it widens only if a stamp moved.
+            void resyncConfigOnConnect(queryClient);
+          },
+        });
+        client.start();
       },
-      onStatusChange: (connected) => {
-        setOffline(!connected);
-        // The at-least-once floor: the hub is in-process with no
-        // cross-node fan-out, and a socket that dropped during the backoff
-        // window silently missed every event published in it. Comparing the
-        // version on reconnect is what stops a tab serving stale strings
-        // forever.
-        if (!connected) return;
-        void resyncOverrides();
-        // The same floor for everything `config-changed` feeds, and it is
-        // needed on the FIRST open too, not only after a drop: this fires
-        // once the socket is up, which is strictly after the page fetched
-        // its bootstrap, so a build that landed in between published to
-        // nobody. `['bootstrap']` never goes stale on its own, so without
-        // this the page holds that payload for its whole life — which is how
-        // `/p/<slug>` could sit on "This page is not in the running build"
-        // until a reload. One read, and it widens only if a stamp moved.
-        void resyncConfigOnConnect(queryClient);
-      },
-    });
-    client.start();
+    );
     const onOnline = () => setOffline(false);
     const onOffline = () => setOffline(true);
     // Same floor for a tab that was simply in the background while an admin
@@ -185,7 +196,8 @@ export function AppShell() {
     window.addEventListener('offline', onOffline);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      client.stop();
+      stopped = true;
+      client?.stop();
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
       document.removeEventListener('visibilitychange', onVisible);
