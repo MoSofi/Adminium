@@ -8,8 +8,11 @@
  * A starter may carry an accent that is NOT one of the five (`health` is
  * `#12805c`, Appendix C): none of the swatches shows as active then, exactly
  * as the comp does.
+ *
+ * On a server with workspaces, "Shown in" comes last: where this layout is
+ * listed (the Workspaces comp draws the same control on a report layout).
  */
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 
 import { cn } from '@adminium/ui';
 
@@ -19,13 +22,15 @@ import type { DocumentEdits } from '../../model/edits.js';
 import { statusLabel } from '../../manager/model.js';
 import { reportIcon } from '../../icons.js';
 import { pickImage, type ImageRejection } from '../canvas/inline.js';
-import { DASHED, FileLabel, Note, OptionButton, PanelLabel, RangeInput, Swatch, TextAreaField, TextField } from './parts.js';
+import { DASHED, Divider, FileLabel, Note, OptionButton, PanelLabel, RangeInput, Swatch, TextAreaField, TextField } from './parts.js';
 
 export interface HeaderPanelProps {
   body: ReportBody;
   status: ReportStatus;
   edits: DocumentEdits;
   onImageRejected: (result: ImageRejection) => void;
+  /** "Shown in", drawn last; absent on a server with no workspaces. */
+  shownIn?: ReactNode;
 }
 
 /** The comp's three status options in their tones (634; D22). */
@@ -35,7 +40,7 @@ const STATUS_OPTIONS: readonly { value: ReportStatus; tone: 'neutral' | 'accent'
   { value: 'live', tone: 'pos' },
 ];
 
-export function HeaderPanel({ body, status, edits, onImageRejected }: HeaderPanelProps) {
+export function HeaderPanel({ body, status, edits, onImageRejected, shownIn }: HeaderPanelProps) {
   const tintId = useId();
   const UploadGlyph = reportIcon('upload');
   const percent = Math.round(body.bgTint * 100);
@@ -156,6 +161,12 @@ export function HeaderPanel({ body, status, edits, onImageRejected }: HeaderPane
           </div>
         )}
       </div>
+      {shownIn === undefined || shownIn === null ? null : (
+        <>
+          <Divider />
+          {shownIn}
+        </>
+      )}
     </div>
   );
 }

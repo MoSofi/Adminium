@@ -37,6 +37,8 @@ import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { useShortcut } from '../../shell/ShortcutsProvider.js';
+import { ShownInField } from '../../shown-in/ShownInField.js';
+import { useShownInScope } from '../../shown-in/scope.js';
 import { emailSettingsQuery } from '../../studio/settings/workspaceApi.js';
 import { emailApi, type EmailBlockRecord, type EmailDocument, type EmailDocumentDetail, type EmailMirrorOp, type EmailRunView, type EmailSavedBlock, type EmailSendBody } from '../api.js';
 import { api } from '../../app/api.js';
@@ -110,6 +112,7 @@ export function Editor({ detail }: EditorProps) {
   const branding = useQuery(brandingQuery()).data ?? DEFAULT_BRANDING;
   const senders = useQuery({ ...emailSettingsQuery(), retry: false }).data?.senders ?? [];
   const savedBlocks = useQuery(emailSavedBlocksQuery()).data?.blocks ?? NO_SAVED;
+  const workspacesOn = useShownInScope().active;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addingLocale, setAddingLocale] = useState<string | null>(null);
   const [selection, setSelection] = useState<CanvasSelection>({ kind: 'branding' });
@@ -527,6 +530,11 @@ export function Editor({ detail }: EditorProps) {
         onAddLanguage={(locale) => {
           void addLanguage(locale);
         }}
+        shownIn={
+          workspacesOn && detail.archivedAt === null ? (
+            <ShownInField value={detail.shownIn} save={(next) => emailApi.patch(detail.id, { shownIn: next }).then(() => invalidateEmailDocuments(queryClient))} />
+          ) : undefined
+        }
       />
     );
 

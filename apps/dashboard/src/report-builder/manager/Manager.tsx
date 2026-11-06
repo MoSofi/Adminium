@@ -29,6 +29,8 @@ import { AskAssistant } from '../../assistant/AskAssistant.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { formatSince } from '../../team/teamApi.js';
+import { CurrentWorkspaceChip } from '../../shown-in/ShownIn.js';
+import { useShownInList } from '../../shown-in/useShownInList.js';
 import { reportBuilderApi, type ReportDetail, type ReportDocumentKind, type ReportSummary } from '../api.js';
 import { reportIcon } from '../icons.js';
 import { useReportManagerAssistant } from '../assistant.js';
@@ -89,8 +91,11 @@ export function ReportManager({ initialTab = 'template' }: ReportManagerProps) {
   const [confirm, setConfirm] = useState<ReportSummary | null>(null);
   const [newOpen, setNewOpen] = useState(false);
 
-  const list = useQuery(reportDocumentsQuery({ kind: tab }));
-  const items = useMemo(() => list.data?.items ?? [], [list.data]);
+  // Where the list is cut to: the tab's workspace (One at a time) or the Workspace filter (All in one menu).
+  const shown = useShownInList();
+  const list = useQuery(reportDocumentsQuery({ kind: tab, ...(shown.workspaceId === undefined ? {} : { workspaceId: shown.workspaceId }) }));
+  const { keeps } = shown;
+  const items = useMemo(() => (list.data?.items ?? []).filter((doc) => keeps(doc.shownIn)), [list.data, keeps]);
   const counts = list.data?.counts ?? { template: 0, report: 0 };
   const now = useMemo(() => Date.now(), [list.dataUpdatedAt]);
 
@@ -198,6 +203,9 @@ export function ReportManager({ initialTab = 'template' }: ReportManagerProps) {
       </PageActions>
 
       <PageSurface width="full" testId="report-manager">
+        <div className="mx-auto max-w-wide">
+          <CurrentWorkspaceChip />
+        </div>
         <Tabs variant="pill" value={tab} onValueChange={(value) => setTab(value === 'report' ? 'report' : 'template')} className="mx-auto max-w-wide">
           <Toolbar
             tab={tab}
@@ -206,6 +214,7 @@ export function ReportManager({ initialTab = 'template' }: ReportManagerProps) {
             onSearchChange={setSearch}
             layout={prefs.layout}
             onLayoutChange={(layout) => updatePrefs({ layout })}
+            workspaceFilter={shown.filter}
           />
 
           <TabsContent value={tab}>
@@ -242,13 +251,13 @@ export function ReportManager({ initialTab = 'template' }: ReportManagerProps) {
             ) : prefs.layout === 'gallery' ? (
               <div data-testid="report-gallery" className="grid grid-cols-[repeat(auto-fill,minmax(258px,1fr))] gap-4">
                 {visible.map((doc) => (
-                  <GalleryCard key={doc.id} doc={doc} tab={tab} actions={actions} rename={renameState} />
+                  <GalleryCard key={doc.id} doc={doc} tab={tab} actions={actions} rename={renameState} shownIn={shown.showColumn} />
                 ))}
               </div>
             ) : (
-              <ListTable label={tabLabel}>
+              <ListTable label={tabLabel} shownIn={shown.showColumn}>
                 {visible.map((doc) => (
-                  <ListRow key={doc.id} doc={doc} tab={tab} actions={actions} rename={renameState} updated={formatSince(doc.updatedAt, localeTag, now)} />
+                  <ListRow key={doc.id} doc={doc} tab={tab} actions={actions} rename={renameState} updated={formatSince(doc.updatedAt, localeTag, now)} shownIn={shown.showColumn} />
                 ))}
               </ListTable>
             )}

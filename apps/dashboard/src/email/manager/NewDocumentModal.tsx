@@ -21,6 +21,7 @@ import { useAppToasts } from '../../pages/toasts.js';
 import { emailApi, type EmailDocumentDetail, type EmailDocumentKind, type EmailStarterCard } from '../api.js';
 import { newBlockId } from '../model/ops.js';
 import { emailDocumentsQuery, emailStartersQuery } from '../queries.js';
+import { useShownInPicker } from '../../shown-in/useShownInList.js';
 import { accentOf, categoryLabel } from './model.js';
 
 export interface NewDocumentModalProps {
@@ -96,7 +97,12 @@ export function NewDocumentModal({ kind, link, onClose, onCreated }: NewDocument
   const toasts = useAppToasts();
   const starters = useQuery(emailStartersQuery());
   // D21: a campaign may start from one of the workspace's live templates.
-  const templates = useQuery({ ...emailDocumentsQuery({ kind: 'template' }), enabled: kind === 'campaign' });
+  // The templates listed in the tab's workspace (it only narrows; a campaign already made keeps sending).
+  const picker = useShownInPicker();
+  const templates = useQuery({
+    ...emailDocumentsQuery({ kind: 'template', ...(picker.workspaceId === undefined ? {} : { workspaceId: picker.workspaceId }) }),
+    enabled: kind === 'campaign',
+  });
   const [picking, setPicking] = useState<string | null>(null);
 
   const fail = (error: unknown) => {
@@ -126,7 +132,7 @@ export function NewDocumentModal({ kind, link, onClose, onCreated }: NewDocument
   const busy = create.isPending || fromTemplate.isPending;
 
   const title = kind === 'template' ? t('email:new.template', 'New template') : t('email:new.campaign', 'New campaign');
-  const yourTemplates = (templates.data?.items ?? []).filter((doc) => doc.archivedAt === null);
+  const yourTemplates = (templates.data?.items ?? []).filter((doc) => doc.archivedAt === null && picker.keeps(doc.shownIn));
 
   return (
     <Modal

@@ -32,6 +32,8 @@ import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { useShortcut } from '../../shell/ShortcutsProvider.js';
+import { ShownInField } from '../../shown-in/ShownInField.js';
+import { useShownInScope } from '../../shown-in/scope.js';
 import { reportBuilderApi, type ReportDetail } from '../api.js';
 import { AskAssistant } from '../../assistant/AskAssistant.js';
 import { reportIcon } from '../icons.js';
@@ -79,6 +81,7 @@ function useStickyOffsets(header: React.RefObject<HTMLElement | null>): { topbar
 export function Editor({ detail }: EditorProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const workspacesOn = useShownInScope().active;
   const toasts = useAppToasts();
   const { data: bootstrap } = useQuery(bootstrapQuery());
   const locale = tagForLocale((bootstrap?.prefs.locale ?? 'en_US') as LocaleId);
@@ -238,7 +241,10 @@ export function Editor({ detail }: EditorProps) {
   const name = draft.name;
   const shownName = name.trim() === '' ? detail.name : name;
   const PlusGlyph = reportIcon('plus');
-  const inspectorProps = { body: draft.body, status: draft.status, selection, edits, onImageRejected };
+  const shownIn = workspacesOn ? (
+    <ShownInField value={detail.shownIn} save={(next) => reportBuilderApi.patch(detail.id, { shownIn: next }).then(() => invalidateReportDocuments(queryClient))} />
+  ) : undefined;
+  const inspectorProps = { body: draft.body, status: draft.status, selection, edits, onImageRejected, shownIn };
 
   return (
     <>
