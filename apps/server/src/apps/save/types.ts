@@ -86,6 +86,8 @@ export interface SaveChoices {
   clear?: readonly string[];
   /** Check answers "leave out": `<kind>:<item>`. */
   leaveOut?: readonly string[];
+  /** Check answers "keep": a warning the person says is no secret, `<kind>:<item>:<field>`. */
+  keep?: readonly string[];
 }
 
 /** The blocks of the manifest one part writes. Parts write disjoint keys; `convert.ts` refuses an overlap. */
