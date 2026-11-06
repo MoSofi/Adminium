@@ -84,6 +84,10 @@ export async function convertToApp(source: SaveSource, choices: SaveChoices): Pr
     ...blocks,
     provenance: { lineage: choices.lineage, savedAt: choices.savedAt, adminiumVersion: source.adminiumVersion, label: choices.label },
   } as unknown as AppManifest;
+  if (manifest.pages.length === 0) {
+    // An app opens on a page: with none, nothing would show it on the target.
+    ctx.check.add({ group: 'choice', code: 'NO_PAGE', kind: 'app', item: choices.name, message: 'An app needs at least one page. Include a page of this database.' });
+  }
   manifest.compatibility = { ...manifest.compatibility, minAdminiumVersion: minimumVersion(manifest, source.adminiumVersion) };
   ctx.check.add({ group: 'info', code: 'MIN_VERSION', kind: 'app', item: choices.name, message: `Installing it needs Adminium ${manifest.compatibility.minAdminiumVersion} or later.` });
   return { manifest, files: ctx.files, check: ctx.check.items() };

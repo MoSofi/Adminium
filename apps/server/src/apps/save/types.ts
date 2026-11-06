@@ -84,7 +84,7 @@ export interface SaveChoices {
   shareViews?: readonly string[];
   /** Check answers "clear this field": `<kind>:<item>:<field>`, as a hit names it. */
   clear?: readonly string[];
-  /** Check answers "leave out": `<kind>:<item>`. */
+  /** Check answers "leave out": `<kind>:<source id>` (`page:<pageId>`, `view:<viewId>`, `table:<tableId>`…), by id since names repeat. */
   leaveOut?: readonly string[];
   /** Check answers "keep": a warning the person says is no secret, `<kind>:<item>:<field>`. */
   keep?: readonly string[];
