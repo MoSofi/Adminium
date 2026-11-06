@@ -440,7 +440,7 @@ export function WorkspaceFileInstall({ file, resumeId, onClose }: WorkspaceFileI
       )}
 
       {staged !== null && step === 'review' && refusal === null ? (
-        <footer className="sticky bottom-0 -mx-6 mt-auto flex flex-wrap items-center gap-3 border-t border-border bg-surface px-6 py-3.5">
+        <footer data-sticky-footer className="sticky bottom-0 -mx-6 mt-auto flex flex-wrap items-center gap-3 border-t border-border bg-surface px-6 py-3.5">
           {fingerprintHold ? (
             <HoldHint id={holdId}>{t('studio:hostedApps.review.fingerprint.hold', 'The fingerprint does not match. Clear it, or paste the one shown when it was saved.')}</HoldHint>
           ) : (
@@ -800,7 +800,8 @@ function DoneScreen({
         <div role="alert" className="flex flex-wrap items-center gap-3 rounded-[12px] border border-warn/25 bg-warn-soft px-[15px] py-3 text-[13px] leading-[1.5]">
           <CircleAlert aria-hidden className="size-4 shrink-0 text-warn" />
           <span className="min-w-0 flex-1">
-            {t('studio:workspaceFiles.done.stopped', '{done} of {total} installed. {app} stopped. Nothing of it was kept.', { done, total, app: stopped.name })}
+            {/* What it made before it stopped stays (the install never removes), and the next run finishes it. */}
+            {t('studio:workspaceFiles.done.stoppedPartWay', '{done} of {total} installed. {app} stopped part way. Nothing was removed, and Install the rest finishes from where it stopped.', { done, total, app: stopped.name })}
           </span>
           <Button disabled={busy || !restReady} loading={busy} onClick={onRest}>
             <RotateCcw aria-hidden />
@@ -841,7 +842,7 @@ function DoneScreen({
               ) : app.state === 'stopped' ? (
                 <span className="flex items-center gap-1.5 text-[12.5px] text-fg-muted">
                   <Badge tone="warn">{t('studio:workspaceFiles.status.stopped', 'Stopped')}</Badge>
-                  {t('studio:workspaceFiles.done.nothingKept', 'nothing kept')}
+                  {t('studio:workspaceFiles.done.notFinished', 'not finished')}
                 </span>
               ) : app.state === 'refused' ? (
                 <span className="flex items-center gap-1.5 text-[12.5px] text-fg-muted">

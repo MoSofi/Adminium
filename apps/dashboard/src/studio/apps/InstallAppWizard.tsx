@@ -1450,6 +1450,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
       ) : null}
 
       <footer
+        // On the page it keeps the assistant's corner free; in the dialog the bubble is under the dialog's scrim.
+        data-sticky-footer={quick ? undefined : ''}
         className={cn(
           'sticky bottom-0 mt-auto flex items-center gap-3 border-t border-border bg-surface py-3.5',
           // In the dialog the body has no padding under it (the page gives it none), so the footer is the last thing in view.

@@ -124,7 +124,7 @@ test('installed on a fresh server, it stops part way, and Install the rest finis
     await page.getByRole('button', { name: 'Install 2 apps' }).click();
     const stopped = page.getByRole('alert').filter({ hasText: '1 of 2 installed.' });
     await expect(stopped).toBeVisible({ timeout: 60_000 });
-    await expect(stopped).toContainText('stopped. Nothing of it was kept.');
+    await expect(stopped).toContainText('stopped part way. Nothing was removed, and Install the rest finishes from where it stopped.');
   } finally {
     release();
     held = false;

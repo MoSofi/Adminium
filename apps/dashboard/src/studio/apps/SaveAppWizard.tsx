@@ -107,7 +107,7 @@ export function SaveAppWizard(props: SaveAppWizardProps) {
         </p>
       ) : null}
 
-      <footer className="sticky bottom-0 -mx-6 mt-auto flex flex-col gap-3 border-t border-border bg-surface px-6 py-3.5 sm:flex-row sm:items-center">
+      <footer data-sticky-footer className="sticky bottom-0 -mx-6 mt-auto flex flex-col gap-3 border-t border-border bg-surface px-6 py-3.5 sm:flex-row sm:items-center">
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-fg-subtle">
           {note !== null ? (
             <span data-part="save-note" id="save-app-note" className="font-semibold text-danger">

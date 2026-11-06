@@ -142,6 +142,16 @@ export function TableCheck(props: TableCheckProps) {
   // A taken table the check uses as it is (picked, or every one by "Use the existing tables") reads as used, not as a question.
   const used = plan.tables.filter((table) => table.class === 'taken' && table.action === 'reuse').length;
   const taken = count('taken') - used;
+  // What the check will do, by each table's action: make it (a new name, or one moved out of the way), or use one here.
+  const making = plan.tables.filter((table) => table.action === 'create' || table.action === 'rename-existing').length;
+  const using = plan.tables.filter((table) => table.action === 'reuse' || table.action === 'share').length;
+  const undecided = plan.tables.length - making - using;
+  const hint: [string, string] =
+    using === 0 && undecided === 0
+      ? ['studio:hostedApps.install.check.hint', '{app} will create these in {connection}. Nothing changes until you press Install.']
+      : making === 0 && undecided === 0
+        ? ['studio:hostedApps.install.check.hintUse', '{app} will use these in {connection} and create none. Nothing changes until you press Install.']
+        : ['studio:hostedApps.install.check.hintSome', '{app} will create some of these in {connection} and use the others. Nothing changes until you press Install.'];
 
   return (
     <div className="flex flex-col gap-4">
@@ -151,13 +161,7 @@ export function TableCheck(props: TableCheckProps) {
             {t('studio:hostedApps.install.check.title', 'Check the tables')}
           </h2>
           <p className="mt-1 text-[13px] leading-[1.55] text-fg-muted">
-            {withMono(
-              'studio:hostedApps.install.check.hint',
-              '{app} will create these in {connection}. Nothing changes until you press Install.',
-              'connection',
-              props.connectionName,
-              { app: props.appName },
-            )}
+            {withMono(...hint, 'connection', props.connectionName, { app: props.appName })}
           </p>
         </div>
       )}

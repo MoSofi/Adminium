@@ -164,9 +164,13 @@ describe('the review of a file saved from a dashboard', () => {
     renderWizard();
     await reachReview(user);
     // The table question is answered first, all at once, so only the page holds Install.
+    // The check's sentence says what will happen: a question open, then every table used and none made.
+    expect(document.body.textContent).toContain('will create some of these in suppliers and use the others.');
     plans = [ownPlan({ tables: [{ ...(ownPlan().tables as Record<string, unknown>[])[0], action: 'reuse' }] })];
     await user.click(screen.getByRole('button', { name: 'Use the existing tables' }));
     await screen.findByText('1 used as it is · 0 changes to it');
+    expect(document.body.textContent).toContain('will use these in suppliers and create none.');
+    expect(document.body.textContent).not.toContain('will create these');
     expect(lastPlanBody()).toMatchObject({ existing: 'use' });
     expect(lastPlanBody().choices).toBeUndefined();
 

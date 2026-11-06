@@ -778,6 +778,8 @@ describe('the table check', () => {
       altPrefix: 'clinic2_',
     });
     expect(document.querySelector('[data-part="check-summary"]')?.textContent).toContain('3 new');
+    // Every table made: the check says so.
+    expect(document.body.textContent).toContain('Clinic Desk will create these in Practice.');
 
     await user.click(screen.getByRole('button', { name: 'Use the usual prefix' }));
     await screen.findByText('Pick what to do with clinic_shifts before you install.');
