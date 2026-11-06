@@ -379,7 +379,7 @@ export async function unmetFeaturePages(
  */
 export async function dashboardAddOnManifests(
   meta: MetaDb,
-): Promise<{ id: string; manifestKey: string; version: string; manifest: unknown; connectionId: string | null }[]> {
+): Promise<{ id: string; manifestKey: string; version: string; manifest: unknown; connectionId: string | null; address: string }[]> {
   const attachments = await meta.db
     .selectFrom('adminium_manifest_attachments as a')
     .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
@@ -400,8 +400,9 @@ export async function dashboardAddOnManifests(
     .sort(([, a], [, b]) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
     .map(([id]) => id);
   if (order.length === 0) return [];
-  const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'version', 'manifest', 'connectionId']).where('id', 'in', order).execute();
-  return inIdOrder(order, rows).map((row) => ({ id: row.id, manifestKey: row.manifestKey, version: row.version, manifest: row.manifest, connectionId: row.connectionId ?? null }));
+  const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'version', 'manifest', 'connectionId', 'instanceSlug']).where('id', 'in', order).execute();
+  // `address` names the install as its pages' route does: the key, or `<key>~<slug>` for a later copy.
+  return inIdOrder(order, rows).map((row) => ({ id: row.id, manifestKey: row.manifestKey, version: row.version, manifest: row.manifest, connectionId: row.connectionId ?? null, address: addressKey(row.manifestKey, row.instanceSlug) }));
 }
 
 /**
@@ -813,12 +814,16 @@ export function buildAddOnNav(
 ): BootstrapAddOnNav {
   const pages: BootstrapAddOnPage[] = [];
   const declared: BootstrapAddOnGroup[] = [];
+  // Two copies of an add-on (one per database) have one set of pages: each copy's section links them by its own address.
+  const listed = new Set<string>();
 
   for (const row of installed) {
     const parsed = addOnManifestSchema.safeParse(row.document);
     if (!parsed.success) continue;
     const manifest = parsed.data;
     const addOnKey = manifest.key;
+    if (listed.has(addOnKey)) continue;
+    listed.add(addOnKey);
     const gated = pagesAreGated(manifest);
     const sectionGroups = addOnSectionGroups(manifest);
 
@@ -884,21 +889,26 @@ function addOnSectionGroups(manifest: { navGroups?: readonly { key: string }[] |
  */
 export function buildAddOnSections(input: {
   /** Each install: its id and the database it is for, when the caller knows them (the menu files the section under that database). */
-  addOns: readonly { key: string; version: string; document: unknown; installId?: string | undefined; connectionId?: string | null | undefined }[];
+  /** `address` is the install's (`<key>~<slug>` for a later copy): the section and its pages of code are named by it. */
+  addOns: readonly { key: string; version: string; document: unknown; installId?: string | undefined; connectionId?: string | null | undefined; address?: string | undefined }[];
   appItems: ReadonlyMap<string, readonly { group: string | null; item: BootstrapNavItem }[]>;
   /** The pages of code this reader is told about, as `buildAddOnNav` listed them. */
   codePages: readonly BootstrapAddOnPage[];
   locale: string;
 }): BootstrapAppSection[] {
   const out: BootstrapAppSection[] = [];
+  const copiesOf = (key: string): number => input.addOns.filter((other) => other.key === key).length;
   for (const addOn of input.addOns) {
     const parsed = addOnManifestSchema.safeParse(addOn.document);
     if (!parsed.success) continue;
     const manifest = parsed.data;
+    const address = addOn.address ?? addOn.key;
     const declared = [...(manifest.navGroups ?? [])].sort((a, b) => a.order - b.order);
     const known = new Set(declared.map((group) => group.key));
+    // With two copies of the add-on, each section holds the pages generated on its own database.
+    const own = (item: BootstrapNavItem): boolean => copiesOf(addOn.key) < 2 || typeof addOn.connectionId !== 'string' || item.connectionId === null || item.connectionId === addOn.connectionId;
     const rows: { group: string | null; item: BootstrapNavItem }[] = [
-      ...(input.appItems.get(addOn.key) ?? []),
+      ...(input.appItems.get(addOn.key) ?? []).filter((row) => own(row.item)),
       ...input.codePages
         .filter((page) => page.addOnKey === addOn.key && page.inSection)
         .map((page) => ({
@@ -916,7 +926,7 @@ export function buildAddOnSections(input: {
             sourceTable: null,
             appKey: null,
             addOnKey: addOn.key,
-            addOnPage: { key: addOn.key, ref: page.ref },
+            addOnPage: { key: address, ref: page.ref },
           } satisfies BootstrapNavItem,
         })),
     ].sort((a, b) => a.item.order - b.item.order || (a.item.addOnPage?.ref ?? a.item.slug).localeCompare(b.item.addOnPage?.ref ?? b.item.slug));
@@ -930,7 +940,7 @@ export function buildAddOnSections(input: {
     if (groups.length === 0) continue;
     out.push({
       kind: 'add-on',
-      appKey: addOn.key,
+      appKey: address,
       ...(addOn.installId === undefined ? {} : { installId: addOn.installId }),
       ...(addOn.connectionId === undefined ? {} : { connectionId: addOn.connectionId }),
       label: manifest.name,
@@ -1077,7 +1087,7 @@ export async function bootstrapHandler(
    * (its floor says so) that is switched on for the dashboard. Which pages of
    * its code this reader may open is asked once, here.
    */
-  const addOnDocuments = addOns.map((row) => ({ key: row.manifestKey, version: row.version, document: readJson(row.manifest), installId: row.id, connectionId: row.connectionId }));
+  const addOnDocuments = addOns.map((row) => ({ key: row.manifestKey, version: row.version, document: readJson(row.manifest), installId: row.id, connectionId: row.connectionId, address: row.address }));
   const sectionAddOns = addOnDocuments.filter((row) => {
     const parsed = addOnManifestSchema.safeParse(row.document);
     return parsed.success && pagesAreGated(parsed.data);

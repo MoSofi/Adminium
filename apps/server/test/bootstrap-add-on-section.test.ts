@@ -111,6 +111,25 @@ describe('an add-on\'s section, built from what was read', () => {
     expect(() => bootstrapAppSection.parse(onKiln)).not.toThrow();
   });
 
+  it('a later copy is named by its address: its section, and the pages of its code, link to that copy', () => {
+    const documents = [
+      { key: 'kit', version: '1.2.0', document: kit(), installId: 'man_shop', connectionId: 'c1', address: 'kit' },
+      { key: 'kit', version: '1.2.0', document: kit(), installId: 'man_kiln', connectionId: 'c2', address: 'kit~kiln' },
+    ];
+    const nav = buildAddOnNav(documents);
+    // One set of pages for the two copies.
+    expect(nav.pages.filter((page) => page.ref === 'kit-count')).toHaveLength(1);
+    const onKiln = { ...generated('kiln-items', 10, 'kit-stock'), item: { ...generated('kiln-items', 10, 'kit-stock').item, connectionId: 'c2', connectionName: 'Kiln' } };
+    const [shop, kiln, ...more] = buildAddOnSections({ addOns: documents, appItems: new Map([['kit', [generated('kit-items', 10, 'kit-stock'), onKiln]]]), codePages: nav.pages, locale: 'en-US' });
+    expect(more).toEqual([]);
+    expect(shop).toMatchObject({ appKey: 'kit', installId: 'man_shop', connectionId: 'c1' });
+    expect(kiln).toMatchObject({ appKey: 'kit~kiln', installId: 'man_kiln', connectionId: 'c2' });
+    const refs = (section: typeof kiln) => section!.groups.flatMap((group) => group.items.map((item) => item.addOnPage ?? { key: null, ref: item.slug }));
+    // Each copy's section holds the pages generated on its own database, and links its code pages by its address.
+    expect(refs(shop)).toEqual([{ key: null, ref: 'kit-items' }, { key: 'kit', ref: 'kit-count' }]);
+    expect(refs(kiln)).toEqual([{ key: null, ref: 'kiln-items' }, { key: 'kit~kiln', ref: 'kit-count' }]);
+  });
+
   it('the top-level label wins, in the reader\'s language', () => {
     const [section] = buildAddOnSections({ addOns, appItems, codePages: buildAddOnNav([{ document: kit() }]).pages, locale: 'de-DE' });
     expect(section!.groups[1]!.label).toBe('Bestand');
