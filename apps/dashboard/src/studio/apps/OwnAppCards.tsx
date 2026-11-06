@@ -58,7 +58,7 @@ import {
   makeEditable,
   tickAfterInstall,
   undoAppLook,
-  type AfterInstallItem,
+  type AfterInstallEntry,
   type AfterInstallList,
   type AppLook,
   type AppOverview,
@@ -91,19 +91,19 @@ export function monoDigits(text: string): ReactNode {
 export interface AfterInstallRow {
   key: string;
   kind: string;
-  items: AfterInstallItem[];
+  items: AfterInstallEntry[];
   done: boolean;
   canTick: boolean;
   right: string;
   doneBy: { name: string; at: number | null } | null;
   /** Done because the server sees it done, with nobody's tick. */
   seen: boolean;
-  link: AfterInstallItem['link'];
+  link: AfterInstallEntry['link'];
 }
 
 /** The list's rows, in the server's order. */
-export function afterInstallRows(items: readonly AfterInstallItem[]): AfterInstallRow[] {
-  const rows = new Map<string, AfterInstallItem[]>();
+export function afterInstallRows(items: readonly AfterInstallEntry[]): AfterInstallRow[] {
+  const rows = new Map<string, AfterInstallEntry[]>();
   for (const item of items) {
     const key = item.kind === 'sender' || item.kind === 'recipients' ? item.kind : `${item.kind}\u0000${item.item}`;
     rows.set(key, [...(rows.get(key) ?? []), item]);
@@ -157,7 +157,7 @@ export function afterInstallText(row: AfterInstallRow): string {
 }
 
 /** Where a row is done, as a link's words. */
-function linkText(to: NonNullable<AfterInstallItem['link']>['to']): string {
+function linkText(to: NonNullable<AfterInstallEntry['link']>['to']): string {
   switch (to) {
     case 'automation':
       return t('studio:apps.afterInstall.link.automation', 'Open the rule');
@@ -186,7 +186,7 @@ export function needsWords(right: string): string {
   return t('studio:apps.afterInstall.needs.apps', 'Needs someone who manages apps');
 }
 
-function RowLink({ link }: { link: NonNullable<AfterInstallItem['link']> }) {
+function RowLink({ link }: { link: NonNullable<AfterInstallEntry['link']> }) {
   const className = 'inline-flex w-fit items-center gap-[5px] text-[12.5px] font-bold leading-[normal] text-accent hover:underline';
   const body = (
     <>

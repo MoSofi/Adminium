@@ -15,7 +15,7 @@ import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import { afterInstallRows, afterInstallText } from './OwnAppCards.js';
-import type { AfterInstallItem, InstalledApp } from './appsApi.js';
+import type { AfterInstallEntry, InstalledApp } from './appsApi.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -36,7 +36,7 @@ interface Call {
 
 let calls: Call[];
 let apps: InstalledApp[];
-let afterItems: AfterInstallItem[];
+let afterItems: AfterInstallEntry[];
 let hidden: boolean;
 let look: Record<string, unknown> | null;
 let editable: Record<string, unknown>;
@@ -61,7 +61,7 @@ const own: InstalledApp = {
   madeAt: { label: 'Fernhill main', savedAt: '2026-11-01T10:00:00.000Z', adminiumVersion: '0.3.49' },
 };
 
-function item(over: Partial<AfterInstallItem> & Pick<AfterInstallItem, 'id' | 'kind' | 'item'>): AfterInstallItem {
+function item(over: Partial<AfterInstallEntry> & Pick<AfterInstallEntry, 'id' | 'kind' | 'item'>): AfterInstallEntry {
   return { field: 'url', name: null, done: false, doneBy: null, doneAt: null, seen: false, right: 'system:automations:manage', canTick: true, link: null, ...over };
 }
 

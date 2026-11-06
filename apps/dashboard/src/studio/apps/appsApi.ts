@@ -426,7 +426,7 @@ export function appOverviewQuery(key: string, install: string | null = null) {
 // ── After you install ───────────────────────────────────────────────────────
 
 /** Mirrors `afterInstallReply`'s item. */
-export interface AfterInstallItem {
+export interface AfterInstallEntry {
   id: string;
   kind: 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant' | string;
   item: string;
@@ -446,7 +446,7 @@ export interface AfterInstallItem {
 }
 
 export interface AfterInstallList {
-  items: AfterInstallItem[];
+  items: AfterInstallEntry[];
   /** Put away once everything was done. */
   hidden: boolean;
 }

@@ -244,7 +244,7 @@ function stubFetch() {
         jsonResponse(200, { prefix: 'clinic_', renamed: [], changeId: 'chg_rename' }),
       );
     }
-    if (url.startsWith('/api/v1/apps/clinic/update') && method === 'POST') {
+    if (url === '/api/v1/apps/clinic/update' && method === 'POST') {
       return Promise.resolve(jsonResponse(updateReply.status, updateReply.body));
     }
     if (url === '/api/v1/apps' && method === 'GET') {
@@ -1146,9 +1146,8 @@ describe('an app on two databases', () => {
     // One version per app: one button for the key.
     expect(screen.getAllByRole('button', { name: 'Update every copy' })).toHaveLength(1);
     await userEvent.click(screen.getByRole('button', { name: 'Update every copy' }));
-    const updates = () => calls.filter((call) => call.method === 'POST' && call.url.startsWith('/api/v1/apps/clinic/update'));
-    await waitFor(() => expect(updates()).toHaveLength(2));
-    // Each copy by its own database, in order.
-    expect(updates().map((call) => call.url)).toEqual(['/api/v1/apps/clinic/update?connectionId=con_1', '/api/v1/apps/clinic/update?connectionId=con_2']);
+    await waitFor(() => expect(posted('/api/v1/apps/clinic/update')).toHaveLength(2));
+    // Each copy by its own database, in order (the plan's reads name the database in their body).
+    expect(copies).toEqual(['con_1', 'con_2']);
   });
 });
