@@ -11,7 +11,11 @@
  * Selectors, one per request:
  *  - the `X-Adminium-Install: <install id>` header (the dashboard's app
  *    frame and add-on page client, and a side's runtime from its
- *    `surface-config.json`);
+ *    `surface-config.json`). A side sends its own install's id on every
+ *    call, add-on routes included: a header naming an install of another
+ *    key means this key's install on that install's database (or the
+ *    server-wide one). The caller's grants are then asked of that install;
+ *    the header opens nothing by itself;
  *  - an address `<key>~<slug>` in the path (a later install's), where the
  *    bare `<key>` is the install that owns the bare addresses;
  *  - `?connectionId=` (the dashboard, for a database's own install);
@@ -122,6 +126,13 @@ export function rememberedInstall(request: object): InstalledManifest | undefine
 export interface InstallSelector {
   /** An install id, from the header or a row. */
   installId?: string | undefined;
+  /**
+   * The install id came from the `X-Adminium-Install` header. A side sends
+   * its own install's id on every call, so a header naming an install of
+   * another key names that install's database: the key's install there (or
+   * its server-wide one). An id from a row or a body stays exact.
+   */
+  fromHeader?: boolean | undefined;
   /** The address slug: `''` = the bare install. */
   slug?: string | undefined;
   /** A database: its install of the key, or a server-wide one. */
@@ -151,7 +162,7 @@ export function selectorOf(request: { headers: Record<string, unknown>; query?: 
   const query = (request.query ?? {}) as Record<string, unknown>;
   const connectionId = typeof query['connectionId'] === 'string' && query['connectionId'].length > 0 ? query['connectionId'] : undefined;
   const slug = keyParam === undefined ? undefined : splitInstallKey(keyParam).slug;
-  return { installId, slug, connectionId };
+  return { installId, ...(installId === undefined ? {} : { fromHeader: true }), slug, connectionId };
 }
 
 export interface AmbiguousInstall {
@@ -191,7 +202,11 @@ async function candidates(manifests: ManifestsRepo, key: string, selector: Insta
   const picks: (InstalledManifest | null)[] = [];
   if (selector.installId !== undefined) {
     const byId = await manifests.findById(selector.installId);
-    picks.push(byId !== null && byId.row.manifestKey === key ? byId : null);
+    if (byId === null) picks.push(null);
+    else if (byId.row.manifestKey === key) picks.push(byId);
+    // A side's own install (an app's, sent on every call): this key's install on that database, or its server-wide one.
+    // Only the header is read so; who may act on the install found is still asked of that install.
+    else picks.push(selector.fromHeader === true ? await installOnConnection(manifests, key, byId.row.scopeKey) : null);
   }
   if (selector.slug !== undefined) picks.push(await manifests.findBySlug(key, selector.slug));
   if (selector.connectionId !== undefined) {
