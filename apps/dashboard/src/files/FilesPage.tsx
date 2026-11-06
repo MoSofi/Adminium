@@ -73,7 +73,7 @@
  * would be a number with nothing behind it. `filesPage.test.tsx` asserts no
  * byte figure is ever followed by " of ".
  */
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useCallback, useId, useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
@@ -110,6 +110,7 @@ import {
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
+import { CurrentWorkspaceChip, WorkspaceChips, WorkspaceFilter, showsWorkspaceColumn, useListWorkspace, type ListWorkspace } from '../shell/workspaces/listWorkspace.js';
 import { t } from '../i18n/t.js';
 import { formatStamp } from '../team/teamApi.js';
 import { useAppToasts } from '../pages/toasts.js';
@@ -160,7 +161,9 @@ function destinationLabel(
 
 
 export function FilesPage(): ReactNode {
-  const { data: bootstrap } = useQuery(bootstrapQuery());
+  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // The files of the tab's workspace (One at a time), or of the one the filter names (All in one menu).
+  const workspace = useListWorkspace(bootstrap);
   const [filters, setFilters] = useState<FilesFilters>(ALL_FILES_FILTERS);
   const [open, setOpen] = useState<FileDto | null>(null);
 
@@ -168,7 +171,7 @@ export function FilesPage(): ReactNode {
   // the query key on every keystroke, and a suspense hook would throw the whole
   // screen — search box included — to the route fallback each time, so the
   // control you are typing into vanishes from under the cursor.
-  const files = useInfiniteQuery(filesQuery(filters));
+  const files = useInfiniteQuery(filesQuery(filters, workspace.workspaceId));
   // The strip is independent of the list and of the preset: it answers "where
   // do this workspace's bytes live", which does not change when you click
   // Trash. An error here is not the page's error — a reader who holds
@@ -188,7 +191,7 @@ export function FilesPage(): ReactNode {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [uploading, setUploading] = useState(false);
 
-  const localeTag = tagForLocale((bootstrap?.prefs.locale ?? 'en_US') as LocaleId);
+  const localeTag = tagForLocale((bootstrap.prefs.locale ?? 'en_US') as LocaleId);
   const rows = useMemo(() => files.data?.pages.flatMap((page) => page.data) ?? [], [files.data]);
   const tables = useMemo(() => tablePresets(rows), [rows]);
   const destinations = useMemo(() => usage.data?.entries ?? [], [usage.data]);
@@ -298,6 +301,7 @@ export function FilesPage(): ReactNode {
           'files:subtitle',
           'Every file on this server: the ones on records, and the library. And where each one is kept.',
         )}
+        titleAdornment={<CurrentWorkspaceChip list={workspace} />}
       />
 
       {/*
@@ -324,6 +328,7 @@ export function FilesPage(): ReactNode {
             onClear={() => setFilters({ ...filters, q: '' })}
             clearLabel={t('common.clear', 'Clear')}
           />
+          <WorkspaceFilter list={workspace} className="shrink-0" />
           <div
             className="flex shrink-0 items-center rounded-md border border-border p-0.5"
             role="group"
@@ -469,6 +474,7 @@ export function FilesPage(): ReactNode {
                   localeTag={localeTag}
                   destinationNames={destinationNames}
                   connectionNames={connectionNames}
+                  {...(showsWorkspaceColumn(workspace) ? { workspaces: workspace } : {})}
                   onInspect={setOpen}
                   onTrash={trash}
                   onRestore={restore}
@@ -811,6 +817,8 @@ interface FilesTableProps {
   destinationNames: ReadonlyMap<string | null, string>;
   /** Connection id → its name, for a file that belongs to no record (D18). */
   connectionNames: ReadonlyMap<string, string>;
+  /** All in one menu: the workspaces holding each file's database, as a column. */
+  workspaces?: ListWorkspace;
   onInspect: (file: FileDto) => void;
   onTrash: (file: FileDto) => void;
   onRestore: (file: FileDto) => void;
@@ -832,6 +840,11 @@ function FilesTable(props: FilesTableProps): ReactNode {
             <th scope="col" className="px-4 py-2 text-start font-bold">
               {t('files:column.attachedTo', 'On record')}
             </th>
+            {props.workspaces === undefined ? null : (
+              <th scope="col" className="px-4 py-2 text-start font-bold">
+                {t('workspaces.column', 'Workspaces')}
+              </th>
+            )}
             <th scope="col" className="px-4 py-2 text-start font-bold">
               {t('files:column.destination', 'Destination')}
             </th>
@@ -890,6 +903,11 @@ function FilesTable(props: FilesTableProps): ReactNode {
                   </div>
                 )}
               </td>
+              {props.workspaces === undefined ? null : (
+                <td className="min-w-32 px-4 py-2.5">
+                  <WorkspaceChips list={props.workspaces} connectionId={file.connectionId ?? file.entity?.connectionId} />
+                </td>
+              )}
               <td className="min-w-32 px-4 py-2.5 text-fg-muted">{destinationLabel(file.destinationId, props.destinationNames)}</td>
               <td className="whitespace-nowrap px-4 py-2.5 text-fg-muted">
                 {formatStamp(file.createdAt, props.localeTag)}

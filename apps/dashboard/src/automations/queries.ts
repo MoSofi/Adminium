@@ -23,10 +23,10 @@ export const RUNS_KEY = ['automation-runs'] as const;
 /** How often the runs list re-reads while something on it is unfinished. */
 export const RUNS_POLL_MS = 5_000;
 
-export function rulesQuery(connectionId?: string) {
+export function rulesQuery(connectionId?: string, workspaceId?: string) {
   return queryOptions({
-    queryKey: [...AUTOMATIONS_KEY, 'list', connectionId ?? null] as const,
-    queryFn: () => automationsApi.list(connectionId),
+    queryKey: [...AUTOMATIONS_KEY, 'list', connectionId ?? null, workspaceId ?? null] as const,
+    queryFn: () => automationsApi.list(connectionId, workspaceId),
   });
 }
 

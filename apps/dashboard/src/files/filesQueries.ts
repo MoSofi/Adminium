@@ -114,10 +114,12 @@ export interface FilesListReply {
  * get quietly wrong, since an omitted parameter widens a preset rather than
  * failing.
  */
-export function buildFilesPath(filters: FilesFilters, cursor: string | null): string {
+export function buildFilesPath(filters: FilesFilters, cursor: string | null, workspaceId?: string): string {
   const params = new URLSearchParams({ state: filters.state, limit: String(FILES_PAGE_SIZE) });
   if (filters.q !== '') params.set('q', filters.q);
   if (filters.connectionId !== null) params.set('connectionId', filters.connectionId);
+  // A connection already names the narrower set, and the route refuses both together.
+  else if (workspaceId !== undefined) params.set('workspaceId', workspaceId);
   if (filters.table !== null) params.set('table', filters.table);
   if (filters.destinationId !== null) params.set('destinationId', filters.destinationId);
   if (filters.since !== null) params.set('since', String(filters.since));
@@ -135,11 +137,12 @@ export function buildFilesPath(filters: FilesFilters, cursor: string | null): st
 export const FILES_QUERY_KEY = ['files'] as const;
 export const FILES_USAGE_QUERY_KEY = ['files', 'usage'] as const;
 
-export function filesQuery(filters: FilesFilters) {
+/** `workspaceId` narrows the list to one workspace's databases (unless the filters name a connection). */
+export function filesQuery(filters: FilesFilters, workspaceId?: string) {
   return infiniteQueryOptions({
-    queryKey: [...FILES_QUERY_KEY, 'list', filters] as const,
+    queryKey: [...FILES_QUERY_KEY, 'list', filters, workspaceId ?? null] as const,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => api.get<FilesListReply>(buildFilesPath(filters, pageParam)),
+    queryFn: ({ pageParam }) => api.get<FilesListReply>(buildFilesPath(filters, pageParam, workspaceId)),
     getNextPageParam: (last: FilesListReply) => last.nextCursor,
   });
 }

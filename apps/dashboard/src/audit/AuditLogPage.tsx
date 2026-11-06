@@ -19,7 +19,7 @@
  * correctly forbids assembling the key at runtime. The localized half is the
  * CATEGORY, which is a closed enum.
  */
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { ScrollText, Sparkles } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
@@ -47,6 +47,7 @@ import { tagForLocale, type LocaleId } from '@adminium/i18n';
 import { assistantName, bootstrapQuery } from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
+import { CurrentWorkspaceChip, WorkspaceChips, WorkspaceFilter, showsWorkspaceColumn, useListWorkspace } from '../shell/workspaces/listWorkspace.js';
 import { t } from '../i18n/t.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { formatStamp } from '../team/teamApi.js';
@@ -110,17 +111,20 @@ function actorKindLabel(kind: AuditEntryDto['actorKind']): string {
 export function AuditLogPage(): ReactNode {
   // This screen's words load with it, not with the first paint.
   useCommonWords();
-  const { data: bootstrap } = useQuery(bootstrapQuery());
+  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // The entries of the tab's workspace (One at a time), or of the one the filter names (All in one menu).
+  const workspace = useListWorkspace(bootstrap);
+  const withWorkspaces = showsWorkspaceColumn(workspace);
   const [filters, setFilters] = useState<AuditFilters>(EMPTY_AUDIT_FILTERS);
   // Not a suspense query: the filter bar writes the query key on every
   // keystroke, and a suspense hook would throw the whole screen — filter bar
   // included — to the route fallback each time, so the control you are typing
   // into disappears from under the cursor.
-  const entries = useInfiniteQuery(auditQuery(filters));
+  const entries = useInfiniteQuery(auditQuery(filters, workspace.workspaceId));
   const [open, setOpen] = useState<AuditEntryDto | null>(null);
 
-  const localeTag = tagForLocale((bootstrap?.prefs.locale ?? 'en_US') as LocaleId);
-  const assistant = bootstrap === undefined ? 'Milo' : assistantName(bootstrap);
+  const localeTag = tagForLocale((bootstrap.prefs.locale ?? 'en_US') as LocaleId);
+  const assistant = assistantName(bootstrap);
   const rows = useMemo(() => entries.data?.pages.flatMap((page) => page.entries) ?? [], [entries.data]);
   const filtered =
     filters.category !== '' || filters.actorId !== '' || filters.from !== '' || filters.to !== '';
@@ -130,6 +134,7 @@ export function AuditLogPage(): ReactNode {
       <PageActions
         title={t('audit.title', 'Audit log')}
         subtitle={t('audit.subtitle', 'Every change made on this server, who made it, and what it changed.')}
+        titleAdornment={<CurrentWorkspaceChip list={workspace} />}
       />
 
       <Card padded={false}>
@@ -159,6 +164,8 @@ export function AuditLogPage(): ReactNode {
             onClear={() => setFilters({ ...filters, actorId: '' })}
             clearLabel={t('common.clear', 'Clear')}
           />
+
+          <WorkspaceFilter list={workspace} />
 
           <FormField className="w-40" label={t('audit.filterFrom', 'From')}>
             <Input
@@ -230,6 +237,11 @@ export function AuditLogPage(): ReactNode {
                     <th scope="col" className="px-4 py-2 text-start font-bold">
                       {t('audit.column.action', 'Action')}
                     </th>
+                    {withWorkspaces ? (
+                      <th scope="col" className="px-4 py-2 text-start font-bold">
+                        {t('workspaces.column', 'Workspaces')}
+                      </th>
+                    ) : null}
                     <th scope="col" className="px-4 py-2 text-end font-bold">
                       {t('audit.column.details', 'Details')}
                     </th>
@@ -266,6 +278,11 @@ export function AuditLogPage(): ReactNode {
                       <td className="px-4 py-2.5">
                         <MonoText className="text-caption">{entry.action}</MonoText>
                       </td>
+                      {withWorkspaces ? (
+                        <td className="px-4 py-2.5">
+                          <WorkspaceChips list={workspace} connectionId={entry.connectionId} />
+                        </td>
+                      ) : null}
                       <td className="px-4 py-2.5 text-end">
                         <Button variant="ghost" size="sm" onClick={() => setOpen(entry)}>
                           {t('audit.action.view', 'View')}

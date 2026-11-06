@@ -22,14 +22,16 @@
  *    in the detail (comp 202's "selection persists").
  */
 
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useMemo, type ReactNode } from 'react';
 import { Button } from '@adminium/ui';
 
+import { bootstrapQuery } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
+import { CurrentWorkspaceChip, WorkspaceFilter, showsWorkspaceColumn, useListWorkspace } from '../shell/workspaces/listWorkspace.js';
 import { automationIcon } from './icons.js';
 import { invalidateRuns, runQuery, runsQuery, runsStatsQuery } from './queries.js';
 import type { RunFilter, RunRow } from './api.js';
@@ -64,9 +66,16 @@ export function WorkflowLogsPage(): ReactNode {
   const filter: PillKey = PILL_KEYS.includes(search.status as PillKey)
     ? (search.status as PillKey)
     : 'all';
+  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // A run carries no database of its own: the server narrows by its rule's, so the list has no Workspaces column.
+  const workspace = useListWorkspace(bootstrap);
+  const workspaceId = workspace.workspaceId;
   const params = useMemo(
-    () => (filter === 'all' ? {} : { status: filter as RunFilter }),
-    [filter],
+    () => ({
+      ...(filter === 'all' ? {} : { status: filter as RunFilter }),
+      ...(workspaceId === undefined ? {} : { workspaceId }),
+    }),
+    [filter, workspaceId],
   );
 
   const list = useInfiniteQuery(runsQuery(params));
@@ -116,6 +125,27 @@ export function WorkflowLogsPage(): ReactNode {
 
   const RefreshIcon = automationIcon('refresh-cw');
 
+  const pills = (
+    <FilterPills
+      label={t('automations:logs.title', 'Workflow logs')}
+      active={filter}
+      pills={PILL_KEYS.map((key) => ({
+        key,
+        label: t(PILL_LABELS[key].key, PILL_LABELS[key].fallback),
+        count: counts[key],
+      }))}
+      onSelect={(key) => {
+        void navigate({
+          to: '.',
+          search: (prev: Record<string, unknown>) => ({
+            ...prev,
+            status: key === 'all' ? undefined : key,
+          }),
+        });
+      }}
+    />
+  );
+
   const select = (id: string): void => {
     void navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, run: id }) });
   };
@@ -125,6 +155,7 @@ export function WorkflowLogsPage(): ReactNode {
       <PageActions
         title={t('automations:logs.title', 'Workflow logs')}
         subtitle={t('automations:logs.subtitle', 'Execution history for your automations.')}
+        titleAdornment={<CurrentWorkspaceChip list={workspace} />}
       >
         <Button
           variant="ghost"
@@ -143,24 +174,15 @@ export function WorkflowLogsPage(): ReactNode {
           the comp does not draw and every other page in this product does. */}
       <div className="grid grid-cols-1 items-start gap-4 min-[1080px]:grid-cols-[400px_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-3">
-          <FilterPills
-            label={t('automations:logs.title', 'Workflow logs')}
-            active={filter}
-            pills={PILL_KEYS.map((key) => ({
-              key,
-              label: t(PILL_LABELS[key].key, PILL_LABELS[key].fallback),
-              count: counts[key],
-            }))}
-            onSelect={(key) => {
-              void navigate({
-                to: '.',
-                search: (prev: Record<string, unknown>) => ({
-                  ...prev,
-                  status: key === 'all' ? undefined : key,
-                }),
-              });
-            }}
-          />
+          {/* The Workspace filter sits beside the pills; with no filter the pills stand alone, as they always did. */}
+          {showsWorkspaceColumn(workspace) ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {pills}
+              <WorkspaceFilter list={workspace} className="ms-auto" />
+            </div>
+          ) : (
+            pills
+          )}
           <RunList
             runs={runs}
             selectedId={selectedId}

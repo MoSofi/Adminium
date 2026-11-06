@@ -10,7 +10,7 @@
  * in this build (no dependency-free workbook writer; documented deviation).
  */
 import { useCallback, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { Alert, Button, Select } from '@adminium/ui';
 import { ScheduledJobsList, type ScheduledJob } from '@adminium/widgets';
@@ -20,6 +20,7 @@ import { bootstrapQuery, flattenNav, type NavItem } from '../app/bootstrap.js';
 import { pageQuery } from '../api/pages.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
+import { CurrentWorkspaceChip, WorkspaceFilter, showsWorkspaceColumn, useListWorkspace } from '../shell/workspaces/listWorkspace.js';
 import { dataIoApi, exportsListQuery, type ExportDto, type ExportFormat } from './api.js';
 
 function statusLine(row: ExportDto): string {
@@ -55,17 +56,16 @@ function toneOf(row: ExportDto): string {
 export function DataExportsPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const boot = useQuery({ ...bootstrapQuery(), enabled: false });
-  const exportsList = useQuery(exportsListQuery());
+  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // The exports of the tab's workspace (One at a time), or of the one the filter names (All in one menu).
+  const workspace = useListWorkspace(bootstrap);
+  const exportsList = useQuery(exportsListQuery(workspace.workspaceId));
 
   const [target, setTarget] = useState<{ connectionId: string; table: string } | null>(null);
   const [targetError, setTargetError] = useState<string | null>(null);
   const [format, setFormat] = useState<ExportFormat>('csv');
 
-  const navItems = useMemo(
-    () => (boot.data === undefined ? [] : flattenNav(boot.data.nav)),
-    [boot.data],
-  );
+  const navItems = useMemo(() => flattenNav(bootstrap.nav), [bootstrap.nav]);
 
   const pickTarget = useCallback(
     async (item: NavItem) => {
@@ -102,7 +102,7 @@ export function DataExportsPage() {
     },
     onSuccess: (reply) => {
       // Optimistic processing row — prepend, then let polling refine.
-      queryClient.setQueryData(exportsListQuery().queryKey, (old: ExportDto[] | undefined) => [
+      queryClient.setQueryData(exportsListQuery(workspace.workspaceId).queryKey, (old: ExportDto[] | undefined) => [
         reply.data,
         ...(old ?? []),
       ]);
@@ -139,7 +139,7 @@ export function DataExportsPage() {
     <div className="flex h-full min-h-0 flex-col gap-5">
       {/* The comp's header primary: the builder
           is where a file is put together; this form stays as the quick path. */}
-      <PageActions>
+      <PageActions titleAdornment={<CurrentWorkspaceChip list={workspace} />}>
         <Button asChild size="topbar" iconLeft={<Plus />} data-testid="exports-new">
           <Link to="/exports/new">{t('dataio:exports.new', 'New export')}</Link>
         </Button>
@@ -205,6 +205,11 @@ export function DataExportsPage() {
       ) : null}
 
       {/* --- artifact list ------------------------------------------------------- */}
+      {showsWorkspaceColumn(workspace) ? (
+        <div className="flex justify-end">
+          <WorkspaceFilter list={workspace} />
+        </div>
+      ) : null}
       <ScheduledJobsList
         jobs={rows}
         toggleable={false}
