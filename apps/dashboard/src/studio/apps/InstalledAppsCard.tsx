@@ -117,8 +117,8 @@ const rowId = (app: InstalledApp): string => app.installId ?? app.key;
 export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, busy = false }: InstalledAppsCardProps) {
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(installedAppsQuery());
-  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
-  const workspaces = workspacesOf(bootstrap);
+  // The workspaces for the chips: none until the bootstrap is in (it always is under the shell).
+  const workspaces = workspacesOf(useQuery(bootstrapQuery()).data);
   const serverName = (useQuery(brandingQuery()).data ?? DEFAULT_BRANDING).appName;
   const apps = groupCopies(data.apps);
   // "on fernhill" says something once apps sit on more than one database, or databases sit in workspaces.
@@ -217,7 +217,8 @@ export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, busy = f
                 </IconTile>
                 <div className="min-w-0 flex-[1_1_300px]">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-bold tracking-tight">{name}</span>
+                    {/* A package that names itself only by its key shows the key once. */}
+                    {name === app.key ? null : <span className="text-sm font-bold tracking-tight">{name}</span>}
                     {/* The install's own page: its switches, settings, data and danger zone. */}
                     <Link
                       to="/studio/apps/$key"

@@ -45,7 +45,8 @@ export interface KitReply {
 
 export const addOnKitQuery = (addOnKey: string, install: string | null = null) =>
   queryOptions({
-    queryKey: ['add-on-kit', addOnKey, install] as const,
+    // The key's only install keeps the plain key; a copy adds its install, so two copies never share a read.
+    queryKey: (install === null ? ['add-on-kit', addOnKey] : ['add-on-kit', addOnKey, install]) as readonly string[],
     queryFn: () => api.get<KitReply>(`/api/v1/add-ons/${encodeURIComponent(addOnKey)}/kit`),
     // A grant changed by an owner is felt within a minute, and at once after any refusal (the hooks refetch on a 403).
     staleTime: 60_000,
