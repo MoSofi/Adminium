@@ -13,7 +13,9 @@
  *  - the stock words are asked of that database (the header, or
  *    `?connectionId=`), never answered "which one?".
  * With no selector, two copies still answer `APP_INSTALL_AMBIGUOUS`; an id
- * that names no install is none.
+ * that names no install is none. And the add-ons list tells the two copies
+ * apart: each row and attachment says which install it is, on which
+ * database, and which install of the host it joins.
  */
 import { join } from 'node:path';
 
@@ -42,7 +44,7 @@ const stockKit = (): Doc => ({
 describe.each(LEGS)('a side’s own install on add-on routes — %s', (dialect, available) => {
   let h: Harness;
   let kiln: string;
-  const ids = { deskFernhill: '', deskKiln: '', stockFernhill: '', stockKiln: '' };
+  const ids = { deskFernhill: '', deskKiln: '', stockFernhill: '', stockKiln: '', vaultFernhill: '', vaultKiln: '' };
   const drawn: Doc[] = [];
   /** The databases the stock words were asked about, in order. */
   const asked: string[] = [];
@@ -87,7 +89,7 @@ describe.each(LEGS)('a side’s own install on add-on routes — %s', (dialect, 
     await h.stageAddOn(vaultKitManifest());
     for (const key of ['stock-kit', 'vault']) {
       for (const connectionId of [h.connectionId, kiln]) {
-        const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key, version: '1.0.0', attachTo: [], connectionId } });
+        const added = await h.inject({ method: 'POST', url: '/add-ons', payload: { key, version: '1.0.0', attachTo: key === 'vault' ? ['desk'] : [], connectionId } });
         expect(added.statusCode, added.body).toBe(200);
       }
     }
@@ -97,6 +99,8 @@ describe.each(LEGS)('a side’s own install on add-on routes — %s', (dialect, 
     ids.deskKiln = await on('desk', kiln);
     ids.stockFernhill = await on('stock-kit', h.connectionId);
     ids.stockKiln = await on('stock-kit', kiln);
+    ids.vaultFernhill = await on('vault', h.connectionId);
+    ids.vaultKiln = await on('vault', kiln);
 
     const flag = dialect === 'postgres' ? 'true' : '1';
     await h.rows(`INSERT INTO stock_kit_items (id, name) VALUES (1, 'Flour')`);
@@ -166,5 +170,14 @@ describe.each(LEGS)('a side’s own install on add-on routes — %s', (dialect, 
     expect(asked).toEqual([kiln, h.connectionId, kiln]);
     // Two selectors naming two copies: refused, not settled.
     expect((await words(`&connectionId=${encodeURIComponent(h.connectionId)}`, side(ids.deskKiln))).statusCode).toBe(422);
+  });
+
+  it.skipIf(!available)('the add-ons list tells the copies apart, and which install of the host each joins', async () => {
+    const listed = await h.inject({ method: 'GET', url: '/add-ons' });
+    expect(listed.statusCode, listed.body).toBe(200);
+    const vaults = (listed.json().addOns as Doc[]).filter((row) => row['key'] === 'vault');
+    const byInstall = new Map(vaults.map((row) => [row['installId'], row]));
+    expect(byInstall.get(ids.vaultFernhill)).toMatchObject({ connectionId: h.connectionId, slug: '', attachments: [{ attachedTo: 'desk', enabled: true, installId: ids.vaultFernhill, connectionId: h.connectionId, slug: '', hostInstall: ids.deskFernhill }] });
+    expect(byInstall.get(ids.vaultKiln)).toMatchObject({ connectionId: kiln, slug: 'kiln', attachments: [{ attachedTo: 'desk', enabled: true, installId: ids.vaultKiln, connectionId: kiln, hostInstall: ids.deskKiln }] });
   });
 });

@@ -487,7 +487,7 @@ describe('POST /add-ons — install', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json() as { addOn: { key: string; attachments: unknown[] }; plan: { touchesData: boolean } };
     expect(body.addOn.key).toBe('holiday-calendars');
-    expect(body.addOn.attachments).toEqual([{ attachedTo: 'printing', enabled: true }]);
+    expect(body.addOn.attachments).toMatchObject([{ attachedTo: 'printing', enabled: true }]);
     expect(body.plan.touchesData).toBe(false);
     await app.close();
   });
@@ -657,7 +657,7 @@ describe('PATCH /add-ons/:key — enable and disable per host', () => {
     });
     expect(res.statusCode).toBe(200);
     const body = res.json() as { addOn: { attachments: Array<{ attachedTo: string; enabled: boolean }> } };
-    expect(body.addOn.attachments).toEqual([
+    expect(body.addOn.attachments).toMatchObject([
       { attachedTo: 'maker', enabled: false },
       { attachedTo: 'printing', enabled: true },
     ]);
