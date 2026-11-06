@@ -62,7 +62,7 @@ const SYSTEM_PERMISSION_META: Record<
   'users.manage': { label: 'Manage users', category: 'access' },
   'roles.manage': { label: 'Manage roles and permissions', category: 'access' },
   'api-keys.manage': { label: 'Manage API keys', category: 'access' },
-  'settings.manage': { label: 'Manage workspace settings', category: 'workspace' },
+  'settings.manage': { label: 'Manage server settings', category: 'workspace' },
   'audit.read': { label: 'Read the audit log', category: 'workspace' },
   'pages.manage': { label: 'Create and organize pages', category: 'workspace' },
   'connections.manage': { label: 'Manage database connections', category: 'data' },

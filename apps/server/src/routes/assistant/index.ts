@@ -473,9 +473,9 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           const chosen = deps.connections === undefined ? null : await deps.connections.default();
           const connectionId = chosen?.connection.id ?? null;
           const way = voiceWay({ on: await settings.get('assistant.voice.input'), provider: state.provider, enabled: state.enabled, connectionId });
-          if (way === 'none') throw new ForbiddenError('Speaking to the assistant is switched off in this workspace.', 'FORBIDDEN', { reason: 'voice-off' });
+          if (way === 'none') throw new ForbiddenError('Speaking to the assistant is switched off on this server.', 'FORBIDDEN', { reason: 'voice-off' });
           const notHere = (): ConflictError =>
-            new ConflictError('This workspace’s model service does not turn speech into text. Your browser’s own may.', 'CONFLICT', { reason: 'voice-not-here' });
+            new ConflictError('This server’s model service does not turn speech into text. Your browser’s own may.', 'CONFLICT', { reason: 'voice-not-here' });
           if (way !== 'provider' || deps.connections === undefined || chosen === null) throw notHere();
           const type = String(request.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
           const audio = request.body;
@@ -900,7 +900,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
         if (request.body.action === 'save' || request.body.action === 'language.add') {
           const abilities = await settingsRepo(meta).get('assistant.abilities');
           if (!abilities.create) {
-            throw new ForbiddenError('Saving is switched off for the assistant in this workspace.', 'FORBIDDEN', { reason: 'assistant-switched-off', ability: 'create' });
+            throw new ForbiddenError('Saving is switched off for the assistant on this server.', 'FORBIDDEN', { reason: 'assistant-switched-off', ability: 'create' });
           }
         }
         const principal = (request as unknown as { user?: { id?: string; name?: string; email?: string } }).user;

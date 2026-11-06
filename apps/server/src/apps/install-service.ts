@@ -1427,7 +1427,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         table: endpoint.table,
         message:
           `The public access "${endpoint.ref}" this app asks for on the shared table "${plan.names?.[endpoint.table] ?? endpoint.table}" is already ` +
-          `${holder === null ? 'an endpoint of this workspace' : `"${holder}"'s`}. Keep a separate menu, or remove that endpoint first.`,
+          `${holder === null ? 'an endpoint of this server' : `"${holder}"'s`}. Keep a separate menu, or remove that endpoint first.`,
       });
     }
     return out;

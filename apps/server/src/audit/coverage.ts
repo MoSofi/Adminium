@@ -133,7 +133,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   // ── /me — the caller's own account and their own UI state.
   'PATCH /api/v1/me': audited('auth'), // me_updated, routes/me/handlers.ts
   'PATCH /api/v1/me/prefs': auditExempt(
-    'Per-user UI preference (adminium_user_prefs), not workspace state: nobody else can observe the change and there is nothing to hold an actor to.',
+    'Per-user UI preference (adminium_user_prefs), not server state: nobody else can observe the change and there is nothing to hold an actor to.',
   ),
   'POST /api/v1/me/notifications/:id/read': auditExempt(
     'Marks the caller’s own notification read — personal UI state, and one row per notification view would drown the trail.',
@@ -142,13 +142,13 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
     'Same personal read-state write as /:id/read, in bulk.',
   ),
   'PUT /api/v1/me/notification-prefs': auditExempt(
-    'The caller’s own delivery preferences — a per-user setting, not a workspace one.',
+    'The caller’s own delivery preferences — a per-user setting, not a server one.',
   ),
   'POST /api/v1/me/summaries/:ruleId/send': auditExempt(
-    'Sends the caller their own summary to their own address — nothing of the workspace changes, and it is held to three an hour.',
+    'Sends the caller their own summary to their own address — nothing of the server changes, and it is held to three an hour.',
   ),
   'PUT /api/v1/me/notification-schedule': auditExempt(
-    'The caller’s own delivery preferences — a per-user setting, not a workspace one.',
+    'The caller’s own delivery preferences — a per-user setting, not a server one.',
   ),
   // routes/me-views/index.ts:12, verbatim: "Overrides are personal and
   // reversible, so they are not audited — only shared-default writes are
@@ -237,7 +237,7 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PATCH /api/v1/pages/:pageId/views/:viewId': audited('rbac'), // view.update
   'DELETE /api/v1/pages/:pageId/views/:viewId': audited('rbac'), // view.delete
 
-  // ── Workspace settings, branding, templates, i18n.
+  // ── Server settings, branding, templates, i18n.
   'PUT /api/v1/settings/defaults': audited('rbac'), // settings.defaults.update
   'PUT /api/v1/settings/branding': audited('rbac'), // settings.branding.update
   'PUT /api/v1/settings/security': audited('rbac'), // settings.security.update

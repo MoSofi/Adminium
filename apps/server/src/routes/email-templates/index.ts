@@ -700,7 +700,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const { kind } = request.body;
         const locale = request.body.locale ?? 'en_US';
         if (!(await knownLocale(locale))) {
-          throw new ValidationFailedError(`${locale} is not a locale this workspace knows.`, { locale });
+          throw new ValidationFailedError(`${locale} is not a locale this server knows.`, { locale });
         }
         const starterKey = request.body.starter ?? null;
         if (starterKey !== null && !isEmailStarterKey(starterKey)) {
@@ -933,7 +933,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         const row = await mustFind(request.params.id);
         const { locale } = request.body;
         if (!(await knownLocale(locale))) {
-          throw new ValidationFailedError(`${locale} is not a locale this workspace knows.`, { locale });
+          throw new ValidationFailedError(`${locale} is not a locale this server knows.`, { locale });
         }
         const existing = await templates.findByKeyLocale(row.key, locale);
         if (existing !== null) {

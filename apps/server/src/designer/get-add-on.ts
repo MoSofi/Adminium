@@ -68,7 +68,7 @@ const KEY = /^[a-z][a-z0-9-]{0,79}$/;
 export function notInstalledInWords(name: string, error: unknown): string {
   const code = error instanceof AppError ? error.code : null;
   if (code === 'ADD_ON_SCHEMA_CONNECTION' || code === 'ADD_ON_OTHER_DATABASE') {
-    return `${name} keeps its tables in one database, and this server has more than one. Tell the person to install it from Workspace settings → Add-ons, where they choose the database; then call the tool again.`;
+    return `${name} keeps its tables in one database, and this server has more than one. Tell the person to install it from Server settings → Add-ons, where they choose the database; then call the tool again.`;
   }
   if (code === 'ADD_ON_UNTRUSTED') {
     return `${name} was downloaded, and this server will not run its rules: the file is not one Adminium vouches for. Tell the person; build the rest of the app without it.`;

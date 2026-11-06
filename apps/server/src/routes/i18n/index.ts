@@ -756,7 +756,7 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
           throw new AppError(
             409,
             'ERR_I18N_LOCALE_IS_DEFAULT',
-            'This is the workspace default language. Choose a different default first.',
+            'This is the server’s default language. Choose a different default first.',
           );
         }
         const { locales: entries } = await manifest();

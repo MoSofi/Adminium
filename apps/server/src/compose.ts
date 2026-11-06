@@ -717,7 +717,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * and its build's, never a package in the store, so every reader of an
    * app's files asks this one object which of the two holds a key.
    */
-  // The desktop app's classic workspace passes no project; a project it opens is served as a terminal serves it.
+  // The desktop app's classic server passes no project; a project it opens is served as a terminal serves it.
   const projectRoot = opts.project === undefined ? null : opts.project.root;
   const appsBuild = projectRoot === null ? null : createAppsBuildReader(projectRoot);
   const appFiles = createAppFiles({
@@ -1460,7 +1460,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         if (outcome.adopted) {
           app.log.info(
             { addOn: 'invoices', version: outcome.version },
-            'installed the invoices add-on for this workspace: its documents were authored before the surface moved out of the dashboard',
+            'installed the invoices add-on on this server: its documents were authored before the surface moved out of the dashboard',
           );
         }
       } catch (err: unknown) {
@@ -1843,9 +1843,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * answer rather than the last one's.
    */
   /*
-   * The desktop app's classic workspace, as against a project folder it opened.
+   * The desktop app's classic server, as against a project folder it opened.
    * The share panel, the local and demo databases, and backup and restore act
-   * on the classic workspace's own data folder and its `config.json`; with a
+   * on the classic server's own data folder and its `config.json`; with a
    * project open they would act on the wrong instance (a restore would unpack
    * over a folder nobody is looking at), so a project's server has none of them.
    * Sharing a project and exporting it are the app's own, in its main process.

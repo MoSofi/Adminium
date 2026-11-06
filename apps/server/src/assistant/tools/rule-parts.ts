@@ -39,7 +39,7 @@ export function addressColumnsOf(view: SnapshotView, table: ResolvedTable): stri
 export const rulePartsTool: AssistantTool = {
   name: 'rule_parts',
   description:
-    `What a rule about ONE table can name, read from this workspace: the live email templates (at most ${String(RULE_PARTS_TEMPLATES_MAX)}; each with the placeholders it reads and which of them the rule's step must fill through "vars"), the steps installed add-ons give (each with its add-on's key, its own key and its inputs), the columns that hold email addresses (the table's own, and a linked row's as "<link>.<column>"), and the roles a notification can go to. Call it before you draft a rule that sends an email or needs something a plain step cannot do. Name nothing in a rule that it does not list.`,
+    `What a rule about ONE table can name, read from this server: the live email templates (at most ${String(RULE_PARTS_TEMPLATES_MAX)}; each with the placeholders it reads and which of them the rule's step must fill through "vars"), the steps installed add-ons give (each with its add-on's key, its own key and its inputs), the columns that hold email addresses (the table's own, and a linked row's as "<link>.<column>"), and the roles a notification can go to. Call it before you draft a rule that sends an email or needs something a plain step cannot do. Name nothing in a rule that it does not list.`,
   args: {
     type: 'object',
     properties: {

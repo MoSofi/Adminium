@@ -405,7 +405,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       '/llm/config/assistant-test',
       {
         preHandler: guard,
-        config: { audit: auditExempt('a test of the saved model: it reads nothing of the workspace and writes nothing') },
+        config: { audit: auditExempt('a test of the saved model: it reads nothing of the server and writes nothing') },
         schema: { response: { 200: llmAssistantTestReply } },
       },
       async (request) => {

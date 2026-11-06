@@ -76,7 +76,7 @@ export const NOTIFICATION_EVENT_KEYS: readonly string[] = [
  * cannot send at all. Push is still the "later release" case.
  */
 export const EMAIL_CHANNEL_UNAVAILABLE_REASON =
-  'No SMTP server is configured for this workspace — your email preferences are saved and take effect as soon as an administrator sets one up in Settings → Email.';
+  'No SMTP server is configured for this server — your email preferences are saved and take effect as soon as an administrator sets one up in Settings → Email.';
 export const PUSH_CHANNEL_UNAVAILABLE_REASON =
   'Push delivery arrives in a later release — your push preferences are saved until then.';
 

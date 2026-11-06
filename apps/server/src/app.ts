@@ -324,7 +324,7 @@ export const OPENAPI_SECURITY_SCHEMES = {
   apiKey: {
     type: 'http',
     scheme: 'bearer',
-    description: 'Workspace API key: `Authorization: Bearer adm_sk_…`.',
+    description: 'Server API key: `Authorization: Bearer adm_sk_…`.',
   },
 } as const;
 

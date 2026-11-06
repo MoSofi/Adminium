@@ -63,7 +63,7 @@ export async function privacyScopeOf(meta: MetaDb, userId: string): Promise<Priv
 export const inScope = (apps: AppScope | undefined, appKey: string): boolean => apps === undefined || apps === null || apps.has(appKey);
 
 /** The sentence a staff account's address is refused with (the page says it in the reader's language, by its code). */
-export const STAFF_ADDRESS_REFUSAL = 'This address belongs to a member of staff here. Only someone who manages privacy for the whole workspace may look it up or erase it.';
+export const STAFF_ADDRESS_REFUSAL = 'This address belongs to a member of staff here. Only someone who manages privacy for the whole server may look it up or erase it.';
 
 /** Refuses a staff account's address to a holder of `privacy.people` alone. */
 export async function refuseStaffAddress(meta: MetaDb, scope: PrivacyScope, address: string): Promise<void> {

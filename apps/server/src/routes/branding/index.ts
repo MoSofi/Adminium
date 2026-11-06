@@ -139,7 +139,7 @@ export function brandingRoutes(deps: BrandingRoutesDeps): FastifyPluginAsyncZod 
 
     app.get('/branding/logo', { schema: { querystring: brandingLogoQuery } }, async (request, reply) => {
       const file = await resolveLogoFile(meta);
-      if (file === null) throw new NotFoundError('No logo is set for this workspace.');
+      if (file === null) throw new NotFoundError('No logo is set for this server.');
 
       // sha256 is already the content's identity — a free, exact ETag.
       const etag = `"${file.sha256}"`;

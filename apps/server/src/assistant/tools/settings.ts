@@ -41,7 +41,7 @@ const READABLE_SETTINGS: readonly {
 export const workspaceSettingsTool: AssistantTool = {
   name: 'workspace_settings',
   description:
-    'The workspace facts a draft has to agree with: the application name, the accent colour, the default language, and — on the email page — the addresses it may send from.',
+    'The server facts a draft has to agree with: the application name, the accent colour, the default language, and — on the email page — the addresses it may send from.',
   args: { type: 'object', properties: {}, additionalProperties: false },
   async run(_args, deps) {
     const settings = settingsRepo(deps.meta);

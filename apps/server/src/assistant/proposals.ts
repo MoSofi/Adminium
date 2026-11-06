@@ -266,7 +266,7 @@ const ABILITY_OF = {
   'send.template': 'send',
 } as const;
 
-const SWITCHED_OFF: ProposalRefusal = { code: 'SWITCHED_OFF', message: 'This is switched off for the assistant in this workspace.' };
+const SWITCHED_OFF: ProposalRefusal = { code: 'SWITCHED_OFF', message: 'This is switched off for the assistant on this server.' };
 const NOT_OFFERED: ProposalRefusal = { code: 'NOT_OFFERED', message: 'That cannot be done from here.' };
 
 /**

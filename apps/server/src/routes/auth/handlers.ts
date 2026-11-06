@@ -597,7 +597,7 @@ export async function disable2faHandler(
   // verify — the answer does not depend on the credential, and it spares the
   // argon2 cost on a call that was never going to succeed.
   if (await settingsRepo(ctx.meta).get('auth.require2fa')) {
-    throw new ForbiddenError('This workspace requires two-factor authentication.');
+    throw new ForbiddenError('This server requires two-factor authentication.');
   }
   if (user.passwordHash === null || !(await verifyPassword(user.passwordHash, body.password))) {
     throw invalidCredentials('Invalid password.');

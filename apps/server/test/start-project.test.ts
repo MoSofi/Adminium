@@ -85,7 +85,7 @@ describe('startProject', () => {
     live = await startProject({ root, port: again, mode: 'serve', io: fakeIo(), env: { ...env(), ADMINIUM_RUNTIME: 'desktop' } });
     expect((await fetch(`${live.url}/api/v1/healthz`)).status).toBe(200);
     expect(JSON.parse(readFileSync(runningFile(root), 'utf8'))).toMatchObject({ by: 'desktop', port: again });
-    // A project in the desktop app has none of the classic workspace's own routes: they act on another instance.
+    // A project in the desktop app has none of the classic server's own routes: they act on another instance.
     for (const path of ['/api/v1/desktop/lan-share', '/api/v1/desktop/local-database', '/api/v1/desktop/backup']) {
       const res = await fetch(`${live.url}${path}`, { method: path.endsWith('lan-share') ? 'GET' : 'POST' });
       expect(res.status, path).toBe(404);
@@ -119,7 +119,7 @@ describe('startProject', () => {
     live = null;
 
     // Served without that word (a terminal's `adminium start`, or a host that did not ask): any name is answered,
-    // and the token signs no project owner in (the door there is the classic workspace's, which a project never opens).
+    // and the token signs no project owner in (the door there is the classic server's, which a project never opens).
     const plain = await anyPort();
     live = await startProject({ root, port: plain, mode: 'serve', io: fakeIo(), env: { ...env(), ADMINIUM_RUNTIME: 'desktop', ADMINIUM_BOOT_TOKEN: token }, token });
     const named = (host: string): Promise<number> =>
