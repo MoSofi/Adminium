@@ -36,7 +36,7 @@ import { ENGINES, installHarness, type Dialect, type Harness } from './app-insta
 import { memoryLibrary } from './app-save-rules.helpers.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
 
-const HOST: SaveRights = { userId: null, can: async () => true, readsWhole: async () => true };
+const HOST: SaveRights = { userId: null, can: async () => true, readsWhole: async () => true, permissions: async () => ({ superAdmin: true }) };
 const identity = { encrypt: (v: string) => v, decrypt: (v: string) => v };
 
 const SHOP: Record<Dialect, string> = {
@@ -131,7 +131,7 @@ describe.each(ENGINES)('save workspace and install it, on %s', (dialect, availab
     const stub = JSON.parse(new TextDecoder().decode(readAddOnTarball(saved.tarball).find((entry) => entry.path === 'manifest.json')!.bytes)) as unknown;
     expect(stub).toEqual({ key: 'corner-shop', compatibility: { minAdminiumVersion: WORKSPACE_FILE_FLOOR } });
     // Download again: the same bytes, packed from the stored document and the apps' kept files.
-    const again = await src.service.file(saved.id);
+    const again = await src.service.file(saved.id, HOST);
     expect(again?.filename).toBe('corner-shop.workspace.tgz');
     expect(Buffer.from(again!.bytes).equals(Buffer.from(saved.tarball))).toBe(true);
     // Each inner file is an ordinary save of its own, the next one a version on.

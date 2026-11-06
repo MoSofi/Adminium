@@ -36,6 +36,8 @@ export interface ConvertResult {
   manifest: AppManifest;
   files: Map<string, Uint8Array>;
   check: readonly CheckItem[];
+  /** The rows and personal columns that travel (the saver's rights they need). */
+  carried: ConvertContext['carried'];
 }
 
 /** In order. */
@@ -55,7 +57,7 @@ const PARTS: readonly [string, ConvertPart][] = [
 ];
 
 export async function convertToApp(source: SaveSource, choices: SaveChoices): Promise<ConvertResult> {
-  const ctx: ConvertContext = { source, choices, refs: await buildSaveRefs(source, choices), check: new CheckList(), files: new Map() };
+  const ctx: ConvertContext = { source, choices, refs: await buildSaveRefs(source, choices), check: new CheckList(), files: new Map(), carried: { rows: {}, personal: [], refs: {} } };
   const blocks: Record<string, unknown> = {};
   const writtenBy = new Map<string, string>();
   for (const [name, part] of PARTS) {
@@ -93,7 +95,7 @@ export async function convertToApp(source: SaveSource, choices: SaveChoices): Pr
   }
   manifest.compatibility = { ...manifest.compatibility, minAdminiumVersion: minimumVersion(manifest, source.adminiumVersion) };
   ctx.check.add({ group: 'info', code: 'MIN_VERSION', kind: 'app', item: choices.name, message: `Installing it needs Adminium ${manifest.compatibility.minAdminiumVersion} or later.` });
-  return { manifest, files: ctx.files, check: ctx.check.items() };
+  return { manifest, files: ctx.files, check: ctx.check.items(), carried: ctx.carried };
 }
 
 /**

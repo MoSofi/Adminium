@@ -3911,6 +3911,18 @@
     "status": "mt",
     "srcHash": "ed34e74190e7"
   },
+  "common.appFiles.download.hitId": {
+    "status": "mt",
+    "srcHash": "64ffbcc87c00"
+  },
+  "common.appFiles.download.hitSecret": {
+    "status": "mt",
+    "srcHash": "53e1b93d3743"
+  },
+  "common.appFiles.download.leaks": {
+    "status": "mt",
+    "srcHash": "ee63af328761"
+  },
   "common.appFiles.download.noVersions": {
     "status": "mt",
     "srcHash": "fd7b777a2d0d"
@@ -37939,17 +37951,41 @@
     "status": "mt",
     "srcHash": "9413a741405c"
   },
+  "studio.saveApp.after.addOnCredentials": {
+    "status": "mt",
+    "srcHash": "d64293fce97f"
+  },
+  "studio.saveApp.after.addOnSetting": {
+    "status": "mt",
+    "srcHash": "3a47f74789e7"
+  },
   "studio.saveApp.after.addresses": {
     "status": "mt",
     "srcHash": "16e7a1985ebd"
+  },
+  "studio.saveApp.after.bankAccount": {
+    "status": "mt",
+    "srcHash": "695250faf8dc"
+  },
+  "studio.saveApp.after.contact": {
+    "status": "mt",
+    "srcHash": "b5f5c34e2dc8"
   },
   "studio.saveApp.after.documentRecipient": {
     "status": "mt",
     "srcHash": "8d6231477581"
   },
+  "studio.saveApp.after.instanceSender": {
+    "status": "mt",
+    "srcHash": "6ab5e6080e79"
+  },
   "studio.saveApp.after.paymentKey": {
     "status": "mt",
     "srcHash": "a40d842310c3"
+  },
+  "studio.saveApp.after.paymentLines": {
+    "status": "mt",
+    "srcHash": "5545f6e6a2da"
   },
   "studio.saveApp.after.schedules": {
     "status": "mt",
@@ -38079,6 +38115,10 @@
     "status": "mt",
     "srcHash": "e93ce4148ddc"
   },
+  "studio.saveApp.check.named": {
+    "status": "mt",
+    "srcHash": "0aa66fa2c9c8"
+  },
   "studio.saveApp.check.noPage": {
     "status": "mt",
     "srcHash": "236bceb6a411"
@@ -38103,13 +38143,41 @@
     "status": "mt",
     "srcHash": "9ca6135e0e77"
   },
+  "studio.saveApp.check.personalView": {
+    "status": "mt",
+    "srcHash": "d61a2f9d12b6"
+  },
   "studio.saveApp.check.rowsCycle": {
     "status": "mt",
     "srcHash": "0a99ccca3288"
   },
+  "studio.saveApp.check.rowsHidden": {
+    "status": "mt",
+    "srcHash": "092ef0cf746e"
+  },
   "studio.saveApp.check.rowsPersonal": {
     "status": "mt",
     "srcHash": "1fca7c71e674"
+  },
+  "studio.saveApp.check.ruleAppEmail": {
+    "status": "mt",
+    "srcHash": "2e5c9fd2531f"
+  },
+  "studio.saveApp.check.ruleBuiltinEmail": {
+    "status": "mt",
+    "srcHash": "a24651ac73f2"
+  },
+  "studio.saveApp.check.ruleEmailEnglish": {
+    "status": "mt",
+    "srcHash": "45c4d7611162"
+  },
+  "studio.saveApp.check.ruleRoles": {
+    "status": "mt",
+    "srcHash": "c5d59400c85d"
+  },
+  "studio.saveApp.check.ruleTellsPeople": {
+    "status": "mt",
+    "srcHash": "b696ec7b8e0a"
   },
   "studio.saveApp.check.secret": {
     "status": "mt",
@@ -38475,17 +38543,473 @@
     "status": "mt",
     "srcHash": "3d1edcceceec"
   },
+  "studio.saveApp.info.addOnNotHere": {
+    "status": "mt",
+    "srcHash": "94a623ae43bf"
+  },
+  "studio.saveApp.info.addOnTableAction": {
+    "status": "mt",
+    "srcHash": "62928ce72f05"
+  },
+  "studio.saveApp.info.addOnsTooMany": {
+    "status": "mt",
+    "srcHash": "30fa37264569"
+  },
+  "studio.saveApp.info.appFromFile": {
+    "status": "mt",
+    "srcHash": "f17405f2a61c"
+  },
+  "studio.saveApp.info.appRequired": {
+    "status": "mt",
+    "srcHash": "60f1ec42f731"
+  },
+  "studio.saveApp.info.appScreens": {
+    "status": "mt",
+    "srcHash": "e271316a27fd"
+  },
+  "studio.saveApp.info.appScreensAll": {
+    "status": "mt",
+    "srcHash": "0cb5c7915d66"
+  },
+  "studio.saveApp.info.appTableRenamed": {
+    "status": "mt",
+    "srcHash": "96822cd0bf0b"
+  },
+  "studio.saveApp.info.appsTooMany": {
+    "status": "mt",
+    "srcHash": "e24d6ad226c4"
+  },
+  "studio.saveApp.info.builtinEmail": {
+    "status": "mt",
+    "srcHash": "582faef8e55d"
+  },
+  "studio.saveApp.info.builtinEmailEdited": {
+    "status": "mt",
+    "srcHash": "59b675b1b207"
+  },
   "studio.saveApp.info.builtinRoles": {
     "status": "mt",
     "srcHash": "128b8aaf5939"
+  },
+  "studio.saveApp.info.cannotSay": {
+    "status": "mt",
+    "srcHash": "aaf9e394d7ba"
+  },
+  "studio.saveApp.info.columnFieldNotCarried": {
+    "status": "mt",
+    "srcHash": "e7bfc0dfa754"
+  },
+  "studio.saveApp.info.columnRule": {
+    "status": "mt",
+    "srcHash": "e50db685ab0a"
+  },
+  "studio.saveApp.info.columnTable": {
+    "status": "mt",
+    "srcHash": "a8880c296cba"
+  },
+  "studio.saveApp.info.customerLines": {
+    "status": "mt",
+    "srcHash": "43fa6b2ed8ba"
+  },
+  "studio.saveApp.info.defaultLanguageOff": {
+    "status": "mt",
+    "srcHash": "d942f59dd5da"
+  },
+  "studio.saveApp.info.defaultNotCarried": {
+    "status": "mt",
+    "srcHash": "db44662ef7e3"
+  },
+  "studio.saveApp.info.destination": {
+    "status": "mt",
+    "srcHash": "49f6961f0bfd"
+  },
+  "studio.saveApp.info.documentOff": {
+    "status": "mt",
+    "srcHash": "6ed62653a39d"
+  },
+  "studio.saveApp.info.documentTrigger": {
+    "status": "mt",
+    "srcHash": "eaaa9b94fe17"
+  },
+  "studio.saveApp.info.emailBlockStyle": {
+    "status": "mt",
+    "srcHash": "680c23908a28"
+  },
+  "studio.saveApp.info.emailDocument": {
+    "status": "mt",
+    "srcHash": "8fea684c348e"
+  },
+  "studio.saveApp.info.emailFileKind": {
+    "status": "mt",
+    "srcHash": "1fb50defcdf5"
+  },
+  "studio.saveApp.info.emailFileMissing": {
+    "status": "mt",
+    "srcHash": "5dc6ec33dbf8"
+  },
+  "studio.saveApp.info.emailHtml": {
+    "status": "mt",
+    "srcHash": "a56ab23ff191"
+  },
+  "studio.saveApp.info.emailLanguageEmpty": {
+    "status": "mt",
+    "srcHash": "0fabe9b05a30"
+  },
+  "studio.saveApp.info.emailLibraryPicture": {
+    "status": "mt",
+    "srcHash": "cdf20ad231c5"
+  },
+  "studio.saveApp.info.emailMissing": {
+    "status": "mt",
+    "srcHash": "6a72aa16d3c6"
+  },
+  "studio.saveApp.info.emailNotOurs": {
+    "status": "mt",
+    "srcHash": "040689482570"
+  },
+  "studio.saveApp.info.emailNotSent": {
+    "status": "mt",
+    "srcHash": "8e754ced44f1"
+  },
+  "studio.saveApp.info.emailRowsTable": {
+    "status": "mt",
+    "srcHash": "84700d2b01cd"
+  },
+  "studio.saveApp.info.enumEmpty": {
+    "status": "mt",
+    "srcHash": "bb6d06e9cc20"
+  },
+  "studio.saveApp.info.existingCustomers": {
+    "status": "mt",
+    "srcHash": "8bdb14e707fc"
+  },
+  "studio.saveApp.info.faviconLeft": {
+    "status": "mt",
+    "srcHash": "ad912a81321c"
+  },
+  "studio.saveApp.info.formField": {
+    "status": "mt",
+    "srcHash": "92f2ded13e00"
+  },
+  "studio.saveApp.info.grantAddOn": {
+    "status": "mt",
+    "srcHash": "20a6aa17b273"
+  },
+  "studio.saveApp.info.grantPage": {
+    "status": "mt",
+    "srcHash": "6d482c884d4e"
+  },
+  "studio.saveApp.info.grantTable": {
+    "status": "mt",
+    "srcHash": "9c8e033ea79e"
+  },
+  "studio.saveApp.info.indexNotCarried": {
+    "status": "mt",
+    "srcHash": "70d2fe2d77e0"
+  },
+  "studio.saveApp.info.instanceEmailFiles": {
+    "status": "mt",
+    "srcHash": "d9aca47c7618"
+  },
+  "studio.saveApp.info.instanceEmailHtml": {
+    "status": "mt",
+    "srcHash": "5a94f7c24f5a"
+  },
+  "studio.saveApp.info.instanceEmailLook": {
+    "status": "mt",
+    "srcHash": "b943f7ec8f7b"
+  },
+  "studio.saveApp.info.instanceEmailStyle": {
+    "status": "mt",
+    "srcHash": "46b5affce045"
+  },
+  "studio.saveApp.info.instanceLeft": {
+    "status": "mt",
+    "srcHash": "5b0d1e2a48ac"
+  },
+  "studio.saveApp.info.instanceNothing": {
+    "status": "mt",
+    "srcHash": "cd859e6af4b9"
+  },
+  "studio.saveApp.info.instanceTicked": {
+    "status": "mt",
+    "srcHash": "7bf3ce05985c"
+  },
+  "studio.saveApp.info.instanceValue": {
+    "status": "mt",
+    "srcHash": "036044a108f4"
+  },
+  "studio.saveApp.info.keyFieldNotCarried": {
+    "status": "mt",
+    "srcHash": "9e6f268e2939"
+  },
+  "studio.saveApp.info.keyNotUnique": {
+    "status": "mt",
+    "srcHash": "58c85bda59e2"
+  },
+  "studio.saveApp.info.keyNumbered": {
+    "status": "mt",
+    "srcHash": "e41ebdfc302c"
+  },
+  "studio.saveApp.info.limitTable": {
+    "status": "mt",
+    "srcHash": "514735b5e443"
+  },
+  "studio.saveApp.info.linkNotToKey": {
+    "status": "mt",
+    "srcHash": "48d46c83690b"
+  },
+  "studio.saveApp.info.linkRemoval": {
+    "status": "mt",
+    "srcHash": "c80227a37e90"
+  },
+  "studio.saveApp.info.linkTableLeftOut": {
+    "status": "mt",
+    "srcHash": "d34cc9fad55d"
+  },
+  "studio.saveApp.info.listNotCarried": {
+    "status": "mt",
+    "srcHash": "cfe5e4c9493d"
+  },
+  "studio.saveApp.info.logoLeft": {
+    "status": "mt",
+    "srcHash": "b381b7e16e30"
+  },
+  "studio.saveApp.info.longText": {
+    "status": "mt",
+    "srcHash": "85e5d1dad5ab"
+  },
+  "studio.saveApp.info.measureTable": {
+    "status": "mt",
+    "srcHash": "00f6f1f9b7ee"
   },
   "studio.saveApp.info.minVersion": {
     "status": "mt",
     "srcHash": "1a7096fd53c1"
   },
+  "studio.saveApp.info.ownLanguage": {
+    "status": "mt",
+    "srcHash": "86260057fafa"
+  },
+  "studio.saveApp.info.pageDisabled": {
+    "status": "mt",
+    "srcHash": "5bdd5f5a25a0"
+  },
+  "studio.saveApp.info.pageLink": {
+    "status": "mt",
+    "srcHash": "eceeb50fb96e"
+  },
+  "studio.saveApp.info.pageUnreadable": {
+    "status": "mt",
+    "srcHash": "877704a9c0d7"
+  },
+  "studio.saveApp.info.payPageContacts": {
+    "status": "mt",
+    "srcHash": "a8a61e9c0c99"
+  },
+  "studio.saveApp.info.payableLeftOut": {
+    "status": "mt",
+    "srcHash": "42aeae1fa274"
+  },
+  "studio.saveApp.info.paymentWayNarrowed": {
+    "status": "mt",
+    "srcHash": "4e33d7b4d34c"
+  },
+  "studio.saveApp.info.paymentsLeftOut": {
+    "status": "mt",
+    "srcHash": "4a2fa1b700c2"
+  },
+  "studio.saveApp.info.pictureLeftOut": {
+    "status": "mt",
+    "srcHash": "54d93731bac5"
+  },
+  "studio.saveApp.info.publicKeyLeftOut": {
+    "status": "mt",
+    "srcHash": "aef69299d465"
+  },
+  "studio.saveApp.info.publicKeysNew": {
+    "status": "mt",
+    "srcHash": "6a2cdfd8d870"
+  },
+  "studio.saveApp.info.publicNarrowed": {
+    "status": "mt",
+    "srcHash": "dc05c0b6ed7f"
+  },
+  "studio.saveApp.info.publicScopeByHand": {
+    "status": "mt",
+    "srcHash": "080c5d77cf35"
+  },
+  "studio.saveApp.info.publicShared": {
+    "status": "mt",
+    "srcHash": "ec9aba0bc175"
+  },
+  "studio.saveApp.info.publicUnused": {
+    "status": "mt",
+    "srcHash": "752828c8858c"
+  },
+  "studio.saveApp.info.rowsBytes": {
+    "status": "mt",
+    "srcHash": "890a3cba39c3"
+  },
+  "studio.saveApp.info.rowsCode": {
+    "status": "mt",
+    "srcHash": "fb73b4810bd5"
+  },
+  "studio.saveApp.info.rowsCycleEmpty": {
+    "status": "mt",
+    "srcHash": "3b4f8b38f51b"
+  },
+  "studio.saveApp.info.rowsFiles": {
+    "status": "mt",
+    "srcHash": "18510e1da85a"
+  },
+  "studio.saveApp.info.rowsFirst": {
+    "status": "mt",
+    "srcHash": "fee4565683fb"
+  },
+  "studio.saveApp.info.rowsJson": {
+    "status": "mt",
+    "srcHash": "f7670721d9d8"
+  },
+  "studio.saveApp.info.rowsLinkCode": {
+    "status": "mt",
+    "srcHash": "289ae3f4f78c"
+  },
+  "studio.saveApp.info.rowsParentEmpty": {
+    "status": "mt",
+    "srcHash": "41a747a3a522"
+  },
+  "studio.saveApp.info.rowsParentLeftOut": {
+    "status": "mt",
+    "srcHash": "7529bb145e33"
+  },
+  "studio.saveApp.info.rowsPeople": {
+    "status": "mt",
+    "srcHash": "9d846e12b957"
+  },
+  "studio.saveApp.info.rowsPersonalEmpty": {
+    "status": "mt",
+    "srcHash": "38144b6ab31b"
+  },
+  "studio.saveApp.info.rowsPersonalLeftOut": {
+    "status": "mt",
+    "srcHash": "a6ebf291388b"
+  },
+  "studio.saveApp.info.rowsPrivate": {
+    "status": "mt",
+    "srcHash": "daf0f2053c5e"
+  },
+  "studio.saveApp.info.rowsTableLeftOut": {
+    "status": "mt",
+    "srcHash": "d759e7065ce0"
+  },
+  "studio.saveApp.info.rowsUnreadable": {
+    "status": "mt",
+    "srcHash": "1eed545873f0"
+  },
+  "studio.saveApp.info.rowsViewGone": {
+    "status": "mt",
+    "srcHash": "f743abe5dac3"
+  },
+  "studio.saveApp.info.rowsViewUnread": {
+    "status": "mt",
+    "srcHash": "e2d181af1239"
+  },
+  "studio.saveApp.info.ruleDocument": {
+    "status": "mt",
+    "srcHash": "314ca2dc4f3f"
+  },
+  "studio.saveApp.info.ruleEmailLeftOut": {
+    "status": "mt",
+    "srcHash": "08b5e3c235da"
+  },
+  "studio.saveApp.info.ruleNoDatabase": {
+    "status": "mt",
+    "srcHash": "28b605d7bca1"
+  },
+  "studio.saveApp.info.ruleRole": {
+    "status": "mt",
+    "srcHash": "98486bb9e846"
+  },
+  "studio.saveApp.info.ruleStep": {
+    "status": "mt",
+    "srcHash": "1c6116ff4ad8"
+  },
+  "studio.saveApp.info.ruleTable": {
+    "status": "mt",
+    "srcHash": "c09f56b5c35a"
+  },
+  "studio.saveApp.info.ruleUnfinished": {
+    "status": "mt",
+    "srcHash": "605b7c3b760f"
+  },
+  "studio.saveApp.info.rulesTooMany": {
+    "status": "mt",
+    "srcHash": "941f84ac1c84"
+  },
+  "studio.saveApp.info.scheduleLeftOut": {
+    "status": "mt",
+    "srcHash": "0b4acff22e31"
+  },
+  "studio.saveApp.info.screensOnly": {
+    "status": "mt",
+    "srcHash": "f9c23d6400c1"
+  },
+  "studio.saveApp.info.secretSetting": {
+    "status": "mt",
+    "srcHash": "17ef755ae138"
+  },
+  "studio.saveApp.info.semanticNotCarried": {
+    "status": "mt",
+    "srcHash": "456c8d080ac0"
+  },
+  "studio.saveApp.info.stateRole": {
+    "status": "mt",
+    "srcHash": "a95c1275b89d"
+  },
+  "studio.saveApp.info.tabTable": {
+    "status": "mt",
+    "srcHash": "65a46b98bfd6"
+  },
+  "studio.saveApp.info.tableNoColumns": {
+    "status": "mt",
+    "srcHash": "fc3a755c748e"
+  },
+  "studio.saveApp.info.tableRule": {
+    "status": "mt",
+    "srcHash": "1c3526e660bd"
+  },
+  "studio.saveApp.info.timestampZone": {
+    "status": "mt",
+    "srcHash": "dc0cf01ffeb6"
+  },
+  "studio.saveApp.info.uniqueNotCarried": {
+    "status": "mt",
+    "srcHash": "e99813c280a9"
+  },
+  "studio.saveApp.info.uniqueTextWidth": {
+    "status": "mt",
+    "srcHash": "f552a707d04f"
+  },
+  "studio.saveApp.info.viewNotCarried": {
+    "status": "mt",
+    "srcHash": "eccb5b29c2de"
+  },
+  "studio.saveApp.info.viewsTooMany": {
+    "status": "mt",
+    "srcHash": "b7e81cedd89c"
+  },
+  "studio.saveApp.info.widgetTable": {
+    "status": "mt",
+    "srcHash": "eae79d8c7139"
+  },
   "studio.saveApp.info.wildcard": {
     "status": "mt",
     "srcHash": "9b6d188115b5"
+  },
+  "studio.saveApp.info.wordsCut": {
+    "status": "mt",
+    "srcHash": "bdaaa78453c8"
   },
   "studio.saveApp.inventoryFailed": {
     "status": "mt",

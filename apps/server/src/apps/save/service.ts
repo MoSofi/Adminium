@@ -15,8 +15,13 @@
  *    the whole table within their reach (a person who reads part of a table
  *    never saves its rows);
  *  - a personal column's rows: `read_pii` on that table;
- *  - files in the file (mail attachments, pictures): `system:files:manage`,
- *    since the Files library cannot say whose they were once copied.
+ *  - the columns of those rows the saver's role reads (its read limits);
+ *  - files of the Files library in the file (mail attachments, pictures, a
+ *    logo): `system:files:manage`, since the Files library cannot say whose
+ *    they were once copied. The file's own rows and texts need nothing more;
+ *  - the deployment-wide part: `system:settings:manage`.
+ * The save records what it carried (`carried`), and "Download again" asks
+ * the same rights of whoever downloads it.
  * The CLI has no person. It runs with host access, which reads everything,
  * and passes a `rights` that allows all.
  */
@@ -27,20 +32,21 @@ import { dirname, join } from 'node:path';
 
 import { parseDatabaseModel } from '@adminium/engine';
 import type { AppManifest } from '@adminium/manifest';
-import { appSavesRepo, filesRepo, newId, snapshotsRepo, type AppSave, type MetaDb } from '@adminium/meta';
+import { appSavesRepo, filesRepo, newId, snapshotsRepo, type AppSave, type AppSaveCarried, type MetaDb } from '@adminium/meta';
 
 import type { Kysely } from 'kysely';
 
 import { packStagedTree } from '../../add-ons/pack.js';
 import type { SourceDatabase } from '../../connections/manager.js';
-import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import type { FileStore } from '../../files/store.js';
+import { readLimitOf, type ReadLimits } from '../../rbac/read-limits.js';
 import type { CheckItem } from './check.js';
 import { carryOutAnswers } from './answers.js';
 import { convertToApp } from './convert.js';
 import { saveInventory, type SaveInventory } from './inventory.js';
 import { runSaveGates, type GateProblem } from './gates/index.js';
-import type { RowChoice, SaveChoices, SaveDialect, SaveSource } from './types.js';
+import type { RowChoice, RowsCarried, SaveChoices, SaveDialect, SaveSource } from './types.js';
 
 export interface SaveRequest {
   connectionId: string;
@@ -86,6 +92,8 @@ export interface SaveRights {
   can(grant: string): Promise<boolean>;
   /** Whether the saver reads the whole table (no row reach narrows it). */
   readsWhole(connectionId: string, tableId: string): Promise<boolean>;
+  /** The saver's resolved permissions, for their read limits (columns of a table their role does not read). */
+  permissions(): Promise<{ superAdmin?: boolean; readLimits?: ReadLimits | undefined }>;
 }
 
 export interface SavePlan {
@@ -120,6 +128,8 @@ export interface MadeFile {
   tarball: Uint8Array;
   integrity: string;
   filename: string;
+  /** What it carried that needs the saver's own rights. */
+  carried: AppSaveCarried;
   /** Keep its copy and record the save. */
   commit(): Promise<SavedFile & { tarball: Uint8Array }>;
 }
@@ -185,6 +195,8 @@ export function createSaveService(deps: SaveServiceDeps) {
       ...definedOf(request.answers ?? {}),
     };
     const storage = deps.storage;
+    // The Files library's bytes the parts read, by fingerprint: a package file that is one of them needs managing files.
+    const library = new Set<string>();
     const source: SaveSource = {
       meta: deps.meta,
       connectionId: request.connectionId,
@@ -199,7 +211,9 @@ export function createSaveService(deps: SaveServiceDeps) {
               if (file === null || file.deletedAt !== null) return null;
               const chunks: Buffer[] = [];
               for await (const chunk of await storage.read(file)) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
-              return new Uint8Array(Buffer.concat(chunks));
+              const bytes = new Uint8Array(Buffer.concat(chunks));
+              library.add(fingerprint(bytes));
+              return bytes;
             },
           }),
     };
@@ -208,6 +222,7 @@ export function createSaveService(deps: SaveServiceDeps) {
       const readFile = source.readFile;
       source.rows = {
         db: await deps.dataDb(request.connectionId),
+        reader: await rights.permissions(),
         ...(readFile === undefined
           ? {}
           : {
@@ -235,7 +250,13 @@ export function createSaveService(deps: SaveServiceDeps) {
       problems: gates.problems,
       counts: countsOf(converted.manifest, converted.files),
     };
-    return { plan, converted, lineage };
+    const carried: AppSaveCarried = {
+      rows: Object.fromEntries(Object.entries(converted.carried.rows).filter(([tableId]) => carriesRowsOf(converted.manifest, converted.files, tableId, converted.carried))),
+      personal: converted.carried.personal.filter((tableId) => carriesRowsOf(converted.manifest, converted.files, tableId, converted.carried)),
+      files: [...converted.files.values()].some((bytes) => bytes.byteLength > 0 && library.has(fingerprint(bytes))),
+      instance: converted.manifest.instance !== undefined,
+    };
+    return { plan, converted, lineage, carried };
   }
 
   async function refuseWithoutRights(request: SaveRequest, rights: SaveRights): Promise<void> {
@@ -262,11 +283,11 @@ export function createSaveService(deps: SaveServiceDeps) {
   }
 
   async function make(request: SaveRequest, rights: SaveRights): Promise<MadeFile> {
-    const { plan, converted, lineage } = await prepare(request, rights);
+    const { plan, converted, lineage, carried } = await prepare(request, rights);
     if (plan.problems.length > 0) throw new ConflictError(`The file cannot be made: ${plan.problems.map((p) => p.message).join(' ')}`, 'CONFLICT', { reason: 'SAVE_REFUSED' });
     const open = plan.check.filter((item) => item.group === 'choice');
     if (open.length > 0) throw new ConflictError(`${String(open.length)} item(s) in Check need an answer before the file is made.`, 'CONFLICT', { reason: 'SAVE_NEEDS_ANSWERS' });
-    if (converted.files.size > 0 && !(await rights.can('system:files:manage'))) {
+    if (carried.files && !(await rights.can('system:files:manage'))) {
       throw new ConflictError('The app carries files from the Files library, and saving them needs managing files.', 'CONFLICT', { reason: 'SAVE_FILES_NOT_YOURS' });
     }
 
@@ -279,6 +300,7 @@ export function createSaveService(deps: SaveServiceDeps) {
       tarball,
       integrity,
       filename,
+      carried,
       async commit() {
         const at = now();
         let fileId: string | null = null;
@@ -291,7 +313,7 @@ export function createSaveService(deps: SaveServiceDeps) {
           );
         }
         const row = await appSavesRepo(deps.meta).create(
-          { appKey: request.key, version: plan.version, lineage, connectionId: request.connectionId, label: plan.label, savedBy: rights.userId, integrity, bytes: tarball.byteLength, fileId, name: request.name, description: request.description?.trim() || null, icon: request.icon ?? null },
+          { appKey: request.key, version: plan.version, lineage, connectionId: request.connectionId, label: plan.label, savedBy: rights.userId, integrity, bytes: tarball.byteLength, fileId, name: request.name, description: request.description?.trim() || null, icon: request.icon ?? null, carried },
           at,
         );
         return { id: row.id, key: row.appKey, version: row.version, integrity, bytes: tarball.byteLength, filename, savedAt: row.savedAt, tarball };
@@ -316,10 +338,15 @@ export function createSaveService(deps: SaveServiceDeps) {
      */
     make,
 
-    /** The saved file again ("Download again"), or null when its copy is gone. */
-    async file(id: string): Promise<{ save: AppSave; filename: string; bytes: Uint8Array } | null> {
+    /**
+     * The saved file again ("Download again"), or null when its copy is gone.
+     * Refused (403) to whoever lacks a right the save needed.
+     */
+    async file(id: string, rights: SaveRights): Promise<{ save: AppSave; filename: string; bytes: Uint8Array } | null> {
       const save = await appSavesRepo(deps.meta).findById(id);
       if (save === null || save.fileId === null || deps.storage === null) return null;
+      const missing = await missingRight(save, rights);
+      if (missing !== null) throw new ForbiddenError(`You may not download this file again: ${missing}`, 'FORBIDDEN', { reason: 'SAVE_DOWNLOAD_NOT_YOURS' });
       const storage = deps.storage;
       const file = await filesRepo(deps.meta).findById(save.fileId);
       if (file === null) return null;
@@ -331,6 +358,9 @@ export function createSaveService(deps: SaveServiceDeps) {
     async list(): Promise<AppSave[]> {
       return appSavesRepo(deps.meta).list();
     },
+
+    /** Why this person may not download a save again, in words; null when they may. */
+    missingRight,
 
     /** What the database could put in its app, for the wizard's "What to include". */
     async inventory(connectionId: string, rights: SaveRights): Promise<SaveInventory> {
@@ -344,6 +374,60 @@ export function createSaveService(deps: SaveServiceDeps) {
 }
 
 export type SaveService = ReturnType<typeof createSaveService>;
+
+/**
+ * Why a person may not download a save again, or null when they may: the
+ * rights the save needed, asked of them now. A save from before the record
+ * was kept is its saver's alone.
+ */
+export async function missingRight(save: Pick<AppSave, 'connectionId' | 'savedBy' | 'carried'>, rights: SaveRights): Promise<string | null> {
+  const carried = save.carried;
+  if (carried === null) return save.savedBy !== null && save.savedBy === rights.userId ? null : 'it was saved before Adminium kept what it carries, so only the person who saved it may.';
+  if (carried.instance && !(await rights.can('system:settings:manage'))) return 'it carries the look, languages, wording and system emails, which needs managing settings.';
+  if (carried.files && !(await rights.can('system:files:manage'))) return 'it carries files from the Files library, which needs managing files.';
+  const connectionId = save.connectionId;
+  const tables = [...Object.keys(carried.rows), ...carried.personal];
+  if (tables.length > 0 && connectionId === null) return 'the database it was saved from is gone.';
+  if (connectionId === null) return null;
+  let permissions: Awaited<ReturnType<SaveRights['permissions']>> | null = null;
+  for (const [tableId, columns] of Object.entries(carried.rows)) {
+    const base = `table:${connectionId}:${tableId}`;
+    if (!(await rights.can(`${base}:read`)) || !(await rights.can(`${base}:export`))) return `it carries rows of ${tableId}, which needs reading and exporting that table.`;
+    if (!(await rights.readsWhole(connectionId, tableId))) return `it carries rows of ${tableId}, and you read only part of it.`;
+    permissions ??= await rights.permissions();
+    const limit = readLimitOf(permissions, connectionId, tableId);
+    if (limit !== null && columns.some((column) => !limit.has(column))) return `it carries columns of ${tableId} your role does not read.`;
+  }
+  for (const tableId of carried.personal) {
+    if (!(await rights.can(`table:${connectionId}:${tableId}:read_pii`))) return `it carries personal columns of ${tableId}, which needs reading them.`;
+  }
+  return null;
+}
+
+function fingerprint(bytes: Uint8Array): string {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+/**
+ * Whether the rows of a table are still in the file once the answers are
+ * carried out: a table whose rows were left out carries nothing. Read by
+ * the table's ref, as the seeds and the sample file name it.
+ */
+function carriesRowsOf(manifest: AppManifest, files: ReadonlyMap<string, Uint8Array>, tableId: string, carried: Pick<RowsCarried, 'refs'>): boolean {
+  const ref = carried.refs[tableId];
+  if (ref === undefined) return false;
+  if ((manifest.seeds ?? []).some((seed) => seed.table === ref && (seed.file === undefined || files.has(seed.file)))) return true;
+  const sample = manifest.sampleData?.file;
+  if (sample === undefined) return false;
+  const bytes = files.get(sample);
+  if (bytes === undefined) return false;
+  try {
+    const bundle = JSON.parse(Buffer.from(bytes).toString('utf8')) as { tables?: { ref?: unknown }[] };
+    return (bundle.tables ?? []).some((table) => table.ref === ref);
+  } catch {
+    return true;
+  }
+}
 
 /** The next version after the highest saved: 1.0.0 first, then the patch number + 1. */
 export function nextVersion(saves: readonly Pick<AppSave, 'version'>[]): string {

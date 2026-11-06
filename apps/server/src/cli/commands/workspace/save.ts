@@ -22,7 +22,7 @@ import { CliError, CliUsageError, EXIT_OK, EXIT_VALIDATION_FAILED } from '../../
 import { envOf, storeFlags } from './shared.js';
 
 /** Host access holds every right. */
-const HOST: SaveRights = { userId: null, can: async () => true, readsWhole: async () => true };
+const HOST: SaveRights = { userId: null, can: async () => true, readsWhole: async () => true, permissions: async () => ({ superAdmin: true }) };
 
 const saveFlags: FlagSpecs = {
   workspace: { type: 'string', short: 'w', placeholder: '<id|name>', describe: 'The workspace to save, by its id or its name' },

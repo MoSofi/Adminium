@@ -5,8 +5,10 @@
  * A key a person pasted into a page's text, an email or a row was never kept
  * sealed here, so the secret scan cannot find it. This looks for what such a
  * key looks like, in the places a person types: page text, email templates,
- * public endpoint replies, rows (seeds and sample files) and every other
- * package file:
+ * public endpoint replies, automations (a webhook's body and its header's
+ * name, where a pasted provider key usually sits), documents, reports,
+ * invoice layouts, scheduled reports, rows (seeds and sample files) and every
+ * other package file:
  *  - a provider's shape: a private key block, a well-known key prefix;
  *  - a high-randomness string: 24 characters or more, letters and digits
  *    mixed, with a Shannon entropy of at least 4 bits a character, that is not
@@ -19,7 +21,7 @@ import { itemTargetOf, targetOf, type GateContent, type Leaf } from './content.j
 import { leafPlace } from './secrets.js';
 
 /** The manifest blocks a person types text into. */
-const TYPED_BLOCKS = new Set(['pages', 'emailTemplates', 'outbox', 'publicAccess', 'publicKeys', 'seeds', 'instance']);
+const TYPED_BLOCKS = new Set(['pages', 'emailTemplates', 'outbox', 'publicAccess', 'publicKeys', 'seeds', 'instance', 'automations', 'documents', 'reports', 'invoiceLayouts', 'scheduledReports']);
 
 /** Shapes providers give their secrets. Matched anywhere in a string. */
 const PROVIDER_SHAPES: readonly { name: string; pattern: RegExp }[] = [

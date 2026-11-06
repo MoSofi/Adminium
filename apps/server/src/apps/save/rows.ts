@@ -17,6 +17,10 @@
  *    the link is filled once its row is in (a starting row names the later row
  *    by its label). A cycle through required links is a choice in Check. A row
  *    whose parent is not carried is named in Check, never dropped in silence.
+ *  - Never, whatever the person ticks: a column the saver's role does not
+ *    read (their read limits, the column read view every staff read uses),
+ *    a code no staff member reads, a code a shared link opens its row with,
+ *    and any code Adminium makes (the target makes its own). Check says so.
  *  - Personal columns, and columns whose names look like secrets, travel only
  *    when the person ticked them. A staff member is never an id: a sample
  *    person (`{"@person": …}`) in sample rows, nothing in starting rows. A
@@ -29,7 +33,10 @@ import { viewsRepo } from '@adminium/meta';
 
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { compileFilter, compileQuickSearch, recordFilterSchema, type RecordFilter } from '../../crud/filters.js';
+import { readViewOf } from '../../crud/read-view.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { shareCodesOn, type ShareCodes } from '../../public-api/share-codes.js';
+import { readLimitOf, type ReadLimits } from '../../rbac/read-limits.js';
 import type { ConvertContext, ConvertPart, ManifestPart, RowChoice, SaveSource, RowAccess } from './types.js';
 
 export type { RowAccess };
@@ -57,6 +64,17 @@ interface Picked {
   columns: RequiredColumn[];
   key: string[];
   rows: Row[];
+  /** Personal or secret-looking columns whose values travel (ticked: reading personal data was asked). */
+  personal: Set<string>;
+}
+
+/** How the saver reads the source: what never travels besides what they cannot read. */
+interface Reading {
+  reader: { superAdmin?: boolean; readLimits?: ReadLimits | undefined };
+  /** The source as the saver reads it (`readViewOf`): their read limits, and codes no staff member reads, hidden. */
+  view: SnapshotView;
+  /** The codes shared links open rows with on this database, by bare table name. */
+  shareCodes: ShareCodes;
 }
 
 export const convertRows: ConvertPart = async (ctx) => {
@@ -83,14 +101,22 @@ export const convertRows: ConvertPart = async (ctx) => {
     }
     const columns = planned.columns.flatMap((column) => (column.written === null ? [] : [column.written]));
     const key = planned.saved.model.primaryKey.filter((column) => columns.some((written) => written.ref === column));
-    picked.push({ planned, id: tableId, ref: planned.saved.ref, name, mode: choice.mode, columns, key, rows: [] });
+    picked.push({ planned, id: tableId, ref: planned.saved.ref, name, mode: choice.mode, columns, key, rows: [], personal: new Set() });
   }
 
   for (const table of picked) table.rows = await readRows(ctx, access, view, table, chosen.find(([id]) => id === table.id)![1]);
   const people = new Map<string, string>();
   const assets: Record<string, { file: string; sha256: string }> = {};
-  for (const table of picked) await shapeValues(ctx, access, view, table, people, assets);
+  const reading: Reading = { reader: access.reader ?? { superAdmin: true }, view: readViewOf(view, access.reader ?? { superAdmin: true }), shareCodes: await shareCodesOn(ctx.source.meta, ctx.source.connectionId) };
+  for (const table of picked) await shapeValues(ctx, access, view, reading, table, people, assets);
   parentsFirst(ctx, picked);
+  for (const table of picked) {
+    if (table.rows.length === 0) continue;
+    const key = new Set(table.planned.saved.model.primaryKey);
+    ctx.carried.refs[table.id] = table.ref;
+    ctx.carried.rows[table.id] = table.columns.filter((column) => !key.has(column.ref) && table.rows.some((row) => row[column.ref] !== null && row[column.ref] !== undefined)).map((column) => column.ref);
+    if (table.personal.size > 0 && table.rows.some((row) => [...table.personal].some((name) => row[name] !== null && row[name] !== undefined))) ctx.carried.personal.push(table.id);
+  }
 
   const out: ManifestPart = {};
   const starting = picked.filter((table) => table.mode === 'starting' && table.rows.length > 0);
@@ -231,16 +257,68 @@ function holdsDirective(value: unknown): boolean {
   return Object.entries(value).some(([key, inner]) => key.startsWith('@') || holdsDirective(inner));
 }
 
-async function shapeValues(ctx: ConvertContext, access: RowAccess, view: SnapshotView, table: Picked, people: Map<string, string>, assets: Record<string, { file: string; sha256: string }>): Promise<void> {
+/**
+ * Why a column's values never travel, whatever the person ticks, or null:
+ *  - `unread`: the saver's role does not read it (a read limit; the column
+ *    read view leaves it out, as every staff read does);
+ *  - `link`: a code no staff member reads, or one a shared link opens its row
+ *    with (anyone holding the file could open that row's page);
+ *  - `code`: any other code Adminium makes: the target makes its own.
+ * The key is never held back: every reader sees it.
+ */
+function neverTravels(reading: Reading, connectionId: string, table: Picked, column: RequiredColumn): 'unread' | 'link' | 'code' | null {
+  const name = column.ref;
+  if (table.planned.saved.model.primaryKey.includes(name)) return null;
+  const effective = resolvedOf(reading.view, table.id).table.columns.find((one) => one.name === name);
+  const code = effective?.code ?? (column.rules as { code?: { hiddenFromStaff?: true } } | undefined)?.code;
+  if (code?.hiddenFromStaff === true || reading.shareCodes.get(table.planned.saved.model.name)?.has(name) === true) return 'link';
+  if (resolvedOf(reading.view, table.id).columns.get(name)?.unreadable === true) return 'unread';
+  // A secret column the role also does not read is hidden as a secret, not marked: asked of the limit itself.
+  const limit = readLimitOf(reading.reader, connectionId, table.id);
+  if (limit !== null && !limit.has(name)) return 'unread';
+  if (code !== undefined) return 'code';
+  return null;
+}
+
+async function shapeValues(ctx: ConvertContext, access: RowAccess, view: SnapshotView, reading: Reading, table: Picked, people: Map<string, string>, assets: Record<string, { file: string; sha256: string }>): Promise<void> {
   const resolved = resolvedOf(view, table.id);
   const ticked = new Set(ctx.choices.personalColumns ?? []);
   const keep: RequiredColumn[] = [];
   const nulls = new Set<string>();
+  const dropped = new Set<string>();
   for (const column of table.columns) {
     const name = column.ref;
     const model = table.planned.columns.find((planned) => planned.name === name)!.model;
     const live = resolved.columns.get(name);
     const target = `${table.id}.${name}`;
+    const never = neverTravels(reading, ctx.source.connectionId, table, column);
+    if (never !== null) {
+      dropped.add(name);
+      if (never === 'code') {
+        // Left out of the row: the target makes a new code as it writes it.
+        info(ctx, 'ROWS_CODE_LEFT_OUT', table.name, `"${table.name}.${name}" is a code Adminium makes: its values never travel, whatever is ticked, and the target makes new ones.`, name);
+        continue;
+      }
+      const message =
+        never === 'link'
+          ? `"${table.name}.${name}" is the code a shared link opens its row with: its values never travel, whatever is ticked.`
+          : `"${table.name}.${name}" is not shown to your role: its values never travel, whatever is ticked.`;
+      if (column.nullable === true || model.default !== null || (column.rules as { code?: unknown } | undefined)?.code !== undefined) {
+        if (column.nullable === true) nulls.add(name);
+        info(ctx, never === 'link' ? 'ROWS_LINK_CODE_LEFT_OUT' : 'ROWS_UNREADABLE_LEFT_OUT', table.name, message, name);
+      } else {
+        ctx.check.add({
+          group: 'choice',
+          code: 'ROWS_HIDDEN_REQUIRED',
+          kind: 'rows',
+          item: table.name,
+          field: name,
+          message: `"${table.name}.${name}" never travels (a code a shared link opens its row with, or a column your role does not read), and every row needs a value in it. Leave the rows of "${table.name}" out.`,
+          answer: { choices: ['leave-out'], target: `rows:${table.id}` },
+        });
+      }
+      continue;
+    }
     const personal = column.rules?.personal ?? live?.masked ?? false;
     const secret = column.rules?.secret ?? (live?.secret === true || model.semantics?.flags.secret === true || SECRET_NAME.test(name));
     if ((personal || secret) && !ticked.has(target)) {
@@ -263,6 +341,7 @@ async function shapeValues(ctx: ConvertContext, access: RowAccess, view: Snapsho
       }
       continue;
     }
+    if (personal || secret) table.personal.add(name);
     if (column.rules?.staff === true || column.rules?.mentions !== undefined || personStamp(column)) {
       if (table.mode === 'sample' && column.rules?.staff === true) {
         keep.push(column);
@@ -331,6 +410,8 @@ async function shapeValues(ctx: ConvertContext, access: RowAccess, view: Snapsho
     out.push(row);
   }
   table.rows = out;
+  // A column left out of every row is gone from the table's columns too: no link is followed through it.
+  table.columns = table.columns.filter((column) => !dropped.has(column.ref) || nulls.has(column.ref));
   if (lostFiles) info(ctx, 'ROWS_FILES_LEFT_OUT', table.name, `Files in the rows of "${table.name}" stay behind${table.mode === 'sample' ? ' (only a picture travels, in sample rows)' : ': starting rows carry no files'}; those cells are empty.`);
   if (lostBlob) info(ctx, 'ROWS_BYTES_LEFT_OUT', table.name, `Raw bytes in the rows of "${table.name}" cannot travel in an app file; those cells are empty.`);
   if (lostJson) info(ctx, 'ROWS_JSON_LEFT_OUT', table.name, `Some json values in the rows of "${table.name}" hold keys starting with "@", which an app file reads as directions; those cells are empty.`);

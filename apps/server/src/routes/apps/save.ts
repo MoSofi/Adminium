@@ -15,7 +15,8 @@
  *    the workspace files saved here too.
  *
  * All of them need `system:manifests:manage`. Rows and personal columns need
- * the saver's own rights on each table besides (the service asks them).
+ * the saver's own rights on each table besides (the service asks them), and
+ * "Download again" asks whoever downloads the rights the save needed.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -137,7 +138,7 @@ export const appSavesReply = z.object({
       savedAt: z.number(),
       integrity: z.string(),
       bytes: z.number(),
-      /** Whether "Download again" still has a copy. */
+      /** Whether "Download again" still has a copy, and the caller holds every right the save needed. */
       downloadable: z.boolean(),
     }),
   ),
@@ -265,6 +266,8 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
       userId: getPrincipal(request)?.kind === 'user' ? (getPrincipal(request) as { id: string }).id : null,
       can: async (grant) => typeof request.can === 'function' && (await request.can(grant)),
       readsWhole: (connectionId, tableId) => requestReadsWhole(deps.meta, request, connectionId, tableId, 'read'),
+      // A server mounted without the role layer (a narrow harness) limits nothing, as it grants everything.
+      permissions: async () => (typeof (app as { rbac?: { resolve?: unknown } }).rbac?.resolve === 'function' ? app.rbac.resolve(request) : { superAdmin: true }),
     });
 
     app.post(
@@ -305,11 +308,12 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         schema: { response: { 200: appSavesReply } },
       },
-      async () => {
+      async (request) => {
         const saves = await deps.service.list();
+        const rights = rightsOf(request);
         const people = new Map<string, string | null>();
         for (const id of new Set(saves.flatMap((save) => (save.savedBy === null ? [] : [save.savedBy])))) people.set(id, (await usersRepo(deps.meta).findById(id))?.name ?? null);
-        return { saves: saves.map((save) => ({
+        return { saves: await Promise.all(saves.map(async (save) => ({
           id: save.id,
           key: save.appKey,
           version: save.version,
@@ -323,8 +327,8 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
           savedAt: save.savedAt,
           integrity: save.integrity,
           bytes: save.bytes,
-          downloadable: save.fileId !== null,
-        })),
+          downloadable: save.fileId !== null && (await deps.service.missingRight(save, rights)) === null,
+        }))),
         workspaces: (await deps.workspaces.list()).map((save) => ({
           id: save.id,
           workspaceId: save.workspaceId,
@@ -348,7 +352,7 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: saveIdParams },
       },
       async (request, reply) => {
-        const found = await deps.service.file(request.params.id);
+        const found = await deps.service.file(request.params.id, rightsOf(request));
         if (found === null) throw new NotFoundError('That saved file is no longer kept. Save the app again.');
         const safeName = found.filename.replaceAll(/["\\\r\n]/g, '_');
         return reply
@@ -392,7 +396,7 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: saveIdParams },
       },
       async (request, reply) => {
-        const found = await deps.workspaces.file(request.params.id);
+        const found = await deps.workspaces.file(request.params.id, rightsOf(request));
         if (found === null) throw new NotFoundError('An app in that workspace file is no longer kept. Save the workspace again.');
         const safeName = found.filename.replaceAll(/["\\\r\n]/g, '_');
         return reply

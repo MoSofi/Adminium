@@ -3,9 +3,10 @@
  * Save as app: the words for what the server's Check list says.
  *
  * The server names every item by a code, its kind, the item's own name and
- * the field, and adds one English sentence. The codes a person acts on, and
- * the ones the comp draws, are worded here in every language from those
- * parts; any other code shows the server's own sentence after the item's
+ * the field, and adds one English sentence. Every code it sends is worded
+ * here in every language from those parts alone: a number or a value its
+ * English carries beyond them is not said. A code this dashboard does not
+ * know yet (a newer server) shows the server's own sentence after the item's
  * name, the way the install review shows the server's words it has no key
  * for. A secret is named by kind, item and field, never by its value: the
  * server never sends one.
@@ -73,6 +74,8 @@ export function kindLabel(kind: string): string {
       return t('studio:saveApp.kind.instance', 'Look and words');
     case 'file':
       return t('studio:saveApp.kind.file', 'File');
+    case 'list':
+      return t('studio:saveApp.kind.optionList', 'Option list');
     default:
       return t('studio:saveApp.kind.app', 'App');
   }
@@ -121,9 +124,34 @@ function placeOf(item: CheckItem): string {
   return item.field === undefined || item.field === '' ? item.item : `${item.item}.${item.field}`;
 }
 
+/**
+ * The item named the way the list names it, `Kind ‘item’ · field`, then the
+ * sentence. The field is shown where it tells the person something (a column,
+ * a language, a card's place); a fixed field name of the server's is not.
+ */
+function named(item: CheckItem, sentence: ReactNode, withField = true): ReactNode {
+  return (
+    <>
+      <span className="font-semibold">{t('studio:saveApp.check.named', '{kind} ‘{item}’', { kind: kindLabel(item.kind), item: item.item })}</span>
+      {!withField || item.field === undefined || item.field === '' ? null : (
+        <>
+          {' · '}
+          <MonoText>{item.field}</MonoText>
+        </>
+      )}
+      {' · '}
+      {sentence}
+    </>
+  );
+}
+
 /** The sentence for one Check item. */
 export function checkSentence(item: CheckItem): ReactNode {
   const kind = kindLabel(item.kind);
+  // Table and column names render in mono: `{table}` is the item, `{column}` is `table.column`.
+  const db = (text: (marks: Record<string, string>) => string) => monoSentence(text, { table: item.item, column: placeOf(item) });
+  // `{column}` alone, where the sentence names its table too.
+  const rowsOf = (text: (marks: Record<string, string>) => string) => monoSentence(text, { table: item.item, column: item.field ?? '' });
   switch (item.code) {
     case 'SECRET_FOUND':
       return monoSentence(
@@ -151,13 +179,29 @@ export function checkSentence(item: CheckItem): ReactNode {
       );
     case 'PAGE_TABLE_LEFT_OUT':
       return t('studio:saveApp.check.pageTable', '‘{page}’ shows a table that is not in the app. Leave the page out, or put its table in.', { page: item.item });
+    case 'PERSONAL_VIEW':
+      return t('studio:saveApp.check.personalView', '‘{view}’ is somebody’s own view. Make it a shared view of the app, or leave it out.', { view: item.item });
     case 'EMAIL_NO_ENGLISH':
-      return t('studio:saveApp.check.emailEnglish', '‘{email}’ has no US English text, which an app’s mail needs. Leave it out, or write one first.', { email: item.item });
+      // A rule that sends such a mail is asked about too, by the rule's name.
+      return item.kind === 'automation'
+        ? t('studio:saveApp.check.ruleEmailEnglish', '‘{rule}’ sends a mail with no US English text, which an app’s mail needs. Leave the rule out, or write one first.', { rule: item.item })
+        : t('studio:saveApp.check.emailEnglish', '‘{email}’ has no US English text, which an app’s mail needs. Leave it out, or write one first.', { email: item.item });
+    case 'RULE_BUILTIN_EMAIL':
+      return t('studio:saveApp.check.ruleBuiltinEmail', '‘{rule}’ sends a built-in mail, which is not saved in an app. Leave the rule out, or change it first.', { rule: item.item });
+    case 'RULE_APP_EMAIL':
+      return t('studio:saveApp.check.ruleAppEmail', '‘{rule}’ sends a mail of an installed app, which is not saved in this one. Leave the rule out, or change it first.', { rule: item.item });
+    case 'RULE_TELLS_PEOPLE':
+      return t('studio:saveApp.check.ruleTellsPeople', '‘{rule}’ tells people by name, and an app tells roles. Leave it out, or change it to tell a role first.', { rule: item.item });
+    case 'RULE_ROLE_LEFT_OUT':
+      // Asked when the rule tells no role the app has; said when it only loses some.
+      return item.group === 'choice' ? t('studio:saveApp.check.ruleRoles', '‘{rule}’ tells only roles that are not in the app (a built-in role, or one left out). Leave it out, or change it to tell another role first.', { rule: item.item }) : named(item, t('studio:saveApp.info.ruleRole', 'A role this rule tells is not in the app (a built-in role, or one left out), so it is not told.'), false);
     case 'ROWS_PERSONAL_REQUIRED':
       return monoSentence(
         (m) => t('studio:saveApp.check.rowsPersonal', '{column} is personal or looks like a key, and every row needs a value in it. Include its values, or leave the rows of {table} out.', { column: m['column']!, table: m['table']! }),
         { column: placeOf(item), table: item.item },
       );
+    case 'ROWS_HIDDEN_REQUIRED':
+      return db((m) => t('studio:saveApp.check.rowsHidden', '{column} never travels (a code a shared link opens its row with, or a column your role does not read), and every row needs a value in it. Leave the rows of {table} out.', { column: m['column']!, table: m['table']! }));
     case 'ROWS_REQUIRED_CYCLE':
       return monoSentence(
         (m) => t('studio:saveApp.check.rowsCycle', 'The rows of {table} need rows of another table that need them back. Leave the rows of one of them out.', { table: m['table']! }),
@@ -165,6 +209,8 @@ export function checkSentence(item: CheckItem): ReactNode {
       );
     case 'NO_PAGE':
       return t('studio:saveApp.check.noPage', 'An app needs at least one page. Include a page of this database.');
+
+    // ── After you install ──
     case 'RULE_WEBHOOK':
       return t('studio:saveApp.after.webhook', 'The web address of ‘{rule}’', { rule: item.item });
     case 'RULE_WEBHOOK_HEADER':
@@ -177,24 +223,272 @@ export function checkSentence(item: CheckItem): ReactNode {
       return t('studio:saveApp.after.paymentKey', 'The payment keys for {item}', { item: item.item });
     case 'DOCUMENT_RECIPIENT':
       return t('studio:saveApp.after.documentRecipient', 'Who receives ‘{document}’', { document: item.item });
+    case 'INSTANCE_EMAIL_SENDER':
+      return t('studio:saveApp.after.instanceSender', 'Who the system email ‘{email}’ is sent from', { email: item.item });
+    case 'ADD_ON_CREDENTIALS':
+      return monoSentence((m) => t('studio:saveApp.after.addOnCredentials', 'The keys and passwords of {addOn}', { addOn: m['addOn']! }), { addOn: item.item });
+    case 'ADD_ON_SETTING':
+      return monoSentence((m) => t('studio:saveApp.after.addOnSetting', 'The {setting} setting of {addOn}', { setting: m['setting']!, addOn: m['addOn']! }), { setting: item.field ?? '', addOn: item.item });
+    case 'BANK_ACCOUNT':
+      return t('studio:saveApp.after.bankAccount', 'The bank account a transfer is paid into (paying by transfer stays off until then)');
+    case 'CONTACT_LEFT_OUT':
+      return t('studio:saveApp.after.contact', 'The contact address and phone of ‘{item}’', { item: item.item });
+    case 'PAYMENT_LINES_LEFT_OUT':
+      return t('studio:saveApp.after.paymentLines', 'The payment lines (where to pay) of ‘{item}’', { item: item.item });
+
+    // ── Tables and columns ──
+    case 'VIEW_NOT_CARRIED':
+      return db((m) => t('studio:saveApp.info.viewNotCarried', '{table} is a view of the database, not a table: an app makes tables only, so it is left out.', { table: m['table']! }));
+    case 'TABLE_NO_COLUMNS':
+      return db((m) => t('studio:saveApp.info.tableNoColumns', '{table} has no column an app file can hold, so it is left out.', { table: m['table']! }));
+    case 'KEY_FIELD_NOT_CARRIED':
+      return db((m) => t('studio:saveApp.info.keyFieldNotCarried', 'The column {table} names its rows by is left out, so the target names them its own way.', { table: m['table']! }));
+    case 'EXISTING_CUSTOMERS_NOT_CARRIED':
+      return db((m) => t('studio:saveApp.info.existingCustomers', '{table} lets existing customers get marketing mail. An install never switches that on: whoever sends campaigns there decides it, with their own tick.', { table: m['table']! }));
+    case 'KEY_NOT_UNIQUE':
+      return db((m) => t('studio:saveApp.info.keyNotUnique', '{table} is carried without its key, and its key columns cannot be kept unique together.', { table: m['table']! }));
+    case 'UNIQUE_NOT_CARRIED':
+      return db((m) => t('studio:saveApp.info.uniqueNotCarried', '{table} keeps some columns unique together in a way an app file cannot hold; the target goes without it.', { table: m['table']! }));
+    case 'INDEX_NOT_CARRIED':
+      return db((m) => t('studio:saveApp.info.indexNotCarried', '{table} has an index an app file cannot hold; the target goes without it.', { table: m['table']! }));
+    case 'STATE_ROLE_NOT_CARRIED':
+      return db((m) => t('studio:saveApp.info.stateRole', 'A move between the states of {table} is kept for a role that is not in the app; it keeps the roles that are, or is left out if none is.', { table: m['table']! }));
+    case 'APP_TABLE_RENAMED':
+      return db((m) => t('studio:saveApp.info.appTableRenamed', '{table} is an installed app’s table, saved under another name, so the install could not find it.', { table: m['table']! }));
+    case 'ENUM_EMPTY_VALUE':
+      return db((m) => t('studio:saveApp.info.enumEmpty', '{column} allows an empty answer, which an app file’s choices cannot hold; it is left off the list.', { column: m['column']! }));
+    case 'LONG_TEXT':
+      return db((m) => t('studio:saveApp.info.longText', '{column} has a length limit an app file does not keep; it travels as text of any length.', { column: m['column']! }));
+    case 'TIMESTAMP_ZONE':
+      return db((m) => t('studio:saveApp.info.timestampZone', '{column} keeps a time without a zone; an app file makes it a time with a zone.', { column: m['column']! }));
+    case 'KEY_NUMBERED':
+      return db((m) => t('studio:saveApp.info.keyNumbered', '{column} is a number key the database does not count itself; an install makes it count.', { column: m['column']! }));
+    case 'SEMANTIC_NOT_CARRIED':
+      return db((m) => t('studio:saveApp.info.semanticNotCarried', '{column} was marked as a kind of value an app file cannot name; the target guesses it again.', { column: m['column']! }));
+    case 'UNIQUE_TEXT_WIDTH':
+      return db((m) => t('studio:saveApp.info.uniqueTextWidth', '{column} is unique and of any length; an app file gives it a length limit so every database can keep it unique.', { column: m['column']! }));
+    case 'COLUMN_FIELD_NOT_CARRIED':
+      return db((m) => t('studio:saveApp.info.columnFieldNotCarried', '{column} keeps a setting here only: an app file cannot hold it as it is.', { column: m['column']! }));
+    case 'LINK_REMOVAL_NOT_CARRIED':
+      return db((m) => t('studio:saveApp.info.linkRemoval', '{column} was taken off a link Adminium guessed; the target guesses its links again.', { column: m['column']! }));
+    case 'LINK_TABLE_LEFT_OUT':
+      return db((m) => t('studio:saveApp.info.linkTableLeftOut', '{column} links to a table that is not in the app, so it is carried as a plain column.', { column: m['column']! }));
+    case 'LINK_NOT_TO_KEY':
+      return db((m) => t('studio:saveApp.info.linkNotToKey', '{column} links to a column that is not its table’s one key; an app file links only to a key, so it is carried as a plain column.', { column: m['column']! }));
+    case 'DEFAULT_NOT_CARRIED':
+      return db((m) => t('studio:saveApp.info.defaultNotCarried', '{column} has a default the database works out; an app file cannot carry it, so the target’s column has none.', { column: m['column']! }));
+    case 'RULE_NOT_CARRIED':
+      // A column's rule names the column; a table's names a rule or setting, which says nothing to a person.
+      return item.kind === 'column'
+        ? db((m) => t('studio:saveApp.info.columnRule', '{column} keeps a rule here only: an app file cannot carry it as it is.', { column: m['column']! }))
+        : monoSentence((m) => t('studio:saveApp.info.tableRule', '{table} keeps a rule or setting here only: an app file cannot carry it as it is.', { table: m['table']! }), { table: item.item });
+    case 'LIST_NOT_CARRIED':
+      return named(item, t('studio:saveApp.info.listNotCarried', 'An app file cannot hold this list as it is, so it is left out.'));
+
+    // ── Rows ──
+    case 'ROWS_TABLE_LEFT_OUT':
+      return db((m) => t('studio:saveApp.info.rowsTableLeftOut', 'The rows of {table} stay behind: the table is not in the app.', { table: m['table']! }));
+    case 'ROWS_PRIVATE':
+      return db((m) => t('studio:saveApp.info.rowsPrivate', '{table} is private: only the people its rows belong to write it, so it starts empty.', { table: m['table']! }));
+    case 'ROWS_VIEW_GONE':
+      return db((m) => t('studio:saveApp.info.rowsViewGone', 'The view chosen for {table} is not there any more: its rows are picked in key order.', { table: m['table']! }));
+    case 'ROWS_VIEW_UNREAD':
+      return db((m) => t('studio:saveApp.info.rowsViewUnread', 'The view chosen for {table} filters in a way the save cannot read: its rows are picked in key order.', { table: m['table']! }));
+    case 'ROWS_FIRST':
+      return db((m) => t('studio:saveApp.info.rowsFirst', 'Only the first rows of {table} travel. Pick a saved view to choose others.', { table: m['table']! }));
+    case 'ROWS_FILES_LEFT_OUT':
+      return db((m) => t('studio:saveApp.info.rowsFiles', 'Some files in the rows of {table} stay behind (only pictures travel, and only in sample rows); those cells are empty.', { table: m['table']! }));
+    case 'ROWS_BYTES_LEFT_OUT':
+      return db((m) => t('studio:saveApp.info.rowsBytes', 'Raw bytes in the rows of {table} cannot travel in an app file; those cells are empty.', { table: m['table']! }));
+    case 'ROWS_JSON_LEFT_OUT':
+      return db((m) => t('studio:saveApp.info.rowsJson', 'Some json values in the rows of {table} hold keys starting with “@”, which an app file reads as directions; those cells are empty.', { table: m['table']! }));
+    case 'ROWS_PERSONAL_EMPTY':
+      return db((m) => t('studio:saveApp.info.rowsPersonalEmpty', '{column} holds personal data or looks like a secret: its values stay behind and the rows carry it empty. Tick it to carry them.', { column: m['column']! }));
+    case 'ROWS_PERSONAL_LEFT_OUT':
+      return db((m) => t('studio:saveApp.info.rowsPersonalLeftOut', '{column} holds personal data or looks like a secret: its values stay behind, and the target fills its default. Tick it to carry them.', { column: m['column']! }));
+    case 'ROWS_PEOPLE_LEFT_OUT':
+      return db((m) => t('studio:saveApp.info.rowsPeople', '{column} holds or names staff members: people never travel, so the rows carry it empty.', { column: m['column']! }));
+    case 'ROWS_CODE_LEFT_OUT':
+      return db((m) => t('studio:saveApp.info.rowsCode', '{column} is a code Adminium makes: its values never travel, whatever is ticked, and the target makes new ones.', { column: m['column']! }));
+    case 'ROWS_LINK_CODE_LEFT_OUT':
+      return db((m) => t('studio:saveApp.info.rowsLinkCode', '{column} is the code a shared link opens its row with: its values never travel, whatever is ticked.', { column: m['column']! }));
+    case 'ROWS_UNREADABLE_LEFT_OUT':
+      return db((m) => t('studio:saveApp.info.rowsUnreadable', '{column} is not shown to your role: its values never travel, whatever is ticked.', { column: m['column']! }));
+    case 'ROWS_PARENT_EMPTY':
+      return rowsOf((m) => t('studio:saveApp.info.rowsParentEmpty', 'Some rows of {table} carry {column} empty: the rows it names do not travel with them.', { table: m['table']!, column: m['column']! }));
+    case 'ROWS_PARENT_LEFT_OUT':
+      return rowsOf((m) => t('studio:saveApp.info.rowsParentLeftOut', 'Some rows of {table} stay behind: they need {column}, and the rows it names do not travel with them.', { table: m['table']!, column: m['column']! }));
+    case 'ROWS_CYCLE_EMPTY':
+      return rowsOf((m) => t('studio:saveApp.info.rowsCycleEmpty', 'Some sample rows of {table} carry {column} empty: they and the rows they name point at each other, and sample rows are written in one pass.', { table: m['table']!, column: m['column']! }));
+
+    // ── Pages ──
+    case 'WIDGET_TABLE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.widgetTable', 'A card reads a table that is not in the app, so the card was left out.'));
+    case 'COLUMN_TABLE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.columnTable', 'A column counts rows of a table that is not in the app, so the column was left out.'));
+    case 'FORM_FIELD_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.formField', 'A form field picks rows of a table that is not in the app, so the field was left out.'));
+    case 'PAGE_LINK_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.pageLink', 'A link opens a page that is not in the app, so it will lead nowhere there.'));
+    case 'INSTANCE_VALUE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.instanceValue', 'An entry names something that exists only on this server (a person, a role, a record of its own), so it was left out.'));
+    case 'DESTINATION_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.destination', 'Files go to the default storage of the server the app is installed on.'));
+    case 'TAB_TABLE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.tabTable', 'A related tab shows a table that is not in the app, so the tab was left out.'), false);
+    case 'MEASURE_TABLE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.measureTable', 'A page total adds up a table that is not in the app, so the total was left out.'), false);
+    case 'VIEWS_TOO_MANY':
+      return named(item, t('studio:saveApp.info.viewsTooMany', 'The page already carries as many views as an app file holds, so this one was left out.'), false);
+    case 'PAGE_UNREADABLE':
+      return named(item, t('studio:saveApp.info.pageUnreadable', 'The page has no document Adminium can read, so it was left out.'));
+    case 'PAGE_DISABLED':
+      return named(item, t('studio:saveApp.info.pageDisabled', 'The page is switched off here; it is switched on where the app is installed.'));
+
+    // ── Roles ──
+    case 'LIMIT_TABLE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.limitTable', 'A limit names a table that is not in the app, so that part of the limit is left out.'));
+    case 'ADD_ON_TABLE_ACTION':
+      return named(item, t('studio:saveApp.info.addOnTableAction', 'Export and import on an add-on’s table are not carried; the role gets them by hand.'));
+    case 'GRANT_TABLE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.grantTable', 'A grant on a table that is not in the app is left out.'));
+    case 'GRANT_PAGE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.grantPage', 'A grant on a page that is not in the app is left out.'));
+    case 'ADD_ON_NOT_HERE':
+      // A role's grant on an add-on's settings, or an add-on the saved parts name.
+      return item.kind === 'role' ? named(item, t('studio:saveApp.info.grantAddOn', 'A grant on the settings of an add-on this database does not have is left out.')) : named(item, t('studio:saveApp.info.addOnNotHere', 'It is named by what is saved but is not installed here, so any version of it is asked for.'));
+    case 'APP_SCREENS':
+      // The server names the app, or says every app in words of its own.
+      return item.field === 'every app' ? named(item, t('studio:saveApp.info.appScreensAll', 'A grant on the screens of every app is not carried.'), false) : named(item, t('studio:saveApp.info.appScreens', 'A grant on another app’s screens is not carried.'));
+    case 'SCREENS_ONLY':
+      return named(item, t('studio:saveApp.info.screensOnly', 'The app has no screens of its own, so the role opens the dashboard.'));
+
+    // ── Email templates ──
+    case 'BUILTIN_EMAIL':
+      return named(item, t('studio:saveApp.info.builtinEmail', 'A built-in mail is not saved in an app.'));
+    case 'EMAIL_MISSING':
+      return named(item, t('studio:saveApp.info.emailMissing', 'This mail has no live text, so it is left out.'));
+    case 'EMAIL_NOT_SENT':
+      return named(item, t('studio:saveApp.info.emailNotSent', 'No rule of the app sends this mail and it is not a campaign, so it is left out.'));
+    case 'EMAIL_NOT_OURS':
+      return named(item, t('studio:saveApp.info.emailNotOurs', 'This mail belongs to an installed app, so it is left out.'));
+    case 'BUILTIN_EMAIL_EDITED':
+      return named(item, t('studio:saveApp.info.builtinEmailEdited', 'An edited built-in mail travels with this server’s look and words, not in this app.'));
+    case 'EMAIL_FILE_MISSING':
+      return named(item, t('studio:saveApp.info.emailFileMissing', 'A file this mail carries could not be read, so it is left out.'), false);
+    case 'EMAIL_FILE_KIND':
+      return named(item, t('studio:saveApp.info.emailFileKind', 'A file this mail carries is not a kind an app’s mail may carry, so it is left out.'), false);
+    case 'EMAIL_LANGUAGE_EMPTY':
+      return named(item, t('studio:saveApp.info.emailLanguageEmpty', 'A language of this mail has no subject or nothing left to send, so that language is left out.'));
+    case 'EMAIL_HTML_BLOCK':
+      return named(item, t('studio:saveApp.info.emailHtml', 'An app’s mail may not hold an HTML block, so that block is left out.'));
+    case 'EMAIL_LIBRARY_PICTURE':
+      return named(item, t('studio:saveApp.info.emailLibraryPicture', 'A picture from the Files library does not travel in a mail’s text, so that block is left out.'));
+    case 'EMAIL_ROWS_TABLE':
+      return named(item, t('studio:saveApp.info.emailRowsTable', 'A block lists the rows of a table that is not in the app, so that block is left out.'));
+    case 'EMAIL_BLOCK_STYLE':
+      return named(item, t('studio:saveApp.info.emailBlockStyle', 'How some blocks look (their padding, colours and borders) is not saved in an app.'));
+    case 'EMAIL_DOCUMENT_ATTACHMENT':
+      return named(item, t('studio:saveApp.info.emailDocument', 'A document drawn for each mail is not carried; only files are.'), false);
+
+    // ── Automations ──
+    case 'RULE_NO_DATABASE':
+      return named(item, t('studio:saveApp.info.ruleNoDatabase', 'This rule is not tied to a database, so it is not saved in an app.'));
+    case 'RULE_UNFINISHED':
+      return named(item, t('studio:saveApp.info.ruleUnfinished', 'This rule is not finished, so it is left out.'));
+    case 'RULES_TOO_MANY':
+      return named(item, t('studio:saveApp.info.rulesTooMany', 'The app already carries as many rules as a file holds, so this one is left out.'));
+    case 'RULE_TABLE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.ruleTable', 'This rule reads a table that is not in the app, so it is left out.'));
+    case 'RULE_EMAIL_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.ruleEmailLeftOut', 'This rule sends a mail you left out, so it is left out too.'));
+    case 'RULE_STEP_KIND':
+      return named(item, t('studio:saveApp.info.ruleStep', 'This rule has a step an app cannot carry, so it is left out.'));
+    case 'RULE_DOCUMENT_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.ruleDocument', 'This rule draws a document that is not in the app, so it is left out.'));
+
+    // ── Documents ──
+    case 'DOCUMENT_TRIGGER_NO_FORM':
+      return named(item, t('studio:saveApp.info.documentTrigger', 'What draws it cannot be said in a file: it arrives drawn by hand only.'), false);
+    case 'DOCUMENT_OFF':
+      return named(item, t('studio:saveApp.info.documentOff', 'It is switched off here, so it is not saved.'));
+    case 'DOCUMENT_LEFT_OUT':
+    case 'PUBLIC_ENDPOINT_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.cannotSay', 'It cannot be said in a file as it is, so it is not saved.'));
+
+    // ── This server's look and words ──
+    case 'INSTANCE_OWN_LANGUAGE':
+      return named(item, t('studio:saveApp.info.ownLanguage', 'It is a language made here: it is switched on where the app is installed only if that server has it too.'));
+    case 'INSTANCE_DEFAULT_OFF':
+      return named(item, t('studio:saveApp.info.defaultLanguageOff', 'The language everybody starts in is switched off here, so which language comes first stays out.'), false);
+    case 'INSTANCE_LEFT':
+      return named(item, t('studio:saveApp.info.instanceLeft', 'A saved app cannot carry this as it is, so it stays out.'), false);
+    case 'INSTANCE_WORDS_CUT':
+      return t('studio:saveApp.info.wordsCut', 'There are more changed words than a saved app carries: the rest stay out.');
+    case 'INSTANCE_EMAIL_HTML':
+      return named(item, t('studio:saveApp.info.instanceEmailHtml', 'This system email holds an HTML block, which a saved app cannot carry: it stays out.'), false);
+    case 'INSTANCE_EMAIL_LOOK':
+      return named(item, t('studio:saveApp.info.instanceEmailLook', 'The look of this system email (its name, mark and colour) stays here: it is sent with the look of the server it is installed on.'), false);
+    case 'INSTANCE_EMAIL_STYLE':
+      return named(item, t('studio:saveApp.info.instanceEmailStyle', 'The block styles of this system email stay here: its blocks travel in the plain style.'), false);
+    case 'INSTANCE_EMAIL_FILES':
+      return named(item, t('studio:saveApp.info.instanceEmailFiles', 'What this system email attaches stays as the server it is installed on has it.'), false);
+    case 'INSTANCE_SECRET_SETTING':
+      return named(item, t('studio:saveApp.info.secretSetting', 'A secret setting never travels: it is set again on the server the app is installed on, if it is needed there.'));
+    case 'INSTANCE_NOTHING':
+      return t('studio:saveApp.info.instanceNothing', 'Nothing of this server’s look, languages, wording, system emails or settings was changed, so none of it travels.');
+    case 'INSTANCE_TICKED':
+      return t('studio:saveApp.info.instanceTicked', 'This server’s look, languages, wording, system emails and settings travel. They are written over the server it is installed on only when the person installing ticks them.');
+    case 'INSTANCE_PICTURE_LEFT':
+      return item.item === 'favicon' ? t('studio:saveApp.info.faviconLeft', 'The browser tab icon could not be carried (it is gone from the Files library, cannot be read, or is not a PNG, JPEG, WebP, GIF or SVG picture), so it stays out.') : t('studio:saveApp.info.logoLeft', 'The logo could not be carried (it is gone from the Files library, cannot be read, or is not a PNG, JPEG, WebP, GIF or SVG picture), so it stays out.');
+
+    // ── Apps and add-ons ──
+    case 'APP_FROM_FILE':
+      return named(item, t('studio:saveApp.info.appFromFile', 'It was installed from a file. Its tables, pages and rules stay with it; save it again where it was made.'));
+    case 'APPS_TOO_MANY':
+      return named(item, t('studio:saveApp.info.appsTooMany', 'The file already names as many apps as it can: install this one on the target first.'));
+    case 'APP_REQUIRED':
+      return named(item, t('studio:saveApp.info.appRequired', 'It must be installed on the target database first, at the version it has here or later.'));
+    case 'ADD_ONS_TOO_MANY':
+      return named(item, t('studio:saveApp.info.addOnsTooMany', 'The file already names as many add-ons as it can: install this one on the target by hand.'));
+
+    // ── Payments ──
+    case 'PAYABLE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.payableLeftOut', 'It is not saved as payable: its table, a column of it, or its set-up cannot travel.'));
+    case 'PAYMENT_WAY_NARROWED':
+      return named(item, t('studio:saveApp.info.paymentWayNarrowed', 'It is offered here for some payable tables only; after installing it is offered for all of them until that is chosen again.'), false);
+    case 'PAY_PAGE_CONTACTS':
+      return t('studio:saveApp.info.payPageContacts', 'The pay page’s logo and contact details are not saved: they are set again after installing.');
+    case 'PAYMENTS_LEFT_OUT':
+      return t('studio:saveApp.info.paymentsLeftOut', 'The payments set-up cannot be said in a file, so it is not saved.');
+
+    // ── Public access ──
+    case 'PUBLIC_SCOPE_BY_HAND':
+      return named(item, t('studio:saveApp.info.publicScopeByHand', 'A public scope written by hand cannot be said in a file, so it is not saved.'));
+    case 'PUBLIC_KEY_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.publicKeyLeftOut', 'This key cannot be said in a file as it is, so it is not saved. Make one again after installing if it is needed.'));
+    case 'PUBLIC_ENDPOINT_SHARED':
+      return named(item, t('studio:saveApp.info.publicShared', 'It is served through another key too, which is not saved that way: after installing it is served through one key only.'));
+    case 'PUBLIC_ENDPOINT_UNUSED':
+      return named(item, t('studio:saveApp.info.publicUnused', 'No key that is saved serves it, so it is not saved.'));
+    case 'PUBLIC_ENDPOINT_NARROWED':
+      return named(item, t('studio:saveApp.info.publicNarrowed', 'What strangers may filter, search or sort by is not saved: after installing they may do less here.'));
+    case 'PUBLIC_KEYS_NEW':
+      return t('studio:saveApp.info.publicKeysNew', 'New keys are made when it is installed: the apps that call it need the new key, and its allowed origins are set again.');
+
+    // ── Reports, invoices and schedules ──
+    case 'PICTURE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.pictureLeftOut', 'A picture linked from elsewhere is not saved: put it in again after installing.'), false);
+    case 'CUSTOMER_LINES_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.customerLines', 'Its example customer and delivery lines are not saved: they may name a real person.'), false);
+    case 'SCHEDULE_LEFT_OUT':
+      return named(item, t('studio:saveApp.info.scheduleLeftOut', 'The page it reports on is not saved, so it is not saved either.'));
+
     case 'MIN_VERSION':
       return null;
     default:
-      return (
-        <>
-          <span className="font-semibold">
-            {kind} ‘{item.item}’
-          </span>
-          {item.field === undefined || item.field === '' ? null : (
-            <>
-              {' · '}
-              <MonoText>{item.field}</MonoText>
-            </>
-          )}
-          {' · '}
-          {item.message}
-        </>
-      );
+      // A code this dashboard does not know yet (a newer server): its own sentence.
+      return named(item, item.message);
   }
 }
 

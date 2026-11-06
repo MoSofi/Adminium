@@ -13,6 +13,11 @@
  *    version), so the file's name and what it holds agree;
  *  - only an app made here is packed: a catalog app's sides are its
  *    publisher's, never repacked under another name;
+ *  - the file is read for what must stay on this server before it is handed
+ *    out: a secret the server keeps, or an id of it (`pack-leaks.ts`). Its
+ *    source travels, so a key copied from the project's `.env` into
+ *    `src/` would leave with it. A hit refuses the Download, naming the file
+ *    and the line, never the value;
  *  - the package says where it was made (`provenance`): the server's display
  *    name as its label (never a host name), when, and on which Adminium, with
  *    a lineage drawn once per app and kept in its folder (`lineage.json`), so
@@ -28,7 +33,9 @@ import { join } from 'node:path';
 
 import { compareSemver, LOCAL_PUBLISHER_ID } from '@adminium/manifest';
 
+import { readAddOnTarball } from '../../add-ons/archive.js';
 import { checkApp, type AppFinding } from './check-app.js';
+import { packLeaks, type PackLeakScan } from './pack-leaks.js';
 import { packApp, PackTooLargeError, type PackedApp } from './pack-app.js';
 import { appDir, appPath, listAppKeys, MANIFEST_FILE, MANIFEST_PARTS_DIR, readAppFolder } from './read-app.js';
 import { buildAppSides, type BuiltSide } from './side-build.js';
@@ -42,7 +49,7 @@ export const LINEAGE_FILE = 'lineage.json';
 
 export const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
-export type PackFolderReason = 'NOT_A_PROJECT_APP' | 'CATALOG_SIDES' | 'VERSION_BELOW' | 'PACK_CHECK_FAILED' | 'PACK_BUILD_FAILED' | 'PACK_TOO_LARGE';
+export type PackFolderReason = 'NOT_A_PROJECT_APP' | 'CATALOG_SIDES' | 'VERSION_BELOW' | 'PACK_CHECK_FAILED' | 'PACK_BUILD_FAILED' | 'PACK_TOO_LARGE' | 'PACK_LEAKS';
 
 /** A Download that cannot be made, and why. */
 export class PackFolderRefused extends Error {
@@ -66,6 +73,8 @@ export interface PackFolderInput {
   adminiumVersion: string;
   loadBundler?: LoadBundler | undefined;
   now?: Date | undefined;
+  /** What the file is read for before it is handed out: this server's secrets and database ids. */
+  scan: PackLeakScan;
 }
 
 export interface PackedFolderApp extends PackedApp {
@@ -163,6 +172,13 @@ export async function packFolderApp(input: PackFolderInput): Promise<PackedFolde
       throw new PackFolderRefused('PACK_TOO_LARGE', error.message, { bytes: error.bytes, limit: error.limit });
     }
     throw new PackFolderRefused('PACK_BUILD_FAILED', error instanceof Error ? error.message : String(error));
+  }
+  const leaks = packLeaks(
+    readAddOnTarball(packed.tarball).map((entry) => [entry.path, entry.bytes] as const),
+    input.scan,
+  );
+  if (leaks.length > 0) {
+    throw new PackFolderRefused('PACK_LEAKS', 'The file would carry a secret or an id of this server, so it was not made. Take it out of the files named, then download again.', { leaks });
   }
   const dir = join(root, PACKS_DIR);
   mkdirSync(dir, { recursive: true });

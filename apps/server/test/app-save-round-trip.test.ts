@@ -20,7 +20,7 @@ import { runGeneration } from '../src/generate/run.js';
 import { ENGINES, installHarness, type Dialect, type Harness } from './app-install-harness.js';
 import { memoryLibrary } from './app-save-rules.helpers.js';
 
-const HOST: SaveRights = { userId: null, can: async () => true, readsWhole: async () => true };
+const HOST: SaveRights = { userId: null, can: async () => true, readsWhole: async () => true, permissions: async () => ({ superAdmin: true }) };
 const NONE = { read: false, create: false, update: false, delete: false, export: false, import: false };
 
 const TABLES: Record<Dialect, readonly string[]> = {
