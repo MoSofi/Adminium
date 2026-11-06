@@ -146,13 +146,18 @@ export function documentProfilesRepo(meta: MetaDb) {
   }
 
   async function list(
-    filter: { connectionId?: string | undefined; addOnKey?: string | undefined } = {},
+    filter: { connectionId?: string | undefined; addOnKey?: string | undefined; connectionIds?: readonly string[] | undefined } = {},
   ): Promise<
     DocumentProfile[]
   > {
     let query = db.selectFrom('adminium_document_profiles').selectAll();
     if (filter.connectionId !== undefined) {
       query = query.where('connectionId', '=', filter.connectionId);
+    }
+    // A workspace's databases, in the query; empty matches nothing.
+    if (filter.connectionIds !== undefined) {
+      if (filter.connectionIds.length === 0) return [];
+      query = query.where('connectionId', 'in', [...filter.connectionIds]);
     }
     if (filter.addOnKey !== undefined) query = query.where('addOnKey', '=', filter.addOnKey);
     const rows = await query.orderBy('name', 'asc').execute();

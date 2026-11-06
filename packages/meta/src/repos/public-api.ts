@@ -235,8 +235,14 @@ export function publicScopesRepo(meta: MetaDb) {
       return row === undefined ? null : scopeRow(row);
     },
 
-    async list(): Promise<PublicScope[]> {
-      return (await scopesByIds(await db.selectFrom('adminium_public_scopes').select('id').orderBy('createdAt', 'desc').execute())).map(scopeRow);
+    /** Every scope, or those of any of `connectionIds` (a workspace's databases; empty matches nothing). */
+    async list(filter: { connectionIds?: readonly string[] | undefined } = {}): Promise<PublicScope[]> {
+      let query = db.selectFrom('adminium_public_scopes').select('id');
+      if (filter.connectionIds !== undefined) {
+        if (filter.connectionIds.length === 0) return [];
+        query = query.where('connectionId', 'in', [...filter.connectionIds]);
+      }
+      return (await scopesByIds(await query.orderBy('createdAt', 'desc').execute())).map(scopeRow);
     },
 
     async listByConnection(connectionId: string): Promise<PublicScope[]> {

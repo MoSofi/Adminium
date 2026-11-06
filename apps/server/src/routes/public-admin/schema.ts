@@ -11,6 +11,8 @@
  */
 import { z } from 'zod';
 
+import { workspaceIdQuery } from '../../workspaces/list-filter.js';
+
 export const publicScopeDto = z.object({
   id: z.string(),
   connectionId: z.string(),
@@ -235,8 +237,11 @@ export const publicEndpointsQuery = z
       .transform((value) => [...new Set(value.split(',').map((id) => id.trim()).filter((id) => id.length > 0))])
       .refine((ids) => ids.length >= 1 && ids.length <= 50, 'one to fifty databases')
       .optional(),
+    /** A workspace's databases, in place of naming them. */
+    workspaceId: workspaceIdQuery,
   })
-  .refine((query) => (query.connectionId === undefined) !== (query.connectionIds === undefined), 'name one database, or a list of them');
+  // A workspace beside a database is refused by the workspace's own check, as on every list.
+  .refine((query) => query.workspaceId !== undefined || (query.connectionId === undefined) !== (query.connectionIds === undefined), 'name one database, or a list of them, or a workspace');
 
 export const publicEndpointParams = z.object({
   connectionId: z.string().min(1),
