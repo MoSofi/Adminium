@@ -1081,7 +1081,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const likeApp = manifest.kind === 'app' || installsLikeAnApp(manifest);
     const prefix = likeApp && manifest.requiredSchema?.prefixed === true ? prefixFor(manifest.key) : null;
     const records: Record<string, { table: string; owned: boolean; state: string }> = {};
-    for (const r of own) records[r.ref] = { table: realTableOf(r), owned: r.owned, state: r.state };
+    // A table an uninstalled install was about to create is no claim: one of that name here now is somebody else's.
+    for (const r of own) if (!(r.state === 'pending' && r.manifestId === null)) records[r.ref] = { table: realTableOf(r), owned: r.owned, state: r.state };
     /*
      * Installed here already: an update, or an install from before table
      * records. Not the row of an install still running — it is written
