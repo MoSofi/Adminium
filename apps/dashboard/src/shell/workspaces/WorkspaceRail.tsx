@@ -46,7 +46,7 @@ import {
   PlatformLinkList,
   SETTINGS_GROUP,
   useRailRows,
-} from '../SidebarNav.js';
+} from '../railParts.js';
 import { NAV_GROUP_KEYS } from '../../app/bootstrap.js';
 import { chooseGroup, useCurrentGroup } from './current.js';
 import { blockContent, databasesOf, groupsHolding, sharedContent, type BlockContent, type WorkspaceGroup } from './model.js';
