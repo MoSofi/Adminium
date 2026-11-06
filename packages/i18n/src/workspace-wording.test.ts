@@ -46,7 +46,7 @@ const WORD = /\bworkspaces?\b/i;
 
 /** en-US catalogue keys (`ns:dotted.key`) whose text is about the groups. */
 const GROUP_KEYS: ReadonlyMap<string, string> = new Map<string, string>([
-  // None yet. The sidebar, switcher and Workspaces dialog (gate D) add theirs here.
+  // None yet. The sidebar, the switcher and the Workspaces dialog add theirs here.
 ]);
 
 /** Repo-relative path prefixes whose every "workspace" is the group. */
