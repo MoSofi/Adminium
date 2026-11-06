@@ -26,6 +26,11 @@ import type { AppManifest } from '@adminium/manifest';
 
 import type { CheckItem } from '../check.js';
 import type { SaveChoices, SaveSource } from '../types.js';
+import { readContent } from './content.js';
+import { idProblems } from './ids.js';
+import { collectKnownSecrets, scanForSecrets } from './secrets.js';
+import { manifestProblems, planProblems, trialPackProblems } from './validate.js';
+import { secretWarnings } from './warnings.js';
 
 export interface GateInput {
   manifest: AppManifest;
@@ -55,8 +60,27 @@ export interface GateResult {
   problems: GateProblem[];
 }
 
+/**
+ * Runs every gate on the converter's result. The choices name places by
+ * `<kind>:<item>:<field>` (see `content.ts` for how a place is named), which
+ * is what an answer is recorded under in `SaveChoices`.
+ */
 export async function runSaveGates(input: GateInput, deps: GateDeps): Promise<GateResult> {
-  void input;
-  void deps;
-  return { choices: [], problems: [] };
+  const { manifest, files, source, choices } = input;
+  const content = readContent(manifest, files);
+
+  const problems: GateProblem[] = [...idProblems(content, source.connectionId)];
+
+  const secrets = await collectKnownSecrets(source.meta, deps.masterSecret, deps.projectEnvFile);
+  const found = scanForSecrets(content, secrets, choices);
+  const named = new Set(found.map((item) => item.answer?.target ?? ''));
+  const likely = secretWarnings(content, choices, named);
+
+  const validated = manifestProblems(manifest);
+  problems.push(...validated.problems);
+  if (validated.manifest !== null) {
+    problems.push(...planProblems(validated.manifest, files, source.dialect));
+    problems.push(...(await trialPackProblems(manifest, files)));
+  }
+  return { choices: [...found, ...likely], problems };
 }
