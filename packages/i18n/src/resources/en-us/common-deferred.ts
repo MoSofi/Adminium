@@ -1413,7 +1413,10 @@ export default {
       "close": "Done",
       "again": "Download again",
       "appLabel": "Download {name}",
-      "noVersions": "Nothing is built yet, so there is nothing to download."
+      "noVersions": "Nothing is built yet, so there is nothing to download.",
+      "leaks": "The file would carry something that must stay on this server, so it was not made. Take it out of these files, then download again.",
+      "hitSecret": "{file}, line {line}: a secret this server keeps",
+      "hitId": "{file}, line {line}: an id of this server"
     }
   },
   "appCopies": {
