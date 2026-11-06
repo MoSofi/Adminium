@@ -14,11 +14,13 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { gunzipSync } from 'node:zlib';
 
+import { WORD_FLOORS, type AppManifest } from '@adminium/manifest';
 import { appSavesRepo, filesRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { runCli } from '../src/cli/run.js';
 import type { CliRuntime } from '../src/cli/runtime.js';
+import { minimumVersion } from '../src/apps/save/convert.js';
 import { createSaveService, nextVersion, packManifest, type SaveRights } from '../src/apps/save/service.js';
 import { runIntrospection } from '../src/connections/introspect.js';
 import { runGeneration } from '../src/generate/run.js';
@@ -219,6 +221,16 @@ describe('save as app: the routes', () => {
 });
 
 describe('save as app: the version and the package', () => {
+  it('stamps the minimum Adminium at the file\'s word floors, and at the running version for a page\'s own config', () => {
+    const page = { ref: 'orders', template: 'page-crud', title: { key: 't', fallback: 'Orders' }, nav: { group: 'records', icon: 'list', order: 1 } };
+    const plain = { pages: [page] } as unknown as AppManifest;
+    const arranged = { pages: [{ ...page, envelope: { v: 1, kind: 'page', template: 'page-crud', config: {} } }], provenance: { lineage: 'l', savedAt: 'x', adminiumVersion: '0.3.48', label: 'x' } } as unknown as AppManifest;
+    expect(minimumVersion(plain, '0.4.0')).toBe('0.0.0');
+    // A build running below the floor of the words it writes still stamps the floor.
+    expect(minimumVersion(arranged, '0.3.48')).toBe(WORD_FLOORS['page.envelope']);
+    expect(minimumVersion(arranged, '0.4.0')).toBe('0.4.0');
+  });
+
   it('numbers versions from 1.0.0, then the patch after the highest', () => {
     expect(nextVersion([])).toBe('1.0.0');
     expect(nextVersion([{ version: '1.0.9' }, { version: '1.0.10' }, { version: '1.0.2' }])).toBe('1.0.11');
