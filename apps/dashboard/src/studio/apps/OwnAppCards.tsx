@@ -151,6 +151,8 @@ export function afterInstallText(row: AfterInstallRow): string {
       return t('studio:apps.afterInstall.item.bankAccount', "Add the bank account for '{name}'", { name });
     case 'system-grant':
       return t('studio:apps.afterInstall.item.systemGrant', 'Give the {name} role its console rights', { name });
+    case 'outbound':
+      return t('studio:apps.afterInstall.item.outbound', "Check what '{name}' sends out, then switch it on", { name });
     default:
       return t('studio:apps.afterInstall.item.other', "Fill in '{name}'", { name });
   }

@@ -502,7 +502,7 @@ export const appInstallPlanDto = z.object({
   afterInstall: z
     .array(
       z.object({
-        kind: z.enum(['webhook', 'address', 'document', 'delivery', 'recipients', 'payment-key', 'bank-account', 'sender', 'system-grant']),
+        kind: z.enum(['webhook', 'address', 'document', 'delivery', 'recipients', 'payment-key', 'bank-account', 'sender', 'system-grant', 'outbound']),
         item: z.string(),
         field: z.string(),
       }),
@@ -1444,6 +1444,13 @@ export const uninstallPlanReply = z.object({
    * any is installed, the uninstall is refused (`APP_REQUIRED_BY`). Absent when none.
    */
   requiredBy: z.array(z.object({ key: z.string(), name: z.string() })).optional(),
+  /**
+   * What the app's deployment-wide part wrote over the server, put back by
+   * the uninstall. `canRestore` false: the reader may not change the server's
+   * settings, and the uninstall is refused (`INSTANCE_RESTORE_NEEDS_SETTINGS`).
+   * Absent when it wrote nothing.
+   */
+  instance: z.object({ values: z.number(), canRestore: z.boolean() }).optional(),
 });
 
 /** Uninstall. Dropping the app's own tables needs the app's key typed back. */
@@ -1592,7 +1599,7 @@ export const afterInstallParams = z.object({ key: appKey, id: z.string().min(1).
 
 const afterInstallItem = z.object({
   id: z.string(),
-  /** `webhook` | `address` | `document` | `delivery` | `recipients` | `payment-key` | `bank-account` | `sender` | `system-grant`. */
+  /** `webhook` | `address` | `document` | `delivery` | `recipients` | `payment-key` | `bank-account` | `sender` | `system-grant` | `outbound`. */
   kind: z.string(),
   /** The entry of the file it belongs to: a rule's key, a mail's, a report's, `<table>/<kind>` of a document, a role's. */
   item: z.string(),

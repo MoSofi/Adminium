@@ -112,6 +112,7 @@ const AFTER = [
   ...['order-confirmed', 'invoice', 'receipt', 'shipped', 'welcome', 'reminder', 'thanks', 'cupping-invite'].map((item) => ({ kind: 'sender' as const, item, field: 'brand.fromEmail' })),
   ...['daily-roasts', 'weekly-sales', 'monthly-stock'].map((item) => ({ kind: 'recipients' as const, item, field: 'recipients' })),
   { kind: 'system-grant' as const, item: 'finance', field: 'system:audit:read' },
+  { kind: 'outbound' as const, item: 'thank-new-customers', field: 'mail' },
 ];
 
 const PART: InstancePart = {

@@ -1036,6 +1036,7 @@
         "body": "Elles arrivent désactivées et vides. Une personne qui gère les automatisations peut les activer.",
         "webhook": "envoie vers une adresse web · adresse laissée vide",
         "address": "envoie un e-mail à une adresse fixe · adresse laissée vide",
+        "outbound": "envoie à l’extérieur par ce qu’elle écrit ou ses liens · à vérifier d’abord",
         "off": "Désactivée"
       },
       "instance": {
@@ -1073,6 +1074,7 @@
         "recipients": "{count, plural, one {Qui reçoit le rapport planifié {item}} other {Qui reçoit les # rapports planifiés}}",
         "sender": "{count, plural, one {L’adresse d’expéditeur de l’e-mail {item}} other {L’adresse d’expéditeur de # modèles d’e-mail}}",
         "systemGrant": "Les droits de console du rôle {item}",
+        "outbound": "Ce que la règle {item} envoie à l’extérieur",
         "title": "Après l’installation",
         "note": "Ils restent sur la page de l’application jusqu’à ce qu’ils soient faits."
       },
@@ -3520,6 +3522,8 @@
     "pages": "{count, plural, one {# page} other {# pages}}",
     "keys": "{count, plural, one {Sa clé navigateur} other {Ses # clés navigateur}}",
     "settings": "Ses paramètres",
+    "instance": "L’apparence et les langues qu’elle a appliquées, remises comme avant",
+    "instanceLocked": "Elle a modifié l’apparence et les langues de tout le serveur. Les remettre demande l’autorisation de modifier les réglages du serveur : demandez à quelqu’un qui l’a de désinstaller cette app.",
     "hosts": "{count, plural, one {Son domaine} other {Ses # domaines}}",
     "tables": "{count, plural, one {# table et tous ses enregistrements} other {# tables et tous leurs enregistrements}}",
     "editedPages": "Les pages que vous avez modifiées restent comme pages ordinaires",
@@ -5534,6 +5538,7 @@
         "recipients": "{count, plural, one {Choisir qui reçoit le rapport planifié} other {Choisir qui reçoit les # rapports planifiés}}",
         "sender": "{count, plural, one {Définir l’adresse d’expéditeur de # modèle d’e-mail} other {Définir l’adresse d’expéditeur de # modèles d’e-mail}}",
         "systemGrant": "Donner au rôle {name} ses droits sur la console",
+        "outbound": "Vérifier ce que '{name}' envoie à l’extérieur, puis l’activer",
         "webhook": "Ajouter l’adresse web à '{name}'",
         "webhookHeader": "Remplir la valeur d’en-tête de '{name}'"
       },

@@ -428,7 +428,7 @@ export function appOverviewQuery(key: string, install: string | null = null) {
 /** Mirrors `afterInstallReply`'s item. */
 export interface AfterInstallEntry {
   id: string;
-  kind: 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant' | string;
+  kind: 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant' | 'outbound' | string;
   item: string;
   field: string;
   /** What it points at, by name; null when it is gone. */
@@ -925,7 +925,7 @@ export interface PageClash {
   renameTo?: string;
 }
 
-export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant';
+export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant' | 'outbound';
 
 /** One thing the owner fills in after the install. Mirrors `plan.afterInstall[]`. */
 export interface AfterInstallItem {
@@ -1165,6 +1165,8 @@ export interface UninstallPlan {
   canDropTables: boolean;
   /** The add-ons connected to the app: they stay installed, only their link to it goes. */
   addOns?: { key: string; name: string; version: string }[];
+  /** What its deployment-wide part wrote over the server, put back; `canRestore` false refuses the uninstall. Absent when none. */
+  instance?: { values: number; canRestore: boolean };
 }
 
 export function uninstallPlanQuery(key: string, install: string | null = null) {

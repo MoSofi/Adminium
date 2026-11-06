@@ -12,7 +12,7 @@
  *    reader may tick it;
  *  - whether the server can see it done already (`seen`): the rule's address
  *    filled in, the mail's sender set, the report's recipients chosen, the
- *    role given the permission. A seen item reads as done though nobody
+ *    role given the permission, a rule that sends out switched on by its owner. A seen item reads as done though nobody
  *    ticked it. Best effort: payment keys and bank accounts are never seen,
  *    only ticked.
  */
@@ -49,6 +49,8 @@ export const AFTER_INSTALL_RIGHTS: Readonly<Record<AfterInstallKind, string>> = 
   'bank-account': PERMISSIONS.paymentsManage,
   sender: PERMISSIONS.settingsManage,
   'system-grant': PERMISSIONS.rolesManage,
+  // A rule step that sends out: looked at, and switched on, on the rule.
+  outbound: PERMISSIONS.automationsManage,
 };
 
 export type AfterInstallLinkTo = 'automation' | 'email-templates' | 'reports' | 'roles' | 'payments' | 'documents' | 'settings';
@@ -111,6 +113,13 @@ function finder(meta: MetaDb, install: AfterInstallInstall): (item: StoredItem) 
         const open = afterInstallItemsOfRule(row.item, rule.graph);
         const seen = !open.some((one) => one.kind === row.kind && one.field === row.field);
         return { name: rule.name, seen, link: { to: 'automation', id: rule.id } };
+      }
+      case 'outbound': {
+        rules ??= automationsRepo(meta).listManagedBy(key, install.connectionId);
+        const rule = (await rules).find((one) => (one.installId === null || one.installId === install.id) && one.templateKey === row.item);
+        if (rule === undefined) return none;
+        // Seen once its owner looked and switched the rule on.
+        return { name: rule.name, seen: rule.enabled, link: { to: 'automation', id: rule.id } };
       }
       case 'sender': {
         templates ??= emailTemplatesRepo(meta).listManagedBy(key, install.id);
