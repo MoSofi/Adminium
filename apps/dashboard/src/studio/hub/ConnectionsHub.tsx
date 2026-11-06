@@ -9,8 +9,8 @@
  * (meta wave 0019), and the type-to-confirm delete (server re-enforces
  * `confirmName`).
  */
-import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { queryOptions, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { CircleCheckBig, Database, FileCode2, LayoutGrid, Pause, Play, Plus, RefreshCw, Table2 } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
 import {
@@ -26,12 +26,14 @@ import {
   ModalFooter,
   ModalHeader,
   MonoText,
+  Select,
   StatusPill,
   Tooltip,
 } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
 import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
@@ -39,7 +41,12 @@ import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, type ConnectionDto, type IntrospectResult } from '../api.js';
 import { forgetWizardConnection } from '../connect/wizardState.js';
 import { liveKeysFromError } from '../public-api/publicSurfaceApi.js';
+import { OTHER_GROUP, initialsOf } from '../../shell/workspaces/model.js';
+import { WorkspaceChip } from '../../shell/workspaces/WorkspaceTile.js';
 import { RegionalSettingsModal } from './RegionalSettingsModal.js';
+import { ConnectionWorkspacesModal } from './WorkspaceDialogs.js';
+import { WorkspacesCard } from './WorkspacesCard.js';
+import { workspacesQuery, type WorkspaceList } from './workspacesApi.js';
 import { RenameConnectionModal } from './RenameConnectionModal.js';
 
 export function connectionsQuery() {
@@ -367,6 +374,8 @@ function PausableAction({
 
 interface ConnectionCardProps {
   connection: ConnectionDto;
+  /** The server's workspaces, once one exists: the card shows its chips and offers "Workspaces…". */
+  workspaces?: { list: WorkspaceList; connections: readonly ConnectionDto[] } | undefined;
   onOpenRemap: (connectionId: string) => void;
   /** Absent when the viewer may not save apps — the button is then not drawn. */
   onSaveAsApp?: ((connectionId: string) => void) | undefined;
@@ -386,7 +395,7 @@ function MetaCell({ label, children, mono = true }: { label: string; children: R
   );
 }
 
-function ConnectionCard({ connection, onOpenRemap, onSaveAsApp, onDelete, pollIntervalMs }: ConnectionCardProps) {
+function ConnectionCard({ connection, workspaces, onOpenRemap, onSaveAsApp, onDelete, pollIntervalMs }: ConnectionCardProps) {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
 
@@ -496,6 +505,7 @@ function ConnectionCard({ connection, onOpenRemap, onSaveAsApp, onDelete, pollIn
 
   const [editingRegional, setEditingRegional] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [choosingWorkspaces, setChoosingWorkspaces] = useState(false);
   const [confirmingPause, setConfirmingPause] = useState(false);
 
   const setDisabled = useMutation({
@@ -658,6 +668,21 @@ function ConnectionCard({ connection, onOpenRemap, onSaveAsApp, onDelete, pollIn
             </>
           ) : null}
         </MetaCell>
+        {workspaces === undefined || workspaces.list.workspaces.length === 0 ? null : (
+          <div className="min-w-0" data-testid={`connection-workspaces-${connection.id}`}>
+            <div className="text-micro uppercase text-fg-subtle">{t('studio:hub.workspaces.title', 'Workspaces')}</div>
+            <div className="mt-[3px] flex flex-wrap gap-1.5">
+              {(() => {
+                const held = workspaces.list.workspaces.filter((workspace) => workspace.connectionIds.includes(connection.id));
+                return held.length === 0 ? (
+                  <WorkspaceChip group={{ kind: 'other', initials: '', name: '' }} />
+                ) : (
+                  held.map((workspace) => <WorkspaceChip key={workspace.id} group={{ kind: 'workspace', initials: initialsOf(workspace.name), name: workspace.name }} />)
+                );
+              })()}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
@@ -704,6 +729,11 @@ function ConnectionCard({ connection, onOpenRemap, onSaveAsApp, onDelete, pollIn
         <Button size="sm" variant="secondary" onClick={() => setRenaming(true)}>
           {t('studio:hub.action.rename', 'Rename')}
         </Button>
+        {workspaces === undefined ? null : (
+          <Button size="sm" variant="secondary" onClick={() => setChoosingWorkspaces(true)} data-testid={`connection-workspaces-open-${connection.id}`}>
+            {t('studio:hub.workspaces.connection.action', 'Workspaces…')}
+          </Button>
+        )}
         <Button size="sm" variant="secondary" onClick={() => setEditingRegional(true)}>
           {t('studio:hub.action.regional', 'Regional settings')}
         </Button>
@@ -773,6 +803,15 @@ function ConnectionCard({ connection, onOpenRemap, onSaveAsApp, onDelete, pollIn
         />
       ) : null}
 
+      {choosingWorkspaces && workspaces !== undefined ? (
+        <ConnectionWorkspacesModal
+          connection={connection}
+          workspaces={workspaces.list.workspaces}
+          connections={workspaces.connections}
+          onClose={() => setChoosingWorkspaces(false)}
+        />
+      ) : null}
+
       {editingRegional ? (
         <RegionalSettingsModal
           connection={connection}
@@ -830,6 +869,8 @@ export function ConnectionsHub({
 }: ConnectionsHubProps) {
   const { data: connections } = useSuspenseQuery(connectionsQuery());
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // The workspaces' words (the filter, the chips) are a deferred group of common.
+  useCommonWords();
   // Delete rides `system:connections:manage`. The list above needs it too, so
   // today whoever sees a card holds it — but a list opened up to more roles
   // later must not start offering a delete that 403s, so the button asks.
@@ -837,6 +878,19 @@ export function ConnectionsHub({
   // Saving an app rides `system:manifests:manage`: without it the button is not drawn.
   const maySave = holdsSystemAction(bootstrap, 'manifests.manage');
   const [deleting, setDeleting] = useState<ConnectionDto | null>(null);
+  // Workspaces are managed here, by whoever manages connections.
+  const workspaceList = useQuery({ ...workspacesQuery(), enabled: mayDelete }).data;
+  const [workspaceFilter, setWorkspaceFilter] = useState('');
+  const filterId = useId();
+  const hasWorkspaces = workspaceList !== undefined && workspaceList.workspaces.length > 0;
+  // Every connection is listed; the filter starts at All workspaces.
+  const filterIds =
+    !hasWorkspaces || workspaceFilter === ''
+      ? null
+      : workspaceFilter === OTHER_GROUP
+        ? new Set(workspaceList.otherDatabases ?? [])
+        : new Set(workspaceList.workspaces.find((workspace) => workspace.id === workspaceFilter)?.connectionIds ?? connections.map((c) => c.id));
+  const shownConnections = filterIds === null ? connections : connections.filter((connection) => filterIds.has(connection.id));
 
   const numbers = fmt();
   // A paused source is not healthy — it is serving nothing at all — so it
@@ -922,11 +976,33 @@ export function ConnectionsHub({
             />
           </div>
 
+          {workspaceList === undefined ? null : <WorkspacesCard list={workspaceList} connections={connections} />}
+
+          {hasWorkspaces ? (
+            <div className="flex items-center justify-end gap-2" data-part="workspace-filter">
+              <label htmlFor={filterId} className="text-[12.5px] font-bold text-fg">
+                {t('workspaces.filter.label', 'Workspace')}
+              </label>
+              <Select id={filterId} value={workspaceFilter} onChange={(event) => setWorkspaceFilter(event.target.value)} wrapperClassName="w-auto" className="h-8 text-[12.5px]">
+                <option value="">{t('workspaces.filter.all', 'All workspaces')}</option>
+                {[...workspaceList.workspaces]
+                  .sort((a, b) => a.position - b.position)
+                  .map((workspace) => (
+                    <option key={workspace.id} value={workspace.id}>
+                      {workspace.name}
+                    </option>
+                  ))}
+                {workspaceList.otherDatabases === null ? null : <option value={OTHER_GROUP}>{t('nav.otherDatabases', 'Other databases')}</option>}
+              </Select>
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 gap-4">
-            {connections.map((connection) => (
+            {shownConnections.map((connection) => (
               <ConnectionCard
                 key={connection.id}
                 connection={connection}
+                workspaces={workspaceList === undefined ? undefined : { list: workspaceList, connections }}
                 onOpenRemap={onOpenRemap}
                 onSaveAsApp={maySave ? onSaveAsApp : undefined}
                 onDelete={mayDelete ? setDeleting : undefined}

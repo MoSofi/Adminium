@@ -326,6 +326,8 @@ export const bootstrapWorkspaces = z.object({
   lastWorkspaceId: z.string().nullable(),
   /** Whether they manage workspaces (they manage connections). */
   manage: z.boolean(),
+  /** The engine of each database in the groups above (`postgres`, `mysql`, `sqlite`), by connection id. */
+  engines: z.record(z.string(), z.string()),
 });
 
 export const bootstrapReply = z.object({

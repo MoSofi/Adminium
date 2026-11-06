@@ -85,6 +85,7 @@ export function RuleCard({
   onToggle,
   now,
   owner,
+  workspaces,
 }: {
   rule: RuleView;
   selected: boolean;
@@ -94,6 +95,8 @@ export function RuleCard({
   now: number;
   /** The app or add-on the rule came with, shown as a chip; and whether the owner has changed it since. */
   owner?: { name: string; edited: boolean } | undefined;
+  /** The workspaces holding the rule's database, as chips (All in one menu only). */
+  workspaces?: ReactNode;
 }): ReactNode {
   const Icon = automationIcon(ruleIcon(rule));
   const Zap = automationIcon('zap');
@@ -130,6 +133,7 @@ export function RuleCard({
             <Zap aria-hidden className="size-[11px]" />
             <span className="truncate">{triggerLine}</span>
           </div>
+          {workspaces === undefined ? null : <div className="mt-1.5 empty:hidden">{workspaces}</div>}
           {owner === undefined ? null : (
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <span data-part="rule-owner" className="rounded-full bg-surface-3 px-2 py-0.5 text-[10.5px] font-bold text-fg-muted">
@@ -404,6 +408,7 @@ export function ShippedRuleGroups({
   now,
   onSelect,
   onToggle,
+  workspacesOf,
 }: {
   rules: readonly RuleView[];
   selectedId: string | null;
@@ -411,6 +416,8 @@ export function ShippedRuleGroups({
   now: number;
   onSelect: (rule: RuleView) => void;
   onToggle: (rule: RuleView) => void;
+  /** Each rule's workspace chips (All in one menu only). */
+  workspacesOf?: ((rule: RuleView) => ReactNode) | undefined;
 }): ReactNode {
   const groups = [
     { kind: 'add-on' as const, title: t('automations:shipped.addOns', 'From your add-ons') },
@@ -432,6 +439,7 @@ export function ShippedRuleGroups({
                 triggerLine={withZone(triggerLine(rule), rule.trigger)}
                 now={now}
                 owner={{ name: rule.managed?.name ?? '', edited: rule.managed?.edited === true }}
+                workspaces={workspacesOf?.(rule)}
                 onSelect={() => onSelect(rule)}
                 onToggle={() => onToggle(rule)}
               />

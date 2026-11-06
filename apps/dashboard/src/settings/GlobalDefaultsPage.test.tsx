@@ -142,8 +142,22 @@ describe('GlobalDefaultsPage', () => {
       accent: 'teal',
       density: 'compact',
       locale: 'en_US',
+      workspaceView: 'all',
     });
     expect(await screen.findByText('Server defaults updated')).toBeDefined();
+  });
+
+  it('sets the menu\'s view of workspaces for everyone on the server', async () => {
+    const user = userEvent.setup();
+    const { putCalls } = await renderDefaults();
+    await screen.findByRole('heading', { name: 'Global defaults' });
+    const row = screen.getByTestId('defaults-workspace-view');
+    expect(row.textContent).toContain('Workspaces in the menu');
+    expect(row.textContent).toContain('Applies to everyone on this server.');
+    await user.click(screen.getByRole('radio', { name: 'One at a time' }));
+    await user.click(screen.getByRole('button', { name: 'Save defaults' }));
+    await waitFor(() => expect(putCalls).toHaveLength(1));
+    expect(putCalls[0]?.body).toMatchObject({ workspaceView: 'one' });
   });
 
   it('renders the 403 system state for non-super-admins (client-side gate)', async () => {

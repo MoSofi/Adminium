@@ -143,7 +143,8 @@ export default {
     },
     "drawerTitle": "导航",
     "emptyPartsOff": "目前没有为你开启的内容。请联系管理员。",
-    "teams": "团队"
+    "teams": "团队",
+    "otherDatabases": "其他数据库"
   },
   "apps": {
     "frame": {
@@ -459,7 +460,10 @@ export default {
       "save": "保存默认值",
       "saved": "服务器默认值已更新",
       "saveFailed": "无法保存服务器默认值。请重试。",
-      "liveNote": "保存后更改会实时推送——遵循默认值的在线用户无需刷新即可看到。"
+      "liveNote": "保存后更改会实时推送——遵循默认值的在线用户无需刷新即可看到。",
+      "workspaceView": {
+        "label": "菜单中的工作区"
+      }
     },
     "notifications": {
       "subtitle": "选择通知内容与方式",
@@ -2088,5 +2092,34 @@ export default {
       "versionBelow": "不能低于应用当前的版本 {version}。",
       "versionShape": "版本是三个数字，例如 1.2.0。"
     }
+  },
+  "workspaces": {
+    "filter": {
+      "label": "工作区",
+      "all": "所有工作区"
+    },
+    "column": "工作区",
+    "alsoIn": "也在 {workspace} 中",
+    "section": {
+      "addOn": "扩展"
+    },
+    "serverNav": "服务器",
+    "card": {
+      "server": "服务器",
+      "notInOne": "不在工作区中",
+      "workspace": "工作区"
+    },
+    "menu": {
+      "title": "{server} 上的工作区",
+      "manage": "管理工作区"
+    },
+    "databases": "{count, plural, other {# 个数据库}}",
+    "view": {
+      "label": "显示工作区",
+      "one": "逐个显示",
+      "all": "全部在一个菜单中",
+      "caption": "适用于此服务器上的所有人。"
+    },
+    "switched": "已切换到 {name}"
   }
 } as const;

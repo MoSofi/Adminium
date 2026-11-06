@@ -6399,6 +6399,10 @@
     "srcHash": "f512a17e0a63",
     "status": "mt"
   },
+  "common.nav.otherDatabases": {
+    "status": "mt",
+    "srcHash": "5cb93deb997e"
+  },
   "common.nav.primary": {
     "srcHash": "a9a96ec01949",
     "status": "mt"
@@ -7806,6 +7810,10 @@
   "common.settings.defaults.weekStartNote": {
     "srcHash": "fbe791dda751",
     "status": "mt"
+  },
+  "common.settings.defaults.workspaceView.label": {
+    "status": "mt",
+    "srcHash": "fab1c02f05e3"
   },
   "common.settings.notifications.emptyBody": {
     "srcHash": "9f2eeeb902fa",
@@ -9614,6 +9622,74 @@
   "common.views.updatedToast": {
     "srcHash": "7b35547dc5b6",
     "status": "mt"
+  },
+  "common.workspaces.alsoIn": {
+    "status": "mt",
+    "srcHash": "8086f5179648"
+  },
+  "common.workspaces.card.notInOne": {
+    "status": "mt",
+    "srcHash": "6f849c3711ab"
+  },
+  "common.workspaces.card.server": {
+    "status": "mt",
+    "srcHash": "cb0cb170d106"
+  },
+  "common.workspaces.card.workspace": {
+    "status": "mt",
+    "srcHash": "4ca0a75c2b7f"
+  },
+  "common.workspaces.column": {
+    "status": "mt",
+    "srcHash": "205b4561ed36"
+  },
+  "common.workspaces.databases": {
+    "status": "mt",
+    "srcHash": "579ac08b9892"
+  },
+  "common.workspaces.filter.all": {
+    "status": "mt",
+    "srcHash": "22e3fb740a3a"
+  },
+  "common.workspaces.filter.label": {
+    "status": "mt",
+    "srcHash": "4ca0a75c2b7f"
+  },
+  "common.workspaces.menu.manage": {
+    "status": "mt",
+    "srcHash": "d075f7bf1932"
+  },
+  "common.workspaces.menu.title": {
+    "status": "mt",
+    "srcHash": "ba7db4df7bc4"
+  },
+  "common.workspaces.section.addOn": {
+    "status": "mt",
+    "srcHash": "2877bc7cc2bc"
+  },
+  "common.workspaces.serverNav": {
+    "status": "mt",
+    "srcHash": "cb0cb170d106"
+  },
+  "common.workspaces.switched": {
+    "status": "mt",
+    "srcHash": "d7f9491cf8bc"
+  },
+  "common.workspaces.view.all": {
+    "status": "mt",
+    "srcHash": "f1fc0443de2e"
+  },
+  "common.workspaces.view.caption": {
+    "status": "mt",
+    "srcHash": "6503bc7ef64a"
+  },
+  "common.workspaces.view.label": {
+    "status": "mt",
+    "srcHash": "99a968377c17"
+  },
+  "common.workspaces.view.one": {
+    "status": "mt",
+    "srcHash": "bf4cffd3cf3e"
   },
   "dataio.back": {
     "status": "mt",
@@ -30322,6 +30398,166 @@
   "studio.hub.title": {
     "srcHash": "7b7fd33a5f83",
     "status": "mt"
+  },
+  "studio.hub.workspaces.connection.action": {
+    "status": "mt",
+    "srcHash": "cc6c4b8e6b16"
+  },
+  "studio.hub.workspaces.connection.newInline": {
+    "status": "mt",
+    "srcHash": "69623c12f5a1"
+  },
+  "studio.hub.workspaces.connection.note": {
+    "status": "mt",
+    "srcHash": "b12597e4376b"
+  },
+  "studio.hub.workspaces.connection.saved": {
+    "status": "mt",
+    "srcHash": "fa85da66a0ea"
+  },
+  "studio.hub.workspaces.connection.title": {
+    "status": "mt",
+    "srcHash": "521c21bbc9cd"
+  },
+  "studio.hub.workspaces.created": {
+    "status": "mt",
+    "srcHash": "6fbb2dde4a9a"
+  },
+  "studio.hub.workspaces.delete.body": {
+    "status": "mt",
+    "srcHash": "f144ed916a2a"
+  },
+  "studio.hub.workspaces.delete.confirm": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "studio.hub.workspaces.delete.last": {
+    "status": "mt",
+    "srcHash": "96c0745e5c17"
+  },
+  "studio.hub.workspaces.delete.shownOnlyIn": {
+    "status": "mt",
+    "srcHash": "4c3b7434b6aa"
+  },
+  "studio.hub.workspaces.delete.title": {
+    "status": "mt",
+    "srcHash": "7fd57c94c8dc"
+  },
+  "studio.hub.workspaces.deleted": {
+    "status": "mt",
+    "srcHash": "9720506f2ff2"
+  },
+  "studio.hub.workspaces.empty.body": {
+    "status": "mt",
+    "srcHash": "d8416829a198"
+  },
+  "studio.hub.workspaces.empty.title": {
+    "status": "mt",
+    "srcHash": "415801fa0fc9"
+  },
+  "studio.hub.workspaces.error.deleteFailed": {
+    "status": "mt",
+    "srcHash": "5b09c848011c"
+  },
+  "studio.hub.workspaces.error.nameLong": {
+    "status": "mt",
+    "srcHash": "bca1c5b543e1"
+  },
+  "studio.hub.workspaces.error.nameRequired": {
+    "status": "mt",
+    "srcHash": "cf5e2b4be0f7"
+  },
+  "studio.hub.workspaces.error.nameTaken": {
+    "status": "mt",
+    "srcHash": "198ee99fc277"
+  },
+  "studio.hub.workspaces.error.noDatabase": {
+    "status": "mt",
+    "srcHash": "67f0ceff158e"
+  },
+  "studio.hub.workspaces.error.saveFailed": {
+    "status": "mt",
+    "srcHash": "6db5172edc83"
+  },
+  "studio.hub.workspaces.kind.emailTemplate": {
+    "status": "mt",
+    "srcHash": "19fce65389ab"
+  },
+  "studio.hub.workspaces.kind.invoice": {
+    "status": "mt",
+    "srcHash": "f73c10e3ef57"
+  },
+  "studio.hub.workspaces.kind.report": {
+    "status": "mt",
+    "srcHash": "dcbe772e5ff6"
+  },
+  "studio.hub.workspaces.move": {
+    "status": "mt",
+    "srcHash": "7496e0c84e56"
+  },
+  "studio.hub.workspaces.moved": {
+    "status": "mt",
+    "srcHash": "3e29cc4c70e7"
+  },
+  "studio.hub.workspaces.new.create": {
+    "status": "mt",
+    "srcHash": "8e0938b458e5"
+  },
+  "studio.hub.workspaces.new.databases": {
+    "status": "mt",
+    "srcHash": "0a76b89051e2"
+  },
+  "studio.hub.workspaces.new.first": {
+    "status": "mt",
+    "srcHash": "d709c541da8b"
+  },
+  "studio.hub.workspaces.new.name": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "studio.hub.workspaces.new.nameHint": {
+    "status": "mt",
+    "srcHash": "77b2497a1139"
+  },
+  "studio.hub.workspaces.new.tables": {
+    "status": "mt",
+    "srcHash": "36c7d6f12b11"
+  },
+  "studio.hub.workspaces.new.title": {
+    "status": "mt",
+    "srcHash": "b21b860f611d"
+  },
+  "studio.hub.workspaces.otherLock": {
+    "status": "mt",
+    "srcHash": "6a96d3a786e3"
+  },
+  "studio.hub.workspaces.rename.save": {
+    "status": "mt",
+    "srcHash": "d3f4cb898fbe"
+  },
+  "studio.hub.workspaces.rename.title": {
+    "status": "mt",
+    "srcHash": "6d7e95188596"
+  },
+  "studio.hub.workspaces.reorderFailed": {
+    "status": "mt",
+    "srcHash": "e421f2540a26"
+  },
+  "studio.hub.workspaces.subtitle": {
+    "status": "mt",
+    "srcHash": "7e0a6ee3e06d"
+  },
+  "studio.hub.workspaces.tickNone": {
+    "status": "mt",
+    "srcHash": "5801e232aaa5"
+  },
+  "studio.hub.workspaces.title": {
+    "status": "mt",
+    "srcHash": "205b4561ed36"
+  },
+  "studio.hub.workspaces.youAreIn": {
+    "status": "mt",
+    "srcHash": "c8bb88ad79bd"
   },
   "studio.installMaps.note": {
     "status": "mt",

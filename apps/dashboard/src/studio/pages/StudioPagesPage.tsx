@@ -27,8 +27,8 @@
  * appears. A pointer layer can drive the same `onReorder` callback later.
  */
 
-import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import {
   Alert,
   Badge,
@@ -56,7 +56,9 @@ import { ChevronDown, ChevronUp, Database, MoreHorizontal, Plus } from 'lucide-r
 import { Link, useNavigate } from '@tanstack/react-router';
 
 import { ApiError } from '../../app/api.js';
+import { bootstrapQuery } from '../../app/bootstrap.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
+import { CurrentWorkspaceChip, WorkspaceChips, WorkspaceFilter, showsWorkspaceColumn, useListWorkspace } from '../../shell/workspaces/listWorkspace.js';
 import { t } from '../../i18n/t.js';
 import { DuplicatePageModal } from './DuplicatePageModal.js';
 import { ProjectFilesPanel, ProjectFlagBadge } from './ProjectFilesPanel.js';
@@ -176,9 +178,11 @@ interface PageRowProps {
   busy: boolean;
   /** How this page differs from the project folder, on a server that runs one. */
   projectFlag?: PageProjectFlag | undefined;
+  /** The workspaces holding the page's database, as chips (All in one menu only). */
+  workspaces?: ReactNode;
 }
 
-function PageRow({ page, onEdit, onDuplicate, onDelete, onToggle, busy, projectFlag }: PageRowProps) {
+function PageRow({ page, onEdit, onDuplicate, onDelete, onToggle, busy, projectFlag, workspaces }: PageRowProps) {
   const badge = originBadge(page.origin);
   const Icon = lucideByName(page.icon ?? 'file');
   // A page written in the project folder is changed there; the server refuses
@@ -214,6 +218,7 @@ function PageRow({ page, onEdit, onDuplicate, onDelete, onToggle, busy, projectF
         </Link>
       )}
       <ConnectionChip page={page} />
+      {workspaces}
       <Badge tone={badge.tone}>{badge.label}</Badge>
       {projectFlag === undefined ? null : <ProjectFlagBadge flag={projectFlag} />}
       <span className="text-body-sm hidden text-fg-subtle sm:inline">{page.type}</span>
@@ -482,7 +487,13 @@ function SidebarOrganizer({ pages }: { pages: readonly PageSummaryDto[] }) {
 export function StudioPagesPage() {
   const client = useQueryClient();
   const navigate = useNavigate();
+  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // The inventory follows the workspace; the sidebar organizer and the project panel keep every page,
+  // since the organizer saves the whole rail's order at once.
+  const workspace = useListWorkspace(bootstrap);
+  const withWorkspaces = showsWorkspaceColumn(workspace);
   const pages = useQuery(studioPagesQuery());
+  const listed = useQuery(studioPagesQuery(workspace.workspaceId));
   const project = useQuery(projectStatusQuery());
   const projectFlags = useMemo(() => projectFlagsByPage(project.data), [project.data]);
   const [duplicating, setDuplicating] = useState<PageSummaryDto | null>(null);
@@ -503,6 +514,7 @@ export function StudioPagesPage() {
   });
 
   const rows = pages.data ?? [];
+  const inventory = listed.data ?? [];
 
   return (
     <PageSurface width="page" className="flex flex-col gap-5">
@@ -518,6 +530,7 @@ export function StudioPagesPage() {
           'studio:pages.subtitle',
           'Add, edit and organise the pages of your app, and the order they appear in the sidebar.',
         )}
+        titleAdornment={<CurrentWorkspaceChip list={workspace} />}
       >
         <Button iconLeft={<Plus className="size-4" />} asChild data-testid="studio-pages-create">
           <Link to="/studio/pages/new">{t('studio:pages.createButton', 'New page')}</Link>
@@ -594,12 +607,17 @@ export function StudioPagesPage() {
                   {t(
                     'studio:pages.list.count',
                     '{count, plural, one {# page} other {# pages}}',
-                    { count: rows.length },
+                    { count: inventory.length },
                   )}
                 </span>
+                <WorkspaceFilter list={workspace} />
               </CardHeader>
               <CardBody className="p-0">
-                {rows.length === 0 ? (
+                {listed.isPending ? (
+                  <div className="flex justify-center p-10">
+                    <Spinner size="md" />
+                  </div>
+                ) : inventory.length === 0 ? (
                   <EmptyState
                     compact
                     preset="no-data"
@@ -612,10 +630,11 @@ export function StudioPagesPage() {
                   />
                 ) : (
                   <ul>
-                    {rows.map((page) => (
+                    {inventory.map((page) => (
                       <PageRow
                         key={page.id}
                         page={page}
+                        {...(withWorkspaces ? { workspaces: <WorkspaceChips list={workspace} connectionId={page.connectionId} /> } : {})}
                         onEdit={(target) =>
                           void navigate({
                             to: '/studio/pages/$pageId',

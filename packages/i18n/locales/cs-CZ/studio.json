@@ -1229,7 +1229,63 @@
       "failed": "Test připojení selhal",
       "ok": "Připojení v pořádku · {latency, number} ms"
     },
-    "title": "Datová připojení"
+    "title": "Datová připojení",
+    "workspaces": {
+      "title": "Pracovní prostory",
+      "subtitle": "Databáze jedné firmy sdílejí jednu nabídku. Databáze může být ve více prostorech.",
+      "new": {
+        "title": "Nový pracovní prostor",
+        "name": "Název",
+        "nameHint": "Jeho dlaždice ukazuje první písmena názvu.",
+        "databases": "Databáze, které do něj patří",
+        "tables": "{engine} · {count, plural, one {# tabulka} few {# tabulky} many {# tabulky} other {# tabulek}}",
+        "first": "Od teď se nabídka všech řadí podle pracovních prostorů. Databáze mimo ně se zobrazí v části Ostatní databáze.",
+        "create": "Vytvořit pracovní prostor"
+      },
+      "error": {
+        "nameRequired": "Zadejte název pracovního prostoru.",
+        "nameLong": "Název může mít nejvýše 80 znaků.",
+        "nameTaken": "Pracovní prostor s tímto názvem už existuje.",
+        "noDatabase": "Zaškrtněte alespoň jednu databázi.",
+        "saveFailed": "Pracovní prostor se nepodařilo uložit. Zkuste to znovu.",
+        "deleteFailed": "Pracovní prostor se nepodařilo smazat. Zkuste to znovu."
+      },
+      "created": "Pracovní prostor „{name}“ vytvořen",
+      "deleted": "Pracovní prostor „{name}“ smazán",
+      "rename": {
+        "title": "Přejmenovat pracovní prostor",
+        "save": "Přejmenovat"
+      },
+      "kind": {
+        "emailTemplate": "E-mailová šablona",
+        "report": "Rozvržení sestavy",
+        "invoice": "Rozvržení faktury"
+      },
+      "delete": {
+        "title": "Smazat {name}?",
+        "body": "Jeho databáze zůstanou. Jen z tohoto prostoru odejdou.",
+        "shownOnlyIn": "Tyto položky se zobrazují jen v tomto prostoru. Po smazání se nezobrazí nikde:",
+        "last": "Je to poslední pracovní prostor: nabídka všech se vrátí k jednomu seznamu.",
+        "confirm": "Smazat"
+      },
+      "connection": {
+        "title": "Pracovní prostory pro {name}",
+        "newInline": "Nový pracovní prostor…",
+        "note": "Jeho stránky a aplikace se zobrazí v každém zaškrtnutém prostoru. Nikomu se nemění přístup.",
+        "saved": "Pracovní prostory uloženy",
+        "action": "Pracovní prostory…"
+      },
+      "reorderFailed": "Pořadí se nepodařilo uložit. Zkuste to znovu.",
+      "moved": "{name} přesunut na {position}. místo z {total}.",
+      "move": "Přesunout {name}. Přetáhněte, nebo použijte šipky.",
+      "otherLock": "Vždy poslední. Nelze přejmenovat ani smazat.",
+      "empty": {
+        "title": "Zatím žádné pracovní prostory",
+        "body": "Dokud žádný není, nabídka všech ukazuje stránky všech databází pohromadě."
+      },
+      "youAreIn": "Pracovní prostor, ve kterém jste",
+      "tickNone": "Nezaškrtnete-li nic, bude v Ostatních databázích."
+    }
   },
   "intent": {
     "analytics": {

@@ -91,8 +91,9 @@ export function dayBound(day: string, edge: 'start' | 'end'): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-export function buildAuditPath(filters: AuditFilters, cursor: string | null): string {
+export function buildAuditPath(filters: AuditFilters, cursor: string | null, workspaceId?: string): string {
   const params = new URLSearchParams();
+  if (workspaceId !== undefined) params.set('workspaceId', workspaceId);
   if (filters.category !== '') params.set('category', filters.category);
   if (filters.actorId !== '') params.set('actorId', filters.actorId);
   const from = dayBound(filters.from, 'start');
@@ -196,11 +197,12 @@ export function entityRows(entity: Record<string, unknown> | null): { field: str
 
 export const AUDIT_QUERY_KEY = ['audit'] as const;
 
-export function auditQuery(filters: AuditFilters) {
+/** `workspaceId` narrows the log to entries on one workspace's databases. */
+export function auditQuery(filters: AuditFilters, workspaceId?: string) {
   return infiniteQueryOptions({
-    queryKey: [...AUDIT_QUERY_KEY, filters] as const,
+    queryKey: [...AUDIT_QUERY_KEY, filters, workspaceId ?? null] as const,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => api.get<AuditListReply>(buildAuditPath(filters, pageParam)),
+    queryFn: ({ pageParam }) => api.get<AuditListReply>(buildAuditPath(filters, pageParam, workspaceId)),
     getNextPageParam: (last: AuditListReply) => last.nextCursor,
   });
 }

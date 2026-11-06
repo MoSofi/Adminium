@@ -28,6 +28,8 @@
 @source "../../../../apps/dashboard/src/assistant/**/*.{ts,tsx}";
 @source "../../../../apps/dashboard/src/automations/**/*.{ts,tsx}";
 @source "../../../../apps/dashboard/src/account/**/*.{ts,tsx}";
+@source "../../../../apps/dashboard/src/shell/**/*.{ts,tsx}";
+@source "../../../../apps/dashboard/src/studio/hub/**/*.{ts,tsx}";
 @source "../../../../apps/dashboard/src/studio/workspace-sender/**/*.{ts,tsx}";
 @source "../../../../apps/dashboard/src/email/editor/inspector/panels/**/*.{ts,tsx}";
 @source "../../../../apps/dashboard/src/studio/apps/**/*.{ts,tsx}";

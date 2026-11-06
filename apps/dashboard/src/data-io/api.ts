@@ -289,7 +289,9 @@ export const dataIoApi = {
   createExport: (input: { connectionId: string; source: ExportSource; format: ExportFormat }) =>
     api.post<{ data: ExportDto }>('/api/v1/exports', input),
 
-  listExports: async () => (await api.get<{ data: ExportDto[] }>('/api/v1/exports')).data,
+  /** `workspaceId` narrows the list to one workspace's databases. */
+  listExports: async (workspaceId?: string) =>
+    (await api.get<{ data: ExportDto[] }>(`/api/v1/exports${workspaceId === undefined ? '' : `?workspaceId=${encodeURIComponent(workspaceId)}`}`)).data,
 
   getExport: async (id: string) =>
     (await api.get<{ data: ExportDto }>(`/api/v1/exports/${encodeURIComponent(id)}`)).data,
@@ -323,10 +325,12 @@ export const dataIoApi = {
 
 // --- query bindings ----------------------------------------------------------------
 
-export function exportsListQuery() {
+export function exportsListQuery(workspaceId?: string) {
   return queryOptions({
-    queryKey: ['data-io', 'exports'] as const,
-    queryFn: () => dataIoApi.listExports(),
+    // The whole list keeps the key the builder's optimistic row writes to; a
+    // narrowed one keys apart. Invalidating `['data-io', 'exports']` reaches both.
+    queryKey: workspaceId === undefined ? (['data-io', 'exports'] as const) : (['data-io', 'exports', workspaceId] as const),
+    queryFn: () => dataIoApi.listExports(workspaceId),
     // Poll while anything is processing; realtime jobs:<id> events refine this.
     refetchInterval: (query) =>
       (query.state.data ?? []).some((row) => row.status === 'processing') ? 2_000 : false,

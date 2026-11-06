@@ -377,7 +377,9 @@ export async function unmetFeaturePages(
  * on for it, or, made for certain apps only, switched on for one of them
  * while it is installed. By key, with their manifests.
  */
-export async function dashboardAddOnManifests(meta: MetaDb): Promise<{ manifestKey: string; version: string; manifest: unknown }[]> {
+export async function dashboardAddOnManifests(
+  meta: MetaDb,
+): Promise<{ id: string; manifestKey: string; version: string; manifest: unknown; connectionId: string | null }[]> {
   const attachments = await meta.db
     .selectFrom('adminium_manifest_attachments as a')
     .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
@@ -398,8 +400,8 @@ export async function dashboardAddOnManifests(meta: MetaDb): Promise<{ manifestK
     .sort(([, a], [, b]) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
     .map(([id]) => id);
   if (order.length === 0) return [];
-  const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'version', 'manifest']).where('id', 'in', order).execute();
-  return inIdOrder(order, rows).map((row) => ({ manifestKey: row.manifestKey, version: row.version, manifest: row.manifest }));
+  const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'version', 'manifest', 'connectionId']).where('id', 'in', order).execute();
+  return inIdOrder(order, rows).map((row) => ({ id: row.id, manifestKey: row.manifestKey, version: row.version, manifest: row.manifest, connectionId: row.connectionId ?? null }));
 }
 
 /**
@@ -881,7 +883,8 @@ function addOnSectionGroups(manifest: { navGroups?: readonly { key: string }[] |
  * built-in group stay in the shared rail, where they always were.
  */
 export function buildAddOnSections(input: {
-  addOns: readonly { key: string; version: string; document: unknown }[];
+  /** Each install: its id and the database it is for, when the caller knows them (the menu files the section under that database). */
+  addOns: readonly { key: string; version: string; document: unknown; installId?: string | undefined; connectionId?: string | null | undefined }[];
   appItems: ReadonlyMap<string, readonly { group: string | null; item: BootstrapNavItem }[]>;
   /** The pages of code this reader is told about, as `buildAddOnNav` listed them. */
   codePages: readonly BootstrapAddOnPage[];
@@ -925,7 +928,16 @@ export function buildAddOnSections(input: {
       if (items.length > 0) groups.push({ key: group.key, label: pickLabel(group.label, input.locale) ?? group.key, items });
     }
     if (groups.length === 0) continue;
-    out.push({ kind: 'add-on', appKey: addOn.key, label: manifest.name, version: addOn.version, groups, staff: null });
+    out.push({
+      kind: 'add-on',
+      appKey: addOn.key,
+      ...(addOn.installId === undefined ? {} : { installId: addOn.installId }),
+      ...(addOn.connectionId === undefined ? {} : { connectionId: addOn.connectionId }),
+      label: manifest.name,
+      version: addOn.version,
+      groups,
+      staff: null,
+    });
   }
   return out;
 }
@@ -973,7 +985,7 @@ export async function bootstrapHandler(
     // `canImport`, with the pause.
     ctx.meta.db
       .selectFrom('adminium_connections')
-      .select(['id', 'name', 'disabledAt', 'currency', 'readOnly'])
+      .select(['id', 'name', 'disabledAt', 'currency', 'readOnly', 'engine'])
       .execute(),
     // `llm.enabled` = a provider is configured — the same
     // `llm.provider` row `resolveProviderClient` gates direct runs
@@ -1065,7 +1077,7 @@ export async function bootstrapHandler(
    * (its floor says so) that is switched on for the dashboard. Which pages of
    * its code this reader may open is asked once, here.
    */
-  const addOnDocuments = addOns.map((row) => ({ key: row.manifestKey, version: row.version, document: readJson(row.manifest) }));
+  const addOnDocuments = addOns.map((row) => ({ key: row.manifestKey, version: row.version, document: readJson(row.manifest), installId: row.id, connectionId: row.connectionId }));
   const sectionAddOns = addOnDocuments.filter((row) => {
     const parsed = addOnManifestSchema.safeParse(row.document);
     return parsed.success && pagesAreGated(parsed.data);
@@ -1162,6 +1174,12 @@ export async function bootstrapHandler(
           workspaceView: await settingsRepo(ctx.meta).get('ui.workspaceView'),
           lastWorkspaceId: lastChosen !== null && visibleIds.has(lastChosen) ? lastChosen : null,
           manage: seen.manages,
+          // The engine of each database the groups above hold, for the menu's "3 databases · Postgres".
+          engines: Object.fromEntries(
+            connectionRows
+              .filter((row) => seen.all.some((workspace) => workspace.visible && workspace.connectionIds.includes(row.id)) || (seen.otherVisible && (seen.otherDatabases ?? []).includes(row.id)))
+              .map((row) => [row.id, row.engine] as const),
+          ),
         };
   const appSections = [
     ...buildAppSections({

@@ -133,7 +133,8 @@
     },
     "drawerTitle": "導覽",
     "emptyPartsOff": "目前沒有為你開啟的內容。請聯絡管理員。",
-    "teams": "團隊"
+    "teams": "團隊",
+    "otherDatabases": "其他資料庫"
   },
   "apps": {
     "frame": {
@@ -449,7 +450,10 @@
       "save": "儲存預設值",
       "saved": "已更新伺服器預設值",
       "saveFailed": "無法儲存伺服器預設值。請再試一次。",
-      "liveNote": "儲存後變更會即時廣播——遵循預設值的線上使用者不必重新載入就會看到。"
+      "liveNote": "儲存後變更會即時廣播——遵循預設值的線上使用者不必重新載入就會看到。",
+      "workspaceView": {
+        "label": "選單中的工作區"
+      }
     },
     "notifications": {
       "subtitle": "選擇通知內容與方式",
@@ -2078,5 +2082,34 @@
       "versionBelow": "不能低於應用程式目前的版本 {version}。",
       "versionShape": "版本是三個數字，例如 1.2.0。"
     }
+  },
+  "workspaces": {
+    "filter": {
+      "label": "工作區",
+      "all": "所有工作區"
+    },
+    "column": "工作區",
+    "alsoIn": "也在 {workspace} 中",
+    "section": {
+      "addOn": "擴充功能"
+    },
+    "serverNav": "伺服器",
+    "card": {
+      "server": "伺服器",
+      "notInOne": "不在工作區中",
+      "workspace": "工作區"
+    },
+    "menu": {
+      "title": "{server} 上的工作區",
+      "manage": "管理工作區"
+    },
+    "databases": "{count, plural, other {# 個資料庫}}",
+    "view": {
+      "label": "顯示工作區",
+      "one": "逐一顯示",
+      "all": "全部在同一個選單中",
+      "caption": "適用於此伺服器上的所有人。"
+    },
+    "switched": "已切換到 {name}"
   }
 }

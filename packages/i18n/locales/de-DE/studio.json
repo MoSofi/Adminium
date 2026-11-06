@@ -1229,7 +1229,63 @@
       "failed": "Verbindungstest fehlgeschlagen",
       "ok": "Verbindung fehlerfrei · {latency, number} ms"
     },
-    "title": "Datenverbindungen"
+    "title": "Datenverbindungen",
+    "workspaces": {
+      "title": "Arbeitsbereiche",
+      "subtitle": "Datenbanken eines Unternehmens teilen sich ein Menü. Eine Datenbank kann in mehreren sein.",
+      "new": {
+        "title": "Neuer Arbeitsbereich",
+        "name": "Name",
+        "nameHint": "Seine Kachel zeigt die Anfangsbuchstaben des Namens.",
+        "databases": "Datenbanken darin",
+        "tables": "{engine} · {count, plural, one {# Tabelle} other {# Tabellen}}",
+        "first": "Ab jetzt ist das Menü aller nach Arbeitsbereichen gegliedert. Datenbanken ohne Bereich stehen unter Weitere Datenbanken.",
+        "create": "Arbeitsbereich anlegen"
+      },
+      "error": {
+        "nameRequired": "Gib dem Arbeitsbereich einen Namen.",
+        "nameLong": "Der Name darf höchstens 80 Zeichen haben.",
+        "nameTaken": "Ein Arbeitsbereich hat diesen Namen schon.",
+        "noDatabase": "Wähle mindestens eine Datenbank.",
+        "saveFailed": "Der Arbeitsbereich konnte nicht gespeichert werden. Versuche es noch einmal.",
+        "deleteFailed": "Der Arbeitsbereich konnte nicht gelöscht werden. Versuche es noch einmal."
+      },
+      "created": "Arbeitsbereich „{name}“ angelegt",
+      "deleted": "Arbeitsbereich „{name}“ gelöscht",
+      "rename": {
+        "title": "Arbeitsbereich umbenennen",
+        "save": "Umbenennen"
+      },
+      "kind": {
+        "emailTemplate": "E-Mail-Vorlage",
+        "report": "Berichtslayout",
+        "invoice": "Rechnungslayout"
+      },
+      "delete": {
+        "title": "{name} löschen?",
+        "body": "Seine Datenbanken bleiben. Sie verlassen nur diesen Arbeitsbereich.",
+        "shownOnlyIn": "Diese werden nur in diesem Arbeitsbereich angezeigt. Nach dem Löschen nirgends mehr:",
+        "last": "Es ist der letzte Arbeitsbereich: Das Menü aller wird wieder eine Liste.",
+        "confirm": "Löschen"
+      },
+      "connection": {
+        "title": "Arbeitsbereiche für {name}",
+        "newInline": "Neuer Arbeitsbereich…",
+        "note": "Seine Seiten und Apps erscheinen in jedem angehakten Arbeitsbereich. An den Zugriffsrechten ändert sich nichts.",
+        "saved": "Arbeitsbereiche gespeichert",
+        "action": "Arbeitsbereiche…"
+      },
+      "reorderFailed": "Die Reihenfolge konnte nicht gespeichert werden. Versuche es noch einmal.",
+      "moved": "{name} an Position {position} von {total} verschoben.",
+      "move": "{name} verschieben. Ziehen oder Pfeiltasten nutzen.",
+      "otherLock": "Immer zuletzt. Lässt sich weder umbenennen noch löschen.",
+      "empty": {
+        "title": "Noch keine Arbeitsbereiche",
+        "body": "Bis es einen gibt, zeigt das Menü aller die Seiten aller Datenbanken zusammen."
+      },
+      "youAreIn": "Der Arbeitsbereich, in dem du bist",
+      "tickNone": "Hake keinen an, um sie unter Weitere Datenbanken zu führen."
+    }
   },
   "intent": {
     "analytics": {

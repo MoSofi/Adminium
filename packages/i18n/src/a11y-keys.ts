@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3722 entries. */
+/** `namespace:key` — 3747 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -823,6 +823,14 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:views.saveTitle',
   'common:views.savedToast',
   'common:views.updatedToast',
+  'common:workspaces.alsoIn',
+  'common:workspaces.column',
+  'common:workspaces.filter.all',
+  'common:workspaces.menu.title',
+  'common:workspaces.serverNav',
+  'common:workspaces.switched',
+  'common:workspaces.view.all',
+  'common:workspaces.view.one',
   'dataio:builder.calc.pctLabel',
   'dataio:builder.columns.headerLabel',
   'dataio:builder.preview.viewLabel',
@@ -2285,6 +2293,23 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hub.test.failed',
   'studio:hub.test.ok',
   'studio:hub.title',
+  'studio:hub.workspaces.connection.saved',
+  'studio:hub.workspaces.connection.title',
+  'studio:hub.workspaces.created',
+  'studio:hub.workspaces.delete.title',
+  'studio:hub.workspaces.deleted',
+  'studio:hub.workspaces.empty.title',
+  'studio:hub.workspaces.error.deleteFailed',
+  'studio:hub.workspaces.error.saveFailed',
+  'studio:hub.workspaces.kind.emailTemplate',
+  'studio:hub.workspaces.kind.invoice',
+  'studio:hub.workspaces.kind.report',
+  'studio:hub.workspaces.move',
+  'studio:hub.workspaces.new.first',
+  'studio:hub.workspaces.new.name',
+  'studio:hub.workspaces.new.title',
+  'studio:hub.workspaces.rename.title',
+  'studio:hub.workspaces.reorderFailed',
   'studio:intent.analytics.title',
   'studio:intent.blank.title',
   'studio:intent.crud.title',

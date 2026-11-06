@@ -1239,7 +1239,63 @@ export default {
       "failed": "Échec du test de connexion",
       "ok": "Connexion en bonne santé · {latency, number} ms"
     },
-    "title": "Connexions de données"
+    "title": "Connexions de données",
+    "workspaces": {
+      "title": "Espaces de travail",
+      "subtitle": "Les bases de données d’une même entreprise partagent un menu. Une base peut figurer dans plusieurs.",
+      "new": {
+        "title": "Nouvel espace de travail",
+        "name": "Nom",
+        "nameHint": "Sa vignette affiche les premières lettres de son nom.",
+        "databases": "Bases de données à y mettre",
+        "tables": "{engine} · {count, plural, one {# table} other {# tables}}",
+        "first": "Désormais, le menu de chacun est regroupé par espace de travail. Les bases sans espace apparaissent sous Autres bases de données.",
+        "create": "Créer l’espace de travail"
+      },
+      "error": {
+        "nameRequired": "Donnez un nom à l’espace de travail.",
+        "nameLong": "Le nom ne doit pas dépasser 80 caractères.",
+        "nameTaken": "Un espace de travail porte déjà ce nom.",
+        "noDatabase": "Cochez au moins une base de données.",
+        "saveFailed": "Impossible d’enregistrer l’espace de travail. Réessayez.",
+        "deleteFailed": "Impossible de supprimer l’espace de travail. Réessayez."
+      },
+      "created": "Espace de travail « {name} » créé",
+      "deleted": "Espace de travail « {name} » supprimé",
+      "rename": {
+        "title": "Renommer l’espace de travail",
+        "save": "Renommer"
+      },
+      "kind": {
+        "emailTemplate": "Modèle d’e-mail",
+        "report": "Mise en page de rapport",
+        "invoice": "Mise en page de facture"
+      },
+      "delete": {
+        "title": "Supprimer {name} ?",
+        "body": "Ses bases de données restent. Elles quittent seulement cet espace de travail.",
+        "shownOnlyIn": "Ces éléments ne s’affichent que dans cet espace. Après la suppression, ils ne s’afficheront nulle part :",
+        "last": "C’est le dernier espace de travail : le menu de chacun redevient une seule liste.",
+        "confirm": "Supprimer"
+      },
+      "connection": {
+        "title": "Espaces de travail de {name}",
+        "newInline": "Nouvel espace de travail…",
+        "note": "Ses pages et applications apparaissent dans chaque espace coché. Les accès de chacun ne changent pas.",
+        "saved": "Espaces de travail enregistrés",
+        "action": "Espaces de travail…"
+      },
+      "reorderFailed": "Impossible d’enregistrer l’ordre. Réessayez.",
+      "moved": "{name} déplacé en position {position} sur {total}.",
+      "move": "Déplacer {name}. Faites glisser ou utilisez les flèches.",
+      "otherLock": "Toujours en dernier. Ne peut être ni renommé ni supprimé.",
+      "empty": {
+        "title": "Aucun espace de travail pour l’instant",
+        "body": "Tant qu’il n’y en a pas, le menu de chacun réunit les pages de toutes les bases."
+      },
+      "youAreIn": "L’espace de travail où vous êtes",
+      "tickNone": "Ne cochez rien pour la mettre dans Autres bases de données."
+    }
   },
   "intent": {
     "analytics": {

@@ -112,11 +112,17 @@ export interface UpdatePageInput {
 
 export const PAGES_QUERY_KEY = ['studio', 'pages'] as const;
 
-export function studioPagesQuery() {
+/**
+ * Every page, or with `workspaceId` the pages on one workspace's databases.
+ * The narrowed list keys under the whole one, so one invalidation reaches both.
+ */
+export function studioPagesQuery(workspaceId?: string) {
   return queryOptions({
-    queryKey: PAGES_QUERY_KEY,
+    queryKey: workspaceId === undefined ? PAGES_QUERY_KEY : ([...PAGES_QUERY_KEY, workspaceId] as const),
     queryFn: async (): Promise<PageSummaryDto[]> => {
-      const reply = await api.get<{ data: PageSummaryDto[] }>('/api/v1/pages');
+      const reply = await api.get<{ data: PageSummaryDto[] }>(
+        workspaceId === undefined ? '/api/v1/pages' : `/api/v1/pages?workspaceId=${encodeURIComponent(workspaceId)}`,
+      );
       return reply.data;
     },
   });

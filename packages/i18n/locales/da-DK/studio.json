@@ -1229,7 +1229,63 @@
       "failed": "Forbindelsestest mislykkedes",
       "ok": "Forbindelsen er sund · {latency, number} ms"
     },
-    "title": "Dataforbindelser"
+    "title": "Dataforbindelser",
+    "workspaces": {
+      "title": "Arbejdsområder",
+      "subtitle": "Databaser, der tjener én virksomhed, deler én menu. En database kan være i flere.",
+      "new": {
+        "title": "Nyt arbejdsområde",
+        "name": "Navn",
+        "nameHint": "Dets felt viser de første bogstaver i navnet.",
+        "databases": "Databaser, der skal i det",
+        "tables": "{engine} · {count, plural, one {# tabel} other {# tabeller}}",
+        "first": "Fra nu af grupperes alles menu efter arbejdsområde. Databaser uden et område vises under Andre databaser.",
+        "create": "Opret arbejdsområde"
+      },
+      "error": {
+        "nameRequired": "Giv arbejdsområdet et navn.",
+        "nameLong": "Navnet må højst være på 80 tegn.",
+        "nameTaken": "Et arbejdsområde har allerede det navn.",
+        "noDatabase": "Sæt flueben ved mindst én database.",
+        "saveFailed": "Arbejdsområdet kunne ikke gemmes. Prøv igen.",
+        "deleteFailed": "Arbejdsområdet kunne ikke slettes. Prøv igen."
+      },
+      "created": "Arbejdsområdet “{name}” er oprettet",
+      "deleted": "Arbejdsområdet “{name}” er slettet",
+      "rename": {
+        "title": "Omdøb arbejdsområde",
+        "save": "Omdøb"
+      },
+      "kind": {
+        "emailTemplate": "E-mailskabelon",
+        "report": "Rapportlayout",
+        "invoice": "Fakturalayout"
+      },
+      "delete": {
+        "title": "Slet {name}?",
+        "body": "Dets databaser bliver. De forlader bare dette arbejdsområde.",
+        "shownOnlyIn": "Disse vises kun i dette arbejdsområde. Efter sletningen vises de ingen steder:",
+        "last": "Det er det sidste arbejdsområde: alles menu bliver igen én liste.",
+        "confirm": "Slet"
+      },
+      "connection": {
+        "title": "Arbejdsområder for {name}",
+        "newInline": "Nyt arbejdsområde…",
+        "note": "Dets sider og apps vises i hvert arbejdsområde, du markerer. Ingens adgang ændres.",
+        "saved": "Arbejdsområder gemt",
+        "action": "Arbejdsområder…"
+      },
+      "reorderFailed": "Rækkefølgen kunne ikke gemmes. Prøv igen.",
+      "moved": "{name} flyttet til {position} af {total}.",
+      "move": "Flyt {name}. Træk, eller brug piletasterne.",
+      "otherLock": "Altid sidst. Kan ikke omdøbes eller slettes.",
+      "empty": {
+        "title": "Ingen arbejdsområder endnu",
+        "body": "Indtil der er ét, viser alles menu siderne fra alle databaser samlet."
+      },
+      "youAreIn": "Det arbejdsområde, du er i",
+      "tickNone": "Markér ingen for at lægge den under Andre databaser."
+    }
   },
   "intent": {
     "analytics": {

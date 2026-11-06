@@ -1239,7 +1239,63 @@ export default {
       "failed": "Connection test failed",
       "ok": "Connection healthy · {latency, number} ms"
     },
-    "title": "Data connections"
+    "title": "Data connections",
+    "workspaces": {
+      "title": "Workspaces",
+      "subtitle": "Databases that serve one business share one menu. A database can be in several.",
+      "new": {
+        "title": "New workspace",
+        "name": "Name",
+        "nameHint": "Its tile shows the first letters of its name.",
+        "databases": "Databases to put in it",
+        "tables": "{engine} · {count, plural, one {# table} other {# tables}}",
+        "first": "Everyone’s menu groups by workspace from now on. Databases in none show under Other databases.",
+        "create": "Create workspace"
+      },
+      "error": {
+        "nameRequired": "Give the workspace a name.",
+        "nameLong": "Keep the name to 80 characters.",
+        "nameTaken": "A workspace already has that name.",
+        "noDatabase": "Tick at least one database.",
+        "saveFailed": "The workspace could not be saved. Try again.",
+        "deleteFailed": "The workspace could not be deleted. Try again."
+      },
+      "created": "Workspace “{name}” created",
+      "deleted": "Workspace “{name}” deleted",
+      "rename": {
+        "title": "Rename workspace",
+        "save": "Rename"
+      },
+      "kind": {
+        "emailTemplate": "Email template",
+        "report": "Report layout",
+        "invoice": "Invoice layout"
+      },
+      "delete": {
+        "title": "Delete {name}?",
+        "body": "Its databases stay. They leave this workspace.",
+        "shownOnlyIn": "These are shown in this workspace alone. After the delete they are shown in none:",
+        "last": "It is the last workspace: everyone’s menu goes back to one list.",
+        "confirm": "Delete"
+      },
+      "connection": {
+        "title": "Workspaces for {name}",
+        "newInline": "New workspace…",
+        "note": "Its pages and apps show in each workspace you tick. Nobody’s access changes.",
+        "saved": "Workspaces saved",
+        "action": "Workspaces…"
+      },
+      "reorderFailed": "The order could not be saved. Try again.",
+      "moved": "{name} moved to {position} of {total}.",
+      "move": "Move {name}. Drag, or use the arrow keys.",
+      "otherLock": "Always last. It can’t be renamed or deleted.",
+      "empty": {
+        "title": "No workspaces yet",
+        "body": "Until there is one, everyone’s menu lists every database’s pages together."
+      },
+      "youAreIn": "The workspace you are in",
+      "tickNone": "Tick none to put it in Other databases."
+    }
   },
   "intent": {
     "analytics": {

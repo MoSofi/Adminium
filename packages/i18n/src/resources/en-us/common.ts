@@ -143,7 +143,8 @@ export default {
     },
     "drawerTitle": "Navigation",
     "emptyPartsOff": "Nothing is switched on for you right now. Ask an administrator.",
-    "teams": "Teams"
+    "teams": "Teams",
+    "otherDatabases": "Other databases"
   },
   "apps": {
     "frame": {
@@ -404,7 +405,10 @@ export default {
       "save": "Save defaults",
       "saved": "Server defaults updated",
       "saveFailed": "Could not save the server defaults. Try again.",
-      "liveNote": "Saving broadcasts the change live — signed-in users who follow a default see it apply without a reload."
+      "liveNote": "Saving broadcasts the change live — signed-in users who follow a default see it apply without a reload.",
+      "workspaceView": {
+        "label": "Workspaces in the menu"
+      }
     },
     "notifications": {
       "subtitle": "Choose what you’re notified about and how",

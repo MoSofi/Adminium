@@ -28,7 +28,7 @@
  * being wrong.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useBlocker, useNavigate, useSearch } from '@tanstack/react-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Button, ConfirmModal } from '@adminium/ui';
@@ -39,6 +39,7 @@ import { t } from '../i18n/t.js';
 import { AppFilterNote } from '../shell/AppFilterNote.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
+import { CurrentWorkspaceChip, WorkspaceChips, WorkspaceFilter, showsWorkspaceColumn, useListWorkspace } from '../shell/workspaces/listWorkspace.js';
 import { useAppToasts } from '../pages/toasts.js';
 import { assistantName, bootstrapQuery } from '../app/bootstrap.js';
 import { useAutomationAssistant } from './assistant.js';
@@ -115,7 +116,10 @@ export function AutomationRulesPage(): ReactNode {
   };
   const search = useSearch({ strict: false }) as { rule?: string; app?: string };
 
-  const rules = useQuery(rulesQuery());
+  const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
+  // The rules of the tab's workspace (One at a time), or of the one the filter names (All in one menu).
+  const workspace = useListWorkspace(bootstrap);
+  const rules = useQuery(rulesQuery(undefined, workspace.workspaceId));
   const stats = useQuery(rulesStatsQuery());
   // The template selects offer what is listed in the tab's workspace; a step naming another still sends it.
   const picker = useShownInPicker();
@@ -134,12 +138,11 @@ export function AutomationRulesPage(): ReactNode {
   // What the assistant put into the open rule's unsaved draft, until the next edit, save or undo:
   // the draft as it was before, and the steps that are new (comp `Milo Automations` 4b).
   const [byAssistant, setByAssistant] = useState<AssistantChange<{ id: string; graph: Graph; trigger: Trigger }> | null>(null);
-  const boot = useQuery({ ...bootstrapQuery(), enabled: false });
-  const assistant = boot.data === undefined ? 'Milo' : assistantName(boot.data);
+  const assistant = assistantName(bootstrap);
 
   // Narrowed to one installed app (the address's `app`): a cut of the rules this person lists anyway, never a wider read.
   const all = rulesOfApp(rules.data?.rules ?? [], search.app);
-  const appName = search.app === undefined ? null : ((boot.data?.appSections ?? []).find((section) => section.appKey === search.app)?.label ?? search.app);
+  const appName = search.app === undefined ? null : ((bootstrap.appSections ?? []).find((section) => section.appKey === search.app)?.label ?? search.app);
   // The owner's own rules, and the ones an app or an add-on brought: listed apart, never mixed.
   const { own, shipped } = splitShipped(all);
   const selected = all.find((rule) => rule.id === search.rule) ?? own[0] ?? shipped[0] ?? null;
@@ -357,6 +360,22 @@ export function AutomationRulesPage(): ReactNode {
   const findStep = (action: Extract<Action, { kind: 'add-on.step' }>) => stepOf(sources.data ?? null, connectionOfRule, action);
   const incomplete = graph === null ? null : firstIncompleteNode(graph, sources.data === undefined ? undefined : findStep);
   const Plus = automationIcon('plus');
+  const pills = (
+    <FilterPills
+      label={t('automations:rules.title', 'Automation rules')}
+      active={filter}
+      pills={FILTER_KEYS.map((key) => ({
+        key,
+        label: t(FILTER_LABELS[key].key, FILTER_LABELS[key].fallback),
+        count:
+          key === 'all'
+            ? own.length
+            : own.filter((rule) => (key === 'active' ? rule.enabled : !rule.enabled)).length,
+      }))}
+      onSelect={setFilter}
+    />
+  );
+  const workspacesOf = showsWorkspaceColumn(workspace) ? (rule: RuleView) => <WorkspaceChips list={workspace} connectionId={rule.connectionId} /> : undefined;
 
   const selectRule = (id: string): void => {
     const go = (): void => {
@@ -375,6 +394,7 @@ export function AutomationRulesPage(): ReactNode {
       <PageActions
         title={t('automations:rules.title', 'Automation rules')}
         subtitle={t('automations:rules.subtitle', 'Trigger workflows automatically when things happen.')}
+        titleAdornment={<CurrentWorkspaceChip list={workspace} />}
       >
         <AskAssistant host={assistantHost} slot="manager" />
         <Button
@@ -414,19 +434,15 @@ export function AutomationRulesPage(): ReactNode {
 
       <div className="grid grid-cols-1 items-start gap-4 min-[1080px]:grid-cols-[360px_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-3">
-          <FilterPills
-            label={t('automations:rules.title', 'Automation rules')}
-            active={filter}
-            pills={FILTER_KEYS.map((key) => ({
-              key,
-              label: t(FILTER_LABELS[key].key, FILTER_LABELS[key].fallback),
-              count:
-                key === 'all'
-                  ? own.length
-                  : own.filter((rule) => (key === 'active' ? rule.enabled : !rule.enabled)).length,
-            }))}
-            onSelect={setFilter}
-          />
+          {/* The Workspace filter sits beside the pills; with no filter the pills stand alone, as they always did. */}
+          {workspacesOf === undefined ? (
+            pills
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              {pills}
+              <WorkspaceFilter list={workspace} className="ms-auto" />
+            </div>
+          )}
           {visible.length === 0 ? (
             <RulesEmpty />
           ) : (
@@ -437,6 +453,7 @@ export function AutomationRulesPage(): ReactNode {
                 selected={rule.id === selected?.id}
                 triggerLine={triggerSentence(rule.trigger)}
                 now={Date.now()}
+                workspaces={workspacesOf?.(rule)}
                 onSelect={() => {
                   selectRule(rule.id);
                 }}
@@ -451,6 +468,7 @@ export function AutomationRulesPage(): ReactNode {
             selectedId={selected?.id ?? null}
             triggerLine={(rule) => triggerSentence(rule.trigger)}
             now={Date.now()}
+            workspacesOf={workspacesOf}
             onSelect={(rule) => {
               selectRule(rule.id);
             }}

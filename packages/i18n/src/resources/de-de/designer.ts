@@ -242,7 +242,7 @@ export default {
     "sessions": "Sitzungen zu dieser App",
     "sessionTurns": "{count, plural, one {# Runde} other {# Runden}}",
     "emptyNew": "Eine neue Sitzung zu {name}. Der Designer geht von den Dateien der App aus, wie sie jetzt sind; die früheren Chats bleiben oben unter „Sitzungen zu dieser App“.",
-    "workArea": "Arbeitsbereich",
+    "workArea": "Arbeitsfläche",
     "views": "Ansicht",
     "openDash": "Dashboard öffnen",
     "renameTip": "Umbenennen",
@@ -454,7 +454,7 @@ export default {
   "work": {
     "architecture": "Aufbau",
     "preview": "Vorschau",
-    "label": "Arbeitsbereich",
+    "label": "Arbeitsfläche",
     "code": "Code"
   },
   "preview": {

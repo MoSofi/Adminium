@@ -331,6 +331,8 @@ export type RunFilter = 'success' | 'failed' | 'running';
 export interface RunsQuery {
   status?: RunFilter | undefined;
   automationId?: string | undefined;
+  /** One workspace's runs: the runs of rules on its databases. */
+  workspaceId?: string | undefined;
   cursor?: string | undefined;
 }
 
@@ -353,8 +355,9 @@ function query(params: Record<string, string | undefined>): string {
 }
 
 export const automationsApi = {
-  list: (connectionId?: string) =>
-    api.get<{ rules: RuleView[] }>(`${BASE}${query({ connectionId })}`),
+  /** `workspaceId` narrows to one workspace's databases; never sent with `connectionId`. */
+  list: (connectionId?: string, workspaceId?: string) =>
+    api.get<{ rules: RuleView[] }>(`${BASE}${query({ connectionId, workspaceId })}`),
   detail: (id: string) => api.get<RuleView>(`${BASE}/${id}`),
   create: (input: CreateRuleInput) => api.post<RuleView>(BASE, input),
   patch: (id: string, input: PatchRuleInput) => api.patch<RuleView>(`${BASE}/${id}`, input),
