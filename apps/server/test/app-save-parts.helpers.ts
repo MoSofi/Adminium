@@ -13,7 +13,7 @@ import { validateManifest, type AppManifest } from '@adminium/manifest';
 import { snapshotsRepo } from '@adminium/meta';
 import { expect } from 'vitest';
 
-import { convertToApp, type ConvertResult } from '../src/apps/save/convert.js';
+import type { ConvertResult } from '../src/apps/save/convert.js';
 import type { SaveChoices, SaveSource } from '../src/apps/save/types.js';
 import { addOnHarness, type Dialect, type Harness } from './app-add-ons.helpers.js';
 

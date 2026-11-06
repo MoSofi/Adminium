@@ -366,8 +366,9 @@ export const convertPublicAccess: ConvertPart = async (ctx) => {
     }
   }
   for (const endpoint of endpoints) {
-    if (!served.has(endpoint.id) && !candidates.some((c) => c.endpoint.id === endpoint.id) && (chosen === null || chosen.has(endpoint.id)) && !keys.some((key) => key.access !== null && endpoint.id in (JSON.parse(key.access) as Rec))) {
-      ctx.check.add({ group: 'info', code: 'PUBLIC_ENDPOINT_UNUSED', kind: 'public', item: endpoint.ref, message: 'No key serves it, so it is not saved.' });
+    const held = keys.some((key) => keyNames.has(key.id) && key.access !== null && endpoint.id in (JSON.parse(key.access) as Rec));
+    if (!held && (chosen === null || chosen.has(endpoint.id))) {
+      ctx.check.add({ group: 'info', code: 'PUBLIC_ENDPOINT_UNUSED', kind: 'public', item: endpoint.ref, message: 'No key that is saved serves it, so it is not saved.' });
     }
   }
 
