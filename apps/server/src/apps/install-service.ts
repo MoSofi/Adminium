@@ -28,6 +28,7 @@ import {
   planInstall,
   namedAddOns,
   validateManifest,
+  withoutDefaultSchema,
   type InstallPlan,
   type AddOnManifest,
   type Manifest,
@@ -941,7 +942,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     }
     // A word this server reads and does not run yet: refused whole, never installed in part.
     refuseUnbuiltManifest(document, `"${validated.manifest.key}"`, serverVersion);
-    return validated.manifest;
+    // `schema: "public"` names the default schema: read as naming none, so it never makes a second identity of a table.
+    return withoutDefaultSchema(validated.manifest);
   }
 
   /**
