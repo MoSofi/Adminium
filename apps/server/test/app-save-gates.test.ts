@@ -406,6 +406,29 @@ describe('the warning layer', () => {
     expect(secretWarnings(readContent(manifest, new Map()), NO_CHOICES, new Set([target]))).toEqual([]);
   });
 
+  it('reads a webhook\'s body and its header\'s name, documents, reports, invoice layouts and scheduled reports', () => {
+    const rule = { key: 'tell-crm', name: 'Tell the CRM', graph: { nodes: [{ id: 'n1', kind: 'webhook', method: 'POST', bodyKind: 'json', body: `{"token":"${paymentKey}"}`, headerName: `X-${randomKey}` }] } };
+    const found = warn(
+      shop({
+        automations: { rules: [rule] },
+        documents: [{ key: 'receipt', name: 'Receipt', footer: `Pay with ${randomKey}` }],
+        reports: [{ key: 'sales', name: 'Sales', note: paymentKey }],
+        invoiceLayouts: [{ key: 'plain', name: 'Plain', body: { footer: randomKey } }],
+        scheduledReports: [{ key: 'weekly', name: 'Weekly', subject: `Weekly ${paymentKey}` }],
+      }),
+      new Map(),
+    );
+    expect(found.map((item) => [item.kind, item.field])).toEqual([
+      ['automation', 'rules[0].graph.nodes[0].body'],
+      ['automation', 'rules[0].graph.nodes[0].headerName'],
+      ['document', 'footer'],
+      ['report', 'note'],
+      ['invoice', 'body.footer'],
+      ['schedule', 'subject'],
+    ]);
+    expect(JSON.stringify(found)).not.toContain(paymentKey);
+  });
+
   it('reads only the places a person types: a role\'s key is not text', () => {
     expect(warn(shop({ roles: [{ key: 'clerk', name: `Clerk ${randomKey}` }] }), new Map())).toEqual([]);
   });
