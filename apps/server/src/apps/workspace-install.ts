@@ -53,6 +53,17 @@ export interface AppCopy {
   installId: string;
   connectionId: string | null;
   version: string;
+  /** The install row's status; `installing` is an install that stopped part way, not a copy yet. */
+  status?: string | undefined;
+}
+
+/**
+ * Whether a copy is one: an install that stopped part way leaves its row
+ * `installing`, and installing it again is what finishes it. Read as a copy,
+ * it would count as already there, and "Install the rest" would skip it.
+ */
+export function isFinishedCopy(copy: { status?: string | undefined }): boolean {
+  return copy.status !== 'installing';
 }
 
 export interface WorkspaceInstallerDeps {
@@ -131,7 +142,7 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
     const target = app.target!;
     try {
       const staged = await deps.stagedIntegrity(app.key, app.version);
-      const copies = await deps.copiesOf(app.key);
+      const copies = (await deps.copiesOf(app.key)).filter(isFinishedCopy);
       const onTarget = copies.find((copy) => copy.connectionId === target);
       if (onTarget !== undefined && onTarget.version === app.version && copies.every((copy) => copy.version === app.version)) return { state: 'installed' };
       if (staged !== app.integrity) {

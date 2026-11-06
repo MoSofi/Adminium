@@ -27,7 +27,7 @@ import { AddOnArchiveError } from '../../add-ons/archive.js';
 import { refusalReason } from '../../add-ons/upload-refusal.js';
 import type { AppRoutesDeps } from '../../apps/install-service.js';
 import { checkWorkspaceFile, eachWorkspaceApp, integrityOf, WORKSPACE_UPLOAD_BODY_LIMIT } from '../../apps/workspace-files.js';
-import { createWorkspaceInstaller, documentOf, type AppCopy } from '../../apps/workspace-install.js';
+import { createWorkspaceInstaller, documentOf, isFinishedCopy, type AppCopy } from '../../apps/workspace-install.js';
 import { audited } from '../../audit/coverage.js';
 import { AppError, ValidationFailedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -126,7 +126,7 @@ export interface WorkspaceFileRoutesDeps {
     userLabel: string;
     source?: 'upload' | 'workspace-file';
   }) => Promise<z.infer<typeof stagedAppReply>>;
-  copiesOf: (key: string) => Promise<{ installId: string; connectionId: string | null; connectionName: string; version: string }[]>;
+  copiesOf: (key: string) => Promise<{ installId: string; connectionId: string | null; connectionName: string; version: string; status?: string | undefined }[]>;
   install: (request: FastifyRequest, body: z.infer<typeof installAppBody>) => Promise<unknown>;
   update: (request: FastifyRequest, input: { key: string; installId: string; connectionId: string | null; body: z.infer<typeof updateAppBody> }) => Promise<unknown>;
   auditAppEvent: (action: string, after: Record<string, unknown>, userId: string | null, userLabel: string) => Promise<void>;
@@ -145,7 +145,8 @@ export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAs
     const apps = [];
     for (const app of row.apps) {
       const entry = document?.apps.find((one) => one.key === app.key);
-      const copies = await w.copiesOf(app.key);
+      // An install that stopped part way is no copy: the review offers it again, and "Install the rest" finishes it.
+      const copies = (await w.copiesOf(app.key)).filter(isFinishedCopy);
       const route = copies.length === 0 ? ('install' as const) : copies.some((copy) => compareSemver(app.version, copy.version) > 0) ? ('update' as const) : ('install-another' as const);
       const suggested = entry === undefined ? undefined : connections.find((one) => one.name === entry.database.name && one.engine === entry.database.engine);
       apps.push({
@@ -190,7 +191,7 @@ export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAs
         }
       },
       discardStaged: (key, version) => deps.store.removeVersion(key, version),
-      copiesOf: async (key): Promise<AppCopy[]> => (await w.copiesOf(key)).map((copy) => ({ installId: copy.installId, connectionId: copy.connectionId, version: copy.version })),
+      copiesOf: async (key): Promise<AppCopy[]> => (await w.copiesOf(key)).map((copy) => ({ installId: copy.installId, connectionId: copy.connectionId, version: copy.version, status: copy.status })),
       install: async ({ key, version, connectionId, answers }) => {
         await w.install(request, { ...(answers as object), key, version, connectionId } as z.infer<typeof installAppBody>);
       },

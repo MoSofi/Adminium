@@ -275,6 +275,43 @@ describe('workspace files on one engine', () => {
     expect(run.workspaceChoice).toEqual({ mode: 'none' });
   });
 
+  it('finishes an app whose install stopped part way, though its row is already there', async () => {
+    const src = await source('sqlite', open);
+    const saved = await src.service.save(src.workspaceId, {}, HOST);
+    const dst = await target('sqlite', open);
+    const file = fileOf(await upload(dst.h, saved.tarball));
+    const manifests = manifestsRepo(dst.h.meta, identity);
+    const copies = async (key: string) => (await manifests.listByKey(key)).filter((m) => m.row.kind === 'app').map((m) => ({ installId: m.row.id, connectionId: m.row.connectionId, version: m.row.version, status: m.row.status }));
+    // An install that stops part way leaves its row `installing`; installing it again is what finishes it.
+    let stopped = false;
+    const installs: string[] = [];
+    const installer = createWorkspaceInstaller({
+      meta: dst.h.meta,
+      stagedIntegrity: async (key, version) => (await dst.h.deps.store.verifyTree(key, version)).integrity,
+      discardStaged: (key, version) => dst.h.deps.store.removeVersion(key, version),
+      copiesOf: async (key) => (key === 'clinic' && stopped ? [{ installId: 'man_half', connectionId: dst.h.connectionId, version: '1.0.0', status: 'installing' }] : copies(key)),
+      install: async ({ key, version, connectionId, answers }) => {
+        installs.push(key);
+        if (key === 'clinic' && !stopped) {
+          stopped = true;
+          throw new AppError(409, 'APP_INSTALL_INCOMPLETE', 'Installing "clinic" stopped at the tables step.');
+        }
+        const reply = await dst.h.inject({ method: 'POST', url: '/apps/install', payload: { ...answers, key, version, connectionId } });
+        if (reply.statusCode !== 200) throw new AppError(reply.statusCode, 'INSTALL', reply.body);
+      },
+      update: async () => undefined,
+      connectionExists: async () => true,
+    });
+    const actor = { userId: null, managesConnections: true };
+    const first = await installer.run(file.id, { apps: [{ key: 'archive', connectionId: dst.archive }, { key: 'clinic', connectionId: dst.h.connectionId }] }, actor);
+    expect(first.apps.map((app) => [app.key, app.state])).toEqual([['archive', 'installed'], ['clinic', 'stopped']]);
+    // Install the rest: the half-made install is no copy, so it is installed again, not counted as there.
+    const rest = await installer.run(file.id, { apps: [{ key: 'clinic', connectionId: dst.h.connectionId }] }, actor);
+    expect(rest.state).toBe('done');
+    expect(installs).toEqual(['archive', 'clinic', 'clinic']);
+    expect((await copies('clinic')).map((copy) => copy.status)).toEqual(['installed']);
+  });
+
   it('runs one install at a time per row', async () => {
     const src = await source('sqlite', open);
     const saved = await src.service.save(src.workspaceId, {}, HOST);
