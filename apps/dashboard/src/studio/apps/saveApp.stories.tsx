@@ -3,15 +3,24 @@
  * Save as app: the steps drawn from notes rather than from the comp. The
  * Database step lists every database once with its workspace chips (the comp
  * predates workspaces); Check shows a secret that blocks saving, a question,
- * the personal views at "0 of N", and an answered item. Nothing asks a server:
- * the steps take their data as props.
+ * the personal views at "0 of N", and an answered item.
+ *
+ * The wizard's choices mode, as Save workspace's "More choices" opens it in a
+ * modal over the dialog: the database is fixed, so there are four steps, no
+ * Back out of What to include, and Check ends in "Use these choices" rather
+ * than Save. Nothing asks a server: the steps take their data as props.
  */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { Modal, ModalBody, ModalHeader } from '@adminium/ui';
 
+import { t } from '../../i18n/t.js';
+import { AppToastProvider } from '../../pages/toasts.js';
+import { makeBootstrap } from '../../test/fixtures.js';
 import type { ConnectionDto } from '../api.js';
 import { SaveAppCheck } from './SaveAppCheck.js';
-import { SaveDatabaseChoice } from './SaveAppWizard.js';
+import { SaveAppWizard, SaveDatabaseChoice, type WizardStep } from './SaveAppWizard.js';
 import type { SaveFlowShared } from './saveAppShared.js';
 import type { CheckItem, SaveInventory, SavePlan } from './saveAppApi.js';
 import { draftFromInventory, type SaveDraft } from './saveAppDraft.js';
@@ -127,6 +136,52 @@ function Check({ answered = false }: { answered?: boolean }): ReactNode {
   );
 }
 
+/**
+ * "More choices for fernhill": the wizard in choices mode, in the xl modal the
+ * Workspaces card opens over Save workspace, with the row's name, key and version.
+ */
+function Choices({ step }: { step: WizardStep }): ReactNode {
+  const [client] = useState(() => {
+    const c = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
+    c.setQueryData(['bootstrap'], makeBootstrap({ systemActions: ['manifests.manage', 'settings.manage'] as never }));
+    return c;
+  });
+  const [draft, setDraft] = useState<SaveDraft>(() => ({ ...draftFromInventory(INVENTORY, { name: 'Fernhill Ops', key: 'fernhill-ops' }), version: '1.0.1' }));
+  const props: SaveFlowShared = {
+    databases: WITH_CHIPS.slice(0, 1),
+    connectionId: 'con_f',
+    inventory: INVENTORY,
+    inventoryError: null,
+    draft,
+    setDraft,
+    saves: [],
+    plan: step === 3 ? PLAN : undefined,
+    planPending: false,
+    planError: null,
+    save: () => undefined,
+    saving: false,
+    saveError: null,
+    resetSaveError: () => undefined,
+    saved: null,
+    catalogKeys: new Set(),
+    onClose: () => undefined,
+    applying: true,
+    apply: () => undefined,
+  };
+  return (
+    <QueryClientProvider client={client}>
+      <AppToastProvider>
+        <Modal open size="xl" onOpenChange={() => undefined}>
+          <ModalHeader title={t('studio:workspaceFiles.save.choicesTitle', 'More choices for {database}', { database: 'fernhill' })} closeLabel={t('common.close', 'Close')} />
+          <ModalBody className="pb-0">
+            <SaveAppWizard {...props} step={step} onStep={() => undefined} onConnection={() => undefined} />
+          </ModalBody>
+        </Modal>
+      </AppToastProvider>
+    </QueryClientProvider>
+  );
+}
+
 // Plain CSF objects: Storybook needs no types, and the dashboard does not depend on Storybook.
 const meta = { title: 'Studio/Apps/Save as app' };
 export default meta;
@@ -138,3 +193,6 @@ export const DatabaseWithoutWorkspaces = {
 };
 export const CheckBlocksSaving = { tags: ['vrt'], render: () => <Check /> };
 export const CheckAnswered = { tags: ['vrt'], render: () => <Check answered /> };
+export const ChoicesWhatToInclude = { tags: ['vrt'], render: () => <Choices step={1} /> };
+export const ChoicesAboutTheApp = { tags: ['vrt'], render: () => <Choices step={2} /> };
+export const ChoicesCheckUseThese = { tags: ['vrt'], render: () => <Choices step={3} /> };
