@@ -203,7 +203,7 @@ export function createRemovals(deps: RemovalDeps) {
     );
     if (others.length > 0) return false;
     // Another add-on's table is never this manifest's to drop; an add-on's own table is its own.
-    const holder = (await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto })).get(realTableOf(record));
+    const holder = (await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, record.connectionId)).get(realTableOf(record));
     return holder === undefined || holder === record.appKey;
   }
 
@@ -323,7 +323,7 @@ export function createRemovals(deps: RemovalDeps) {
       roles.push({ role, members: members.map((m) => m.userId), apiKeys: apiKeys.map((k) => k.id) });
     }
     // An add-on's table is never an app's to drop, even one the app made first.
-    const addOnTables = await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto });
+    const addOnTables = connectionId === null ? new Map<string, string>() : await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, connectionId);
     const records =
       connectionId === null
         ? []

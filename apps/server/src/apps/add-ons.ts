@@ -621,16 +621,19 @@ export function tablesComingFromAddOns(rows: readonly AppAddOnRow[]): { ref: str
 }
 
 /**
- * Real table (`realTableOf`) → the installed add-on that declares it. An add-on's tables are
- * its own whoever else names them: an app may not rename one out of the way,
- * take it over, or drop it with itself. Nothing records which connection an
- * add-on's tables went to, so callers match these names against the tables
- * that are really there.
+ * Real table (`realTableOf`) → the installed add-on that declares it, on one
+ * database. An add-on's tables are its own whoever else names them: an app
+ * may not rename one out of the way, take it over, or drop it with itself.
+ * Each copy of an add-on keeps its tables on its own database, so only the
+ * copies on `connectionId` count, and one kept once per server (which records
+ * no database) everywhere. A same-named table of an add-on on another
+ * database never holds this one.
  */
-export async function addOnTablesByName(installer: Pick<AddOnInstallerDeps, 'meta' | 'credentialCrypto'>): Promise<Map<string, string>> {
+export async function addOnTablesByName(installer: Pick<AddOnInstallerDeps, 'meta' | 'credentialCrypto'>, connectionId: string): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   const records = appTablesRepo(installer.meta);
   for (const installed of await manifestsRepo(installer.meta, installer.credentialCrypto).list('add-on')) {
+    if (installed.row.connectionId !== null && installed.row.connectionId !== connectionId) continue;
     // The names its tables really have, from its records; an add-on installed before records were kept has only its bare refs.
     const recorded = installed.row.connectionId === null ? [] : (await records.forInstall(installed.row.connectionId, installed.row.manifestKey)).filter((record) => record.state !== 'dropped');
     for (const record of recorded) if (!out.has(realTableOf(record))) out.set(realTableOf(record), installed.row.manifestKey);

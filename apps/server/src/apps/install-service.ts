@@ -1134,12 +1134,11 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * AN ADD-ON'S TABLES ARE HELD, like another app's: one that is here (or
      * that a required add-on is about to make) is never offered to be renamed
      * out of the way, and a table of the same name is a collision the
-     * operator resolves with a different prefix. Nothing records which
-     * connection an add-on's tables went to, so only the ones really here
-     * count — a same-named table on another database is no business of this
-     * plan.
+     * operator resolves with a different prefix. Only the add-ons on this
+     * database count (and the tables really here): a same-named table of an
+     * add-on on another database is no business of this plan.
      */
-    const addOnTables = await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto });
+    const addOnTables = await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, connectionId);
     const addOnHolders = [
       ...found.flatMap((table) => {
         const holder = addOnTables.get(table.ref);
