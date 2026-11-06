@@ -15,7 +15,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { manifestsRepo, workspaceInstallsRepo, workspacesRepo } from '@adminium/meta';
+import { appUpdatesRepo, manifestsRepo, workspaceInstallsRepo, workspacesRepo } from '@adminium/meta';
 import { WORKSPACE_FILE_FLOOR } from '@adminium/manifest';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -220,6 +220,106 @@ describe.each(ENGINES)('save workspace and install it, on %s', (dialect, availab
     // The finished app was not installed again; the workspace made on the first run was kept, not made twice.
     expect((await manifests.listByKey('archive'))[0]!.row).toMatchObject({ id: archiveInstall.id, installedAt: archiveInstall.installedAt });
     expect((await workspacesRepo(dst.h.meta).list()).filter((one) => one.name === 'Corner Shop')).toHaveLength(1);
+  });
+
+  /**
+   * An update inside "Install the rest" that stops: clinic 1.0.0 runs on the
+   * engine's own database, the newer file asks for it on a second database
+   * too, and the update of the copy here stops. The run stops (never a
+   * refusal), the newer file stays, and running the row again finishes the
+   * update before it installs on the second database.
+   */
+  async function updateStops(open: Harness[], moved: boolean) {
+    const src = await source(dialect, open);
+    const first = await src.service.save(src.workspaceId, {}, HOST);
+    const dst = await target(dialect, open);
+    const one = fileOf(await upload(dst.h, first.tarball));
+    const here = [{ key: 'archive', connectionId: dst.archive }, { key: 'clinic', connectionId: dst.h.connectionId }];
+    expect(fileOf(await dst.h.inject({ method: 'POST', url: `/apps/workspace/${one.id}/install`, payload: { apps: here } })).state).toBe('done');
+
+    const second = await src.service.save(src.workspaceId, {}, HOST);
+    const file = fileOf(await upload(dst.h, second.tarball));
+    const branch = await dst.h.otherConnection('Branch');
+    const manifests = manifestsRepo(dst.h.meta, identity);
+    const copyHere = (await manifests.listByKey('clinic'))[0]!;
+    const updates: string[] = [];
+    let stop = true;
+    const forced = createWorkspaceInstaller({
+      meta: dst.h.meta,
+      stagedIntegrity: async (key, version) => (await dst.h.deps.store.verifyTree(key, version)).integrity,
+      discardStaged: (key, version) => dst.h.deps.store.removeVersion(key, version),
+      copiesOf: async (key) => (await manifests.listByKey(key)).filter((m) => m.row.kind === 'app').map((m) => ({ installId: m.row.id, connectionId: m.row.connectionId, version: m.row.version, status: m.row.status })),
+      install: async () => {
+        throw new Error('the run should stop before any install');
+      },
+      update: async ({ key, connectionId }) => {
+        updates.push(key);
+        if (key === 'clinic' && stop) {
+          stop = false;
+          if (moved) {
+            // The version moved and what it brings stopped at the pages: the record the real update leaves.
+            const reply = await dst.h.inject({ method: 'POST', url: `/apps/clinic/update?connectionId=${connectionId!}`, payload: {} });
+            expect(reply.statusCode, reply.body).toBe(200);
+            const tables = ((copyHere.document as { requiredSchema?: { tables?: { ref: string }[] } }).requiredSchema?.tables ?? []).map((table) => table.ref);
+            await appUpdatesRepo(dst.h.meta).begin({ manifestId: copyHere.row.id, fromVersion: '1.0.0', toVersion: '1.0.1', fromTables: tables });
+            await appUpdatesRepo(dst.h.meta).stopped(copyHere.row.id, 'pages');
+          }
+          throw new AppError(409, 'APP_UPDATE_INCOMPLETE', 'Updating "clinic" to 1.0.1 stopped at the pages step: the database went away.', { stage: 'pages', from: '1.0.0', to: '1.0.1' });
+        }
+        const reply = await dst.h.inject({ method: 'POST', url: `/apps/${key}/update?connectionId=${connectionId!}`, payload: {} });
+        if (reply.statusCode !== 200) throw new AppError(reply.statusCode, 'UPDATE', reply.body);
+      },
+      connectionExists: async () => true,
+    });
+    const apps = [{ key: 'archive', connectionId: dst.archive }, { key: 'clinic', connectionId: branch.id }];
+    const stopped = await forced.run(file.id, { apps }, { userId: null, managesConnections: true });
+    return { dst, file, branch, manifests, copyHere, stopped, updates, apps };
+  }
+
+  it.runIf(available)('stops on an update that stopped before its version moved, and the next run finishes it', async () => {
+    const { dst, file, branch, manifests, stopped, updates, apps } = await updateStops(open, false);
+    expect(stopped.state).toBe('stopped');
+    expect(stopped.apps.map((app) => [app.key, app.state, app.reason])).toEqual([['archive', 'updated', undefined], ['clinic', 'stopped', 'APP_UPDATE_INCOMPLETE']]);
+    expect(updates).toEqual(['archive', 'clinic']);
+    expect((await manifests.listByKey('clinic')).map((m) => m.row.version)).toEqual(['1.0.0']);
+    expect(await dst.h.deps.store.versions('clinic')).toContain('1.0.1');
+
+    // Install the rest, through the route: the update runs again, then the second database gets its copy.
+    const rest = await dst.h.inject({ method: 'POST', url: `/apps/workspace/${file.id}/install`, payload: { apps } });
+    expect(rest.statusCode, rest.body).toBe(200);
+    const done = fileOf(rest);
+    expect(done.state).toBe('done');
+    expect(done.apps.map((app) => [app.key, app.state])).toEqual([['archive', 'updated'], ['clinic', 'updated']]);
+    const copies = (await manifests.listByKey('clinic')).map((m) => [m.row.connectionId, m.row.version]);
+    expect(copies.sort()).toEqual([[branch.id, '1.0.1'], [dst.h.connectionId, '1.0.1']].sort());
+  });
+
+  it.runIf(available)('finishes an update that moved its version and stopped, before it installs the next copy', async () => {
+    const { dst, file, branch, manifests, copyHere, stopped, apps } = await updateStops(open, true);
+    expect(stopped.state).toBe('stopped');
+    expect(stopped.apps.find((app) => app.key === 'clinic')).toMatchObject({ state: 'stopped', reason: 'APP_UPDATE_INCOMPLETE' });
+    expect(await appUpdatesRepo(dst.h.meta).find(copyHere.row.id)).toMatchObject({ toVersion: '1.0.1', stoppedAt: 'pages' });
+
+    const rest = await dst.h.inject({ method: 'POST', url: `/apps/workspace/${file.id}/install`, payload: { apps } });
+    expect(rest.statusCode, rest.body).toBe(200);
+    const done = fileOf(rest);
+    expect(done.state).toBe('done');
+    expect(done.apps.find((app) => app.key === 'clinic')!.state).toBe('updated');
+    // The stopped update was finished, not skipped as "already at its version".
+    expect(await appUpdatesRepo(dst.h.meta).find(copyHere.row.id)).toBeNull();
+    const copies = (await manifests.listByKey('clinic')).map((m) => [m.row.connectionId, m.row.version]);
+    expect(copies.sort()).toEqual([[branch.id, '1.0.1'], [dst.h.connectionId, '1.0.1']].sort());
+  });
+
+  it.runIf(available)('keeps the newer file when the row is thrown away while its update is waiting', async () => {
+    const { dst, file, manifests } = await updateStops(open, false);
+    const gone = await dst.h.inject({ method: 'DELETE', url: `/apps/workspace/${file.id}/install` });
+    expect(fileOf(gone).state).toBe('discarded');
+    // The update that stopped still needs 1.0.1, so it stays, and the app's own update finishes it.
+    expect(await dst.h.deps.store.versions('clinic')).toContain('1.0.1');
+    const finished = await dst.h.inject({ method: 'POST', url: `/apps/clinic/update?connectionId=${dst.h.connectionId}`, payload: {} });
+    expect(finished.statusCode, finished.body).toBe(200);
+    expect((await manifests.listByKey('clinic')).map((m) => m.row.version)).toEqual(['1.0.1']);
   });
 });
 

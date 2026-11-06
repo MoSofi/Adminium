@@ -20,14 +20,16 @@
  *  - **An app already at that version on its target** counts as installed.
  *  - **A refusal is per app** (its own checks said no): it is recorded on its
  *    row and the next app installs. **A stop** (anything else, or an install
- *    that stopped part way) ends the run: the apps before it stay installed,
- *    and running the row again resumes at it.
- *  - The staged app files stay until the row is done or discarded.
+ *    or an update that stopped part way) ends the run: the apps before it
+ *    stay installed, and running the row again resumes at it. An update that
+ *    moved its version and stopped is finished first, by the same update.
+ *  - The staged app files stay until the row is done or discarded, and a file
+ *    an unfinished update still needs stays after that too.
  */
 import { randomBytes } from 'node:crypto';
 
 import { compareSemver, type WorkspaceFile } from '@adminium/manifest';
-import { workspaceInstallsRepo, workspacesRepo, WorkspaceNameTaken, type MetaDb, type WorkspaceInstall, type WorkspaceInstallApp } from '@adminium/meta';
+import { appUpdatesRepo, workspaceInstallsRepo, workspacesRepo, WorkspaceNameTaken, type MetaDb, type WorkspaceInstall, type WorkspaceInstallApp } from '@adminium/meta';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 
@@ -87,13 +89,31 @@ export interface InstallActor {
 }
 
 const DONE: ReadonlySet<WorkspaceInstallApp['state']> = new Set(['installed', 'updated', 'refused']);
-/** An install that stopped part way is a stop, not a refusal: running it again resumes it. */
-const STOP_CODES = new Set(['APP_INSTALL_INCOMPLETE', 'INTERNAL']);
+/** An install or an update that stopped part way is a stop, not a refusal: running it again resumes it. */
+const STOP_CODES = new Set(['APP_INSTALL_INCOMPLETE', 'APP_UPDATE_INCOMPLETE', 'INTERNAL']);
 
 export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
   const now = deps.now ?? Date.now;
   const installs = workspaceInstallsRepo(deps.meta);
   const workspaces = workspacesRepo(deps.meta);
+  const updates = appUpdatesRepo(deps.meta);
+
+  /** A copy whose update moved its version and stopped: the update run again finishes it. */
+  async function updateUnfinished(copy: AppCopy): Promise<boolean> {
+    const held = await updates.find(copy.installId);
+    return held !== null && held.toVersion === copy.version;
+  }
+
+  /**
+   * Whether the app's staged file is still wanted: a copy runs it, or an
+   * update of an older copy stopped and is waiting to be run again, which
+   * needs the file.
+   */
+  async function stagedStillWanted(app: WorkspaceInstallApp): Promise<boolean> {
+    const copies = await deps.copiesOf(app.key);
+    if (copies.some((copy) => copy.version === app.version)) return true;
+    return app.state === 'stopped' && copies.some((copy) => compareSemver(app.version, copy.version) > 0);
+  }
 
   async function mustFind(id: string): Promise<WorkspaceInstall> {
     const row = await installs.findById(id);
@@ -142,17 +162,22 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
     const target = app.target!;
     try {
       const staged = await deps.stagedIntegrity(app.key, app.version);
-      const copies = (await deps.copiesOf(app.key)).filter(isFinishedCopy);
+      let copies = (await deps.copiesOf(app.key)).filter(isFinishedCopy);
+      const unfinished: AppCopy[] = [];
+      for (const copy of copies) if (await updateUnfinished(copy)) unfinished.push(copy);
       const onTarget = copies.find((copy) => copy.connectionId === target);
-      if (onTarget !== undefined && onTarget.version === app.version && copies.every((copy) => copy.version === app.version)) return { state: 'installed' };
+      if (unfinished.length === 0 && onTarget !== undefined && onTarget.version === app.version && copies.every((copy) => copy.version === app.version)) return { state: 'installed' };
       if (staged !== app.integrity) {
         return { state: 'refused', reason: 'WORKSPACE_APP_NOT_STAGED', error: `${app.name ?? app.key} ${app.version} is no longer the file that was uploaded. Upload the workspace file again.` };
       }
+      // An update that moved its version and stopped is finished first: the same update run again resumes it.
+      for (const copy of unfinished) await deps.update({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: asked?.update ?? {} });
+      if (unfinished.length > 0) copies = (await deps.copiesOf(app.key)).filter(isFinishedCopy);
       const older = copies.filter((copy) => compareSemver(app.version, copy.version) > 0);
       // A newer version moves every copy; one already newer is refused by the update itself.
       for (const copy of older) await deps.update({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: asked?.update ?? {} });
-      if (onTarget === undefined) await deps.install({ key: app.key, version: app.version, connectionId: target, answers: asked?.install ?? {} });
-      return { state: older.length > 0 ? 'updated' : 'installed' };
+      if (!copies.some((copy) => copy.connectionId === target)) await deps.install({ key: app.key, version: app.version, connectionId: target, answers: asked?.install ?? {} });
+      return { state: older.length > 0 || unfinished.length > 0 ? 'updated' : 'installed' };
     } catch (error) {
       if (error instanceof AppError && error.statusCode < 500 && !STOP_CODES.has(error.code)) {
         const details = error.details as { reason?: unknown } | undefined;
@@ -219,8 +244,7 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
           if (state === 'done') {
             for (const app of apps) {
               if (app.state !== 'refused') continue;
-              const copies = await deps.copiesOf(app.key);
-              if (!copies.some((copy) => copy.version === app.version)) await deps.discardStaged(app.key, app.version).catch(() => undefined);
+              if (!(await stagedStillWanted(app))) await deps.discardStaged(app.key, app.version).catch(() => undefined);
             }
           }
           await installs.update(id, { apps, state }, now());
@@ -241,8 +265,8 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
       }
       try {
         for (const app of row.apps) {
-          const copies = await deps.copiesOf(app.key);
-          if (copies.some((copy) => copy.version === app.version)) continue;
+          // An update that stopped keeps its file: it is finished from the app's own page.
+          if (await stagedStillWanted(app)) continue;
           if ((await deps.stagedIntegrity(app.key, app.version)) === app.integrity) await deps.discardStaged(app.key, app.version).catch(() => undefined);
         }
         await installs.update(id, { state: 'discarded' }, now());
