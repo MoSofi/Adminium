@@ -163,6 +163,42 @@ describe('the gate', () => {
   });
 });
 
+describe('a plain address whose copy is gone', () => {
+  /** Two copies of clients, the first (with the plain addresses) on Fernhill, the second on Kiln. */
+  async function twoCopies(fixture: AuthTestApp): Promise<{ first: string; second: string }> {
+    const repo = manifestsRepo(fixture.meta, IDENTITY);
+    const connections = connectionsRepo(fixture.meta, dsnCryptoFromSecret(TEST_SECRET));
+    const fernhill = await connections.create({ name: 'Fernhill', engine: 'sqlite', introspectDsn: 'sqlite::memory:' });
+    const kiln = await connections.create({ name: 'Kiln', engine: 'sqlite', introspectDsn: 'sqlite::memory:' });
+    const first = await repo.install({ manifestKey: 'clients', version: '1.0.0', kind: 'app', source: 'file', document: {}, connectionId: fernhill.id });
+    const second = await repo.install({ manifestKey: 'clients', version: '1.0.0', kind: 'app', source: 'file', document: {}, connectionId: kiln.id, instanceSlug: 'kiln' });
+    fixture.app.surfaceSettings?.invalidate();
+    return { first: first.row.id, second: second.row.id };
+  }
+
+  it('opens no other copy: a page load says where the app is now, anything else the code', async () => {
+    const { app } = await build();
+    const { first } = await twoCopies(t!);
+    // While the first copy is there, its plain address is its own.
+    expect((await get(app, '/apps/clients/customer/', NAVIGATE)).body).toContain('clients-customer');
+
+    await manifestsRepo(t!.meta, IDENTITY).uninstall(first);
+    const page = await get(app, '/apps/clients/customer/', { ...NAVIGATE, 'accept-language': 'en-US' });
+    expect(page.statusCode).toBe(410);
+    expect(page.headers['content-type']).toContain('text/html');
+    expect(page.body).not.toMatch(/<script/i);
+    expect(page.body).toContain('clients is installed on Kiln.');
+    expect(page.body).toContain('href="/apps/clients/kiln/customer/"');
+    expect(page.body).toContain('Open clients on Kiln');
+    // In the reader's language.
+    expect((await get(app, '/apps/clients/customer/', { ...NAVIGATE, 'accept-language': 'de-DE' })).body).toContain('clients ist auf Kiln installiert.');
+
+    const fetched = await get(app, '/apps/clients/customer/surface-config.json');
+    expect(fetched.statusCode).toBe(410);
+    expect(fetched.json().error).toMatchObject({ code: 'APP_ADDRESS_RETIRED', details: { appKey: 'clients', installs: [{ database: 'Kiln', slug: 'kiln', url: '/apps/clients/kiln/customer/' }] } });
+  });
+});
+
 describe('the staff screens’ own grant', () => {
   /** A signed-in person holding one role, and that role's grants. */
   async function person(fixture: AuthTestApp, email: string, grant: 'none' | 'app' | 'every') {
@@ -285,6 +321,9 @@ describe('the bootstrap', () => {
     expect(data.appSections).toEqual([
       {
         appKey: 'clients',
+        // The section is one install's: installed with no database here.
+        installId: expect.any(String),
+        connectionId: null,
         label: 'Clients',
         version: '1.2.0',
         groups: [

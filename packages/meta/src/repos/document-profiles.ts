@@ -71,6 +71,8 @@ export interface DocumentProfile {
   ownerApp: string | null;
   /** The column a document's lines are listed by. */
   orderBy: string | null;
+  /** The install of the add-on that renders it (wave 0076). */
+  installId: string | null;
 }
 
 /**
@@ -95,6 +97,8 @@ export interface CreateDocumentProfileInput {
   createdBy?: string | null | undefined;
   ownerApp?: string | null | undefined;
   orderBy?: string | null | undefined;
+  /** The install of the add-on that renders it, on this profile's database (wave 0076). */
+  installId?: string | null | undefined;
 }
 
 export interface PatchDocumentProfileInput {
@@ -125,6 +129,7 @@ function hydrate(row: Selectable<AdminiumDocumentProfilesTable>): DocumentProfil
     updatedAt: row.updatedAt,
     ownerApp: row.ownerApp,
     orderBy: row.orderBy,
+    installId: row.installId ?? null,
   };
 }
 
@@ -190,6 +195,8 @@ export function documentProfilesRepo(meta: MetaDb) {
       updatedAt: at,
       ownerApp: input.ownerApp ?? null,
       orderBy: input.orderBy ?? null,
+      // Written only when given: a store not yet past 0076 has no such column.
+      ...(input.installId === undefined || input.installId === null ? {} : { installId: input.installId }),
     };
     await db.insertInto('adminium_document_profiles').values(row).execute();
     return (await findById(row.id))!;
@@ -238,14 +245,16 @@ export function documentProfilesRepo(meta: MetaDb) {
    * ever enqueued for a provider that is already gone.
    */
   async function setEnabledForAddOn(
-    addOnKey: string,
+    install: { addOnKey: string; installId: string },
     enabled: boolean,
     at = Date.now(),
   ): Promise<number> {
+    // One install's profiles (wave 0076): removing Kiln's Invoices leaves Fernhill's rendering.
     const rows = await db
       .updateTable('adminium_document_profiles')
       .set({ enabled: writeBool(meta, enabled), updatedAt: at } as never)
-      .where('addOnKey', '=', addOnKey)
+      .where('addOnKey', '=', install.addOnKey)
+      .where('installId', '=', install.installId)
       .executeTakeFirst();
     return affected(rows.numUpdatedRows);
   }

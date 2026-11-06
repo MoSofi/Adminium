@@ -44,7 +44,7 @@ const prefixedCarrier = (version: string): Record<string, unknown> => {
 };
 const post = (harness: Harness, url: string, payload: Record<string, unknown> = {}) => harness.inject({ method: 'POST', url, payload });
 const db = async (harness: Harness, connectionId = harness.connectionId) => (await harness.manager.data(connectionId)).db as unknown as Kysely<unknown>;
-const row = async (harness: Harness) => (await manifestsRepo(harness.meta, CRYPTO).findByKey('carrier'))!.row;
+const row = async (harness: Harness) => (((await manifestsRepo(harness.meta, CRYPTO).listByKey('carrier'))[0] ?? null))!.row;
 
 describe.each(LEGS)('an add-on installed before its tables were recorded — %s', (dialect, available) => {
   /** 1.0.0 installed with a shipment in it, then made as an earlier server left it: no database on its row, no table record. 1.0.1 is staged. */

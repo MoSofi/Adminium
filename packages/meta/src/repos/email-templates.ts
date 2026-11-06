@@ -82,6 +82,10 @@ export interface EmailTemplate {
   createdBy: string | null;
   /** The app that shipped it; null for the operator's own and the built-ins. */
   managedBy: string | null;
+  /** The install that shipped it (wave 0076); a later install's keys are suffixed with its slug. */
+  installId: string | null;
+  /** `all` | `chosen` (wave 0075): the workspaces whose lists show it. */
+  shownIn: 'all' | 'chosen';
   /** The hash of what the app shipped: a row that no longer hashes to it was edited. */
   contentHash: string | null;
 }
@@ -108,7 +112,11 @@ export interface UpsertEmailTemplateInput extends EmailEnvelopeInput {
   isBuiltinCopy?: boolean | undefined;
   /** An app's install writes its key here, with the hash of what it wrote. */
   managedBy?: string | null | undefined;
+  /** And its install id (wave 0076). */
+  installId?: string | null | undefined;
   contentHash?: string | null | undefined;
+  /** An app's campaign; absent, a new row is a template and an existing row keeps its kind. */
+  kind?: EmailDocumentKind | undefined;
 }
 
 export interface CreateEmailTemplateInput extends EmailEnvelopeInput {
@@ -267,6 +275,8 @@ function decode(row: Selectable<AdminiumEmailTemplatesTable>): EmailTemplate {
     attachments: attachmentsRaw === null ? [] : emailAttachmentsSchema.parse(attachmentsRaw),
     createdBy: row.createdBy,
     managedBy: row.managedBy,
+    installId: row.installId ?? null,
+    shownIn: row.shownIn === 'chosen' ? 'chosen' : 'all',
     contentHash: row.contentHash,
   };
 }
@@ -581,7 +591,8 @@ export function emailTemplatesRepo(meta: MetaDb) {
     /**
      * `(key, locale)` upsert, portably: UPDATE first, INSERT on zero affected
      * rows (no cross-dialect ON CONFLICT — repos/util.ts convention). The seed's
-     * verb; it never touches `kind` (a seeded key is always a template) and
+     * verb; it touches `kind` only when given (a seeded key is always a
+     * template; an app may ship a campaign) and
      * leaves `archived_at` alone — an archived row is human-owned, and the seed
      * checks that before calling.
      */
@@ -601,7 +612,9 @@ export function emailTemplatesRepo(meta: MetaDb) {
         updatedBy: input.updatedBy ?? null,
         ...envelopeColumns(input),
         ...(input.managedBy === undefined ? {} : { managedBy: input.managedBy }),
+        ...(input.installId === undefined ? {} : { installId: input.installId }),
         ...(input.contentHash === undefined ? {} : { contentHash: input.contentHash }),
+        ...(input.kind === undefined ? {} : { kind: emailDocumentKindSchema.parse(input.kind) }),
       };
       const res = await db
         .updateTable('adminium_email_templates')
@@ -634,11 +647,11 @@ export function emailTemplatesRepo(meta: MetaDb) {
     },
 
     /** Every row an app shipped, archived ones included, by key then locale. */
-    async listManagedBy(appKey: string): Promise<EmailTemplate[]> {
-      const rows = await db
-        .selectFrom('adminium_email_templates')
-        .selectAll()
-        .where('managedBy', '=', appKey)
+    async listManagedBy(appKey: string, installId?: string): Promise<EmailTemplate[]> {
+      // One install's rows only when it is named (wave 0076): Kiln's update never rewrites Fernhill's.
+      let query = db.selectFrom('adminium_email_templates').selectAll().where('managedBy', '=', appKey);
+      if (installId !== undefined) query = query.where('installId', '=', installId);
+      const rows = await query
         .orderBy('key')
         .orderBy('locale')
         .execute();

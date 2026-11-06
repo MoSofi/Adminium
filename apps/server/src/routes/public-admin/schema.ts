@@ -221,7 +221,22 @@ export const publicApiStatsReply = z.object({
 
 /* ------------------------------------------------------------ endpoints */
 
-export const publicEndpointsQuery = z.object({ connectionId: z.string().min(1) });
+/**
+ * One database (`connectionId`), or several (`connectionIds`, comma-separated:
+ * a workspace's databases, for a list that follows the menu's workspace).
+ */
+export const publicEndpointsQuery = z
+  .object({
+    connectionId: z.string().min(1).optional(),
+    connectionIds: z
+      .string()
+      .min(1)
+      .max(2000)
+      .transform((value) => [...new Set(value.split(',').map((id) => id.trim()).filter((id) => id.length > 0))])
+      .refine((ids) => ids.length >= 1 && ids.length <= 50, 'one to fifty databases')
+      .optional(),
+  })
+  .refine((query) => (query.connectionId === undefined) !== (query.connectionIds === undefined), 'name one database, or a list of them');
 
 export const publicEndpointParams = z.object({
   connectionId: z.string().min(1),

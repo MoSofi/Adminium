@@ -283,6 +283,7 @@ describe.each(LEGS)('a link one key writes and another key reads by — %s', (di
         meta: h.meta,
         crypto,
         manifest: parsed.manifest as Manifest,
+        install: { id: 'mft_studio', key: 'studio', slug: '' },
         connectionId: h.connectionId,
         names: await appTablesRepo(h.meta).realNames(h.connectionId, 'studio'),
         view: (await createPublicViews(h.meta).viewFor(h.connectionId))!,

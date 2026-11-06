@@ -82,6 +82,13 @@ describe.each(LEGS)('an update takes back what its version drops — %s', (diale
     expect(res.statusCode, res.body).toBe(200);
     return res.json() as { app: { publicAccess?: { granted?: Record<string, string[]>; skipped: { ref: string; reason: string }[] } } };
   };
+  /** An update that stops at the pages step (strict, plan 76 §8.2): the reason is said, and running it again finishes it. */
+  const stopped = async (payload: Record<string, unknown>, cause: string) => {
+    const res = await h.app.inject({ method: 'POST', url: '/apps/studio/update', payload });
+    expect(res.statusCode, res.body).toBe(409);
+    expect(res.body).toContain('APP_UPDATE_INCOMPLETE');
+    expect(JSON.parse(res.body).message).toContain(`stopped at the pages step: ${cause}`);
+  };
   /** What a key holds, read from the key row itself. */
   const holds = async (keyId: string) => {
     const access = JSON.parse((await publicKeysRepo(h.meta).findById(keyId))!.access ?? '{}') as Record<string, string[]>;
@@ -126,7 +133,7 @@ describe.each(LEGS)('an update takes back what its version drops — %s', (diale
     expect((await publicKeysRepo(h.meta).listManagedBy('studio')).filter((k) => k.revokedAt === null)).toEqual([]);
   }, 120_000);
 
-  it.skipIf(!available)('takes back a dropped entry though an entry it keeps cannot be made, and the key holds one it may no longer', async () => {
+  it.skipIf(!available)('takes back a dropped entry though an entry it keeps cannot be made (the update stops there), and the key holds one it may no longer', async () => {
     const keys = await install(version('0.2.0', [faqs, client, notes]));
     expect(Object.keys(await holds(keys['customer']!)).sort()).toEqual(['studio_clients_claimed', 'studio_faqs', 'studio_notes_claimed']);
     // Adminium now decides the note's body (a code): a guest may no longer write it.
@@ -142,9 +149,8 @@ describe.each(LEGS)('an update takes back what its version drops — %s', (diale
     await expect(service.setManagedAccess({ connectionId: h.connectionId, keyId: keys['customer']!, access: kept })).rejects.toBeInstanceOf(KeyCreateRefused);
 
     await stage(version('0.2.1', [client, notes]));
-    const reply = await update({ publicAccess: true });
-    // The note's entry cannot be made as declared: the rest of the refresh stops, and says nothing.
-    expect(reply.app.publicAccess).toBeUndefined();
+    // The note's entry cannot be made as declared: the update stops there and says why, to be finished once it can.
+    await stopped({ publicAccess: true }, 'The public access this app asks for cannot be made: "body" is decided by Adminium and cannot be writable');
     // The FAQs are gone from the key all the same; what it keeps, it keeps.
     expect(await holds(keys['customer']!)).toEqual({ studio_clients_claimed: ['GET'], studio_notes_claimed: ['GET', 'PATCH'] });
     expect((await audited('public-key.withdraw')).map((c) => c['after'])).toEqual([expect.objectContaining({ keyId: keys['customer'], withdrawn: ['studio_faqs'] })]);
@@ -165,8 +171,8 @@ describe.each(LEGS)('an update takes back what its version drops — %s', (diale
     });
     await stage(version('0.2.1', [faqs, enquiries, handover], { handover: {} }));
     forgotten.length = 0;
-    const reply = await update({ publicAccess: true });
-    expect(reply.app.publicAccess).toBeUndefined();
+    // The link key is refused: the update stops there and says why.
+    await stopped({ publicAccess: true }, 'The public access this app asks for cannot be made: another key writes the link it reads by');
     // The guests' key did gain the enquiry form before the link key was refused…
     expect(await holds(keys['customer']!)).toEqual({ studio_enquiries: ['POST'], studio_faqs: ['GET'] });
     // …and that is on the record, and no resolver keeps its old scope.

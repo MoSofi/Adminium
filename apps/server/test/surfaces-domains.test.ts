@@ -250,7 +250,7 @@ describe('the address of an uninstalled app (D40)', () => {
     await setDomains(t!, { [CUSTOMER_HOST]: { appKey: 'clients', side: 'customer' } });
     // Uninstall takes the mapping away; the shop's DNS still points here.
     const { forgetAppSurfaceSettings } = await import('../src/surfaces/settings.js');
-    expect((await forgetAppSurfaceSettings(t!.meta, 'clients', null)).removedHosts).toEqual([CUSTOMER_HOST]);
+    expect((await forgetAppSurfaceSettings(t!.meta, { key: 'clients', slug: '' }, null)).removedHosts).toEqual([CUSTOMER_HOST]);
     app.surfaceSettings?.invalidate();
     const page = await get(app, '/', CUSTOMER_HOST, NAVIGATE);
     expect(page.statusCode).toBe(503);

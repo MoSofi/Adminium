@@ -7,6 +7,8 @@
  * boots with no meta DB configured — auth/meta wiring is wave 2 (gates arrive
  * with it).
  */
+import { domainMappingFor } from './surfaces/settings.js';
+import { normalizeHost } from './security/csrf.js';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import type { IncomingMessage } from 'node:http';
@@ -615,7 +617,10 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     // an app.
     const mapped = isApi || !isDocument ? null : await app.surfaceForHost(request);
     if (mapped !== null && !isHostReservedPath(request.url.split('?')[0] ?? request.url, mapped.side)) {
-      if (await app.surfaceGate(mapped, request, reply)) return reply;
+      // A host mapped to an instance answers as that instance's install.
+      const settings = await app.surfaceSettings?.read();
+      const instance = settings === undefined ? null : (domainMappingFor(settings, request.host, normalizeHost)?.instance ?? null);
+      if (await app.surfaceGate(mapped, request, reply, instance)) return reply;
       return app.sendSurfaceIndex(request, reply, mapped);
     }
 

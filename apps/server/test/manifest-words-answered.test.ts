@@ -10,15 +10,17 @@ import { INSTALL_FLOOR_WORD_NAMES, RULE_EMAIL_VARS as MANIFEST_EMAIL_VARS, templ
 import { describe, expect, it } from 'vitest';
 
 import { RULE_EMAIL_VARS, templatePlaceholders } from '../src/automations/actions/email.js';
-import { MANIFEST_WORDS_RUN, UNBUILT_MANIFEST_WORDS } from '../src/crud/unbuilt-rules.js';
+import { MANIFEST_WORDS_PLANNED, MANIFEST_WORDS_RUN, UNBUILT_MANIFEST_WORDS } from '../src/crud/unbuilt-rules.js';
 
 describe('the newer words of a manifest', () => {
   const refused = Object.keys(UNBUILT_MANIFEST_WORDS).sort();
   const run = [...MANIFEST_WORDS_RUN].sort();
+  const planned = Object.keys(MANIFEST_WORDS_PLANNED).sort();
 
-  it('each is run or refused, and none is both', () => {
-    expect([...refused, ...run].sort()).toEqual([...INSTALL_FLOOR_WORD_NAMES].sort());
+  it('each is run, refused, or planned and refused at install, and none is two of them', () => {
+    expect([...refused, ...run, ...planned].sort()).toEqual([...INSTALL_FLOOR_WORD_NAMES].sort());
     expect(refused.filter((word) => run.includes(word as never))).toEqual([]);
+    expect(planned.filter((word) => run.includes(word as never) || refused.includes(word))).toEqual([]);
     expect(new Set(INSTALL_FLOOR_WORD_NAMES).size).toBe(INSTALL_FLOOR_WORD_NAMES.length);
   });
 

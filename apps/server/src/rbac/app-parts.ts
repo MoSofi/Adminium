@@ -50,59 +50,72 @@ export function switchOf(modules: AppModules, id: string): boolean {
   return modules.on[id] ?? def.default === 'on';
 }
 
-/** The add-ons connected to each of `keys` and running: app key → add-on keys. */
-async function connectedAddOns(meta: MetaDb, keys: readonly string[]): Promise<Map<string, Set<string>>> {
+/** The add-ons connected to each of the host installs `ids` and running: install id → add-on keys. */
+async function connectedAddOns(meta: MetaDb, ids: readonly string[]): Promise<Map<string, Set<string>>> {
   const out = new Map<string, Set<string>>();
-  if (keys.length === 0) return out;
+  if (ids.length === 0) return out;
   const rows = await meta.db
     .selectFrom('adminium_manifest_attachments')
     .innerJoin('adminium_manifests', 'adminium_manifests.id', 'adminium_manifest_attachments.manifestId')
-    .select(['adminium_manifests.manifestKey as addOn', 'adminium_manifest_attachments.attachedTo as app'])
+    .select(['adminium_manifests.manifestKey as addOn', 'adminium_manifest_attachments.hostInstall as host'])
     .where('adminium_manifests.kind', '=', 'add-on')
     .where('adminium_manifests.status', '=', 'installed')
     .where('adminium_manifest_attachments.disabledAt', 'is', null)
-    .where('adminium_manifest_attachments.attachedTo', 'in', [...keys])
+    .where('adminium_manifest_attachments.hostInstall', 'in', [...ids])
     .execute();
   for (const row of rows) {
-    const held = out.get(row.app) ?? new Set<string>();
+    const held = out.get(row.host) ?? new Set<string>();
     held.add(row.addOn);
-    out.set(row.app, held);
+    out.set(row.host, held);
   }
   return out;
 }
 
-/** The parts of the apps named (every app when none is), by app key. */
+/**
+ * The parts of the apps named (every app when none is): by install id, and by
+ * app key for the install that owns the key's bare addresses (the only one of
+ * most keys). Each install of an app has its own switches and add-ons.
+ */
 export async function loadAppParts(meta: MetaDb, keys?: readonly string[]): Promise<Map<string, AppParts>> {
   const out = new Map<string, AppParts>();
   const rows = await appModulesOf(meta, keys);
-  const needy = rows.filter((row) => row.modules?.defs.some((def) => def.needs.length > 0) === true).map((row) => row.key);
+  const needy = rows.filter((row) => row.modules?.defs.some((def) => def.needs.length > 0) === true).map((row) => row.id);
   const connected = await connectedAddOns(meta, needy);
+  const slugs = new Map(
+    rows.length === 0
+      ? []
+      : (await meta.db.selectFrom('adminium_manifests').select(['id', 'instanceSlug']).where('id', 'in', rows.map((row) => row.id)).execute()).map((row) => [row.id, row.instanceSlug] as const),
+  );
   for (const row of rows) {
     const off = new Set<string>();
     const waiting = new Map<string, readonly string[]>();
     for (const def of row.modules?.defs ?? []) {
-      const missing = def.needs.filter((addOn) => connected.get(row.key)?.has(addOn) !== true);
+      const missing = def.needs.filter((addOn) => connected.get(row.id)?.has(addOn) !== true);
       if (missing.length > 0) waiting.set(def.id, missing);
       if (missing.length > 0 || !switchOf(row.modules!, def.id)) off.add(def.id);
     }
-    out.set(row.key, { key: row.key, id: row.id, running: row.status === 'installed', disabled: row.status === 'disabled', modules: row.modules, off, waiting });
+    const parts: AppParts = { key: row.key, id: row.id, running: row.status === 'installed', disabled: row.status === 'disabled', modules: row.modules, off, waiting };
+    out.set(row.id, parts);
+    if ((slugs.get(row.id) ?? '') === '' || !out.has(row.key)) out.set(row.key, parts);
   }
   return out;
 }
 
-/** Whether `module` of the app `appKey` is on. True for an app that is not installed: its own gate answers for that. */
-export async function appPartIsOn(meta: MetaDb, appKey: string | null | undefined, module: string | null | undefined): Promise<boolean> {
+/** Whether `module` of the app `appKey` is on — of one install when it is named. True for an app that is not installed: its own gate answers for that. */
+export async function appPartIsOn(meta: MetaDb, appKey: string | null | undefined, module: string | null | undefined, installId?: string | null): Promise<boolean> {
   if (appKey === null || appKey === undefined || module === null || module === undefined) return true;
-  return partIsOn((await loadAppParts(meta, [appKey])).get(appKey), module);
+  const parts = await loadAppParts(meta, [appKey]);
+  return partIsOn((installId === undefined || installId === null ? undefined : parts.get(installId)) ?? parts.get(appKey), module);
 }
 
 /**
- * Whether a role is offered: it names no part, or one of its parts is on.
- * A role of an app that is not installed, or of one with no parts, is.
+ * Whether a role is offered: it names no part, or one of its parts is on —
+ * the parts of its own install. A role of an app that is not installed, or
+ * of one with no parts, is.
  */
-export function roleIsOffered(role: Pick<Role, 'appKey' | 'modules'>, parts: ReadonlyMap<string, AppParts>): boolean {
+export function roleIsOffered(role: Pick<Role, 'appKey' | 'modules'> & { manifestId?: string | null }, parts: ReadonlyMap<string, AppParts>): boolean {
   if (role.appKey === null || role.modules === null) return true;
-  const app = parts.get(role.appKey);
+  const app = (role.manifestId === undefined || role.manifestId === null ? undefined : parts.get(role.manifestId)) ?? parts.get(role.appKey);
   if (app === undefined || app.modules === null) return true;
   return role.modules.some((id) => !app.off.has(id));
 }
@@ -112,17 +125,22 @@ export function roleIsOffered(role: Pick<Role, 'appKey' | 'modules'>, parts: Rea
  * app with a part off, `<connectionId>` and the table's real name, with the
  * part it belongs to.
  */
-export async function tablesOfPartsOff(meta: MetaDb, parts: ReadonlyMap<string, AppParts>): Promise<{ app: string; connectionId: string; table: string; schema: string | null; module: string }[]> {
-  const apps = [...parts.values()].filter((app) => app.off.size > 0).map((app) => app.key);
-  if (apps.length === 0) return [];
+export async function tablesOfPartsOff(meta: MetaDb, parts: ReadonlyMap<string, AppParts>): Promise<{ app: string; install: string; connectionId: string; table: string; schema: string | null; module: string }[]> {
+  // Per install: Kiln's part switched off stops Kiln's tables, never Fernhill's.
+  const installs = [...new Map([...parts.values()].map((app) => [app.id, app])).values()].filter((app) => app.off.size > 0);
+  if (installs.length === 0) return [];
   const rows = await meta.db
     .selectFrom('adminium_app_tables')
-    .select(['appKey', 'connectionId', 'tableName', 'schemaName', 'module'])
-    .where('appKey', 'in', apps)
+    .select(['appKey', 'manifestId', 'connectionId', 'tableName', 'schemaName', 'module'])
+    .where('manifestId', 'in', installs.map((app) => app.id))
     .where('module', 'is not', null)
     .where('state', 'in', ['created', 'adopted', 'shared'])
     .execute();
-  return rows.flatMap((row) => (row.module !== null && parts.get(row.appKey)?.off.has(row.module) === true ? [{ app: row.appKey, connectionId: row.connectionId, table: row.tableName, schema: row.schemaName, module: row.module }] : []));
+  return rows.flatMap((row) =>
+    row.module !== null && row.manifestId !== null && parts.get(row.manifestId)?.off.has(row.module) === true
+      ? [{ app: row.appKey, install: row.manifestId, connectionId: row.connectionId, table: row.tableName, schema: row.schemaName, module: row.module }]
+      : [],
+  );
 }
 
 /**
@@ -139,9 +157,9 @@ export function refNamesTable(ref: string, connectionId: string, table: string, 
 }
 
 /** Refuses with `PART_OFF` when `module` of `appKey` is off. */
-export async function assertAppPartOn(meta: MetaDb, appKey: string | null | undefined, module: string | null | undefined): Promise<void> {
+export async function assertAppPartOn(meta: MetaDb, appKey: string | null | undefined, module: string | null | undefined, installId?: string | null): Promise<void> {
   if (appKey === null || appKey === undefined || module === null || module === undefined) return;
-  if (!(await appPartIsOn(meta, appKey, module))) throw new PartOffError(appKey, module);
+  if (!(await appPartIsOn(meta, appKey, module, installId))) throw new PartOffError(appKey, module);
 }
 
 /** Refuses with `PART_OFF` when a stored page belongs to a part of its app that is off. */
@@ -155,17 +173,20 @@ export async function assertPagePartOn(meta: MetaDb, config: unknown): Promise<v
  * rule starts no run and is passed over by one already waiting. A rule an
  * owner made, and one of no part, never is.
  */
-export async function rulePartOff(meta: MetaDb, rule: { managedBy: string | null; module: string | null }): Promise<boolean> {
+export async function rulePartOff(meta: MetaDb, rule: { managedBy: string | null; module: string | null; installId?: string | null }): Promise<boolean> {
   if (rule.managedBy === null || rule.module === null) return false;
-  return !(await appPartIsOn(meta, rule.managedBy, rule.module));
+  // The part of the install that shipped the rule: another copy's switch is not this one's.
+  return !(await appPartIsOn(meta, rule.managedBy, rule.module, rule.installId));
 }
 
 /** The roles among `roles` that are offered now: not one whose every part is off, nor one of an app that is switched off. */
-export async function offeredRoles<R extends Pick<Role, 'appKey' | 'modules'>>(meta: MetaDb, roles: readonly R[]): Promise<R[]> {
+export async function offeredRoles<R extends Pick<Role, 'appKey' | 'modules'> & { manifestId?: string | null }>(meta: MetaDb, roles: readonly R[]): Promise<R[]> {
   const keys = [...new Set(roles.flatMap((role) => (role.appKey === null ? [] : [role.appKey])))];
   if (keys.length === 0) return [...roles];
   const parts = await loadAppParts(meta, keys);
-  return roles.filter((role) => (role.appKey === null || parts.get(role.appKey)?.disabled !== true) && roleIsOffered(role, parts));
+  // An app's role is suspended while ITS install is switched off; another install of the key does not decide it.
+  const of = (role: R) => (role.manifestId === undefined || role.manifestId === null ? undefined : parts.get(role.manifestId)) ?? (role.appKey === null ? undefined : parts.get(role.appKey));
+  return roles.filter((role) => (role.appKey === null || of(role)?.disabled !== true) && roleIsOffered(role, parts));
 }
 
 /*
@@ -179,19 +200,22 @@ const DOORS_TTL_MS = 3_000;
 const closedDoors = new WeakMap<MetaDb, Map<string, { at: number; closed: ReadonlySet<string> }>>();
 
 /** The refs of the app's public entries that are closed now: those of a part that is off. */
-export async function closedDoorsOf(meta: MetaDb, appKey: string | null): Promise<ReadonlySet<string>> {
+export async function closedDoorsOf(meta: MetaDb, appKey: string | null, installId?: string | null): Promise<ReadonlySet<string>> {
   if (appKey === null) return NO_DOORS;
   let known = closedDoors.get(meta);
   if (known === undefined) {
     known = new Map();
     closedDoors.set(meta, known);
   }
-  const held = known.get(appKey);
+  // The key's install the asking public key belongs to: each copy of an app has its own switches.
+  const slot = installId === undefined || installId === null ? appKey : installId;
+  const held = known.get(slot);
   const now = Date.now();
   if (held !== undefined && now - held.at < DOORS_TTL_MS) return held.closed;
-  const parts = (await loadAppParts(meta, [appKey])).get(appKey);
+  const all = await loadAppParts(meta, [appKey]);
+  const parts = all.get(slot) ?? all.get(appKey);
   const closed = new Set(Object.entries(parts?.modules?.doors ?? {}).flatMap(([ref, module]) => (partIsOn(parts, module) ? [] : [ref])));
-  known.set(appKey, { at: now, closed: closed.size === 0 ? NO_DOORS : closed });
+  known.set(slot, { at: now, closed: closed.size === 0 ? NO_DOORS : closed });
   return closed.size === 0 ? NO_DOORS : closed;
 }
 const NO_DOORS: ReadonlySet<string> = new Set();
@@ -212,8 +236,13 @@ export async function publicEntryPartOff(meta: MetaDb, appKey: string | null, re
  * Every door of the public API reads a key through this, so an entry of a
  * part that is off is answered as one that is not there, by all of them.
  */
-export async function withOpenDoors<K extends { managedBy: string | null; scope: { byRef: ReadonlyMap<string, unknown> } }>(meta: MetaDb, key: K): Promise<K> {
-  const closed = await closedDoorsOf(meta, key.managedBy);
+export async function withOpenDoors<K extends { managedBy: string | null; connectionId?: string; scope: { byRef: ReadonlyMap<string, unknown> } }>(meta: MetaDb, key: K): Promise<K> {
+  // The app's install on the key's database: its parts decide, not another copy's.
+  const install =
+    key.managedBy === null || key.connectionId === undefined
+      ? undefined
+      : (await meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', key.managedBy).where('scopeKey', '=', key.connectionId).executeTakeFirst())?.id;
+  const closed = await closedDoorsOf(meta, key.managedBy, install);
   if (closed.size === 0 || ![...closed].some((ref) => key.scope.byRef.has(ref))) return key;
   return { ...key, scope: { ...key.scope, byRef: new Map([...key.scope.byRef].filter(([ref]) => !closed.has(ref))) } };
 }

@@ -245,10 +245,11 @@ async function reconcileProfileTrigger(
  */
 export async function syncTriggersForAddOn(
   meta: MetaDb,
-  addOnKey: string,
+  install: { addOnKey: string; installId: string },
   enabled: boolean,
 ): Promise<number> {
-  const profiles = await documentProfilesRepo(meta).list({ addOnKey });
+  // One install's mappings: Kiln's going leaves Fernhill's rules firing.
+  const profiles = (await documentProfilesRepo(meta).list({ addOnKey: install.addOnKey })).filter((profile) => profile.installId === install.installId);
   const rules = automationsRepo(meta);
   let touched = 0;
   for (const profile of profiles) {

@@ -257,7 +257,7 @@ export function createDocumentAccess(deps: {
     if (cached !== undefined && Date.now() - cached.at < ttl) return cached.value;
 
     const out = new Map<string, ReadonlySet<string>>();
-    const installed = await manifestsRepo(deps.meta, NO_SECRETS).findByKey(key.managedBy);
+    const installed = await manifestsRepo(deps.meta, NO_SECRETS).findInScope(key.managedBy, key.connectionId);
     const manifest = installed?.document as AppManifest | undefined;
     // The app's own install, on this key's connection, and nothing else.
     if (installed !== null && installed !== undefined && installed.row.connectionId === key.connectionId && manifest?.kind === 'app') {
@@ -724,7 +724,7 @@ export function createDocumentAccess(deps: {
     if (declared !== null && !declared.has(profile.kind)) return null;
     // An app's document is drawn only while its add-on — and its feature — is on.
     if (key.managedBy !== null && deps.runtime !== undefined) {
-      const installed = await manifestsRepo(deps.meta, NO_SECRETS).findByKey(key.managedBy);
+      const installed = await manifestsRepo(deps.meta, NO_SECRETS).findInScope(key.managedBy, key.connectionId);
       const manifest = installed?.document as AppManifest | undefined;
       if (manifest?.kind !== 'app') return null;
       const names = await appTablesRepo(deps.meta).realNames(key.connectionId, key.managedBy);

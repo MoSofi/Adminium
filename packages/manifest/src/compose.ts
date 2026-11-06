@@ -58,6 +58,8 @@ const BLOCK_PARTS: ReadonlyArray<{ file: string; fields: readonly string[]; whol
   { file: 'documents.json', fields: ['documents'], whole: true },
   { file: 'automations.json', fields: ['automations'], whole: true },
   { file: 'people.json', fields: ['people'], whole: true },
+  { file: 'saved.json', fields: ['reports', 'invoiceLayouts', 'scheduledReports', 'payments'], whole: false },
+  { file: 'instance.json', fields: ['instance'], whole: true },
 ];
 
 /** What `app.json` holds. `prefixed` is `requiredSchema.prefixed`. */
@@ -79,6 +81,8 @@ const APP_FIELDS = [
   'modules',
   'maps',
   'widgets',
+  'provenance',
+  'apps',
   'prefixed',
 ] as const;
 

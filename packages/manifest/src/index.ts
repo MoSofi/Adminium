@@ -45,6 +45,8 @@ export {
   requiredSchemaSchema,
   requiredTableSchema,
   requiredColumnSchema,
+  columnRelationSchema,
+  type ColumnRelation,
   pageSchema,
   roleSchema,
   settingSchema,
@@ -262,6 +264,10 @@ export {
   ROW_PICTURE_MAX_BYTES,
   ROW_PICTURE_TYPES,
   emailTemplateSchema,
+  EMAIL_ATTACHMENTS_MAX,
+  EMAIL_BRAND_MARKS,
+  emailTemplateAttachmentSchema,
+  emailTemplateBrandSchema,
   emailRowsDataSchema,
   outboxProducerSchema,
   outboxSchema,
@@ -270,6 +276,44 @@ export {
   type Outbox,
   type OutboxProducer,
 } from './outbox.js';
+export {
+  PAGE_VIEWS_MAX,
+  pageEnvelopeFieldSchema,
+  pageViewSchema,
+  pageViewsSchema,
+  provenanceSchema,
+  savedAppIssues,
+  type PageEnvelopeField,
+  type PageView,
+  type Provenance,
+} from './saved-apps.js';
+export {
+  REQUIRED_APPS_MAX,
+  appsBlockSchema,
+  requiredAppIssues,
+  requiredAppSchema,
+  requiredAppTables,
+  type AppsBlock,
+  type RequiredApp,
+} from './app-requires.js';
+export {
+  INSTANCE_SETTING_KEYS,
+  INSTANCE_SYSTEM_EMAIL_KEYS,
+  instanceFileSchema,
+  instanceIssues,
+  instanceSchema,
+  type InstancePart,
+} from './instance.js';
+
+export {
+  TABLE_NAME_MAX_BYTES,
+  namesItsTable,
+  qualifyTableName,
+  realTableName,
+  splitTableName,
+  tableNameIssue,
+  tableSchemaIssue,
+} from './table-names.js';
 
 export { FORMS_ENTRY_WORDS, FORMS_KEY, SELF_UNLOCK_MIN_LENGTH } from './public-access.js';
 export {
@@ -424,6 +468,8 @@ export {
   uniqueSetName,
   indexSetName,
   plainIndexName,
+  foreignKeyName,
+  uniqueColumnName,
   uniqueSetBytes,
   type PlanContext,
   type TableChoice,
@@ -590,3 +636,23 @@ export {
   type NavLinkScreen,
   type RailIssue,
 } from './rail.js';
+
+export {
+  INVOICE_LAYOUT_LANGS,
+  INVOICE_LAYOUT_TOPICS,
+  SAVED_PART_BLOCKS,
+  savedInvoiceLayoutSchema,
+  savedPartsIssues,
+  savedPayableSchema,
+  savedPaymentWaySchema,
+  savedPaymentsSchema,
+  savedReportSchema,
+  savedScheduledReportSchema,
+  type SavedInvoiceLayout,
+  type SavedPayable,
+  type SavedPaymentWay,
+  type SavedPayments,
+  type SavedReport,
+  type SavedScheduledReport,
+} from './saved-parts.js';
+export { documentDeliverSchema, documentOptionsSchema, documentTriggerSchema } from './documents.js';

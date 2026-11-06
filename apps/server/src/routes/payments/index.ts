@@ -32,7 +32,7 @@ import {
   type PaymentMode,
 } from '@adminium/add-on-contracts';
 import { addOnManifestSchema, type AddOnManifest } from '@adminium/manifest';
-import { paymentCountersRepo, paymentSettingsRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
+import { SERVER_SCOPE, paymentCountersRepo, paymentSettingsRepo, type InstalledManifest, type ManifestsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
@@ -154,7 +154,8 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
   }
 
   async function paymentAddOn(key: string): Promise<PaymentAddOn> {
-    const installed = await manifests.findByKey(key);
+    // A payment service is kept once per server.
+    const installed = (await manifests.findInScope(key, SERVER_SCOPE)) ?? (await manifests.listByKey(key)).find((one) => one.row.kind === 'add-on') ?? null;
     const parsed = installed === null ? null : addOnManifestSchema.safeParse(installed.document);
     if (installed === null || parsed === null || !parsed.success || !isPaymentAddOn(parsed.data)) {
       throw new NotFoundError(`"${key}" is not an installed payment service.`);

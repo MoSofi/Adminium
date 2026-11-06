@@ -169,6 +169,9 @@ const DESCRIPTIONS = {
   system: 'Version and instance information',
   users: 'People in the workspace — invite, suspend, delete, assign roles',
   teams: 'Teams and who leads them: a lead reaches the rows of the people in the team',
+  workspaces:
+    'Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be ' +
+    'in several workspaces or in none, and deleting a workspace leaves its databases where they are',
   people: 'Names and ids of staff, for picking somebody (an owner, a hand-over)',
   payments:
     'Studio → Payments: connect a payment service with your own keys, choose the ways to pay and ' +

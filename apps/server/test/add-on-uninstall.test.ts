@@ -77,7 +77,7 @@ describe.each(LEGS)('removing an add-on with tables of its own — %s', (dialect
     expect(reply.statusCode, reply.body).toBe(200);
     expect(reply.json()).toMatchObject({ key: 'stock-kit', tablesKept: true, removed: { pages: 1, roles: 2 }, kept: { pages: [] }, dropped: [] });
     expect([...reply.json().kept.tables].sort()).toEqual(['stock_kit_items', 'stock_kit_takes']);
-    expect(await manifestsRepo(h.meta, CRYPTO).findByKey('stock-kit')).toBeNull();
+    expect(((await manifestsRepo(h.meta, CRYPTO).listByKey('stock-kit'))[0] ?? null)).toBeNull();
     expect(await pagesRepo(h.meta).findBySlug(h.connectionId, 'stock-kit-items')).toBeNull();
     expect((await rolesRepo(h.meta).list()).filter((role) => role.appKey === 'stock-kit')).toEqual([]);
     expect(await ownRules(h)).toEqual([]);
@@ -137,7 +137,7 @@ describe.each(LEGS)('removing an add-on with tables of its own — %s', (dialect
     const mistyped = await remove(h, { dropTables: true, confirmKey: 'stock' });
     expect(mistyped.statusCode).toBe(422);
     // Every refusal came before anything was removed.
-    expect((await manifestsRepo(h.meta, CRYPTO).findByKey('stock-kit'))?.row.status).toBe('installed');
+    expect((((await manifestsRepo(h.meta, CRYPTO).listByKey('stock-kit'))[0] ?? null))?.row.status).toBe('installed');
     expect(await pagesRepo(h.meta).findBySlug(h.connectionId, 'stock-kit-items')).not.toBeNull();
     expect(await h.tableNames()).toEqual(expect.arrayContaining(['stock_kit_items', 'stock_kit_takes']));
 
@@ -155,7 +155,7 @@ describe.each(LEGS)('removing an add-on with tables of its own — %s', (dialect
     const refused = await remove(h);
     expect(refused.statusCode, refused.body).toBe(409);
     expect(refused.json().error).toMatchObject({ code: 'ADD_ON_IN_USE', details: { postings: [{ table: 'shipments', posting: 'ship' }], features: [] } });
-    expect((await manifestsRepo(h.meta, CRYPTO).findByKey('stock-kit'))?.row.status).toBe('installed');
+    expect((((await manifestsRepo(h.meta, CRYPTO).listByKey('stock-kit'))[0] ?? null))?.row.status).toBe('installed');
     expect((await h.inject({ method: 'GET', url: '/add-ons/stock-kit/uninstall-plan' })).json().inUse.postings).toEqual([{ table: 'shipments', posting: 'ship' }]);
     await overridesRepo(h.meta).delete(rule);
     expect((await remove(h)).statusCode).toBe(200);

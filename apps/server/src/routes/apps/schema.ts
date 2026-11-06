@@ -63,6 +63,28 @@ export const stagedAppReply = z.object({
   sides: z.array(z.enum(['staff', 'customer'])),
   /** Who the manifest says made it. `local` is an app made on this install. */
   publisher: appPublisher.optional(),
+  /**
+   * Where the file goes on this server (one version per app, installed per
+   * database): `install` — the key is installed nowhere; `update` — it is
+   * newer than what every copy runs, so it updates them, one review each;
+   * `install-another` — the same version, offered for a database without a
+   * copy (`databasesFree` says how many there are; none means nowhere left).
+   * An older version and another lineage are refused before this reply.
+   */
+  route: z.enum(['install', 'update', 'install-another']),
+  /** The copies already installed, each on its database. */
+  installs: z.array(
+    z.object({
+      installId: z.string(),
+      connectionId: z.string().nullable(),
+      connectionName: z.string(),
+      slug: z.string(),
+      version: z.string(),
+      status: z.string(),
+    }),
+  ),
+  /** The databases this server has with no copy of the key yet. */
+  databasesFree: z.number().int().min(0),
 });
 
 /**
@@ -90,6 +112,12 @@ export const installAnswers = {
     .optional(),
   altPrefix: z.string().min(2).max(40).optional(),
   /**
+   * `use`: every table of the app that is here already is used as it is, all
+   * at once — never renamed, never changed. A table that cannot be used so is
+   * a plan problem (`EXISTING_TABLE_UNUSABLE`) and stops the install.
+   */
+  existing: z.literal('use').optional(),
+  /**
    * Per shape the app declares (`menu@1`): use another installed app's tables
    * of that shape (`with` = its key) or keep separate ones. No answer uses the
    * first installed app's, when there is one.
@@ -100,6 +128,22 @@ export const installAnswers = {
       z.discriminatedUnion('action', [
         z.object({ action: z.literal('share'), with: z.string().min(1).max(64) }),
         z.object({ action: z.literal('separate') }),
+      ]),
+    )
+    .optional(),
+  /**
+   * Per page of the app whose address a page here already has (`plan.pageClashes`,
+   * by the app page's slug): `replace` the page there (only one nobody edited),
+   * `rename-existing` it to `to` so the app's page takes the address, or `skip`
+   * the app's page. A clash with no answer refuses the install.
+   */
+  pages: z
+    .record(
+      z.string().regex(/^[a-z][a-z0-9-]*$/),
+      z.discriminatedUnion('action', [
+        z.object({ action: z.literal('replace') }),
+        z.object({ action: z.literal('rename-existing'), to: z.string().min(1).max(64) }),
+        z.object({ action: z.literal('skip') }),
       ]),
     )
     .optional(),
@@ -278,7 +322,7 @@ export const appInstallPlanDto = z.object({
       message: z.string(),
       table: z.string(),
       column: z.string().optional(),
-      /** `APP_INSTALLED_ELSEWHERE` only: the connection the app is installed on. */
+      /** `ONE_VERSION_PER_APP` only: the connection another copy of the app (on another version) is on. */
       connectionId: z.string().optional(),
     }),
   ),
@@ -413,8 +457,47 @@ export const appInstallPlanDto = z.object({
       }),
     )
     .optional(),
+  /**
+   * The app's pages whose address a page here already has: the operator's own,
+   * a generated one, or one an uninstalled app left. Each is answered in
+   * `pages` (the install's answers); `offers` has `replace` only for a page
+   * nobody edited. Absent when there is none. Another app's page is a problem
+   * (`PAGE_SLUG_TAKEN`), never offered.
+   */
+  pageClashes: z
+    .array(
+      z.object({
+        page: z.string(),
+        title: z.string(),
+        holder: z.enum(['yours', 'generated', 'orphan']),
+        untouched: z.boolean(),
+        offers: z.array(z.enum(['replace', 'rename-existing', 'skip'])),
+        action: z.enum(['replace', 'rename-existing', 'skip', 'undecided']),
+        renameTo: z.string().optional(),
+      }),
+    )
+    .optional(),
   /** The app ships sample data, which can be added once it is installed. */
   sampleData: z.boolean().optional(),
+  /** A self-made app's file (`provenance`): "Made at <label> on <date>, Adminium <version>". */
+  madeAt: z.object({ label: z.string().nullable(), savedAt: z.string(), adminiumVersion: z.string() }).optional(),
+  /**
+   * What the owner fills in once it is installed, each by what it is, the
+   * entry of the file it belongs to and the field: a rule's webhook or typed
+   * addresses (the rule arrives switched off), a document's mail slot, who a
+   * schedule goes to, a payment service's keys, a bank account.
+   */
+  afterInstall: z
+    .array(
+      z.object({
+        kind: z.enum(['webhook', 'address', 'document', 'delivery', 'recipients', 'payment-key', 'bank-account']),
+        item: z.string(),
+        field: z.string(),
+      }),
+    )
+    .optional(),
+  /** The parts only a self-made file carries, counted: they are made beside its pages. */
+  savedParts: z.object({ reports: z.number().int(), invoiceLayouts: z.number().int(), scheduledReports: z.number().int(), payments: z.boolean() }).optional(),
   /** The app shows maps and nobody has yet said whether this install shows them: the check step asks. */
   maps: z.boolean().optional(),
   /**
@@ -569,6 +652,13 @@ export const installAppBody = z.object({
    * later manifest version permitting no tables does not need a wire change.
    */
   connectionId: z.string().min(1).optional(),
+  /**
+   * Take the app's plain addresses (`/apps/<key>/<side>/`, `/a/<key>`) for this
+   * copy. The first copy of a key has them; once that copy is uninstalled they
+   * stay free until an install asks for them like this, never by default.
+   * Refused while another copy holds them.
+   */
+  bareAddress: z.literal(true).optional(),
   /**
    * The `checksum` of the plan the operator reviewed. When present, the install
    * re-plans from the live database and refuses with 409 `SCHEMA_DRIFT` if the
@@ -914,6 +1004,20 @@ export const appCatalogEntry = z.object({
   lastUpdatedAt: z.string().nullable(),
   /** The add-ons its catalog release requires, by key — the card's "Needs Invoices". */
   requiresAddOns: z.array(z.string()),
+  /**
+   * Each copy installed on this server, one per database: the card shows one
+   * version per key, and a status row per copy (plan 76 §13.7 rule 7).
+   */
+  installs: z.array(
+    z.object({
+      installId: z.string(),
+      connectionId: z.string().nullable(),
+      connectionName: z.string(),
+      slug: z.string(),
+      version: z.string(),
+      status: z.string(),
+    }),
+  ),
 });
 
 export const appCatalogReply = z.object({
@@ -968,6 +1072,10 @@ export const updateAppBody = z
     planChecksum: z.string().min(1).max(128).optional(),
     choices: installAnswers.choices,
     shares: installAnswers.shares,
+    /** As the install's: what to do where a new page's address is taken here. */
+    pages: installAnswers.pages,
+    /** As the install's: the tables the new version brings that are here already are used as they are. */
+    existing: installAnswers.existing,
     /**
      * The check's "Allow this public access", for what the new version adds
      * to it: an entry its keys do not hold (`onUpdate: granted`), a key it
@@ -1232,6 +1340,11 @@ export const uninstallPlanReply = z.object({
    * and only their link to this app goes (the Kept line).
    */
   addOns: z.array(z.object({ key: z.string(), name: z.string(), version: z.string() })).optional(),
+  /**
+   * The apps on this database that require this one (`apps.requires`): while
+   * any is installed, the uninstall is refused (`APP_REQUIRED_BY`). Absent when none.
+   */
+  requiredBy: z.array(z.object({ key: z.string(), name: z.string() })).optional(),
 });
 
 /** Uninstall. Dropping the app's own tables needs the app's key typed back. */
@@ -1267,6 +1380,8 @@ export const uninstallAppReply = z.object({
     })
     .optional(),
   dropped: z.array(z.string()).optional(),
+  /** False when the app's files stay: another database still runs this app (they go with its last install), or removing them failed. */
+  filesRemoved: z.boolean().optional(),
 });
 
 
@@ -1332,3 +1447,40 @@ export const appPartOpenReply = z.object({
 });
 
 export const appPartBody = z.object({ on: z.boolean() });
+
+/** A legacy instance of an app (`/apps/<key>/<slug>/…`, made before installs were per database). */
+export const appInstanceParams = z.object({
+  key: appKey,
+  slug: z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
+});
+
+/** What making a legacy instance an install of its own would do, before it does it. */
+export const appInstanceAdoptPlanReply = z.object({
+  key: z.string(),
+  slug: z.string(),
+  /** The database the instance reads: the new install's own. */
+  connectionId: z.string(),
+  connectionName: z.string(),
+  /** The version installed: the first copy's (one version per app). */
+  version: z.string(),
+  /** The first copy's settings the new install takes as its own. */
+  settings: z.array(z.string()),
+  /** The secret settings it does not take: given again on the new copy. */
+  secretsLeft: z.array(z.string()),
+  /** The roles that open the first copy's staff screens, which will open this one's. */
+  roles: z.array(z.object({ id: z.string(), name: z.string() })),
+});
+
+export const appInstanceAdoptBody = z
+  .object({
+    /** The checksum of the plan (`POST /apps/plan` on the instance's database with `existing: "use"`) the operator saw. */
+    planChecksum: z.string().min(1).max(128).optional(),
+  })
+  .strict();
+
+export const appInstanceAdoptReply = z.object({
+  app: installedAppReply,
+  settingsCopied: z.array(z.string()),
+  secretsLeft: z.array(z.string()),
+  rolesGranted: z.array(z.object({ id: z.string(), name: z.string() })),
+});

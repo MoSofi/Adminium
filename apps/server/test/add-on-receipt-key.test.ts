@@ -95,7 +95,7 @@ describe.each(LEGS)('a ledger\'s receipt table — %s', (dialect, available) => 
     const rows = manifestsRepo(h.meta, CRYPTO);
     const again = async () => {
       // The row says the install did not finish: the same call takes it up, over the tables that are there.
-      await rows.setStatus((await rows.findByKey('ledger-kit'))!.row.id, 'installing');
+      await rows.setStatus((((await rows.listByKey('ledger-kit'))[0] ?? null))!.row.id, 'installing');
       const reply = await install(h!);
       expect(reply.statusCode, reply.body).toBe(200);
       expect(reply.json().schema.created).toEqual([]);

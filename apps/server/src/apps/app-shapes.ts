@@ -85,8 +85,9 @@ export async function shapesForPlan(
         document = null;
       }
     } else {
-      const installed = await manifests.findByKey(key);
-      if (installed !== null && installed.row.kind === 'add-on') document = installed.document;
+      // One version per add-on on a server: any install of it has the shapes.
+      const installed = (await manifests.listByKey(key)).find((one) => one.row.kind === 'add-on');
+      if (installed !== undefined) document = installed.document;
     }
     if (document === null) continue;
     out.resolved.add(key);

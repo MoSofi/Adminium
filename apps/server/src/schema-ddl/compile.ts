@@ -486,7 +486,10 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
       return compileCreateTable(step, ctx);
 
     case 'drop-table': {
-      const drop = db.schema.dropTable(bareName(step.table)).compile();
+      // In the table's own schema on Postgres (`sales.orders`), as every other step's `tableRef` is: unqualified, it is the search path's.
+      const dot = step.table.lastIndexOf('.');
+      const schema = dialect === 'postgres' && dot > 0 ? step.table.slice(0, dot) : null;
+      const drop = (schema === null ? db.schema : db.schema.withSchema(schema)).dropTable(bareName(step.table)).compile();
       if (dialect !== 'sqlite' || ctx.withoutForeignKeys !== true) return [drop];
       // Outside any transaction, where the pragma takes effect: the apply runs
       // SQLite's statements one by one. `resetRails` turns enforcement back on

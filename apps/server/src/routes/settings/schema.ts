@@ -11,11 +11,16 @@ import { accentSchema, densitySchema, localeSchema, themeSchema } from '@adminiu
 import { PUBLIC_ORIGIN_MAX_LENGTH, normalizePublicOrigin } from '../../security/public-origin.js';
 
 /** PUT body — a full-object write, never a partial patch. */
+/** How the menu shows workspaces, for everyone: one at a time, or all in one menu. */
+export const workspaceViewSchema = z.enum(['one', 'all']);
+
 export const settingsDefaultsPutBody = z.object({
   theme: themeSchema,
   accent: accentSchema,
   density: densitySchema,
   locale: localeSchema,
+  /** Absent: left as it is (a client from before workspaces sends four axes). */
+  workspaceView: workspaceViewSchema.optional(),
 });
 export type SettingsDefaultsPutBody = z.infer<typeof settingsDefaultsPutBody>;
 
@@ -35,6 +40,7 @@ export const settingsDefaultsReply = z.object({
     accent: accentSchema,
     density: densitySchema,
     locale: localeSchema,
+    workspaceView: workspaceViewSchema,
     adoption: adoptionView,
   }),
 });

@@ -65,6 +65,7 @@ const profileInput = (connectionId: string, name: string, ownerApp: string | nul
   connectionId,
   table: 'public.studio_invoices',
   mapping: { number: { column: 'number' } },
+  installId: null,
   ...(ownerApp === null ? {} : { ownerApp, orderBy: 'p'.repeat(128) }),
 });
 

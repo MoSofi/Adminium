@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { afterEach, beforeAll, afterAll, describe, expect, it } from 'vitest';
 import {
   connectionsRepo,
+  manifestsRepo,
   publicKeysRepo,
   publicScopesRepo,
   settingsRepo,
@@ -163,6 +164,9 @@ describe('GET /api/v1/surfaces', () => {
     expect(body.surfaces).toEqual([
       {
         appKey: 'clients',
+        // Installed nowhere (a project's surfaces): one row, under its key.
+        address: 'clients',
+        installId: null,
         side: 'staff',
         prefix: '/apps/clients/staff',
         navAvailable: true,
@@ -178,6 +182,8 @@ describe('GET /api/v1/surfaces', () => {
       },
       {
         appKey: 'clients',
+        address: 'clients',
+        installId: null,
         side: 'customer',
         prefix: '/apps/clients/customer',
         navAvailable: false,
@@ -488,6 +494,37 @@ describe('PUT /api/v1/surfaces/:appKey/connection', () => {
     expect(res.statusCode).toBe(422);
   });
 
+});
+
+describe('a later copy of an app', () => {
+  it('is a row of its own, named and placed under its address, and reads the database it is installed on', async () => {
+    const { app, fixture } = await build();
+    const crypto = dsnCryptoFromSecret(makeEnv().ADMINIUM_SECRET);
+    const connections = connectionsRepo(fixture.meta, crypto);
+    const fernhill = await connections.create({ name: 'Fernhill', engine: 'postgres', introspectDsn: 'postgres://ro:s@db/fernhill' });
+    const kiln = await connections.create({ name: 'Kiln', engine: 'postgres', introspectDsn: 'postgres://ro:s@db/kiln' });
+    const plain = { encrypt: (v: string) => v, decrypt: (v: string) => v };
+    await manifestsRepo(fixture.meta, plain).install({ manifestKey: 'clients', version: '1.0.0', kind: 'app', source: 'file', document: {}, connectionId: fernhill.id });
+    const later = await manifestsRepo(fixture.meta, plain).install({ manifestKey: 'clients', version: '1.0.0', kind: 'app', source: 'file', document: {}, connectionId: kiln.id, instanceSlug: 'kiln' });
+    const put = (url: string, payload: Record<string, unknown>) => app.inject({ method: 'PUT', url, headers: asUser(fixture.admin), payload });
+
+    expect((await put('/api/v1/surfaces/clients~kiln/name', { name: 'Kiln Street' })).statusCode).toBe(200);
+    expect((await put('/api/v1/surfaces/clients~kiln/placement', { staff: 'external' })).statusCode).toBe(200);
+    const list = (await app.inject({ method: 'GET', url: '/api/v1/surfaces', headers: asUser(fixture.admin) })).json().surfaces as Record<string, unknown>[];
+    const staff = list.filter((row) => row['side'] === 'staff');
+    expect(staff.map((row) => [row['address'], row['installId'] !== null, row['nameOverride'], row['staffPlacement'], row['prefix']])).toEqual([
+      ['clients', true, null, 'internal', '/apps/clients/staff'],
+      ['clients~kiln', true, 'Kiln Street', 'external', '/apps/clients/kiln/staff'],
+    ]);
+    expect(staff[1]!['connectionId']).toBe(kiln.id);
+    expect(staff[1]!['installId']).toBe(later.row.id);
+
+    // Its database is the copy itself, never a setting; an address no copy has is nobody's.
+    const moved = await put('/api/v1/surfaces/clients~kiln/connection', { connectionId: fernhill.id });
+    expect(moved.statusCode).toBe(409);
+    expect(moved.json().error.details.reason).toBe('INSTALL_OWNS_DATABASE');
+    expect((await put('/api/v1/surfaces/clients~nowhere/name', { name: 'x' })).statusCode).toBe(404);
+  });
 });
 
 describe('PUT /api/v1/surfaces/instances', () => {

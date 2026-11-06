@@ -9,6 +9,7 @@
  * installed through the real installer, its rows are real rows, the key is
  * the one its install made, the session is claimed over HTTP.
  */
+import { onlyInstall } from './only-install.js';
 import { addOnSettingsRepo, documentProfilesRepo, documentsRepo, documentSequencesRepo, type DocumentProfile } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -115,8 +116,7 @@ describe.each(LEGS)('documents for an app\'s own rows on %s', (dialect, reachabl
   });
 
   it.skipIf(!reachable)('prints its own number, the client\'s company through client_id, the letterhead, and its lines in order', async () => {
-    await addOnSettingsRepo(h.meta).patch(
-      'invoices',
+    await addOnSettingsRepo(h.meta).patch(await onlyInstall(h.meta, 'invoices'),
       { business_name: 'Studio North', tax_number: 'GB 123', payment_instructions: 'Pay by transfer', footer: '   ' },
       [{ key: 'business_name' }, { key: 'tax_number' }, { key: 'payment_instructions' }, { key: 'footer' }] as never,
     );

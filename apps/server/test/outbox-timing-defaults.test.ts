@@ -5,6 +5,7 @@
  * nobody has saved yet dates its reminders by the add-on's own ladder, as the
  * write path's rules do — never "no days".
  */
+import { onlyInstall } from './only-install.js';
 import BetterSqlite3 from 'better-sqlite3';
 import { addOnSettingsRepo, createSqliteMetaDb, firstRun, manifestsRepo, type MetaDb } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -13,6 +14,8 @@ import { daysFor, settingReader } from '../src/outbox/timing.js';
 
 const IDENTITY = { encrypt: (v: string) => v, decrypt: (v: string) => v };
 const LADDER = { setting: { addOn: 'invoices', setting: 'ladders' }, byColumn: 'ladder', index: 1 } as const;
+// The database a message is for: the add-on below is kept for the server, so every database reads it.
+const DATABASE = 'con_any';
 
 let meta: MetaDb | undefined;
 afterEach(async () => {
@@ -39,14 +42,14 @@ async function withInvoices(): Promise<MetaDb> {
 describe('the days of a held message, from an add-on’s setting', () => {
   it('uses the add-on’s declared default when nobody has saved one', async () => {
     const db = await withInvoices();
-    const read = settingReader(db, undefined as never);
+    const read = settingReader(db, undefined as never, undefined, DATABASE);
     expect(await daysFor(LADDER, { ladder: 'standard' }, read)).toBe(14);
     expect(await daysFor(LADDER, { ladder: 'gentle' }, read)).toBe(21);
   });
 
   it('uses the saved value over the default', async () => {
     const db = await withInvoices();
-    await addOnSettingsRepo(db).patch('invoices', { ladders: { standard: [2, 9, 20] } }, [{ key: 'ladders', secret: false }], { updatedBy: null });
-    expect(await daysFor(LADDER, { ladder: 'standard' }, settingReader(db, undefined as never))).toBe(9);
+    await addOnSettingsRepo(db).patch(await onlyInstall(db, 'invoices'), { ladders: { standard: [2, 9, 20] } }, [{ key: 'ladders', secret: false }], { updatedBy: null });
+    expect(await daysFor(LADDER, { ladder: 'standard' }, settingReader(db, undefined as never, undefined, DATABASE))).toBe(9);
   });
 });

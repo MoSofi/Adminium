@@ -303,6 +303,8 @@ export interface CreatePublicKeyInput {
   kind?: string;
   /** The app key that creates it at install; absent for an operator's key. */
   managedBy?: string | null;
+  /** The install that creates it (wave 0076), with `managedBy`. */
+  installId?: string | null;
   /** `customer` (default), or the name of an app's second browser key. */
   purpose?: string;
   /** A key only a signed-in staff member holding this role may use. */
@@ -344,6 +346,7 @@ export function publicKeysRepo(meta: MetaDb) {
         createdAt: at,
         updatedAt: at,
         managedBy: input.managedBy ?? null,
+        installId: input.installId ?? null,
         purpose: input.purpose ?? CUSTOMER_KEY_PURPOSE,
         requiresStaff: input.requiresStaff === undefined || input.requiresStaff === null ? null : JSON.stringify(input.requiresStaff),
         enabledBy: input.enabledBy === undefined || input.enabledBy === null ? null : JSON.stringify(input.enabledBy),
@@ -351,8 +354,9 @@ export function publicKeysRepo(meta: MetaDb) {
         peakWrites: input.peak?.writes ?? null,
       };
       // The peak's columns only when there is one: a key made against a store not yet migrated past 0048 writes none.
-      const { peakReads, peakWrites, ...rest } = row;
-      await on.insertInto('adminium_public_keys').values(input.peak == null ? rest : { ...rest, peakReads, peakWrites }).execute();
+      // The install's id only when there is one: a store not yet past 0076 has no such column.
+      const { peakReads, peakWrites, installId, ...rest } = row;
+      await on.insertInto('adminium_public_keys').values({ ...rest, ...(input.peak == null ? {} : { peakReads, peakWrites }), ...(installId === null ? {} : { installId }) }).execute();
       return row;
     },
 
@@ -516,8 +520,11 @@ export function publicKeysRepo(meta: MetaDb) {
     },
 
     /** Every key an app made, live or not, newest first: what an update compares its manifest with. */
-    async listManagedBy(appKey: string): Promise<PublicKey[]> {
-      const rows = await db.selectFrom('adminium_public_keys').selectAll().where('managedBy', '=', appKey).orderBy('createdAt', 'desc').execute();
+    async listManagedBy(appKey: string, installId?: string): Promise<PublicKey[]> {
+      // One install's keys only (wave 0076): an update or uninstall of Kiln's never touches Fernhill's.
+      let query = db.selectFrom('adminium_public_keys').selectAll().where('managedBy', '=', appKey);
+      if (installId !== undefined) query = query.where('installId', '=', installId);
+      const rows = await query.orderBy('createdAt', 'desc').execute();
       return rows.map(keyRow);
     },
 

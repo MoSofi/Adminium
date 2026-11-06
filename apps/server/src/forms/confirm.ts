@@ -85,6 +85,7 @@ export function createFormsConfirm(deps: FormsConfirmDeps) {
   /** The answers tables of a forms add-on, on its database. */
   async function answersOf(addOn: string): Promise<{ connectionId: string; table: string; pk: string }[]> {
     const installs = await deps.installs();
+    // key-wide: every install of the add-on, each on its own database, is read in turn.
     const rows = await meta.db.selectFrom('adminium_manifests').select(['connectionId']).where('manifestKey', '=', addOn).where('kind', '=', 'add-on').execute();
     const out: { connectionId: string; table: string; pk: string }[] = [];
     for (const row of rows) {

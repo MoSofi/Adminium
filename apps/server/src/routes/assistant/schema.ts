@@ -30,6 +30,8 @@ export const assistantHostBody = z.object({
   documentId: z.string().max(64).optional(),
   tab: z.string().max(40).optional(),
   connectionIds: z.array(z.string().max(64)).max(20).default([]),
+  /** The tab's workspace: the assistant then works with that workspace's databases. */
+  workspaceId: z.string().max(36).optional(),
   /** A data page: which page. Its table is read from the page, by the server. */
   pageId: z.string().max(64).optional(),
   /** What that page is showing, in the list route's own spellings. Bounded as that route bounds them. */

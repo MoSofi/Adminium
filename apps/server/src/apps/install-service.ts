@@ -34,7 +34,9 @@ import {
   installsLikeAnApp,
   ledgerIndexes,
   prefixFor,
+  realTableName,
   satisfiesSemverRange,
+  splitTableName,
   uniqueWithOf,
   type InstallTablePlan,
   type PlanProblem,
@@ -45,20 +47,27 @@ import {
 } from '@adminium/manifest';
 import { checkManifestPages, sha256Hex, type DatabaseModel } from '@adminium/engine';
 import {
+  addOnSettingsRepo,
+  appSavesRepo,
   appTablesRepo,
+  appUpdatesRepo,
   overridesRepo,
   CUSTOMER_KEY_PURPOSE,
   auditRepo,
   connectionsRepo,
   connectionTenantConfig,
+  documentProfilesRepo,
   publicEndpointsRepo,
   publicKeysRepo,
   manifestsRepo,
   pagesRepo,
+  permissionsRepo,
   readAppModules,
+  realTableOf,
   rolesRepo,
   settingsRepo,
   userPrefsRepo,
+  type InstalledManifest,
   type MetaDb,
 } from '@adminium/meta';
 import type { z } from 'zod';
@@ -100,14 +109,16 @@ import { ownsBlocks } from './owns-blocks.js';
 import { createRemovals } from './removal.js';
 import { surfacesOfInstalled, type InstalledApps } from './installed.js';
 import {
-  envelopeAppKey,
-  isThisAppsPage,
   materialiseManifestPages,
+  planPageSlugs,
   type MaterialiseResult,
+  type PageChoice,
+  type PageClash,
 } from './manifest-pages.js';
+import { envelopePlanProblems } from './manifest-envelopes.js';
 import { addedDefault, missingColumnsEdit, offered, type OfferedColumn } from './missing-columns.js';
 import type { AppSchemaTarget } from './schema-target.js';
-import { AddOnInstallError, type ExistingTable } from '../add-ons/install-ddl.js';
+import { AddOnInstallError, keptByDatabase, type ExistingTable } from '../add-ons/install-ddl.js';
 import type { EditBody } from '../schema-ddl/programmatic.js';
 import type { AppStore } from './store.js';
 import { AddOnStoreError } from '../add-ons/store.js';
@@ -143,8 +154,11 @@ import {
   takeBackPublicAccess,
   type PublicAccessCommit,
 } from './manifest-public.js';
-import { installOutbox, templateProblems, type OutboxResult } from './manifest-outbox.js';
-import { installAutomations } from './manifest-automations.js';
+import { installOutbox, libraryFiles, mailCarries, templateProblems, type OutboxResult } from './manifest-outbox.js';
+import { installAutomations, plannedAfterInstallOfRules } from './manifest-automations.js';
+import { recordAfterInstall, type AfterInstallItem } from './after-install.js';
+import { requiredAppsHere, requiredTablesGone } from './required-apps.js';
+import { deliveryItems, installSavedParts, plannedAfterInstallOfParts, savedPartsRefusal } from './saved-parts.js';
 import { announceRulesChanged } from '../documents/trigger-sync.js';
 import { addOnsNamedBy, liveAddOnsFor } from './live-add-ons.js';
 import { addOnGrantsWider, roleTablesAsked, roleTablesChecked, settleRoleTables, widerWords, type AddOnGrantWider, type RoleTableCheck, type RoleTableResult } from './manifest-role-tables.js';
@@ -154,10 +168,13 @@ import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import { EndpointInUse, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
 import type { PublicMethod } from '../public-api/endpoint.js';
 import type { SnapshotView } from '../crud/identifiers.js';
-import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
+import { refusePlannedOnly, refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import type { DsnCrypto } from '@adminium/meta';
 import { pageLayoutSchema } from '@adminium/engine/config';
+import type { FileStore } from '../files/store.js';
 import { APP_VERSION } from '../version.js';
+import { SERVER_SCOPE } from '@adminium/meta';
+import { addressOf, grantKeyOf, installOnConnection, resolveInstall, slugForInstall, MAX_INSTALLS_PER_KEY } from '../installs/resolve.js';
 import {
   installAppBody,
   installedAppReply,
@@ -238,6 +255,8 @@ export interface AppRoutesDeps {
    * and browsing lists the store alone.
    */
   catalog?: AppCatalogClient | undefined;
+  /** The Files library: where the files an app's emails carry are kept. Absent, an app whose emails carry files is refused. */
+  library?: FileStore | undefined;
   /** Tests only; production compares minimums with the running version. */
   serverVersion?: string | undefined;
   /** The add-ons loaded now: an app's documents are made only while their add-on is. */
@@ -295,7 +314,8 @@ export function editBodyFor(
         const unique = partners === null ? {} : partners.length === 0 ? { unique: true } : { unique: true, uniqueWith: partners };
         if (column?.type === 'fk' && column.references !== undefined) {
           const link = linkColumnFor(column.references, model, idOf, names);
-          if (link !== null) addColumns.push({ table: id, column: { name: edit.column, ...link.column } as never, foreignKey: link.foreignKey, ...unique });
+          // A link no foreign key keeps is a plain column shaped like the key; Adminium links it (`relation.add`).
+          if (link !== null) addColumns.push({ table: id, column: { name: edit.column, ...link.column } as never, ...(keptByDatabase(column) ? { foreignKey: link.foreignKey } : {}), ...unique });
           continue;
         }
         const shape = column === undefined ? null : offered(column);
@@ -389,14 +409,121 @@ export interface InstallAnswers {
   altPrefix?: string | undefined;
   /** Per shape (`menu@1`): use another installed app's tables of it, or keep separate ones. */
   shares?: Readonly<Record<string, ShareChoice>> | undefined;
+  /** Per page of the app whose address a page here has (by the app page's slug): replace, rename it, or skip the app's. */
+  pages?: Readonly<Record<string, PageChoice>> | undefined;
+  /**
+   * `use`: every table of the app that is here already is used as it is
+   * (§8.4) — a copied database, or the one a saved dashboard came from. Never
+   * a rename; a table that cannot be used without a change stops the install.
+   */
+  existing?: 'use' | undefined;
 }
 
-/** An update's answers: the check's table choices and shape answers, as the body carries them. */
-function updateAnswers(body: { choices?: Record<string, TableChoice> | undefined; shares?: Record<string, ShareChoice> | undefined } | null | undefined): InstallAnswers {
+/**
+ * WHAT THE REVIEW SHOWS OF A SELF-MADE FILE beside its tables (§4.2): where
+ * and when it was made, what the owner fills in once it is installed (a
+ * rule's outside address arrives empty and switched off, a schedule goes to
+ * nobody yet, a payment service has no keys), and the parts only such a file
+ * carries. Absent for a file that has none of them.
+ */
+function reviewOf(manifest: Manifest): Pick<AppInstallPlanDto, 'madeAt' | 'afterInstall' | 'savedParts'> {
+  const provenance = (manifest as { provenance?: { label?: string; savedAt: string; adminiumVersion: string } }).provenance;
+  const afterInstall = [...plannedAfterInstallOfRules(manifest), ...plannedAfterInstallOfParts(manifest)];
+  const parts = manifest.kind === 'app' ? manifest : null;
+  const savedParts =
+    parts === null || (parts.reports === undefined && parts.invoiceLayouts === undefined && parts.scheduledReports === undefined && parts.payments === undefined)
+      ? undefined
+      : {
+          reports: parts.reports?.length ?? 0,
+          invoiceLayouts: parts.invoiceLayouts?.length ?? 0,
+          scheduledReports: parts.scheduledReports?.length ?? 0,
+          payments: parts.payments !== undefined,
+        };
   return {
+    ...(provenance === undefined ? {} : { madeAt: { label: provenance.label ?? null, savedAt: provenance.savedAt, adminiumVersion: provenance.adminiumVersion } }),
+    ...(afterInstall.length === 0 ? {} : { afterInstall }),
+    ...(savedParts === undefined ? {} : { savedParts }),
+  };
+}
+
+/** What "use the existing tables" would have to change on each one, said for a person. */
+function editWords(edit: InstallTablePlan['edits'][number]): string {
+  switch (edit.kind) {
+    case 'add-column':
+      return `add the column "${edit.column}"`;
+    case 'widen':
+      return `widen "${edit.column}" from ${edit.from} to ${edit.to}`;
+    case 'set-identity':
+      return `number "${edit.column}" itself`;
+    case 'enum-values':
+      return `add ${edit.values.map((value) => `"${value}"`).join(', ')} to the values of "${edit.column}"`;
+    case 'add-unique':
+      return `make "${edit.column}" unique`;
+    case 'add-index':
+      return `index "${edit.column}"`;
+    case 'add-link':
+      return `link "${edit.column}" to "${edit.to}"`;
+    default:
+      return 'change it';
+  }
+}
+
+/**
+ * USE THE EXISTING TABLES (§8.4) CHANGES NONE OF THEM: a table that is here and
+ * would be renamed out of the way, left undecided (no reuse offered), or used
+ * only with a change to it stops the install, by name. The tables are the
+ * owner's data, and a file installed onto them adds nothing to them.
+ */
+export function existingTableProblems(plan: InstallPlan, asked: InstallAnswers['choices']): PlanProblem[] {
+  const out: PlanProblem[] = [];
+  for (const table of plan.tables ?? []) {
+    if (table.class !== 'taken' && !(table.class === 'own-leftover' && table.adopted === true)) continue;
+    if (asked?.[table.ref]?.action === 'rename-existing' || table.action === 'rename-existing') {
+      out.push({ code: 'EXISTING_TABLE_UNUSABLE', table: table.ref, message: `"${table.table}" is here already: using the existing tables never renames one out of the way.` });
+    } else if (table.action !== 'reuse' && table.action !== 'share') {
+      out.push({ code: 'EXISTING_TABLE_UNUSABLE', table: table.ref, message: `"${table.table}" is here already and cannot be used as it is${table.reuseRefusal === undefined ? '' : `: ${table.reuseRefusal}`}.` });
+    } else if (table.edits.length > 0 || table.blocked.length > 0) {
+      const changes = [...table.edits.map(editWords), ...table.blocked.map((blocked) => `add the column "${blocked.column}"`)];
+      out.push({ code: 'EXISTING_TABLE_UNUSABLE', table: table.ref, message: `"${table.table}" is here already, and using it would ${changes.join(', ')}. Using the existing tables changes none of them.` });
+    }
+  }
+  return out;
+}
+
+/** An update's answers: the check's table choices, shape answers and page answers, as the body carries them. */
+function updateAnswers(body: { choices?: Record<string, TableChoice> | undefined; shares?: Record<string, ShareChoice> | undefined; pages?: Record<string, PageChoice> | undefined; existing?: 'use' | undefined } | null | undefined): InstallAnswers {
+  return {
+    ...(body?.existing === undefined ? {} : { existing: body.existing }),
     ...(body?.choices === undefined ? {} : { choices: body.choices }),
     ...(body?.shares === undefined ? {} : { shares: body.shares }),
+    ...(body?.pages === undefined ? {} : { pages: body.pages }),
   };
+}
+
+/**
+ * The snapshot's id of a real table: a self-made app's `sales.Order Lines` is
+ * its own id already; a bare name is the table of that name in the default
+ * schema, else the only one so named.
+ */
+export function tableIdIn(model: DatabaseModel, real: string): string {
+  return tableIdOrNull(model, real) ?? real;
+}
+
+/** {@link tableIdIn}, or null when the model has no such table. */
+export function tableIdOrNull(model: Pick<DatabaseModel, 'tables' | 'defaultSchema'>, real: string): string | null {
+  const { schema, name } = splitTableName(real);
+  if (schema !== null) return model.tables.find((t) => t.schema === schema && t.name === name)?.id ?? null;
+  return (
+    model.tables.find((t) => t.name === name && (t.schema === model.defaultSchema || t.schema === null))?.id ??
+    model.tables.find((t) => t.name === name)?.id ??
+    null
+  );
+}
+
+/** A real table as its record keeps it: the name, and the schema apart (null for none). */
+function recordedName(real: string): { tableName: string; schemaName: string | null } {
+  const { schema, name } = splitTableName(real);
+  return { tableName: name, schemaName: schema };
 }
 
 /**
@@ -407,6 +534,8 @@ export function tablesNamedBy(manifest: Manifest): Set<string> {
   const names = new Set<string>();
   for (const table of manifest.requiredSchema?.tables ?? []) {
     names.add(table.ref);
+    // A self-made app's table under its own name, in its own schema.
+    names.add(realTableName(table, null));
     for (const column of table.columns) if (column.references !== undefined) names.add(column.references);
   }
   return names;
@@ -462,6 +591,12 @@ function documentsWaiting(documents: AppProfilesResult | undefined): { documents
   return { documents: { waiting: documents.waiting.map(({ kind, table, addOn, addOnName, name, reason }) => ({ kind, table, addOn, addOnName: addOnName ?? addOn, name, reason })) } };
 }
 
+/** The table refs an installed manifest document declares. */
+export function tableRefsOf(document: unknown): string[] {
+  const tables = (document as { requiredSchema?: { tables?: { ref?: unknown }[] } } | null)?.requiredSchema?.tables ?? [];
+  return tables.map((table) => table.ref).filter((ref): ref is string => typeof ref === 'string');
+}
+
 export function statusOf(value: string): 'installing' | 'installed' | 'disabled' | 'error' {
   return value === 'installing' || value === 'installed' || value === 'disabled' ? value : 'error';
 }
@@ -492,7 +627,24 @@ export type InstallInput = z.infer<typeof installAppBody> & {
    * install and everything their check step showed is done.
    */
   unattended?: Unattended | undefined;
+  /**
+   * A legacy instance's slug (an address made before installs were per
+   * database): the install takes that address and the instance becomes its
+   * own. Set by `adoptInstance` only.
+   */
+  adoptInstance?: string | undefined;
 };
+
+/** What turning a legacy instance into an install of its own did. */
+export interface AdoptedInstance {
+  app: InstalledAppReply;
+  /** The settings of the first copy this one now has as its own. */
+  settingsCopied: string[];
+  /** The secret settings it does not carry over: given again on the new copy. */
+  secretsLeft: string[];
+  /** The roles that open the first copy's staff screens, which now open this one's too. */
+  rolesGranted: { id: string; name: string }[];
+}
 
 /** The limits of an install or an apply that no person reviewed. */
 export interface Unattended {
@@ -504,6 +656,8 @@ export interface Unattended {
 
 export interface ApplyInPlaceInput {
   key: string;
+  /** The install to change, when the key has several. */
+  installId?: string | undefined;
   /** The version the folder's manifest declares; only for the wording of a refusal. */
   version: string;
   /** Give the app the public access its manifest declares. */
@@ -540,6 +694,9 @@ export type InstalledAppReply = z.infer<typeof installedAppReply>;
 export interface UpdateInput {
   key: string;
   body: z.infer<typeof updateAppBody>;
+  /** The install to update, when the key has several (the request's selector). */
+  installId?: string | undefined;
+  connectionId?: string | undefined;
 }
 export type UpdateAppReply = z.infer<typeof updateAppReply>;
 
@@ -611,6 +768,78 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         `"${manifest.publisher.id}". Uninstall it first, or give this app another key.`,
       { reason: 'PUBLISHER_CHANGED', installed: installedPublisher, offered: manifest.publisher.id },
     );
+  }
+
+  /**
+   * A DASHBOARD'S FILE IS NOT INSTALLED BACK ONTO ITSELF (D12): saved from this
+   * database on this server, its tables and pages are the dashboard's own, and
+   * a second copy over them would run every rule twice. Another database —
+   * a copy of this one, say — takes it.
+   */
+  async function savedFromHere(manifest: Manifest, connectionId: string): Promise<PlanProblem[]> {
+    const lineage = manifest.publisher.id === LOCAL_PUBLISHER_ID ? lineageOf(manifest) : null;
+    if (lineage === null) return [];
+    const saves = await appSavesRepo(deps.meta).list({ connectionId });
+    if (!saves.some((save) => save.lineage === lineage)) return [];
+    return [
+      {
+        code: 'SAVED_FROM_HERE',
+        table: manifest.key,
+        message: `"${manifest.name}" was saved from this database. Its tables and pages are here already as the dashboard it came from: install it on another database.`,
+      },
+    ];
+  }
+
+  /** The lineage a self-made app's file was saved under (`provenance.lineage`); null for any other. */
+  function lineageOf(document: unknown): string | null {
+    const lineage = (document as { provenance?: { lineage?: unknown } } | null)?.provenance?.lineage;
+    return typeof lineage === 'string' ? lineage : null;
+  }
+
+  /**
+   * A FILE OF ANOTHER LINEAGE IS ANOTHER APP under the same key (YR3): two
+   * dashboards saved with one key, or a file made elsewhere. Refused per
+   * server, whichever database it is for: the key names the app across the
+   * server, so this one is saved with another key.
+   */
+  function lineageRefusal(manifest: Manifest, installed: readonly { document: unknown; connectionName: string }[]): ValidationFailedError | null {
+    if (manifest.publisher.id !== LOCAL_PUBLISHER_ID) return null;
+    const mine = lineageOf(manifest);
+    const other = installed.find((copy) => lineageOf(copy.document) !== mine);
+    if (other === undefined) return null;
+    return new ValidationFailedError(
+      `This server already has a different ${manifest.key}, on ${other.connectionName}. Save this one with another key.`,
+      { reason: 'LINEAGE_DIFFERS', key: manifest.key, connectionName: other.connectionName },
+    );
+  }
+
+  /**
+   * AN OLDER VERSION IS NEVER INSTALLED OVER A NEWER ONE: an upload, install
+   * or update of one is refused, saying which database has which version
+   * (one version runs on a server, so each copy is the same one but mid-update).
+   */
+  function olderVersionRefusal(manifest: Manifest, installed: readonly { version: string; connectionName: string }[]): ValidationFailedError | null {
+    const newer = installed.filter((copy) => compareSemver(copy.version, manifest.version) > 0);
+    if (newer.length === 0) return null;
+    const said = newer.map((copy) => `${copy.connectionName} already has ${copy.version}`).join(', ');
+    return new ValidationFailedError(`"${manifest.name}" ${manifest.version} is older than what is installed: ${said}.`, {
+      reason: 'VERSION_OLDER',
+      offered: manifest.version,
+      installed: newer.map((copy) => ({ connectionName: copy.connectionName, version: copy.version })),
+    });
+  }
+
+  /** Each install of a key with its database's name, for the refusals above and the upload's reply. */
+  async function copiesOf(key: string): Promise<{ installId: string; connectionId: string | null; connectionName: string; slug: string; version: string; status: string; document: unknown }[]> {
+    const rows = (await manifests.listByKey(key)).filter((m) => m.row.kind === 'app');
+    const connections = connectionsRepo(deps.meta, deps.credentialCrypto);
+    const out = [];
+    for (const row of rows) {
+      const connectionId = row.row.scopeKey === SERVER_SCOPE ? null : row.row.scopeKey;
+      const connectionName = connectionId === null ? 'this server' : ((await connections.findById(connectionId))?.name ?? connectionId);
+      out.push({ installId: row.row.id, connectionId, connectionName, slug: row.row.instanceSlug, version: row.row.version, status: row.row.status, document: row.document });
+    }
+    return out;
   }
 
   /**
@@ -835,6 +1064,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * whose checksum is exactly what it always was.
      */
     addOnRows?: readonly AppAddOnRow[],
+    /** The install an update moves: it is no other copy of the key. */
+    updating?: string,
   ): Promise<{
     plan: InstallPlan;
     dto: AppInstallPlanDto;
@@ -856,7 +1087,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const likeApp = manifest.kind === 'app' || installsLikeAnApp(manifest);
     const prefix = likeApp && manifest.requiredSchema?.prefixed === true ? prefixFor(manifest.key) : null;
     const records: Record<string, { table: string; owned: boolean; state: string }> = {};
-    for (const r of own) records[r.ref] = { table: r.tableName, owned: r.owned, state: r.state };
+    for (const r of own) records[r.ref] = { table: realTableOf(r), owned: r.owned, state: r.state };
     /*
      * Installed here already: an update, or an install from before table
      * records. Not the row of an install still running — it is written
@@ -879,20 +1110,23 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     if (prefix !== null && !installedHere) {
       for (const r of own) if (r.tableName === r.ref) delete records[r.ref];
     }
+    // The apps this one requires, on this database, and their tables it uses (`required-apps.ts`).
+    const required = await requiredAppsHere(manifests, manifest, connectionId, recorded);
 
     const names = tablesNamedBy(manifest);
     for (const table of manifest.requiredSchema?.tables ?? []) {
       if (prefix !== null) names.add(`${prefix}${table.ref}`);
       if (answers.altPrefix !== undefined) names.add(`${answers.altPrefix}${table.ref}`);
     }
-    for (const r of own) names.add(r.tableName);
+    for (const r of own) names.add(realTableOf(r));
+    for (const name of required.names) names.add(name);
     /*
      * ANOTHER APP'S TABLES OF A SHAPE THIS APP DECLARES are read too, whatever
      * their names: the planner can offer them only when it sees them (their
      * columns, for what sharing would add; their key, for a link into one).
      */
     const declaredShapes = shapeTables(manifest);
-    for (const r of others) if (r.role === 'app' && r.shape !== null && declaredShapes.has(r.shape)) names.add(r.tableName);
+    for (const r of others) if (r.role === 'app' && r.shape !== null && declaredShapes.has(r.shape)) names.add(realTableOf(r));
     for (const choice of Object.values(answers.choices ?? {})) {
       if (choice.action === 'rename-existing') names.add(choice.to);
     }
@@ -938,18 +1172,25 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     if (own.length === 0 && manifest.kind === 'app') {
       if (installedHere) {
         for (const table of manifest.requiredSchema?.tables ?? []) {
-          if (tables.some((t) => t.ref === table.ref)) {
-            records[table.ref] = { table: table.ref, owned: false, state: 'adopted' };
+          const real = realTableName(table, null);
+          if (tables.some((t) => t.ref === real)) {
+            records[table.ref] = { table: real, owned: false, state: 'adopted' };
           }
         }
       }
     }
+    /*
+     * A TABLE OF AN APP THIS ONE REQUIRES is that app's, used as it is: planned
+     * as shared with it whatever this app recorded before, so it is never made,
+     * renamed or taken for this app's own, and is recorded as shared.
+     */
+    Object.assign(records, required.records);
 
-    const elsewhere = likeApp ? await installedElsewhere(manifest.key, manifest.name, connectionId, manifest.kind) : null;
+    const elsewhere = likeApp ? await otherVersionElsewhere(manifest.key, manifest.name, manifest.version, connectionId, manifest.kind, updating) : null;
 
     // The other apps' names, for a refusal or an offer that names one.
     const appNames = others.some((r) => r.shape !== null) ? await installedAppNames() : new Map<string, string>();
-    const pure =
+    const planWith = (choices: InstallAnswers['choices']): InstallPlan =>
       likeApp && dialect !== undefined && dialect !== 'generic'
         ? planInstall(
             manifest,
@@ -961,7 +1202,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
                 // Another app's sample ledger keeps no shape: never a table to share, still a name held.
                 ...others.map((r) => ({
                   appKey: r.appKey,
-                  table: r.tableName,
+                  table: realTableOf(r),
                   shape: r.role === 'app' ? r.shape : null,
                   state: r.state,
                   ref: r.ref,
@@ -970,16 +1211,31 @@ export function createAppInstallService(deps: AppRoutesDeps) {
                 })),
                 ...addOnHolders,
               ],
-              choices: answers.choices,
+              choices,
               altPrefix: answers.altPrefix,
               shares: answers.shares,
               dialect,
+              metaSchema: live?.metaSchema,
             },
           )
         : planInstall(manifest, {
             tables,
             ...(dialect === undefined || dialect === 'generic' ? {} : { dialect }),
           });
+    /*
+     * USE THE EXISTING TABLES (§8.4): every table of the app that is here and
+     * not yet answered is used as it is — asked of the planner once, then
+     * planned with those answers. An answer given for a table still stands, but
+     * never a rename of the one that is there.
+     */
+    const useExisting = answers.existing === 'use';
+    let choices = answers.choices;
+    if (useExisting) {
+      const first = planWith(choices);
+      const taken = (first.tables ?? []).filter((table) => table.class === 'taken' && table.action === 'undecided' && table.offers.includes('reuse'));
+      choices = { ...Object.fromEntries(taken.map((table) => [table.ref, { action: 'reuse' as const }])), ...choices };
+    }
+    const pure = planWith(choices);
     // The refusals the pure planner cannot see: a page slug another app
     // already holds on this connection, and a page's form or layout that
     // names what the app never declared.
@@ -988,20 +1244,29 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         ? null
         : await shapesForPlan(deps.addOns?.installer, manifest, addOnRows ?? (await addOnRowsFor(manifest, connectionId, false)));
     const shapeIssues = shapes === null ? [] : shapeProblems(manifest, shapes);
+    const slugs = await slugProblems(manifest, connectionId, answers.pages);
     const pageProblems = [
       ...(elsewhere === null ? [] : [elsewhere.problem]),
-      ...(await slugProblems(manifest, connectionId)),
+      ...slugs.problems,
       ...pageConfigProblems(manifest),
       ...templateProblems(manifest).map((message) => ({ code: 'EMAIL_TEMPLATE_INVALID' as const, table: manifest.key, message })),
+      ...(await mailFileProblems(manifest)).map((message) => ({ code: 'EMAIL_TEMPLATE_INVALID' as const, table: manifest.key, message })),
       ...roleIssues(manifest).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
       ...(await roleSlugProblems(deps.meta, manifest)).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
       // A role's grant of an add-on's page or panel, against that add-on's manifest where one is at hand.
-      ...addOnPageGrantIssues(manifest, await addOnManifestsForCheck(manifest, addOnRows)).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
+      ...addOnPageGrantIssues(manifest, await addOnManifestsForCheck(manifest, addOnRows, connectionId)).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
       // The tables built on an add-on's shape, against the shape the install will run on.
       ...shapeIssues.map((issue) => ({ code: issue.code as PlanProblem['code'], table: issue.table, message: issue.message })),
       ...(await repeatedUniques(pure, connectionId, manifest, dialect)),
       ...(await orphanedLinks(pure, connectionId, manifest, found)),
       ...(await shareRefProblems(manifest, connectionId, pure)),
+      // An app this one requires that is not here as it needs it, or a table of it that is gone.
+      ...required.problems,
+      ...requiredTablesGone(manifest, required, found),
+      // With "use the existing tables": each that cannot be used as it is.
+      ...(useExisting ? existingTableProblems(pure, answers.choices) : []),
+      // A dashboard's own file, back onto the database it was saved from.
+      ...(await savedFromHere(manifest, connectionId)),
     ];
     const plan: InstallPlan =
       pageProblems.length === 0
@@ -1040,9 +1305,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       }
     }
     const nameOf = (key: string) => appNames.get(key) ?? key;
-    const roleTables = await roleTablesForCheck(manifest, addOnRows);
-    // For an app already installed: which of these grants its running version's roles were not given (`added`), which an update asks about.
-    const runningApp = manifest.kind === 'app' ? (await manifests.list('app')).find((m) => m.row.manifestKey === manifest.key) : undefined;
+    const roleTables = await roleTablesForCheck(manifest, addOnRows, connectionId);
+    // For an app already installed on this database: which of these grants its roles there were not given (`added`), which an update asks about.
+    const runningApp = manifest.kind === 'app' ? (await manifests.list('app')).find((m) => m.row.manifestKey === manifest.key && m.row.connectionId === connectionId) : undefined;
     const added = grantsAdded((runningApp?.document as Manifest | null | undefined) ?? null, manifest);
     const isAdded = (role: string, addOn?: string) =>
       addOn === undefined ? added.privacyGrants.some((grant) => grant.role === role) : added.addOnGrants.some((grant) => grant.role === role && grant.addOn === addOn);
@@ -1069,6 +1334,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               })),
             }),
         ...(plan.names === undefined ? {} : { names: plan.names }),
+        ...reviewOf(manifest),
         ...(plan.shareOffers === undefined
           ? {}
           : {
@@ -1102,6 +1368,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           plan.create.length > 0 || plan.reuse.some((t) => t.missingColumns.length > 0),
         missingColumnsEdit: missingColumnsEdit(plan, manifest),
         ...(ruleWarnings.length === 0 ? {} : { ruleWarnings }),
+        ...(slugs.clashes.length === 0 ? {} : { pageClashes: slugs.clashes }),
         sampleData: manifest.kind === 'app' && manifest.sampleData !== undefined,
         // Whether this install asks if maps are shown: the app shows maps, and nobody has answered for this install yet.
         ...(manifest.kind === 'app' && manifest.maps === true && (await settingsRepo(deps.meta).get('maps.enabled')) === null ? { maps: true } : {}),
@@ -1124,6 +1391,25 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   }
 
   /** Every installed app's name, by key. */
+  /** The files an app's emails carry that its package lacks, or that no mail carries: said by the check, before anything is made. */
+  async function mailFileProblems(manifest: Manifest): Promise<string[]> {
+    if (!ownsBlocks(manifest)) return [];
+    const out: string[] = [];
+    for (const template of manifest.emailTemplates ?? []) {
+      for (const { file } of template.attachments ?? []) {
+        const where = `The email "${template.key}" carries "${file}"`;
+        if (deps.library === undefined) {
+          out.push(`${where}, and this server has no Files library to keep it in.`);
+          continue;
+        }
+        const bytes = await files.readVerifiedFile(manifest.key, manifest.version, file).then((read) => read.bytes, () => null);
+        if (bytes === null) out.push(`${where}, which its package does not hold.`);
+        else if (!mailCarries(bytes, file)) out.push(`${where}, which is not a kind of file an email carries.`);
+      }
+    }
+    return out;
+  }
+
   async function installedAppNames(): Promise<Map<string, string>> {
     const out = new Map<string, string>();
     for (const m of await manifests.list('app')) {
@@ -1161,37 +1447,50 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   }
 
   /**
-   * AN APP LIVES ON ONE CONNECTION. Installing it again on another would
-   * replace its row and leave the first database behind: its tables, its
-   * customer key still serving them, its links. So an app installed on
-   * another connection — or stopped part way there — is not installable
-   * here. It is updated where it is, or uninstalled there first.
+   * ONE VERSION PER APP ON A SERVER. The same app may be installed once per
+   * database, but one bundle per key is served, so every install runs one
+   * version. Another install on a version other than this one is said on the
+   * plan: the way there is an update of every copy, not a second install.
    */
-  async function installedElsewhere(
+  async function otherVersionElsewhere(
     key: string,
     name: string,
+    version: string,
     connectionId: string | null,
     kind: 'app' | 'add-on' = 'app',
+    updating?: string,
   ): Promise<{ problem: PlanProblem; connectionId: string; connectionName: string } | null> {
-    const earlier = (await manifests.list(kind)).find((m) => m.row.manifestKey === key);
-    const there = earlier?.row.connectionId ?? null;
-    if (there === null || there === connectionId) return null;
+    // An update moves one copy at a time, each with its own review: the others follow it, and run the version before meanwhile.
+    if (updating !== undefined) return null;
+    const other = (await manifests.listByKey(key)).find((m) => m.row.kind === kind && m.row.scopeKey !== connectionId && m.row.version !== version);
+    if (other === undefined) return null;
+    const there = other.row.scopeKey;
     const connectionName = (await connectionsRepo(deps.meta, deps.credentialCrypto).findById(there))?.name ?? there;
     return {
       connectionId: there,
       connectionName,
       problem: {
-        code: 'APP_INSTALLED_ELSEWHERE',
+        code: 'ONE_VERSION_PER_APP',
         table: key,
         connectionId: there,
         message:
-          kind === 'app'
-            ? `"${name}" is already installed on the connection "${connectionName}". An app runs on one connection: ` +
-              'update it there, or uninstall it there before installing it on another.'
-            : `"${name}" already keeps its tables on the connection "${connectionName}". An add-on keeps them in one database: ` +
-              'update it there, or uninstall it there before installing it on another.',
+          `"${name}" runs version ${other.row.version} on "${connectionName}". Every copy of an ${kind === 'app' ? 'app' : 'add-on'} on a server runs one version: ` +
+          `update every copy to ${version}, or install ${other.row.version} here.`,
       },
     };
+  }
+
+  /**
+   * A later install's address: `/apps/<key>/<slug>/…` and `/a/<key>~<slug>/`,
+   * an instance of the key bound to the install's database, owned by the
+   * install (read-only in the instances editor; it goes with the install).
+   */
+  async function claimInstanceAddress(key: string, slug: string, connectionId: string, userId: string | null): Promise<void> {
+    const settings = settingsRepo(deps.meta);
+    const apps = await settings.get('surfaces.apps');
+    const entry = apps[key] ?? {};
+    const instances = (entry.instances ?? []).filter((instance) => instance.slug !== slug);
+    await settings.set('surfaces.apps', { ...apps, [key]: { ...entry, instances: [...instances, { slug, connectionId }] } }, { updatedBy: userId });
   }
 
   /**
@@ -1230,7 +1529,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       let addOn: Manifest | null = null;
       try {
         if (row.action === 'attach') {
-          const read = validateManifest((await manifests.findByKey(row.key))?.document);
+          const read = validateManifest((await installOnConnection(manifests, row.key, connectionId))?.document);
           addOn = read.ok ? read.manifest : null;
         } else if (deps.addOns !== undefined && row.offeredVersion !== null) {
           addOn = (await addOnManifestFromStore({ ...deps.addOns.installer, unbuiltWords: {} }, row.key, row.offeredVersion)).manifest;
@@ -1255,7 +1554,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * installed here. One with neither, or that cannot be read, is left out:
    * the check shows its grants as the app asks them.
    */
-  async function addOnManifestsForCheck(manifest: Manifest, rows: readonly AppAddOnRow[] | undefined): Promise<Map<string, AddOnManifest>> {
+  async function addOnManifestsForCheck(manifest: Manifest, rows: readonly AppAddOnRow[] | undefined, connectionId: string | null): Promise<Map<string, AddOnManifest>> {
     const out = new Map<string, AddOnManifest>();
     for (const key of addOnsNamedBy(manifest)) {
       const row = rows?.find((one) => one.key === key);
@@ -1264,7 +1563,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         if (row !== undefined && (row.action === 'install' || row.action === 'update') && row.staged && row.offeredVersion !== null && deps.addOns !== undefined) {
           addOn = (await addOnManifestFromStore({ ...deps.addOns.installer, unbuiltWords: {} }, key, row.offeredVersion)).manifest;
         } else {
-          const found = await manifests.findByKey(key);
+          const found = connectionId === null ? null : await installOnConnection(manifests, key, connectionId);
           const read = found === null || found.row.kind !== 'add-on' ? null : validateManifest(found.document);
           addOn = read?.ok === true ? read.manifest : null;
         }
@@ -1282,8 +1581,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * action; and, for an app already installed, what it holds more than the
    * running version (`wider`), which an update gives only when allowed.
    */
-  async function roleTablesForCheck(manifest: Manifest, rows: readonly AppAddOnRow[] | undefined): Promise<(RoleTableCheck & { app?: string; appName?: string })[]> {
-    const addOns = await addOnManifestsForCheck(manifest, rows);
+  async function roleTablesForCheck(manifest: Manifest, rows: readonly AppAddOnRow[] | undefined, connectionId: string | null): Promise<(RoleTableCheck & { app?: string; appName?: string })[]> {
+    const addOns = await addOnManifestsForCheck(manifest, rows, connectionId);
+    const here = connectionId === null ? null : await manifests.findInScope(manifest.key, connectionId);
     /*
      * An add-on this install or update brings a newer version of may give
      * OTHER apps' roles more of its tables (its `appGrants` widened): listed
@@ -1293,24 +1593,25 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     for (const row of rows ?? []) {
       const next = addOns.get(row.key);
       if (row.action !== 'update' || next === undefined) continue;
-      const found = await manifests.findByKey(row.key);
+      const found = connectionId === null ? null : await installOnConnection(manifests, row.key, connectionId);
       const running = found?.document as Manifest | null | undefined;
       if (found === null || running === null || running === undefined || !isAddOnManifest(running)) continue;
       const apps: Manifest[] = [];
       for (const attachment of found.attachments) {
-        if (attachment.attachedTo === manifest.key) continue;
-        const app = await manifests.findByKey(attachment.attachedTo);
+        // The other installs the add-on is mounted on; never this app's own.
+        if (attachment.hostInstall === '' || (attachment.attachedTo === manifest.key && (here === null || attachment.hostInstall === here.row.id))) continue;
+        const app = await manifests.findById(attachment.hostInstall);
         if (app !== null && app.row.kind === 'app' && app.document !== null) apps.push(app.document as Manifest);
       }
       others.push(...addOnGrantsWider(apps, row.key, running, next));
     }
     if (roleTablesAsked(manifest).length === 0) return others;
-    const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === manifest.key);
-    if (installed === undefined) return [...roleTablesChecked(manifest, addOns), ...others];
+    const installed = here ?? undefined;
+    if (installed === undefined || installed.row.kind !== 'app') return [...roleTablesChecked(manifest, addOns), ...others];
     // The running version's hold is judged by the add-ons as they run now: a newer one this update brings may give more.
     const running = new Map<string, AddOnManifest>();
     for (const key of addOnsNamedBy(manifest)) {
-      const document = (await manifests.findByKey(key))?.document as Manifest | null | undefined;
+      const document = (connectionId === null ? null : await installOnConnection(manifests, key, connectionId))?.document as Manifest | null | undefined;
       if (document !== null && document !== undefined && isAddOnManifest(document)) running.set(key, document);
     }
     return [...roleTablesChecked(manifest, addOns, installed.document as Manifest | null, running), ...others];
@@ -1508,27 +1809,19 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     });
   }
 
-  async function slugProblems(manifest: Manifest, connectionId: string): Promise<PlanProblem[]> {
-    if (!ownsBlocks(manifest)) return [];
-    const slugs = new Set((manifest.pages ?? []).map((page) => page.ref));
-    const current = (await manifests.list(manifest.kind)).find((m) => m.row.manifestKey === manifest.key);
-    const owners = new Map((await manifests.list()).map((m) => [m.row.id, m.row.manifestKey]));
-    const pages = pagesRepo(deps.meta);
-    const out: PlanProblem[] = [];
-    for (const row of await pages.listAll()) {
-      if (row.connectionId !== connectionId || !slugs.has(row.slug) || row.origin !== 'manifest') continue;
-      const orphan = owners.has(row.manifestId ?? '') ? null : await pages.findById(row.id);
-      if (isThisAppsPage({ ...row, config: orphan?.config }, manifest.key, current?.row.id ?? '', owners)) continue;
-      const holder = owners.get(row.manifestId ?? '') ?? envelopeAppKey(orphan?.config) ?? 'another app';
-      out.push({
-        code: 'PAGE_SLUG_TAKEN',
-        table: row.slug,
-        message:
-          `The page /p/${row.slug} on this database belongs to "${holder}". Installing here would ` +
-          `take it over, so uninstall "${holder}" or install against a different database.`,
-      });
-    }
-    return out;
+  /**
+   * The app's page addresses other pages hold on this database: another app's
+   * page is refused; the operator's own, a generated one or an orphan is a
+   * choice (`clashes`), refused until it is answered. And what a page saved
+   * from a dashboard, or its views, carries that cannot be read here.
+   */
+  async function slugProblems(manifest: Manifest, connectionId: string, choices?: Readonly<Record<string, PageChoice>>): Promise<{ problems: PlanProblem[]; clashes: PageClash[] }> {
+    if (!ownsBlocks(manifest)) return { problems: [], clashes: [] };
+    // The install on this database: its own pages are not a clash.
+    const current = (await manifests.findInScope(manifest.key, connectionId)) ?? undefined;
+    const { clashes, problems } = await planPageSlugs(deps.meta, manifest, connectionId, current?.row.id ?? '', choices);
+    const saved = envelopePlanProblems(manifest).map((problem) => ({ code: 'PAGE_ENVELOPE_INVALID' as const, table: problem.page, message: problem.message }));
+    return { problems: [...problems, ...saved], clashes };
   }
 
   /**
@@ -1606,6 +1899,15 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * passes this: there a widening is not the operator's to allow.
      */
     ownFolder = false,
+    /**
+     * A part that cannot be written stops the caller instead of being logged:
+     * an install (`strict`), and an update, whose unfinished work is then
+     * finished by running it again. `strict` alone says an install's other
+     * ways (a key the operator took back is made again).
+     */
+    refuse = strict,
+    /** The check's answers for the app's page addresses that pages here already have. */
+    pageChoices?: Readonly<Record<string, PageChoice>>,
   ): Promise<
     | {
         pages: MaterialiseResult;
@@ -1619,12 +1921,15 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     | undefined
   > {
     try {
+      // Everything below belongs to this install: its roles, outbox, rules and keys are never another install's of the key.
+      const installRow = await manifests.findById(manifestRowId);
+      const install = installRow === null ? { id: manifestRowId, key: manifest.key, slug: '' } : addressOf(installRow);
       // The rules first: a page generated now reads them (a list of allowed
       // values becomes a dropdown).
       const rules =
         connectionId === null
           ? undefined
-          : await writeManifestRules({ meta: deps.meta, manifest, connectionId, createdBy: userId, refuse: strict });
+          : await writeManifestRules({ meta: deps.meta, manifest, connectionId, createdBy: userId, refuse });
       if (rules !== undefined && rules.skipped.length > 0) {
         host.log.info({ skipped: rules.skipped, app: manifest.key }, 'app rules skipped');
       }
@@ -1635,6 +1940,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         connectionId,
         createdBy: userId,
         ...(names === undefined ? {} : { names }),
+        ...(pageChoices === undefined ? {} : { choices: pageChoices }),
+        strict: refuse,
       });
       // A page given the form Adminium makes, rather than the one it declared,
       // is said in the reply and in the log: never a field silently gone.
@@ -1651,13 +1958,14 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         });
       }
       // The roles last: their grants point at the tables and at these pages.
-      const rolesBefore = manifest.kind === 'add-on' ? (await rolesRepo(deps.meta).list()).filter((role) => role.appKey === manifest.key).length : -1;
+      const rolesBefore = manifest.kind === 'add-on' ? (await rolesRepo(deps.meta).listForInstall(install.id)).length : -1;
       const roles =
         connectionId === null
           ? undefined
           : await writeManifestRoles({
               meta: deps.meta,
               manifest,
+              install,
               connectionId,
               names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key)),
             });
@@ -1673,7 +1981,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
        */
       if (rolesBefore === 0 && (roles?.created.length ?? 0) > 0 && userId !== null && ownsBlocks(manifest)) {
         const first = manifest.roles?.[0];
-        const role = first === undefined ? null : await rolesRepo(deps.meta).findBySlug(roleSlugFor(manifest.key, first.key));
+        const role = first === undefined ? null : await rolesRepo(deps.meta).findBySlug(roleSlugFor(manifest.key, first.key, install.slug));
         if (role !== null) {
           await rolesRepo(deps.meta).assignToUser(userId, role.id, userId);
           await auditRepo(deps.meta).append({
@@ -1695,12 +2003,14 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               const model = await deps.publicAccess?.viewFor(connectionId);
               const realId = (ref: string) => {
                 const real = realNames[ref] ?? ref;
-                return model?.model.tables.find((table) => table.name === real)?.id ?? real;
+                return (model === null || model === undefined ? null : tableIdOrNull(model.model, real)) ?? real;
               };
               // With the live model, a table the outbox names that is not there is refused by name.
               const exists =
                 model === null || model === undefined ? undefined : (id: string) => model.model.tables.some((table) => table.id === id);
-              return installOutbox({ meta: deps.meta, manifest, manifestId: manifestRowId, connectionId, realId, exists });
+              // The files its mails carry: from the app's own files, kept in the Files library.
+              const packageFiles = deps.library === undefined ? undefined : libraryFiles(deps.meta, deps.library, async (path) => (await files.readVerifiedFile(manifest.key, manifest.version, path)).bytes, userId);
+              return installOutbox({ meta: deps.meta, manifest, install, connectionId, realId, exists, packageFiles });
             })();
       /*
        * The documents its rows print: a profile per shape profile of each
@@ -1726,6 +2036,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           host.log.info({ waiting: documents.waiting, app: manifest.key }, 'app documents wait for an add-on update');
         }
       }
+      // What the owner fills in after the install: gathered from each part below, handed over once at the end.
+      const afterInstall: AfterInstallItem[] = [];
       /*
        * The rules it ships: bound to the real tables and roles made above, checked whole, and stored as
        * the manifest's own. After the tables, the roles, the emails and the documents; before the guests.
@@ -1737,16 +2049,44 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           const shippedRules = await installAutomations({
             meta: deps.meta,
             manifest,
+            install,
             connectionId,
             view,
-            realId: (ref) => view.model.tables.find((table) => table.name === (realNames[ref] ?? ref))?.id ?? ref,
+            realId: (ref) => tableIdOrNull(view.model, realNames[ref] ?? ref) ?? ref,
           });
           if (shippedRules !== undefined) {
             if (shippedRules.kept.length > 0) host.log.info({ kept: shippedRules.kept, app: manifest.key }, 'shipped rules the owner changed were left as they are');
+            afterInstall.push(...shippedRules.afterInstall);
             await announceRulesChanged(deps.meta);
           }
         }
       }
+      /*
+       * What only a file made on an Adminium carries: its report documents, invoice layouts, scheduled
+       * reports and payments, after its pages (a schedule reports on one). Then where its documents
+       * are mailed, which the owner chooses.
+       */
+      if (connectionId !== null && manifestRowId !== null && manifest.kind === 'app') {
+        const view = (await deps.publicAccess?.viewFor(connectionId)) ?? null;
+        const realNames = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
+        const realId = (ref: string) => (view === null ? null : tableIdOrNull(view.model, realNames[ref] ?? ref));
+        const connection = await deps.meta.db.selectFrom('adminium_connections').select('timezone').where('id', '=', connectionId).executeTakeFirst();
+        const saved = await installSavedParts({
+          meta: deps.meta,
+          manifest,
+          manifestId: manifestRowId,
+          connectionId,
+          realId,
+          timezone: connection?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+          createdBy: userId,
+        });
+        if (saved !== undefined) {
+          if (saved.kept.length > 0 || saved.skipped.length > 0) host.log.info({ kept: saved.kept, skipped: saved.skipped, app: manifest.key }, 'saved parts left as they are');
+          afterInstall.push(...saved.afterInstall);
+        }
+        afterInstall.push(...deliveryItems(manifest, await documentProfilesRepo(deps.meta).listOwnedBy(connectionId, manifest.key), realId));
+      }
+      if (connectionId !== null && manifestRowId !== null) await recordAfterInstall(deps.meta, { manifestId: manifestRowId, appKey: manifest.key }, afterInstall);
       // Guests last: the endpoints read tables that must exist, and the key is made from them.
       let made: Omit<Awaited<ReturnType<typeof installPublicAccess>>, 'changedKeys'> | undefined;
       if (publicAccess && connectionId !== null && deps.publicAccess !== undefined) {
@@ -1754,7 +2094,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         if (view !== null && (manifest.publicAccess ?? []).length > 0) {
           // Each of the app's keys is made once: the public side's, and a kiosk's.
           const at = Date.now();
-          const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key);
+          const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key, install.id);
           const fresh = own.filter((k) => k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at));
           const live = fresh.filter((k) => pageKey(k.kind));
           // The phone app's key: a key of its own kind beside the customer key, settled with it.
@@ -1785,6 +2125,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               meta: deps.meta,
               crypto: deps.publicAccess.crypto,
               manifest,
+              install,
               connectionId,
               names: tableNames,
               view,
@@ -1823,7 +2164,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       }
       return { pages: result, rules, roles: roles === undefined || roleTables.length === 0 ? roles : { ...roles, tables: roleTables }, publicAccess: made, outbox, documents };
     } catch (error) {
-      if (strict) throw error;
+      if (refuse) throw error;
       host.log.warn({ err: error, manifestRowId }, 'app installed, but its pages were not written');
       return undefined;
     }
@@ -1853,7 +2194,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         manifestId: rowId,
         connectionId,
         ref: table.ref,
-        tableName: table.table ?? table.ref,
+        ...recordedName(table.table ?? table.ref),
         owned: true,
         state: 'pending',
         prefix,
@@ -1871,7 +2212,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         manifestId: rowId,
         connectionId,
         ref: table.ref,
-        tableName: table.table ?? table.ref,
+        ...recordedName(table.table ?? table.ref),
         owned: false,
         state: shared ? 'shared' : 'adopted',
         prefix,
@@ -1907,14 +2248,14 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const applied = await applyTables(checked, manifest, connectionId, opts);
     // Record what an update found and made, the same way an install does.
     const records = appTablesRepo(deps.meta);
-    const row = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+    const row = (await manifests.findInScope(key, connectionId)) ?? undefined;
     for (const table of checked.plan.tables ?? []) {
       await records.record({
         appKey: key,
         manifestId: row?.row.id ?? null,
         connectionId,
         ref: table.ref,
-        tableName: table.table,
+        ...recordedName(table.table),
         owned: table.action === 'create' || table.action === 'rename-existing',
         // A table this app shares stays shared on an update: never taken for one it adopted.
         state: table.action === 'share' || table.class === 'shared' ? 'shared' : table.action === 'reuse' ? 'adopted' : 'created',
@@ -1964,10 +2305,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   ): Promise<{ created: string[]; reused: string[] }> {
     const { plan, target } = checked;
     const tables = plan.tables ?? [];
-    const idOf = (model: DatabaseModel, name: string): string =>
-      model.tables.find((t) => t.name === name && (t.schema === model.defaultSchema || t.schema === null))?.id ??
-      model.tables.find((t) => t.name === name)?.id ??
-      name;
+    const idOf = (model: DatabaseModel, name: string): string => tableIdIn(model, name);
 
     const renames = tables.filter((t) => t.action === 'rename-existing' && t.renameExistingTo !== undefined);
     if (renames.length > 0) {
@@ -1994,7 +2332,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       ...table,
       ...(setsOf(table.ref, true).length === 0 ? {} : { unique: [...(table.unique ?? []), ...setsOf(table.ref, true)] }),
       ...(setsOf(table.ref, false).length === 0 ? {} : { indexes: [...(table.indexes ?? []), ...setsOf(table.ref, false)] }),
-      ref: names[table.ref] ?? table.ref,
+      ref: names[table.ref] ?? realTableName(table, null),
       columns: table.columns.map((column) =>
         column.type === 'fk' && column.references !== undefined && names[column.references] !== undefined
           ? { ...column, references: names[column.references]! }
@@ -2058,6 +2396,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     expectedChecksum?: string,
     answers: InstallAnswers = {},
     addOnRows?: readonly AppAddOnRow[],
+    /** The install an update moves: it is no other copy of the key. */
+    updating?: string,
   ): Promise<{
     plan: InstallPlan;
     existing: ExistingTable[];
@@ -2071,7 +2411,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       );
     }
 
-    const { plan, dto, existing, shapeRecords } = await planFor(manifest, connectionId, answers, addOnRows);
+    // An update's plan is the install it moves: on this database, the one of this key.
+    const moving = updating ?? (verb === 'updated' ? (await manifests.findInScope(key, connectionId))?.row.id : undefined);
+    const { plan, dto, existing, shapeRecords } = await planFor(manifest, connectionId, answers, addOnRows, moving);
     /*
      * THE PLAN THE OPERATOR SAW, OR NONE. Re-planned from the live database a
      * moment ago; a table created, dropped or altered since the check step
@@ -2229,7 +2571,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const { key } = input;
     const userId = actor.id;
     const userLabel = actor.label;
-    const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+    // The install named (one database's copy), else the key's only one: a folder app is once per server.
+    const installed = (await resolveInstall(manifests, key, { installId: input.installId }, { kind: 'app' })) ?? undefined;
     if (installed === undefined) throw new NotFoundError(`"${key}" is not installed.`);
     const from = installed.row.version;
 
@@ -2248,6 +2591,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const connectionId = installed.row.connectionId;
     try {
       manifest = await verifiedManifest(key, input.version);
+      refusePlannedOnly(manifest, `"${key}"`);
       const changed = publisherChangeRefusal(manifest, publisherIdOf(installed.document));
       if (changed !== null) throw changed;
       surfaces = surfacesOfInstalled(files, { key, version: manifest.version });
@@ -2444,7 +2788,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * no longer declares, or keep it. Audited either way, with what went.
    */
   async function answerRemoval(actor: InstallActor, host: InstallHost, input: { key: string; accept: boolean }) {
-    const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === input.key);
+    // A folder app is installed once per server.
+    const installed = (await manifests.listByKey(input.key)).find((m) => m.row.kind === 'app');
     if (installed === undefined) throw new NotFoundError(`"${input.key}" is not installed.`);
     const asked = await removals.pending(input.key);
     const result = await removals.answer({
@@ -2470,12 +2815,84 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     return result;
   }
 
+  /**
+   * A LEGACY INSTANCE MADE AN INSTALL OF ITS OWN (§13.7 rule 3). Before
+   * installs were per database, an app served a second database through an
+   * instance of its first install: one row, one set of settings, roles and
+   * rules for both. Kept as it is, it still resolves to the first install. As
+   * one reviewed step it becomes an install on its database: the app's tables
+   * there are used as they are (nothing is made or changed), the instance's
+   * address is the install's own, the first copy's settings are copied (not
+   * its secrets), and every role that opens the first copy's staff screens
+   * opens this one's.
+   */
+  async function adoptInstance(actor: InstallActor, host: InstallHost, input: { key: string; slug: string; planChecksum?: string | undefined }): Promise<AdoptedInstance> {
+    const { key, slug } = input;
+    const legacy = await legacyInstanceOf(key, slug);
+    const first = legacy.first;
+    const result = await install(actor, host, {
+      key,
+      version: first.row.version,
+      connectionId: legacy.connectionId,
+      existing: 'use',
+      adoptInstance: slug,
+      ...(input.planChecksum === undefined ? {} : { planChecksum: input.planChecksum }),
+    } as InstallInput);
+    const adopted = await manifests.findBySlug(key, slug);
+    if (adopted === null) throw new NotFoundError(`"${key}" was not installed on the instance "${slug}".`);
+
+    // Its settings, as the first copy has them: the declared ones that are not secret.
+    const declared = ((first.document as Manifest | null)?.settings ?? []).map((setting) => ({ key: setting.key, secret: setting.secret === true }));
+    const secretsLeft = declared.filter((setting) => setting.secret).map((setting) => setting.key);
+    const values = await addOnSettingsRepo(deps.meta).valuesForInstall(first.row.id);
+    const copied = Object.fromEntries(Object.entries(values).filter(([name]) => declared.some((setting) => setting.key === name && !setting.secret)));
+    if (Object.keys(copied).length > 0) {
+      await addOnSettingsRepo(deps.meta).patch({ manifestId: adopted.row.id, addOnKey: key }, copied, declared, { updatedBy: actor.id });
+    }
+
+    // Whoever opens the first copy's staff screens opens this one's.
+    const permissions = permissionsRepo(deps.meta);
+    const roles = rolesRepo(deps.meta);
+    const granted: { id: string; name: string }[] = [];
+    for (const role of await roles.list()) {
+      const held = (await permissions.listForRole(role.id)).find((one) => one.resourceKind === 'app' && one.resourceRef === key && (one.actions as { staff?: boolean }).staff === true);
+      if (held === undefined) continue;
+      await permissions.grant(role.id, 'app', grantKeyOf(adopted.row), { staff: true });
+      granted.push({ id: role.id, name: role.name });
+    }
+    await auditAppEvent(
+      'app.instance-adopted',
+      { key, slug, installId: adopted.row.id, connectionId: legacy.connectionId, settings: Object.keys(copied), roles: granted.map((role) => role.id) },
+      actor.id,
+      actor.label,
+      actor.kind,
+    );
+    return { app: result, settingsCopied: Object.keys(copied).sort(), secretsLeft: secretsLeft.sort(), rolesGranted: granted };
+  }
+
+  /** A legacy instance of an app and the first copy it belongs to; refused when it is an install's own already. */
+  async function legacyInstanceOf(key: string, slug: string): Promise<{ connectionId: string; first: InstalledManifest }> {
+    const apps = await settingsRepo(deps.meta).get('surfaces.apps');
+    const instance = (apps[key]?.instances ?? []).find((one) => one.slug === slug);
+    if (instance === undefined) throw new NotFoundError(`"${key}" has no instance "${slug}".`);
+    if ((await manifests.findBySlug(key, slug)) !== null) {
+      throw new ConflictError(`The instance "${slug}" of "${key}" is an install of its own already.`, 'CONFLICT', { reason: 'INSTANCE_IS_AN_INSTALL' });
+    }
+    const first = await manifests.findBySlug(key, '');
+    if (first === null || first.row.kind !== 'app') {
+      throw new ConflictError(`"${key}" has no first copy for the instance "${slug}" to come from.`, 'CONFLICT', { reason: 'NO_FIRST_INSTALL' });
+    }
+    return { connectionId: instance.connectionId, first };
+  }
+
   async function install(actor: InstallActor, host: InstallHost, input: InstallInput): Promise<InstalledAppReply> {
-    const { key, version, connectionId, planChecksum: reviewed, choices, altPrefix, shares } = input;
+    const { key, version, connectionId, planChecksum: reviewed, choices, altPrefix, shares, pages: pageChoices, existing } = input;
     const answers: InstallAnswers = {
+      ...(existing === undefined ? {} : { existing }),
       ...(choices === undefined ? {} : { choices }),
       ...(altPrefix === undefined ? {} : { altPrefix }),
       ...(shares === undefined ? {} : { shares }),
+      ...(pageChoices === undefined ? {} : { pages: pageChoices }),
     };
     const userId = actor.id;
     const userLabel = actor.label;
@@ -2505,6 +2922,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       await auditAppEvent('app.verify-refused', { key, version, reason }, userId, userLabel, actor.kind);
       throw error;
     }
+    // A word a plan reads and this install cannot write yet: refused before anything is made.
+    refusePlannedOnly(manifest, `"${key}"`);
 
     const surfaces = surfacesOfInstalled(files, { key, version });
     if (surfaces.length === 0 && !servesNothingByDesign(manifest)) {
@@ -2543,6 +2962,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           'Install it without public access, or ask someone who can.',
       );
     }
+    // What only a file made on an Adminium carries is made only by someone who could make it by hand.
+    const partsRefused = await savedPartsRefusal(manifest, actor.can);
+    if (partsRefused !== null) throw partsRefused;
 
     const wanted = manifest.requiredSchema?.tables ?? [];
     if (wanted.length > 0 && connectionId === undefined) {
@@ -2553,19 +2975,53 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       );
     }
 
-    const prior = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
     /*
-     * AN INSTALL OVER AN INSTALLED KEY REPLACES ITS ROW, so it is held to
-     * the publisher that row came from. A self-made package staged beside
+     * ONE INSTALL PER DATABASE. The same key may be installed on another
+     * database: a second install, with its own row, roles, settings and
+     * address. On this one an install over the key replaces its row.
+     */
+    const installsOfKey = (await manifests.listByKey(key)).filter((m) => m.row.kind === 'app');
+    const priorRow = connectionId === undefined ? null : await manifests.findInScope(key, connectionId);
+    const prior = priorRow !== null && priorRow.row.kind === 'app' ? priorRow : undefined;
+    const others = installsOfKey.filter((m) => m.row.id !== prior?.row.id);
+    /*
+     * AN INSTALL OVER AN INSTALLED KEY IS HELD TO THE PUBLISHER the key came
+     * from — on this database or another. A self-made package staged beside
      * the real app (uploaded before the real one was installed) would
      * otherwise take its place here, where the upload's check never ran.
      */
-    if (prior !== undefined) {
-      const changed = publisherChangeRefusal(manifest, publisherIdOf(prior.document));
+    for (const held of [...(prior === undefined ? [] : [prior]), ...others]) {
+      const changed = publisherChangeRefusal(manifest, publisherIdOf(held.document));
       if (changed !== null) {
         await auditAppEvent('app.verify-refused', { key, version, reason: 'PUBLISHER_CHANGED' }, userId, userLabel, actor.kind);
         throw changed;
       }
+    }
+    // Nor to another dashboard's app saved under the same key, nor to an older version than a copy runs.
+    {
+      const copies = await copiesOf(key);
+      const refused = lineageRefusal(manifest, copies) ?? olderVersionRefusal(manifest, copies);
+      if (refused !== null) {
+        await auditAppEvent('app.verify-refused', { key, version, reason: refusalReason(refused) }, userId, userLabel, actor.kind);
+        throw refused;
+      }
+    }
+    /*
+     * ONE VERSION PER APP ON A SERVER: one bundle per key is served, so every
+     * install runs the same version. A different version than the others run
+     * is an update of every copy, never a second install beside them.
+     */
+    const otherVersion = others.find((m) => m.row.version !== version);
+    if (otherVersion !== undefined) {
+      const where = (await connectionsRepo(deps.meta, deps.credentialCrypto).findById(otherVersion.row.scopeKey))?.name ?? otherVersion.row.scopeKey;
+      throw new ConflictError(
+        `"${manifest.name}" runs version ${otherVersion.row.version} on ${where}. Every copy of an app runs one version: update every copy to ${version}, or install ${otherVersion.row.version} here.`,
+        'CONFLICT',
+        { reason: 'ONE_VERSION_PER_APP', installed: otherVersion.row.version, connectionId: otherVersion.row.scopeKey },
+      );
+    }
+    if (prior === undefined && others.length >= MAX_INSTALLS_PER_KEY) {
+      throw new ValidationFailedError(`"${manifest.name}" is installed on ${others.length} databases, the most one app may be.`);
     }
     // The same install, stopped part way: same version, same database.
     const resuming =
@@ -2574,14 +3030,6 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       prior.row.version === version &&
       prior.row.connectionId === (connectionId ?? null);
 
-    // Installed on another connection: refused before anything is written, as the plan says.
-    const elsewhere = await installedElsewhere(key, manifest.name, connectionId ?? null);
-    if (elsewhere !== null) {
-      throw new ConflictError(elsewhere.problem.message, 'APP_INSTALLED_ELSEWHERE', {
-        connectionId: elsewhere.connectionId,
-        connection: elsewhere.connectionName,
-      });
-    }
 
     /*
      * A ROW REPLACED IS AN UPDATE BY ANOTHER DOOR: the add-ons mounted on
@@ -2609,7 +3057,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * anything is written unless allowed.
      */
     const updatingAddOns = new Set(addOnSteps.filter((step) => step.action === 'update').map((step) => step.key));
-    const othersWider = updatingAddOns.size === 0 ? [] : (await roleTablesForCheck(manifest, addOnRows)).filter((entry) => entry.app !== undefined && entry.wider !== undefined && updatingAddOns.has(entry.addOn));
+    const othersWider = updatingAddOns.size === 0 ? [] : (await roleTablesForCheck(manifest, addOnRows, connectionId ?? null)).filter((entry) => entry.app !== undefined && entry.wider !== undefined && updatingAddOns.has(entry.addOn));
     if (othersWider.length > 0 && input.roleTables !== true) {
       throw new ValidationFailedError(
         `Installing "${key}" updates an add-on that lets other apps' roles do more with its tables: ${othersWider.map((entry) => widerWords({ ...entry, wider: entry.wider! })).join('; ')}. ` +
@@ -2634,28 +3082,69 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         : undefined;
     if (checked !== undefined && input.unattended?.adaptForeignTables === false) refuseForeignEdits(key, checked.plan);
 
-    // Re-installing the same key replaces the row rather than adding a
-    // second one: `list('app')` is what the registry reads, and two rows
-    // for one key would make "which version is served" an ordering accident.
+    // Re-installing the same key on this database takes its row again: one
+    // install per database, and its id is what everything it owns is keyed by.
     let rowId: string;
     if (resuming) {
       rowId = prior.row.id;
     } else {
-      if (prior !== undefined) await manifests.uninstall(prior.row.id);
-      const row = await manifests.install({
-        manifestKey: key,
-        version,
-        kind: 'app',
-        source,
-        document: manifest,
-        // Remembered, not just used: this is also the connection the staff
-        // surface reads at runtime.
-        ...(connectionId === undefined ? {} : { connectionId }),
-        installedBy: userId,
-        status: 'installing',
-        modules: modulesFor(manifest, switchesBefore, input.modules),
-      });
-      rowId = row.row.id;
+      /*
+       * The bare addresses go to the first install of a key and stay with it.
+       * Freed by that install's uninstall, they are taken again only when an
+       * install asks for them: a link to the old copy never opens another.
+       */
+      if (input.bareAddress === true && others.some((m) => m.row.instanceSlug === '')) {
+        throw new ConflictError(`Another copy of "${manifest.name}" has its plain addresses. Install this one under its own.`, 'CONFLICT', { reason: 'BARE_ADDRESS_TAKEN' });
+      }
+      const slug =
+        input.adoptInstance !== undefined
+          ? input.adoptInstance
+          : others.length === 0 || input.bareAddress === true
+          ? ''
+          : slugForInstall(
+              (await connectionsRepo(deps.meta, deps.credentialCrypto).findById(connectionId ?? ''))?.name ?? 'db',
+              new Set(others.map((m) => m.row.instanceSlug)),
+            );
+      if (prior !== undefined) {
+        // Over the install on this database: the same row, so what it owns (keyed by its id) stays its own.
+        await manifests.reinstall(prior.row.id, {
+          version,
+          source,
+          document: manifest,
+          status: 'installing',
+          modules: modulesFor(manifest, switchesBefore, input.modules),
+          installedBy: userId,
+          ...(connectionId === undefined ? {} : { connectionId }),
+        });
+        rowId = prior.row.id;
+      } else {
+        const row = await manifests.install({
+          manifestKey: key,
+          version,
+          kind: 'app',
+          source,
+          document: manifest,
+          // An app's install is for the database it reads (it always names one: an app has tables).
+          scopeKey: connectionId ?? SERVER_SCOPE,
+          instanceSlug: slug,
+          // Remembered, not just used: this is also the connection the staff
+          // surface reads at runtime.
+          ...(connectionId === undefined ? {} : { connectionId }),
+          installedBy: userId,
+          status: 'installing',
+          modules: modulesFor(manifest, switchesBefore, input.modules),
+        });
+        rowId = row.row.id;
+        // A later install's screens open on its own address: its slug, an instance bound to its database.
+        // Only a side that says it serves every install (`frontends[].instances`) is mounted again: an older build
+        // knows one database, and its screens open for the first install only.
+        // A legacy instance being made an install keeps its address whatever the build says: it was served there already.
+        if (slug !== '' && connectionId !== undefined && manifest.kind === 'app' && (input.adoptInstance !== undefined || manifest.frontends.some((frontend) => (frontend as { instances?: boolean }).instances === true))) {
+          await claimInstanceAddress(key, slug, connectionId, userId);
+        }
+        // The key's first install takes up the add-on links made while it was not installed.
+        if (slug === '') await manifests.claimAttachments(key, rowId);
+      }
     }
     if (resuming) await manifests.setModules(rowId, modulesFor(manifest, switchesBefore, input.modules));
     // Stops serving a replaced version at once; the new row is not served
@@ -2740,6 +3229,10 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         true,
         tablesPlan?.plan.names,
         grantsPublicAccess,
+        true,
+        false,
+        true,
+        answers.pages,
       );
       /*
        * The rows its tables start with (`seeds`): after the rules, so each
@@ -2854,8 +3347,28 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const userId = actor.id;
     const userLabel = actor.label;
 
-    const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+    // One install at a time: each copy of an app is updated (and reviewed) on its own, all to one version.
+    const installed = (await resolveInstall(manifests, key, { installId: input.installId, connectionId: input.installId === undefined ? input.connectionId : undefined }, { kind: 'app' })) ?? undefined;
     if (installed === undefined) throw new NotFoundError(`"${key}" is not installed.`);
+
+    /*
+     * AN UPDATE THAT MOVED ITS VERSION AND STOPPED is finished by the same
+     * update run again: its pages, rules, roles, mails, documents, keys and
+     * starting rows are written for the version it recorded. A record whose
+     * version never moved is from an update that stopped before it recorded
+     * anything: that one simply runs again.
+     */
+    const updates = appUpdatesRepo(deps.meta);
+    const unfinished = await updates.find(installed.row.id);
+    if (unfinished !== null && unfinished.toVersion === installed.row.version && installed.document !== null) {
+      return writeUpdated(actor, host, input, installed, {
+        manifest: installed.document as Manifest,
+        from: unfinished.fromVersion,
+        to: installed.row.version,
+        fromTables: unfinished.fromTables,
+      });
+    }
+    if (unfinished !== null) await updates.finish(installed.row.id);
 
     const from = installed.row.version;
     const to = (await deps.store.versions(key)).find(
@@ -2894,11 +3407,17 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       );
       throw refused;
     }
+    refusePlannedOnly(manifest, `"${key}"`);
 
     const changed = publisherChangeRefusal(manifest, publisherIdOf(installed.document));
     if (changed !== null) {
       await auditAppEvent('app.verify-refused', { key, version: to, from, reason: 'PUBLISHER_CHANGED' }, userId, userLabel, actor.kind);
       throw changed;
+    }
+    const otherLineage = lineageRefusal(manifest, await copiesOf(key));
+    if (otherLineage !== null) {
+      await auditAppEvent('app.verify-refused', { key, version: to, from, reason: 'LINEAGE_DIFFERS' }, userId, userLabel, actor.kind);
+      throw otherLineage;
     }
 
     const surfaces = surfacesOfInstalled(files, { key, version: to });
@@ -2918,6 +3437,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           'Update it without public access, or ask someone who can.',
       );
     }
+    const partsRefused = await savedPartsRefusal(manifest, actor.can);
+    if (partsRefused !== null) throw partsRefused;
 
     /*
      * AN ADD-ON MOUNTED ON THIS APP MUST STILL WORK WITH IT. A new version
@@ -2942,7 +3463,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      */
     const updating = new Set(addOnSteps.filter((step) => step.action === 'update').map((step) => step.key));
     // Another app's role is asked about only for an add-on this update does bring a newer version of.
-    const wider = (await roleTablesForCheck(manifest, addOnRows)).filter((entry) => entry.wider !== undefined && (entry.app === undefined || updating.has(entry.addOn)));
+    const wider = (await roleTablesForCheck(manifest, addOnRows, installed.row.connectionId)).filter((entry) => entry.wider !== undefined && (entry.app === undefined || updating.has(entry.addOn)));
     if (wider.length > 0 && input.body?.roleTables !== true) {
       const said = wider.map((entry) => widerWords({ ...entry, wider: entry.wider! }));
       throw new ValidationFailedError(
@@ -3100,6 +3621,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       stage = 'people-carry';
       if (connectionId !== null) await carryAdded(manifest, installed.document, connectionId, names, host);
       stage = 'finish';
+      // Kept until what the version brings is written: run again, the update finishes from here.
+      await updates.begin({ manifestId: installed.row.id, fromVersion: from, toVersion: to, fromTables: tableRefsOf(installed.document) });
       await manifests.setVersion(installed.row.id, { version: to, document: manifest });
       // Over the switches as they stand now, not as they stood when this began: one flipped meanwhile is kept.
       await manifests.setModules(installed.row.id, modulesFor(manifest, await manifests.modulesOfRow(installed.row.id), undefined, names ?? (connectionId === null ? {} : await appTablesRepo(deps.meta).realNames(connectionId, key))));
@@ -3125,53 +3648,97 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         { stage, from, to, cause: message, ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }) },
       );
     }
-    await deps.installed.refresh();
-    // New pages are added, untouched ones rebuilt for this version, and
-    // any page an operator edited is left exactly as it is.
-    /*
-     * Public access follows the version where the operator allowed it at
-     * install (the app still holds the live key it was given then), or
-     * where they allow it now. What the version ADDS — an entry the app's
-     * key does not hold, a key it never had, a staff screen's key opening
-     * without a sign-in — is given only when the operator says so on the
-     * check (`publicAccess: true`), and only by someone who may manage API
-     * keys. Not saying so gives nothing new. What it no longer declares
-     * was taken back above, either way.
-     */
-    const liveKey = await publicKeysRepo(deps.meta).newestLiveByApp(key, 'customer');
-    const keepsPublicAccess = liveKey !== null && liveKey.managedBy === key;
-    const consent = input.body?.publicAccess;
-    const grant =
-      consent === true && canGrantKeys
-        ? (true as const)
-        : !canGrantKeys
-          ? { refusal: 'only someone who may manage API keys can allow it' }
-          : { refusal: consent === false ? 'not allowed with this update' : 'not asked for with this update: send "publicAccess": true to allow it' };
-    const writtenPages = await writePages(
-      actor,
-      host,
-      manifest,
-      installed.row.id,
-      connectionId,
-      userId,
-      false,
-      names,
-      keepsPublicAccess || consent === true,
-      grant,
-    );
+    return writeUpdated(actor, host, input, installed, { manifest, from, to, fromTables: tableRefsOf(installed.document), names, applied, derived, addOnsDone });
+  }
 
-    /*
-     * Starting rows only for the tables THIS version brings: a table the
-     * version before already had is the owner's by now, empty or not. After
-     * the rules, as at install. The version has moved, so a row that is
-     * refused here is said in the log and stops nothing, as a page is.
-     */
+  /**
+   * WHAT AN UPDATE WRITES ONCE ITS VERSION HAS MOVED: the pages, rules, roles,
+   * mails, documents and keys of the new version, the starting rows of the
+   * tables it brings, and the versions it leaves behind. Strict: a part that
+   * cannot be written stops the update with the step it stopped at, the
+   * unfinished update stays recorded, and the same update run again finishes
+   * it from here (`appUpdatesRepo`). Nothing written before is undone.
+   */
+  async function writeUpdated(
+    actor: InstallActor,
+    host: InstallHost,
+    input: UpdateInput,
+    installed: InstalledManifest,
+    done: {
+      manifest: Manifest;
+      from: string;
+      to: string;
+      /** The table refs the version before had. */
+      fromTables: readonly string[];
+      names?: Record<string, string> | undefined;
+      applied?: { created: string[]; reused: string[] } | undefined;
+      derived?: Awaited<ReturnType<typeof fillAddedDerived>> | undefined;
+      addOnsDone?: AddOnsDone | undefined;
+    },
+  ): Promise<UpdateAppReply> {
+    const { key } = input;
+    const userId = actor.id;
+    const userLabel = actor.label;
+    const { manifest, from, to, names, applied, derived, addOnsDone } = done;
+    const connectionId = installed.row.connectionId;
+    const updates = appUpdatesRepo(deps.meta);
+    const surfaces = surfacesOfInstalled(files, { key, version: to });
+    const canGrantKeys = await actor.can(PERMISSIONS.apiKeysManage);
+    const addOnInstaller = addOnDeps();
+    let stage: 'pages' | 'seeds' = 'pages';
+    let writtenPages: Awaited<ReturnType<typeof writePages>>;
     let seeded: { written: Record<string, number>; kept: string[] } | undefined;
-    if (manifest.kind === 'app' && (manifest.seeds ?? []).length > 0 && connectionId !== null) {
-      const hadBefore = new Set(((installed.document as { requiredSchema?: { tables?: { ref: string }[] } }).requiredSchema?.tables ?? []).map((table) => table.ref));
-      const brought = new Set((manifest.requiredSchema?.tables ?? []).map((table) => table.ref).filter((ref) => !hadBefore.has(ref)));
-      if (brought.size > 0) {
-        try {
+    try {
+      await deps.installed.refresh();
+      // New pages are added, untouched ones rebuilt for this version, and
+      // any page an operator edited is left exactly as it is.
+      /*
+       * Public access follows the version where the operator allowed it at
+       * install (the app still holds the live key it was given then), or
+       * where they allow it now. What the version ADDS — an entry the app's
+       * key does not hold, a key it never had, a staff screen's key opening
+       * without a sign-in — is given only when the operator says so on the
+       * check (`publicAccess: true`), and only by someone who may manage API
+       * keys. Not saying so gives nothing new. What it no longer declares
+       * was taken back above, either way.
+       */
+      const liveKey = await publicKeysRepo(deps.meta).newestLiveByApp(key, 'customer');
+      const keepsPublicAccess = liveKey !== null && liveKey.managedBy === key;
+      const consent = input.body?.publicAccess;
+      const grant =
+        consent === true && canGrantKeys
+          ? (true as const)
+          : !canGrantKeys
+            ? { refusal: 'only someone who may manage API keys can allow it' }
+            : { refusal: consent === false ? 'not allowed with this update' : 'not asked for with this update: send "publicAccess": true to allow it' };
+      writtenPages = await writePages(
+        actor,
+        host,
+        manifest,
+        installed.row.id,
+        connectionId,
+        userId,
+        false,
+        names,
+        keepsPublicAccess || consent === true,
+        grant,
+        false,
+        // Strict: a part of the new version that cannot be written stops the update, to be finished.
+        true,
+        updateAnswers(input.body).pages,
+      );
+
+      /*
+       * Starting rows only for the tables THIS version brings: a table the
+       * version before already had is the owner's by now, empty or not. After
+       * the rules, as at install. A row that is refused stops the update, as
+       * a page does; run again, a table that holds rows already is left alone.
+       */
+      stage = 'seeds';
+      if (manifest.kind === 'app' && (manifest.seeds ?? []).length > 0 && connectionId !== null) {
+        const hadBefore = new Set(done.fromTables);
+        const brought = new Set((manifest.requiredSchema?.tables ?? []).map((table) => table.ref).filter((ref) => !hadBefore.has(ref)));
+        if (brought.size > 0) {
           const rows = await writeSeeds({
             actor: { id: userId, label: userLabel, kind: actor.kind, superAdmin: actor.superAdmin, can: actor.can },
             manifest,
@@ -3181,17 +3748,29 @@ export function createAppInstallService(deps: AppRoutesDeps) {
             only: brought,
           });
           seeded = { written: rows.written, kept: rows.kept };
-        } catch (err) {
-          host.log.warn({ err, app: key, version: to }, 'the starting rows of the tables this version brings were not written');
         }
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await updates.stopped(installed.row.id, stage);
+      await auditAppEvent('app.update-failed', { key, from, to, stage, message }, userId, userLabel, actor.kind);
+      throw new AppError(
+        409,
+        'APP_UPDATE_INCOMPLETE',
+        `Updating "${key}" to ${to} stopped at the ${stage} step: ${message} ` +
+          `${to} is recorded and what it brings is written up to there. Update it again to finish.`,
+        { stage, from, to, cause: message },
+      );
     }
+    await updates.finish(installed.row.id);
 
     // D11: older versions go only AFTER the new one is recorded and served,
     // so a failure anywhere above leaves the running version on disk.
     const pruned: string[] = [];
+    // A version another install of the key still runs stays: an update of every copy moves them one at a time.
+    const stillRun = new Set((await manifests.listByKey(key)).map((one) => one.row.version));
     for (const old of await deps.store.versions(key)) {
-      if (compareSemver(old, to) >= 0) continue;
+      if (compareSemver(old, to) >= 0 || stillRun.has(old)) continue;
       await deps.store.removeVersion(key, old);
       pruned.push(old);
     }
@@ -3337,7 +3916,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
 
   /** An app installed in this database: its stored manifest, or `unreadable` when the stored document no longer reads. Null when it is not here. */
   async function appHere(appKey: string, connectionId: string): Promise<Manifest | 'unreadable' | null> {
-    const row = await manifests.findByKey(appKey);
+    const row = await manifests.findInScope(appKey, connectionId);
     if (row === null || row.row.kind !== 'app' || row.row.connectionId !== connectionId) return null;
     const read = validateManifest(row.document, { allowLocalPublisher: true });
     return read.ok ? read.manifest : 'unreadable';
@@ -3394,7 +3973,12 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const { appKey, actor } = input;
     const host = input.host ?? NO_HOST;
     if (moving.has(appKey)) return [];
-    const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === appKey);
+    // The copy on the add-on's database; with none named, every copy in turn.
+    const copies = (await manifests.listByKey(appKey)).filter((m) => m.row.kind === 'app');
+    if (input.connectionId === undefined || input.connectionId === null) {
+      if (copies.length > 1) return (await Promise.all(copies.map((copy) => putInParts({ ...input, connectionId: copy.row.scopeKey })))).flat();
+    }
+    const installed = input.connectionId === undefined || input.connectionId === null ? copies[0] : copies.find((m) => m.row.scopeKey === input.connectionId);
     if (installed === undefined || installed.row.status !== 'installed') return [];
     let declared: Manifest;
     let waited: { ref: string }[];
@@ -3417,6 +4001,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       await whileMoving(appKey, () =>
         applyInPlace(actor, host, {
           key: appKey,
+          installId: installed.row.id,
           version: installed.row.version,
           publicAccess: false,
           publicAccessRefusal: 'a part of the app was put in; allow its public access in the app’s settings',
@@ -3618,9 +4203,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     putInParts,
     settleAddOnPublic,
     addOnPublicAccessOf,
-    planFor: (manifest, connectionId) => planFor(manifest, connectionId),
-    checkedPlan: async (key, manifest, connectionId, verb, expectedChecksum) => {
-      const { plan, existing, shapeRecords } = await checkedPlan(key, manifest, connectionId, verb, expectedChecksum);
+    planFor: (manifest, connectionId, updating) => planFor(manifest, connectionId, {}, undefined, updating),
+    checkedPlan: async (key, manifest, connectionId, verb, expectedChecksum, updating) => {
+      const { plan, existing, shapeRecords } = await checkedPlan(key, manifest, connectionId, verb, expectedChecksum, {}, undefined, updating);
       return { plan, existing, shapeRecords };
     },
     recordTables,
@@ -3658,7 +4243,12 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     publisherOf,
     manifestOnlyDocument,
     publisherIdOf,
+    adoptInstance,
+    legacyInstanceOf,
     publisherChangeRefusal,
+    lineageRefusal,
+    olderVersionRefusal,
+    copiesOf,
     verifiedManifest,
     appManifestFrom,
     addOnRowsFor,
@@ -3667,7 +4257,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     renameEdit,
     planFor,
     installedAppNames,
-    installedElsewhere,
+    otherVersionElsewhere,
     publicAccessOf,
     publicAccessRecorder,
     writePages,

@@ -62,7 +62,7 @@ for (const [dialect, available] of ENGINES) {
       expect(h.lines.warn).toEqual([]);
 
       // The add-on is here, in the app's database, connected to the app.
-      const addOn = (await manifestsRepo(h.harness.meta, IDENTITY).findByKey('ledger-kit'))!;
+      const addOn = (await manifestsRepo(h.harness.meta, IDENTITY).listByKey('ledger-kit'))[0]!;
       expect(addOn.row).toMatchObject({ kind: 'add-on', status: 'installed', connectionId: h.harness.connectionId });
       expect(addOn.attachments.filter((attachment) => attachment.attachedTo === 'repairs')).toHaveLength(1);
       // The app's table has the two columns the tool added, and takes a row that names an account by its key.

@@ -53,7 +53,7 @@ describe('where an add-on\'s tables go', () => {
       expect(reply.statusCode, reply.body).toBe(409);
       expect(reply.json()).toMatchObject({ error: { code: 'ADD_ON_SCHEMA_CONNECTION', details: { connections: [{ id: h.connectionId, name: 'Studio' }, { id: second, name: 'Second' }] } } });
     }
-    expect(await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit')).toBeNull();
+    expect(((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null)).toBeNull();
     expect((await h.tableNames()).filter((name) => name.startsWith('ledger_kit_'))).toEqual([]);
   });
 
@@ -63,7 +63,7 @@ describe('where an add-on\'s tables go', () => {
     const reply = await install(h, { connectionId: second });
     expect(reply.statusCode, reply.body).toBe(200);
     expect(reply.json().connectionId).toBe(second);
-    expect((await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit'))?.row.connectionId).toBe(second);
+    expect((((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null))?.row.connectionId).toBe(second);
     expect(await appTablesRepo(h.meta).forInstall(second, 'ledger-kit')).toHaveLength(7);
     expect(await appTablesRepo(h.meta).forInstall(h.connectionId, 'ledger-kit')).toEqual([]);
     // Not in the first database.
@@ -85,7 +85,7 @@ describe('where an add-on\'s tables go', () => {
     const elsewhere = await install(h, { attachTo: ['shop'], connectionId: second });
     expect(elsewhere.statusCode, elsewhere.body).toBe(422);
     expect(elsewhere.json().error.details).toMatchObject({ code: 'ADD_ON_OTHER_DATABASE', connectionId: second, connections: [{ id: h.connectionId, name: 'Studio' }] });
-    expect(await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit')).toBeNull();
+    expect(((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null)).toBeNull();
     // Two databases, and still no question: the app's is the answer.
     const reply = await install(h, { attachTo: ['shop'] });
     expect(reply.statusCode, reply.body).toBe(200);
@@ -94,18 +94,22 @@ describe('where an add-on\'s tables go', () => {
 });
 
 describe('an add-on already installed', () => {
-  it('asked about for another database, the plan says where it is and that it stays there', async () => {
+  it('asked about for another database, the plan is an install of its own there', async () => {
     h = await withKit();
     const second = await h.addConnection('Second');
     expect((await install(h, { connectionId: h.connectionId })).statusCode).toBe(200);
+    // Installs are per database: another database plans a copy of its own, with nothing said of the first.
     const reply = await plan(h, { connectionId: second });
     expect(reply.statusCode, reply.body).toBe(200);
-    expect(reply.json().plan.installable).toBe(false);
-    const problem = reply.json().plan.problems.find((candidate: { code: string }) => candidate.code === 'APP_INSTALLED_ELSEWHERE');
-    expect(problem.message).toBe('"Ledger kit" already keeps its tables on the connection "Studio". An add-on keeps them in one database: update it there, or uninstall it there before installing it on another.');
-    // Asked about where it is, there is no such problem.
+    expect(reply.json().plan.installable).toBe(true);
+    expect(reply.json().plan.problems).toEqual([]);
+    expect(reply.json().plan.create.length).toBeGreaterThan(0);
+    // Asked about where it is, its own tables are there to reuse; installing it there again is refused.
     const here = await plan(h, { connectionId: h.connectionId });
-    expect(here.json().plan.problems.filter((candidate: { code: string }) => candidate.code === 'APP_INSTALLED_ELSEWHERE')).toEqual([]);
+    expect(here.json().plan.create).toEqual([]);
+    const twice = await install(h, { connectionId: h.connectionId });
+    expect(twice.statusCode, twice.body).toBe(409);
+    expect(twice.body).toContain('already installed on this database');
   });
 });
 
@@ -119,7 +123,7 @@ describe.each(LEGS)('what an install would make — %s', (dialect, available) =>
     expect(body.checksum).toMatch(/^[0-9a-f]{16,}$/);
     expect(body.plan).toMatchObject({ addOnKey: 'ledger-kit', version: '1.0.0', installable: true, requiresSchemaChange: true, reuse: [] });
     expect(body.plan.create.map((table: { ref: string }) => table.ref).sort()).toEqual(['accounts', 'entries', 'holds', 'postings', 'requests', 'settings', 'things']);
-    expect(await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit')).toBeNull();
+    expect(((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null)).toBeNull();
     expect(await appTablesRepo(h.meta).forConnection(h.connectionId)).toEqual([]);
     expect((await h.tableNames()).filter((name) => name.startsWith('ledger_kit_'))).toEqual([]);
     // The same question twice has one answer.
@@ -136,7 +140,7 @@ describe.each(LEGS)('what an install would make — %s', (dialect, available) =>
     const moved = await install(h, { planChecksum: 'not-the-plan-you-saw' });
     expect(moved.statusCode, moved.body).toBe(409);
     expect(moved.json().error.code).toBe('SCHEMA_DRIFT');
-    expect(await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit')).toBeNull();
+    expect(((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null)).toBeNull();
     const held = await install(h, { planChecksum: checksum });
     expect(held.statusCode, held.body).toBe(200);
   });
@@ -153,7 +157,7 @@ describe.each(LEGS)('what an install would make — %s', (dialect, available) =>
     expect(body.plan.problems.map((problem: { table: string }) => problem.table)).toContain('accounts');
     const refused = await install(h);
     expect(refused.statusCode, refused.body).toBe(422);
-    expect(await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit')).toBeNull();
+    expect(((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null)).toBeNull();
     // The owner's table and row are as they were; nothing of the add-on's was made beside it.
     expect(await h.rows('SELECT owner_note FROM ledger_kit_accounts')).toEqual([{ owner_note: 'mine' }]);
     expect((await h.tableNames()).filter((name) => name.startsWith('ledger_kit_'))).toEqual(['ledger_kit_accounts']);

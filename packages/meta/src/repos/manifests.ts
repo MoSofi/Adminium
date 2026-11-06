@@ -26,6 +26,16 @@
  *
  * `licenseKeyEncrypted` is shipped in the table and is never read or written by
  * anything below: 17 defers licences BY NAME, so honouring that costs nothing.
+ *
+ * ─── An install is a row, and a key may have several (wave 0076) ──────────
+ *
+ * The same app or add-on may be installed once per database: one row per
+ * (`manifest_key`, `scope_key`), where the scope is the connection id or
+ * `server`. The row's id is the INSTALL ID, and everything an install owns
+ * is keyed by it. There is deliberately no "find by key": with two installs
+ * it would answer the first row, which is a silent wrong answer. A caller
+ * with only a key lists the installs (`listByKey`) or names the scope or the
+ * slug, and the server's resolver decides — or answers that it cannot.
  */
 
 import type { Selectable } from 'kysely';
@@ -40,6 +50,19 @@ import { inIdOrder, packJson, readJson, readJsonOrNull } from './util.js';
 
 export type ManifestRow = Selectable<AdminiumManifestsTable>;
 export type ManifestAttachmentRow = Selectable<AdminiumManifestAttachmentsTable>;
+
+/** The scope of an install kept once per server: a server-wide add-on (a payment provider). */
+export const SERVER_SCOPE = 'server';
+
+/** The slug of the install that owns a key's bare addresses and grants. */
+export const BARE_SLUG = '';
+
+/** A host an add-on is attached to: the host key and, once it is installed, the host install. */
+export interface AttachTarget {
+  key: string;
+  /** The host install id; `''` while the key is not installed. */
+  hostInstall: string;
+}
 
 /** Encrypt/decrypt closures over `ADMINIUM_SECRET`; the repo never sees the key. */
 export interface CredentialCrypto {
@@ -67,9 +90,16 @@ export interface InstallManifestInput {
   /** The validated manifest document, stored verbatim. */
   document: unknown;
   connectionId?: string | null;
+  /**
+   * The database the install is for (its connection id), or `server`
+   * (SERVER_SCOPE). Absent: its connection, else the server.
+   */
+  scopeKey?: string;
+  /** `''` (the default) = the bare addresses; a later install's slug otherwise. */
+  instanceSlug?: string;
   installedBy?: string | null;
-  /** Host `manifest_key`s to attach on install. */
-  attachTo?: readonly string[];
+  /** The hosts to attach on install; a bare key is that key's install with the bare addresses (or none yet). */
+  attachTo?: readonly (AttachTarget | string)[];
   /**
    * `installed` (the default) or `installing` — an app install writes its row
    * FIRST, as `installing`, and flips it last. An `installing` row
@@ -183,6 +213,19 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     return out;
   }
 
+  /** A host named by key alone: the key's install with the bare addresses, or `''` while it has none. */
+  async function hostOf(host: AttachTarget | string): Promise<AttachTarget> {
+    if (typeof host !== 'string') return host;
+    const bare = await db
+      .selectFrom('adminium_manifests')
+      .select('id')
+      .where('manifestKey', '=', host)
+      .where('instanceSlug', '=', BARE_SLUG)
+      .where('kind', '=', 'app')
+      .executeTakeFirst();
+    return { key: host, hostInstall: bare?.id ?? '' };
+  }
+
   return {
     /**
      * Install: one manifest row plus an attachment per host.
@@ -205,6 +248,8 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
         manifest: packJson(input.document),
         licenseKeyEncrypted: null,
         connectionId: input.connectionId ?? null,
+        scopeKey: input.scopeKey ?? input.connectionId ?? SERVER_SCOPE,
+        instanceSlug: input.instanceSlug ?? BARE_SLUG,
         status: input.status ?? 'installed',
         kind: input.kind,
         // No copy is held until one has actually been uploaded, which happens
@@ -221,11 +266,14 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
       const row = values as unknown as ManifestRow;
 
       const attachments: ManifestAttachmentRow[] = [];
-      for (const host of input.attachTo ?? []) {
+      for (const named of input.attachTo ?? []) {
+        const host = await hostOf(named);
         const attachment: ManifestAttachmentRow = {
           id: newId('mat'),
           manifestId: row.id,
-          attachedTo: host,
+          attachedTo: host.key,
+          hostInstall: host.hostInstall,
+          flag: null,
           disabledAt: null,
           createdAt: at,
         };
@@ -235,14 +283,53 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
       return { row, document: input.document, attachments };
     },
 
-    async findByKey(manifestKey: string): Promise<InstalledManifest | null> {
+    /**
+     * Every install of a key, the first installed first (the bare install
+     * leads while it is there). Empty when the key is not installed. A
+     * caller that needs ONE install resolves it from this list and a
+     * selector; it never takes `[0]` on a key that may have two.
+     */
+    async listByKey(manifestKey: string): Promise<InstalledManifest[]> {
+      const ids = await db
+        .selectFrom('adminium_manifests')
+        .select('id')
+        .where('manifestKey', '=', manifestKey)
+        .orderBy('installedAt', 'asc')
+        .orderBy('id', 'asc')
+        .execute();
+      return inOrder(ids.map((row) => row.id));
+    },
+
+    /** The install of a key for one database (its connection id) or for the server. */
+    async findInScope(manifestKey: string, scopeKey: string): Promise<InstalledManifest | null> {
       const row = await db
         .selectFrom('adminium_manifests')
         .selectAll()
         .where('manifestKey', '=', manifestKey)
+        .where('scopeKey', '=', scopeKey)
         .executeTakeFirst();
       if (row === undefined) return null;
       return hydrate(row, await attachmentsFor(row.id));
+    },
+
+    /** The install of a key at an address: `''` is the bare one, else its slug. */
+    async findBySlug(manifestKey: string, instanceSlug: string): Promise<InstalledManifest | null> {
+      const row = await db
+        .selectFrom('adminium_manifests')
+        .selectAll()
+        .where('manifestKey', '=', manifestKey)
+        .where('instanceSlug', '=', instanceSlug)
+        .executeTakeFirst();
+      if (row === undefined) return null;
+      return hydrate(row, await attachmentsFor(row.id));
+    },
+
+    /** Every install on one database (its connection id), or every server-wide one. */
+    async listInScope(scopeKey: string, kind?: 'app' | 'add-on'): Promise<InstalledManifest[]> {
+      let q = db.selectFrom('adminium_manifests').select('id').where('scopeKey', '=', scopeKey);
+      if (kind !== undefined) q = q.where('kind', '=', kind);
+      const ids = await q.orderBy('manifestKey', 'asc').orderBy('id', 'asc').execute();
+      return inOrder(ids.map((row) => row.id));
     },
 
     async findById(id: string): Promise<InstalledManifest | null> {
@@ -269,18 +356,50 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
      * Disabled attachments are excluded rather than returned with a flag — a
      * host that has to remember to filter is a host that will forget once.
      */
-    async enabledForHost(attachedTo: string): Promise<InstalledManifest[]> {
-      const rows = await db
+    async enabledForHost(attachedTo: string, hostInstall?: string): Promise<InstalledManifest[]> {
+      let query = db
         .selectFrom('adminium_manifest_attachments as a')
         .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
         .select('m.id')
-        .where('a.attachedTo', '=', attachedTo)
+        .where('a.attachedTo', '=', attachedTo);
+      // One host install's add-ons (wave 0076): Kiln's Print Shop never shows Fernhill's.
+      if (hostInstall !== undefined) query = query.where('a.hostInstall', '=', hostInstall);
+      const rows = await query
         .where('a.disabledAt', 'is', null)
         .where('m.kind', '=', 'add-on')
         .where('m.status', '=', 'installed')
         .orderBy('m.manifestKey', 'asc')
         .execute();
       return inOrder(rows.map((row) => row.id));
+    },
+
+    /**
+     * Install again over an install: the same row (its id is the install id,
+     * and what it owns — settings, outbox, links, after-install items — is
+     * keyed by it) takes the new version, document and status.
+     */
+    async reinstall(
+      id: string,
+      input: { version: string; source: string; document: unknown; status: ManifestStatus; modules?: AppModules | null; installedBy?: string | null; connectionId?: string | null },
+      at: number = Date.now(),
+    ): Promise<void> {
+      await db
+        .updateTable('adminium_manifests')
+        .set({
+          version: input.version,
+          source: input.source,
+          manifest: packJson(input.document),
+          status: input.status,
+          modules: input.modules === undefined || input.modules === null ? null : packJson(input.modules),
+          ...(input.installedBy === undefined ? {} : { installedBy: input.installedBy }),
+          ...(input.connectionId === undefined ? {} : { connectionId: input.connectionId }),
+          // The held copy is of the old bytes (see `setVersion`).
+          packageIntegrity: null,
+          packageFileId: null,
+          updatedAt: at,
+        })
+        .where('id', '=', id)
+        .execute();
     },
 
     /** Upgrade in place: a new version and document over the same row. */
@@ -321,6 +440,15 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     /** Say which database a manifest's tables are in: an add-on whose earlier version kept none has no answer until a version that does. */
     async setConnection(id: string, connectionId: string, at: number = Date.now()): Promise<void> {
       await db.updateTable('adminium_manifests').set({ connectionId, updatedAt: at }).where('id', '=', id).execute();
+    },
+
+    /**
+     * An install kept for the server that now lives on one database (an
+     * add-on whose new version brings its first tables): its connection and
+     * its scope move together, so it is that database's install from now on.
+     */
+    async moveToDatabase(id: string, connectionId: string, at: number = Date.now()): Promise<void> {
+      await db.updateTable('adminium_manifests').set({ connectionId, scopeKey: connectionId, updatedAt: at }).where('id', '=', id).execute();
     },
 
     async setVersion(
@@ -376,20 +504,24 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     /** Attach to one more host; idempotent (the unique index is the guarantee). */
     async attach(
       manifestId: string,
-      attachedTo: string,
+      named: AttachTarget | string,
       at: number = Date.now(),
     ): Promise<ManifestAttachmentRow> {
+      const host = await hostOf(named);
       const existing = await db
         .selectFrom('adminium_manifest_attachments')
         .selectAll()
         .where('manifestId', '=', manifestId)
-        .where('attachedTo', '=', attachedTo)
+        .where('attachedTo', '=', host.key)
+        .where('hostInstall', '=', host.hostInstall)
         .executeTakeFirst();
       if (existing !== undefined) return existing;
       const row: ManifestAttachmentRow = {
         id: newId('mat'),
         manifestId,
-        attachedTo,
+        attachedTo: host.key,
+        hostInstall: host.hostInstall,
+        flag: null,
         disabledAt: null,
         createdAt: at,
       };
@@ -404,29 +536,48 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
      */
     async setAttachmentEnabled(
       manifestId: string,
-      attachedTo: string,
+      named: AttachTarget | string,
       enabled: boolean,
       at: number = Date.now(),
     ): Promise<boolean> {
+      const host = await hostOf(named);
       const res = await db
         .updateTable('adminium_manifest_attachments')
         .set({ disabledAt: enabled ? null : at })
         .where('manifestId', '=', manifestId)
-        .where('attachedTo', '=', attachedTo)
+        .where('attachedTo', '=', host.key)
+        .where('hostInstall', '=', host.hostInstall)
         .executeTakeFirst();
       return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * A host key's install arrived: the attachments made while it was not
+     * installed (`host_install = ''`) become this install's. Only the first
+     * install of a key claims them; later installs start with none.
+     */
+    async claimAttachments(attachedTo: string, hostInstall: string): Promise<number> {
+      const res = await db
+        .updateTable('adminium_manifest_attachments')
+        .set({ hostInstall })
+        .where('attachedTo', '=', attachedTo)
+        .where('hostInstall', '=', '')
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows ?? 0n);
     },
 
     /**
      * Every add-on attached to one host, on or off, with its row — what an
      * app's uninstall keeps (the add-ons stay; only the links go).
      */
-    async attachedToHost(attachedTo: string): Promise<InstalledManifest[]> {
-      const rows = await db
+    async attachedToHost(attachedTo: string, hostInstall?: string): Promise<InstalledManifest[]> {
+      let query = db
         .selectFrom('adminium_manifest_attachments as a')
         .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
         .select('m.id')
-        .where('a.attachedTo', '=', attachedTo)
+        .where('a.attachedTo', '=', attachedTo);
+      if (hostInstall !== undefined) query = query.where('a.hostInstall', '=', hostInstall);
+      const rows = await query
         .where('m.kind', '=', 'add-on')
         .orderBy('m.manifestKey', 'asc')
         .execute();
@@ -441,10 +592,13 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
      * still be listed as a host, and a later app installed under the same key
      * would inherit add-ons nobody attached to it. Idempotent.
      */
-    async detachHost(attachedTo: string): Promise<number> {
+    async detachHost(named: AttachTarget | string): Promise<number> {
+      const host = await hostOf(named);
+      // One host install's links (wave 0076): uninstalling Kiln's Print Shop leaves Fernhill's add-ons on it.
       const res = await db
         .deleteFrom('adminium_manifest_attachments')
-        .where('attachedTo', '=', attachedTo)
+        .where('attachedTo', '=', host.key)
+        .where('hostInstall', '=', host.hostInstall)
         .executeTakeFirst();
       return Number(res.numDeletedRows ?? 0n);
     },

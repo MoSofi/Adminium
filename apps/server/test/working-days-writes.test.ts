@@ -20,6 +20,7 @@ import { venueClock } from '../src/crud/venue-time.js';
 import { dayPlus } from '../src/crud/moments.js';
 import { installInvoicing, invoicingManifest, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
+import { onlyInstall } from './only-install.js';
 
 // The server on UTC, the venue in London: a summer afternoon is an hour apart.
 process.env.TZ = 'UTC';
@@ -212,17 +213,18 @@ describe.each(LEGS)('working days, on %s', (dialect, available) => {
 
   it.skipIf(!available)("follows the owner's working week, and falls back to the declared one for a week it cannot read", async () => {
     const settings = addOnSettingsRepo(h.meta);
+    const works = await onlyInstall(h.meta, 'works');
     try {
-      await settings.patch('works', { working_days: 'mon,tue,wed,thu,fri,sat' }, declared);
+      await settings.patch(works, { working_days: 'mon,tue,wed,thu,fri,sat' }, declared);
       // Friday 14:01: received Saturday, ready Wednesday.
       expect(await job('2026-08-07T13:01:00Z')).toBe('2026-08-12');
-      await settings.patch('works', { cutoff: '15:00' }, declared);
+      await settings.patch(works, { cutoff: '15:00' }, declared);
       expect(await job('2026-08-07T13:01:00Z')).toBe('2026-08-11');
       // A week nobody can read is the app's default (Mon–Fri), a cut-off nobody can read the default 14:00.
-      await settings.patch('works', { working_days: 'someday', cutoff: 'teatime' }, declared);
+      await settings.patch(works, { working_days: 'someday', cutoff: 'teatime' }, declared);
       expect(await job('2026-08-07T13:01:00Z')).toBe('2026-08-13');
     } finally {
-      await settings.patch('works', { working_days: 'mon,tue,wed,thu,fri', cutoff: '14:00' }, declared);
+      await settings.patch(works, { working_days: 'mon,tue,wed,thu,fri', cutoff: '14:00' }, declared);
     }
   });
 

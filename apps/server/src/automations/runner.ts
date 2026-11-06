@@ -189,7 +189,11 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
    * the manifest's row for such a rule; none for a rule an owner made.
    */
   if (input.rule.managedBy !== null && !dryRun) {
-    const owner = await deps.meta.db.selectFrom('adminium_manifests').select('status').where('manifestKey', '=', input.rule.managedBy).executeTakeFirst();
+    // The install that shipped the rule: another copy's switch is not this rule's.
+    const owner =
+      input.rule.installId === null
+        ? await deps.meta.db.selectFrom('adminium_manifests').select('status').where('manifestKey', '=', input.rule.managedBy).where('scopeKey', 'in', [input.rule.connectionId ?? 'server', 'server']).executeTakeFirst()
+        : await deps.meta.db.selectFrom('adminium_manifests').select('status').where('id', '=', input.rule.installId).executeTakeFirst();
     if (owner !== undefined && owner.status !== 'installed') {
       trace.add({ nodeId: 'owner', name: input.rule.name, kind: 'trigger', status: 'skip', startedAt: now, log: text.ownerOff() });
       trace.setResume(null);

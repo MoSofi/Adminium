@@ -116,6 +116,7 @@ export function movesFor(moves: Readonly<Record<string, readonly (string | State
 
 /** The installed add-on a link names, as much of it as the gate asks. */
 async function addOnPage(meta: MetaDb, key: string, ref: string): Promise<{ gated: boolean } | null> {
+  // key-wide: an add-on's pages are its version's, the same on every copy.
   const row = await meta.db.selectFrom('adminium_manifests').select(['manifest', 'status']).where('manifestKey', '=', key).where('kind', '=', 'add-on').executeTakeFirst();
   if (row === undefined || row.status !== 'installed') return null;
   const parsed = addOnManifestSchema.safeParse(typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest);

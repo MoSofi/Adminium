@@ -110,6 +110,7 @@ export async function peopleTableSheet(deps: AudienceDeps, access: PeopleTableAc
 
 /** The name of the app that declares the table, for the sheet's sub-line. */
 export async function declaringAppName(meta: MetaDb, appKey: string): Promise<string> {
+  // key-wide: an app's name is its manifest's, the same on every copy.
   const app = (await manifestsRepo(meta, NO_SECRETS).list('app')).find((one) => one.row.manifestKey === appKey);
   return app === undefined ? appKey : appNameOf(app.document, appKey);
 }

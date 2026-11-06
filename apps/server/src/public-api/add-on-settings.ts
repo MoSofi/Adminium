@@ -16,8 +16,9 @@
  * attached, switched on and installed. Every other key — another app's add-on,
  * one this app never asked for, one detached — reads as if it did not exist.
  */
+import { installOnConnection, installsOf } from '../installs/resolve.js';
 import { namedAddOns, type AddOnNeeds } from '@adminium/manifest';
-import { addOnSettingsRepo, readJson, type MetaDb } from '@adminium/meta';
+import { addOnSettingsRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import { settingValuesWithDefaults } from '../apps/settings-values.js';
@@ -28,33 +29,27 @@ type DeclaredSettings = Parameters<typeof settingValuesWithDefaults>[0];
 export const addOnSettingsParams = z.object({ key: z.string().regex(/^[a-z][a-z0-9-]{0,63}$/, 'an add-on key') });
 export const addOnSettingsReply = z.object({ data: z.object({ settings: z.record(z.string(), z.unknown()) }) });
 
-/** The public settings of `addOnKey` as the app `appKey` has it, or null when it is not that app's to show. */
-export async function publicAddOnSettings(meta: MetaDb, appKey: string, addOnKey: string): Promise<Record<string, unknown> | null> {
-  const app = await meta.db
-    .selectFrom('adminium_manifests')
-    .select(['manifest'])
-    .where('manifestKey', '=', appKey)
-    .where('kind', '=', 'app')
-    .where('status', '=', 'installed')
-    .executeTakeFirst();
-  const needs = readJson<{ addOns?: AddOnNeeds } | null>(app?.manifest ?? null)?.addOns;
+/**
+ * The public settings of `addOnKey` as the app `appKey` has it on the
+ * presented key's database, or null when it is not that app's to show. The
+ * app's install there, and the add-on install attached to it: Kiln's
+ * customers read Kiln's payment instructions, never Fernhill's. Never 409:
+ * a public route resolves by the key's database alone.
+ */
+export async function publicAddOnSettings(meta: MetaDb, appKey: string, addOnKey: string, connectionId: string): Promise<Record<string, unknown> | null> {
+  const installs = installsOf(meta);
+  const app = await installs.findInScope(appKey, connectionId);
+  if (app === null || app.row.kind !== 'app' || app.row.status !== 'installed') return null;
+  const needs = (app.document as { addOns?: AddOnNeeds } | null)?.addOns;
   if (!namedAddOns(needs).some((need) => need.key === addOnKey)) return null;
 
-  const row = await meta.db
-    .selectFrom('adminium_manifest_attachments as a')
-    .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
-    .select(['m.manifest as manifest'])
-    .where('a.attachedTo', '=', appKey)
-    .where('a.disabledAt', 'is', null)
-    .where('m.kind', '=', 'add-on')
-    .where('m.status', '=', 'installed')
-    .where('m.manifestKey', '=', addOnKey)
-    .executeTakeFirst();
-  if (row === undefined) return null;
-  const document = readJson<{ settings?: DeclaredSettings; addOn?: { publicSettings?: string[] } } | null>(row.manifest);
+  const addOn = await installOnConnection(installs, addOnKey, connectionId);
+  if (addOn === null || addOn.row.kind !== 'add-on' || addOn.row.status !== 'installed') return null;
+  if (!addOn.attachments.some((attachment) => attachment.attachedTo === appKey && attachment.hostInstall === app.row.id && attachment.disabledAt === null)) return null;
+  const document = addOn.document as { settings?: DeclaredSettings; addOn?: { publicSettings?: string[] } } | null;
   const declared = (document?.settings ?? []).filter((setting) => setting.secret !== true);
   // Only what the add-on's author marked for a browser, and never a secret, whatever a manifest lists.
   const shown = new Set((document?.addOn?.publicSettings ?? []).filter((name) => declared.some((setting) => setting.key === name)));
-  const values = settingValuesWithDefaults(declared, await addOnSettingsRepo(meta).valuesFor(addOnKey));
+  const values = settingValuesWithDefaults(declared, await addOnSettingsRepo(meta).valuesForInstall(addOn.row.id));
   return Object.fromEntries(Object.entries(values).filter(([name]) => shown.has(name)));
 }

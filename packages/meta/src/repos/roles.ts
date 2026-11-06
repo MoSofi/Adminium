@@ -20,6 +20,8 @@ export interface Role {
   updatedAt: number;
   /** The app whose manifest created this role; null for every other role. */
   appKey: string | null;
+  /** The install whose manifest created it (wave 0076); null for every other role, and after that install went. */
+  manifestId: string | null;
   /** Opens the app's own screens and never the dashboard. */
   screensOnly: boolean;
   /** The parts of its app the role belongs to; null when it names none (it is then always offered). */
@@ -46,6 +48,8 @@ export interface CreateRoleInput {
   description?: string | null;
   isBuiltin?: boolean;
   appKey?: string | null;
+  /** The install making an app role; required with `appKey` from wave 0076. */
+  manifestId?: string | null;
   screensOnly?: boolean;
   modules?: readonly string[] | null;
   names?: RoleNames | null;
@@ -61,6 +65,7 @@ function mapRole(row: Selectable<AdminiumRolesTable>): Role {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     appKey: row.appKey ?? null,
+    manifestId: row.manifestId ?? null,
     screensOnly: readBool(row.screensOnly ?? false),
     modules: partsOf(row.modules),
     names: namesOf(row.names),
@@ -91,6 +96,8 @@ export function rolesRepo(meta: MetaDb) {
         createdAt: at,
         updatedAt: at,
         appKey: input.appKey ?? null,
+        // Written only when given: a store not yet past 0076 has no such column.
+        ...(input.manifestId === undefined || input.manifestId === null ? {} : { manifestId: input.manifestId }),
         screensOnly: writeBool(meta, input.screensOnly ?? false),
         // Written only when there is something to write: a store part-way through its waves has neither column yet.
         ...(input.modules === undefined || input.modules === null || input.modules.length === 0 ? {} : { modules: packJson(input.modules) }),
@@ -112,6 +119,17 @@ export function rolesRepo(meta: MetaDb) {
 
     async list(): Promise<Role[]> {
       const rows = await db.selectFrom('adminium_roles').selectAll().orderBy('slug', 'asc').execute();
+      return rows.map(mapRole);
+    },
+
+    /** Link an app role to its install: one left by an install that went is taken up by the next on its address. */
+    async setInstall(roleId: string, manifestId: string, at: number = Date.now()): Promise<void> {
+      await db.updateTable('adminium_roles').set({ manifestId, updatedAt: at }).where('id', '=', roleId).execute();
+    },
+
+    /** The roles one install's manifest made (wave 0076): never another install's of the same key. */
+    async listForInstall(manifestId: string): Promise<Role[]> {
+      const rows = await db.selectFrom('adminium_roles').selectAll().where('manifestId', '=', manifestId).orderBy('slug', 'asc').execute();
       return rows.map(mapRole);
     },
 

@@ -130,7 +130,10 @@ describe('who sees an add-on\'s pages', () => {
     const reader = await people.create({ email: 'reader@test', name: 'Reader' });
     await roles.assignToUser(manager.id, (await roles.findBySlug('stock-kit-manager'))!.id);
     await roles.assignToUser(reader.id, (await roles.findBySlug('stock-kit-reader'))!.id);
-    const held = (user: { id: string }, addOn = 'stock-kit') => addOnSettingsGrantHeld(h!.meta, { kind: 'user', id: user.id, label: 'x' }, addOn);
+    const held = async (user: { id: string }, addOn = 'stock-kit') => {
+      const install = ((await manifestsRepo(h!.meta, { encrypt: (v: string) => v, decrypt: (v: string) => v }).listByKey(addOn))[0] ?? null);
+      return install !== null && (await addOnSettingsGrantHeld(h!.meta, { kind: 'user', id: user.id, label: 'x' }, install));
+    };
     expect(await held(manager)).toBe(true);
     expect(await held(reader)).toBe(false);
     expect(await held(manager, 'invoices')).toBe(false);
@@ -243,7 +246,7 @@ describe.each(LEGS)('an app that needs an add-on with tables of its own — %s',
     expect(reply.statusCode, reply.body).toBe(200);
     const names = await h.tableNames();
     expect(names).toEqual(expect.arrayContaining(['items', 'stock_kit_items', 'stock_kit_takes']));
-    const kit = await manifestsRepo(h.meta, { encrypt: (v: string) => v, decrypt: (v: string) => v }).findByKey('stock-kit');
+    const kit = ((await manifestsRepo(h.meta, { encrypt: (v: string) => v, decrypt: (v: string) => v }).listByKey('stock-kit'))[0] ?? null);
     expect(kit?.row).toMatchObject({ status: 'installed', connectionId: h.connectionId });
     expect(kit?.attachments.map((attachment) => attachment.attachedTo)).toContain('shop');
     // The person who installed the app holds the add-on's first role too.

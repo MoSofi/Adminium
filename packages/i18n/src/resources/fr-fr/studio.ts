@@ -3226,6 +3226,12 @@ export default {
     "notFound": {
       "title": "Page introuvable",
       "body": "Il n’y a rien à cette adresse. Vérifiez le lien et réessayez."
+    },
+    "moved": {
+      "one": "{app} est installé sur {database}.",
+      "other": "{app} est installé sur d’autres bases de données.",
+      "body": "Cette adresse appartenait à une copie qui a été retirée.",
+      "open": "Ouvrir {app} sur {database}"
     }
   },
   "appSettings": {

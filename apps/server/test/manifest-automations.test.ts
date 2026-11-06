@@ -67,7 +67,7 @@ async function installed(doc: Doc = kit(), before?: (harness: Harness) => Promis
 const rulesOf = () => automationsRepo(h!.meta).listManagedBy('stock-kit', h!.connectionId);
 const again = async (doc: Doc, at?: number) => {
   const view = await loadSnapshotView(h!.meta, h!.connectionId);
-  return installAutomations({ meta: h!.meta, manifest: doc as unknown as Manifest, connectionId: h!.connectionId, view, realId: (ref) => view.model.tables.find((table) => table.name === `stock_kit_${ref}`)?.id ?? ref, ...(at === undefined ? {} : { at }) });
+  return installAutomations({ meta: h!.meta, manifest: doc as unknown as Manifest, install: { id: 'mft_stock_kit', key: 'stock-kit', slug: '' }, connectionId: h!.connectionId, view, realId: (ref) => view.model.tables.find((table) => table.name === `stock_kit_${ref}`)?.id ?? ref, ...(at === undefined ? {} : { at }) });
 };
 
 describe('the rules an add-on ships', () => {
@@ -184,7 +184,7 @@ describe('the rules an add-on ships', () => {
     next[1]!['name'] = 'Evening tidy, v2';
     next[1]!['trigger'].schedule.time = '18:30';
     const result = await again(kit(next), Date.UTC(2026, 9, 7, 12, 0));
-    expect(result).toEqual({ written: ['evening'], kept: ['low-stock'], removed: [] });
+    expect(result).toEqual({ written: ['evening'], kept: ['low-stock'], removed: [], afterInstall: [] });
 
     const [lowNow, eveningNow] = await rulesOf();
     expect(lowNow!.name).toBe('My own low stock');
@@ -202,7 +202,7 @@ describe('the rules an add-on ships', () => {
     const [low] = await rulesOf();
     await repo.update(low!.id, { description: 'Mine now.' });
     const result = await again(kit([]));
-    expect(result).toEqual({ written: [], kept: [], removed: ['evening'] });
+    expect(result).toEqual({ written: [], kept: [], removed: ['evening'], afterInstall: [] });
     expect((await rulesOf()).map((rule) => rule.templateKey)).toEqual(['low-stock']);
 
     // An owner's own rule on the same database is nobody's business here.

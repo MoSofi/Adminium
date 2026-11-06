@@ -459,7 +459,7 @@ describe('GET /add-ons', () => {
       url: '/api/v1/add-ons',
       payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing'] },
     });
-    const installed = await manifestsRepo(meta, crypto).findByKey('holiday-calendars');
+    const installed = ((await manifestsRepo(meta, crypto).listByKey('holiday-calendars'))[0] ?? null);
     await manifestsRepo(meta, crypto).setCredential(installed!.row.id, {
       kind: 'api-key',
       secret: { apiKey: 'hunter2' },
@@ -534,7 +534,7 @@ describe('POST /add-ons — install', () => {
     });
     expect(res.statusCode, res.payload).toBe(200);
     expect(created).toEqual(['shipments']);
-    expect(await manifestsRepo(meta, crypto).findByKey('shipping-dhl')).not.toBeNull();
+    expect(((await manifestsRepo(meta, crypto).listByKey('shipping-dhl'))[0] ?? null)).not.toBeNull();
     await app.close();
   });
 
@@ -555,7 +555,7 @@ describe('POST /add-ons — install', () => {
     expect(res.payload).toContain('ADD_ON_DDL_REQUIRED');
     expect(res.payload).toContain('shipments');
     // And nothing was written.
-    expect(await manifestsRepo(meta, crypto).findByKey('shipping-dhl')).toBeNull();
+    expect(((await manifestsRepo(meta, crypto).listByKey('shipping-dhl'))[0] ?? null)).toBeNull();
     await app.close();
   });
 
@@ -701,7 +701,7 @@ describe('DELETE /add-ons/:key — uninstall', () => {
       packageRemoved: true,
     });
 
-    expect(await manifestsRepo(meta, crypto).findByKey('holiday-calendars')).toBeNull();
+    expect(((await manifestsRepo(meta, crypto).listByKey('holiday-calendars'))[0] ?? null)).toBeNull();
     expect(await store.keys()).toEqual([]);
     await app.close();
   });
@@ -994,7 +994,7 @@ describe('connect and disconnect', () => {
     expect(res.statusCode).toBe(422);
     expect(res.payload).toContain('account_number');
     expect(await manifestsRepo(meta, crypto).credentialStatus(
-      (await manifestsRepo(meta, crypto).findByKey('shipping-dhl'))!.row.id,
+      (((await manifestsRepo(meta, crypto).listByKey('shipping-dhl'))[0] ?? null))!.row.id,
     )).toBeNull();
     await app.close();
   });
@@ -1194,7 +1194,7 @@ describe('connect and disconnect', () => {
     });
 
     const repo = manifestsRepo(meta, crypto);
-    const installed = (await repo.findByKey('shipping-dhl'))!;
+    const installed = (((await repo.listByKey('shipping-dhl'))[0] ?? null))!;
     expect((await repo.getCredential(installed.row.id))?.secret).toEqual({
       api_key: 'rotated',
       account_number: '1',
@@ -1209,7 +1209,7 @@ describe('connect and disconnect', () => {
     await installDhl(app);
     await app.inject({ method: 'POST', url: '/api/v1/add-ons/shipping-dhl/connect', payload: { credentials: { api_key: 'k', account_number: '1' } } });
     // A manifest stored by an older release that today's validator refuses.
-    const installed = (await manifestsRepo(meta, crypto).findByKey('shipping-dhl'))!;
+    const installed = (((await manifestsRepo(meta, crypto).listByKey('shipping-dhl'))[0] ?? null))!;
     await meta.db.updateTable('adminium_manifests').set({ manifest: JSON.stringify({ schemaVersion: 1, key: 'shipping-dhl', stale: true }) } as never).where('id', '=', installed.row.id).execute();
 
     const res = await app.inject({ method: 'DELETE', url: '/api/v1/add-ons/shipping-dhl/connect' });
@@ -1239,7 +1239,7 @@ describe('connect and disconnect', () => {
 
     // The add-on is still installed, still attached, and now disconnected —
     // which is the whole of in one assertion.
-    const still = await manifestsRepo(meta, crypto).findByKey('shipping-dhl');
+    const still = ((await manifestsRepo(meta, crypto).listByKey('shipping-dhl'))[0] ?? null);
     expect(still).not.toBeNull();
     expect(still!.attachments).toHaveLength(1);
     expect(await meta.db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toEqual([]);
@@ -2357,7 +2357,7 @@ describe('acquisition routes', () => {
         payload: { key: 'holiday-calendars', version: '1.0.0', attachTo: ['printing', 'maker'] },
       });
       const repo = manifestsRepo(meta, crypto);
-      const before = (await repo.findByKey('holiday-calendars'))!;
+      const before = (((await repo.listByKey('holiday-calendars'))[0] ?? null))!;
       await repo.setCredential(before.row.id, { kind: 'api-key', secret: { k: 'v' } });
 
       await stageNewer('holiday-calendars', '1.1.0', ['printing', 'maker']);
@@ -2369,7 +2369,7 @@ describe('acquisition routes', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json()).toMatchObject({ from: '1.0.0', to: '1.1.0', pruned: ['1.0.0'] });
 
-      const after = (await repo.findByKey('holiday-calendars'))!;
+      const after = (((await repo.listByKey('holiday-calendars'))[0] ?? null))!;
       expect(after.row.version).toBe('1.1.0');
       expect(after.attachments).toHaveLength(2);
       expect(await repo.getCredential(after.row.id)).not.toBeNull();
@@ -2429,7 +2429,7 @@ describe('acquisition routes', () => {
       expect(res.payload).toContain('maker');
       // Unchanged, and the staged version is still there to retry or discard.
       const repo = manifestsRepo(meta, crypto);
-      expect((await repo.findByKey('holiday-calendars'))!.row.version).toBe('1.0.0');
+      expect((((await repo.listByKey('holiday-calendars'))[0] ?? null))!.row.version).toBe('1.0.0');
       await app.close();
     });
 
@@ -2481,7 +2481,7 @@ describe('GET /add-ons/:key/plan — the consent dialog document', () => {
     expect(plan.references[0]?.resolution).toBe('host');
     expect(plan.requiresSchemaChange).toBe(true);
     // Nothing was installed by asking.
-    expect(await manifestsRepo(meta, crypto).findByKey('shipping-dhl')).toBeNull();
+    expect(((await manifestsRepo(meta, crypto).listByKey('shipping-dhl'))[0] ?? null)).toBeNull();
     await app.close();
   });
 

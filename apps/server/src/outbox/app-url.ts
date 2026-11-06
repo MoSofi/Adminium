@@ -19,6 +19,8 @@
 import { namedAddOns, type Manifest } from '@adminium/manifest';
 import { manifestsRepo, type MetaDb } from '@adminium/meta';
 
+import { installOnConnection } from '../installs/resolve.js';
+
 const NO_SECRETS = {
   encrypt: (): string => {
     throw new Error('reading what is installed never stores a credential');
@@ -30,7 +32,7 @@ const NO_SECRETS = {
 
 /** `app_url.<name>` for every link an add-on's outbox declares: an address, or empty. */
 export async function appUrlsFor(
-  deps: { meta: MetaDb; guestBase: (appKey: string) => Promise<string | null> },
+  deps: { meta: MetaDb; guestBase: (appKey: string, slug: string) => Promise<string | null> },
   input: { connectionId: string; addOnKey: string; links: Readonly<Record<string, string>> | undefined },
 ): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
@@ -39,12 +41,12 @@ export async function appUrlsFor(
   for (const [name] of names) out[`app_url.${name}`] = '';
 
   const manifests = manifestsRepo(deps.meta, NO_SECRETS);
-  const addOn = await manifests.findByKey(input.addOnKey);
+  // The add-on as this database has it, and the app installs here it is attached to and switched on for.
+  const addOn = await installOnConnection(manifests, input.addOnKey, input.connectionId);
   if (addOn === null || addOn.row.kind !== 'add-on' || addOn.row.status !== 'installed') return out;
-  // The apps it is attached to and switched on for.
-  const on = new Set(addOn.attachments.filter((attachment) => attachment.disabledAt === null).map((attachment) => attachment.attachedTo));
+  const on = new Set(addOn.attachments.filter((attachment) => attachment.disabledAt === null).map((attachment) => attachment.hostInstall));
   const apps = (await manifests.list('app'))
-    .filter((app) => app.row.connectionId === input.connectionId && app.row.status === 'installed' && on.has(app.row.manifestKey))
+    .filter((app) => app.row.connectionId === input.connectionId && app.row.status === 'installed' && on.has(app.row.id))
     .sort((a, b) => (a.row.manifestKey < b.row.manifestKey ? -1 : a.row.manifestKey > b.row.manifestKey ? 1 : 0));
   for (const app of apps) {
     const manifest = app.document as Manifest | null;
@@ -56,7 +58,7 @@ export async function appUrlsFor(
       if (out[`app_url.${name}`] !== '') continue;
       const route = routes[routeKey];
       if (typeof route !== 'string' || !route.startsWith('/')) continue;
-      base ??= await deps.guestBase(app.row.manifestKey);
+      base ??= await deps.guestBase(app.row.manifestKey, app.row.instanceSlug);
       if (base === null) break;
       out[`app_url.${name}`] = `${base}${route}`;
     }

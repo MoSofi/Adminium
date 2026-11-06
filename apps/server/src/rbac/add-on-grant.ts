@@ -22,12 +22,28 @@
  * the add-on's side of the same question.
  */
 import { offeredRoles } from './app-parts.js';
-import { permissionsRepo, rolesRepo, type MetaDb, type Role } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, type InstalledManifest, type MetaDb, type Role } from '@adminium/meta';
 
+import { grantKeyOf } from '../installs/resolve.js';
 import { addOnSettingsRef } from './permissions.js';
 import type { RbacPrincipal } from './principal.js';
 
-export async function addOnSettingsGrantHeld(meta: MetaDb, principal: RbacPrincipal, addOnKey: string): Promise<boolean> {
+/**
+ * Whether the person may save ONE INSTALL's settings. The install is resolved
+ * first (the request's selector) and only then is its grant asked: a
+ * Fernhill letterhead editor naming Kiln's database gets nothing, because
+ * her role is tied to Fernhill's install.
+ *
+ *  - a role of the server's own (no app) holds the install's grant by name:
+ *    `addOn:<key>:settings` for the install with the bare addresses,
+ *    `addOn:<key>~<slug>:settings` for a later one;
+ *  - an add-on's own role holds its own install's settings (it is that
+ *    install's role) while the install is installed;
+ *  - an app's role holds it while its own install is installed and this
+ *    add-on install is attached to that app install and switched on there.
+ */
+export async function addOnSettingsGrantHeld(meta: MetaDb, principal: RbacPrincipal, install: InstalledManifest): Promise<boolean> {
+  if (install.row.kind !== 'add-on') return false;
   const roles = rolesRepo(meta);
   let held: Role[];
   if (principal.kind === 'api-key') {
@@ -39,40 +55,24 @@ export async function addOnSettingsGrantHeld(meta: MetaDb, principal: RbacPrinci
   // A role that is not offered (its part of the app is off) gives nothing, this grant included.
   held = await offeredRoles(meta, held);
   const permissions = permissionsRepo(meta);
+  const key = install.row.manifestKey;
+  const named = addOnSettingsRef(grantKeyOf(install.row));
   for (const role of held) {
-    const row = await permissions.find(role.id, 'app', addOnSettingsRef(addOnKey));
-    if ((row?.actions as { staff?: boolean } | undefined)?.staff !== true) continue;
-    if (role.appKey === null) return true;
-    if (role.appKey === addOnKey) {
-      const own = await meta.db
-        .selectFrom('adminium_manifests')
-        .select('id')
-        .where('manifestKey', '=', addOnKey)
-        .where('kind', '=', 'add-on')
-        .where('status', '=', 'installed')
-        .executeTakeFirst();
-      if (own !== undefined) return true;
+    const holds = async (ref: string) => ((await permissions.find(role.id, 'app', ref))?.actions as { staff?: boolean } | undefined)?.staff === true;
+    if (role.appKey === null) {
+      if (await holds(named)) return true;
       continue;
     }
-    const app = await meta.db
-      .selectFrom('adminium_manifests')
-      .select('id')
-      .where('manifestKey', '=', role.appKey)
-      .where('kind', '=', 'app')
-      .where('status', '=', 'installed')
-      .executeTakeFirst();
-    if (app === undefined) continue;
-    const attached = await meta.db
-      .selectFrom('adminium_manifest_attachments as a')
-      .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
-      .select('a.id')
-      .where('m.manifestKey', '=', addOnKey)
-      .where('m.kind', '=', 'add-on')
-      .where('m.status', '=', 'installed')
-      .where('a.attachedTo', '=', role.appKey)
-      .where('a.disabledAt', 'is', null)
-      .executeTakeFirst();
-    if (attached !== undefined) return true;
+    // An app's or an add-on's role holds the grant as its manifest wrote it: the bare key, for its own install.
+    if (!(await holds(addOnSettingsRef(key))) && !(await holds(named))) continue;
+    if (role.manifestId === null) continue;
+    if (role.appKey === key) {
+      if (role.manifestId === install.row.id && install.row.status === 'installed') return true;
+      continue;
+    }
+    const app = await meta.db.selectFrom('adminium_manifests').select(['id']).where('id', '=', role.manifestId).where('kind', '=', 'app').where('status', '=', 'installed').executeTakeFirst();
+    if (app === undefined || install.row.status !== 'installed') continue;
+    if (install.attachments.some((attachment) => attachment.attachedTo === role.appKey && attachment.hostInstall === app.id && attachment.disabledAt === null)) return true;
   }
   return false;
 }

@@ -166,6 +166,7 @@ for (const dialect of TEST_DIALECTS) {
         kind: 'app',
         source: 'file',
         document: { key: 'pos' },
+        scopeKey: 'server',
       });
       await t.meta.db
         .updateTable('adminium_manifests')
@@ -190,6 +191,7 @@ for (const dialect of TEST_DIALECTS) {
         source: 'file',
         document: { key: 'pos' },
         connectionId,
+        scopeKey: connectionId,
       });
       const record = widest(t.meta, connectionId, installed.row.id);
       await t.meta.db.insertInto('adminium_app_tables').values(record).execute();

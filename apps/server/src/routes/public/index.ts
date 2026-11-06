@@ -5084,7 +5084,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (ok === null) return reply;
         if (ok.session === null || ok.key.managedBy === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
         if (ok.session.level !== 'verified') return fail(reply, 403, 'PUBLIC_CLAIM_LEVEL', 'Confirm the code we emailed you first.');
-        const settings = await publicAddOnSettings(meta, ok.key.managedBy, request.params.key);
+        const settings = await publicAddOnSettings(meta, ok.key.managedBy, request.params.key, ok.key.connectionId);
         if (settings === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
         await touchKey(ok.key.keyId);
         return reply.send({ data: { settings } });
@@ -5581,7 +5581,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      */
     const greetingColumn = async (key: ResolvedKey, table: ResolvedTable, address: string): Promise<string | null> => {
       if (key.managedBy !== null) {
-        const box = await appOutboxesRepo(meta).findByApp(key.managedBy);
+        const box = await appOutboxesRepo(meta).findOnConnection(key.managedBy, key.connectionId);
         try {
           const recipient = box === null ? undefined : (JSON.parse(box.definition) as { recipient?: { table?: unknown; name?: unknown } }).recipient;
           const named = recipient?.name;

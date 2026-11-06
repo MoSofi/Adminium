@@ -14,7 +14,7 @@
 import { sql } from 'kysely';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { ALL_MIGRATIONS, appTablesRepo, applyMigrations, connectionsRepo, manifestsRepo, type MetaDb } from '../src/index.js';
+import { ALL_MIGRATIONS, appTablesRepo, applyMigrations, connectionsRepo, manifestsRepo, newId, type MetaDb } from '../src/index.js';
 import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
 
 const PRE_0045 = ALL_MIGRATIONS.filter((m) => m.name < '0045_app_table_shapes');
@@ -45,7 +45,13 @@ async function connection(meta: MetaDb): Promise<string> {
 }
 
 async function installed(meta: MetaDb, connectionId: string, doc: ReturnType<typeof till>): Promise<string> {
-  const row = await manifestsRepo(meta, crypto).install({ manifestKey: doc.key, version: doc.version, kind: 'app', source: 'file', document: doc, connectionId });
+  // Written in the shape the store had before 0076 (no scope, no slug): the repo writes today's.
+  const id = newId('mft');
+  await (meta.db as unknown as { insertInto: (t: string) => { values: (r: object) => { execute: () => Promise<unknown> } } })
+    .insertInto('adminium_manifests')
+    .values({ id, manifestKey: doc.key, version: doc.version, source: 'file', manifest: JSON.stringify(doc), connectionId, status: 'installed', kind: 'app', installedAt: 1, updatedAt: 1 })
+    .execute();
+  const row = { row: { id } };
   const records = appTablesRepo(meta);
   for (const table of doc.requiredSchema.tables) {
     await records.record({ appKey: doc.key, manifestId: row.row.id, connectionId, ref: table.ref, tableName: `${doc.key}_${table.ref}`, owned: true, state: 'created' });

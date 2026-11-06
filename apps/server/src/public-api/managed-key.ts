@@ -74,11 +74,23 @@ export function managedGrantIssues(
   definition: PublicEndpointDefinition,
   methods: readonly PublicMethod[],
   decided: ReadonlySet<string>,
+  /**
+   * `wider`: the key's app is a file made on an Adminium (publisher `local`), whose owner made its
+   * endpoints by hand. It may also hold PUT, DELETE and BATCH, each only where a guest signs in to
+   * reach their own row, and never writing a column Adminium decides.
+   */
+  opts: { wider?: boolean | undefined } = {},
 ): ScopeIssue[] {
   const out: ScopeIssue[] = [];
   for (const method of methods) {
     if (method === 'DELETE' && ownRemoval(definition)) continue;
+    if (opts.wider === true && NEVER.has(method) && claimGated(definition)) continue;
     if (NEVER.has(method)) out.push(unsafe(ref, `an app’s own key may not hold ${method} on "${ref}"`));
+  }
+  if (opts.wider === true && !methods.includes('PATCH') && methods.some((method) => method === 'PUT' || method === 'BATCH') && claimGated(definition)) {
+    for (const column of definition.writable ?? []) {
+      if (decided.has(column)) out.push(unsafe(ref, `"${column}" is decided by Adminium, so a guest may not change it through "${ref}"`, column));
+    }
   }
   if (methods.includes('PATCH')) {
     if (!claimGated(definition)) {

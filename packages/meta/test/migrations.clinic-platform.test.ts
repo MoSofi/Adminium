@@ -247,19 +247,19 @@ for (const dialect of TEST_DIALECTS) {
       it('replaces an app\'s outbox in place, keeps when it last scanned, and drops it with the install', async () => {
         const m = meta();
         const connectionId = await connection(m);
-        const install = await manifestsRepo(m, crypto).install({ manifestKey: 'clinic', version: '0.2.0', kind: 'app', source: 'file', document: {}, connectionId });
+        const install = await manifestsRepo(m, crypto).install({ manifestKey: 'clinic', version: '0.2.0', kind: 'app', source: 'file', document: {}, connectionId, scopeKey: connectionId });
         const outboxes = appOutboxesRepo(m);
         const definition = JSON.stringify({ table: 'clinic_messages', kinds: { reminder: 'clinic-reminder' } });
         const made = await outboxes.put({ appKey: 'clinic', manifestId: install.row.id, connectionId, definition }, T0);
-        await outboxes.markScanned('clinic', T0 + MIN);
+        await outboxes.markScanned(install.row.id, T0 + MIN);
         const next = JSON.stringify({ table: 'clinic_messages', kinds: { reminder: 'clinic-reminder', missed: 'clinic-missed' } });
         const updated = await outboxes.put({ appKey: 'clinic', manifestId: install.row.id, connectionId, definition: next }, T0 + 2 * MIN);
         expect(updated).toMatchObject({ id: made.id, definition: next, scannedAt: T0 + MIN, createdAt: T0, updatedAt: T0 + 2 * MIN });
         expect((await outboxes.list()).map((row) => row.appKey)).toEqual(['clinic']);
 
         await manifestsRepo(m, crypto).uninstall(install.row.id);
-        expect(await outboxes.findByApp('clinic')).toBeNull();
-        expect(await outboxes.remove('clinic')).toBe(false);
+        expect(await outboxes.findByInstall(install.row.id)).toBeNull();
+        expect(await outboxes.remove(install.row.id)).toBe(false);
       });
 
       it('finds an app\'s templates by their owner, with what it shipped', async () => {

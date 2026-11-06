@@ -3226,6 +3226,12 @@ export default {
     "notFound": {
       "title": "找不到頁面",
       "body": "此網址沒有內容。請檢查連結後再試一次。"
+    },
+    "moved": {
+      "one": "{app} 已安裝在 {database} 上。",
+      "other": "{app} 已安裝在其他資料庫上。",
+      "body": "此網址屬於一個已被移除的副本。",
+      "open": "在 {database} 上開啟 {app}"
     }
   },
   "appSettings": {

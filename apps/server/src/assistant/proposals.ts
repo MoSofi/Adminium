@@ -438,8 +438,11 @@ export async function placeFor(deps: AssistantToolDeps): Promise<Place> {
   }
   if (deps.context !== 'general') return async () => ({ ok: false, refusal: NOT_THIS_TABLE });
   const allowed = new Set(deps.host.connectionIds);
+  // The tab's workspace narrows too: a proposal never lands on a database outside it.
+  const workspace = deps.host.workspaceConnectionIds === undefined ? null : new Set(deps.host.workspaceConnectionIds);
   return async (action) => {
     if (allowed.size > 0 && !allowed.has(action.connectionId)) return { ok: false, refusal: NOT_A_DATA_TABLE };
+    if (workspace !== null && !workspace.has(action.connectionId)) return { ok: false, refusal: NOT_A_DATA_TABLE };
     const found = await viewOrError(deps, action.connectionId);
     if ('error' in found) return { ok: false, refusal: NOT_A_DATA_TABLE };
     let id: string;

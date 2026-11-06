@@ -37,6 +37,8 @@ export const mePrefsView = z.object({
   density: densitySchema.nullable(),
   locale: localeSchema.nullable(),
   dir: dirSchema.nullable(),
+  /** The workspace the person last chose: where a new tab starts. Never a filter. */
+  workspaceId: z.string().nullable(),
 });
 
 const prefSource = z.enum(['system', 'global', 'user']);
@@ -72,5 +74,7 @@ export const mePrefsPatchBody = z.object({
   density: densitySchema.nullable().optional(),
   locale: localeSchema.nullable().optional(),
   dir: dirSchema.nullable().optional(),
+  /** The workspace chosen now (null: none); one the person cannot see is refused. */
+  workspaceId: z.string().max(36).nullable().optional(),
 });
 export type MePrefsPatchBody = z.infer<typeof mePrefsPatchBody>;

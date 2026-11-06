@@ -236,12 +236,14 @@ const NEVER_A_SECRET = {
  * attached to the app and switched on — the same test its documents and
  * pages take. A feature the app no longer declares is off.
  */
-export async function featureOn(meta: MetaDb, appKey: string, feature: string): Promise<boolean> {
+export async function featureOn(meta: MetaDb, appKey: string, feature: string, connectionId: string): Promise<boolean> {
   const manifests = manifestsRepo(meta, NEVER_A_SECRET);
-  const manifest = (await manifests.findByKey(appKey))?.document as { kind?: string; addOns?: { features?: { id: string; requires?: string[] }[] } } | undefined;
+  // The app's install on this database, and the add-ons attached to that install.
+  const install = await manifests.findInScope(appKey, connectionId);
+  const manifest = install?.document as { kind?: string; addOns?: { features?: { id: string; requires?: string[] }[] } } | undefined;
   const found = manifest?.addOns?.features?.find((candidate) => candidate.id === feature);
-  if (found === undefined) return false;
-  const attached = new Set((await manifests.enabledForHost(appKey)).map((m) => m.row.manifestKey));
+  if (found === undefined || install === null) return false;
+  const attached = new Set((await manifests.enabledForHost(appKey, install.row.id)).map((m) => m.row.manifestKey));
   return (found.requires ?? []).every((key) => attached.has(key));
 }
 
@@ -421,7 +423,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
    */
   async function switchedOn(db: Kysely<SourceDatabase>, box: LiveOutbox, gate: OutboxProducer['gate']): Promise<boolean> {
     // A feature of the app: on while every add-on it needs is attached and switched on (a receipt, with Invoices & Receipts).
-    if (typeof gate === 'object' && 'feature' in gate && !(await featureOn(deps.meta, box.appKey, gate.feature))) return false;
+    if (typeof gate === 'object' && 'feature' in gate && !(await featureOn(deps.meta, box.appKey, gate.feature, box.connectionId))) return false;
     // A feature alone is all it waits for; with a setting beside it, both must hold (a receipt the manager switched on).
     if (typeof gate === 'object' && !('setting' in gate)) return true;
     // The outbox's own switch, or the producer's (each studio notice has one).
@@ -502,7 +504,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       // An email of a part of the app that is switched off is not queued.
       if (producer.module !== undefined && !(await appPartIsOn(deps.meta, box.appKey, producer.module))) return null;
       if (producer.gate !== undefined && !(await switchedOn(db, box, producer.gate))) return null;
-      const read = settingReader(deps.meta, db, view);
+      const read = settingReader(deps.meta, db, view, box.connectionId);
       // The log is the dedupe.
       let seen = db
         .selectFrom(outbox.id as never)
@@ -785,7 +787,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     const changed: Row[] = [];
     await withNamedLock({ db: handle.db, dialect: handle.dialect }, `outbox|${box.connectionId}|${box.appKey}`, 'CAPACITY_BUSY', async (db) => {
       const kinds = [...new Set(judged.map((producer) => producer.kind))];
-      const read = settingReader(deps.meta, db, view);
+      const read = settingReader(deps.meta, db, view, box.connectionId);
       // Every waiting message, a page at a time.
       let last: unknown;
       for (;;) {

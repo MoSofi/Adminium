@@ -38,7 +38,7 @@ describe('the payment webhook', () => {
     backend = createDemoPaymentBackend({ pageUrl: (one) => `${PAY}/pay/demo/${one.attemptId}` });
     settles = [];
     providerFor = (key, mode) =>
-      paymentProviderFor({ runtime: () => null, manifests: { findByKey: async () => null, getCredential: async () => null }, httpFor: () => backend.http, demo: backend }, key, mode);
+      paymentProviderFor({ runtime: () => null, manifests: { findInScope: async () => null, listByKey: async () => [], getCredential: async () => null }, httpFor: () => backend.http, demo: backend }, key, mode);
     const enqueue: WebhookDeps['enqueue'] = async (job) => {
       if (job.kind === 'payments.settle') settles.push(job.payload as { attemptId: string; eventId?: string });
     };

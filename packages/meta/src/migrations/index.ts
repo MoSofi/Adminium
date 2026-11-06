@@ -96,6 +96,10 @@ import { up as up0071 } from './0071_pictures_made.js';
 import { up as up0072 } from './0072_desktop_setup_words.js';
 import { up as up0073 } from './0073_form_marks.js';
 import { up as up0074 } from './0074_public_uploads.js';
+import { up as up0075 } from './0075_own_apps_and_workspaces.js';
+import { up as up0076 } from './0076_installs_per_database.js';
+import { up as up0077 } from './0077_app_parts.js';
+import { up as up0078 } from './0078_app_updates.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -179,4 +183,8 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0072_desktop_setup_words', up: up0072 },
   { name: '0073_form_marks', up: up0073 },
   { name: '0074_public_uploads', up: up0074 },
+  { name: '0075_own_apps_and_workspaces', up: up0075 },
+  { name: '0076_installs_per_database', up: up0076 },
+  { name: '0077_app_parts', up: up0077 },
+  { name: '0078_app_updates', up: up0078 },
 ];

@@ -13,6 +13,7 @@
  * The project's refusal to pause a finished project stands in for the states
  * the write path will enforce: a before hook that refuses, as those will.
  */
+import { onlyInstall } from './only-install.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { OutboxProducer } from '@adminium/manifest';
 import { addOnSettingsRepo, appTablesRepo, documentSequencesRepo, emailTemplatesRepo, manifestsRepo, payableProfilesRepo, paymentAttemptsRepo, paymentSettingsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
@@ -383,8 +384,8 @@ for (const [dialect, reachable] of LEGS) {
           document: { kind: 'add-on', key, settings: settings.map((k) => ({ key: k, type: 'text' })), addOn: { publicSettings } },
         } as never);
       await addOn('shipping', ['carrier'], ['carrier']);
-      await addOnSettingsRepo(meta).patch('invoices', { payment_instructions: 'Bank 12-34-56', bank_note: 'hush-note' }, [{ key: 'payment_instructions' }, { key: 'bank_note' }]);
-      await addOnSettingsRepo(meta).patch('shipping', { carrier: 'Parcel Co' }, [{ key: 'carrier' }]);
+      await addOnSettingsRepo(meta).patch(await onlyInstall(meta, 'invoices'), { payment_instructions: 'Bank 12-34-56', bank_note: 'hush-note' }, [{ key: 'payment_instructions' }, { key: 'bank_note' }]);
+      await addOnSettingsRepo(meta).patch(await onlyInstall(meta, 'shipping'), { carrier: 'Parcel Co' }, [{ key: 'carrier' }]);
       ann = await create('clients', { email: 'ann@client.studio.dev', name: 'Ann Lee' });
       ben = await create('clients', { email: 'ben@client.studio.dev', name: 'Ben Ode' });
     }, 120_000);

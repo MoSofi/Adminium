@@ -40,6 +40,8 @@ export interface CreatePublicEndpointInput {
   createdBy?: string | null;
   /** The app key that creates it at install; absent for an operator's endpoint. */
   managedBy?: string | null;
+  /** The install that creates it (wave 0076), with `managedBy`. */
+  installId?: string | null;
 }
 
 export function publicEndpointsRepo(meta: MetaDb) {
@@ -56,8 +58,11 @@ export function publicEndpointsRepo(meta: MetaDb) {
         createdAt: at,
         updatedAt: at,
         managedBy: input.managedBy ?? null,
+        installId: input.installId ?? null,
       };
-      await on.insertInto('adminium_public_endpoints').values(row).execute();
+      // The install's id only when there is one: a store not yet past 0076 has no such column.
+      const { installId, ...rest } = row;
+      await on.insertInto('adminium_public_endpoints').values(installId === null ? rest : row).execute();
       return row;
     },
 

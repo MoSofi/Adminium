@@ -34,6 +34,8 @@
  * to `system:manifests:manage`.
  */
 
+import { narrowToWorkspace } from '../../workspaces/list-filter.js';
+import { installOnConnection, installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import type { AppManifest } from '@adminium/manifest';
 import {
   appTablesRepo,
@@ -501,6 +503,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
       '/documents/profiles',
       {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        preSerialization: narrowToWorkspace(() => app.rbac.meta, 'profiles', (row) => row['connectionId'] as string | null),
         schema: { querystring: documentProfilesListQuery, response: { 200: documentProfilesListReply } },
       },
       async (request) => ({ profiles: (await profiles.list(request.query)).map(toProfileReply) }),
@@ -520,6 +523,8 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         const profile = await profiles.create({
           ...request.body,
           createdBy: request.user?.id ?? null,
+          // The add-on that renders it, as this database has it.
+          installId: (await installOnConnection(installsOf(deps.meta), request.body.addOnKey, request.body.connectionId))?.row.id ?? null,
         });
         return toProfileReply(await reconcile(request, profile, null, request.user?.id ?? null));
       },
@@ -765,7 +770,8 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         }
         const { key } = request.params;
         const body = request.body;
-        const installed = await manifestsRepo(deps.meta, NO_SECRETS).findByKey(key);
+        // The install the request names (the header, or ?connectionId=), else the key's only one.
+        const installed = await resolveInstall(manifestsRepo(deps.meta, NO_SECRETS), key, selectorOf(request), { kind: 'app' });
         const manifest = installed?.document as AppManifest | undefined;
         const connectionId = installed?.row.connectionId ?? null;
         if (installed === null || installed === undefined || installed.row.kind !== 'app' || installed.row.status !== 'installed' || connectionId === null || manifest?.kind !== 'app') {

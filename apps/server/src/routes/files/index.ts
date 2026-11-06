@@ -32,6 +32,7 @@
  * cannot change how any other route reads a body.
  */
 
+import { narrowToWorkspace } from '../../workspaces/list-filter.js';
 import type { FileRecord } from '../../files/read-limited.js';
 import type { Readable } from 'node:stream';
 
@@ -789,7 +790,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
 
     app.get(
       '/files',
-      { schema: { querystring: filesListQuery, response: { 200: filesListReply } } },
+      { preSerialization: narrowToWorkspace(() => app.rbac.meta, 'data', (row) => row['connectionId'] as string | null),
+        schema: { querystring: filesListQuery, response: { 200: filesListReply } } },
       async (request) => {
         const userId = requireUserId(request);
         const manage = await request.can(FILES_MANAGE_PERMISSION);

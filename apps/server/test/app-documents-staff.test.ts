@@ -183,7 +183,7 @@ describe.each(LEGS)('an app\'s own documents on %s', (dialect, reachable) => {
   const ask = (appKey: string, body: Record<string, unknown>, user = users['cashier']) =>
     app.inject({ method: 'POST', url: `/api/v1/apps/${appKey}/documents/render`, headers: user === undefined ? {} : { 'x-user': user }, payload: body });
   const attachment = async (host: string, enabled: boolean) => {
-    const addOn = (await manifestsRepo(h.meta, { encrypt: (v) => v, decrypt: (v) => v }).findByKey('invoices'))!;
+    const addOn = (((await manifestsRepo(h.meta, { encrypt: (v) => v, decrypt: (v) => v }).listByKey('invoices'))[0] ?? null))!;
     await manifestsRepo(h.meta, { encrypt: (v) => v, decrypt: (v) => v }).setAttachmentEnabled(addOn.row.id, host, enabled);
   };
 

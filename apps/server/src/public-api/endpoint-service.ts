@@ -31,8 +31,9 @@
  * store it and the loser must read the winner's row.
  */
 
-import { FORMS_KEY } from '@adminium/manifest';
+import { FORMS_KEY, LOCAL_PUBLISHER_ID } from '@adminium/manifest';
 import {
+  manifestsRepo,
   newId,
   overridesRepo,
   publicApiStateRepo,
@@ -229,6 +230,8 @@ export interface SaveEndpointInput {
   actorId?: string | null;
   /** The installed app the endpoint belongs to; set only when the save creates the row. */
   managedBy?: string | null;
+  /** And its install, with `managedBy`. */
+  installId?: string | null;
   /**
    * The endpoint belongs to an app in the operator's own project folder, and
    * they are editing its manifest there. An edit that shows its own key more,
@@ -281,6 +284,8 @@ export interface CreateKeyInput {
   kind?: PublicKeyKind;
   /** The installed app that made the key, which alone may take it back. */
   managedBy?: string | null;
+  /** And its install, with `managedBy`: each install of the app has its own keys. */
+  installId?: string | null;
   /** Which of the app's browser keys (default `customer`). */
   purpose?: string;
   /** Bound to a signed-in staff member holding this app role. */
@@ -297,6 +302,14 @@ export function createEndpointService(deps: EndpointServiceDeps) {
   const scopes = publicScopesRepo(meta);
   const state = publicApiStateRepo(meta);
   const maxAttempts = deps.maxAttempts ?? 5;
+
+  /** Whether a key's app is a file made on an Adminium, whose own key may hold the wider methods behind a sign-in. */
+  async function widerFor(managedBy: string | null | undefined): Promise<boolean> {
+    if (managedBy === null || managedBy === undefined) return false;
+    // key-wide: one version of an app per server, so every install of it has the same publisher.
+    const [found] = await manifestsRepo(meta, { encrypt: (value) => value, decrypt: (value) => value }).listByKey(managedBy);
+    return (found?.document as { publisher?: { id?: unknown } } | null | undefined)?.publisher?.id === LOCAL_PUBLISHER_ID;
+  }
 
   /** Live keys whose grant includes `endpointId`, or whose stored document names `ref`. */
   async function affectedKeys(connectionId: string, endpointId: string | null, ref: string, at: number): Promise<AffectedKey[]> {
@@ -458,7 +471,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       if (managed.includes(key)) {
         const held = (key.access[endpointId] ?? []).filter((m) => definition.methods.includes(m));
         const unsafe = [
-          ...managedGrantIssues(ref, definition, held, decided),
+          ...managedGrantIssues(ref, definition, held, decided, { wider: await widerFor(key.managedBy) }),
           ...(input.operatorAllowed === true ? [] : managedEditIssues(ref, priorDefinition?.ok === true ? priorDefinition.definition : null, definition, gains)),
         ];
         if (unsafe.length > 0) {
@@ -527,6 +540,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
               definition: text,
               createdBy: input.actorId ?? null,
               managedBy: input.managedBy ?? null,
+              ...(input.installId === undefined || input.installId === null ? {} : { installId: input.installId }),
             },
             at,
             trx,
@@ -665,7 +679,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         // An app's own key: only what the safe list allows.
         if (input.managedBy !== undefined && input.managedBy !== null) {
           const decided = await decidedColumns(connectionId, endpoint.definition.source);
-          issues.push(...managedGrantIssues(grant.ref, endpoint.definition, methods, decided));
+          issues.push(...managedGrantIssues(grant.ref, endpoint.definition, methods, decided, { wider: await widerFor(input.managedBy) }));
         }
         const offered = new Set(endpoint.definition.methods);
         for (const m of methods) {
@@ -763,6 +777,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
             ...(input.appKey === undefined || input.appKey === null ? {} : { appKey: input.appKey }),
             ...(input.origins === undefined ? {} : { origins: input.origins }),
             ...(input.managedBy === undefined || input.managedBy === null ? {} : { managedBy: input.managedBy }),
+            ...(input.installId === undefined || input.installId === null ? {} : { installId: input.installId }),
             ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
             ...(input.requiresStaff === undefined || input.requiresStaff === null ? {} : { requiresStaff: input.requiresStaff }),
             ...(input.enabledBy === undefined || input.enabledBy === null ? {} : { enabledBy: input.enabledBy }),
@@ -820,7 +835,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         const methods = canonicalMethods(grant.methods).filter((m) => endpoint.definition.methods.includes(m));
         if (methods.length === 0) continue;
         const decided = await decidedColumns(connectionId, endpoint.definition.source);
-        issues.push(...managedGrantIssues(grant.ref, endpoint.definition, methods, decided));
+        issues.push(...managedGrantIssues(grant.ref, endpoint.definition, methods, decided, { wider: await widerFor(key.managedBy) }));
         access[endpoint.id] = methods;
       }
       const gained = Object.keys(access).filter((id) => (access[id] ?? []).some((m) => !(before[id] ?? []).includes(m)));

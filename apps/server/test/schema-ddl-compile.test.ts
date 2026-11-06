@@ -377,7 +377,8 @@ describe('compiled statements per step kind', () => {
       dialect: 'postgres',
       serverVersion: '16.2',
     });
-    expect(sqlFor(plan, 'postgres', t)[0]).toMatch(/drop table "articles"/i);
+    // In its own schema, as every other step names the table there.
+    expect(sqlFor(plan, 'postgres', t)[0]).toMatch(/drop table "public"\."articles"/i);
   });
 
   it('renames a table', () => {

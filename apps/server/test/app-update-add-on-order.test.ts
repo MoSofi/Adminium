@@ -50,7 +50,7 @@ function kitNext(accepts?: string): Record<string, unknown> {
 }
 const versions = async (harness: Harness) => {
   const rows = manifestsRepo(harness.meta, CRYPTO);
-  return { shop: (await rows.findByKey('shop'))?.row.version, kit: (await rows.findByKey('stock-kit'))?.row.version, kitStatus: (await rows.findByKey('stock-kit'))?.row.status };
+  return { shop: (((await rows.listByKey('shop'))[0] ?? null))?.row.version, kit: (((await rows.listByKey('stock-kit'))[0] ?? null))?.row.version, kitStatus: (((await rows.listByKey('stock-kit'))[0] ?? null))?.row.status };
 };
 
 describe('the order an app\'s add-on steps are taken in', () => {

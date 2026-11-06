@@ -49,7 +49,7 @@ describe.each(LEGS)('an add-on with tables of its own — %s', (dialect, availab
   it.runIf(available)('stores its connection and one record per table', async () => {
     h = await withKit(dialect);
     expect((await install(h)).statusCode).toBe(200);
-    const row = await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit');
+    const row = ((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null);
     expect(row?.row).toMatchObject({ kind: 'add-on', status: 'installed', connectionId: h.connectionId, version: '1.0.0' });
     const records = await appTablesRepo(h.meta).forInstall(h.connectionId, 'ledger-kit');
     expect(records.map((record) => record.ref).sort()).toEqual(KIT_TABLES);
@@ -71,7 +71,7 @@ describe.each(LEGS.filter(([dialect]) => dialect !== 'postgres'))('an install th
     expect(stopped.json()).toMatchObject({ error: { code: 'ADD_ON_INSTALL_INCOMPLETE', details: { addOn: 'ledger-kit', stage: 'tables', cause: { message: 'The disk is full.' } } } });
     // The row was written FIRST, so what was started is on record.
     const manifests = manifestsRepo(h.meta, CRYPTO);
-    expect((await manifests.findByKey('ledger-kit'))?.row).toMatchObject({ status: 'installing', connectionId: h.connectionId });
+    expect((((await manifests.listByKey('ledger-kit'))[0] ?? null))?.row).toMatchObject({ status: 'installing', connectionId: h.connectionId });
     const failed = (await auditRepo(h.meta).list({ limit: 20 })).filter((entry) => entry.action === 'add-on.install-failed');
     expect(failed).toHaveLength(1);
     // Its code is not loaded while it is half installed.
@@ -79,7 +79,7 @@ describe.each(LEGS.filter(([dialect]) => dialect !== 'postgres'))('an install th
 
     const finished = await install(h);
     expect(finished.statusCode, finished.body).toBe(200);
-    expect((await manifests.findByKey('ledger-kit'))?.row.status).toBe('installed');
+    expect((((await manifests.listByKey('ledger-kit'))[0] ?? null))?.row.status).toBe('installed');
     const records = await appTablesRepo(h.meta).forInstall(h.connectionId, 'ledger-kit');
     expect(records.map((record) => record.ref).sort()).toEqual(KIT_TABLES);
     expect(records.every((record) => record.state === 'created' && record.owned)).toBe(true);
@@ -89,15 +89,19 @@ describe.each(LEGS.filter(([dialect]) => dialect !== 'postgres'))('an install th
     expect((await install(h)).statusCode).toBe(409);
   });
 
-  it.runIf(available)('is not finished in another database, or as another version', async () => {
+  // Two databases of their own: the harness's second connection on a server engine is the first one's database again.
+  it.runIf(available && dialect === 'sqlite')('is finished on its own database, while another database gets an install of its own', async () => {
     h = await withKit(dialect);
     const other = await h.addConnection('Second');
     h.failNextTables();
     expect((await install(h, { connectionId: h.connectionId })).statusCode).toBe(409);
+    // Installs are per database: the stopped one on the first is not the second's business.
     const elsewhere = await install(h, { connectionId: other });
-    expect(elsewhere.statusCode, elsewhere.body).toBe(409);
-    expect(elsewhere.body).toContain('was started in another database');
-    expect((await install(h, { connectionId: h.connectionId })).statusCode).toBe(200);
+    expect(elsewhere.statusCode, elsewhere.body).toBe(200);
+    const finished = await install(h, { connectionId: h.connectionId });
+    expect(finished.statusCode, finished.body).toBe(200);
+    const installs = await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit');
+    expect(installs.map((one) => [one.row.scopeKey, one.row.status]).sort()).toEqual([[h.connectionId, 'installed'], [other, 'installed']].sort());
   });
 });
 
@@ -127,7 +131,7 @@ describe('the add-ons released before', () => {
     expect(reply.statusCode, reply.body).toBe(200);
     expect({ connectionId: reply.json().connectionId, schema: reply.json().schema }).toEqual({ connectionId: h.connectionId, schema: { created: ['shipments'], reused: ['parcels'] } });
     expect(await h.tableNames()).toEqual(expect.arrayContaining(['parcels', 'shipments']));
-    const row = await manifestsRepo(h.meta, CRYPTO).findByKey('shipping');
+    const row = ((await manifestsRepo(h.meta, CRYPTO).listByKey('shipping'))[0] ?? null);
     expect(row?.row).toMatchObject({ status: 'installed', connectionId: h.connectionId });
     const records = await appTablesRepo(h.meta).forInstall(h.connectionId, 'shipping');
     expect(records.map((record) => [record.ref, record.tableName, record.owned, record.state, record.prefix]).sort()).toEqual([
@@ -144,6 +148,6 @@ describe('the add-ons released before', () => {
     const reply = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'labels', version: '1.0.7', attachTo: [] } });
     expect(reply.statusCode, reply.body).toBe(200);
     expect(reply.json().connectionId).toBeNull();
-    expect((await manifestsRepo(h.meta, CRYPTO).findByKey('labels'))?.row.connectionId).toBeNull();
+    expect((((await manifestsRepo(h.meta, CRYPTO).listByKey('labels'))[0] ?? null))?.row.connectionId).toBeNull();
   });
 });

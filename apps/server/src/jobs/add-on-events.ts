@@ -65,6 +65,13 @@ export const addOnEventPayloadSchema = z.object({
   data: z.record(z.string(), z.unknown()).default({}),
   /** Owner convention (routes/jobs): who triggered it, when a person did. */
   userId: z.string().optional(),
+  /**
+   * The install the event is for: the same add-on may be installed once per
+   * database, each with its own credential (one business's carrier account
+   * is not another's). Absent on a job queued before that: the key's only
+   * install, and none when it has several.
+   */
+  installId: z.string().max(36).optional(),
 });
 export type AddOnEventPayload = z.infer<typeof addOnEventPayloadSchema>;
 
@@ -107,8 +114,8 @@ export interface RegisterableAddOnEvent {
   module: unknown;
   /** Built per add-on from its manifest, so the allow-list cannot be widened. */
   http: AddOnHttpClient;
-  /** Resolves the decrypted credential at RUN time, not at registration. */
-  credential: () => Promise<Record<string, unknown> | null>;
+  /** Resolves the decrypted credential of the payload's install at RUN time, not at registration. */
+  credential: (installId: string | undefined) => Promise<Record<string, unknown> | null>;
 }
 
 export interface RegisterAddOnEventsResult {
@@ -149,7 +156,7 @@ export function registerAddOnEventHandlers(
         // rotated or disconnected between boot and now must be the one this
         // sees, and a disconnected add-on must get `null` rather than a stale
         // secret closed over months ago.
-        const credential = await entry.credential();
+        const credential = await entry.credential(payload.installId);
         const result = await module.handle(payload.data, {
           http: entry.http,
           credential,

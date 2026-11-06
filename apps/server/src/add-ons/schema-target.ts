@@ -39,6 +39,7 @@
 
 import type { Dialect } from '@adminium/engine';
 import { manifestsRepo, type MetaDb } from '@adminium/meta';
+import { sql } from 'kysely';
 import type { AddOnManifest, InstallPlan, Manifest, RequiredTable } from '@adminium/manifest';
 
 import { AppError, ForbiddenError, ValidationFailedError } from '../errors.js';
@@ -105,8 +106,9 @@ export interface ConnectionChoice {
 export async function resolveAddOnConnection(deps: AddOnSchemaTargetDeps, choice: ConnectionChoice): Promise<string | null> {
   if (!choice.ownsTables) return null;
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
-  const hosts = await Promise.all(choice.attachTo.map(async (key) => manifests.findByKey(key)));
-  const fromHosts = [...new Set(hosts.map((host) => host?.row.connectionId ?? null).filter((id): id is string => id !== null && id !== ''))];
+  // Every install of each host (one per database): the add-on goes on one of their databases.
+  const hosts = (await Promise.all(choice.attachTo.map(async (key) => manifests.listByKey(key)))).flat();
+  const fromHosts = [...new Set(hosts.map((host) => host.row.connectionId).filter((id): id is string => id !== null && id !== ''))];
   const all = await deps.manager.connections.list();
   const named = (ids: readonly string[]) => ids.map((id) => ({ id, name: all.find((connection) => connection.id === id)?.name ?? id }));
 
@@ -115,7 +117,8 @@ export async function resolveAddOnConnection(deps: AddOnSchemaTargetDeps, choice
     if (chosen === undefined || chosen.disabled) {
       throw new ValidationFailedError('That database is not connected to this instance.', { code: 'ADD_ON_NO_CONNECTION', connectionId: choice.connectionId });
     }
-    const other = fromHosts.filter((id) => id !== choice.connectionId);
+    // Refused only when no host is installed on the chosen database while some are on others.
+    const other = fromHosts.includes(choice.connectionId) ? [] : fromHosts;
     if (other.length > 0) {
       throw new ValidationFailedError(
         'An app this add-on attaches to keeps its data in another database, so the add-on\'s tables cannot go in the one you chose.',
@@ -196,7 +199,12 @@ export async function readExistingTables(
  * which is what keeps `/apps/plan` audit-exempt.
  *
  * A name found in more than one schema resolves to the connection's default
- * schema, where the installer's unqualified `CREATE TABLE` puts it.
+ * schema, where the installer's unqualified `CREATE TABLE` puts it. A name
+ * asked for in its schema (`sales.Order Lines`, a self-made app's) is read
+ * there, and answered under that same string. Where the engine ignores case
+ * (SQLite, MySQL with `lower_case_table_names`), a table whose name differs
+ * only by case is read too, under its own name: the planner refuses to take
+ * it for another.
  */
 export interface LiveTables {
   tables: ExistingTable[];
@@ -204,6 +212,12 @@ export interface LiveTables {
   dialect: Dialect;
   /** Every index and constraint name the snapshot knows, on any table: a new rule's name takes none. */
   indexNames?: string[];
+  /**
+   * The Postgres schema Adminium's own tables are in, when they share this
+   * database; read only when a name asked for is in a schema. No app's table
+   * goes there.
+   */
+  metaSchema?: string | null;
 }
 
 /** Every index and constraint name of every table the snapshot knows; none when there is no snapshot. */
@@ -226,25 +240,31 @@ export async function readLiveTables(
 ): Promise<LiveTables> {
   const adapter = await deps.manager.introspectAdapter(connectionId);
   let model;
+  const folded = new Set([...names].map((name) => name.toLowerCase()));
+  const foldsCase = adapter.dialect !== 'postgres';
   try {
     if (names.size === 0) return { tables: [], dialect: adapter.dialect, indexNames: await snapshotIndexNames(deps.meta, connectionId) };
     model = await adapter.introspect({
-      tableFilter: (table) => names.has(table.name),
+      tableFilter: (table) => names.has(table.name) || names.has(`${table.schema}.${table.name}`) || (foldsCase && folded.has(table.name.toLowerCase())),
       collectRowEstimates: false,
       collectActivityStats: false,
     });
   } finally {
     await adapter.close().catch(() => undefined);
   }
+  /** Each table read, under the string it was asked for by: its name, or its schema and name. */
   const byName = new Map<string, (typeof model.tables)[number]>();
   for (const table of model.tables) {
+    const qualified = `${table.schema}.${table.name}`;
+    if (names.has(qualified)) byName.set(qualified, table);
+    if (!names.has(table.name) && !(foldsCase && folded.has(table.name.toLowerCase()))) continue;
     const held = byName.get(table.name);
     if (held === undefined || (held.schema !== model.defaultSchema && table.schema === model.defaultSchema)) {
       byName.set(table.name, table);
     }
   }
-  const tables = [...byName.values()].map((table) => ({
-    ref: table.name,
+  const tables = [...byName.entries()].map(([ref, table]) => ({
+    ref,
     columns: table.columns.map((column) => ({
       ref: column.name,
       isPrimaryKey: column.isPrimaryKey,
@@ -274,7 +294,22 @@ export async function readLiveTables(
       ...table.indexes.filter((index) => index.unique && !index.primary && !index.partial && index.expression === null).map((index) => [...index.columns]),
     ],
   }));
-  return { tables, dialect: model.dialect, indexNames: await snapshotIndexNames(deps.meta, connectionId) };
+  const inSchema = [...names].some((name) => name.includes('.'));
+  return {
+    tables,
+    dialect: model.dialect,
+    indexNames: await snapshotIndexNames(deps.meta, connectionId),
+    ...(inSchema && model.dialect === 'postgres' ? { metaSchema: await metaSchemaHere(deps, connectionId) } : {}),
+  };
+}
+
+/** The schema Adminium's own tables are in, when the meta store is this Postgres database; null otherwise. */
+async function metaSchemaHere(deps: SchemaTargetCoreDeps, connectionId: string): Promise<string | null> {
+  if (deps.meta.dialect !== 'postgres') return null;
+  const dsns = await deps.manager.connections.getDsns(connectionId);
+  if (!deps.manager.metaSharesDatabaseWith(dsns?.dataDsn ?? null)) return null;
+  const found = await sql<{ schema: string | null }>`select current_schema() as schema`.execute(deps.meta.db);
+  return found.rows[0]?.schema ?? null;
 }
 
 /** The name of the table a column's own foreign key points at, or null. */

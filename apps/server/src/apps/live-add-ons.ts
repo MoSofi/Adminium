@@ -55,10 +55,12 @@ export async function liveAddOnsFor(
   if (named.length === 0) return [];
   const manifests = manifestsRepo(meta, NO_SECRETS);
   const out: LiveAddOn[] = [];
+  // The app's install on this database: the add-ons live for it are the ones attached to that install.
+  const host = (await manifests.findInScope(app.key, connectionId))?.row.id ?? '';
   for (const key of named) {
-    const found = await manifests.findByKey(key);
+    const found = await manifests.findInScope(key, connectionId);
     if (found === null || found.row.kind !== 'add-on' || found.row.connectionId !== connectionId) continue;
-    if (!found.attachments.some((attachment) => attachment.attachedTo === app.key && attachment.disabledAt === null)) continue;
+    if (!found.attachments.some((attachment) => attachment.attachedTo === app.key && attachment.hostInstall === host && attachment.disabledAt === null)) continue;
     if (moving?.key === key) {
       if (moving.as !== null) out.push({ key, manifest: moving.as.manifest, names: moving.as.names });
       continue;
@@ -72,9 +74,9 @@ export async function liveAddOnsFor(
   return out;
 }
 
-/** The apps an installed add-on is attached to (switched on or off), by key. */
-export async function appsAttachedTo(meta: MetaDb, addOnKey: string): Promise<string[]> {
-  const found = await manifestsRepo(meta, NO_SECRETS).findByKey(addOnKey);
+/** The apps one install of an add-on is attached to (switched on or off), by key. */
+export async function appsAttachedTo(meta: MetaDb, addOnInstallId: string): Promise<string[]> {
+  const found = await manifestsRepo(meta, NO_SECRETS).findById(addOnInstallId);
   if (found === null) return [];
   return found.attachments.map((attachment) => attachment.attachedTo);
 }

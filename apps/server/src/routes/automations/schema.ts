@@ -12,6 +12,7 @@
  * renders.
  */
 
+import { workspaceIdQuery } from '../../workspaces/list-filter.js';
 import { z } from 'zod';
 import {
   automationGraphSchema,
@@ -73,7 +74,7 @@ export const ruleViewSchema = z.object({
 });
 export type RuleView = z.infer<typeof ruleViewSchema>;
 
-export const automationsListQuery = z.object({ connectionId: z.string().optional() });
+export const automationsListQuery = z.object({ connectionId: z.string().optional(), workspaceId: workspaceIdQuery });
 export const automationsListReply = z.object({ rules: z.array(ruleViewSchema) });
 export const automationIdParams = z.object({ id: z.string().min(1).max(36) });
 
@@ -295,6 +296,8 @@ export const automationRunsListQuery = z.object({
   /** `<startedAt>:<id>` from the previous page's `cursor.next`. */
   cursor: z.string().max(80).optional(),
   tz: z.string().max(64).optional(),
+  /** Narrows to the runs of rules on one workspace's databases (never widens). */
+  workspaceId: workspaceIdQuery,
 });
 
 export const automationRunsListReply = z.object({

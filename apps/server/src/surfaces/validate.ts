@@ -205,5 +205,40 @@ export async function validateInstanceEntries(
     seen.add(slug.data);
     rows.push({ slug: slug.data, connectionId: entry.connectionId });
   }
+  /*
+   * AN INSTALL'S OWN ADDRESS is not the editor's. A later install of the app
+   * owns the instance of its slug: it cannot be pointed at another database
+   * or taken away here (it goes with the install). And no other instance may
+   * point at a database that holds an install of the app: that database's
+   * screens are its install's.
+   */
+  // key-wide: every install of the app, each checked by its own slug and database.
+  const installs = await ctx.meta.db
+    .selectFrom('adminium_manifests')
+    .select(['instanceSlug', 'scopeKey'])
+    .where('manifestKey', '=', appKey)
+    .where('kind', '=', 'app')
+    .execute();
+  for (const install of installs.filter((one) => one.instanceSlug !== '')) {
+    const listed = rows.find((row) => row.slug === install.instanceSlug);
+    if (listed === undefined || listed.connectionId !== install.scopeKey) {
+      issues.push({
+        path: `${appKey}.${install.instanceSlug}`,
+        message: `"${install.instanceSlug}" is the address of the app's install on another database. It changes with that install, not here.`,
+        code: 'instance_owned',
+      });
+    }
+  }
+  for (const row of rows) {
+    // The bare install's own database may carry instances, as it always could: they are that install's.
+    const owner = installs.find((one) => one.scopeKey === row.connectionId && one.instanceSlug !== '');
+    if (owner !== undefined && owner.instanceSlug !== row.slug) {
+      issues.push({
+        path: `${appKey}.${row.slug}`,
+        message: `"${row.slug}" points at a database another install of the app is on, as "${owner.instanceSlug}". That database's screens are its install's.`,
+        code: 'instance_owned',
+      });
+    }
+  }
   return { rows, issues };
 }

@@ -6,6 +6,7 @@
  * lookup level, for an add-on the app does not name or has not attached,
  * through another key: nothing, one answer.
  */
+import { onlyInstall } from './only-install.js';
 import { addOnSettingsRepo, manifestsRepo, publicSessionsRepo, readJson } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -68,13 +69,13 @@ describe.each(LEGS)('an add-on’s public settings, for a signed-in client — %
     keyId = (h.reply['publicAccess'] as { keyId: string }).keyId;
     const manifests = manifestsRepo(h.meta, CRYPTO);
     // The app names two add-ons; one is attached to it, one to another app only.
-    const app = (await manifests.findByKey('studio'))!;
+    const app = (((await manifests.listByKey('studio'))[0] ?? null))!;
     const document = { ...(readJson<Record<string, unknown>>(app.row.manifest) ?? {}), addOns: { requires: [{ key: 'invoices', range: '*', reason: { key: 'r', fallback: 'r' } }], suggests: [{ key: 'calendars', range: '*', reason: { key: 'r', fallback: 'r' } }] } };
     await h.meta.db.updateTable('adminium_manifests').set({ manifest: JSON.stringify(document) as never }).where('id', '=', app.row.id).execute();
     await manifests.install({ manifestKey: 'invoices', version: '1.1.0', kind: 'add-on', source: 'file', document: addOn('invoices'), attachTo: ['studio'] });
     await manifests.install({ manifestKey: 'calendars', version: '1.0.0', kind: 'add-on', source: 'file', document: addOn('calendars'), attachTo: ['clinic'] });
     await manifests.install({ manifestKey: 'loyalty', version: '1.0.0', kind: 'add-on', source: 'file', document: addOn('loyalty'), attachTo: ['studio'] });
-    await addOnSettingsRepo(h.meta).patch('invoices', { business_name: 'Northwind Studio', payment_instructions: 'IBAN GB00 0000 0000 0000' }, addOn('invoices')['settings'] as never);
+    await addOnSettingsRepo(h.meta).patch(await onlyInstall(h.meta, 'invoices'), { business_name: 'Northwind Studio', payment_instructions: 'IBAN GB00 0000 0000 0000' }, addOn('invoices')['settings'] as never);
     served = await servePublic(h, keyId);
   }, 120_000);
 

@@ -3216,6 +3216,12 @@
     "notFound": {
       "title": "找不到页面",
       "body": "此地址没有内容。请检查链接后重试。"
+    },
+    "moved": {
+      "one": "{app} 已安装在 {database} 上。",
+      "other": "{app} 已安装在其他数据库上。",
+      "body": "此地址属于一个已被移除的副本。",
+      "open": "在 {database} 上打开 {app}"
     }
   },
   "appSettings": {

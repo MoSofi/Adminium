@@ -46,6 +46,7 @@ import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, typ
 
 import { matrixRowsFromGrants } from '../rbac/permissions.js';
 import type { RoleTableResult } from '@adminium/manifest';
+import { grantKeyOf, installRoleSlug, type InstallAddress } from '../installs/resolve.js';
 import { ownsBlocks } from './owns-blocks.js';
 
 type ManifestRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[number];
@@ -70,8 +71,12 @@ const PRIVACY_PEOPLE = /^privacy:@:people$/;
 /** What `privacy:@:people` is given as: the console's own key for a person's data. */
 const PRIVACY_PEOPLE_GRANT = 'system:privacy:people';
 
-export function roleSlugFor(appKey: string, roleKey: string): string {
-  return `${appKey}-${roleKey}`;
+/**
+ * An app role's slug: `<key>-<role>` for the install holding the bare
+ * addresses; a later install's adds its own slug (`installRoleSlug`).
+ */
+export function roleSlugFor(appKey: string, roleKey: string, installSlug: string = ''): string {
+  return installRoleSlug(appKey, roleKey, installSlug);
 }
 
 /** A role's grants: its own, and the ones of the role it clones. */
@@ -261,13 +266,14 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
  * (switching it off suspends only roles it owns; uninstalling deletes only
  * those). Refused by name at the check, never merged.
  */
-export async function roleSlugProblems(meta: MetaDb, manifest: Manifest): Promise<{ role: string; code: 'ROLE_INVALID'; message: string }[]> {
+export async function roleSlugProblems(meta: MetaDb, manifest: Manifest, install?: { id: string | null; slug: string }): Promise<{ role: string; code: 'ROLE_INVALID'; message: string }[]> {
   if (!ownsBlocks(manifest)) return [];
   const out: { role: string; code: 'ROLE_INVALID'; message: string }[] = [];
   for (const declared of manifest.roles ?? []) {
-    const slug = roleSlugFor(manifest.key, declared.key);
+    const slug = roleSlugFor(manifest.key, declared.key, install?.slug ?? '');
     const held = await rolesRepo(meta).findBySlug(slug);
-    if (held === null || held.appKey === manifest.key) continue;
+    // This install's own role, or one of the key's left by an install that went (its link set null).
+    if (held === null || (held.appKey === manifest.key && (held.manifestId === null || held.manifestId === (install?.id ?? held.manifestId)))) continue;
     out.push({
       role: declared.key,
       code: 'ROLE_INVALID',
@@ -349,6 +355,8 @@ export interface RolesResult {
 export async function writeManifestRoles(input: {
   meta: MetaDb;
   manifest: Manifest;
+  /** The install the roles belong to: each install of a key has its own. */
+  install: InstallAddress;
   connectionId: string;
   /** Short name → real table. */
   names: Readonly<Record<string, string>>;
@@ -441,7 +449,7 @@ export async function writeManifestRoles(input: {
         if (target !== null) await narrow('page', target.id, page[2]!);
       }
     } else if (APP.test(grant)) {
-      await permissions.revoke(roleId, 'app', manifest.key);
+      await permissions.revoke(roleId, 'app', grantKeyOf({ manifestKey: manifest.key, instanceSlug: input.install.slug }));
     } else if (PRIVACY_PEOPLE.test(grant)) {
       const row = matrixRowsFromGrants([PRIVACY_PEOPLE_GRANT]).rows[0];
       if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
@@ -452,15 +460,19 @@ export async function writeManifestRoles(input: {
   };
 
   for (const declared of manifest.roles ?? []) {
-    const slug = roleSlugFor(manifest.key, declared.key);
+    const slug = installRoleSlug(manifest.key, declared.key, input.install.slug);
     let role = await roles.findBySlug(slug);
     let fresh = false;
-    // Never another's role: its grants would outlive this app.
-    if (role !== null && role.appKey !== manifest.key) throw new RoleTakenError(slug);
+    // Never another's role, another install's of the same key included: its grants would outlive this one.
+    if (role !== null && (role.appKey !== manifest.key || (role.manifestId !== null && role.manifestId !== input.install.id))) throw new RoleTakenError(slug);
     if (role === null) {
-      role = await roles.create({ slug, name: declared.name, appKey: manifest.key, screensOnly: declared.screensOnly === true });
+      // A later install's role says which database it is for: "Clerk · kiln".
+      const name = input.install.slug === '' ? declared.name : `${declared.name} · ${input.install.slug}`;
+      role = await roles.create({ slug, name, appKey: manifest.key, manifestId: input.install.id, screensOnly: declared.screensOnly === true });
       result.created.push(slug);
       fresh = true;
+    } else if (role.manifestId === null) {
+      await roles.setInstall(role.id, input.install.id);
     }
     /*
      * ITS PARTS AND ITS NAME IN OTHER LANGUAGES, as this version says them.
@@ -537,7 +549,7 @@ export async function writeManifestRoles(input: {
         const actions = { view: false, edit: false, ...(existing?.actions as Record<string, boolean> | undefined), [page[2]!]: true };
         await permissions.grant(role.id, 'page', target.id, actions as never);
       } else if (APP.test(grant)) {
-        await permissions.grant(role.id, 'app', manifest.key, { staff: true });
+        await permissions.grant(role.id, 'app', grantKeyOf({ manifestKey: manifest.key, instanceSlug: input.install.slug }), { staff: true });
       } else if (PRIVACY_PEOPLE.test(grant)) {
         if (manifest.kind !== 'app') continue;
         const row = matrixRowsFromGrants([PRIVACY_PEOPLE_GRANT]).rows[0];

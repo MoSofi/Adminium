@@ -28,6 +28,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   connectionTenantConfig,
+  manifestsRepo,
   publicKeysRepo,
   settingsRepo,
   userPrefsRepo,
@@ -35,7 +36,8 @@ import {
 } from '@adminium/meta';
 
 import { audited } from '../../audit/coverage.js';
-import { NotFoundError, ValidationFailedError } from '../../errors.js';
+import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { splitInstallKey } from '../../installs/resolve.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { normalizeHost } from '../../security/csrf.js';
 import { resolveLabel } from '../../cli/surfaces-root.js';
@@ -94,6 +96,20 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
     const readSettings = async (): Promise<SurfaceSettings> =>
       (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
 
+    const installs = manifestsRepo(deps.meta, { encrypt: (value) => value, decrypt: (value) => value });
+    /**
+     * A route's `:appKey`: the app's key (its copy with the plain addresses),
+     * or `<key>~<slug>` for a later copy, which must be installed. Each copy's
+     * placement, name and sides are its own, kept under its address.
+     */
+    const copyOf = async (param: string): Promise<{ key: string; address: string; later: boolean }> => {
+      const { key, slug } = splitInstallKey(param);
+      if (slug === undefined || slug === '') return { key, address: key, later: false };
+      const install = await installs.findBySlug(key, slug);
+      if (install === null || install.row.kind !== 'app') throw new NotFoundError(`No copy of ${key} has the address "${slug}".`, { appKey: param });
+      return { key, address: param, later: true };
+    };
+
     app.get(
       '/surfaces',
       {
@@ -127,29 +143,39 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
                   row === null ? null : { id: row.id, name: row.name, prefix: row.prefix },
                 )
               : null;
-          surfaces.push({
-            appKey: surface.appKey,
-            side: surface.side,
-            prefix: surface.prefix,
-            navAvailable: surface.manifest !== null && surface.manifest.nav.length > 0,
-            navItems: surface.manifest?.nav.length ?? 0,
-            staffPlacement:
-              surface.side === 'staff' ? staffPlacementOf(current, surface.appKey) : null,
-            // Staff only, for the same reason `boundKey` is customer only: the
-            // customer side already carries its connection through its key.
-            connectionId:
-              surface.side === 'staff' ? staffConnectionOf(current, surface.appKey) : null,
-            boundKey,
-            nameOverride: appNameOverrideOf(current, surface.appKey),
-            appName: appNameOf(
-              current,
-              surface.appKey,
-              surface.manifest === null
-                ? null
-                : resolveLabel(surface.manifest.appLabels, locale),
-            ),
-            domains: mapped,
-          });
+          // One row per copy of the app: the copy with the plain addresses first, under the key; each later one under its own.
+          const copies = (await installs.listByKey(surface.appKey))
+            .filter((one) => one.row.kind === 'app')
+            .sort((a, b) => (a.row.instanceSlug === '' ? -1 : b.row.instanceSlug === '' ? 1 : a.row.instanceSlug.localeCompare(b.row.instanceSlug)));
+          const rows = copies.length === 0 ? [{ address: surface.appKey, installId: null, later: null }] : copies.map((one) => ({ address: one.row.instanceSlug === '' ? surface.appKey : `${surface.appKey}~${one.row.instanceSlug}`, installId: one.row.id, later: one.row.instanceSlug === '' ? null : one.row.scopeKey }));
+          for (const row of rows) {
+            surfaces.push({
+              appKey: surface.appKey,
+              address: row.address,
+              installId: row.installId,
+              side: surface.side,
+              prefix: row.later === null ? surface.prefix : `/apps/${row.address.replace('~', '/')}/${surface.side}`,
+              navAvailable: surface.manifest !== null && surface.manifest.nav.length > 0,
+              navItems: surface.manifest?.nav.length ?? 0,
+              staffPlacement:
+                surface.side === 'staff' ? staffPlacementOf(current, row.address) : null,
+              // Staff only, for the same reason `boundKey` is customer only: the
+              // customer side already carries its connection through its key.
+              // A later copy reads the database it is installed on.
+              connectionId:
+                surface.side === 'staff' ? (row.later ?? staffConnectionOf(current, row.address)) : null,
+              boundKey,
+              nameOverride: appNameOverrideOf(current, row.address),
+              appName: appNameOf(
+                current,
+                row.address,
+                surface.manifest === null
+                  ? null
+                  : resolveLabel(surface.manifest.appLabels, locale),
+              ),
+              domains: mapped,
+            });
+          }
         }
         const instances: Record<string, { slug: string; connectionId: string }[]> = {};
         for (const surface of app.surfaces) {
@@ -178,17 +204,18 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
       },
       async (request) => {
         const { appKey } = request.params;
+        const { key, address } = await copyOf(appKey);
         const hasStaff = app.surfaces.some(
-          (surface) => surface.appKey === appKey && surface.side === 'staff',
+          (surface) => surface.appKey === key && surface.side === 'staff',
         );
         if (!hasStaff) {
           throw new NotFoundError('No staff surface is discovered for this app.', { appKey });
         }
         const current = await readSettings();
-        const before = staffPlacementOf(current, appKey);
+        const before = staffPlacementOf(current, address);
         const nextApps = {
           ...current.apps,
-          [appKey]: { ...current.apps[appKey], staff: request.body.staff },
+          [address]: { ...current.apps[address], staff: request.body.staff },
         };
         await settings.set('surfaces.apps', nextApps, {
           updatedBy: (request as unknown as { user?: { id?: string } }).user?.id ?? null,
@@ -246,20 +273,21 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
       },
       async (request) => {
         const { appKey } = request.params;
-        const known = app.surfaces.some((surface) => surface.appKey === appKey);
+        const { key, address } = await copyOf(appKey);
+        const known = app.surfaces.some((surface) => surface.appKey === key);
         if (!known) {
           throw new NotFoundError('No surface is discovered for this app.', { appKey });
         }
         const { name } = request.body;
         const current = await readSettings();
-        const before = appNameOverrideOf(current, appKey);
+        const before = appNameOverrideOf(current, address);
         const nextApps = {
           ...current.apps,
           // Spread first: this must not disturb the placement, connection or
           // instances stored on the same record.
-          [appKey]: { ...current.apps[appKey], ...(name === null ? {} : { name }) },
+          [address]: { ...current.apps[address], ...(name === null ? {} : { name }) },
         };
-        if (name === null) delete nextApps[appKey]?.name;
+        if (name === null) delete nextApps[address]?.name;
         await settings.set('surfaces.apps', nextApps, {
           updatedBy: (request as unknown as { user?: { id?: string } }).user?.id ?? null,
         });
@@ -286,6 +314,9 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
       },
       async (request) => {
         const { appKey } = request.params;
+        const { key, later } = await copyOf(appKey);
+        // A later copy reads the database it is installed on: that is the copy, not a setting.
+        if (later) throw new ConflictError(`This copy of ${key} reads the database it is installed on. Install it on another database instead.`, 'CONFLICT', { reason: 'INSTALL_OWNS_DATABASE', appKey });
         const hasStaff = app.surfaces.some(
           (surface) => surface.appKey === appKey && surface.side === 'staff',
         );

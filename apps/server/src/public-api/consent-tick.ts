@@ -61,7 +61,8 @@ export function createConsentTicks(meta: MetaDb, now: () => number = Date.now): 
   const kept = new Map<string, { at: number; ticks: Promise<AppTicks | null> }>();
 
   async function read(appKey: string, connectionId: string): Promise<AppTicks | null> {
-    const row = await manifestsRepo(meta, NO_SECRETS).findByKey(appKey);
+    // The app's install on this key's database.
+    const row = await manifestsRepo(meta, NO_SECRETS).findInScope(appKey, connectionId);
     if (row === null || row.row.kind !== 'app' || row.row.connectionId !== connectionId) return null;
     const checked = validateManifest(row.document, { allowLocalPublisher: true });
     if (!checked.ok || checked.manifest.kind !== 'app') return null;

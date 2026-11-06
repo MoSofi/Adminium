@@ -7,6 +7,7 @@
  *
  * Requires `system:audit:read` (meta closed-set key `audit.read`).
  */
+import { narrowToWorkspace } from '../../workspaces/list-filter.js';
 import type { RowLimitContext } from '../../crud/row-limit.js';
 import { rowTestOf } from '../../crud/row-limit-context.js';
 import { reachOfRequest } from '../../crud/row-reach-request.js';
@@ -204,7 +205,8 @@ export const auditRoutes: FastifyPluginAsyncZod = async (app) => {
     '/audit',
     {
       preHandler: app.rbac.require(PERMISSIONS.auditRead),
-      schema: { querystring: auditListQuery, response: { 200: auditListReply } },
+      preSerialization: narrowToWorkspace(() => app.rbac.meta, 'entries', (row) => row['connectionId'] as string | null),
+        schema: { querystring: auditListQuery, response: { 200: auditListReply } },
     },
     async (request) => {
       const { actorId, category, resource, connectionId, entityTable, entityId, from, to, cursor, limit } =

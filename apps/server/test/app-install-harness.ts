@@ -75,7 +75,7 @@ export interface Harness {
   /** With `addOns`: put an add-on's package in this server's store, as a download or a bundle would. */
   stageAddOn?: (manifest: Record<string, unknown>, files?: Record<string, string>) => Promise<void>;
   /** A second connection, to a fresh SQLite file of its own. */
-  otherConnection: () => Promise<{ id: string; tables: () => Promise<string[]> }>;
+  otherConnection: (name?: string) => Promise<{ id: string; tables: () => Promise<string[]>; run: (statement: string) => Promise<void> }>;
   run: (statement: string) => Promise<void>;
   rows: (statement: string) => Promise<Record<string, unknown>[]>;
   close: () => Promise<void>;
@@ -90,6 +90,8 @@ export interface HarnessOptions {
   folder?: () => readonly FolderApp[];
   /** The add-on installer too, over a store of its own: an app that needs an add-on gets it installed. */
   addOns?: boolean;
+  /** The Files library an app's emails keep their files in. */
+  library?: FileStore;
 }
 
 const memoryFiles = {
@@ -181,6 +183,7 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
     credentialCrypto: { encrypt: (v) => v, decrypt: (v) => v },
     directoryKeys: () => [],
     serverVersion: '0.4.0',
+    ...(options.library === undefined ? {} : { library: options.library }),
     schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(TEST_SECRET) }),
     ...(addOnStore === null
       ? {}
@@ -250,13 +253,22 @@ export async function installHarness(dialect: Dialect, options: HarnessOptions =
             await addOnStore.stage({ key, version: String(manifest['version']), tarball, expectedIntegrity: sha512Integrity(tarball) });
           },
         }),
-    otherConnection: async () => {
+    otherConnection: async (name = 'Second') => {
       const file = join(dataDir, `other-${randomBytes(3).toString('hex')}.db`);
       new BetterSqlite3(file).close();
-      const other = await manager.connections.create({ name: 'Second', engine: 'sqlite', introspectDsn: `sqlite:${file}`, dataDsn: `sqlite:${file}` });
+      const other = await manager.connections.create({ name, engine: 'sqlite', introspectDsn: `sqlite:${file}`, dataDsn: `sqlite:${file}` });
       await runIntrospection({ manager, meta, connectionId: other.id });
       return {
         id: other.id,
+        run: async (statement: string) => {
+          const writer = new BetterSqlite3(file);
+          try {
+            writer.exec(statement);
+          } finally {
+            writer.close();
+          }
+          await runIntrospection({ manager, meta, connectionId: other.id });
+        },
         tables: async () => {
           const reader = new BetterSqlite3(file, { readonly: true });
           try {

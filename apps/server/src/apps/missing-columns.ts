@@ -91,7 +91,7 @@ export function offered(column: RequiredColumn): Omit<OfferedColumn, 'name'> | n
     case 'money':
       // The installer's own choice for both: four places is what accounting
       // systems settled on, and a float cannot hold a tenth of a cent.
-      return { ...base, logicalType: 'decimal', numericPrecision: 19, numericScale: 4 };
+      return { ...base, logicalType: 'decimal', numericPrecision: column.precision ?? 19, numericScale: typeof column.scale === 'number' ? column.scale : 4 };
     case 'float':
       return { ...base, logicalType: 'float' };
     case 'bool':
@@ -114,6 +114,8 @@ export function offered(column: RequiredColumn): Omit<OfferedColumn, 'name'> | n
       return { ...base, logicalType: 'timestamptz' };
     case 'uuid':
       return { ...base, logicalType: 'uuid' };
+    case 'time':
+      return { ...base, logicalType: 'time' };
     case 'blob':
       // Not in plan 35's authorable vocabulary; nothing in the manifests
       // declares one on a reused table today. Blocked rather than faked.

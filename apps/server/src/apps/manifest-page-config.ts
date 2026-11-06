@@ -232,9 +232,10 @@ export function bindLayout(
         problem ??= `"${short}" is not a table of this connection`;
       } else {
         node['connectionId'] = connectionId;
-        // A schema only where a query names one: Postgres.
+        // A schema only where a query names one: Postgres. One the file wrote is never kept anywhere else.
         const schema = model.dialect === 'postgres' && table.schema !== null ? { schema: table.schema } : {};
-        node['source'] = { ...(source as object), name: table.name, ...schema };
+        const { schema: _written, ...rest } = source as Record<string, unknown>;
+        node['source'] = { ...rest, name: table.name, ...schema };
       }
       // A list's counts name the limited table too (`counts: {table}`): bound the same way.
       const counts = node['counts'];

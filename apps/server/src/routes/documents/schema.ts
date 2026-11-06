@@ -16,6 +16,7 @@
  * make the record page lie about what happened.
  */
 
+import { workspaceIdQuery } from '../../workspaces/list-filter.js';
 import { z } from 'zod';
 
 import { STATEMENT_PERIODS } from '../../documents/statement.js';
@@ -171,7 +172,7 @@ export const documentProfileReply = z.object({
 });
 
 export const documentProfilesListQuery = z
-  .object({ connectionId: z.string().max(36).optional(), addOnKey: z.string().max(80).optional() })
+  .object({ connectionId: z.string().max(36).optional(), addOnKey: z.string().max(80).optional(), workspaceId: workspaceIdQuery })
   .strict();
 
 export const documentProfilesListReply = z.object({

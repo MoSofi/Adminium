@@ -1198,7 +1198,7 @@ describe('an install that stops part way', () => {
     expect(error.message).toContain('Install it again');
 
     // Recorded, audited, and not served.
-    const row = await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).findByKey('sample-desk');
+    const row = ((await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).listByKey('sample-desk'))[0] ?? null);
     expect(row?.row.status).toBe('installing');
     expect(installed.current()).toHaveLength(0);
     const audit = await meta.db
@@ -1212,7 +1212,7 @@ describe('an install that stops part way', () => {
     existingTables = [{ ref: 'clinicians', columns: [{ ref: 'id', isPrimaryKey: true }, { ref: 'name' }] }];
     const again = await app.inject({ method: 'POST', url: '/apps/install', payload: body });
     expect(again.statusCode).toBe(200);
-    const done = await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).findByKey('sample-desk');
+    const done = ((await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).listByKey('sample-desk'))[0] ?? null);
     expect(done?.row.status).toBe('installed');
     expect(done?.row.id).toBe(row?.row.id);
     expect(installed.current().map((s) => s.appKey)).toContain('sample-desk');
@@ -1599,6 +1599,8 @@ describe('the bundled app set (47 step 4)', () => {
         iconPaths: null,
         lastUpdatedAt: null,
         requiresAddOns: [],
+        // Staged, installed nowhere: no copy to show a status for.
+        installs: [],
       },
     ]);
 

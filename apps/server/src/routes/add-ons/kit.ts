@@ -24,6 +24,7 @@
  * the read or the write itself; the page only stops offering what would be
  * refused.
  */
+import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { addOnManifestSchema, formsEntriesOf, formsOf, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { appTablesRepo, manifestsRepo, pagesRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -196,7 +197,9 @@ export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
       { preHandler: [app.requireAuth], schema: { params: z.object({ key: z.string().min(1).max(64) }), response: { 200: addOnKitReply } } },
       async (request) => {
         const { key } = request.params;
-        const row = await deps.meta.db.selectFrom('adminium_manifests').select(['manifest', 'status', 'connectionId']).where('manifestKey', '=', key).where('kind', '=', 'add-on').executeTakeFirst();
+        // The install the request names (the header, or ?connectionId=), else the key's only one.
+        const found = await resolveInstall(installsOf(deps.meta), key, selectorOf(request), { kind: 'add-on' });
+        const row = found === null ? undefined : { manifest: found.document as unknown, status: found.row.status, connectionId: found.row.connectionId };
         const parsed = row === undefined ? null : addOnManifestSchema.safeParse(typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest);
         // Not there, switched off, being changed, or with no tables of its own on any database: one answer.
         if (row === undefined || parsed?.success !== true || row.status !== 'installed' || row.connectionId === null) {

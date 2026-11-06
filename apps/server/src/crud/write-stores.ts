@@ -7,9 +7,10 @@
  * move only some roles may make, and who may be listed against what (the
  * listing rule, `row-writes.ts`).
  */
+import { installOnConnection, installsOf } from '../installs/resolve.js';
 import { offeredRoles } from '../rbac/app-parts.js';
 import type { Manifest } from '@adminium/manifest';
-import { addOnSettingsRepo, apiKeysRepo, connectionTenantConfig, documentSequencesRepo, filesRepo, readJson, rolesRepo, type MetaDb } from '@adminium/meta';
+import { addOnSettingsRepo, apiKeysRepo, connectionTenantConfig, documentSequencesRepo, filesRepo, rolesRepo, type MetaDb } from '@adminium/meta';
 
 import { SUPER_ADMIN_SLUG } from '../rbac/resolver.js';
 import type { WriteServiceOptions } from './write-service.js';
@@ -25,22 +26,24 @@ import { peopleTablesOf } from '../people/tables-of.js';
  * working week before anyone opens the settings page. A secret is never read
  * by a rule.
  */
-export async function addOnSetting(meta: MetaDb, addOnKey: string, setting: string): Promise<unknown> {
-  const saved = (await addOnSettingsRepo(meta).valuesFor(addOnKey))[setting];
+export async function addOnSetting(meta: MetaDb, addOnKey: string, setting: string, connectionId: string): Promise<unknown> {
+  // The add-on (or app) as this database has it: one business's prefixes and terms are not another's.
+  const install = await installOnConnection(installsOf(meta), addOnKey, connectionId);
+  if (install === null || (install.row.kind !== 'add-on' && install.row.kind !== 'app') || install.row.status !== 'installed') return undefined;
+  const saved = (await addOnSettingsRepo(meta).valuesForInstall(install.row.id))[setting];
   if (saved !== undefined && saved !== null) return saved;
-  return declaredDefault(meta, addOnKey, setting);
+  return defaultIn(install.document, setting);
 }
 
-/** The default an installed add-on or app declares for one of its settings, whatever is saved; undefined for none or a secret. */
-export async function declaredDefault(meta: MetaDb, key: string, setting: string): Promise<unknown> {
-  const row = await meta.db
-    .selectFrom('adminium_manifests')
-    .select('manifest')
-    .where('manifestKey', '=', key)
-    .where('kind', 'in', ['add-on', 'app'])
-    .where('status', '=', 'installed')
-    .executeTakeFirst();
-  const declared = (readJson<Manifest | null>(row?.manifest ?? null)?.settings ?? []).find((candidate) => candidate.key === setting);
+/** The default an installed add-on or app declares for one of its settings, as one database has it, whatever is saved; undefined for none or a secret. */
+export async function declaredDefault(meta: MetaDb, key: string, setting: string, connectionId: string): Promise<unknown> {
+  const install = await installOnConnection(installsOf(meta), key, connectionId);
+  if (install === null || (install.row.kind !== 'add-on' && install.row.kind !== 'app') || install.row.status !== 'installed') return undefined;
+  return defaultIn(install.document, setting);
+}
+
+function defaultIn(document: unknown, setting: string): unknown {
+  const declared = ((document as Manifest | null)?.settings ?? []).find((candidate) => candidate.key === setting);
   if (declared === undefined || declared.secret === true) return undefined;
   return 'default' in declared ? declared.default : undefined;
 }
@@ -69,8 +72,8 @@ export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences'
     timezoneOf: async (connectionId) => (await connectionTenantConfig(meta, connectionId))?.timezone ?? null,
     settings: {
       currency: async (connectionId) => (await connectionTenantConfig(meta, connectionId))?.currency ?? null,
-      addOnSetting: (addOnKey, setting) => addOnSetting(meta, addOnKey, setting),
-      defaultSetting: (key, setting) => declaredDefault(meta, key, setting),
+      addOnSetting: (addOnKey, setting, connectionId) => addOnSetting(meta, addOnKey, setting, connectionId),
+      defaultSetting: (key, setting, connectionId) => declaredDefault(meta, key, setting, connectionId),
     },
     rolesOf: async (actor) => {
       const roles = rolesRepo(meta);

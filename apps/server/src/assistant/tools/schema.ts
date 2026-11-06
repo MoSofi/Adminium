@@ -76,8 +76,10 @@ export const listConnectionsTool: AssistantTool = {
   async run(_args, deps) {
     const rows = await deps.manager.connections.list();
     const connections: { id: string; name: string; engine: string; readableTables: number }[] = [];
+    // The tab's workspace, when it has one: its databases only.
+    const inWorkspace = deps.host.workspaceConnectionIds === undefined ? null : new Set(deps.host.workspaceConnectionIds);
     for (const row of rows) {
-      if (row.disabled) continue;
+      if (row.disabled || (inWorkspace !== null && !inWorkspace.has(row.id))) continue;
       const resolved = await viewOrError(deps, row.id);
       if ('error' in resolved) {
         connections.push({ id: row.id, name: row.name, engine: row.engine, readableTables: 0 });
@@ -107,6 +109,10 @@ export const describeSchemaTool: AssistantTool = {
     const connectionId = typeof args.connectionId === 'string' ? args.connectionId : '';
     if (connectionId === '') {
       return { error: { code: 'BAD_ARGS', message: 'describe_schema needs a `connectionId`.' } };
+    }
+    // Outside the tab's workspace: as if it were not connected.
+    if (deps.host.workspaceConnectionIds !== undefined && !deps.host.workspaceConnectionIds.includes(connectionId)) {
+      return { error: { code: 'NOT_FOUND', message: 'That database is not in this workspace. Call list_connections for the ones here.' } };
     }
     const resolved = await viewOrError(deps, connectionId);
     if ('error' in resolved) return { error: resolved.error };

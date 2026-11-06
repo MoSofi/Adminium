@@ -29,8 +29,10 @@ export interface ConnectionFacts {
 export async function readableConnections(deps: AssistantToolDeps): Promise<ConnectionFacts[]> {
   const rows = await deps.manager.connections.list();
   const out: ConnectionFacts[] = [];
+  // The tab's workspace, when it has one: its databases only.
+  const inWorkspace = deps.host.workspaceConnectionIds === undefined ? null : new Set(deps.host.workspaceConnectionIds);
   for (const row of rows) {
-    if (row.disabled) continue;
+    if (row.disabled || (inWorkspace !== null && !inWorkspace.has(row.id))) continue;
     let tables: string[] = [];
     try {
       const view = await loadSnapshotView(deps.meta, row.id);

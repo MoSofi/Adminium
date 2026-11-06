@@ -14,7 +14,8 @@ import {
   type User,
 } from '@adminium/meta';
 
-import { ConflictError, UnauthorizedError } from '../../errors.js';
+import { ConflictError, NotFoundError, UnauthorizedError } from '../../errors.js';
+import { visibleWorkspaceIds } from '../../workspaces/visibility.js';
 import { auditAuth } from '../../auth/audit.js';
 import { verifyPassword } from '../../auth/passwords.js';
 import type { AuthContext } from '../../plugins/auth.js';
@@ -89,6 +90,7 @@ function prefsView(prefs: UserPrefs | null) {
     density: prefs?.density ?? null,
     locale: prefs?.locale ?? null,
     dir: prefs?.dir ?? null,
+    workspaceId: prefs?.workspaceId ?? null,
   };
 }
 
@@ -100,6 +102,17 @@ export async function getMePrefsHandler(
   const repo = userPrefsRepo(ctx.meta);
   const [prefs, resolved] = await Promise.all([repo.get(user.id), repo.resolve(user.id)]);
   return { data: { prefs: prefsView(prefs), resolved } };
+}
+
+/**
+ * A workspace the person may choose: one that exists and that they can see
+ * (the same rule the menu shows by). Anything else is refused, never stored.
+ */
+async function chosenWorkspace(ctx: AuthContext, request: FastifyRequest, workspaceId: string | null): Promise<string | null> {
+  if (workspaceId === null) return null;
+  const visible = await visibleWorkspaceIds(ctx.meta, request);
+  if (!visible.has(workspaceId)) throw new NotFoundError('There is no such workspace.', { workspaceId });
+  return workspaceId;
 }
 
 export async function patchMePrefsHandler(
@@ -118,6 +131,7 @@ export async function patchMePrefsHandler(
     ...(body.density !== undefined ? { density: body.density } : {}),
     ...(body.locale !== undefined ? { locale: body.locale } : {}),
     ...(body.dir !== undefined ? { dir: body.dir } : {}),
+    ...(body.workspaceId !== undefined ? { workspaceId: await chosenWorkspace(ctx, request, body.workspaceId) } : {}),
   };
   const prefs = await repo.set(user.id, patch, now);
   const resolved = await repo.resolve(user.id);

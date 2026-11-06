@@ -121,6 +121,7 @@ export function brandingRoutes(deps: BrandingRoutesDeps): FastifyPluginAsyncZod 
       const settings = await cache.read();
       const mapping = domainMappingFor(settings, request.host, normalizeHost);
       if (mapping === null || mapping.side !== 'staff') return null;
+      // key-wide: the app's own name is its manifest's, the same on every copy.
       const row = await meta.db
         .selectFrom('adminium_manifests')
         .select(['manifest'])

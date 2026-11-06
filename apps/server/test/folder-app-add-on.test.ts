@@ -32,7 +32,7 @@ for (const [dialect, available] of ENGINES) {
       expect((await h.sync())[0], h.lines.warn.join('\n')).toMatchObject({ key: 'repairs', state: 'installed' });
       expect(h.lines.warn).toEqual([]);
       const manifests = manifestsRepo(h.harness.meta, IDENTITY);
-      const addOn = (await manifests.findByKey('stock-kit'))!;
+      const addOn = (((await manifests.listByKey('stock-kit'))[0] ?? null))!;
       // Installed like an app, where the app is, and connected to it.
       expect(addOn.row).toMatchObject({ kind: 'add-on', status: 'installed', version: '1.0.0', connectionId: h.harness.connectionId });
       expect(addOn.attachments.filter((attachment) => attachment.attachedTo === 'repairs').map((attachment) => attachment.disabledAt)).toEqual([null]);
@@ -49,9 +49,9 @@ for (const [dialect, available] of ENGINES) {
       await h.harness.run(`INSERT INTO stock_kit_items (name, opening, taken, "left") VALUES ('Brake pad', 5, 0, 5)`.replace(/"left"/, dialect === 'mysql' ? '`left`' : '"left"'));
 
       // `adminium start` over the same folder: nothing to do, nothing made twice.
-      const tablesBefore = (await manifests.findByKey('stock-kit'))!.row.updatedAt;
+      const tablesBefore = (((await manifests.listByKey('stock-kit'))[0] ?? null))!.row.updatedAt;
       expect(await h.restart({ mode: 'server' }).reconcile()).toEqual([{ key: 'repairs', state: 'unchanged', hash: expect.any(String) }]);
-      const after = (await manifests.findByKey('stock-kit'))!;
+      const after = (((await manifests.listByKey('stock-kit'))[0] ?? null))!;
       expect(after.row).toMatchObject({ status: 'installed', version: '1.0.0' });
       expect(after.row.updatedAt).toBe(tablesBefore);
       expect(Number((await h.harness.rows('SELECT COUNT(*) AS n FROM stock_kit_items'))[0]!['n'])).toBe(1);
@@ -65,7 +65,7 @@ for (const [dialect, available] of ENGINES) {
       const [result] = await h.sync();
       expect(result?.state).not.toBe('installed');
       expect(`${result?.message ?? ''} ${h.lines.warn.join(' ')}`).toContain('stock-kit');
-      expect(await manifestsRepo(h.harness.meta, IDENTITY).findByKey('stock-kit')).toBeNull();
+      expect(((await manifestsRepo(h.harness.meta, IDENTITY).listByKey('stock-kit'))[0] ?? null)).toBeNull();
     });
   });
 }

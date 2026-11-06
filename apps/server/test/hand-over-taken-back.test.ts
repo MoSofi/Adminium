@@ -378,7 +378,7 @@ for (const [dialect, reachable] of LEGS) {
 
     it('closes both gates while the add-on is switched off or detached, and opens them again with it', async () => {
       const manifests = manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v });
-      const invoices = (await manifests.findByKey('invoices'))!;
+      const invoices = (((await manifests.listByKey('invoices'))[0] ?? null))!;
       const handedOver = async (email: string) => {
         const order = await readyOrder(email);
         await handOver(order);

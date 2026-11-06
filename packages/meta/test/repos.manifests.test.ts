@@ -11,7 +11,7 @@
 import { sql } from 'kysely';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { connectionsRepo, manifestsRepo } from '../src/index.js';
+import { SERVER_SCOPE, connectionsRepo, manifestsRepo } from '../src/index.js';
 import { TEST_DIALECTS, migrateOnly, useMetaDb } from './helpers/db.js';
 
 const T0 = 1_750_000_000_000;
@@ -28,7 +28,11 @@ const DHL = {
   kind: 'add-on' as const,
   source: 'marketplace',
   document: { kind: 'add-on', key: 'shipping-dhl', version: '1.0.0' },
+  scopeKey: SERVER_SCOPE,
 };
+
+/** A host key not installed yet. */
+const host = (key: string) => ({ key, hostInstall: '' });
 
 for (const dialect of TEST_DIALECTS) {
   describe.skipIf(!dialect.available)(`manifestsRepo [${dialect.name}]`, () => {
@@ -40,10 +44,10 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('installs a manifest with its attachments and reads the document back', async () => {
-      const installed = await repo.install({ ...DHL, attachTo: ['printing', 'maker'] }, T0);
+      const installed = await repo.install({ ...DHL, attachTo: [host('printing'), host('maker')] }, T0);
       expect(installed.attachments.map((a) => a.attachedTo)).toEqual(['printing', 'maker']);
 
-      const found = await repo.findByKey('shipping-dhl');
+      const found = await repo.findInScope('shipping-dhl', SERVER_SCOPE);
       expect(found?.document).toEqual(DHL.document);
       expect(found?.row.kind).toBe('add-on');
       expect(found?.attachments).toHaveLength(2);
@@ -54,7 +58,7 @@ for (const dialect of TEST_DIALECTS) {
     it('lists add-ons apart from apps', async () => {
       await repo.install(DHL, T0);
       await repo.install(
-        { manifestKey: 'northline', version: '2.0.0', kind: 'app', source: 'file', document: {} },
+        { manifestKey: 'northline', version: '2.0.0', kind: 'app', source: 'file', document: {}, scopeKey: 'conn_a' },
         T0,
       );
       expect((await repo.list('add-on')).map((m) => m.row.manifestKey)).toEqual(['shipping-dhl']);
@@ -64,10 +68,10 @@ for (const dialect of TEST_DIALECTS) {
 
     it('attaching twice is idempotent rather than a second row', async () => {
       const installed = await repo.install(DHL, T0);
-      const first = await repo.attach(installed.row.id, 'printing', T0);
-      const again = await repo.attach(installed.row.id, 'printing', T0 + 5);
+      const first = await repo.attach(installed.row.id, host('printing'), T0);
+      const again = await repo.attach(installed.row.id, host('printing'), T0 + 5);
       expect(again.id).toBe(first.id);
-      expect((await repo.findByKey('shipping-dhl'))?.attachments).toHaveLength(1);
+      expect((await repo.findInScope('shipping-dhl', SERVER_SCOPE))?.attachments).toHaveLength(1);
     });
 
     it('records which database the tables of a manifest are in, on a row that had none', async () => {
@@ -75,7 +79,7 @@ for (const dialect of TEST_DIALECTS) {
       expect(installed.row.connectionId).toBeNull();
       const connection = await connectionsRepo(meta(), { encrypt: (v: string) => v, decrypt: (v: string) => v }).create({ name: 'Shop', engine: 'sqlite', introspectDsn: 'sqlite::memory:', dataDsn: 'sqlite::memory:' });
       await repo.setConnection(installed.row.id, connection.id, T0 + 3);
-      const after = await repo.findByKey('shipping-dhl');
+      const after = await repo.findInScope('shipping-dhl', SERVER_SCOPE);
       expect(after?.row.connectionId).toBe(connection.id);
       expect(after?.row.updatedAt).toBe(T0 + 3);
     });
@@ -83,24 +87,24 @@ for (const dialect of TEST_DIALECTS) {
     it('enables and disables per host, not per add-on', async () => {
       // The property the join table exists for: live on one host, off on
       // another, which a single flag on the manifest could not represent.
-      const installed = await repo.install({ ...DHL, attachTo: ['printing', 'maker'] }, T0);
-      expect(await repo.setAttachmentEnabled(installed.row.id, 'maker', false, T0 + 1)).toBe(true);
+      const installed = await repo.install({ ...DHL, attachTo: [host('printing'), host('maker')] }, T0);
+      expect(await repo.setAttachmentEnabled(installed.row.id, host('maker'), false, T0 + 1)).toBe(true);
 
       expect((await repo.enabledForHost('printing')).map((m) => m.row.manifestKey)).toEqual([
         'shipping-dhl',
       ]);
       expect(await repo.enabledForHost('maker')).toEqual([]);
 
-      await repo.setAttachmentEnabled(installed.row.id, 'maker', true, T0 + 2);
+      await repo.setAttachmentEnabled(installed.row.id, host('maker'), true, T0 + 2);
       expect(await repo.enabledForHost('maker')).toHaveLength(1);
     });
 
     it('never offers an app through the host read', async () => {
       const app = await repo.install(
-        { manifestKey: 'northline', version: '1.0.0', kind: 'app', source: 'file', document: {} },
+        { manifestKey: 'northline', version: '1.0.0', kind: 'app', source: 'file', document: {}, scopeKey: 'conn_a' },
         T0,
       );
-      await repo.attach(app.row.id, 'printing', T0);
+      await repo.attach(app.row.id, host('printing'), T0);
       expect(await repo.enabledForHost('printing')).toEqual([]);
     });
 
@@ -155,24 +159,24 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('D5: disconnect deletes the keys and keeps everything else', async () => {
-      const installed = await repo.install({ ...DHL, attachTo: ['printing'] }, T0);
+      const installed = await repo.install({ ...DHL, attachTo: [host('printing')] }, T0);
       await repo.setCredential(installed.row.id, { kind: 'api-key', secret: { apiKey: 'k' } }, T0);
 
       expect(await repo.deleteCredential(installed.row.id)).toBe(true);
 
       expect(await repo.getCredential(installed.row.id)).toBeNull();
-      const still = await repo.findByKey('shipping-dhl');
+      const still = await repo.findInScope('shipping-dhl', SERVER_SCOPE);
       expect(still?.attachments).toHaveLength(1);
       expect(still?.row.status).toBe('installed');
     });
 
     it('uninstall removes the manifest and cascades the rest', async () => {
-      const installed = await repo.install({ ...DHL, attachTo: ['printing', 'maker'] }, T0);
+      const installed = await repo.install({ ...DHL, attachTo: [host('printing'), host('maker')] }, T0);
       await repo.setCredential(installed.row.id, { kind: 'api-key', secret: { apiKey: 'k' } }, T0);
 
       expect(await repo.uninstall(installed.row.id)).toBe(true);
 
-      expect(await repo.findByKey('shipping-dhl')).toBeNull();
+      expect(await repo.findInScope('shipping-dhl', SERVER_SCOPE)).toBeNull();
       expect(await meta().db.selectFrom('adminium_manifest_attachments').selectAll().execute()).toEqual([]);
       expect(await meta().db.selectFrom('adminium_add_on_credentials').selectAll().execute()).toEqual([]);
     });
@@ -180,7 +184,7 @@ for (const dialect of TEST_DIALECTS) {
     it('upgrades version and document in place, keeping attachments and keys', async () => {
       // An upgrade is not a reinstall — the hosts it is mounted on and the
       // credential it was given both survive it.
-      const installed = await repo.install({ ...DHL, attachTo: ['printing'] }, T0);
+      const installed = await repo.install({ ...DHL, attachTo: [host('printing')] }, T0);
       await repo.setCredential(installed.row.id, { kind: 'api-key', secret: { apiKey: 'k' } }, T0);
 
       await repo.setVersion(
@@ -189,7 +193,7 @@ for (const dialect of TEST_DIALECTS) {
         T0 + 100,
       );
 
-      const after = await repo.findByKey('shipping-dhl');
+      const after = await repo.findInScope('shipping-dhl', SERVER_SCOPE);
       expect(after?.row.version).toBe('1.1.0');
       expect(after?.document).toMatchObject({ version: '1.1.0' });
       expect(after?.attachments).toHaveLength(1);
@@ -209,11 +213,11 @@ for (const dialect of TEST_DIALECTS) {
       const big = (key: string) => ({ key, version: '1.0.0', pad: 'x'.repeat(pad) });
 
       for (const [i, key] of ['clients', 'pos', 'clinic'].entries()) {
-        await repo.install({ manifestKey: key, version: '1.0.0', kind: 'app', source: 'file', document: big(key) }, T0 + i);
+        await repo.install({ manifestKey: key, version: '1.0.0', kind: 'app', source: 'file', document: big(key), scopeKey: 'conn_a' }, T0 + i);
       }
       for (const [i, key] of ['shipping-ups', 'barcode-labels', 'holiday-calendars'].entries()) {
         await repo.install(
-          { manifestKey: key, version: '1.0.0', kind: 'add-on', source: 'file', document: big(key), attachTo: ['pos'] },
+          { manifestKey: key, version: '1.0.0', kind: 'add-on', source: 'file', document: big(key), attachTo: [host('pos')], scopeKey: SERVER_SCOPE },
           T0 + 10 + i,
         );
       }
@@ -244,10 +248,66 @@ for (const dialect of TEST_DIALECTS) {
     });
 
     it('reports a missing manifest as null rather than throwing', async () => {
-      expect(await repo.findByKey('never-installed')).toBeNull();
+      expect(await repo.findInScope('never-installed', SERVER_SCOPE)).toBeNull();
       expect(await repo.findById('mft_absent')).toBeNull();
       expect(await repo.uninstall('mft_absent')).toBe(false);
       expect(await repo.deleteCredential('mft_absent')).toBe(false);
+    });
+
+    describe('one install per database (wave 0076)', () => {
+      const POS = { manifestKey: 'pos', version: '1.0.0', kind: 'app' as const, source: 'file', document: { key: 'pos' } };
+
+      it('installs the same key once per scope, and refuses a second install in one scope', async () => {
+        const fernhill = await repo.install({ ...POS, scopeKey: 'conn_fernhill' }, T0);
+        const kiln = await repo.install({ ...POS, scopeKey: 'conn_kiln', instanceSlug: 'kiln' }, T0 + 1);
+        expect((await repo.listByKey('pos')).map((m) => m.row.id)).toEqual([fernhill.row.id, kiln.row.id]);
+        expect((await repo.findInScope('pos', 'conn_kiln'))?.row.id).toBe(kiln.row.id);
+        expect((await repo.findBySlug('pos', ''))?.row.id).toBe(fernhill.row.id);
+        expect((await repo.findBySlug('pos', 'kiln'))?.row.id).toBe(kiln.row.id);
+        await expect(repo.install({ ...POS, scopeKey: 'conn_kiln', instanceSlug: 'kiln-2' }, T0 + 2)).rejects.toThrow();
+      });
+
+      it('gives the bare addresses to exactly one install: a second bare slug is refused', async () => {
+        await repo.install({ ...POS, scopeKey: 'conn_fernhill' }, T0);
+        await expect(repo.install({ ...POS, scopeKey: 'conn_kiln' }, T0 + 1)).rejects.toThrow();
+      });
+
+      it('keeps a server-wide add-on once per server: a NULL connection cannot slip past the key', async () => {
+        await repo.install({ ...DHL }, T0);
+        await expect(repo.install({ ...DHL, instanceSlug: 'other' }, T0 + 1)).rejects.toThrow();
+      });
+
+      it('lists what is installed on one database', async () => {
+        await repo.install({ ...POS, scopeKey: 'conn_fernhill' }, T0);
+        await repo.install({ ...POS, manifestKey: 'clinic', scopeKey: 'conn_fernhill' }, T0);
+        await repo.install({ ...POS, scopeKey: 'conn_kiln', instanceSlug: 'kiln' }, T0);
+        expect((await repo.listInScope('conn_fernhill')).map((m) => m.row.manifestKey)).toEqual(['clinic', 'pos']);
+        expect(await repo.listInScope('conn_fernhill', 'add-on')).toEqual([]);
+      });
+
+      it('attaches an add-on to one host install, and the host reads only its own', async () => {
+        const fernhill = await repo.install({ ...POS, scopeKey: 'conn_fernhill' }, T0);
+        const kiln = await repo.install({ ...POS, scopeKey: 'conn_kiln', instanceSlug: 'kiln' }, T0);
+        const forFernhill = await repo.install({ ...DHL, scopeKey: 'conn_fernhill', attachTo: [{ key: 'pos', hostInstall: fernhill.row.id }] }, T0);
+        const forKiln = await repo.install({ ...DHL, scopeKey: 'conn_kiln', instanceSlug: 'kiln', attachTo: [{ key: 'pos', hostInstall: kiln.row.id }] }, T0);
+        expect((await repo.enabledForHost('pos', fernhill.row.id)).map((m) => m.row.id)).toEqual([forFernhill.row.id]);
+        expect((await repo.enabledForHost('pos', kiln.row.id)).map((m) => m.row.id)).toEqual([forKiln.row.id]);
+        expect(await repo.setAttachmentEnabled(forKiln.row.id, { key: 'pos', hostInstall: kiln.row.id }, false, T0 + 1)).toBe(true);
+        expect(await repo.enabledForHost('pos', kiln.row.id)).toEqual([]);
+        expect(await repo.enabledForHost('pos', fernhill.row.id)).toHaveLength(1);
+        // Uninstalling Kiln's host takes Kiln's links only.
+        expect(await repo.detachHost({ key: 'pos', hostInstall: kiln.row.id })).toBe(1);
+        expect((await repo.attachedToHost('pos', fernhill.row.id)).map((m) => m.row.id)).toEqual([forFernhill.row.id]);
+      });
+
+      it('lets the first install of a host key claim the links made before it was installed', async () => {
+        const addOn = await repo.install({ ...DHL, attachTo: [host('pos')] }, T0);
+        const pos = await repo.install({ ...POS, scopeKey: 'conn_fernhill' }, T0 + 1);
+        expect(await repo.claimAttachments('pos', pos.row.id)).toBe(1);
+        expect((await repo.findById(addOn.row.id))?.attachments.map((a) => a.hostInstall)).toEqual([pos.row.id]);
+        // Nothing is left for a later install to claim.
+        expect(await repo.claimAttachments('pos', 'mft_later')).toBe(0);
+      });
     });
   });
 }

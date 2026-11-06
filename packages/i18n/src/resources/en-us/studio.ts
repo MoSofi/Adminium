@@ -3226,6 +3226,12 @@ export default {
     "notFound": {
       "title": "Page not found",
       "body": "There’s nothing at this address. Check the link and try again."
+    },
+    "moved": {
+      "one": "{app} is installed on {database}.",
+      "other": "{app} is installed on other databases.",
+      "body": "This address belonged to a copy that has been taken away.",
+      "open": "Open {app} on {database}"
     }
   },
   "appSettings": {

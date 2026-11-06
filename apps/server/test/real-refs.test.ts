@@ -164,13 +164,13 @@ describe('the one mapper', () => {
       installOutbox({
         meta,
         manifest,
-        manifestId: 'mft_1',
+        install: { id: 'mft_1', key: manifest.key, slug: '' },
         connectionId: 'conn_1',
         realId: (ref) => REAL[ref] ?? ref,
         exists: (id) => id !== 'main.st_projects',
       }),
     ).rejects.toThrow('"projects"');
-    expect(await appOutboxesRepo(meta).findByApp('studio')).toBeNull();
+    expect(await appOutboxesRepo(meta).findByInstall('mft_1')).toBeNull();
     await meta.db.destroy();
   });
 });

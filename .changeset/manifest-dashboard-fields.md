@@ -1,0 +1,7 @@
+---
+'@adminium/manifest': patch
+'@adminium/meta': patch
+'@adminium/server': patch
+---
+
+An app's manifest can describe more of a hand-built dashboard. Every app may use: a `time` column (`time` on Postgres and MySQL, kept as text by SQLite) and a decimal's `precision` beside its `scale` (`decimal(10,2)`); a column's `hidden` mark and `yesNo` on an int column; a link column's `relation` — its `label`, `remove` (the database keeps the foreign key, Adminium does not show the link) or `constraint: false` (no foreign key is made, and Adminium links the column itself); a table's `exclude` and `switchedOff` (postings and the price rule kept off), and `existingCustomers` on a people table, which an install never switches on and says so; an answer's `description` in an option list; and an email template's `kind` (`campaign`), `category`, `brand` and `attachments`, files of the package kept in the Files library and let go when no mail names them. The marks are the app's rules: an update changes those nobody changed, and the uninstall takes them back. A self-made app (`publisher: local`) may also carry `provenance`, kept with the app, and a page's `envelope` and `views`: the install makes the page the target's own (its tables found by ref, its column facts read from the target's database, stamped untouched) and writes the views as shared ones. A page address another page already has on that database is a choice on the review (replace one nobody edited, move the one there, or skip the app's), never a silent skip. Each needs Adminium 0.3.49.

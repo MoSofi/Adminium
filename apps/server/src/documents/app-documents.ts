@@ -39,6 +39,7 @@ import type { SnapshotView } from '../crud/identifiers.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { ownsBlocks } from '../apps/owns-blocks.js';
 import { AppError } from '../errors.js';
+import { installOnConnection } from '../installs/resolve.js';
 import {
   availabilityOf,
   installedShapes,
@@ -66,16 +67,20 @@ const NO_SECRETS = {
  * prints for its own rows needs nobody's leave), and each add-on it suggests
  * that is installed and not switched off as a whole.
  */
-export async function drawersFor(meta: MetaDb, ownerKey: string): Promise<Set<string>> {
+export async function drawersFor(meta: MetaDb, ownerKey: string, connectionId?: string | null): Promise<Set<string>> {
   const manifests = manifestsRepo(meta, NO_SECRETS);
-  const owner = await manifests.findByKey(ownerKey);
-  if (owner === null || owner.row.kind !== 'add-on') return new Set((await manifests.enabledForHost(ownerKey)).map((m) => m.row.manifestKey));
+  // The owner's install on this database (each copy of an app has its own add-ons); a key installed once is that one.
+  const copies = await manifests.listByKey(ownerKey);
+  const owner = (connectionId === undefined || connectionId === null ? (copies.length === 1 ? copies[0] : undefined) : copies.find((one) => one.row.scopeKey === connectionId)) ?? null;
+  if (owner === null || owner.row.kind !== 'add-on') {
+    return new Set((await manifests.enabledForHost(ownerKey, owner?.row.id ?? (copies.length === 0 ? undefined : ''))).map((m) => m.row.manifestKey));
+  }
   const out = new Set<string>();
   if (owner.row.status === 'installed') out.add(ownerKey);
   const suggests = (owner.document as { addOns?: { suggests?: { key?: unknown; range?: unknown }[] } } | null)?.addOns?.suggests ?? [];
   for (const need of suggests) {
     if (typeof need.key !== 'string') continue;
-    const other = await manifests.findByKey(need.key);
+    const other = owner.row.scopeKey === 'server' ? ((await manifests.listByKey(need.key))[0] ?? null) : await installOnConnection(manifests, need.key, owner.row.scopeKey);
     // Installed, and a version the add-on said it works with: an older one is as good as absent until it is updated.
     if (other === null || other.row.kind !== 'add-on' || other.row.status !== 'installed') continue;
     if (typeof need.range === 'string' && !satisfiesSemverRange(other.row.version, need.range)) continue;
@@ -92,8 +97,10 @@ export async function addOnAvailability(
   meta: MetaDb,
   appKey: string,
   runtime: () => AddOnRuntimeState | null,
+  /** The database whose install of the app is meant. */
+  connectionId?: string | null,
 ): Promise<AddOnAvailability> {
-  const attached = await drawersFor(meta, appKey);
+  const attached = await drawersFor(meta, appKey, connectionId);
   const providerOf = (addOnKey: string) => {
     const state = runtime();
     const entry = state === null ? null : providerByKey(state, DOCUMENT_RENDER_CONTRACT, DOCUMENT_RENDER_VERSION, addOnKey);
@@ -142,7 +149,7 @@ export async function installAppDocuments(input: {
     connectionId: input.connectionId,
     realId: realIdIn(input.view, input.names),
     shapes: await installedShapes(input.meta),
-    availability: await addOnAvailability(input.meta, input.manifest.key, input.runtime),
+    availability: await addOnAvailability(input.meta, input.manifest.key, input.runtime, input.connectionId),
     createdBy: input.createdBy,
   });
   // An app mapping a document the way the add-on's outline refuses is a mistake in the app, found before
@@ -159,7 +166,7 @@ export async function installAppDocuments(input: {
   if (result.waiting.length > 0) {
     const manifests = manifestsRepo(input.meta, NO_SECRETS);
     for (const entry of result.waiting) {
-      const name = ((await manifests.findByKey(entry.addOn))?.document as { name?: unknown } | null | undefined)?.name;
+      const name = ((await manifests.listByKey(entry.addOn))[0]?.document as { name?: unknown } | null | undefined)?.name;
       entry.addOnName = typeof name === 'string' && name.trim() !== '' ? name : entry.addOn;
     }
   }
@@ -197,13 +204,17 @@ export async function attachAppDocuments(input: {
   addOnKey: string;
   /** The hosts the add-on was just connected to. */
   hosts: readonly string[];
+  /** The add-on install's database: its hosts are their installs there. */
+  connectionId?: string | null | undefined;
   runtime: () => AddOnRuntimeState | null;
   createdBy?: string | null | undefined;
 }): Promise<{ app: string; result: AppProfilesResult }[]> {
   const manifests = manifestsRepo(input.meta, NO_SECRETS);
   const out: { app: string; result: AppProfilesResult }[] = [];
   for (const host of new Set(input.hosts)) {
-    const installed = await manifests.findByKey(host);
+    // The host's install the add-on was connected to: on the add-on's database, else the key's only one.
+    const copies = (await manifests.listByKey(host)).filter((one) => one.row.kind === 'app');
+    const installed = (input.connectionId === undefined || input.connectionId === null ? (copies.length === 1 ? copies[0] : undefined) : copies.find((one) => one.row.scopeKey === input.connectionId)) ?? null;
     const manifest = installed?.document as AppManifest | undefined;
     const connectionId = installed?.row.connectionId ?? null;
     if (
@@ -236,7 +247,7 @@ export async function attachAppDocuments(input: {
       connectionId,
       realId: realIdIn(view, await appTablesRepo(input.meta).realNames(connectionId, host)),
       shapes: await installedShapes(input.meta),
-      availability: await addOnAvailability(input.meta, host, input.runtime),
+      availability: await addOnAvailability(input.meta, host, input.runtime, connectionId),
       only: { addOn: input.addOnKey },
       createdBy: input.createdBy,
     });
@@ -275,7 +286,7 @@ export async function suggestedDocuments(input: { meta: MetaDb; addOnKey: string
       connectionId,
       realId: realIdIn(view, await appTablesRepo(input.meta).realNames(connectionId, owner)),
       shapes: await installedShapes(input.meta),
-      availability: await addOnAvailability(input.meta, owner, input.runtime),
+      availability: await addOnAvailability(input.meta, owner, input.runtime, connectionId),
       only: { addOn: input.addOnKey },
       createdBy: input.createdBy,
     });
@@ -304,7 +315,7 @@ export async function appDocumentOff(input: {
     return { addOn: input.profile.addOnKey, feature: entry.feature ?? null, reason: `its part of the app ("${entry.module}") is switched off` };
   }
   const plan = { addOn: input.profile.addOnKey, kind: input.profile.kind, feature: entry?.feature };
-  const verdict = availabilityOf(plan, input.manifest, await addOnAvailability(input.meta, input.manifest.key, input.runtime));
+  const verdict = availabilityOf(plan, input.manifest, await addOnAvailability(input.meta, input.manifest.key, input.runtime, input.profile.connectionId));
   return verdict.state === 'on' ? null : { addOn: plan.addOn, feature: plan.feature ?? null, reason: verdict.reason };
 }
 
@@ -323,7 +334,8 @@ export async function ownedDocumentOff(
   runtime: () => AddOnRuntimeState | null,
 ): Promise<{ addOn: string; feature: string | null; reason: string } | null> {
   if (profile.ownerApp === null) return null;
-  const installed = await manifestsRepo(meta, NO_SECRETS).findByKey(profile.ownerApp);
+  // The owning app's install on the profile's database.
+  const installed = await manifestsRepo(meta, NO_SECRETS).findInScope(profile.ownerApp, profile.connectionId);
   const document = installed?.document as Manifest | undefined;
   if (installed === null || document === undefined || !ownsBlocks(document)) {
     return { addOn: profile.addOnKey, feature: null, reason: `the app "${profile.ownerApp}" is not installed` };
@@ -360,12 +372,14 @@ export async function appDocumentDetached(
   addOnKey?: string,
   /** The kinds a loaded add-on draws now (null: not loaded). Asked only for an add-on's own document that was never made. */
   kindsOf?: (addOnKey: string) => ReadonlySet<string> | null,
+  /** The database whose install of the app is meant. */
+  connectionId?: string | null,
 ): Promise<boolean> {
   const entry = (manifest.documents ?? []).find((d) => d.table === table && d.kind === kind);
   const addOn = addOnKey ?? entry?.addOn;
   if (addOn === undefined) return true;
   const feature = entry?.feature === undefined ? undefined : manifest.addOns?.features?.find((f) => f.id === entry.feature);
-  const attached = await drawersFor(meta, manifest.key);
+  const attached = await drawersFor(meta, manifest.key, connectionId);
   if ([addOn, ...(feature?.requires ?? [])].some((key) => !attached.has(key))) return true;
   /*
    * Drawn by another add-on that is here and loaded, and does not draw this

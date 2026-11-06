@@ -1313,13 +1313,15 @@ export function createSampleDataService(deps: SampleDataDeps) {
 
   /** The add-on, when it is here for this app: installed in this database, attached to the app, switched on for it. */
   async function liveAddOn(app: SampleApp, connectionId: string, addOnKey: string): Promise<SampleApp | null> {
-    const addOn = await findSampleOwner(deps.meta, addOnKey, 'add-on');
+    const addOn = await findSampleOwner(deps.meta, addOnKey, 'add-on', { connectionId });
     if (addOn === null || addOn.connectionId !== connectionId) return null;
     const attached = await deps.meta.db
       .selectFrom('adminium_manifest_attachments')
       .select('disabledAt')
       .where('manifestId', '=', addOn.manifestId)
       .where('attachedTo', '=', app.key)
+      // Attached to this install of the app, not another database's copy.
+      .where('hostInstall', '=', app.manifestId)
       .executeTakeFirst();
     return attached !== undefined && attached.disabledAt === null ? addOn : null;
   }
@@ -1417,7 +1419,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const handle = await deps.manager.data(connectionId);
     const keys = (await deps.meta.db.selectFrom('adminium_manifests').select('manifestKey').where('kind', '=', 'app').where('connectionId', '=', connectionId).orderBy('manifestKey', 'asc').execute()).map((row) => row.manifestKey);
     for (const key of keys) {
-      const app = await findSampleApp(deps.meta, key);
+      const app = await findSampleApp(deps.meta, key, { connectionId });
       const ledger = app === null ? undefined : await ledgerRecord(app, connectionId);
       if (app === null || ledger === undefined || !sectionKeysOf(app).includes(addOn.key)) continue;
       const rows = await ledgerRows(handle, ledger.tableName);
@@ -1485,7 +1487,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const handle = await deps.manager.data(connectionId);
     const keys = (await deps.meta.db.selectFrom('adminium_manifests').select('manifestKey').where('kind', '=', 'app').where('connectionId', '=', connectionId).orderBy('manifestKey', 'asc').execute()).map((row) => row.manifestKey);
     for (const key of keys) {
-      const app = await findSampleApp(deps.meta, key);
+      const app = await findSampleApp(deps.meta, key, { connectionId });
       if (app === null || !sectionKeysOf(app).includes(addOn.key)) continue;
       const ledger = await ledgerRecord(app, connectionId);
       // Only an app whose own sample is in: a section is part of the app's sample, never the first of it.
@@ -1570,7 +1572,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
     const { app, section, wrote, connectionId, handle, view, names, now } = input;
     const db = asDb(handle.db);
     const counts: Record<string, number> = {};
-    const addOn = await findSampleOwner(deps.meta, section, 'add-on');
+    const addOn = await findSampleOwner(deps.meta, section, 'add-on', { connectionId });
     const ledgerTable = await ensureLedger(app, connectionId, handle);
     const entries = await ledgerRows(handle, ledgerTable);
     const listed = new Set(entries.map((entry) => `${entry.table_ref}\u0000${entry.pk}`));
@@ -3115,23 +3117,42 @@ const sampleAddPayloadSchema = z.object({
    * screen, which nothing on the install said was there.
    */
   withAddOns: z.array(z.string().min(1)).max(32).optional(),
+  /** The install whose sample it is: the same app may be installed once per database. */
+  installId: z.string().max(36).optional(),
 });
 export type SampleAddPayload = z.infer<typeof sampleAddPayloadSchema>;
 
 /** The installed app a key names, read straight off its row; null when not installed. */
-export async function findSampleApp(meta: MetaDb, key: string): Promise<SampleApp | null> {
-  return findSampleOwner(meta, key, 'app');
+export async function findSampleApp(meta: MetaDb, key: string, where: { installId?: string | null | undefined; connectionId?: string | null | undefined } = {}): Promise<SampleApp | null> {
+  return findSampleOwner(meta, key, 'app', where);
 }
 
 /** The installed manifest of either kind whose sample data a key names; null when not installed. An add-on only once its install finished. */
-export async function findSampleOwner(meta: MetaDb, key: string, kind: 'app' | 'add-on'): Promise<SampleApp | null> {
+export async function findSampleOwner(
+  meta: MetaDb,
+  key: string,
+  kind: 'app' | 'add-on',
+  /** Which install: by id, or the one on a database (its own, else a server-wide add-on). Absent: the key's only one; several answer which. */
+  where: { installId?: string | null | undefined; connectionId?: string | null | undefined } = {},
+): Promise<SampleApp | null> {
   let query = meta.db
     .selectFrom('adminium_manifests')
-    .select(['id', 'manifestKey', 'version', 'connectionId', 'manifest'])
+    .select(['id', 'manifestKey', 'version', 'connectionId', 'manifest', 'scopeKey', 'instanceSlug'])
     .where('manifestKey', '=', key)
     .where('kind', '=', kind);
   if (kind === 'add-on') query = query.where('status', '=', 'installed');
-  const row = await query.executeTakeFirst();
+  if (where.installId !== undefined && where.installId !== null) query = query.where('id', '=', where.installId);
+  else if (where.connectionId !== undefined && where.connectionId !== null) query = query.where('scopeKey', 'in', [where.connectionId, 'server']);
+  const rows = await query.orderBy('installedAt', 'asc').execute();
+  // Its own copy before a server-wide one; several of a key with nothing naming which is not a guess this makes.
+  const sorted = where.connectionId === undefined || where.connectionId === null ? rows : [...rows].sort((a, b) => Number(b.scopeKey === where.connectionId) - Number(a.scopeKey === where.connectionId));
+  if (sorted.length > 1 && (where.connectionId === undefined || where.connectionId === null) && (where.installId === undefined || where.installId === null)) {
+    throw new ConflictError(`${key} is installed on ${sorted.length} databases. Say which one.`, 'APP_INSTALL_AMBIGUOUS', {
+      key,
+      installs: sorted.map((one) => ({ installId: one.id, connectionId: one.scopeKey === 'server' ? null : one.scopeKey, connectionName: null, slug: one.instanceSlug })),
+    });
+  }
+  const row = sorted[0];
   if (row === undefined) return null;
   return {
     key: row.manifestKey,
@@ -3153,7 +3174,7 @@ export function registerSampleDataHandler(registry: JobRegistry, deps: SampleDat
     SAMPLE_ADD_KIND,
     sampleAddPayloadSchema,
     async (payload: SampleAddPayload, ctx: JobHandlerContext) => {
-      const app = await findSampleOwner(deps.meta, payload.key, payload.kind ?? 'app');
+      const app = await findSampleOwner(deps.meta, payload.key, payload.kind ?? 'app', { installId: payload.installId });
       if (app === null) throw new NotFoundError(`"${payload.key}" is not installed.`);
       const withAddOns = payload.kind === 'add-on' ? [] : (payload.withAddOns ?? []);
       // The app's share of the bar when add-ons follow it: each owner gets an equal part.
@@ -3179,7 +3200,8 @@ export function registerSampleDataHandler(registry: JobRegistry, deps: SampleDat
        */
       const addOns: Record<string, { counts: Record<string, number>; files: number }> = {};
       for (const [index, key] of withAddOns.entries()) {
-        const owner = await findSampleOwner(deps.meta, key, 'add-on');
+        // The add-on as the app's database has it.
+        const owner = await findSampleOwner(deps.meta, key, 'add-on', { connectionId: app.connectionId });
         if (owner === null) continue;
         const status = await service.status(owner);
         if (!status.offered || status.loaded) continue;
@@ -3201,13 +3223,15 @@ export function registerSampleDataHandler(registry: JobRegistry, deps: SampleDat
 }
 
 /**
- * Whether an add of this key's sample is queued or running. While it is, the
+ * Whether an add of this install's sample is queued or running. While it is, the
  * sample is not loaded yet, whatever rows are already in: an app's job writes
  * the app's own rows first and its add-ons' after them, so a reader that took
  * the first rows for the whole would go on without the add-ons' sections.
  */
-export async function sampleAddUnderway(meta: MetaDb, key: string): Promise<boolean> {
-  return (await jobsRepo(meta).active(`${SAMPLE_ADD_KIND}:${key}`)) !== null;
+export async function sampleAddUnderway(meta: MetaDb, install: Pick<SampleApp, 'key' | 'manifestId'>): Promise<boolean> {
+  // An add is queued under its install; one queued before installs were per database, under the key.
+  const jobs = jobsRepo(meta);
+  return (await jobs.active(`${SAMPLE_ADD_KIND}:${install.manifestId}`)) !== null || (await jobs.active(`${SAMPLE_ADD_KIND}:${install.key}`)) !== null;
 }
 
 export async function enqueueSampleAdd(meta: MetaDb, payload: SampleAddPayload): Promise<Job> {
@@ -3215,7 +3239,7 @@ export async function enqueueSampleAdd(meta: MetaDb, payload: SampleAddPayload):
     kind: SAMPLE_ADD_KIND,
     payload,
     // One add per app at a time: a double click must not write the café twice.
-    dedupeKey: `${SAMPLE_ADD_KIND}:${payload.key}`,
+    dedupeKey: `${SAMPLE_ADD_KIND}:${payload.installId ?? payload.key}`,
     maxAttempts: 1,
   });
 }

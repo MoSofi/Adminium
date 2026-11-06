@@ -54,7 +54,7 @@ describe('a test payment', () => {
     const checkout = createCheckoutService({
       meta,
       sources,
-      providerFor: (key, mode) => paymentProviderFor({ runtime: () => null, manifests: { findByKey: async () => null, getCredential: async () => null }, httpFor: () => backend.http, demo: backend }, key, mode),
+      providerFor: (key, mode) => paymentProviderFor({ runtime: () => null, manifests: { findInScope: async () => null, listByKey: async () => [], getCredential: async () => null }, httpFor: () => backend.http, demo: backend }, key, mode),
       enqueue: async () => undefined,
     });
 

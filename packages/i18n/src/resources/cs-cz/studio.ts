@@ -3226,6 +3226,12 @@ export default {
     "notFound": {
       "title": "Stránka nenalezena",
       "body": "Na této adrese nic není. Zkontrolujte odkaz a zkuste to znovu."
+    },
+    "moved": {
+      "one": "{app} je nainstalovaná v databázi {database}.",
+      "other": "{app} je nainstalovaná v jiných databázích.",
+      "body": "Tato adresa patřila kopii, která byla odebrána.",
+      "open": "Otevřít {app} v databázi {database}"
     }
   },
   "appSettings": {

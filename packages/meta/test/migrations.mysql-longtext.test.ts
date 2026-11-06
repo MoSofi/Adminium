@@ -122,16 +122,17 @@ for (const dialect of TEST_DIALECTS) {
       const endpoint = await publicEndpointsRepo(m).create({ connectionId, ref: 'notes', origin: 'custom', definition }, T0);
       expect((await publicEndpointsRepo(m).findById(endpoint.id))?.definition).toBe(definition);
 
-      const install = await manifestsRepo(m, crypto).install({ manifestKey: 'clinic', version: '0.2.0', kind: 'app', source: 'file', document: {}, connectionId });
+      const install = await manifestsRepo(m, crypto).install({ manifestKey: 'clinic', version: '0.2.0', kind: 'app', source: 'file', document: {}, connectionId, scopeKey: connectionId });
       const outbox = JSON.stringify({ table: 'outbox', kinds: { reminder: WIDE } });
       await appOutboxesRepo(m).put({ appKey: 'clinic', manifestId: install.row.id, connectionId, definition: outbox }, T0);
-      expect((await appOutboxesRepo(m).findByApp('clinic'))?.definition).toBe(outbox);
+      expect((await appOutboxesRepo(m).findByInstall(install.row.id))?.definition).toBe(outbox);
 
       if (m.dialect === 'mysql') {
         const columns = await textColumns(m);
         // The 34 0047 converted, and 0061's Figma token, 0064's three of a removed row, the four of the consent
-        // log, its keys and the stop list (0065, 0066), and 0068's five secrets and keys, made `longtext` from the start.
-        expect(columns).toHaveLength(47);
+        // log, its keys and the stop list (0065, 0066), 0068's five secrets and keys, and 0075's workspace postal
+        // address and saved workspace file, made `longtext` from the start.
+        expect(columns).toHaveLength(49);
         expect(columns.filter((c) => c.type !== 'longtext')).toEqual([]);
       }
     });
@@ -147,11 +148,12 @@ for (const dialect of TEST_DIALECTS) {
 
       if (m.dialect !== 'mysql') {
         const before = await allColumnTypes(m);
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_user_figma_token', '0062_payments', '0063_payment_dispute_outcome', '0064_removed_rows', '0065_consent_log', '0066_stop_list', '0067_email_send_ledger', '0068_mail_relay_secrets', '0069_email_run_track_clicks', '0070_privacy_exports', '0071_pictures_made', '0072_desktop_setup_words', '0073_form_marks', '0074_public_uploads']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_user_figma_token', '0062_payments', '0063_payment_dispute_outcome', '0064_removed_rows', '0065_consent_log', '0066_stop_list', '0067_email_send_ledger', '0068_mail_relay_secrets', '0069_email_run_track_clicks', '0070_privacy_exports', '0071_pictures_made', '0072_desktop_setup_words', '0073_form_marks', '0074_public_uploads', '0075_own_apps_and_workspaces', '0076_installs_per_database', '0077_app_parts', '0078_app_updates']);
         // Nothing of 0047's here; 0048 adds a key's peak, two columns of its own, and 0049 a table of its own; 0067 lets a run's campaign go.
         expect(
-          (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\.|^adminium_automations\.(managed_by|template_key|content_hash|module):|^adminium_manifests\.modules:|^adminium_roles\.(modules|names):|^adminium_app_tables\.module:|^adminium_automation_spells\.|^adminium_notification_schedules\.|^adminium_assistant_turns\.(context|host|draft|answer|proposal_claimed_at|proposal_done_at):|^adminium_assistant_sessions\.kind:|^adminium_assistant_use\.|^adminium_team(s|_members)\.|^adminium_email_templates\.assistant_wrote_at:|^adminium_users\.figma_|^adminium_(payment_attempts|payment_events|payments|refunds|payment_links|payable_profiles|payment_methods|payment_settings|payment_counters)\.|^adminium_removed_rows\.|^adminium_(address_keys|consent_log|stop_list)\.|^adminium_email_(notice_endpoints|dkim_keys)\.|^adminium_email_runs\.(template_id|rate_per_hour|state|mail_class|basis|content_id|track_clicks):|^adminium_email_(run_contents|sends|send_counters)\.|^adminium_privacy_exports\.|^adminium_form_marks\.|^adminium_picture_use\.|^adminium_public_uploads\./.test(column)),
-        ).toEqual(before.filter((column) => !column.startsWith('adminium_email_runs.template_id:')));
+          (await allColumnTypes(m)).filter((column) => !/^adminium_public_keys\.peak_(reads|writes):|^adminium_project_apps\.|^adminium_automations\.(managed_by|template_key|content_hash|module):|^adminium_manifests\.modules:|^adminium_roles\.(modules|names):|^adminium_app_tables\.module:|^adminium_automation_spells\.|^adminium_notification_schedules\.|^adminium_assistant_turns\.(context|host|draft|answer|proposal_claimed_at|proposal_done_at):|^adminium_assistant_sessions\.kind:|^adminium_assistant_use\.|^adminium_team(s|_members)\.|^adminium_email_templates\.assistant_wrote_at:|^adminium_users\.figma_|^adminium_(payment_attempts|payment_events|payments|refunds|payment_links|payable_profiles|payment_methods|payment_settings|payment_counters)\.|^adminium_removed_rows\.|^adminium_(address_keys|consent_log|stop_list)\.|^adminium_email_(notice_endpoints|dkim_keys)\.|^adminium_email_runs\.(template_id|rate_per_hour|state|mail_class|basis|content_id|track_clicks):|^adminium_email_(run_contents|sends|send_counters)\.|^adminium_privacy_exports\.|^adminium_form_marks\.|^adminium_picture_use\.|^adminium_public_uploads\.|^adminium_(app_saves|app_after_install|workspaces|workspace_connections|item_workspaces|workspace_saves|workspace_installs)\.|^adminium_user_prefs\.workspace_id:|^adminium_(email_templates|report_documents|invoice_documents)\.shown_in:|^adminium_manifests\.(scope_key|instance_slug):|^adminium_manifest_attachments\.(host_install|flag):|^adminium_add_on_settings\.manifest_id:|^adminium_roles\.manifest_id:|^adminium_(automations|email_templates|public_keys|public_endpoints|document_profiles|documents)\.install_id:|^adminium_add_on_settings\.add_on_key:|^adminium_(app_parts|app_updates)\./.test(column)),
+          // 0076 keys an add-on's settings by its install: the key column it was keyed by is no longer what it was.
+        ).toEqual(before.filter((column) => !column.startsWith('adminium_email_runs.template_id:') && !column.startsWith('adminium_add_on_settings.add_on_key:')));
       } else {
         const before = await textColumns(m);
         expect(before).toHaveLength(34);
@@ -169,11 +171,11 @@ for (const dialect of TEST_DIALECTS) {
           publicEndpointsRepo(m).create({ connectionId, ref: 'refused', origin: 'custom', definition: BIG }, T0),
         ).rejects.toThrow(/Data too long/);
 
-        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_user_figma_token', '0062_payments', '0063_payment_dispute_outcome', '0064_removed_rows', '0065_consent_log', '0066_stop_list', '0067_email_send_ledger', '0068_mail_relay_secrets', '0069_email_run_track_clicks', '0070_privacy_exports', '0071_pictures_made', '0072_desktop_setup_words', '0073_form_marks', '0074_public_uploads']);
+        expect((await applyMigrations(m.db, { dialect: m.dialect })).applied).toEqual(['0047_mysql_longtext', '0048_public_key_peak', '0049_project_apps', '0050_catalog_default', '0051_automation_ownership', '0052_assistant_turn_page', '0053_assistant_use', '0054_assistant_abilities', '0055_assistant_proposal_claim', '0056_email_assistant_wrote', '0057_teams', '0058_app_modules', '0059_spells_and_quiet_hours', '0060_notification_switches', '0061_user_figma_token', '0062_payments', '0063_payment_dispute_outcome', '0064_removed_rows', '0065_consent_log', '0066_stop_list', '0067_email_send_ledger', '0068_mail_relay_secrets', '0069_email_run_track_clicks', '0070_privacy_exports', '0071_pictures_made', '0072_desktop_setup_words', '0073_form_marks', '0074_public_uploads', '0075_own_apps_and_workspaces', '0076_installs_per_database', '0077_app_parts', '0078_app_updates']);
         const after = await textColumns(m);
         // 0061's Figma token and 0064's removed rows are columns of their own, `longtext` from the start.
         const consent = ['adminium_address_keys', 'adminium_consent_log', 'adminium_stop_list'];
-        const own = ['adminium_removed_rows', ...consent, 'adminium_email_notice_endpoints', 'adminium_email_dkim_keys'];
+        const own = ['adminium_removed_rows', ...consent, 'adminium_email_notice_endpoints', 'adminium_email_dkim_keys', 'adminium_workspaces', 'adminium_workspace_saves'];
         expect(after.filter((c) => !(c.table === 'adminium_users' && c.column === 'figma_token_encrypted') && !own.includes(c.table))).toEqual(before.map((c) => ({ ...c, type: 'longtext' })));
         expect(after.filter((c) => consent.includes(c.table)).map((c) => `${c.table}.${c.column}:${c.type}`).sort()).toEqual([
           'adminium_address_keys.key_encrypted:longtext',

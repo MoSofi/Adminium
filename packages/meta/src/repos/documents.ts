@@ -173,6 +173,8 @@ export interface CreateDocumentInput {
   claim?: DocumentClaim | null | undefined;
   delivery?: string | null | undefined;
   reuseKey?: string | null | undefined;
+  /** The install of the add-on that renders it (wave 0076). */
+  installId?: string | null | undefined;
 }
 
 /** Optional fields carry `| undefined`; see `CreateDocumentProfileInput`. */
@@ -262,6 +264,8 @@ export function documentsRepo(meta: MetaDb) {
       id: newId('doc'),
       profileId: input.profileId,
       addOnKey: input.addOnKey,
+      // Written only when given: a store not yet past 0076 has no such column.
+      ...(input.installId === undefined || input.installId === null ? {} : { installId: input.installId }),
       kind: input.kind,
       connectionId: input.connectionId,
       entity: input.entity === null ? null : packJson(input.entity),

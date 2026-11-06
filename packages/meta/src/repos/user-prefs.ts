@@ -28,6 +28,8 @@ export interface UserPrefs {
   locale: z.infer<typeof localeSchema> | null;
   dir: z.infer<typeof dirSchema> | null;
   uiState: Record<string, unknown> | null;
+  /** The workspace the person last chose (wave 0075): where a new tab starts, never a filter. */
+  workspaceId: string | null;
   updatedAt: number;
 }
 
@@ -95,6 +97,7 @@ export function userPrefsRepo(meta: MetaDb) {
       locale: row.locale === null ? null : localeSchema.parse(row.locale),
       dir: row.dir === null ? null : dirSchema.parse(row.dir),
       uiState: readJsonOrNull<Record<string, unknown>>(row.uiState),
+      workspaceId: row.workspaceId ?? null,
       updatedAt: row.updatedAt,
     };
   }
@@ -114,6 +117,7 @@ export function userPrefsRepo(meta: MetaDb) {
         locale: string | null;
         dir: string | null;
         uiState: string | null;
+        workspaceId: string | null;
       }> = {};
       for (const axis of ['theme', 'accent', 'density', 'locale', 'dir'] as const) {
         const v = patch[axis];
@@ -129,6 +133,7 @@ export function userPrefsRepo(meta: MetaDb) {
       if (patch.uiState !== undefined) {
         values.uiState = patch.uiState === null ? null : packJson(uiStateSchema.parse(patch.uiState));
       }
+      if (patch.workspaceId !== undefined) values.workspaceId = patch.workspaceId;
 
       const res = await db
         .updateTable('adminium_user_prefs')
@@ -146,6 +151,7 @@ export function userPrefsRepo(meta: MetaDb) {
             locale: values.locale ?? null,
             dir: values.dir ?? null,
             uiState: values.uiState ?? null,
+            workspaceId: values.workspaceId ?? null,
             updatedAt: at,
           })
           .execute();

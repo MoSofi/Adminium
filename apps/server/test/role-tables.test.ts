@@ -9,6 +9,7 @@
  * entry that names a table or a column the add-on has not is left out, by
  * name: a role is then narrower than the app asked, never wider.
  */
+import { onlyInstall } from './only-install.js';
 import { appTablesRepo, permissionsRepo, rolesRepo, settingsRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -180,7 +181,7 @@ describe.each(LEGS)('an app\'s roles on an add-on\'s tables — %s', (dialect, a
     await permissionsRepo(h.meta).grant(role.id, 'table', row.resourceRef, { read: true, create: false, update: false, delete: false, export: false, import: false } as never);
     // The app's own role writer, run alone, leaves what the role holds of the kit as it is: the limit stays on its row.
     const before = await held('night');
-    await writeManifestRoles({ meta: h.meta, manifest: shop() as never, connectionId: h.connectionId, names: await appTablesRepo(h.meta).realNames(h.connectionId, 'shop') });
+    await writeManifestRoles({ meta: h.meta, manifest: shop() as never, install: { id: (await onlyInstall(h.meta, 'shop')).installId, key: 'shop', slug: '' }, connectionId: h.connectionId, names: await appTablesRepo(h.meta).realNames(h.connectionId, 'shop') });
     expect(await held('night')).toEqual(before);
     expect(before).toEqual(WRITTEN);
     await h.stageApp(shop({ version: '1.0.1' }));

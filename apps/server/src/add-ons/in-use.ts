@@ -26,7 +26,7 @@ export interface PostingInto {
 }
 
 /** Every rule the owner drew that hands rows to `key`: postings into one of its ledgers, and price rules it answers. */
-export async function postingsInto(meta: MetaDb, key: string): Promise<PostingInto[]> {
+export async function postingsInto(meta: MetaDb, key: string, connectionId?: string): Promise<PostingInto[]> {
   const rows = await meta.db
     .selectFrom('adminium_schema_overrides')
     .select(['connectionId', 'tableName', 'op', 'value', 'origin'])
@@ -37,6 +37,8 @@ export async function postingsInto(meta: MetaDb, key: string): Promise<PostingIn
   for (const row of rows) {
     // An app's own rule goes inert with the add-on and comes back with it; only the owner's holds the add-on here.
     if (row.origin === 'app') continue;
+    // One database's rules, for an install of the add-on on that database.
+    if (connectionId !== undefined && row.connectionId !== connectionId) continue;
     const value = readJson<{ postings?: { id?: unknown; into?: { addOn?: unknown } }[]; by?: { addOn?: unknown } } | null>(row.value);
     if (row.op === 'table.postings') {
       for (const posting of value?.postings ?? []) {
@@ -62,13 +64,17 @@ interface AppDocument {
 }
 
 /** Every feature of an installed app that posts into `key` (or asks it for a price) while the add-on is attached to that app and switched on there. */
-export async function featuresInto(meta: MetaDb, key: string): Promise<FeatureInto[]> {
-  const addOn = await meta.db.selectFrom('adminium_manifests').select('id').where('kind', '=', 'add-on').where('manifestKey', '=', key).executeTakeFirst();
-  if (addOn === undefined) return [];
+export async function featuresInto(meta: MetaDb, key: string, installId?: string): Promise<FeatureInto[]> {
+  // One install of the add-on when named; else every install of the key.
+  let query = meta.db.selectFrom('adminium_manifests').select('id').where('kind', '=', 'add-on').where('manifestKey', '=', key);
+  if (installId !== undefined) query = query.where('id', '=', installId);
+  const addOns = (await query.execute()).map((row) => row.id);
+  if (addOns.length === 0) return [];
+  // The host installs it is switched on for: an app's other copies, on other databases, do not hold it.
   const on = new Set(
-    (await meta.db.selectFrom('adminium_manifest_attachments').select(['attachedTo', 'disabledAt']).where('manifestId', '=', addOn.id).execute())
+    (await meta.db.selectFrom('adminium_manifest_attachments').select(['hostInstall', 'disabledAt']).where('manifestId', 'in', addOns).execute())
       .filter((attachment) => attachment.disabledAt === null)
-      .map((attachment) => attachment.attachedTo),
+      .map((attachment) => attachment.hostInstall),
   );
   if (on.size === 0) return [];
   const out: FeatureInto[] = [];
@@ -76,7 +82,7 @@ export async function featuresInto(meta: MetaDb, key: string): Promise<FeatureIn
   const order = (await meta.db.selectFrom('adminium_manifests').select('id').where('kind', '=', 'app').orderBy('manifestKey', 'asc').execute()).map((row) => row.id);
   const apps = order.length === 0 ? [] : inIdOrder(order, await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'manifest']).where('id', 'in', order).execute());
   for (const app of apps) {
-    if (!on.has(app.manifestKey)) continue;
+    if (!on.has(app.id)) continue;
     const document = readJson<AppDocument | null>(app.manifest);
     const needing = new Set(
       (document?.addOns?.features ?? []).flatMap((feature) => (typeof feature.id === 'string' && Array.isArray(feature.requires) && feature.requires.includes(key) ? [feature.id] : [])),
@@ -92,6 +98,8 @@ export async function featuresInto(meta: MetaDb, key: string): Promise<FeatureIn
 }
 
 /** What stands in the way of removing `key`; both lists empty when nothing does. */
-export async function addOnInUse(meta: MetaDb, key: string): Promise<{ postings: PostingInto[]; features: FeatureInto[] }> {
-  return { postings: await postingsInto(meta, key), features: await featuresInto(meta, key) };
+export async function addOnInUse(meta: MetaDb, key: string, install?: { id: string; scopeKey: string }): Promise<{ postings: PostingInto[]; features: FeatureInto[] }> {
+  // A server-wide install answers for every database; a per-database one for its own.
+  const database = install === undefined || install.scopeKey === 'server' ? undefined : install.scopeKey;
+  return { postings: await postingsInto(meta, key, database), features: await featuresInto(meta, key, install?.id) };
 }

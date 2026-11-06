@@ -66,12 +66,35 @@ export interface SurfaceSettings {
   retired?: Record<string, { appKey: string; side: SurfaceSide }> | undefined;
   /** Hosts that serve the add-on pages, kept apart from `domains` (see the registry). */
   pages?: Record<string, PagesMapping> | undefined;
-  /** Each installed app's status, by key. An app with no row is not installed. */
+  /**
+   * Each installed app's status, by ADDRESS: the app key for the install
+   * that owns the bare addresses, `<key>~<slug>` for a later one. An app with
+   * no row is not installed.
+   */
   statuses: Record<string, ManifestStatus>;
+  /** Each app install by address: its id and the database it is for. */
+  installs?: Record<string, { id: string; connectionId: string | null }> | undefined;
 }
 
 /** No placements, no mappings, no statuses: a boot with no meta store, or none read yet. */
 export const NO_SURFACE_SETTINGS: SurfaceSettings = { apps: {}, domains: {}, statuses: {} };
+
+/** An install's address: the key for the bare install, `<key>~<slug>` for a later one. */
+export function addressKey(appKey: string, slug: string | null | undefined): string {
+  return slug === null || slug === undefined || slug === '' ? appKey : `${appKey}~${slug}`;
+}
+
+/**
+ * The address a mount of an app answers as: the bare mount is the bare
+ * install's; an instance mount whose slug is a later install's is that
+ * install's; any other instance (one made before installs were per database)
+ * is still the bare install's, as it always was.
+ */
+export function addressForMount(settings: SurfaceSettings, appKey: string, slug: string | null): string {
+  if (slug === null) return appKey;
+  const owned = addressKey(appKey, slug);
+  return settings.installs?.[owned] !== undefined ? owned : appKey;
+}
 const EMPTY = NO_SURFACE_SETTINGS;
 
 /** A stored status, narrowed; anything unrecognised reads as `error`. */
@@ -119,7 +142,7 @@ export function createSurfaceSettings(opts: SurfaceSettingsOptions): SurfaceSett
         settings.get('surfaces.pageHosts'),
         opts.meta.db
           .selectFrom('adminium_manifests')
-          .select(['manifestKey', 'status'])
+          .select(['id', 'manifestKey', 'instanceSlug', 'status', 'connectionId'])
           .where('kind', '=', 'app')
           .execute(),
       ]);
@@ -128,7 +151,9 @@ export function createSurfaceSettings(opts: SurfaceSettingsOptions): SurfaceSett
         domains: domains ?? {},
         retired: retired ?? {},
         pages: pages ?? {},
-        statuses: Object.fromEntries(rows.map((row) => [row.manifestKey, statusFrom(row.status)])),
+        // By address: disabling Kiln's copy never switches Fernhill's off, nor the other way round.
+        statuses: Object.fromEntries(rows.map((row) => [addressKey(row.manifestKey, row.instanceSlug), statusFrom(row.status)])),
+        installs: Object.fromEntries(rows.map((row) => [addressKey(row.manifestKey, row.instanceSlug), { id: row.id, connectionId: row.connectionId }])),
       };
       value = next;
       lastGood = next;
@@ -271,7 +296,10 @@ export function connectionForMount(
   appKey: string,
   slug: string | null,
 ): string | null {
-  if (slug === null) return staffConnectionOf(settings, appKey);
+  if (slug === null) return staffConnectionOf(settings, appKey) ?? settings.installs?.[appKey]?.connectionId ?? null;
+  // A later install's address reads its own database, whatever the instance list says.
+  const owned = settings.installs?.[addressKey(appKey, slug)];
+  if (owned !== undefined) return owned.connectionId;
   return instancesOf(settings, appKey).find((i) => i.slug === slug)?.connectionId ?? null;
 }
 
@@ -324,7 +352,7 @@ export function pagesMappingFor(
  */
 export async function forgetAppSurfaceSettings(
   meta: MetaDb,
-  appKey: string,
+  install: { key: string; slug: string },
   updatedBy: string | null,
 ): Promise<{ removedHosts: string[]; removedPlacement: boolean }> {
   const settings = settingsRepo(meta);
@@ -332,26 +360,52 @@ export async function forgetAppSurfaceSettings(
     settings.get('surfaces.apps'),
     settings.get('surfaces.domains'),
   ]);
+  const { key: appKey, slug } = install;
+  const address = addressKey(appKey, slug);
 
-  const removedPlacement = Object.hasOwn(apps, appKey);
-  if (removedPlacement) {
-    const rest = Object.fromEntries(Object.entries(apps).filter(([key]) => key !== appKey));
-    await settings.set('surfaces.apps', rest, { updatedBy });
+  /*
+   * ONE INSTALL'S, never another's. A later install's entry (`<key>~<slug>`)
+   * goes whole, and its instance leaves the key's list. The bare install's
+   * entry keeps the instance list while later installs own entries in it:
+   * their addresses are theirs.
+   */
+  let removedPlacement = false;
+  const next = { ...apps };
+  if (slug === '') {
+    const held = next[appKey];
+    if (held !== undefined) {
+      removedPlacement = true;
+      const owned = (held.instances ?? []).filter((instance) => Object.hasOwn(apps, addressKey(appKey, instance.slug)));
+      if (owned.length > 0) next[appKey] = { instances: owned };
+      else delete next[appKey];
+    }
+  } else {
+    if (Object.hasOwn(next, address)) {
+      removedPlacement = true;
+      delete next[address];
+    }
+    const bare = next[appKey];
+    if (bare?.instances?.some((instance) => instance.slug === slug) === true) {
+      const instances = bare.instances.filter((instance) => instance.slug !== slug);
+      next[appKey] = { ...bare, ...(instances.length === 0 ? { instances: undefined } : { instances }) };
+      if (instances.length === 0) delete next[appKey]!.instances;
+      removedPlacement = true;
+    }
   }
+  if (removedPlacement) await settings.set('surfaces.apps', next, { updatedBy });
 
+  const mine = (target: DomainMapping) => target.appKey === appKey && (target.instance ?? '') === slug;
   const removedHosts = Object.entries(domains)
-    .filter(([, target]) => target.appKey === appKey)
+    .filter(([, target]) => mine(target))
     .map(([host]) => host);
   if (removedHosts.length > 0) {
-    const kept = Object.fromEntries(
-      Object.entries(domains).filter(([, target]) => target.appKey !== appKey),
-    );
+    const kept = Object.fromEntries(Object.entries(domains).filter(([, target]) => !mine(target)));
     await settings.set('surfaces.domains', kept, { updatedBy });
     // Their DNS still points here: they answer 503, not the dashboard, until mapped again.
     const retired = await settings.get('surfaces.retiredHosts');
     const more = Object.fromEntries(
       Object.entries(domains)
-        .filter(([, target]) => target.appKey === appKey)
+        .filter(([, target]) => mine(target))
         .map(([host, target]) => [host, { appKey, side: target.side }]),
     );
     await settings.set('surfaces.retiredHosts', { ...retired, ...more }, { updatedBy });

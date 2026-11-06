@@ -101,7 +101,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/add-ons/*` | 36 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
-| `/api/v1/apps/*` | 30 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
+| `/api/v1/apps/*` | 32 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
 | `/api/v1/assistant/*` | 13 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
@@ -109,7 +109,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/automations/*` | 9 | Automation rules — the trigger, the steps and the branches between them; the tables, columns, templates and roles a rule can name; the 30-day counters the cards show; and a dry run that walks the flow without executing anything |
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
-| `/api/v1/connections/*` | 29 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
+| `/api/v1/connections/*` | 30 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/consent/*` | 7 | Consent and the do-not-email list — the list itself (search, add, remove), and a record's consent: its standing per purpose, its history, recording a yes, "Replied" and "They said no" |
 | `/api/v1/data/*` | 25 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
 | `/api/v1/designer/*` | 2 | Adminium Designer on a server people reach — whether it is allowed and switched on, and the switch itself (a Super Admin, with their password). The Designer’s own routes exist only while the server runs it |
@@ -161,6 +161,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/users/*` | 11 | People in the workspace — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
 | `/api/v1/words` | 1 | What staff are told of the rows a screen shows, in an add-on's stock words — in, low or out for up to sixty rows of a table named as it is stored, and for a caller who reads the add-on's stock tables the figure behind the word: the exact count, the batch and its expiry, the line that runs out first, and whether stock or the day's portions bind |
+| `/api/v1/workspaces/*` | 6 | Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be in several workspaces or in none, and deleting a workspace leaves its databases where they are |
 
 <!-- END GENERATED: groups -->
 
@@ -255,6 +256,8 @@ POST /api/v1/apps/catalog/refresh
 POST /api/v1/apps/download
 POST /api/v1/apps/plan
 POST /api/v1/apps/install
+GET /api/v1/apps/{key}/instances/{slug}/adopt
+POST /api/v1/apps/{key}/instances/{slug}/adopt
 POST /api/v1/apps/{key}/update
 GET /api/v1/apps/{key}/sample-data
 POST /api/v1/apps/{key}/sample-data
@@ -389,6 +392,7 @@ GET /api/v1/connections/{id}/schema/changes
 PUT /api/v1/connections/{id}/diagram-layout
 POST /api/v1/connections/{id}/generate
 GET /api/v1/connections/{id}/shape-rules
+PUT /api/v1/connections/{id}/workspaces
 ```
 
 ### `/consent`
@@ -1053,6 +1057,17 @@ POST /api/v1/widget-data/batch
 
 ```http
 GET /api/v1/words/{addOn}/{wordsId}
+```
+
+### `/workspaces`
+
+```http
+GET /api/v1/workspaces
+POST /api/v1/workspaces
+PATCH /api/v1/workspaces/{id}
+DELETE /api/v1/workspaces/{id}
+PUT /api/v1/workspaces/order
+GET /api/v1/workspaces/{id}/delete-plan
 ```
 
 <!-- END GENERATED: operations -->

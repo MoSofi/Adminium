@@ -22,6 +22,7 @@
  * finished. `skipped` and `cancelled` appear under All with their own glyph.
  */
 
+import { narrowToWorkspace } from '../../workspaces/list-filter.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   automationRunsRepo,
@@ -146,6 +147,8 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
       {
         preHandler: guard,
         config: { audit: auditExempt('read-only run list') },
+        // A run's database is its rule's.
+        preSerialization: narrowToWorkspace(() => app.rbac.meta, 'runs', async (row) => (await rules.findById(String(row['automationId'])))?.connectionId ?? null),
         schema: { querystring: automationRunsListQuery, response: { 200: automationRunsListReply } },
       },
       async (request) => {

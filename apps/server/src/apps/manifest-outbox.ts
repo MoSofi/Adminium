@@ -19,10 +19,14 @@
 import { createHash } from 'node:crypto';
 
 import { GROUPED_FORM, clockShaped, emailRowsDataSchema, isCodeColumn, placeholderPattern, type Manifest, type Outbox } from '@adminium/manifest';
-import { appOutboxesRepo, emailTemplatesRepo, type EmailTemplate, type MetaDb } from '@adminium/meta';
+import { appOutboxesRepo, emailTemplatesRepo, filesRepo, newId, type EmailTemplate, type MetaDb } from '@adminium/meta';
 
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
+import { ValidationFailedError } from '../errors.js';
+import { sniff } from '../files/sniff.js';
+import type { FileStore } from '../files/store.js';
 import { isEmailBlockKind } from '../email/render.js';
+import { installTemplateKey, type InstallAddress } from '../installs/resolve.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { mapTableRefs } from './real-refs.js';
 import { canonicalJson } from './sample-data.js';
@@ -45,11 +49,100 @@ export interface OutboxResult {
   };
 }
 
+/**
+ * What a row says beyond its text, where it says more than a plain template:
+ * a campaign, a purpose, its own brand, the files it carries (by their ids,
+ * which are made from the files' bytes). Left out at the defaults, so a row
+ * an earlier release hashed hashes the same now.
+ */
+function envelopeOf(row: Partial<Pick<EmailTemplate, 'kind' | 'category' | 'brand' | 'attachments'>>): Record<string, unknown> {
+  return {
+    ...(row.kind === undefined || row.kind === 'template' ? {} : { kind: row.kind }),
+    ...(row.category === undefined || row.category === 'transactional' ? {} : { category: row.category }),
+    ...(row.brand === undefined || row.brand === null ? {} : { brand: row.brand }),
+    ...(row.attachments === undefined || row.attachments.length === 0 ? {} : { attachments: row.attachments.map((attachment) => attachment.id) }),
+  };
+}
+
 /** A template's text as the store keeps it, hashed the same however the JSON was ordered. */
-function contentHashOf(row: Pick<EmailTemplate, 'name' | 'subject' | 'preheader' | 'footer' | 'blocks'>): string {
+function contentHashOf(row: Pick<EmailTemplate, 'name' | 'subject' | 'preheader' | 'footer' | 'blocks'> & Partial<Pick<EmailTemplate, 'kind' | 'category' | 'brand' | 'attachments'>>): string {
   return createHash('sha256')
-    .update(canonicalJson({ name: row.name, subject: row.subject, preheader: row.preheader, footer: row.footer, blocks: row.blocks }))
+    .update(canonicalJson({ name: row.name, subject: row.subject, preheader: row.preheader, footer: row.footer, blocks: row.blocks, ...envelopeOf(row) }))
     .digest('hex');
+}
+
+/** The package's files a mail carries, and the Files library they are kept in. */
+export interface PackageFiles {
+  /** The bytes of a file of the app's package, by its path there. */
+  read: (path: string) => Promise<Buffer>;
+  /** Keeps a file in the library; returns its id. */
+  keep: (file: { bytes: Buffer; filename: string }) => Promise<string>;
+}
+
+/** Whether a mail may carry these bytes: a kind the library knows by its bytes, never a drawing (SVG) nobody cleaned. */
+export function mailCarries(bytes: Buffer, filename: string): boolean {
+  const sniffed = sniff(bytes.subarray(0, 8192), filename);
+  return sniffed.ok && sniffed.type.key !== 'svg';
+}
+
+/**
+ * A mail's files read from the app's own (verified) files and kept in the
+ * Files library like a person's upload: only a kind the library knows by its
+ * bytes, never a drawing (SVG) nobody cleaned.
+ */
+export function libraryFiles(
+  meta: MetaDb,
+  store: FileStore,
+  read: (path: string) => Promise<Buffer>,
+  uploadedBy: string | null,
+): PackageFiles {
+  return {
+    read: async (path) => {
+      try {
+        return await read(path);
+      } catch {
+        throw new ValidationFailedError(`The app's emails carry "${path}", which its package does not hold.`, { reason: 'ATTACHMENT_MISSING', file: path });
+      }
+    },
+    keep: async ({ bytes, filename }) => {
+      const sniffed = sniff(bytes.subarray(0, 8192), filename);
+      if (!sniffed.ok || !mailCarries(bytes, filename)) {
+        throw new ValidationFailedError(`"${filename}" is not a kind of file an email carries.`, { reason: 'ATTACHMENT_KIND', file: filename });
+      }
+      const id = newId('file');
+      const stored = await store.write({ id, kind: 'upload', filename, mime: sniffed.type.mime, bytes });
+      await filesRepo(meta).create({
+        id,
+        filename,
+        mime: sniffed.type.mime,
+        sizeBytes: stored.sizeBytes,
+        sha256: stored.sha256,
+        storageKey: stored.storageKey,
+        storage: stored.storage,
+        destinationId: stored.destinationId,
+        kind: 'upload',
+        uploadedBy,
+        // Claimed by the mail that names it, so the sweep of unclaimed uploads leaves it.
+        attachedAt: Date.now(),
+      });
+      return id;
+    },
+  };
+}
+
+/** An attachment's id: made from its bytes, so the same file is the same attachment in every install and update. */
+function attachmentIdOf(bytes: Buffer): string {
+  return `app-${createHash('sha256').update(bytes).digest('hex').slice(0, 32)}`;
+}
+
+/** Moves the library files an app's mails let go of to the bin, as a person's delete does: those no mail names any more. */
+async function releaseFiles(meta: MetaDb, fileIds: Iterable<string>): Promise<void> {
+  const candidates = new Set(fileIds);
+  if (candidates.size === 0) return;
+  const templates = emailTemplatesRepo(meta);
+  const rows = [...(await templates.list({ archived: false })), ...(await templates.list({ archived: true }))];
+  for (const row of rows) for (const attachment of row.attachments) if (attachment.kind === 'file') candidates.delete(attachment.fileId);
+  for (const fileId of candidates) await filesRepo(meta).markDeleted(fileId);
 }
 
 /** One language's name for the template, or the US English one. */
@@ -230,7 +323,8 @@ export function outboxDefinition(outbox: NonNullable<AppManifest['outbox']>, rea
 export async function installOutbox(input: {
   meta: MetaDb;
   manifest: Manifest;
-  manifestId: string;
+  /** The install the outbox and its templates belong to. */
+  install: InstallAddress;
   connectionId: string;
   realId: (ref: string) => string;
   /**
@@ -238,15 +332,22 @@ export async function installOutbox(input: {
    * table that is not there is refused by name rather than stored.
    */
   exists?: ((id: string) => boolean) | undefined;
+  /** Where a mail's files come from and go. Absent, a mail that carries files is refused. */
+  packageFiles?: PackageFiles | undefined;
 }): Promise<OutboxResult | undefined> {
   const { meta, manifest } = input;
   if (!ownsBlocks(manifest)) return undefined;
   const outboxes = appOutboxesRepo(meta);
   const templates = emailTemplatesRepo(meta);
-  const hadAny = (await outboxes.findByApp(manifest.key)) !== null || (await templates.listManagedBy(manifest.key)).length > 0;
+  const { install } = input;
+  const own = () => templates.listManagedBy(manifest.key, install.id);
+  const hadAny = (await outboxes.findByInstall(install.id)) !== null || (await own()).length > 0;
   if (manifest.outbox === undefined && (manifest.emailTemplates ?? []).length === 0 && !hadAny) return undefined;
+  // A later install's templates are stored under keys of their own; the outbox names them so.
+  const shippedKeys = new Set((manifest.emailTemplates ?? []).map((template) => template.key));
+  const storedKey = (key: string) => (shippedKeys.has(key) ? installTemplateKey(key, install) : key);
 
-  if (manifest.outbox === undefined) await outboxes.remove(manifest.key);
+  if (manifest.outbox === undefined) await outboxes.remove(install.id);
   else {
     const exists = input.exists;
     const mapped = outboxRefs(manifest.outbox, (ref) => {
@@ -260,39 +361,66 @@ export async function installOutbox(input: {
     }
     await outboxes.put({
       appKey: manifest.key,
-      manifestId: input.manifestId,
+      manifestId: install.id,
       connectionId: input.connectionId,
-      definition: canonicalJson(mapped.value as Outbox),
+      definition: canonicalJson(withTemplateKeys(mapped.value as Outbox, storedKey)),
     });
   }
 
   const result: OutboxResult = { defined: manifest.outbox !== undefined, templates: { written: [], kept: [], skipped: [], removed: 0 } };
   const shipped = new Set<string>();
+  /** Library files this run let go of: put in the bin at the end, unless a mail still names one. */
+  const dropped = new Set<string>();
   for (const template of manifest.emailTemplates ?? []) {
+    /** The files this template carries, read once for all its languages; each kept once, or the one its row already holds. */
+    const carried: { id: string; path: string; bytes: Buffer; fileId?: string }[] = [];
+    for (const { file } of template.attachments ?? []) {
+      if (input.packageFiles === undefined) {
+        throw new ValidationFailedError(`The email "${template.key}" carries "${file}", and this server has no Files library to keep it in.`, { reason: 'NO_FILES_LIBRARY', template: template.key });
+      }
+      const bytes = await input.packageFiles.read(file);
+      carried.push({ id: attachmentIdOf(bytes), path: file, bytes });
+    }
     for (const [tag, content] of Object.entries(template.locales)) {
       // The store keys a language the way Adminium's locales are spelled (`en_US`).
       const locale = tag.replace('-', '_');
-      const id = `${template.key}/${locale}`;
+      const key = storedKey(template.key);
+      const id = `${key}/${locale}`;
       shipped.add(id);
-      const existing = await templates.findByKeyLocale(template.key, locale);
-      if (existing !== null && existing.managedBy !== manifest.key) {
-        result.templates.skipped.push({ key: template.key, locale, reason: 'An email template of this name and language is not this app’s.' });
+      const existing = await templates.findByKeyLocale(key, locale);
+      if (existing !== null && (existing.managedBy !== manifest.key || (existing.installId !== null && existing.installId !== install.id))) {
+        result.templates.skipped.push({ key, locale, reason: 'An email template of this name and language is not this app’s.' });
         continue;
       }
       if (existing !== null && existing.contentHash !== contentHashOf(existing)) {
         result.templates.kept.push(id);
         continue;
       }
+      // The same file under the same id is the one the row holds already; a new one is kept in the library now.
+      const attachments: { id: string; kind: 'file'; fileId: string }[] = [];
+      for (const file of carried) {
+        const held = existing?.attachments.find((attachment) => attachment.id === file.id && attachment.kind === 'file');
+        file.fileId ??= held !== undefined && held.kind === 'file' ? held.fileId : await input.packageFiles!.keep({ bytes: file.bytes, filename: file.path.split('/').at(-1)! });
+        attachments.push({ id: file.id, kind: 'file', fileId: file.fileId });
+      }
+      for (const old of existing?.attachments ?? []) {
+        if (old.kind === 'file' && !attachments.some((attachment) => attachment.fileId === old.fileId)) dropped.add(old.fileId);
+      }
       const write = (contentHash: string | null) =>
-        templates.upsert(template.key, locale, {
+        templates.upsert(key, locale, {
           name: nameIn(template.name, tag),
           subject: content.subject,
           blocks: storedBlocks(content.blocks, input.realId),
           enabled: existing?.enabled ?? true,
           preheader: content.preheader ?? '',
           footer: content.footer ?? '',
-          category: 'transactional',
+          category: template.category ?? 'transactional',
+          kind: template.kind ?? 'template',
+          // An update that stops giving a brand or files takes them away: the row is the app's while nobody edited it.
+          brand: template.brand ?? null,
+          attachments,
           managedBy: manifest.key,
+          installId: install.id,
           contentHash,
         });
       const written = await write(null);
@@ -301,21 +429,50 @@ export async function installOutbox(input: {
       result.templates.written.push(id);
     }
   }
-  for (const row of await templates.listManagedBy(manifest.key)) {
+  for (const row of await own()) {
     if (shipped.has(`${row.key}/${row.locale}`) || row.contentHash !== contentHashOf(row)) continue;
-    if (await templates.remove(row.key, row.locale)) result.templates.removed += 1;
+    if (await templates.remove(row.key, row.locale)) {
+      result.templates.removed += 1;
+      for (const attachment of row.attachments) if (attachment.kind === 'file') dropped.add(attachment.fileId);
+    }
   }
+  await releaseFiles(meta, dropped);
   return result;
 }
 
-/** Uninstall: the outbox definition, and the app's templates nobody edited. Returns how many templates went. */
-export async function removeOutbox(meta: MetaDb, appKey: string): Promise<number> {
-  await appOutboxesRepo(meta).remove(appKey);
+/**
+ * The outbox's template keys as this install stores them: each kind's
+ * template, and any other place the definition names one by key.
+ */
+function withTemplateKeys(outbox: Outbox, storedKey: (key: string) => string): Outbox {
+  const walk = (value: unknown, path: string[]): unknown => {
+    if (typeof value === 'string') return path.includes('kinds') || path.at(-1) === 'template' ? storedKey(value) : value;
+    if (Array.isArray(value)) return value.map((one) => walk(one, path));
+    if (value !== null && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, walk(v, [...path, k])]));
+    }
+    return value;
+  };
+  return walk(outbox, []) as Outbox;
+}
+
+/**
+ * Uninstall: one install's outbox definition, and its templates nobody edited,
+ * with the files they carried that no mail names any more (to the bin, as a
+ * person's delete does). Returns how many templates went.
+ */
+export async function removeOutbox(meta: MetaDb, install: Pick<InstallAddress, 'id' | 'key'>): Promise<number> {
+  await appOutboxesRepo(meta).remove(install.id);
   const templates = emailTemplatesRepo(meta);
   let removed = 0;
-  for (const row of await templates.listManagedBy(appKey)) {
+  const dropped = new Set<string>();
+  for (const row of await templates.listManagedBy(install.key, install.id)) {
     if (row.contentHash !== contentHashOf(row)) continue;
-    if (await templates.remove(row.key, row.locale)) removed += 1;
+    if (await templates.remove(row.key, row.locale)) {
+      removed += 1;
+      for (const attachment of row.attachments) if (attachment.kind === 'file') dropped.add(attachment.fileId);
+    }
   }
+  await releaseFiles(meta, dropped);
   return removed;
 }

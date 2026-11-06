@@ -26,10 +26,12 @@
  * applied while the question waits.
  */
 
+import { addOnSettingsRef } from '../rbac/permissions.js';
 import type { Manifest, RequiredColumn } from '@adminium/manifest';
 import type { DatabaseModel } from '@adminium/engine';
 import {
   appTablesRepo,
+  manifestsRepo,
   pagesRepo,
   permissionsRepo,
   projectAppsRepo,
@@ -42,6 +44,7 @@ import {
   type MetaDb,
   type ProjectAppRemovalChange,
   type ProjectAppRemovals,
+  realTableOf,
 } from '@adminium/meta';
 
 import { uninstallAppDocuments } from '../documents/app-documents.js';
@@ -52,7 +55,10 @@ import { addOnTablesByName, addOnsKeptBy } from './add-ons.js';
 import { builtOnTables } from './app-shapes.js';
 import { removeOutbox } from './manifest-outbox.js';
 import { removeAutomations } from './manifest-automations.js';
+import { removeSavedParts } from './saved-parts.js';
 import { announceRulesChanged } from '../documents/trigger-sync.js';
+import { grantKeyOf } from '../installs/resolve.js';
+import { dependentsOf, requiredByError } from './required-apps.js';
 import { forgetAppRoleGrants, roleSlugFor } from './manifest-roles.js';
 import { removeManifestRules } from './manifest-rules.js';
 import type { AppSchemaTarget, RowTest } from './schema-target.js';
@@ -173,8 +179,14 @@ export interface RemovalActor {
   superAdmin: () => Promise<boolean>;
 }
 
-/** The table of that name in the default schema; one elsewhere only when it is the only one so named. */
+/**
+ * The table of that name in the default schema; one elsewhere only when it is
+ * the only one so named. A self-made app's table in its own schema
+ * (`sales.Order Lines`) is that schema's.
+ */
 const idOf = (model: DatabaseModel, name: string): string => {
+  const dot = name.indexOf('.');
+  if (dot > 0) return model.tables.find((t) => t.schema === name.slice(0, dot) && t.name === name.slice(dot + 1))?.id ?? name;
   const here = model.tables.find((t) => t.name === name && (t.schema === model.defaultSchema || t.schema === null));
   if (here !== undefined) return here.id;
   const named = model.tables.filter((t) => t.name === name);
@@ -189,7 +201,7 @@ export function createRemovals(deps: RemovalDeps) {
   async function droppable(record: AppTableRecord): Promise<boolean> {
     if (!record.owned || record.state !== 'created') return false;
     const others = (await tables.forConnection(record.connectionId)).filter(
-      (other) => other.appKey !== record.appKey && other.tableName === record.tableName && other.state !== 'dropped' && other.state !== 'released',
+      (other) => other.appKey !== record.appKey && realTableOf(other) === realTableOf(record) && other.state !== 'dropped' && other.state !== 'released',
     );
     if (others.length > 0) return false;
     // Another add-on's table is never this manifest's to drop; an add-on's own table is its own.
@@ -291,12 +303,7 @@ export function createRemovals(deps: RemovalDeps) {
   const dropEdit =
     (doomed: readonly { record: AppTableRecord }[]) =>
     (model: DatabaseModel): EditBody => ({
-      dropTables: doomed.map(
-        (entry) =>
-          model.tables.find((t) => t.name === entry.record.tableName && (t.schema === model.defaultSchema || t.schema === null))?.id ??
-          model.tables.find((t) => t.name === entry.record.tableName)?.id ??
-          entry.record.tableName,
-      ),
+      dropTables: doomed.map((entry) => idOf(model, realTableOf(entry.record))),
     });
 
   /** What an uninstall would remove and keep: the dialog's list, and the uninstall's own. */
@@ -304,11 +311,15 @@ export function createRemovals(deps: RemovalDeps) {
     const key = row.row.manifestKey;
     const connectionId = row.row.connectionId;
     const pageRows = await pagesRepo(deps.meta).listByManifest(row.row.id);
-    const keys = (await publicKeysRepo(deps.meta).list()).filter((candidate) => candidate.managedBy === key && candidate.revokedAt === null);
+    // This install's own: another install of the key keeps its keys, endpoints and roles.
+    const install = row.row.id;
+    const keys = (await publicKeysRepo(deps.meta).list()).filter((candidate) => candidate.managedBy === key && candidate.installId === install && candidate.revokedAt === null);
     const endpoints =
       connectionId === null ? [] : (await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).filter((endpoint) => endpoint.managedBy === key);
     const roles = [];
-    for (const role of (await rolesRepo(deps.meta).list()).filter((candidate) => candidate.appKey === key)) {
+    // Its own roles; an app role linked to no install (left by one that went) is the bare install's.
+    const orphans = row.row.instanceSlug === '' ? (await rolesRepo(deps.meta).list()).filter((role) => role.appKey === key && role.manifestId === null) : [];
+    for (const role of [...(await rolesRepo(deps.meta).listForInstall(install)), ...orphans]) {
       const members = await deps.meta.db.selectFrom('adminium_user_roles').select('userId').where('roleId', '=', role.id).execute();
       const apiKeys = await deps.meta.db.selectFrom('adminium_api_keys').select('id').where('roleId', '=', role.id).execute();
       roles.push({ role, members: members.map((m) => m.userId), apiKeys: apiKeys.map((k) => k.id) });
@@ -327,18 +338,22 @@ export function createRemovals(deps: RemovalDeps) {
         : (await tables.forConnection(connectionId)).filter((record) => record.appKey !== key && record.state !== 'dropped' && record.state !== 'released');
     const domains = await settingsRepo(deps.meta).get('surfaces.domains');
     // The add-ons connected to it: kept, only their link to it goes.
-    const addOns = await addOnsKeptBy({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, key);
+    const addOns = await addOnsKeptBy({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, { key, hostInstall: install });
     // The other apps that use a table too (a shared menu), by name: the dialog says who keeps it.
     // An add-on's record of a table is not a share: its table is simply kept (never droppable, above).
     const addOnKeys = new Set(addOnTables.values());
-    const sharing = others.filter((other) => other.role === 'app' && !addOnKeys.has(other.appKey) && records.some((record) => record.tableName === other.tableName));
+    const sharing = others.filter((other) => other.role === 'app' && !addOnKeys.has(other.appKey) && records.some((record) => realTableOf(record) === realTableOf(other)));
     const appNames = sharing.length === 0 || deps.names === undefined ? new Map<string, string>() : await deps.names();
     const sharedWith = (tableName: string) =>
-      [...new Set(sharing.filter((other) => other.tableName === tableName).map((other) => other.appKey))]
+      [...new Set(sharing.filter((other) => realTableOf(other) === tableName).map((other) => other.appKey))]
         .sort()
         .map((other) => ({ key: other, name: appNames.get(other) ?? other }));
     return {
       key,
+      /** The install going: everything below is its own, never another install's of the key. */
+      installId: install,
+      /** Its address, which its grants name (`app:<address>:staff`, `addOn:<address>:settings`). */
+      address: grantKeyOf(row.row),
       connectionId,
       addOns,
       pages: {
@@ -350,13 +365,15 @@ export function createRemovals(deps: RemovalDeps) {
       roles,
       tables: records.map((record) => ({
         record,
-        sharedWith: sharedWith(record.tableName),
+        sharedWith: sharedWith(realTableOf(record)),
         // Made by this app, and no other app's record names it.
-        droppable: record.owned && record.state === 'created' && !others.some((other) => other.tableName === record.tableName) && (addOnTables.get(record.tableName) ?? key) === key,
+        droppable: record.owned && record.state === 'created' && !others.some((other) => realTableOf(other) === realTableOf(record)) && (addOnTables.get(record.tableName) ?? key) === key,
       })),
       hosts: Object.entries(domains)
-        .filter(([, target]) => target.appKey === key)
+        .filter(([, target]) => target.appKey === grantKeyOf(row.row))
         .map(([host]) => host),
+      /** The apps on this database that require this one (`apps.requires`): while any is here, it stays. */
+      requiredBy: await dependentsOf(manifestsRepo(deps.meta, deps.credentialCrypto), row),
     };
   }
   type UninstallList = Awaited<ReturnType<typeof listOf>>;
@@ -368,6 +385,8 @@ export function createRemovals(deps: RemovalDeps) {
    * half an uninstall behind.
    */
   async function checkDrop(list: UninstallList, opts: DropOptions): Promise<void> {
+    // An app another app on this database requires is not uninstalled from under it, dropping tables or not.
+    if (list.requiredBy.length > 0) throw requiredByError(list.key, list.requiredBy);
     const doomed = opts.dropTables ? list.tables.filter((entry) => entry.droppable) : [];
     if (doomed.length === 0) return;
     if (!opts.superAdmin) {
@@ -424,6 +443,13 @@ export function createRemovals(deps: RemovalDeps) {
     }
     await forgetAppRoleGrants(deps.meta, list.roles.map((entry) => entry.role.slug));
     /*
+     * EVERY GRANT NAMING THIS INSTALL goes, on whatever role holds it (a role
+     * of the server's own included): its address is free, and whoever takes
+     * it next must not open for roles nobody gave it to.
+     */
+    await permissionsRepo(deps.meta).revokeAllForResource('app', list.address);
+    await permissionsRepo(deps.meta).revokeAllForResource('app', addOnSettingsRef(list.address));
+    /*
      * 4. The column rules it wrote, while they are still as it wrote them.
      *    One the operator changed, switched off or re-saved differently is
      *    theirs, and stays.
@@ -431,12 +457,14 @@ export function createRemovals(deps: RemovalDeps) {
     const rulesRemoved =
       list.connectionId === null ? 0 : await removeManifestRules(deps.meta, list.tables.map((entry) => entry.record), list.connectionId);
     // Its emails: the outbox definition, and the templates nobody edited.
-    const emailsRemoved = await removeOutbox(deps.meta, list.key);
+    const emailsRemoved = await removeOutbox(deps.meta, { id: list.installId, key: list.key });
     // The rules it shipped: gone unless the owner changed one, and that one switched off when its tables go too.
     const rulesGone = await removeAutomations(deps.meta, list.key, list.connectionId, { tablesDropped: opts.dropTables && list.tables.some((entry) => entry.droppable) });
     if (rulesGone > 0 || opts.dropTables) await announceRulesChanged(deps.meta);
     // The document profiles it made; an operator's own stay.
     if (list.connectionId !== null) await uninstallAppDocuments(deps.meta, list.connectionId, list.key);
+    // The reports, invoice layouts and schedules it made that nobody changed, and its payable tables.
+    await removeSavedParts(deps.meta, list.installId, list.connectionId, list.key);
     /*
      * 5. Its tables: dropped only when asked, and only the ones it made and
      *    nothing else names. Every other table is kept and its record
@@ -447,10 +475,10 @@ export function createRemovals(deps: RemovalDeps) {
       await deps.schemaTarget.edit(list.connectionId, dropEdit(doomed), { superAdmin: opts.superAdmin, createdBy: opts.createdBy });
       for (const entry of doomed) {
         await tables.setState(entry.record.id, 'dropped');
-        dropped.push(entry.record.tableName);
+        dropped.push(realTableOf(entry.record));
       }
     }
-    const kept = list.tables.filter((entry) => !dropped.includes(entry.record.tableName));
+    const kept = list.tables.filter((entry) => !dropped.includes(realTableOf(entry.record)));
     for (const entry of kept) await tables.setState(entry.record.id, 'released');
     return { rulesRemoved, emailsRemoved, dropped, kept };
   }
@@ -502,8 +530,10 @@ export function createRemovals(deps: RemovalDeps) {
       }
 
       // Roles: deleting one takes its members' hold of it and its API keys with it, so both are counted first.
-      const wanted = new Set((manifest.kind === 'app' ? (manifest.roles ?? []) : []).map((role) => roleSlugFor(key, role.key)));
-      const gone = (await rolesRepo(deps.meta).list()).filter((role) => role.appKey === key && !wanted.has(role.slug));
+      const installRow = await manifestsRepo(deps.meta, deps.credentialCrypto).findById(input.rowId);
+      const slug = installRow?.row.instanceSlug ?? '';
+      const wanted = new Set((manifest.kind === 'app' ? (manifest.roles ?? []) : []).map((role) => roleSlugFor(key, role.key, slug)));
+      const gone = (await rolesRepo(deps.meta).listForInstall(input.rowId)).filter((role) => !wanted.has(role.slug));
       for (const role of gone) {
         const members = await deps.meta.db.selectFrom('adminium_user_roles').select('userId').where('roleId', '=', role.id).execute();
         const apiKeys = await deps.meta.db.selectFrom('adminium_api_keys').select('id').where('roleId', '=', role.id).execute();
@@ -512,7 +542,7 @@ export function createRemovals(deps: RemovalDeps) {
       }
       await forgetAppRoleGrants(deps.meta, gone.map((role) => role.slug));
 
-      if (diff.outbox) await removeOutbox(deps.meta, key);
+      if (diff.outbox) await removeOutbox(deps.meta, { id: input.rowId, key });
       if (diff.documents && connectionId !== null) await uninstallAppDocuments(deps.meta, connectionId, key);
 
       if (connectionId === null) return outcome;

@@ -52,12 +52,12 @@ for (const dialect of TEST_DIALECTS) {
       const connectionId = await connection(t.meta);
       const manifests = manifestsRepo(t.meta, crypto);
       const repo = appTablesRepo(t.meta);
-      const one = await manifests.install({ manifestKey: 'pos', version: '0.1.0', kind: 'app', source: 'file', document: {}, connectionId });
+      const one = await manifests.install({ manifestKey: 'pos', version: '0.1.0', kind: 'app', source: 'file', document: {}, connectionId, scopeKey: connectionId });
       await repo.record({ appKey: 'pos', manifestId: one.row.id, connectionId, ref: 'tickets', tableName: 'tickets', owned: true, state: 'created' });
       await manifests.uninstall(one.row.id);
       expect((await repo.find(connectionId, 'pos', 'tickets'))?.manifestId).toBeNull();
 
-      const two = await manifests.install({ manifestKey: 'pos', version: '0.2.0', kind: 'app', source: 'file', document: {}, connectionId, status: 'installing' });
+      const two = await manifests.install({ manifestKey: 'pos', version: '0.2.0', kind: 'app', source: 'file', document: {}, connectionId, scopeKey: connectionId, status: 'installing' });
       expect(await repo.attach(connectionId, 'pos', two.row.id)).toBe(1);
       expect((await repo.find(connectionId, 'pos', 'tickets'))?.manifestId).toBe(two.row.id);
       expect((await manifests.findById(two.row.id))?.row.status).toBe('installing');

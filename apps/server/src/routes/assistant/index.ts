@@ -29,6 +29,7 @@
  * prefix is deliberately not one the project sync watches.
  */
 
+import { workspaceConnections } from '../../workspaces/visibility.js';
 import { startersFor } from '../../assistant/add-on-notes.js';
 import type { AddOnInstalls } from '../../apps/table-ref.js';
 import type { AiConnections } from '../../llm/connections.js';
@@ -260,6 +261,17 @@ function sessionView(session: AssistantSession) {
 
 export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZod {
   const { meta, manager } = deps;
+  /**
+   * The tab's workspace, as the databases the assistant works with: resolved
+   * here, by the server, and narrowing only (rights are still asked table by
+   * table). One the person cannot see is not found.
+   */
+  async function withWorkspace<H extends { workspaceId?: string | undefined; connectionIds: string[] }>(request: FastifyRequest, host: H): Promise<H & { workspaceConnectionIds?: string[] }> {
+    if (host.workspaceId === undefined) return host;
+    const allowed = await workspaceConnections(meta, request, host.workspaceId);
+    if (allowed === null) throw new NotFoundError('There is no such workspace.', { workspaceId: host.workspaceId });
+    return { ...host, workspaceConnectionIds: [...allowed].sort() };
+  }
   const sessions = assistantSessionsRepo(meta);
   const settings = settingsRepo(meta);
 
@@ -531,7 +543,8 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
             reason: state.reason,
           });
         }
-        const { context, host, draft } = request.body;
+        const { context, draft } = request.body;
+        const host = await withWorkspace(request, request.body.host);
 
         const setup = await setUpTurn({
           meta,
@@ -628,7 +641,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
           meta,
           manager,
           context: request.body.context,
-          host: request.body.host,
+          host: await withWorkspace(request, request.body.host),
           userId: requireUserId(request),
           can: (permission) => request.can(permission),
           ...(deps.addOns === undefined ? {} : { addOns: deps.addOns }),
@@ -703,7 +716,7 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
               ? {}
               : {
                   context: request.body.context,
-                  host: request.body.host ?? { connectionIds: [] },
+                  host: await withWorkspace(request, request.body.host ?? { connectionIds: [] }),
                   ...(request.body.draft === undefined ? {} : { draft: request.body.draft }),
                 }),
           },

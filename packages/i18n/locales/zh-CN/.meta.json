@@ -38339,6 +38339,22 @@
     "status": "mt",
     "srcHash": "35ea33e0547d"
   },
+  "studio.surfacePages.moved.body": {
+    "status": "mt",
+    "srcHash": "076561d623ed"
+  },
+  "studio.surfacePages.moved.one": {
+    "status": "mt",
+    "srcHash": "a116ec2093b1"
+  },
+  "studio.surfacePages.moved.open": {
+    "status": "mt",
+    "srcHash": "a405a22e5486"
+  },
+  "studio.surfacePages.moved.other": {
+    "status": "mt",
+    "srcHash": "3ac1e05cb7c2"
+  },
   "studio.surfacePages.notFound.body": {
     "status": "mt",
     "srcHash": "ce50f3214a01"

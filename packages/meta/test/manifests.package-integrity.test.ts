@@ -42,6 +42,7 @@ for (const dialect of TEST_DIALECTS) {
         source: 'file',
         document: { kind: 'app', manifestVersion: 1, key: 'clinic', name: 'Clinic', version: '1.0.0' },
         attachTo: [],
+        scopeKey: 'server',
       });
 
     it('starts null, because no copy is held until one is uploaded', async () => {

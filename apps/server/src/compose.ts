@@ -94,6 +94,7 @@ import {
   importServerHalf,
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
+import { installOfRecord } from './installs/resolve.js';
 import { keepAddOnInstalls } from './apps/table-ref.js';
 import { createAnswerDoor } from './forms/answer.js';
 import { createFormsCatalog } from './forms/catalog.js';
@@ -307,6 +308,7 @@ import { rolesRoutes } from './routes/roles/index.js';
 import { rowsNaming } from './crud/rows-naming.js';
 import { handOverRows } from './rbac/hand-over.js';
 import { teamsRoutes } from './routes/teams/index.js';
+import { workspacesRoutes } from './routes/workspaces/index.js';
 import { rowReachRoutes } from './routes/teams/reach.js';
 import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaDdlRoutes } from './routes/schema-ddl/index.js';
@@ -792,7 +794,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const set = await app.rbac.resolve(request);
     if (set.screensOnly === null) return;
     const settings = app.surfaceSettings === null ? NO_SURFACE_SETTINGS : await app.surfaceSettings.read();
-    const connections = await appConnections(meta, settings, set.screensOnly);
+    const connections = await appConnections(meta, settings, set.screensOnly, set.screensOnlyInstalls);
     // Their apps' add-ons are read only for the routes that ask an add-on something.
     const asksAnAddOn = [STAFF_WORDS_ROUTE, ADD_ON_LOOK_UP_ROUTE, ADD_ON_DOCUMENT_ROUTE, ADD_ON_PANEL_BUNDLE_ROUTE, ADD_ON_PAGE_FILES_ROUTE];
     const addOns = asksAnAddOn.includes(route) ? await appAddOns(meta, set.screensOnly, connections) : undefined;
@@ -1173,6 +1175,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     adjustDecider: (addOnKey) => deciderFor(addOnRuntime, addOnKey, 'adjust'),
     checkDecider: (addOnKey) => deciderFor(addOnRuntime, addOnKey, 'check'),
     versionNow: async (addOnKey) => {
+      // key-wide: one version of an add-on runs on a server, so any copy says it.
       const row = await meta.db.selectFrom('adminium_manifests').select(['version', 'status']).where('manifestKey', '=', addOnKey).where('kind', '=', 'add-on').executeTakeFirst();
       return row === undefined ? null : { version: row.version, status: row.status };
     },
@@ -2477,6 +2480,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // Which add-ons are loaded now: an app's documents are on only while theirs is.
         addOnRuntime: () => addOnRuntime,
         sampleData: sampleDataDeps,
+        // Where the files an app's emails carry are kept.
+        library: storage,
         // What an update carries over once: an old unsubscribe mark onto the do-not-email list, an old tick into the consent column.
         consent,
         // What an app's guests may call: endpoints and a browser key made
@@ -2673,7 +2678,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           serverVersion: APP_VERSION,
           // Where the app a turn builds keeps its data: its installed row's database, else the one the project gives it.
           connectionFor: async (appKey) => {
-            const installed = await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).findByKey(appKey);
+            // A project app is once per server: its one install says which database.
+            const installed = (await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).listByKey(appKey))[0] ?? null;
             if (installed !== null && installed.row.connectionId !== null) return installed.row.connectionId;
             const database = opts.project?.apps?.[appKey]?.database ?? opts.project?.databases?.[0];
             return database === undefined ? null : ((await manager.connections.findByProjectKey(database))?.id ?? null);
@@ -3072,14 +3078,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
            * is the one place "uninstall keeps data" bends, because an add-on's
            * configuration is part of the add-on, not the customer's data.
            */
-          onAddOnRemoved: async (key) => {
-            await documentProfilesRepo(meta).setEnabledForAddOn(key, false);
+          onAddOnRemoved: async (install) => {
+            // One install's: another database's copy of the add-on keeps rendering, firing and its settings.
+            const which = { addOnKey: install.row.manifestKey, installId: install.row.id };
+            await documentProfilesRepo(meta).setEnabledForAddOn(which, false);
             // …and through to the RULES those mappings own (D55). Disabling
             // the mapping alone would leave a rule that still fires on every
             // write and skips every time — a run row per write, in Workflow
             // Logs, for an add-on that is gone.
-            await syncTriggersForAddOn(meta, key, false);
-            await addOnSettingsRepo(meta).clear(key);
+            await syncTriggersForAddOn(meta, which, false);
+            await addOnSettingsRepo(meta).clearForInstall(install.row.id);
           },
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
           schemaTarget: addOnInstaller.schemaTarget,
@@ -3088,6 +3096,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       );
       await api.register(rolesRoutes);
       await api.register(teamsRoutes);
+      await api.register(workspacesRoutes);
       await api.register(rowReachRoutes({ meta, manager }));
       // A person named in rows is not removed for good until those rows are somebody's: the users routes ask this.
       api.decorate('rowsNamingUser', (userId: string) => rowsNaming(meta, manager, userId));
@@ -3392,14 +3401,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * And code that decides may leave a rejected promise behind: dropped, logged.
    */
   bindDeciderGates({
+    // Deciding code is loaded once per key (one version per server), so its gate is the key's: every install of it.
     status: async (addOnKey) => {
-      const rows = await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).list('add-on');
-      return rows.find((entry) => entry.row.manifestKey === addOnKey)?.row.status ?? null;
+      const rows = (await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).listByKey(addOnKey)).filter((entry) => entry.row.kind === 'add-on');
+      return rows.find((entry) => entry.row.status === 'updating')?.row.status ?? rows[0]?.row.status ?? null;
     },
     setStatus: async (addOnKey, status) => {
       const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
-      const row = (await repo.list('add-on')).find((entry) => entry.row.manifestKey === addOnKey);
-      if (row !== undefined) await repo.setStatus(row.row.id, status);
+      for (const row of (await repo.listByKey(addOnKey)).filter((entry) => entry.row.kind === 'add-on')) await repo.setStatus(row.row.id, status);
     },
     rebuild: () => rebuildAddOnRuntime(),
   });
@@ -3428,7 +3437,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
     const runtime = await buildAddOnRuntime({
       store: addOnStore,
-      installed: parsed.map((p) => ({ manifest: p.manifest, version: p.row.version })),
+      // Once per key: every install of an add-on runs the same code (one version per server).
+      installed: parsed.filter((p, at) => parsed.findIndex((other) => other.manifest.key === p.manifest.key) === at).map((p) => ({ manifest: p.manifest, version: p.row.version })),
       // Read at every build: a download a moment ago is trusted by the time its add-on is installed.
       trust: await trustSources(meta),
       log: (message, data) => app.log.warn(data, message),
@@ -3446,8 +3456,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
     // Event handlers become job kinds on the SHARED registry, so add-on work
     // gets the worker's retries, cancellation and `jobs:<jobId>` progress.
+    // One kind per key and event: the code is loaded once per key (one version per server), and each run
+    // names its install, whose credential it then uses.
     const events = [];
+    const eventKeys = new Set<string>();
     for (const { row, manifest } of parsed) {
+      if (eventKeys.has(manifest.key)) continue;
+      eventKeys.add(manifest.key);
       for (const declared of manifest.addOn.events ?? []) {
         let module: unknown;
         try {
@@ -3467,7 +3482,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           module,
           // Built from the MANIFEST, so no caller can widen the allow-list.
           http: addOnHttpClientFor(meta, manifest),
-          credential: async () => (await repo.getCredential(row.id))?.secret ?? null,
+          credential: async (installId: string | undefined) => {
+            const install = await installOfRecord(repo, manifest.key, installId);
+            return install === null ? null : ((await repo.getCredential(install.row.id))?.secret ?? null);
+          },
         });
       }
     }

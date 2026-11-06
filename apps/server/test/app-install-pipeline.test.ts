@@ -1512,7 +1512,7 @@ async function installEmails(h: Harness): Promise<void> {
     },
   });
   // Stored with the real tables' ids, as the producers and the sender will read it.
-  const stored = JSON.parse((await appOutboxesRepo(h.meta).findByApp('pos'))!.definition) as { table: string; recipient: { table: string }; producers: { onCreate: { table: string } }[] };
+  const stored = JSON.parse((await appOutboxesRepo(h.meta).findOnConnection('pos', h.connectionId))!.definition) as { table: string; recipient: { table: string }; producers: { onCreate: { table: string } }[] };
   expect([stored.table, stored.recipient.table, stored.producers[0]!.onCreate.table].map((t) => t.split('.').pop())).toEqual([
     'pos_messages',
     'pos_patients',
@@ -1539,7 +1539,7 @@ async function installEmails(h: Harness): Promise<void> {
   const gone = await h.app.inject({ method: 'DELETE', url: '/apps/pos' });
   expect(gone.statusCode, gone.body).toBe(200);
   expect(gone.json().removed.emails).toBe(1);
-  expect(await appOutboxesRepo(h.meta).findByApp('pos')).toBeNull();
+  expect(await appOutboxesRepo(h.meta).findOnConnection('pos', h.connectionId)).toBeNull();
   expect(await templates.findByKeyLocale('pos-confirmation', 'en_US')).toBeNull();
   expect((await templates.findByKeyLocale('pos-confirmation', 'de_DE'))!.subject).toBe('Ihr Termin');
   expect((await templates.findByKeyLocale('pos-reminder', 'de_DE'))!.subject).toBe('Mine');

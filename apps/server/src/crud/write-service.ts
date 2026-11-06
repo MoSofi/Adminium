@@ -129,7 +129,7 @@ import { inTransaction, withNamedLock } from './capacity-guard.js';
 import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js';
 import { bandsAfterFormulas, settleBands } from './band.js';
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
-import { fillFromElsewhere, fillLinksFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
+import { fillFromElsewhere, fillLinksFromElsewhere, settingsReaderOn, type RuleSettingsStore } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
 import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdLinkedFirst, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, movesParentsOnCreate, rowMoved, StateMoveRefused, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
 import { attachWindows, holds, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
@@ -1940,7 +1940,7 @@ export interface WriteServiceOptions {
    * default, a prefix, a start). Without one, a `currency` scale keeps 2
    * places and a fill from an add-on's setting fills nothing.
    */
-  settings?: RuleSettingsReader | undefined;
+  settings?: RuleSettingsStore | undefined;
   /**
    * The role slugs a writer holds (`any` for Super Admin), for a move only
    * some roles may make. Without it, such a move is refused: nobody can be
@@ -2245,7 +2245,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    */
   const peopleDecide = async (rules: TableRules | null, target: WriteTarget, context: WriteContext): Promise<Pick<DecideContext, 'optOut' | 'settings'>> => {
     // The settings a stamp reads (a working week, a cut-off), as every other rule reads them.
-    const settings = opts.settings === undefined ? {} : { settings: opts.settings };
+    const reader = settingsReaderOn(opts.settings, target.connectionId);
+    const settings = reader === undefined ? {} : { settings: reader };
     if (opts.people === undefined || !(rules?.stamps ?? []).some((stamp) => stamp.strict === true)) return settings;
     const declared = await opts.people.tableOf(target);
     if (declared?.optOutMark == null) return settings;
@@ -3028,12 +3029,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         rules,
         action,
         target,
-        await fillLinksFromElsewhere(rules, action, target, localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)), opts.settings),
+        await fillLinksFromElsewhere(rules, action, target, localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)), settingsReaderOn(opts.settings, target.connectionId)),
         memo,
         context.origin === 'undo',
         { origin: context.origin, zone: await zoneFor(rules, target), now, stored, rights: target.rights },
       ),
-      opts.settings,
+      settingsReaderOn(opts.settings, target.connectionId),
     );
 
   /**
@@ -3048,7 +3049,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         target,
         afterCounted(rules, action, context.origin, values, await claimSequences(rules, action, target, values, opts.sequences)),
         context.origin,
-        opts.settings,
+        settingsReaderOn(opts.settings, target.connectionId),
         formulasAfterNumbers(rules) ?? undefined,
       ),
     );
@@ -3624,14 +3625,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const rules = rulesOf(target);
     const zone = await zoneFor(rules, target);
     // A link the settings fill is filled first: what is copied through it is copied in this save.
-    const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), clock.startedAt), zone), opts.settings);
+    const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), clock.startedAt), zone), settingsReaderOn(opts.settings, target.connectionId));
     const resolved = await fillFromElsewhere(
       rules,
       'create',
       target,
       // A code a person typed is found here: a miss is the caller's to word.
       await guardedValue(() => resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), mapError),
-      opts.settings,
+      settingsReaderOn(opts.settings, target.connectionId),
     );
     // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
     const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone, await peopleDecide(rules, target, context)));
@@ -3646,7 +3647,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     // The listing rule, for a writer no person door judged: the new row as its rules filled it.
     if (opts.listings !== undefined && LISTING_ORIGINS.has(context.origin)) await guardedValue(() => opts.listings!(target, judged, null), mapError);
     // What a number without gaps needs at its INSERT, read before any lock is taken; a quote takes none.
-    const numbered = input.mode === 'save' ? await prepareNumbers(rules, 'create', target, judged, context.origin, opts.settings, formulasAfterNumbers(rules) ?? undefined) : await unclaimedNumbers(rules, target, judged);
+    const numbered = input.mode === 'save' ? await prepareNumbers(rules, 'create', target, judged, context.origin, settingsReaderOn(opts.settings, target.connectionId), formulasAfterNumbers(rules) ?? undefined) : await unclaimedNumbers(rules, target, judged);
     const checked = await carry(rules, 'create', target, context, brand(numbered), null, clock);
     // A quote's row is judged on rows read as they are: it holds none it does not write, and waits on no save.
     if (input.mode === 'dry') quoteOnly(checked);
@@ -3668,8 +3669,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     try {
       const rules = rulesOf(target);
       const zone = await zoneFor(rules, target);
-      const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, values), clock.startedAt), zone), opts.settings);
-      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), opts.settings);
+      const filled = await fillLinksFromElsewhere(rules, 'create', target, localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, values), clock.startedAt), zone), settingsReaderOn(opts.settings, target.connectionId));
+      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), settingsReaderOn(opts.settings, target.connectionId));
       const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone, await peopleDecide(rules, target, context)));
       return await daysAfterFormulas(rules, 'create', target, context, await formulate(rules, 'create', target, decided, null, context.origin), null, clock, zone);
     } catch {

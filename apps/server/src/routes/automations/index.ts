@@ -27,6 +27,7 @@
  * toast are built on.
  */
 
+import { narrowToWorkspace } from '../../workspaces/list-filter.js';
 import { assertNotPrivate } from '../../crud/row-limit.js';
 import { reachOfRequest, requestReadsWhole } from '../../crud/row-reach-request.js';
 import type { FastifyRequest } from 'fastify';
@@ -185,6 +186,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
 
   /** What shipped a rule: its manifest's key, name and kind — its key alone once that manifest is gone. */
   async function ownerOf(key: string): Promise<{ name: string; kind: 'app' | 'add-on' }> {
+    // key-wide: the owner's name and kind are its manifest's, the same on every copy.
     const row = await meta.db.selectFrom('adminium_manifests').select(['manifest', 'kind']).where('manifestKey', '=', key).executeTakeFirst();
     if (row === undefined) return { name: key, kind: 'add-on' };
     let name: unknown;
@@ -364,6 +366,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       {
         preHandler: guard,
         config: { audit: auditExempt('read-only rule list') },
+        preSerialization: narrowToWorkspace(() => app.rbac.meta, 'rules', (row) => row['connectionId'] as string | null),
         schema: { querystring: automationsListQuery, response: { 200: automationsListReply } },
       },
       async (request) => {

@@ -37,6 +37,15 @@ export type SurfaceDomainTargetDto = z.infer<typeof surfaceDomainTarget>;
 
 export const surfaceSummary = z.object({
   appKey: z.string(),
+  /**
+   * The copy this row is about, as its settings are keyed: the app's key for
+   * the copy with the plain addresses (and an app installed nowhere, a
+   * project's), `<key>~<slug>` for a later copy. Its routes below take it as
+   * `:appKey`.
+   */
+  address: z.string(),
+  /** The copy's install, or null for a surface no install stands behind. */
+  installId: z.string().nullable(),
   side: surfaceSide,
   /** URL prefix the surface serves under, e.g. `/apps/clients/staff`. */
   prefix: z.string(),
@@ -121,7 +130,8 @@ export const surfaceInstancesReply = z.object({
 });
 
 export const surfacePlacementParams = z.object({
-  appKey: z.string().min(1).max(64),
+  /** An app's key, or `<key>~<slug>` for a later copy of it. */
+  appKey: z.string().min(1).max(100),
 });
 
 export const surfacePlacementBody = z.object({

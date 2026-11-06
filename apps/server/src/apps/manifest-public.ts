@@ -24,7 +24,7 @@
  * stop the key working — the public API off, no `self` in the origin list,
  * a database with no time zone — before anything is written.
  */
-import { FORMS_KEY, hasPhoneSide, ownLinksOfPerson, type Manifest } from '@adminium/manifest';
+import { FORMS_KEY, hasPhoneSide, LOCAL_PUBLISHER_ID, ownLinksOfPerson, type Manifest } from '@adminium/manifest';
 import {
   CUSTOMER_KEY_PURPOSE,
   connectionTenantConfig,
@@ -50,6 +50,7 @@ import { generatePublishableKey, isPhoneAppKey, managedKeyKind, sealPublishableK
 import { managedGrantIssues } from '../public-api/managed-key.js';
 import { guestBase } from '../public-api/guest-base.js';
 import { addAndReadRefusal, anonymousAddAndRead } from './anonymous-access.js';
+import { installsOf, type InstallAddress } from '../installs/resolve.js';
 import { roleSlugFor } from './manifest-roles.js';
 import { mapTableRefs } from './real-refs.js';
 
@@ -220,6 +221,9 @@ function definitionOf(
   // Ordered by the key when it is shown, else by the first column shown: an
   // order never reveals a column the endpoint does not.
   const order = select.includes(key) || select.length === 0 ? key : (select[0] as string);
+  // A file made on an Adminium says its own pages, rate and reply; every other entry has Adminium's.
+  const pages = entry.pagination;
+  const rate = entry.rateLimit;
   return {
     path: `/${ref}`,
     source: tableId,
@@ -228,7 +232,7 @@ function definitionOf(
     // Passed on whole: a relative filter (`today`) is worked out on every
     // request, on the venue's clock.
     filters: (entry.filters ?? []).map((filter) => ({ ...filter })),
-    pagination: { default_limit: 50, max_limit: 200, order: `${order}.asc` },
+    pagination: pages === undefined ? { default_limit: 50, max_limit: 200, order: `${order}.asc` } : { default_limit: pages.defaultLimit, max_limit: pages.maxLimit, order: pages.order ?? `${order}.asc` },
     // Signed in to reach it — except a create a session is optional on. A read for a session alone needs one too.
     auth: {
       role:
@@ -236,8 +240,8 @@ function definitionOf(
           ? 'authenticated'
           : 'anon',
     },
-    rate_limit: { requests: 60, window: '1m' },
-    response: { shape: 'object', envelope: 'data' },
+    rate_limit: rate === undefined ? { requests: 60, window: '1m' } : { requests: rate.requests, window: rate.window },
+    response: entry.response === 'array' ? { shape: 'array' } : entry.response === 'single' ? { shape: 'single' } : { shape: 'object', envelope: 'data' },
     // A child writes only what it names: never the default of every column shown.
     ...(entry.writable === undefined ? (entry.visibleWith === undefined ? {} : { writable: [] }) : { writable: [...entry.writable] }),
     ...(entry.writableValues === undefined ? {} : { writable_values: { ...entry.writableValues } }),
@@ -453,8 +457,11 @@ export function publicEntryRefs(entries: readonly PublicAccessEntry[], names: Re
   const taken = new Set<string>();
   return entries.map((entry) => {
     const real = names[entry.table] ?? entry.table;
+    // An endpoint a file made on an Adminium names itself keeps its own address.
     const base =
-      entry.kind === 'availability'
+      entry.path !== undefined
+        ? entry.path.slice(1)
+        : entry.kind === 'availability'
         ? `${real}_availability`
         : entry.unlockBy !== undefined
           ? `${real}_unlocked`
@@ -561,7 +568,9 @@ export function planPublicEndpoints(
     };
     if (pending) return planned;
     // What the app's own key may hold is known from the entry alone.
-    const safety = managedGrantIssues(ref, definitionOf(manifest, entry, ref, real, ['id'], undefined, identityRefOf(entry), parent, personOf(entry)), entry.methods, new Set()).map(
+    const safety = managedGrantIssues(ref, definitionOf(manifest, entry, ref, real, ['id'], undefined, identityRefOf(entry), parent, personOf(entry)), entry.methods, new Set(), {
+      wider: (manifest.publisher as { id?: string } | undefined)?.id === LOCAL_PUBLISHER_ID,
+    }).map(
       (issue) => issue.message,
     );
     /*
@@ -746,6 +755,8 @@ export async function installPublicAccess(input: {
   meta: MetaDb;
   crypto: DsnCrypto;
   manifest: Manifest;
+  /** The install the endpoints and keys belong to. */
+  install: InstallAddress;
   connectionId: string;
   names: Readonly<Record<string, string>>;
   view: SnapshotView;
@@ -840,6 +851,7 @@ export async function installPublicAccess(input: {
         origin: 'custom',
         actorId: input.actorId,
         managedBy: entry.owner,
+        ...(entry.owner === input.manifest.key ? { installId: input.install.id } : {}),
         // The operator's own folder, being edited: the endpoint changes with the manifest.
         ...(input.ownFolder === true && input.grant !== false ? { operatorAllowed: true } : {}),
       });
@@ -927,7 +939,7 @@ export async function installPublicAccess(input: {
       for (const entry of planned.filter((candidate) => candidate.key === purpose)) skipped.push({ ref: entry.ref, reason: refusal });
       continue;
     }
-    const binding = staffBindingOf(manifest, purpose, input);
+    const binding = staffBindingOf(manifest, purpose, input, input.install.slug);
     // A second key the manifest does not declare (the check refuses that) is never made unbound —
     // except a shared link's own key, which no staff signs in: its token is its lock.
     if (purpose !== CUSTOMER_KEY_PURPOSE && binding === null && !opensByToken(manifest, purpose)) continue;
@@ -944,6 +956,7 @@ export async function installPublicAccess(input: {
         kind: 'browser',
         actorId: input.actorId,
         managedBy: manifest.key,
+        installId: input.install.id,
         purpose,
         ...(binding === null ? {} : binding),
       });
@@ -997,6 +1010,7 @@ export async function installPublicAccess(input: {
           kind: 'app',
           actorId: input.actorId,
           managedBy: manifest.key,
+          installId: input.install.id,
           purpose: CUSTOMER_KEY_PURPOSE,
         });
         const peak = manifest.kind === 'app' ? manifest.publicKeys?.[CUSTOMER_KEY_PURPOSE]?.peak : undefined;
@@ -1070,6 +1084,8 @@ export async function takeBackPublicAccess(input: {
     (k) => k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at) && here.has(k.id),
   );
   if (live.length === 0) return;
+  // The install on this database: a staff key names its own roles, never another install's.
+  const install = await installsOf(input.meta).findInScope(manifest.key, connectionId);
   // The refs come from the manifest and the table names alone: no entry's own check can stop this.
   const planned = plannedPublicEndpointsFor(manifest, input.names, null, {}, input.addOns ?? []).filter((entry) => !entry.pending);
   const staffed = (purpose: string) => manifest.kind === 'app' && manifest.publicKeys?.[purpose]?.requiresStaff !== undefined;
@@ -1097,7 +1113,7 @@ export async function takeBackPublicAccess(input: {
     const { lost } = await input.service.narrowManagedAccess({ connectionId, keyId: key.id, declared });
     if (lost.length > 0) await input.onCommitted({ kind: 'withdraw', keyId: key.id, purpose, lost });
     if (input.view === null) continue;
-    const binding = staffBindingOf(manifest, purpose, { names: input.names, view: input.view });
+    const binding = staffBindingOf(manifest, purpose, { names: input.names, view: input.view }, install?.row.instanceSlug ?? '');
     if (binding === null) continue;
     if (JSON.stringify(keyStaffBinding(key)) !== JSON.stringify(binding.requiresStaff) || JSON.stringify(keyEnabledBy(key)) !== JSON.stringify(binding.enabledBy)) {
       await keysRepo.setBinding(key.id, binding);
@@ -1145,12 +1161,14 @@ export function staffBindingOf(
   manifest: Manifest,
   purpose: string,
   input: { names: Readonly<Record<string, string>>; view: SnapshotView },
+  /** The install's slug: its key needs its own role, not another install's. */
+  installSlug = '',
 ): { requiresStaff: KeyStaffBinding; enabledBy: KeyEnabledBy | null } | null {
   if (purpose === CUSTOMER_KEY_PURPOSE || manifest.kind !== 'app') return null;
   const declared = manifest.publicKeys?.[purpose];
   if (declared?.requiresStaff === undefined) return null;
   return {
-    requiresStaff: { appKey: manifest.key, roleSlug: roleSlugFor(manifest.key, declared.requiresStaff.role) },
+    requiresStaff: { appKey: manifest.key, roleSlug: roleSlugFor(manifest.key, declared.requiresStaff.role, installSlug) },
     enabledBy: declared.enabledBy === undefined ? null : { table: idOfTable(input, declared.enabledBy.table), column: declared.enabledBy.column },
   };
 }

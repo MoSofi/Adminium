@@ -20,6 +20,13 @@
  * The caller passes the manifest's own declared settings, so the repo does
  * not need to know what any particular add-on's keys mean: it needs to know
  * which of them the MANIFEST marked `secret`, and refuse exactly those.
+ *
+ * ─── ONE ROW PER INSTALL (wave 0076) ──────────────────────────────────────
+ *
+ * The same add-on may be installed once per database, and each install keeps
+ * its own values (Fernhill's business name is not Kiln's). Rows are found by
+ * the install id (`manifest_id`), never by the add-on key: a caller with only
+ * a key resolves the install first.
  */
 
 import type { Kysely } from 'kysely';
@@ -29,6 +36,8 @@ import type { AdminiumAddOnSettingsTable, MetaDB } from '../schema/tables.js';
 import { affected, packJson, readJson } from './util.js';
 
 export interface AddOnSettings {
+  /** The install the values belong to. */
+  manifestId: string;
   addOnKey: string;
   values: Record<string, unknown>;
   updatedBy: string | null;
@@ -55,15 +64,16 @@ export class SecretSettingRefused extends Error {
 export function addOnSettingsRepo(meta: MetaDb) {
   const db = meta.db as unknown as Kysely<MetaDB>;
 
-  async function get(addOnKey: string): Promise<AddOnSettings | null> {
+  async function getForInstall(manifestId: string): Promise<AddOnSettings | null> {
     const row = await db
       .selectFrom('adminium_add_on_settings')
       .selectAll()
-      .where('addOnKey', '=', addOnKey)
+      .where('manifestId', '=', manifestId)
       .executeTakeFirst();
     return row === undefined
       ? null
       : {
+          manifestId: row.manifestId,
           addOnKey: row.addOnKey,
           values: readJson<Record<string, unknown>>(row.values),
           updatedBy: row.updatedBy,
@@ -72,8 +82,8 @@ export function addOnSettingsRepo(meta: MetaDb) {
   }
 
   /** The values, or `{}` — what a renderer wants, with no null to handle. */
-  async function valuesFor(addOnKey: string): Promise<Record<string, unknown>> {
-    return (await get(addOnKey))?.values ?? {};
+  async function valuesForInstall(manifestId: string): Promise<Record<string, unknown>> {
+    return (await getForInstall(manifestId))?.values ?? {};
   }
 
   /**
@@ -84,7 +94,7 @@ export function addOnSettingsRepo(meta: MetaDb) {
    * which is how one tab's stale copy silently reverts another's save.
    */
   async function patch(
-    addOnKey: string,
+    install: { manifestId: string; addOnKey: string },
     changes: Record<string, unknown>,
     declared: readonly DeclaredSetting[],
     opts: { updatedBy?: string | null; at?: number } = {},
@@ -109,13 +119,15 @@ export function addOnSettingsRepo(meta: MetaDb) {
     );
 
     const at = opts.at ?? Date.now();
-    const current = await get(addOnKey);
+    const { manifestId, addOnKey } = install;
+    const current = await getForInstall(manifestId);
     const values = { ...(current?.values ?? {}), ...accepted };
 
     if (current === null) {
       await db
         .insertInto('adminium_add_on_settings')
         .values({
+          manifestId,
           addOnKey,
           values: packJson(values),
           updatedBy: opts.updatedBy ?? null,
@@ -130,10 +142,10 @@ export function addOnSettingsRepo(meta: MetaDb) {
           updatedBy: opts.updatedBy ?? null,
           updatedAt: at,
         } as never)
-        .where('addOnKey', '=', addOnKey)
+        .where('manifestId', '=', manifestId)
         .execute();
     }
-    return (await get(addOnKey))!;
+    return (await getForInstall(manifestId))!;
   }
 
   /**
@@ -145,15 +157,15 @@ export function addOnSettingsRepo(meta: MetaDb) {
    * is not that. It is part of the add-on, it means nothing without it, and it
    * goes with it exactly as a credential does.
    */
-  async function clear(addOnKey: string): Promise<boolean> {
+  async function clearForInstall(manifestId: string): Promise<boolean> {
     const rows = await db
       .deleteFrom('adminium_add_on_settings')
-      .where('addOnKey', '=', addOnKey)
+      .where('manifestId', '=', manifestId)
       .executeTakeFirst();
     return affected(rows.numDeletedRows) === 1;
   }
 
-  return { get, valuesFor, patch, clear };
+  return { getForInstall, valuesForInstall, patch, clearForInstall };
 }
 
 export type AddOnSettingsRepo = ReturnType<typeof addOnSettingsRepo>;

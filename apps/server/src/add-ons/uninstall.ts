@@ -16,8 +16,10 @@
  * parts go; a stop leaves it `updating`, and the same call finishes: every
  * step is safe to run twice.
  */
+import { addOnSettingsRef } from '../rbac/permissions.js';
 import { installsLikeAnApp, isAddOnManifest, validateManifest, type AddOnManifest } from '@adminium/manifest';
 import { appTablesRepo, auditRepo, manifestsRepo, permissionsRepo, type InstalledManifest } from '@adminium/meta';
+import { grantKeyOf, resolveInstall, type InstallSelector } from '../installs/resolve.js';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { deciderGate } from './decide.js';
@@ -27,6 +29,10 @@ import { pagesAreGated } from './page-gate.js';
 
 export interface UninstallAddOnInput {
   key: string;
+  /** The install to remove, when the key has several (one per database). */
+  installId?: string | undefined;
+  /** Or the database whose install is meant. */
+  connectionId?: string | undefined;
   /** Also delete the tables it made, with their rows. Super Admin only, and only with `confirmKey`. */
   dropTables?: boolean | undefined;
   /** The add-on's key, typed: what makes a drop deliberate. */
@@ -56,8 +62,8 @@ function manifestOf(installed: InstalledManifest): AddOnManifest | null {
 }
 
 /** Refuses a removal while a rule of the owner's, or a feature of an app, still hands rows to the add-on. */
-async function refuseWhileInUse(deps: AddOnInstallerDeps, key: string): Promise<void> {
-  const inUse = await addOnInUse(deps.meta, key);
+async function refuseWhileInUse(deps: AddOnInstallerDeps, key: string, install: { id: string; scopeKey: string }): Promise<void> {
+  const inUse = await addOnInUse(deps.meta, key, install);
   if (inUse.postings.length + inUse.features.length === 0) return;
   throw new AppError(
     409,
@@ -75,12 +81,12 @@ async function refuseWhileInUse(deps: AddOnInstallerDeps, key: string): Promise<
  * What a removal would take, keep and may drop — and what stands in its way.
  * Reads only.
  */
-export async function addOnUninstallPlan(deps: AddOnInstallerDeps, key: string) {
-  const installed = await manifestsRepo(deps.meta, deps.credentialCrypto).findByKey(key);
+export async function addOnUninstallPlan(deps: AddOnInstallerDeps, key: string, selector: InstallSelector = {}) {
+  const installed = await resolveInstall(manifestsRepo(deps.meta, deps.credentialCrypto), key, selector, { kind: 'add-on' });
   if (installed === null || installed.row.kind !== 'add-on') throw new NotFoundError(`"${key}" is not installed.`);
   const manifest = manifestOf(installed);
   const core = deps.core?.() ?? null;
-  const inUse = await addOnInUse(deps.meta, key);
+  const inUse = await addOnInUse(deps.meta, key, installed.row);
   const likeApp = manifest !== null && installsLikeAnApp(manifest) && core !== null;
   const list = likeApp ? await core.removals.listOf(installed) : null;
   const listed = list as null | { pages?: { removed: { slug: string }[]; kept: { slug: string }[] }; roles?: { role: { slug: string }; members: unknown[] }[]; tables: readonly { droppable: boolean; record: { tableName: string } }[] };
@@ -101,7 +107,8 @@ export async function addOnUninstallPlan(deps: AddOnInstallerDeps, key: string) 
 export async function uninstallAddOn(deps: AddOnInstallerDeps, input: UninstallAddOnInput): Promise<UninstallAddOnResult> {
   const { key } = input;
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
-  const installed = await manifests.findByKey(key);
+  // One install: named, or the key's only one. Another install of the key, on another database, stays as it is.
+  const installed = await resolveInstall(manifests, key, { installId: input.installId, connectionId: input.installId === undefined ? input.connectionId : undefined }, { kind: 'add-on' });
   if (installed === null || installed.row.kind !== 'add-on') throw new NotFoundError(`"${key}" is not installed.`);
   const manifest = manifestOf(installed);
   const core = deps.core?.() ?? null;
@@ -109,7 +116,7 @@ export async function uninstallAddOn(deps: AddOnInstallerDeps, input: UninstallA
   const dropTables = input.dropTables === true;
 
   // Asked first, all of it: nothing below is undone.
-  await refuseWhileInUse(deps, key);
+  await refuseWhileInUse(deps, key, installed.row);
   const superAdmin = (await input.actor.superAdmin?.()) ?? false;
   if (dropTables) {
     if (!likeApp) throw new ValidationFailedError(`"${key}" keeps no tables this server made for it, so there is nothing to drop.`, { reason: 'NOTHING_TO_DROP' });
@@ -154,16 +161,24 @@ export async function uninstallAddOn(deps: AddOnInstallerDeps, input: UninstallA
     }
     // A page of its own code has no page row: whoever was granted it by its ref — a role of the owner's too — holds nothing now.
     // Whatever else of it there was to remove: an add-on with pages and nothing more has these grants all the same.
-    if (manifest !== null && pagesAreGated(manifest)) {
+    // Its code pages are named by ref for every install of the key: their grants go with the last one.
+    const othersRemain = (await manifests.listByKey(key)).some((one) => one.row.id !== installed.row.id);
+    if (manifest !== null && pagesAreGated(manifest) && !othersRemain) {
       for (const page of manifest.addOn.pages ?? []) await permissionsRepo(deps.meta).revokeAllForResource('page', page.ref);
     }
     await input.beforeRowGoes?.();
+    // Every grant naming this install goes with it: its address may be taken by another install later.
+    await permissionsRepo(deps.meta).revokeAllForResource('app', addOnSettingsRef(grantKeyOf(installed.row)));
     await manifests.uninstall(installed.row.id);
     // After the row: bytes left behind are untidy; an installed add-on whose code is gone would be broken.
-    try {
-      await deps.store.removeKey(key);
-    } catch {
-      result.packageRemoved = false;
+    // The key's files go with its LAST install: another database's copy still runs them.
+    if ((await manifests.listByKey(key)).length > 0) result.packageRemoved = false;
+    else {
+      try {
+        await deps.store.removeKey(key);
+      } catch {
+        result.packageRemoved = false;
+      }
     }
   };
 

@@ -35,6 +35,8 @@
  * build behind, and only `openapi-check` catches it.
  */
 
+import { narrowToWorkspace, workspaceIdQuery } from '../../workspaces/list-filter.js';
+import { grantKeyOf, installOnConnection, requireInstall, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { rowTestOf } from '../../crud/row-limit-context.js';
 import { reachOfRequest } from '../../crud/row-reach-request.js';
 import {
@@ -52,7 +54,9 @@ import {
   appTablesRepo,
   auditRepo,
   connectionTenantConfig,
+  connectionsRepo,
   pagesRepo,
+  permissionsRepo,
   projectAppsRepo,
   publicEndpointsRepo,
   SecretSettingRefused,
@@ -66,7 +70,7 @@ import {
   roleNameFor,
 } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
-import type { z } from 'zod';
+import { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { AddOnCatalogError, pickLocalized } from '../../add-ons/catalog.js';
@@ -164,6 +168,10 @@ import {
   renameTablesReply,
   stagedAppParams,
   stagedAppReply,
+  appInstanceParams,
+  appInstanceAdoptPlanReply,
+  appInstanceAdoptBody,
+  appInstanceAdoptReply,
   uninstallAppReply,
   updateAppBody,
   updateAppReply,
@@ -209,6 +217,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     manifestOnlyDocument,
     publisherIdOf,
     publisherChangeRefusal,
+    lineageRefusal,
+    olderVersionRefusal,
+    copiesOf,
     verifiedManifest,
     appManifestFrom,
     addOnRowsFor,
@@ -220,6 +231,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   } = service;
 
   type InstalledApp = Awaited<ReturnType<typeof manifests.list>>[number];
+  /** Connection names, for a refusal that lists a key's installs. */
+  const connectionNames = async (): Promise<Map<string, string>> =>
+    new Map((await deps.meta.db.selectFrom('adminium_connections').select(['id', 'name']).execute()).map((row) => [row.id, row.name]));
 
   /** Whether the caller may open the row-ceiling door a schema edit can need. */
   async function isSuperAdmin(request: FastifyRequest): Promise<boolean> {
@@ -232,6 +246,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   async function runsFromFolder(key: string): Promise<boolean> {
     // A package of a key the folder also carries is shadowed: what an update would read is the folder's manifest.
     if (files.sourceOf(key) === 'folder') return true;
+    // key-wide: a project app is installed once per server.
     return (await manifests.list('app')).some((m) => m.row.manifestKey === key && m.row.source === FOLDER_SOURCE);
   }
 
@@ -284,7 +299,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       '/apps',
       {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
-        schema: { response: { 200: appListReply } },
+        preSerialization: narrowToWorkspace(deps.meta, 'apps', (row) => row['connectionId'] as string | null),
+        schema: { querystring: z.object({ workspaceId: workspaceIdQuery }), response: { 200: appListReply } },
       },
       async (request) => {
         const rows = await manifests.list('app');
@@ -420,6 +436,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         // What is installed, read BEFORE the stage: `identify` runs inside it
         // and cannot wait on the meta store.
         const installedRows = await manifests.list('app');
+        // Each copy of each key, with its database's name: what a refusal below names, and where the reply says the file goes.
+        const copiesByKey = new Map<string, Awaited<ReturnType<typeof copiesOf>>>();
+        for (const keyed of new Set(installedRows.map((installed) => installed.row.manifestKey))) copiesByKey.set(keyed, await copiesOf(keyed));
         const installedVersions = new Map(installedRows.map((installed) => [installed.row.manifestKey, installed.row.version]));
         const installedPublishers = new Map(installedRows.map((installed) => [installed.row.manifestKey, publisherIdOf(installed.document)]));
         // The keys the cached catalogue lists, when there is one: a self-made
@@ -519,6 +538,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                   { reason: 'KEY_IN_CATALOG' },
                 );
               }
+              // Another dashboard's app saved under this key, or an older version than a copy runs: refused, saying where.
+              const copies = copiesByKey.get(manifest.key) ?? [];
+              const otherApp = lineageRefusal(manifest, copies) ?? olderVersionRefusal(manifest, copies);
+              if (otherApp !== null) throw otherApp;
               const installedVersion = installedVersions.get(manifest.key);
               if (installedVersion !== undefined && installedVersion !== manifest.version) {
                 const refused = updateRefusal(manifest, installedVersion);
@@ -582,6 +605,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           userLabel,
         );
 
+        // Where it goes: nowhere yet, over every copy, or onto a database without one.
+        const copies = copiesByKey.get(key) ?? [];
+        const taken = new Set(copies.map((copy) => copy.connectionId));
+        const databasesFree = (await connectionsRepo(deps.meta, deps.credentialCrypto).list()).filter((connection) => !taken.has(connection.id)).length;
+        const route: 'install' | 'update' | 'install-another' = copies.length === 0 ? 'install' : copies.some((copy) => compareSemver(version, copy.version) > 0) ? 'update' : 'install-another';
         return {
           key,
           version,
@@ -591,6 +619,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           files: Object.keys(staged.tree.files).length,
           integrity: staged.tree.integrity,
           sides,
+          route,
+          installs: copies.map(({ document: _document, ...copy }) => copy),
+          databasesFree,
         };
       },
     );
@@ -914,8 +945,14 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         }
 
         apps.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+        // A status row per copy, one per database.
+        const withCopies = [];
+        for (const entry of apps) {
+          const copies = entry.installed ? await copiesOf(entry.key) : [];
+          withCopies.push({ ...entry, installs: copies.map(({ document: _document, ...copy }) => copy) });
+        }
         return {
-          apps,
+          apps: withCopies,
           catalogFetchedAt: parsedCatalog?.success === true ? (cached?.fetchedAt ?? null) : null,
           onlineEnabled: online,
           // Being fetched now, by its own refresh or with the add-on list (one request for both).
@@ -1070,11 +1107,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * recomputes the plan rather than trusting what came back from here.
        */
       async (request) => {
-        const { key, version, connectionId, choices, altPrefix, shares } = request.body;
+        const { key, version, connectionId, choices, altPrefix, shares, pages, existing } = request.body;
         const declared = await verifiedManifest(key, version);
         // The preview an update is checked with: the same refusal the update
         // route gives, before the operator is shown tables to consent to.
-        const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+        // Any install of the key: one publisher names a key across the server.
+        const installed = (await manifests.listByKey(key)).find((m) => m.row.kind === 'app');
         if (installed !== undefined) {
           // Never the plan of a takeover: the same refusal install and update give.
           const changed = publisherChangeRefusal(declared, publisherIdOf(installed.document));
@@ -1098,9 +1136,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           {
             ...(choices === undefined ? {} : { choices }),
             ...(altPrefix === undefined ? {} : { altPrefix }),
+            ...(existing === undefined ? {} : { existing }),
             ...(shares === undefined ? {} : { shares }),
+            ...(pages === undefined ? {} : { pages }),
           },
           addOns,
+          // The copy on this database, when there is one: the plan is its update, and the other copies follow it.
+          (await manifests.findInScope(key, connectionId))?.row.id,
         );
         const publicAccess = await publicAccessOf(
           manifest,
@@ -1140,6 +1182,53 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+    /*
+     * A LEGACY INSTANCE MADE AN INSTALL OF ITS OWN, as one reviewed step: what
+     * it would do (its database, the settings it takes, the roles that will
+     * open it), then the step itself. The tables there are used as they are;
+     * the plan the operator reviews is `POST /apps/plan` on the instance's
+     * database with `existing: "use"`.
+     */
+    app.get(
+      '/apps/:key/instances/:slug/adopt',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        schema: { params: appInstanceParams, response: { 200: appInstanceAdoptPlanReply } },
+      },
+      async (request) => {
+        const { key, slug } = request.params;
+        const { connectionId, first } = await service.legacyInstanceOf(key, slug);
+        const declared = (first.document as Manifest | null)?.settings ?? [];
+        const values = await addOnSettingsRepo(deps.meta).valuesForInstall(first.row.id);
+        const roles = [];
+        const permissions = permissionsRepo(deps.meta);
+        for (const role of await rolesRepo(deps.meta).list()) {
+          const held = (await permissions.listForRole(role.id)).some((one) => one.resourceKind === 'app' && one.resourceRef === key && (one.actions as { staff?: boolean }).staff === true);
+          if (held) roles.push({ id: role.id, name: role.name });
+        }
+        return {
+          key,
+          slug,
+          connectionId,
+          connectionName: (await connectionsRepo(deps.meta, deps.credentialCrypto).findById(connectionId))?.name ?? connectionId,
+          version: first.row.version,
+          settings: declared.filter((setting) => setting.secret !== true && values[setting.key] !== undefined).map((setting) => setting.key).sort(),
+          secretsLeft: declared.filter((setting) => setting.secret === true).map((setting) => setting.key).sort(),
+          roles,
+        };
+      },
+    );
+
+    app.post(
+      '/apps/:key/instances/:slug/adopt',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: appInstanceParams, body: appInstanceAdoptBody, response: { 200: appInstanceAdoptReply } },
+      },
+      async (request) => service.adoptInstance(actorOf(request), hostOf(request), { key: request.params.key, slug: request.params.slug, planChecksum: request.body.planChecksum }),
+    );
+
     app.post(
       '/apps/:key/update',
       {
@@ -1161,7 +1250,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        */
       async (request) => {
         if (await runsFromFolder(request.params.key)) throw folderDecides(request.params.key);
-        return service.update(actorOf(request), hostOf(request), { key: request.params.key, body: request.body });
+        // One copy at a time, the one the request names: each is updated (and reviewed) on its own.
+        const selector = selectorOf(request);
+        return service.update(actorOf(request), hostOf(request), { key: request.params.key, body: request.body, installId: selector.installId, connectionId: selector.connectionId });
       },
     );
 
@@ -1180,7 +1271,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: appKeyParams, response: { 200: appRemovalsReply } },
       },
       async (request) => {
-        await installedRow(request.params.key);
+        await installedRow(request, request.params.key);
         return { key: request.params.key, removals: (await service.removals.pending(request.params.key))?.changes ?? null };
       },
     );
@@ -1211,7 +1302,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const rules = await shapeRules(deps.meta, request.params.id);
         const names = new Map<string, string>();
         for (const addOn of new Set(rules.map((rule) => rule.addOn))) {
-          const installed = await manifests.findByKey(addOn);
+          // The add-on as this database has it (its name is the same on every copy).
+          const installed = await installOnConnection(manifests, addOn, request.params.id);
           const name = (installed?.document as { name?: unknown } | null)?.name;
           names.set(addOn, typeof name === 'string' ? name : addOn);
         }
@@ -1221,11 +1313,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
 
     // ── One app's own settings page ─────────────────────────────────────────
 
-    /** The installed row, or a 404 naming the key. */
-    async function installedRow(key: string): Promise<InstalledApp> {
-      const row = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
-      if (row === undefined) throw new NotFoundError(`"${key}" is not installed.`);
-      return row;
+    /**
+     * The ONE install a request means: the `X-Adminium-Install` header or
+     * `?connectionId=`, else the key's only install. Several and nothing
+     * naming which: 409 `APP_INSTALL_AMBIGUOUS`. None: a 404 naming the key.
+     */
+    async function installedRow(request: FastifyRequest, key: string): Promise<InstalledApp> {
+      return (await requireInstall(manifests, key, selectorOf(request), { kind: 'app', connectionNames })) as InstalledApp;
     }
 
     /** What an uninstall would remove and keep — the dialog's list, and the route's own. */
@@ -1235,8 +1329,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
 
     const samples = deps.sampleData === undefined ? null : createSampleDataService(deps.sampleData);
 
-    async function sampleAppOf(key: string) {
-      const found = await findSampleApp(deps.meta, key);
+    // The install the request names (the header, or ?connectionId=), else the key's only one.
+    async function sampleAppOf(request: FastifyRequest, key: string) {
+      const found = await findSampleApp(deps.meta, key, selectorOf(request));
       if (found === null) throw new NotFoundError(`"${key}" is not installed.`);
       return found;
     }
@@ -1248,13 +1343,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: appKeyParams, response: { 200: sampleStatusReply } },
       },
       async (request) => {
-        const target = await sampleAppOf(request.params.key);
+        const target = await sampleAppOf(request, request.params.key);
         if (samples === null) {
           return { offered: false, loaded: false, total: 0, addedAt: null, tables: [], available: null };
         }
         const stored = await samples.status(target);
         // Loaded once the add has finished: rows the job has written so far are not yet the whole of it.
-        const status = stored.loaded && (await sampleAddUnderway(deps.meta, target.key)) ? { ...stored, loaded: false } : stored;
+        const status = stored.loaded && (await sampleAddUnderway(deps.meta, target)) ? { ...stored, loaded: false } : stored;
         const available = status.offered && !status.loaded ? await samples.addPreview(target) : null;
         return { ...status, available };
       },
@@ -1274,7 +1369,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * a failed job.
        */
       async (request) => {
-        const target = await sampleAppOf(request.params.key);
+        const target = await sampleAppOf(request, request.params.key);
         if (samples === null) throw new NotFoundError(`"${target.key}" ships no sample data.`, { reason: 'NO_SAMPLE_DATA' });
         await samples.addPreview(target);
         // Only the add-ons this app names: a sample is never put into an add-on the app has nothing to do with.
@@ -1289,6 +1384,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         const locale = (await userPrefsRepo(deps.meta).resolve(userId)).locale;
         const job = await enqueueSampleAdd(deps.meta, {
           key: target.key,
+          installId: target.manifestId,
           locale,
           userId,
           userLabel: request.user?.email ?? 'unknown',
@@ -1311,7 +1407,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: appKeyParams, response: { 200: sampleRemovePlanReply } },
       },
       async (request) => {
-        const target = await sampleAppOf(request.params.key);
+        const target = await sampleAppOf(request, request.params.key);
         if (samples === null) return { tables: [], kept: [], changed: [], total: 0 };
         return samples.removePreview(target);
       },
@@ -1325,7 +1421,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: appKeyParams, body: sampleRemoveBody, response: { 200: sampleRemoveReply } },
       },
       async (request) => {
-        const target = await sampleAppOf(request.params.key);
+        const target = await sampleAppOf(request, request.params.key);
         if (samples === null) return { removed: 0, kept: 0, byTable: {} };
         return samples.remove(target, {
           keepChanged: request.body.keepChanged,
@@ -1342,7 +1438,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: appKeyParams, response: { 200: uninstallPlanReply } },
       },
       async (request) => {
-        const plan = await uninstallPlanOf(await installedRow(request.params.key));
+        const plan = await uninstallPlanOf(await installedRow(request, request.params.key));
         const brief = (page: { slug: string; title: string }) => ({ slug: page.slug, title: page.title });
         // Its sample rows in a table another app goes on using: they stay, and the dialog says so.
         const sharedRefs = new Set(plan.tables.filter((entry) => entry.sharedWith.length > 0).map((entry) => entry.record.ref));
@@ -1375,6 +1471,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           ...(sharedSampleRows === 0 ? {} : { sharedSampleRows }),
           canDropTables: await isSuperAdmin(request),
           ...(plan.addOns.length === 0 ? {} : { addOns: plan.addOns }),
+          ...(plan.requiredBy.length === 0 ? {} : { requiredBy: plan.requiredBy }),
         };
       },
     );
@@ -1390,7 +1487,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         settingsRepo(deps.meta).get('surfaces.apps'),
         settingsRepo(deps.meta).get('surfaces.domains'),
       ]);
-      const entry = apps[key] ?? {};
+      // An install's own entry: the bare install's under its key, a later one's under `<key>~<slug>`.
+      const entry = apps[grantKeyOf(row.row)] ?? {};
       /*
        * Whether the customer side can actually answer. Its switch says the
        * PAGES are served; what they read and save goes through the public
@@ -1424,7 +1522,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         connectionId: entry.connectionId ?? null,
         off: entry.off ?? [],
         ...(addOns.length === 0 ? {} : { addOns }),
-        values: settingValuesWithDefaults(declaredSettings(row), await addOnSettingsRepo(deps.meta).valuesFor(key)),
+        values: settingValuesWithDefaults(declaredSettings(row), await addOnSettingsRepo(deps.meta).valuesForInstall(row.row.id)),
         declared: declaredSettings(row)
           .filter((setting) => setting.secret !== true)
           .map((setting) => ({
@@ -1455,7 +1553,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         schema: { params: appKeyParams, response: { 200: appSettingsReply } },
       },
-      async (request) => settingsView(await installedRow(request.params.key)),
+      async (request) => settingsView(await installedRow(request, request.params.key)),
     );
 
     app.patch(
@@ -1466,7 +1564,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: appKeyParams, body: appSettingsBody, response: { 200: appSettingsReply } },
       },
       async (request) => {
-        const row = await installedRow(request.params.key);
+        const row = await installedRow(request, request.params.key);
         const key = row.row.manifestKey;
         const body = request.body;
         const userId = request.user?.id ?? null;
@@ -1484,7 +1582,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         // Read-modify-write from the store, touching only what was sent.
         const settings = settingsRepo(deps.meta);
         const apps = await settings.get('surfaces.apps');
-        const entry = { ...(apps[key] ?? {}) };
+        // This install's entry: its name, placement and switched-off sides are its own.
+        const address = grantKeyOf(row.row);
+        const entry = { ...(apps[address] ?? {}) };
         if (body.name !== undefined) {
           if (body.name === null) delete entry.name;
           else entry.name = body.name;
@@ -1500,12 +1600,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         }
         const surfaceFields = ['name', 'placement', 'connectionId', 'off'] as const;
         if (surfaceFields.some((field) => body[field] !== undefined)) {
-          await settings.set('surfaces.apps', { ...apps, [key]: entry }, { updatedBy: userId });
+          await settings.set('surfaces.apps', { ...apps, [address]: entry }, { updatedBy: userId });
         }
         if (body.values !== undefined) {
           try {
             await addOnSettingsRepo(deps.meta).patch(
-              key,
+              { manifestId: row.row.id, addOnKey: key },
               body.values,
               declaredSettings(row).map((setting) => ({ key: setting.key, secret: setting.secret ?? false })),
               { updatedBy: userId },
@@ -1541,7 +1641,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: appKeyParams, response: { 200: appOverviewReply } },
       },
       async (request) => {
-        const row = await installedRow(request.params.key);
+        const row = await installedRow(request, request.params.key);
         const key = row.row.manifestKey;
         const connectionId = row.row.connectionId;
         const connection =
@@ -1638,7 +1738,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          * by installing again, never by a switch.
          */
         async (request) => {
-          const row = await installedRow(request.params.key);
+          const row = await installedRow(request, request.params.key);
           const current = statusOf(row.row.status);
           const from = verb === 'disable' ? 'installed' : 'disabled';
           if (current !== from && current !== status) {
@@ -1680,12 +1780,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     async function partsView(row: InstalledApp, locale: string): Promise<z.infer<typeof appPartsReply>> {
       const key = row.row.manifestKey;
       const declared = await declaredManifest(row);
-      const state = (await loadAppParts(deps.meta, [key])).get(key);
+      const state = (await loadAppParts(deps.meta, [key])).get(row.row.id);
       if (declared === null || declared.kind !== 'app' || state === undefined || state.modules === null) return { parts: [] };
       const installed = (row.document as Manifest | null) ?? declared;
       const made = new Set((installed.requiredSchema?.tables ?? []).map((table) => table.ref));
       const addOnNames = new Map((await manifests.list('add-on')).map((m) => [m.row.manifestKey, (m.document as { name?: string } | null)?.name ?? m.row.manifestKey]));
-      const appRoles = (await rolesRepo(deps.meta).list()).filter((role) => role.appKey === key);
+      const appRoles = await rolesRepo(deps.meta).listForInstall(row.row.id);
       const members = new Map<string, number>();
       for (const role of appRoles) members.set(role.id, (await rolesRepo(deps.meta).usersInRole(role.id)).length);
       const rules = (await automationsRepo(deps.meta).listManagedBy(key, row.row.connectionId)).filter((rule) => rule.enabled);
@@ -1722,7 +1822,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         schema: { params: appKeyParams, response: { 200: appPartsReply } },
       },
-      async (request) => partsView(await installedRow(request.params.key), await readerLocale(request)),
+      async (request) => partsView(await installedRow(request, request.params.key), await readerLocale(request)),
     );
 
     app.get(
@@ -1738,7 +1838,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * with nothing. Counts only: no row is shown.
        */
       async (request) => {
-        const row = await installedRow(request.params.key);
+        const row = await installedRow(request, request.params.key);
         const key = row.row.manifestKey;
         const locale = await readerLocale(request);
         const document = (row.document as Manifest | null) ?? null;
@@ -1778,10 +1878,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         }
         // The people every one of whose roles is of this part alone, or of parts already off.
         const state = await loadAppParts(deps.meta);
-        const after = new Map([...state].map(([app, parts]) => [app, app === key ? { ...parts, off: new Set([...parts.off, module.id]) } : parts]));
+        // This install's part off, under its id and its key alike (a role finds its install by either); another copy's stays as it is.
+        const after = new Map([...state].map(([app, parts]) => [app, parts.id === row.row.id ? { ...parts, off: new Set([...parts.off, module.id]) } : parts]));
         const roles = rolesRepo(deps.meta);
         const holders = new Set<string>();
-        for (const role of (await roles.list()).filter((one) => one.appKey === key && one.modules?.includes(module.id) === true)) {
+        for (const role of (await roles.listForInstall(row.row.id)).filter((one) => one.modules?.includes(module.id) === true)) {
           for (const userId of await roles.usersInRole(role.id)) holders.add(userId);
         }
         let stranded = 0;
@@ -1828,17 +1929,32 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const key = request.params.key;
-        // Asked first, and of the key as typed: somebody with no grant learns nothing of the app, not even whether it is installed.
-        if (typeof request.can !== 'function' || !(await request.can(`app:${key}:staff` as never))) {
-          throw new ForbiddenError('This account cannot open this app’s staff screens.', 'FORBIDDEN', { reason: 'NO_STAFF_ACCESS', appKey: key });
+        const refuse = () => new ForbiddenError('This account cannot open this app’s staff screens.', 'FORBIDDEN', { reason: 'NO_STAFF_ACCESS', appKey: key });
+        const may = async (grantKey: string) => typeof request.can === 'function' && (await request.can(`app:${grantKey}:staff` as never));
+        /*
+         * The install FIRST, then that install's grant: holding one install's
+         * grant opens no other's. Somebody with no grant learns nothing of the
+         * app — not whether it is installed, nor on how many databases.
+         */
+        let found: InstalledApp | null;
+        try {
+          found = (await resolveInstall(manifests, key, selectorOf(request), { kind: 'app', connectionNames })) as InstalledApp | null;
+        } catch (error) {
+          if (!(await may(key))) throw refuse();
+          throw error;
         }
-        const row = await installedRow(key);
+        if (found === null) {
+          if (!(await may(key))) throw refuse();
+          throw new NotFoundError(`"${key}" is not installed.`);
+        }
+        if (!(await may(grantKeyOf(found.row)))) throw refuse();
+        const row = found;
         if (row.row.status !== 'installed') throw new NotFoundError(`"${key}" is not installed.`);
         const document = (row.document as Manifest | null) ?? null;
         const shipped = document?.kind === 'app' ? (document.automations ?? []) : [];
         if (shipped.length === 0) return { rules: [] };
         const locale = await readerLocale(request);
-        const parts = (await loadAppParts(deps.meta, [key])).get(key);
+        const parts = (await loadAppParts(deps.meta, [key])).get(row.row.id);
         const stored = new Map((await automationsRepo(deps.meta).listManagedBy(key, row.row.connectionId)).map((rule) => [rule.templateKey, rule] as const));
         return {
           rules: shipped
@@ -1866,7 +1982,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * one the app does not have, has no switch.
        */
       async (request) => {
-        const row = await installedRow(request.params.key);
+        const row = await installedRow(request, request.params.key);
         const key = row.row.manifestKey;
         const stored = readAppModules(row.row.modules);
         const def = stored?.defs.find((one) => one.id === request.params.part);
@@ -1886,7 +2002,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             request.user?.email ?? 'unknown',
           );
         }
-        return partsView(await installedRow(key), await readerLocale(request));
+        return partsView(await installedRow(request, key), await readerLocale(request));
       },
     );
 
@@ -1904,7 +2020,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * refused rather than taken over.
        */
       async (request) => {
-        const row = await installedRow(request.params.key);
+        const row = await installedRow(request, request.params.key);
         const key = row.row.manifestKey;
         const settings = settingsRepo(deps.meta);
         const [apps, domains, pageHosts] = await Promise.all([settings.get('surfaces.apps'), settings.get('surfaces.domains'), settings.get('surfaces.pageHosts')]);
@@ -1962,7 +2078,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: appKeyParams, body: appInstancesBody, response: { 200: appInstancesReply } },
       },
       async (request) => {
-        const row = await installedRow(request.params.key);
+        const row = await installedRow(request, request.params.key);
         const key = row.row.manifestKey;
         const settings = settingsRepo(deps.meta);
         const { rows, issues } = await validateInstanceEntries(key, request.body.instances, {
@@ -2024,8 +2140,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const { key } = request.params;
-        const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
-        if (installed === undefined) throw new NotFoundError(`"${key}" is not installed.`);
+        const installed = await installedRow(request, key);
         const old = await oldNamesOf(installed);
         if (old === null) throw new NotFoundError(`"${key}" has no tables to rename.`);
         if (deps.schemaTarget === undefined) {
@@ -2049,8 +2164,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const { key } = request.params;
-        const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
-        if (installed === undefined) throw new NotFoundError(`"${key}" is not installed.`);
+        const installed = await installedRow(request, key);
         const old = await oldNamesOf(installed);
         if (old === null) throw new NotFoundError(`"${key}" has no tables to rename.`);
         if (deps.schemaTarget === undefined) {
@@ -2105,9 +2219,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          * the same one add-ons make: that path is uninstall, which stops
          * surfaces answering and asks for the key back first.
          */
-        const installed = (await manifests.list('app')).find(
-          (m) => m.row.manifestKey === key && m.row.version === version,
-        );
+        // Installed on any database at this version: one version per app, so that is every copy's.
+        const installed = (await manifests.listByKey(key)).find((m) => m.row.kind === 'app' && m.row.version === version);
         if (installed !== undefined) {
           throw new ConflictError(
             `"${key}@${version}" is installed, not merely staged. Uninstall it instead.`,
@@ -2135,8 +2248,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const { key } = request.params;
-        const row = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
-        if (row === undefined) throw new NotFoundError(`"${key}" is not installed.`);
+        // One install: named by the request, or the key's only one. The others stay, with their files.
+        const row = await installedRow(request, key);
         /*
          * AN APP THE FOLDER STILL CARRIES would be installed again at the next
          * build or start. Removing it starts in the project: delete the
@@ -2160,17 +2273,19 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         // Everything that could refuse the drop is asked first; then the steps, in order (`apps/removal.ts`).
         await service.removals.checkDrop(plan, { dropTables, superAdmin });
         const { rulesRemoved, emailsRemoved, dropped, kept } = await service.removals.remove(plan, { dropTables, superAdmin, createdBy: userId });
-        // Its own settings go with it; a reinstall starts from the manifest's defaults.
-        await addOnSettingsRepo(deps.meta).clear(key);
+        // Its own settings go with it (the row's cascade too); a reinstall starts from the manifest's defaults.
+        await addOnSettingsRepo(deps.meta).clearForInstall(row.row.id);
         /*
          * Its links to add-ons go; the add-ons stay installed — they are
          * shared, and removing one is its own decision, made in Add-ons. The
          * link rows belong to the ADD-ONS' manifest rows, so the app row's
          * cascade below would not take them.
          */
-        // What the folder had applied, failed or asked: forgotten with the app.
-        await projectAppsRepo(deps.meta).remove(key);
-        const detached = await manifests.detachHost(key);
+        // The other installs of the key (on other databases) keep the app's files, its project record and their own links.
+        const othersRemain = (await manifests.listByKey(key)).some((one) => one.row.id !== row.row.id);
+        // What the folder had applied, failed or asked: forgotten with the app (a project app is once per server).
+        if (!othersRemain) await projectAppsRepo(deps.meta).remove(key);
+        const detached = await manifests.detachHost({ key, hostInstall: row.row.id });
         if (detached > 0) await deps.addOns?.installer.rebuildRuntime?.();
 
         /*
@@ -2189,11 +2304,15 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          * list shows them and a discard removes them.
          */
         let filesRemoved = true;
-        try {
-          await deps.store.removeKey(key);
-        } catch (error) {
-          filesRemoved = false;
-          request.log.warn({ err: error, key }, 'app uninstalled, but its files were not removed');
+        // One version per app on a server, one copy of its files: they go with the last install.
+        if (othersRemain) filesRemoved = false;
+        else {
+          try {
+            await deps.store.removeKey(key);
+          } catch (error) {
+            filesRemoved = false;
+            request.log.warn({ err: error, key }, 'app uninstalled, but its files were not removed');
+          }
         }
         await deps.installed.refresh();
         /*
@@ -2203,7 +2322,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          */
         const forgotten = await forgetAppSurfaceSettings(
           deps.meta,
-          key,
+          { key, slug: row.row.instanceSlug },
           request.user?.id ?? null,
         );
         request.server.surfaceSettings?.invalidate();
@@ -2251,7 +2370,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           userId,
           request.user?.email ?? 'unknown',
         );
-        return { key, uninstalled: true, removed, kept: keptSummary, dropped };
+        return { key, uninstalled: true, removed, kept: keptSummary, dropped, ...(filesRemoved ? {} : { filesRemoved: false }) };
       },
     );
   };

@@ -429,6 +429,7 @@ export function createProjectApps(opts: ProjectAppsOptions): ProjectApps {
       return { key: app.key, state: 'not-built', hash: null, stage: 'build', message };
     }
     const built = { ...app, hash: app.hash, version: app.version };
+    // key-wide: a project app is installed once per server.
     const row = (await service.manifests.list('app')).find((m) => m.row.manifestKey === app.key);
     const state = await repo.find(app.key);
     // The same manifest that already failed here: shown, not tried again.

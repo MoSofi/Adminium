@@ -119,6 +119,7 @@
  * refusal), and the sweep tries again a change that failed for another
  * reason, for a day after the send.
  */
+import { installOnConnection, installsOf } from '../installs/resolve.js';
 import { guestBase as guestBaseOf } from '../public-api/guest-base.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import { linkedRowsOf, withheldColumns, withholdRulesOf, type TableWithholds, type WithholdReader } from '../public-api/withhold.js';
@@ -847,17 +848,22 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     return marketingKit;
   };
 
-  /** Where the app's guest side lives: its own host, else the server's public address, else nowhere. */
-  async function guestBase(appKey: string): Promise<string | null> {
-    return guestBaseOf({ meta: deps.meta, hostFor: deps.hostFor }, appKey);
+  /** Where an install's guest side lives: its own host, else the server's public address, else nowhere. */
+  async function guestBase(appKey: string, slug = ''): Promise<string | null> {
+    return guestBaseOf({ meta: deps.meta, hostFor: deps.hostFor }, appKey, slug);
   }
 
-  /** Where the app's staff side lives, ending in `/` so a route follows: its own host, else the server's public address, else nowhere. */
-  async function staffBase(appKey: string): Promise<string | null> {
-    const host = await deps.staffHostFor?.(appKey);
+  /** The address slug of an outbox's install: `''` for the one with the bare addresses. */
+  async function slugOfInstall(manifestId: string): Promise<string> {
+    return (await deps.meta.db.selectFrom('adminium_manifests').select('instanceSlug').where('id', '=', manifestId).executeTakeFirst())?.instanceSlug ?? '';
+  }
+
+  /** Where an install's staff side lives, ending in `/` so a route follows: its own host, else the server's public address, else nowhere. */
+  async function staffBase(appKey: string, slug = ''): Promise<string | null> {
+    const host = slug === '' ? await deps.staffHostFor?.(appKey) : undefined;
     if (host !== undefined) return `https://${host}/`;
     const origin = await settingsRepo(deps.meta).get('system.publicOrigin');
-    return typeof origin === 'string' && origin !== '' ? `${origin.replace(/\/+$/, '')}/apps/${appKey}/staff/` : null;
+    return typeof origin === 'string' && origin !== '' ? `${origin.replace(/\/+$/, '')}/apps/${appKey}/${slug === '' ? '' : `${slug}/`}staff/` : null;
   }
 
   /**
@@ -906,16 +912,12 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
    * — never one it marks secret, never one of an add-on the app does not
    * require.
    */
-  async function addOnVariables(requires: readonly string[]): Promise<Record<string, string>> {
+  async function addOnVariables(requires: readonly string[], connectionId: string): Promise<Record<string, string>> {
     const vars: Record<string, string> = {};
     for (const key of requires) {
-      const row = await deps.meta.db
-        .selectFrom('adminium_manifests')
-        .select(['manifest'])
-        .where('kind', '=', 'add-on')
-        .where('manifestKey', '=', key)
-        .where('status', '=', 'installed')
-        .executeTakeFirst();
+      // The add-on as the mail's database has it: Kiln's mail prints Kiln's payment instructions.
+      const install = await installOnConnection(installsOf(deps.meta), key, connectionId);
+      const row = install === null || install.row.kind !== 'add-on' || install.row.status !== 'installed' ? undefined : { manifest: install.document };
       type AddOnManifest = { addOn?: { publicSettings?: unknown }; settings?: { key?: unknown; secret?: unknown }[] };
       const manifest = ((): AddOnManifest | null => {
         try {
@@ -927,7 +929,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       const listed = Array.isArray(manifest?.addOn?.publicSettings) ? (manifest.addOn.publicSettings as unknown[]).filter((name): name is string => typeof name === 'string') : [];
       const secret = new Set((manifest?.settings ?? []).filter((setting) => setting.secret === true).map((setting) => setting.key));
       if (listed.length === 0) continue;
-      const values = await addOnSettingsRepo(deps.meta).valuesFor(key);
+      const values = install === null ? {} : await addOnSettingsRepo(deps.meta).valuesForInstall(install.row.id);
       for (const name of listed) {
         if (secret.has(name)) continue;
         const value = values[name];
@@ -1042,14 +1044,16 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       typeof practiceName === 'string' && practiceName.trim() !== '' ? practiceName.trim() : String((await settingsRepo(deps.meta).get('branding.appName')) ?? 'Adminium');
 
     // No address to link to leaves the link out, rather than printing its placeholder.
-    const base = await guestBase(box.appKey);
+    // The install's own addresses: a later install's guests and staff are at its slug.
+    const slug = await slugOfInstall(box.row.manifestId);
+    const base = await guestBase(box.appKey, slug);
     const pages = box.definition.pages;
     vars['manage_url'] = base === null ? '' : `${base}${pages?.manage ?? '/'}`;
     vars['booking_url'] = base === null ? '' : `${base}${pages?.booking ?? '/'}`;
     // An add-on's mail links into a page of an app it serves: each name it declares, or empty when no app serves it.
     Object.assign(vars, await appUrlsFor({ meta: deps.meta, guestBase }, { connectionId: box.connectionId, addOnKey: box.appKey, links: pages?.app }));
     // The desk: a studio notice's button opens `{{staff_url}}proposals/42`.
-    vars['staff_url'] = (await staffBase(box.appKey)) ?? '';
+    vars['staff_url'] = (await staffBase(box.appKey, slug)) ?? '';
     // The link to pay what the message is about (an invoice's reminder): the first linked record that can be
     // paid online now. Always filled, empty when none can: the pay button is then left out, never sent dead.
     vars['pay_url'] = '';
@@ -1064,7 +1068,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         }
       }
     }
-    Object.assign(vars, await addOnVariables((await appFacts(box.row.manifestId)).requires));
+    Object.assign(vars, await addOnVariables((await appFacts(box.row.manifestId)).requires, box.connectionId));
     await namePeople(deps.meta, out);
     // A name a row of the recipient's own fills too (`client.share_token` beside a project's) is not held back.
     for (const name of withheld) if (Object.hasOwn(vars, name)) withheld.delete(name);
@@ -1232,7 +1236,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const ofRemovedRow = producer !== undefined && 'onDelete' in producer && columnRecipientOf(producer) !== null;
     const again = producer !== undefined && !ofRemovedRow && (producer.hold === true || producer.recipient !== undefined);
     if (!again && !blank) return { addressed: null, to: named, lookedUp: false };
-    const addressed = await addressFor({ db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id, read: settingReader(deps.meta, ctx.db, ctx.view) }, box.definition, producer, row);
+    const addressed = await addressFor({ db: ctx.db, view: ctx.view, outboxId: ctx.outbox.id, read: settingReader(deps.meta, ctx.db, ctx.view, box.connectionId) }, box.definition, producer, row);
     return { addressed, to: addressed.address, lookedUp: true };
   }
 
@@ -1267,7 +1271,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const key = ctx.view.table(recipient.table).primaryKey[0];
     const id = key === undefined ? undefined : identity[key];
     if (key === undefined || (typeof id !== 'string' && typeof id !== 'number')) return none;
-    const base = await guestBase(box.appKey);
+    const base = await guestBase(box.appKey, await slugOfInstall(box.row.manifestId));
     if (base === null) return none;
     const target = routeFor(box, (await appFacts(box.row.manifestId)).routes, row, producer);
     try {
@@ -1752,7 +1756,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const rows = (await query.orderBy(key as never).limit(OUTBOX_BATCH).execute()) as Row[];
     // Judged again, all together, just before they go.
     const verdicts = await verdictsFor(
-      { db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db, view), now, paymentHold: createPaymentHolds(deps.meta, box.connectionId, now) },
+      { db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db, view, box.connectionId), now, paymentHold: createPaymentHolds(deps.meta, box.connectionId, now) },
       rows,
       'send',
     );
@@ -1950,9 +1954,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const ref = (await appTablesRepo(deps.meta).forInstall(box.connectionId, box.appKey)).find((record) => record.tableName === table.name)?.ref;
     const profile = await appProfileFor(deps.meta, box.connectionId, box.appKey, tableId, wanted.kind);
     // Absent also when the add-on that draws it is here and does not draw the kind yet: the document waits for its update.
-    const kindsOf = async () => (await addOnAvailability(deps.meta, box.appKey, pipeline.runtime)).kindsOf;
-    const detached = async (addOnKey?: string) => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, addOnKey, await kindsOf()));
-    const neverMade = async () => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, undefined, await kindsOf()));
+    const kindsOf = async () => (await addOnAvailability(deps.meta, box.appKey, pipeline.runtime, box.connectionId)).kindsOf;
+    const detached = async (addOnKey?: string) => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, addOnKey, await kindsOf(), box.connectionId));
+    const neverMade = async () => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, undefined, await kindsOf(), box.connectionId));
     if (profile === null || key === undefined || ref === undefined || facts.manifest === null) {
       return { error: `The ${wanted.kind} is not available: it was not made for the app, as its add-on was not there when it was installed`, ...((await neverMade()) ? { absent: true as const } : {}) };
     }
@@ -2113,8 +2117,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   }
 
   async function markUndelivered(report: EmailSendReport, error: unknown): Promise<void> {
-    const stored = await appOutboxesRepo(deps.meta).findByApp(report.app);
-    if (stored === null || stored.connectionId !== report.connectionId) return;
+    const stored = await appOutboxesRepo(deps.meta).findOnConnection(report.app, report.connectionId);
+    if (stored === null) return;
     const definition = JSON.parse(stored.definition) as LiveOutbox['definition'];
     if (definition.table !== report.table) return;
     const view = await deps.viewFor(report.connectionId);
@@ -2167,8 +2171,8 @@ export async function appContact(
 ): Promise<{ name: string | null; phone: string | null }> {
   const none = { name: null, phone: null };
   try {
-    const stored = await appOutboxesRepo(meta).findByApp(appKey);
-    if (stored === null || stored.connectionId !== connectionId) return none;
+    const stored = await appOutboxesRepo(meta).findOnConnection(appKey, connectionId);
+    if (stored === null) return none;
     const settings = (JSON.parse(stored.definition) as LiveOutbox['definition']).settings;
     if (settings === undefined || (settings.name === undefined && settings.phone === undefined)) return none;
     const { db } = await manager.data(connectionId);

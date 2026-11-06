@@ -201,7 +201,7 @@ describe('payments setup routes', () => {
     const refused = await app.inject({ method: 'PUT', url: field('test', 'secret_key'), headers: asUser(owner), payload: { value: 'sk_test_51abcdefghijklmnop' } });
     expect(refused.statusCode).toBe(422);
     expect(refused.json().error.details).toEqual({ reason: 'SECRET_KEY', field: 'secret_key' });
-    expect(await manifests.getCredential((await manifests.findByKey('payments-stripe'))!.row.id)).toBeNull();
+    expect(await manifests.getCredential((((await manifests.listByKey('payments-stripe'))[0] ?? null))!.row.id)).toBeNull();
   });
 
   it('saves a key encrypted, keeps only its hint readable, and checks it at once', async () => {
@@ -213,7 +213,7 @@ describe('payments setup routes', () => {
     expect(view.test.accountId).toBe('acct_a1B2');
     expect(view.checklist.find((one: { step: string }) => one.step === 'test-key').done).toBe(true);
 
-    const envelope = await manifests.getCredential((await manifests.findByKey('payments-stripe'))!.row.id);
+    const envelope = await manifests.getCredential((((await manifests.listByKey('payments-stripe'))[0] ?? null))!.row.id);
     expect(modeCredentials(envelope, 'test')).toEqual({ secret_key: KEY });
     const doc = await paymentSettingsRepo(meta).get(serviceDocName('payments-stripe'), serviceStateSchema);
     expect(JSON.stringify(doc)).not.toContain(KEY);
@@ -343,7 +343,7 @@ describe('payments setup routes', () => {
     await app.inject({ method: 'PUT', url: field('test', 'secret_key'), headers: asUser(owner), payload: { value: KEY } });
     const removed = await app.inject({ method: 'DELETE', url: field('test', 'secret_key'), headers: asUser(owner) });
     expect(removed.json().data.test.fields[0]).toMatchObject({ set: false, hint: null });
-    expect(modeCredentials(await manifests.getCredential((await manifests.findByKey('payments-stripe'))!.row.id), 'test')).toBeNull();
+    expect(modeCredentials(await manifests.getCredential((((await manifests.listByKey('payments-stripe'))[0] ?? null))!.row.id), 'test')).toBeNull();
   });
 
   it('keeps the chosen path and the stop switch', async () => {
@@ -397,7 +397,7 @@ describe('payments setup routes', () => {
     expect(removed.json().data.test.fields.every((one: { set: boolean }) => !one.set)).toBe(true);
     expect(removed.json().data.live.fields.every((one: { set: boolean }) => !one.set)).toBe(true);
     expect(removed.json().data.live.accountId).toBe('acct_9xQ4');
-    expect(await manifests.getCredential((await manifests.findByKey('payments-stripe'))!.row.id)).toBeNull();
+    expect(await manifests.getCredential((((await manifests.listByKey('payments-stripe'))[0] ?? null))!.row.id)).toBeNull();
     const notices = await notificationsRepo(meta).listForUser(owner.id, { limit: 10 });
     expect(notices.map((one) => [one.kind, one.title])).toContainEqual(['payments.keys-removed', 'The Stripe keys were removed']);
     expect((await app.inject({ method: 'POST', url: disconnect, headers: asUser(owner, { 'x-test-api-key': '1' }), payload: { action: 'stop' } })).statusCode).toBe(403);

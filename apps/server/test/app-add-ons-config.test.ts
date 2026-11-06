@@ -11,6 +11,7 @@
  *  - bootstrap withholds an app's page whose `feature` needs an add-on that
  *    is not attached, and lists it apart with what it needs.
  */
+import { onlyInstall } from './only-install.js';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -108,11 +109,10 @@ async function seed(fixture: AuthTestApp, opts: { attached?: boolean; enabled?: 
     attachTo: opts.attached === false ? [] : ['clients'],
   });
   if (opts.enabled === false) {
-    const added = await repo.findByKey('invoices');
+    const added = ((await repo.listByKey('invoices'))[0] ?? null);
     await repo.setAttachmentEnabled(added!.row.id, 'clients', false);
   }
-  await addOnSettingsRepo(fixture.meta).patch(
-    'invoices',
+  await addOnSettingsRepo(fixture.meta).patch(await onlyInstall(fixture.meta, 'invoices'),
     { business_name: 'Acme Studio', payment_instructions: 'IBAN GB00 0000' },
     [
       { key: 'business_name', secret: false },

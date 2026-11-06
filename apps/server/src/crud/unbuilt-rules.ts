@@ -245,6 +245,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'outbox.onDelete',
   // Where a table's record opens on the app's staff side: a notice, its email and a search hit open there (apps/record-address.ts).
   'frontend.records',
+  // An add-on kept once per server (installs/resolve.ts addOnIsServerWide); a side that serves every install of its app (its config names its install).
+  'addOn.scope',
+  'frontend.instances',
   // A page kept off the sidebar, and an entry of the app's section that is not a page: both read when the menu is built.
   'nav.offRail',
   'navLinks',
@@ -357,7 +360,83 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'roles.privacyPeople',
   // The columns a records page's list opens on, written to the page at install (apps/manifest-page-config.ts).
   'config.columns',
+  // Where a self-made app was saved: stored with its manifest, read by nothing that runs.
+  'app.provenance',
+  // A page as a person arranged it and its shared views: made the target's own at install (apps/manifest-envelopes.ts,
+  // apps/manifest-views.ts), its tables resolved through one walk (apps/envelope-refs.ts).
+  'page.envelope',
+  'page.views',
+  // The other apps a self-made app needs on its database: matched by publisher and key at plan, their tables
+  // recorded as shared so their uninstall drops none of them (apps/required-apps.ts).
+  'apps.requires',
+  // A time of day and a decimal's digits in all: made by the installer on every engine (add-ons/install-ddl.ts).
+  'column.time',
+  'column.precision',
+  // A column kept off forms, an int read as a yes or a no, a table left out, postings kept switched off, a link's
+  // name, a link Adminium does not show and one no foreign key keeps: the app's rules on its tables (apps/manifest-rules.ts).
+  'column.hidden',
+  'column.yesNo',
+  'table.exclude',
+  'table.switchedOff',
+  'relation.label',
+  'relation.remove',
+  'relation.noConstraint',
+  // A self-made app's table under its real name and in its Postgres schema: planned and made there (add-ons/install-ddl.ts).
+  'table.name',
+  'table.schema',
+  // Existing customers mailed at the source: never switched on by an install, and said so (manifest-rules.ts EXISTING_CUSTOMERS_KEPT).
+  'table.existingCustomers',
+  // An answer's line under it, and a mail's kind, purpose, brand and files: written by the install (apps/manifest-outbox.ts).
+  'optionList.description',
+  'email.kind',
+  'email.category',
+  'email.brand',
+  'email.attachments',
+  // A rule's webhook, typed addresses, document, purpose and watch: installed empty and off where they send out (apps/manifest-automations.ts).
+  'automations.webhook',
+  'automations.documentRender',
+  'automations.fixedAddress',
+  'automations.purpose',
+  'automations.watch',
+  // A document's options, trigger and delivery, given to its profile when it is made (documents/app-profiles.ts).
+  'documents.options',
+  'documents.trigger',
+  'documents.deliver',
+  // A file's reports, invoice layouts, scheduled reports and payments (apps/saved-parts.ts).
+  'reports',
+  'invoiceLayouts',
+  'scheduledReports',
+  'payments',
+  // A public entry's wider methods, address, pages, rate and reply (apps/manifest-public.ts).
+  'publicAccess.put',
+  'publicAccess.delete',
+  'publicAccess.batch',
+  'publicAccess.path',
+  'publicAccess.pagination',
+  'publicAccess.rateLimit',
+  'publicAccess.response',
 ];
+
+/**
+ * The newer words a plan reads and an install does not write yet: a manifest
+ * that uses one plans like any other (a dashboard's save checks its file with
+ * a dry plan), and its install, update or apply is refused before anything is
+ * made. Each moves to {@link MANIFEST_WORDS_RUN} in the change that installs it.
+ */
+export const MANIFEST_WORDS_PLANNED: Readonly<Partial<Record<ManifestWordName, string>>> = {
+  'instance':"the deployment's look, languages, wording, system emails and settings",
+};
+
+/** Refuses to install a manifest that uses a word only planned so far: 422, naming each with its place. */
+export function refusePlannedOnly(document: unknown, subject: string, words: Readonly<Record<string, string>> = MANIFEST_WORDS_PLANNED): void {
+  const found = installFloorWords(document).filter((word) => words[word.word] !== undefined);
+  if (found.length === 0) return;
+  const what = [...new Set(found.map((word) => words[word.word]!))].join(' and ');
+  throw new ValidationFailedError(
+    `${subject} carries ${what}, which this Adminium reads and cannot install yet: it needs a newer install path. Take ${found.length === 1 ? 'it' : 'them'} out of the file to install the rest.`,
+    { reason: 'INSTALL_PATH_NOT_BUILT', words: found },
+  );
+}
 
 export interface UnbuiltWord {
   /** The word as the manifest writes it (`pages`, `column.addOnLink`). */

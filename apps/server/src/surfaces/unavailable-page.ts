@@ -97,6 +97,9 @@ h1{margin:16px 0 0;font-size:28px;font-weight:800;letter-spacing:-.03em;line-hei
 form{margin:18px 0 0}
 button{inline-size:100%;min-block-size:50px;padding:13px;border-radius:12px;border:1px solid var(--border-strong);background:var(--surface);color:var(--fg);font:inherit;font-size:14.5px;font-weight:700;cursor:pointer}
 button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.moves{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;inline-size:100%}
+.moves a{display:flex;align-items:center;justify-content:center;min-block-size:50px;padding:13px;border-radius:12px;border:1px solid var(--border-strong);background:var(--surface);color:var(--fg);font-size:14.5px;font-weight:700;text-decoration:none}
+.moves a:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
 `;
 
 /** A shield glyph for "this account cannot open it". */
@@ -216,6 +219,72 @@ export function renderNotFoundPage(input: NotFoundPageInput): string {
 <h1>${escapeHtml(title)}</h1>
 <p>${escapeHtml(t('studio:surfacePages.notFound.body', 'There’s nothing at this address. Check the link and try again.'))}</p>
 </main>
+</body>
+</html>
+`;
+}
+
+/** An arrow glyph for "it is somewhere else now". */
+const MOVED_ICON =
+  '<svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
+
+export interface MovedPageInput {
+  side: SurfaceSide;
+  /** The app's display name, in the page's language. */
+  appName: string;
+  /** The workspace's own name, or null while it still carries the default. */
+  venueName: string | null;
+  /** The copies still installed, each by its database's name and its own address. */
+  copies: readonly { database: string; url: string }[];
+  lang: string;
+  t: (key: string, fallback: string, args?: Record<string, unknown>) => string;
+}
+
+/**
+ * An app's plain address once the copy that had it is gone (plan 76 §13.7
+ * rule 3): it opens no other copy by itself, it says where the app is now,
+ * with a link to each copy.
+ */
+export function renderMovedPage(input: MovedPageInput): string {
+  const { t } = input;
+  const app = input.appName;
+  const dir = input.lang.toLowerCase().startsWith('ar') ? 'rtl' : 'ltr';
+  const only = input.copies.length === 1 ? input.copies[0]! : null;
+  const title =
+    only === null
+      ? t('studio:surfacePages.moved.other', '{app} is installed on other databases.', { app })
+      : t('studio:surfacePages.moved.one', '{app} is installed on {database}.', { app, database: only.database });
+  const links = input.copies
+    .map((copy) => `<li><a href="${escapeHtml(copy.url)}">${escapeHtml(t('studio:surfacePages.moved.open', 'Open {app} on {database}', { app, database: copy.database }))}</a></li>`)
+    .join('\n');
+  const lead = escapeHtml(t('studio:surfacePages.moved.body', 'This address belonged to a copy that has been taken away.'));
+  const body =
+    input.side === 'customer'
+      ? `<main class="guest">
+<div class="mark" aria-hidden="true">${escapeHtml(initialOf(input.venueName ?? app))}</div>
+${input.venueName === null ? '' : `<div class="venue">${escapeHtml(input.venueName)}</div>`}
+<h1>${escapeHtml(title)}</h1>
+<p class="lead">${lead}</p>
+<ul class="moves">${links}</ul>
+</main>`
+      : `<main class="card">
+<div class="power">${MOVED_ICON}</div>
+<h1 class="title">${escapeHtml(title)}</h1>
+<p class="advice">${lead}</p>
+<ul class="moves">${links}</ul>
+</main>`;
+  return `<!doctype html>
+<html lang="${escapeHtml(input.lang)}" dir="${dir}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>${escapeHtml(title)}</title>
+<style>${STYLE}</style>
+</head>
+<body>
+${body}
 </body>
 </html>
 `;

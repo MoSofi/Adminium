@@ -43,7 +43,17 @@
  */
 
 import type { Dialect } from '@adminium/engine';
-import { indexSetName, plainIndexName, uniqueSetName, type InstallPlan, type RequiredColumn, type RequiredTable } from '@adminium/manifest';
+import {
+  foreignKeyName,
+  indexSetName,
+  plainIndexName,
+  splitTableName,
+  uniqueColumnName,
+  uniqueSetName,
+  type InstallPlan,
+  type RequiredColumn,
+  type RequiredTable,
+} from '@adminium/manifest';
 import { sql, type CreateTableBuilder, type Kysely } from 'kysely';
 
 import { AppError } from '../errors.js';
@@ -148,6 +158,10 @@ function columnTypeFor(type: RequiredColumn['type'], dialect: Dialect, keyed = f
       return dialect === 'postgres' ? 'varchar(64)' : dialect === 'mysql' ? 'varchar(64)' : 'text';
     case 'blob':
       return dialect === 'postgres' ? 'bytea' : dialect === 'mysql' ? 'blob' : 'blob';
+    case 'time':
+      // A time of day with no zone. SQLite keeps the declared type, which its
+      // introspector reads back as `time`, and stores the `HH:MM:SS` text as is.
+      return 'time';
     default: {
       // Exhaustiveness: a new member of COLUMN_TYPES fails to compile here
       // rather than silently becoming `text` in somebody's database.
@@ -350,8 +364,9 @@ function declaredTypeOf(
   // depends on each row's currency, so the column keeps 4 and the write path
   // rounds every value to the row's own places. SQLite stays `real`: it keeps
   // no scale, and is handed values already rounded.
-  if ((column.type === 'decimal' || column.type === 'money') && typeof column.scale === 'number' && dialect !== 'sqlite') {
-    return `decimal(19,${String(column.scale)})`;
+  // `precision` sets the digits in all beside it (`decimal(10,2)`); the places stay 4 when no number says otherwise.
+  if ((column.type === 'decimal' || column.type === 'money') && (typeof column.scale === 'number' || column.precision !== undefined) && dialect !== 'sqlite') {
+    return `decimal(${String(column.precision ?? 19)},${String(typeof column.scale === 'number' ? column.scale : 4)})`;
   }
   if (column.type !== 'fk' || column.references === undefined) {
     return columnTypeFor(column.type, dialect, column.role === 'pk');
@@ -366,6 +381,11 @@ function declaredTypeOf(
     );
   }
   return keyTarget(column.references, tables, existing, dialect, new Set([...seen, link])).type;
+}
+
+/** A link the database keeps with a foreign key: every `fk` column but one whose relation says `constraint: false`. */
+export function keptByDatabase(column: RequiredColumn): column is RequiredColumn & { references: string } {
+  return column.type === 'fk' && column.references !== undefined && column.relation?.constraint !== false;
 }
 
 /**
@@ -414,14 +434,15 @@ function creationOrder(tables: readonly RequiredTable[]): RequiredTable[] {
  * finishes, on every engine.
  */
 function closesCycle(position: ReadonlyMap<string, number>, table: string, column: RequiredColumn): boolean {
-  if (column.type !== 'fk' || column.references === undefined) return false;
+  if (!keptByDatabase(column)) return false;
   const target = position.get(column.references);
   return target !== undefined && target > position.get(table)!;
 }
 
 /**
  * Whether the constraint is already there — so the ALTER that closes a cycle
- * is as safe to run twice as the `ifNotExists` creates around it.
+ * is as safe to run twice as the `ifNotExists` creates around it. Read in the
+ * table's own schema when it names one (`sales.Orders`), never the session's.
  */
 async function hasConstraint(
   db: ApplyInstallInput['db'],
@@ -429,12 +450,34 @@ async function hasConstraint(
   table: string,
   name: string,
 ): Promise<boolean> {
-  const schema = dialect === 'mysql' ? sql`database()` : sql`current_schema()`;
+  const real = splitTableName(table);
+  const schema = real.schema !== null ? sql`${real.schema}` : dialect === 'mysql' ? sql`database()` : sql`current_schema()`;
   const found = await sql<{ one: number }>`
     select 1 as one from information_schema.table_constraints
-    where table_schema = ${schema} and table_name = ${table} and constraint_name = ${name}
+    where table_schema = ${schema} and table_name = ${real.name} and constraint_name = ${name}
   `.execute(db);
   return found.rows.length > 0;
+}
+
+/**
+ * The Postgres schemas the tables to create are named into, each made when it
+ * is not there yet — a self-made app saved from `sales.orders` brings its
+ * schema to a database without one. Never dropped again: an uninstall drops
+ * tables, and a schema may hold the operator's own.
+ */
+async function createSchemas(db: ApplyInstallInput['db'], dialect: Dialect, tables: readonly string[]): Promise<void> {
+  const schemas = [...new Set(tables.map((table) => splitTableName(table).schema).filter((schema): schema is string => schema !== null))];
+  if (schemas.length === 0) return;
+  if (dialect !== 'postgres') {
+    throw new AddOnInstallError('DDL_FAILED', `only Postgres keeps tables in schemas; this database is ${dialect}`, tables[0]);
+  }
+  for (const schema of schemas) {
+    try {
+      await db.schema.createSchema(schema).ifNotExists().execute();
+    } catch (error) {
+      throw new AddOnInstallError('DDL_FAILED', `making the schema "${schema}" failed: ${String(error)}`, schema);
+    }
+  }
 }
 
 /**
@@ -462,12 +505,15 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
   const postHoc = dialect !== 'sqlite';
   // Every index and constraint name already in the database, and each one made here.
   const taken = new Set([...(input.takenNames ?? []), ...existing.flatMap((table) => table.indexNames ?? [])]);
+  await createSchemas(db, dialect, order.filter((table) => toCreate.has(table.ref)).map((table) => table.ref));
 
   for (const table of order) {
     if (!toCreate.has(table.ref)) continue;
 
     // `ifNotExists` on every create — see the header. A retry after a partial
-    // failure must complete the install, not collide with it.
+    // failure must complete the install, not collide with it. A real name in a
+    // schema of its own (`sales.Order Lines`) is read by Kysely as that schema
+    // and that table, each quoted (no part holds a dot: the manifest says so).
     // Annotated rather than inferred: `createTable` tracks the columns added so
     // far in a type parameter, and a `let` reassigned in a loop pins that to the
     // empty set — which makes `addForeignKeyConstraint`'s column list `never[]`.
@@ -491,16 +537,16 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
         const fill = defaultSqlFor(column, dialect);
         if (fill !== null) built = built.defaultTo(sql.raw(fill));
         if (column.type === 'enum' && column.enum !== undefined) {
-          // The CHECK the introspector reads back as an enum.
+          // The CHECK the introspector reads back as an enum. Unnamed: the engine names it after the table, and keeps two apart.
           const values = column.enum.map((value) => literal(value, dialect)).join(', ');
-          built = built.check(sql.raw(`${quote(column.ref, dialect)} in (${values})`));
+          built = built.check(sql`${sql.id(column.ref)} in (${sql.raw(values)})`);
         }
         return built;
       });
     }
 
     for (const column of table.columns) {
-      if (column.type !== 'fk' || column.references === undefined) continue;
+      if (!keptByDatabase(column)) continue;
       // Its target is not made yet; added below, once it is.
       if (postHoc && closesCycle(position, table.ref, column)) continue;
       const { column: targetColumn } = keyTarget(column.references, tables, existing, dialect);
@@ -508,7 +554,7 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
       // parses the inline form and silently discards it, which is the 2026-07-20
       // lesson the meta migrations already carry.
       builder = builder.addForeignKeyConstraint(
-        `fk_${table.ref}_${column.ref}`,
+        foreignKeyName(table.ref, column.ref),
         [column.ref],
         column.references,
         [targetColumn],
@@ -519,7 +565,8 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
     // fresh code when this refuses one. A column the app declares `unique` (a
     // day closed once, an action saved once) is kept the same way. `table.ref`
     // is the REAL name here, so two apps' constraints never share a name —
-    // Postgres keeps constraint indexes in one namespace per schema.
+    // Postgres keeps constraint indexes in one namespace per schema — and a
+    // name past 63 bytes is cut short and hashed, never cut by Postgres.
     for (const column of table.columns) {
       // A number without gaps is one row per number (per parent row, with a
       // scope): the index is what refuses a number twice, and what a claim
@@ -527,14 +574,14 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
       const sequence = column.rules?.sequence;
       if (sequence?.gapless === true) {
         const columns = sequence.scope === undefined ? [column.ref] : [sequence.scope, column.ref];
-        builder = builder.addUniqueConstraint(`uq_${table.ref}_${column.ref}`, columns);
+        builder = builder.addUniqueConstraint(uniqueColumnName(table.ref, column.ref), columns);
         continue;
       }
       if (column.rules?.code === undefined && column.unique !== true) continue;
-      builder = builder.addUniqueConstraint(`uq_${table.ref}_${column.ref}`, [column.ref]);
+      builder = builder.addUniqueConstraint(uniqueColumnName(table.ref, column.ref), [column.ref]);
     }
     // Sets of columns held unique together, each by a name no index or constraint in the database has.
-    for (const column of table.columns) taken.add(`uq_${table.ref}_${column.ref}`);
+    for (const column of table.columns) taken.add(uniqueColumnName(table.ref, column.ref));
     for (const set of table.unique ?? []) {
       const name = uniqueSetName(table.ref, set, taken);
       taken.add(name);
@@ -619,7 +666,7 @@ async function closeCycles(
     for (const column of table.columns) {
       if (!closesCycle(position, table.ref, column)) continue;
       if (!made && live?.columns.some((c) => c.ref === column.ref) !== true) continue;
-      const name = `fk_${table.ref}_${column.ref}`;
+      const name = foreignKeyName(table.ref, column.ref);
       try {
         if (await hasConstraint(db, dialect, table.ref, name)) continue;
         const { column: targetColumn } = keyTarget(column.references!, tables, existing, dialect);
@@ -682,17 +729,13 @@ export function defaultSqlFor(column: RequiredColumn, dialect: Dialect): string 
   return renderDefault({ default: { kind: 'literal', text: String(value) }, logicalType }, dialect);
 }
 
-/** Quotes an identifier for the CHECK expression, per dialect. */
-function quote(identifier: string, dialect: Dialect): string {
-  return dialect === 'mysql' ? `\`${identifier}\`` : `"${identifier}"`;
-}
-
 /**
  * A string literal for the CHECK expression, per dialect.
  *
  * The enum's values are the only manifest-authored TEXT that reaches emitted
- * SQL — everything else is either an identifier the schema constrains to
- * `^[a-z][a-z0-9_]*$` or a type from the closed map above.
+ * SQL as text — every identifier (a self-made app's table may be named
+ * `Our "Customers"`) goes through Kysely, which quotes it and doubles any
+ * quote inside it, and every type is from the closed map above.
  *
  * Doubling the quote is enough for postgres and sqlite. **MySQL also treats a
  * backslash as an escape character inside a string literal**, unless the server

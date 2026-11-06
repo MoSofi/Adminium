@@ -34,6 +34,8 @@
  * refetch the nav instead of holding a stale sidebar until reload.
  */
 
+import { z } from 'zod';
+import { narrowToWorkspace, workspaceIdQuery } from '../../workspaces/list-filter.js';
 import { seedPageGrants } from '../../pages/page-grants.js';
 import {
   composeRequestedPage,
@@ -833,7 +835,8 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
       '/pages',
       {
         preHandler: [app.requireAuth, requireManage],
-        schema: { response: { 200: pageListReply } },
+        preSerialization: narrowToWorkspace(() => app.rbac.meta, 'data', (row) => row['connectionId'] as string | null),
+        schema: { querystring: z.object({ workspaceId: workspaceIdQuery }), response: { 200: pageListReply } },
       },
       async () => {
         // One query for every connection, not one per row: the list is ~100

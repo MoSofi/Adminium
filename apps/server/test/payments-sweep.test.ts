@@ -36,7 +36,7 @@ describe('the safety sweep', () => {
     backend = createDemoPaymentBackend({ pageUrl: (one) => `${PAY}/pay/demo/${one.attemptId}` });
     queued = [];
     const providerFor: SweepDeps['providerFor'] = (key, mode) =>
-      paymentProviderFor({ runtime: () => null, manifests: { findByKey: async () => null, getCredential: async () => null }, httpFor: () => backend.http, demo: backend }, key, mode);
+      paymentProviderFor({ runtime: () => null, manifests: { findInScope: async () => null, listByKey: async () => [], getCredential: async () => null }, httpFor: () => backend.http, demo: backend }, key, mode);
     const enqueue: SweepDeps['enqueue'] = async (job) => {
       queued.push(job);
     };

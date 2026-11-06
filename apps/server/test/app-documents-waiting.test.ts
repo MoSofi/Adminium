@@ -82,7 +82,7 @@ for (const [dialect, available] of ENGINES) {
     const draw = (harness: Harness, kind: string) => harness.inject({ method: 'POST', url: '/apps/crew/documents/render', payload: { kind, ref: 'sign_offs', pk: { id: 1 } } });
     /** Whether a message that may go without the signed copy goes without it: nothing draws it for the app. */
     const goesWithout = async (harness: Harness) => {
-      const manifest = (await manifestsRepo(harness.meta, CRYPTO).findByKey('crew'))!.document as never;
+      const manifest = (((await manifestsRepo(harness.meta, CRYPTO).listByKey('crew'))[0] ?? null))!.document as never;
       return await appDocumentDetached(harness.meta, manifest, 'sign_offs', 'signed-copy', undefined, (await addOnAvailability(harness.meta, 'crew', () => made.runtime)).kindsOf);
     };
     /** The add-on's next version, which draws the signed copy, staged and loaded. */

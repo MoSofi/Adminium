@@ -18,6 +18,7 @@
  * order.
  */
 
+import { onlyInstall } from './only-install.js';
 import BetterSqlite3 from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 
@@ -43,13 +44,18 @@ async function freshMeta(): Promise<MetaDb> {
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await initMetaDb(meta);
   await applyMigrations(meta.db, { dialect: meta.dialect });
+  // The add-ons the profiles and settings below belong to: both are kept per install.
+  for (const key of ['invoices', 'barcode-labels']) {
+    await manifestsRepo(meta, crypto).install({ manifestKey: key, version: '1.0.0', kind: 'add-on', source: 'file', document: { key } });
+  }
   return meta;
 }
 
 /** Exactly what `compose.ts` hands the add-on routes as `onAddOnRemoved`. */
 async function onAddOnRemoved(meta: MetaDb, key: string): Promise<void> {
-  await documentProfilesRepo(meta).setEnabledForAddOn(key, false);
-  await addOnSettingsRepo(meta).clear(key);
+  const install = await onlyInstall(meta, key);
+  await documentProfilesRepo(meta).setEnabledForAddOn(install, false);
+  await addOnSettingsRepo(meta).clearForInstall(install.manifestId);
 }
 
 describe('uninstall reaches the document tables, and stops there', () => {
@@ -65,6 +71,7 @@ describe('uninstall reaches the document tables, and stops there', () => {
 
     const profile = await documentProfilesRepo(meta).create({
       addOnKey: 'invoices',
+      installId: (await onlyInstall(meta, 'invoices')).installId,
       kind: 'invoice',
       name: 'Invoice',
       connectionId,
@@ -87,7 +94,7 @@ describe('uninstall reaches the document tables, and stops there', () => {
       htmlFileId: null,
       format: 'pdf',
     });
-    await addOnSettingsRepo(meta).patch('invoices', { business_name: 'Northwind' }, [
+    await addOnSettingsRepo(meta).patch(await onlyInstall(meta, 'invoices'), { business_name: 'Northwind' }, [
       { key: 'business_name' },
     ]);
 
@@ -108,7 +115,7 @@ describe('uninstall reaches the document tables, and stops there', () => {
     // The add-on's OWN configuration goes with it. This is the one place
     // "uninstall keeps data" bends, and it bends because an add-on's settings
     // are part of the add-on rather than the customer's data.
-    expect(await addOnSettingsRepo(meta).valuesFor('invoices')).toEqual({});
+    expect(await addOnSettingsRepo(meta).valuesForInstall((await onlyInstall(meta, 'invoices')).manifestId)).toEqual({});
   });
 
   it('stops NOTHING belonging to another add-on', async () => {
@@ -122,6 +129,7 @@ describe('uninstall reaches the document tables, and stops there', () => {
     ).id;
     const mine = await documentProfilesRepo(meta).create({
       addOnKey: 'invoices',
+      installId: (await onlyInstall(meta, 'invoices')).installId,
       kind: 'invoice',
       name: 'Invoice',
       connectionId,
@@ -130,19 +138,20 @@ describe('uninstall reaches the document tables, and stops there', () => {
     });
     const theirs = await documentProfilesRepo(meta).create({
       addOnKey: 'barcode-labels',
+      installId: (await onlyInstall(meta, 'barcode-labels')).installId,
       kind: 'label-sheet',
       name: 'Labels',
       connectionId,
       table: 'public.parts',
       mapping: {},
     });
-    await addOnSettingsRepo(meta).patch('barcode-labels', { codes: [] }, [{ key: 'codes' }]);
+    await addOnSettingsRepo(meta).patch(await onlyInstall(meta, 'barcode-labels'), { codes: [] }, [{ key: 'codes' }]);
 
     await onAddOnRemoved(meta, 'invoices');
 
     expect((await documentProfilesRepo(meta).findById(mine.id))?.enabled).toBe(false);
     expect((await documentProfilesRepo(meta).findById(theirs.id))?.enabled).toBe(true);
-    expect(await addOnSettingsRepo(meta).valuesFor('barcode-labels')).toEqual({ codes: [] });
+    expect(await addOnSettingsRepo(meta).valuesForInstall((await onlyInstall(meta, 'barcode-labels')).manifestId)).toEqual({ codes: [] });
   });
 
   it('a disabled profile no longer answers the matcher’s read', async () => {
@@ -162,6 +171,7 @@ describe('uninstall reaches the document tables, and stops there', () => {
     ).id;
     await documentProfilesRepo(meta).create({
       addOnKey: 'invoices',
+      installId: (await onlyInstall(meta, 'invoices')).installId,
       kind: 'invoice',
       name: 'Invoice',
       connectionId,
@@ -203,7 +213,7 @@ describe('the add-on routes call the hooks at all', () => {
     const removal = await readFile(new URL('../src/add-ons/uninstall.ts', import.meta.url), 'utf8');
     expect(removal.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(1);
     expect(routes).toContain('rebuildRuntime: deps.rebuildRuntime');
-    expect(routes).toContain('deps.onAddOnRemoved?.(key)');
+    expect(routes).toContain('deps.onAddOnRemoved?.(installed)');
 
     const compose = await readFile(new URL('../src/compose.ts', import.meta.url), 'utf8');
     expect(compose).toContain('rebuildRuntime: () => rebuildAddOnRuntime()');

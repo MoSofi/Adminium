@@ -106,6 +106,7 @@ describe('GET/PATCH /me/prefs', () => {
       density: null,
       locale: null,
       dir: null,
+      workspaceId: null,
     });
     // Nothing user-set yet — every axis resolves from workspace/system.
     expect(Object.values(before.data.resolved.source)).not.toContain('user');

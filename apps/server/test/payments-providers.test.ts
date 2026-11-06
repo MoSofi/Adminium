@@ -155,7 +155,8 @@ function seam(over: Partial<Omit<PaymentSeamDeps, 'runtime'>> & { status?: strin
   return {
     runtime: () => (over.state === null ? null : runtime),
     manifests: {
-      findByKey: async (key) => (key === 'pay-x' ? ({ row, document: manifest, attachments: [] } as InstalledManifest) : null),
+      findInScope: async (key: string) => (key === 'pay-x' ? ({ row, document: manifest, attachments: [] } as InstalledManifest) : null),
+      listByKey: async (key: string) => (key === 'pay-x' ? [{ row, document: manifest, attachments: [] } as InstalledManifest] : []),
       getCredential: async () =>
         over.credential === undefined ? { kind: 'api-key', secret: { payments: 1, test: STORED } } : over.credential,
     },

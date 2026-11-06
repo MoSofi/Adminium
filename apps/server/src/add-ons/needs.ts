@@ -92,11 +92,17 @@ export function featuresNeeding(needs: AddOnNeeds | undefined, key: string): Fea
 /** Every app row, any status, with its parsed needs. */
 export async function appNeedRows(
   meta: MetaDb,
+  /** One database's apps (an add-on install there is needed by those only); every app, once per key, when absent or `server`. */
+  scopeKey?: string,
 ): Promise<{ app: string; appName: string; appVersion: string; status: string; needs: AddOnNeeds | undefined }[]> {
   // Ids sorted, rows fetched after: a sort carrying the manifests fails on MySQL (`inIdOrder`).
-  const order = (
-    await meta.db.selectFrom('adminium_manifests').select('id').where('kind', '=', 'app').orderBy('manifestKey', 'asc').execute()
-  ).map((row) => row.id);
+  let query = meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey']).where('kind', '=', 'app');
+  if (scopeKey !== undefined && scopeKey !== 'server') query = query.where('scopeKey', '=', scopeKey);
+  const seen = new Set<string>();
+  // One version per app on a server: one copy of each key says what it needs.
+  const order = (await query.orderBy('manifestKey', 'asc').orderBy('installedAt', 'asc').execute())
+    .filter((row) => (seen.has(row.manifestKey) ? false : (seen.add(row.manifestKey), true)))
+    .map((row) => row.id);
   const rows =
     order.length === 0
       ? []
@@ -118,9 +124,9 @@ export async function appNeedRows(
 }
 
 /** Every app that names `key`, and how. */
-export async function needsOf(meta: MetaDb, key: string): Promise<AppNeed[]> {
+export async function needsOf(meta: MetaDb, key: string, scopeKey?: string): Promise<AppNeed[]> {
   const out: AppNeed[] = [];
-  for (const row of await appNeedRows(meta)) {
+  for (const row of await appNeedRows(meta, scopeKey)) {
     const need = needKindOf(row.needs, key);
     if (need === null) continue;
     out.push({

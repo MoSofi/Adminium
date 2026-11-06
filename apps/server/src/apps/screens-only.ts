@@ -32,18 +32,29 @@ export function staffOpenUrl(settings: SurfaceSettings, appKey: string, protocol
 }
 
 /** The databases a screens-only person's apps read: each app's own, or its install's. */
-export async function appConnections(meta: MetaDb, settings: SurfaceSettings, appKeys: readonly string[]): Promise<Set<string>> {
+export async function appConnections(meta: MetaDb, settings: SurfaceSettings, appKeys: readonly string[], installIds?: readonly string[]): Promise<Set<string>> {
   const out = new Set<string>();
   if (appKeys.length === 0) return out;
+  /*
+   * THE INSTALLS THEIR ROLES BELONG TO, when they are known: a Kiln clerk
+   * reads Kiln's database, not every database the app is installed on.
+   */
+  if (installIds !== undefined && installIds.length > 0) {
+    const rows = await meta.db.selectFrom('adminium_manifests').select('connectionId').where('kind', '=', 'app').where('id', 'in', [...installIds]).execute();
+    for (const row of rows) if (row.connectionId !== null) out.add(row.connectionId);
+    return out;
+  }
   for (const key of appKeys) {
     const own = connectionForMount(settings, key, null);
     if (own !== null) out.add(own);
   }
+  // Roles with no install named (none since installs were per database): the bare install's database.
   const rows = await meta.db
     .selectFrom('adminium_manifests')
     .select('connectionId')
     .where('kind', '=', 'app')
     .where('manifestKey', 'in', [...appKeys])
+    .where('instanceSlug', '=', '')
     .execute();
   for (const row of rows) if (row.connectionId !== null) out.add(row.connectionId);
   return out;

@@ -30,6 +30,8 @@ export interface PermissionSet {
    * use the dashboard: Super Admin, and anyone with one ordinary role.
    */
   screensOnly: readonly string[] | null;
+  /** With `screensOnly`: the installs those roles belong to (each app's copy on one database). */
+  screensOnlyInstalls?: readonly string[] | undefined;
   /**
    * The update grants that may write only some columns (rbac/update-limits.ts).
    * Absent means none: a set built without it limits nothing.
@@ -101,13 +103,15 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
     const parts = await loadAppParts(meta, [...new Set(roles.flatMap((role) => (role.appKey === null ? [] : [role.appKey])))]);
     const closed = await tablesOfPartsOff(meta, parts);
     for (const role of roles) {
-      if (role.appKey !== null && parts.get(role.appKey)?.disabled === true) continue;
+      // Its own install switched off suspends it; another database's copy decides nothing for it.
+      const own = role.manifestId === null ? (role.appKey === null ? undefined : parts.get(role.appKey)) : (parts.get(role.manifestId) ?? (role.appKey === null ? undefined : parts.get(role.appKey)));
+      if (role.appKey !== null && own?.disabled === true) continue;
       if (!roleIsOffered(role, parts)) {
         partsOff = true;
         continue;
       }
       live.push(role);
-      const lapsed = role.appKey === null || role.modules === null ? [] : closed.filter((table) => table.app === role.appKey && role.modules!.includes(table.module));
+      const lapsed = role.appKey === null || role.modules === null ? [] : closed.filter((table) => table.app === role.appKey && (role.manifestId === null || table.install === role.manifestId) && role.modules!.includes(table.module));
       const rows = Object.fromEntries(ROW_ACTIONS.map((action) => [action, { limited: [] as LimitedRows[], unlimited: new Set<string>() }])) as RoleRowsDraft;
       rowsByRole.push(rows);
       for (const row of await permissions.listForRole(role.id)) {
@@ -141,6 +145,7 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
     roleIds: roles.map((role) => role.id),
     // From every role held, as ever: a cashier whose app or part is off stays a person of those screens, and is told there.
     screensOnly: screensOnlyApps(roles),
+    screensOnlyInstalls: screensOnlyApps(roles) === null ? undefined : [...new Set(roles.flatMap((role) => (role.manifestId === null ? [] : [role.manifestId])))],
     ...(partsOff && live.length === 0 ? { partsOff: true as const } : {}),
     ...(limited.length === 0 ? {} : { updateLimits: { limited, unlimited } }),
     ...(readLimited.length === 0 ? {} : { readLimits: { limited: readLimited, unlimited: readUnlimited } }),

@@ -93,6 +93,7 @@ import { loadOverrideMap, recipientLocale } from '../i18n/server-i18n.js';
 import { openPublishableKey, storedPageKey } from '../public-api/keys.js';
 import { CSRF_FORM_FIELD, normalizeHost } from '../security/csrf.js';
 import {
+  addressForMount,
   appNameOf,
   appNameOverrideOf,
   availabilityOf,
@@ -104,7 +105,7 @@ import {
   type SurfaceSettingsCache,
   NO_SURFACE_SETTINGS,
 } from '../surfaces/settings.js';
-import { renderNotFoundPage, renderUnavailablePage } from '../surfaces/unavailable-page.js';
+import { renderMovedPage, renderNotFoundPage, renderUnavailablePage } from '../surfaces/unavailable-page.js';
 import { sendSurfaceIndex, type SurfaceAssistant } from './surface-index.js';
 
 /** Where the script-free "not available" page's Sign out posts. */
@@ -173,6 +174,8 @@ declare module 'fastify' {
       surface: HostedSurface,
       request: FastifyRequest,
       reply: FastifyReply,
+      /** The mount's instance slug (null for the bare mount): which install's switch and grant decide. */
+      slug?: string | null,
     ) => Promise<boolean>;
     /**
      * Cached `surfaces.apps` / `surfaces.domains`, or null on a boot with no
@@ -378,6 +381,34 @@ async function sendNotFoundPage(meta: MetaDb, request: FastifyRequest, reply: Fa
     .send(html);
 }
 
+/** The plain address of an app whose copy that had it is gone, in the reader's language: where the app is now. */
+async function sendMovedPage(
+  meta: MetaDb,
+  surface: HostedSurface,
+  copies: readonly { database: string; url: string }[],
+  settings: SurfaceSettings,
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const user = request.user;
+  const locale: LocaleId =
+    surface.side === 'staff' && user !== null
+      ? ((await recipientLocale(meta, user.id)) as LocaleId)
+      : (negotiateLocale(request.headers['accept-language']) ?? ((await recipientLocale(meta, null)) as LocaleId));
+  const i18n = await createServerI18n({ locale, overrides: await loadOverrideMap(meta, locale) });
+  const workspace = await settingsRepo(meta).get('branding.appName');
+  const ownLabel = surface.manifest === null ? '' : resolveLabel(surface.manifest.appLabels, locale);
+  const html = renderMovedPage({
+    side: surface.side,
+    appName: appNameOf(settings, surface.appKey, ownLabel === '' ? null : ownLabel),
+    venueName: workspace === DEFAULT_WORKSPACE_NAME ? null : workspace,
+    copies,
+    lang: bcp47(locale),
+    t: (key, fallback, args) => i18n.t(key, { defaultValue: fallback, ...args }),
+  });
+  await reply.code(410).header('content-type', 'text/html; charset=utf-8').header('cache-control', 'no-store').header('x-robots-tag', 'noindex').send(html);
+}
+
 /**
  * The "not available" page, in the reader's language: a signed-in person's
  * own (their choice, else the workspace's — what their dashboard shows them);
@@ -494,15 +525,51 @@ export function surfaceFileFor(root: string, path: string): string | null {
   }
 }
 
-/** The connection an installed app's manifest row records, or null. */
+/** The connection the bare install of an app records (the one owning `/apps/<key>/`), or null. */
 async function installConnectionOf(meta: MetaDb, appKey: string): Promise<string | null> {
   const row = await meta.db
     .selectFrom('adminium_manifests')
     .select('connectionId')
     .where('manifestKey', '=', appKey)
+    .where('instanceSlug', '=', '')
     .where('kind', '=', 'app')
     .executeTakeFirst();
   return row?.connectionId ?? null;
+}
+
+/**
+ * WHERE AN APP IS NOW, for its plain address once the copy that had it is
+ * gone: each copy still installed, by its database's name and its own
+ * address. Null while a copy has the plain address (or none is installed):
+ * the address is answered as it always was.
+ */
+async function copiesElsewhere(meta: MetaDb, appKey: string, side: string): Promise<{ database: string; url: string; slug: string }[] | null> {
+  // key-wide: every copy of the app, to say where each one is.
+  const rows = await meta.db
+    .selectFrom('adminium_manifests')
+    .leftJoin('adminium_connections', 'adminium_connections.id', 'adminium_manifests.scopeKey')
+    .select(['adminium_manifests.instanceSlug as slug', 'adminium_connections.name as database'])
+    .where('adminium_manifests.manifestKey', '=', appKey)
+    .where('adminium_manifests.kind', '=', 'app')
+    .execute();
+  if (rows.length === 0 || rows.some((row) => row.slug === '')) return null;
+  return rows
+    .map((row) => ({ database: row.database ?? row.slug, slug: row.slug, url: `/apps/${appKey}/${row.slug}/${side}/` }))
+    .sort((a, b) => a.database.localeCompare(b.database));
+}
+
+/**
+ * The install a mount serves: the one on the mount's database, else (the bare
+ * mount with no binding) the bare install. Its id goes into the screens'
+ * config, and the screens send it back as `X-Adminium-Install`.
+ */
+async function installOfMount(meta: MetaDb, appKey: string, connectionId: string | null, slug: string | null = null): Promise<{ id: string } | null> {
+  const bare = () => meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', appKey).where('kind', '=', 'app').where('instanceSlug', '=', '').executeTakeFirst();
+  if (connectionId === null) return (await bare()) ?? null;
+  const own = await meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', appKey).where('kind', '=', 'app').where('scopeKey', '=', connectionId).executeTakeFirst();
+  if (own !== undefined) return own;
+  // An instance made before installs were per database has no install of its own: it is the bare install's, as it always was.
+  return slug === null ? null : ((await bare()) ?? null);
 }
 
 export const surfacesPlugin = fp<SurfacesPluginOptions>(
@@ -605,7 +672,32 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         surface: HostedSurface,
         request: FastifyRequest,
         reply: FastifyReply,
+        slug: string | null = null,
       ): Promise<boolean> => {
+        /*
+         * THE INSTALL FIRST, then its switch and its grant. A later install's
+         * mount answers as `<key>~<slug>`: disabling it, or a role holding
+         * only the other install's grant, decides nothing here.
+         */
+        const address = slug === null || app.surfaceSettings === null ? surface.appKey : addressForMount(await app.surfaceSettings.read(), surface.appKey, slug);
+        /*
+         * A PLAIN ADDRESS WHOSE COPY IS GONE opens no other copy by itself: a
+         * bookmark of the first copy would otherwise land, signed in, on
+         * another business's screens. It says where the app is now.
+         */
+        if (slug === null && opts.metaDb !== undefined) {
+          const elsewhere = await copiesElsewhere(opts.metaDb, surface.appKey, surface.side);
+          if (elsewhere !== null) {
+            if (isDocumentNavigation(request)) {
+              await sendMovedPage(opts.metaDb, surface, elsewhere, (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS, request, reply);
+              return true;
+            }
+            throw new AppError(410, 'APP_ADDRESS_RETIRED', `${surface.appKey} is no longer at this address: it is installed on ${elsewhere.map((copy) => copy.database).join(', ')}.`, {
+              appKey: surface.appKey,
+              installs: elsewhere,
+            });
+          }
+        }
         /*
          * SWITCHED OFF comes first, for both sides and before sign-in: an app
          * the operator disabled, or a side they switched off, is not served to
@@ -615,7 +707,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const cache = app.surfaceSettings;
         if (cache !== null) {
           const settings = await cache.read();
-          const availability = availabilityOf(settings, surface.appKey, surface.side);
+          const availability = availabilityOf(settings, address, surface.side);
           if (availability !== 'ok') {
             if (isDocumentNavigation(request) && opts.metaDb !== undefined) {
               await sendUnavailablePage(opts.metaDb, surface, availability, settings, request, reply);
@@ -631,7 +723,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
            * grant of its own (`app:<key>:staff`), which every role that could
            * open them before the grant existed was given.
            */
-          if (typeof request.can === 'function' && !(await request.can(`app:${surface.appKey}:staff`))) {
+          if (typeof request.can === 'function' && !(await request.can(`app:${address}:staff`))) {
             // A page load gets the card that says so, with who is signed in
             // and a way to sign out; anything else the coded answer.
             if (isDocumentNavigation(request) && opts.metaDb !== undefined) {
@@ -702,7 +794,9 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
        * something it knows, and would make an old bundle's name outrank its
        * new one after an upgrade.
        */
-      const appName = appNameOverrideOf(settings, appKey);
+      // This mount's install: a later install's name and settings are its own.
+      const address = addressForMount(settings, appKey, slug);
+      const appName = appNameOverrideOf(settings, address);
       if (side === 'staff') {
         /*
          * The install's own connection when the operator never chose one. An
@@ -716,7 +810,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
             ? await installConnectionOf(opts.metaDb, appKey)
             : null;
         const tables = await tablesOf(connectionId ?? fallback, appKey);
-        const values = await settingsOf(appKey);
+        const install = opts.metaDb === undefined ? null : await installOfMount(opts.metaDb, appKey, connectionId ?? fallback, slug);
+        const values = await settingsOf(appKey, install?.id ?? null);
         /*
          * WHO IS SIGNED IN, and the token their writes carry: with these and
          * the tables above, the staff screens need neither the dashboard's
@@ -743,7 +838,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const bound = connectionId ?? fallback;
         const venue = bound === null || opts.metaDb === undefined ? null : await connectionTenantConfig(opts.metaDb, bound);
         const staffKeys = user === null || bound === null ? {} : await staffKeysFor(appKey, bound, user.id);
-        const addOns = await addOnsOf(appKey, 'staff', bound);
+        const addOns = await addOnsOf(appKey, 'staff', bound, install?.id ?? null);
         // The add-ons' own tables, by their real names: what this person may do with each is said beside the app's.
         const addOnTables = Object.values(addOns ?? {}).flatMap((addOn) => Object.values((addOn as { tables?: Record<string, string> }).tables ?? {}));
         const access = user === null || bound === null ? null : await accessOf(request, appKey, bound, tables, user.id, addOnTables);
@@ -759,6 +854,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const maps = request.server.hasDecorator('maps') ? await request.server.maps.read() : MAPS_OFF;
         return {
           connectionId: bound,
+          // Sent back on every call as `X-Adminium-Install`: the server then knows which copy of the app is asking.
+          ...(install === null ? {} : { installId: install.id }),
           appName,
           ...(addOns === null ? {} : { addOns }),
           ...(sharedTables === null ? {} : { sharedTables }),
@@ -766,7 +863,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
           ...(access === null ? {} : { access }),
           ...(tables === null ? {} : { tables }),
           ...(values === null ? {} : { settings: values }),
-          ...(await partsOf(appKey)),
+          ...(await partsOf(appKey, install?.id ?? null)),
           ...(venue === null
             ? {}
             : { timezone: venue.timezone, timezoneSource: venue.timezoneSource, currency: venue.currency }),
@@ -808,17 +905,20 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         connectionId ?? (slug === null ? await installConnectionOf(metaDb, appKey) : null),
         appKey,
       );
-      const values = await settingsOf(appKey);
-      const addOns = await addOnsOf(appKey, 'customer', connectionId ?? (slug === null ? await installConnectionOf(metaDb, appKey) : null));
+      const bound = connectionId ?? (slug === null ? await installConnectionOf(metaDb, appKey) : null);
+      const install = await installOfMount(metaDb, appKey, bound, slug);
+      const values = await settingsOf(appKey, install?.id ?? null);
+      const addOns = await addOnsOf(appKey, 'customer', bound, install?.id ?? null);
       return {
         baseUrl: '',
+        ...(install === null ? {} : { installId: install.id }),
         publishableKey: key === null ? shared[linkOnly as string]! : openPublishableKey(crypto, key.tokenEncrypted),
         appName,
         ...(addOns === null ? {} : { addOns }),
         ...(Object.keys(shared).length === 0 ? {} : { publicKeys: shared }),
         ...(tables === null ? {} : { tables }),
         ...(values === null ? {} : { settings: values }),
-        ...(await partsOf(appKey)),
+        ...(await partsOf(appKey, install?.id ?? null)),
         now: new Date().toISOString(),
       };
     }
@@ -828,9 +928,10 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
      * app's own bundle, so the app hides it. The server's own gate for what
      * such a screen reads is the roles, which lapse with the part.
      */
-    async function partsOf(appKey: string): Promise<{ modules?: Record<string, boolean> }> {
+    async function partsOf(appKey: string, installId: string | null): Promise<{ modules?: Record<string, boolean> }> {
       if (opts.metaDb === undefined) return {};
-      const parts = (await loadAppParts(opts.metaDb, [appKey])).get(appKey);
+      const all = await loadAppParts(opts.metaDb, [appKey]);
+      const parts = (installId === null ? undefined : all.get(installId)) ?? all.get(appKey);
       if (parts === undefined || parts.modules === null) return {};
       return { modules: Object.fromEntries(parts.modules.defs.map((def) => [def.id, !parts.off.has(def.id)])) };
     }
@@ -934,18 +1035,20 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
      * app that declares none, so its document is exactly what it always was.
      * A secret is never here: it is never stored in this table at all.
      */
-    async function settingsOf(appKey: string): Promise<Record<string, unknown> | null> {
-      if (opts.metaDb === undefined) return null;
+    async function settingsOf(appKey: string, installId: string | null): Promise<Record<string, unknown> | null> {
+      if (opts.metaDb === undefined || installId === null) return null;
+      // One install's own settings: Kiln's business type is not Fernhill's.
       const row = await opts.metaDb.db
         .selectFrom('adminium_manifests')
         .select('manifest')
+        .where('id', '=', installId)
         .where('manifestKey', '=', appKey)
         .where('kind', '=', 'app')
         .executeTakeFirst();
       if (row === undefined) return null;
       const declared = (readJson<Manifest | null>(row.manifest)?.settings ?? []).filter((s) => s.secret !== true);
       if (declared.length === 0) return null;
-      return settingValuesWithDefaults(declared, await addOnSettingsRepo(opts.metaDb).valuesFor(appKey));
+      return settingValuesWithDefaults(declared, await addOnSettingsRepo(opts.metaDb).valuesForInstall(installId));
     }
 
     /**
@@ -966,16 +1069,18 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
      * Null when none is attached, so an app with no add-ons gets exactly the
      * document it always got.
      */
-    async function addOnsOf(appKey: string, side: SurfaceSide, connectionId: string | null = null): Promise<Record<string, unknown> | null> {
+    async function addOnsOf(appKey: string, side: SurfaceSide, connectionId: string | null = null, hostInstall: string | null = null): Promise<Record<string, unknown> | null> {
       const metaDb = opts.metaDb;
-      if (metaDb === undefined) return null;
+      if (metaDb === undefined || hostInstall === null) return null;
       // Ids sorted, rows fetched after: a sort carrying the manifests fails on MySQL (`inIdOrder`).
+      // The add-ons attached to THIS install of the app: another database's copy has its own.
       const order = (
         await metaDb.db
           .selectFrom('adminium_manifest_attachments as a')
           .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
           .select('m.id')
           .where('a.attachedTo', '=', appKey)
+          .where('a.hostInstall', '=', hostInstall)
           .where('a.disabledAt', 'is', null)
           .where('m.kind', '=', 'add-on')
           .where('m.status', '=', 'installed')
@@ -1005,7 +1110,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         } | null>(row.manifest);
         const declared = (document?.settings ?? []).filter((setting) => setting.secret !== true);
         const shown = new Set((document?.addOn?.publicSettings ?? []).filter((name) => declared.some((setting) => setting.key === name)));
-        const values = settingValuesWithDefaults(declared, await addOnSettingsRepo(metaDb).valuesFor(row.key));
+        const values = settingValuesWithDefaults(declared, await addOnSettingsRepo(metaDb).valuesForInstall(row.id));
         // Its own tables as they are really named here, from its records: an app never builds a prefixed name itself.
         const tables = connectionId === null ? {} : await appTablesRepo(metaDb).realNames(connectionId, row.key);
         out[row.key] = {
@@ -1148,7 +1253,9 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       if (isHostReservedPath(path, hostSurface?.side ?? 'staff')) return;
       const surface = hostSurface;
       if (surface === null) return;
-      if (await app.surfaceGate(surface, request, reply)) return reply;
+      // A host mapped to an instance answers as that instance's install.
+      const hostMapping = domainMappingFor((await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS, request.host, normalizeHost);
+      if (await app.surfaceGate(surface, request, reply, hostMapping?.instance ?? null)) return reply;
       /*
        * A mapped host serves the app at `/`, so its config lives at `/` too.
        * The app cannot work out which INSTANCE a host is for — it never sees
@@ -1209,7 +1316,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       if (connectionId === null) return;
 
       void reply.header('referrer-policy', 'no-referrer');
-      if (await app.surfaceGate(surface, request, reply)) return reply;
+      if (await app.surfaceGate(surface, request, reply, parsed.slug)) return reply;
 
       if (parsed.rest === 'surface-config.json') {
         void reply.header('cache-control', 'no-store');

@@ -18,6 +18,7 @@
  * Plain reads, one after another, on the pool: no transaction, no lock, no
  * write.
  */
+import { installsOf, resolveInstall, selectorOf } from '../installs/resolve.js';
 import { fetchVisible, type RowLimitContext } from '../crud/row-limit.js';
 import { rowTestOf } from '../crud/row-limit-context.js';
 import { rowsForRequest } from '../crud/row-reach-request.js';
@@ -200,7 +201,9 @@ async function byAddress(reader: Reader, lookUp: LookUp, typed: string): Promise
  * look-up into it would be the one door left open.
  */
 export async function lookUp(deps: LookUpDeps, request: FastifyRequest, addOnKey: string, value: string): Promise<LookUpAnswer> {
-  const row = await deps.meta.db.selectFrom('adminium_manifests').select(['manifest', 'status', 'connectionId']).where('manifestKey', '=', addOnKey).where('kind', '=', 'add-on').executeTakeFirst();
+  // The install the request names (the header, or ?connectionId=), else the key's only one.
+    const found = await resolveInstall(installsOf(deps.meta), addOnKey, selectorOf(request), { kind: 'add-on' });
+    const row = found === null ? undefined : { manifest: found.document as unknown, status: found.row.status, connectionId: found.row.connectionId };
   const parsed = row === undefined ? null : addOnManifestSchema.safeParse(typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest);
   const declared = parsed?.success === true ? lookUpOf(parsed.data as unknown as Manifest) : null;
   if (row === undefined || declared === null || row.connectionId === null) throw new NotFoundError('This add-on has no look-up here.', { addOn: addOnKey });

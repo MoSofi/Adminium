@@ -167,6 +167,14 @@ export const ID_PREFIXES = {
   pex: 'adminium_privacy_exports',
   // wave 0073 — what a stranger's answer to a form is counted by.
   fmk: 'adminium_form_marks',
+  // wave 0075 — an app a person saved, what an install still needs, workspaces and their files.
+  asv: 'adminium_app_saves',
+  aai: 'adminium_app_after_install',
+  wsp: 'adminium_workspaces',
+  wss: 'adminium_workspace_saves',
+  wsi: 'adminium_workspace_installs',
+  // wave 0077 — a row an install made of a part its file carries.
+  apt: 'adminium_app_parts',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

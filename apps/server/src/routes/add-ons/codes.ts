@@ -16,6 +16,7 @@
  * stored. For somebody who may make rows of the add-on's codes; limited per
  * user.
  */
+import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { addOnManifestSchema, adjusterOf, type Manifest } from '@adminium/manifest';
 import { appTablesRepo, type MetaDb } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -65,7 +66,9 @@ export function addOnCodesRoutes(deps: CodesMakeDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const addOnKey = request.params.key;
-        const row = await deps.meta.db.selectFrom('adminium_manifests').select(['manifest', 'status', 'connectionId']).where('manifestKey', '=', addOnKey).where('kind', '=', 'add-on').executeTakeFirst();
+        // The install the request names (the header, or ?connectionId=), else the key's only one.
+        const found = await resolveInstall(installsOf(deps.meta), addOnKey, selectorOf(request), { kind: 'add-on' });
+        const row = found === null ? undefined : { manifest: found.document as unknown, status: found.row.status, connectionId: found.row.connectionId };
         const parsed = row === undefined ? null : addOnManifestSchema.safeParse(typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest);
         const adjuster = parsed?.success === true ? adjusterOf(parsed.data as unknown as Manifest) : null;
         if (row === undefined || adjuster === null || row.connectionId === null) throw new NotFoundError('This add-on keeps no discount codes here.', { addOn: addOnKey });

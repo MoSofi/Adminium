@@ -63,6 +63,7 @@ import {
 } from '../add-ons/install.js';
 import { featuresNeeding, needKindOf, needsOf, type AppNeed, type FeatureNeed, type NeedKind } from '../add-ons/needs.js';
 import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
+import { installOnConnection } from '../installs/resolve.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
 
 export interface AppAddOnDeps {
@@ -243,11 +244,14 @@ export async function resolveAppAddOns(
   const app = input.manifest.key;
   const host = appHost(input.manifest, input.connectionId);
   const rows: AppAddOnRow[] = [];
+  // The app's own install on this database, once there is one: an add-on here is attached to it, not to another copy.
+  const appHere = input.connectionId === null ? null : await manifests.findInScope(app, input.connectionId);
 
   for (const entry of named) {
     const key = entry.key;
     const need = needKindOf(needs, key) ?? 'suggests';
-    const installed = await manifests.findByKey(key);
+    // The add-on as this database has it: its own install here, or a server-wide one.
+    const installed = input.connectionId === null ? ((await manifests.listByKey(key))[0] ?? null) : await installOnConnection(manifests, key, input.connectionId);
     const isAddOn = installed !== null && installed.row.kind === 'add-on';
     const offers = await offersFor(deps, key, bundled, feed);
     const inRange = offers.filter((offer) => satisfiesSemverRange(offer.version, entry.range));
@@ -286,7 +290,7 @@ export async function resolveAppAddOns(
       const version = installed.row.version;
       row.installedVersion = version;
       row.satisfiesRange = satisfiesSemverRange(version, entry.range);
-      const attachment = installed.attachments.find((a) => a.attachedTo === app);
+      const attachment = installed.attachments.find((a) => a.attachedTo === app && (appHere === null || a.hostInstall === appHere.row.id));
       row.enabled = attachment !== undefined && attachment.disabledAt === null;
       try {
         installedManifest = parseAddOnDocument(installed.document, key, [], 'installed').manifest;
@@ -417,7 +421,8 @@ async function planFor(
      * would be one that does not work. Said now, before anything moves.
      */
     if (dto.requiresSchemaChange) {
-      const running = (await manifestsRepo(installer.meta, installer.credentialCrypto).findByKey(host.key))?.row.version ?? null;
+      // One version per app on a server: any copy of the host says which runs.
+      const running = (await manifestsRepo(installer.meta, installer.credentialCrypto).listByKey(host.key))[0]?.row.version ?? null;
       const stale = running === null || running === host.version ? null : attachRangeRefusal(manifest, { key: host.key, version: running });
       if (stale !== null) {
         extra.push({
@@ -733,8 +738,9 @@ export async function pruneNamedAddOns(installer: AddOnInstallerDeps, manifest: 
   const needs = addOnNeedsOf(manifest);
   const manifests = manifestsRepo(installer.meta, installer.credentialCrypto);
   for (const key of new Set([...(needs?.requires ?? []), ...(needs?.suggests ?? [])].map((need) => need.key))) {
-    const installed = await manifests.findByKey(key);
-    if (installed === null || installed.row.kind !== 'add-on') continue;
+    // One version per add-on on a server: every install names the same one, so older ones go.
+    const installed = (await manifests.listByKey(key)).find((one) => one.row.kind === 'add-on');
+    if (installed === undefined) continue;
     await pruneOlderVersions(installer, key, installed.row.version);
   }
 }
@@ -805,10 +811,10 @@ export async function attachedRangeRefusal(
   return null;
 }
 
-/** The add-ons an uninstall keeps: every one attached to the app. */
-export async function addOnsKeptBy(installer: Pick<AddOnInstallerDeps, 'meta' | 'credentialCrypto'>, appKey: string): Promise<{ key: string; name: string; version: string }[]> {
+/** The add-ons an uninstall keeps: every one attached to this install of the app. */
+export async function addOnsKeptBy(installer: Pick<AddOnInstallerDeps, 'meta' | 'credentialCrypto'>, host: { key: string; hostInstall: string }): Promise<{ key: string; name: string; version: string }[]> {
   const manifests = manifestsRepo(installer.meta, installer.credentialCrypto);
-  return (await manifests.attachedToHost(appKey)).map((installed) => {
+  return (await manifests.attachedToHost(host.key, host.hostInstall)).map((installed) => {
     const name = (installed.document as { name?: unknown } | null)?.name;
     return { key: installed.row.manifestKey, name: typeof name === 'string' ? name : installed.row.manifestKey, version: installed.row.version };
   });

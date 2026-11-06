@@ -20,6 +20,8 @@
  * fail at request time — moves the error from the person who caused it to an
  * anonymous visitor who cannot read it, and turns a typo into an outage.
  */
+import { z } from 'zod';
+import { narrowToWorkspace, workspaceIdQuery } from '../../workspaces/list-filter.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   LivePublicKeysError,
@@ -485,7 +487,8 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
       '/public-scopes',
       {
         preHandler: app.rbac.require(PERMISSIONS.apiKeysManage),
-        schema: { response: { 200: publicScopeListReply } },
+        preSerialization: narrowToWorkspace(() => app.rbac.meta, 'scopes', (row) => row['connectionId'] as string | null),
+        schema: { querystring: z.object({ workspaceId: workspaceIdQuery }), response: { 200: publicScopeListReply } },
       },
       async () => {
         const all = await keys.list();

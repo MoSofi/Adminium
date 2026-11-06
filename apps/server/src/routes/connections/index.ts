@@ -10,6 +10,7 @@
  * share the manage grant until the grammar grows one.
  */
 
+import { installsOf } from '../../installs/resolve.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   LivePublicKeysError,
@@ -357,6 +358,19 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         // Inert publishable keys (revoked or expired) go with the connection;
         // listed up front only so the audit row names what was cleared.
         const at = app.rbac.now();
+        /*
+         * A DATABASE AN APP OR ADD-ON IS INSTALLED ON is not deleted from under
+         * it: the install would be left with no database, unreachable and
+         * impossible to remove from that database. Removing them is the
+         * operator's step, as revoking live keys is.
+         */
+        const installs = await installsOf(meta).listInScope(connection.id);
+        if (installs.length > 0) {
+          const names = installs.map((one) => (one.document as { name?: unknown } | null)?.name).map((name, i) => (typeof name === 'string' ? name : installs[i]!.row.manifestKey));
+          throw new ConflictError(`Remove ${names.join(', ')} from ${connection.name} first.`, 'CONNECTION_HAS_INSTALLS', {
+            installs: installs.map((one, i) => ({ installId: one.row.id, key: one.row.manifestKey, name: names[i]! })),
+          });
+        }
         const inertKeys = await publicKeys.listInert({ connectionId: connection.id }, at);
         try {
           await manager.connections.delete(connection.id, at);

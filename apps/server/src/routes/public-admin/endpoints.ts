@@ -133,16 +133,18 @@ export function registerEndpointRoutes(app: ZodApp, deps: EndpointRoutesDeps): v
       schema: { querystring: publicEndpointsQuery, response: { 200: publicEndpointListReply } },
     },
     async (request) => {
-      const { connectionId } = request.query;
-      const view = await viewFor(connectionId);
-      const { endpoints: list, unaddressable } = effectiveEndpoints(view, await endpoints.listByConnection(connectionId));
-      return {
-        snapshot: view !== null,
-        endpoints: list.map(endpointToDto),
-        methods: [...PUBLIC_METHODS],
-        sources: view === null ? [] : sourcesOf(view),
-        unaddressable,
-      };
+      // One database, or each of a list in turn: every database's endpoints are its own, side by side.
+      const ids = request.query.connectionIds ?? [request.query.connectionId!];
+      const out = { snapshot: true, endpoints: [] as ReturnType<typeof endpointToDto>[], methods: [...PUBLIC_METHODS], sources: [] as ReturnType<typeof sourcesOf>, unaddressable: [] as ReturnType<typeof effectiveEndpoints>['unaddressable'] };
+      for (const connectionId of ids) {
+        const view = await viewFor(connectionId);
+        const { endpoints: list, unaddressable } = effectiveEndpoints(view, await endpoints.listByConnection(connectionId));
+        out.snapshot &&= view !== null;
+        out.endpoints.push(...list.map(endpointToDto));
+        if (view !== null) out.sources.push(...sourcesOf(view));
+        out.unaddressable.push(...unaddressable);
+      }
+      return out;
     },
   );
 

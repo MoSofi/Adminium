@@ -45,6 +45,7 @@
  * never removes or changes anything at all: it only makes what is missing
  * (`only`).
  */
+import { installOnConnection, installsOf } from '../installs/resolve.js';
 import { isDeepStrictEqual } from 'node:util';
 
 import type { AppDocument, AppManifest, ColumnRules, Manifest, ShapeDefinition, SlotMapping as ManifestSlotMapping } from '@adminium/manifest';
@@ -114,6 +115,18 @@ export interface PlannedProfile {
   where?: { column: string; in: (string | number | boolean)[] } | undefined;
   /** Where it came from: the shape the table is built on, the app's own entry, or both. */
   from: 'shape' | 'app' | 'shape+app';
+  /** What the app's entry gives the profile when it is first made: its options, the change that draws it, where it goes. */
+  seed?: Pick<AppDocument, 'options' | 'trigger' | 'deliver'> | undefined;
+}
+
+/** What an entry gives a profile when it is first made, when it gives any. */
+function seedOf(entry: AppDocument): PlannedProfile['seed'] {
+  if (entry.options === undefined && entry.trigger === undefined && entry.deliver === undefined) return undefined;
+  return {
+    ...(entry.options === undefined ? {} : { options: structuredClone(entry.options) }),
+    ...(entry.trigger === undefined ? {} : { trigger: structuredClone(entry.trigger) }),
+    ...(entry.deliver === undefined ? {} : { deliver: structuredClone(entry.deliver) }),
+  };
 }
 
 export interface SkippedProfile {
@@ -203,6 +216,8 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
       if (entry.feature !== undefined) extended.feature = entry.feature;
       if (entry.requestValues !== undefined) extended.requestValues = [...entry.requestValues];
       if (entry.where !== undefined) extended.where = { column: entry.where.column, in: [...entry.where.in] };
+      const seed = seedOf(entry);
+      if (seed !== undefined) extended.seed = seed;
       extended.from = 'shape+app';
       continue;
     }
@@ -220,6 +235,7 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
       ...(entry.feature === undefined ? {} : { feature: entry.feature }),
       ...(entry.requestValues === undefined ? {} : { requestValues: [...entry.requestValues] }),
       ...(entry.where === undefined ? {} : { where: { column: entry.where.column, in: [...entry.where.in] } }),
+      ...(seedOf(entry) === undefined ? {} : { seed: seedOf(entry) }),
       from: 'app',
     });
   }
@@ -677,6 +693,14 @@ export async function makeAppProfiles(input: {
       result.updated.push({ id: mine.id, kind: stored.kind, table: stored.table });
       continue;
     }
+    /*
+     * What the entry gives a new profile: its options under the app's own,
+     * the change that draws it, and whether it is kept. Where it is mailed
+     * is the owner's to choose after the install: a slot always arrives
+     * empty. All three are the operator's once the profile is made.
+     */
+    const seed = plan.seed;
+    const trigger = seed?.trigger === undefined ? null : { event: seed.trigger.event, ...(seed.trigger.when === undefined ? {} : { when: { column: seed.trigger.when.column, op: 'is', ...(seed.trigger.when.value === undefined ? {} : { value: seed.trigger.when.value }) } }) };
     const made = await repo.create(
       {
         addOnKey: stored.addOnKey,
@@ -685,13 +709,22 @@ export async function makeAppProfiles(input: {
         connectionId: input.connectionId,
         table: stored.table,
         mapping: stored.mapping as Record<string, unknown>,
-        options: stored.options as Record<string, unknown>,
+        options: { ...(seed?.options ?? {}), ...(stored.options as Record<string, unknown>) },
+        ...(trigger === null ? {} : { trigger }),
+        ...(seed?.deliver === undefined ? {} : { deliver: { store: seed.deliver.store ?? true, emailSlot: null } }),
         createdBy: input.createdBy ?? null,
+        // The install of the add-on that renders it, on this database.
+        installId: (await installOnConnection(installsOf(input.meta), stored.addOnKey, input.connectionId))?.row.id ?? null,
         ownerApp: appKey,
         orderBy: stored.orderBy,
       },
       at,
     );
+    // The rule that draws it on the change, written the way the documents screen writes it.
+    if (made.trigger !== null) {
+      const synced = await syncProfileTrigger(input.meta, made, { userId: input.createdBy ?? null });
+      if (synced.automationId !== null) await repo.patch(made.id, { trigger: { ...made.trigger, automationId: synced.automationId } }, at);
+    }
     kept.add(made.id);
     result.made.push({ id: made.id, kind: stored.kind, table: stored.table });
   }

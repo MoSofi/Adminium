@@ -104,7 +104,7 @@ describe.each(LEGS)('two entries on one table, and a caller who varies what they
 
   it.skipIf(!reachable)('draws nothing for a client while the add-on is detached from the app', async () => {
     const repo = manifestsRepo(h.meta, { encrypt: (v) => v, decrypt: (v) => v });
-    const addOn = (await repo.findByKey('invoices'))!;
+    const addOn = (((await repo.listByKey('invoices'))[0] ?? null))!;
     await repo.setAttachmentEnabled(addOn.row.id, 'studio', false);
     try {
       const res = await served.call('POST', '/documents/render', { session: sessions['ann'], payload: { ref: 'studio_invoices_claimed', id: 8, kind: 'invoice', locale: 'da-DK' } });

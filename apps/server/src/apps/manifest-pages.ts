@@ -30,12 +30,28 @@
  * ─── What never blocks an install ─────────────────────────────────────────
  *
  * A page that cannot be built — no binding, a table that cannot back its
- * template, an unknown template, a slug someone else's page already has — is
- * REPORTED and the install goes on. Every released app shipped before pages
- * were read; refusing them now would break installs that worked. An unbound
- * page is still created, and shows the "this page has no table" notice that
- * leads to the fix. An app's own CI is where these are refused
- * (`checkManifestPages`).
+ * template, an unknown template — is REPORTED and the install goes on. Every
+ * released app shipped before pages were read; refusing them now would break
+ * installs that worked. An unbound page is still created, and shows the "this
+ * page has no table" notice that leads to the fix. An app's own CI is where
+ * these are refused (`checkManifestPages`).
+ *
+ * ─── A page saved from a dashboard ────────────────────────────────────────
+ *
+ * A self-made app's page may carry its whole `envelope` and its shared
+ * `views`: made the target's own by `manifest-envelopes.ts` and
+ * `manifest-views.ts`. One that cannot be made stops an install that is
+ * `strict`, and is reported otherwise.
+ *
+ * ─── A page already at the address ────────────────────────────────────────
+ *
+ * A slug held on the database by a page that is not this app's — the
+ * operator's own, a generated one, one an uninstalled app left — is a choice
+ * on the check step (`planPageSlugs`): REPLACE it when nobody edited it,
+ * RENAME it to an address the operator gives (the app's page takes the slug,
+ * so its roles' grants and its next update find it), or SKIP the app's page.
+ * With no answer the install is refused; nothing is skipped silently.
+ * Another app's page is never offered: the plan refuses it.
  */
 
 import {
@@ -48,17 +64,45 @@ import {
 } from '@adminium/engine';
 import { keptFromStaff, type Manifest } from '@adminium/manifest';
 import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
-import { newId, overridesRepo, pagesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
+import { newId, overridesRepo, pagesRepo, permissionsRepo, snapshotsRepo, type MetaDb, type PageSummary } from '@adminium/meta';
 
 import { ownsBlocks } from './owns-blocks.js';
+import type { RefTarget } from './envelope-refs.js';
+import { appTableRefs, envelopeFromFile, targetTableFor } from './manifest-envelopes.js';
 import { bindForm, bindLayout, bindListConfig, boardOf, calendarOf } from './manifest-page-config.js';
+import { writePageViews } from './manifest-views.js';
 import { applyCompositionOverrides, applyOverrides, withEffectiveLabels } from '../connections/effective-schema.js';
 import { SnapshotView } from '../crud/identifiers.js';
+import { ValidationFailedError } from '../errors.js';
 import { isUntouched, stamped } from '../pages/generated-stamp.js';
 import { seedPageGrants } from '../pages/page-grants.js';
 import { buildUserPageEnvelope } from '../routes/pages/envelope.js';
 
 type NavGroup = (typeof BUILTIN_NAV_GROUP_KEYS)[number];
+
+/** What the operator chose for a page whose address is taken, by the app page's slug. */
+export type PageChoice = { action: 'replace' } | { action: 'rename-existing'; to: string } | { action: 'skip' };
+export type PageChoiceAction = PageChoice['action'];
+
+/** An address one of the app's pages wants, held by a page that is not this app's. */
+export interface PageClash {
+  /** The app's page (its ref, which is its slug). */
+  page: string;
+  /** The title of the page there now. */
+  title: string;
+  /** Whose it is: the operator's (`yours`), the generator's, or an app uninstalled since. */
+  holder: 'yours' | 'generated' | 'orphan';
+  /** Nobody has edited it since it was made: it may be replaced. */
+  untouched: boolean;
+  offers: PageChoiceAction[];
+  action: PageChoiceAction | 'undecided';
+  /** For `rename-existing`: the address the page there moves to. */
+  renameTo?: string;
+}
+
+/** A slug as a page's address takes it (`pageSlug` in the pages routes). */
+const PAGE_SLUG = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const PAGE_SLUG_MAX = 31;
 
 export interface ManifestPageSkip {
   page: string;
@@ -80,7 +124,15 @@ export interface ManifestPageSkip {
     | 'PAGE_TABS_INVALID'
     | 'PAGE_TAB_UNKNOWN'
     | 'PAGE_BULK_INVALID'
-    | 'PAGE_COLUMNS_INVALID';
+    | 'PAGE_COLUMNS_INVALID'
+    // A page saved from a dashboard that cannot be made here, or its shared views: not written.
+    | 'PAGE_ENVELOPE_INVALID'
+    | 'PAGE_VIEWS_INVALID'
+    // Created, without a column of the file the table here cannot show.
+    | 'PAGE_COLUMN_DROPPED'
+    // The operator's answer for a taken address: the app's page left out, or the page there moved.
+    | 'PAGE_SKIPPED'
+    | 'PAGE_MOVED';
   message: string;
 }
 
@@ -112,6 +164,15 @@ export interface MaterialiseInput {
    * knows only real ones. Absent, the two are the same.
    */
   names?: Readonly<Record<string, string>> | undefined;
+  /** The operator's answers for the addresses other pages hold, by the app page's slug. */
+  choices?: Readonly<Record<string, PageChoice>> | undefined;
+  /**
+   * A page that cannot be made stops the caller (an install, a strict update)
+   * instead of being reported: a page saved from a dashboard, its views, a
+   * taken address with no answer. A released app's page that cannot be bound
+   * is still made empty, as ever.
+   */
+  strict?: boolean | undefined;
 }
 
 /**
@@ -193,6 +254,93 @@ function safeParse(text: string): unknown {
   }
 }
 
+/**
+ * Whose a page at one of the app's addresses is: this app's (`this`), another
+ * installed app's or the system's (`app`, never offered), or one the operator
+ * may choose about.
+ */
+async function holderOf(
+  meta: MetaDb,
+  row: PageSummary,
+  appKey: string,
+  manifestRowId: string,
+  owners: ReadonlyMap<string, string>,
+): Promise<PageClash['holder'] | 'this' | 'app'> {
+  if (row.origin === 'manifest') {
+    // An orphan's envelope says whose it was; nothing else does.
+    const orphan = owners.has(row.manifestId ?? '') ? null : await pagesRepo(meta).findById(row.id);
+    if (isThisAppsPage({ ...row, config: orphan?.config }, appKey, manifestRowId, owners)) return 'this';
+    return owners.has(row.manifestId ?? '') ? 'app' : 'orphan';
+  }
+  if (row.origin === 'system') return 'app';
+  return row.origin === 'generated' ? 'generated' : 'yours';
+}
+
+export type PageSlugProblemCode = 'PAGE_SLUG_TAKEN' | 'PAGE_SLUG_UNANSWERED' | 'PAGE_SLUG_ANSWER_INVALID';
+
+/**
+ * The app's addresses other pages hold on this database: each a choice for the
+ * check step, and what is wrong — another app's page, a clash nobody answered,
+ * an answer that cannot be done.
+ */
+export async function planPageSlugs(
+  meta: MetaDb,
+  manifest: Manifest,
+  connectionId: string,
+  /** This app's install on the database, or '' for none yet. */
+  manifestRowId: string,
+  choices: Readonly<Record<string, PageChoice>> = {},
+): Promise<{ clashes: PageClash[]; problems: { code: PageSlugProblemCode; table: string; message: string }[] }> {
+  const clashes: PageClash[] = [];
+  const problems: { code: PageSlugProblemCode; table: string; message: string }[] = [];
+  if (!ownsBlocks(manifest)) return { clashes, problems };
+  const slugs = new Set((manifest.pages ?? []).map((page) => page.ref));
+  const here = (await pagesRepo(meta).listAll()).filter((row) => row.connectionId === connectionId);
+  const taken = new Set(here.map((row) => row.slug));
+  const owners = await pageOwners(meta);
+  const movedTo = new Set<string>();
+  for (const row of here) {
+    if (!slugs.has(row.slug)) continue;
+    const holder = await holderOf(meta, row, manifest.key, manifestRowId, owners);
+    if (holder === 'this') continue;
+    if (holder === 'app') {
+      const name = owners.get(row.manifestId ?? '') ?? 'another app';
+      problems.push({
+        code: 'PAGE_SLUG_TAKEN',
+        table: row.slug,
+        message: `The page /p/${row.slug} on this database belongs to "${name}". Installing here would take it over, so uninstall "${name}" or install against a different database.`,
+      });
+      continue;
+    }
+    const stored = await pagesRepo(meta).findById(row.id);
+    const untouched = stored !== null && isUntouched(stored.config);
+    const offers: PageChoiceAction[] = untouched ? ['replace', 'rename-existing', 'skip'] : ['rename-existing', 'skip'];
+    const clash: PageClash = { page: row.slug, title: row.title, holder, untouched, offers, action: 'undecided' };
+    clashes.push(clash);
+    const choice = choices[row.slug];
+    const refuse = (code: PageSlugProblemCode, message: string) => problems.push({ code, table: row.slug, message });
+    if (choice === undefined) {
+      refuse('PAGE_SLUG_UNANSWERED', `A page is already at /p/${row.slug} on this database. Pick what to do with it before you install: ${untouched ? 'replace it, ' : ''}rename it, or leave the app's page out.`);
+    } else if (!offers.includes(choice.action)) {
+      refuse('PAGE_SLUG_ANSWER_INVALID', `The page at /p/${row.slug} has been edited since it was made, so it is not replaced: rename it, or leave the app's page out.`);
+    } else if (choice.action === 'rename-existing') {
+      const to = choice.to;
+      clash.renameTo = to;
+      if (!PAGE_SLUG.test(to) || to.length > PAGE_SLUG_MAX) {
+        refuse('PAGE_SLUG_ANSWER_INVALID', `"${to}" cannot be the address of the page at /p/${row.slug}: it must be lower-case words joined by "-", at most ${String(PAGE_SLUG_MAX)} characters.`);
+      } else if (taken.has(to) || slugs.has(to) || movedTo.has(to)) {
+        refuse('PAGE_SLUG_ANSWER_INVALID', `"${to}" cannot be the address of the page at /p/${row.slug}: another page has it, or will.`);
+      } else {
+        movedTo.add(to);
+        clash.action = 'rename-existing';
+      }
+    } else {
+      clash.action = choice.action;
+    }
+  }
+  return { clashes, problems };
+}
+
 export async function materialiseManifestPages(input: MaterialiseInput): Promise<MaterialiseResult> {
   const { meta, manifest, connectionId } = input;
   const pages = pagesRepo(meta);
@@ -207,6 +355,13 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
   const names = input.names ?? {};
   const all = await pages.listAll();
   const owners = await pageOwners(meta);
+  const known = appTableRefs(manifest);
+  // The tables a saved page's views name, as the target has them.
+  const target: RefTarget | null =
+    connectionId === null || model === null
+      ? null
+      : { connectionId, postgres: model.dialect === 'postgres', table: (ref) => targetTableFor(model, names, known, ref) };
+  const appSlugs = new Set(declared.map((page) => page.ref));
 
   for (const page of declared) {
     const template = page.template;
@@ -219,28 +374,59 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       });
       continue;
     }
+    // What cannot be made: an install stops, anything else says so and goes on without the page.
+    const fail = (reason: ManifestPageSkip['reason'], message: string): void => {
+      if (input.strict === true) throw new ValidationFailedError(`The page "${page.ref}": ${message}.`, { reason, page: page.ref });
+      result.warnings.push({ page: page.ref, reason, message });
+    };
 
     const slug = page.ref;
     // Slugs are unique per CONNECTION, so that is where a clash can be.
-    const holder = all.find((row) => row.slug === slug && row.connectionId === connectionId);
-    // An orphan's envelope says whose it was; nothing else does.
-    const orphan =
-      holder !== undefined && holder.origin === 'manifest' && !owners.has(holder.manifestId ?? '')
-        ? await pages.findById(holder.id)
-        : null;
-    if (
-      holder !== undefined &&
-      !isThisAppsPage({ ...holder, config: orphan?.config }, manifest.key, input.manifestRowId, owners)
-    ) {
-      // Somebody else's page — the operator's, or another app's. Never
-      // clobbered; the app's page is just not built.
-      // The install check refuses another app's page before it gets here.
-      result.warnings.push({
-        page: page.ref,
-        reason: 'PAGE_SLUG_TAKEN',
-        message: `a page at /p/${slug} already exists and is not this app's`,
-      });
-      continue;
+    let holder = all.find((row) => row.slug === slug && row.connectionId === connectionId);
+    // What the operator chose for a page at this address that is not this app's, done once the app's page is made.
+    let settle: (() => Promise<void>) | null = null;
+    if (holder !== undefined) {
+      const whose = await holderOf(meta, holder, manifest.key, input.manifestRowId, owners);
+      if (whose !== 'this') {
+        const there = holder;
+        const choice = input.choices?.[slug];
+        if (whose === 'app' || choice === undefined) {
+          // Another app's page is never clobbered (the install check refuses it before here); the operator's is only by their answer.
+          if (whose !== 'app' && input.strict === true) {
+            throw new ValidationFailedError(`A page is already at /p/${slug}: pick what to do with it before you install.`, { reason: 'PAGE_SLUG_UNANSWERED', page: slug });
+          }
+          result.warnings.push({ page: page.ref, reason: 'PAGE_SLUG_TAKEN', message: `a page at /p/${slug} already exists and is not this app's` });
+          continue;
+        }
+        if (choice.action === 'skip') {
+          result.warnings.push({ page: page.ref, reason: 'PAGE_SKIPPED', message: `a page is already at /p/${slug}, and the app's page was left out` });
+          continue;
+        }
+        if (choice.action === 'replace') {
+          const stored = await pages.findById(there.id);
+          if (stored === null || !isUntouched(stored.config)) {
+            fail('PAGE_SLUG_TAKEN', `the page at /p/${slug} has been edited since it was made, so it is not replaced`);
+            continue;
+          }
+          settle = async () => {
+            // Its grants first: a grant is a string no foreign key reaches, and a page made later at the same id would inherit it.
+            await permissionsRepo(meta).revokeAllForResource('page', there.id);
+            await pages.delete(there.id);
+          };
+        } else {
+          const to = choice.to;
+          if (!PAGE_SLUG.test(to) || to.length > PAGE_SLUG_MAX || appSlugs.has(to) || (await pages.findBySlug(connectionId, to)) !== null) {
+            fail('PAGE_SLUG_TAKEN', `"${to}" cannot be the address of the page at /p/${slug}: it is not a free address`);
+            continue;
+          }
+          settle = async () => {
+            await pages.updateMeta(there.id, { slug: to });
+            result.warnings.push({ page: page.ref, reason: 'PAGE_MOVED', message: `the page that was at /p/${slug} is now at /p/${to}` });
+          };
+        }
+        // The app's page is a new one at the address.
+        holder = undefined;
+      }
     }
 
     const navGroup = navGroupFor(page.nav.group, template);
@@ -325,6 +511,19 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       connectionId,
       table: null,
     });
+    // A page saved from a dashboard: the body the person arranged, made this database's own on the page just composed.
+    if (page.envelope !== undefined) {
+      const made =
+        connectionId === null || composed === null
+          ? { problem: 'it is saved from a database, and this install has none' }
+          : envelopeFromFile({ page, manifest, frame: envelope, connectionId, model: composed.model, view: composed.view, tableId, names });
+      if ('problem' in made) {
+        fail('PAGE_ENVELOPE_INVALID', `it cannot be made here: ${made.problem}`);
+        continue;
+      }
+      for (const message of made.warnings) result.warnings.push({ page: page.ref, reason: 'PAGE_COLUMN_DROPPED', message });
+      envelope = made.envelope;
+    }
     // The form and the layout the manifest wrote, bound to the real tables.
     const own = (envelope['config'] ?? {}) as Record<string, unknown>;
     const form = page.config?.['form'];
@@ -348,7 +547,7 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
     // What a records page says of itself beside its form — the list's filters and the ones it opens with, its columns, the words
     // of its tabs, its bulk actions — bound to the real tables and written BEFORE the page is stamped, so a fresh
     // page does not read as one somebody edited.
-    if (template === 'page-crud' && composed !== null && tableId !== null) {
+    if (template === 'page-crud' && composed !== null && tableId !== null && page.envelope === undefined) {
       const current = (envelope['config'] ?? {}) as Record<string, unknown>;
       const bound = bindListConfig(page.config, composed.view, composed.view.table(tableId), names, current);
       for (const warning of bound.warnings) result.warnings.push({ page: page.ref, ...warning });
@@ -381,8 +580,16 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       },
     };
     const document = stamped(envelope);
+    // The app's shared views of the page, written on it as it now stands.
+    const writeViews = async (pageId: string): Promise<void> => {
+      if (page.views === undefined) return;
+      const written = await writePageViews(meta, pageId, page.views, target ?? { connectionId: connectionId ?? '', postgres: false, table: () => null });
+      if ('problem' in written) fail('PAGE_VIEWS_INVALID', `its views were not written: ${written.problem}`);
+    };
 
     if (holder === undefined) {
+      // The page that was at the address goes, or moves, only now that the app's page is ready to take it.
+      if (settle !== null) await settle();
       await pages.create({
         id,
         connectionId,
@@ -401,6 +608,7 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       // the add-on itself declares, never by "every role that sees a page of this database".
       if (manifest.kind === 'app') await seedPageGrants(meta, { id, connectionId });
       result.created.push(slug);
+      await writeViews(id);
       continue;
     }
 
@@ -427,10 +635,12 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
         await pages.replaceConfig(holder.id, { ...rest, ...(part === undefined ? {} : { module: part }), ...(offRail === undefined ? {} : { offRail }) });
       }
       result.kept.push(slug);
+      await writeViews(holder.id);
       continue;
     }
     await pages.replaceConfig(holder.id, document, { title, navGroup: rowGroup, icon: page.nav.icon });
     result.recomposed.push(slug);
+    await writeViews(holder.id);
   }
   return result;
 }

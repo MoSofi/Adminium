@@ -25,21 +25,29 @@ export interface GuestBaseDeps {
   hostFor?: ((appKey: string) => Promise<string | undefined>) | undefined;
 }
 
-/** The host mapped to an app's customer side (not an extra tenant's), in a domain map. */
-export function customerHostIn(domains: Readonly<Record<string, DomainMapping>>, appKey: string): string | undefined {
-  return Object.entries(domains).find(([, target]) => target.appKey === appKey && target.side === 'customer' && target.instance === undefined)?.[0];
+/**
+ * The host mapped to an app's customer side, in a domain map: the bare
+ * install's (no instance), or a later install's (its slug is its instance).
+ */
+export function customerHostIn(domains: Readonly<Record<string, DomainMapping>>, appKey: string, slug = ''): string | undefined {
+  return Object.entries(domains).find(([, target]) => target.appKey === appKey && target.side === 'customer' && (target.instance ?? '') === slug)?.[0];
 }
 
 /** The mapped customer host, read from the stored domain map. */
-async function storedCustomerHost(meta: MetaDb, appKey: string): Promise<string | undefined> {
+async function storedCustomerHost(meta: MetaDb, appKey: string, slug = ''): Promise<string | undefined> {
   const domains = (await settingsRepo(meta).get('surfaces.domains')) as Record<string, DomainMapping> | null | undefined;
-  return domains === null || domains === undefined ? undefined : customerHostIn(domains, appKey);
+  return domains === null || domains === undefined ? undefined : customerHostIn(domains, appKey, slug);
 }
 
-/** The base every link into an app's guest side starts with, or null when there is none. */
-export async function guestBase(deps: GuestBaseDeps, appKey: string): Promise<string | null> {
-  const host = await (deps.hostFor ?? ((key: string) => storedCustomerHost(deps.meta, key)))(appKey);
+/**
+ * The base every link into an install's guest side starts with, or null when
+ * there is none. A later install's guests are at its own address
+ * (`/apps/<key>/<slug>/customer`): a mail about a kiln row never links
+ * into fernhill's.
+ */
+export async function guestBase(deps: GuestBaseDeps, appKey: string, slug = ''): Promise<string | null> {
+  const host = slug === '' ? await (deps.hostFor ?? ((key: string) => storedCustomerHost(deps.meta, key)))(appKey) : await storedCustomerHost(deps.meta, appKey, slug);
   if (host !== undefined) return `https://${host}`;
   const origin = await settingsRepo(deps.meta).get('system.publicOrigin');
-  return typeof origin === 'string' && origin !== '' ? `${origin.replace(/\/+$/, '')}/apps/${appKey}/customer` : null;
+  return typeof origin === 'string' && origin !== '' ? `${origin.replace(/\/+$/, '')}/apps/${appKey}/${slug === '' ? '' : `${slug}/`}customer` : null;
 }

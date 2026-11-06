@@ -69,6 +69,7 @@ for (const dialect of TEST_DIALECTS) {
       await profiles.create(
         {
           addOnKey: 'invoices',
+          installId: 'mft_invoices',
           kind: 'invoice',
           name: over.name ?? 'Invoice',
           connectionId,
@@ -117,6 +118,7 @@ for (const dialect of TEST_DIALECTS) {
         const quiet = await profiles.create(
           {
             addOnKey: 'invoices',
+            installId: 'mft_invoices',
             kind: 'invoice',
             name: 'Manual only',
             connectionId,
@@ -141,7 +143,8 @@ for (const dialect of TEST_DIALECTS) {
         // mean doing that again.
         await makeProfile({ name: 'One' });
         await makeProfile({ name: 'Two' });
-        expect(await profiles.setEnabledForAddOn('invoices', false, T0)).toBe(2);
+        expect(await profiles.setEnabledForAddOn({ addOnKey: 'invoices', installId: 'mft_other' }, false, T0)).toBe(0);
+        expect(await profiles.setEnabledForAddOn({ addOnKey: 'invoices', installId: 'mft_invoices' }, false, T0)).toBe(2);
 
         const after = await profiles.list({ addOnKey: 'invoices' });
         expect(after).toHaveLength(2);
@@ -316,6 +319,7 @@ for (const dialect of TEST_DIALECTS) {
             kind: 'add-on',
             source: 'marketplace',
             document: { key: 'invoices' },
+            scopeKey: 'server',
           },
           T0,
         );
@@ -327,13 +331,14 @@ for (const dialect of TEST_DIALECTS) {
           { number: 'INV-1001', fileId: null, htmlFileId: null, format: 'pdf' },
           T0,
         );
-        await settings.patch('invoices', { business_name: 'Northwind' }, [{ key: 'business_name' }], {
+        await settings.patch({ manifestId: installed.row.id, addOnKey: 'invoices' }, { business_name: 'Northwind' }, [{ key: 'business_name' }], {
           at: T0,
         });
+        expect(await settings.valuesForInstall(installed.row.id)).toEqual({ business_name: 'Northwind' });
 
         // `install` answers `{row, document}` — the id is on the row.
         expect(await manifests.uninstall(installed.row.id)).toBe(true);
-        expect(await manifests.findByKey('invoices')).toBeNull();
+        expect(await manifests.listByKey('invoices')).toEqual([]);
 
         // The document is untouched, number and frozen subject included.
         const after = await documents.findById(document.id);
@@ -346,11 +351,9 @@ for (const dialect of TEST_DIALECTS) {
         // so the operator's mapping survives a reinstall.
         expect(await profiles.findById(profile.id)).not.toBeNull();
 
-        // The add-on's OWN settings are the one thing that goes with it, and
-        // going is an explicit call rather than a cascade.
-        expect(await settings.valuesFor('invoices')).toEqual({ business_name: 'Northwind' });
-        await settings.clear('invoices');
-        expect(await settings.valuesFor('invoices')).toEqual({});
+        // The add-on's OWN settings are the one thing that goes with it: they
+        // belong to the install (wave 0076) and its row takes them.
+        expect(await settings.valuesForInstall(installed.row.id)).toEqual({});
       });
 
       it('SURVIVES the profile being deleted, losing only the pointer', async () => {
@@ -374,11 +377,32 @@ for (const dialect of TEST_DIALECTS) {
 
     describe('add-on settings', () => {
       const DECLARED = [{ key: 'business_name' }, { key: 'paper' }, { key: 'token', secret: true }];
+      let INV: { manifestId: string; addOnKey: string };
+      let KILN: { manifestId: string; addOnKey: string };
+      beforeEach(async () => {
+        const manifests = manifestsRepo(meta(), testCredentialCrypto);
+        const base = { manifestKey: 'invoices', version: '1.0.0', kind: 'add-on' as const, source: 'file', document: { key: 'invoices' } };
+        INV = { manifestId: (await manifests.install({ ...base, scopeKey: 'conn_fernhill' }, T0)).row.id, addOnKey: 'invoices' };
+        KILN = { manifestId: (await manifests.install({ ...base, scopeKey: 'conn_kiln', instanceSlug: 'kiln' }, T0)).row.id, addOnKey: 'invoices' };
+      });
+
+      it('keeps each install\'s own values (wave 0076): Kiln\'s business is not Fernhill\'s', async () => {
+        await settings.patch(INV, { business_name: 'Fernhill Coffee' }, DECLARED, { at: T0 });
+        await settings.patch(KILN, { business_name: 'Kiln Street Pottery' }, DECLARED, { at: T0 });
+        expect(await settings.valuesForInstall(INV.manifestId)).toEqual({ business_name: 'Fernhill Coffee' });
+        expect(await settings.valuesForInstall(KILN.manifestId)).toEqual({ business_name: 'Kiln Street Pottery' });
+        await settings.clearForInstall(KILN.manifestId);
+        expect(await settings.valuesForInstall(INV.manifestId)).toEqual({ business_name: 'Fernhill Coffee' });
+      });
+
+      it('refuses values for an install that does not exist', async () => {
+        await expect(settings.patch({ manifestId: 'mft_absent', addOnKey: 'invoices' }, { paper: 'a4' }, DECLARED, { at: T0 })).rejects.toThrow();
+      });
 
       it('merges a partial change rather than replacing the object', async () => {
-        await settings.patch('invoices', { business_name: 'Northwind' }, DECLARED, { at: T0 });
-        await settings.patch('invoices', { paper: 'letter' }, DECLARED, { at: T0 + 1 });
-        expect(await settings.valuesFor('invoices')).toEqual({
+        await settings.patch(INV, { business_name: 'Northwind' }, DECLARED, { at: T0 });
+        await settings.patch(INV, { paper: 'letter' }, DECLARED, { at: T0 + 1 });
+        expect(await settings.valuesForInstall(INV.manifestId)).toEqual({
           business_name: 'Northwind',
           paper: 'letter',
         });
@@ -388,29 +412,29 @@ for (const dialect of TEST_DIALECTS) {
         // In the repo, not at a route: there is more than one writer, and a
         // rule enforced at one door is a rule with three doors.
         await expect(
-          settings.patch('invoices', { token: 'sk_live_xyz' }, DECLARED, { at: T0 }),
+          settings.patch(INV, { token: 'sk_live_xyz' }, DECLARED, { at: T0 }),
         ).rejects.toBeInstanceOf(SecretSettingRefused);
-        expect(await settings.valuesFor('invoices')).toEqual({});
+        expect(await settings.valuesForInstall(INV.manifestId)).toEqual({});
       });
 
       it('drops a key the manifest does not declare, and keeps the rest', async () => {
         await settings.patch(
-          'invoices',
+          INV,
           { business_name: 'Northwind', from_an_older_bundle: 1 },
           DECLARED,
           { at: T0 },
         );
-        expect(await settings.valuesFor('invoices')).toEqual({ business_name: 'Northwind' });
+        expect(await settings.valuesForInstall(INV.manifestId)).toEqual({ business_name: 'Northwind' });
       });
 
       it('answers with an empty object for an add-on nobody configured', async () => {
-        expect(await settings.valuesFor('never-installed')).toEqual({});
+        expect(await settings.valuesForInstall('mft_never_installed')).toEqual({});
       });
 
       it('is cleared by uninstall, unlike the documents', async () => {
-        await settings.patch('invoices', { business_name: 'Northwind' }, DECLARED, { at: T0 });
-        expect(await settings.clear('invoices')).toBe(true);
-        expect(await settings.valuesFor('invoices')).toEqual({});
+        await settings.patch(INV, { business_name: 'Northwind' }, DECLARED, { at: T0 });
+        expect(await settings.clearForInstall(INV.manifestId)).toBe(true);
+        expect(await settings.valuesForInstall(INV.manifestId)).toEqual({});
       });
     });
   });

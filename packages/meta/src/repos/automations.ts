@@ -50,6 +50,8 @@ export interface Automation {
   createdBy: string | null;
   /** The app or add-on that shipped the rule; null for an owner's own. */
   managedBy: string | null;
+  /** The install that shipped it (wave 0076); null with `managedBy`. */
+  installId: string | null;
   templateKey: string | null;
   contentHash: string | null;
   /** The part of its app a shipped rule belongs to: not run while that part is off. */
@@ -71,6 +73,8 @@ export interface CreateAutomationInput {
   createdBy?: string | null | undefined;
   /** A rule a manifest ships: its manifest's key and the rule's own name there. */
   managedBy?: string | null | undefined;
+  /** The install shipping it, with `managedBy` (wave 0076). */
+  installId?: string | null | undefined;
   templateKey?: string | null | undefined;
   contentHash?: string | null | undefined;
   module?: string | null | undefined;
@@ -109,6 +113,7 @@ function decode(row: Selectable<AdminiumAutomationsTable>): Automation {
     timeSavedMinutes: row.timeSavedMinutes,
     createdBy: row.createdBy,
     managedBy: row.managedBy ?? null,
+    installId: row.installId ?? null,
     templateKey: row.templateKey ?? null,
     contentHash: row.contentHash ?? null,
     module: row.module ?? null,
@@ -159,6 +164,8 @@ export function automationsRepo(meta: MetaDb) {
         timeSavedMinutes: input.timeSavedMinutes ?? null,
         createdBy: input.createdBy ?? null,
         managedBy: input.managedBy ?? null,
+        // Written only when given: a store not yet past 0076 has no such column.
+        ...(input.installId === undefined || input.installId === null ? {} : { installId: input.installId }),
         templateKey: input.templateKey ?? null,
         contentHash: input.contentHash ?? null,
         ...(input.module === undefined || input.module === null ? {} : { module: input.module }),

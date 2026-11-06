@@ -31,8 +31,8 @@ for (const dialect of TEST_DIALECTS) {
       const a = await connection(meta, 'a');
       const b = await connection(meta, 'b');
       const profiles = documentProfilesRepo(meta);
-      const invoice = await profiles.create({ addOnKey: 'invoices', kind: 'invoice', name: 'Invoice', connectionId: a, table: TABLE, mapping: {}, ownerApp: 'studio' }, T0);
-      const receipt = await profiles.create({ addOnKey: 'invoices', kind: 'receipt', name: 'Receipt', connectionId: a, table: TABLE, mapping: {}, ownerApp: 'studio' }, T0);
+      const invoice = await profiles.create({ addOnKey: 'invoices', kind: 'invoice', name: 'Invoice', connectionId: a, table: TABLE, mapping: {}, ownerApp: 'studio', installId: null }, T0);
+      const receipt = await profiles.create({ addOnKey: 'invoices', kind: 'receipt', name: 'Receipt', connectionId: a, table: TABLE, mapping: {}, ownerApp: 'studio', installId: null }, T0);
       const register = documentsRepo(meta);
       const draw = async (profileId: string, kind: string, connectionId: string, id: number, at: number, rendered = true) => {
         const row = await register.create(

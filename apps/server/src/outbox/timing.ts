@@ -51,7 +51,13 @@ export type SettingReader = (source: SettingSource) => Promise<unknown>;
  * declares (the write path's own reader, `crud/write-stores.ts`). A list kept
  * as JSON text (a SQLite `json` column, a text column) is read as the list.
  */
-export function settingReader(meta: MetaDb, db: Kysely<SourceDatabase>, view?: Pick<SnapshotView, 'linkTable'>): SettingReader {
+export function settingReader(
+  meta: MetaDb,
+  db: Kysely<SourceDatabase>,
+  view?: Pick<SnapshotView, 'linkTable'>,
+  /** The database the add-on's settings are read for: each install of an add-on keeps its own. None reads none. */
+  connectionId: string | null = null,
+): SettingReader {
   const memo = new Map<string, Promise<unknown>>();
   return (source) => {
     const key = 'addOn' in source ? `addOn:${source.addOn}:${source.setting}` : `table:${source.table}:${source.column}`;
@@ -60,7 +66,7 @@ export function settingReader(meta: MetaDb, db: Kysely<SourceDatabase>, view?: P
       found = (async () => {
         // The saved value, else the add-on's declared default: a ladder nobody
         // has saved yet is the one the add-on ships, not "no days".
-        if ('addOn' in source) return parsed(await addOnSetting(meta, source.addOn, source.setting));
+        if ('addOn' in source) return connectionId === null ? undefined : parsed(await addOnSetting(meta, source.addOn, source.setting, connectionId));
         // Ordered by the key: a table with a second row, by mistake or by a restore, still reads the same one on every engine.
         let query = db.selectFrom(source.table as never).select(source.column as never);
         for (const key of view?.linkTable(source.table)?.primaryKey ?? []) query = query.orderBy(key as never);

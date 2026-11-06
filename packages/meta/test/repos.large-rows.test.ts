@@ -62,7 +62,7 @@ for (const dialect of TEST_DIALECTS) {
       const meta = db();
       const pad = await padFor(meta);
       const a = await connection(meta, 'a');
-      const profile = await documentProfilesRepo(meta).create({ addOnKey: 'invoices', kind: 'statement', name: 'Statement', connectionId: a, table: TABLE, mapping: {}, ownerApp: 'studio' }, T0);
+      const profile = await documentProfilesRepo(meta).create({ addOnKey: 'invoices', kind: 'statement', name: 'Statement', connectionId: a, table: TABLE, mapping: {}, ownerApp: 'studio', installId: null }, T0);
       const register = documentsRepo(meta);
       const drawn: string[] = [];
       for (const id of [1, 2]) {

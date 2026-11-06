@@ -3271,6 +3271,14 @@ export const assistantHostSchema = z.object({
   documentId: z.string().optional(),
   tab: z.string().optional(),
   connectionIds: z.array(z.string()).default([]),
+  /** The tab's workspace, as the dashboard sent it. */
+  workspaceId: z.string().optional(),
+  /**
+   * That workspace's databases, resolved by the server when the turn was
+   * asked (never sent by a client): the assistant's databases are narrowed
+   * to these. Absent: every database the person reaches, as before.
+   */
+  workspaceConnectionIds: z.array(z.string()).optional(),
   /**
    * A data page: which page. The table is the PAGE's and is read from it by
    * the server; nothing here names one.

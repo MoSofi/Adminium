@@ -85,7 +85,7 @@ describe('an app role that meets a role the app does not own', () => {
     const parsed = validateManifest(app);
     expect(parsed.ok).toBe(true);
     await expect(
-      writeManifestRoles({ meta: h.meta, manifest: (parsed as { manifest: Manifest }).manifest, connectionId: h.connectionId, names: {} }),
+      writeManifestRoles({ meta: h.meta, manifest: (parsed as { manifest: Manifest }).manifest, install: { id: 'mft_not_installed', key: (parsed as { manifest: Manifest }).manifest.key, slug: '' }, connectionId: h.connectionId, names: {} }),
     ).rejects.toBeInstanceOf(RoleTakenError);
     expect(await permissionsRepo(h.meta).listForRole(custom.id)).toEqual([]);
   });
@@ -200,7 +200,7 @@ describe('installing a new version over an installed app', () => {
     const refused = await h.install('studio', '0.3.0');
     expect(refused.statusCode, refused.body).toBe(409);
     expect(refused.json().error.code).toBe('ADD_ON_RANGE');
-    expect((await manifestsRepo(h.meta, CRYPTO).findByKey('studio'))!.row.version).toBe('0.2.0');
+    expect((((await manifestsRepo(h.meta, CRYPTO).listByKey('studio'))[0] ?? null))!.row.version).toBe('0.2.0');
   });
 });
 
@@ -313,14 +313,14 @@ for (const [dialect, available] of ENGINES) {
       expect(failed.json().error.details.stage).toBe('tables');
       const m = manifestsRepo(h.meta, CRYPTO);
       // The running app is still inside the range of the add-on it runs on.
-      expect((await m.findByKey('studio'))!.row.version).toBe('0.2.0');
-      expect((await m.findByKey('kit'))!.row.version).toBe('1.0.0');
+      expect((((await m.listByKey('studio'))[0] ?? null))!.row.version).toBe('0.2.0');
+      expect((((await m.listByKey('kit'))[0] ?? null))!.row.version).toBe('1.0.0');
       expect(await h.addOnStore.versions('kit')).toEqual(['2.0.0', '1.0.0']);
 
       const again = await h.inject({ method: 'POST', url: '/apps/studio/update', payload: body });
       expect(again.statusCode, again.body).toBe(200);
-      expect((await m.findByKey('studio'))!.row.version).toBe('0.3.0');
-      expect((await m.findByKey('kit'))!.row.version).toBe('2.0.0');
+      expect((((await m.listByKey('studio'))[0] ?? null))!.row.version).toBe('0.3.0');
+      expect((((await m.listByKey('kit'))[0] ?? null))!.row.version).toBe('2.0.0');
       // Done: the earlier version goes.
       expect(await h.addOnStore.versions('kit')).toEqual(['2.0.0']);
     });

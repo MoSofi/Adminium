@@ -78,7 +78,7 @@ describe('adopting the invoices add-on', () => {
     const outcome = await adopt(storeWith(['1.1.0']), 7);
     expect(outcome).toEqual({ adopted: true, version: '1.1.0' });
 
-    const installed = await manifestsRepo(meta, crypto).findByKey(INVOICES_ADD_ON_KEY);
+    const installed = ((await manifestsRepo(meta, crypto).listByKey(INVOICES_ADD_ON_KEY))[0] ?? null);
     expect(installed?.row.version).toBe('1.1.0');
     // Nobody clicked anything, and the row says so rather than naming an admin.
     expect(installed?.row.installedBy).toBeNull();
@@ -87,7 +87,7 @@ describe('adopting the invoices add-on', () => {
 
   it('installs nothing where nothing was authored', async () => {
     expect(await adopt(storeWith(['1.1.0']), 0)).toEqual({ adopted: false, reason: 'no-documents' });
-    expect(await manifestsRepo(meta, crypto).findByKey(INVOICES_ADD_ON_KEY)).toBeNull();
+    expect(((await manifestsRepo(meta, crypto).listByKey(INVOICES_ADD_ON_KEY))[0] ?? null)).toBeNull();
   });
 
   it('is idempotent — the second boot does nothing', async () => {
@@ -120,7 +120,7 @@ describe('adopting the invoices add-on', () => {
     delete noPage.addOn.pages;
     const store = storeWith(['1.0.1'], JSON.stringify(noPage));
     expect(await adopt(store, 7)).toEqual({ adopted: false, reason: 'no-page' });
-    expect(await manifestsRepo(meta, crypto).findByKey(INVOICES_ADD_ON_KEY)).toBeNull();
+    expect(((await manifestsRepo(meta, crypto).listByKey(INVOICES_ADD_ON_KEY))[0] ?? null)).toBeNull();
   });
 
   it('refuses an add-on that wants tables, rather than creating them unattended', async () => {
@@ -133,6 +133,6 @@ describe('adopting the invoices add-on', () => {
       adopted: false,
       reason: 'needs-tables',
     });
-    expect(await manifestsRepo(meta, crypto).findByKey(INVOICES_ADD_ON_KEY)).toBeNull();
+    expect(((await manifestsRepo(meta, crypto).listByKey(INVOICES_ADD_ON_KEY))[0] ?? null)).toBeNull();
   });
 });

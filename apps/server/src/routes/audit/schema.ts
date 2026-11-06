@@ -4,6 +4,7 @@
  * the verb + bold-resource sentence anatomy is a client concern (`Audit
  * Log.dc.html`).
  */
+import { workspaceIdQuery } from '../../workspaces/list-filter.js';
 import { z } from 'zod';
 import { actorKindSchema, auditCategorySchema } from '@adminium/meta';
 
@@ -26,6 +27,8 @@ export const auditEntryDto = z.object({
 export type AuditEntryDto = z.infer<typeof auditEntryDto>;
 
 export const auditListQuery = z.object({
+  /** Narrows the list to one workspace's databases (never widens it). */
+  workspaceId: workspaceIdQuery,
   actorId: z.string().optional(),
   category: auditCategorySchema.optional(),
   /** Resource-type filter matched against the dotted action verb prefix. */

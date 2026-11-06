@@ -164,6 +164,13 @@ export const SETTINGS_REGISTRY = {
   'appearance.density': def<z.infer<typeof densitySchema>>(densitySchema, 'comfortable', 'Default layout density', P),
   'locale.default': def<z.infer<typeof localeSchema>>(localeSchema, 'en_US', 'Default locale', P),
   /**
+   * How the menu shows workspaces, for everyone on the server (the admin's
+   * choice): `all` — each workspace a block in one menu (the default: making
+   * a second workspace takes nobody's pages away), or `one` — one workspace at
+   * a time behind a switcher. Read only once a workspace exists.
+   */
+  'ui.workspaceView': def<'one' | 'all'>(z.enum(['one', 'all']), 'all', 'How the menu shows workspaces', P),
+  /**
    * Monotonic stamp over the runtime-translation tables. Every mutation
    * bumps it inside its own transaction, and clients key their bundle
    * cache / ETag on it.

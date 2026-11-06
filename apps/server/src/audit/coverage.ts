@@ -269,6 +269,11 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'DELETE /api/v1/teams/:id': audited('rbac'), // team.delete
   'PUT /api/v1/teams/:id/members/:userId': audited('rbac'), // team.member.add / team.member.change
   'DELETE /api/v1/teams/:id/members/:userId': audited('rbac'), // team.member.remove
+  'POST /api/v1/workspaces': audited('rbac'), // workspace.create
+  'PATCH /api/v1/workspaces/:id': audited('rbac'), // workspace.rename
+  'PUT /api/v1/workspaces/order': audited('rbac'), // workspace.reorder
+  'DELETE /api/v1/workspaces/:id': audited('rbac'), // workspace.delete
+  'PUT /api/v1/connections/:id/workspaces': audited('rbac'), // workspace.connections
   'POST /api/v1/users/:id/roles': audited('rbac'), // user.role.assign
   'DELETE /api/v1/users/:id/roles/:roleId': audited('rbac'), // user.role.unassign
   'POST /api/v1/users': audited('rbac'), // user.invite

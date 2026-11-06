@@ -4,6 +4,7 @@
  * vocabularies come from meta's payload schemas — one authority, no drift.
  */
 
+import { workspaceIdQuery } from '../../workspaces/list-filter.js';
 import { z } from 'zod';
 import {
   importMappingSchema,
@@ -106,6 +107,8 @@ export const importsGetReply = z.object({ data: importView });
 
 export const importsListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
+  /** Narrows the list to one workspace's databases (never widens it). */
+  workspaceId: workspaceIdQuery,
 });
 
 // --- preview ---------------------------------------------------------------------

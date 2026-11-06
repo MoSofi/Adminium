@@ -132,14 +132,55 @@ export type RuleOp =
   | 'table.check'
   | 'table.label'
   | 'table.keyField'
-  | 'table.removal';
+  | 'table.removal'
+  | 'column.hidden'
+  | 'table.exclude'
+  | 'table.switchedOff'
+  | 'relation.add'
+  | 'relation.remove'
+  | 'relation.label';
 
 /** Ops that name things rather than rule a write: no column-rule check applies. */
-const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'column.yesNo', 'column.semanticType', 'table.label', 'table.keyField']);
+const NAMING_OPS: ReadonlySet<RuleOp> = new Set([
+  'column.label',
+  'column.yesNo',
+  'column.semanticType',
+  'column.hidden',
+  'table.label',
+  'table.keyField',
+  'table.exclude',
+  'table.switchedOff',
+  'relation.add',
+  'relation.remove',
+  'relation.label',
+]);
 /** Ops that belong to the table, not one of its columns. */
-const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.occupies', 'table.states', 'table.postings', 'table.adjust', 'table.check', 'table.belongs', 'table.private', 'table.label', 'table.keyField', 'table.removal']);
+const TABLE_OPS: ReadonlySet<RuleOp> = new Set([
+  'table.capacity',
+  'table.booking',
+  'table.occupies',
+  'table.states',
+  'table.postings',
+  'table.adjust',
+  'table.check',
+  'table.belongs',
+  'table.private',
+  'table.label',
+  'table.keyField',
+  'table.removal',
+  'table.exclude',
+  'table.switchedOff',
+  'relation.add',
+  'relation.remove',
+  'relation.label',
+]);
+/**
+ * Ops stored on the table (no column) that are kept one per link column: the
+ * column is in the value (`fromColumn`), and a rule's target reads it there.
+ */
+const RELATION_OPS: ReadonlySet<string> = new Set(['relation.add', 'relation.remove', 'relation.label']);
 
-interface DesiredRule {
+export interface DesiredRule {
   /** Written only on a table this app created, and silently left out elsewhere (Adminium asks it, not the manifest). */
   ownTableOnly?: true;
   /** The add-on whose shape owns the rule (the table is built on it). */
@@ -421,6 +462,9 @@ export function ruleHash(value: unknown): string {
 }
 
 const targetOf = (op: string, table: string, column: string | null) => `${op}|${table}|${column ?? ''}`;
+/** A stored row's target: a link's rule by the column in its value, every other by its own column. */
+const rowTarget = (o: Pick<SchemaOverride, 'op' | 'tableName' | 'columnName' | 'value'>) =>
+  targetOf(o.op, o.tableName, RELATION_OPS.has(o.op) ? String(o.value['fromColumn'] ?? '') : o.columnName);
 
 /**
  * The override a recorded rule became, if it is still the app's: found by
@@ -434,7 +478,7 @@ function stillOurs(rule: AppTableRule, byId: Map<string, SchemaOverride>, active
     active.find(
       (o) =>
         o.origin === 'app' &&
-        targetOf(o.op, o.tableName, o.columnName) === targetOf(rule.op, rule.table, rule.column) &&
+        rowTarget(o) === targetOf(rule.op, rule.table, rule.column) &&
         ruleHash(o.value) === rule.valueHash,
     );
   if (row === undefined) return null;
@@ -573,6 +617,51 @@ function roleStamp(
   return named !== undefined && table.columns.some((other) => other.ref !== column.ref && other.role === named && isMoment(other.type)) ? { kind: 'none' } : null;
 }
 
+/** Why an install leaves a people table's "existing customers" switch as it is here. */
+export const EXISTING_CUSTOMERS_KEPT =
+  'The source let existing customers get marketing mail without a tick. An install never switches that on: somebody who sends campaigns here does, with their own tick, in Campaigns.';
+
+/** A table's own marks: left out of Adminium, and the postings (and price rule) it keeps switched off. */
+export function markRules(
+  table: { ref: string; exclude?: true | undefined; switchedOff?: { postings?: readonly string[] | undefined; adjust?: true | undefined } | undefined },
+  realTable: string,
+): DesiredRule[] {
+  const out: DesiredRule[] = [];
+  if (table.exclude === true) out.push({ ref: table.ref, table: realTable, column: '', op: 'table.exclude', value: { excluded: true } });
+  const off = table.switchedOff;
+  if (off !== undefined) {
+    out.push({ ref: table.ref, table: realTable, column: '', op: 'table.switchedOff', value: { postings: [...(off.postings ?? [])], ...(off.adjust === true ? { adjust: true } : {}) } });
+  }
+  return out;
+}
+
+/**
+ * A link column's own words as rules on its table, each kept by the column it
+ * names: its name, that Adminium does not show it, or (no foreign key keeps
+ * it) the link Adminium shows in its place, to the target's key. A target
+ * that is not here, or keyed by more than one column, makes the rule name it
+ * as missing, and it is skipped by name.
+ */
+export function relationRules(
+  ref: string,
+  realTable: string,
+  column: string,
+  relation: { label?: string | undefined; remove?: true | undefined; constraint?: false | undefined },
+  references: string,
+  target: { id: string; primaryKey?: readonly string[] | null | undefined } | undefined,
+): DesiredRule[] {
+  const out: DesiredRule[] = [];
+  const key = target?.primaryKey?.length === 1 ? target.primaryKey[0] : undefined;
+  const missing = target === undefined || key === undefined ? { missing: [references] } : {};
+  const toTable = target?.id ?? references;
+  if (relation.constraint === false) {
+    out.push({ ref, table: realTable, column, op: 'relation.add', value: { fromColumn: column, toTable, toColumn: key ?? '', cardinality: 'many-to-one' }, ...missing });
+  }
+  if (relation.remove === true) out.push({ ref, table: realTable, column, op: 'relation.remove', value: { fromColumn: column, toTable }, ...missing });
+  if (relation.label !== undefined) out.push({ ref, table: realTable, column, op: 'relation.label', value: { fromColumn: column, label: relation.label } });
+  return out;
+}
+
 /**
  * Install the app's option lists, then write, replace and take back its
  * column rules against the latest snapshot. Run after the tables exist and
@@ -611,7 +700,12 @@ export async function writeManifestRules(input: {
       origin: `app:${manifest.key}`,
       items: list.values.map((item) => {
         const label = oneLabel(item.label);
-        return { value: item.value, ...(label === undefined ? {} : { label }), ...(item.tone === undefined ? {} : { tone: item.tone }) };
+        return {
+          value: item.value,
+          ...(label === undefined ? {} : { label }),
+          ...(item.tone === undefined ? {} : { tone: item.tone }),
+          ...(item.description === undefined ? {} : { description: item.description }),
+        };
       }),
     });
     result.lists.push(key);
@@ -663,9 +757,25 @@ export async function writeManifestRules(input: {
     if (table.keyField !== undefined) {
       desired.push({ ref: table.ref, table: real.id, column: '', op: 'table.keyField', value: { column: table.keyField } });
     }
+    desired.push(...markRules(table, real.id));
+    if (table.existingCustomers === true) {
+      // The owner's word on their own customers, with their own tick: never a file's.
+      result.skipped.push({ table: real.id, column: '', op: 'table.existingCustomers', reason: EXISTING_CUSTOMERS_KEPT });
+    }
     for (const column of table.columns) {
       if (column.label !== undefined) {
         desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.label', value: { label: storedLabel(column.label) } });
+      }
+      if (column.hidden !== undefined) {
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.hidden', value: { hidden: column.hidden } });
+      }
+      // An int the app says is a yes or a no (a bool column says so below, by its type).
+      if (column.yesNo === true && column.type !== 'bool') {
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.yesNo', value: { yesNo: true } });
+      }
+      if (column.relation !== undefined && column.type === 'fk' && column.references !== undefined) {
+        const target = realOf(column.references) ?? model.tables.find((t) => t.name === column.references);
+        desired.push(...relationRules(table.ref, real.id, column.ref, column.relation, column.references, target));
       }
       /*
        * A choice column that reached the database as plain text — an update
@@ -791,12 +901,12 @@ export async function writeManifestRules(input: {
       skip(`It names ${(rule.missing ?? []).map((ref) => `"${ref}"`).join(', ')}, which this app does not have here.`);
       return;
     }
-    const held = active.find((o) => targetOf(o.op, o.tableName, o.columnName) === target);
+    const held = active.find((o) => rowTarget(o) === target);
     if (released.has(target)) {
       skip(
         held !== undefined
           ? 'The operator already keeps a rule for this column.'
-          : all.some((o) => o.status === 'disabled' && targetOf(o.op, o.tableName, o.columnName) === target)
+          : all.some((o) => o.status === 'disabled' && rowTarget(o) === target)
             ? 'The operator switched off the rule for this column.'
             : 'The operator removed the rule for this column.',
       );
@@ -808,7 +918,7 @@ export async function writeManifestRules(input: {
       return;
     }
     // One the operator switched off is still theirs: never a second row beside it.
-    if (all.some((o) => o.status === 'disabled' && o.origin !== 'auto' && targetOf(o.op, o.tableName, o.columnName) === target)) {
+    if (all.some((o) => o.status === 'disabled' && o.origin !== 'auto' && rowTarget(o) === target)) {
       skip('The operator switched off the rule for this column.');
       return;
     }
@@ -831,7 +941,7 @@ export async function writeManifestRules(input: {
     // The booking guard, the names and the key field are the table's, not a column's.
     const tableLevel = TABLE_OPS.has(rule.op);
     const column: ColumnModel | undefined = table.columns.find((c) => c.name === rule.column);
-    if (!tableLevel && column === undefined) {
+    if ((!tableLevel || RELATION_OPS.has(rule.op)) && table.columns.every((c) => c.name !== rule.column)) {
       judged(`"${table.name}" has no column "${rule.column}".`);
       return;
     }
@@ -888,7 +998,7 @@ export async function writeManifestRules(input: {
       }
     } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
       const issue = columnRuleIssue(
-        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'column.semanticType' | 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.check' | 'table.belongs' | 'table.private' | 'table.label' | 'table.keyField' | 'table.removal'>,
+        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'column.semanticType' | 'table.capacity' | 'table.booking' | 'table.occupies' | 'table.states' | 'table.postings' | 'table.adjust' | 'table.check' | 'table.belongs' | 'table.private' | 'table.label' | 'table.keyField' | 'table.removal' | 'column.hidden' | 'table.exclude' | 'table.switchedOff' | 'relation.add' | 'relation.remove' | 'relation.label'>,
         rule.value,
         column,
         model,

@@ -40,11 +40,12 @@ import {
   type InstallPlan,
   type Manifest,
 } from '@adminium/manifest';
-import { appTablesRepo, auditRepo, inIdOrder, manifestsRepo, readJson, type InstalledManifest, type MetaDb } from '@adminium/meta';
+import { SERVER_SCOPE, appTablesRepo, auditRepo, inIdOrder, manifestsRepo, readJson, type AttachTarget, type InstalledManifest, type MetaDb } from '@adminium/meta';
 
 import { addOnGrantsWider, widerWords, type AddOnGrantWider } from './grants-wider.js';
 import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
+import { addOnIsServerWide, MAX_INSTALLS_PER_KEY, resolveInstall, slugForInstall } from '../installs/resolve.js';
 import { PERMISSIONS } from '../rbac/permissions.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
 import { DECIDER_CONTRACTS, deciderGate } from './decide.js';
@@ -219,6 +220,8 @@ export async function hostsFor(
   deps: Pick<AddOnInstallerDeps, 'meta' | 'credentialCrypto'>,
   keys: readonly string[],
   given: readonly HostApp[] = [],
+  /** The database the add-on is for: each host is its install there. Absent, a key installed once is that install. */
+  connectionId?: string | null,
 ): Promise<HostApp[]> {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const out: HostApp[] = [];
@@ -228,8 +231,9 @@ export async function hostsFor(
       out.push(known);
       continue;
     }
-    const row = await manifests.findByKey(key);
-    if (row === null || row.row.kind !== 'app') {
+    const all = (await manifests.listByKey(key)).filter((one) => one.row.kind === 'app');
+    const row = connectionId === undefined || connectionId === null ? (all.length === 1 ? all[0]! : null) : (all.find((one) => one.row.scopeKey === connectionId) ?? null);
+    if (row === null) {
       out.push({ key, version: null, tables: null, connectionId: null });
       continue;
     }
@@ -321,7 +325,7 @@ export function hostProblems(manifest: AddOnManifest, hosts: readonly HostApp[])
 export async function planAddOn(
   deps: Pick<AddOnInstallerDeps, 'schemaTarget' | 'core'>,
   manifest: AddOnManifest,
-  input: { attachTo: readonly string[]; hosts?: readonly HostApp[]; connectionId?: string | undefined; warnings?: readonly string[] },
+  input: { attachTo: readonly string[]; hosts?: readonly HostApp[]; connectionId?: string | undefined; warnings?: readonly string[]; updating?: string | undefined },
 ): Promise<AddOnPlanned> {
   // An add-on that installs like an app is planned the way an app is: on one connection, under its own prefix.
   if (installsLikeAnApp(manifest)) {
@@ -334,7 +338,7 @@ export async function planAddOn(
         { code: core === null ? 'ADD_ON_DDL_REQUIRED' : 'ADD_ON_SCHEMA_CONNECTION' },
       );
     }
-    const planned = await core.planFor(manifest, input.connectionId);
+    const planned = await core.planFor(manifest, input.connectionId, input.updating);
     const extra = hostProblems(manifest, input.hosts ?? []);
     const plan: InstallPlan = { ...planned.plan, installable: planned.plan.installable && extra.length === 0 };
     return { plan, dto: toDto(plan, extra, input.warnings ?? []), connectionId: input.connectionId, checksum: planned.dto.checksum };
@@ -514,6 +518,66 @@ async function settleHosts(
   return out;
 }
 
+/** Where an add-on install is for, its address, and the host installs it attaches to. */
+export interface AddOnPlace {
+  scopeKey: string;
+  slug: string;
+  /** The install of the key already in this scope (a stopped install to finish, or a refusal). */
+  existing: InstalledManifest | null;
+  attach: AttachTarget[];
+}
+
+/**
+ * EVERY ADD-ON INSTALLS PER DATABASE, tables or not, on its host install's
+ * database (or the one chosen), unless it is kept once per server. One
+ * version runs on a server: a second install on another database is the same
+ * version. The first install of a key owns the bare addresses; a later one
+ * gets a slug from its database's name.
+ */
+export async function placeAddOnInstall(
+  deps: Pick<AddOnInstallerDeps, 'meta' | 'credentialCrypto'>,
+  manifest: AddOnManifest,
+  input: { version: string; connectionId: string | null; attachTo: readonly string[] },
+): Promise<AddOnPlace> {
+  const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
+  const hostInstalls = (await Promise.all(input.attachTo.map((key) => manifests.listByKey(key)))).flat().filter((one) => one.row.kind === 'app');
+  let scopeKey: string;
+  if (addOnIsServerWide(manifest)) scopeKey = SERVER_SCOPE;
+  else if (input.connectionId !== null) scopeKey = input.connectionId;
+  else {
+    const databases = [...new Set(hostInstalls.map((one) => one.row.scopeKey).filter((scope) => scope !== SERVER_SCOPE))];
+    if (databases.length > 1) {
+      throw new AppError(409, 'ADD_ON_SCHEMA_CONNECTION', `The apps "${manifest.name}" attaches to are installed on several databases. Choose the one it is for.`, {
+        connections: databases.map((id) => ({ id, name: id })),
+      });
+    }
+    scopeKey = databases[0] ?? SERVER_SCOPE;
+  }
+  const existing = await manifests.findInScope(manifest.key, scopeKey);
+  const others = (await manifests.listByKey(manifest.key)).filter((one) => one.row.id !== existing?.row.id);
+  const otherVersion = others.find((one) => one.row.version !== input.version);
+  if (otherVersion !== undefined) {
+    throw new ConflictError(
+      `"${manifest.name}" runs version ${otherVersion.row.version} on another database. Every copy of an add-on runs one version: update every copy, or install ${otherVersion.row.version} here.`,
+      'CONFLICT',
+      { reason: 'ONE_VERSION_PER_APP', installed: otherVersion.row.version, connectionId: otherVersion.row.scopeKey === SERVER_SCOPE ? null : otherVersion.row.scopeKey },
+    );
+  }
+  if (existing === null && others.length >= MAX_INSTALLS_PER_KEY) {
+    throw new ValidationFailedError(`"${manifest.name}" is installed on ${others.length} databases, the most one add-on may be.`);
+  }
+  const connectionName = async (): Promise<string> =>
+    scopeKey === SERVER_SCOPE ? 'server' : ((await deps.meta.db.selectFrom('adminium_connections').select('name').where('id', '=', scopeKey).executeTakeFirst())?.name ?? 'db');
+  const slug = existing !== null ? existing.row.instanceSlug : others.length === 0 ? '' : slugForInstall(await connectionName(), new Set(others.map((one) => one.row.instanceSlug)));
+  // Each host is its install on this database; a server-wide add-on attaches to the host's first install.
+  const attach = input.attachTo.map((key): AttachTarget => {
+    const copies = hostInstalls.filter((one) => one.row.manifestKey === key);
+    const host = scopeKey === SERVER_SCOPE ? copies.find((one) => one.row.instanceSlug === '') : copies.find((one) => one.row.scopeKey === scopeKey);
+    return { key, hostInstall: host?.row.id ?? '' };
+  });
+  return { scopeKey, slug, existing, attach };
+}
+
 /**
  * Install a staged add-on: verify, check, create its tables, then the meta row.
  *
@@ -527,27 +591,28 @@ export async function installAddOn(
 ): Promise<{ installed: InstalledManifest; plan: InstallPlanDto; created: string[]; reused?: string[]; connectionId?: string | null; written?: Readonly<Record<string, unknown>> }> {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const { key, version } = input;
-  const existing = await manifests.findByKey(key);
-  // An install that stopped part way left its row `installing`: the same call finishes it (below).
-  if (existing !== null && !(existing.row.kind === 'add-on' && existing.row.status === 'installing' && existing.row.version === version)) {
-    throw new ConflictError(`"${key}" is already installed. Uninstall it first, or upgrade it instead.`);
-  }
 
   // Read once to learn the hosts it adds; the document is then checked
   // against those hosts' tables.
   const first = await addOnManifestFromStore(deps, key, version);
   const attachTo = hostsToAttach(first.manifest, input.attachTo);
-  const hosts = await hostsFor(deps, attachTo, input.hosts);
+  // Where its tables are, when it declares any: asked once, kept on its row and on a record per table.
+  const ownsTables = (first.manifest.requiredSchema?.tables ?? []).length > 0;
+  const connectionId = input.connectionId ?? (ownsTables && !installsLikeAnApp(first.manifest) ? ((await deps.schemaTarget?.resolve?.({ ownsTables, attachTo })) ?? null) : null);
+  // The database it is for, and its address there: one install per database (or one per server).
+  const place = await placeAddOnInstall(deps, first.manifest, { version, connectionId: installsLikeAnApp(first.manifest) ? (input.connectionId ?? null) : connectionId, attachTo });
+  const existing = place.existing;
+  // An install that stopped part way left its row `installing`: the same call finishes it (below).
+  if (existing !== null && !(existing.row.kind === 'add-on' && existing.row.status === 'installing' && existing.row.version === version)) {
+    throw new ConflictError(`"${key}" is already installed${place.scopeKey === SERVER_SCOPE ? '' : ' on this database'}. Uninstall it there first, or update it instead.`);
+  }
+  const hosts = await hostsFor(deps, attachTo, input.hosts, place.scopeKey === SERVER_SCOPE ? null : place.scopeKey);
   const { manifest, warnings } = parseAddOnDocument(first.document, key, hosts, deps.unbuiltWords);
   if (manifest.key !== key) {
     throw new ValidationFailedError(`The staged package declares key "${manifest.key}", not "${key}".`);
   }
-  if (installsLikeAnApp(manifest)) return installLikeAnApp(deps, input, { manifest, warnings, attachTo, hosts, resumed: existing });
-  if (existing !== null) throw new ConflictError(`"${key}" is already installed. Uninstall it first, or upgrade it instead.`);
-
-  // Where its tables are, when it declares any: asked once, kept on its row and on a record per table.
-  const ownsTables = (manifest.requiredSchema?.tables ?? []).length > 0;
-  const connectionId = input.connectionId ?? (ownsTables ? ((await deps.schemaTarget?.resolve?.({ ownsTables, attachTo })) ?? null) : null);
+  if (installsLikeAnApp(manifest)) return installLikeAnApp(deps, input, { manifest, warnings, attachTo, hosts, resumed: existing, place });
+  if (existing !== null) throw new ConflictError(`"${key}" is already installed on this database. Uninstall it there first, or update it instead.`);
 
   const { plan: rawPlan, dto: plan } = await planAddOn(deps, manifest, {
     attachTo,
@@ -587,8 +652,10 @@ export async function installAddOn(
     source: 'marketplace',
     document: manifest,
     connectionId,
+    scopeKey: place.scopeKey,
+    instanceSlug: place.slug,
     installedBy: input.actor.id,
-    attachTo,
+    attachTo: place.attach,
   });
   // One record per table it declares: made here, or found and taken as it is.
   if (connectionId !== null) {
@@ -639,7 +706,7 @@ function decides(manifest: AddOnManifest): boolean {
 async function installLikeAnApp(
   deps: AddOnInstallerDeps,
   input: InstallAddOnInput,
-  ctx: { manifest: AddOnManifest; warnings: string[]; attachTo: string[]; hosts: readonly HostApp[]; resumed: InstalledManifest | null },
+  ctx: { manifest: AddOnManifest; warnings: string[]; attachTo: string[]; hosts: readonly HostApp[]; resumed: InstalledManifest | null; place: AddOnPlace },
 ): Promise<{ installed: InstalledManifest; plan: InstallPlanDto; created: string[]; reused: string[]; connectionId: string; written: Readonly<Record<string, unknown>> }> {
   const { manifest, attachTo, hosts } = ctx;
   const { key, version } = input;
@@ -657,6 +724,13 @@ async function installLikeAnApp(
   }
   if (ctx.resumed !== null && input.connectionId !== undefined && input.connectionId !== connectionId) {
     throw new ConflictError(`An install of "${key}" was started in another database and has not finished. Finish it there, or uninstall it first.`);
+  }
+  // Its tables are on one database, and that is the database it is for: its address and host installs there.
+  const placed = ctx.place.scopeKey === connectionId ? ctx.place : await placeAddOnInstall(deps, manifest, { version, connectionId, attachTo });
+  // A stopped install found only once its database is known (none was named) is finished by this call, as one found before.
+  const resumed = ctx.resumed ?? (placed.existing !== null && placed.existing.row.kind === 'add-on' && placed.existing.row.status === 'installing' && placed.existing.row.version === version ? placed.existing : null);
+  if (resumed === null && placed.existing !== null) {
+    throw new ConflictError(`"${key}" is already installed on this database. Uninstall it there first, or update it instead.`);
   }
 
   const planned = await planAddOn(deps, manifest, { attachTo, hosts, connectionId, warnings: ctx.warnings });
@@ -679,11 +753,23 @@ async function installLikeAnApp(
     can: input.actor.can ?? (() => Promise.resolve(true)),
   };
   const where: InstallHost = input.host ?? { log: { info: () => undefined, warn: () => undefined } };
-  let installed = ctx.resumed;
+  let installed = resumed;
   const work = async (): Promise<InstalledManifest> => {
     const row =
       installed ??
-      (await manifests.install({ manifestKey: key, version, kind: 'add-on', source: 'marketplace', document: manifest, connectionId, status: 'installing', installedBy: input.actor.id, attachTo }));
+      (await manifests.install({
+        manifestKey: key,
+        version,
+        kind: 'add-on',
+        source: 'marketplace',
+        document: manifest,
+        connectionId,
+        scopeKey: connectionId,
+        instanceSlug: placed.slug,
+        status: 'installing',
+        installedBy: input.actor.id,
+        attachTo: placed.attach,
+      }));
     installed = row;
     // A reinstall takes back the records an uninstall released; then each table is recorded BEFORE it is made.
     await records.attach(connectionId, key, row.row.id);
@@ -780,7 +866,7 @@ async function installLikeAnApp(
     category: 'add-on',
     action: 'add-on.installed',
     changes: {
-      after: { key, version, attachTo, connectionId, tables: reused, created, ...(ctx.resumed === null ? {} : { resumed: true }), ...(input.via === undefined ? {} : { via: input.via }) },
+      after: { key, version, attachTo, connectionId, tables: reused, created, ...(resumed === null ? {} : { resumed: true }), ...(input.via === undefined ? {} : { via: input.via }) },
     },
   });
   // Each app it is attached to: its key gains the add-on's entries only on the caller's say.
@@ -891,6 +977,8 @@ export interface UpdateAddOnInput {
   planChecksum?: string | undefined;
   /** The answer to "which database holds its tables", when an add-on installed before that was recorded is found in several. */
   connectionId?: string | undefined;
+  /** The install to update, when the key has several (one per database): each is updated on its own. */
+  installId?: string | undefined;
   /** The server the update runs in: its log, and how open dashboards are told. A quiet one when absent. */
   host?: InstallHost | undefined;
   /**
@@ -914,11 +1002,12 @@ export interface UpdateAddOnResult {
 }
 
 /** What an update is from and to, re-hashed and re-checked: an update cannot carry past the checks what an install could not. */
-async function updateTarget(deps: AddOnInstallerDeps, input: Pick<UpdateAddOnInput, 'key' | 'to' | 'hosts' | 'except'>) {
+async function updateTarget(deps: AddOnInstallerDeps, input: Pick<UpdateAddOnInput, 'key' | 'to' | 'hosts' | 'except' | 'installId' | 'connectionId'>) {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const { key } = input;
-  const installed = await manifests.findByKey(key);
-  if (installed === null || installed.row.kind !== 'add-on') throw new NotFoundError(`"${key}" is not installed.`);
+  // One install: named, or the key's only one (several and none named answers which).
+  const installed = await resolveInstall(manifests, key, { installId: input.installId, connectionId: input.installId === undefined ? input.connectionId : undefined }, { kind: 'add-on' });
+  if (installed === null || installed.row.kind !== 'add-on') throw new NotFoundError(`"${key}" is not installed${input.connectionId === undefined ? '' : ' on that database'}.`);
 
   const from = installed.row.version;
   const newer = (await deps.store.versions(key)).filter((candidate) => compareSemver(candidate, from) > 0);
@@ -938,7 +1027,7 @@ async function updateTarget(deps: AddOnInstallerDeps, input: Pick<UpdateAddOnInp
   }
 
   const attachedTo = installed.attachments.map((a) => a.attachedTo);
-  const hosts = await hostsFor(deps, attachedTo, input.hosts);
+  const hosts = await hostsFor(deps, attachedTo, input.hosts, installed.row.scopeKey === SERVER_SCOPE ? null : installed.row.scopeKey);
   const { manifest } = await addOnManifestFromStore(deps, key, to, hosts);
   if (manifest.key !== key) {
     throw new ValidationFailedError(`The staged package declares key "${manifest.key}", not "${key}".`);
@@ -974,8 +1063,9 @@ async function grantsWiderOnUpdate(deps: AddOnInstallerDeps, input: { key: strin
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const apps: Manifest[] = [];
   for (const appKey of appHosts(input.apps)) {
-    const found = await manifests.findByKey(appKey);
-    if (found === null || found.row.kind !== 'app' || found.document === null) continue;
+    // One version per app on a server: any copy of it has the roles.
+    const found = (await manifests.listByKey(appKey)).find((one) => one.row.kind === 'app');
+    if (found === undefined || found.document === null) continue;
     apps.push(found.document as Manifest);
   }
   return addOnGrantsWider(apps, input.key, before, input.after);
@@ -1001,7 +1091,7 @@ const widerEntry = (entry: AddOnGrantWider) => ({ app: entry.app, appName: entry
  */
 export async function planAddOnUpdate(
   deps: AddOnInstallerDeps,
-  input: Pick<UpdateAddOnInput, 'key' | 'to' | 'hosts' | 'except'>,
+  input: Pick<UpdateAddOnInput, 'key' | 'to' | 'hosts' | 'except' | 'installId' | 'connectionId'>,
 ): Promise<{ plan: InstallPlanDto; from: string; to: string; connectionId: string | null; checksum?: string | undefined; manifest: AddOnManifest; roleTables: ReturnType<typeof widerEntry>[] }> {
   const target = await updateTarget(deps, input);
   const { manifest, attachedTo, hosts, installed } = target;
@@ -1009,7 +1099,7 @@ export async function planAddOnUpdate(
   const roleTables = (await grantsWiderOnUpdate(deps, { key: input.key, before: installed.document, after: manifest, apps: attachedTo })).map(widerEntry);
   if (!installsLikeAnApp(manifest)) {
     return {
-      plan: (await planAddOn(deps, manifest, { attachTo: attachedTo, ...(installed.row.connectionId === null ? {} : { connectionId: installed.row.connectionId }) })).dto,
+      plan: (await planAddOn(deps, manifest, { attachTo: attachedTo, updating: installed.row.id, ...(installed.row.connectionId === null ? {} : { connectionId: installed.row.connectionId }) })).dto,
       from: target.from,
       to: target.to,
       connectionId: installed.row.connectionId,
@@ -1021,7 +1111,7 @@ export async function planAddOnUpdate(
   if (connectionId === null) {
     throw new ValidationFailedError(`"${input.key}" needs tables, and this instance has no database connection to create them in. Connect a data source first.`, { code: 'ADD_ON_NO_CONNECTION' });
   }
-  const planned = await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId, warnings: [] });
+  const planned = await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId, warnings: [], updating: installed.row.id });
   return { plan: planned.dto, from: target.from, to: target.to, connectionId, checksum: planned.checksum, manifest, roleTables };
 }
 
@@ -1054,9 +1144,9 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
 
   if (!likeApp || input.schema === 'refuse') {
     const { dto: upgradePlan } = likeApp
-      ? await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId: installed.row.connectionId ?? undefined, warnings: [] })
+      ? await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId: installed.row.connectionId ?? undefined, warnings: [], updating: installed.row.id })
       : // Planned where its tables are known to be; an add-on with none, or not found anywhere, is planned as it always was.
-        await planAddOn(deps, manifest, { attachTo: attachedTo, ...(installed.row.connectionId === null ? {} : { connectionId: installed.row.connectionId }) });
+        await planAddOn(deps, manifest, { attachTo: attachedTo, updating: installed.row.id, ...(installed.row.connectionId === null ? {} : { connectionId: installed.row.connectionId }) });
     if (!upgradePlan.installable || upgradePlan.requiresSchemaChange) {
       throw new ValidationFailedError(`"${key}" ${to} cannot be applied to this instance.`, {
         problems: upgradePlan.problems,
@@ -1085,7 +1175,7 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
       changes: { after: { key, from, to, pruned, ...(input.via === undefined ? {} : { via: input.via }) } },
     });
     await deps.rebuildRuntime?.();
-    return { installed: (await manifests.findByKey(key))!, from, to, pruned };
+    return { installed: (await manifests.findById(installed.row.id))!, from, to, pruned };
   }
 
   const core = deps.core?.() ?? null;
@@ -1096,7 +1186,7 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
   if (connectionId === null) {
     throw new ValidationFailedError(`"${key}" needs tables, and this instance has no database connection to create them in. Connect a data source first.`, { code: 'ADD_ON_NO_CONNECTION' });
   }
-  const planned = await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId, warnings: [] });
+  const planned = await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId, warnings: [], updating: installed.row.id });
   refuseUnlessInstallable(key, planned.dto, 'updated');
   if (input.planChecksum !== undefined && planned.checksum !== undefined && input.planChecksum !== planned.checksum) {
     throw new AppError(409, 'SCHEMA_DRIFT', `The database changed since "${key}" was checked. Check again, then update.`, { addOn: key, connectionId });
@@ -1122,9 +1212,17 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
   const broughtByThisVersion = new Set((manifest.requiredSchema?.tables ?? []).map((table) => table.ref).filter((ref) => !hadBefore.has(ref)));
 
   const work = async (): Promise<void> => {
-    if (installed.row.connectionId === null) await manifests.setConnection(installed.row.id, connectionId);
+    if (installed.row.connectionId === null) {
+      // Kept for the server until now, it becomes the install of the database its tables are on.
+      if (installed.row.scopeKey === SERVER_SCOPE && !addOnIsServerWide(manifest)) {
+        if ((await manifests.findInScope(key, connectionId)) !== null) {
+          throw new ConflictError(`"${key}" is installed on that database already. Update that copy, or uninstall one of the two first.`);
+        }
+        await manifests.moveToDatabase(installed.row.id, connectionId);
+      } else await manifests.setConnection(installed.row.id, connectionId);
+    }
     await records.attach(connectionId, key, installed.row.id);
-    const checked = await core.checkedPlan(key, manifest, connectionId, 'updated', input.planChecksum);
+    const checked = await core.checkedPlan(key, manifest, connectionId, 'updated', input.planChecksum, installed.row.id);
     const pending = new Map<string, string>();
     const prefix = manifest.requiredSchema?.prefixed === true ? prefixFor(key) : null;
     const applied = await core.applyTables(
@@ -1237,7 +1335,7 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
   const names = await records.realNames(connectionId, key);
   const removed = await core.settleAddOnPublic({ manifest, connectionId, names, actor: settler(input.actor) });
   if (hasPublic || removed.removed.length + removed.kept.length > 0) written = { ...written, publicAccessRemoved: removed };
-  return { installed: (await manifests.findByKey(key))!, from, to, pruned, connectionId, created, reused, written };
+  return { installed: (await manifests.findById(installed.row.id))!, from, to, pruned, connectionId, created, reused, written };
 }
 
 /**
@@ -1327,10 +1425,12 @@ export async function adoptAddOnTables(
 }
 
 /** Remove the versions of `key` on disk older than `keep`; the ones removed. */
-export async function pruneOlderVersions(deps: Pick<AddOnInstallerDeps, 'store'>, key: string, keep: string): Promise<string[]> {
+export async function pruneOlderVersions(deps: Pick<AddOnInstallerDeps, 'store' | 'meta' | 'credentialCrypto'>, key: string, keep: string): Promise<string[]> {
   const pruned: string[] = [];
+  // A version an install still names stays: an update of every copy moves them one at a time.
+  const named = new Set((await manifestsRepo(deps.meta, deps.credentialCrypto).listByKey(key)).map((one) => one.row.version));
   for (const old of await deps.store.versions(key)) {
-    if (compareSemver(old, keep) >= 0) continue;
+    if (compareSemver(old, keep) >= 0 || named.has(old)) continue;
     await deps.store.removeVersion(key, old);
     pruned.push(old);
   }
@@ -1349,7 +1449,9 @@ export async function attachAddOn(
     hostApp?: HostApp | undefined;
     actor: Actor;
     via?: string;
-    /** See {@link adoptAddOnTables}. */ connectionId?: string | undefined;
+    /** See {@link adoptAddOnTables}. Also the database whose install of the add-on and of the host are meant. */ connectionId?: string | undefined;
+    /** The add-on's install, when the key has several. */
+    installId?: string | undefined;
     /** Whether the app's key may gain the add-on's public entries. Nothing is given when absent. */
     publicAccess?: boolean | undefined;
     /** `caller`: an app's own install or update is attaching it and settles its own key a moment later. */
@@ -1357,9 +1459,29 @@ export async function attachAddOn(
   },
 ): Promise<{ installed: InstalledManifest; change: 'attached' | 'enabled' | null; publicAccess?: SettledByApp[string] | undefined }> {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
-  const installed = await manifests.findByKey(input.key);
-  if (installed === null || installed.row.kind !== 'add-on') throw new NotFoundError(`"${input.key}" is not installed.`);
-  const hosts = await hostsFor(deps, [input.host], input.hostApp === undefined ? [] : [input.hostApp]);
+  const installed = await resolveInstall(manifests, input.key, { installId: input.installId, connectionId: input.installId === undefined ? input.connectionId : undefined }, { kind: 'add-on' });
+  if (installed === null || installed.row.kind !== 'add-on') throw new NotFoundError(`"${input.key}" is not installed${input.connectionId === undefined ? '' : ' on that database'}.`);
+  /*
+   * AN ATTACHMENT JOINS TWO INSTALLS ON ONE DATABASE. The host is its install
+   * on the add-on's database; only a server-wide add-on may attach to an
+   * install on any database (the one named, else the host's first install).
+   */
+  const serverWide = installed.row.scopeKey === SERVER_SCOPE;
+  const hostDatabase = serverWide ? (input.connectionId ?? null) : installed.row.scopeKey;
+  const hostCopies = (await manifests.listByKey(input.host)).filter((one) => one.row.kind === 'app');
+  const hostInstall =
+    input.host === DASHBOARD_HOST
+      ? null
+      : hostDatabase === null
+        ? (hostCopies.find((one) => one.row.instanceSlug === '') ?? null)
+        : (hostCopies.find((one) => one.row.scopeKey === hostDatabase) ?? null);
+  if (input.host !== DASHBOARD_HOST && hostInstall === null && hostCopies.length > 0 && input.hostApp === undefined) {
+    throw new ValidationFailedError(`"${input.host}" is not installed on the database this ${installed.document === null ? 'add-on' : 'add-on'} is for. An add-on attaches to an app on its own database.`, {
+      code: 'ADD_ON_OTHER_DATABASE',
+    });
+  }
+  const target = { key: input.host, hostInstall: hostInstall?.row.id ?? '' };
+  const hosts = await hostsFor(deps, [input.host], input.hostApp === undefined ? [] : [input.hostApp], hostInstall?.row.scopeKey ?? hostDatabase);
   const host = hosts[0]!;
   // A host is the dashboard or an app this server has; a link to a key
   // nothing answers to would wait there for whatever is installed under it.
@@ -1389,13 +1511,13 @@ export async function attachAddOn(
     }
   }
 
-  const existing = installed.attachments.find((a) => a.attachedTo === input.host);
+  const existing = installed.attachments.find((a) => a.attachedTo === input.host && a.hostInstall === target.hostInstall);
   let change: 'attached' | 'enabled' | null = null;
   if (existing === undefined) {
-    await manifests.attach(installed.row.id, input.host);
+    await manifests.attach(installed.row.id, target);
     change = 'attached';
   } else if (existing.disabledAt !== null) {
-    await manifests.setAttachmentEnabled(installed.row.id, input.host, true);
+    await manifests.setAttachmentEnabled(installed.row.id, target, true);
     change = 'enabled';
   }
   if (change !== null) {
@@ -1406,12 +1528,12 @@ export async function attachAddOn(
       category: 'add-on',
       action: change === 'attached' ? 'add-on.attached' : 'add-on.enabled',
       changes: {
-        after: { key: input.key, attachedTo: input.host, ...(input.via === undefined ? {} : { via: input.via }) },
+        after: { key: input.key, installId: installed.row.id, attachedTo: input.host, hostInstall: target.hostInstall, ...(input.via === undefined ? {} : { via: input.via }) },
       },
     });
     await deps.rebuildRuntime?.();
   }
-  const after = (await manifests.findByKey(input.key))!;
+  const after = (await manifests.findById(installed.row.id))!;
   // The app's key: asked again on an attach that changed nothing, so the say can be given later.
   const core = deps.core?.() ?? null;
   const where = after.row.connectionId;

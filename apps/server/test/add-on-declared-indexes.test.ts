@@ -115,7 +115,7 @@ describe.each(LEGS)('an index a table declares — %s', (dialect, available) => 
     await receipt(2);
     await h.introspect();
     const rows = manifestsRepo(h.meta, CRYPTO);
-    await rows.setStatus((await rows.findByKey('ledger-kit'))!.row.id, 'installing');
+    await rows.setStatus((((await rows.listByKey('ledger-kit'))[0] ?? null))!.row.id, 'installing');
     // Two receipts for one posting: the key cannot be made, and the install says which table and why.
     const refused = await install();
     expect(refused.statusCode, refused.body).not.toBe(200);

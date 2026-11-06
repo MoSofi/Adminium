@@ -18,6 +18,15 @@
  * written, as an app's email templates are. Whether a rule is switched on is
  * the owner's from the first install on: an update never moves the switch.
  *
+ * WHAT SENDS OUT ARRIVES EMPTY AND SWITCHED OFF. A file never carries a
+ * webhook's address or its header's value, nor the addresses a mail goes to
+ * (`to: { kind: "fixed" }`): those steps are written empty, and their rule is
+ * stored switched off whatever the file says. Filling them in, and switching
+ * the rule on, is the owner's on the rules page, which needs the automations
+ * permission and refuses to switch on a rule with an empty step. What the
+ * owner fills in is no edit of the rule: it is kept out of the fingerprint,
+ * and carried over when an update rewrites the rule.
+ *
  * Meta store only: no source transaction, no lock.
  */
 import type { AddOnStep } from '@adminium/add-on-contracts';
@@ -26,11 +35,13 @@ import type { RuleSteps } from '../automations/validate.js';
 import { createHash } from 'node:crypto';
 
 import type { ManifestAutomation, ManifestCondition, ManifestNode, ManifestWriteValue, Manifest } from '@adminium/manifest';
-import { auditRepo, automationsRepo, emailTemplatesRepo, rolesRepo, settingsRepo, type Automation, type AutomationGraph, type AutomationTrigger, type MetaDb } from '@adminium/meta';
+import { auditRepo, automationsRepo, documentProfilesRepo, emailTemplatesRepo, rolesRepo, settingsRepo, type Automation, type AutomationGraph, type AutomationTrigger, type MetaDb } from '@adminium/meta';
 
 import { forgetSpellsIfChosenAnew, nextTickFor } from '../automations/schedule.js';
 import { firstIncompleteNode, resolveRule } from '../automations/validate.js';
 import type { SnapshotView } from '../crud/identifiers.js';
+import { installTemplateKey, type InstallAddress } from '../installs/resolve.js';
+import type { AfterInstallItem } from './after-install.js';
 import { roleSlugFor } from './manifest-roles.js';
 import { canonicalJson } from './sample-data.js';
 
@@ -41,6 +52,8 @@ export interface AutomationsResult {
   kept: string[];
   /** Unedited rules the manifest no longer ships. */
   removed: string[];
+  /** What the owner still fills in of the rules the manifest ships, as they stand after the write. */
+  afterInstall: AfterInstallItem[];
 }
 
 type Words = string | Readonly<Record<string, string>>;
@@ -52,11 +65,83 @@ function withoutZone(trigger: AutomationTrigger): unknown {
   return { ...trigger, schedule };
 }
 
-/** The fingerprint of a rule as the store keeps it, the same however its JSON was ordered. */
+type StoredNode = { id: string; kind: string; action?: (Record<string, unknown> & { kind: string }) | undefined; branches?: { nodes: StoredNode[] }[] | undefined } & Record<string, unknown>;
+
+/** Every step of a stored graph, a branch's own steps after it. */
+function storedNodes(nodes: readonly StoredNode[]): StoredNode[] {
+  return nodes.flatMap((node) => [node, ...(node.branches ?? []).flatMap((branch) => storedNodes(branch.nodes))]);
+}
+
+/** A step without what its owner fills in after an install: a webhook's address and header value, a mail's typed addresses, a document's profile. */
+function withoutFilledIn(node: StoredNode): StoredNode {
+  if (node.branches !== undefined) return { ...node, branches: node.branches.map((branch) => ({ ...branch, nodes: branch.nodes.map(withoutFilledIn) })) };
+  const action = node.action;
+  if (node.kind !== 'action' || action === undefined) return node;
+  if (action.kind === 'webhook') {
+    const { url: _url, headerValueEncrypted: _sealed, headerValue: _value, headerValueSet: _set, ...rest } = action;
+    return { ...node, action: rest as StoredNode['action'] };
+  }
+  if (action.kind === 'email' && (action['to'] as { kind?: string } | null)?.kind === 'fixed') return { ...node, action: { ...action, to: { kind: 'fixed' } } };
+  if (action.kind === 'document.render') {
+    const { profileId: _profile, ...rest } = action;
+    return { ...node, action: rest as StoredNode['action'] };
+  }
+  return node;
+}
+
+/** The fingerprint of a rule as the store keeps it, the same however its JSON was ordered, and whatever its owner filled in after the install. */
 export function automationHashOf(rule: Pick<Automation, 'name' | 'description' | 'trigger' | 'graph'>): string {
+  const graph = { ...rule.graph, nodes: (rule.graph.nodes as unknown as StoredNode[]).map(withoutFilledIn) };
   return createHash('sha256')
-    .update(canonicalJson({ name: rule.name, description: rule.description, trigger: withoutZone(rule.trigger), graph: rule.graph }))
+    .update(canonicalJson({ name: rule.name, description: rule.description, trigger: withoutZone(rule.trigger), graph }))
     .digest('hex');
+}
+
+/** Whether a step is one that sends out of Adminium: a webhook, or a mail to typed addresses. */
+function sendsOut(node: StoredNode): boolean {
+  return node.action?.kind === 'webhook' || (node.action?.kind === 'email' && (node.action['to'] as { kind?: string } | null)?.kind === 'fixed');
+}
+
+/** What the owner still has to fill in of a stored rule: one item per empty value. */
+export function afterInstallItemsOfRule(key: string, graph: AutomationGraph): AfterInstallItem[] {
+  const out: AfterInstallItem[] = [];
+  for (const node of storedNodes(graph.nodes as unknown as StoredNode[])) {
+    const action = node.action;
+    if (node.kind !== 'action' || action === undefined) continue;
+    if (action.kind === 'webhook') {
+      if (action['url'] === null || action['url'] === undefined || action['url'] === '') out.push({ kind: 'webhook', item: key, field: `${node.id}.url` });
+      if (typeof action['headerName'] === 'string' && action['headerName'] !== '' && (action['headerValueEncrypted'] ?? null) === null) out.push({ kind: 'webhook', item: key, field: `${node.id}.headerValue` });
+    }
+    const to = action['to'] as { kind?: string; addresses?: unknown[] } | null | undefined;
+    if (action.kind === 'email' && to?.kind === 'fixed' && (to.addresses ?? []).length === 0) out.push({ kind: 'address', item: key, field: `${node.id}.to.addresses` });
+    if (action.kind === 'document.render' && (action['profileId'] ?? null) === null) out.push({ kind: 'document', item: key, field: `${node.id}.profileId` });
+  }
+  return out;
+}
+
+/**
+ * What the owner filled in of a rule an update rewrites: carried onto the
+ * new version's step of the same id and kind, so the update takes nothing of
+ * theirs away.
+ */
+function carryFilledIn(before: AutomationGraph, after: AutomationGraph): AutomationGraph {
+  const filled = new Map(storedNodes(before.nodes as unknown as StoredNode[]).map((node) => [node.id, node]));
+  const carry = (node: StoredNode): StoredNode => {
+    if (node.branches !== undefined) return { ...node, branches: node.branches.map((branch) => ({ ...branch, nodes: branch.nodes.map(carry) })) };
+    const was = filled.get(node.id)?.action;
+    const action = node.action;
+    if (node.kind !== 'action' || action === undefined || was === undefined || was.kind !== action.kind) return node;
+    if (action.kind === 'webhook') {
+      const sameHeader = (was['headerName'] ?? null) === (action['headerName'] ?? null);
+      return { ...node, action: { ...action, url: was['url'] ?? null, headerValueEncrypted: sameHeader ? (was['headerValueEncrypted'] ?? null) : null } };
+    }
+    const to = action['to'] as { kind?: string } | null;
+    const wasTo = was['to'] as { kind?: string; addresses?: unknown } | null;
+    if (action.kind === 'email' && to?.kind === 'fixed' && wasTo?.kind === 'fixed') return { ...node, action: { ...action, to: { kind: 'fixed', addresses: wasTo.addresses ?? [] } } };
+    if (action.kind === 'document.render' && (action['profileId'] ?? null) === null) return { ...node, action: { ...action, profileId: was['profileId'] ?? null } };
+    return node;
+  };
+  return { ...after, nodes: (after.nodes as unknown as StoredNode[]).map(carry) } as unknown as AutomationGraph;
 }
 
 export interface Binding {
@@ -66,6 +151,8 @@ export interface Binding {
   timezone: string;
   /** The instance's language as a manifest spells one (`de-DE`). */
   language: string;
+  /** The app's document profile a step draws, by the document's table, kind and add-on; null when none is here. */
+  profileId?: (document: { table: string; kind: string; addOn?: string | undefined }) => string | null;
 }
 
 const one = (words: Words, language: string): string => (typeof words === 'string' ? words : (words[language] ?? words['en-US'] ?? Object.values(words)[0] ?? ''));
@@ -161,12 +248,71 @@ export function boundNode(node: unknown, b: Binding): unknown {
     const values = Object.fromEntries(Object.entries(action['values'] as Record<string, ManifestWriteValue>).map(([ref, value]) => [ref, boundValue(value, b)]));
     return { ...base, action: { ...action, values, ...(action.kind === 'record.create' ? { table: b.realId(action['table'] as string) } : {}) } };
   }
+  // A call out, and a mail to typed addresses: written empty, for the owner to fill in.
+  if (action.kind === 'webhook') {
+    return {
+      ...base,
+      action: {
+        kind: 'webhook',
+        url: null,
+        method: action['method'] ?? 'POST',
+        bodyKind: action['bodyKind'] ?? 'json',
+        body: action['body'] ?? null,
+        headerName: action['headerName'] ?? null,
+        headerValueEncrypted: null,
+      },
+    };
+  }
+  if (action.kind === 'email' && (action['to'] as { kind?: string } | undefined)?.kind === 'fixed') {
+    return { ...base, action: { ...action, to: { kind: 'fixed', addresses: [] } } };
+  }
+  // A document: the app's own profile for it here, or none yet.
+  if (action.kind === 'document.render') {
+    const document = action['document'] as { table: string; kind: string; addOn?: string };
+    return { ...base, action: { kind: 'document.render', profileId: b.profileId?.(document) ?? null } };
+  }
   // A mail to the people a listing names: the listing's table as it is named here.
   if (action.kind === 'email' && (action['to'] as { kind?: string } | undefined)?.kind === 'listed') {
     const to = action['to'] as { kind: 'listed'; table: string };
     return { ...base, action: { ...action, to: { kind: 'listed', table: b.realId(to.table) } } };
   }
   return base;
+}
+
+/** A graph as if its owner had filled in what they fill in after the install: for the check that every other step is whole. */
+function asFilledIn(graph: AutomationGraph): AutomationGraph {
+  const fill = (node: StoredNode): StoredNode => {
+    if (node.branches !== undefined) return { ...node, branches: node.branches.map((branch) => ({ ...branch, nodes: branch.nodes.map(fill) })) };
+    const action = node.action;
+    if (node.kind !== 'action' || action === undefined) return node;
+    if (action.kind === 'webhook' && (action['url'] ?? null) === null) return { ...node, action: { ...action, url: 'https://filled-in.invalid/' } };
+    const to = action['to'] as { kind?: string; addresses?: unknown[] } | null;
+    if (action.kind === 'email' && to?.kind === 'fixed' && (to.addresses ?? []).length === 0) return { ...node, action: { ...action, to: { kind: 'fixed', addresses: ['filled-in@example.invalid'] } } };
+    if (action.kind === 'document.render' && (action['profileId'] ?? null) === null) return { ...node, action: { ...action, profileId: 'filled-in' } };
+    return node;
+  };
+  return { ...graph, nodes: (graph.nodes as unknown as StoredNode[]).map(fill) } as unknown as AutomationGraph;
+}
+
+/**
+ * What the owner will fill in after an install of these rules, read from the
+ * file alone, for the review before anything is made: each rule bound with
+ * stand-ins for what only the install knows (its tables, roles and zone) — a
+ * document a rule draws counts as there when the app declares it.
+ */
+export function plannedAfterInstallOfRules(manifest: Manifest): AfterInstallItem[] {
+  if (manifest.kind !== 'app') return [];
+  const documents = manifest.documents ?? [];
+  const binding: Binding = {
+    connectionId: 'planned',
+    realId: (ref) => ref,
+    roleId: (key) => key,
+    timezone: 'UTC',
+    language: 'en-US',
+    profileId: (document) => (documents.some((entry) => entry.table === document.table && entry.kind === document.kind) ? 'planned' : null),
+  };
+  const rules = ((manifest as { automations?: ManifestAutomation[] }).automations ?? []) as ManifestAutomation[];
+  return rules.flatMap((rule) => afterInstallItemsOfRule(rule.key, bind(rule, binding).graph));
 }
 
 /** A shipped rule as this install stores it: every table, role, text and zone its own. */
@@ -178,8 +324,8 @@ function bind(rule: ManifestAutomation, b: Binding): { name: string; description
           event: rule.trigger.event,
           connectionId: b.connectionId,
           table: b.realId(rule.trigger.table),
-          // A shipped rule runs on what Adminium itself writes: it does not poll for rows written around it.
-          watch: false,
+          // A shipped rule runs on what Adminium itself writes, unless it says it also polls for rows written around it.
+          watch: rule.trigger.watch ?? false,
           ...(rule.trigger.changedColumn === undefined ? {} : { changedColumn: rule.trigger.changedColumn }),
           ...(rule.trigger.when === undefined ? {} : { when: rule.trigger.when.map((condition) => boundCondition(condition, b)) }),
         }
@@ -199,9 +345,28 @@ function bind(rule: ManifestAutomation, b: Binding): { name: string; description
   };
 }
 
+/**
+ * A rule's email and digest steps name the templates its manifest ships; a
+ * later install keeps those under keys of its own, so its rules send its own.
+ */
+function withInstallTemplates<T extends { graph: AutomationGraph }>(bound: T, manifest: Manifest, install: InstallAddress): T {
+  if (install.slug === '') return bound;
+  const shipped = new Set(((manifest as { emailTemplates?: { key: string }[] }).emailTemplates ?? []).map((template) => template.key));
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(walk);
+    if (value === null || typeof value !== 'object') return value;
+    const out = Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, walk(v)]));
+    if (typeof out['templateKey'] === 'string' && shipped.has(out['templateKey'])) out['templateKey'] = installTemplateKey(out['templateKey'], install);
+    return out;
+  };
+  return { ...bound, graph: walk(bound.graph) as AutomationGraph };
+}
+
 export interface InstallAutomationsInput {
   meta: MetaDb;
   manifest: Manifest;
+  /** The install the rules belong to: their roles and templates are its own. */
+  install: InstallAddress;
   connectionId: string;
   /** The connection's tables as they stand, with this install's own among them. */
   view: SnapshotView;
@@ -239,13 +404,15 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
   const roles = rolesRepo(meta);
   const roleIds = new Map<string, string>();
   for (const role of (manifest as { roles?: { key: string }[] }).roles ?? []) {
-    const found = await roles.findBySlug(roleSlugFor(manifest.key, role.key));
+    const found = await roles.findBySlug(roleSlugFor(manifest.key, role.key, input.install.slug));
     if (found !== null) roleIds.set(role.key, found.id);
   }
   const connection = await meta.db.selectFrom('adminium_connections').select('timezone').where('id', '=', connectionId).executeTakeFirst();
   const stored = await settingsRepo(meta).get('locale.default');
   const templateKeys = new Set((await emailTemplatesRepo(meta).list({ kind: 'template', archived: false })).filter((row) => row.enabled).map((row) => row.key));
-  const result: AutomationsResult = { written: [], kept: [], removed: [] };
+  const result: AutomationsResult = { written: [], kept: [], removed: [], afterInstall: [] };
+  // The app's own document profiles here, made before its rules: what a document step draws.
+  const profiles = await documentProfilesRepo(meta).listOwnedBy(connectionId, manifest.key);
 
   for (const rule of shipped) {
     const refusal = (why: string): Error => new Error(`The rule "${rule.key}" of "${manifest.key}" cannot be installed: ${why}`);
@@ -264,8 +431,12 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
       // The database's own zone; an install with none runs a daily rule on the server's clock.
       timezone: connection?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
       language: typeof stored === 'string' ? stored.replace('_', '-') : 'en-US',
+      profileId: (document) => {
+        const table = input.realId(document.table);
+        return profiles.find((profile) => profile.table === table && profile.kind === document.kind && (document.addOn === undefined || profile.addOnKey === document.addOn))?.id ?? null;
+      },
     };
-    const bound = bind(rule, binding);
+    const bound = withInstallTemplates(bind(rule, binding), manifest, input.install);
     // Checked whole, as a rule a person saves is: nothing half-written is ever stored for a manifest.
     try {
       resolveRule(bound.trigger, bound.graph, { view, templateKeys, blockLoopback: true, steps: ownSteps } as never);
@@ -273,8 +444,12 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
       throw refusal(error instanceof Error ? error.message : String(error));
     }
     // A step of the manifest's own is held to its inputs; another add-on's is that add-on's to answer for, on the day it runs.
-    const unfinished = firstIncompleteNode(bound.graph, (addOn, step) => (addOn === manifest.key ? ownSteps(addOn, step) : { state: 'ok', step: { addOn, addOnName: addOn, step: { key: step, inputs: [] } as never, table: '', inputTables: {}, refOf: (tableId: string) => tableId } }));
+    // What the owner fills in after the install is the one thing a shipped step may lack.
+    const waiting = afterInstallItemsOfRule(rule.key, bound.graph);
+    const unfinished = firstIncompleteNode(asFilledIn(bound.graph), (addOn, step) => (addOn === manifest.key ? ownSteps(addOn, step) : { state: 'ok', step: { addOn, addOnName: addOn, step: { key: step, inputs: [] } as never, table: '', inputTables: {}, refOf: (tableId: string) => tableId } }));
     if (unfinished !== null) throw refusal(`its step "${unfinished.title}" is not finished.`);
+    // A rule that sends out, or waits for its owner, arrives switched off.
+    const switchedOn = rule.enabled && waiting.length === 0 && !storedNodes(bound.graph.nodes as unknown as StoredNode[]).some(sendsOut);
 
     const existing = mine.find((candidate) => candidate.templateKey === rule.key);
     // The part it belongs to is the app's to say, also of a rule its owner has since changed.
@@ -282,18 +457,23 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
     if (existing === undefined) {
       const schedule = bound.trigger.kind === 'schedule' ? bound.trigger.schedule : null;
       const made = await repo.create(
-        { connectionId, ...bound, enabled: rule.enabled, nextRunAt: rule.enabled && schedule !== null ? nextTickFor(schedule, at) : null, createdBy: null, managedBy: manifest.key, templateKey: rule.key, contentHash: null, module: rule.module ?? null },
+        { connectionId, ...bound, enabled: switchedOn, nextRunAt: switchedOn && schedule !== null ? nextTickFor(schedule, at) : null, createdBy: null, managedBy: manifest.key, installId: input.install.id, templateKey: rule.key, contentHash: null, module: rule.module ?? null },
         at,
       );
       // Hashed as the store keeps it, so reading it back is never an edit.
-      await repo.setHash(made.id, automationHashOf((await repo.findById(made.id)) ?? made));
+      const written = (await repo.findById(made.id)) ?? made;
+      await repo.setHash(made.id, automationHashOf(written));
+      result.afterInstall.push(...afterInstallItemsOfRule(rule.key, written.graph));
       result.written.push(rule.key);
       continue;
     }
     if (existing.contentHash === null || automationHashOf(existing) !== existing.contentHash) {
+      result.afterInstall.push(...afterInstallItemsOfRule(rule.key, existing.graph));
       result.kept.push(rule.key);
       continue;
     }
+    // What the owner filled in stays with the step it was filled into.
+    bound.graph = carryFilledIn(existing.graph, bound.graph);
     // The zone it already runs in stays; so does the owner's switch.
     const zone = existing.trigger.kind === 'schedule' && existing.trigger.schedule.kind !== 'interval' ? existing.trigger.schedule.timezone : null;
     const trigger =
@@ -305,7 +485,9 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
       at,
     );
     await forgetSpellsIfChosenAnew(meta, existing.id, existing.trigger, trigger);
-    await repo.setHash(existing.id, automationHashOf((await repo.findById(existing.id)) ?? existing));
+    const rewritten = (await repo.findById(existing.id)) ?? existing;
+    await repo.setHash(existing.id, automationHashOf(rewritten));
+    result.afterInstall.push(...afterInstallItemsOfRule(rule.key, rewritten.graph));
     result.written.push(rule.key);
   }
 

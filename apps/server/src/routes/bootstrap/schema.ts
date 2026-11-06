@@ -38,6 +38,10 @@ export type NavGroupKey = z.infer<typeof navGroupKey>;
 /** One sidebar entry (NavTree item). */
 export const bootstrapNavItem = z.object({
   pageId: z.string(),
+  /** The install whose page or entry this is (an app or add-on installed once per database); absent on everyone else's. */
+  installId: z.string().optional(),
+  /** The workspaces of the item's database this person sees; absent while the server has none, or for an item of no database. */
+  workspaceIds: z.array(z.string()).optional(),
   /** Unique kebab-case URL segment — the `/p/$slug` param. */
   slug: z.string(),
   /** i18n key (`nav.<slug>`); clients fall back to `fallback` until M8. */
@@ -218,7 +222,12 @@ export type BootstrapHostedApp = z.infer<typeof bootstrapHostedApp>;
 export const bootstrapAppSection = z.object({
   /** Set on an add-on's section; `appKey` then holds the add-on's key. Absent on an app's. */
   kind: z.literal('add-on').optional(),
+  /** The install's address: the app key, or `<key>~<slug>` for a later install of the same app on another database. */
   appKey: z.string(),
+  /** The install the section is (the same app may be installed once per database). */
+  installId: z.string().optional(),
+  /** The database the install is for; null for one kept once per server. */
+  connectionId: z.string().nullable().optional(),
   label: z.string(),
   version: z.string(),
   /** The first group has no heading when it holds the app's ungrouped pages (its Overview). */
@@ -293,9 +302,37 @@ export const bootstrapProject = z.object({
     .nullable(),
 });
 
+/** A workspace this person sees, as the menu draws it. */
+export const bootstrapWorkspace = z.object({
+  id: z.string(),
+  name: z.string(),
+  /** Up to two letters for its tile. */
+  initials: z.string(),
+  position: z.number().int(),
+  connectionIds: z.array(z.string()),
+});
+
+/**
+ * The server's workspaces this person sees. Absent while the server has
+ * none: the menu is the one it always was.
+ */
+export const bootstrapWorkspaces = z.object({
+  workspaces: z.array(bootstrapWorkspace),
+  /** The databases in no workspace, when this person sees that group; null when there is none for them. */
+  otherDatabases: z.array(z.string()).nullable(),
+  /** How the menu shows workspaces, for everyone: one at a time, or all in one menu. */
+  workspaceView: z.enum(['one', 'all']),
+  /** The workspace this person chose last: where a new tab starts. Null when none, or one they no longer see. */
+  lastWorkspaceId: z.string().nullable(),
+  /** Whether they manage workspaces (they manage connections). */
+  manage: z.boolean(),
+});
+
 export const bootstrapReply = z.object({
   data: z.object({
     user: authUserView,
+    /** The workspaces this person sees; absent while the server has none. */
+    workspaces: bootstrapWorkspaces.optional(),
     /** Role slugs for the session user (RBAC grants resolve server-side). */
     roles: z.array(z.string()),
     /**

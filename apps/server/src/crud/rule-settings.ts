@@ -21,14 +21,32 @@ import type { SoftLink, TableRules } from './column-rules.js';
 import type { Row } from './mask.js';
 import type { WriteAction } from './write-context.js';
 
-/** What the write service reads from the meta store for a rule. */
+/** What the write service reads from the meta store for a rule, for one write's database. */
 export interface RuleSettingsReader {
   /** The connection's currency (ISO 4217), or null when it names none. */
   currency(connectionId: string): Promise<string | null>;
-  /** One of an add-on's settings (or an app's own, by the app's key), or undefined. */
+  /** One of an add-on's settings (or an app's own, by the app's key), or undefined: as the write's database has it. */
   addOnSetting(addOnKey: string, setting: string): Promise<unknown>;
   /** The default an add-on or an app declares for one of its settings, whatever is saved; undefined for none. */
   defaultSetting?(key: string, setting: string): Promise<unknown>;
+}
+
+/** The store's side: an add-on's settings are per install, so a database is named. */
+export interface RuleSettingsStore {
+  currency(connectionId: string): Promise<string | null>;
+  addOnSetting(addOnKey: string, setting: string, connectionId: string): Promise<unknown>;
+  defaultSetting?(key: string, setting: string, connectionId: string): Promise<unknown>;
+}
+
+/** The reader for one write's database. */
+export function settingsReaderOn(store: RuleSettingsStore | undefined, connectionId: string): RuleSettingsReader | undefined {
+  if (store === undefined) return undefined;
+  const { defaultSetting } = store;
+  return {
+    currency: (id) => store.currency(id),
+    addOnSetting: (addOnKey, setting) => store.addOnSetting(addOnKey, setting, connectionId),
+    ...(defaultSetting === undefined ? {} : { defaultSetting: (key: string, setting: string) => defaultSetting.call(store, key, setting, connectionId) }),
+  };
 }
 
 type Db = Kysely<SourceDatabase>;

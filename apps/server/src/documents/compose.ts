@@ -47,7 +47,8 @@ import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { connectionTenantConfig } from '@adminium/meta';
 import type { EmailLogger } from '../email/send.js';
 import type { FileStore } from '../files/store.js';
-import { DocumentReadError, type DocumentWithhold, type ReadFilter, type RenderDeps, type SourceRead } from './render.js';
+import { DocumentReadError, type DocumentInstall, type DocumentWithhold, type ReadFilter, type RenderDeps, type SourceRead } from './render.js';
+import { installOfRecord, installOnConnection, installsOf } from '../installs/resolve.js';
 import { blankWithheld, holderColumnsOf, linkedRowsOf, withholdRulesOf, type TableWithholds } from '../public-api/withhold.js';
 import { dayOf, dayOn, keptBy, readStatement, scaled, unscaled, type BalanceAfter, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
 import { LIST_KEY, mappedTables, type CollectionSource, type NightlySource, type ProfileMapping, type SlotMapping } from './subject.js';
@@ -523,6 +524,13 @@ async function connectionFacts(
 }
 
 export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
+  /** The install whose settings a document reads: its profile's, else the add-on on its database, else a server-wide one. */
+  const documentInstall = async (addOnKey: string, where: DocumentInstall): Promise<string | null> => {
+    const installs = installsOf(deps.meta);
+    if (where.installId !== null) return where.installId;
+    if (where.connectionId !== null) return (await installOnConnection(installs, addOnKey, where.connectionId))?.row.id ?? null;
+    return (await installOfRecord(installs, addOnKey, null))?.row.id ?? null;
+  };
   return {
     meta: deps.meta,
     storage: deps.storage,
@@ -539,7 +547,10 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
      */
     connectionFacts: async (connectionId) => await connectionFacts(deps.meta, connectionId),
 
-    settingsFor: (addOnKey) => addOnSettingsRepo(deps.meta).valuesFor(addOnKey),
+    settingsFor: async (addOnKey, where) => {
+      const install = await documentInstall(addOnKey, where);
+      return install === null ? {} : addOnSettingsRepo(deps.meta).valuesForInstall(install);
+    },
 
     /**
      * The letterhead, in three layers.
@@ -558,8 +569,9 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
      * they are in the body, and the renderer prefers them (an invoice made in
      * March keeps March's letterhead however this panel is edited afterwards).
      */
-    business: async (addOnKey?: string) => {
-      const own = addOnKey === undefined ? {} : await addOnSettingsRepo(deps.meta).valuesFor(addOnKey);
+    business: async (addOnKey?: string, where?: DocumentInstall) => {
+      const install = addOnKey === undefined ? null : await documentInstall(addOnKey, where ?? { installId: null, connectionId: null });
+      const own = install === null ? {} : await addOnSettingsRepo(deps.meta).valuesForInstall(install);
       const typed = typeof own.business_name === 'string' ? own.business_name : '';
       const lines = Array.isArray(own.business_lines)
         ? own.business_lines.filter((line): line is string => typeof line === 'string')

@@ -134,6 +134,7 @@ async function seed(meta: MetaDb) {
     source: 'file',
     document: { key: 'pos' },
     connectionId: connection.id,
+    scopeKey: connection.id,
   });
   await appTablesRepo(meta).record({
     appKey: 'pos',

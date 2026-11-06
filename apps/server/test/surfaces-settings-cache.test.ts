@@ -101,7 +101,7 @@ describe('the off switch in the settings store', () => {
   it('goes with the app on uninstall', async () => {
     const db = await freshMeta();
     await settingsRepo(db).set('surfaces.apps', { pos: { off: ['customer'] }, other: { name: 'Other' } });
-    await forgetAppSurfaceSettings(db, 'pos', null);
+    await forgetAppSurfaceSettings(db, { key: 'pos', slug: '' }, null);
     expect(await settingsRepo(db).get('surfaces.apps')).toEqual({ other: { name: 'Other' } });
   });
 });

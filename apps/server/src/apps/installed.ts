@@ -44,6 +44,8 @@ import {
   parseSurfaceManifest,
   type HostedSurface,
 } from '../cli/surfaces-root.js';
+import { compareSemver } from '@adminium/manifest';
+
 import { createAppFiles, type AppFiles } from './app-files.js';
 import type { AppStore } from './store.js';
 
@@ -152,7 +154,9 @@ export function createInstalledApps(deps: {
        * shadowing it by arriving second.
        */
       const seen = new Set<string>();
-      for (const row of rows) {
+      // With a key installed on several databases mid-update, the newest VERSION is the one served (one bundle per key).
+      const ordered = rows.map((row, at) => ({ row, at })).sort((a, b) => compareSemver(b.row.version, a.row.version) || a.at - b.at).map((entry) => entry.row);
+      for (const row of ordered) {
         /*
          * An install still in progress is NOT served: its row
          * is written first, before its tables and pages exist, and serving it

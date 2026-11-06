@@ -187,7 +187,7 @@ describe('pinned shape versions (sqlite)', () => {
     expect(refused.statusCode, refused.body).toBe(409);
     expect(refused.json().error.code).toBe('ADD_ON_SHAPE_IN_USE');
     expect(refused.json().error.details).toMatchObject({ app: 'studio', shape: 'invoices/quote@1' });
-    expect((await m(h).findByKey('invoices'))!.row.version).toBe('1.1.0');
+    expect((((await m(h).listByKey('invoices'))[0] ?? null))!.row.version).toBe('1.1.0');
   });
 
   it('lets an upgrade that keeps the version through, altering no app table', async () => {

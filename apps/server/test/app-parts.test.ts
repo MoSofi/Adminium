@@ -397,7 +397,7 @@ for (const [dialect, reachable] of LEGS) {
     });
 
     it('closes a public entry of a part while it is off', async () => {
-      const stored = readAppModules((await manifestsRepo(s.meta, { encrypt: (v) => v, decrypt: (v) => v }).findByKey('desk'))!.row.modules);
+      const stored = readAppModules((((await manifestsRepo(s.meta, { encrypt: (v) => v, decrypt: (v) => v }).listByKey('desk'))[0] ?? null))!.row.modules);
       expect(stored?.doors).toEqual({ desk_vans: 'fleet' });
       expect(await publicEntryPartOff(s.meta, 'desk', 'desk_vans')).toBe(false);
       expect((await flip('fleet', false)).statusCode).toBe(200);

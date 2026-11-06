@@ -59,7 +59,8 @@ const said = (error: unknown): string => (error instanceof Error ? error.message
 export function createRowLoader(deps: RowLoaderDeps): RowLoader {
   return {
     async plan(appKey, ref, csv, columns, by) {
-      const installed = await manifestsRepo(deps.meta, deps.credentialCrypto).findByKey(appKey);
+      // A project app is installed once per server.
+      const installed = (await manifestsRepo(deps.meta, deps.credentialCrypto).listByKey(appKey))[0] ?? null;
       const connectionId = installed?.row.connectionId ?? null;
       if (installed === null || installed.row.kind !== 'app' || connectionId === null) {
         return { ok: false, problem: 'The app is not applied yet, so it has no table to load into. apply_app first, then call this again.' };

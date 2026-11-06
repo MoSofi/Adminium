@@ -72,14 +72,20 @@ describe('the vocabulary', () => {
   it('names no connection, no zone, no user, no address, no web address and no document profile', () => {
     const refused = (change: Doc) => manifestAutomationsSchema.safeParse([{ ...LOW, ...change }]).success;
     expect(refused({ trigger: { ...LOW.trigger, connectionId: 'cnx_1' } })).toBe(false);
-    expect(refused({ trigger: { ...LOW.trigger, watch: true } })).toBe(false);
+    // Watching rows written around Adminium is said, and needs no id.
+    expect(refused({ trigger: { ...LOW.trigger, watch: true } })).toBe(true);
     expect(refused({ trigger: { kind: 'schedule', schedule: { kind: 'daily', time: '17:00', timezone: 'Europe/Berlin' } } })).toBe(false);
     const action = (a: Doc) => refused({ graph: { version: 1, nodes: [node('t', 'trigger'), node('a', 'action', { action: a })] } });
     expect(action({ kind: 'notification', to: { users: ['usr_1'] }, title: 'x' })).toBe(false);
     expect(action({ kind: 'email', templateKey: 'ledger-kit-low', to: { kind: 'fixed', addresses: ['a@example.com'] } })).toBe(false);
     expect(action({ kind: 'webhook', url: 'https://example.com' })).toBe(false);
     expect(action({ kind: 'document.render', profileId: 'dpr_1' })).toBe(false);
+    expect(action({ kind: 'webhook', headerValue: 'test-not-a-key-0001' })).toBe(false);
     expect(action({ kind: 'record.update', values: { reorder_at: '5' } })).toBe(true);
+    // The steps that send out are written with no address at all, and a document by the app's own name for it.
+    expect(action({ kind: 'email', templateKey: 'ledger-kit-low', to: { kind: 'fixed' } })).toBe(true);
+    expect(action({ kind: 'webhook', bodyKind: 'slack', body: '{{record.name}} is low', headerName: 'Authorization' })).toBe(true);
+    expect(action({ kind: 'document.render', document: { table: 'stock_points', kind: 'label' } })).toBe(true);
   });
 
   it('one trigger, first; unique step ids; no branch inside a branch; a wait of at most 30 days', () => {

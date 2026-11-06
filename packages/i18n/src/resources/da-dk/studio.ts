@@ -3226,6 +3226,12 @@ export default {
     "notFound": {
       "title": "Siden blev ikke fundet",
       "body": "Der er intet på denne adresse. Tjek linket, og prøv igen."
+    },
+    "moved": {
+      "one": "{app} er installeret på {database}.",
+      "other": "{app} er installeret på andre databaser.",
+      "body": "Denne adresse tilhørte en kopi, der er blevet fjernet.",
+      "open": "Åbn {app} på {database}"
     }
   },
   "appSettings": {

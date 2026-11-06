@@ -165,7 +165,7 @@ for (const [dialect, available] of ENGINES) {
       const before = (await repo.listOwnedBy(harness.connectionId, 'clinic')).sort((a, b) => a.id.localeCompare(b.id));
 
       // An update's sync that finds none of the app's tables: every profile is still asked for.
-      const manifest = (await manifestsRepo(harness.meta, { encrypt: (v) => v, decrypt: (v) => v }).findByKey('clinic'))!.document as never;
+      const manifest = (((await manifestsRepo(harness.meta, { encrypt: (v) => v, decrypt: (v) => v }).listByKey('clinic'))[0] ?? null))!.document as never;
       const synced = await makeAppProfiles({ meta: harness.meta, manifest, connectionId: harness.connectionId, realId: () => null, shapes: await installedShapes(harness.meta) });
       expect(synced.removed).toEqual([]);
 

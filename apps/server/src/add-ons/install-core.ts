@@ -100,7 +100,8 @@ export interface InstallCore<List extends CoreUninstallList = CoreUninstallList>
    * Answers the parts put in; none when nothing waited, the app is being
    * installed or updated right now, or its package is no longer held.
    */
-  putInParts(input: { appKey: string; actor: InstallActor; host?: InstallHost | undefined }): Promise<string[]>;
+  /** Its waiting parts put in: on the add-on's database when named, else on every copy of the app. */
+  putInParts(input: { appKey: string; actor: InstallActor; host?: InstallHost | undefined; connectionId?: string | null | undefined }): Promise<string[]>;
   /** After an add-on's update: its link key narrowed (or gone), and the endpoints its version dropped removed. */
   settleAddOnPublic(input: { manifest: Manifest; connectionId: string; names: Readonly<Record<string, string>>; actor: InstallActor }): Promise<{ removed: string[]; kept: string[] }>;
   /** What an add-on would open publicly, for the check; undefined when it asks for nothing. */
@@ -108,8 +109,9 @@ export interface InstallCore<List extends CoreUninstallList = CoreUninstallList>
     | { endpoints: unknown[]; byApp: Record<string, { adds: string[]; held: string[] }>; linkKey?: string; canGrant: boolean }
     | undefined
   >;
-  planFor(manifest: Manifest, connectionId: string): Promise<{ plan: InstallPlan; dto: CoreCheck; existing: ExistingTable[] }>;
-  checkedPlan(key: string, manifest: Manifest, connectionId: string, verb: 'installed' | 'updated', expectedChecksum?: string): Promise<CheckedTables>;
+  /** `updating`: the install an update moves, which is no other copy of the key. */
+  planFor(manifest: Manifest, connectionId: string, updating?: string): Promise<{ plan: InstallPlan; dto: CoreCheck; existing: ExistingTable[] }>;
+  checkedPlan(key: string, manifest: Manifest, connectionId: string, verb: 'installed' | 'updated', expectedChecksum?: string, updating?: string): Promise<CheckedTables>;
   /** Records the planned tables before any is made; answers the record id of each table still to make, by ref. */
   recordTables(input: { key: string; manifest: Manifest; rowId: string; connectionId: string; checked: CheckedTables; prefix: string | null }): Promise<ReadonlyMap<string, string>>;
   applyTables(

@@ -84,13 +84,13 @@ afterEach(async () => {
   h = undefined;
 });
 
-const storedModules = async (harness: Harness) => readAppModules((await manifestsRepo(harness.meta, CRYPTO).findByKey('crm'))!.row.modules);
+const storedModules = async (harness: Harness) => readAppModules((((await manifestsRepo(harness.meta, CRYPTO).listByKey('crm'))[0] ?? null))!.row.modules);
 const columnsOf = async (harness: Harness, table: string): Promise<string[]> => {
   const made = (await appTablesRepo(harness.meta).forInstall(harness.connectionId, 'crm')).map((record) => record.tableName);
   expect(made).toContain(table);
   const rows = await harness.rows(`select * from ${table} limit 0`).catch(() => []);
   void rows;
-  const document = (await manifestsRepo(harness.meta, CRYPTO).findByKey('crm'))!.document as { requiredSchema: { tables: { ref: string; columns: { ref: string }[] }[] } };
+  const document = (((await manifestsRepo(harness.meta, CRYPTO).listByKey('crm'))[0] ?? null))!.document as { requiredSchema: { tables: { ref: string; columns: { ref: string }[] }[] } };
   return document.requiredSchema.tables.find((one) => `crm_${one.ref}` === table)!.columns.map((column) => column.ref);
 };
 
@@ -195,7 +195,7 @@ for (const [dialect, available] of ENGINES) {
       const updated = await h.inject({ method: 'POST', url: '/apps/crm/update', payload: {} });
       expect(updated.statusCode, updated.body).toBe(200);
       expect(await h.tableNames()).toEqual(expect.arrayContaining(['crm_quotes', 'crm_quote_lines']));
-      const stored = (await manifestsRepo(h.meta, CRYPTO).findByKey('crm'))!;
+      const stored = (((await manifestsRepo(h.meta, CRYPTO).listByKey('crm'))[0] ?? null))!;
       expect(stored.row.version).toBe('0.2.1');
       const document = stored.document as { requiredSchema: { tables: { ref: string }[] }; pages: { ref: string }[]; roles: { key: string }[] };
       expect(document.requiredSchema.tables.map((table) => table.ref)).toEqual(['deals', 'notes', 'quotes', 'quote_lines']);

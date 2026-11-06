@@ -101,6 +101,8 @@ export interface AdminiumUserPrefsTable {
   /** ltr | rtl; NULL = derived from locale. */
   dir: string | null;
   uiState: JsonColumn | null;
+  /** The workspace the person last chose: the start for a new tab, never a filter (wave 0075). */
+  workspaceId: ColumnType<Id | null, Id | null | undefined, Id | null>;
   updatedAt: Ts;
 }
 
@@ -157,6 +159,8 @@ export interface AdminiumRolesTable {
   modules: JsonColumn | null;
   /** `{from, names}`: the name it was installed under and that name in other languages (wave 0058). */
   names: JsonColumn | null;
+  /** The install whose manifest made this role (wave 0076); SET NULL when it goes. */
+  manifestId: ColumnType<Id | null, Id | null | undefined, Id | null>;
 }
 
 /** per-table / per-page / system permission matrix. */
@@ -605,6 +609,8 @@ export interface AdminiumAutomationsTable {
   createdBy: Id | null;
   /** The app or add-on that shipped the rule (its manifest key); NULL for a rule an owner made (0051). */
   managedBy: string | null;
+  /** The install that shipped it (wave 0076); NULL with `managedBy`. */
+  installId: ColumnType<Id | null, Id | null | undefined, Id | null>;
   /** The name the manifest gave the rule; one a manifest and a database (0051). */
   templateKey: string | null;
   /** The part of its app a shipped rule belongs to (wave 0058). */
@@ -729,6 +735,10 @@ export interface AdminiumEmailTemplatesTable {
   createdBy: Id | null;
   /** The app that shipped the template (wave 0042); NULL for the operator's and the built-ins. */
   managedBy: string | null;
+  /** The install that shipped it (wave 0076). */
+  installId: ColumnType<Id | null, Id | null | undefined, Id | null>;
+  /** `all` | `chosen` (wave 0075): the workspaces whose lists show it. Never stops a send. */
+  shownIn: ColumnType<string, string | undefined, string>;
   /** The hash of what the app shipped; a row that no longer hashes to it was edited. */
   contentHash: string | null;
 }
@@ -819,6 +829,8 @@ export interface AdminiumDocumentProfilesTable {
   ownerApp: string | null;
   /** The column a document's lines are listed by (wave 0044). */
   orderBy: string | null;
+  /** The install of the add-on that renders it (wave 0076). */
+  installId: ColumnType<Id | null, Id | null | undefined, Id | null>;
 }
 
 /**
@@ -868,6 +880,8 @@ export interface AdminiumDocumentsTable {
   createdAt: Ts;
   /** Profile, row, a hash of its values and any period: a render to reuse (wave 0044). */
   reuseKey: string | null;
+  /** The install of the add-on that rendered it (wave 0076). */
+  installId: ColumnType<Id | null, Id | null | undefined, Id | null>;
 }
 
 /**
@@ -888,7 +902,9 @@ export interface AdminiumDocumentSequencesTable {
  * at the route layer cannot put one in a table read back in clear.
  */
 export interface AdminiumAddOnSettingsTable {
-  /** SOFT ref to `manifests.manifestKey` — no FK. */
+  /** PK; the install (wave 0076), FK CASCADE. */
+  manifestId: Id;
+  /** The install's key, for reading; never the key the row is found by. */
   addOnKey: string;
   values: JsonColumn;
   updatedBy: Id | null;
@@ -920,6 +936,8 @@ export interface AdminiumInvoiceDocumentsTable {
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
+  /** `all` | `chosen` (wave 0075): the workspaces whose lists show it. */
+  shownIn: ColumnType<string, string | undefined, string>;
 }
 
 /** The authored report source behind `/report-builder`. */
@@ -942,6 +960,8 @@ export interface AdminiumReportDocumentsTable {
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
+  /** `all` | `chosen` (wave 0075): the workspaces whose lists show it. */
+  shownIn: ColumnType<string, string | undefined, string>;
 }
 
 /**
@@ -1065,6 +1085,17 @@ export interface AdminiumManifestsTable {
   packageFileId: Id | null;
   /** `{defs, on}`: the parts of the app and the owner's switch for each (wave 0058); null for an app with none. */
   modules: JsonColumn | null;
+  /**
+   * The database this install is for — its connection id — or `server` for
+   * an add-on kept once per server (wave 0076). Unique with the key.
+   */
+  scopeKey: string;
+  /**
+   * `''` = the bare addresses (`/a/<key>`, `/apps/<key>/<side>/`, the bare
+   * grants); otherwise the slug a later install was given, never changed
+   * (wave 0076). Unique with the key.
+   */
+  instanceSlug: string;
   installedBy: Id | null;
   installedAt: Ts;
   updatedAt: Ts;
@@ -1083,6 +1114,10 @@ export interface AdminiumManifestAttachmentsTable {
   manifestId: Id;
   /** The host app's `manifest_key`. */
   attachedTo: string;
+  /** The host install (wave 0076); `''` while that key is not installed. */
+  hostInstall: ColumnType<string, string | undefined, string>;
+  /** `crosses` (wave 0076): found joining two databases at the upgrade; only a server-wide add-on may. */
+  flag: ColumnType<string | null, string | null | undefined, string | null>;
   /** NULL = enabled on this host; epoch ms when it was switched off. */
   disabledAt: Ts | null;
   createdAt: Ts;
@@ -1204,6 +1239,8 @@ export interface AdminiumPublicKeysTable {
   updatedAt: Ts;
   /** The app key that created it at install (wave 0039); null when an operator did. */
   managedBy: string | null;
+  /** The install that created it (wave 0076). */
+  installId: ColumnType<Id | null, Id | null | undefined, Id | null>;
 }
 
 /**
@@ -1251,6 +1288,8 @@ export interface AdminiumPublicEndpointsTable {
   updatedAt: Ts;
   /** The app key that created it at install (wave 0039); null when an operator did. */
   managedBy: string | null;
+  /** The install that created it (wave 0076). */
+  installId: ColumnType<Id | null, Id | null | undefined, Id | null>;
 }
 
 /**
@@ -1920,6 +1959,37 @@ export interface AdminiumFormMarksTable {
   createdAt: Ts;
 }
 
+/** Wave 0078 — an app update that moved its version and has not finished writing what it brings. */
+export interface AdminiumAppUpdatesTable {
+  /** The install (`adminium_manifests.id`): one unfinished update each at most. */
+  manifestId: Id;
+  fromVersion: string;
+  toVersion: string;
+  /** JSON array of the table refs the version before had. */
+  fromTables: JsonColumn;
+  /** The step it stopped at; null while it runs. */
+  stoppedAt: string | null;
+  startedAt: Ts;
+  updatedAt: Ts;
+}
+
+/** Wave 0077 — a row an install made of a part its file carries (a report, an invoice layout, a scheduled report). */
+export interface AdminiumAppPartsTable {
+  id: Id;
+  /** The install (`adminium_manifests.id`). */
+  manifestId: Id;
+  /** `report` | `invoice-layout` | `scheduled-report`. */
+  kind: string;
+  /** The entry's key in the file. */
+  partKey: string;
+  /** The row it made. */
+  targetId: Id;
+  /** A fingerprint of what it wrote: a row whose own no longer matches was changed by somebody. */
+  contentHash: string;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
 /** Wave 0074 — a file a stranger uploaded: what it was taken for, from where (a keyed hash), and whose it became. */
 export interface AdminiumPublicUploadsTable {
   id: string;
@@ -1938,6 +2008,105 @@ export interface AdminiumPublicUploadsTable {
   ownerTable: string | null;
   ownerKey: string | null;
   removedAt: Ts | null;
+}
+
+/** One Save as app (wave 0075): a version of a key is saved once. */
+export interface AdminiumAppSavesTable {
+  id: Id;
+  appKey: string;
+  version: string;
+  /** Drawn on the first save of a dashboard; never an instance id. */
+  lineage: string;
+  connectionId: Id | null;
+  /** Where it was made, as the person named it; never a hostname. */
+  label: string;
+  savedBy: Id | null;
+  savedAt: Ts;
+  /** `sha512-<base64>` of the file. */
+  integrity: string;
+  bytes: number;
+  /** The kept copy, for "Download again". */
+  fileId: Id | null;
+}
+
+/** What an install still needs from a person (wave 0075). */
+export interface AdminiumAppAfterInstallTable {
+  id: Id;
+  /** The install, FK CASCADE. */
+  manifestId: Id;
+  appKey: string;
+  kind: string;
+  item: string;
+  field: string;
+  done: BoolColumn;
+  doneBy: Id | null;
+  doneAt: Ts | null;
+  createdAt: Ts;
+}
+
+/** A named group of databases on one server (wave 0075). */
+export interface AdminiumWorkspacesTable {
+  id: Id;
+  /** Unique, at most 80. */
+  name: string;
+  /** Drives the switcher, the link rule and the sender rule. */
+  position: number;
+  /** The workspace's own sender; NULL = the server's. */
+  senderName: string | null;
+  senderFrom: string | null;
+  senderReplyTo: string | null;
+  senderPostal: string | null;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** Which databases a workspace holds; both FKs CASCADE (wave 0075). */
+export interface AdminiumWorkspaceConnectionsTable {
+  workspaceId: Id;
+  connectionId: Id;
+  createdAt: Ts;
+}
+
+/** The chosen workspaces of an item whose `shown_in` is `chosen` (wave 0075). */
+export interface AdminiumItemWorkspacesTable {
+  /** `email-template` | `report` | `invoice` */
+  kind: string;
+  itemId: Id;
+  workspaceId: Id;
+}
+
+/** A whole workspace saved as one file (wave 0075). */
+export interface AdminiumWorkspaceSavesTable {
+  id: Id;
+  workspaceId: Id | null;
+  name: string;
+  label: string;
+  savedBy: Id | null;
+  savedAt: Ts;
+  integrity: string;
+  bytes: number;
+  /** JSON array of `app_saves.id`, in the file's order. */
+  appSaveIds: JsonColumn;
+  /** The `workspace.json` as written. */
+  document: string;
+}
+
+/** The install of a workspace file, surviving a reload (wave 0075). */
+export interface AdminiumWorkspaceInstallsTable {
+  id: Id;
+  integrity: string;
+  staged: string;
+  name: string;
+  apps: JsonColumn;
+  workspaceChoice: JsonColumn | null;
+  /** staged | running | stopped | done | discarded */
+  state: string;
+  runLock: string | null;
+  lockedAt: Ts | null;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
 }
 
 /** The full meta-store database — every adminium_* table (BRIEF). */
@@ -2030,6 +2199,15 @@ export interface MetaDB {
   adminium_privacy_exports: AdminiumPrivacyExportsTable;
   adminium_form_marks: AdminiumFormMarksTable;
   adminium_public_uploads: AdminiumPublicUploadsTable;
+  adminium_app_saves: AdminiumAppSavesTable;
+  adminium_app_after_install: AdminiumAppAfterInstallTable;
+  adminium_workspaces: AdminiumWorkspacesTable;
+  adminium_workspace_connections: AdminiumWorkspaceConnectionsTable;
+  adminium_item_workspaces: AdminiumItemWorkspacesTable;
+  adminium_workspace_saves: AdminiumWorkspaceSavesTable;
+  adminium_workspace_installs: AdminiumWorkspaceInstallsTable;
+  adminium_app_parts: AdminiumAppPartsTable;
+  adminium_app_updates: AdminiumAppUpdatesTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -2121,4 +2299,13 @@ export const META_TABLE_NAMES = [
   'adminium_privacy_exports',
   'adminium_form_marks',
   'adminium_public_uploads',
+  'adminium_app_saves',
+  'adminium_app_after_install',
+  'adminium_workspaces',
+  'adminium_workspace_connections',
+  'adminium_item_workspaces',
+  'adminium_workspace_saves',
+  'adminium_workspace_installs',
+  'adminium_app_parts',
+  'adminium_app_updates',
 ] as const satisfies readonly (keyof MetaDB)[];

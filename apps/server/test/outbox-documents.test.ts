@@ -220,7 +220,7 @@ for (const [dialect, reachable] of LEGS) {
     });
 
     it('fails the message, unsent, when the add-on is switched off for the app', async () => {
-      const invoices = (await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).findByKey('invoices'))!;
+      const invoices = (((await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).listByKey('invoices'))[0] ?? null))!;
       await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).setAttachmentEnabled(invoices.row.id, 'studio', false);
       try {
         const sent = await sendFor(3, 1);
@@ -241,7 +241,7 @@ for (const [dialect, reachable] of LEGS) {
 
     it('sends a message that may go without its document without it, only when the add-on is not on for the app', async () => {
       const repo = manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v });
-      const invoices = (await repo.findByKey('invoices'))!;
+      const invoices = (((await repo.listByKey('invoices'))[0] ?? null))!;
       await repo.setAttachmentEnabled(invoices.row.id, 'studio', false);
       try {
         const sent = await sendFor(3, 1, 'invoice-maybe');

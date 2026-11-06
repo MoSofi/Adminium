@@ -223,7 +223,13 @@ export class ConflictError extends AppError {
       | 'ADD_ON_INSTALL_INCOMPLETE'
       | 'ADD_ON_UPDATE_INCOMPLETE'
       // A rule an app or an add-on ships is switched off or copied, never deleted.
-      | 'AUTOMATION_MANAGED' = 'CONFLICT',
+      | 'AUTOMATION_MANAGED'
+      // A key installed on several databases, asked for with nothing naming which:
+      // `details.installs[{installId, connectionId, connectionName, slug}]`. Send
+      // `X-Adminium-Install` or `?connectionId=`.
+      | 'APP_INSTALL_AMBIGUOUS'
+      // A connection delete refused while apps or add-ons are installed on it: `details.installs` names them.
+      | 'CONNECTION_HAS_INSTALLS' = 'CONFLICT',
     details?: unknown,
   ) {
     super(409, code, message, details);

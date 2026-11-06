@@ -192,14 +192,16 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
     accent: SettingsDefaultsReply['data']['accent'];
     density: SettingsDefaultsReply['data']['density'];
     locale: SettingsDefaultsReply['data']['locale'];
+    workspaceView: SettingsDefaultsReply['data']['workspaceView'];
   }> {
-    const [theme, accent, density, locale] = await Promise.all([
+    const [theme, accent, density, locale, workspaceView] = await Promise.all([
       settings.get('appearance.theme'),
       settings.get('appearance.accent'),
       settings.get('appearance.density'),
       settings.get('locale.default'),
+      settings.get('ui.workspaceView'),
     ]);
-    return { theme, accent, density, locale };
+    return { theme, accent, density, locale, workspaceView };
   }
 
   /** `following` = totalUsers − users holding a non-NULL override for the axis. */
@@ -288,6 +290,10 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         for (const axis of AXES) {
           if (before[axis] === next[axis]) continue;
           await settings.set(SETTING_KEY[axis], next[axis], { updatedBy: actingUserId, at });
+        }
+        // The menu's view of workspaces, for everyone: only when sent.
+        if (next.workspaceView !== undefined && next.workspaceView !== before.workspaceView) {
+          await settings.set('ui.workspaceView', next.workspaceView, { updatedBy: actingUserId, at });
         }
 
         await app.rbac.audit(request, {

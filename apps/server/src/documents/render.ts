@@ -128,6 +128,13 @@ interface RenderedDocument {
   warnings: readonly string[];
 }
 
+
+/** Which install of an add-on a document is drawn by: named on its profile, else the one on its database. */
+export interface DocumentInstall {
+  installId: string | null;
+  connectionId: string | null;
+}
+
 export interface RenderDeps {
   meta: MetaDb;
   storage: FileStore;
@@ -159,8 +166,11 @@ export interface RenderDeps {
      */
     reader?: string | undefined;
   }) => Promise<SourceRead | null>;
-  /** The add-on's own non-secret settings. */
-  settingsFor: (addOnKey: string) => Promise<Record<string, unknown>>;
+  /**
+   * One install's own non-secret settings: the add-on installed on the
+   * document's database (each business keeps its own), else a server-wide one.
+   */
+  settingsFor: (addOnKey: string, where: DocumentInstall) => Promise<Record<string, unknown>>;
   /** The record's live pay link, for a slot whose default is `pay-link`; null when it cannot be paid online now. */
   payLinkFor?: ((entity: RecordRef) => Promise<string | null>) | undefined;
   /**
@@ -169,7 +179,7 @@ export interface RenderDeps {
    * Takes the add-on key so the ADD-ON'S own letterhead settings win over the
    * workspace's name — they are the ones somebody typed for documents.
    */
-  business: (addOnKey?: string) => Promise<{
+  business: (addOnKey?: string, where?: DocumentInstall) => Promise<{
     name: string;
     lines: readonly string[];
     logoDataUrl?: string;
@@ -655,8 +665,9 @@ async function renderCore(
     throw new DocumentValueError('paper', `A ${profile.kind} is not drawn on "${request.paper}".`);
   }
   const paper = (request.paper ?? options.paper ?? kind?.paper[0] ?? 'a4') as string;
-  const settings = await deps.settingsFor(profile.addOnKey);
-  const business = await deps.business(profile.addOnKey);
+  const where: DocumentInstall = { installId: profile.installId, connectionId: profile.connectionId };
+  const settings = await deps.settingsFor(profile.addOnKey, where);
+  const business = await deps.business(profile.addOnKey, where);
   const values =
     request.values === undefined || Object.keys(request.values).length === 0
       ? undefined
@@ -983,7 +994,7 @@ export async function renderIntent(
     now: { iso: new Date(at).toISOString(), timezone: facts.timezone },
     locale,
     currency: facts.currency,
-    business: await deps.business(addOnKey),
+    business: await deps.business(addOnKey, { installId: null, connectionId: request.connectionId }),
     entity: null,
     number: null,
   });
@@ -1019,7 +1030,7 @@ export async function renderIntent(
     produced = await provider!.render({
       kind: request.kind,
       subject: built.subject,
-      settings: await deps.settingsFor(addOnKey),
+      settings: await deps.settingsFor(addOnKey, { installId: null, connectionId: request.connectionId }),
       formats,
       paper,
     });

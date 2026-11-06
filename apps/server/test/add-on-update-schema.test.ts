@@ -45,7 +45,7 @@ function next(over: { zone?: string } = {}): Kit {
 }
 const source = async (harness: Harness) => (await harness.manager.data(harness.connectionId)).db as unknown as Kysely<unknown>;
 const post = (harness: Harness, url: string, payload: Record<string, unknown> = {}) => harness.inject({ method: 'POST', url, payload });
-const row = async (harness: Harness) => (await manifestsRepo(harness.meta, CRYPTO).findByKey('stock-kit'))!.row;
+const row = async (harness: Harness) => (((await manifestsRepo(harness.meta, CRYPTO).listByKey('stock-kit'))[0] ?? null))!.row;
 
 describe.each(LEGS)('an add-on\'s update — %s', (dialect, available) => {
   /** 1.0.0 installed with one item in it, and 1.0.1 staged. */
@@ -172,7 +172,8 @@ describe.each(LEGS)('an add-on\'s update — %s', (dialect, available) => {
     await h.stageAddOn(stockKitManifest());
     const reply = await post(h, '/add-ons/stock-kit/update');
     expect(reply.statusCode, reply.body).toBe(200);
-    expect(await row(h)).toMatchObject({ version: '1.0.0', status: 'installed', connectionId: h.connectionId });
+    // Kept for the server until now, it is that database's install from here on.
+    expect(await row(h)).toMatchObject({ version: '1.0.0', status: 'installed', connectionId: h.connectionId, scopeKey: h.connectionId });
     const records = await appTablesRepo(h.meta).forInstall(h.connectionId, 'stock-kit');
     expect(records.map((record) => [record.tableName, record.owned, record.state]).sort()).toEqual([['stock_kit_items', true, 'created'], ['stock_kit_takes', true, 'created']]);
     expect(await h.tableNames()).toEqual(expect.arrayContaining(['stock_kit_items', 'stock_kit_takes']));

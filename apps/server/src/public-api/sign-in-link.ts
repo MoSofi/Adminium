@@ -261,8 +261,8 @@ export async function declaredNameColumn(
   table: ResolvedTable,
 ): Promise<string | null> {
   if (key.managedBy === null) return null;
-  const stored = await appOutboxesRepo(meta).findByApp(key.managedBy);
-  if (stored === null || stored.connectionId !== key.connectionId) return null;
+  const stored = await appOutboxesRepo(meta).findOnConnection(key.managedBy, key.connectionId);
+  if (stored === null) return null;
   try {
     const recipient = (JSON.parse(stored.definition) as Pick<Outbox, 'recipient'>).recipient;
     if (recipient.name === undefined || view.table(recipient.table).id !== table.id) return null;

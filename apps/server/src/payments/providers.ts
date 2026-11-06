@@ -45,7 +45,7 @@ import {
   type ProviderError,
 } from '@adminium/add-on-contracts';
 import { addOnManifestSchema, type AddOnManifest } from '@adminium/manifest';
-import type { CredentialEnvelope, InstalledManifest } from '@adminium/meta';
+import { SERVER_SCOPE, type CredentialEnvelope, type InstalledManifest } from '@adminium/meta';
 
 import { hostnameAllowed } from '../add-ons/egress-policy.js';
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
@@ -60,7 +60,8 @@ export interface PaymentSeamDeps {
   runtime: () => AddOnRuntimeState | null;
   /** The installed add-on's row and its decrypted credential. */
   manifests: {
-    findByKey(key: string): Promise<InstalledManifest | null>;
+    findInScope(key: string, scopeKey: string): Promise<InstalledManifest | null>;
+    listByKey(key: string): Promise<InstalledManifest[]>;
     getCredential(manifestId: string): Promise<CredentialEnvelope | null>;
   };
   /** The egress-bound client for an add-on (`addOnHttpClientFor`). */
@@ -184,7 +185,8 @@ export async function paymentProviderFor(deps: PaymentSeamDeps, key: string, mod
     };
   }
 
-  const installed = await deps.manifests.findByKey(key);
+  // A payment service is kept once per server (two businesses share one provider account).
+  const installed = (await deps.manifests.findInScope(key, SERVER_SCOPE)) ?? (await deps.manifests.listByKey(key)).find((one) => one.row.kind === 'add-on') ?? null;
   if (installed === null) return refuse('NOT_INSTALLED', `The payment add-on "${key}" is not installed.`);
   if (installed.row.status !== 'installed') return refuse('SWITCHED_OFF', `The payment add-on "${key}" is switched off.`);
   const manifest = addOnManifestSchema.safeParse(installed.document);

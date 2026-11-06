@@ -8,6 +8,7 @@
  * joins rather than reinventing with `@fastify/multipart`.
  */
 
+import { workspaceIdQuery } from '../../workspaces/list-filter.js';
 import { z } from 'zod';
 import { fileKindSchema } from '@adminium/meta';
 
@@ -118,6 +119,8 @@ export const filesCopyReply = z.object({ data: fileView, ref: z.string() });
 
 
 export const filesListQuery = z.object({
+  /** Narrows the list to one workspace's databases (never widens it). */
+  workspaceId: workspaceIdQuery,
   q: z.string().max(200).optional(),
   kind: fileKindSchema.optional(),
   /**

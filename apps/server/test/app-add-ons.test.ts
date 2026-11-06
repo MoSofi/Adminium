@@ -94,7 +94,7 @@ for (const [dialect, available] of ENGINES) {
         attached: [],
       });
       expect(await h.tableNames()).toEqual(expect.arrayContaining(['kit_entries', 'jobs']));
-      const row = await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit');
+      const row = ((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null);
       expect(row!.attachments.map((a) => a.attachedTo)).toEqual(['studio']);
       // The foreign key from the app's table into the add-on's is real.
       await h.rows(`INSERT INTO kit_entries (id, note) VALUES (1, 'first')`);
@@ -143,6 +143,23 @@ for (const [dialect, available] of ENGINES) {
       expect(await appTablesRepo(h.meta).forConnection(h.connectionId)).toEqual([]);
     });
 
+    it('installs without a suggested add-on that cannot be had: only a required one stops an install', async () => {
+      h = await addOnHarness(dialect);
+      // Offline, or a desktop with nothing bundled: the add-on is nowhere to be had.
+      const suggesting = studio('>=1.1.0', {
+        addOns: { suggests: [{ key: 'ledger-kit', range: '>=1.1.0', reason: { 'en-US': 'Keeps the ledger.' } }] },
+        requiredSchema: { tables: [{ ref: 'jobs', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'title', type: 'text', nullable: true }] }] },
+      });
+      const planned = await h.plan(suggesting);
+      expect(planned.statusCode, planned.body).toBe(200);
+      expect(planned.json().plan.addOns[0]).toMatchObject({ key: 'ledger-kit', need: 'suggests', state: 'unavailable', action: null });
+      expect(planned.json().plan.problems).toEqual([]);
+      expect(planned.json().plan.installable).toBe(true);
+      const installed = await h.install('studio', '0.2.0');
+      expect(installed.statusCode, installed.body).toBe(200);
+      expect(await installedKeys(h)).toEqual(['app:studio@0.2.0']);
+    });
+
     it('updates an outdated add-on with the app only when asked to, and connects it', async () => {
       h = await addOnHarness(dialect);
       await h.stageAddOn(kit('1.0.0'));
@@ -165,7 +182,7 @@ for (const [dialect, available] of ENGINES) {
       const ticked = await h.install('studio', '0.2.0', { addOns: [{ key: 'ledger-kit', version: '1.1.0', update: true }] });
       expect(ticked.statusCode, ticked.body).toBe(200);
       expect(ticked.json().addOns.updated).toEqual([{ key: 'ledger-kit', name: 'Ledger kit', from: '1.0.0', to: '1.1.0' }]);
-      const after = await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit');
+      const after = ((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null);
       expect(after!.row.version).toBe('1.1.0');
       expect(after!.attachments.map((a) => a.attachedTo)).toEqual(['studio']);
     });
@@ -225,7 +242,7 @@ for (const [dialect, available] of ENGINES) {
       const gone = await h.inject({ method: 'DELETE', url: '/apps/studio' });
       expect(gone.statusCode, gone.body).toBe(200);
       expect(gone.json().kept.addOns).toEqual(['ledger-kit']);
-      const kept = await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit');
+      const kept = ((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null);
       expect(kept!.attachments.map((a) => a.attachedTo)).toEqual(['dashboard']);
       const now = await h.inject({ method: 'DELETE', url: '/add-ons/ledger-kit' });
       expect(now.statusCode, now.body).toBe(200);
@@ -273,7 +290,7 @@ describe('ranges and features (sqlite)', () => {
     expect(refused.json().error.message).toContain('Holiday calendars');
     const row = (await manifestsRepo(h.meta, CRYPTO).list('app'))[0]!;
     expect(row.row.version).toBe('0.2.0');
-    const attachment = (await manifestsRepo(h.meta, CRYPTO).findByKey('holidays'))!.attachments;
+    const attachment = (((await manifestsRepo(h.meta, CRYPTO).listByKey('holidays'))[0] ?? null))!.attachments;
     expect(attachment.map((a) => [a.attachedTo, a.disabledAt])).toEqual([['studio', null]]);
   });
 
@@ -338,7 +355,7 @@ describe('ranges and features (sqlite)', () => {
     expect(refused.statusCode, refused.body).toBe(409);
     expect(refused.json().error.code).toBe('ADD_ON_RANGE');
     expect(refused.json().error.details).toMatchObject({ addOn: 'ledger-kit', app: 'studio', range: '^1.1.0' });
-    expect((await manifestsRepo(h.meta, CRYPTO).findByKey('ledger-kit'))!.row.version).toBe('1.1.0');
+    expect((((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null))!.row.version).toBe('1.1.0');
   });
 
   it('mounts an add-on with pages on the dashboard too, so its page reaches the rail', async () => {

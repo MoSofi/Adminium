@@ -16,6 +16,7 @@
  * `llm.provider` in Settings → AI, the same check `resolveProviderClient`
  * makes before a direct run.
  */
+import { visibleWorkspaces } from '../../workspaces/visibility.js';
 import { bcp47, pickLabel, readerWords } from '../../i18n/bcp47.js';
 import type { FastifyRequest } from 'fastify';
 import {
@@ -43,6 +44,7 @@ import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
 import { loadAppParts, partIsOn } from '../../rbac/app-parts.js';
 import { parseGrant, PERMISSIONS } from '../../rbac/permissions.js';
 import { getPrincipal } from '../../rbac/principal.js';
+import { grantKeyOf, installsOf } from '../../installs/resolve.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
 import { MAPS_OFF } from '../../geo/map-policy.js';
 import type { AuthContext } from '../../plugins/auth.js';
@@ -51,7 +53,10 @@ import { toUserView } from '../auth/handlers.js';
 import { APP_VERSION } from '../../version.js';
 import { resolveLabel, SURFACES_URL_ROOT, type HostedSurface } from '../../cli/surfaces-root.js';
 import {
+  addressForMount,
+  addressKey,
   appNameOf,
+  appNameOverrideOf,
   availabilityOf,
   instancesOf,
   staffPlacementOf,
@@ -309,9 +314,17 @@ export function buildNavTree(
  * feature and the add-ons it still needs. A feature is met when every add-on
  * it requires is installed, attached to the app and switched on there.
  */
+
+/** A workspace tile's letters: the first of its first two words, else its first two. */
+export function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter((word) => word.length > 0);
+  const letters = words.length >= 2 ? `${[...words[0]!][0]!}${[...words[1]!][0]!}` : [...(words[0] ?? '?')].slice(0, 2).join('');
+  return letters.toLocaleUpperCase();
+}
+
 export async function unmetFeaturePages(
   ctx: { meta: MetaDb },
-  apps: readonly { manifestKey: string; manifest: unknown }[],
+  apps: readonly { manifestKey: string; manifest: unknown; id?: string; address?: string }[],
 ): Promise<Map<string, Map<string, { feature: string; needs: string[] }>>> {
   const out = new Map<string, Map<string, { feature: string; needs: string[] }>>();
   for (const app of apps) {
@@ -330,6 +343,8 @@ export async function unmetFeaturePages(
           .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
           .select('m.manifestKey as key')
           .where('a.attachedTo', '=', app.manifestKey)
+          // The add-ons attached to THIS install: each copy of an app on its own database has its own.
+          .where((eb) => (app.id === undefined ? eb.val(true) : eb('a.hostInstall', '=', app.id)))
           .where('a.disabledAt', 'is', null)
           .where('m.kind', '=', 'add-on')
           .where('m.status', '=', 'installed')
@@ -345,7 +360,7 @@ export async function unmetFeaturePages(
       const needs = feature === undefined ? [page.feature] : requires.filter((key) => !attached.has(key));
       if (needs.length > 0) slugs.set(page.ref, { feature: page.feature, needs });
     }
-    if (slugs.size > 0) out.set(app.manifestKey, slugs);
+    if (slugs.size > 0) out.set(app.address ?? app.manifestKey, slugs);
   }
   return out;
 }
@@ -388,47 +403,51 @@ export async function dashboardAddOnManifests(meta: MetaDb): Promise<{ manifestK
 }
 
 /**
- * The add-ons whose settings a reader keeps through the per-add-on grant
- * (`addOn:<key>:settings`), as `PUT /add-ons/:key/settings` honours it: an
- * add-on with something to set (a setting that is no secret, or a settings
- * panel of its own), and the grant held for it now (`addOnSettingsGrantHeld`:
- * an app's role only while that app has the add-on connected and switched
- * on). Nobody who manages add-ons is told of any: the add-ons page is theirs.
+ * The add-on installs whose settings a reader keeps through the per-add-on
+ * grant (`addOn:<key>:settings`, or `addOn:<key>~<slug>:settings` for a later
+ * install), as `PUT /add-ons/:key/settings` honours it: an install with
+ * something to set (a setting that is no secret, or a settings panel of its
+ * own), and the grant held for it now (`addOnSettingsGrantHeld`: an app's
+ * role only while that app's install has the add-on connected and switched
+ * on). `key` is the install's address. Nobody who manages add-ons is told of
+ * any: the add-ons page is theirs.
  */
 async function settingsKeptByGrant(meta: MetaDb, request: FastifyRequest, permissions: PermissionSet | null): Promise<{ key: string; name: string }[]> {
   if (permissions === null || permissions.superAdmin) return [];
-  const named = [...permissions.grants].flatMap((grant) => {
-    const key = /^addOn:([a-z][a-z0-9-]{1,79}):settings$/.exec(grant)?.[1];
-    return key === undefined ? [] : [key];
-  });
-  if (named.length === 0) return [];
+  const named = new Set(
+    [...permissions.grants].flatMap((grant) => {
+      const key = /^addOn:([a-z][a-z0-9-]{1,79})(?:~[a-z0-9-]+)?:settings$/.exec(grant)?.[1];
+      return key === undefined ? [] : [key];
+    }),
+  );
+  if (named.size === 0) return [];
   if (typeof request.can === 'function' && (await request.can(PERMISSIONS.manifestsManage))) return [];
   const viewer = getPrincipal(request);
   if (viewer === null) return [];
-  const rows = await meta.db
-    .selectFrom('adminium_manifests')
-    .select(['manifestKey', 'manifest'])
-    .where('kind', '=', 'add-on')
-    .where('status', '=', 'installed')
-    .where('manifestKey', 'in', named)
-    .execute();
+  const installs = installsOf(meta);
   const out: { key: string; name: string }[] = [];
-  // Sorted here, not by the database: a sort that carries the manifests fails on MySQL past its sort buffer.
-  for (const row of rows.sort((a, b) => (a.manifestKey < b.manifestKey ? -1 : a.manifestKey > b.manifestKey ? 1 : 0))) {
-    const parsed = addOnManifestSchema.safeParse(readJson(row.manifest));
-    if (!parsed.success) continue;
-    const manifest = parsed.data;
-    const somethingToSet = (manifest.settings ?? []).some((setting) => setting.secret !== true) || (manifest.addOn.slots ?? []).some((slot) => slot.slot === 'settings.add-on.panel');
-    if (!somethingToSet || !(await addOnSettingsGrantHeld(meta, viewer, row.manifestKey))) continue;
-    out.push({ key: row.manifestKey, name: manifest.name });
+  for (const key of [...named].sort()) {
+    for (const install of await installs.listByKey(key)) {
+      if (install.row.kind !== 'add-on' || install.row.status !== 'installed') continue;
+      const parsed = addOnManifestSchema.safeParse(install.document);
+      if (!parsed.success) continue;
+      const manifest = parsed.data;
+      const somethingToSet = (manifest.settings ?? []).some((setting) => setting.secret !== true) || (manifest.addOn.slots ?? []).some((slot) => slot.slot === 'settings.add-on.panel');
+      if (!somethingToSet || !(await addOnSettingsGrantHeld(meta, viewer, install))) continue;
+      out.push({ key: grantKeyOf(install.row), name: manifest.name });
+    }
   }
   return out;
 }
 
-/** The installed apps, by key, with their manifests. */
+/**
+ * The installed apps, one row per install, with their manifests: the same app
+ * on two databases is two sections. `address` names the install as the rail
+ * does: the key for the one with the bare addresses, `<key>~<slug>` else.
+ */
 export async function installedAppManifests(
   meta: MetaDb,
-): Promise<{ manifestKey: string; version: string; manifest: unknown }[]> {
+): Promise<{ manifestKey: string; version: string; manifest: unknown; id: string; address: string; connectionId: string | null }[]> {
   const order = (
     await meta.db
       .selectFrom('adminium_manifests')
@@ -441,15 +460,30 @@ export async function installedAppManifests(
   if (order.length === 0) return [];
   const rows = await meta.db
     .selectFrom('adminium_manifests')
-    .select(['id', 'manifestKey', 'version', 'manifest'])
+    .select(['id', 'manifestKey', 'version', 'manifest', 'instanceSlug', 'connectionId'])
     .where('id', 'in', order)
     .execute();
-  return inIdOrder(order, rows).map(({ manifestKey, version, manifest }) => ({ manifestKey, version, manifest }));
+  return inIdOrder(order, rows).map(({ id, manifestKey, version, manifest, instanceSlug, connectionId }) => ({
+    manifestKey,
+    version,
+    manifest,
+    id,
+    address: addressKey(manifestKey, instanceSlug),
+    connectionId,
+  }));
 }
 
 /** An installed app, as its section needs it. */
 export interface SectionApp {
+  /** The install's address: the app key, or `<key>~<slug>` for a later install. */
   key: string;
+  /** The app's key, for what is the same on every copy (its surfaces, its files). */
+  appKey?: string | undefined;
+  /** The install, and the database it is for. */
+  installId?: string | undefined;
+  connectionId?: string | null | undefined;
+  /** The address slug; `''` for the bare install. */
+  slug?: string | undefined;
   version: string;
   /** The manifest's own name. */
   name: string;
@@ -520,7 +554,9 @@ export async function buildNavLinkItems(input: {
           fallback: pickLabel(link.label, input.locale) ?? link.label['en-US'] ?? link.ref,
           icon: link.nav.icon,
           order: link.nav.order,
-          connectionId: null,
+          // The install's own database: the entry belongs to that copy of the app.
+          connectionId: app.connectionId ?? null,
+          ...(app.installId === undefined ? {} : { installId: app.installId }),
           connectionName: null,
           currency: null,
           sourceTable: null,
@@ -572,7 +608,9 @@ export function buildAppSections(input: {
       if (items.length > 0) groups.push({ key: group.key, label: pickLabel(group.label, input.locale) ?? group.key, items });
     }
 
-    const hosted = input.hosted.find((entry) => entry.appKey === app.key && entry.instance === undefined);
+    // The install's own staff screens: the bare mount, or (a later install) its instance.
+    const appKey = app.appKey ?? app.key;
+    const hosted = input.hosted.find((entry) => entry.appKey === appKey && (entry.instance ?? '') === (app.slug ?? ''));
     let staff: BootstrapAppSection['staff'] = null;
     const mayOpen = input.mayOpenStaff === undefined || input.mayOpenStaff.has(app.key);
     if (!mayOpen) {
@@ -580,7 +618,7 @@ export function buildAppSections(input: {
     } else if (hosted !== undefined) {
       staff = { placement: 'internal', items: hosted.items };
     } else {
-      const surface = input.surfaces.find((entry) => entry.appKey === app.key && entry.side === 'staff');
+      const surface = input.surfaces.find((entry) => entry.appKey === appKey && entry.side === 'staff');
       if (
         surface !== undefined &&
         staffPlacementOf(input.settings, app.key) === 'external' &&
@@ -588,12 +626,17 @@ export function buildAppSections(input: {
       ) {
         const hostOf = (instance: string | undefined): string | undefined =>
           Object.entries(input.settings.domains).find(
-            ([, target]) => target.appKey === app.key && target.side === 'staff' && target.instance === instance,
+            ([, target]) => target.appKey === appKey && target.side === 'staff' && target.instance === instance,
           )?.[0];
-        const host = hostOf(undefined);
+        const host = hostOf(app.slug === undefined || app.slug === '' ? undefined : app.slug);
         staff = {
           placement: 'external',
-          url: host === undefined ? `${surface.prefix}/` : `${input.protocol}://${host}/`,
+          url:
+            host !== undefined
+              ? `${input.protocol}://${host}/`
+              : app.slug === undefined || app.slug === ''
+                ? `${surface.prefix}/`
+                : `${SURFACES_URL_ROOT}/${appKey}/${app.slug}/staff/`,
           // Named for the palette, which opens each one at the app's address.
           items: (surface.manifest?.nav ?? []).map((item) => ({
             id: item.id,
@@ -604,19 +647,24 @@ export function buildAppSections(input: {
           })),
           // An extra instance opens on its own address too: its host, else
           // the slugged mount `parseInstancePath` reads.
-          instances: instancesOf(input.settings, app.key).map((instance) => {
-            const own = hostOf(instance.slug);
-            return {
-              slug: instance.slug,
-              url: own === undefined ? `${SURFACES_URL_ROOT}/${app.key}/${instance.slug}/staff/` : `${input.protocol}://${own}/`,
-            };
-          }),
+          // The bare install's extra instances; a later install's own address is its section's url.
+          instances: (app.slug === undefined || app.slug === '' ? instancesOf(input.settings, appKey) : [])
+            .filter((instance) => addressForMount(input.settings, appKey, instance.slug) === appKey)
+            .map((instance) => {
+              const own = hostOf(instance.slug);
+              return {
+                slug: instance.slug,
+                url: own === undefined ? `${SURFACES_URL_ROOT}/${appKey}/${instance.slug}/staff/` : `${input.protocol}://${own}/`,
+              };
+            }),
         };
       }
     }
     if (groups.length === 0 && staff === null) continue;
     out.push({
       appKey: app.key,
+      ...(app.installId === undefined ? {} : { installId: app.installId }),
+      ...(app.connectionId === undefined ? {} : { connectionId: app.connectionId }),
       label: hosted?.label ?? appNameOf(input.settings, app.key, app.name),
       version: app.version,
       groups,
@@ -678,10 +726,14 @@ export function buildHostedApps(
      * them differs, so the slug is what the heading has to carry.
      */
     for (const instance of instancesOf(settings, surface.appKey)) {
+      // An instance a later install owns answers as that install: its own switch, its own name.
+      const address = addressForMount(settings, surface.appKey, instance.slug);
+      if (address !== surface.appKey && availabilityOf(settings, address, 'staff') !== 'ok') continue;
+      const own = address === surface.appKey ? null : appNameOverrideOf(settings, address);
       out.push({
         appKey: surface.appKey,
         instance: instance.slug,
-        label: `${label} · ${instance.slug}`,
+        label: own ?? `${label} · ${instance.slug}`,
         items,
       });
     }
@@ -951,12 +1003,21 @@ export async function bootstrapHandler(
    * listed apart, saying which add-ons it needs.
    */
   const unmet = await unmetFeaturePages(ctx, appRows);
+  /*
+   * ONE SECTION PER INSTALL. A page of an app belongs to the install on its
+   * own database: its rail key is that install's address (the app key for
+   * the bare install, `<key>~<slug>` for a later one).
+   */
+  const addressOn = new Map(appRows.map((row) => [`${row.manifestKey}|${row.connectionId ?? ''}`, row.address] as const));
+  const installOfAddress = new Map(appRows.map((row) => [row.address, row.id] as const));
+  const addressed = (key: string | null | undefined, connectionId: string | null | undefined): string | null | undefined =>
+    key == null ? key : (addressOn.get(`${key}|${connectionId ?? ''}`) ?? key);
 
   // Permission filter: drop rows the caller may not view. The
   // per-request `request.can` cache resolves the permission set once;
   // super-admins bypass inside it. The `typeof` guard mirrors routes/pages —
   // minimal harnesses mount this route without the rbac plugin.
-  const visibleRows =
+  const visibleRows = (
     typeof request.can === 'function'
       ? await (async () => {
           const rows: PageNavRow[] = [];
@@ -965,7 +1026,8 @@ export async function bootstrapHandler(
           }
           return rows;
         })()
-      : [...pageRows];
+      : [...pageRows]
+  ).map((row): PageNavRow => (row.appKey == null ? row : { ...row, appKey: addressed(row.appKey, row.connectionId) ?? null }));
 
   const pausedConnectionIds = new Set(
     connectionRows.filter((row) => row.disabledAt !== null).map((row) => row.id),
@@ -987,7 +1049,11 @@ export async function bootstrapHandler(
         )
       : [];
     return {
-      key: row.manifestKey,
+      key: row.address,
+      appKey: row.manifestKey,
+      installId: row.id,
+      connectionId: row.connectionId,
+      slug: row.address === row.manifestKey ? '' : row.address.slice(row.manifestKey.length + 1),
       version: row.version,
       name: typeof document.name === 'string' ? document.name : row.manifestKey,
       navGroups,
@@ -1020,8 +1086,10 @@ export async function bootstrapHandler(
    * off; a page of one that is off leaves the sidebar and is listed apart,
    * so a bookmark lands on "this part is switched off".
    */
-  const appParts = await loadAppParts(ctx.meta, [...new Set(visibleRows.flatMap((row) => (row.appKey != null && row.appModule != null ? [row.appKey] : [])))]);
-  const partOff = visibleRows.filter((row) => !withheld.includes(row) && row.appKey != null && !partIsOn(appParts.get(row.appKey), row.appModule));
+  const appParts = await loadAppParts(ctx.meta, [...new Set(visibleRows.flatMap((row) => (row.appKey != null && row.appModule != null ? [row.appKey.split('~')[0]!] : [])))]);
+  const partOff = visibleRows.filter(
+    (row) => !withheld.includes(row) && row.appKey != null && !partIsOn(appParts.get(installOfAddress.get(row.appKey) ?? row.appKey), row.appModule),
+  );
   const { nav, hidden, paused, disabledApp, appItems } = buildNavTree(
     visibleRows.filter((row) => !withheld.includes(row) && !partOff.includes(row)),
     new Map(connectionRows.map((row) => [row.id, { name: row.name, currency: row.currency }])),
@@ -1040,7 +1108,12 @@ export async function bootstrapHandler(
   for (const key of new Set([...everyHosted.map((entry) => entry.appKey), ...sectionApps.map((entry) => entry.key)])) {
     if (typeof request.can !== 'function' || (await request.can(`app:${key}:staff`))) mayOpenStaff.add(key);
   }
-  const hostedApps = everyHosted.filter((entry) => mayOpenStaff.has(entry.appKey));
+  // Each hosted entry answers as its install: a later install's instance by its own grant.
+  for (const entry of everyHosted) {
+    const address = addressForMount(placements, entry.appKey, entry.instance ?? null);
+    if (address !== entry.appKey && !mayOpenStaff.has(address) && (typeof request.can !== 'function' || (await request.can(`app:${address}:staff`)))) mayOpenStaff.add(address);
+  }
+  const hostedApps = everyHosted.filter((entry) => mayOpenStaff.has(addressForMount(placements, entry.appKey, entry.instance ?? null)));
   /*
    * THE ENTRIES THAT ARE NOT PAGES (`navLinks`). Each opens a place this
    * server names: a dashboard screen narrowed to the app, for somebody who may
@@ -1066,9 +1139,73 @@ export async function bootstrapHandler(
   // A harness that mounts this route without the core plugin shows no map.
   const maps = request.server.hasDecorator('maps') ? await request.server.maps.read() : MAPS_OFF;
 
+  /*
+   * THE WORKSPACES THIS PERSON SEES: a page of one of its databases, or the
+   * staff screens of an install on one, or they manage connections. Read off
+   * what this bootstrap already worked out: the pages they may view, and the
+   * installs whose screens they may open.
+   */
+  const seen = await visibleWorkspaces(ctx.meta, async (permission) => typeof request.can !== 'function' || (await request.can(permission as never)), {
+    pageConnections: visibleRows.map((row) => row.connectionId),
+    installConnections: sectionApps.filter((entry) => mayOpenStaff.has(entry.key)).map((entry) => entry.connectionId ?? null),
+  });
+  const visibleIds = new Set(seen.all.filter((workspace) => workspace.visible).map((workspace) => workspace.id));
+  const lastChosen = (await userPrefsRepo(ctx.meta).get(user.id))?.workspaceId ?? null;
+  const workspacesBlock =
+    seen.all.length === 0
+      ? undefined
+      : {
+          workspaces: seen.all
+            .filter((workspace) => workspace.visible)
+            .map((workspace) => ({ id: workspace.id, name: workspace.name, initials: initialsOf(workspace.name), position: workspace.position, connectionIds: workspace.connectionIds })),
+          otherDatabases: seen.otherVisible ? seen.otherDatabases : null,
+          workspaceView: await settingsRepo(ctx.meta).get('ui.workspaceView'),
+          lastWorkspaceId: lastChosen !== null && visibleIds.has(lastChosen) ? lastChosen : null,
+          manage: seen.manages,
+        };
+  const appSections = [
+    ...buildAppSections({
+      apps: sectionApps,
+      appItems,
+      hosted: hostedApps,
+      surfaces: hasSurfaces ? request.server.surfaces : [],
+      settings: placements,
+      locale: prefs.locale,
+      protocol: request.protocol,
+      mayOpenStaff,
+      links,
+    }),
+    // After the apps: an add-on is what an app is extended with.
+    ...buildAddOnSections({ addOns: sectionAddOns, appItems, codePages: addOnNav.pages, locale: prefs.locale }),
+  ];
+  // Every item of a database says which of this person's workspaces hold it; an app's page, which install it is.
+  if (workspacesBlock !== undefined || sectionApps.length > 0) {
+    const holders = new Map<string, string[]>();
+    for (const workspace of workspacesBlock?.workspaces ?? []) for (const id of workspace.connectionIds) holders.set(id, [...(holders.get(id) ?? []), workspace.id]);
+    const installOf = new Map(sectionApps.map((entry) => [entry.key, entry.installId] as const));
+    const stamp = (value: unknown): void => {
+      if (Array.isArray(value)) {
+        value.forEach(stamp);
+        return;
+      }
+      if (value === null || typeof value !== 'object') return;
+      const item = value as Record<string, unknown>;
+      if (typeof item['pageId'] === 'string' && 'connectionId' in item) {
+        const connectionId = item['connectionId'];
+        if (workspacesBlock !== undefined && typeof connectionId === 'string') item['workspaceIds'] = holders.get(connectionId) ?? [];
+        const install = typeof item['appKey'] === 'string' ? installOf.get(item['appKey']) : undefined;
+        if (install !== undefined && item['installId'] === undefined) item['installId'] = install;
+        return;
+      }
+      for (const child of Object.values(item)) stamp(child);
+    };
+    stamp(nav);
+    stamp(appSections);
+  }
   return {
     data: {
       user: toUserView(user),
+      ...(workspacesBlock === undefined ? {} : { workspaces: workspacesBlock }),
       roles: roles.map((role) => role.slug),
       systemActions: await heldSystemActions(request),
       pagesWithheld: pageRows.some(
@@ -1120,21 +1257,7 @@ export async function bootstrapHandler(
           }),
       // Every role the person holds is of a part that is off: said plainly, in place of an empty dashboard.
       ...(request.rbacResolution?.partsOff === true ? { partsOff: true as const } : {}),
-      appSections: [
-        ...buildAppSections({
-          apps: sectionApps,
-          appItems,
-          hosted: hostedApps,
-          surfaces: hasSurfaces ? request.server.surfaces : [],
-          settings: placements,
-          locale: prefs.locale,
-          protocol: request.protocol,
-          mayOpenStaff,
-          links,
-        }),
-        // After the apps: an add-on is what an app is extended with.
-        ...buildAddOnSections({ addOns: sectionAddOns, appItems, codePages: addOnNav.pages, locale: prefs.locale }),
-      ],
+      appSections,
       maps: { enabled: maps.enabled, server: maps.server, routing: maps.routing },
       ...(project === null ? {} : { project }),
     },

@@ -138,6 +138,15 @@ function parseRules(value: unknown): AppTableRule[] {
   });
 }
 
+/**
+ * The real table a record names, as the server speaks of it: the bare name,
+ * or `<schema>.<name>` for a table a self-made app keeps in a schema of its
+ * own — the id the engine's snapshot gives it.
+ */
+export function realTableOf(record: { tableName: string; schemaName: string | null }): string {
+  return record.schemaName === null ? record.tableName : `${record.schemaName}.${record.tableName}`;
+}
+
 function toRecord(row: Selectable<AdminiumAppTablesTable>): AppTableRecord {
   return {
     id: row.id,
@@ -314,18 +323,18 @@ export function appTablesRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows);
     },
 
-    /** Short name → real table, for the tables this install actually has. */
+    /** Short name → real table (`<schema>.<name>` for one in a schema of its own), for the tables this install actually has. */
     async realNames(connectionId: string, appKey: string): Promise<Record<string, string>> {
       const rows = await db
         .selectFrom('adminium_app_tables')
-        .select(['ref', 'tableName', 'state'])
+        .select(['ref', 'tableName', 'schemaName', 'state'])
         .where('connectionId', '=', connectionId)
         .where('appKey', '=', appKey)
         .execute();
       const out: Record<string, string> = {};
       for (const row of rows) {
         if (row.state === 'dropped' || row.state === 'pending') continue;
-        out[row.ref] = row.tableName;
+        out[row.ref] = realTableOf(row);
       }
       return out;
     },

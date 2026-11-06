@@ -155,8 +155,8 @@ for (const [dialect, available] of LEGS) {
         document: { settings: [{ key: 'prefix_invoice', type: 'text', default: 'FAC-' }, { key: 'secret_key', type: 'text', secret: true, default: 'x' }] },
       });
       const stores = writeStores(h.meta);
-      expect(await stores.settings!.addOnSetting('invoices', 'prefix_invoice')).toBe('FAC-');
-      expect(await stores.settings!.addOnSetting('invoices', 'secret_key')).toBeUndefined();
+      expect(await stores.settings!.addOnSetting('invoices', 'prefix_invoice', h.connectionId)).toBe('FAC-');
+      expect(await stores.settings!.addOnSetting('invoices', 'secret_key', h.connectionId)).toBeUndefined();
       // The number's prefix, read from the add-on's setting, on a real create.
       const w0 = await settledWriter(h);
       const numberRule = (await overridesRepo(h.meta).listForConnection(h.connectionId)).find((o) => o.op === 'column.format')!;

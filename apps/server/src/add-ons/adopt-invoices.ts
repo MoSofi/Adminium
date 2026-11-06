@@ -30,7 +30,7 @@
  * A future add-on adopted this way that DID need tables would need the
  * installer's planner, and this function should refuse rather than guess.
  */
-import { manifestsRepo, type MetaDb } from '@adminium/meta';
+import { SERVER_SCOPE, manifestsRepo, type MetaDb } from '@adminium/meta';
 import { parseManifest } from '@adminium/manifest';
 
 import type { AddOnStore } from './store.js';
@@ -60,7 +60,7 @@ export interface AdoptInvoicesDeps {
 export async function adoptInvoicesAddOn(deps: AdoptInvoicesDeps): Promise<AdoptionOutcome> {
   const manifests = manifestsRepo(deps.meta, deps.crypto);
 
-  if ((await manifests.findByKey(INVOICES_ADD_ON_KEY)) !== null) {
+  if ((await manifests.listByKey(INVOICES_ADD_ON_KEY)).length > 0) {
     return { adopted: false, reason: 'already-installed' };
   }
 
@@ -115,7 +115,9 @@ export async function adoptInvoicesAddOn(deps: AdoptInvoicesDeps): Promise<Adopt
      * by naming whichever admin happened to boot the process.
      */
     installedBy: null,
-    attachTo: [DASHBOARD_HOST],
+    // The documents it adopts were the server's: it serves every database that has no copy of its own.
+    scopeKey: SERVER_SCOPE,
+    attachTo: [{ key: DASHBOARD_HOST, hostInstall: '' }],
   });
 
   return { adopted: true, version };
