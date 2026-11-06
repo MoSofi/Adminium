@@ -130,7 +130,7 @@ import {
   type SampleDataDeps,
 } from './sample-data.js';
 import { rulesKeptBack, writeManifestRules, type RulesResult } from './manifest-rules.js';
-import { formIssues, layoutQueryProblems, layoutTables } from './manifest-page-config.js';
+import { pagePlanProblems } from './manifest-page-config.js';
 import {
   addOnGrantsOf,
   privacyGrantsOf,
@@ -170,7 +170,6 @@ import type { PublicMethod } from '../public-api/endpoint.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { refusePlannedOnly, refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import type { DsnCrypto } from '@adminium/meta';
-import { pageLayoutSchema } from '@adminium/engine/config';
 import type { FileStore } from '../files/store.js';
 import { APP_VERSION } from '../version.js';
 import { SERVER_SCOPE } from '@adminium/meta';
@@ -1786,27 +1785,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
 
   /** A page's hand-written form or Overview layout, checked against the manifest itself. */
   function pageConfigProblems(manifest: Manifest): PlanProblem[] {
-    if (!ownsBlocks(manifest)) return [];
-    const declared = new Set((manifest.requiredSchema?.tables ?? []).map((table) => table.ref));
-    return (manifest.pages ?? []).flatMap((page) => {
-      const issues = formIssues(manifest, page);
-      const layout = page.config?.['layout'];
-      if (layout !== undefined) {
-        const parsed = pageLayoutSchema.safeParse(layout);
-        if (!parsed.success) issues.push('its layout is not a valid dashboard layout');
-        else {
-          for (const name of layoutTables(parsed.data)) {
-            if (!declared.has(name)) issues.push(`its layout reads "${name}", which is not a table of the app`);
-          }
-          issues.push(...layoutQueryProblems(parsed.data, manifest));
-        }
-      }
-      return issues.map((issue) => ({
-        code: 'PAGE_FORM_INVALID' as const,
-        table: page.ref,
-        message: `The page "${page.ref}": ${issue}.`,
-      }));
-    });
+    return pagePlanProblems(manifest).map((problem) => ({ code: 'PAGE_FORM_INVALID' as const, table: problem.page, message: problem.message }));
   }
 
   /**

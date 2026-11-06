@@ -34,6 +34,7 @@ import { childRelations } from '../crud/child-rows.js';
 import { filterProblem, type DayColumnKind } from '../widget-data/filter-checks.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { linkableRelations } from '../crud/links.js';
+import { ownsBlocks } from './owns-blocks.js';
 
 type ManifestPage = NonNullable<Extract<Manifest, { kind: 'app' }>['pages']>[number];
 
@@ -41,6 +42,31 @@ type ManifestPage = NonNullable<Extract<Manifest, { kind: 'app' }>['pages']>[num
 function splitRelation(short: string): { ref: string; column: string | null } {
   const at = short.indexOf('.');
   return at === -1 ? { ref: short, column: null } : { ref: short.slice(0, at), column: short.slice(at + 1) };
+}
+
+/**
+ * Each page's hand-written form or Overview layout, checked against the
+ * manifest itself. Pure: the plan runs it before any table exists, and so
+ * does a save before it writes a file.
+ */
+export function pagePlanProblems(manifest: Manifest): { page: string; message: string }[] {
+  if (!ownsBlocks(manifest)) return [];
+  const declared = new Set((manifest.requiredSchema?.tables ?? []).map((table) => table.ref));
+  return (manifest.pages ?? []).flatMap((page) => {
+    const issues = formIssues(manifest, page);
+    const layout = page.config?.['layout'];
+    if (layout !== undefined) {
+      const parsed = pageLayoutSchema.safeParse(layout);
+      if (!parsed.success) issues.push('its layout is not a valid dashboard layout');
+      else {
+        for (const name of layoutTables(parsed.data)) {
+          if (!declared.has(name)) issues.push(`its layout reads "${name}", which is not a table of the app`);
+        }
+        issues.push(...layoutQueryProblems(parsed.data, manifest));
+      }
+    }
+    return issues.map((issue) => ({ page: page.ref, message: `The page "${page.ref}": ${issue}.` }));
+  });
 }
 
 /**
