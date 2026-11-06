@@ -50,6 +50,7 @@ import { LiveProposal } from './LiveProposal.js';
 import { PanelView, type ScopeChip } from './PanelView.js';
 import { draftHome, ParkedDraft, type DraftHome } from './ParkedDraft.js';
 import { usePanelConversation, type PanelPage } from './usePanelConversation.js';
+import { useCurrentWorkspace } from '../../workspaces/current.js';
 import { bootLocale } from '../../i18n/setup.js';
 import { useDictation } from '../voice/useDictation.js';
 import { arrivedReply, useSpeech } from '../voice/useSpeech.js';
@@ -137,18 +138,21 @@ function usePanelPage(): { page: PanelPage; shown: PageAssistantShown; view: Pag
       return `${match?.routeId ?? ''}\n${typeof params.appKey === 'string' ? params.appKey : ''}\n${addOn}`;
     },
   });
+  // The tab's workspace goes with every question: the assistant then works with its databases only.
+  const { currentWorkspaceId } = useCurrentWorkspace();
   return useMemo(() => {
+    const inWorkspace = currentWorkspaceId === null ? {} : { workspaceId: currentWorkspaceId };
     if (published !== null) {
       return {
-        page: { context: published.context as AssistantContext, host: published.host as AssistantHostRef },
+        page: { context: published.context as AssistantContext, host: { ...(published.host as AssistantHostRef), ...inWorkspace } },
         shown: published.shown,
         view: published.host.view,
       };
     }
     const [routeId = '', app = '', addOn = '', addOnPage = ''] = route.split('\n');
-    const host: AssistantHostRef = { connectionIds: [], ...(routeId === '' ? {} : { route: routeId }), ...(app === '' ? {} : { app }), ...(addOn === '' ? {} : { addOn, addOnPage }) };
+    const host: AssistantHostRef = { connectionIds: [], ...inWorkspace, ...(routeId === '' ? {} : { route: routeId }), ...(app === '' ? {} : { app }), ...(addOn === '' ? {} : { addOn, addOnPage }) };
     return { page: { context: 'general', host }, shown: {}, view: undefined };
-  }, [published, route]);
+  }, [published, route, currentWorkspaceId]);
 }
 
 /** Docked, over or a sheet: decided from the room the page would be left with. */

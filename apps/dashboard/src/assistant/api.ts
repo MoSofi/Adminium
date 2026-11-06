@@ -78,6 +78,11 @@ export interface AssistantHostRef {
   documentId?: string;
   tab?: string;
   connectionIds: string[];
+  /**
+   * The tab's current workspace (`'other'` for "Other databases"): the assistant then works with
+   * that workspace's databases only, resolved by the server. Absent: every database the person reaches.
+   */
+  workspaceId?: string;
   /** A data page: which page. The server reads the page's table from the page. */
   pageId?: string;
   /** What that page is showing: what "these" means in a question. */
