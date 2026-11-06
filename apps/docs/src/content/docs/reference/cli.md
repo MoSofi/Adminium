@@ -499,7 +499,8 @@ larger than an upload takes (32 MB). The project's hooks and actions are not
 part of an app package.
 
 Install the file from **Studio → Hosted apps → Install an app**: upload it and
-paste the fingerprint. See [Installing apps](/self-hosting/installing-apps/).
+check it against the fingerprint on the review. See [Installing apps](/self-hosting/installing-apps/).
+The package also carries the app's source, stripped of anything that runs when it is built.
 
 ### `app save`
 
@@ -522,7 +523,9 @@ view, a value that looks like a secret), nothing is written: give the answers in
 an `--answers` JSON file shaped as `{ "include": …, "rows": …, "answers": … }`
 and run it again. `--plan` prints the list and writes nothing.
 
-It writes `<key>-<version>.tgz` (or `--out`) and prints its fingerprint.
+It writes `<key>-<version>.tgz` (or `--out`) and prints its fingerprint. What
+travels, Check's groups and who may save what are in
+[Save as app](/guides/your-own-apps/save-as-app/).
 
 ## `workspace`
 
@@ -566,6 +569,7 @@ nothing is written. `--plan` prints each app's list and writes nothing.
 It writes `<workspace>.workspace.tgz` (or `--out`) and prints its fingerprint
 and each app's. A workspace file is installed from the dashboard only: **Install
 an app → Upload file** reads it and asks, per app, which database it goes on.
+See [Workspace files](/guides/workspaces/files/).
 
 ## `pull`
 

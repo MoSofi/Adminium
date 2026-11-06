@@ -28,7 +28,7 @@ permission.
 | Source | Network | Where it comes from |
 |---|---|---|
 | **Bundled** | none | Tarballs in the folder [`ADMINIUM_BUNDLED_APPS`](#adminium_bundled_apps) names, seeded into the app store at boot. |
-| **Uploaded** | none | A `.tgz` you upload yourself, with the fingerprint you paste. |
+| **Uploaded** | none | A `.tgz` you upload yourself, checked against the fingerprint you paste on the review. |
 | **The list from adminium.dev** | on for a new install; a switch | Released apps listed by adminium.dev, downloaded from `downloads.adminium.dev`. |
 
 No build Adminium publishes carries a bundled app set — not the Docker image, not the desktop app,
@@ -108,13 +108,19 @@ about does not simply go missing; upgrade Adminium and it becomes installable.
 **Install an app** (an upload) and **More choices** (in the one dialog) open the wizard. It has four steps:
 **Bundle**, **Database**, **Schema plan** and **Done**.
 
-1. **Bundle.** For an upload, the `.tgz` and, optionally, its `sha512-` fingerprint. For an app
-   from the shelf, the app you picked.
+1. **Bundle.** For an upload, the `.tgz`. For an app from the shelf, the app you picked.
 2. **Database.** The connection the app's tables go into, and the one it reads afterwards. Only a
-   writable connection can be chosen.
+   writable connection that is already connected can be chosen. The step says which version is
+   being installed, and a database that already has the app reads **Installed** with its version.
 3. **Schema plan.** The table check, the app's public access and the sample data box, described
    below. Nothing has been written yet.
-4. **Done.** Which tables were created, which were used as they were, and which pages were made.
+4. **Done.** Which version went onto which database, which tables were created, which were used as
+   they were, and which pages were made.
+
+An uploaded file shows **Check against the fingerprint published with the release** on the review.
+Paste the `sha512-` fingerprint from where you got the file: if it does not match, Install stays
+off. A file you or someone else saved with **Save as app** gets a longer review; see
+[Installing your own app](/guides/your-own-apps/install/).
 
 ### Check the tables
 
@@ -198,12 +204,19 @@ stopped: tables that were made are recognised as this install's own, and nothing
 **Back to Schema plan** checks the tables again first. An install that stopped part way is not
 served until it finishes.
 
-### An app already installed on another connection
+### A page whose address is taken
 
-An app runs on one connection. Once it is installed (or stopped part way) on one, the plan for any
-other connection says it cannot be installed there and names the connection it is on, and an
-install sent anyway answers `409` with the code `APP_INSTALLED_ELSEWHERE`. Nothing is written.
-Update it where it is, or uninstall it there first and then install it on the other connection.
+When a page on the database already has the address one of the app's pages uses, the review asks
+what to do with each: **Replace it** (only a page nobody edited), **Rename the page here**, or
+**Skip it**. Install waits for an answer. See
+[Pages whose names are taken](/guides/your-own-apps/install/#pages-whose-names-are-taken).
+
+### The same app on another database
+
+An app can be installed once on each database, each copy with its own settings, roles, templates
+and keys. Install it again and pick another database, or upload its file again and choose **Install
+on another database**. Every copy runs the same version. See
+[An app on several databases](/self-hosting/apps-per-database/).
 
 ## Updating
 
@@ -239,7 +252,16 @@ first if it has to, then checks the tables again:
   app's install or update that brings it along, lists each app's role that gets more, and is
   refused without `"roleTables": true`.
 - The app keeps its place: same row, same database connection, same mounts. Older versions of the
-  package are removed from disk only after the update succeeds.
+  package are removed from disk only after the update succeeds, and only when no copy runs them.
+- **Every copy moves together.** An app installed on several databases has one **Update every
+  copy**: each copy is updated in turn, through its own check. See
+  [One version for every copy](/self-hosting/apps-per-database/#one-version-for-every-copy).
+- **An update that stops part way is finished, not undone.** The copy's row says where it stopped,
+  and **Finish the update** runs it again from there, even after a reload.
+
+Uploading a file of an installed app routes it: a newer file offers **Update every copy**, the same
+version offers **Install on another database**, and an older one is refused, naming each database's
+version.
 
 ## Tables made before prefixes
 
@@ -265,12 +287,13 @@ curl -fO https://downloads.adminium.dev/apps/<key>/<key>-<version>.tgz
 Note the sha512 fingerprint shown beside the Download link — the same value the app's own
 `RELEASES.json` records, written there only after the release pipeline read the file back from
 `downloads.adminium.dev`. Move the file to the air-gapped machine, choose **Install an app** on the
-Hosted apps page, upload it, and paste the fingerprint. The key and version are read from the
-manifest inside the bundle; you never type them.
+Hosted apps page, upload it, and paste the fingerprint into **Check against the fingerprint
+published with the release** on the review. The key and version are read from the manifest inside
+the bundle; you never type them.
 
 Sideloading is a first-class source, not an escape hatch: the uploaded bytes go through the same
 hash verification, hardened unpack and schema plan as a bundled or downloaded one. A tarball that
-does not match the fingerprint you pasted is refused, and nothing is staged.
+does not match the fingerprint you pasted cannot be installed.
 
 ## An app you made yourself
 
@@ -287,18 +310,24 @@ To install it on another Adminium, it installs the same way as a sideloaded one.
 .adminium/packs/repairs-0.1.0.tgz.integrity
 ```
 
-Choose **Install an app**, upload the `.tgz`, and paste the contents of the `.integrity` file. From
-there the install is the one described above: the database, the table check, public access and
-sample data.
+Choose **Install an app**, upload the `.tgz`, and paste the contents of the `.integrity` file into
+the fingerprint check on the review. From there the install is the one described above: the
+database, the table check, public access and sample data. On a project server, **Download** on the
+app's row does the same as `app pack` from the dashboard.
 
-Such an app carries the publisher `local`, and Adminium says so. The wizard shows **Made on this
-install. It does not come from adminium.dev, and nobody else has checked it.** and the installed
-list marks it **Made here**. Three rules keep a self-made app from passing for anything else:
+An app saved from a database with [Save as app](/guides/your-own-apps/save-as-app/) installs the
+same way, with a longer review: see [Installing your own app](/guides/your-own-apps/install/).
+
+Such an app carries the publisher `local`, and Adminium says so. A file that says where it was made
+reads **Your own app** with "Made at *label* on *date*"; one that does not shows **Made on this
+install. It does not come from adminium.dev, and nobody else has checked it.** Three rules keep a
+self-made app from passing for anything else:
 
 - it cannot replace an installed app from another publisher, and an app from another publisher
   cannot replace it: the upload is refused with `PUBLISHER_CHANGED`. Uninstall first, or give your
   app another key;
-- it cannot take the key of an app the online catalogue lists (`KEY_IN_CATALOG`);
+- it cannot take the key of an app the online catalogue lists (`KEY_IN_CATALOG`), and a different
+  self-made app under the same key is refused (`LINEAGE_DIFFERS`);
 - the online catalogue never delivers one: a download whose manifest says `local` is discarded.
 
 An app with no screens of its own, only tables and dashboard pages, may be installed this way when
@@ -326,7 +355,7 @@ or a container with no volume — **every installed app is lost at the next depl
   A lost app you uploaded yourself is never in that feed, so before 0.3.0 it appeared in no list
   at all while the install record still said it was there; it is now listed as Missing regardless.
 
-To bring an app back, choose **Install an app**, upload the same version's file with its
+To bring an app back, choose **Install an app**, upload the same version's file, check its
 fingerprint, and confirm. The plan reuses the tables the app already has: nothing is created twice
 and nothing is dropped. The shelf cannot do this for you: it shows the app as missing and offers
 no download.
@@ -339,6 +368,8 @@ your own image that carries the app files in `/app/apps-bundle` — see
 
 **Uninstall**, on the installed row or in the **Danger zone** of the app's page, opens a dialog
 that lists what goes and what stays, read from the server before anything happens.
+When the app is installed on several databases, it acts on one copy only ("Uninstall Invoices &
+Receipts from kiln"), and the app's files leave the server with its last copy.
 
 | Removed | Kept |
 |---|---|

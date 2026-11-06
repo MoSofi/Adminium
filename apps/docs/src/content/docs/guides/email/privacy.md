@@ -119,7 +119,8 @@ follows another row is never moved.
 - **Their consent history** is deleted. **The do-not-email list** keeps their
   address as a code alone (added if they were not on it), so they are never
   e-mailed again; a link in mail sent before only ever says they are
-  unsubscribed.
+  unsubscribed. The list is one for the whole server, even when the server
+  sends for several businesses under their own senders.
 - **Campaign sends** keep their state with the address and name emptied.
   Their downloads and the files on their rows are deleted.
 - **The audit log and removed rows** keep every entry (who changed what, and

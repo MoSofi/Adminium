@@ -150,6 +150,8 @@ const GROUP_FILES: ReadonlyMap<string, string> = new Map([
   ['apps/dashboard/src/studio/apps/workspaceFiles/', 'the Save workspace dialog and the workspace file install screens'],
   ['apps/dashboard/src/studio/workspace-sender/', 'the sender sheet of one workspace'],
   ['apps/dashboard/src/email/editor/inspector/panels/SendAsField.tsx', '"Send as": a workspace’s sender, or the server’s'],
+  ['apps/docs/src/content/docs/guides/workspaces/', 'the guides to workspaces: the menu, a workspace’s sender, workspace files'],
+  ['apps/docs/src/content/docs/guides/your-own-apps/', 'Save as app and its install: a database’s workspace chips, and saving a whole workspace'],
 ]);
 
 /** Exact source strings that are about the groups. */
@@ -179,6 +181,13 @@ const GROUP_STRINGS: ReadonlyMap<string, string> = new Map([
   ["The server's From and each workspace's name and From, no source row.", 'row-coverage reason of "Send as"’s choices'],
   ["Which sender a template goes as: the template rows and a workspace's name, no source row.", 'row-coverage reason of "Send as"'],
   ["A workspace's sender: a name and addresses on the workspace, no source row.", 'row-coverage reason of the workspace sender routes'],
+  ['- **its own row** on Hosted apps, named "on kiln", with its database\'s workspace chips;', 'apps-per-database.md, an app copy’s row'],
+  ['[A mail sender per workspace](/guides/workspaces/senders/).', 'email guide, the link to a workspace’s sender'],
+  ['See [Workspace files](/guides/workspaces/files/).', 'cli.md, `workspace save`, the link to its guide'],
+  ['- **Workspaces.** The groups of databases, their order and their mail senders', 'export-zip.md: workspaces are not in the bundle'],
+  ['[Workspaces](/guides/workspaces/).', 'export-zip.md, the link to the workspaces guide'],
+  ['workspaces sorts the menu; it does not separate who sees what. Roles do. Give', 'security.md: a workspace is not a security wall'],
+  ['business. See [Workspaces](/guides/workspaces/).', 'security.md, the link to the workspaces guide'],
 ]);
 
 // ─── What counts as words ────────────────────────────────────────────────────

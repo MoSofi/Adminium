@@ -236,6 +236,21 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Your own apps',
+              items: [
+                { label: 'Save as app', link: '/guides/your-own-apps/save-as-app/' },
+                { label: 'Installing your own app', link: '/guides/your-own-apps/install/' },
+              ],
+            },
+            {
+              label: 'Workspaces',
+              items: [
+                { label: 'Workspaces', link: '/guides/workspaces/' },
+                { label: 'A mail sender per workspace', link: '/guides/workspaces/senders/' },
+                { label: 'Workspace files', link: '/guides/workspaces/files/' },
+              ],
+            },
+            {
               label: 'LLM assist',
               items: [
                 { label: 'Overview', link: '/guides/llm-assist/' },
@@ -311,6 +326,7 @@ export default defineConfig({
             { label: 'Export & restore', link: '/self-hosting/export-zip/' },
             { label: 'Installing add-ons', link: '/self-hosting/installing-add-ons/' },
             { label: 'Installing apps', link: '/self-hosting/installing-apps/' },
+            { label: 'An app on several databases', link: '/self-hosting/apps-per-database/' },
           ],
         },
         {

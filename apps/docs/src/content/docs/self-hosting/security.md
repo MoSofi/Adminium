@@ -90,6 +90,11 @@ The shipped compose file gets this right: `meta-db` uses `expose`, not `ports`.
   Adminium, not for everyone who uses it.
 - **API keys** are scoped and revocable. Issue one per integration, never share
   one between two, and revoke on rotation.
+- **Several businesses on one server.** Grouping their databases into
+  workspaces sorts the menu; it does not separate who sees what. Roles do. Give
+  each business roles with grants on its own databases only, and keep server-wide
+  rights (refunds, privacy, the audit log, exports) to people trusted with every
+  business. See [Workspaces](/guides/workspaces/).
 
 ## What is already on
 

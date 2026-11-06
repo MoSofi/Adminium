@@ -53,6 +53,9 @@ portability — the bundle stands the same instance up anywhere Adminium runs.
   way to match the bundle. The zip carries a reference, not a copy.
 - **Your rows.** No table data, ever. This is configuration.
 - **Your secrets** — unless you ask. Default is omitted.
+- **Workspaces.** The groups of databases, their order and their mail senders
+  are not in the bundle. Make them again on Data connections after restoring. See
+  [Workspaces](/guides/workspaces/).
 
 ## Secrets are omitted by default
 
