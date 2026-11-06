@@ -5,8 +5,9 @@
  *  - `POST /project/apps/:key/pack` — Download: a project app checked,
  *    built and packed at the version asked (never lower than its folder's;
  *    a higher one is written back first), its folder going along as
- *    `source/` without anything that runs. The file is kept in the project's
- *    `.adminium/packs/`.
+ *    `source/` without anything that runs, and read for this server's
+ *    secrets and ids before it is kept (422 `PACK_LEAKS`, naming each file
+ *    and line). The file is kept in the project's `.adminium/packs/`.
  *  - `GET /project/apps/:key/pack/:version` — that file.
  *  - `GET /apps/:key/editable` — whether this install's screens can be made
  *    editable here, and if not, why.
@@ -24,6 +25,7 @@ import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { FOLDER_SOURCE } from '../../apps/install-service.js';
+import { collectKnownSecrets } from '../../apps/save/gates/secrets.js';
 import type { AppStore } from '../../apps/store.js';
 import { audited } from '../../audit/coverage.js';
 import { NotFoundError, ValidationFailedError } from '../../errors.js';
@@ -41,6 +43,10 @@ export interface OwnSurfaceRoutesDeps {
   projectRoot: string | null;
   /** The running Adminium. */
   adminiumVersion: string;
+  /** `ADMINIUM_SECRET`: the Download is read for every secret this server keeps, opened with keys derived from it. */
+  masterSecret: string;
+  /** The project's `.env`, whose values are secrets too; null when there is none. */
+  projectEnvFile?: string | null | undefined;
   /** The server's display name: where a packed file says it was made. Never a host name. */
   displayName: () => Promise<string | null>;
   /** Tests only: the bundler a side is built with. */
@@ -108,6 +114,10 @@ export function ownSurfaceRoutes(deps: OwnSurfaceRoutesDeps): FastifyPluginAsync
             label: await deps.displayName().catch(() => null),
             adminiumVersion: deps.adminiumVersion,
             loadBundler: deps.loadBundler,
+            scan: {
+              secrets: await collectKnownSecrets(deps.meta, deps.masterSecret, deps.projectEnvFile ?? null),
+              connectionIds: (await deps.meta.db.selectFrom('adminium_connections').select('id').execute()).map((row) => row.id),
+            },
           });
         } catch (error) {
           if (!(error instanceof PackFolderRefused)) throw error;

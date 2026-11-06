@@ -28,6 +28,7 @@ import { packageTarball } from './app-bundle-helpers.js';
 import { ENGINES, installHarness, type Harness } from './app-install-harness.js';
 import { canBuildSides, tempProject } from './app-project-helpers.js';
 import { fakeDeps, fakeIo } from './cli-helpers.js';
+import { TEST_SECRET } from './helpers.js';
 
 const PLAIN = { encrypt: (v: string) => v, decrypt: (v: string) => v };
 
@@ -92,7 +93,7 @@ async function harness(dialect: Parameters<typeof installHarness>[0], extra: Par
   const { folder, ...rest } = extra;
   const h = (open = await installHarness(dialect, {
     ...(folder === undefined ? {} : { folder }),
-    routes: (deps) => [ownSurfaceRoutes({ meta: deps.meta, store: deps.store, adminiumVersion: '0.4.0', displayName: async () => 'Fernhill main', ...rest })],
+    routes: (deps) => [ownSurfaceRoutes({ meta: deps.meta, store: deps.store, adminiumVersion: '0.4.0', masterSecret: TEST_SECRET, displayName: async () => 'Fernhill main', ...rest })],
   }));
   const send = async (request: { method: 'GET' | 'POST'; url: string; payload?: unknown; headers?: Record<string, string> }): Promise<Reply> =>
     (await h.inject(request as never)) as unknown as Reply;
@@ -163,6 +164,37 @@ for (const [dialect, available] of ENGINES) {
       const said = audits.filter((entry) => entry.action === 'app.packed').map((entry) => entry.changes);
       expect(said).toHaveLength(2);
       expect(said).toContainEqual({ after: { key: 'shop', version: '1.2.0', integrity: reply.integrity, bytes: reply.bytes } });
+    }, 120_000);
+
+    it('refuses a file that would carry a secret of this server or an id of it, naming the file and the line', async () => {
+      const root = sourceProject();
+      folders.push(root);
+      const envValue = 'shop-provider-key-not-real-8c41f07d';
+      write(root, '.env', `SHOP_PROVIDER_KEY=${envValue}\n`);
+      write(root, 'apps/shop/src/api.ts', `export const base = '/api';\n\nexport const key = '${envValue}';\n`);
+      const { h, send } = await harness(dialect, { projectRoot: root, projectEnvFile: join(root, '.env') });
+      write(root, 'apps/shop/seeds/notes.json', JSON.stringify({ from: h.connectionId }));
+
+      const refused = await send({ method: 'POST', url: '/project/apps/shop/pack', payload: { version: '1.0.0' } });
+      expect(refused.statusCode, refused.body).toBe(422);
+      expect(refused.body).not.toContain(envValue);
+      expect(refused.body).not.toContain(h.connectionId);
+      const details = (JSON.parse(refused.body) as { error: { details: { reason: string; leaks: unknown[] } } }).error.details;
+      expect(details.reason).toBe('PACK_LEAKS');
+      expect(details.leaks).toEqual(
+        expect.arrayContaining([
+          { kind: 'secret', file: 'source/src/api.ts', line: 3 },
+          { kind: 'id', file: 'seeds/notes.json', line: 1 },
+        ]),
+      );
+      expect(details.leaks).toHaveLength(2);
+      expect(existsSync(join(root, '.adminium/packs/shop-1.0.0.tgz'))).toBe(false);
+
+      // Taken out, the same Download is made.
+      write(root, 'apps/shop/src/api.ts', `export const base = '/api';\n`);
+      write(root, 'apps/shop/seeds/notes.json', JSON.stringify({ from: 'the shop' }));
+      const packed = await send({ method: 'POST', url: '/project/apps/shop/pack', payload: { version: '1.0.0' } });
+      expect(packed.statusCode, packed.body).toBe(200);
     }, 120_000);
 
     it('refuses a catalog app, an app that fails its check, and a server with no project folder', async () => {

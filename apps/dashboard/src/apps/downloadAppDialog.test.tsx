@@ -82,6 +82,20 @@ describe('Download', () => {
     expect(within(dialog).queryByText('Fingerprint')).toBeNull();
   });
 
+  it('lists each file and line a refused pack would carry a secret or an id of this server in', async () => {
+    const leaks = [
+      { kind: 'secret', file: 'source/src/api.ts', line: 3 },
+      { kind: 'id', file: 'seeds/notes.json', line: 1 },
+    ];
+    packReply = { status: 422, body: { error: { code: 'VALIDATION_FAILED', message: 'leaks', requestId: 'r', details: { reason: 'PACK_LEAKS', leaks } } } };
+    const dialog = renderDialog();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Download' }));
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert.textContent).toContain('The file would carry something that must stay on this server, so it was not made.');
+    expect(within(alert).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['source/src/api.ts, line 3: a secret this server keeps', 'seeds/notes.json, line 1: an id of this server']);
+    expect(within(dialog).queryByText('Fingerprint')).toBeNull();
+  });
+
   it('reads the folder’s version when it was not given', async () => {
     const dialog = renderDialog(null);
     await waitFor(() => expect((within(dialog).getByLabelText('Version') as HTMLInputElement).value).toBe('1.0.0'));

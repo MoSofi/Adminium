@@ -2537,6 +2537,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           store: appStore,
           projectRoot,
           adminiumVersion: APP_VERSION,
+          masterSecret: env.ADMINIUM_SECRET,
+          projectEnvFile: projectRoot === null ? null : join(projectRoot, '.env'),
           displayName: async () => settingsRepo(meta).get('branding.appName'),
           // A folder made from an installed app is built and applied at once, as a change to the folder is.
           ...(projectRoot === null

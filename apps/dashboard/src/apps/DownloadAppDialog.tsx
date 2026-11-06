@@ -9,7 +9,8 @@
  * packs on the server; the file card and its fingerprint appear when the pack
  * is made (never a fingerprint for a file not made yet), and the browser saves
  * the file. A refused pack (the check, the build, the 32 MB limit) is said in
- * the dialog.
+ * the dialog. So is a file that would carry a secret or an id of this server:
+ * each file and line is listed, never the value (the server never sends it).
  */
 import { useId, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -53,6 +54,29 @@ export function fileSize(bytes: number): string {
   return `${formatters.number(Math.max(1, Math.round(bytes / 1024)))} KB`;
 }
 
+/** A line of the file that would carry what must stay on this server, as the server names it. */
+interface PackLeak {
+  kind: 'secret' | 'id';
+  file: string;
+  line: number;
+}
+
+/** The lines a refused pack names, when it was refused for carrying a secret or an id of this server. */
+function leaksOf(error: Error): PackLeak[] {
+  if (!(error instanceof ApiError)) return [];
+  const details = (error.details ?? {}) as { reason?: unknown; leaks?: unknown };
+  if (details.reason !== 'PACK_LEAKS' || !Array.isArray(details.leaks)) return [];
+  return (details.leaks as Partial<PackLeak>[]).flatMap((leak) =>
+    (leak.kind === 'secret' || leak.kind === 'id') && typeof leak.file === 'string' && typeof leak.line === 'number' ? [{ kind: leak.kind, file: leak.file, line: leak.line }] : [],
+  );
+}
+
+function leakLine(leak: PackLeak): string {
+  return leak.kind === 'secret'
+    ? t('appFiles.download.hitSecret', '{file}, line {line}: a secret this server keeps', { file: leak.file, line: leak.line })
+    : t('appFiles.download.hitId', '{file}, line {line}: an id of this server', { file: leak.file, line: leak.line });
+}
+
 /** A refused pack, as the person reads it. */
 function refusalOf(error: Error): string {
   if (!(error instanceof ApiError)) return error.message;
@@ -70,6 +94,8 @@ function refusalOf(error: Error): string {
       return t('appFiles.download.buildFailed', 'Its screens did not build, so it cannot be packed. {message}', { message: error.message });
     case 'CATALOG_SIDES':
       return t('appFiles.download.catalog', 'This app is from the catalogue. Its screens are never packed again here.');
+    case 'PACK_LEAKS':
+      return t('appFiles.download.leaks', 'The file would carry something that must stay on this server, so it was not made. Take it out of these files, then download again.');
     default:
       return error.message;
   }
@@ -198,7 +224,24 @@ export function DownloadAppDialog({ appKey, appName, version: given, serverName,
             {t('appFiles.download.downloading', 'Downloading {file}', { file: packed.fileName })}
           </p>
         )}
-        {pack.error === null ? null : <Alert tone="danger" role="alert" title={refusalOf(pack.error)} />}
+        {pack.error === null ? null : (
+          <Alert
+            tone="danger"
+            role="alert"
+            title={refusalOf(pack.error)}
+            body={
+              leaksOf(pack.error).length === 0 ? undefined : (
+                <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                  {leaksOf(pack.error).map((leak) => (
+                    <li key={`${leak.kind}|${leak.file}|${String(leak.line)}`} dir="ltr" className="font-mono text-[11.5px] [overflow-wrap:anywhere]">
+                      {leakLine(leak)}
+                    </li>
+                  ))}
+                </ul>
+              )
+            }
+          />
+        )}
       </ModalBody>
       <ModalFooter>
         <Button variant="secondary" onClick={onClose}>
