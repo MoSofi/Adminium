@@ -101,7 +101,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/add-ons/*` | 36 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
-| `/api/v1/apps/*` | 42 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, uninstall, and upload, review and install a workspace file (several apps in one), finishing a stopped one with Install the rest |
+| `/api/v1/apps/*` | 49 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, uninstall, and upload, review and install a workspace file (several apps in one), finishing a stopped one with Install the rest |
 | `/api/v1/assistant/*` | 13 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
@@ -140,7 +140,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/privacy/*` | 18 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address) and the sender’s postal address. Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
-| `/api/v1/project/*` | 9 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
+| `/api/v1/project/*` | 11 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
 | `/api/v1/public/*` | 34 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
 | `/api/v1/public-endpoints/*` | 5 | Build the endpoints a key can be granted — source, columns, filters, methods and limits |
@@ -274,6 +274,11 @@ PATCH /api/v1/apps/{key}/settings
 GET /api/v1/apps/{key}/overview
 POST /api/v1/apps/{key}/disable
 POST /api/v1/apps/{key}/enable
+GET /api/v1/apps/{key}/after-install
+PUT /api/v1/apps/{key}/after-install/hidden
+PUT /api/v1/apps/{key}/after-install/{id}
+GET /api/v1/apps/{key}/look
+POST /api/v1/apps/{key}/look/undo
 GET /api/v1/apps/{key}/parts
 GET /api/v1/apps/{key}/parts/{part}/open
 GET /api/v1/apps/{key}/rules
@@ -289,6 +294,8 @@ POST /api/v1/apps/save
 GET /api/v1/apps/save/inventory
 GET /api/v1/apps/saves
 GET /api/v1/apps/save/{id}/file
+GET /api/v1/apps/{key}/editable
+POST /api/v1/apps/{key}/editable
 ```
 
 ### `/assistant`
@@ -842,6 +849,8 @@ GET /api/v1/project/overview
 GET /api/v1/project/client/{*}
 GET /api/v1/project/apps/{key}/removals
 POST /api/v1/project/apps/{key}/removals
+POST /api/v1/project/apps/{key}/pack
+GET /api/v1/project/apps/{key}/pack/{version}
 ```
 
 ### `/public`

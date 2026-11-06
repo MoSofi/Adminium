@@ -135729,6 +135729,57 @@
                           "version": {
                             "type": "string"
                           },
+                          "installId": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "string"
+                          },
+                          "connectionName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string",
+                            "maxLength": 60
+                          },
+                          "madeAt": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "savedAt": {
+                                "type": "string"
+                              },
+                              "adminiumVersion": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "label",
+                              "savedAt",
+                              "adminiumVersion"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "screensFirstOnly": {
+                            "type": "boolean",
+                            "enum": [
+                              true
+                            ]
+                          },
                           "schema": {
                             "type": "object",
                             "properties": {
@@ -139399,6 +139450,57 @@
                     "version": {
                       "type": "string"
                     },
+                    "installId": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "address": {
+                      "type": "string"
+                    },
+                    "connectionName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "icon": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "madeAt": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "savedAt": {
+                          "type": "string"
+                        },
+                        "adminiumVersion": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "savedAt",
+                        "adminiumVersion"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "screensFirstOnly": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
                     "schema": {
                       "type": "object",
                       "properties": {
@@ -140318,6 +140420,57 @@
                         },
                         "version": {
                           "type": "string"
+                        },
+                        "installId": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        },
+                        "connectionName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "icon": {
+                          "type": "string",
+                          "maxLength": 60
+                        },
+                        "madeAt": {
+                          "type": "object",
+                          "properties": {
+                            "label": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "savedAt": {
+                              "type": "string"
+                            },
+                            "adminiumVersion": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "label",
+                            "savedAt",
+                            "adminiumVersion"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "screensFirstOnly": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
                         },
                         "schema": {
                           "type": "object",
@@ -141405,6 +141558,57 @@
                         },
                         "version": {
                           "type": "string"
+                        },
+                        "installId": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        },
+                        "connectionName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "icon": {
+                          "type": "string",
+                          "maxLength": 60
+                        },
+                        "madeAt": {
+                          "type": "object",
+                          "properties": {
+                            "label": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "savedAt": {
+                              "type": "string"
+                            },
+                            "adminiumVersion": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "label",
+                            "savedAt",
+                            "adminiumVersion"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "screensFirstOnly": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
                         },
                         "schema": {
                           "type": "object",
@@ -144256,6 +144460,30 @@
                         }
                       ]
                     },
+                    "added": {
+                      "type": "object",
+                      "properties": {
+                        "pages": {
+                          "type": "number"
+                        },
+                        "emailTemplates": {
+                          "type": "number"
+                        },
+                        "scheduledReports": {
+                          "type": "number"
+                        },
+                        "roles": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "pages",
+                        "emailTemplates",
+                        "scheduledReports",
+                        "roles"
+                      ],
+                      "additionalProperties": false
+                    },
                     "tables": {
                       "type": "array",
                       "items": {
@@ -144269,6 +144497,12 @@
                           },
                           "state": {
                             "type": "string"
+                          },
+                          "before": {
+                            "type": "boolean",
+                            "enum": [
+                              true
+                            ]
                           },
                           "role": {
                             "type": "string",
@@ -144324,6 +144558,7 @@
                   "required": [
                     "key",
                     "connection",
+                    "added",
                     "tables",
                     "activity"
                   ],
@@ -144420,6 +144655,648 @@
                   "required": [
                     "key",
                     "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/after-install": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "item": {
+                            "type": "string"
+                          },
+                          "field": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "done": {
+                            "type": "boolean"
+                          },
+                          "doneBy": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "doneAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "seen": {
+                            "type": "boolean"
+                          },
+                          "right": {
+                            "type": "string"
+                          },
+                          "canTick": {
+                            "type": "boolean"
+                          },
+                          "link": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "to": {
+                                    "type": "string",
+                                    "enum": [
+                                      "automation",
+                                      "email-templates",
+                                      "reports",
+                                      "roles",
+                                      "payments",
+                                      "documents",
+                                      "settings"
+                                    ]
+                                  },
+                                  "id": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "to"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "item",
+                          "field",
+                          "name",
+                          "done",
+                          "doneBy",
+                          "doneAt",
+                          "seen",
+                          "right",
+                          "canTick",
+                          "link"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hidden": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "hidden"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/after-install/hidden": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hidden": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "hidden"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "item": {
+                            "type": "string"
+                          },
+                          "field": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "done": {
+                            "type": "boolean"
+                          },
+                          "doneBy": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "doneAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "seen": {
+                            "type": "boolean"
+                          },
+                          "right": {
+                            "type": "string"
+                          },
+                          "canTick": {
+                            "type": "boolean"
+                          },
+                          "link": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "to": {
+                                    "type": "string",
+                                    "enum": [
+                                      "automation",
+                                      "email-templates",
+                                      "reports",
+                                      "roles",
+                                      "payments",
+                                      "documents",
+                                      "settings"
+                                    ]
+                                  },
+                                  "id": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "to"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "item",
+                          "field",
+                          "name",
+                          "done",
+                          "doneBy",
+                          "doneAt",
+                          "seen",
+                          "right",
+                          "canTick",
+                          "link"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hidden": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "hidden"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/after-install/{id}": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "done": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "done"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "item": {
+                            "type": "string"
+                          },
+                          "field": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "done": {
+                            "type": "boolean"
+                          },
+                          "doneBy": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "doneAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "seen": {
+                            "type": "boolean"
+                          },
+                          "right": {
+                            "type": "string"
+                          },
+                          "canTick": {
+                            "type": "boolean"
+                          },
+                          "link": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "to": {
+                                    "type": "string",
+                                    "enum": [
+                                      "automation",
+                                      "email-templates",
+                                      "reports",
+                                      "roles",
+                                      "payments",
+                                      "documents",
+                                      "settings"
+                                    ]
+                                  },
+                                  "id": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "to"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "item",
+                          "field",
+                          "name",
+                          "done",
+                          "doneBy",
+                          "doneAt",
+                          "seen",
+                          "right",
+                          "canTick",
+                          "link"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hidden": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "hidden"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/look": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "look": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "appliedAt": {
+                              "type": "number"
+                            },
+                            "logo": {
+                              "type": "boolean"
+                            },
+                            "colours": {
+                              "type": "boolean"
+                            },
+                            "languages": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "wordings": {
+                              "type": "number"
+                            },
+                            "systemEmails": {
+                              "type": "number"
+                            },
+                            "settings": {
+                              "type": "number"
+                            },
+                            "changed": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "logo",
+                                  "colours",
+                                  "languages",
+                                  "wordings",
+                                  "systemEmails",
+                                  "settings"
+                                ]
+                              }
+                            },
+                            "canUndo": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "appliedAt",
+                            "logo",
+                            "colours",
+                            "languages",
+                            "wordings",
+                            "systemEmails",
+                            "settings",
+                            "changed",
+                            "canUndo"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "look"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/look/undo": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "restored": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "kept": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "restored",
+                    "kept"
                   ],
                   "additionalProperties": false
                 }
@@ -147884,6 +148761,214 @@
         "responses": {
           "200": {
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/project/apps/{key}/pack": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "fileName": {
+                      "type": "string"
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "integrity": {
+                      "type": "string"
+                    },
+                    "fileCount": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "version",
+                    "fileName",
+                    "bytes",
+                    "integrity",
+                    "fileCount"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/project/apps/{key}/pack/{version}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+            },
+            "in": "path",
+            "name": "version",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/editable": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "offered",
+                        "refused",
+                        "none"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "NO_PROJECT",
+                        "FOLDER_EXISTS",
+                        "SEVERAL_INSTALLS",
+                        "FROM_FOLDER"
+                      ]
+                    },
+                    "folder": {
+                      "type": "string"
+                    },
+                    "installs": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "folder"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "folder": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "folder"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
