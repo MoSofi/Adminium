@@ -70,6 +70,38 @@ const partsOf = (manifest: Manifest): SavedParts => (manifest.kind === 'app' ? m
 const NO_SECRETS = { encrypt: (value: string) => value, decrypt: (value: string) => value };
 
 /**
+ * A picture of a report or layout body that is a file of the package: a save
+ * writes a picture kept in its Files library as `package:parts/<sha256>.<ext>`,
+ * and the install puts the picture back in the body, inline, as the builders
+ * keep one.
+ */
+export const PACKAGE_IMAGE_PREFIX = 'package:';
+const PACKAGE_IMAGE = /^package:(parts\/[0-9a-f]{64}\.(png|jpg|webp|gif))$/;
+const IMAGE_MIME: Readonly<Record<string, string>> = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' };
+
+/** A body with every package picture inline; one the package does not hold is emptied. */
+async function withPackagePictures<T>(value: T, read: ((path: string) => Promise<Uint8Array>) | undefined): Promise<T> {
+  if (typeof value === 'string') {
+    const found = PACKAGE_IMAGE.exec(value);
+    if (found === null) return value;
+    if (read === undefined) return '' as T;
+    try {
+      const bytes = await read(found[1]!);
+      return `data:${IMAGE_MIME[found[2]!]!};base64,${Buffer.from(bytes).toString('base64')}` as T;
+    } catch {
+      return '' as T;
+    }
+  }
+  if (Array.isArray(value)) return (await Promise.all(value.map((one) => withPackagePictures(one, read)))) as T;
+  if (typeof value === 'object' && value !== null) {
+    const out: Record<string, unknown> = {};
+    for (const [key, one] of Object.entries(value)) out[key] = await withPackagePictures(one, read);
+    return out as T;
+  }
+  return value;
+}
+
+/**
  * Why this person may not install what the file carries, or null. Each part
  * needs what its own screen needs: report documents and invoice layouts the
  * settings permission, scheduled reports the reports permission, payments
@@ -116,6 +148,8 @@ export interface InstallSavedPartsInput {
   timezone: string;
   createdBy: string | null;
   at?: number | undefined;
+  /** The bytes of a file of the app's package, by its path there: a body's pictures. */
+  readPackageFile?: ((path: string) => Promise<Uint8Array>) | undefined;
 }
 
 /** One kind of part: what a row of it holds that the fingerprint reads, and how a row is made, read and rewritten. */
@@ -411,7 +445,8 @@ export function plannedAfterInstallOfParts(manifest: Manifest): AfterInstallItem
   const out: AfterInstallItem[] = (parts.scheduledReports ?? []).map((entry) => ({ kind: 'recipients' as const, item: entry.key, field: 'recipients' }));
   out.push(...paymentItems(parts.payments));
   for (const entry of manifest.kind === 'app' ? (manifest.documents ?? []) : []) {
-    if (entry.deliver !== undefined && 'emailSlot' in entry.deliver && (entry.deliver.emailSlot ?? null) === null) out.push({ kind: 'delivery', item: `${entry.table}/${entry.kind}`, field: 'deliver.emailSlot' });
+    // A slot always arrives empty: where it is mailed is chosen here.
+    if (entry.deliver?.emailSlot !== undefined) out.push({ kind: 'delivery', item: `${entry.table}/${entry.kind}`, field: 'deliver.emailSlot' });
   }
   return out;
 }
@@ -429,8 +464,10 @@ export async function installSavedParts(input: InstallSavedPartsInput): Promise<
   const result: SavedPartsResult = { written: [], kept: [], removed: [], skipped: [], afterInstall: [] };
   const pageIds = new Map((await pagesRepo(input.meta).listByManifest(input.manifestId)).map((page) => [page.slug, page.id]));
   const write = writers(input, pageIds);
-  await syncParts(parts.reports ?? [], write.report, records, input, result);
-  await syncParts(parts.invoiceLayouts ?? [], write.layout, records, input, result);
+  const pictured = async <E extends { body: Record<string, unknown> }>(entries: readonly E[]): Promise<E[]> =>
+    await Promise.all(entries.map(async (entry) => ({ ...entry, body: await withPackagePictures(entry.body, input.readPackageFile) })));
+  await syncParts(await pictured(parts.reports ?? []), write.report, records, input, result);
+  await syncParts(await pictured(parts.invoiceLayouts ?? []), write.layout, records, input, result);
   await syncParts(parts.scheduledReports ?? [], write.schedule, records, input, result);
   await installPayments(parts.payments, input, result);
 
