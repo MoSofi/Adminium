@@ -1085,7 +1085,8 @@ export default {
         "note": "These stay on the app’s page until they are done."
       },
       "title": "Check before you install",
-      "intro": "{app} goes into {database}. Nothing changes until you press Install."
+      "intro": "{app} goes into {database}. Nothing changes until you press Install.",
+      "docsLink": "What the review checks"
     },
     "refusal": {
       "back": "Back",
@@ -1109,7 +1110,8 @@ export default {
       "everywhere": {
         "title": "Installed on every database",
         "body": "{app} {version} is already installed on every database here."
-      }
+      },
+      "docsLink": "Why a file is refused"
     },
     "route": {
       "update": {
@@ -1290,7 +1292,8 @@ export default {
         "body": "Until there is one, everyone’s menu lists every database’s pages together."
       },
       "youAreIn": "The workspace you are in",
-      "tickNone": "Tick none to put it in Other databases."
+      "tickNone": "Tick none to put it in Other databases.",
+      "docsLink": "How workspaces work"
     }
   },
   "intent": {
@@ -5100,7 +5103,8 @@ export default {
     },
     "clear": "Use the server’s sender",
     "cancel": "Cancel",
-    "save": "Save sender"
+    "save": "Save sender",
+    "docsLink": "Which sender a mail uses"
   },
   "saveApp": {
     "step": {
@@ -5265,7 +5269,8 @@ export default {
       "emailEnglish": "‘{email}’ has no US English text, which an app’s mail needs. Leave it out, or write one first.",
       "rowsPersonal": "{column} is personal or looks like a key, and every row needs a value in it. Include its values, or leave the rows of {table} out.",
       "rowsCycle": "The rows of {table} need rows of another table that need them back. Leave the rows of one of them out.",
-      "noPage": "An app needs at least one page. Include a page of this database."
+      "noPage": "An app needs at least one page. Include a page of this database.",
+      "docsLink": "What each group means"
     },
     "planFailed": "The file could not be checked",
     "saveFailed": "Could not save. Nothing was written. Try again.",
@@ -5293,7 +5298,8 @@ export default {
       "by": "by {person}",
       "copy": "Copy fingerprint",
       "again": "Download again",
-      "newer": "Save a newer version"
+      "newer": "Save a newer version",
+      "docsLink": "About saved versions"
     },
     "entry": {
       "button": "Save as app",
@@ -5505,7 +5511,8 @@ export default {
       "review": "Review and install",
       "staged": "{workspace} is uploaded and waits to be installed.",
       "stopped": "{workspace}: {done} of {total} installed. The install stopped part way."
-    }
+    },
+    "docsLink": "How workspace files work"
   },
   "apps": {
     "copies": {
@@ -5514,7 +5521,8 @@ export default {
       "screensFirstOnly": "This app’s screens open for its first install only. Its pages, tables and rules work here.",
       "screensFirstOnlyOn": "This app’s screens open for its first install only, on {database}. Its pages, tables and rules work here.",
       "uninstallNote": "Removes {app} from {database}: its pages and rules there. Keeps the tables and their rows.",
-      "uninstall": "Uninstall {app} from {database}"
+      "uninstall": "Uninstall {app} from {database}",
+      "docsLink": "How the copies of one app update"
     },
     "page": {
       "versionOnly": "Version {version}",

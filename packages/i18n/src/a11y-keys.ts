@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3746 entries. */
+/** `namespace:key` — 3752 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -497,6 +497,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:desktop.settings.title',
   'common:kb.article.apiDocsPage.title',
   'common:kb.article.apiKeys.title',
+  'common:kb.article.appsPerDatabase.title',
   'common:kb.article.audit.title',
   'common:kb.article.backup.title',
   'common:kb.article.columnRules.title',
@@ -506,6 +507,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:kb.article.docker.title',
   'common:kb.article.firstAdmin.title',
   'common:kb.article.install.title',
+  'common:kb.article.installOwnApp.title',
   'common:kb.article.lineItems.title',
   'common:kb.article.manifest.title',
   'common:kb.article.missingTables.title',
@@ -513,10 +515,14 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:kb.article.readOnly.title',
   'common:kb.article.rest.title',
   'common:kb.article.roles.title',
+  'common:kb.article.saveAsApp.title',
   'common:kb.article.schemaFile.title',
   'common:kb.article.secrets.title',
   'common:kb.article.tableFilters.title',
   'common:kb.article.telemetry.title',
+  'common:kb.article.workspaceFiles.title',
+  'common:kb.article.workspaceSenders.title',
+  'common:kb.article.workspaces.title',
   'common:kb.category.api',
   'common:kb.category.connect',
   'common:kb.category.count',

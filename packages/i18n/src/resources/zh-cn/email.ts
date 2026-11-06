@@ -990,6 +990,7 @@ export default {
       "noSender": "{workspace} 尚无自己的发件人，因此此模板以服务器的发件人发出。",
       "workspace": "无论是哪条记录，此模板的每封邮件都以 {workspace} 的发件人发出。"
     },
-    "failed": "无法保存。请重试。"
+    "failed": "无法保存。请重试。",
+    "docsLink": "“发件身份”如何选择发件人"
   }
 } as const;

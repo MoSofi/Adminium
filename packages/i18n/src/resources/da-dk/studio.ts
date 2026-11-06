@@ -1085,7 +1085,8 @@ export default {
         "note": "De bliver på appens side, til de er gjort."
       },
       "title": "Kontrollér før du installerer",
-      "intro": "{app} installeres i {database}. Intet ændres, før du trykker på Installer."
+      "intro": "{app} installeres i {database}. Intet ændres, før du trykker på Installer.",
+      "docsLink": "Hvad gennemgangen tjekker"
     },
     "refusal": {
       "back": "Tilbage",
@@ -1109,7 +1110,8 @@ export default {
       "everywhere": {
         "title": "Installeret på hver database",
         "body": "{app} {version} er allerede installeret på hver database her."
-      }
+      },
+      "docsLink": "Hvorfor en fil afvises"
     },
     "route": {
       "update": {
@@ -1290,7 +1292,8 @@ export default {
         "body": "Indtil der er ét, viser alles menu siderne fra alle databaser samlet."
       },
       "youAreIn": "Det arbejdsområde, du er i",
-      "tickNone": "Markér ingen for at lægge den under Andre databaser."
+      "tickNone": "Markér ingen for at lægge den under Andre databaser.",
+      "docsLink": "Sådan virker arbejdsområder"
     }
   },
   "intent": {
@@ -5100,7 +5103,8 @@ export default {
     },
     "clear": "Brug serverens afsender",
     "cancel": "Annuller",
-    "save": "Gem afsender"
+    "save": "Gem afsender",
+    "docsLink": "Hvilken afsender en mail bruger"
   },
   "saveApp": {
     "step": {
@@ -5265,7 +5269,8 @@ export default {
       "emailEnglish": "“{email}” har ingen tekst på amerikansk engelsk, som en apps mails kræver. Udelad den, eller skriv en først.",
       "rowsPersonal": "{column} er personlig eller ligner en nøgle, og hver række skal have en værdi i den. Tag dens værdier med, eller udelad rækkerne fra {table}.",
       "rowsCycle": "Rækkerne i {table} kræver rækker fra en anden tabel, som kræver dem tilbage. Udelad rækkerne fra en af dem.",
-      "noPage": "En app kræver mindst én side. Tag en side fra denne database med."
+      "noPage": "En app kræver mindst én side. Tag en side fra denne database med.",
+      "docsLink": "Hvad hver gruppe betyder"
     },
     "planFailed": "Filen kunne ikke tjekkes",
     "saveFailed": "Kunne ikke gemme. Intet blev skrevet. Prøv igen.",
@@ -5293,7 +5298,8 @@ export default {
       "by": "af {person}",
       "copy": "Kopiér fingeraftryk",
       "again": "Download igen",
-      "newer": "Gem en nyere version"
+      "newer": "Gem en nyere version",
+      "docsLink": "Om gemte versioner"
     },
     "entry": {
       "button": "Gem som app",
@@ -5505,7 +5511,8 @@ export default {
       "review": "Kontrollér og installér",
       "staged": "{workspace} er uploadet og venter på at blive installeret.",
       "stopped": "{workspace}: {done} af {total} installeret. Installationen stoppede undervejs."
-    }
+    },
+    "docsLink": "Sådan virker arbejdsområdefiler"
   },
   "apps": {
     "added": {
@@ -5564,7 +5571,8 @@ export default {
       "screensFirstOnlyOn": "Appens skærme åbner kun for dens første installation, på {database}. Dens sider, tabeller og regler virker her.",
       "uninstall": "Afinstaller {app} fra {database}",
       "uninstallNote": "Fjerner {app} fra {database}: dens sider og regler dér. Tabellerne og deres rækker bliver.",
-      "updateEvery": "Opdater hver kopi"
+      "updateEvery": "Opdater hver kopi",
+      "docsLink": "Sådan opdateres kopierne af én app"
     },
     "editable": {
       "action": "Gør den redigerbar her",

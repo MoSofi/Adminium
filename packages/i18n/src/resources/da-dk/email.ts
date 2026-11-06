@@ -990,6 +990,7 @@ export default {
       "noSender": "{workspace} har endnu ikke sin egen afsender, så denne skabelon sendes fra serverens afsender.",
       "workspace": "Alle mails fra denne skabelon sendes fra afsenderen for {workspace}, uanset posten."
     },
-    "failed": "Dette kunne ikke gemmes. Prøv igen."
+    "failed": "Dette kunne ikke gemmes. Prøv igen.",
+    "docsLink": "Sådan vælger Send som en afsender"
   }
 } as const;

@@ -105,6 +105,15 @@ const GROUP_KEYS: ReadonlyMap<string, string> = new Map<string, string>([
   ['studio:hub.workspaces.connection.action', 'the groups of databases: the menu, its lists and the Workspaces card'],
   ['studio:hub.workspaces.empty.title', 'the groups of databases: the menu, its lists and the Workspaces card'],
   ['studio:hub.workspaces.youAreIn', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  // The in-app help: the Knowledge Base's articles on workspaces, and the docs links of the Workspaces card and of workspace files.
+  ['common:kb.article.workspaces.title', 'the Knowledge Base article on workspaces, the groups of databases'],
+  ['common:kb.article.workspaces.excerpt', 'the Knowledge Base article on workspaces, the groups of databases'],
+  ['common:kb.article.workspaceSenders.title', 'the Knowledge Base article on a workspace’s mail sender'],
+  ['common:kb.article.workspaceSenders.excerpt', 'the Knowledge Base article on a workspace’s mail sender'],
+  ['common:kb.article.workspaceFiles.title', 'the Knowledge Base article on workspace files'],
+  ['common:kb.article.workspaceFiles.excerpt', 'the Knowledge Base article on workspace files'],
+  ['studio:hub.workspaces.docsLink', 'the Workspaces card’s link to the workspaces guide'],
+  ['studio:workspaceFiles.docsLink', 'Save workspace and Install a workspace file, their link to the workspace files guide'],
   // "Send as", the sender sheet and "Shown in".
   ['email:sendAs.byRecord', '"Send as": the sender of the workspace the record’s database is in'],
   ['email:sendAs.helper.byRecord', '"Send as": the sender of the workspace the record’s database is in'],
@@ -213,6 +222,11 @@ const GROUP_STRINGS: ReadonlyMap<string, string> = new Map([
   ["| `422` | `VALIDATION_FAILED`, `details.code: \"not-a-sending-domain\"` | A workspace sender's From address is not one this server's mail settings can send for. `details.domains` and `details.addresses` list where it can. |", "errors.md: the workspace-file and workspace codes"],
   ["| `422` | `VALIDATION_FAILED`, `details.code: \"no-mail\"` | The server has no mail set up yet, so no workspace can have a sender. |", "errors.md: the workspace-file and workspace codes"],
   ["| `workspaces` | no | Up to 32 names of the [workspaces](/guides/workspaces/) its database was in. Shown as names only. |", "manifest.md: provenance names the source database’s workspaces"],
+  ['A mail sender per workspace', 'kb/articles.ts: the Knowledge Base article on a workspace’s mail sender'],
+  ['Give each workspace its own sender name, From address and postal address, and choose who a template sends as.', 'kb/articles.ts: the Knowledge Base article on a workspace’s mail sender'],
+  ['Workspace files', 'kb/articles.ts: the Knowledge Base article on workspace files'],
+  ['Save every database of a workspace as one file, install it on another server, and finish an install that stopped.', 'kb/articles.ts: the Knowledge Base article on workspace files'],
+  ['Group a server’s databases into workspaces, one per business, and choose how the menu shows them.', 'kb/articles.ts: the Knowledge Base article on workspaces'],
 ]);
 
 // ─── What counts as words ────────────────────────────────────────────────────

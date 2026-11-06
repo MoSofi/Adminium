@@ -1085,7 +1085,8 @@ export default {
         "note": "这些会一直留在应用页面，直到完成。"
       },
       "title": "安装前检查",
-      "intro": "{app} 将装入 {database}。按下“安装”之前不会有任何更改。"
+      "intro": "{app} 将装入 {database}。按下“安装”之前不会有任何更改。",
+      "docsLink": "检查会核对哪些内容"
     },
     "refusal": {
       "back": "返回",
@@ -1109,7 +1110,8 @@ export default {
       "everywhere": {
         "title": "每个数据库都已安装",
         "body": "{app} {version} 已安装在这里的每个数据库上。"
-      }
+      },
+      "docsLink": "文件为何被拒绝"
     },
     "route": {
       "update": {
@@ -1290,7 +1292,8 @@ export default {
         "body": "在创建工作区之前，所有人的菜单会把所有数据库的页面列在一起。"
       },
       "youAreIn": "你当前所在的工作区",
-      "tickNone": "不勾选任何项，即放入“其他数据库”。"
+      "tickNone": "不勾选任何项，即放入“其他数据库”。",
+      "docsLink": "工作区如何运作"
     }
   },
   "intent": {
@@ -5100,7 +5103,8 @@ export default {
     },
     "clear": "使用服务器的发件人",
     "cancel": "取消",
-    "save": "保存发件人"
+    "save": "保存发件人",
+    "docsLink": "邮件使用哪个发件人"
   },
   "saveApp": {
     "step": {
@@ -5265,7 +5269,8 @@ export default {
       "emailEnglish": "“{email}”没有美式英语文本，而应用的邮件需要它。请将其排除，或先写一份。",
       "rowsPersonal": "{column} 属于个人信息或看起来像密钥，而且每一行都必须有值。请包含它的值，或排除 {table} 的数据行。",
       "rowsCycle": "{table} 的数据行需要另一个数据表的数据行，而后者又反过来需要它们。请排除其中一个数据表的数据行。",
-      "noPage": "应用至少需要一个页面。请包含此数据库的一个页面。"
+      "noPage": "应用至少需要一个页面。请包含此数据库的一个页面。",
+      "docsLink": "每一组的含义"
     },
     "planFailed": "无法检查该文件",
     "saveFailed": "无法保存。未写入任何内容。请重试。",
@@ -5293,7 +5298,8 @@ export default {
       "by": "由 {person} 保存",
       "copy": "复制指纹",
       "again": "再次下载",
-      "newer": "保存新版本"
+      "newer": "保存新版本",
+      "docsLink": "关于已保存的版本"
     },
     "entry": {
       "button": "另存为应用",
@@ -5505,7 +5511,8 @@ export default {
       "review": "检查并安装",
       "staged": "{workspace} 已上传，等待安装。",
       "stopped": "{workspace}：已安装 {done}/{total}。安装中途停止。"
-    }
+    },
+    "docsLink": "工作区文件如何运作"
   },
   "apps": {
     "added": {
@@ -5564,7 +5571,8 @@ export default {
       "screensFirstOnlyOn": "这个应用的界面只为它的第一次安装（在 {database} 上）打开。它的页面、表和规则在这里可以使用。",
       "uninstall": "从 {database} 卸载 {app}",
       "uninstallNote": "从 {database} 移除 {app}：移除它在那里的页面和规则。表及其中的行会保留。",
-      "updateEvery": "更新每一份"
+      "updateEvery": "更新每一份",
+      "docsLink": "同一应用的各个副本如何更新"
     },
     "editable": {
       "action": "在这里设为可编辑",

@@ -980,6 +980,7 @@
       "noSender": "{workspace} has no sender of its own yet, so this template goes from the server’s sender.",
       "workspace": "Every mail of this template goes from {workspace}’s sender, whatever its record."
     },
-    "failed": "This could not be saved. Try again."
+    "failed": "This could not be saved. Try again.",
+    "docsLink": "How Send as chooses a sender"
   }
 }

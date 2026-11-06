@@ -343,6 +343,30 @@ export default {
       "telemetry": {
         "title": "Telemetry and update checks",
         "excerpt": "Both are opt-in and off by default. What is sent if you turn them on."
+      },
+      "saveAsApp": {
+        "title": "Save a database as an app",
+        "excerpt": "Turn what you built on one database into an app file, with Check, the fingerprint and every version you saved."
+      },
+      "installOwnApp": {
+        "title": "Install an app someone saved",
+        "excerpt": "The review before you install an app file, how it updates, and every refusal in plain words."
+      },
+      "appsPerDatabase": {
+        "title": "One app on several databases",
+        "excerpt": "Install the same app once per database: what each copy keeps to itself, and one version for every copy."
+      },
+      "workspaces": {
+        "title": "Workspaces",
+        "excerpt": "Group a server’s databases into workspaces, one per business, and choose how the menu shows them."
+      },
+      "workspaceSenders": {
+        "title": "A mail sender per workspace",
+        "excerpt": "Give each workspace its own sender name, From address and postal address, and choose who a template sends as."
+      },
+      "workspaceFiles": {
+        "title": "Workspace files",
+        "excerpt": "Save every database of a workspace as one file, install it on another server, and finish an install that stopped."
       }
     }
   },
@@ -1331,7 +1355,8 @@ export default {
       "lead": "{count, plural, one {# item is listed only here. After the delete it is listed in no workspace:} other {# items are listed only here. After the delete they are listed in no workspace:}}",
       "after": "They stay, and anything that uses them still sends them. You can choose new workspaces for them later."
     },
-    "saveFailed": "Couldn’t change where it is listed"
+    "saveFailed": "Couldn’t change where it is listed",
+    "docsLink": "How Shown in works"
   },
   "workspaces": {
     "filter": {
@@ -1358,7 +1383,8 @@ export default {
       "label": "Show workspaces",
       "one": "One at a time",
       "all": "All in one menu",
-      "caption": "Applies to everyone on this server."
+      "caption": "Applies to everyone on this server.",
+      "docsLink": "How the two views differ"
     },
     "switched": "Switched to {name}"
   },

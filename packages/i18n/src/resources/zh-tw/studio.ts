@@ -1085,7 +1085,8 @@ export default {
         "note": "這些會一直留在應用程式頁面，直到完成。"
       },
       "title": "安裝前檢查",
-      "intro": "{app} 將裝入 {database}。按下「安裝」之前不會有任何變更。"
+      "intro": "{app} 將裝入 {database}。按下「安裝」之前不會有任何變更。",
+      "docsLink": "檢查會核對哪些內容"
     },
     "refusal": {
       "back": "返回",
@@ -1109,7 +1110,8 @@ export default {
       "everywhere": {
         "title": "每個資料庫都已安裝",
         "body": "{app} {version} 已安裝在這裡的每個資料庫上。"
-      }
+      },
+      "docsLink": "檔案為何被拒絕"
     },
     "route": {
       "update": {
@@ -1290,7 +1292,8 @@ export default {
         "body": "在建立工作區之前，所有人的選單會把所有資料庫的頁面列在一起。"
       },
       "youAreIn": "你目前所在的工作區",
-      "tickNone": "不勾選任何項目，即放入「其他資料庫」。"
+      "tickNone": "不勾選任何項目，即放入「其他資料庫」。",
+      "docsLink": "工作區如何運作"
     }
   },
   "intent": {
@@ -5100,7 +5103,8 @@ export default {
     },
     "clear": "使用伺服器的寄件者",
     "cancel": "取消",
-    "save": "儲存寄件者"
+    "save": "儲存寄件者",
+    "docsLink": "郵件使用哪個寄件者"
   },
   "saveApp": {
     "step": {
@@ -5265,7 +5269,8 @@ export default {
       "emailEnglish": "「{email}」沒有美式英文文字，而應用程式的郵件需要它。請將其排除，或先撰寫一份。",
       "rowsPersonal": "{column} 屬於個人資訊或看起來像金鑰，而且每一列都必須有值。請包含它的值，或排除 {table} 的資料列。",
       "rowsCycle": "{table} 的資料列需要另一個資料表的資料列，而後者又反過來需要它們。請排除其中一個資料表的資料列。",
-      "noPage": "應用程式至少需要一個頁面。請包含此資料庫的一個頁面。"
+      "noPage": "應用程式至少需要一個頁面。請包含此資料庫的一個頁面。",
+      "docsLink": "每一組的含義"
     },
     "planFailed": "無法檢查該檔案",
     "saveFailed": "無法儲存。未寫入任何內容。請重試。",
@@ -5293,7 +5298,8 @@ export default {
       "by": "由 {person} 儲存",
       "copy": "複製指紋",
       "again": "再次下載",
-      "newer": "儲存新版本"
+      "newer": "儲存新版本",
+      "docsLink": "關於已儲存的版本"
     },
     "entry": {
       "button": "另存為應用程式",
@@ -5505,7 +5511,8 @@ export default {
       "review": "檢查並安裝",
       "staged": "{workspace} 已上傳，等待安裝。",
       "stopped": "{workspace}：已安裝 {done}/{total}。安裝中途停止。"
-    }
+    },
+    "docsLink": "工作區檔案如何運作"
   },
   "apps": {
     "added": {
@@ -5564,7 +5571,8 @@ export default {
       "screensFirstOnlyOn": "這個應用程式的畫面只為它的第一次安裝（在 {database} 上）開啟。它的頁面、資料表和規則在這裡可以使用。",
       "uninstall": "從 {database} 解除安裝 {app}",
       "uninstallNote": "從 {database} 移除 {app}：移除它在那裡的頁面和規則。資料表及其中的列會保留。",
-      "updateEvery": "更新每一份"
+      "updateEvery": "更新每一份",
+      "docsLink": "同一應用程式的各個副本如何更新"
     },
     "editable": {
       "action": "在這裡設為可編輯",

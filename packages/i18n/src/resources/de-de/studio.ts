@@ -1085,7 +1085,8 @@ export default {
         "note": "Sie bleiben auf der Seite der App, bis sie erledigt sind."
       },
       "title": "Vor dem Installieren prüfen",
-      "intro": "{app} kommt in {database}. Nichts ändert sich, bevor Sie auf Installieren klicken."
+      "intro": "{app} kommt in {database}. Nichts ändert sich, bevor Sie auf Installieren klicken.",
+      "docsLink": "Was die Prüfung prüft"
     },
     "refusal": {
       "back": "Zurück",
@@ -1109,7 +1110,8 @@ export default {
       "everywhere": {
         "title": "In jeder Datenbank installiert",
         "body": "{app} {version} ist schon in jeder Datenbank hier installiert."
-      }
+      },
+      "docsLink": "Warum eine Datei abgelehnt wird"
     },
     "route": {
       "update": {
@@ -1290,7 +1292,8 @@ export default {
         "body": "Bis es einen gibt, zeigt das Menü aller die Seiten aller Datenbanken zusammen."
       },
       "youAreIn": "Der Arbeitsbereich, in dem du bist",
-      "tickNone": "Hake keinen an, um sie unter Weitere Datenbanken zu führen."
+      "tickNone": "Hake keinen an, um sie unter Weitere Datenbanken zu führen.",
+      "docsLink": "So funktionieren Arbeitsbereiche"
     }
   },
   "intent": {
@@ -5100,7 +5103,8 @@ export default {
     },
     "clear": "Absender des Servers verwenden",
     "cancel": "Abbrechen",
-    "save": "Absender speichern"
+    "save": "Absender speichern",
+    "docsLink": "Welchen Absender eine E-Mail verwendet"
   },
   "saveApp": {
     "step": {
@@ -5265,7 +5269,8 @@ export default {
       "emailEnglish": "„{email}“ hat keinen Text in US-Englisch, den die E-Mails einer App brauchen. Lassen Sie die Vorlage weg oder schreiben Sie zuerst einen.",
       "rowsPersonal": "{column} ist persönlich oder sieht aus wie ein Schlüssel, und jede Zeile braucht dort einen Wert. Nehmen Sie die Werte auf oder lassen Sie die Zeilen von {table} weg.",
       "rowsCycle": "Die Zeilen von {table} brauchen Zeilen einer anderen Tabelle, die sie wiederum brauchen. Lassen Sie die Zeilen einer der beiden weg.",
-      "noPage": "Eine App braucht mindestens eine Seite. Nehmen Sie eine Seite dieser Datenbank auf."
+      "noPage": "Eine App braucht mindestens eine Seite. Nehmen Sie eine Seite dieser Datenbank auf.",
+      "docsLink": "Was jede Gruppe bedeutet"
     },
     "planFailed": "Die Datei konnte nicht geprüft werden",
     "saveFailed": "Speichern nicht möglich. Es wurde nichts geschrieben. Versuchen Sie es erneut.",
@@ -5293,7 +5298,8 @@ export default {
       "by": "von {person}",
       "copy": "Fingerabdruck kopieren",
       "again": "Erneut herunterladen",
-      "newer": "Neuere Version speichern"
+      "newer": "Neuere Version speichern",
+      "docsLink": "Über gespeicherte Versionen"
     },
     "entry": {
       "button": "Als App speichern",
@@ -5505,7 +5511,8 @@ export default {
       "review": "Prüfen und installieren",
       "staged": "{workspace} ist hochgeladen und wartet auf die Installation.",
       "stopped": "{workspace}: {done} von {total} installiert. Die Installation wurde mittendrin abgebrochen."
-    }
+    },
+    "docsLink": "So funktionieren Arbeitsbereich-Dateien"
   },
   "apps": {
     "added": {
@@ -5564,7 +5571,8 @@ export default {
       "screensFirstOnlyOn": "Die Bildschirme dieser App öffnen sich nur für ihre erste Installation, auf {database}. Ihre Seiten, Tabellen und Regeln funktionieren hier.",
       "uninstall": "{app} von {database} deinstallieren",
       "uninstallNote": "Entfernt {app} von {database}: ihre Seiten und Regeln dort. Die Tabellen und ihre Zeilen bleiben.",
-      "updateEvery": "Jede Kopie aktualisieren"
+      "updateEvery": "Jede Kopie aktualisieren",
+      "docsLink": "So werden die Kopien einer App aktualisiert"
     },
     "editable": {
       "action": "Hier bearbeitbar machen",

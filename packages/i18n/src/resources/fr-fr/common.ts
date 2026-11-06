@@ -1241,6 +1241,30 @@ export default {
       "telemetry": {
         "title": "Télémétrie et vérification des mises à jour",
         "excerpt": "Les deux sont opt-in et désactivées par défaut. Ce qui est envoyé si vous les activez."
+      },
+      "saveAsApp": {
+        "title": "Enregistrer une base de données comme application",
+        "excerpt": "Transformez ce que vous avez construit sur une base de données en fichier d’application, avec la vérification, l’empreinte et chaque version enregistrée."
+      },
+      "installOwnApp": {
+        "title": "Installer une application enregistrée par quelqu’un",
+        "excerpt": "La vérification avant d’installer un fichier d’application, sa mise à jour, et chaque refus expliqué simplement."
+      },
+      "appsPerDatabase": {
+        "title": "Une application sur plusieurs bases de données",
+        "excerpt": "Installez la même application une fois par base de données : ce que chaque copie garde pour elle, et une seule version pour toutes les copies."
+      },
+      "workspaces": {
+        "title": "Espaces de travail",
+        "excerpt": "Regroupez les bases de données d’un serveur en espaces de travail, un par entreprise, et choisissez comment le menu les affiche."
+      },
+      "workspaceSenders": {
+        "title": "Un expéditeur d’e-mails par espace de travail",
+        "excerpt": "Donnez à chaque espace de travail son nom d’expéditeur, son adresse d’envoi et son adresse postale, et choisissez au nom de qui un modèle est envoyé."
+      },
+      "workspaceFiles": {
+        "title": "Fichiers d’espace de travail",
+        "excerpt": "Enregistrez toutes les bases de données d’un espace de travail dans un seul fichier, installez-le sur un autre serveur et terminez une installation interrompue."
       }
     }
   },
@@ -2056,7 +2080,8 @@ export default {
       "lead": "{count, plural, one {# élément n’est répertorié qu’ici. Après la suppression, il ne sera répertorié dans aucun espace de travail :} other {# éléments ne sont répertoriés qu’ici. Après la suppression, ils ne seront répertoriés dans aucun espace de travail :}}",
       "after": "Ils restent, et ce qui les utilise continue de les envoyer. Vous pourrez leur choisir de nouveaux espaces de travail plus tard."
     },
-    "saveFailed": "Impossible de changer où il est répertorié"
+    "saveFailed": "Impossible de changer où il est répertorié",
+    "docsLink": "Fonctionnement de « Affiché dans »"
   },
   "appCopies": {
     "retired": {
@@ -2118,7 +2143,8 @@ export default {
       "label": "Afficher les espaces de travail",
       "one": "Un à la fois",
       "all": "Tous dans un seul menu",
-      "caption": "S’applique à tout le monde sur ce serveur."
+      "caption": "S’applique à tout le monde sur ce serveur.",
+      "docsLink": "Différences entre les deux affichages"
     },
     "switched": "Passage à {name}"
   }

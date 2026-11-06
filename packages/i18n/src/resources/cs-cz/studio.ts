@@ -1085,7 +1085,8 @@ export default {
         "note": "Zůstanou na stránce aplikace, dokud nebudou hotové."
       },
       "title": "Před instalací zkontrolujte",
-      "intro": "{app} se nainstaluje do {database}. Dokud nestisknete Instalovat, nic se nezmění."
+      "intro": "{app} se nainstaluje do {database}. Dokud nestisknete Instalovat, nic se nezmění.",
+      "docsLink": "Co kontrola prověřuje"
     },
     "refusal": {
       "back": "Zpět",
@@ -1109,7 +1110,8 @@ export default {
       "everywhere": {
         "title": "Nainstalováno v každé databázi",
         "body": "{app} {version} je už nainstalována v každé databázi tady."
-      }
+      },
+      "docsLink": "Proč je soubor odmítnut"
     },
     "route": {
       "update": {
@@ -1290,7 +1292,8 @@ export default {
         "body": "Dokud žádný není, nabídka všech ukazuje stránky všech databází pohromadě."
       },
       "youAreIn": "Pracovní prostor, ve kterém jste",
-      "tickNone": "Nezaškrtnete-li nic, bude v Ostatních databázích."
+      "tickNone": "Nezaškrtnete-li nic, bude v Ostatních databázích.",
+      "docsLink": "Jak fungují pracovní prostory"
     }
   },
   "intent": {
@@ -5100,7 +5103,8 @@ export default {
     },
     "clear": "Použít odesílatele serveru",
     "cancel": "Zrušit",
-    "save": "Uložit odesílatele"
+    "save": "Uložit odesílatele",
+    "docsLink": "Kterého odesílatele e-mail použije"
   },
   "saveApp": {
     "step": {
@@ -5265,7 +5269,8 @@ export default {
       "emailEnglish": "„{email}“ nemá text v americké angličtině, který e-maily aplikace potřebují. Vynechte ji, nebo ho nejprve napište.",
       "rowsPersonal": "{column} je osobní nebo vypadá jako klíč a každý řádek v něm potřebuje hodnotu. Zahrňte jeho hodnoty, nebo vynechte řádky tabulky {table}.",
       "rowsCycle": "Řádky tabulky {table} potřebují řádky jiné tabulky, které zase potřebují je. Vynechte řádky jedné z nich.",
-      "noPage": "Aplikace potřebuje alespoň jednu stránku. Zahrňte stránku této databáze."
+      "noPage": "Aplikace potřebuje alespoň jednu stránku. Zahrňte stránku této databáze.",
+      "docsLink": "Co znamená každá skupina"
     },
     "planFailed": "Soubor se nepodařilo zkontrolovat",
     "saveFailed": "Uložení se nezdařilo. Nic nebylo zapsáno. Zkuste to znovu.",
@@ -5293,7 +5298,8 @@ export default {
       "by": "uložil(a) {person}",
       "copy": "Kopírovat otisk",
       "again": "Stáhnout znovu",
-      "newer": "Uložit novější verzi"
+      "newer": "Uložit novější verzi",
+      "docsLink": "O uložených verzích"
     },
     "entry": {
       "button": "Uložit jako aplikaci",
@@ -5505,7 +5511,8 @@ export default {
       "review": "Zkontrolovat a nainstalovat",
       "staged": "{workspace} je nahrán a čeká na instalaci.",
       "stopped": "{workspace}: nainstalováno {done} z {total}. Instalace se v průběhu zastavila."
-    }
+    },
+    "docsLink": "Jak fungují soubory pracovních prostorů"
   },
   "apps": {
     "added": {
@@ -5564,7 +5571,8 @@ export default {
       "screensFirstOnlyOn": "Obrazovky této aplikace se otevírají jen pro její první instalaci, na {database}. Její stránky, tabulky a pravidla tu fungují.",
       "uninstall": "Odinstalovat {app} z {database}",
       "uninstallNote": "Odebere {app} z {database}: její stránky a pravidla tam. Tabulky a jejich řádky zůstanou.",
-      "updateEvery": "Aktualizovat každou kopii"
+      "updateEvery": "Aktualizovat každou kopii",
+      "docsLink": "Jak se aktualizují kopie jedné aplikace"
     },
     "editable": {
       "action": "Zpřístupnit k úpravám tady",

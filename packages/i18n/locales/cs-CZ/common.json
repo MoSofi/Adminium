@@ -1231,6 +1231,30 @@
       "telemetry": {
         "title": "Telemetrie a kontrola aktualizací",
         "excerpt": "Obojí je dobrovolné a ve výchozím stavu vypnuté. Co se odesílá, když je zapnete."
+      },
+      "saveAsApp": {
+        "title": "Uložení databáze jako aplikace",
+        "excerpt": "Proměňte to, co jste postavili nad jednou databází, v soubor aplikace, včetně kontroly, otisku a všech uložených verzí."
+      },
+      "installOwnApp": {
+        "title": "Instalace aplikace, kterou někdo uložil",
+        "excerpt": "Kontrola před instalací souboru aplikace, jak se aktualizuje a každé odmítnutí srozumitelně."
+      },
+      "appsPerDatabase": {
+        "title": "Jedna aplikace na více databázích",
+        "excerpt": "Nainstalujte stejnou aplikaci jednou pro každou databázi: co si každá kopie nechává pro sebe a jedna verze pro všechny kopie."
+      },
+      "workspaces": {
+        "title": "Pracovní prostory",
+        "excerpt": "Seskupte databáze serveru do pracovních prostorů, jeden pro každou firmu, a zvolte, jak je nabídka zobrazí."
+      },
+      "workspaceSenders": {
+        "title": "Odesílatel e-mailů pro každý pracovní prostor",
+        "excerpt": "Dejte každému pracovnímu prostoru vlastní jméno odesílatele, adresu Od a poštovní adresu a zvolte, jako kdo šablona odesílá."
+      },
+      "workspaceFiles": {
+        "title": "Soubory pracovních prostorů",
+        "excerpt": "Uložte všechny databáze pracovního prostoru jako jeden soubor, nainstalujte ho na jiném serveru a dokončete instalaci, která se zastavila."
       }
     }
   },
@@ -2046,7 +2070,8 @@
       "lead": "{count, plural, one {# položka je uvedena jen zde. Po smazání nebude uvedena v žádném pracovním prostoru:} few {# položky jsou uvedeny jen zde. Po smazání nebudou uvedeny v žádném pracovním prostoru:} many {# položky je uvedeno jen zde. Po smazání nebude uvedeno v žádném pracovním prostoru:} other {# položek je uvedeno jen zde. Po smazání nebudou uvedeny v žádném pracovním prostoru:}}",
       "after": "Zůstanou zachovány a co je používá, je dál odesílá. Nové pracovní prostory pro ně můžete vybrat později."
     },
-    "saveFailed": "Nepodařilo se změnit, kde je uvedeno"
+    "saveFailed": "Nepodařilo se změnit, kde je uvedeno",
+    "docsLink": "Jak funguje Zobrazeno v"
   },
   "appCopies": {
     "retired": {
@@ -2108,7 +2133,8 @@
       "label": "Zobrazit pracovní prostory",
       "one": "Po jednom",
       "all": "Vše v jedné nabídce",
-      "caption": "Platí pro všechny na tomto serveru."
+      "caption": "Platí pro všechny na tomto serveru.",
+      "docsLink": "Jak se obě zobrazení liší"
     },
     "switched": "Přepnuto na {name}"
   }

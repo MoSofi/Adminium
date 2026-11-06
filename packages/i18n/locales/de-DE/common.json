@@ -1231,6 +1231,30 @@
       "telemetry": {
         "title": "Telemetrie und Update-Prüfungen",
         "excerpt": "Beides ist opt-in und standardmäßig aus. Was gesendet wird, wenn Sie es einschalten."
+      },
+      "saveAsApp": {
+        "title": "Eine Datenbank als App speichern",
+        "excerpt": "Machen Sie aus dem, was Sie auf einer Datenbank gebaut haben, eine App-Datei, mit Prüfung, Fingerabdruck und jeder gespeicherten Version."
+      },
+      "installOwnApp": {
+        "title": "Eine gespeicherte App installieren",
+        "excerpt": "Die Prüfung vor dem Installieren einer App-Datei, wie sie aktualisiert wird, und jede Ablehnung in klaren Worten."
+      },
+      "appsPerDatabase": {
+        "title": "Eine App auf mehreren Datenbanken",
+        "excerpt": "Installieren Sie dieselbe App einmal pro Datenbank: was jede Kopie für sich behält, und eine Version für alle Kopien."
+      },
+      "workspaces": {
+        "title": "Arbeitsbereiche",
+        "excerpt": "Fassen Sie die Datenbanken eines Servers in Arbeitsbereichen zusammen, einen pro Unternehmen, und wählen Sie, wie das Menü sie zeigt."
+      },
+      "workspaceSenders": {
+        "title": "Ein E-Mail-Absender pro Arbeitsbereich",
+        "excerpt": "Geben Sie jedem Arbeitsbereich einen eigenen Absendernamen, eine eigene Absenderadresse und Postanschrift, und wählen Sie, als wer eine Vorlage sendet."
+      },
+      "workspaceFiles": {
+        "title": "Arbeitsbereich-Dateien",
+        "excerpt": "Speichern Sie alle Datenbanken eines Arbeitsbereichs als eine Datei, installieren Sie sie auf einem anderen Server und schließen Sie eine abgebrochene Installation ab."
       }
     }
   },
@@ -2046,7 +2070,8 @@
       "lead": "{count, plural, one {# Element ist nur hier aufgeführt. Nach dem Löschen ist es in keinem Arbeitsbereich aufgeführt:} other {# Elemente sind nur hier aufgeführt. Nach dem Löschen sind sie in keinem Arbeitsbereich aufgeführt:}}",
       "after": "Sie bleiben bestehen, und was sie verwendet, versendet sie weiterhin. Sie können später neue Arbeitsbereiche für sie wählen."
     },
-    "saveFailed": "Konnte nicht ändern, wo es aufgeführt ist"
+    "saveFailed": "Konnte nicht ändern, wo es aufgeführt ist",
+    "docsLink": "So funktioniert „Angezeigt in“"
   },
   "appCopies": {
     "retired": {
@@ -2108,7 +2133,8 @@
       "label": "Arbeitsbereiche anzeigen",
       "one": "Einzeln",
       "all": "Alle in einem Menü",
-      "caption": "Gilt für alle auf diesem Server."
+      "caption": "Gilt für alle auf diesem Server.",
+      "docsLink": "So unterscheiden sich die beiden Ansichten"
     },
     "switched": "Zu {name} gewechselt"
   }

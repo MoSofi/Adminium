@@ -990,6 +990,7 @@ export default {
       "noSender": "{workspace} hat noch keinen eigenen Absender, daher geht diese Vorlage vom Absender des Servers aus.",
       "workspace": "Jede E-Mail dieser Vorlage geht vom Absender von {workspace} aus, unabhängig vom Datensatz."
     },
-    "failed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut."
+    "failed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+    "docsLink": "So wählt „Senden als“ einen Absender"
   }
 } as const;

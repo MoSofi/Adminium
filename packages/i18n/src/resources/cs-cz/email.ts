@@ -990,6 +990,7 @@ export default {
       "noSender": "{workspace} zatím nemá vlastního odesílatele, proto tato šablona odchází od odesílatele serveru.",
       "workspace": "Každý e-mail této šablony odchází od odesílatele {workspace}, bez ohledu na záznam."
     },
-    "failed": "Nepodařilo se to uložit. Zkuste to znovu."
+    "failed": "Nepodařilo se to uložit. Zkuste to znovu.",
+    "docsLink": "Jak Odeslat jako vybírá odesílatele"
   }
 } as const;

@@ -990,6 +990,7 @@ export default {
       "noSender": "{workspace} n’a pas encore son propre expéditeur : ce modèle part donc de l’expéditeur du serveur.",
       "workspace": "Chaque e-mail de ce modèle part de l’expéditeur de {workspace}, quel que soit l’enregistrement."
     },
-    "failed": "Impossible d’enregistrer ce choix. Réessayez."
+    "failed": "Impossible d’enregistrer ce choix. Réessayez.",
+    "docsLink": "Comment « Envoyer en tant que » choisit l’expéditeur"
   }
 } as const;

@@ -1241,6 +1241,30 @@ export default {
       "telemetry": {
         "title": "Telemetri og opdateringstjek",
         "excerpt": "Begge er tilvalg og slået fra som standard. Hvad der sendes, hvis du slår dem til."
+      },
+      "saveAsApp": {
+        "title": "Gem en database som app",
+        "excerpt": "Gør det, du har bygget på én database, til en appfil, med tjek, fingeraftryk og hver version, du har gemt."
+      },
+      "installOwnApp": {
+        "title": "Installér en app, som nogen har gemt",
+        "excerpt": "Gennemgangen før du installerer en appfil, hvordan den opdateres, og hver afvisning i klare ord."
+      },
+      "appsPerDatabase": {
+        "title": "Én app på flere databaser",
+        "excerpt": "Installér den samme app én gang pr. database: hvad hver kopi har for sig selv, og én version for alle kopier."
+      },
+      "workspaces": {
+        "title": "Arbejdsområder",
+        "excerpt": "Saml en servers databaser i arbejdsområder, ét pr. virksomhed, og vælg, hvordan menuen viser dem."
+      },
+      "workspaceSenders": {
+        "title": "En mailafsender pr. arbejdsområde",
+        "excerpt": "Giv hvert arbejdsområde sit eget afsendernavn, sin egen Fra-adresse og postadresse, og vælg, hvem en skabelon sender som."
+      },
+      "workspaceFiles": {
+        "title": "Arbejdsområdefiler",
+        "excerpt": "Gem alle databaser i et arbejdsområde som én fil, installér den på en anden server, og gør en installation færdig, der stoppede."
       }
     }
   },
@@ -2056,7 +2080,8 @@ export default {
       "lead": "{count, plural, one {# element står kun her. Efter sletningen står det ikke i noget arbejdsområde:} other {# elementer står kun her. Efter sletningen står de ikke i noget arbejdsområde:}}",
       "after": "De bliver, og det, der bruger dem, sender dem stadig. Du kan vælge nye arbejdsområder til dem senere."
     },
-    "saveFailed": "Kunne ikke ændre, hvor det står"
+    "saveFailed": "Kunne ikke ændre, hvor det står",
+    "docsLink": "Sådan virker Vises i"
   },
   "appCopies": {
     "retired": {
@@ -2118,7 +2143,8 @@ export default {
       "label": "Vis arbejdsområder",
       "one": "Ét ad gangen",
       "all": "Alle i én menu",
-      "caption": "Gælder for alle på denne server."
+      "caption": "Gælder for alle på denne server.",
+      "docsLink": "Sådan adskiller de to visninger sig"
     },
     "switched": "Skiftet til {name}"
   }

@@ -6035,6 +6035,14 @@
     "srcHash": "ad2e4630eed9",
     "status": "mt"
   },
+  "common.kb.article.appsPerDatabase.excerpt": {
+    "status": "mt",
+    "srcHash": "c24f12507063"
+  },
+  "common.kb.article.appsPerDatabase.title": {
+    "status": "mt",
+    "srcHash": "dfbff32c69e9"
+  },
   "common.kb.article.audit.excerpt": {
     "srcHash": "7f6cca18aaed",
     "status": "mt"
@@ -6107,6 +6115,14 @@
     "srcHash": "5ef451226adb",
     "status": "mt"
   },
+  "common.kb.article.installOwnApp.excerpt": {
+    "status": "mt",
+    "srcHash": "b83fd447a7c6"
+  },
+  "common.kb.article.installOwnApp.title": {
+    "status": "mt",
+    "srcHash": "4b760cf64497"
+  },
   "common.kb.article.lineItems.excerpt": {
     "status": "mt",
     "srcHash": "8d21fb245e45"
@@ -6163,6 +6179,14 @@
     "srcHash": "997fabd09c7e",
     "status": "mt"
   },
+  "common.kb.article.saveAsApp.excerpt": {
+    "status": "mt",
+    "srcHash": "732d3f6bd8e7"
+  },
+  "common.kb.article.saveAsApp.title": {
+    "status": "mt",
+    "srcHash": "070ded993a42"
+  },
   "common.kb.article.schemaFile.excerpt": {
     "srcHash": "58791573d6ab",
     "status": "mt"
@@ -6194,6 +6218,30 @@
   "common.kb.article.telemetry.title": {
     "srcHash": "70b1e493574c",
     "status": "mt"
+  },
+  "common.kb.article.workspaceFiles.excerpt": {
+    "status": "mt",
+    "srcHash": "c8cae5f51f96"
+  },
+  "common.kb.article.workspaceFiles.title": {
+    "status": "mt",
+    "srcHash": "7e02947a4b46"
+  },
+  "common.kb.article.workspaceSenders.excerpt": {
+    "status": "mt",
+    "srcHash": "01009eb0b782"
+  },
+  "common.kb.article.workspaceSenders.title": {
+    "status": "mt",
+    "srcHash": "401f1dad200f"
+  },
+  "common.kb.article.workspaces.excerpt": {
+    "status": "mt",
+    "srcHash": "1027338198b9"
+  },
+  "common.kb.article.workspaces.title": {
+    "status": "mt",
+    "srcHash": "205b4561ed36"
   },
   "common.kb.browse": {
     "srcHash": "c20a1e90bc55",
@@ -8307,6 +8355,10 @@
     "status": "mt",
     "srcHash": "7e07507d2c6f"
   },
+  "common.shownIn.docsLink": {
+    "status": "mt",
+    "srcHash": "1ea50f64ba5b"
+  },
   "common.shownIn.filter.label": {
     "status": "mt",
     "srcHash": "4ca0a75c2b7f"
@@ -9682,6 +9734,10 @@
   "common.workspaces.view.caption": {
     "status": "mt",
     "srcHash": "6503bc7ef64a"
+  },
+  "common.workspaces.view.docsLink": {
+    "status": "mt",
+    "srcHash": "da938c435464"
   },
   "common.workspaces.view.label": {
     "status": "mt",
@@ -18555,6 +18611,10 @@
     "status": "mt",
     "srcHash": "58253647c797"
   },
+  "email.sendAs.docsLink": {
+    "status": "mt",
+    "srcHash": "b1aa521bd5be"
+  },
   "email.sendAs.failed": {
     "status": "mt",
     "srcHash": "3f1776c8613e"
@@ -26115,6 +26175,10 @@
     "status": "mt",
     "srcHash": "6f10bb068509"
   },
+  "studio.apps.copies.docsLink": {
+    "status": "mt",
+    "srcHash": "a56aefc8c311"
+  },
   "studio.apps.copies.on": {
     "status": "mt",
     "srcHash": "861dd76fdca9"
@@ -29463,6 +29527,10 @@
     "status": "mt",
     "srcHash": "b52b36b7269f"
   },
+  "studio.hostedApps.refusal.docsLink": {
+    "status": "mt",
+    "srcHash": "ad0ac2f41048"
+  },
   "studio.hostedApps.refusal.everywhere.body": {
     "status": "mt",
     "srcHash": "9b2971a29acc"
@@ -29594,6 +29662,10 @@
   "studio.hostedApps.review.change": {
     "status": "mt",
     "srcHash": "64fbd995d3b6"
+  },
+  "studio.hostedApps.review.docsLink": {
+    "status": "mt",
+    "srcHash": "c125c43656f8"
   },
   "studio.hostedApps.review.existing.cannot": {
     "status": "mt",
@@ -30446,6 +30518,10 @@
   "studio.hub.workspaces.deleted": {
     "status": "mt",
     "srcHash": "9720506f2ff2"
+  },
+  "studio.hub.workspaces.docsLink": {
+    "status": "mt",
+    "srcHash": "c3672d992454"
   },
   "studio.hub.workspaces.empty.body": {
     "status": "mt",
@@ -37943,6 +38019,10 @@
     "status": "mt",
     "srcHash": "e899a3f4b27b"
   },
+  "studio.saveApp.check.docsLink": {
+    "status": "mt",
+    "srcHash": "0d05ffac38a7"
+  },
   "studio.saveApp.check.done.carry": {
     "status": "mt",
     "srcHash": "9442fda4877f"
@@ -38550,6 +38630,10 @@
   "studio.saveApp.saved.copy": {
     "status": "mt",
     "srcHash": "c12b696a7d02"
+  },
+  "studio.saveApp.saved.docsLink": {
+    "status": "mt",
+    "srcHash": "33e164c9d576"
   },
   "studio.saveApp.saved.empty": {
     "status": "mt",
@@ -40995,6 +41079,10 @@
     "status": "mt",
     "srcHash": "af74f7c5362a"
   },
+  "studio.workspaceFiles.docsLink": {
+    "status": "mt",
+    "srcHash": "317e493c01e6"
+  },
   "studio.workspaceFiles.done.chooseRest": {
     "status": "mt",
     "srcHash": "7cb0ebc5eb6f"
@@ -41402,6 +41490,10 @@
   "studio.workspaceSender.close": {
     "status": "mt",
     "srcHash": "bbfa773e5a63"
+  },
+  "studio.workspaceSender.docsLink": {
+    "status": "mt",
+    "srcHash": "c5e47bd6d623"
   },
   "studio.workspaceSender.failed": {
     "status": "mt",

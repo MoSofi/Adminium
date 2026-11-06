@@ -1085,7 +1085,8 @@ export default {
         "note": "Ils restent sur la page de l’application jusqu’à ce qu’ils soient faits."
       },
       "title": "Vérifier avant d’installer",
-      "intro": "{app} s’installe dans {database}. Rien ne change tant que vous n’avez pas cliqué sur Installer."
+      "intro": "{app} s’installe dans {database}. Rien ne change tant que vous n’avez pas cliqué sur Installer.",
+      "docsLink": "Ce que la vérification contrôle"
     },
     "refusal": {
       "back": "Retour",
@@ -1109,7 +1110,8 @@ export default {
       "everywhere": {
         "title": "Installée sur chaque base de données",
         "body": "{app} {version} est déjà installée sur chaque base de données d’ici."
-      }
+      },
+      "docsLink": "Pourquoi un fichier est refusé"
     },
     "route": {
       "update": {
@@ -1290,7 +1292,8 @@ export default {
         "body": "Tant qu’il n’y en a pas, le menu de chacun réunit les pages de toutes les bases."
       },
       "youAreIn": "L’espace de travail où vous êtes",
-      "tickNone": "Ne cochez rien pour la mettre dans Autres bases de données."
+      "tickNone": "Ne cochez rien pour la mettre dans Autres bases de données.",
+      "docsLink": "Fonctionnement des espaces de travail"
     }
   },
   "intent": {
@@ -5100,7 +5103,8 @@ export default {
     },
     "clear": "Utiliser l’expéditeur du serveur",
     "cancel": "Annuler",
-    "save": "Enregistrer l’expéditeur"
+    "save": "Enregistrer l’expéditeur",
+    "docsLink": "Quel expéditeur un e-mail utilise"
   },
   "saveApp": {
     "step": {
@@ -5265,7 +5269,8 @@ export default {
       "emailEnglish": "« {email} » n’a pas de texte en anglais américain, nécessaire aux e-mails d’une application. Excluez-le, ou rédigez-en un d’abord.",
       "rowsPersonal": "{column} est personnelle ou ressemble à une clé, et chaque ligne doit y avoir une valeur. Incluez ses valeurs, ou excluez les lignes de {table}.",
       "rowsCycle": "Les lignes de {table} ont besoin des lignes d’une autre table qui ont elles-mêmes besoin d’elles. Excluez les lignes de l’une des deux.",
-      "noPage": "Une application a besoin d’au moins une page. Incluez une page de cette base de données."
+      "noPage": "Une application a besoin d’au moins une page. Incluez une page de cette base de données.",
+      "docsLink": "Ce que signifie chaque groupe"
     },
     "planFailed": "Le fichier n’a pas pu être vérifié",
     "saveFailed": "Enregistrement impossible. Rien n’a été écrit. Réessayez.",
@@ -5293,7 +5298,8 @@ export default {
       "by": "par {person}",
       "copy": "Copier l’empreinte",
       "again": "Télécharger à nouveau",
-      "newer": "Enregistrer une version plus récente"
+      "newer": "Enregistrer une version plus récente",
+      "docsLink": "À propos des versions enregistrées"
     },
     "entry": {
       "button": "Enregistrer comme application",
@@ -5505,7 +5511,8 @@ export default {
       "review": "Vérifier et installer",
       "staged": "{workspace} est envoyé et attend d’être installé.",
       "stopped": "{workspace} : {done} sur {total} installées. L’installation s’est arrêtée en cours de route."
-    }
+    },
+    "docsLink": "Fonctionnement des fichiers d’espace de travail"
   },
   "apps": {
     "added": {
@@ -5564,7 +5571,8 @@ export default {
       "screensFirstOnlyOn": "Les écrans de cette app ne s’ouvrent que pour sa première installation, sur {database}. Ses pages, tables et règles fonctionnent ici.",
       "uninstall": "Désinstaller {app} de {database}",
       "uninstallNote": "Retire {app} de {database} : ses pages et ses règles là-bas. Garde les tables et leurs lignes.",
-      "updateEvery": "Mettre à jour chaque copie"
+      "updateEvery": "Mettre à jour chaque copie",
+      "docsLink": "Comment se mettent à jour les copies d’une application"
     },
     "editable": {
       "action": "La rendre modifiable ici",
