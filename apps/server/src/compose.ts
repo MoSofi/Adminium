@@ -94,7 +94,7 @@ import {
   importServerHalf,
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
-import { installOfRecord } from './installs/resolve.js';
+import { addOnStateOn, installOfRecord, resolveInstall } from './installs/resolve.js';
 import type { LooseTableIdModel } from './installs/table-id.js';
 import { keepAddOnInstalls } from './apps/table-ref.js';
 import { createAnswerDoor } from './forms/answer.js';
@@ -1181,11 +1181,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     decider: (addOnKey) => deciderFor(addOnRuntime, addOnKey, 'rows'),
     adjustDecider: (addOnKey) => deciderFor(addOnRuntime, addOnKey, 'adjust'),
     checkDecider: (addOnKey) => deciderFor(addOnRuntime, addOnKey, 'check'),
-    versionNow: async (addOnKey) => {
-      // key-wide: one version of an add-on runs on a server, so any copy says it.
-      const row = await meta.db.selectFrom('adminium_manifests').select(['version', 'status']).where('manifestKey', '=', addOnKey).where('kind', '=', 'add-on').executeTakeFirst();
-      return row === undefined ? null : { version: row.version, status: row.status };
-    },
+    // The install the save's database uses: its status is its own, never another copy's.
+    versionNow: (addOnKey, connectionId) => addOnStateOn(meta, addOnKey, connectionId),
     watches: async (connectionId, tableId) => (await outboxProducers.watches(connectionId, tableId)) || (await automationsMatcher.current?.watchesChange(connectionId, tableId)) === true,
     // A save an add-on's plan failed, or a table of it that cannot be written: one row an operator can act on. Which check failed is told here alone.
     refused: async (event) => {
@@ -2728,8 +2725,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           serverVersion: APP_VERSION,
           // Where the app a turn builds keeps its data: its installed row's database, else the one the project gives it.
           connectionFor: async (appKey) => {
-            // A project app is once per server: its one install says which database.
-            const installed = (await manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)).listByKey(appKey))[0] ?? null;
+            // A project app is once per server: its one install says which database (several is refused by name, never guessed).
+            const installed = await resolveInstall(manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET)), appKey, {}, { kind: 'app' });
             if (installed !== null && installed.row.connectionId !== null) return installed.row.connectionId;
             const database = opts.project?.apps?.[appKey]?.database ?? opts.project?.databases?.[0];
             return database === undefined ? null : ((await manager.connections.findByProjectKey(database))?.id ?? null);

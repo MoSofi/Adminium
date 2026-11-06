@@ -1159,7 +1159,7 @@ export function createLedgerWriter(kit: LedgerKit) {
       // Receipts first: the first statement on one of the add-on's tables — a change of those tables now waits for this save — and only
       // then is the add-on asked about once more: an update that began in another process before that read is seen here.
       const receipts = await receiptsOfSource(trx, ledger, source);
-      const now = await ledgers.versionNow(ledger.addOn);
+      const now = await ledgers.versionNow(ledger.addOn, target.view.connectionId);
       if (call.decider !== null && (now === null || now.status !== 'installed' || now.version !== call.decider.version)) {
         if (dry) return answer({ state: 'unavailable', reason: 'add-on-unavailable' });
         throw writeConflict();

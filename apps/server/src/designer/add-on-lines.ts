@@ -56,7 +56,7 @@ export async function readAddOnManifest(
   key: string,
 ): Promise<unknown> {
   if (!/^[a-z][a-z0-9-]{0,79}$/.test(key)) return null;
-  // One version per add-on on a server: any install of it has the manifest.
+  // key-wide: one version per add-on on a server, so any install's document is the manifest.
   const installed = (await manifestsRepo(deps.meta, deps.credentialCrypto).listByKey(key)).find((one) => one.row.kind === 'add-on') ?? null;
   if (installed !== null) return installed.document;
   try {

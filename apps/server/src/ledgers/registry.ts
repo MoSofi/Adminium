@@ -129,8 +129,8 @@ export interface LedgerRuntime {
   reservedStarts?(view: SnapshotView, table: ResolvedTable): { column: string; words: readonly string[] } | null;
   /** The add-on's update gate: a save enters as a reader. */
   gate(addOnKey: string): DeciderGate;
-  /** The version and status the store holds now: read inside a save before its first statement on an add-on's table. */
-  versionNow(addOnKey: string): Promise<{ version: string; status: string } | null>;
+  /** The version and status the store holds now, of the install the save's database uses: read inside a save before its first statement on an add-on's table. */
+  versionNow(addOnKey: string, connectionId: string): Promise<{ version: string; status: string } | null>;
   /** Whether anything listens to changes of a table (an outbox, a rule): only then are a posting's rows announced. */
   watches(connectionId: string, tableId: string): Promise<boolean>;
   /** Reads what is installed again when it moved: asked before a save opens its transaction, never inside one. */
@@ -188,7 +188,7 @@ export interface LedgerRuntimeDeps {
   adjustDecider?: ((addOnKey: string) => InstalledDecider | null) | undefined;
   /** The loaded code of an add-on that answers whether a design may be ordered, or null. */
   checkDecider?: ((addOnKey: string) => InstalledDecider | null) | undefined;
-  versionNow: (addOnKey: string) => Promise<{ version: string; status: string } | null>;
+  versionNow: (addOnKey: string, connectionId: string) => Promise<{ version: string; status: string } | null>;
   watches?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
   /** Reads what is installed again when it moved (the kept instance's `fresh`). */
   refresh?: (() => Promise<unknown>) | undefined;
@@ -501,7 +501,7 @@ export function createLedgerRuntime(deps: LedgerRuntimeDeps): LedgerRuntime {
     },
     deciderFor: (addOnKey) => deps.decider(addOnKey),
     gate: (addOnKey) => deciderGate(addOnKey),
-    versionNow: (addOnKey) => deps.versionNow(addOnKey),
+    versionNow: (addOnKey, connectionId) => deps.versionNow(addOnKey, connectionId),
     watches: (connectionId, tableId) => deps.watches?.(connectionId, tableId) ?? Promise.resolve(false),
     refresh: async () => {
       await deps.refresh?.();

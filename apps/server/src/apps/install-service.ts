@@ -2771,9 +2771,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * no longer declares, or keep it. Audited either way, with what went.
    */
   async function answerRemoval(actor: InstallActor, host: InstallHost, input: { key: string; accept: boolean }) {
-    // A folder app is installed once per server.
-    const installed = (await manifests.listByKey(input.key)).find((m) => m.row.kind === 'app');
-    if (installed === undefined) throw new NotFoundError(`"${input.key}" is not installed.`);
+    // A folder app is installed once per server: its one install, and a refusal naming them should there be several.
+    const installed = await resolveInstall(manifests, input.key, {}, { kind: 'app' });
+    if (installed === null) throw new NotFoundError(`"${input.key}" is not installed.`);
     const asked = await removals.pending(input.key);
     const result = await removals.answer({
       key: input.key,

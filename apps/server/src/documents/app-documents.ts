@@ -40,7 +40,7 @@ import type { SnapshotView } from '../crud/identifiers.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { ownsBlocks } from '../apps/owns-blocks.js';
 import { AppError } from '../errors.js';
-import { installOnConnection } from '../installs/resolve.js';
+import { installOnConnection, serverWideOrOnly } from '../installs/resolve.js';
 import {
   availabilityOf,
   installedShapes,
@@ -81,7 +81,8 @@ export async function drawersFor(meta: MetaDb, ownerKey: string, connectionId?: 
   const suggests = (owner.document as { addOns?: { suggests?: { key?: unknown; range?: unknown }[] } } | null)?.addOns?.suggests ?? [];
   for (const need of suggests) {
     if (typeof need.key !== 'string') continue;
-    const other = owner.row.scopeKey === 'server' ? ((await manifests.listByKey(need.key))[0] ?? null) : await installOnConnection(manifests, need.key, owner.row.scopeKey);
+    // A server-wide owner's: the add-on kept once per server too, or the key's one install; never the first of several.
+    const other = owner.row.scopeKey === 'server' ? await serverWideOrOnly(manifests, need.key) : await installOnConnection(manifests, need.key, owner.row.scopeKey);
     // Installed, and a version the add-on said it works with: an older one is as good as absent until it is updated.
     if (other === null || other.row.kind !== 'add-on' || other.row.status !== 'installed') continue;
     if (typeof need.range === 'string' && !satisfiesSemverRange(other.row.version, need.range)) continue;
@@ -167,6 +168,7 @@ export async function installAppDocuments(input: {
   if (result.waiting.length > 0) {
     const manifests = manifestsRepo(input.meta, NO_SECRETS);
     for (const entry of result.waiting) {
+      // key-wide: the add-on's own name, the same on every copy.
       const name = ((await manifests.listByKey(entry.addOn))[0]?.document as { name?: unknown } | null | undefined)?.name;
       entry.addOnName = typeof name === 'string' && name.trim() !== '' ? name : entry.addOn;
     }

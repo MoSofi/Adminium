@@ -1063,7 +1063,7 @@ async function grantsWiderOnUpdate(deps: AddOnInstallerDeps, input: { key: strin
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const apps: Manifest[] = [];
   for (const appKey of appHosts(input.apps)) {
-    // One version per app on a server: any copy of it has the roles.
+    // key-wide: one version per app on a server, so any copy's document has the roles.
     const found = (await manifests.listByKey(appKey)).find((one) => one.row.kind === 'app');
     if (found === undefined || found.document === null) continue;
     apps.push(found.document as Manifest);

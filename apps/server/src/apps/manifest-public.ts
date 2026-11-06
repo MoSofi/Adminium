@@ -698,7 +698,7 @@ async function guestSideReachable(meta: MetaDb, appKey: string, connectionId: st
   const slug = await installSlugOn(meta, appKey, connectionId);
   if (slug !== null) return (await guestBase({ meta }, appKey, slug)) !== null;
   // key-wide: whether the key is installed anywhere decides whether this one takes the bare addresses.
-  const elsewhere = await meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', appKey).where('kind', '=', 'app').executeTakeFirst();
+  const elsewhere = await meta.db.selectFrom('adminium_manifests').select('version').where('manifestKey', '=', appKey).where('kind', '=', 'app').executeTakeFirst();
   return elsewhere === undefined ? (await guestBase({ meta }, appKey)) !== null : await hasPublicOrigin(meta);
 }
 
