@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A SELF-MADE APP'S TABLES UNDER THE NAMES A PERSON GAVE THEM (plan 76 §5.4).
+ * A SELF-MADE APP'S TABLES UNDER THE NAMES A PERSON GAVE THEM.
  *
  * Saved from a hand-built dashboard, a table keeps its real name beside its
  * ref (`Our "Customers"`, `Order Lines`), and on Postgres the schema it is in

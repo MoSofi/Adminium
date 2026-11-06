@@ -1006,7 +1006,7 @@ export const appCatalogEntry = z.object({
   requiresAddOns: z.array(z.string()),
   /**
    * Each copy installed on this server, one per database: the card shows one
-   * version per key, and a status row per copy (plan 76 §13.7 rule 7).
+   * version per key, and a status row per copy.
    */
   installs: z.array(
     z.object({

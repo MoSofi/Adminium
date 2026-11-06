@@ -412,15 +412,15 @@ export interface InstallAnswers {
   /** Per page of the app whose address a page here has (by the app page's slug): replace, rename it, or skip the app's. */
   pages?: Readonly<Record<string, PageChoice>> | undefined;
   /**
-   * `use`: every table of the app that is here already is used as it is
-   * (§8.4) — a copied database, or the one a saved dashboard came from. Never
+   * `use`: every table of the app that is here already is used as it is:
+   * a copied database, or the one a saved dashboard came from. Never
    * a rename; a table that cannot be used without a change stops the install.
    */
   existing?: 'use' | undefined;
 }
 
 /**
- * WHAT THE REVIEW SHOWS OF A SELF-MADE FILE beside its tables (§4.2): where
+ * WHAT THE REVIEW SHOWS OF A SELF-MADE FILE beside its tables: where
  * and when it was made, what the owner fills in once it is installed (a
  * rule's outside address arrives empty and switched off, a schedule goes to
  * nobody yet, a payment service has no keys), and the parts only such a file
@@ -469,7 +469,7 @@ function editWords(edit: InstallTablePlan['edits'][number]): string {
 }
 
 /**
- * USE THE EXISTING TABLES (§8.4) CHANGES NONE OF THEM: a table that is here and
+ * USE THE EXISTING TABLES CHANGES NONE OF THEM: a table that is here and
  * would be renamed out of the way, left undecided (no reuse offered), or used
  * only with a change to it stops the install, by name. The tables are the
  * owner's data, and a file installed onto them adds nothing to them.
@@ -1223,7 +1223,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
             ...(dialect === undefined || dialect === 'generic' ? {} : { dialect }),
           });
     /*
-     * USE THE EXISTING TABLES (§8.4): every table of the app that is here and
+     * USE THE EXISTING TABLES: every table of the app that is here and
      * not yet answered is used as it is — asked of the planner once, then
      * planned with those answers. An answer given for a table still stands, but
      * never a rename of the one that is there.
@@ -2816,7 +2816,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   }
 
   /**
-   * A LEGACY INSTANCE MADE AN INSTALL OF ITS OWN (§13.7 rule 3). Before
+   * A LEGACY INSTANCE MADE AN INSTALL OF ITS OWN. Before
    * installs were per database, an app served a second database through an
    * instance of its first install: one row, one set of settings, roles and
    * rules for both. Kept as it is, it still resolves to the first install. As

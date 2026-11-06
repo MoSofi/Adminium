@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * "USE THE EXISTING TABLES" CHANGES NONE OF THEM, on every engine this run can
- * reach (plan 76 §8.4, S9).
+ * reach.
  *
  * A file installed onto a database that already holds its tables — a copy of
  * the one the dashboard was saved from — uses every one of them as it is, in

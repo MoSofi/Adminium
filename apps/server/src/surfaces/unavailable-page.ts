@@ -242,8 +242,7 @@ export interface MovedPageInput {
 }
 
 /**
- * An app's plain address once the copy that had it is gone (plan 76 §13.7
- * rule 3): it opens no other copy by itself, it says where the app is now,
+ * An app's plain address once the copy that had it is gone: it opens no other copy by itself, it says where the app is now,
  * with a link to each copy.
  */
 export function renderMovedPage(input: MovedPageInput): string {

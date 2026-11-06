@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * A LEGACY INSTANCE MADE AN INSTALL OF ITS OWN, in one reviewed step (plan 76
- * §13.7 rule 3).
+ * A LEGACY INSTANCE MADE AN INSTALL OF ITS OWN, in one reviewed step.
  *
  * Before installs were per database, an app served a second database through
  * an instance of its first install: one row, one set of settings and roles

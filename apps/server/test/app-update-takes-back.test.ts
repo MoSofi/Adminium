@@ -82,7 +82,7 @@ describe.each(LEGS)('an update takes back what its version drops — %s', (diale
     expect(res.statusCode, res.body).toBe(200);
     return res.json() as { app: { publicAccess?: { granted?: Record<string, string[]>; skipped: { ref: string; reason: string }[] } } };
   };
-  /** An update that stops at the pages step (strict, plan 76 §8.2): the reason is said, and running it again finishes it. */
+  /** An update that stops at the pages step (strict): the reason is said, and running it again finishes it. */
   const stopped = async (payload: Record<string, unknown>, cause: string) => {
     const res = await h.app.inject({ method: 'POST', url: '/apps/studio/update', payload });
     expect(res.statusCode, res.body).toBe(409);

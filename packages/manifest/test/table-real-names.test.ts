@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A self-made app's table under the real name a person gave it, and in its own
- * Postgres schema (plan 76 §5.4): who may say so, which names and schemas are
+ * Postgres schema: who may say so, which names and schemas are
  * refused, how the plan names the table, and the names of its constraints.
  */
 import { describe, expect, it } from 'vitest';

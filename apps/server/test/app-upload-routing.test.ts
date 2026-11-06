@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * WHERE AN UPLOADED FILE GOES, on every engine this run can reach (plan 76
- * §13.7 rule 7, D7, YR3).
+ * WHERE AN UPLOADED FILE GOES, on every engine this run can reach.
  *
  * An app is installed once per database and runs one version per server.
  * The upload says where the file goes: `install` for a key installed

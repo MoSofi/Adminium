@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * WHAT THE REVIEW OF A SELF-MADE FILE SHOWS, read through the real routes on
- * every engine this run can reach (plan 76 §4.2, §8.6, C6, D12).
+ * every engine this run can reach.
  *
  * The zod serializer keeps only what a reply declares, so each new field is
  * asserted on the reply itself: where and when the file was made, what the
