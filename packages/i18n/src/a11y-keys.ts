@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3558 entries. */
+/** `namespace:key` — 3571 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1356,6 +1356,9 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'email:picker.title',
   'email:placeholders.label',
   'email:search.clear',
+  'email:sendAs.label',
+  'email:sendAs.server',
+  'email:sendAs.serverFrom',
   'email:status.draft',
   'email:status.failed',
   'email:status.live',
@@ -3003,6 +3006,16 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:wizard.step.tables',
   'studio:wizard.step.test',
   'studio:wizard.title',
+  'studio:workspaceSender.accepted.title',
+  'studio:workspaceSender.close',
+  'studio:workspaceSender.from.label',
+  'studio:workspaceSender.loading',
+  'studio:workspaceSender.name.label',
+  'studio:workspaceSender.noMail.title',
+  'studio:workspaceSender.postal.label',
+  'studio:workspaceSender.replyTo.label',
+  'studio:workspaceSender.subtitle',
+  'studio:workspaceSender.title',
   'ui:action.cancel',
   'ui:action.clearSearch',
   'ui:action.close',

@@ -46,7 +46,17 @@ const WORD = /\bworkspaces?\b/i;
 
 /** en-US catalogue keys (`ns:dotted.key`) whose text is about the groups. */
 const GROUP_KEYS: ReadonlyMap<string, string> = new Map<string, string>([
-  // None yet. The sidebar, the switcher and the Workspaces dialog add theirs here.
+  // The sidebar, the switcher and the Workspaces dialog add theirs here.
+  ['email:sendAs.byRecord', '"Send as": the sender of the workspace the record’s database is in'],
+  ['email:sendAs.helper.byRecord', '"Send as": the sender of the workspace the record’s database is in'],
+  ['email:sendAs.helper.noSender', '"Send as" a workspace with no sender of its own'],
+  ['email:sendAs.helper.workspace', '"Send as" one workspace'],
+  ['email:sendAs.workspaceFrom', '"Send as": a workspace and its From'],
+  ['email:sendAs.workspaceNoSender', '"Send as": a workspace with no sender yet'],
+  ['studio:workspaceSender.title', 'the sender sheet of one workspace'],
+  ['studio:workspaceSender.subtitle', 'the sender sheet: mail about one workspace’s databases'],
+  ['studio:workspaceSender.noMail.body', 'the sender sheet: a workspace cannot have its own sender yet'],
+  ['studio:workspaceSender.postal.helper', 'the sender sheet: one workspace’s marketing mail'],
 ]);
 
 /** Repo-relative path prefixes whose every "workspace" is the group. */
@@ -56,6 +66,8 @@ const GROUP_FILES: ReadonlyMap<string, string> = new Map([
   ['apps/docs/src/content/docs/reference/rest-api.md', 'documents the /workspaces routes'],
   ['apps/docs/src/content/docs/anatomy/', 'the pnpm sense: "twenty-one workspaces" are the packages of the monorepo'],
   ['apps/docs/src/content/docs/contributing/', 'the pnpm sense, as above'],
+  ['apps/dashboard/src/studio/workspace-sender/', 'the sender sheet of one workspace'],
+  ['apps/dashboard/src/email/editor/inspector/panels/SendAsField.tsx', '"Send as": a workspace’s sender, or the server’s'],
 ]);
 
 /** Exact source strings that are about the groups. */
@@ -63,6 +75,9 @@ const GROUP_STRINGS: ReadonlyMap<string, string> = new Map([
   ['There is no such workspace.', 'a `workspaceId` the person cannot see (assistant host, last-chosen workspace)'],
   ['That database is not in this workspace. Call list_connections for the ones here.', 'Milo narrowed to the tab’s workspace'],
   ['Workspaces group databases: names and memberships, not rows.', 'row-coverage reason of the /workspaces routes'],
+  ["The server's From and each workspace's name and From, no source row.", 'row-coverage reason of "Send as"’s choices'],
+  ["Which sender a template goes as: the template rows and a workspace's name, no source row.", 'row-coverage reason of "Send as"'],
+  ["A workspace's sender: a name and addresses on the workspace, no source row.", 'row-coverage reason of the workspace sender routes'],
 ]);
 
 // ─── What counts as words ────────────────────────────────────────────────────

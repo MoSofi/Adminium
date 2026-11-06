@@ -4848,5 +4848,51 @@ export default {
         "workspaceUsers": "此服务器上的用户"
       }
     }
+  },
+  "workspaceSender": {
+    "title": "{workspace} 的发件人",
+    "subtitle": "与此工作区数据库中记录相关的邮件将以此发件人发送。",
+    "close": "关闭",
+    "loading": "正在加载",
+    "accepted": {
+      "title": "此服务器可用于发信的地址",
+      "domains": "以下域名的任意地址：",
+      "addresses": "或仅限："
+    },
+    "noMail": {
+      "title": "此服务器尚无发件人",
+      "body": "请先在设置中配置邮件。在此之前，工作区无法拥有自己的发件人。",
+      "action": "打开邮件设置"
+    },
+    "name": {
+      "label": "发件人名称",
+      "helper": "邮件显示的发件方，例如 Kiln Street Pottery。"
+    },
+    "from": {
+      "label": "发件地址",
+      "helper": "须为上方所列位置中的地址。"
+    },
+    "replyTo": {
+      "label": "回复地址",
+      "helper": "回复发往的地址。留空则使用发件地址。"
+    },
+    "postal": {
+      "label": "邮寄地址",
+      "helper": "印在此工作区营销邮件的底部。留空则使用服务器的地址。"
+    },
+    "sharedList": "禁止发信名单属于整个服务器：在一家企业退订的人，将不会再收到此服务器上任何企业的营销邮件。",
+    "refusal": {
+      "notSendingDomain": "此服务器只能从 {accepted} 发信。请使用那里的地址。",
+      "noMail": "此服务器尚无发件人。请先在设置中配置邮件。",
+      "notAnAddress": "请输入一个邮件地址，例如 hello@example.com。"
+    },
+    "failed": "无法保存发件人。请重试。",
+    "footer": {
+      "own": "其邮件从 {from} 发出。",
+      "server": "在保存发件地址之前，其邮件将以服务器的发件人发出。"
+    },
+    "clear": "使用服务器的发件人",
+    "cancel": "取消",
+    "save": "保存发件人"
   }
 } as const;

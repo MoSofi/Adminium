@@ -4838,5 +4838,51 @@
         "workspaceUsers": "此伺服器上的使用者"
       }
     }
+  },
+  "workspaceSender": {
+    "title": "{workspace} 的寄件者",
+    "subtitle": "與此工作區資料庫中記錄相關的郵件，將以此寄件者寄出。",
+    "close": "關閉",
+    "loading": "正在載入",
+    "accepted": {
+      "title": "此伺服器可用於寄信的地址",
+      "domains": "以下網域的任何地址：",
+      "addresses": "或僅限："
+    },
+    "noMail": {
+      "title": "此伺服器尚無寄件者",
+      "body": "請先在設定中設定電子郵件。在此之前，工作區無法擁有自己的寄件者。",
+      "action": "開啟電子郵件設定"
+    },
+    "name": {
+      "label": "寄件者名稱",
+      "helper": "郵件顯示的寄件方，例如 Kiln Street Pottery。"
+    },
+    "from": {
+      "label": "寄件地址",
+      "helper": "須為上方所列位置中的地址。"
+    },
+    "replyTo": {
+      "label": "回覆地址",
+      "helper": "回覆寄往的地址。留空則使用寄件地址。"
+    },
+    "postal": {
+      "label": "郵寄地址",
+      "helper": "印在此工作區行銷郵件的底部。留空則使用伺服器的地址。"
+    },
+    "sharedList": "禁止寄信名單屬於整台伺服器：在一家企業取消訂閱的人，將不會再收到此伺服器上任何企業的行銷郵件。",
+    "refusal": {
+      "notSendingDomain": "此伺服器只能從 {accepted} 寄信。請使用那裡的地址。",
+      "noMail": "此伺服器尚無寄件者。請先在設定中設定電子郵件。",
+      "notAnAddress": "請輸入一個電子郵件地址，例如 hello@example.com。"
+    },
+    "failed": "無法儲存寄件者。請再試一次。",
+    "footer": {
+      "own": "其郵件從 {from} 寄出。",
+      "server": "在儲存寄件地址之前，其郵件將以伺服器的寄件者寄出。"
+    },
+    "clear": "使用伺服器的寄件者",
+    "cancel": "取消",
+    "save": "儲存寄件者"
   }
 }

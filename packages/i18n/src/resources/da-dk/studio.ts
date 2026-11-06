@@ -4848,5 +4848,51 @@ export default {
         "workspaceUsers": "Brugere på denne server"
       }
     }
+  },
+  "workspaceSender": {
+    "title": "Afsender for {workspace}",
+    "subtitle": "Mails om poster i dette arbejdsområdes databaser sendes fra denne afsender.",
+    "close": "Luk",
+    "loading": "Indlæser",
+    "accepted": {
+      "title": "Adresser, som denne server kan sende fra",
+      "domains": "Enhver adresse på:",
+      "addresses": "Eller præcis:"
+    },
+    "noMail": {
+      "title": "Denne server har endnu ingen afsender",
+      "body": "Konfigurer først e-mail under Indstillinger. Indtil da kan et arbejdsområde ikke have sin egen afsender.",
+      "action": "Åbn e-mailindstillinger"
+    },
+    "name": {
+      "label": "Afsendernavn",
+      "helper": "Hvem mailen siger, den er fra, fx Kiln Street Pottery."
+    },
+    "from": {
+      "label": "Afsenderadresse",
+      "helper": "En adresse på et af stederne ovenfor."
+    },
+    "replyTo": {
+      "label": "Svaradresse",
+      "helper": "Hvor svar sendes hen. Lad feltet stå tomt for afsenderadressen."
+    },
+    "postal": {
+      "label": "Postadresse",
+      "helper": "Står nederst i dette arbejdsområdes marketingmails. Lad feltet stå tomt for serverens."
+    },
+    "sharedList": "Listen over personer, der ikke må mailes, gælder hele serveren: Den, der afmelder sig hos én virksomhed, får ingen marketingmails fra nogen virksomhed på den.",
+    "refusal": {
+      "notSendingDomain": "Denne server kan kun sende fra {accepted}. Brug en adresse der.",
+      "noMail": "Denne server har endnu ingen afsender. Konfigurer først e-mail under Indstillinger.",
+      "notAnAddress": "Skriv én e-mailadresse, fx hello@example.com."
+    },
+    "failed": "Afsenderen kunne ikke gemmes. Prøv igen.",
+    "footer": {
+      "own": "Dets mails sendes fra {from}.",
+      "server": "Indtil en afsenderadresse er gemt, sendes dets mails fra serverens afsender."
+    },
+    "clear": "Brug serverens afsender",
+    "cancel": "Annuller",
+    "save": "Gem afsender"
   }
 } as const;

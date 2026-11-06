@@ -18299,6 +18299,50 @@
     "status": "mt",
     "srcHash": "ea73467cf50e"
   },
+  "email.sendAs.byRecord": {
+    "status": "mt",
+    "srcHash": "58253647c797"
+  },
+  "email.sendAs.failed": {
+    "status": "mt",
+    "srcHash": "3f1776c8613e"
+  },
+  "email.sendAs.helper.byRecord": {
+    "status": "mt",
+    "srcHash": "793c4c040d39"
+  },
+  "email.sendAs.helper.noSender": {
+    "status": "mt",
+    "srcHash": "719efdec3703"
+  },
+  "email.sendAs.helper.server": {
+    "status": "mt",
+    "srcHash": "623b811ca75f"
+  },
+  "email.sendAs.helper.workspace": {
+    "status": "mt",
+    "srcHash": "0343529eaef8"
+  },
+  "email.sendAs.label": {
+    "status": "mt",
+    "srcHash": "7010211f3fc1"
+  },
+  "email.sendAs.server": {
+    "status": "mt",
+    "srcHash": "c13527ef1965"
+  },
+  "email.sendAs.serverFrom": {
+    "status": "mt",
+    "srcHash": "8e61fe034306"
+  },
+  "email.sendAs.workspaceFrom": {
+    "status": "src",
+    "srcHash": "4a719cf1b0f5"
+  },
+  "email.sendAs.workspaceNoSender": {
+    "status": "mt",
+    "srcHash": "4b871371163d"
+  },
   "email.signInCode.codeLabel": {
     "status": "mt",
     "srcHash": "adac69379a62"
@@ -38762,6 +38806,118 @@
   "studio.wizard.title": {
     "srcHash": "ac979fe42d47",
     "status": "mt"
+  },
+  "studio.workspaceSender.accepted.addresses": {
+    "status": "mt",
+    "srcHash": "afedc5d8d726"
+  },
+  "studio.workspaceSender.accepted.domains": {
+    "status": "mt",
+    "srcHash": "18c9e0d260cb"
+  },
+  "studio.workspaceSender.accepted.title": {
+    "status": "mt",
+    "srcHash": "a12f4dba77d9"
+  },
+  "studio.workspaceSender.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.workspaceSender.clear": {
+    "status": "mt",
+    "srcHash": "6b552e6fa809"
+  },
+  "studio.workspaceSender.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.workspaceSender.failed": {
+    "status": "mt",
+    "srcHash": "9a14753b04dd"
+  },
+  "studio.workspaceSender.footer.own": {
+    "status": "mt",
+    "srcHash": "4a93c4358820"
+  },
+  "studio.workspaceSender.footer.server": {
+    "status": "mt",
+    "srcHash": "bbe4adff988b"
+  },
+  "studio.workspaceSender.from.helper": {
+    "status": "mt",
+    "srcHash": "d13499350c20"
+  },
+  "studio.workspaceSender.from.label": {
+    "status": "mt",
+    "srcHash": "19683459156b"
+  },
+  "studio.workspaceSender.loading": {
+    "status": "mt",
+    "srcHash": "8f26c6520d61"
+  },
+  "studio.workspaceSender.name.helper": {
+    "status": "mt",
+    "srcHash": "dbf77ea9a7d4"
+  },
+  "studio.workspaceSender.name.label": {
+    "status": "mt",
+    "srcHash": "96d72a95c9ee"
+  },
+  "studio.workspaceSender.noMail.action": {
+    "status": "mt",
+    "srcHash": "75f86fe16e0b"
+  },
+  "studio.workspaceSender.noMail.body": {
+    "status": "mt",
+    "srcHash": "218e968eb915"
+  },
+  "studio.workspaceSender.noMail.title": {
+    "status": "mt",
+    "srcHash": "9283c21ae5c4"
+  },
+  "studio.workspaceSender.postal.helper": {
+    "status": "mt",
+    "srcHash": "927eb9432d1e"
+  },
+  "studio.workspaceSender.postal.label": {
+    "status": "mt",
+    "srcHash": "b71c421a710c"
+  },
+  "studio.workspaceSender.refusal.noMail": {
+    "status": "mt",
+    "srcHash": "f43455698641"
+  },
+  "studio.workspaceSender.refusal.notAnAddress": {
+    "status": "mt",
+    "srcHash": "9bb03595b6a7"
+  },
+  "studio.workspaceSender.refusal.notSendingDomain": {
+    "status": "mt",
+    "srcHash": "351ab49d1258"
+  },
+  "studio.workspaceSender.replyTo.helper": {
+    "status": "mt",
+    "srcHash": "6bb175be0657"
+  },
+  "studio.workspaceSender.replyTo.label": {
+    "status": "mt",
+    "srcHash": "e74172082cab"
+  },
+  "studio.workspaceSender.save": {
+    "status": "mt",
+    "srcHash": "7ec70a06752e"
+  },
+  "studio.workspaceSender.sharedList": {
+    "status": "mt",
+    "srcHash": "b935962c8a01"
+  },
+  "studio.workspaceSender.subtitle": {
+    "status": "mt",
+    "srcHash": "5a84f43bce17"
+  },
+  "studio.workspaceSender.title": {
+    "status": "mt",
+    "srcHash": "b9fb6d0a42d8"
   },
   "ui.action.apply": {
     "srcHash": "cfea419c3b4e",

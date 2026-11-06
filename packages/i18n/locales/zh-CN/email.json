@@ -966,5 +966,20 @@
     "limitEmail": "同一电子邮件地址在 {form} 中填写的次数已达到一天的上限。",
     "limitEntry": "{form} 写入的表已收到其应用允许的访客新行数上限。",
     "limitBody": "将于 {time} 重新开放。请在表单的“限制”中提高上限或使用更严格的验证。"
+  },
+  "sendAs": {
+    "label": "发件身份",
+    "server": "服务器",
+    "serverFrom": "服务器 · {from}",
+    "byRecord": "按记录所在的工作区",
+    "workspaceFrom": "{workspace} · {from}",
+    "workspaceNoSender": "{workspace} · 尚无发件人",
+    "helper": {
+      "byRecord": "与记录相关的邮件，以其数据库所在工作区的发件人发出。",
+      "server": "此模板的每封邮件都以服务器的发件人发出。",
+      "noSender": "{workspace} 尚无自己的发件人，因此此模板以服务器的发件人发出。",
+      "workspace": "无论是哪条记录，此模板的每封邮件都以 {workspace} 的发件人发出。"
+    },
+    "failed": "无法保存。请重试。"
   }
 }

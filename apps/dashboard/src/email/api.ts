@@ -334,6 +334,8 @@ export interface EmailDocumentDetail extends EmailDocumentSummary {
   vars: string[];
   languages: EmailLanguageView[];
   attachmentsResolved: EmailAttachmentResolved[];
+  /** "Send as" (`sendAs.ts`): null = by the record's workspace, `server`, or a workspace id. Optional for older fixtures. */
+  sendAs?: string | null;
 }
 
 export interface EmailStarterCard {

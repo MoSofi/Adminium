@@ -59,6 +59,7 @@ import { Inspector, type DesignHeader, type InspectorTab } from './inspector/Ins
 import { AttachmentsPanel } from './inspector/panels/AttachmentsPanel.js';
 import { BlockPanel } from './inspector/panels/BlockPanel.js';
 import { BrandingPanel } from './inspector/panels/BrandingPanel.js';
+import { SendAsField } from './inspector/panels/SendAsField.js';
 import { FooterPanel, SubjectPanel } from './inspector/panels/SubjectFooterPanels.js';
 import { WorkspaceDocuments } from './inspector/panels/WorkspaceDocuments.js';
 import { languageRows } from './LanguageMenu.js';
@@ -527,6 +528,7 @@ export function Editor({ detail }: EditorProps) {
         onAddLanguage={(locale) => {
           void addLanguage(locale);
         }}
+        sendAs={<SendAsField documentId={detail.id} sendAs={detail.sendAs ?? null} />}
       />
     );
 
