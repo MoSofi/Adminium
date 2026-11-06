@@ -102,7 +102,7 @@ describe('PreferencesPage', () => {
     expect(screen.getAllByText('Server default', { selector: ':not(option)' })).toHaveLength(4);
     expect(screen.queryAllByText('Personal')).toHaveLength(0);
     // Effective (workspace default) value surfaces in the caption.
-    expect(screen.getByText('Using workspace default (Light)')).toBeDefined();
+    expect(screen.getByText('Using the server default (Light)')).toBeDefined();
     expect(screen.queryByText('Reset to the server default')).toBeNull();
   });
 
