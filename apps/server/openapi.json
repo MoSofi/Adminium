@@ -1978,6 +1978,15 @@
                             },
                             "manage": {
                               "type": "boolean"
+                            },
+                            "engines": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": "string"
+                              }
                             }
                           },
                           "required": [
@@ -1985,7 +1994,8 @@
                             "otherDatabases",
                             "workspaceView",
                             "lastWorkspaceId",
-                            "manage"
+                            "manage",
+                            "engines"
                           ],
                           "additionalProperties": false
                         },
