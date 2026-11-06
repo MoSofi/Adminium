@@ -429,6 +429,13 @@ Designer makes picture spots of the same shapes. Hidden layers and masks are lef
 Where the frame holds more than fits, the deepest levels are cut first, and each cut says how much
 it holds and which id reads it.
 
+The frame's own pictures (the photos and images placed in it) come with the import, up to 24 of
+them. The Designer starts each picture spot with the design's own picture, so the page shows them
+from the first preview, and the add-things card does not ask how the pages get their pictures. You
+can still swap any of them from **Pictures**. A picture over 5 MB that is not a PNG is left out, and
+so is one Figma no longer has: its spot is a plain frame you fill. The pictures are kept with the
+rest of the import, for you only, and a turn started by someone else gets plain frames.
+
 During a turn, the Designer can read one part of the frame in more detail by that id, with a picture
 of it if it asks. Each of these reads is a step under the reply: "Read Hero from the saved copy", or
 "Read Hero from Figma (1 Figma read)". It is made with the token of the person who started the turn.
@@ -446,6 +453,9 @@ frame and once for its picture, so a seat has about ten imports a month.
   to anyone else.
 - **A retry spends only what is missing.** The frame and its picture are each kept as soon as they
   arrive, so after a picture that failed, the next import reads only the picture.
+- **The frame's own pictures are not reads.** Figma counts the call that lists them apart from the
+  20 a month (up to 5 a minute on a View or Collab seat), and downloading them is free. When Figma
+  asks to wait, the import goes on without them and the next import of the frame tries again.
 - **The Designer spends at most 3 reads a turn.** A part's outline is one read and its picture is
   another; a part the kept copy holds costs nothing. Past three, the Designer works from the design
   document.

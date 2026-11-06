@@ -9,6 +9,10 @@
  * copy is never served to another, so nobody reads further into a file than their own Figma account
  * can open.
  *
+ * The frame's own pictures (its picture fills, which a page's picture spots start from) are kept in the
+ * same entry: an index of what was fetched, then one file each. Fetching them is not a counted read,
+ * and a frame whose index is there is not fetched again.
+ *
  * An entry that cannot be read back (cut short, not JSON, not a PNG) counts as not there. The oldest
  * entries go once the folder passes its size; a person who disconnects Figma loses theirs.
  */
@@ -17,10 +21,11 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, s
 import { join } from 'node:path';
 
 import { DESIGNER_DIR } from '../session-store.js';
+import { imageTypeOf } from '../picture-type.js';
 import type { FigmaNodes } from './client.js';
 
-/** The most the whole cache keeps before the oldest entries go. */
-export const FIGMA_CACHE_MAX_BYTES = 50 * 1024 * 1024;
+/** The most the whole cache keeps before the oldest entries go: a frame's own pictures are most of it. */
+export const FIGMA_CACHE_MAX_BYTES = 200 * 1024 * 1024;
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const USER = /^usr_[0-9A-Za-z]{1,64}$/;
@@ -32,11 +37,25 @@ export interface FigmaEntryKey {
   version: string;
 }
 
+/** What was fetched of a frame's own pictures: each by Figma's reference, and how many could not be had. */
+export interface FigmaPicturesIndex {
+  refs: string[];
+  missing: number;
+}
+
+export type PictureMediaType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+
 export interface FigmaCache {
   nodes(key: FigmaEntryKey): FigmaNodes | null;
   putNodes(key: FigmaEntryKey, nodes: FigmaNodes): void;
   render(key: FigmaEntryKey): Buffer | null;
   putRender(key: FigmaEntryKey, png: Buffer): void;
+  /** What was fetched of the frame's own pictures; null when they were never fetched for this version. */
+  pictures(key: FigmaEntryKey): FigmaPicturesIndex | null;
+  /** The frame's pictures, kept: each file first, the index last, so an index names only files that are there. */
+  putPictures(key: FigmaEntryKey, pictures: readonly { ref: string; bytes: Buffer }[], missing: number): void;
+  /** One of the frame's own pictures, by Figma's reference; null when it is not kept. */
+  picture(key: FigmaEntryKey, ref: string): { bytes: Buffer; mediaType: PictureMediaType } | null;
   /** The newest version kept of a frame, for a read that cannot ask Figma; null when none is kept. */
   newest(userId: string, fileKey: string, nodeId: string): string | null;
   /** Everything kept for a person. */
@@ -59,12 +78,12 @@ export function createFigmaCache(root: string, opts: { maxBytes?: number } = {})
   const entryDir = (key: FigmaEntryKey): string => join(frameDir(key), part(key.version));
 
   /** Temp then rename: a crash leaves the old file or the new one, never half of one. */
-  const write = (path: string, bytes: Buffer | string): void => {
+  const write = (path: string, bytes: Buffer | string, thenTrim = true): void => {
     mkdirSync(join(path, '..'), { recursive: true, mode: 0o700 });
     const temp = `${path}.${process.pid}.${createHash('sha256').update(String(Math.random())).digest('hex').slice(0, 8)}.tmp`;
     writeFileSync(temp, bytes, { mode: 0o600 });
     renameSync(temp, path);
-    trim();
+    if (thenTrim) trim();
   };
 
   /** The oldest entries go while the cache is over its size. */
@@ -126,6 +145,27 @@ export function createFigmaCache(root: string, opts: { maxBytes?: number } = {})
       return bytes !== null && bytes.length > PNG.length && bytes.subarray(0, PNG.length).equals(PNG) ? bytes : null;
     },
     putRender: (key, png) => write(join(entryDir(key), 'render.png'), png),
+    pictures(key) {
+      const bytes = read(join(entryDir(key), 'pictures.json'));
+      if (bytes === null) return null;
+      try {
+        const parsed = JSON.parse(bytes.toString('utf8')) as Partial<FigmaPicturesIndex>;
+        if (!Array.isArray(parsed.refs) || typeof parsed.missing !== 'number') return null;
+        return { refs: parsed.refs.filter((ref): ref is string => typeof ref === 'string'), missing: parsed.missing };
+      } catch {
+        return null;
+      }
+    },
+    putPictures(key, pictures, missing) {
+      // The size is checked once, after the index: a frame's pictures are many files.
+      for (const one of pictures) write(join(entryDir(key), `picture-${part(one.ref)}`), one.bytes, false);
+      write(join(entryDir(key), 'pictures.json'), JSON.stringify({ refs: pictures.map((one) => one.ref), missing }));
+    },
+    picture(key, ref) {
+      const bytes = read(join(entryDir(key), `picture-${part(ref)}`));
+      const mediaType = bytes === null ? null : imageTypeOf(bytes);
+      return bytes === null || mediaType === null ? null : { bytes, mediaType };
+    },
     newest(userId, fileKey, nodeId) {
       const folder = frameDir({ userId, fileKey, nodeId });
       if (!existsSync(folder)) return null;

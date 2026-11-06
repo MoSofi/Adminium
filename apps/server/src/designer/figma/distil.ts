@@ -50,8 +50,8 @@ export interface Distilled {
   name: string;
   width: number;
   height: number;
-  /** The pictures the frame holds, each with its shape. */
-  pictures: { id: string; width: number; height: number; shape: PictureShape }[];
+  /** The pictures the frame holds, each with its shape and Figma's reference to its picture (null when it has none). */
+  pictures: { id: string; width: number; height: number; shape: PictureShape; ref: string | null }[];
 }
 
 interface Box {
@@ -67,6 +67,8 @@ interface Paint {
   opacity?: number;
   color?: { r?: number; g?: number; b?: number; a?: number };
   scaleMode?: string;
+  /** A picture fill's own picture, by Figma's reference: `GET /v1/files/:key/images` gives its address. */
+  imageRef?: string;
   gradientStops?: { color?: Paint['color'] }[];
 }
 
@@ -212,7 +214,7 @@ export function distil(input: DistilInput): Distilled {
       if (paint.type === 'SOLID') palette.add(colourOf(node, paint));
       if (paint.type === 'IMAGE') {
         const box = boxOf(node);
-        if (box !== null) pictures.push({ id: node.id, width: Math.round(box.width), height: Math.round(box.height), shape: shapeOf(box.width, box.height) });
+        if (box !== null) pictures.push({ id: node.id, width: Math.round(box.width), height: Math.round(box.height), shape: shapeOf(box.width, box.height), ref: typeof paint.imageRef === 'string' && paint.imageRef !== '' ? paint.imageRef : null });
       }
     }
     if (node.type === 'TEXT') {
@@ -474,4 +476,10 @@ export function findNode(root: FigmaNode, id: string): FigmaNode | null {
     for (const child of children(node)) stack.push(child);
   }
   return null;
+}
+
+/** The picture a node's outline line names: its first shown picture fill's reference; null when it has none. */
+export function pictureRefOf(node: FigmaNode): string | null {
+  const ref = paints(node, 'fills').find((paint) => paint.type === 'IMAGE')?.imageRef;
+  return typeof ref === 'string' && ref !== '' ? ref : null;
 }

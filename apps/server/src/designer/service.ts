@@ -719,7 +719,7 @@ export function createDesigner(host: DesignerHost): Designer {
       const wants = missingFonts(host.root, look, { ...places, key })
         .filter((font) => !(look.without ?? []).includes(font.family))
         .map((font) => ({ kind: 'font' as const, family: font.family, use: font.use }));
-      if (wants.length > 0) await host.needs({ ask: handle.ask, signal: handle.signal, handle }, key, wants);
+      if (wants.length > 0) await host.needs({ ask: handle.ask, signal: handle.signal, handle, session }, key, wants);
     },
     // The app's picture spots, as a turn that applied ends: the card that opens the dialog, or a line about what is still empty.
     afterApplied: (session, { turn, tools }) => {

@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createFigmaClient, FigmaError, figmaWords, type FigmaRefusal } from '../src/designer/figma/client.js';
-import { checkoutFrame, fakeFigma, pngOf } from './figma-fake.js';
+import { checkoutFrame, fakeFigma, jpegOf, pngOf } from './figma-fake.js';
 
 const TOKEN = 'figd_good_token_0001';
 const KEY = 'AbCdEf0123456789';
@@ -40,7 +40,7 @@ describe('the Figma client', () => {
     expect(url).toMatch(/^https:\/\/figma-storage\.example\//);
     const png = await client.download(url, 5 * 1024 * 1024);
     expect(png.subarray(1, 4).toString('latin1')).toBe('PNG');
-    expect(fake.calls).toEqual({ me: 1, meta: 1, nodes: 1, images: 1, download: 1 });
+    expect(fake.calls).toEqual({ me: 1, meta: 1, nodes: 1, images: 1, fills: 0, download: 1 });
     // Every API call carried the token; the storage download carried none.
     const api = fake.seen.filter((call) => call.url.startsWith('https://api.figma.com/'));
     expect(api.every((call) => call.headers['x-figma-token'] === TOKEN)).toBe(true);
@@ -89,6 +89,26 @@ describe('the Figma client', () => {
     expect(await refusalOf(client.download('https://figma-storage.example/x.png', 1000))).toEqual({ kind: 'render-failed' });
     fake.picture = pngOf(64, 64, true);
     expect(await refusalOf(client.download('https://figma-storage.example/x.png', 1000))).toEqual({ kind: 'too-large' });
+  });
+
+  it('reads the addresses of the file’s own pictures with the token, and each picture with none, known by its bytes', async () => {
+    const { fake, client } = setup();
+    fake.fillPictures.set('abc', jpegOf('hero'));
+    const urls = await client.imageFills(TOKEN, KEY);
+    expect(urls).toEqual({ abc: 'https://figma-storage.example/fill/abc?sig=abc' });
+    expect(fake.seen.at(-1)?.headers['x-figma-token']).toBe(TOKEN);
+    expect(await client.downloadPicture(urls['abc'] as string, 1000)).toEqual({ bytes: jpegOf('hero'), mediaType: 'image/jpeg' });
+    expect(fake.seen.at(-1)?.headers['x-figma-token']).toBeUndefined();
+    expect(fake.calls).toMatchObject({ fills: 1, download: 1, nodes: 0, images: 0 });
+    // Bytes that are no picture, and one over the cap.
+    fake.fillPictures.set('abc', Buffer.from('<html>not a picture</html>'));
+    expect(await refusalOf(client.downloadPicture(urls['abc'] as string, 1000))).toEqual({ kind: 'render-failed' });
+    fake.fillPictures.set('abc', Buffer.concat([jpegOf(), Buffer.alloc(2000)]));
+    expect(await refusalOf(client.downloadPicture(urls['abc'] as string, 1000))).toEqual({ kind: 'too-large' });
+    expect(await refusalOf(client.downloadPicture('http://figma-storage.example/fill/abc', 1000))).toEqual({ kind: 'unreachable' });
+    // The map as Figma's documentation shows it, at the top of the answer, is read too.
+    fake.fillsAtTop = true;
+    expect(await client.imageFills(TOKEN, KEY)).toEqual({ abc: 'https://figma-storage.example/fill/abc?sig=abc' });
   });
 
   it('gives up on a call that does not answer, and says so', async () => {

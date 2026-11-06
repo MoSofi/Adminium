@@ -123,7 +123,8 @@ describe('importing a frame', () => {
     expect(done.picture.length).toBeLessThanOrEqual(5 * 1024 * 1024);
     expect(done.picture.subarray(1, 4).toString('latin1')).toBe('PNG');
     expect(fake.calls.images).toBe(1);
-    expect(fake.calls.download).toBe(1);
+    // One download of the render; the frame's own picture is the other.
+    expect(fake.seen.filter((call) => call.url.includes('/render/'))).toHaveLength(1);
   });
 
   it('says a frame that is not in the file, and a file the account cannot open', async () => {

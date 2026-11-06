@@ -59,7 +59,7 @@ import { isMinified, minifiedSummary, missingInSite, SITE_WINDOW_CHARS, textWind
 /** A site template's files one read lists. */
 const SITE_LIST_FILES = 100;
 const SITE_KIND_WORDS = { html: 'a page', css: 'a stylesheet', js: 'a script', picture: 'a picture', svg: 'an SVG picture', font: 'a font', text: 'a licence or readme' } as const;
-import { readFigmaTool, type ReadFigmaDeps } from './figma/tool.js';
+import { figmaPictureOf, figmaPicturesIn, readFigmaTool, type ReadFigmaDeps } from './figma/tool.js';
 import type { DesignerSession } from './session-store.js';
 import { googleFonts, useSiteTool } from './site/use-site.js';
 import { planSide, readTemplatePlan } from './site/template-plan.js';
@@ -69,7 +69,7 @@ import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
 import { createJail, JailError, type Jail } from './jail.js';
 import { PICTURE_SHAPES } from './pictures.js';
-import { legacyPictures, prepareFills, writeFills } from './pictures-apply.js';
+import { EXT_OF, legacyPictures, prepareFills, writeFills, type Prepared } from './pictures-apply.js';
 import type { PictureDialog } from './picture-dialog.js';
 import { createNeedsAsker, screenWants, templateWants, type NeedsDeps } from './ask-needs.js';
 import { DESIGNER_REACT_VERSION, fixedVersion, ICONS_PACKAGE, listedPackages, TAILWIND_PACKAGE, UI_HELPER_PACKAGES, type Wanted } from './needs.js';
@@ -350,6 +350,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
   const places = { builtInDir: stylesDir };
   /** The styles a person can pick: built in, and the project's own. */
   const styles = (): DesignSkill[] => listDesignSkills(deps.root, stylesDir).filter((skill) => skill.problem === undefined);
+  /** Figma's reader and the session's files, where both are: the design's own pictures are read through them. */
+  const figmaHere = deps.figma === undefined || deps.attachments === undefined ? null : { reader: deps.figma.reader, attachments: deps.attachments };
   const askNeeds = createNeedsAsker({
     root: deps.root,
     version: deps.version,
@@ -357,6 +359,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     ...(deps.pictureSites === undefined ? {} : { pictureSites: deps.pictureSites }),
     ...(deps.newestVersion === undefined ? {} : { newestVersion: deps.newestVersion }),
     ...(deps.install === undefined ? {} : { install: deps.install }),
+    ...(figmaHere === null ? {} : { designPictures: (sessionId: string, userId: string | null) => figmaPicturesIn(figmaHere, sessionId, userId) }),
   });
 
   /** The design document the person gave in this session, the newest; null when there is none. */
@@ -1987,7 +1990,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     {
       name: 'add_spots',
       description:
-        'Name the picture spots of the app’s pages, all in ONE call: each is a place a picture goes, which the person fills from the Pictures dialog. "spots": each with "id" (small letters: "hero"), "label" (short, in the person’s language), "shape" (wide, tall or square), "shows" (what belongs there, one line) and "search" (two to four words to search pictures with). For a picture a screen already imports from assets/pictures/, "file" names it and "alt" keeps its words. A spot that is there already stays as it is.',
+        'Name the picture spots of the app’s pages, all in ONE call: each is a place a picture goes, which the person fills from the Pictures dialog. "spots": each with "id" (small letters: "hero"), "label" (short, in the person’s language), "shape" (wide, tall or square), "shows" (what belongs there, one line) and "search" (two to four words to search pictures with). For a picture of a design imported from Figma, "figma" is the node id its picture line ends with ("[12:345]") and "alt" says what it shows: the spot starts with the design’s own picture. For a picture a screen already imports from assets/pictures/, "file" names it and "alt" keeps its words. A spot that is there already stays as it is.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -2004,6 +2007,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
                 shows: { type: 'string' },
                 search: { type: 'string' },
                 file: { type: 'string' },
+                figma: { type: 'string', description: 'The node id of a picture in the design imported from Figma, e.g. "12:345"' },
                 alt: { type: 'string' },
               },
               required: ['id', 'label', 'shape'],
@@ -2026,6 +2030,10 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         const made: SpotEntry[] = [];
         const kept: SpotEntry[] = [];
         const problems: string[] = [];
+        /** The design's own pictures the new spots start with, by spot id. */
+        const fromFigma = new Map<string, { bytes: Buffer; mediaType: string; alt: string }>();
+        /** Figma pictures named that this server does not keep: those spots start empty. */
+        const notKept: string[] = [];
         for (const raw of asked) {
           const item = (raw ?? {}) as Record<string, unknown>;
           const id = typeof item['id'] === 'string' ? item['id'].trim() : '';
@@ -2045,6 +2053,9 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             problems.push(`"${id}": "${given.slice(0, 80)}" is not a picture this app's screens import from assets/pictures/. Leave "file" out for a new spot.`);
             continue;
           }
+          // A picture of the design the person imported from Figma: only one an import of theirs kept, by the frame the server stamped.
+          const node = typeof item['figma'] === 'string' && given === null ? item['figma'].trim().replace(/^\[|\]$/g, '').replace(/-/g, ':') : null;
+          const picture = node === null || figmaHere === null ? null : figmaPictureOf(figmaHere, ctx.session.id, ctx.handle.by.id, node);
           const spot = cleanSpot({ label: item['label'], shape: item['shape'], shows: item['shows'], search: item['search'], file: given, alt: given === null ? '' : item['alt'] });
           if (spot === null) {
             problems.push(`"${id}": give a "label" and a "shape" (wide, tall or square).`);
@@ -2055,15 +2066,31 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             continue;
           }
           made.push({ id, ...spot, search: spot.search === '' ? spot.shows.split(' ').slice(0, 4).join(' ') : spot.search });
+          if (picture !== null) fromFigma.set(id, { ...picture, alt: plainWords(item['alt'], 250) || spot.label });
+          else if (node !== null) notKept.push(`"${id}": the picture of the Figma design at ${node.slice(0, 40)} is not kept on this server (the frame was imported before pictures came with it, by someone else, or Figma did not give it). The spot is a plain frame the person fills from the Pictures dialog.`);
         }
         if (made.length === 0 && kept.length === 0) return none(problems.join('\n') || 'Give "spots": each with an "id", a "label" and a "shape".');
         if (made.length > 0) writeSpots(deps.root, appKey, [...spots, ...made]);
-        const line = (spot: SpotEntry): string => `- "${spot.id}" (${spot.label}, ${spot.shape}${spot.file === null ? '' : `, with ${spot.file}`}): <Picture spot="${spot.id}" />`;
+        // The design's own pictures, written as the person's Apply writes a picture: a file each beside spots.json, the spot naming it.
+        const filled = new Set<string>();
+        if (fromFigma.size > 0) {
+          const written = readSpots(deps.root, appKey);
+          const ready: Prepared[] = [...fromFigma].flatMap(([id, picture]) => {
+            const spot = written.find((candidate) => candidate.id === id);
+            if (spot === undefined) return [];
+            // The bytes are what is written: `from` names no source of the dialog's.
+            return [{ fill: { spot: id, version: spotVersion(spot), from: { placeholder: true as const } }, target: `spot:${id}`, bytes: { data: picture.bytes, ext: EXT_OF[picture.mediaType] ?? 'png', sha256: createHash('sha256').update(picture.bytes).digest('hex') }, alt: picture.alt, decorative: false }];
+          });
+          const done = await writeFills(ready, { root: deps.root, key: appKey, version: deps.version, by: ctx.handle.by });
+          for (const result of done.results) if (result.state === 'applied') filled.add(result.target.slice('spot:'.length));
+        }
+        const line = (spot: SpotEntry): string => `- "${spot.id}" (${spot.label}, ${spot.shape}${spot.file === null ? (filled.has(spot.id) ? ', with the Figma design’s own picture' : '') : `, with ${spot.file}`}): <Picture spot="${spot.id}" />`;
         return text(
           [
             made.length === 0 ? null : `Made ${String(made.length)} spot(s):\n${made.map(line).join('\n')}`,
             kept.length === 0 ? null : `Already there, and kept as they are (a new place needs a new id):\n${kept.map(line).join('\n')}`,
             problems.length === 0 ? null : `Not made:\n${problems.join('\n')}`,
+            notKept.length === 0 ? null : `Made without a picture:\n${notKept.join('\n')}`,
             `In a screen: import { Picture } from '@adminiumjs/adminium/side', then <Picture spot="hero" className="…" /> where the picture goes, cut to its shape. Never an <img> of a picture file. The person fills each spot; until then it is a plain frame. Give a spot's class its size and corners in design.css.`,
           ]
             .filter((part): part is string => part !== null)

@@ -3,7 +3,8 @@
  * A fake of Figma's REST API and its picture storage, reached through the safe fetch's own seams:
  * `resolve` answers every name with a public address, and `connect` answers the request in this
  * process. Nothing listens on a port. It counts every call by kind, so a test can say how many of
- * Figma's counted reads (`nodes`, `images`) an action spent.
+ * Figma's counted reads (`nodes`, `images`) an action spent. `fills` (the file's own pictures' addresses)
+ * is a Tier 2 call, never a counted read; each of those pictures is a `download`.
  */
 import { PNG } from 'pngjs';
 
@@ -25,15 +26,31 @@ export interface FakeFigma {
   access: Map<string, Set<string>>;
   files: Map<string, FakeFile>;
   /** Calls made, by kind. */
-  calls: { me: number; meta: number; nodes: number; images: number; download: number };
+  calls: { me: number; meta: number; nodes: number; images: number; fills: number; download: number };
   /** The headers each call carried, in order. */
   seen: { url: string; headers: Record<string, string> }[];
   /** What the next calls of a kind answer instead: a status and its headers, `null-image`, a picture of its own. */
-  fail: Partial<Record<'me' | 'meta' | 'nodes' | 'images' | 'download', { status: number; headers?: Record<string, string> } | 'null-image' | 'hang'>>;
+  fail: Partial<Record<'me' | 'meta' | 'nodes' | 'images' | 'fills' | 'download', { status: number; headers?: Record<string, string> } | 'null-image' | 'hang'>>;
   /** The picture each render serves; a small PNG when not set. */
   picture?: Buffer;
+  /** The file's own pictures, by image reference; a small JPEG for a reference not listed. A null leaves the reference out of `fills`. */
+  fillPictures: Map<string, Buffer | null>;
+  /** Answer `fills` with the map at the top, as Figma's documentation shows it, not under `meta`. */
+  fillsAtTop?: boolean;
   /** Held calls of a kind wait for this before they answer. */
   gate?: Promise<void>;
+}
+
+/** A few bytes a JPEG starts with: enough for what the server reads of a picture's kind. */
+export function jpegOf(tag = 'photo'): Buffer {
+  return Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from(tag, 'utf8'), Buffer.from([0xff, 0xd9])]);
+}
+
+/** Every image reference a document's picture fills name, in the document's order. */
+function refsIn(node: FigmaNodeAnswer['document'], out: string[] = []): string[] {
+  for (const paint of (Array.isArray(node['fills']) ? node['fills'] : []) as { type?: string; imageRef?: string }[]) if (paint.type === 'IMAGE' && typeof paint.imageRef === 'string') out.push(paint.imageRef);
+  for (const child of node.children ?? []) refsIn(child, out);
+  return out;
 }
 
 /** A PNG of the given size, filled with noise when asked (noise does not compress, so its file is large). */
@@ -59,9 +76,10 @@ export function fakeFigma(): FakeFigma {
     tokens: new Map([['figd_good_token_0001', { id: '1111', handle: 'ava.reyes' }]]),
     access: new Map(),
     files: new Map(),
-    calls: { me: 0, meta: 0, nodes: 0, images: 0, download: 0 },
+    calls: { me: 0, meta: 0, nodes: 0, images: 0, fills: 0, download: 0 },
     seen: [],
     fail: {},
+    fillPictures: new Map(),
     seams: {
       resolve: async () => [{ address: '151.101.1.1', family: 4 }],
       connect: async (target: PinnedTarget, opts: { headers: Record<string, string>; signal: AbortSignal }) =>
@@ -83,6 +101,7 @@ async function answer(fake: FakeFigma, url: URL, headers: Record<string, string>
     : url.pathname === '/v1/me' ? 'me'
     : /^\/v1\/files\/[^/]+\/meta$/.test(url.pathname) ? 'meta'
     : /^\/v1\/files\/[^/]+\/nodes$/.test(url.pathname) ? 'nodes'
+    : /^\/v1\/files\/[^/]+\/images$/.test(url.pathname) ? 'fills'
     : /^\/v1\/images\/[^/]+$/.test(url.pathname) ? 'images'
     : null;
   if (kind === null) return json(404, { status: 404, err: 'Not found' });
@@ -91,6 +110,10 @@ async function answer(fake: FakeFigma, url: URL, headers: Record<string, string>
   const failing = fake.fail[kind];
   if (failing === 'hang') return new Promise(() => {});
   if (failing !== undefined && failing !== 'null-image') return json(failing.status, { status: failing.status, err: 'refused' }, failing.headers);
+  if (kind === 'download' && url.pathname.startsWith('/fill/')) {
+    const bytes = fake.fillPictures.get(decodeURIComponent(url.pathname.slice('/fill/'.length))) ?? jpegOf();
+    return { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': String(bytes.length) }, body: (async function* () { yield bytes; })(), destroy: () => {} };
+  }
   if (kind === 'download') {
     const bytes = fake.picture ?? pngOf(40, 30);
     return { status: 200, headers: { 'content-type': 'image/png', 'content-length': String(bytes.length) }, body: (async function* () { yield bytes; })(), destroy: () => {} };
@@ -104,6 +127,12 @@ async function answer(fake: FakeFigma, url: URL, headers: Record<string, string>
   const file = fake.files.get(key);
   const allowed = fake.access.get(key);
   if (file === undefined || (allowed !== undefined && !allowed.has(token))) return json(403, { status: 403, err: 'Forbidden' });
+  if (kind === 'fills') {
+    const refs = [...new Set(Object.values(file.nodes).flatMap((answer) => refsIn(answer.document)))].filter((ref) => fake.fillPictures.get(ref) !== null);
+    const images = Object.fromEntries(refs.map((ref) => [ref, `https://figma-storage.example/fill/${encodeURIComponent(ref)}?sig=abc`]));
+    // As Figma answers it: the map under `meta`.
+    return json(200, fake.fillsAtTop === true ? { images } : { error: false, status: 200, meta: { images } });
+  }
   if (kind === 'meta') return json(200, { file: { name: file.name, version: file.version, last_touched_at: '2026-10-20T10:00:00Z', editorType: 'figma' } });
   const ids = (url.searchParams.get('ids') ?? '').split(',').filter((id) => id !== '');
   // A node inside a frame is answered as Figma does: its own subtree, with the frame's maps.

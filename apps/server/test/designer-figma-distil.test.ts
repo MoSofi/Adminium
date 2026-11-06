@@ -99,7 +99,7 @@ describe('a frame as a design document', () => {
   it('writes a free layout with each child’s place, pictures with their shape, icons as icons, and leaves hidden nodes and masks out', () => {
     const out = distil({
       answer: frame([
-        { id: '3:1', name: 'Hero', type: 'RECTANGLE', fills: [{ type: 'IMAGE', scaleMode: 'FILL' }], absoluteBoundingBox: { x: 100, y: 200, width: 1200, height: 480 }, cornerRadius: 20 },
+        { id: '3:1', name: 'Hero', type: 'RECTANGLE', fills: [{ type: 'IMAGE', scaleMode: 'FILL', imageRef: 'f00d' }], absoluteBoundingBox: { x: 100, y: 200, width: 1200, height: 480 }, cornerRadius: 20 },
         { id: '3:2', name: 'Portrait', type: 'ELLIPSE', fills: [{ type: 'IMAGE', scaleMode: 'FIT' }], absoluteBoundingBox: { x: 140, y: 700, width: 300, height: 400 } },
         { id: '3:3', name: 'Cart icon', type: 'GROUP', fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 } }], absoluteBoundingBox: { x: 1200, y: 220, width: 24, height: 24 }, children: [{ id: '3:4', name: 'Path', type: 'VECTOR', absoluteBoundingBox: { x: 1200, y: 220, width: 24, height: 24 } }] },
         { id: '3:5', name: 'Secret', type: 'TEXT', visible: false, characters: 'Hidden words' },
@@ -115,8 +115,8 @@ describe('a frame as a design document', () => {
     expect(out.text).not.toContain('Hidden words');
     expect(out.text).toContain('Left out: 1 hidden, 1 mask.');
     expect(out.pictures).toEqual([
-      { id: '3:1', width: 1200, height: 480, shape: 'wide' },
-      { id: '3:2', width: 300, height: 400, shape: 'tall' },
+      { id: '3:1', width: 1200, height: 480, shape: 'wide', ref: 'f00d' },
+      { id: '3:2', width: 300, height: 400, shape: 'tall', ref: null },
     ]);
     expect(out.text).toContain('- pictures: 2 (wide 1200×480, tall 300×400)');
   });

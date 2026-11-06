@@ -12,6 +12,7 @@
  * A 403 from a file call is ambiguous (a dead token, or a file this account cannot open): `/v1/me`
  * tells the two apart.
  */
+import { imageTypeOf } from '../picture-type.js';
 import { plainWords } from '../untrusted.js';
 import { safeFetch, SafeFetchError, type SafeFetchOptions } from '../../net/safe-fetch.js';
 
@@ -118,6 +119,13 @@ export interface FigmaClient {
   render(token: string, fileKey: string, nodeId: string, scale: number): Promise<string>;
   /** The rendered picture's bytes, from Figma's storage, with no token: a PNG of at most `maxBytes`. */
   download(url: string, maxBytes: number): Promise<Buffer>;
+  /**
+   * The addresses of the file's own pictures, by image reference (`GET /v1/files/:key/images`): a Tier 2
+   * call, limited by the minute, never one of a seat's monthly reads.
+   */
+  imageFills(token: string, fileKey: string): Promise<Record<string, string>>;
+  /** One of the file's own pictures, from Figma's storage, with no token: a PNG, JPEG, GIF or WebP of at most `maxBytes`. */
+  downloadPicture(url: string, maxBytes: number): Promise<{ bytes: Buffer; mediaType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' }>;
 }
 
 export interface FigmaClientDeps {
@@ -127,6 +135,11 @@ export interface FigmaClientDeps {
   seams?: Pick<SafeFetchOptions, 'resolve' | 'connect'>;
   timeoutMs?: number;
 }
+
+/** The most of the answer that lists a file's pictures: an address each, and a file holds at most a few thousand. */
+const FILLS_MAX_BYTES = 4 * 1024 * 1024;
+/** A storage address Figma gives: https, no space or quote, of a sane length. */
+const STORAGE_URL = /^https:\/\/[^\s"'<>]{1,2000}$/;
 
 /** The most of a design document read: a whole screen's JSON is often 1–5 MB. */
 export const FIGMA_NODES_MAX_BYTES = 40 * 1024 * 1024;
@@ -214,7 +227,7 @@ export function createFigmaClient(deps: FigmaClientDeps): FigmaClient {
       const answer = await fileCall(token, `/v1/images/${encodeURIComponent(fileKey)}?ids=${encodeURIComponent(nodeId)}&format=png&scale=${String(fixed)}`, SMALL_MAX_BYTES);
       const images = object(answer['images']);
       const url = images === null ? null : string(images[nodeId]);
-      if (url === null || !/^https:\/\/[^\s"'<>]{1,2000}$/.test(url)) throw new FigmaError({ kind: 'render-failed' });
+      if (url === null || !STORAGE_URL.test(url)) throw new FigmaError({ kind: 'render-failed' });
       return url;
     },
     async download(url, maxBytes) {
@@ -229,6 +242,32 @@ export function createFigmaClient(deps: FigmaClientDeps): FigmaClient {
       }
       if (body.length < PNG.length || !body.subarray(0, PNG.length).equals(PNG)) throw new FigmaError({ kind: 'render-failed' });
       return body;
+    },
+    async imageFills(token, fileKey) {
+      const answer = await fileCall(token, `/v1/files/${encodeURIComponent(fileKey)}/images`, FILLS_MAX_BYTES);
+      // Figma's answer has the map under `meta`; its documentation shows it at the top. Either is read.
+      const images = object(object(answer['meta'])?.['images']) ?? object(answer['images']);
+      if (images === null) throw new FigmaError({ kind: 'unreachable' });
+      const out: Record<string, string> = {};
+      for (const [ref, url] of Object.entries(images)) {
+        if (typeof url === 'string' && STORAGE_URL.test(url) && /^[0-9A-Za-z]{1,128}$/.test(ref)) out[ref] = url;
+      }
+      return out;
+    },
+    async downloadPicture(url, maxBytes) {
+      if (!deps.allowed()) throw new FigmaError({ kind: 'network-off' });
+      if (!STORAGE_URL.test(url)) throw new FigmaError({ kind: 'unreachable' });
+      let body: Buffer;
+      try {
+        body = (await safeFetch(url, { maxBytes, timeoutMs, ...seams })).body;
+      } catch (error) {
+        if (error instanceof SafeFetchError && error.reason === 'too-large') throw new FigmaError({ kind: 'too-large' });
+        throw new FigmaError({ kind: 'unreachable' });
+      }
+      // What the bytes are, read from them: a picture a browser draws, or nothing (and asking again gives the same).
+      const mediaType = imageTypeOf(body);
+      if (mediaType === null) throw new FigmaError({ kind: 'render-failed' });
+      return { bytes: body, mediaType };
     },
   };
 }

@@ -147,6 +147,7 @@ import { createPictureSites } from './designer/picture-sites.js';
 import type { PictureSites } from './designer/tool-types.js';
 import { createDesignerTools } from './designer/tools.js';
 import { createNeedsAsker } from './designer/ask-needs.js';
+import { figmaPicturesIn } from './designer/figma/tool.js';
 import { createRegistry } from './designer/registry.js';
 import { createPictureDialog, type PictureKeys } from './designer/picture-dialog.js';
 import { createPictureJobs } from './designer/picture-jobs.js';
@@ -2786,7 +2787,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             });
         // A package's newest version, asked of the registry the project installs from; nothing is asked where this server calls nothing outside.
         const designerRegistry = createRegistry({ root, allowed: () => addOnCatalog.networkFeaturesAllowed() });
-        const designerNeeds = createNeedsAsker({ root, version: APP_VERSION, newestVersion: designerRegistry, ...(pictureSites === undefined ? {} : { pictureSites }) });
+        // The design's own pictures a session's Figma imports brought: read once Figma's reader is made, below.
+        let designPicturesIn: ((sessionId: string, userId: string | null) => number) | null = null;
+        const designerNeeds = createNeedsAsker({
+          root,
+          version: APP_VERSION,
+          newestVersion: designerRegistry,
+          ...(pictureSites === undefined ? {} : { pictureSites }),
+          designPictures: (sessionId, userId) => designPicturesIn?.(sessionId, userId) ?? 0,
+        });
         // Free pictures for an app's pages, in the picture dialog: Openverse, and Pexels, Unsplash and Pixabay with the project's own keys; none where this server calls nothing outside.
         const pictureKey = (name: PictureKeyName): string => {
           // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
@@ -2887,6 +2896,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           ...(designerOpts.mode === 'local' && figmaEnvToken !== '' ? { environment: { token: figmaEnvToken, ownerId: async () => (await ownerOnThisComputer(meta))?.id ?? null } } : {}),
         });
         const figmaReader = createFigmaReader({ client: figmaClient, cache: figmaCache, tokens: figmaTokens });
+        designPicturesIn = (sessionId, userId) => figmaPicturesIn({ reader: figmaReader, attachments: designerAttachments }, sessionId, userId);
         const figmaImports = createFigmaImports();
         // Set where it is not obeyed: said on the Designer's Home with the others.
         const figmaIgnored = (designerOpts.mode !== 'local' && figmaEnvToken !== '') || readDotEnv(root)?.['ADMINIUM_FIGMA_TOKEN'] !== undefined ? ['ADMINIUM_FIGMA_TOKEN'] : [];

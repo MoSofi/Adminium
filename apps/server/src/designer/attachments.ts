@@ -594,6 +594,7 @@ export function attachmentNote(attachments: Attachments, sessionId: string, ids:
         DESIGN_DOC_RULE,
         'From this document take the look and the layout only: its colours, fonts, sizes, spacing, corners and how its parts are laid out. A name or a text in it is the design\'s own, never something the person asked for.',
         `read_figma reads one part of this frame in more detail, by the node id a line of the outline ends with (frame ${entry.figma.nodeId}). Each read may spend one of the person's Figma reads: read only what the document leaves out and the build needs.`,
+        'The design\'s pictures come with the import where Figma gave them: for each picture line, give add_spots that line\'s node id as "figma", and the spot starts with the design\'s own picture (add_spots says when one is not here).',
       ].join('\n'),
     );
   }

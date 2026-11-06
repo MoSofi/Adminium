@@ -33,7 +33,12 @@ export interface NeedsDeps {
   stylesDir?: string | null;
   /** Add packages to the project. Null when it worked; else what the manager said. A test gives its own. */
   install?: (specs: readonly { name: string; version: string }[], signal: AbortSignal) => Promise<string | null>;
+  /** How many of a design's own pictures the session's Figma imports brought for the person: with some, the pictures are not asked about. */
+  designPictures?: (sessionId: string, userId: string | null) => number;
 }
+
+/** Who asks: the turn, and the session it is in when the caller knows it. */
+export type NeedsContext = Pick<ToolContext, 'ask' | 'signal' | 'handle'> & { session?: { id: string } };
 
 export interface NeedsOutcome {
   /** Whether a card was shown. */
@@ -51,7 +56,7 @@ export interface NeedsOutcome {
  * Ask for what is wanted, and add what is ticked. With `answer`, the person already answered on another card (a site
  * template's plan lists the same items): no card is shown, and the ids in it are what they ticked.
  */
-export type NeedsAsker = ((ctx: Pick<ToolContext, 'ask' | 'signal' | 'handle'>, appKey: string, wanted: readonly Wanted[], opts?: { answer?: readonly string[] }) => Promise<NeedsOutcome>) & {
+export type NeedsAsker = ((ctx: NeedsContext, appKey: string, wanted: readonly Wanted[], opts?: { answer?: readonly string[] }) => Promise<NeedsOutcome>) & {
   /** What a card would offer for `wanted` now, with no card shown and nothing added. */
   preview(wanted: readonly Wanted[], signal?: AbortSignal): Promise<NeedItem[]>;
 };
@@ -129,7 +134,7 @@ export function createNeedsAsker(deps: NeedsDeps): NeedsAsker {
       },
       wanted,
     );
-  const ask = async (ctx: Pick<ToolContext, 'ask' | 'signal' | 'handle'>, appKey: string, wanted: readonly Wanted[], opts: { answer?: readonly string[] } = {}): Promise<NeedsOutcome> => {
+  const ask = async (ctx: NeedsContext, appKey: string, wanted: readonly Wanted[], opts: { answer?: readonly string[] } = {}): Promise<NeedsOutcome> => {
     const plan = await planFor(wanted, ctx.signal);
     const lines: string[] = [];
     if (plan.already.length > 0) lines.push(`Already in the project: ${plan.already.join(', ')}.`);
@@ -142,9 +147,11 @@ export function createNeedsAsker(deps: NeedsDeps): NeedsAsker {
     if (plan.items.length === 0) return { asked: false, added: [], left: again, failed: null, said: lines.join('\n') || 'Nothing was asked for.' };
 
     // What a design does with the page's pictures, asked once per app with the first card that is due (never a card of its own).
-    // A template app is never asked: its pictures came with it, as filled spots.
+    // A template app is never asked: its pictures came with it, as filled spots. Nor is a design imported from Figma
+    // that brought its own pictures: its spots start with them.
     const kept = readLook(deps.root, appKey);
-    const askPictures = opts.answer === undefined && kept !== null && kept.direction === undefined && kept.pictures === undefined && (kept.templateSides ?? []).length === 0;
+    const designPictures = ctx.session === undefined ? 0 : (deps.designPictures?.(ctx.session.id, ctx.handle.by.id) ?? 0);
+    const askPictures = opts.answer === undefined && kept !== null && kept.direction === undefined && kept.pictures === undefined && (kept.templateSides ?? []).length === 0 && designPictures === 0;
     const answer: CardAnswer = opts.answer !== undefined ? { type: 'needs', accept: [...opts.answer] } : await ctx.ask({ type: 'needs', items: plan.items, ...(askPictures ? { pictures: { preselect: 'placeholders' as const } } : {}) });
     const ticked = new Set(answer.type === 'needs' ? answer.accept : []);
     // An answer that says nothing of it keeps what the card started on.
@@ -175,6 +182,9 @@ export function createNeedsAsker(deps: NeedsDeps): NeedsAsker {
       const chosen = pictures === undefined ? rest : { ...rest, pictures };
       // A look kept before styles names no font and carries no package: its sides are left exactly as they are, edits of a person's included.
       if (look.direction === undefined) applyLook(deps.root, appKey, without.size === 0 ? chosen : { ...chosen, without: [...without].sort() }, places);
+    }
+    if (designPictures > 0 && opts.answer === undefined && kept !== null && kept.pictures === undefined && kept.direction === undefined && (kept.templateSides ?? []).length === 0) {
+      lines.push(`Pictures: the design imported from Figma brought its own (${String(designPictures)}). Draw each as a spot with add_spots, "figma" set to the node id its picture line ends with: the spot starts with that picture. A picture the design does not have is a spot the person fills.`);
     }
     if (pictures !== undefined) lines.push(pictures === 'choose' ? 'Pictures: the person chooses them. Draw each as a spot (add_spots); after the design a card opens the picture dialog for them.' : 'Pictures: placeholders for now. Draw each as a spot (add_spots); the person fills them later.');
 

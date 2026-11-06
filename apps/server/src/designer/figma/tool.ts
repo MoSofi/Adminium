@@ -41,6 +41,25 @@ export function figmaStamps(attachments: Attachments, sessionId: string): { entr
   return attachments.list(sessionId).flatMap((entry) => (entry.source === 'figma' && entry.kind === 'doc' && entry.figma !== undefined ? [{ entry, stamp: entry.figma }] : []));
 }
 
+/**
+ * The design's own picture a node of a frame the session holds shows, as the person's import kept it;
+ * null when none is kept for them. The frame is named only by the server's stamp, the newest first.
+ */
+export function figmaPictureOf(deps: { reader: FigmaReader; attachments: Attachments }, sessionId: string, userId: string | null, node: string): { bytes: Buffer; mediaType: string } | null {
+  if (userId === null || !isNodeId(node)) return null;
+  for (const { stamp } of [...figmaStamps(deps.attachments, sessionId)].reverse()) {
+    const found = deps.reader.framePicture(userId, { fileKey: stamp.fileKey, nodeId: stamp.nodeId, version: stamp.version }, node);
+    if (found !== null) return found;
+  }
+  return null;
+}
+
+/** How many of the design's own pictures the frames a session holds brought, for this person. */
+export function figmaPicturesIn(deps: { reader: FigmaReader; attachments: Attachments }, sessionId: string, userId: string | null): number {
+  if (userId === null) return 0;
+  return figmaStamps(deps.attachments, sessionId).reduce((sum, { stamp }) => sum + deps.reader.framePictures(userId, { fileKey: stamp.fileKey, nodeId: stamp.nodeId, version: stamp.version }), 0);
+}
+
 /** The tool, for a session that holds a Figma import; null for one that holds none (it is then not offered at all). */
 export function readFigmaTool(deps: ReadFigmaDeps, sessionId: string): DesignerTool | null {
   if (figmaStamps(deps.attachments, sessionId).length === 0) return null;

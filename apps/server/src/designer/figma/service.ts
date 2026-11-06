@@ -18,13 +18,18 @@
  * The picture is asked at about two megapixels (its long side at most 2,000 px): the model counts any
  * picture as the same 1,500 tokens, and a larger one only risks the 5 MB cap. A PNG still over 5 MB is
  * made smaller here, never by asking Figma again.
+ *
+ * An import also fetches the frame's own pictures (its picture fills), so a page's picture spots can
+ * start with them: one call for their addresses (Tier 2, limited by the minute, never one of the
+ * monthly reads) and a download from Figma's storage for each. They are a gift, never a reason to fail:
+ * an import whose pictures could not be had still imports, and the next import of the frame tries again.
  */
 import { PNG } from 'pngjs';
 
 import { ATTACHMENT_MAX_IMAGE_BYTES } from '../attachments.js';
 import { FigmaError, type FigmaClient, type FigmaNode, type FigmaNodes } from './client.js';
-import type { FigmaCache, FigmaEntryKey } from './cache.js';
-import { distil, findNode, OUTLINE_LONG_CHARS, OUTLINE_SHORT_CHARS } from './distil.js';
+import type { FigmaCache, FigmaEntryKey, PictureMediaType } from './cache.js';
+import { distil, findNode, OUTLINE_LONG_CHARS, OUTLINE_SHORT_CHARS, pictureRefOf } from './distil.js';
 import type { FigmaLink } from './link.js';
 import { FIGMA_PAUSE_MAX_MS, tokenPrint, type FigmaCredential, type FigmaTokens } from './tokens.js';
 
@@ -32,6 +37,12 @@ import { FIGMA_PAUSE_MAX_MS, tokenPrint, type FigmaCredential, type FigmaTokens 
 export const RENDER_LONG_SIDE = 2000;
 /** The most of a render read from Figma's storage, before it is made to fit under 5 MB. */
 export const RENDER_DOWNLOAD_MAX_BYTES = 24 * 1024 * 1024;
+/** The most of a frame's own pictures one import fetches, and the most bytes of them kept. */
+export const FRAME_PICTURES_MAX = 24;
+export const FRAME_PICTURES_MAX_BYTES = 60 * 1024 * 1024;
+/** How many of them are downloaded at once, and how long the import waits for them in all. */
+const PICTURE_DOWNLOADS_AT_ONCE = 4;
+export const FRAME_PICTURES_WAIT_MS = 30_000;
 
 export interface FigmaImport {
   fileKey: string;
@@ -48,6 +59,8 @@ export interface FigmaImport {
   picture: Buffer;
   /** Reads Figma counted for this import: 0 when it came from what this server kept. */
   reads: number;
+  /** How many of the frame's own pictures are kept, for its picture spots to start from. */
+  pictures: number;
 }
 
 export interface FigmaPart {
@@ -64,6 +77,13 @@ export interface FigmaReader {
    * else from Figma. `allowance` is how many counted reads this call may spend; past it, it refuses.
    */
   readPart(userId: string, frame: { fileKey: string; nodeId: string; version: string }, node: string, opts: { picture: boolean; allowance: number; small: boolean }): Promise<FigmaPart>;
+  /**
+   * The frame's own picture that a node of it shows, as an import kept it for this person; null when
+   * none is kept (another person imported it, the file moved, or the picture could not be had).
+   */
+  framePicture(userId: string, frame: { fileKey: string; nodeId: string; version: string }, node: string): { bytes: Buffer; mediaType: PictureMediaType } | null;
+  /** How many of a frame's own pictures are kept for this person. */
+  framePictures(userId: string, frame: { fileKey: string; nodeId: string; version: string }): number;
   /** Counted reads spent by a Figma account (or a token's fingerprint) since this server started. */
   readsBy(account: string): number;
   /** A person's kept copies, gone (they disconnected Figma). */
@@ -138,6 +158,77 @@ export function createFigmaReader(deps: FigmaReaderDeps): FigmaReader {
     return fitPicture(png);
   };
 
+  /**
+   * The frame's own pictures, kept for this version: what is kept already, else fetched now. A failure
+   * that may pass (Figma's limit, a network error) keeps nothing, so the next import tries again; a
+   * picture that cannot be had at all (too large, not a picture, gone from the file) is counted missing.
+   */
+  const picturesOf = async (credential: FigmaCredential, key: FigmaEntryKey, refs: readonly string[]): Promise<number> => {
+    const kept = cache.pictures(key);
+    if (kept !== null) return kept.refs.length;
+    if (refs.length === 0) return 0;
+    let urls: Record<string, string>;
+    try {
+      urls = await client.imageFills(credential.token, key.fileKey);
+    } catch {
+      return 0;
+    }
+    const wanted = refs.slice(0, FRAME_PICTURES_MAX);
+    const got: { ref: string; bytes: Buffer }[] = [];
+    let missing = refs.length - wanted.length;
+    let passing = false;
+    let bytes = 0;
+    let next = 0;
+    // The person waits in the dialog: past the wait, what is not downloaded yet is left for the next import.
+    const until = now() + FRAME_PICTURES_WAIT_MS;
+    const one = async (ref: string): Promise<void> => {
+      if (now() > until) {
+        passing = true;
+        return;
+      }
+      const url = urls[ref];
+      if (url === undefined) {
+        missing += 1;
+        return;
+      }
+      let found: { bytes: Buffer; mediaType: PictureMediaType };
+      try {
+        found = await client.downloadPicture(url, RENDER_DOWNLOAD_MAX_BYTES);
+      } catch (error) {
+        // Too large, or no picture at all: asking again gives the same. Anything else may pass.
+        if (error instanceof FigmaError && (error.refusal.kind === 'too-large' || error.refusal.kind === 'render-failed')) missing += 1;
+        else passing = true;
+        return;
+      }
+      // A spot takes 5 MB at most: a PNG is made smaller here; any other kind over it is left out.
+      let data: Buffer = Buffer.alloc(0);
+      try {
+        data = found.bytes.length <= ATTACHMENT_MAX_IMAGE_BYTES ? found.bytes : found.mediaType === 'image/png' ? fitPicture(found.bytes) : data;
+      } catch {
+        // A PNG that would not read, or would not fit: missing.
+      }
+      if (data.length === 0 || bytes + data.length > FRAME_PICTURES_MAX_BYTES) {
+        missing += 1;
+        return;
+      }
+      bytes += data.length;
+      got.push({ ref, bytes: data });
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(PICTURE_DOWNLOADS_AT_ONCE, wanted.length) }, async () => {
+        while (next < wanted.length) {
+          const ref = wanted[next] as string;
+          next += 1;
+          await one(ref);
+        }
+      }),
+    );
+    // In the frame's order, whichever download finished first.
+    got.sort((a, b) => wanted.indexOf(a.ref) - wanted.indexOf(b.ref));
+    if (!passing) cache.putPictures(key, got, missing);
+    return got.length;
+  };
+
   const importFrame = async (userId: string, link: FigmaLink, by: 'person' | 'model'): Promise<FigmaImport> => {
     const credential = await credentialOf(userId);
     const account = await accountOf(credential);
@@ -167,9 +258,12 @@ export function createFigmaReader(deps: FigmaReaderDeps): FigmaReader {
       const file = { name: nodes.name !== '' ? nodes.name : meta.name, key: link.fileKey, version: key.version };
       const long = distil({ answer, file, maxChars: OUTLINE_LONG_CHARS });
       const short = distil({ answer, file, maxChars: OUTLINE_SHORT_CHARS });
+      // Only the pictures the outline names by their node id: the Designer can put no other in a spot.
+      const named = long.pictures.flatMap((one) => (one.ref !== null && long.text.includes(`[${one.id}]`) ? [one.ref] : []));
+      const pictures = await picturesOf(credential, key, [...new Set(named)]);
       // The person's own import worked: whatever paused the Designer's reads is over.
       if (by === 'person') await tokens.unpause(account);
-      return { fileKey: link.fileKey, nodeId: link.nodeId, version: key.version, fileName: file.name, frame: long.name, width: long.width, height: long.height, outline: long.text, short: short.text, picture, reads };
+      return { fileKey: link.fileKey, nodeId: link.nodeId, version: key.version, fileName: file.name, frame: long.name, width: long.width, height: long.height, outline: long.text, short: short.text, picture, reads, pictures };
     } catch (error) {
       await pauseOn(error, account, userId);
       throw error;
@@ -221,6 +315,14 @@ export function createFigmaReader(deps: FigmaReaderDeps): FigmaReader {
         throw error;
       }
     },
+    framePicture(userId, frame, node) {
+      const key = { userId, ...frame };
+      const document = cache.nodes(key)?.nodes[frame.nodeId]?.document;
+      const found = document === undefined ? null : findNode(document, node);
+      const ref = found === null ? null : pictureRefOf(found);
+      return ref === null || cache.pictures(key)?.refs.includes(ref) !== true ? null : cache.picture(key, ref);
+    },
+    framePictures: (userId, frame) => cache.pictures({ userId, ...frame })?.refs.length ?? 0,
     readsBy: (account) => counted.get(account) ?? 0,
     forget: (userId) => {
       cache.forget(userId);

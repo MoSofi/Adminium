@@ -17,7 +17,8 @@ The short form of `SKILL.md`. Hold every screen people see to it.
 - **Colour and type**: only the theme's values. The accent for the main action and a few marks.
   One band in another colour gives a page rhythm. Two fonts: the theme's heading and body.
 - **Pictures**: a page about food, rooms, people or things shows them. Each is a spot
-  (add_spots) the person fills; their own attached picture goes in with fill_spot; never
+  (add_spots) the person fills; their own attached picture goes in with fill_spot; a picture
+  of a design imported from Figma starts its spot with add_spots' "figma" (its node id); never
   another site's address on your own.
   Every picture a fixed shape, and alt text.
 - **Icons**: from the icon set, one size. Never an emoji as an icon.
