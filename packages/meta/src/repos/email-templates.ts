@@ -537,6 +537,8 @@ export function emailTemplatesRepo(meta: MetaDb) {
     /** Delete for good; runs cascade with the row. */
     async removeById(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_email_templates').where('id', '=', id).executeTakeFirst();
+      // Its "Shown in" links name it by kind and id (no foreign key): they go with it.
+      await db.deleteFrom('adminium_item_workspaces').where('kind', '=', 'email-template').where('itemId', '=', id).execute();
       return affected(res.numDeletedRows as bigint | undefined) === 1;
     },
 
@@ -659,11 +661,13 @@ export function emailTemplatesRepo(meta: MetaDb) {
     },
 
     async remove(key: string, locale: string): Promise<boolean> {
+      const row = await db.selectFrom('adminium_email_templates').select('id').where('key', '=', key).where('locale', '=', locale).executeTakeFirst();
       const res = await db
         .deleteFrom('adminium_email_templates')
         .where('key', '=', key)
         .where('locale', '=', locale)
         .executeTakeFirst();
+      if (row !== undefined) await db.deleteFrom('adminium_item_workspaces').where('kind', '=', 'email-template').where('itemId', '=', row.id).execute();
       return affected(res.numDeletedRows as bigint | undefined) === 1;
     },
   };
