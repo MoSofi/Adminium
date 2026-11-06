@@ -176,7 +176,7 @@ test('Kiln is saved through the Save as app wizard and downloaded with its finge
   await expect(quick).toBeVisible();
   await quick.getByLabel('Key').fill(KEY);
   await expect(quick.getByLabel('Version')).toHaveValue('1.0.0');
-  await expect(quick.getByText(/5 tables, 11 pages, 1 role, 2 automations and \d+ more things/)).toBeVisible();
+  await expect(quick.getByText(/5 tables, 11 pages, 1 role, 2 automations and \d+ more things?/)).toBeVisible();
   await quick.getByRole('button', { name: 'More choices' }).click();
 
   // The wizard: What to include → About the app → Check → Download.
