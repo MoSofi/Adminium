@@ -41,22 +41,50 @@ export function tableNameIssue(name: string): string | null {
   return identifierIssue('table', name);
 }
 
-/**
- * What is wrong with a table's schema, or null: the database's own schemas
- * (`pg_catalog`, `information_schema`, `pg_toast`, any temporary one —
- * Postgres keeps every `pg_` name for itself) and Adminium's are never an
- * app's. Which engine may have a schema at all is the planner's to say.
- */
 /** What is wrong with a column's own name, or null: the same rules as a table's. */
 export function columnNameIssue(name: string): string | null {
   return identifierIssue('column', name);
 }
 
+/**
+ * The schemas a Supabase project keeps for its own services: sign-in
+ * (`auth`), files, realtime, the GraphQL layer, secrets, extensions, edge
+ * functions, its migrations, HTTP calls and scheduled jobs. A table an app
+ * names in one of them would be the platform's (`auth.users`), never the
+ * app's, so "use the existing tables" must not take one over.
+ */
+export const SUPABASE_SCHEMAS: readonly string[] = [
+  'auth',
+  'storage',
+  'realtime',
+  '_realtime',
+  'graphql',
+  'graphql_public',
+  'vault',
+  'pgsodium',
+  'pgsodium_masks',
+  'extensions',
+  'supabase_functions',
+  'supabase_migrations',
+  'net',
+  'cron',
+  'pgbouncer',
+  '_analytics',
+];
+
+/**
+ * What is wrong with a table's schema, or null: the database's own schemas
+ * (`pg_catalog`, `information_schema`, `pg_toast`, any temporary one —
+ * Postgres keeps every `pg_` name for itself), Supabase's own and Adminium's
+ * are never an app's. Which engine may have a schema at all is the planner's
+ * to say.
+ */
 export function tableSchemaIssue(schema: string): string | null {
   const issue = identifierIssue('schema', schema);
   if (issue !== null) return issue;
   const lower = schema.toLowerCase();
   if (lower === 'information_schema' || lower.startsWith('pg_')) return `"${schema}" is the database's own schema`;
+  if (SUPABASE_SCHEMAS.includes(lower) || lower.startsWith('supabase_')) return `"${schema}" is a schema Supabase keeps for its own services`;
   return null;
 }
 

@@ -326,6 +326,7 @@ export {
 } from './workspace-file.js';
 
 export {
+  SUPABASE_SCHEMAS,
   TABLE_NAME_MAX_BYTES,
   namesItsTable,
   qualifyTableName,

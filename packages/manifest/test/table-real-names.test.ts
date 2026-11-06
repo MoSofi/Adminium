@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   INSTALL_FLOOR_WORD_NAMES,
+  SUPABASE_SCHEMAS,
   WORD_FLOORS,
   foreignKeyName,
   indexSetName,
@@ -16,6 +17,7 @@ import {
   plainIndexName,
   realTableName,
   splitTableName,
+  tableSchemaIssue,
   uniqueColumnName,
   uniqueSetName,
   validateManifest,
@@ -107,6 +109,20 @@ describe("a table's real name and schema in the file", () => {
       expect(in_(schema), schema).toContain("the database's own schema");
     }
     expect(in_('adminium_demo')).toContain("Adminium's own namespace");
+    expect(in_('a.b')).toContain('no dot');
+    expect(in_('sales')).toBe('');
+  });
+
+  it('refuse the schemas Supabase keeps for its own services', () => {
+    const in_ = (schema: string) => issues(shop({}, [table({ schema })]));
+    for (const schema of [...SUPABASE_SCHEMAS, 'Auth', 'STORAGE', 'supabase_admin']) {
+      expect(in_(schema), schema).toContain('a schema Supabase keeps for its own services');
+    }
+    expect(tableSchemaIssue('auth')).toBe('"auth" is a schema Supabase keeps for its own services');
+    // A name that only starts like one is a business's own.
+    expect(in_('authors')).toBe('');
+    expect(in_('storage_rooms')).toBe('');
+    expect(in_('public')).toBe('');
     expect(in_('a.b')).toContain('no dot');
     expect(in_('sales')).toBe('');
   });
