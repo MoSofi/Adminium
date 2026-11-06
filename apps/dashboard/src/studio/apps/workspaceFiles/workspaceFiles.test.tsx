@@ -372,7 +372,10 @@ describe('installing a workspace file', () => {
     routes['POST /api/v1/apps/workspace/wsi-1/install'] = () => ({ status: 200, body: { workspaceFile: { ...stopped, state: 'done', apps: stopped.apps.map((one) => (one.key === 'suppliers' ? { ...one, state: 'installed', refusal: null } : one)) } } });
     withClient(<WorkspaceFileInstall resumeId="wsi-1" onClose={() => {}} />);
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('2 of 3 installed. Suppliers stopped.');
+    // What it made before it stopped is not removed, so the line never says nothing of it was kept.
+    expect(alert.textContent).toContain('2 of 3 installed. Suppliers stopped part way. Nothing was removed, and Install the rest finishes from where it stopped.');
+    expect(alert.textContent).not.toMatch(/kept/);
+    expect(screen.getByTestId('done-suppliers').textContent).toContain('not finished');
     const rest = within(alert).getByRole('button', { name: 'Install the rest' });
     await waitFor(() => expect((rest as HTMLButtonElement).disabled).toBe(false));
     await user.click(rest);

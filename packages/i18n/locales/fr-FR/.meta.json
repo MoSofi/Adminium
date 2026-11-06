@@ -28799,6 +28799,14 @@
     "status": "mt",
     "srcHash": "3ad4df02441f"
   },
+  "studio.hostedApps.install.check.hintSome": {
+    "status": "mt",
+    "srcHash": "e49a68e4bc42"
+  },
+  "studio.hostedApps.install.check.hintUse": {
+    "status": "mt",
+    "srcHash": "f3ca5ba68151"
+  },
   "studio.hostedApps.install.check.keep": {
     "status": "mt",
     "srcHash": "ec5cf1ef6276"
@@ -41099,13 +41107,13 @@
     "status": "mt",
     "srcHash": "7bb4405cdfc9"
   },
+  "studio.workspaceFiles.done.notFinished": {
+    "status": "mt",
+    "srcHash": "ad55fa62b5af"
+  },
   "studio.workspaceFiles.done.notInstalled": {
     "status": "mt",
     "srcHash": "1aab9f182430"
-  },
-  "studio.workspaceFiles.done.nothingKept": {
-    "status": "mt",
-    "srcHash": "21359bc8eac8"
   },
   "studio.workspaceFiles.done.on": {
     "status": "mt",
@@ -41123,9 +41131,9 @@
     "status": "mt",
     "srcHash": "902a68b491bd"
   },
-  "studio.workspaceFiles.done.stopped": {
+  "studio.workspaceFiles.done.stoppedPartWay": {
     "status": "mt",
-    "srcHash": "705aad92d9b6"
+    "srcHash": "40bd2fd0ae07"
   },
   "studio.workspaceFiles.done.title": {
     "status": "mt",
