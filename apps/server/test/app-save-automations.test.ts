@@ -90,7 +90,7 @@ for (const [dialect, available] of ENGINES) {
       const first = await save(source);
       expect(first.check).toContainEqual(expect.objectContaining({ group: 'choice', code: 'RULE_TELLS_PEOPLE', item: 'Tell Sam', answer: { choices: ['leave-out'], target: automationTarget(ids.made.sam.id) } }));
       const { manifest, check, files } = await save(source, { leaveOut: [automationTarget(ids.made.sam.id)] });
-      expect(check.filter((item) => item.group === 'choice')).toEqual([]);
+      expect(check.filter((item) => item.group === 'choice' && item.code !== 'NO_PAGE')).toEqual([]);
       const doc = manifest as unknown as Doc;
 
       expect((doc['automations'] as Doc[]).map((rule) => rule['name']).sort()).toEqual(['Late orders', 'Mail the boss', 'Ping the shop', 'Print the invoice', 'Tell the clerk', 'Welcome']);

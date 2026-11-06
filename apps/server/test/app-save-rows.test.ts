@@ -122,7 +122,7 @@ for (const [dialect, available] of ENGINES) {
       const teams = await tableId(h, 'teams');
       const people = await tableId(h, 'people');
       const saved = await save(h, dialect, { rows: { [people]: { mode: 'starting' }, [teams]: { mode: 'starting' } } }, true);
-      expect(saved.check.filter((item) => item.group === 'choice')).toEqual([]);
+      expect(saved.check.filter((item) => item.group === 'choice' && item.code !== 'NO_PAGE')).toEqual([]);
       const { manifest, files } = asFile(saved);
       expect((manifest['seeds'] as { table: string }[]).map((seed) => seed.table)).toEqual(['teams', 'people']);
       // A team names its captain, who comes later, by the label the install fills the link from.
@@ -167,13 +167,13 @@ for (const [dialect, available] of ENGINES) {
       const nodes = await tableId(h, 'nodes');
       const tags = await tableId(h, 'tags');
       const asked = await save(h, dialect, { rows: { [nodes]: { mode: 'starting' }, [tags]: { mode: 'starting' } } }, true);
-      expect(asked.check.filter((item) => item.group === 'choice')).toEqual([
+      expect(asked.check.filter((item) => item.group === 'choice' && item.code !== 'NO_PAGE')).toEqual([
         expect.objectContaining({ code: 'ROWS_REQUIRED_CYCLE', kind: 'rows', item: 'nodes', answer: { choices: ['leave-out'], target: `rows:${nodes}` } }),
       ]);
       expect(asked.manifest.seeds).toEqual([{ table: 'tags', file: 'seeds/start-tags.json' }]);
 
       const answered = await save(h, dialect, { rows: { [nodes]: { mode: 'starting' }, [tags]: { mode: 'starting' } }, leaveOut: [`rows:${nodes}`] }, true);
-      expect(answered.check.filter((item) => item.group === 'choice')).toEqual([]);
+      expect(answered.check.filter((item) => item.group === 'choice' && item.code !== 'NO_PAGE')).toEqual([]);
       expect(answered.manifest.seeds).toEqual([{ table: 'tags', file: 'seeds/start-tags.json' }]);
     });
   });

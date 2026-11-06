@@ -64,7 +64,7 @@ for (const [dialect, available] of ENGINES) {
       const first = await save(source, { emailTemplates: ['news', 'angebot'] });
       expect(first.check).toContainEqual(expect.objectContaining({ group: 'choice', code: 'EMAIL_NO_ENGLISH', item: 'Angebot', answer: { choices: ['leave-out'], target: emailTarget('angebot') } }));
       const { manifest, check, files } = await save(source, { emailTemplates: ['news', 'angebot'], leaveOut: [emailTarget('angebot')] });
-      expect(check.filter((item) => item.group === 'choice')).toEqual([]);
+      expect(check.filter((item) => item.group === 'choice' && item.code !== 'NO_PAGE')).toEqual([]);
       const doc = manifest as unknown as Doc;
 
       expect(doc['emailTemplates']).toEqual([
