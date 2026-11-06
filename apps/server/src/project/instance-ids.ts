@@ -12,8 +12,12 @@
 import { ID_PREFIXES } from '@adminium/meta';
 
 const ULID = '[0-9A-HJKMNP-TV-Z]{26}';
-const ROW_ID = new RegExp(`^(?:${Object.keys(ID_PREFIXES).join('|')})_${ULID}$`);
-const GENERATED_PAGE_ID = /^page_[0-9a-f]{8}_[a-z0-9-]+$/;
+/** A row id's pattern, unanchored: `<prefix>_<ULID>` for every prefix. */
+export const ROW_ID_SOURCE = `(?:${Object.keys(ID_PREFIXES).join('|')})_${ULID}`;
+/** A generated page id's pattern, unanchored. */
+export const GENERATED_PAGE_ID_SOURCE = 'page_[0-9a-f]{8}_[a-z0-9-]+';
+const ROW_ID = new RegExp(`^${ROW_ID_SOURCE}$`);
+const GENERATED_PAGE_ID = new RegExp(`^${GENERATED_PAGE_ID_SOURCE}$`);
 
 export interface InstanceIdFinding {
   /** Where it is, as `config.layout.items[0].config.binding`. */
