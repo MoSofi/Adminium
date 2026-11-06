@@ -17,6 +17,12 @@ import { addressKey } from '../surfaces/settings.js';
 
 const CONNECTIONS_MANAGE = 'system:connections:manage';
 
+/**
+ * What a list's `workspaceId` says for "Other databases": not a workspace, so
+ * it has no id of its own. A workspace's id is never this word.
+ */
+export const OTHER_DATABASES = 'other';
+
 export interface VisibleWorkspaces {
   /** Every workspace, by position; `visible` says whether this person sees it. */
   all: (Workspace & { visible: boolean })[];
@@ -98,6 +104,8 @@ export async function visibleWorkspaceIds(meta: MetaDb, request: FastifyRequest)
  */
 export async function workspaceConnections(meta: MetaDb, request: FastifyRequest, workspaceId: string): Promise<ReadonlySet<string> | null> {
   const seen = await visibleWorkspaces(meta, canOf(request));
+  // The databases in no workspace, a group of their own once one exists: the same rule of who sees it.
+  if (workspaceId === OTHER_DATABASES) return seen.otherVisible ? new Set(seen.otherDatabases ?? []) : null;
   const found = seen.all.find((workspace) => workspace.id === workspaceId && workspace.visible);
   return found === undefined ? null : new Set(found.connectionIds);
 }

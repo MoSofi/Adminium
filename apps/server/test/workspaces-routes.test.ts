@@ -159,6 +159,11 @@ describe('workspaces', () => {
       for (const page of narrowed) expect(all.some((one) => one.id === page.id)).toBe(true);
     }
     expect(((await call('GET', `/pages?workspaceId=${kiln}`, owner)).json().data as { connectionId: string }[]).map((page) => page.connectionId)).toEqual([conn.kiln]);
+    // "Other databases" is not a workspace: its word narrows to the databases in none, for whoever sees that group.
+    const other = (await call('GET', '/pages?workspaceId=other', owner)).json().data as { connectionId: string; id: string }[];
+    expect(other.map((page) => page.connectionId).sort()).toEqual([conn.suppliers]);
+    for (const page of other) expect(all.some((one) => one.id === page.id)).toBe(true);
+    expect((await call('GET', '/pages?workspaceId=other', reader)).statusCode).toBe(404);
     // Both a workspace and a database: refused. A workspace that is not there: not found.
     expect((await call('GET', `/pages?workspaceId=${kiln}&connectionId=${conn.kiln}`, owner)).statusCode).toBe(422);
     expect((await call('GET', '/pages?workspaceId=wsp_absent', owner)).statusCode).toBe(404);

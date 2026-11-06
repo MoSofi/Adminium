@@ -102,6 +102,15 @@ describe('an add-on\'s section, built from what was read', () => {
     expect(() => bootstrapAppSection.parse(section)).not.toThrow();
   });
 
+  it('says which install it is and the database it is for, so the menu files it under that database', () => {
+    const nav = buildAddOnNav([{ document: kit() }]);
+    const [onKiln] = buildAddOnSections({ addOns: [{ ...addOns[0]!, installId: 'man_kiln', connectionId: 'conn_kiln' }], appItems, codePages: nav.pages, locale: 'en-US' });
+    expect(onKiln).toMatchObject({ appKey: 'kit', installId: 'man_kiln', connectionId: 'conn_kiln' });
+    const [serverWide] = buildAddOnSections({ addOns: [{ ...addOns[0]!, installId: 'man_once', connectionId: null }], appItems, codePages: nav.pages, locale: 'en-US' });
+    expect(serverWide).toMatchObject({ installId: 'man_once', connectionId: null });
+    expect(() => bootstrapAppSection.parse(onKiln)).not.toThrow();
+  });
+
   it('the top-level label wins, in the reader\'s language', () => {
     const [section] = buildAddOnSections({ addOns, appItems, codePages: buildAddOnNav([{ document: kit() }]).pages, locale: 'de-DE' });
     expect(section!.groups[1]!.label).toBe('Bestand');
