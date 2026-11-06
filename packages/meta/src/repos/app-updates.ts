@@ -73,6 +73,11 @@ export function appUpdatesRepo(meta: MetaDb) {
       await db.updateTable('adminium_app_updates').set({ stoppedAt: stage, updatedAt: at }).where('manifestId', '=', manifestId).execute();
     },
 
+    /** Every unfinished update, for the list of installed apps to say which copies have one. */
+    async list(): Promise<AppUpdate[]> {
+      return (await db.selectFrom('adminium_app_updates').selectAll().orderBy('manifestId').execute()).map(decode);
+    },
+
     /** The update finished: nothing is left to resume. */
     async finish(manifestId: string): Promise<void> {
       await db.deleteFrom('adminium_app_updates').where('manifestId', '=', manifestId).execute();
