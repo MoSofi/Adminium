@@ -242,7 +242,7 @@ export default {
     "sessions": "此應用程式的工作階段",
     "sessionTurns": "{count, plural, other {# 輪}}",
     "emptyNew": "{name} 的新工作階段。Designer 從應用程式目前的檔案開始；先前的對話保留在頂端的「此應用程式的工作階段」中。",
-    "workArea": "工作區",
+    "workArea": "編輯區",
     "views": "檢視",
     "openDash": "開啟儀表板",
     "renameTip": "重新命名",
@@ -454,7 +454,7 @@ export default {
   "work": {
     "architecture": "架構",
     "preview": "預覽",
-    "label": "工作區",
+    "label": "編輯區",
     "code": "程式碼"
   },
   "preview": {

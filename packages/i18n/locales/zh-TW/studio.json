@@ -1074,7 +1074,63 @@
       "failed": "連線測試失敗",
       "ok": "連線正常 · {latency, number} 毫秒"
     },
-    "title": "資料連線"
+    "title": "資料連線",
+    "workspaces": {
+      "title": "工作區",
+      "subtitle": "服務同一家企業的資料庫共用一個選單。一個資料庫可以屬於多個工作區。",
+      "new": {
+        "title": "新增工作區",
+        "name": "名稱",
+        "nameHint": "其圖塊顯示名稱的首字母。",
+        "databases": "要放入的資料庫",
+        "tables": "{engine} · {count, plural, other {# 張資料表}}",
+        "first": "從現在起，所有人的選單都依工作區分組。不屬於任何工作區的資料庫顯示在「其他資料庫」下。",
+        "create": "建立工作區"
+      },
+      "error": {
+        "nameRequired": "請為工作區命名。",
+        "nameLong": "名稱不能超過 80 個字元。",
+        "nameTaken": "已有工作區使用此名稱。",
+        "noDatabase": "請至少勾選一個資料庫。",
+        "saveFailed": "無法儲存工作區，請重試。",
+        "deleteFailed": "無法刪除工作區，請重試。"
+      },
+      "created": "已建立工作區「{name}」",
+      "deleted": "已刪除工作區「{name}」",
+      "rename": {
+        "title": "重新命名工作區",
+        "save": "重新命名"
+      },
+      "kind": {
+        "emailTemplate": "電子郵件範本",
+        "report": "報表版面",
+        "invoice": "發票版面"
+      },
+      "delete": {
+        "title": "刪除 {name}？",
+        "body": "其資料庫會保留，只是離開此工作區。",
+        "shownOnlyIn": "以下內容僅在此工作區顯示。刪除後將不再在任何工作區顯示：",
+        "last": "這是最後一個工作區：所有人的選單將恢復為一個清單。",
+        "confirm": "刪除"
+      },
+      "connection": {
+        "title": "{name} 的工作區",
+        "newInline": "新增工作區…",
+        "note": "它的頁面和應用程式會顯示在你勾選的每個工作區中。任何人的存取權限都不變。",
+        "saved": "工作區已儲存",
+        "action": "工作區…"
+      },
+      "reorderFailed": "無法儲存順序，請重試。",
+      "moved": "{name} 已移到第 {position} 位，共 {total} 位。",
+      "move": "移動 {name}。拖曳或使用方向鍵。",
+      "otherLock": "始終排在最後，無法重新命名或刪除。",
+      "empty": {
+        "title": "尚無工作區",
+        "body": "在建立工作區之前，所有人的選單會把所有資料庫的頁面列在一起。"
+      },
+      "youAreIn": "你目前所在的工作區",
+      "tickNone": "不勾選任何項目，即放入「其他資料庫」。"
+    }
   },
   "intent": {
     "analytics": {

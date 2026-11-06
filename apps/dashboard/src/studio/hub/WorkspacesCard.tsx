@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The Workspaces card of Data connections (`Workspaces.dc.html` §6a): one row
+ * The Workspaces card of Data connections (`Workspaces.dc.html`, its managing board): one row
  * per workspace (its tile, name, "{n} databases · their names", Rename and
  * Delete), "Other databases" last with its lock line, and New workspace.
  *

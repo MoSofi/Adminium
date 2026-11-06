@@ -1084,7 +1084,63 @@ export default {
       "failed": "连接测试失败",
       "ok": "连接正常 · {latency, number} 毫秒"
     },
-    "title": "数据连接"
+    "title": "数据连接",
+    "workspaces": {
+      "title": "工作区",
+      "subtitle": "服务同一家企业的数据库共用一个菜单。一个数据库可以属于多个工作区。",
+      "new": {
+        "title": "新建工作区",
+        "name": "名称",
+        "nameHint": "其图块显示名称的首字母。",
+        "databases": "要放入的数据库",
+        "tables": "{engine} · {count, plural, other {# 张表}}",
+        "first": "从现在起，所有人的菜单都按工作区分组。不属于任何工作区的数据库显示在“其他数据库”下。",
+        "create": "创建工作区"
+      },
+      "error": {
+        "nameRequired": "请为工作区命名。",
+        "nameLong": "名称不能超过 80 个字符。",
+        "nameTaken": "已有工作区使用此名称。",
+        "noDatabase": "请至少勾选一个数据库。",
+        "saveFailed": "无法保存工作区，请重试。",
+        "deleteFailed": "无法删除工作区，请重试。"
+      },
+      "created": "已创建工作区“{name}”",
+      "deleted": "已删除工作区“{name}”",
+      "rename": {
+        "title": "重命名工作区",
+        "save": "重命名"
+      },
+      "kind": {
+        "emailTemplate": "邮件模板",
+        "report": "报表布局",
+        "invoice": "发票布局"
+      },
+      "delete": {
+        "title": "删除 {name}？",
+        "body": "其数据库会保留，只是离开此工作区。",
+        "shownOnlyIn": "以下内容仅在此工作区显示。删除后将不再在任何工作区显示：",
+        "last": "这是最后一个工作区：所有人的菜单将恢复为一个列表。",
+        "confirm": "删除"
+      },
+      "connection": {
+        "title": "{name} 的工作区",
+        "newInline": "新建工作区…",
+        "note": "它的页面和应用会显示在你勾选的每个工作区中。任何人的访问权限都不变。",
+        "saved": "工作区已保存",
+        "action": "工作区…"
+      },
+      "reorderFailed": "无法保存顺序，请重试。",
+      "moved": "{name} 已移到第 {position} 位，共 {total} 位。",
+      "move": "移动 {name}。拖动或使用方向键。",
+      "otherLock": "始终排在最后，无法重命名或删除。",
+      "empty": {
+        "title": "还没有工作区",
+        "body": "在创建工作区之前，所有人的菜单会把所有数据库的页面列在一起。"
+      },
+      "youAreIn": "你当前所在的工作区",
+      "tickNone": "不勾选任何项，即放入“其他数据库”。"
+    }
   },
   "intent": {
     "analytics": {

@@ -46,13 +46,49 @@ const WORD = /\bworkspaces?\b/i;
 
 /** en-US catalogue keys (`ns:dotted.key`) whose text is about the groups. */
 const GROUP_KEYS: ReadonlyMap<string, string> = new Map<string, string>([
-  // None yet. The sidebar, the switcher and the Workspaces dialog add theirs here.
+  // The menu grouped by workspace, its switcher, the lists that follow it, and Data connections' Workspaces card and dialogs.
+  ['common:settings.defaults.workspaceView.label', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['common:workspaces.filter.label', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['common:workspaces.filter.all', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['common:workspaces.column', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['common:workspaces.alsoIn', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['common:workspaces.card.notInOne', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['common:workspaces.card.workspace', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['common:workspaces.menu.title', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['common:workspaces.menu.manage', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['common:workspaces.view.label', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.title', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.new.title', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.new.first', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.new.create', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.error.nameRequired', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.error.nameTaken', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.error.saveFailed', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.error.deleteFailed', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.created', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.deleted', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.rename.title', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.delete.body', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.delete.shownOnlyIn', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.delete.last', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.connection.title', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.connection.newInline', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.connection.note', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.connection.saved', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.connection.action', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.empty.title', 'the groups of databases: the menu, its lists and the Workspaces card'],
+  ['studio:hub.workspaces.youAreIn', 'the groups of databases: the menu, its lists and the Workspaces card'],
 ]);
 
 /** Repo-relative path prefixes whose every "workspace" is the group. */
 const GROUP_FILES: ReadonlyMap<string, string> = new Map([
   ['apps/server/src/routes/workspaces/', 'the routes that create, rename, order and delete workspaces'],
   ['apps/server/src/workspaces/', 'which workspaces a person sees, and the `workspaceId` list filter'],
+  ['apps/dashboard/src/shell/workspaces/', 'the menu grouped by workspace, its switcher, and the lists that follow it'],
+  ['apps/dashboard/src/studio/hub/WorkspaceDialogs.tsx', 'New workspace, Rename, Delete and a database’s workspaces'],
+  ['apps/dashboard/src/studio/hub/WorkspacesCard.tsx', 'the Workspaces card of Data connections'],
+  ['apps/dashboard/src/studio/connect/steps/WorkspacesField.tsx', 'the workspaces a new connection goes in'],
+  ['apps/dashboard/src/test/workspaceLists.tsx', 'a test helper for the lists that follow the workspaces'],
   ['apps/docs/src/content/docs/reference/rest-api.md', 'documents the /workspaces routes'],
   ['apps/docs/src/content/docs/anatomy/', 'the pnpm sense: "twenty-one workspaces" are the packages of the monorepo'],
   ['apps/docs/src/content/docs/contributing/', 'the pnpm sense, as above'],
@@ -63,6 +99,11 @@ const GROUP_STRINGS: ReadonlyMap<string, string> = new Map([
   ['There is no such workspace.', 'a `workspaceId` the person cannot see (assistant host, last-chosen workspace)'],
   ['That database is not in this workspace. Call list_connections for the ones here.', 'Milo narrowed to the tab’s workspace'],
   ['Workspaces group databases: names and memberships, not rows.', 'row-coverage reason of the /workspaces routes'],
+  ['Workspace', 'a list’s workspace filter label'],
+  ['Workspaces', 'a list’s Workspaces column, and a connection card’s workspaces'],
+  ['All workspaces', 'a list’s workspace filter, unfiltered'],
+  ['Workspaces…', 'a connection card’s button to choose its workspaces'],
+  ['Workspaces in the menu', 'the Global defaults row for the menu’s view of workspaces'],
 ]);
 
 // ─── What counts as words ────────────────────────────────────────────────────

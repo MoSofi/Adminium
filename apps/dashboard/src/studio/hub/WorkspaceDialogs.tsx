@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The workspaces dialogs of Data connections (`Workspaces.dc.html` §6):
+ * The workspaces dialogs of Data connections (`Workspaces.dc.html`, its managing boards):
  *
  * - **New workspace** (md): a name, with its tile drawn as it is typed, and
  *   the databases to put in it. The first workspace on a server changes

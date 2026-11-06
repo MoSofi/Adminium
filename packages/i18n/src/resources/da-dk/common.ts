@@ -459,7 +459,10 @@ export default {
       "save": "Gem standarder",
       "saved": "Serverens standarder er opdateret",
       "saveFailed": "Serverens standarder kunne ikke gemmes. Prøv igen.",
-      "liveNote": "Når du gemmer, udsendes ændringen live — loggede brugere, der følger en standard, ser den uden at genindlæse."
+      "liveNote": "Når du gemmer, udsendes ændringen live — loggede brugere, der følger en standard, ser den uden at genindlæse.",
+      "workspaceView": {
+        "label": "Arbejdsområder i menuen"
+      }
     },
     "notifications": {
       "subtitle": "Vælg, hvad du får besked om, og hvordan",
@@ -2026,5 +2029,35 @@ export default {
       "save": "Registrér samtykke",
       "close": "Luk"
     }
+  },
+  "workspaces": {
+    "other": "Andre databaser",
+    "filter": {
+      "label": "Arbejdsområde",
+      "all": "Alle arbejdsområder"
+    },
+    "column": "Arbejdsområder",
+    "alsoIn": "også i {workspace}",
+    "section": {
+      "addOn": "Tilføjelse"
+    },
+    "serverNav": "Server",
+    "card": {
+      "server": "Server",
+      "notInOne": "Ikke i et arbejdsområde",
+      "workspace": "Arbejdsområde"
+    },
+    "menu": {
+      "title": "Arbejdsområder på {server}",
+      "manage": "Administrer arbejdsområder"
+    },
+    "databases": "{count, plural, one {# database} other {# databaser}}",
+    "view": {
+      "label": "Vis arbejdsområder",
+      "one": "Ét ad gangen",
+      "all": "Alle i én menu",
+      "caption": "Gælder for alle på denne server."
+    },
+    "switched": "Skiftet til {name}"
   }
 } as const;

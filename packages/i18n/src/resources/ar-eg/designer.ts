@@ -242,7 +242,7 @@ export default {
     "sessions": "جلسات هذا التطبيق",
     "sessionTurns": "{count, plural, zero {# دورة} one {دورة واحدة} two {دورتان} few {# دورات} many {# دورة} other {# دورة}}",
     "emptyNew": "جلسة جديدة لـ {name}. يبدأ المصمّم من ملفات التطبيق كما هي الآن؛ والمحادثات السابقة محفوظة ضمن «جلسات هذا التطبيق» في الأعلى.",
-    "workArea": "مساحة العمل",
+    "workArea": "منطقة العمل",
     "views": "العرض",
     "openDash": "فتح لوحة التحكم",
     "renameTip": "إعادة التسمية",
@@ -454,7 +454,7 @@ export default {
   "work": {
     "architecture": "البنية",
     "preview": "المعاينة",
-    "label": "مساحة العمل",
+    "label": "منطقة العمل",
     "code": "الكود"
   },
   "preview": {

@@ -459,7 +459,10 @@ export default {
       "save": "Uložit výchozí nastavení",
       "saved": "Výchozí nastavení serveru aktualizována",
       "saveFailed": "Výchozí nastavení serveru se nepodařilo uložit. Zkuste to znovu.",
-      "liveNote": "Uložení rozešle změnu naživo — přihlášení uživatelé, kteří se řídí výchozím nastavením, ji uvidí bez opětovného načtení."
+      "liveNote": "Uložení rozešle změnu naživo — přihlášení uživatelé, kteří se řídí výchozím nastavením, ji uvidí bez opětovného načtení.",
+      "workspaceView": {
+        "label": "Pracovní prostory v nabídce"
+      }
     },
     "notifications": {
       "subtitle": "Zvolte, o čem a jak budete informováni",
@@ -2026,5 +2029,35 @@ export default {
       "save": "Zaznamenat souhlas",
       "close": "Zavřít"
     }
+  },
+  "workspaces": {
+    "other": "Ostatní databáze",
+    "filter": {
+      "label": "Pracovní prostor",
+      "all": "Všechny pracovní prostory"
+    },
+    "column": "Pracovní prostory",
+    "alsoIn": "také v {workspace}",
+    "section": {
+      "addOn": "Doplněk"
+    },
+    "serverNav": "Server",
+    "card": {
+      "server": "Server",
+      "notInOne": "Mimo pracovní prostor",
+      "workspace": "Pracovní prostor"
+    },
+    "menu": {
+      "title": "Pracovní prostory na {server}",
+      "manage": "Spravovat pracovní prostory"
+    },
+    "databases": "{count, plural, one {# databáze} few {# databáze} many {# databáze} other {# databází}}",
+    "view": {
+      "label": "Zobrazit pracovní prostory",
+      "one": "Po jednom",
+      "all": "Vše v jedné nabídce",
+      "caption": "Platí pro všechny na tomto serveru."
+    },
+    "switched": "Přepnuto na {name}"
   }
 } as const;

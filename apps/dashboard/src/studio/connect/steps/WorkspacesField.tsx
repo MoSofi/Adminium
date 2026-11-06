@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Workspaces" on the new connection's source step (`Workspaces.dc.html`
- * §6e): a checkbox per workspace, on a server that has any. In One at a time
+ * "Workspaces" on the new connection's source step (`Workspaces.dc.html`,
+ * its add-connection dialog): a checkbox per workspace, on a server that has any. In One at a time
  * the tab's workspace is ticked to begin with ("The workspace you are in");
  * in All in one menu none is. Ticking none puts the database in "Other
  * databases". The choice is applied once the connection is made.
@@ -22,7 +22,7 @@ export function WorkspacesField({ state, onPatch }: { state: WizardState; onPatc
   // Asked once: the step's first draw settles what is ticked to begin with.
   useEffect(() => {
     if (state.workspaceIds === undefined && real.length > 0) onPatch({ workspaceIds: start });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the first offer seeds the choice
+    // Only the first offer seeds the choice: later ticks are the person's.
   }, [real.length]);
   if (real.length === 0) return null;
   const picked = new Set(state.workspaceIds ?? start);

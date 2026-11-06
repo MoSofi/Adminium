@@ -404,7 +404,10 @@ export default {
       "save": "Save defaults",
       "saved": "Server defaults updated",
       "saveFailed": "Could not save the server defaults. Try again.",
-      "liveNote": "Saving broadcasts the change live — signed-in users who follow a default see it apply without a reload."
+      "liveNote": "Saving broadcasts the change live — signed-in users who follow a default see it apply without a reload.",
+      "workspaceView": {
+        "label": "Workspaces in the menu"
+      }
     },
     "notifications": {
       "subtitle": "Choose what you’re notified about and how",
@@ -729,5 +732,35 @@ export default {
       "unread": "1 unread answer",
       "proposal": "A change is waiting for you"
     }
+  },
+  "workspaces": {
+    "other": "Other databases",
+    "filter": {
+      "label": "Workspace",
+      "all": "All workspaces"
+    },
+    "column": "Workspaces",
+    "alsoIn": "also in {workspace}",
+    "section": {
+      "addOn": "Add-on"
+    },
+    "serverNav": "Server",
+    "card": {
+      "server": "Server",
+      "notInOne": "Not in a workspace",
+      "workspace": "Workspace"
+    },
+    "menu": {
+      "title": "Workspaces on {server}",
+      "manage": "Manage workspaces"
+    },
+    "databases": "{count, plural, one {# database} other {# databases}}",
+    "view": {
+      "label": "Show workspaces",
+      "one": "One at a time",
+      "all": "All in one menu",
+      "caption": "Applies to everyone on this server."
+    },
+    "switched": "Switched to {name}"
   }
 } as const;

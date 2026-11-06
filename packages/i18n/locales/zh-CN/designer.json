@@ -232,7 +232,7 @@
     "sessions": "此应用的会话",
     "sessionTurns": "{count, plural, other {# 轮}}",
     "emptyNew": "{name} 的新会话。Designer 从应用当前的文件开始；之前的对话保留在顶部的“此应用的会话”中。",
-    "workArea": "工作区",
+    "workArea": "编辑区",
     "views": "视图",
     "openDash": "打开仪表板",
     "renameTip": "重命名",
@@ -444,7 +444,7 @@
   "work": {
     "architecture": "架构",
     "preview": "预览",
-    "label": "工作区",
+    "label": "编辑区",
     "code": "代码"
   },
   "preview": {

@@ -459,7 +459,10 @@ export default {
       "save": "Standards speichern",
       "saved": "Server-Standards aktualisiert",
       "saveFailed": "Die Server-Standards konnten nicht gespeichert werden. Versuchen Sie es erneut.",
-      "liveNote": "Beim Speichern wird die Änderung live übertragen — angemeldete Benutzer, die einem Standard folgen, sehen sie ohne Neuladen."
+      "liveNote": "Beim Speichern wird die Änderung live übertragen — angemeldete Benutzer, die einem Standard folgen, sehen sie ohne Neuladen.",
+      "workspaceView": {
+        "label": "Arbeitsbereiche im Menü"
+      }
     },
     "notifications": {
       "subtitle": "Wählen Sie, worüber und wie Sie benachrichtigt werden",
@@ -2026,5 +2029,35 @@ export default {
       "save": "Einwilligung erfassen",
       "close": "Schließen"
     }
+  },
+  "workspaces": {
+    "other": "Weitere Datenbanken",
+    "filter": {
+      "label": "Arbeitsbereich",
+      "all": "Alle Arbeitsbereiche"
+    },
+    "column": "Arbeitsbereiche",
+    "alsoIn": "auch in {workspace}",
+    "section": {
+      "addOn": "Add-on"
+    },
+    "serverNav": "Server",
+    "card": {
+      "server": "Server",
+      "notInOne": "In keinem Arbeitsbereich",
+      "workspace": "Arbeitsbereich"
+    },
+    "menu": {
+      "title": "Arbeitsbereiche auf {server}",
+      "manage": "Arbeitsbereiche verwalten"
+    },
+    "databases": "{count, plural, one {# Datenbank} other {# Datenbanken}}",
+    "view": {
+      "label": "Arbeitsbereiche anzeigen",
+      "one": "Einzeln",
+      "all": "Alle in einem Menü",
+      "caption": "Gilt für alle auf diesem Server."
+    },
+    "switched": "Zu {name} gewechselt"
   }
 } as const;

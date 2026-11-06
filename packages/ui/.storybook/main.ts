@@ -23,6 +23,9 @@ const config: StorybookConfig = {
     '../../../apps/dashboard/src/automations/**/*.stories.tsx',
     // A person's own pages: the Security page's Figma card, in the states its connection draws.
     '../../../apps/dashboard/src/account/**/*.stories.tsx',
+    // Workspaces: the rail grouped by workspace, and the Workspaces card and dialogs of Data connections.
+    '../../../apps/dashboard/src/shell/workspaces/**/*.stories.tsx',
+    '../../../apps/dashboard/src/studio/hub/**/*.stories.tsx',
   ],
   addons: ['@storybook/addon-a11y'],
   async viteFinal(viteConfig) {

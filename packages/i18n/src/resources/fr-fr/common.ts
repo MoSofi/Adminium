@@ -459,7 +459,10 @@ export default {
       "save": "Enregistrer les valeurs par défaut",
       "saved": "Valeurs par défaut du serveur mises à jour",
       "saveFailed": "Impossible d’enregistrer les valeurs par défaut du serveur. Réessayez.",
-      "liveNote": "L’enregistrement diffuse le changement en direct — les utilisateurs connectés qui suivent une valeur par défaut la voient s’appliquer sans recharger."
+      "liveNote": "L’enregistrement diffuse le changement en direct — les utilisateurs connectés qui suivent une valeur par défaut la voient s’appliquer sans recharger.",
+      "workspaceView": {
+        "label": "Espaces de travail dans le menu"
+      }
     },
     "notifications": {
       "subtitle": "Choisissez de quoi vous êtes notifié et comment",
@@ -2026,5 +2029,35 @@ export default {
       "save": "Enregistrer le consentement",
       "close": "Fermer"
     }
+  },
+  "workspaces": {
+    "other": "Autres bases de données",
+    "filter": {
+      "label": "Espace de travail",
+      "all": "Tous les espaces de travail"
+    },
+    "column": "Espaces de travail",
+    "alsoIn": "aussi dans {workspace}",
+    "section": {
+      "addOn": "Module complémentaire"
+    },
+    "serverNav": "Serveur",
+    "card": {
+      "server": "Serveur",
+      "notInOne": "Hors espace de travail",
+      "workspace": "Espace de travail"
+    },
+    "menu": {
+      "title": "Espaces de travail sur {server}",
+      "manage": "Gérer les espaces de travail"
+    },
+    "databases": "{count, plural, one {# base de données} other {# bases de données}}",
+    "view": {
+      "label": "Afficher les espaces de travail",
+      "one": "Un à la fois",
+      "all": "Tous dans un seul menu",
+      "caption": "S’applique à tout le monde sur ce serveur."
+    },
+    "switched": "Passage à {name}"
   }
 } as const;

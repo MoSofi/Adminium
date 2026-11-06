@@ -242,7 +242,7 @@ export default {
     "sessions": "Sessions de cette application",
     "sessionTurns": "{count, plural, one {# tour} other {# tours}}",
     "emptyNew": "Une nouvelle session sur {name}. Le Designer part des fichiers de l’application tels qu’ils sont ; les discussions précédentes restent en haut, sous « Sessions de cette application ».",
-    "workArea": "Espace de travail",
+    "workArea": "Zone de travail",
     "views": "Vue",
     "openDash": "Ouvrir le tableau de bord",
     "renameTip": "Renommer",
@@ -454,7 +454,7 @@ export default {
   "work": {
     "architecture": "Architecture",
     "preview": "Aperçu",
-    "label": "Espace de travail",
+    "label": "Zone de travail",
     "code": "Code"
   },
   "preview": {
