@@ -13,7 +13,9 @@
  *
  * WHAT NEVER TRAVELS. Who a schedule goes to, its switch, its zone and its
  * run times. On a layout, the contact lines and the payment lines (an email
- * address, a phone, a bank account): emptied, and named in Check. A picture
+ * address, a phone, a bank account) and the example customer and delivery
+ * lines (they may name a real person): emptied, and named in Check. The
+ * "from" lines stay: they are the business's own. A picture
  * linked from somewhere else: emptied. A picture kept in this Adminium's
  * Files library becomes a file of the package, which the install puts back
  * in the body.
@@ -107,7 +109,7 @@ async function reportBody(ctx: ConvertContext, body: Record<string, unknown>, na
 
 const filled = (value: unknown): boolean => (typeof value === 'string' ? value.trim() !== '' : Array.isArray(value) && value.some((line) => typeof line === 'string' && line.trim() !== ''));
 
-/** A layout body: its pictures as above, its contact and payment lines emptied. */
+/** A layout body: its pictures as above, its contact, payment, customer and delivery lines emptied. */
 async function invoiceBody(ctx: ConvertContext, body: Record<string, unknown>, name: string): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = { ...body };
   for (const field of ['logoImage', 'bgImage', 'qrImage', 'sigImage', 'stampImage']) out[field] = await pictureOf(ctx, body[field], { kind: 'invoice', name, field });
@@ -128,9 +130,15 @@ async function invoiceBody(ctx: ConvertContext, body: Record<string, unknown>, n
   if (filled(body['payment'])) {
     ctx.check.add({ group: 'after', code: 'PAYMENT_LINES_LEFT_OUT', kind: 'invoice', item: name, field: 'payment', afterKind: 'bank-account', message: 'Its payment lines (where to pay) are not saved: fill them in after installing.' });
   }
+  if (filled(body['customerName']) || filled(body['customer']) || filled(body['ship'])) {
+    ctx.check.add({ group: 'info', code: 'CUSTOMER_LINES_LEFT_OUT', kind: 'invoice', item: name, field: 'customerName, customer, ship', message: 'Its example customer and delivery lines are not saved: they may name a real person.' });
+  }
   out['conEmail'] = '';
   out['conPhone'] = '';
   out['payment'] = [];
+  out['customerName'] = '';
+  out['customer'] = [];
+  out['ship'] = [];
   return out;
 }
 

@@ -65,7 +65,7 @@ for (const [dialect, available] of ENGINES) {
         number: 'INV-1000',
         starter: null,
         originId: null,
-        body: invoiceBodyColumn({ ...blankInvoice({ now: Date.UTC(2026, 10, 1), lang: 'de', number: 'INV-1000' }), conEmail: 'billing@shop.example.test', conPhone: '+44 20 7946 0001', payment: ['IBAN GB33BUKB20201555555555'] }),
+        body: invoiceBodyColumn({ ...blankInvoice({ now: Date.UTC(2026, 10, 1), lang: 'de', number: 'INV-1000' }), conEmail: 'billing@shop.example.test', conPhone: '+44 20 7946 0001', payment: ['IBAN GB33BUKB20201555555555'], from: ['Corner shop', '1 High St'], customerName: 'Jo Example', customer: ['2 Low Rd'], ship: ['3 Side Ln'] }),
         summary: invoiceSummary(blankInvoice({ now: Date.UTC(2026, 10, 1), lang: 'de', number: 'INV-1000' })),
       });
       // An issued invoice never travels.
@@ -83,7 +83,8 @@ for (const [dialect, available] of ENGINES) {
       expect(body['blocks'][1].url).toMatch(/^package:parts\/[0-9a-f]{64}\.gif$/);
       expect([...result.files.keys()]).toEqual([body['blocks'][1].url.slice('package:'.length)]);
       expect(doc['invoiceLayouts']).toEqual([{ key: 'plain-invoice', name: 'Plain invoice', topic: 'sales', lang: 'de', body: expect.any(Object) }]);
-      expect(doc['invoiceLayouts'][0].body).toMatchObject({ conEmail: '', conPhone: '', payment: [], number: 'INV-1000' });
+      expect(doc['invoiceLayouts'][0].body).toMatchObject({ conEmail: '', conPhone: '', payment: [], number: 'INV-1000', customerName: '', customer: [], ship: [], from: ['Corner shop', '1 High St'] });
+      expect(JSON.stringify(doc)).not.toContain('Jo Example');
       expect(doc['scheduledReports']).toEqual([{ key: 'orders-on-monday', name: 'Orders on Monday', page: 'orders', schedule: { frequency: 'weekly', dayOfWeek: 1, time: '08:00' }, format: 'png' }]);
       expectNoneOf(doc, [report.id, invoice.id, schedule.id, page.id, logo.id, h.connectionId, 'desk@shop', 'billing@shop', 'boss@shop', 'GB33BUKB', '7946', 'cdn.example.test', 'abc123', 'Europe/London']);
 
