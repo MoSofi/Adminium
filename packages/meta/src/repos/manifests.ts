@@ -434,6 +434,10 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     },
 
     /** Move a row along its life. */
+    /** Say how an install's files arrive from now on: an installed package whose source was copied into the project folder becomes `folder`. */
+    async setSource(id: string, source: string, at: number = Date.now()): Promise<void> {
+      await db.updateTable('adminium_manifests').set({ source, updatedAt: at }).where('id', '=', id).execute();
+    },
     async setStatus(id: string, status: ManifestStatus, at: number = Date.now()): Promise<void> {
       await db.updateTable('adminium_manifests').set({ status, updatedAt: at }).where('id', '=', id).execute();
     },
