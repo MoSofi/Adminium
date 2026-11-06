@@ -39,7 +39,7 @@ import { bindForm } from './manifest-page-config.js';
 import { resolveTableRefs, tableRefsOf, type RefTarget, type TargetTable } from './envelope-refs.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { findInstanceIds } from '../project/instance-ids.js';
-import { tableOfReal } from '../installs/table-id.js';
+import { tableIdOrNull, tableOfReal } from '../installs/table-id.js';
 import { viewConfigSchema } from '../routes/views/schema.js';
 
 type ManifestPage = NonNullable<Extract<Manifest, { kind: 'app' }>['pages']>[number];
@@ -190,7 +190,7 @@ function mergedColumns(fileColumns: unknown[], composedColumns: unknown, input: 
   // Every column of the table as a list would show it, for one the composed page left off (its list shows eight).
   let all: Map<string, Doc> | null = null;
   const secret = new Set<string>();
-  const declared = input.manifest.kind === 'app' ? (input.manifest.requiredSchema?.tables ?? []).find((candidate) => table !== undefined && (input.names[candidate.ref] ?? candidate.ref) === table.name) : undefined;
+  const declared = input.manifest.kind === 'app' ? (input.manifest.requiredSchema?.tables ?? []).find((candidate) => table !== undefined && tableIdOrNull(input.model, input.names[candidate.ref] ?? candidate.ref) === table.id) : undefined;
   const out: Doc[] = [];
   for (const column of fileColumns) {
     if (!isDoc(column) || typeof column['name'] !== 'string') return { problem: 'a column of its list has no name' };
