@@ -44,10 +44,15 @@ function dto(workspace: Workspace): WorkspaceDto {
   };
 }
 
-/** The name an item of a "Shown in" kind is listed by. */
-async function itemName(meta: MetaDb, kind: 'email-template' | 'report' | 'invoice', itemId: string): Promise<string> {
-  const table = kind === 'email-template' ? 'adminium_email_templates' : kind === 'report' ? 'adminium_report_documents' : 'adminium_invoice_documents';
-  return (await meta.db.selectFrom(table).select('name').where('id', '=', itemId).executeTakeFirst())?.name ?? itemId;
+/** The name an item of a "Shown in" kind is listed by, and an email template's key; null when the item is gone. */
+async function itemOf(meta: MetaDb, kind: 'email-template' | 'report' | 'invoice', itemId: string): Promise<{ name: string; family: string } | null> {
+  if (kind === 'email-template') {
+    const row = await meta.db.selectFrom('adminium_email_templates').select(['name', 'key']).where('id', '=', itemId).executeTakeFirst();
+    return row === undefined ? null : { name: row.name, family: `email-template:${row.key}` };
+  }
+  const table = kind === 'report' ? 'adminium_report_documents' : 'adminium_invoice_documents';
+  const row = await meta.db.selectFrom(table).select('name').where('id', '=', itemId).executeTakeFirst();
+  return row === undefined ? null : { name: row.name, family: `${kind}:${itemId}` };
 }
 
 export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -125,7 +130,14 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
   const deletePlan = async (id: string) => {
     const workspace = await mustFind(id);
     const shownOnlyIn = [];
-    for (const item of await workspaces.onlyIn(id)) shownOnlyIn.push({ ...item, name: await itemName(meta, item.kind, item.itemId) });
+    // An email template is chosen as a family (every language of its key): it is listed once.
+    const families = new Set<string>();
+    for (const item of await workspaces.onlyIn(id)) {
+      const found = await itemOf(meta, item.kind, item.itemId);
+      if (found === null || families.has(found.family)) continue;
+      families.add(found.family);
+      shownOnlyIn.push({ ...item, name: found.name });
+    }
     return { workspace: dto(workspace), connectionIds: workspace.connectionIds, shownOnlyIn, last: (await workspaces.count()) === 1 };
   };
 

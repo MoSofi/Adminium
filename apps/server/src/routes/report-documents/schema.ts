@@ -10,6 +10,8 @@ import { z } from 'zod';
 import { reportDocumentKindSchema, reportStatusSchema, reportSummarySchema } from '@adminium/meta';
 
 import { reportBodyInputSchema, reportBodySchema } from '../../report-documents/document.js';
+import { workspaceIdQuery } from '../../workspaces/list-filter.js';
+import { shownInInput, shownInView } from '../../workspaces/shown-in.js';
 
 /** One card / row of the manager (`ReportSummary` in api.ts). */
 export const reportSummaryView = z.object({
@@ -24,13 +26,19 @@ export const reportSummaryView = z.object({
   createdAt: z.number(),
   updatedAt: z.number(),
   summary: reportSummarySchema,
+  /** Where it is listed: every workspace, or the chosen ones. It narrows lists and pickers, never a send. */
+  shownIn: shownInView,
 });
 export type ReportSummaryView = z.infer<typeof reportSummaryView>;
 
 /** Unfiltered — the comp's badges never respond to the search box (580). */
 export const reportCountsView = z.object({ template: z.number(), report: z.number() });
 
-export const reportsListQuery = z.object({ kind: reportDocumentKindSchema.optional() });
+export const reportsListQuery = z.object({
+  kind: reportDocumentKindSchema.optional(),
+  /** Only what is shown in this workspace (shown in all, or chosen there). It only narrows the list. */
+  workspaceId: workspaceIdQuery,
+});
 
 export const reportsListReply = z.object({
   items: z.array(reportSummaryView),
@@ -73,7 +81,11 @@ export type ReportPutBody = z.infer<typeof reportPutBody>;
 
 /** The rename (comp `commitRename`, 562). */
 export const reportPatchBody = z
-  .object({ name: z.string().trim().min(1).max(120).optional() })
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    /** Where it is listed. */
+    shownIn: shownInInput.optional(),
+  })
   .refine((body) => Object.keys(body).length > 0, 'nothing to change');
 
 /** `:id` is the template; the report takes its name unless one is given. */
