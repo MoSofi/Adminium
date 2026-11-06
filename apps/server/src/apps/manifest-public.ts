@@ -49,7 +49,7 @@ import { tableIdIn, tableOfReal } from '../installs/table-id.js';
 import { EndpointSaveRefused, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
 import { generatePublishableKey, isPhoneAppKey, managedKeyKind, sealPublishableKey } from '../public-api/keys.js';
 import { managedGrantIssues } from '../public-api/managed-key.js';
-import { guestBase } from '../public-api/guest-base.js';
+import { guestBase, hasPublicOrigin, installSlugOn } from '../public-api/guest-base.js';
 import { addAndReadRefusal, anonymousAddAndRead } from './anonymous-access.js';
 import { installsOf, type InstallAddress } from '../installs/resolve.js';
 import { roleSlugFor } from './manifest-roles.js';
@@ -688,6 +688,20 @@ export function keepsMoney(manifest: Manifest): boolean {
   return manifest.kind === 'app' && (manifest.requiredSchema?.tables ?? []).some((table) => table.columns.some((column) => column.type === 'money'));
 }
 
+/**
+ * Whether a sign-in link of the app's install on `connectionId` would have an
+ * address to point at. Its own install's address when it is there; one not
+ * made yet is the bare install when the key is installed nowhere, else a
+ * later install, which no host is mapped to yet: the server's public address.
+ */
+async function guestSideReachable(meta: MetaDb, appKey: string, connectionId: string): Promise<boolean> {
+  const slug = await installSlugOn(meta, appKey, connectionId);
+  if (slug !== null) return (await guestBase({ meta }, appKey, slug)) !== null;
+  // key-wide: whether the key is installed anywhere decides whether this one takes the bare addresses.
+  const elsewhere = await meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', appKey).where('kind', '=', 'app').executeTakeFirst();
+  return elsewhere === undefined ? (await guestBase({ meta }, appKey)) !== null : await hasPublicOrigin(meta);
+}
+
 /** What would stop an app's key working on this instance, said before install. */
 export async function publicAccessWarnings(
   meta: MetaDb,
@@ -718,7 +732,7 @@ export async function publicAccessWarnings(
     );
   }
   // A sign-in link names the app's own public address — never the address a request came in on.
-  if (byLink && signIn !== undefined && (await guestBase({ meta }, signIn.appKey)) === null) {
+  if (byLink && signIn !== undefined && !(await guestSideReachable(meta, signIn.appKey, connectionId))) {
     out.push({
       code: 'NO_PUBLIC_ADDRESS',
       message: 'This app has no public address, so no sign-in link can be sent. Map a domain to its customer side, or set the server’s public address.',

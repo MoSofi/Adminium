@@ -87,7 +87,7 @@ import { publicLedgerRefusal, publicPostings, cardMiss } from './ledger-refusals
 import { askedFor, prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { createPublicRow } from '../../public-api/create-row.js';
-import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
+import { customerHostIn, guestBaseOn } from '../../public-api/guest-base.js';
 import { addressesOf, hashToken, normaliseToken, stillOpen, tokenClaimOf, tokenSessionOpen, type TokenClaim, type TokenGrant } from '../../public-api/token-claim.js';
 import { addOnSettingsParams, addOnSettingsReply, publicAddOnSettings } from '../../public-api/add-on-settings.js';
 import { fileIdOf, privateFileHeaders, privateFileParams } from '../../public-api/private-file.js';
@@ -4733,7 +4733,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A sign-in link cannot be sent right now. Get in touch instead.');
         return null;
       }
-      const base = ok.key.managedBy === null ? null : await guestBase({ meta, hostFor: hostForOf(app) }, ok.key.managedBy);
+      // The key's own install: a later install's link opens its own guest side, not the bare install's.
+      const base = ok.key.managedBy === null ? null : await guestBaseOn({ meta, hostFor: hostForOf(app) }, ok.key.managedBy, ok.key.connectionId);
       return { identity, base };
     };
 

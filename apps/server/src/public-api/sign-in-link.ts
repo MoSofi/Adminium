@@ -56,7 +56,7 @@ import { SIGN_IN_LINK_TEMPLATE_KEY, enqueueEmail } from '../email/send.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { appContact } from '../outbox/sender.js';
 import { CODE_TRIES, DAY_MS, codeBinding, codeMatches, hashAddress, hashCode, newCode, normaliseAddress } from './claim-code.js';
-import { guestBase } from './guest-base.js';
+import { guestBaseOn } from './guest-base.js';
 import { mandatoryAt } from './relative-filters.js';
 import type { PublicViews } from './runtime.js';
 import { compileScope, type CompiledResource, type CompiledScope, type TableColumnLookup } from './scope.js';
@@ -419,7 +419,8 @@ export async function runSignInLinkJob(deps: SignInLinkDeps, job: SignInLinkJob)
    * open as a stranger's decoy stays open, so no answer a caller can reach
    * afterwards — a code typed, a link peeked — tells a client from a stranger.
    */
-  const base = keyed.managedBy === null ? null : await guestBase({ meta: deps.meta, hostFor: deps.hostFor }, keyed.managedBy);
+  // The install the key was made for: a later install's link opens its own guest side, at its own address.
+  const base = keyed.managedBy === null ? null : await guestBaseOn({ meta: deps.meta, hostFor: deps.hostFor }, keyed.managedBy, keyed.connectionId);
   const to = person[identity.email];
   if (base === null || typeof to !== 'string') {
     deps.logger?.warn({ keyId: keyed.keyId, app: keyed.managedBy }, 'sign-in link not sent: the app has no public address');

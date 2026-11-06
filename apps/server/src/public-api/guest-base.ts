@@ -51,3 +51,35 @@ export async function guestBase(deps: GuestBaseDeps, appKey: string, slug = ''):
   const origin = await settingsRepo(deps.meta).get('system.publicOrigin');
   return typeof origin === 'string' && origin !== '' ? `${origin.replace(/\/+$/, '')}/apps/${appKey}/${slug === '' ? '' : `${slug}/`}customer` : null;
 }
+
+/**
+ * The address slug of an app's install on one database: `''` for the install
+ * that owns the bare addresses, its own slug for a later one, null when the
+ * app is not installed there.
+ */
+export async function installSlugOn(meta: MetaDb, appKey: string, connectionId: string): Promise<string | null> {
+  const row = await meta.db
+    .selectFrom('adminium_manifests')
+    .select('instanceSlug')
+    .where('manifestKey', '=', appKey)
+    .where('kind', '=', 'app')
+    .where('connectionId', '=', connectionId)
+    .executeTakeFirst();
+  return row?.instanceSlug ?? null;
+}
+
+/**
+ * The guest base of an app's install on one database: a key, a sign-in link
+ * or a mail of Kiln's links into Kiln's guest side, never Fernhill's. Null
+ * when the app is not installed there, as when it has no address.
+ */
+export async function guestBaseOn(deps: GuestBaseDeps, appKey: string, connectionId: string): Promise<string | null> {
+  const slug = await installSlugOn(deps.meta, appKey, connectionId);
+  return slug === null ? null : await guestBase(deps, appKey, slug);
+}
+
+/** Whether the server's public address is set: what a later install's guest links start with until a host is mapped to it. */
+export async function hasPublicOrigin(meta: MetaDb): Promise<boolean> {
+  const origin = await settingsRepo(meta).get('system.publicOrigin');
+  return typeof origin === 'string' && origin !== '';
+}
