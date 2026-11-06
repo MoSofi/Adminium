@@ -27,6 +27,8 @@ import { sniff } from '../files/sniff.js';
 import type { FileStore } from '../files/store.js';
 import { isEmailBlockKind } from '../email/render.js';
 import { installTemplateKey, type InstallAddress } from '../installs/resolve.js';
+import type { AfterInstallItem } from './after-install.js';
+import { isSavedFile } from './saved-file.js';
 import { ownsBlocks } from './owns-blocks.js';
 import { mapTableRefs } from './real-refs.js';
 import { canonicalJson } from './sample-data.js';
@@ -299,6 +301,16 @@ function unfillableForms(
 }
 
 /**
+ * The senders the owner chooses after installing a file saved from a database:
+ * one for each mail with a brand of its own, whose sender's address is
+ * installed empty.
+ */
+export function plannedAfterInstallOfSenders(manifest: Manifest): AfterInstallItem[] {
+  if (!isSavedFile(manifest) || manifest.kind !== 'app') return [];
+  return (manifest.emailTemplates ?? []).flatMap((template) => (template.brand === undefined ? [] : [{ kind: 'sender' as const, item: template.key, field: 'brand.fromEmail' }]));
+}
+
+/**
  * The outbox as it is stored: every table it names — the log, the person's,
  * the settings row, each producer's and each lead's, a gate's and a due date's
  * setting, the row a sent message changes — replaced by the real table's id.
@@ -368,6 +380,8 @@ export async function installOutbox(input: {
   }
 
   const result: OutboxResult = { defined: manifest.outbox !== undefined, templates: { written: [], kept: [], skipped: [], removed: 0 } };
+  // A file saved from a database never says who a mail is sent from, whatever it holds: the owner chooses after installing.
+  const savedFile = isSavedFile(manifest);
   const shipped = new Set<string>();
   /** Library files this run let go of: put in the bin at the end, unless a mail still names one. */
   const dropped = new Set<string>();
@@ -417,7 +431,7 @@ export async function installOutbox(input: {
           category: template.category ?? 'transactional',
           kind: template.kind ?? 'template',
           // An update that stops giving a brand or files takes them away: the row is the app's while nobody edited it.
-          brand: template.brand ?? null,
+          brand: template.brand === undefined ? null : savedFile ? { ...template.brand, fromEmail: '' } : template.brand,
           attachments,
           managedBy: manifest.key,
           installId: install.id,

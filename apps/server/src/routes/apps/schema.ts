@@ -490,7 +490,7 @@ export const appInstallPlanDto = z.object({
   afterInstall: z
     .array(
       z.object({
-        kind: z.enum(['webhook', 'address', 'document', 'delivery', 'recipients', 'payment-key', 'bank-account']),
+        kind: z.enum(['webhook', 'address', 'document', 'delivery', 'recipients', 'payment-key', 'bank-account', 'sender', 'system-grant']),
         item: z.string(),
         field: z.string(),
       }),

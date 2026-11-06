@@ -136,6 +136,7 @@ import {
   privacyGrantsOf,
   grantsAdded,
   addOnPageGrantIssues,
+  plannedAfterInstallOfRoles,
   roleIssues,
   roleSlugFor,
   roleSlugProblems,
@@ -154,7 +155,7 @@ import {
   takeBackPublicAccess,
   type PublicAccessCommit,
 } from './manifest-public.js';
-import { installOutbox, libraryFiles, mailCarries, templateProblems, type OutboxResult } from './manifest-outbox.js';
+import { installOutbox, libraryFiles, mailCarries, plannedAfterInstallOfSenders, templateProblems, type OutboxResult } from './manifest-outbox.js';
 import { installAutomations, plannedAfterInstallOfRules } from './manifest-automations.js';
 import { recordAfterInstall, type AfterInstallItem } from './after-install.js';
 import { requiredAppsHere, requiredTablesGone } from './required-apps.js';
@@ -428,7 +429,7 @@ export interface InstallAnswers {
  */
 function reviewOf(manifest: Manifest): Pick<AppInstallPlanDto, 'madeAt' | 'afterInstall' | 'savedParts'> {
   const provenance = (manifest as { provenance?: { label?: string; savedAt: string; adminiumVersion: string } }).provenance;
-  const afterInstall = [...plannedAfterInstallOfRules(manifest), ...plannedAfterInstallOfParts(manifest)];
+  const afterInstall = [...plannedAfterInstallOfRules(manifest), ...plannedAfterInstallOfParts(manifest), ...plannedAfterInstallOfSenders(manifest), ...plannedAfterInstallOfRoles(manifest)];
   const parts = manifest.kind === 'app' ? manifest : null;
   const savedParts =
     parts === null || (parts.reports === undefined && parts.invoiceLayouts === undefined && parts.scheduledReports === undefined && parts.payments === undefined)
@@ -2043,6 +2044,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         }
         afterInstall.push(...deliveryItems(manifest, await documentProfilesRepo(deps.meta).listOwnedBy(connectionId, manifest.key), realId));
       }
+      // A mail's sender and a role's console permission: never installed from a file saved from a database, chosen by the owner.
+      afterInstall.push(...plannedAfterInstallOfSenders(manifest), ...plannedAfterInstallOfRoles(manifest));
       if (connectionId !== null && manifestRowId !== null) await recordAfterInstall(deps.meta, { manifestId: manifestRowId, appKey: manifest.key }, afterInstall);
       // Guests last: the endpoints read tables that must exist, and the key is made from them.
       let made: Omit<Awaited<ReturnType<typeof installPublicAccess>>, 'changedKeys'> | undefined;
