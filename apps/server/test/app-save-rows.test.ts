@@ -10,6 +10,8 @@
  * A personal column, or one whose name looks like a secret, stays behind
  * unless ticked; a row whose parent stays behind is named, never dropped in
  * silence. A staff member in a sample row is a sample person, never an id.
+ * Never, whatever is ticked: a code (the target makes its own), a code a
+ * shared link opens its row with, or a column the saver's role does not read.
  *
  * SQLite always runs; Postgres runs with TEST_POSTGRES_URL, MySQL with
  * TEST_MYSQL_URL (`./app-install-harness.ts`).
@@ -20,7 +22,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { findSampleApp } from '../src/apps/sample-data.js';
 import { ENGINES, installHarness, type Dialect, type Harness, type HarnessOptions } from './app-install-harness.js';
-import { asFile, made, override, save, tableId } from './app-save-source.js';
+import { convertToApp } from '../src/apps/save/convert.js';
+import type { ReadLimits } from '../src/rbac/read-limits.js';
+import { asFile, choicesFor, made, override, save, sourceOf, tableId } from './app-save-source.js';
 
 type Doc = Record<string, unknown>;
 
@@ -85,6 +89,60 @@ for (const [dialect, available] of ENGINES) {
       await target.run(`INSERT INTO customers (name) VALUES ('Di')`);
       const [di] = await target.rows(`SELECT id FROM customers WHERE name = 'Di'`);
       expect(Number(di!['id'])).toBeGreaterThan(7);
+    });
+
+    it('never carries a code, a guest link\'s code or a column the saver cannot read, whatever is ticked', async () => {
+      const h = await harness(dialect);
+      await made(h, [
+        `CREATE TABLE bookings (id integer PRIMARY KEY, guest varchar(80) NOT NULL, email varchar(120), guest_code varchar(16) NOT NULL, ref varchar(12) NOT NULL, total decimal(10,2), cost decimal(10,2) NOT NULL)`,
+        `INSERT INTO bookings (id, guest, email, guest_code, ref, total, cost) VALUES (1, 'Ann', 'ann@example.test', 'GUESTLINK8K2Q4WZ', 'BK-7Q2M', 12.5, 3)`,
+      ]);
+      await override(h, 'bookings', 'column.code', { length: 16, hiddenFromStaff: true }, 'guest_code');
+      await override(h, 'bookings', 'column.code', { prefix: 'BK-', length: 4 }, 'ref');
+      await override(h, 'bookings', 'column.pii', { masked: true, kind: 'email' }, 'email', 'auto');
+      const bookings = await tableId(h, 'bookings');
+      const everything = [`${bookings}.guest_code`, `${bookings}.ref`, `${bookings}.email`];
+
+      // Ticked or not, neither code travels: the link's code would open the guest's page; the target makes its own.
+      const saved = await save(h, dialect, { rows: { [bookings]: { mode: 'starting' } }, personalColumns: everything }, true);
+      const { manifest, files } = asFile(saved);
+      expect(seedRows(files, 'bookings')).toEqual([{ id: 1, guest: 'Ann', email: 'ann@example.test', total: 12.5, cost: 3 }]);
+      const written = JSON.stringify(Object.values(files));
+      expect(written).not.toContain('GUESTLINK8K2Q4WZ');
+      expect(written).not.toContain('BK-7Q2M');
+      expect(saved.check).toContainEqual(expect.objectContaining({ group: 'info', code: 'ROWS_LINK_CODE_LEFT_OUT', item: 'bookings', field: 'guest_code' }));
+      expect(saved.check).toContainEqual(expect.objectContaining({ group: 'info', code: 'ROWS_CODE_LEFT_OUT', item: 'bookings', field: 'ref' }));
+      expect(saved.carried.rows[bookings]?.sort()).toEqual(['cost', 'email', 'guest', 'total']);
+      expect(saved.carried.personal).toEqual([bookings]);
+
+      // On the target each row gets new codes of its own.
+      const target = await harness(dialect);
+      const installed = await target.install(manifest, {}, files);
+      expect(installed.statusCode, installed.body).toBe(200);
+      const [row] = await target.rows('SELECT guest_code, ref FROM bookings');
+      expect(String(row!['guest_code'])).toHaveLength(16);
+      expect(row!['guest_code']).not.toBe('GUESTLINK8K2Q4WZ');
+      expect(String(row!['ref'])).toMatch(/^BK-/);
+
+      // A saver whose role reads only the guest and the email: the rest stays behind, ticked or not.
+      const source = await sourceOf(h, dialect, true);
+      const limits: ReadLimits = { limited: [{ grant: `table:${h.connectionId}:${bookings}:read`, limit: { readable: ['guest', 'email'] } }], unlimited: new Set() };
+      source.rows!.reader = { readLimits: limits };
+      const limited = await convertToApp(source, choicesFor({ rows: { [bookings]: { mode: 'starting' } }, personalColumns: everything }));
+      expect(limited.check).toContainEqual(expect.objectContaining({ group: 'info', code: 'ROWS_UNREADABLE_LEFT_OUT', item: 'bookings', field: 'total' }));
+      // `cost` must hold a value and may not travel: the rows of the table are the choice.
+      expect(limited.check).toContainEqual(expect.objectContaining({ group: 'choice', code: 'ROWS_HIDDEN_REQUIRED', item: 'bookings', field: 'cost', answer: { choices: ['leave-out'], target: `rows:${bookings}` } }));
+      const narrowed = await convertToApp(source, choicesFor({ rows: { [bookings]: { mode: 'starting' } }, personalColumns: everything, leaveOut: [`rows:${bookings}`] }));
+      expect(narrowed.manifest.seeds).toBeUndefined();
+
+      // Read limits that hide only a nullable column: the rows travel without it. A personal column still needs its tick.
+      const wide: ReadLimits = { limited: [{ grant: `table:${h.connectionId}:${bookings}:read`, limit: { readable: ['guest', 'email', 'cost'] } }], unlimited: new Set() };
+      source.rows!.reader = { readLimits: wide };
+      const unticked = await convertToApp(source, choicesFor({ rows: { [bookings]: { mode: 'starting' } } }));
+      expect(seedRows(asFile(unticked).files, 'bookings')).toEqual([{ id: 1, guest: 'Ann', email: null, total: null, cost: 3 }]);
+      expect(unticked.check).toContainEqual(expect.objectContaining({ group: 'info', code: 'ROWS_PERSONAL_EMPTY', item: 'bookings', field: 'email' }));
+      expect(unticked.carried.rows[bookings]?.sort()).toEqual(['cost', 'guest']);
+      expect(unticked.carried.personal).toEqual([]);
     });
 
     it('picks 200 starting rows by a saved view, and says so when no view picks them', async () => {

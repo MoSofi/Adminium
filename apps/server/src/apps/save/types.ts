@@ -20,6 +20,7 @@ import type { AppManifest } from '@adminium/manifest';
 import type { AppTableRecord, MetaDb, Page, Role } from '@adminium/meta';
 
 import type { SourceDatabase } from '../../connections/manager.js';
+import type { ReadLimits } from '../../rbac/read-limits.js';
 
 import type { CheckList } from './check.js';
 
@@ -112,6 +113,8 @@ export interface ConvertContext {
   check: CheckList;
   /** Package files beside `manifest.json`, by their path in the package (`seeds/orders.json`, `emails/logo.png`). */
   files: Map<string, Uint8Array>;
+  /** The rows part says here what it carried, by table id. */
+  carried: RowsCarried;
 }
 
 export type ConvertPart = (ctx: ConvertContext) => Promise<ManifestPart>;
@@ -121,6 +124,22 @@ export interface RowAccess {
   db: Kysely<SourceDatabase>;
   /** A file of the Files library by its id, or null when it is not there. Without it, pictures stay behind. */
   readFile?: (fileId: string) => Promise<{ bytes: Uint8Array; filename: string; mime: string } | null>;
+  /**
+   * Who saves: their read limits hide columns of the rows as their reads do.
+   * Absent, the host's (the command line): it reads every column. A code no
+   * staff member reads never travels for anybody.
+   */
+  reader?: { superAdmin?: boolean; readLimits?: ReadLimits | undefined } | undefined;
+}
+
+/** What the rows part carried that needs the saver's own rights ("Download again" asks the same). */
+export interface RowsCarried {
+  /** Rows, by model table id: the columns whose values travel (the key left out: every reader sees it). */
+  rows: Record<string, string[]>;
+  /** The tables whose ticked personal or secret-looking columns' values travel (reading personal data was asked). */
+  personal: string[];
+  /** Each of those tables' ref in the file, by model table id. */
+  refs: Record<string, string>;
 }
 
 export interface SavedTable {
