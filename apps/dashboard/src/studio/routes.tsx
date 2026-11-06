@@ -602,6 +602,9 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
   const hostedAppsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/apps',
+    // `?upload=1` opens the install's upload step: an own app's "Upload a newer version".
+    validateSearch: (search: Record<string, unknown>): { upload?: boolean } =>
+      search['upload'] === true || search['upload'] === '1' || search['upload'] === 'true' ? { upload: true } : {},
     component: HostedAppsRouteComponent,
   });
 

@@ -22,7 +22,7 @@
  * which key a surface would serve (`surface-config.json`) and links across.
  */
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { AppWindow, Globe2, PanelsTopLeft, Tag } from 'lucide-react';
 import {
@@ -90,7 +90,9 @@ export function HostedAppsPage() {
    * would put a four-step flow with its own footer inside a dialog that already
    * has one.
    */
-  const [installing, setInstalling] = useState(false);
+  // An own app's "Upload a newer version" lands here with `?upload=1`: the upload step, at once.
+  const search = useSearch({ strict: false }) as { upload?: boolean };
+  const [installing, setInstalling] = useState(search.upload === true);
   /** The shelf app the wizard opens on, when it was opened from a card. */
   const [chosen, setChosen] = useState<
     { key: string; version: string; name: string; downloaded?: boolean } | undefined
@@ -216,6 +218,7 @@ export function HostedAppsPage() {
       <InstalledAppsCard
         busy={acquisition.busy}
         onUpdate={(app, row) => void acquisition.update(app, row)}
+        onUpdateEvery={(copies, row) => void acquisition.updateEvery(copies, row)}
         onInstall={() => {
           setChosen(undefined);
           setInstalling(true);
