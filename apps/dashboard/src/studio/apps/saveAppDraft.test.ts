@@ -218,7 +218,7 @@ describe('the databases Save as app offers', () => {
       ['kiln', ['Kiln Street Pottery'], false],
       ['archive', [], true],
     ]);
-    const all = saveDatabases(connections, { ...(bootstrap as object), workspaces: { ...(bootstrap as { workspaces: object }).workspaces, workspaceView: 'all' } } as never);
+    const all = saveDatabases(connections, { ...(bootstrap as object), workspaces: { ...(bootstrap as unknown as { workspaces: object }).workspaces, workspaceView: 'all' } } as never);
     expect(all.map((row) => row.connection.name)).toEqual(['archive', 'fernhill', 'kiln']);
   });
 

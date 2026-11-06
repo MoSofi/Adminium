@@ -67,7 +67,7 @@ function connection(id: string, name: string, tableCount: number) {
   };
 }
 
-function inventory(connectionId = 'con_f'): SaveInventory {
+function inventory(connectionId = 'con_f', withViews = false): SaveInventory {
   return {
     connectionId,
     tables: [
@@ -78,7 +78,7 @@ function inventory(connectionId = 'con_f'): SaveInventory {
       { id: 'page_customers', title: 'Customers', tableId: 'public.customers', generated: true },
       { id: 'page_orders', title: 'Orders', tableId: 'public.orders', generated: false },
     ],
-    views: [{ id: 'view_mine', name: 'Late ones', pageId: 'page_orders', ownerId: 'usr_rosa', ownerName: 'Rosa Okafor' }],
+    views: withViews ? [{ id: 'view_mine', name: 'Late ones', pageId: 'page_orders', ownerId: 'usr_rosa', ownerName: 'Rosa Okafor' }] : [],
     roles: [],
     automations: [{ id: 'aut_1', name: 'Welcome new wholesale customers', tableIds: ['public.customers'] }],
     emailTemplates: [],
@@ -134,6 +134,8 @@ interface StubOptions {
   saves?: AppSaveRow[];
   planner?: Planner;
   workspaces?: unknown;
+  /** A person's own view on the orders page. */
+  views?: boolean;
 }
 
 function stubFetch(options: StubOptions = {}) {
@@ -156,7 +158,7 @@ function stubFetch(options: StubOptions = {}) {
       if (url === '/api/v1/apps/saves') return Promise.resolve(jsonResponse(200, { saves: options.saves ?? [] }));
       if (url.startsWith('/api/v1/apps/save/inventory')) {
         const id = new URL(url, 'http://x').searchParams.get('connectionId') ?? '';
-        return Promise.resolve(jsonResponse(200, { inventory: inventory(id) }));
+        return Promise.resolve(jsonResponse(200, { inventory: inventory(id, options.views === true) }));
       }
       if (url === '/api/v1/apps/save/plan') {
         const request = body as SaveRequest;
@@ -208,7 +210,7 @@ describe('Save as app', () => {
   it('asks which database, quick-saves everything without rows, and lands on Download with the fingerprint', async () => {
     const user = userEvent.setup();
     const calls = renderAt('/studio/apps');
-    await user.click(await screen.findByRole('button', { name: 'Save as app' }));
+    await user.click((await screen.findAllByRole('button', { name: 'Save as app' }))[0]!);
     expect(await screen.findByText('Save which database?')).toBeTruthy();
     await user.click(screen.getByRole('menuitem', { name: /fernhill_archive/ }));
 
@@ -232,7 +234,7 @@ describe('Save as app', () => {
   it('counts what Check counts, and records each answer in Check as its item says', async () => {
     const user = userEvent.setup();
     const calls = renderAt('/studio/apps', { connections: [connection('con_f', 'fernhill', 30)], planner: openOf([SECRET_ITEM, TYPE_ITEM]) });
-    await user.click(await screen.findByRole('button', { name: 'Save as app' }));
+    await user.click((await screen.findAllByRole('button', { name: 'Save as app' }))[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Save fernhill as an app' });
     expect(await within(dialog).findByText('2 things need a choice')).toBeTruthy();
     expect(within(dialog).queryByRole('button', { name: 'Save' })).toBeNull();
@@ -240,8 +242,8 @@ describe('Save as app', () => {
 
     expect(await screen.findByRole('heading', { name: 'Check' })).toBeTruthy();
     const pills = screen.getByText((_, node) => node?.getAttribute('data-part') === 'check-pills');
-    expect(within(pills).getByText('Blocks saving').parentElement?.textContent).toBe('Blocks saving1');
-    expect(within(pills).getByText('Needs a choice').parentElement?.textContent).toBe('Needs a choice1');
+    expect(within(pills).getByText('Blocks saving').textContent).toBe('Blocks saving1');
+    expect(within(pills).getByText('Needs a choice').textContent).toBe('Needs a choice1');
     expect(screen.getByText(/holds a saved secret of this server/)).toBeTruthy();
     expect(screen.getByText('Clear or leave out the saved secret to save.')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
@@ -258,8 +260,8 @@ describe('Save as app', () => {
 
   it('answers a personal view "stays behind" by default, counts it once, and saves', async () => {
     const user = userEvent.setup();
-    const calls = renderAt('/studio/apps', { connections: [connection('con_f', 'fernhill', 30)], planner: openOf([VIEW_ITEM]) });
-    await user.click(await screen.findByRole('button', { name: 'Save as app' }));
+    const calls = renderAt('/studio/apps', { connections: [connection('con_f', 'fernhill', 30)], planner: openOf([VIEW_ITEM]), views: true });
+    await user.click((await screen.findAllByRole('button', { name: 'Save as app' }))[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Save fernhill as an app' });
     expect(await within(dialog).findByText('1 thing needs a choice')).toBeTruthy();
     expect(within(dialog).getByText('1 saved view belongs to a person')).toBeTruthy();
@@ -297,8 +299,8 @@ describe('Save as app', () => {
         manage: true,
       },
     });
-    await user.click(await screen.findByRole('button', { name: 'Save as app' }));
-    await user.click(await screen.findByRole('menuitem', { name: /^fernhill Postgres/ }));
+    await user.click((await screen.findAllByRole('button', { name: 'Save as app' }))[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: /^fernhill\s*Postgres/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Save fernhill as an app' });
     await user.click(within(dialog).getByRole('button', { name: 'More choices' }));
 
