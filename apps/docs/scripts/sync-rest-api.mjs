@@ -64,7 +64,7 @@ const DESCRIPTIONS = {
     'against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), ' +
     'rename an older install’s tables to the app’s prefix, ' +
     'change one app’s settings, switch it off and on, set its domains and instances, ' +
-    'add and remove its sample data, discard a staged version, and uninstall',
+    'add and remove its sample data, discard a staged version, uninstall, and upload, review and install a workspace file (several apps in one), finishing a stopped one with Install the rest',
   assistant:
     'The page assistant — open a session on a page, ask it something, read what the turn ' +
     'came back with, and act on the draft it proposed. Every route needs the assistant ' +
@@ -171,7 +171,7 @@ const DESCRIPTIONS = {
   teams: 'Teams and who leads them: a lead reaches the rows of the people in the team',
   workspaces:
     'Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be ' +
-    'in several workspaces or in none, and deleting a workspace leaves its databases where they are',
+    'in several workspaces or in none, and deleting a workspace leaves its databases where they are. Save workspace makes one app per database and downloads them as one file',
   people: 'Names and ids of staff, for picking somebody (an owner, a hand-over)',
   payments:
     'Studio → Payments: connect a payment service with your own keys, choose the ways to pay and ' +
