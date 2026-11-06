@@ -98,6 +98,8 @@ something Adminium ignores. See [Validation](#validation).
 | `description` | yes | An i18n message, shown on the app's card. |
 | `categories` | yes | At least one. For an app: `commerce`, `hospitality`, `operations`, `crm`, `internal-tools`. Add-ons have their own list; see [Add-on manifests](#add-on-manifests). |
 | `capabilities` | no | What the package uses; see [Capabilities](#capabilities). |
+| `provenance` | no | A self-made app's only: where and when the file was saved. See [`provenance`](#provenance). Needs Adminium 0.3.49. |
+| `icon` | no | A self-made app's only: a Lucide icon name in kebab case (`coffee`, `shopping-bag`), at most 60 characters. See [`icon`](#icon). Needs Adminium 0.3.49. |
 
 :::caution[Two publishers only]
 Adminium accepts `"publisher": { "id": "adminium", … }`, and for an app, `"id": "local"`: an app
@@ -250,6 +252,11 @@ the database.
 | `module` | no | The [part](#parts) of the app the table belongs to. Needs Adminium 0.3.28. |
 | `removal` | no | `{ "reason"?: true \| "required", "history"?: true }`: a removal of a row takes a reason, and the removed row stays readable through a row it linked to; see [Removed rows](#removed-rows). Needs Adminium 0.3.35. |
 | `keep` | no | `{ "law": "tax" \| "health" \| "contract" \| "safety" }`: the law makes the business keep the table's rows; see [Kept by law](#kept-by-law). Needs Adminium 0.3.38. |
+| `exclude` | no | `true`: the table is left out of Adminium. No list, form or link shows it, and no page may be bound to it. Installed as the table's exclude mark, which the operator may change. Needs Adminium 0.3.49. |
+| `existingCustomers` | no | `true`, on a table listed in [`people`](#people): the source let existing customers get marketing mail. An install never switches it on; it says so, for someone who sends campaigns to tick. Needs Adminium 0.3.49. |
+| `switchedOff` | no | `{ "postings"?: [1–6 posting ids], "adjust"?: true }`: the table's [postings](#postings) and its [price rule](#a-price-an-add-on-lowers), installed but kept switched off. Each posting must be one of the table's own, and `adjust` needs the table's `adjust`. Needs Adminium 0.3.49. |
+| `name` | no | A self-made app's only: the table's real name, when it is not the ref (`Order Lines`). See [A table's real name and schema](#a-tables-real-name-and-schema). Needs Adminium 0.3.49. |
+| `schema` | no | A self-made app's only: the Postgres schema the table is in (`sales`). Needs Adminium 0.3.49. |
 
 `label`, `labelPlural`, `keyField` and every column `label` are installed as the operator's own
 labels would be. The operator can rename anything; a name they changed is theirs, and a later
@@ -264,7 +271,7 @@ version of the app does not overwrite it.
 
 | Field | Required | Rule |
 |---|---|---|
-| `ref` | yes | snake_case. |
+| `ref` | yes | snake_case; in a self-made app, the column's own name may be kept (`orderDate`, `Order Total`): see [Columns under their own names](#columns-under-their-own-names). |
 | `type` | yes | One of the [column types](#column-types). |
 | `nullable` | no | `true` makes the column nullable. **Columns are `NOT NULL` unless you say otherwise.** A primary key is never nullable. |
 | `role` | no | `pk` (primary key), `created_at` or `updated_at`. A `timestamptz` or `date` column whose role is `created_at` is filled with the moment its row is made, and one whose role is `updated_at` with the moment of every change too, whatever the column is called, through every door: the desk, a guest's create, a change through a link. In a table that gives a role, another column whose name alone would say the same moment (an `updated_at` beside a `changed_on` with the role) is left as written. A table with no roles is stamped by its columns' names (`created_at`, `updated_at`). A column whose own rules fill it (`default`, `stamp`, `formula`, `copy`) keeps them. Read by Adminium 0.3.43 and later; an older release stamps by name only. |
@@ -273,6 +280,10 @@ version of the app does not overwrite it.
 | `references` | for `fk` | The `ref` of the table this foreign key points at. That table must declare exactly one `pk` column; the foreign key takes its type. A name the manifest does not declare is a table the database already has (a shop's own `customers`, with a one-column primary key): the app then installs only on a database with that table, the check warns about it, and anywhere else the install is refused (`UNRESOLVED_REFERENCE`). Adminium's own `adminium_*` tables can never be linked to (`RESERVED_TABLE`). |
 | `maxLength` | no | `text` only: creates `varchar(n)` instead of unbounded text. 1–1000. Leave it out for long text (notes, a description): text with no `maxLength` has no limit. |
 | `scale` | no | `decimal` and `money` only: the places kept after the point. See [Decimal places](#decimal-places). |
+| `precision` | no | `decimal` and `money` only: the digits kept in all, 1–65, beside `scale` (`decimal(10,2)` is `"precision": 10, "scale": 2`). At least the places after the point (4 when `scale` gives none). Without it a decimal is made with 19. Needs Adminium 0.3.49. |
+| `hidden` | no | `true` keeps the column off forms and lists; `false` shows it again. Installed as the column's hidden mark, which the operator may change. Needs Adminium 0.3.49. |
+| `yesNo` | no | `true`, on an `int` column: it holds a yes or a no (a `smallint` flag), and is read, written and shown as one on every engine. A `bool` column is one already. Needs Adminium 0.3.49. |
+| `relation` | no | On an `fk` column: `{ "label"?, "remove"?: true, "constraint"?: false }`, at least one of them. `label` (1–120 characters) is the link's own name. `remove` keeps the foreign key in the database but Adminium does not show the link. `"constraint": false` makes no foreign key: Adminium shows and follows the link itself, as for a link a person adds in Studio. Needs Adminium 0.3.49. |
 | `default` | no | The value the database fills when an insert leaves the column out. See [Defaults](#defaults). |
 | `unique` | no | `true`: no two rows may hold the same value. Empty values do not count, so many rows may leave it empty. Not on the primary key, a `json` or a `blob` column; a `text` column needs `maxLength`, because MySQL cannot index unbounded text. |
 | `index` | no | `true`: a plain index on a foreign key a [limit](#capacity) or a [total](#totals-and-balances) counts by, so the count reads the rows it needs and not the whole table. Only on such a foreign key, and never on one that is `unique` already. |
@@ -329,6 +340,7 @@ by an update.
 | `enum` | A `varchar(32)` (or `varchar(64)` when a value is longer than 32 characters) with a check that limits it to the `enum` values. |
 | `json` | JSON. |
 | `date` | Date. |
+| `time` | A time of day: `time` on Postgres and MySQL, text on SQLite. Needs Adminium 0.3.49. |
 | `timestamptz` | Timestamp with time zone. |
 | `uuid` | UUID. |
 | `fk` | A foreign key, typed like its target's primary key. |
@@ -2664,7 +2676,8 @@ an object keyed by kebab-case list name.
 ```
 
 Each list has a `label` and 1–500 `values`, each with a `value` (1–256 characters) and an optional
-`label` and `tone`. A list is installed once as `<key>-<name>` (`pos-zones`). The operator can edit
+`label`, `tone` and `description` (1–512 characters, a line shown under the answer where it is
+chosen; needs Adminium 0.3.49). A list is installed once as `<key>-<name>` (`pos-zones`). The operator can edit
 it like any other list, so a later version never overwrites it, and a list of that key someone
 already made is left alone.
 
@@ -2687,7 +2700,7 @@ and appears in the app's own sidebar section.
 
 | Field | Required | Rule |
 |---|---|---|
-| `ref` | yes | kebab-case. It becomes the page's address, `/p/<ref>`. Every app installed on the same database shares these addresses, so start it with the app key (`pos-menu`). The plan refuses an install whose page ref another app's page already uses there. |
+| `ref` | yes | kebab-case. It becomes the page's address, `/p/<ref>`. Every app installed on the same database shares these addresses, so start it with the app key (`pos-menu`). Another app's page at the address refuses the install (`PAGE_SLUG_TAKEN`). Any other page there is a choice on the install's review: replace it (only if nobody edited it), move it to another address, or skip the app's page. Left unanswered through the API, a released app's page is skipped with a warning, and a self-made app's install is refused (`PAGE_SLUG_UNANSWERED`). |
 | `template` | yes | The page template; see below. |
 | `title` | yes | An i18n message. `fallback` is the English title. |
 | `titles` | no | The title in other languages, keyed by BCP 47 tag, each 1–120 characters. The sidebar shows the operator's language until the operator renames the page. |
@@ -2696,6 +2709,8 @@ and appears in the app's own sidebar section.
 | `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`, a `board` for `page-board`. |
 | `feature` | no | The id of one of the app's [`addOns.features`](#add-ons). Until every add-on the feature requires is installed, attached to the app and switched on there, the page leaves the sidebar and is listed apart, with the add-ons it needs. |
 | `module` | no | The [part](#parts) of the app the page belongs to. While that part is off the page leaves the sidebar and its address answers `409` `PART_OFF`. Needs Adminium 0.3.28. |
+| `envelope` | no | A self-made app's only: the page as a person arranged it, in place of `config`. See [A page's envelope and its views](#a-pages-envelope-and-its-views). Needs Adminium 0.3.49. |
+| `views` | no | A self-made app's only: 1–24 shared views of the page. Needs Adminium 0.3.49. |
 
 **Templates.** A table-bound template reads one table: `page-crud`, `page-board`,
 `page-calendar`, `page-scheduler`, `page-directory`, `page-master-detail`, `page-queue-inbox`,
@@ -3032,6 +3047,7 @@ there and is not declared.
 | `placement` | no | Staff side only: `internal` opens the screens inside the dashboard, `external` on their own address (a till). The operator can change it. Absent means `internal`. |
 | `enabled` | no | Whether the side starts switched on. Absent means on. |
 | `records` | no | Staff side only: where a record opens on this side, from a table ref to a path with one `{id}`; see [Where a record opens](#where-a-record-opens). Needs Adminium 0.3.28. |
+| `instances` | no | `true`: the side reads its instance base and sends the `X-Adminium-Install` header, so every copy of the app (one per database) opens it. Without it, only the first copy's screens open; a later copy brings its pages, tables, roles and rules, and says its screens open for the first install only. See [An app on several databases](/self-hosting/apps-per-database/#screens-of-a-later-copy). Needs Adminium 0.3.49. |
 
 ### Where a record opens
 
@@ -3665,6 +3681,9 @@ invoice, receipt or statement, drawn by an add-on that renders documents. Up to 
 | `module` | no | The [part](#parts) of the app the document belongs to: it is not drawn while that part is off. Needs Adminium 0.3.28. |
 | `requestValues` | no | 1–8 slots the app's own screen may fill when it asks for the document (a label sheet's `count`). Each must be a slot the entry does not map; when the add-on is attached, its outline must have the slot, with no default, holding a number or a text. See below. |
 | `where` | no | `{ "column", "in": [...] }`: only rows whose column holds one of 1–16 values have this document (a `receipt` for `payments.kind` `taken`, not for money given back). Asked for another row, the render answers `409` `DOCUMENT_NOT_FOR_ROW`; an email that would carry it goes without it. |
+| `options` | no | How it is drawn: `{ "locale"?, "paper"?, "formats"?, "prefix"?, "literals"? }`: its language tag, paper size, `html` and/or `pdf`, what a document number starts with (`INV-`, up to 20 characters) and up to 32 fixed texts by slot. The operator's to change afterwards. Needs Adminium 0.3.49. |
+| `trigger` | no | `{ "event", "when"? }`: drawn by itself on `record.created` or `record.updated`, and with `when: { "column", "value"? }` (updates only) when that column changes, or changes to that value. Needs Adminium 0.3.49. |
+| `deliver` | no | `{ "store"?, "emailSlot"? }`: a drawn document is kept, and emailed to the address a slot holds. The slot arrives empty, for the owner to choose. Needs Adminium 0.3.49. |
 
 The slots are the add-on's words (`number`, `issuedAt`, `items`): a shape's own profiles, in the
 add-on's manifest, show the ones it draws. Each slot reads one of:
@@ -4222,6 +4241,10 @@ removed if nobody edited it.
 | `vars` | no | Up to 60 variable names the template reads, for the editor's list. |
 | `locales` | yes | The template in each language it ships, keyed by BCP 47 tag. `en-US` is required. |
 | `attach` | no | `{ "kind", "link", "optional"? }`: a document the email carries, drawn by an add-on for the row the outbox link `link` names (a receipt for a sale). `kind` is a document kind (see [Documents](#documents)); `link` is one of the outbox's `links`. A message whose document cannot be drawn fails rather than going without it. With `"optional": true`, a message goes without the document while the add-on that draws its kind is not attached and switched on for the app, and every block marked `"data": { "withAttachment": true }` is left out with it ("Your receipt is attached"). Any other failure to draw it still fails the message. |
+| `kind` | no | `template` (the default: the outbox or a rule sends it) or `campaign` (the owner sends it to an audience). A template the outbox or a rule sends is never a campaign. Needs Adminium 0.3.49. |
+| `category` | no | What the mail is for: `transactional` (the default), `lifecycle` or `marketing`. Needs Adminium 0.3.49. |
+| `brand` | no | The mail's own `{ "name", "mark", "accent", "fromName", "fromEmail" }`, in place of the server's: `mark` one of the twelve shipped marks or `logo`, `accent` a six-digit hex colour. The sender is checked against the configured senders when it sends; a saved app's sender arrives empty, for the owner to fill in. Needs Adminium 0.3.49. |
+| `attachments` | no | 1–20 files of the package the mail carries, each `{ "file": "<relative path>" }` (`emails/terms.pdf`). Kept in the Files library, and let go when no mail names them. Needs Adminium 0.3.49. |
 
 Each language is `{ "subject", "preheader"?, "blocks", "footer"? }`: a subject and a preheader of
 up to 200 characters, 1–40 blocks, and a footer of up to 1000. A block is
@@ -4447,7 +4470,7 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | Field | Required | Rule |
 |---|---|---|
 | `table` | yes | One of the app's table refs. |
-| `methods` | yes | At least one of `GET`, `POST`, `PATCH`. `PATCH` needs a `claim`, a `claimedBy` that is not `optional`, or a `visibleWith`. |
+| `methods` | yes | At least one of `GET`, `POST`, `PATCH`. `PATCH` needs a `claim`, a `claimedBy` that is not `optional`, or a `visibleWith`. A self-made app may also use `PUT` (replace a row), `DELETE` (remove one) and `BATCH` (write many at a time), each only with a claim, as `PATCH`; anywhere else `DELETE` is only an add-on's own link's. Needs Adminium 0.3.49. |
 | `kind` | no | `records` (the default) or `availability`. |
 | `key` | no | The browser key that serves the entry: `customer` (the default) or a name in [`publicKeys`](#publickeys). |
 | `module` | no | The [part](#parts) of the app the entry belongs to: while that part is off the entry answers as one that is not there. Needs Adminium 0.3.28. |
@@ -4490,6 +4513,10 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `pictures` | no | 1–4 image columns any visitor may see. See [Pictures](#pictures). |
 | `assets` | no | 1–8 file columns of product assets (models, fonts, SVG pieces) any visitor's browser may load. See [Assets](#assets). Needs Adminium 0.3.43. |
 | `rule`, `showLeft`, `under` | no | On an `availability` entry: which limit it answers, whether it says what is left, and the column a page asks by. See [Availability](#availability). |
+| `path` | no | A self-made app's only: the endpoint's own address (`/open_orders`) in place of the one Adminium names: `/`, a lower-case letter, then letters, digits and `_`. Needs Adminium 0.3.49. |
+| `pagination` | no | A self-made app's only: `{ "defaultLimit", "maxLimit", "order"? }`, 1–200 rows a page, the default no longer than the longest, and `order` as `column.asc` or `column.desc`. Needs Adminium 0.3.49. |
+| `rateLimit` | no | A self-made app's only: `{ "requests", "window" }`, 1–10,000 requests a guest may make per `1s`, `1m` or `1h`. Needs Adminium 0.3.49. |
+| `response` | no | A self-made app's only: `wrapped` (rows in `data`). An app's own key reads rows wrapped, so `array` and `single` are refused for an app's entries. Needs Adminium 0.3.49. |
 
 `writableValues` and `writableWhen` pin both ends of a change: `status` may become `cancelled`,
 and only while it is `booked`. `writableWhen` is part of the change itself, never of a read, so a
@@ -5293,20 +5320,22 @@ that uses it sets `compatibility.minAdminiumVersion` to `0.3.18` or later.
 | `key` | kebab-case, up to 80 characters, unique in the manifest. It is how an update finds the rule it shipped before. |
 | `name`, `description` | One text, or one per language with `en-US` among them. The install keeps the one the server speaks. So for a step's `title` and `sub`. A notice's `title` and `body` keep every language: each person is told [in their own language](#a-notice-in-the-readers-language). |
 | `enabled` | Whether the rule is switched on when it is first installed. After that the owner's switch stands. |
-| `trigger` | `{ "kind": "record", "event", "table", "changedColumn"?, "when"? }` with `event` one of `created`, `updated`, `deleted`; or `{ "kind": "schedule", "schedule", "forEach"? }`. A schedule is `{ "kind": "interval", "everyMinutes" }` (`"5"`, `"10"`, `"15"`, `"30"`, `"60"`) or `daily`, `weekly` (with `dayOfWeek`, 0 = Sunday) or `monthly` (with `dayOfMonth`, 1–28) at a `time` such as `"17:00"`. `forEach` is `{ "table", "where", "once" }`: the rows a run visits. |
+| `trigger` | `{ "kind": "record", "event", "table", "changedColumn"?, "when"?, "watch"? }` with `event` one of `created`, `updated`, `deleted`; or `{ "kind": "schedule", "schedule", "forEach"? }`. A schedule is `{ "kind": "interval", "everyMinutes" }` (`"5"`, `"10"`, `"15"`, `"30"`, `"60"`) or `daily`, `weekly` (with `dayOfWeek`, 0 = Sunday) or `monthly` (with `dayOfMonth`, 1–28) at a `time` such as `"17:00"`. `forEach` is `{ "table", "where", "once" }`: the rows a run visits. `"watch": true` (needs Adminium 0.3.49) also notices rows written around Adminium (an import, the app's own code), by polling; without it, only what Adminium writes starts a run. |
 | `module` | Optional. The [part](#parts) of the app the rule belongs to: it starts no run while that part is off. Needs Adminium 0.3.28. |
 | `graph` | `{ "version": 1, "nodes" }`: up to 40 steps with unique ids, the trigger first and only once. A step is a `trigger`, an `action`, a `condition`, a `wait` (up to 30 days), a `stop`, or a `branch` with two branches of up to 20 steps. |
 
-A step's action is one of six:
+A step's action is one of eight:
 
 | `kind` | Keys | What it does |
 |---|---|---|
 | `notification` | `to: { "roles" }`, `to: { "column", "lead"?, "else"? }` or `to: { "listed" }`, `title`, `body`?, `urgent`? | Tells everyone who holds one of the manifest's own roles **and can open the record**, or [the person on the row](#the-person-on-the-row), or [the lead of that person](#the-lead-of-the-person-on-the-row), or [the people listed on the row](#the-people-listed-on-the-row). `"urgent": true` tells them at once, also in their quiet hours. |
-| `email` | `templateKey`, `to: { "kind": "field", "column" }`, `to: { "kind": "staff", "column" }` or `to: { "kind": "listed", "table" }`, `vars`?, `replyTo: { "staff": column }`?, `class`? | Sends one of the manifest's own templates to the address a column of the record holds, to [the person on the row](#the-person-on-the-row), or one to each of [the people listed on the row](#the-people-listed-on-the-row). A mail to the record's address says `class`, [marketing or service](#marketing-or-service) (from `0.3.38`, always). |
+| `email` | `templateKey`, `to: { "kind": "field", "column" }`, `to: { "kind": "staff", "column" }` or `to: { "kind": "listed", "table" }` or `to: { "kind": "fixed" }`, `vars`?, `replyTo: { "staff": column }`?, `class`?, `purpose`? | Sends one of the manifest's own templates to the address a column of the record holds, to [the person on the row](#the-person-on-the-row), or one to each of [the people listed on the row](#the-people-listed-on-the-row). A mail to the record's address says `class`, [marketing or service](#marketing-or-service) (from `0.3.38`, always). `to: { "kind": "fixed" }` (needs Adminium 0.3.49) sends to addresses the owner types after the install: a file never carries one, and the rule arrives switched off. `purpose` (needs 0.3.49) is a marketing mail's reason to write, the consent purpose whose answer lets it go (newsletter when none is said). |
 | `digest` | `templateKey`, `to: { "roles" }`, `sections`, `sendEmpty`? | Makes [a summary for each person](#a-summary-for-each-person) who holds one of the roles: their own rows, or theirs and those of the people they lead, read as they read. |
 | `record.create` | `table`, `values`, `name`? | Adds a row of one of the manifest's tables. With a `name`, [the steps after it read the row it made](#a-row-a-step-makes). |
 | `record.update` | `values` | Writes columns of the record. |
 | `add-on.step` | `addOn`, `step`, `inputs` | Runs a [step an add-on gives](#steps-for-automations): the add-on's key, the step's key, and a text for each input. An add-on's own step is checked here; another add-on's is checked where the rule is installed, and fails by name while that add-on is not there. Needs `minAdminiumVersion` `0.3.22`. |
+| `webhook` | `method`? (`POST`, `PUT`), `bodyKind`? (`json`, `text`, `slack`), `body`? (up to 8,000 characters, may carry `{{record.<column>}}`), `headerName`? | Calls a web address. The address and any header's value are never in a file: the step arrives empty and its rule switched off, for the owner to fill in after the install and turn on. Needs Adminium 0.3.49. |
+| `document.render` | `document: { "table", "kind", "addOn"? }` | Draws one of the app's [documents](#documents) for the record: the document of `kind` on the rule's own table (and of `addOn`, when two draw that kind). Needs Adminium 0.3.49. |
 
 A value is a text, which may carry `{{record.<column>}}`, or `{ "now": true }`. It may also carry
 [the record as it was](#the-record-as-it-was) and [the name of a person](#a-persons-name-and-the-records-address),
@@ -5910,6 +5939,194 @@ wrote nothing. An add-on's `seeds` are described under [Add-on manifests](#add-o
 `widgets` (a list of `{ "id", "entry" }`) are accepted by the schema, but this release does not act
 on them.
 
+## A self-made app
+
+An app whose publisher is `local` was made on an Adminium: in [a project folder](/projects/apps/),
+or saved from a database with [Save as app](/guides/your-own-apps/save-as-app/). Such a file may
+carry fields no released app does, because it describes a dashboard a person built by hand. Each is
+refused in a manifest from any other publisher, and each needs Adminium 0.3.49, so the file sets
+`compatibility.minAdminiumVersion` to at least `0.3.49` (Save as app does it for you).
+
+### New in 0.3.49
+
+Every field below needs `minAdminiumVersion` `0.3.49` or later. An older server then answers
+"needs Adminium 0.3.49" instead of naming an unknown key.
+
+| Field | Where | Who may use it |
+|---|---|---|
+| [`provenance`](#provenance), [`icon`](#icon) | top level | self-made apps only |
+| [`apps.requires`](#appsrequires) | top level | self-made apps only |
+| [`instance`](#instance) | top level | self-made apps only |
+| [`reports`, `invoiceLayouts`, `scheduledReports`](#reports-invoicelayouts-and-scheduledreports) | top level | self-made apps only |
+| [`payments`](#payments) | top level | self-made apps only |
+| [`envelope`, `views`](#a-pages-envelope-and-its-views) | a page | self-made apps only |
+| [`name`, `schema`](#a-tables-real-name-and-schema) | a table | self-made apps only |
+| [A column's own name](#columns-under-their-own-names) | a column's `ref` | self-made apps only |
+| [`path`, `pagination`, `rateLimit`, `response`; `PUT`, `BATCH`, and `DELETE` beyond an add-on's own link](#public-access) | a public entry | self-made apps only |
+| [`exclude`, `existingCustomers`, `switchedOff`](#tables) | a table | every app |
+| [`time`](#column-types), [`precision`, `hidden`, `yesNo`, `relation`](#columns) | a column | every app |
+| [`description`](#option-lists) | an option list's answer | every app |
+| [`kind`, `category`, `brand`, `attachments`](#emailtemplates) | an email template | every app |
+| [`watch`, `to: { "kind": "fixed" }`, `purpose`, `webhook`, `document.render`](#automations) | a rule | every app |
+| [`options`, `trigger`, `deliver`](#documents) | a document | every app |
+| [`instances`](#frontends) | a frontend | every app |
+| [`scope`](#add-on-manifests) | the `addOn` block | add-ons |
+
+### `provenance`
+
+Where and when the file was saved:
+
+```json
+"provenance": {
+  "lineage": "k3Vx9_Qp2mL8",
+  "savedAt": "2026-11-01T09:30:00Z",
+  "adminiumVersion": "0.3.49",
+  "label": "Fernhill main",
+  "workspaces": ["Fernhill Coffee"]
+}
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `lineage` | yes | 8–64 letters, digits, `-` or `_`: a random id drawn at the app's first save and kept for every later version. Never an id of the server. |
+| `savedAt` | yes | An ISO date-time with its offset. |
+| `adminiumVersion` | yes | The Adminium that saved it. |
+| `label` | no | 1–120 characters: the name the person gave the place it was made. Shown on the review ("Made at Fernhill main"). |
+| `workspaces` | no | Up to 32 names of the [workspaces](/guides/workspaces/) its database was in. Shown as names only. |
+
+The lineage is how a server tells one app from another under the same key. A newer version of the
+same lineage installs as an update; a file of another lineage under a key this server already has
+is refused (`LINEAGE_DIFFERS`), and a file is never installed back onto the database it was saved
+from (`SAVED_FROM_HERE`).
+
+### `icon`
+
+A [Lucide](https://lucide.dev/icons/) icon name in kebab case (`coffee`, `shopping-bag`), at most 60
+characters. Hosted apps and the app's page show it on the app's tile. A name the target cannot
+draw falls back to the package icon.
+
+### A page's envelope and its views
+
+A page a person changed by hand cannot be made again by the generator, so a self-made app carries
+it whole:
+
+| Field | Rule |
+|---|---|
+| `envelope` | `{ "v", "kind", "template", "config", "padding"?, "width"? }`: the page as the dashboard stores it, without its id, source, access or address. `template` must be the page's own `template`, and a page with an envelope has no `config` beside it. |
+| `views` | 1–24 shared views, each `{ "v", "kind", "name", "isDefault"?, "config" }`: `kind` is `filters` (a list's saved state) or `layout` (a dashboard's arrangement), `name` is 1–120 characters and unique per kind, and each kind has at most one default. |
+
+The install makes the page the target's own: it gives it a new id, source, access and address,
+finds its tables through the app's refs (a table named any other way is refused), reads its column
+facts from the target's database, and stamps it as untouched, so a later update may replace it
+until someone edits it. Views are written as shared views. A page nobody changed travels without
+an envelope, as an ordinary page entry.
+
+### A table's real name and schema
+
+A table's `ref` is the app's short name for it. A self-made app may give the table's real `name`
+(`Order Lines`) beside it, and on Postgres its `schema` (`sales`). The install, the plan, every live
+read and the uninstall then use that real table.
+
+- A table that gives `name` or `schema` is never prefixed: a manifest with `"prefixed": true` gives
+  neither.
+- A name or schema is 1–63 bytes, has no dot, no NUL, no space at either end and no ` as ` between
+  words, and does not start with `adminium_`.
+- `schema` is for Postgres only. `information_schema` and every `pg_` schema are refused, and so is
+  the schema of Adminium's own store (`TABLE_NAME_REFUSED`).
+- Two tables whose real names differ only by upper and lower case are refused: MySQL and SQLite
+  take them for one.
+
+### Columns under their own names
+
+In a self-made app, a column's `ref` may be the name it has in its own database: `orderDate`,
+`Order Total`, `driver-name`. The column is created under that name, and every block of the file
+names it the same way: pages, views, roles' column limits, rules, public entries and rows.
+
+- A name starts with a letter or `_`, then holds letters, digits, `_`, `$`, `-` and spaces. It has
+  no dot, no colon and no space at either end, so `24:00` still reads as a time.
+- Two columns of a table whose names differ only by case are refused.
+- A formula's `join` and the short path rules (a staff column, a night count) take names without
+  spaces.
+- Released apps and add-ons keep snake_case refs.
+
+### `apps.requires`
+
+The other apps this app needs on its database: a dashboard saved with pages on a released app's
+tables names that app here rather than carrying it.
+
+```json
+"apps": {
+  "requires": [{ "publisher": "adminium", "key": "point-of-sale", "range": ">=1.2.0",
+                 "tables": ["orders", "order_lines"] }]
+}
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `publisher` | yes | The required app's publisher id. Never `local`: `local` says where a file was made, not which app it is. |
+| `key` | yes | The required app's key. Not this app's own, and named once. |
+| `range` | no | A semver range (`>=1.1.0`, `^1.1.0`). Any version when absent. |
+| `tables` | no | 1–64 of this app's own table refs that are the required app's tables. Each is named by one requirement at most. |
+
+At most 8 requirements. The install needs each app already installed **on the same database**, by
+the same publisher, at a version in `range` (`REQUIRED_APP_MISSING`, `REQUIRED_APP_PUBLISHER`,
+`REQUIRED_APP_VERSION`, `REQUIRED_APP_TABLE`). It creates none of the `tables`: it uses the
+required app's and records that it does, so uninstalling the required app is refused while this one
+is installed there (`APP_REQUIRED_BY`).
+
+### `instance`
+
+The part of the file that is the whole server's: its look and words. It is applied only when the
+person installing ticks it, and only by someone who may manage server settings. What it replaced is
+recorded, so the app's page can put it back.
+
+```json
+"instance": {
+  "branding": { "appName": "Fernhill", "accent": "teal",
+                "logo": { "file": "instance/logo.png", "sha256": "…" } },
+  "languages": { "enabled": ["en_US", "de_DE"], "default": "en_US" },
+  "wording": [{ "locale": "en_US", "namespace": "common", "key": "nav.home", "value": "Today" }],
+  "systemEmails": [{ "key": "user-invite", "locale": "en_US", "content": { … } }],
+  "settings": { "privacy.businessName": "Fernhill Coffee Ltd" }
+}
+```
+
+| Field | Rule |
+|---|---|
+| `branding` | `appName` (1–60), `showVersion`, `theme` (`light`, `dark`, `system`), `accent` (`indigo`, `blue`, `teal`, `violet`, `rose`, `red`, `orange`, `black`), `density` (`comfortable`, `compact`), and `logo` and `favicon` as files of the package, each `{ "file", "sha256" }`. |
+| `languages` | `enabled` (1–40 language ids such as `en_US`, each once) and `default`, which must be one of them. A language the target does not have is not switched on. |
+| `wording` | 1–5,000 changed interface words, each `{ "locale", "namespace", "key", "value" }`, each changed once. A blank value is a word left out on purpose. |
+| `systemEmails` | Edited system emails, each `{ "key", "locale", "content" }`, each edited once. `key` is one of `password-reset`, `user-invite`, `notification`, `document-ready`, `booking-confirmation`, `sign-in-code`, `email-changed`, `sign-in-link`, `details-deleted`, `payment-link`, `payment-receipt`, `sign-up-confirm`. The review shows each one's changes and every place its links go, each ticked on its own. |
+| `settings` | From an allow-list only: `assistant.name`, `privacy.businessName`, `privacy.noticeUrl` (`https` only) and `email.postalAddress`. Any other setting is refused by name. |
+
+It carries something, or it is left out. It never carries any part of a setting that holds a
+secret (the mail server, the assistant's key), people, keys or rows.
+
+### `reports`, `invoiceLayouts` and `scheduledReports`
+
+What the report builder and the invoice editor made, and reports sent on a schedule. Up to 32 of
+each, each with a kebab-case `key` (up to 80 characters) unique in its block and a `name` (1–120).
+
+| Block | Each entry |
+|---|---|
+| `reports` | `kind` (`report`, the default, or `template`), `status` (`draft`, `sent`, `live`), and `body`: the builder's document as it stores it, at most 4 MiB. |
+| `invoiceLayouts` | `topic` (`recurring`, `services`, `receipts`, `sales`, `logistics`, `other`), `lang` (`en`, `de`, `fr`, `es`, `pt`, `ja`), and `body`, at most 4 MiB. A design, never an issued invoice. |
+| `scheduledReports` | `page` (one of the app's page refs), `schedule` (`{ "frequency": "daily" \| "weekly" \| "monthly", "dayOfWeek"?, "dayOfMonth"?, "time": "08:00" }`; a weekly one names its day, 0 = Sunday, and a monthly one its day of the month), and `format` (`pdf`, `png`). |
+
+Who receives a scheduled report never travels: it arrives switched off with nobody on it, for the
+owner to choose.
+
+### `payments`
+
+Which tables take payments, and how. Never a key, a bank account or a contact: those are the
+owner's to give after the install.
+
+| Field | Rule |
+|---|---|
+| `payables` | Up to 16 payable tables, each once: `table`; `amount: { "column", "unit"? }` (`units` or `minor`); `currency` as `{ "column" }`, `{ "fixed": "EUR" }` or `{ "connection": true }`; `due: { "column" }`; `payments` as `{ "kind": "kept" }` (Adminium keeps them) or the table's own payments table, column by column (then `due` is required); and optionally `label`, `status: { "column", "paid", "refunded"? }`, `customerEmail`, `customerCountry` and up to 50 `pageFields`. Every column is one of that table's. |
+| `ways` | Up to 32 ways to pay, each `{ "source", "method" }` once: `manual` or a payment service's key, and the way to pay, with `enabled`, a `label` per language, `rules` (`countries`, `currencies`, `min`, `max`) and `position`. |
+| `payPage` | The pay page's plain settings: `shopName`, `shopCountry` (two letters) and `showLines`. Never a logo or a contact. |
+
 ## Add-on manifests
 
 An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compatibility`,
@@ -5949,6 +6166,7 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 | `checker` | no | What the add-on reads to say whether a design may be ordered. See [The design question](#the-design-question). |
 | `panels` | no | 1–6 of its own screens drawn on the record pages of tables that link into one of its tables. See [A panel on another table's record](#a-panel-on-another-tables-record). |
 | `shapes` | no | 1–8 shapes apps build their tables on. See below. |
+| `scope` | no | `"server"`: the add-on is installed once for the whole server, not once per database. Payment providers say so: two businesses on one server share one provider account. Without it, an add-on installs on its host app's database (or the one chosen), once per database. Needs Adminium 0.3.49. |
 
 Contract ids and slot ids come from closed registries in the add-on contracts package. How
 Adminium runs add-on code, and why only first-party add-ons are accepted, is explained in

@@ -217,7 +217,7 @@ An app made in your own project carries the publisher `local`:
 ```
 
 It runs from your project's folder, or installs from a file you upload. Adminium says so where it
-shows the app — "Made on this install" — because nobody but you has checked it. An app in a project
+shows the app ("Your own app", made at your server's name), because nobody but you has checked it. An app in a project
 folder must be `local`. Any other publisher but Adminium's own is
 refused, an add-on can never be `local`, and a `local` app can neither replace an installed app
 from another publisher nor take the key of an app the online catalogue lists.
@@ -281,8 +281,11 @@ npx @adminiumjs/adminium app pack
 
 [`adminium app pack`](/reference/cli/#app-pack) writes `.adminium/packs/<key>-<version>.tgz` and
 its fingerprint beside it. Install it on any Adminium from **Studio → Hosted apps → Install an
-app**: upload the file and paste the fingerprint
-([Installing apps](/self-hosting/installing-apps/)). The project's hooks and actions are not part of
+app**: upload the file and check it against the fingerprint on the review
+([Installing apps](/self-hosting/installing-apps/)). On a project server, **Download** on the app's
+row on Hosted apps packs it the same way from the dashboard. The package carries the screens' source,
+without build settings or scripts, so another project server can make it editable there
+([Apps with screens of their own](/guides/your-own-apps/save-as-app/#apps-with-screens-of-their-own)). The project's hooks and actions are not part of
 the package: they stay in the project.
 
 ## Screens of its own

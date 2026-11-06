@@ -150,6 +150,8 @@ const GROUP_FILES: ReadonlyMap<string, string> = new Map([
   ['apps/dashboard/src/studio/apps/workspaceFiles/', 'the Save workspace dialog and the workspace file install screens'],
   ['apps/dashboard/src/studio/workspace-sender/', 'the sender sheet of one workspace'],
   ['apps/dashboard/src/email/editor/inspector/panels/SendAsField.tsx', '"Send as": a workspace’s sender, or the server’s'],
+  ['apps/docs/src/content/docs/guides/workspaces/', 'the guides to workspaces: the menu, a workspace’s sender, workspace files'],
+  ['apps/docs/src/content/docs/guides/your-own-apps/', 'Save as app and its install: a database’s workspace chips, and saving a whole workspace'],
 ]);
 
 /** Exact source strings that are about the groups. */
@@ -180,6 +182,29 @@ const GROUP_STRINGS: ReadonlyMap<string, string> = new Map([
   ["The server's From and each workspace's name and From, no source row.", 'row-coverage reason of "Send as"’s choices'],
   ["Which sender a template goes as: the template rows and a workspace's name, no source row.", 'row-coverage reason of "Send as"'],
   ["A workspace's sender: a name and addresses on the workspace, no source row.", 'row-coverage reason of the workspace sender routes'],
+  ['- **its own row** on Hosted apps, named "on kiln", with its database\'s workspace chips;', 'apps-per-database.md, an app copy’s row'],
+  ['[A mail sender per workspace](/guides/workspaces/senders/).', 'email guide, the link to a workspace’s sender'],
+  ['See [Workspace files](/guides/workspaces/files/).', 'cli.md, `workspace save`, the link to its guide'],
+  ['- **Workspaces.** The groups of databases, their order and their mail senders', 'export-zip.md: workspaces are not in the bundle'],
+  ['[Workspaces](/guides/workspaces/).', 'export-zip.md, the link to the workspaces guide'],
+  ['workspaces sorts the menu; it does not separate who sees what. Roles do. Give', 'security.md: a workspace is not a security wall'],
+  ['business. See [Workspaces](/guides/workspaces/).', 'security.md, the link to the workspaces guide'],
+  ["| `422` | `VALIDATION_FAILED`, `details.reason: \"IS_WORKSPACE_FILE\"` | The file sent to `/apps/upload` is a workspace file. Send it to `/apps/upload-workspace`. |", "errors.md: the workspace-file and workspace codes"],
+  ["### Workspace files", "errors.md: the workspace-file and workspace codes"],
+  ["installing (`POST /apps/workspace/:id/install`) a [workspace file](/guides/workspaces/files/)", "errors.md: the workspace-file and workspace codes"],
+  ["| `422` | `WORKSPACE_SAVE_TOO_MANY` | More than eight databases: a workspace file holds at most eight apps. |", "errors.md: the workspace-file and workspace codes"],
+  ["| `422` | `WORKSPACE_SAVE_NOT_MEMBER` | A database named is not in this workspace. |", "errors.md: the workspace-file and workspace codes"],
+  ["| `409` | `WORKSPACE_FILE_CHANGED` | Download again could not make the same bytes as the file that was saved. Save the workspace again. |", "errors.md: the workspace-file and workspace codes"],
+  ["| `422` | `WORKSPACE_FILE_MISSING` | The upload carries no `workspace.json`: it is not a workspace file. |", "errors.md: the workspace-file and workspace codes"],
+  ["| `422` | `WORKSPACE_FILE_NESTED` | An app inside is itself a workspace file. |", "errors.md: the workspace-file and workspace codes"],
+  ["| `403` | `WORKSPACE_CHOICE_NOT_YOURS` | Creating or adding to a workspace, by someone who may not manage connections. Install with `\"workspace\": { \"mode\": \"none\" }`. |", "errors.md: the workspace-file and workspace codes"],
+  ["| `409` | `WORKSPACE_NAME_TAKEN` (code `UNIQUE_VIOLATION`) | A workspace already has the name the file would create. Add to it instead. |", "errors.md: the workspace-file and workspace codes"],
+  ["### Workspaces and their senders", "errors.md: the workspace-file and workspace codes"],
+  ["| `409` | `UNIQUE_VIOLATION` | A workspace already has that name. |", "errors.md: the workspace-file and workspace codes"],
+  ["| `404` | `NOT_FOUND` | The workspace is not there, or the caller cannot see it. A list's `?workspaceId=` answers the same, so it never tells a hidden workspace from a missing one. |", "errors.md: the workspace-file and workspace codes"],
+  ["| `422` | `VALIDATION_FAILED`, `details.code: \"not-a-sending-domain\"` | A workspace sender's From address is not one this server's mail settings can send for. `details.domains` and `details.addresses` list where it can. |", "errors.md: the workspace-file and workspace codes"],
+  ["| `422` | `VALIDATION_FAILED`, `details.code: \"no-mail\"` | The server has no mail set up yet, so no workspace can have a sender. |", "errors.md: the workspace-file and workspace codes"],
+  ["| `workspaces` | no | Up to 32 names of the [workspaces](/guides/workspaces/) its database was in. Shown as names only. |", "manifest.md: provenance names the source database’s workspaces"],
 ]);
 
 // ─── What counts as words ────────────────────────────────────────────────────

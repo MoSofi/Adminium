@@ -15,6 +15,12 @@ exists.
 Installing, updating and uninstalling are covered in
 [Installing apps](/self-hosting/installing-apps/).
 
+An app installed on several databases has a page per copy: the first at `/studio/apps/<key>`, a
+later one at `/studio/apps/<key>~<slug>`, each reading "on *database*". Everything on a copy's page
+acts on that copy alone, and **Update every copy** moves them all to one version. See
+[An app on several databases](/self-hosting/apps-per-database/). An app saved with Save as app has a
+few cards of its own, described in [Installing your own app](/guides/your-own-apps/install/#the-apps-page).
+
 ## Sets of screens
 
 An app has up to two sides, each listed under **Sets of screens** with its own switch:
@@ -72,6 +78,10 @@ A staff domain works differently, because staff have to sign in there. It keeps 
 sign-in pages; see [what a mapped staff domain does about sign-in](/self-hosting/app-domains/#what-a-mapped-staff-domain-does-about-sign-in).
 
 ## Extra instances
+
+To give a second database its own copy of an app, with its own settings, roles and templates,
+install the app again on that database: see [An app on several databases](/self-hosting/apps-per-database/).
+An instance is the older, lighter way: the same copy's screens again, reading another database.
 
 One installed app can serve more than one database, for example two branches with a database each.
 On **Studio → Hosted apps**, the **Instances** card adds one: pick the **App**, type a **URL

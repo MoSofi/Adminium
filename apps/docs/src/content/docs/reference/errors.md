@@ -549,6 +549,139 @@ sends. The other sentences are in [app emails](/guides/apps/emails/#sending).
 | `LINK_ORPHANS` | A foreign key the update adds to a column that was there as a plain value, which rows already in the table break: they name a row that does not exist. Point them at one that does, or empty them, then check again. |
 | `UNIQUE_DUPLICATES` | A unique rule the install adds, which rows already in the table break. Make them differ, then check again. |
 | `UNIQUE_KEY_TOO_LONG` | On MySQL, a unique column or set of columns wider than MySQL can index (3072 bytes together, 768 characters for one text column). Make the text columns shorter. |
+| `SAVED_FROM_HERE` | The file was saved with Save as app from this very database. Its tables and pages are here already, and installing it would run every rule twice. Install it on another database. |
+| `EXISTING_TABLE_UNUSABLE` | With "use the existing tables" (`existing: "use"`), a table that is here cannot be used as it is: using it would change it, or it is missing what the app needs. Nothing is ever renamed or changed. Rename the table here, or save the app again without it. |
+| `ONE_VERSION_PER_APP` | Another database runs another version of this app. Every copy of an app runs one version: update the copies first, then install this one. |
+| `PAGE_SLUG_TAKEN` | One of the app's page addresses belongs to another installed app's page on this database. Uninstall that app, or install on another database. |
+| `PAGE_SLUG_UNANSWERED` | A page that is not an app's already has one of the app's addresses, and no choice was sent for it in `pages`. A self-made app's install waits for the choice; a released app's page is left out with a warning instead. |
+| `PAGE_SLUG_ANSWER_INVALID` | The choice cannot be carried out: a page someone edited cannot be replaced, or the new address for the page here is not lower-case words joined by `-`, or another page has it. |
+| `TABLE_NAME_REFUSED` | A table's real `name` or `schema` cannot be made here: a schema on MySQL or SQLite, the schema Adminium keeps its own tables in, or a name the database takes for another table's, because it does not tell upper and lower case apart. |
+| `REQUIRED_APP_MISSING` | The app needs another app (`apps.requires`) installed on this database, and it is not. Install that app here first. |
+| `REQUIRED_APP_PUBLISHER` | An app with the required key is here, but from another publisher, so it is not that app. |
+| `REQUIRED_APP_VERSION` | The required app is here at a version outside the range the file asks for. Update it first. |
+| `REQUIRED_APP_TABLE` | The file uses a table of the required app that the required app does not keep on this database. |
+
+### Uploading, installing and updating an app
+
+The app routes (`/api/v1/apps/upload`, `/apps/plan`, `/apps/install`, `/apps/:key/update`) answer
+these refusals with the staff envelope. A refusal said in `details.reason` comes with the code
+`VALIDATION_FAILED`, `CONFLICT` or `FORBIDDEN` around it. Nothing is written.
+
+| Status | Code | When |
+|---|---|---|
+| `422` | `VALIDATION_FAILED`, `details.reason: "VERSION_OLDER"` | The file is older than the version a database here runs. `details.installed` lists each database and its version. Upload the newer file, or nothing. |
+| `422` | `VALIDATION_FAILED`, `details.reason: "LINEAGE_DIFFERS"` | A self-made app saved somewhere else under a key this server already has. The key names one app across the whole server, so this is refused for every database. `details.connectionName` says where the other one is. Save it again with another key. |
+| `422` | `VALIDATION_FAILED`, `details.reason: "IS_WORKSPACE_FILE"` | The file sent to `/apps/upload` is a workspace file. Send it to `/apps/upload-workspace`. |
+| `422` | `VALIDATION_FAILED`, `details.reason: "PAGE_SLUG_UNANSWERED"` | An install sent no choice for a page whose address is taken (see above). `details.page` names it. |
+| `409` | `CONFLICT`, `details.reason: "ONE_VERSION_PER_APP"` | Another database runs another version of the app (see above). `details.installed` and `details.connectionId` say which. |
+| `409` | `CONFLICT`, `details.reason: "BARE_ADDRESS_TAKEN"` | The install asked for the app's plain addresses (`bareAddress: true`), and another copy of the app has them. Install this one under its own addresses. |
+| `409` | `APP_UPDATE_INCOMPLETE` | An update stopped after its version moved. `details.stage` says where it stopped, with `from`, `to` and `cause`. Nothing was undone and the earlier pages are still there: send the same update again to finish it. `GET /apps` shows it on the copy as `unfinishedUpdate`. |
+| `409` | `APP_REQUIRED_BY` | An uninstall of an app another app on the same database needs (`apps.requires`). `details.apps` names them. Uninstall those first. |
+| `403` | `FORBIDDEN`, `details.reason: "INSTANCE_PERMISSION"` | `instance: true` was sent to apply the file's look and words by someone who may not manage server settings. Send it without, or ask someone who can. |
+| `403` | `FORBIDDEN`, `details.reason: "SAVED_PART_PERMISSION"` | The file brings report documents, invoice layouts, scheduled reports or payments, and the installer lacks the right to make them here. `details.permission` names it. |
+
+### An app on several databases
+
+| Status | Code | When |
+|---|---|---|
+| `409` | `APP_INSTALL_AMBIGUOUS` | The app is installed on more than one database and the request did not say which copy. `details.installs` lists each copy's `installId`, `connectionId`, `connectionName` and `slug`. Send `X-Adminium-Install`, `?connectionId=`, or the `key~slug` address. The public API never answers this. |
+| `410` | `APP_ADDRESS_RETIRED` | The app's plain address belonged to a copy that was uninstalled. `details.installs` lists where the app is now. A browser opening the address gets a page with a link to each copy instead. |
+| `409` | `CONNECTION_HAS_INSTALLS` | A database connection cannot be deleted while an app is installed on it: "Remove Invoices & Receipts from kiln first." Uninstall the app from it first. |
+| `409` | `CONFLICT`, `details.reason: "INSTALL_OWNS_DATABASE"` | An extra instance was given the database a later copy of the app is installed on. That copy reads it already. |
+| `409` | `CONFLICT`, `details.reason: "INSTANCE_IS_AN_INSTALL"` | An extra instance asked to be adopted as a copy (`/apps/:key/instances/:slug/adopt`) is one already. |
+
+### The app's page
+
+| Status | Code | When |
+|---|---|---|
+| `409` | `AFTER_INSTALL_NOT_DONE` | **Hide** on the After you install list while something on it is still to do. `details.open` counts them. |
+| `403` | `FORBIDDEN`, `details.reason: "AFTER_INSTALL_RIGHT"` | Ticking an after-install item by someone without the right the item needs (managing automations, settings, reports, roles or payments). `details.right` names it. |
+
+### Saving an app
+
+`POST /api/v1/apps/save` (and the CLI's `adminium app save`) refuses a save before any file is made.
+`POST /apps/save/plan` reports the same things without refusing.
+
+| Status | Code | When |
+|---|---|---|
+| `409` | `CONFLICT`, `details.reason: "SNAPSHOT_MISSING"` | The database has not been read yet. Refresh its schema, then save. |
+| `409` | `CONFLICT`, `details.reason: "APP_KEY_SAVED_ELSEWHERE"` | The key was saved from another database on this server. Give this app another key. |
+| `409` | `CONFLICT`, `details.reason: "APP_VERSION_SAVED"` | That version of the app was saved before. A saved version is never saved again. |
+| `409` | `CONFLICT`, `details.reason: "APP_VERSION_OLDER"` | The version is not above the last one saved. |
+| `409` | `CONFLICT`, `details.reason: "SAVE_ROWS_NOT_YOURS"` | Rows of a table were asked for by someone who may not read and export it, or who reads only part of it. |
+| `409` | `CONFLICT`, `details.reason: "SAVE_INSTANCE_NOT_YOURS"` | The server's look and words were asked for by someone who may not manage settings. |
+| `409` | `CONFLICT`, `details.reason: "SAVE_FILES_NOT_YOURS"` | The app carries files of the Files library, and the saver may not manage everyone's files. |
+| `409` | `CONFLICT`, `details.reason: "SAVE_NEEDS_ANSWERS"` | Items in Check still need an answer. Answer them in `answers`, then save. |
+| `409` | `CONFLICT`, `details.reason: "SAVE_REFUSED"` | The file would not pass its own checks (a secret, an id of this server, a file that would not install). The message lists each problem. |
+
+### Packing a project app, and making one editable
+
+`POST /api/v1/project/apps/:key/pack` (Download) and `POST /api/v1/apps/:key/editable` (Make it
+editable here) answer with `details.reason`:
+
+| Status | `details.reason` | When |
+|---|---|---|
+| `404` (pack), `422` (editable) | `NO_PROJECT` | This server runs no project folder. |
+| `404` | `NOT_A_PROJECT_APP` | There is no `apps/<key>/` folder for that key. |
+| `404` | `NOT_PACKED` | That version was not packed here: download it first. |
+| `422` | `CATALOG_SIDES` | The folder's app is published by someone else: only an app made here is packed. |
+| `422` | `VERSION_BELOW` | The version asked for is lower than the folder's manifest. `details.manifestVersion` says it. |
+| `422` | `PACK_CHECK_FAILED` | The app does not pass `adminium app check`. `details.problems` lists why. |
+| `422` | `PACK_BUILD_FAILED` | Its screens could not be built (for example, the project has no `esbuild`). |
+| `422` | `PACK_TOO_LARGE` | The package would be over 32 MB. `details.bytes` and `details.limit` say by how much. |
+| `422` | `NO_SOURCE` | The installed file carries no source, so there is nothing to make editable. |
+| `422` | `FOLDER_EXISTS` | `apps/<key>/` already exists. Rename or remove that folder first. |
+| `422` | `SEVERAL_INSTALLS` | The app is installed on several databases, and a folder app runs once per server. Remove the other copies first. |
+| `422` | `FROM_FOLDER` | The app already comes from the project folder. |
+
+Once an app is editable here, an upload of its key is refused with `details.reason: "KEY_IN_PROJECT"`.
+
+### Workspace files
+
+Saving (`POST /api/v1/workspaces/:id/save`), uploading (`POST /apps/upload-workspace`) and
+installing (`POST /apps/workspace/:id/install`) a [workspace file](/guides/workspaces/files/)
+answer with `details.reason`. A refusal of the whole file stages nothing.
+
+| Status | `details.reason` | When |
+|---|---|---|
+| `422` | `WORKSPACE_SAVE_EMPTY` | No database was chosen to save. |
+| `422` | `WORKSPACE_SAVE_TOO_MANY` | More than eight databases: a workspace file holds at most eight apps. |
+| `422` | `WORKSPACE_SAVE_NOT_MEMBER` | A database named is not in this workspace. |
+| `422` | `WORKSPACE_SAVE_DUPLICATE`, `WORKSPACE_SAVE_DUPLICATE_KEY` | A database named twice, or two apps given the same key. |
+| `422` | `WORKSPACE_SAVE_INSTANCE_FROM` | The server settings were said to come from a database that is not saved. |
+| `409` | `WORKSPACE_APP_TOO_LARGE` | One app would be over 32 MB. Leave out its sample rows. No version is used up. |
+| `409` | `WORKSPACE_FILE_TOO_LARGE` | The whole file would be over 128 MB. Leave out a database or its sample rows. No version is used up. |
+| `409` | `WORKSPACE_FILE_CHANGED` | Download again could not make the same bytes as the file that was saved. Save the workspace again. |
+| `422` | `WORKSPACE_FILE_MISSING` | The upload carries no `workspace.json`: it is not a workspace file. |
+| `422` | `WORKSPACE_FILE_INVALID` | Its `workspace.json` cannot be read or is not valid, or it has no `manifest.json` beside it. `details.issues` lists why. |
+| `422` | `WORKSPACE_FILE_EXTRA` | It carries files its `workspace.json` does not name. |
+| `422` | `WORKSPACE_FILE_MEMBER_MISSING` | It names an app file it does not carry. |
+| `422` | `WORKSPACE_FILE_INTEGRITY` | An app inside is not the file that was saved: its fingerprint does not match the list. |
+| `422` | `WORKSPACE_FILE_APP_MISMATCH` | An app inside holds another key or version than the list says. |
+| `422` | `WORKSPACE_FILE_NESTED` | An app inside is itself a workspace file. |
+| `422` | `WORKSPACE_FILE_TWO_INSTANCES` | Two apps inside carry the server settings. |
+| `403` | `WORKSPACE_CHOICE_NOT_YOURS` | Creating or adding to a workspace, by someone who may not manage connections. Install with `"workspace": { "mode": "none" }`. |
+| `409` | `WORKSPACE_NAME_TAKEN` (code `UNIQUE_VIOLATION`) | A workspace already has the name the file would create. Add to it instead. |
+| `422` | `WORKSPACE_APP_UNKNOWN` | The install names an app the file does not hold. |
+| `422` | `WORKSPACE_TARGET_UNKNOWN` | An app was sent to a database that is not connected here. Connect it first. |
+| `409` | `WORKSPACE_INSTALL_RUNNING` | This file is being installed already. Wait for that run to finish. |
+| `409` | `WORKSPACE_INSTALL_FINISHED` | The file was installed, or discarded. Upload it again. |
+
+A refusal of one app inside (an older version, another app with the key) is not an error of the
+request: it is recorded on that app's row, the other apps go on, and the run's reply says so. An app
+whose staged file went away reads `WORKSPACE_APP_NOT_STAGED`: upload the file again. A file that
+needs a newer Adminium is refused with `REQUIRES_NEWER_ADMINIUM`, as an app file is.
+
+### Workspaces and their senders
+
+| Status | Code | When |
+|---|---|---|
+| `409` | `UNIQUE_VIOLATION` | A workspace already has that name. |
+| `404` | `NOT_FOUND` | The workspace is not there, or the caller cannot see it. A list's `?workspaceId=` answers the same, so it never tells a hidden workspace from a missing one. |
+| `422` | `VALIDATION_FAILED` | A list was sent both `workspaceId` and `connectionId`; name one. |
+| `422` | `VALIDATION_FAILED`, `details.code: "not-a-sending-domain"` | A workspace sender's From address is not one this server's mail settings can send for. `details.domains` and `details.addresses` list where it can. |
+| `422` | `VALIDATION_FAILED`, `details.code: "no-mail"` | The server has no mail set up yet, so no workspace can have a sender. |
+| `422` | `VALIDATION_FAILED`, `details.code: "not-an-address"` | The sender's reply-to is not one plain address. |
 
 ### Installing, updating and removing an add-on
 

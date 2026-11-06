@@ -155,6 +155,12 @@ whose attachments exceed it cannot be saved.
 — the from addresses a template may use. The relay's own address is always
 the first sender; add more for a support desk or a newsletter identity.
 
+On a server that hosts more than one business, each group of databases can have
+a sender of its own, and mail about a record goes from its business's sender.
+A template can also name the sender it always goes as (**Send as**, in the
+**Brand & sender** panel). See
+[A mail sender per workspace](/guides/workspaces/senders/).
+
 ## Links in emails
 
 Password-reset and invitation emails carry a link back to Adminium. The
