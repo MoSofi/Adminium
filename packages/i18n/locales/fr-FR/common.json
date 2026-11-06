@@ -2016,5 +2016,40 @@
       "save": "Enregistrer le consentement",
       "close": "Fermer"
     }
+  },
+  "appCopies": {
+    "retired": {
+      "body": "Elle n’est plus à cette adresse. Ouvrez la copie que vous vouliez :",
+      "open": "Ouvrir sur {database}",
+      "title": "{app} est installée sur {databases}"
+    }
+  },
+  "appFiles": {
+    "download": {
+      "action": "Télécharger",
+      "again": "Télécharger à nouveau",
+      "appLabel": "Télécharger {name}",
+      "body": "Le fichier contient les écrans et leur code source, pour qu’un autre serveur puisse continuer à les modifier. Les réglages de build et les scripts sont laissés de côté.",
+      "buildFailed": "Ses écrans n’ont pas pu être construits, elle ne peut donc pas être empaquetée. {message}",
+      "cancel": "Annuler",
+      "catalog": "Cette app vient du catalogue. Ses écrans ne sont jamais réempaquetés ici.",
+      "checkFailed": "L’app n’a pas passé sa vérification, elle ne peut donc pas être empaquetée.",
+      "close": "Terminé",
+      "closeLabel": "Fermer",
+      "copied": "Copié",
+      "copy": "Copier",
+      "downloading": "Téléchargement de {file}",
+      "fingerprint": "Empreinte",
+      "fingerprintHint": "La personne qui l’installe peut vérifier le fichier avec ceci.",
+      "noVersions": "Rien n’est encore construit, il n’y a donc rien à télécharger.",
+      "notInstalled": "Cette app n’est pas encore installée depuis son dossier, elle n’a donc pas de version de départ.",
+      "notYet": "Créé quand vous appuyez sur Télécharger",
+      "packing": "Vérification, construction et empaquetage…",
+      "title": "Télécharger {app}",
+      "tooLarge": "Le fichier ferait {size}, et un envoi accepte au plus 32 Mo. Les grandes images dans ses écrans ou ses lignes d’exemple en sont souvent la cause.",
+      "version": "Version",
+      "versionBelow": "Elle ne peut pas être inférieure à {version}, la version actuelle de l’app.",
+      "versionShape": "Une version, ce sont trois nombres, comme 1.2.0."
+    }
   }
 }

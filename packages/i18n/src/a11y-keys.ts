@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3558 entries. */
+/** `namespace:key` — 3573 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -327,6 +327,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:account.saveFailed',
   'common:account.saved',
   'common:account.twoFactor',
+  'common:appCopies.retired.open',
+  'common:appFiles.download.appLabel',
+  'common:appFiles.download.closeLabel',
+  'common:appFiles.download.noVersions',
+  'common:appFiles.download.title',
   'common:audit.actor.apiKey',
   'common:audit.actor.automation',
   'common:audit.actor.system',
@@ -1944,6 +1949,16 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:appSettings.sideSwitch',
   'studio:appSettings.version',
   'studio:appSettings.whereItLives',
+  'studio:apps.added.emailTemplates',
+  'studio:apps.added.pages',
+  'studio:apps.added.roles',
+  'studio:apps.added.scheduledReports',
+  'studio:apps.afterInstall.title',
+  'studio:apps.copies.on',
+  'studio:apps.copies.uninstall',
+  'studio:apps.editable.confirmTitle',
+  'studio:apps.look.confirmSubtitle',
+  'studio:apps.look.confirmTitle',
   'studio:design.ceiling.prompt',
   'studio:design.column.default',
   'studio:design.column.defaultValue',

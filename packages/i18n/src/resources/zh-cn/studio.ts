@@ -4848,5 +4848,123 @@ export default {
         "workspaceUsers": "此服务器上的用户"
       }
     }
+  },
+  "apps": {
+    "added": {
+      "emailTemplates": "邮件模板",
+      "nothing": "还没有它自己的内容。",
+      "onlyHere": "仅在 {database} 上。",
+      "pages": "页面",
+      "pagesOnly": "只有页面。这个应用没有自己的界面。",
+      "roles": "角色",
+      "scheduledReports": "定时报告",
+      "title": "它添加了什么"
+    },
+    "afterInstall": {
+      "allSet": "全部完成",
+      "allSetBody": "安装后的每一步都已完成。",
+      "count": "已完成 {done} / {total}",
+      "doneBy": "由 {name} 完成 · {when}",
+      "hidden": "已隐藏“安装之后”",
+      "hide": "隐藏",
+      "item": {
+        "address": "为 '{name}' 添加邮箱地址",
+        "bankAccount": "为 '{name}' 添加银行账户",
+        "delivery": "选择 '{name}' 发送到哪里",
+        "document": "选择 '{name}' 发送的文档",
+        "other": "填写 '{name}'",
+        "paymentKey": "为 '{name}' 添加密钥",
+        "recipients": "{count, plural, other {选择这 # 份定时报告的接收人}}",
+        "sender": "{count, plural, other {为 # 个邮件模板设置发件地址}}",
+        "systemGrant": "授予 {name} 角色其控制台权限",
+        "webhook": "为 '{name}' 添加网址",
+        "webhookHeader": "填写 '{name}' 的请求头值"
+      },
+      "link": {
+        "automation": "打开规则",
+        "documents": "打开文档",
+        "emailTemplates": "打开邮件设置",
+        "payments": "打开付款",
+        "reports": "打开报告",
+        "roles": "打开角色",
+        "settings": "打开设置"
+      },
+      "needs": {
+        "apps": "需要管理应用的人来完成",
+        "automations": "需要管理自动化的人来完成",
+        "payments": "需要管理付款的人来完成",
+        "reports": "需要管理报告的人来完成",
+        "roles": "需要管理角色的人来完成",
+        "settings": "需要管理设置的人来完成"
+      },
+      "seenDone": "已完成",
+      "title": "安装之后"
+    },
+    "copies": {
+      "on": "在 {database} 上",
+      "screensFirstOnly": "这个应用的界面只为它的第一次安装打开。它的页面、表和规则在这里可以使用。",
+      "screensFirstOnlyOn": "这个应用的界面只为它的第一次安装（在 {database} 上）打开。它的页面、表和规则在这里可以使用。",
+      "uninstall": "从 {database} 卸载 {app}",
+      "uninstallNote": "从 {database} 移除 {app}：移除它在那里的页面和规则。表及其中的行会保留。",
+      "updateEvery": "更新每一份"
+    },
+    "editable": {
+      "action": "在这里设为可编辑",
+      "after": "用 Designer 打开这台服务器来修改界面。",
+      "body": "文件包含这些界面的源代码。将它复制到这台服务器的项目文件夹，即可在 Designer 中修改。",
+      "confirm": "设为可编辑",
+      "confirmBody": "它的源代码会复制到 {folder}，以便 Designer 修改。从此应用来自该文件夹：它的新版文件无法再上传到这里。",
+      "confirmTitle": "要在这里将 {app} 设为可编辑吗？",
+      "done": "{app} 已可在这里编辑",
+      "folderExists": "{folder} 在这里已存在。请先重命名或移除该文件夹。",
+      "noProject": "编辑界面需要项目文件夹。用 Designer 打开这台服务器即可创建一个。",
+      "severalInstalls": "{app} 安装在 {count, plural, other {# 个数据库}}上。请先移除其他的。",
+      "title": "编辑这些界面"
+    },
+    "look": {
+      "body": "于 {date} 从文件应用：{parts}。",
+      "changedSince": "之后已被修改，保持原样",
+      "confirmBody": "这些于 {date} 从文件应用。撤销会恢复这台服务器之前的内容。",
+      "confirmSubtitle": "外观和语言 · {app}",
+      "confirmTitle": "恢复之前的内容？",
+      "part": {
+        "colours": "颜色",
+        "languages": "{count, plural, other {# 种语言}}",
+        "logo": "标志",
+        "settings": "{count, plural, other {# 项设置}}",
+        "systemEmails": "{count, plural, other {# 封系统邮件}}",
+        "wordings": "{count, plural, other {# 处措辞}}"
+      },
+      "putBack": "恢复",
+      "row": {
+        "colours": "颜色",
+        "languages": "{count, plural, other {# 种语言 · {names}}}",
+        "logo": "标志",
+        "settings": "{count, plural, other {# 项设置}}",
+        "systemEmails": "{count, plural, other {# 封系统邮件}}",
+        "wordings": "{count, plural, other {# 处措辞}}"
+      },
+      "title": "外观和语言",
+      "undo": "撤销",
+      "undone": "外观和语言已恢复为之前的样子",
+      "untouched": "页面、规则和数据不受影响。"
+    },
+    "own": {
+      "badge": "你自己的应用",
+      "madeAtList": "制作于 {label} · {date}",
+      "madeOn": "制作于 {date}"
+    },
+    "page": {
+      "madeAt": "版本 {version} · 你自己的应用 · {date} 制作于 {label}",
+      "madeOn": "版本 {version} · 你自己的应用 · 制作于 {date}",
+      "ownVersion": "版本 {version} · 你自己的应用",
+      "uninstallNote": "移除应用的页面和规则。表及其中的行会保留。",
+      "uninstallNoteBefore": "移除应用的页面和规则。表及其中的行会保留——它们在应用之前就在这里。",
+      "uploadNewer": "上传新版本",
+      "versionOnly": "版本 {version}"
+    },
+    "data": {
+      "before": "{count, plural, other {共 # 张表}}，其中 {before} 张在应用之前就已存在。"
+    }
   }
 } as const;

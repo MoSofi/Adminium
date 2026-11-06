@@ -4838,5 +4838,123 @@
         "workspaceUsers": "Benutzer auf diesem Server"
       }
     }
+  },
+  "apps": {
+    "added": {
+      "emailTemplates": "E-Mail-Vorlagen",
+      "nothing": "Noch nichts Eigenes.",
+      "onlyHere": "Nur auf {database}.",
+      "pages": "Seiten",
+      "pagesOnly": "Nur Seiten. Diese App hat keine eigenen Bildschirme.",
+      "roles": "Rollen",
+      "scheduledReports": "Geplante Berichte",
+      "title": "Was sie hinzugefügt hat"
+    },
+    "afterInstall": {
+      "allSet": "Alles erledigt",
+      "allSetBody": "Jeder Schritt nach der Installation ist erledigt.",
+      "count": "{done} von {total} erledigt",
+      "doneBy": "Erledigt von {name} {when}",
+      "hidden": "„Nach der Installation“ ist ausgeblendet",
+      "hide": "Ausblenden",
+      "item": {
+        "address": "Die E-Mail-Adresse in '{name}' eintragen",
+        "bankAccount": "Das Bankkonto für '{name}' eintragen",
+        "delivery": "Festlegen, wohin '{name}' geschickt wird",
+        "document": "Das Dokument wählen, das '{name}' sendet",
+        "other": "'{name}' ausfüllen",
+        "paymentKey": "Die Schlüssel für '{name}' eintragen",
+        "recipients": "{count, plural, one {Empfänger des geplanten Berichts wählen} other {Empfänger der # geplanten Berichte wählen}}",
+        "sender": "{count, plural, one {Absenderadresse für # E-Mail-Vorlage festlegen} other {Absenderadresse für # E-Mail-Vorlagen festlegen}}",
+        "systemGrant": "Der Rolle {name} ihre Konsolenrechte geben",
+        "webhook": "Die Webadresse in '{name}' eintragen",
+        "webhookHeader": "Den Header-Wert in '{name}' ausfüllen"
+      },
+      "link": {
+        "automation": "Regel öffnen",
+        "documents": "Dokumente öffnen",
+        "emailTemplates": "E-Mail-Einstellungen öffnen",
+        "payments": "Zahlungen öffnen",
+        "reports": "Berichte öffnen",
+        "roles": "Rollen öffnen",
+        "settings": "Einstellungen öffnen"
+      },
+      "needs": {
+        "apps": "Braucht jemanden, der Apps verwaltet",
+        "automations": "Braucht jemanden, der Automatisierungen verwaltet",
+        "payments": "Braucht jemanden, der Zahlungen verwaltet",
+        "reports": "Braucht jemanden, der Berichte verwaltet",
+        "roles": "Braucht jemanden, der Rollen verwaltet",
+        "settings": "Braucht jemanden, der Einstellungen verwaltet"
+      },
+      "seenDone": "Erledigt",
+      "title": "Nach der Installation"
+    },
+    "copies": {
+      "on": "auf {database}",
+      "screensFirstOnly": "Die Bildschirme dieser App öffnen sich nur für ihre erste Installation. Ihre Seiten, Tabellen und Regeln funktionieren hier.",
+      "screensFirstOnlyOn": "Die Bildschirme dieser App öffnen sich nur für ihre erste Installation, auf {database}. Ihre Seiten, Tabellen und Regeln funktionieren hier.",
+      "uninstall": "{app} von {database} deinstallieren",
+      "uninstallNote": "Entfernt {app} von {database}: ihre Seiten und Regeln dort. Die Tabellen und ihre Zeilen bleiben.",
+      "updateEvery": "Jede Kopie aktualisieren"
+    },
+    "editable": {
+      "action": "Hier bearbeitbar machen",
+      "after": "Öffnen Sie diesen Server mit dem Designer, um die Bildschirme zu ändern.",
+      "body": "Die Datei enthält den Quellcode dieser Bildschirme. Kopieren Sie ihn in den Projektordner dieses Servers, um sie im Designer zu ändern.",
+      "confirm": "Bearbeitbar machen",
+      "confirmBody": "Der Quellcode wird nach {folder} kopiert, damit der Designer ihn ändern kann. Ab dann kommt die App aus diesem Ordner: neuere Dateien davon können hier nicht hochgeladen werden.",
+      "confirmTitle": "{app} hier bearbeitbar machen?",
+      "done": "{app} ist hier bearbeitbar",
+      "folderExists": "{folder} gibt es hier schon. Benennen Sie diesen Ordner zuerst um oder entfernen Sie ihn.",
+      "noProject": "Zum Bearbeiten von Bildschirmen braucht es einen Projektordner. Öffnen Sie diesen Server mit dem Designer, um einen anzulegen.",
+      "severalInstalls": "{app} ist auf {count, plural, one {# Datenbank} other {# Datenbanken}} installiert. Entfernen Sie zuerst die anderen.",
+      "title": "Diese Bildschirme bearbeiten"
+    },
+    "look": {
+      "body": "Aus der Datei übernommen am {date}: {parts}.",
+      "changedSince": "seitdem geändert, bleibt wie es ist",
+      "confirmBody": "Diese wurden am {date} aus der Datei übernommen. Rückgängig stellt wieder her, was dieser Server vorher hatte.",
+      "confirmSubtitle": "Aussehen und Sprachen · {app}",
+      "confirmTitle": "Wiederherstellen, was vorher hier war?",
+      "part": {
+        "colours": "Farben",
+        "languages": "{count, plural, one {# Sprache} other {# Sprachen}}",
+        "logo": "Logo",
+        "settings": "{count, plural, one {# Einstellung} other {# Einstellungen}}",
+        "systemEmails": "{count, plural, one {# System-E-Mail} other {# System-E-Mails}}",
+        "wordings": "{count, plural, one {# Formulierung} other {# Formulierungen}}"
+      },
+      "putBack": "Wiederherstellen",
+      "row": {
+        "colours": "Farben",
+        "languages": "{count, plural, one {# Sprache · {names}} other {# Sprachen · {names}}}",
+        "logo": "Logo",
+        "settings": "{count, plural, one {# Einstellung} other {# Einstellungen}}",
+        "systemEmails": "{count, plural, one {# System-E-Mail} other {# System-E-Mails}}",
+        "wordings": "{count, plural, one {# Formulierung} other {# Formulierungen}}"
+      },
+      "title": "Aussehen und Sprachen",
+      "undo": "Rückgängig",
+      "undone": "Aussehen und Sprachen sind wieder wie vorher",
+      "untouched": "Seiten, Regeln und Daten bleiben unberührt."
+    },
+    "own": {
+      "badge": "Ihre eigene App",
+      "madeAtList": "Erstellt bei {label} · {date}",
+      "madeOn": "Erstellt am {date}"
+    },
+    "page": {
+      "madeAt": "Version {version} · Ihre eigene App · erstellt bei {label} am {date}",
+      "madeOn": "Version {version} · Ihre eigene App · erstellt am {date}",
+      "ownVersion": "Version {version} · Ihre eigene App",
+      "uninstallNote": "Entfernt die Seiten und Regeln der App. Die Tabellen und ihre Zeilen bleiben.",
+      "uninstallNoteBefore": "Entfernt die Seiten und Regeln der App. Die Tabellen und ihre Zeilen bleiben – sie waren schon vor der App da.",
+      "uploadNewer": "Neuere Version hochladen",
+      "versionOnly": "Version {version}"
+    },
+    "data": {
+      "before": "{count, plural, one {# Tabelle} other {# Tabellen}}. {before} davon waren schon vor der App da."
+    }
   }
 }

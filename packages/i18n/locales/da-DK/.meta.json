@@ -3839,6 +3839,114 @@
     "srcHash": "fae11b81f599",
     "status": "mt"
   },
+  "common.appCopies.retired.body": {
+    "status": "mt",
+    "srcHash": "4bd63135f2f2"
+  },
+  "common.appCopies.retired.open": {
+    "status": "mt",
+    "srcHash": "218011154494"
+  },
+  "common.appCopies.retired.title": {
+    "status": "mt",
+    "srcHash": "fe40e1f2524f"
+  },
+  "common.appFiles.download.action": {
+    "status": "mt",
+    "srcHash": "a479c9c34e87"
+  },
+  "common.appFiles.download.again": {
+    "status": "mt",
+    "srcHash": "3fdf9516fbab"
+  },
+  "common.appFiles.download.appLabel": {
+    "status": "mt",
+    "srcHash": "c518e6d246fb"
+  },
+  "common.appFiles.download.body": {
+    "status": "mt",
+    "srcHash": "004219d358b0"
+  },
+  "common.appFiles.download.buildFailed": {
+    "status": "mt",
+    "srcHash": "672e7292d43a"
+  },
+  "common.appFiles.download.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "common.appFiles.download.catalog": {
+    "status": "mt",
+    "srcHash": "c4e22aa31fcc"
+  },
+  "common.appFiles.download.checkFailed": {
+    "status": "mt",
+    "srcHash": "e5a3b7bd62c4"
+  },
+  "common.appFiles.download.close": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "common.appFiles.download.closeLabel": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "common.appFiles.download.copied": {
+    "status": "mt",
+    "srcHash": "8e3df45a49db"
+  },
+  "common.appFiles.download.copy": {
+    "status": "mt",
+    "srcHash": "af74f7c5362a"
+  },
+  "common.appFiles.download.downloading": {
+    "status": "mt",
+    "srcHash": "08995cabeb4f"
+  },
+  "common.appFiles.download.fingerprint": {
+    "status": "mt",
+    "srcHash": "fed4c9053d8c"
+  },
+  "common.appFiles.download.fingerprintHint": {
+    "status": "mt",
+    "srcHash": "ed34e74190e7"
+  },
+  "common.appFiles.download.noVersions": {
+    "status": "mt",
+    "srcHash": "fd7b777a2d0d"
+  },
+  "common.appFiles.download.notInstalled": {
+    "status": "mt",
+    "srcHash": "973093cc7d4b"
+  },
+  "common.appFiles.download.notYet": {
+    "status": "mt",
+    "srcHash": "ff22c33f3a2d"
+  },
+  "common.appFiles.download.packing": {
+    "status": "mt",
+    "srcHash": "7464accf01d3"
+  },
+  "common.appFiles.download.title": {
+    "status": "mt",
+    "srcHash": "9b0c1e0b9db4"
+  },
+  "common.appFiles.download.tooLarge": {
+    "status": "mt",
+    "srcHash": "3f695b2d7b12"
+  },
+  "common.appFiles.download.version": {
+    "status": "src",
+    "srcHash": "2da600bf9404"
+  },
+  "common.appFiles.download.versionBelow": {
+    "status": "mt",
+    "srcHash": "8aa6470874b3"
+  },
+  "common.appFiles.download.versionShape": {
+    "status": "mt",
+    "srcHash": "9413a741405c"
+  },
   "common.apps.frame.noFrames": {
     "status": "mt",
     "srcHash": "47e5e56abe85"
@@ -25658,6 +25766,366 @@
   "studio.appSettings.whereItLives": {
     "status": "mt",
     "srcHash": "b6e77c24ce8b"
+  },
+  "studio.apps.added.emailTemplates": {
+    "status": "mt",
+    "srcHash": "5cdc6a6d5345"
+  },
+  "studio.apps.added.nothing": {
+    "status": "mt",
+    "srcHash": "a52cbe8cacc6"
+  },
+  "studio.apps.added.onlyHere": {
+    "status": "mt",
+    "srcHash": "82f9212930f9"
+  },
+  "studio.apps.added.pages": {
+    "status": "mt",
+    "srcHash": "600584c2d5cc"
+  },
+  "studio.apps.added.pagesOnly": {
+    "status": "mt",
+    "srcHash": "161b8107b2ae"
+  },
+  "studio.apps.added.roles": {
+    "status": "mt",
+    "srcHash": "47dcc27d6e87"
+  },
+  "studio.apps.added.scheduledReports": {
+    "status": "mt",
+    "srcHash": "cd24c1d35220"
+  },
+  "studio.apps.added.title": {
+    "status": "mt",
+    "srcHash": "d903227bfc1f"
+  },
+  "studio.apps.afterInstall.allSet": {
+    "status": "mt",
+    "srcHash": "0e487f3a6518"
+  },
+  "studio.apps.afterInstall.allSetBody": {
+    "status": "mt",
+    "srcHash": "a089fb589d06"
+  },
+  "studio.apps.afterInstall.count": {
+    "status": "mt",
+    "srcHash": "e65ef281730d"
+  },
+  "studio.apps.afterInstall.doneBy": {
+    "status": "mt",
+    "srcHash": "bfa1589759ee"
+  },
+  "studio.apps.afterInstall.hidden": {
+    "status": "mt",
+    "srcHash": "671df1db2ace"
+  },
+  "studio.apps.afterInstall.hide": {
+    "status": "mt",
+    "srcHash": "34d8b60fe253"
+  },
+  "studio.apps.afterInstall.item.address": {
+    "status": "mt",
+    "srcHash": "8516fc81ef37"
+  },
+  "studio.apps.afterInstall.item.bankAccount": {
+    "status": "mt",
+    "srcHash": "23a68b15bf40"
+  },
+  "studio.apps.afterInstall.item.delivery": {
+    "status": "mt",
+    "srcHash": "429dab777b77"
+  },
+  "studio.apps.afterInstall.item.document": {
+    "status": "mt",
+    "srcHash": "99d552ee6fcb"
+  },
+  "studio.apps.afterInstall.item.other": {
+    "status": "mt",
+    "srcHash": "38c3453a3beb"
+  },
+  "studio.apps.afterInstall.item.paymentKey": {
+    "status": "mt",
+    "srcHash": "e9aad4de08e4"
+  },
+  "studio.apps.afterInstall.item.recipients": {
+    "status": "mt",
+    "srcHash": "455ddada2b91"
+  },
+  "studio.apps.afterInstall.item.sender": {
+    "status": "mt",
+    "srcHash": "ae5a76a2547f"
+  },
+  "studio.apps.afterInstall.item.systemGrant": {
+    "status": "mt",
+    "srcHash": "f721f0a57adc"
+  },
+  "studio.apps.afterInstall.item.webhook": {
+    "status": "mt",
+    "srcHash": "3e6b45505f44"
+  },
+  "studio.apps.afterInstall.item.webhookHeader": {
+    "status": "mt",
+    "srcHash": "a11e4071bfdb"
+  },
+  "studio.apps.afterInstall.link.automation": {
+    "status": "mt",
+    "srcHash": "d05acf2e4f8d"
+  },
+  "studio.apps.afterInstall.link.documents": {
+    "status": "mt",
+    "srcHash": "4fab3f051369"
+  },
+  "studio.apps.afterInstall.link.emailTemplates": {
+    "status": "mt",
+    "srcHash": "e258d5b875f8"
+  },
+  "studio.apps.afterInstall.link.payments": {
+    "status": "mt",
+    "srcHash": "0d34f9073588"
+  },
+  "studio.apps.afterInstall.link.reports": {
+    "status": "mt",
+    "srcHash": "3b1bb4d5411e"
+  },
+  "studio.apps.afterInstall.link.roles": {
+    "status": "mt",
+    "srcHash": "d5a0f503eb32"
+  },
+  "studio.apps.afterInstall.link.settings": {
+    "status": "mt",
+    "srcHash": "fd7108f8312a"
+  },
+  "studio.apps.afterInstall.needs.apps": {
+    "status": "mt",
+    "srcHash": "f48f952a68c5"
+  },
+  "studio.apps.afterInstall.needs.automations": {
+    "status": "mt",
+    "srcHash": "ab673ce155a7"
+  },
+  "studio.apps.afterInstall.needs.payments": {
+    "status": "mt",
+    "srcHash": "5ec5562cec03"
+  },
+  "studio.apps.afterInstall.needs.reports": {
+    "status": "mt",
+    "srcHash": "4d9d36514ee5"
+  },
+  "studio.apps.afterInstall.needs.roles": {
+    "status": "mt",
+    "srcHash": "9728312659fe"
+  },
+  "studio.apps.afterInstall.needs.settings": {
+    "status": "mt",
+    "srcHash": "ff7d8a977deb"
+  },
+  "studio.apps.afterInstall.seenDone": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "studio.apps.afterInstall.title": {
+    "status": "mt",
+    "srcHash": "6f10bb068509"
+  },
+  "studio.apps.copies.on": {
+    "status": "mt",
+    "srcHash": "861dd76fdca9"
+  },
+  "studio.apps.copies.screensFirstOnly": {
+    "status": "mt",
+    "srcHash": "14d30173088b"
+  },
+  "studio.apps.copies.screensFirstOnlyOn": {
+    "status": "mt",
+    "srcHash": "cf9d59a1fee9"
+  },
+  "studio.apps.copies.uninstall": {
+    "status": "mt",
+    "srcHash": "dd9369b04b82"
+  },
+  "studio.apps.copies.uninstallNote": {
+    "status": "mt",
+    "srcHash": "20672fab05ec"
+  },
+  "studio.apps.copies.updateEvery": {
+    "status": "mt",
+    "srcHash": "99249350dba4"
+  },
+  "studio.apps.data.before": {
+    "status": "mt",
+    "srcHash": "9cdf04e81186"
+  },
+  "studio.apps.editable.action": {
+    "status": "mt",
+    "srcHash": "015e147b9a0a"
+  },
+  "studio.apps.editable.after": {
+    "status": "mt",
+    "srcHash": "b61329e11097"
+  },
+  "studio.apps.editable.body": {
+    "status": "mt",
+    "srcHash": "876af9d77902"
+  },
+  "studio.apps.editable.confirm": {
+    "status": "mt",
+    "srcHash": "64b7744087bc"
+  },
+  "studio.apps.editable.confirmBody": {
+    "status": "mt",
+    "srcHash": "40e0ec68b1c8"
+  },
+  "studio.apps.editable.confirmTitle": {
+    "status": "mt",
+    "srcHash": "dd44d0f943ae"
+  },
+  "studio.apps.editable.done": {
+    "status": "mt",
+    "srcHash": "420e44f20a3e"
+  },
+  "studio.apps.editable.folderExists": {
+    "status": "mt",
+    "srcHash": "dd735eed6992"
+  },
+  "studio.apps.editable.noProject": {
+    "status": "mt",
+    "srcHash": "1edc4429c9ed"
+  },
+  "studio.apps.editable.severalInstalls": {
+    "status": "mt",
+    "srcHash": "e81dc20b3567"
+  },
+  "studio.apps.editable.title": {
+    "status": "mt",
+    "srcHash": "b4453783240a"
+  },
+  "studio.apps.look.body": {
+    "status": "mt",
+    "srcHash": "94f89fffe44e"
+  },
+  "studio.apps.look.changedSince": {
+    "status": "mt",
+    "srcHash": "68f0f0a36bf0"
+  },
+  "studio.apps.look.confirmBody": {
+    "status": "mt",
+    "srcHash": "415664c6a184"
+  },
+  "studio.apps.look.confirmSubtitle": {
+    "status": "mt",
+    "srcHash": "bdfac38548e1"
+  },
+  "studio.apps.look.confirmTitle": {
+    "status": "mt",
+    "srcHash": "1a47e7734d72"
+  },
+  "studio.apps.look.part.colours": {
+    "status": "mt",
+    "srcHash": "16096b4321dc"
+  },
+  "studio.apps.look.part.languages": {
+    "status": "mt",
+    "srcHash": "16d9cc93d2db"
+  },
+  "studio.apps.look.part.logo": {
+    "status": "src",
+    "srcHash": "5807dd602664"
+  },
+  "studio.apps.look.part.settings": {
+    "status": "mt",
+    "srcHash": "a4c3e3620e6d"
+  },
+  "studio.apps.look.part.systemEmails": {
+    "status": "mt",
+    "srcHash": "172d1ba0fba3"
+  },
+  "studio.apps.look.part.wordings": {
+    "status": "mt",
+    "srcHash": "774153d55be5"
+  },
+  "studio.apps.look.putBack": {
+    "status": "mt",
+    "srcHash": "15527f6964c9"
+  },
+  "studio.apps.look.row.colours": {
+    "status": "mt",
+    "srcHash": "eb4e9125510f"
+  },
+  "studio.apps.look.row.languages": {
+    "status": "mt",
+    "srcHash": "bc129670249a"
+  },
+  "studio.apps.look.row.logo": {
+    "status": "src",
+    "srcHash": "83fce8327410"
+  },
+  "studio.apps.look.row.settings": {
+    "status": "mt",
+    "srcHash": "a4c3e3620e6d"
+  },
+  "studio.apps.look.row.systemEmails": {
+    "status": "mt",
+    "srcHash": "172d1ba0fba3"
+  },
+  "studio.apps.look.row.wordings": {
+    "status": "mt",
+    "srcHash": "774153d55be5"
+  },
+  "studio.apps.look.title": {
+    "status": "mt",
+    "srcHash": "7972df0ea9cc"
+  },
+  "studio.apps.look.undo": {
+    "status": "mt",
+    "srcHash": "39fc72124884"
+  },
+  "studio.apps.look.undone": {
+    "status": "mt",
+    "srcHash": "c04bb2af398e"
+  },
+  "studio.apps.look.untouched": {
+    "status": "mt",
+    "srcHash": "d5e866029c41"
+  },
+  "studio.apps.own.badge": {
+    "status": "mt",
+    "srcHash": "73dcacb01a10"
+  },
+  "studio.apps.own.madeAtList": {
+    "status": "mt",
+    "srcHash": "888658f115b2"
+  },
+  "studio.apps.own.madeOn": {
+    "status": "mt",
+    "srcHash": "e95008c28080"
+  },
+  "studio.apps.page.madeAt": {
+    "status": "mt",
+    "srcHash": "95b40eed77dd"
+  },
+  "studio.apps.page.madeOn": {
+    "status": "mt",
+    "srcHash": "a91868aedb6f"
+  },
+  "studio.apps.page.ownVersion": {
+    "status": "mt",
+    "srcHash": "ddcf59e4d978"
+  },
+  "studio.apps.page.uninstallNote": {
+    "status": "mt",
+    "srcHash": "08bab120b232"
+  },
+  "studio.apps.page.uninstallNoteBefore": {
+    "status": "mt",
+    "srcHash": "847b44fb70b7"
+  },
+  "studio.apps.page.uploadNewer": {
+    "status": "mt",
+    "srcHash": "e9cafda56c32"
+  },
+  "studio.apps.page.versionOnly": {
+    "status": "src",
+    "srcHash": "7a4a5b083da9"
   },
   "studio.capability.importNoLiveHealth": {
     "srcHash": "0262ca9b5b44",

@@ -2016,5 +2016,40 @@
       "save": "Zaznamenat souhlas",
       "close": "Zavřít"
     }
+  },
+  "appCopies": {
+    "retired": {
+      "body": "Na této adrese už není. Otevřete kopii, kterou jste mysleli:",
+      "open": "Otevřít na {database}",
+      "title": "{app} je nainstalovaná na {databases}"
+    }
+  },
+  "appFiles": {
+    "download": {
+      "action": "Stáhnout",
+      "again": "Stáhnout znovu",
+      "appLabel": "Stáhnout {name}",
+      "body": "Soubor obsahuje obrazovky a jejich zdrojový kód, aby je jiný server mohl dál upravovat. Nastavení sestavení a skripty jsou vynechány.",
+      "buildFailed": "Obrazovky se nepodařilo sestavit, takže aplikaci nelze zabalit. {message}",
+      "cancel": "Zrušit",
+      "catalog": "Tato aplikace je z katalogu. Její obrazovky se zde nikdy znovu nebalí.",
+      "checkFailed": "Aplikace neprošla kontrolou, takže ji nelze zabalit.",
+      "close": "Hotovo",
+      "closeLabel": "Zavřít",
+      "copied": "Zkopírováno",
+      "copy": "Kopírovat",
+      "downloading": "Stahuje se {file}",
+      "fingerprint": "Otisk",
+      "fingerprintHint": "Kdo ji instaluje, může soubor podle tohoto ověřit.",
+      "noVersions": "Zatím není nic sestaveno, takže není co stáhnout.",
+      "notInstalled": "Tato aplikace ještě není nainstalovaná ze své složky, takže nemá verzi, od které začít.",
+      "notYet": "Vytvoří se, až stisknete Stáhnout",
+      "packing": "Kontrola, sestavení a balení…",
+      "title": "Stáhnout {app}",
+      "tooLarge": "Soubor by měl {size} a nahrání pojme nejvýš 32 MB. Obvyklou příčinou jsou velké obrázky v obrazovkách nebo ukázkových řádcích.",
+      "version": "Verze",
+      "versionBelow": "Nesmí být nižší než {version}, verze, ve které aplikace je.",
+      "versionShape": "Verze jsou tři čísla, například 1.2.0."
+    }
   }
 }

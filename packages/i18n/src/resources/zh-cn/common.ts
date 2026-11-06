@@ -2026,5 +2026,40 @@ export default {
       "save": "记录同意",
       "close": "关闭"
     }
+  },
+  "appCopies": {
+    "retired": {
+      "body": "它已不在这个地址。请打开你要找的那一份：",
+      "open": "在 {database} 上打开",
+      "title": "{app} 安装在 {databases} 上"
+    }
+  },
+  "appFiles": {
+    "download": {
+      "action": "下载",
+      "again": "再次下载",
+      "appLabel": "下载 {name}",
+      "body": "文件包含界面及其源代码，另一台服务器可以继续编辑。构建设置和脚本不包含在内。",
+      "buildFailed": "界面构建失败，因此无法打包。{message}",
+      "cancel": "取消",
+      "catalog": "这个应用来自目录。它的界面在这里永远不会被重新打包。",
+      "checkFailed": "应用没有通过检查，因此无法打包。",
+      "close": "完成",
+      "closeLabel": "关闭",
+      "copied": "已复制",
+      "copy": "复制",
+      "downloading": "正在下载 {file}",
+      "fingerprint": "指纹",
+      "fingerprintHint": "安装它的人可以用它核对文件。",
+      "noVersions": "还没有构建任何内容，因此没有可下载的。",
+      "notInstalled": "这个应用还没有从其文件夹安装，因此没有起始版本。",
+      "notYet": "按下“下载”时生成",
+      "packing": "正在检查、构建并打包…",
+      "title": "下载 {app}",
+      "tooLarge": "文件将有 {size}，而上传最多 32 MB。通常是界面或示例行中的大图片造成的。",
+      "version": "版本",
+      "versionBelow": "不能低于应用当前的版本 {version}。",
+      "versionShape": "版本是三个数字，例如 1.2.0。"
+    }
   }
 } as const;

@@ -4848,5 +4848,123 @@ export default {
         "workspaceUsers": "Users on this server"
       }
     }
+  },
+  "apps": {
+    "copies": {
+      "on": "on {database}",
+      "updateEvery": "Update every copy",
+      "screensFirstOnly": "This app’s screens open for its first install only. Its pages, tables and rules work here.",
+      "screensFirstOnlyOn": "This app’s screens open for its first install only, on {database}. Its pages, tables and rules work here.",
+      "uninstallNote": "Removes {app} from {database}: its pages and rules there. Keeps the tables and their rows.",
+      "uninstall": "Uninstall {app} from {database}"
+    },
+    "page": {
+      "versionOnly": "Version {version}",
+      "ownVersion": "Version {version} · Your own app",
+      "uploadNewer": "Upload a newer version",
+      "uninstallNoteBefore": "Removes the app’s pages and rules. Keeps the tables and their rows — they were here before the app.",
+      "uninstallNote": "Removes the app’s pages and rules. Keeps the tables and their rows.",
+      "madeOn": "Version {version} · Your own app · made on {date}",
+      "madeAt": "Version {version} · Your own app · made at {label} on {date}"
+    },
+    "added": {
+      "onlyHere": "On {database} only.",
+      "pagesOnly": "Pages only. This app has no screens of its own.",
+      "pages": "Pages",
+      "emailTemplates": "Email templates",
+      "scheduledReports": "Scheduled reports",
+      "roles": "Roles",
+      "title": "What it added",
+      "nothing": "Nothing of its own yet."
+    },
+    "own": {
+      "badge": "Your own app",
+      "madeOn": "Made on {date}",
+      "madeAtList": "Made at {label} · {date}"
+    },
+    "afterInstall": {
+      "item": {
+        "webhookHeader": "Fill in the header value of '{name}'",
+        "webhook": "Add the web address to '{name}'",
+        "address": "Add the email address to '{name}'",
+        "document": "Choose the document '{name}' sends",
+        "delivery": "Choose where '{name}' is mailed",
+        "recipients": "{count, plural, one {Choose who receives the scheduled report} other {Choose who receives the # scheduled reports}}",
+        "sender": "{count, plural, one {Set the sender address for # email template} other {Set the sender address for # email templates}}",
+        "paymentKey": "Add the keys for '{name}'",
+        "bankAccount": "Add the bank account for '{name}'",
+        "systemGrant": "Give the {name} role its console rights",
+        "other": "Fill in '{name}'"
+      },
+      "link": {
+        "automation": "Open the rule",
+        "emailTemplates": "Open email settings",
+        "reports": "Open reports",
+        "roles": "Open roles",
+        "payments": "Open payments",
+        "documents": "Open documents",
+        "settings": "Open settings"
+      },
+      "needs": {
+        "automations": "Needs someone who manages automations",
+        "settings": "Needs someone who manages settings",
+        "reports": "Needs someone who manages reports",
+        "roles": "Needs someone who manages roles",
+        "payments": "Needs someone who manages payments",
+        "apps": "Needs someone who manages apps"
+      },
+      "hidden": "After you install is hidden",
+      "count": "{done} of {total} done",
+      "allSet": "All set",
+      "allSetBody": "Every step after installing is done.",
+      "hide": "Hide",
+      "title": "After you install",
+      "seenDone": "Done",
+      "doneBy": "Done by {name} {when}"
+    },
+    "look": {
+      "part": {
+        "logo": "logo",
+        "colours": "colours",
+        "languages": "{count, plural, one {# language} other {# languages}}",
+        "wordings": "{count, plural, one {# wording} other {# wordings}}",
+        "systemEmails": "{count, plural, one {# system email} other {# system emails}}",
+        "settings": "{count, plural, one {# setting} other {# settings}}"
+      },
+      "undone": "The look and languages are back to what was here before",
+      "row": {
+        "logo": "Logo",
+        "colours": "Colours",
+        "languages": "{count, plural, one {# language · {names}} other {# languages · {names}}}",
+        "wordings": "{count, plural, one {# wording} other {# wordings}}",
+        "systemEmails": "{count, plural, one {# system email} other {# system emails}}",
+        "settings": "{count, plural, one {# setting} other {# settings}}"
+      },
+      "title": "The look and languages",
+      "body": "Applied from the file on {date}: {parts}.",
+      "undo": "Undo",
+      "confirmTitle": "Put back what was here before?",
+      "confirmSubtitle": "The look and languages · {app}",
+      "confirmBody": "These were applied from the file on {date}. Undo puts back what this server had before.",
+      "changedSince": "changed since, left as they are",
+      "untouched": "Pages, rules and data are not touched.",
+      "putBack": "Put it back"
+    },
+    "editable": {
+      "folderExists": "{folder} already exists here. Rename or remove that folder first.",
+      "severalInstalls": "{app} is installed on {count, plural, one {# database} other {# databases}}. Remove the others first.",
+      "noProject": "Editing screens needs a project folder. Open this server with the Designer to make one.",
+      "done": "{app} is editable here",
+      "title": "Edit these screens",
+      "after": "Open this server with the Designer to change the screens.",
+      "body": "The file has the source of these screens. Copy it into this server's project folder to change them in the Designer.",
+      "action": "Make it editable here",
+      "confirmTitle": "Make {app} editable here?",
+      "confirmBody": "Its source is copied to {folder} so the Designer can change it. From then on the app comes from that folder: newer files of it can't be uploaded here.",
+      "confirm": "Make it editable"
+    },
+    "data": {
+      "before": "{count, plural, one {# table} other {# tables}}. {before} of them were here before the app."
+    }
   }
 } as const;

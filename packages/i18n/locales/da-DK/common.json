@@ -2016,5 +2016,40 @@
       "save": "Registrér samtykke",
       "close": "Luk"
     }
+  },
+  "appCopies": {
+    "retired": {
+      "body": "Den er ikke længere på denne adresse. Åbn den kopi, du mente:",
+      "open": "Åbn den på {database}",
+      "title": "{app} er installeret på {databases}"
+    }
+  },
+  "appFiles": {
+    "download": {
+      "action": "Hent",
+      "again": "Hent igen",
+      "appLabel": "Hent {name}",
+      "body": "Filen indeholder skærmene og deres kildekode, så en anden server kan blive ved med at redigere dem. Build-indstillinger og scripts er udeladt.",
+      "buildFailed": "Skærmene kunne ikke bygges, så appen kan ikke pakkes. {message}",
+      "cancel": "Annuller",
+      "catalog": "Denne app kommer fra kataloget. Dens skærme pakkes aldrig om her.",
+      "checkFailed": "Appen bestod ikke sin kontrol, så den kan ikke pakkes.",
+      "close": "Færdig",
+      "closeLabel": "Luk",
+      "copied": "Kopieret",
+      "copy": "Kopiér",
+      "downloading": "Henter {file}",
+      "fingerprint": "Fingeraftryk",
+      "fingerprintHint": "Den, der installerer den, kan tjekke filen mod dette.",
+      "noVersions": "Intet er bygget endnu, så der er intet at hente.",
+      "notInstalled": "Denne app er ikke installeret fra sin mappe endnu, så den har ingen version at starte fra.",
+      "notYet": "Laves, når du trykker på Hent",
+      "packing": "Tjekker, bygger og pakker …",
+      "title": "Hent {app}",
+      "tooLarge": "Filen ville fylde {size}, og en upload må højst være 32 MB. Store billeder i skærmene eller eksempelrækkerne er den sædvanlige årsag.",
+      "version": "Version",
+      "versionBelow": "Den må ikke være lavere end {version}, den version appen har.",
+      "versionShape": "En version er tre tal, fx 1.2.0."
+    }
   }
 }

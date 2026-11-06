@@ -2026,5 +2026,40 @@ export default {
       "save": "Einwilligung erfassen",
       "close": "Schließen"
     }
+  },
+  "appCopies": {
+    "retired": {
+      "body": "Sie ist nicht mehr unter dieser Adresse. Öffnen Sie die Kopie, die Sie meinten:",
+      "open": "Auf {database} öffnen",
+      "title": "{app} ist auf {databases} installiert"
+    }
+  },
+  "appFiles": {
+    "download": {
+      "action": "Herunterladen",
+      "again": "Erneut herunterladen",
+      "appLabel": "{name} herunterladen",
+      "body": "Die Datei enthält die Bildschirme und ihren Quellcode, damit ein anderer Server sie weiter bearbeiten kann. Build-Einstellungen und Skripte bleiben draußen.",
+      "buildFailed": "Die Bildschirme ließen sich nicht bauen, daher kann die App nicht gepackt werden. {message}",
+      "cancel": "Abbrechen",
+      "catalog": "Diese App stammt aus dem Katalog. Ihre Bildschirme werden hier nie neu gepackt.",
+      "checkFailed": "Die App hat ihre Prüfung nicht bestanden, daher kann sie nicht gepackt werden.",
+      "close": "Fertig",
+      "closeLabel": "Schließen",
+      "copied": "Kopiert",
+      "copy": "Kopieren",
+      "downloading": "{file} wird heruntergeladen",
+      "fingerprint": "Fingerabdruck",
+      "fingerprintHint": "Wer sie installiert, kann die Datei damit prüfen.",
+      "noVersions": "Es ist noch nichts gebaut, also gibt es nichts herunterzuladen.",
+      "notInstalled": "Diese App ist noch nicht aus ihrem Ordner installiert, daher gibt es keine Version als Ausgangspunkt.",
+      "notYet": "Wird erstellt, wenn Sie auf Herunterladen drücken",
+      "packing": "Prüfen, bauen und packen …",
+      "title": "{app} herunterladen",
+      "tooLarge": "Die Datei wäre {size} groß, und ein Upload darf höchstens 32 MB haben. Meist liegt es an großen Bildern in den Bildschirmen oder Beispielzeilen.",
+      "version": "Version",
+      "versionBelow": "Sie darf nicht niedriger sein als {version}, die Version der App.",
+      "versionShape": "Eine Version besteht aus drei Zahlen, etwa 1.2.0."
+    }
   }
 } as const;
