@@ -39339,7 +39339,6 @@
     "srcHash": "ac979fe42d47",
     "status": "mt"
   },
-<<<<<<< HEAD
   "studio.workspaceFiles.app.choose": {
     "status": "deferred",
     "srcHash": "89346141c29b"
@@ -39823,7 +39822,7 @@
   "studio.workspaceFiles.waiting.stopped": {
     "status": "deferred",
     "srcHash": "4b771015b2a3"
-=======
+  },
   "studio.workspaceSender.accepted.addresses": {
     "status": "mt",
     "srcHash": "afedc5d8d726"
@@ -39935,7 +39934,6 @@
   "studio.workspaceSender.title": {
     "status": "mt",
     "srcHash": "b9fb6d0a42d8"
->>>>>>> p76-conv
   },
   "ui.action.apply": {
     "srcHash": "cfea419c3b4e",
