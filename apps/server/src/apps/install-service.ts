@@ -2037,6 +2037,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           realId,
           timezone: connection?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
           createdBy: userId,
+          // The pictures a report or layout body keeps as files of the package.
+          readPackageFile: async (path: string) => (await files.readVerifiedFile(manifest.key, manifest.version, path)).bytes,
         });
         if (saved !== undefined) {
           if (saved.kept.length > 0 || saved.skipped.length > 0) host.log.info({ kept: saved.kept, skipped: saved.skipped, app: manifest.key }, 'saved parts left as they are');

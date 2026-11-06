@@ -12,10 +12,10 @@ function put(b: Uint8Array, at: number, len: number, v: string): void {
 }
 
 /** A real npm-shaped tarball, so the store's own hardening runs. */
-export function packageTarball(files: Record<string, string>): Uint8Array {
+export function packageTarball(files: Record<string, string | Uint8Array>): Uint8Array {
   const members: Uint8Array[] = [];
   for (const [path, content] of Object.entries(files)) {
-    const body = Buffer.from(content, 'utf8');
+    const body = typeof content === 'string' ? Buffer.from(content, 'utf8') : Buffer.from(content);
     const header = new Uint8Array(BLOCK);
     put(header, 0, 100, `package/${path}`);
     put(header, 100, 8, '0000644\0');
