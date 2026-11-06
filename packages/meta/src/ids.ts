@@ -175,6 +175,8 @@ export const ID_PREFIXES = {
   wsi: 'adminium_workspace_installs',
   // wave 0077 — a row an install made of a part its file carries.
   apt: 'adminium_app_parts',
+  // wave 0079 — a value an app's deployment-wide part replaced.
+  aiu: 'adminium_app_instance_undo',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;
