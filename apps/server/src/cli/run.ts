@@ -29,6 +29,7 @@ import { migrateCommand } from './commands/migrate.js';
 import { newCommand } from './commands/new.js';
 import { pullCommand } from './commands/pull.js';
 import { startCommand } from './commands/start.js';
+import { workspaceCommand } from './commands/workspace.js';
 import { CliError, CliUsageError, EXIT_ERROR, EXIT_OK, type ExitCode } from './exit.js';
 import { nodeIo, type CliIo } from './io.js';
 import { defaultCliDeps, type CliDeps } from './runtime.js';
@@ -44,6 +45,7 @@ export const COMMANDS: readonly Command[] = [
   startCommand,
   checkCommand,
   appCommand,
+  workspaceCommand,
   ownerCommand,
   pullCommand,
   ejectCommand,

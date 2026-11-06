@@ -2026,5 +2026,32 @@ export default {
       "save": "Einwilligung erfassen",
       "close": "Schließen"
     }
+  },
+  "shownIn": {
+    "label": "Angezeigt in",
+    "all": "Alle Arbeitsbereiche",
+    "chosen": "Nur diese Arbeitsbereiche",
+    "none": "Kein Arbeitsbereich",
+    "noneHint": "In keinem Arbeitsbereich aufgeführt. Haken Sie einen an, um es dort aufzuführen. Was es bereits verwendet, versendet es weiterhin.",
+    "unseen": "{count, plural, one {Auch in # Arbeitsbereich angezeigt, den Sie nicht sehen.} other {Auch in # Arbeitsbereichen angezeigt, die Sie nicht sehen.}}",
+    "unseenChip": "{count, plural, one {# weiterer Arbeitsbereich} other {# weitere Arbeitsbereiche}}",
+    "filter": {
+      "label": "Arbeitsbereich",
+      "other": "Andere Datenbanken"
+    },
+    "hidden": {
+      "here": "Nicht in {workspace} aufgeführt. Was es verwendet, versendet es weiterhin.",
+      "other": "Hier nicht aufgeführt. Was es verwendet, versendet es weiterhin."
+    },
+    "kind": {
+      "emailTemplate": "E-Mail-Vorlage",
+      "report": "Berichtslayout",
+      "invoice": "Rechnungslayout"
+    },
+    "deletePlan": {
+      "lead": "{count, plural, one {# Element ist nur hier aufgeführt. Nach dem Löschen ist es in keinem Arbeitsbereich aufgeführt:} other {# Elemente sind nur hier aufgeführt. Nach dem Löschen sind sie in keinem Arbeitsbereich aufgeführt:}}",
+      "after": "Sie bleiben bestehen, und was sie verwendet, versendet sie weiterhin. Sie können später neue Arbeitsbereiche für sie wählen."
+    },
+    "saveFailed": "Konnte nicht ändern, wo es aufgeführt ist"
   }
 } as const;

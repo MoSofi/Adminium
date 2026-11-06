@@ -8175,6 +8175,74 @@
     "srcHash": "266695479a94",
     "status": "mt"
   },
+  "common.shownIn.all": {
+    "status": "mt",
+    "srcHash": "22e3fb740a3a"
+  },
+  "common.shownIn.chosen": {
+    "status": "mt",
+    "srcHash": "33401e184bea"
+  },
+  "common.shownIn.deletePlan.after": {
+    "status": "mt",
+    "srcHash": "c80a56cc483b"
+  },
+  "common.shownIn.deletePlan.lead": {
+    "status": "mt",
+    "srcHash": "7e07507d2c6f"
+  },
+  "common.shownIn.filter.label": {
+    "status": "mt",
+    "srcHash": "4ca0a75c2b7f"
+  },
+  "common.shownIn.filter.other": {
+    "status": "mt",
+    "srcHash": "5cb93deb997e"
+  },
+  "common.shownIn.hidden.here": {
+    "status": "mt",
+    "srcHash": "41991e8dd241"
+  },
+  "common.shownIn.hidden.other": {
+    "status": "mt",
+    "srcHash": "2d141b872191"
+  },
+  "common.shownIn.kind.emailTemplate": {
+    "status": "mt",
+    "srcHash": "19fce65389ab"
+  },
+  "common.shownIn.kind.invoice": {
+    "status": "mt",
+    "srcHash": "f73c10e3ef57"
+  },
+  "common.shownIn.kind.report": {
+    "status": "mt",
+    "srcHash": "dcbe772e5ff6"
+  },
+  "common.shownIn.label": {
+    "status": "mt",
+    "srcHash": "3554c957cc80"
+  },
+  "common.shownIn.none": {
+    "status": "mt",
+    "srcHash": "df398e4cbf96"
+  },
+  "common.shownIn.noneHint": {
+    "status": "mt",
+    "srcHash": "f244e8189981"
+  },
+  "common.shownIn.saveFailed": {
+    "status": "mt",
+    "srcHash": "b10b42534ea7"
+  },
+  "common.shownIn.unseen": {
+    "status": "mt",
+    "srcHash": "49327c96d526"
+  },
+  "common.shownIn.unseenChip": {
+    "status": "mt",
+    "srcHash": "a0a206cabf7e"
+  },
   "common.states.appDisabled.body": {
     "status": "mt",
     "srcHash": "0f2554674eec"
@@ -28039,17 +28107,9 @@
     "status": "mt",
     "srcHash": "919a2e43a738"
   },
-  "studio.hostedApps.install.bundle.hint": {
+  "studio.hostedApps.install.bundle.fileOnly": {
     "status": "mt",
-    "srcHash": "ec5af2c90b50"
-  },
-  "studio.hostedApps.install.bundle.integrity": {
-    "status": "mt",
-    "srcHash": "a4852b2521d9"
-  },
-  "studio.hostedApps.install.bundle.integrityHint": {
-    "status": "mt",
-    "srcHash": "44ce763fded4"
+    "srcHash": "e33f467298ad"
   },
   "studio.hostedApps.install.bundle.title": {
     "status": "mt",
@@ -28102,6 +28162,10 @@
   "studio.hostedApps.install.check.badgeTaken": {
     "status": "mt",
     "srcHash": "355097895a23"
+  },
+  "studio.hostedApps.install.check.badgeUsed": {
+    "status": "mt",
+    "srcHash": "40898636c19a"
   },
   "studio.hostedApps.install.check.checkFirst": {
     "status": "mt",
@@ -28259,6 +28323,10 @@
     "status": "mt",
     "srcHash": "c28cf3737486"
   },
+  "studio.hostedApps.install.check.summaryUsed": {
+    "status": "mt",
+    "srcHash": "c9233822200d"
+  },
   "studio.hostedApps.install.check.takenIntro": {
     "status": "mt",
     "srcHash": "58b6bb8dba19"
@@ -28303,9 +28371,29 @@
     "status": "mt",
     "srcHash": "4a39afde75f3"
   },
+  "studio.hostedApps.install.database.installed": {
+    "status": "mt",
+    "srcHash": "d314e3427e27"
+  },
   "studio.hostedApps.install.database.noWritable": {
     "status": "mt",
     "srcHash": "3235c637e1af"
+  },
+  "studio.hostedApps.install.database.none": {
+    "status": "mt",
+    "srcHash": "e815e7465410"
+  },
+  "studio.hostedApps.install.database.noneTitle": {
+    "status": "mt",
+    "srcHash": "74fb4c8b544e"
+  },
+  "studio.hostedApps.install.database.notTouched": {
+    "status": "mt",
+    "srcHash": "9d409d999aed"
+  },
+  "studio.hostedApps.install.database.ownCopy": {
+    "status": "mt",
+    "srcHash": "aad666c0fe81"
   },
   "studio.hostedApps.install.database.readOnly": {
     "status": "mt",
@@ -28319,6 +28407,10 @@
     "status": "mt",
     "srcHash": "37d4c7ec1f47"
   },
+  "studio.hostedApps.install.database.version": {
+    "status": "mt",
+    "srcHash": "45ad1781acb7"
+  },
   "studio.hostedApps.install.database.writable": {
     "status": "mt",
     "srcHash": "dd35487a2eb7"
@@ -28327,9 +28419,21 @@
     "status": "mt",
     "srcHash": "9efdf930324f"
   },
+  "studio.hostedApps.install.done.openPage": {
+    "status": "mt",
+    "srcHash": "4a2b9fb1d269"
+  },
   "studio.hostedApps.install.done.pages": {
     "status": "mt",
     "srcHash": "9569fcd5cf3d"
+  },
+  "studio.hostedApps.install.done.rulesOff": {
+    "status": "mt",
+    "srcHash": "56a9c219414d"
+  },
+  "studio.hostedApps.install.done.rulesOffValue": {
+    "status": "mt",
+    "srcHash": "298e3aa07092"
   },
   "studio.hostedApps.install.done.sampleAdded": {
     "status": "mt",
@@ -28359,6 +28463,14 @@
     "status": "mt",
     "srcHash": "3ea6df04f03a"
   },
+  "studio.hostedApps.install.done.titleOn": {
+    "status": "mt",
+    "srcHash": "e13ce3017dbc"
+  },
+  "studio.hostedApps.install.done.toDo": {
+    "status": "mt",
+    "srcHash": "1b356540216c"
+  },
   "studio.hostedApps.install.downloaded.hint": {
     "status": "mt",
     "srcHash": "b0225de4f44e"
@@ -28375,9 +28487,9 @@
     "status": "mt",
     "srcHash": "78cee4b898d5"
   },
-  "studio.hostedApps.install.footerStepApp": {
+  "studio.hostedApps.install.footerStepVersion": {
     "status": "mt",
-    "srcHash": "4254f3598a5e"
+    "srcHash": "5e48a5e9b6ee"
   },
   "studio.hostedApps.install.madeHere": {
     "status": "mt",
@@ -28399,9 +28511,9 @@
     "status": "mt",
     "srcHash": "af582b6bf870"
   },
-  "studio.hostedApps.install.plan.installedElsewhere": {
+  "studio.hostedApps.install.plan.oneVersion": {
     "status": "mt",
-    "srcHash": "d51a51bf9551"
+    "srcHash": "1e1b3f481682"
   },
   "studio.hostedApps.install.plan.pageWarnings": {
     "status": "mt",
@@ -28799,6 +28911,54 @@
     "status": "mt",
     "srcHash": "63593d0d5d43"
   },
+  "studio.hostedApps.refusal.back": {
+    "status": "mt",
+    "srcHash": "b52b36b7269f"
+  },
+  "studio.hostedApps.refusal.everywhere.body": {
+    "status": "mt",
+    "srcHash": "9b2971a29acc"
+  },
+  "studio.hostedApps.refusal.everywhere.title": {
+    "status": "mt",
+    "srcHash": "e05e2837d790"
+  },
+  "studio.hostedApps.refusal.lineage.body": {
+    "status": "mt",
+    "srcHash": "ad3572118636"
+  },
+  "studio.hostedApps.refusal.lineage.title": {
+    "status": "mt",
+    "srcHash": "27da3f093c7c"
+  },
+  "studio.hostedApps.refusal.newer.body": {
+    "status": "mt",
+    "srcHash": "4a282354b495"
+  },
+  "studio.hostedApps.refusal.newer.title": {
+    "status": "mt",
+    "srcHash": "b825e52c90d1"
+  },
+  "studio.hostedApps.refusal.older.body": {
+    "status": "mt",
+    "srcHash": "906772a332fb"
+  },
+  "studio.hostedApps.refusal.older.copy": {
+    "status": "mt",
+    "srcHash": "0e4890ff1298"
+  },
+  "studio.hostedApps.refusal.older.title": {
+    "status": "mt",
+    "srcHash": "3682c5b8fae2"
+  },
+  "studio.hostedApps.refusal.savedHere.body": {
+    "status": "mt",
+    "srcHash": "c52e907361bd"
+  },
+  "studio.hostedApps.refusal.savedHere.title": {
+    "status": "mt",
+    "srcHash": "fce39bc95ad9"
+  },
   "studio.hostedApps.rename.body": {
     "status": "mt",
     "srcHash": "a875a0b1fed7"
@@ -28838,6 +28998,342 @@
   "studio.hostedApps.rename.title": {
     "status": "mt",
     "srcHash": "df29495cd7b9"
+  },
+  "studio.hostedApps.review.after.address": {
+    "status": "mt",
+    "srcHash": "6f7c327b4350"
+  },
+  "studio.hostedApps.review.after.bankAccount": {
+    "status": "mt",
+    "srcHash": "a231ffb814a3"
+  },
+  "studio.hostedApps.review.after.delivery": {
+    "status": "mt",
+    "srcHash": "24ef5513caa3"
+  },
+  "studio.hostedApps.review.after.document": {
+    "status": "mt",
+    "srcHash": "17f275c8a133"
+  },
+  "studio.hostedApps.review.after.note": {
+    "status": "mt",
+    "srcHash": "b2d9e7ab7df9"
+  },
+  "studio.hostedApps.review.after.paymentKey": {
+    "status": "mt",
+    "srcHash": "6c9b44928229"
+  },
+  "studio.hostedApps.review.after.recipients": {
+    "status": "mt",
+    "srcHash": "bd2fc5cbff7a"
+  },
+  "studio.hostedApps.review.after.sender": {
+    "status": "mt",
+    "srcHash": "e13c6b23b037"
+  },
+  "studio.hostedApps.review.after.systemGrant": {
+    "status": "mt",
+    "srcHash": "0e7b207ce3a6"
+  },
+  "studio.hostedApps.review.after.title": {
+    "status": "mt",
+    "srcHash": "6f10bb068509"
+  },
+  "studio.hostedApps.review.after.webhook": {
+    "status": "mt",
+    "srcHash": "eb372d542efa"
+  },
+  "studio.hostedApps.review.change": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "studio.hostedApps.review.existing.cannot": {
+    "status": "mt",
+    "srcHash": "692d184635e8"
+  },
+  "studio.hostedApps.review.existing.cannotHelp": {
+    "status": "mt",
+    "srcHash": "b0481fac6d6c"
+  },
+  "studio.hostedApps.review.existing.title": {
+    "status": "mt",
+    "srcHash": "51a83903e90d"
+  },
+  "studio.hostedApps.review.existing.use": {
+    "status": "mt",
+    "srcHash": "c2549b58fe63"
+  },
+  "studio.hostedApps.review.existing.useNote": {
+    "status": "mt",
+    "srcHash": "2b8d655f1eeb"
+  },
+  "studio.hostedApps.review.existing.used": {
+    "status": "mt",
+    "srcHash": "3a432f55b8a6"
+  },
+  "studio.hostedApps.review.fingerprint.bad": {
+    "status": "mt",
+    "srcHash": "31c5fcd147ee"
+  },
+  "studio.hostedApps.review.fingerprint.badRelease": {
+    "status": "mt",
+    "srcHash": "26f3b57e51bd"
+  },
+  "studio.hostedApps.review.fingerprint.check": {
+    "status": "mt",
+    "srcHash": "4b5e84be0e45"
+  },
+  "studio.hostedApps.review.fingerprint.hold": {
+    "status": "mt",
+    "srcHash": "becb913ec6d8"
+  },
+  "studio.hostedApps.review.fingerprint.label": {
+    "status": "mt",
+    "srcHash": "7de87d3357f0"
+  },
+  "studio.hostedApps.review.fingerprint.labelRelease": {
+    "status": "mt",
+    "srcHash": "02c61bfcda5a"
+  },
+  "studio.hostedApps.review.fingerprint.none": {
+    "status": "mt",
+    "srcHash": "22705e738a7a"
+  },
+  "studio.hostedApps.review.fingerprint.ok": {
+    "status": "mt",
+    "srcHash": "5ee4951561fd"
+  },
+  "studio.hostedApps.review.fingerprint.okRelease": {
+    "status": "mt",
+    "srcHash": "819f5fb0b581"
+  },
+  "studio.hostedApps.review.instance.blocks": {
+    "status": "mt",
+    "srcHash": "45c3dc3dab9a"
+  },
+  "studio.hostedApps.review.instance.caption": {
+    "status": "mt",
+    "srcHash": "a1cc66cc16e9"
+  },
+  "studio.hostedApps.review.instance.emails": {
+    "status": "mt",
+    "srcHash": "9c96f61174e0"
+  },
+  "studio.hostedApps.review.instance.footer": {
+    "status": "mt",
+    "srcHash": "aae4a8a7817a"
+  },
+  "studio.hostedApps.review.instance.hideChanges": {
+    "status": "mt",
+    "srcHash": "1422d84d7bda"
+  },
+  "studio.hostedApps.review.instance.languagesOff": {
+    "status": "mt",
+    "srcHash": "c29fb87cb9cd"
+  },
+  "studio.hostedApps.review.instance.languagesOn": {
+    "status": "mt",
+    "srcHash": "67cceda498bb"
+  },
+  "studio.hostedApps.review.instance.left": {
+    "status": "mt",
+    "srcHash": "8d8131f4134b"
+  },
+  "studio.hostedApps.review.instance.links": {
+    "status": "mt",
+    "srcHash": "782938677371"
+  },
+  "studio.hostedApps.review.instance.locked": {
+    "status": "mt",
+    "srcHash": "06cc631aae82"
+  },
+  "studio.hostedApps.review.instance.noLinks": {
+    "status": "mt",
+    "srcHash": "d18f7bbab71b"
+  },
+  "studio.hostedApps.review.instance.preheader": {
+    "status": "mt",
+    "srcHash": "ac56747b285d"
+  },
+  "studio.hostedApps.review.instance.showChanges": {
+    "status": "mt",
+    "srcHash": "130b03e44425"
+  },
+  "studio.hostedApps.review.instance.subject": {
+    "status": "mt",
+    "srcHash": "862ac026449d"
+  },
+  "studio.hostedApps.review.instance.tick": {
+    "status": "mt",
+    "srcHash": "f2f026d033eb"
+  },
+  "studio.hostedApps.review.instance.title": {
+    "status": "mt",
+    "srcHash": "7972df0ea9cc"
+  },
+  "studio.hostedApps.review.instance.what": {
+    "status": "mt",
+    "srcHash": "42c4528c0423"
+  },
+  "studio.hostedApps.review.instance.wording": {
+    "status": "mt",
+    "srcHash": "4622a7a90ed7"
+  },
+  "studio.hostedApps.review.intro": {
+    "status": "mt",
+    "srcHash": "8d518b428ca0"
+  },
+  "studio.hostedApps.review.outside.address": {
+    "status": "mt",
+    "srcHash": "391f90aef96a"
+  },
+  "studio.hostedApps.review.outside.body": {
+    "status": "mt",
+    "srcHash": "dc512062cdb4"
+  },
+  "studio.hostedApps.review.outside.bodyUpdate": {
+    "status": "mt",
+    "srcHash": "7a48a1f6f29d"
+  },
+  "studio.hostedApps.review.outside.off": {
+    "status": "mt",
+    "srcHash": "e3de5ab0ca4c"
+  },
+  "studio.hostedApps.review.outside.title": {
+    "status": "mt",
+    "srcHash": "45fc8a612e59"
+  },
+  "studio.hostedApps.review.outside.webhook": {
+    "status": "mt",
+    "srcHash": "547d75d9c4fa"
+  },
+  "studio.hostedApps.review.pages.changed": {
+    "status": "mt",
+    "srcHash": "9c99e13ea664"
+  },
+  "studio.hostedApps.review.pages.hold": {
+    "status": "mt",
+    "srcHash": "480e42688934"
+  },
+  "studio.hostedApps.review.pages.rename": {
+    "status": "mt",
+    "srcHash": "54521925e8a6"
+  },
+  "studio.hostedApps.review.pages.renameField": {
+    "status": "mt",
+    "srcHash": "2da288c26eb3"
+  },
+  "studio.hostedApps.review.pages.renamed": {
+    "status": "mt",
+    "srcHash": "ebea71f2c5f7"
+  },
+  "studio.hostedApps.review.pages.replace": {
+    "status": "mt",
+    "srcHash": "5e4bd6c5ff93"
+  },
+  "studio.hostedApps.review.pages.replaced": {
+    "status": "mt",
+    "srcHash": "89f3e6e12c2a"
+  },
+  "studio.hostedApps.review.pages.skip": {
+    "status": "mt",
+    "srcHash": "57c63f49ea81"
+  },
+  "studio.hostedApps.review.pages.skipped": {
+    "status": "mt",
+    "srcHash": "844d7565e4d0"
+  },
+  "studio.hostedApps.review.pages.title": {
+    "status": "mt",
+    "srcHash": "e6887012de23"
+  },
+  "studio.hostedApps.review.pages.untouched": {
+    "status": "mt",
+    "srcHash": "2b9824a12827"
+  },
+  "studio.hostedApps.review.screens.body": {
+    "status": "mt",
+    "srcHash": "7f2df6f577f2"
+  },
+  "studio.hostedApps.review.screens.lead": {
+    "status": "mt",
+    "srcHash": "c3479d2a3ced"
+  },
+  "studio.hostedApps.review.screens.title": {
+    "status": "mt",
+    "srcHash": "ac0c7c727e8f"
+  },
+  "studio.hostedApps.review.source.badge": {
+    "status": "mt",
+    "srcHash": "73dcacb01a10"
+  },
+  "studio.hostedApps.review.source.madeAt": {
+    "status": "mt",
+    "srcHash": "fefff19e4572"
+  },
+  "studio.hostedApps.review.source.madeOn": {
+    "status": "mt",
+    "srcHash": "d50288fc9ff4"
+  },
+  "studio.hostedApps.review.source.publisher": {
+    "status": "mt",
+    "srcHash": "5d60f3267b19"
+  },
+  "studio.hostedApps.review.source.title": {
+    "status": "mt",
+    "srcHash": "5238f2e39399"
+  },
+  "studio.hostedApps.review.source.warning": {
+    "status": "mt",
+    "srcHash": "9092a5826bbb"
+  },
+  "studio.hostedApps.review.title": {
+    "status": "mt",
+    "srcHash": "250c17399c1e"
+  },
+  "studio.hostedApps.route.another.body": {
+    "status": "mt",
+    "srcHash": "4859c2c0738a"
+  },
+  "studio.hostedApps.route.another.button": {
+    "status": "mt",
+    "srcHash": "71bb776f1050"
+  },
+  "studio.hostedApps.route.another.title": {
+    "status": "mt",
+    "srcHash": "788477415491"
+  },
+  "studio.hostedApps.route.update.also": {
+    "status": "mt",
+    "srcHash": "b42d312036da"
+  },
+  "studio.hostedApps.route.update.body": {
+    "status": "mt",
+    "srcHash": "32b5d41420b2"
+  },
+  "studio.hostedApps.route.update.button": {
+    "status": "mt",
+    "srcHash": "e516a827f871"
+  },
+  "studio.hostedApps.route.update.done": {
+    "status": "mt",
+    "srcHash": "28e227202a38"
+  },
+  "studio.hostedApps.route.update.rest": {
+    "status": "mt",
+    "srcHash": "9d19aa1b6aa6"
+  },
+  "studio.hostedApps.route.update.title": {
+    "status": "mt",
+    "srcHash": "221572f3bd51"
+  },
+  "studio.hostedApps.route.update.updated": {
+    "status": "mt",
+    "srcHash": "f2f8570ddd7b"
+  },
+  "studio.hostedApps.route.update.waiting": {
+    "status": "mt",
+    "srcHash": "95c08f9215d1"
   },
   "studio.hostedApps.subtitle": {
     "status": "mt",
@@ -28927,9 +29423,17 @@
     "status": "mt",
     "srcHash": "fb91e24fa52d"
   },
+  "studio.hostedApps.update.copyOf": {
+    "status": "mt",
+    "srcHash": "3fd60bb712bb"
+  },
   "studio.hostedApps.update.done": {
     "status": "mt",
     "srcHash": "da5ceaf8f12b"
+  },
+  "studio.hostedApps.update.finish": {
+    "status": "mt",
+    "srcHash": "d576ddb58234"
   },
   "studio.hostedApps.update.grantsAdded.addOnSettings": {
     "status": "mt",
@@ -28951,13 +29455,29 @@
     "status": "mt",
     "srcHash": "4237dcb7036b"
   },
+  "studio.hostedApps.update.onlyThis": {
+    "status": "mt",
+    "srcHash": "2df937dd1fd0"
+  },
   "studio.hostedApps.update.pickFirst": {
     "status": "mt",
     "srcHash": "671f9e83074f"
   },
+  "studio.hostedApps.update.reviewSubtitle": {
+    "status": "mt",
+    "srcHash": "f34816354f8d"
+  },
   "studio.hostedApps.update.rolesSubtitle": {
     "status": "mt",
     "srcHash": "eb36d8558cc2"
+  },
+  "studio.hostedApps.update.stopped.other": {
+    "status": "mt",
+    "srcHash": "fed9369d0200"
+  },
+  "studio.hostedApps.update.stopped.pages": {
+    "status": "mt",
+    "srcHash": "c0b1d963120a"
   },
   "studio.hostedApps.update.subtitle": {
     "status": "mt",
@@ -28966,6 +29486,10 @@
   "studio.hostedApps.update.title": {
     "status": "mt",
     "srcHash": "7948b51cf2ad"
+  },
+  "studio.hostedApps.update.titleOn": {
+    "status": "mt",
+    "srcHash": "a4f892c1c973"
   },
   "studio.hostedApps.veto.body": {
     "status": "mt",

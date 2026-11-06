@@ -57,12 +57,23 @@ const GROUP_KEYS: ReadonlyMap<string, string> = new Map<string, string>([
   ['studio:workspaceSender.subtitle', 'the sender sheet: mail about one workspace’s databases'],
   ['studio:workspaceSender.noMail.body', 'the sender sheet: a workspace cannot have its own sender yet'],
   ['studio:workspaceSender.postal.helper', 'the sender sheet: one workspace’s marketing mail'],
+  ['common:shownIn.all', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.chosen', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.none', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.noneHint', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.unseen', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.unseenChip', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.filter.label', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.deletePlan.lead', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['common:shownIn.hidden.here', '"Shown in": a picked template not listed in the tab’s workspace, named by `{workspace}`'],
+  ['common:shownIn.deletePlan.after', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
 ]);
 
 /** Repo-relative path prefixes whose every "workspace" is the group. */
 const GROUP_FILES: ReadonlyMap<string, string> = new Map([
   ['apps/server/src/routes/workspaces/', 'the routes that create, rename, order and delete workspaces'],
   ['apps/server/src/workspaces/', 'which workspaces a person sees, and the `workspaceId` list filter'],
+  ['apps/dashboard/src/shown-in/', '"Shown in": where an email template, a report layout or an invoice layout is listed, by workspace'],
   ['apps/docs/src/content/docs/reference/rest-api.md', 'documents the /workspaces routes'],
   ['apps/docs/src/content/docs/anatomy/', 'the pnpm sense: "twenty-one workspaces" are the packages of the monorepo'],
   ['apps/docs/src/content/docs/contributing/', 'the pnpm sense, as above'],

@@ -479,3 +479,164 @@ export function readAddOnTarball(
 ): ArchiveEntry[] {
   return readTarEntries(gunzipCapped(tarball, limits), limits);
 }
+
+/**
+ * The members of a gzipped tarball, one at a time.
+ *
+ * {@link readAddOnTarball} expands the whole archive before it parses a
+ * header: right for an app or an add-on, wrong for a workspace file, which
+ * holds several app files and may be 128 MB. This reads the same format with
+ * the same refusals, pushing the compressed bytes in slices and handing each
+ * file member to the caller as soon as it is whole. The caller's work on one
+ * member (hashing it, staging it) is done before the next is expanded, so at
+ * most one member and one slice's expansion are held at a time.
+ *
+ * The gzip footer (CRC32 and size) can only be checked once the stream has
+ * ended, after the members were handed out: a caller that writes anything
+ * reads the file once to the end first, and acts on a second reading.
+ */
+export async function* tarballMembers(
+  compressed: Uint8Array,
+  limits: ArchiveLimits = DEFAULT_ARCHIVE_LIMITS,
+): AsyncGenerator<ArchiveEntry, void, void> {
+  if (compressed.byteLength > limits.maxCompressedBytes) {
+    throw new AddOnArchiveError(
+      'COMPRESSED_TOO_LARGE',
+      `tarball is ${compressed.byteLength} bytes, over the ${limits.maxCompressedBytes}-byte limit`,
+    );
+  }
+  if (compressed.byteLength < 2 || compressed[0] !== 0x1f || compressed[1] !== 0x8b) {
+    throw new AddOnArchiveError('NOT_GZIP', 'payload is not a gzip stream');
+  }
+  if (compressed.byteLength < 8) {
+    throw new AddOnArchiveError('CORRUPT_GZIP', 'gzip stream is too short to carry a footer');
+  }
+
+  /** Expanded bytes not yet parsed, as chunks. */
+  const queue: Uint8Array[] = [];
+  let queued = 0;
+  let total = 0;
+  let crc = 0xffffffff;
+  let overCap = false;
+  let ended = false;
+  const gunzip = new Gunzip((chunk, final) => {
+    total += chunk.byteLength;
+    if (total > limits.maxUncompressedBytes) {
+      overCap = true;
+      throw new Error('over cap');
+    }
+    for (let i = 0; i < chunk.length; i += 1) crc = CRC_TABLE[(crc ^ chunk[i]!) & 0xff]! ^ (crc >>> 8);
+    if (chunk.byteLength > 0) {
+      queue.push(chunk);
+      queued += chunk.byteLength;
+    }
+    if (final) ended = true;
+  });
+
+  /** Take `n` bytes off the front of the queue, as one array. */
+  const take = (n: number): Uint8Array => {
+    const out = new Uint8Array(n);
+    let at = 0;
+    while (at < n) {
+      const head = queue[0]!;
+      const want = n - at;
+      if (head.byteLength <= want) {
+        out.set(head, at);
+        at += head.byteLength;
+        queue.shift();
+      } else {
+        out.set(head.subarray(0, want), at);
+        queue[0] = head.subarray(want);
+        at += want;
+      }
+    }
+    queued -= n;
+    return out;
+  };
+
+  const SLICE = 64 * 1024;
+  let offset = 0;
+  /** Push one more slice; false once the input is spent. */
+  const pushSlice = (): boolean => {
+    if (offset >= compressed.byteLength) return false;
+    const end = Math.min(offset + SLICE, compressed.byteLength);
+    try {
+      gunzip.push(compressed.subarray(offset, end), end >= compressed.byteLength);
+    } catch (err) {
+      if (overCap) {
+        throw new AddOnArchiveError('UNCOMPRESSED_TOO_LARGE', `archive expands past the ${limits.maxUncompressedBytes}-byte limit`);
+      }
+      throw new AddOnArchiveError('CORRUPT_GZIP', `gzip stream is unreadable: ${String(err)}`);
+    }
+    offset = end;
+    return true;
+  };
+  /** Whether `n` bytes are queued, pushing slices until they are or the input is spent. */
+  const have = (n: number): boolean => {
+    while (queued < n) if (!pushSlice()) return false;
+    return true;
+  };
+
+  const seen = new Set<string>();
+  let files = 0;
+  let zeroBlocks = 0;
+  let at = 0;
+  for (;;) {
+    if (!have(BLOCK)) break;
+    const header = take(BLOCK);
+    if (header.every((byte) => byte === 0)) {
+      zeroBlocks += 1;
+      at += BLOCK;
+      if (zeroBlocks >= 2) break;
+      continue;
+    }
+    if (zeroBlocks > 0) {
+      throw new AddOnArchiveError('TRUNCATED_ARCHIVE', `stray zero block at offset ${at - BLOCK} followed by more data`);
+    }
+    if (!checksumOk(header)) throw new AddOnArchiveError('BAD_HEADER_CHECKSUM', `bad header checksum at offset ${at}`);
+    const magic = field(header, 257, 6);
+    if (magic !== 'ustar' && magic !== 'ustar ') {
+      throw new AddOnArchiveError('NOT_USTAR', `entry at offset ${at} is not a ustar header (magic ${JSON.stringify(magic)})`);
+    }
+    const size = octal(header, 124, 12, 'entry size');
+    const typeflag = field(header, 156, 1) || '\0';
+    const name = field(header, 0, 100);
+    const prefix = field(header, 345, 155);
+    const raw = prefix.length > 0 ? `${prefix}/${name}` : name;
+    if (size > limits.maxEntryBytes) {
+      throw new AddOnArchiveError('ENTRY_TOO_LARGE', `entry is ${size} bytes, over the ${limits.maxEntryBytes}-byte limit`, raw);
+    }
+    const isFile = typeflag === '0' || typeflag === '\0';
+    const isDirectory = typeflag === '5';
+    if (!isFile && !isDirectory) {
+      const what = TYPE_NAMES[typeflag] ?? `type ${JSON.stringify(typeflag)}`;
+      throw new AddOnArchiveError('FORBIDDEN_ENTRY_TYPE', `archive carries a ${what} entry; only files and directories are accepted`, raw);
+    }
+    const path = cleanPath(raw, limits);
+    const padded = size + ((BLOCK - (size % BLOCK)) % BLOCK);
+    if (!have(padded)) throw new AddOnArchiveError('TRUNCATED_ARCHIVE', 'entry body runs past the archive', raw);
+    const body = take(padded).subarray(0, size);
+    at += BLOCK + padded;
+    if (!isFile || path.length === 0) continue;
+    if (seen.has(path)) throw new AddOnArchiveError('DUPLICATE_PATH', 'archive carries the path twice', path);
+    seen.add(path);
+    files += 1;
+    if (files > limits.maxEntries) throw new AddOnArchiveError('TOO_MANY_ENTRIES', `archive carries more than ${limits.maxEntries} entries`);
+    yield { path, bytes: body };
+  }
+
+  // Whatever follows the closing blocks is expanded and checked too: the footer covers the whole stream.
+  while (pushSlice()) {
+    queue.length = 0;
+    queued = 0;
+  }
+  if (!ended) throw new AddOnArchiveError('CORRUPT_GZIP', 'gzip stream ended without a final block');
+  if (files === 0) throw new AddOnArchiveError('EMPTY_ARCHIVE', 'archive carries no files');
+  const footer = compressed.subarray(compressed.byteLength - 8);
+  const declaredCrc = (footer[0]! | (footer[1]! << 8) | (footer[2]! << 16) | (footer[3]! << 24)) >>> 0;
+  const declaredSize = (footer[4]! | (footer[5]! << 8) | (footer[6]! << 16) | (footer[7]! << 24)) >>> 0;
+  if (declaredSize !== (total >>> 0)) {
+    throw new AddOnArchiveError('CORRUPT_GZIP', `gzip footer declares ${declaredSize} bytes but the stream expanded to ${total}`);
+  }
+  if (((crc ^ 0xffffffff) >>> 0) !== declaredCrc) throw new AddOnArchiveError('CORRUPT_GZIP', 'gzip footer CRC32 does not match the data');
+}

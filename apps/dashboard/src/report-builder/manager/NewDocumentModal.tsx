@@ -21,6 +21,7 @@ import { useAppToasts } from '../../pages/toasts.js';
 import { reportBuilderApi, type ReportDetail, type ReportDocumentKind, type ReportStarterCard } from '../api.js';
 import { reportIcon } from '../icons.js';
 import { reportDocumentsQuery, reportStartersQuery } from '../queries.js';
+import { useShownInPicker } from '../../shown-in/useShownInList.js';
 import { ReportMiniPreview, barHeights } from './MiniPreview.js';
 import { blocksLabel, categoryLabel, starterName } from './model.js';
 
@@ -86,7 +87,12 @@ export function NewDocumentModal({ kind, onClose, onCreated }: NewDocumentModalP
   const toasts = useAppToasts();
   const starters = useQuery(reportStartersQuery());
   // A report may start from one of the workspace's report templates.
-  const templates = useQuery({ ...reportDocumentsQuery({ kind: 'template' }), enabled: kind === 'report' });
+  // The templates listed in the tab's workspace (it only narrows).
+  const picker = useShownInPicker();
+  const templates = useQuery({
+    ...reportDocumentsQuery({ kind: 'template', ...(picker.workspaceId === undefined ? {} : { workspaceId: picker.workspaceId }) }),
+    enabled: kind === 'report',
+  });
   const [picking, setPicking] = useState<string | null>(null);
   const PlusGlyph = reportIcon('plus');
   const NewGlyph = reportIcon('file-plus-2');
@@ -113,7 +119,7 @@ export function NewDocumentModal({ kind, onClose, onCreated }: NewDocumentModalP
   const busy = create.isPending || fromTemplate.isPending;
 
   const title = kind === 'template' ? t('reportBuilder:new.title.template', 'New template') : t('reportBuilder:new.title.report', 'New report');
-  const yourTemplates = templates.data?.items ?? [];
+  const yourTemplates = (templates.data?.items ?? []).filter((doc) => picker.keeps(doc.shownIn));
 
   return (
     <Modal

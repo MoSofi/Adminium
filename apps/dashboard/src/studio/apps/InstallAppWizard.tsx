@@ -45,8 +45,26 @@
  *  marketplace, and the page downloads a catalog-only app before opening this
  *  wizard on it. "Install an app" is the upload tile. A source step here would
  *  be a second copy of the shelf, asking a question the click already answered.
+ *
+ * ─── Your own apps and copies per database (`Install Your Own App.dc.html`,
+ * `Apps Per Database.dc.html`) ──────────────────────────────────────────────
+ *
+ *  The fingerprint field leaves the upload: the browser hashes the file it
+ *  sends, and the person checks a fingerprint they were given on the review,
+ *  where a mismatch holds Install. The upload's reply says where the file
+ *  goes: nowhere yet (the steps as before), over every copy (each updated in
+ *  turn through its own review, then optionally onto another database), or
+ *  onto a database without a copy. The Database step lists existing databases
+ *  only, marks those with a copy ("Installed · 1.0.15") and names the version
+ *  being installed. Refusals are said per database. The review cards are in
+ *  `installReview.tsx`, the update dialog in `UpdateReviewDialog.tsx`.
+ *
+ *  **W1 — the upload choice has no comp.** "Update every copy" and "Install on
+ *  another database" are drawn from notes, in the bundle step's own anatomy:
+ *  the app's card, then the copies with their versions, then the footer's
+ *  button.
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import {
@@ -68,6 +86,7 @@ import {
   cn,
 } from '@adminium/ui';
 import {
+  ArrowUpCircle,
   Check,
   ChevronDown,
   CircleAlert,
@@ -84,10 +103,12 @@ import {
   Table2,
   Download,
   Info,
+  Send,
+  ListChecks,
 } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
-import { bootstrapQuery } from '../../app/bootstrap.js';
+import { bootstrapQuery, type BootstrapData } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 import { addOnCatalogQuery, downloadAddOn, getAddOnJob } from '../add-ons/addOnsApi.js';
 import { connectionsQuery } from '../hub/ConnectionsHub.js';
@@ -100,14 +121,39 @@ import {
   type AddOnPicks,
 } from './AddOnsInstallCard.js';
 import { namesList, sentence } from './addOnWords.js';
+import {
+  AfterInstallCard,
+  ExistingTablesCard,
+  HoldHint,
+  InstanceCard,
+  NO_INSTANCE_ANSWERS,
+  OutsideAddressesCard,
+  PageClashesCard,
+  RefusalCard,
+  ScreensWarning,
+  WhereItCameFrom,
+  WorkspaceChips,
+  afterInstallLines,
+  existingTables,
+  instanceAnswersOf,
+  outsideRules,
+  reviewHold,
+  savedFromHere,
+  uploadRefusal,
+  type InstanceAnswers,
+  type PageAnswer,
+} from './installReview.js';
+import { UpdateReviewDialog } from './UpdateReviewDialog.js';
 import { DocumentsWaitingNotice } from './DocumentsWaitingNotice.js';
 import {
   APPS_QUERY_KEY,
   APP_CATALOG_QUERY_KEY,
   ddlPreview,
   installApp,
+  installedAppsQuery,
   planApp,
   sha512Of,
+  updateApp,
   uploadApp,
   type AddOnsDone,
   type AppAddOnRow,
@@ -118,6 +164,9 @@ import {
   type PlannedAppTable,
   LOCAL_PUBLISHER_ID,
   type StagedApp,
+  type StagedInstall,
+  type UpdateAnswers,
+  type UpdateStoppedDetails,
 } from './appsApi.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
 import {
@@ -145,10 +194,13 @@ function answersOf(
   renameTo: Record<string, string>,
   prefix: string,
   sharePicks: Record<string, SharePick> = {},
+  pagePicks: Record<string, PageAnswer> = {},
+  useExisting = false,
 ): InstallAnswers {
   const choices: NonNullable<InstallAnswers['choices']> = {};
   let altPrefix: string | undefined;
-  for (const ref of Object.keys(picks).sort()) {
+  // "Use the existing tables" answers every taken table at once: no pick of one is sent beside it.
+  for (const ref of useExisting ? [] : Object.keys(picks).sort()) {
     const pick = picks[ref];
     if (pick === 'reuse') choices[ref] = { action: 'reuse' };
     else if (pick === 'rename-existing') choices[ref] = { action: 'rename-existing', to: renameTo[ref] ?? '' };
@@ -156,11 +208,25 @@ function answersOf(
   }
   const shares: NonNullable<InstallAnswers['shares']> = {};
   for (const shape of Object.keys(sharePicks).sort()) shares[shape] = sharePicks[shape]!;
+  const pages: NonNullable<InstallAnswers['pages']> = {};
+  for (const page of Object.keys(pagePicks).sort()) pages[page] = pagePicks[page]!;
   return {
     ...(Object.keys(choices).length === 0 ? {} : { choices }),
     ...(altPrefix === undefined ? {} : { altPrefix }),
     ...(Object.keys(shares).length === 0 ? {} : { shares }),
+    ...(Object.keys(pages).length === 0 ? {} : { pages }),
+    ...(useExisting ? { existing: 'use' as const } : {}),
   };
+}
+
+/** The workspaces of each database, as the bootstrap lists them (none while the server has none). */
+function workspacesByConnection(bootstrap: BootstrapData | undefined): Map<string, { id: string; name: string; initials: string }[]> {
+  const listed = (bootstrap as { workspaces?: { workspaces?: { id: string; name: string; initials: string; connectionIds: string[] }[] } } | undefined)?.workspaces?.workspaces ?? [];
+  const out = new Map<string, { id: string; name: string; initials: string }[]>();
+  for (const workspace of listed) {
+    for (const id of workspace.connectionIds) out.set(id, [...(out.get(id) ?? []), { id: workspace.id, name: workspace.name, initials: workspace.initials }]);
+  }
+  return out;
 }
 
 function hasTables(plan: AppInstallPlan): plan is AppInstallPlan & { tables: PlannedAppTable[] } {
@@ -213,7 +279,10 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
 
   // Step 1 — the bundle.
   const [file, setFile] = useState<File | null>(null);
-  const [integrity, setIntegrity] = useState('');
+  /** An upload the server refused before anything was staged: an older file, another lineage, a newer Adminium. */
+  const [refusal, setRefusal] = useState<{ title: string; body: ReactNode } | null>(null);
+  /** The fingerprint typed on the review, compared in this browser with the uploaded file's own. */
+  const [fingerprint, setFingerprint] = useState('');
   /*
    * WHICH APP THIS IS, and the only place later steps read it from.
    *
@@ -244,6 +313,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const [plan, setPlan] = useState<AppInstallPlan | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [result, setResult] = useState<InstalledAppResult | null>(null);
+  const [firstCopy, setFirstCopy] = useState(false);
   /*
    * The check step's answers. `checked` is what the plan on screen was made
    * with, and so what the install sends: a pick, a name or a prefix that has
@@ -255,6 +325,12 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   // Per shape another app already has (a menu): use that app's tables, or keep separate ones.
   const [sharePicks, setSharePicks] = useState<Record<string, SharePick>>({});
   const [prefix, setPrefix] = useState('');
+  // Per page address a page here already has: replace, rename the one here, or skip the app's.
+  const [pagePicks, setPagePicks] = useState<Record<string, PageAnswer>>({});
+  // "Use the existing tables": every table of the app that is here already, as it is.
+  const [useExisting, setUseExisting] = useState(false);
+  // The look and languages of the whole server, off unless ticked.
+  const [instanceAnswers, setInstanceAnswers] = useState<InstanceAnswers>(NO_INSTANCE_ANSWERS);
   const [checked, setChecked] = useState<InstallAnswers>({});
   const [stopped, setStopped] = useState<InstallStoppedDetails | null>(null);
   // Unticked by default; added once the install is done, as its own job.
@@ -275,7 +351,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
    */
   const tickedAddOns = useRef<string[] | undefined>(undefined);
   const [downloading, setDownloading] = useState<{ key: string; pct: number } | null>(null);
-  const answers = answersOf(picks, renameTo, prefix, sharePicks);
+  const answers = answersOf(picks, renameTo, prefix, sharePicks, pagePicks, useExisting);
   const dirty = JSON.stringify(answers) !== JSON.stringify(checked);
   const connectionName = connections.find((connection) => connection.id === connectionId)?.name ?? '';
   const addOnRows: readonly AppAddOnRow[] = plan?.addOns ?? [];
@@ -297,18 +373,18 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
     mutationFn: async () => {
       if (file === null) throw new Error('no file');
       /*
-       * The operator's own hash wins when they have one: then the check is real
-       * end to end and the server's constant-time compare is what fails. With
-       * no value the browser computes one — see `sha512Of` on why that is the
-       * right default and what it is worth.
+       * The browser hashes the bytes it sends (see `sha512Of` on what that is
+       * worth). A fingerprint the person was given is checked on the review,
+       * against the file's own, where a mismatch holds Install.
        */
-      const expectedSha512 = integrity.trim() === '' ? await sha512Of(file) : integrity.trim();
-      return uploadApp(file, { expectedSha512 });
+      return uploadApp(file, { expectedSha512: await sha512Of(file) });
     },
     onSuccess: (next) => {
       setStaged(next);
       setError(null);
-      setStep('database');
+      setRefusal(null);
+      // A file whose key is installed stays here, where its choice is: update every copy, or install on another database.
+      setStep((next.route ?? 'install') === 'install' ? 'database' : 'bundle');
       /*
        * The bundle is on disk from this moment, whatever the operator does
        * next, so the installed list (its staged row) and the shelf (its card)
@@ -321,7 +397,16 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
       void queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
       void queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY });
     },
-    onError: (cause: Error) => setError(cause.message),
+    onError: (cause: Error) => {
+      // Refused before anything was staged, in a sentence per database: the card replaces the upload.
+      const refused = cause instanceof ApiError ? uploadRefusal(cause.code, cause.details) : null;
+      if (refused !== null) {
+        setRefusal(refused);
+        setError(null);
+        return;
+      }
+      setError(cause.message);
+    },
   });
 
   const preview = useMutation({
@@ -365,10 +450,14 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         // Shown on the check: what an add-on it updates gives other apps' roles more of its tables. The Install button is the say.
         ...((plan?.roleTables ?? []).some((entry) => entry.app !== undefined && entry.wider !== undefined) ? { roleTables: true } : {}),
         ...checked,
+        // The look and languages: only when ticked, and only the link hosts ticked one by one.
+        ...instanceAnswersOf(plan?.instance, instanceAnswers),
       });
     },
     onSuccess: async (next) => {
       setResult(next);
+      // The app's page is the key's own address only for its first copy; a later copy's is its database's.
+      setFirstCopy(copyOn.size === 0);
       setError(null);
       setStopped(null);
       setStep('done');
@@ -450,18 +539,104 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
     setPicks(nextPicks);
     setRenameTo(nextRename);
     setPrefix(nextPrefix);
-    if (pick !== 'alt-prefix') preview.mutate(answersOf(nextPicks, nextRename, nextPrefix, sharePicks));
+    if (pick !== 'alt-prefix') preview.mutate(answersOf(nextPicks, nextRename, nextPrefix, sharePicks, pagePicks, useExisting));
+  };
+
+  /** A taken page address answered (or taken back with Change): the check is made again at once. */
+  const onPage = (page: string, answer: PageAnswer | undefined) => {
+    const next = { ...pagePicks };
+    if (answer === undefined) delete next[page];
+    else next[page] = answer;
+    setPagePicks(next);
+    preview.mutate(answersOf(picks, renameTo, prefix, sharePicks, next, useExisting));
+  };
+
+  /** "Use the existing tables", or Change back to choosing table by table: checked again at once. */
+  const onUseExisting = (next: boolean) => {
+    setUseExisting(next);
+    if (next) setPicks({});
+    preview.mutate(answersOf(next ? {} : picks, renameTo, prefix, sharePicks, pagePicks, next));
   };
 
   /** Use another app's tables of a shape, or keep separate ones: the check is made again at once. */
   const onShare = (shape: string, pick: SharePick) => {
     const nextShares = { ...sharePicks, [shape]: pick };
     setSharePicks(nextShares);
-    preview.mutate(answersOf(picks, renameTo, prefix, nextShares));
+    preview.mutate(answersOf(picks, renameTo, prefix, nextShares, pagePicks, useExisting));
   };
 
-  const busy = upload.isPending || preview.isPending || install.isPending || download.isPending;
+  /*
+   * UPDATE EVERY COPY. Every copy of an app runs one version, so a newer file
+   * updates each copy in turn, in the order the server lists them, each
+   * through its own review on its own database. A copy cancelled is left as
+   * it is, and "Update the rest" picks up from there.
+   */
+  const copies: readonly StagedInstall[] = staged?.installs ?? [];
+  const [updatedIds, setUpdatedIds] = useState<string[]>([]);
+  const [updating, setUpdating] = useState<{ copy: StagedInstall; n: number; plan: AppInstallPlan } | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateStopped, setUpdateStopped] = useState<UpdateStoppedDetails | null>(null);
+  const remaining = copies.filter((copy) => !updatedIds.includes(copy.installId));
+  const updateNext = useMutation({
+    mutationFn: async (copy: StagedInstall) => {
+      if (staged === null || copy.connectionId === null) throw new Error('no copy');
+      const { plan: next } = await planApp({ key: staged.key, version: staged.version, connectionId: copy.connectionId });
+      return { copy, plan: next };
+    },
+    onSuccess: ({ copy, plan: next }) => {
+      setUpdateError(null);
+      setUpdateStopped(null);
+      setUpdating({ copy, n: copies.indexOf(copy) + 1, plan: next });
+    },
+    onError: (cause: Error) => setError(cause.message),
+  });
+  const updateCopy = useMutation({
+    mutationFn: async (sent: UpdateAnswers) => {
+      if (staged === null || updating === null) throw new Error('no copy');
+      return updateApp(staged.key, sent, updating.copy.connectionId);
+    },
+    onSuccess: async () => {
+      if (updating === null) return;
+      const done = [...updatedIds, updating.copy.installId];
+      setUpdatedIds(done);
+      setUpdating(null);
+      setUpdateStopped(null);
+      await queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: SURFACES_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY });
+      // On to the next copy, each with its own review.
+      const next = copies.find((copy) => !done.includes(copy.installId));
+      if (next !== undefined) updateNext.mutate(next);
+    },
+    onError: (cause: Error) => {
+      // Stopped part way: nothing is undone, and the same update finishes it.
+      if (cause instanceof ApiError && cause.code === 'APP_UPDATE_INCOMPLETE') {
+        const details = (cause.details ?? {}) as Partial<UpdateStoppedDetails>;
+        setUpdateStopped({ stage: details.stage ?? '', from: details.from ?? '', to: details.to ?? '', cause: details.cause ?? cause.message });
+        setUpdateError(null);
+        return;
+      }
+      setUpdateError(cause.message);
+    },
+  });
+
+  // Where the app already is: the upload's copies, and the installed list for an app picked off the shelf.
+  // Read from the page's own list, not observed: the wizard does not refetch it under the person.
+  const installedList = queryClient.getQueryData(installedAppsQuery().queryKey);
+  const copyOn = new Map<string, string>();
+  for (const app of installedList?.apps ?? []) if (app.key === staged?.key && app.connectionId !== null) copyOn.set(app.connectionId, app.version);
+  for (const copy of copies) if (copy.connectionId !== null) copyOn.set(copy.connectionId, copy.version);
+  const workspaces = workspacesByConnection(queryClient.getQueryData(bootstrapQuery().queryKey));
+  const route = staged?.route ?? 'install';
+  const uploaded = upload.data !== undefined;
+  const integrityOf = uploaded ? (staged?.integrity ?? '') : '';
+  const holdId = useId();
+
+  const busy = upload.isPending || preview.isPending || install.isPending || download.isPending || updateNext.isPending || updateCopy.isPending;
   const checking = step === 'plan' && plan !== null && hasTables(plan);
+  // Install waits for these, said in the footer and tied to the button: a fingerprint that does not match, a table that can't be used, a page address unanswered.
+  const hold = plan === null ? null : reviewHold({ plan, pages: checked.pages, fingerprint, integrity: integrityOf });
+  const refusedHere = plan !== null && savedFromHere(plan);
 
   /*
    * The one dialog: the only database is taken, and the app is checked
@@ -632,7 +807,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
 
       {/* Said on every step before the install, the database step included:
           an upload goes straight there. */}
-      {staged?.publisher?.id === LOCAL_PUBLISHER_ID && step !== 'done' ? (
+      {/* Said once the plan says whether the file was saved elsewhere: a saved file's review says where it came from instead. */}
+      {staged?.publisher?.id === LOCAL_PUBLISHER_ID && step === 'plan' && plan !== null && plan.madeAt === undefined ? (
         <p data-part="made-here" className="rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-xs text-fg-subtle">
           {t(
             'studio:hostedApps.install.madeHere',
@@ -647,7 +823,60 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         * upload). The comp's marketplace tile draws this row — name, then the
         * version in mono — so an upload confirms itself the same way.
         */}
-      {step === 'bundle' && staged !== null && !quick ? (
+      {step === 'bundle' && staged !== null && !quick && route !== 'install' ? (
+        <UploadRoute
+          staged={staged}
+          route={route}
+          copies={copies}
+          updatedIds={updatedIds}
+          onBack={() => {
+            setStaged(null);
+            setFile(null);
+            setUpdatedIds([]);
+            setError(null);
+          }}
+          busy={busy}
+        />
+      ) : null}
+
+      {updating === null || staged === null ? null : (
+        <UpdateReviewDialog
+          key={updating.copy.installId}
+          appKey={staged.key}
+          appName={staged.name}
+          to={staged.version}
+          from={updating.copy.version}
+          plan={updating.plan}
+          connectionId={updating.copy.connectionId ?? ''}
+          connectionName={updating.copy.connectionName}
+          copy={{ n: updating.n, total: copies.length }}
+          integrity={staged.integrity}
+          publisher={staged.publisher}
+          busy={updateCopy.isPending}
+          error={updateError}
+          stopped={updateStopped}
+          onCancel={() => {
+            setUpdating(null);
+            setUpdateError(null);
+            setUpdateStopped(null);
+          }}
+          onConfirm={(sent) => updateCopy.mutate(sent)}
+        />
+      )}
+
+      {refusal === null || step !== 'bundle' ? null : (
+        <RefusalCard
+          title={refusal.title}
+          onBack={() => {
+            setRefusal(null);
+            setFile(null);
+          }}
+        >
+          {refusal.body}
+        </RefusalCard>
+      )}
+
+      {step === 'bundle' && staged !== null && !quick && route === 'install' ? (
         <div className="flex flex-col gap-4">
           <div>
             <h2 className="text-base font-bold tracking-tight">
@@ -692,8 +921,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                 // the installed list offers to discard them.
                 setStaged(null);
                 setFile(null);
-                // A pasted hash describes the old file, and would refuse the next.
-                setIntegrity('');
+                // A typed fingerprint describes the old file.
+                setFingerprint('');
                 setPlan(null);
                 setError(null);
               }}
@@ -705,17 +934,14 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         </div>
       ) : null}
 
-      {step === 'bundle' && staged === null ? (
+      {step === 'bundle' && staged === null && refusal === null ? (
         <div className="flex flex-col gap-4">
           <div>
             <h2 className="text-base font-bold tracking-tight">
               {t('studio:hostedApps.install.bundle.title', 'Upload the app bundle')}
             </h2>
             <p className="mt-1 text-sm text-fg-muted">
-              {t(
-                'studio:hostedApps.install.bundle.hint',
-                'The app’s release file (.tgz) — it holds manifest.json and a staff/ or customer/ directory.',
-              )}
+              {t('studio:hostedApps.install.bundle.fileOnly', 'The app’s file (.tgz).')}
             </p>
           </div>
 
@@ -735,19 +961,6 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                   onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
                 />
               </FormField>
-              <FormField
-                label={t('studio:hostedApps.install.bundle.integrity', 'Integrity (optional)')}
-                helper={t(
-                  'studio:hostedApps.install.bundle.integrityHint',
-                  'Paste the sha512- fingerprint published with the release to have the server check these exact bytes. Left empty, it is computed here.',
-                )}
-              >
-                <Input
-                  value={integrity}
-                  onChange={(event) => setIntegrity(event.currentTarget.value)}
-                  placeholder="sha512-…"
-                />
-              </FormField>
             </CardBody>
           </Card>
         </div>
@@ -765,7 +978,22 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                 'Pick a writable connection. This is where the tables will be created, and it is what the app reads afterwards.',
               )}
             </p>
+            {staged === null ? null : (
+              // The version being installed, so a copy's "Installed · 1.0.15" reads against it.
+              <p data-part="installing-version" className="mt-1.5 text-sm text-fg-muted">
+                {sentence('studio:hostedApps.install.database.version', 'Installing {app} {version}.', {
+                  app: <span className="font-bold text-fg">{staged.name}</span>,
+                  version: <MonoText className="font-bold text-fg">{staged.version}</MonoText>,
+                })}{' '}
+                {copyOn.size === 0 ? null : t('studio:hostedApps.install.database.ownCopy', 'Each database can have its own copy of {app}.', { app: staged.name })}
+              </p>
+            )}
           </div>
+          {connections.length === 0 ? (
+            <Alert tone="warn" title={t('studio:hostedApps.install.database.noneTitle', 'No database yet')}>
+              {t('studio:hostedApps.install.database.none', 'Connect a database first. An app goes into a database this server already has.')}
+            </Alert>
+          ) : null}
           <RadioGroup
             value={connectionId}
             onValueChange={setConnectionId}
@@ -775,7 +1003,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
               <RadioCard
                 key={connection.id}
                 value={connection.id}
-                disabled={connection.readOnly}
+                // A database with a copy of the app can't take a second one.
+                disabled={connection.readOnly || copyOn.has(connection.id)}
                 /*
                  * G1 — the comp puts a radio at the START of the row, and the
                  * reason is not decoration: `RadioCard`'s own indicator appears
@@ -801,9 +1030,21 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                   </span>
                 }
                 title={connection.name}
-                description={connection.engine}
+                description={
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span>{connection.engine}</span>
+                    <WorkspaceChips workspaces={workspaces.get(connection.id) ?? []} />
+                  </span>
+                }
                 trailing={
                   <span className="flex items-center gap-3">
+                    {copyOn.has(connection.id) ? (
+                      <Badge tone="neutral" data-part="installed-marker">
+                        {sentence('studio:hostedApps.install.database.installed', 'Installed · {version}', {
+                          version: <MonoText>{copyOn.get(connection.id) ?? ''}</MonoText>,
+                        })}
+                      </Badge>
+                    ) : null}
                     {connection.tableCount === null ? null : (
                       <MonoText className="text-xs text-fg-muted">
                         {t('studio:hostedApps.install.database.tables', 'Tables: {count}', {
@@ -821,7 +1062,19 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
               />
             ))}
           </RadioGroup>
-          {connections.every((connection) => connection.readOnly) ? (
+          {connectionId !== '' && copyOn.size > 0 && staged !== null ? (
+            <p data-part="own-copy" className="text-[12.5px] text-fg-muted">
+              {t(
+                'studio:hostedApps.install.database.notTouched',
+                'This copy gets its own settings, roles and email templates. {app} on {databases} is not touched.',
+                {
+                  app: staged.name,
+                  databases: namesList(connections.filter((connection) => copyOn.has(connection.id)).map((connection) => connection.name)),
+                },
+              )}
+            </p>
+          ) : null}
+          {connections.length > 0 && connections.every((connection) => connection.readOnly) ? (
             <Alert
               tone="warn"
               title={t('studio:hostedApps.install.database.noWritable', 'No writable connection')}
@@ -856,11 +1109,57 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         />
       ) : null}
 
-      {checking && !install.isPending && stopped === null && plan !== null && hasTables(plan) ? (
+      {checking && !install.isPending && stopped === null && plan !== null && hasTables(plan) && refusedHere ? (
+        // A file saved from this very database: it replaces the review, with no Install.
+        <RefusalCard title={t('studio:hostedApps.refusal.savedHere.title', 'Saved from this database')} onBack={() => setStep('database')}>
+          {sentence(
+            'studio:hostedApps.refusal.savedHere.body',
+            'This file was saved from {database} on this server. Installing it there would run every automation twice. Pick another database, or try it on a test server.',
+            { database: <MonoText className="font-semibold text-fg">{connectionName}</MonoText> },
+          )}
+        </RefusalCard>
+      ) : null}
+
+      {checking && !install.isPending && stopped === null && plan !== null && hasTables(plan) && !refusedHere ? (
         <div className="flex flex-col gap-4">
-          <PlanAlerts plan={plan} appName={staged?.name ?? ''} connections={connections} />
+          {plan.madeAt === undefined && integrityOf === '' ? null : (
+            <>
+              {quick || plan.madeAt === undefined ? null : (
+                <div>
+                  <h2 className="text-[16.5px] font-extrabold leading-[normal] tracking-[-0.02em]">
+                    {t('studio:hostedApps.review.title', 'Check before you install')}
+                  </h2>
+                  <p className="mt-1 text-[13px] leading-[1.5] text-fg-muted">
+                    {sentence('studio:hostedApps.review.intro', '{app} goes into {database}. Nothing changes until you press Install.', {
+                      database: <MonoText>{connectionName}</MonoText>,
+                    }, { app: appName })}
+                  </p>
+                </div>
+              )}
+              <WhereItCameFrom
+                name={appName}
+                version={staged?.version ?? plan.version}
+                madeAt={plan.madeAt}
+                publisher={staged?.publisher}
+                integrity={integrityOf}
+                fingerprint={fingerprint}
+                onFingerprint={setFingerprint}
+              />
+            </>
+          )}
+          <PlanAlerts plan={plan} appName={staged?.name ?? ''} connections={connections} copies={copyOn} />
           {/* The one dialog leads with what comes with the app; the tables fold while there is nothing to answer about them. */}
           {quick ? cardsOfPlan : null}
+          <PageClashesCard
+            clashes={plan.pageClashes ?? []}
+            answers={pagePicks}
+            busy={busy}
+            onAnswer={onPage}
+            onRenameTo={(page, to) => setPagePicks((pages) => ({ ...pages, [page]: { action: 'rename-existing', to } }))}
+          />
+          {existingTables(plan).length === 0 ? null : (
+            <ExistingTablesCard plan={plan} used={checked.existing === 'use'} busy={busy} onUse={() => onUseExisting(true)} onChange={() => onUseExisting(false)} />
+          )}
           {quick && plan.tables.every((table) => table.class === 'new') && !dirty ? (
             <details data-part="quick-tables" className="rounded-lg border border-border bg-surface">
               <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
@@ -889,7 +1188,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                     Object.entries(picks).filter(([, pick]) => pick !== 'alt-prefix'),
                   );
                   setPicks(nextPicks);
-                  preview.mutate(answersOf(nextPicks, renameTo, prefix, sharePicks));
+                  preview.mutate(answersOf(nextPicks, renameTo, prefix, sharePicks, pagePicks, useExisting));
                 }}
                 busy={busy}
               />
@@ -915,11 +1214,15 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                   Object.entries(picks).filter(([, pick]) => pick !== 'alt-prefix'),
                 );
                 setPicks(nextPicks);
-                preview.mutate(answersOf(nextPicks, renameTo, prefix, sharePicks));
+                preview.mutate(answersOf(nextPicks, renameTo, prefix, sharePicks, pagePicks, useExisting));
               }}
               busy={busy}
             />
           )}
+          <OutsideAddressesCard items={plan.afterInstall} />
+          {plan.instance === undefined ? null : <InstanceCard part={plan.instance} answers={instanceAnswers} onAnswers={setInstanceAnswers} />}
+          {plan.madeAt !== undefined && (staged?.sides.length ?? 0) > 0 ? <ScreensWarning /> : null}
+          <AfterInstallCard items={plan.afterInstall} />
           {quick ? null : cardsOfPlan}
         </div>
       ) : null}
@@ -938,7 +1241,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             </p>
           </div>
 
-          <PlanAlerts plan={plan} appName={staged?.name ?? ''} connections={connections} />
+          <PlanAlerts plan={plan} appName={staged?.name ?? ''} connections={connections} copies={copyOn} />
 
           <div className="flex flex-col gap-3">
             {[
@@ -1020,9 +1323,15 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             </div>
             <div>
               <h2 className="text-[19px] font-extrabold leading-[normal] tracking-[-0.025em]">
-                {t('studio:hostedApps.install.done.titleApp', '{app} is installed', {
-                  app: staged?.name ?? result.key,
-                })}
+                {connectionName === ''
+                  ? t('studio:hostedApps.install.done.titleApp', '{app} is installed', {
+                      app: staged?.name ?? result.key,
+                    })
+                  : t('studio:hostedApps.install.done.titleOn', '{app} {version} is installed on {database}', {
+                      app: staged?.name ?? result.key,
+                      version: result.version,
+                      database: connectionName,
+                    })}
               </h2>
               <p className="mt-1 text-[13px] leading-[1.55] text-fg-muted">
                 {t(
@@ -1061,6 +1370,22 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                   value={result.pages.created.length}
                 />
               )}
+              {outsideRules(plan?.afterInstall).length === 0 ? null : (
+                <DoneRow
+                  icon={<Send aria-hidden className="size-4" />}
+                  label={t('studio:hostedApps.install.done.rulesOff', 'Rules that send data out')}
+                  value={t('studio:hostedApps.install.done.rulesOffValue', '{count}, switched off', { count: outsideRules(plan?.afterInstall).length })}
+                />
+              )}
+              {afterInstallLines(plan?.afterInstall).length === 0 ? null : (
+                <DoneRow
+                  icon={<ListChecks aria-hidden className="size-4" />}
+                  label={t('studio:hostedApps.review.after.title', 'After you install')}
+                  value={t('studio:hostedApps.install.done.toDo', '{count, plural, one {# thing to do} other {# things to do}}', {
+                    count: afterInstallLines(plan?.afterInstall).length,
+                  })}
+                />
+              )}
               {plan?.sampleData === true ? (
                 <DoneRow
                   icon={<Sprout aria-hidden className="size-4" />}
@@ -1077,6 +1402,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             </ul>
           )}
           {result.addOns === undefined ? null : <AddOnsDoneLine done={result.addOns} />}
+          {firstCopy ? <OpenAppPage appKey={result.key} /> : null}
           <DocumentsWaitingNotice waiting={result.documents?.waiting} />
           {sample.error === null ? null : (
             <Alert role="alert" tone="danger" title={t('studio:sampleData.addFailed', 'The sample data was not added')}>
@@ -1160,6 +1486,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             <CircleAlert aria-hidden className="size-3.5 shrink-0" />
             {addOnHint}
           </span>
+        ) : checking && stopped === null && !install.isPending && plan !== null && hold !== null && !dirty ? (
+          <HoldHint id={holdId}>{hold}</HoldHint>
         ) : checking && stopped === null && !install.isPending && plan !== null ? (
           <CheckHint plan={plan} picks={picks} dirty={dirty} />
         ) : (
@@ -1169,10 +1497,11 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                   n: stepIndex + 1,
                   total: STEP_IDS.length,
                 })
-              : t('studio:hostedApps.install.footerStepApp', 'Step {n} of {total} · {app}', {
+              : t('studio:hostedApps.install.footerStepVersion', 'Step {n} of {total} · {app} {version}', {
                   n: stepIndex + 1,
                   total: STEP_IDS.length,
                   app: staged.key,
+                  version: staged.version,
                 })}
           </span>
         )}
@@ -1203,13 +1532,34 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             </Button>
           ) : null}
 
-          {step === 'bundle' && staged !== null && !quick ? (
+          {step === 'bundle' && staged !== null && !quick && route === 'install' ? (
             <Button disabled={busy} onClick={() => setStep('database')}>
               {t('studio:hostedApps.install.continue', 'Continue')}
             </Button>
           ) : null}
 
-          {step === 'bundle' && staged === null ? (
+          {step === 'bundle' && staged !== null && !quick && route === 'update' && remaining.length > 0 && remaining[0] !== undefined ? (
+            <Button disabled={busy} onClick={() => updateNext.mutate(remaining[0]!)}>
+              {updateNext.isPending ? <Spinner size="sm" /> : <ArrowUpCircle aria-hidden className="size-4" />}
+              {remaining.length === copies.length
+                ? t('studio:hostedApps.route.update.button', 'Update every copy ({databases})', { databases: namesList(remaining.map((copy) => copy.connectionName)) })
+                : t('studio:hostedApps.route.update.rest', 'Update the rest ({databases})', { databases: namesList(remaining.map((copy) => copy.connectionName)) })}
+            </Button>
+          ) : null}
+
+          {step === 'bundle' && staged !== null && !quick && ((route === 'update' && remaining.length === 0) || route === 'install-another') && (staged.databasesFree ?? 0) > 0 ? (
+            <Button variant={route === 'update' ? 'secondary' : 'primary'} disabled={busy} onClick={() => setStep('database')}>
+              {route === 'update'
+                ? t('studio:hostedApps.route.update.also', 'Also install on another database')
+                : t('studio:hostedApps.route.another.button', 'Install on another database')}
+            </Button>
+          ) : null}
+
+          {step === 'bundle' && staged !== null && !quick && route === 'update' && remaining.length === 0 ? (
+            <Button onClick={onClose}>{t('studio:hostedApps.install.finish', 'Manage apps')}</Button>
+          ) : null}
+
+          {step === 'bundle' && staged === null && refusal === null ? (
             <Button disabled={busy || file === null} onClick={() => upload.mutate()}>
               {upload.isPending ? <Spinner size="sm" /> : <FileUp aria-hidden className="size-4" />}
               {t('studio:hostedApps.install.upload', 'Upload')}
@@ -1224,6 +1574,9 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                 setPicks({});
                 setRenameTo({});
                 setSharePicks({});
+                setPagePicks({});
+                setUseExisting(false);
+                setInstanceAnswers(NO_INSTANCE_ANSWERS);
                 setPrefix('');
                 setOpenRows({});
                 setAddOnPicks({ ticked: {}, update: {} });
@@ -1242,9 +1595,10 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             </Button>
           ) : null}
 
-          {step === 'plan' && !(checking && (dirty || stopped !== null || install.isPending)) ? (
+          {step === 'plan' && !refusedHere && !(checking && (dirty || stopped !== null || install.isPending)) ? (
             <Button
-              disabled={busy || plan === null || (!plan.installable && !onlyFetchHolds) || (addOnHint !== null && !onlyFetchHolds)}
+              disabled={busy || plan === null || (!plan.installable && !onlyFetchHolds) || (addOnHint !== null && !onlyFetchHolds) || hold !== null}
+              aria-describedby={hold === null ? undefined : holdId}
               onClick={() => (onlyFetchHolds ? void fetchThenInstall() : install.mutate())}
             >
               {install.isPending ? <Spinner size="sm" /> : null}
@@ -1278,25 +1632,32 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
  * left to its card on the check step, where the answer to it is — and so is a
  * required add-on's, to the Add-ons card and the footer's hint.
  */
+/** The problems a review card answers or says itself: a page address to choose for, a table that can't be used, a file saved here. */
+const REVIEW_CARD_PROBLEMS: ReadonlySet<string> = new Set(['PAGE_SLUG_UNANSWERED', 'EXISTING_TABLE_UNUSABLE', 'SAVED_FROM_HERE']);
+
 function PlanAlerts({
   plan,
   appName,
   connections,
+  copies,
 }: {
   plan: AppInstallPlan;
   appName: string;
   connections: readonly { id: string; name: string }[];
+  /** The databases with a copy of the app, and the version each runs. */
+  copies: ReadonlyMap<string, string>;
 }) {
-  const problems = plan.problems.filter((problem) => !isCardProblem(plan, problem) && !isAddOnCardProblem(plan, problem));
-  // The one refusal about where the app already is, said in the reader's language with the connection's name.
+  const problems = plan.problems.filter((problem) => !isCardProblem(plan, problem) && !isAddOnCardProblem(plan, problem) && !(hasTables(plan) && REVIEW_CARD_PROBLEMS.has(problem.code)));
+  // Every copy runs one version: said per database, with the version that copy runs.
   const said = (problem: AppInstallPlan['problems'][number]): string =>
-    problem.code === 'APP_INSTALLED_ELSEWHERE' && problem.connectionId !== undefined
+    problem.code === 'ONE_VERSION_PER_APP' && problem.connectionId !== undefined
       ? t(
-          'studio:hostedApps.install.plan.installedElsewhere',
-          '{app} is already installed on the connection {connection}. An app runs on one connection: update it there, or uninstall it there before installing it on another.',
+          'studio:hostedApps.install.plan.oneVersion',
+          '{database} has {app} {version}, and every copy of an app runs one version. Update the copies first, then install this one here.',
           {
             app: appName === '' ? problem.table : appName,
-            connection: connections.find((connection) => connection.id === problem.connectionId)?.name ?? problem.connectionId,
+            database: connections.find((connection) => connection.id === problem.connectionId)?.name ?? problem.connectionId,
+            version: copies.get(problem.connectionId) ?? '',
           },
         )
       : problem.message;
@@ -1429,5 +1790,121 @@ function DoneRow({ icon, label, value }: { icon: ReactNode; label: string; value
       <span className="flex-1 text-[13px] text-fg-muted">{label}</span>
       <MonoText className="text-[13px] font-bold">{value}</MonoText>
     </li>
+  );
+}
+
+/** "Open the app's page", where its After you install list waits. */
+function OpenAppPage({ appKey }: { appKey: string }) {
+  const router = useRouter({ warn: false }) as ReturnType<typeof useRouter> | null;
+  const href = `/studio/apps/${encodeURIComponent(appKey)}`;
+  return (
+    <a
+      href={href}
+      data-part="open-app-page"
+      className="inline-flex items-center gap-2 self-start rounded-[11px] border border-border-strong bg-surface px-4 py-2.5 text-[13.5px] font-bold hover:border-fg-subtle"
+      onClick={(event) => {
+        if (router === null) return;
+        event.preventDefault();
+        void router.navigate({ to: '/studio/apps/$key', params: { key: appKey } });
+      }}
+    >
+      {t('studio:hostedApps.install.done.openPage', 'Open the app’s page')}
+      <ChevronRight aria-hidden className="size-4 rtl:-scale-x-100" />
+    </a>
+  );
+}
+
+/**
+ * Where an uploaded file goes when its key is installed already: newer than
+ * every copy, it updates each of them; the same version, it goes onto another
+ * database. Built from notes, in the bundle step's own anatomy: the app's
+ * card, then its copies, each with its database and version.
+ */
+export function UploadRoute({
+  staged,
+  route,
+  copies,
+  updatedIds,
+  onBack,
+  busy,
+}: {
+  staged: StagedApp;
+  route: 'update' | 'install-another';
+  copies: readonly StagedInstall[];
+  updatedIds: readonly string[];
+  onBack: () => void;
+  busy: boolean;
+}) {
+  const names = namesList(copies.map((copy) => copy.connectionName));
+  if (route === 'install-another' && (staged.databasesFree ?? 0) === 0) {
+    return (
+      <RefusalCard title={t('studio:hostedApps.refusal.everywhere.title', 'Installed on every database')} onBack={onBack}>
+        {t('studio:hostedApps.refusal.everywhere.body', '{app} {version} is already installed on every database here.', { app: staged.name, version: staged.version })}
+      </RefusalCard>
+    );
+  }
+  const allDone = route === 'update' && copies.every((copy) => updatedIds.includes(copy.installId));
+  return (
+    <div data-part="upload-route" className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-base font-bold tracking-tight">
+          {route === 'update'
+            ? t('studio:hostedApps.route.update.title', 'Update {app} to {version}', { app: staged.name, version: staged.version })
+            : t('studio:hostedApps.route.another.title', 'Install {app} on another database', { app: staged.name })}
+        </h2>
+        <p className="mt-1 text-sm text-fg-muted">
+          {route === 'update'
+            ? t(
+                'studio:hostedApps.route.update.body',
+                'This file is newer than every copy on this server. Every copy runs one version, so each one is updated, with its own review.',
+              )
+            : t('studio:hostedApps.route.another.body', '{app} {version} is installed on {databases}. Each database can have its own copy.', {
+                app: staged.name,
+                version: staged.version,
+                databases: names,
+              })}
+        </p>
+      </div>
+      <Card>
+        <CardBody className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <IconTile>
+              <Package aria-hidden className="size-5" />
+            </IconTile>
+            <span className="flex-1 text-sm font-bold">{staged.name}</span>
+            <MonoText className="text-xs text-fg-muted">{staged.version}</MonoText>
+          </div>
+          <ul className="flex flex-col border-t border-border">
+            {copies.map((copy) => {
+              const done = updatedIds.includes(copy.installId);
+              return (
+                <li key={copy.installId} data-testid={`copy-${copy.connectionName}`} className="flex items-center gap-3 border-b border-border py-2.5 last:border-b-0">
+                  <Database aria-hidden className="size-4 shrink-0 text-fg-subtle" />
+                  <MonoText className="flex-1 text-[13px] font-semibold">{copy.connectionName}</MonoText>
+                  <MonoText className="text-xs text-fg-muted">{done ? staged.version : copy.version}</MonoText>
+                  <Badge tone={route === 'install-another' ? 'neutral' : done ? 'pos' : 'warn'}>
+                    {route === 'install-another'
+                      ? sentence('studio:hostedApps.install.database.installed', 'Installed · {version}', { version: <MonoText>{copy.version}</MonoText> })
+                      : done
+                        ? t('studio:hostedApps.route.update.updated', 'Updated')
+                        : t('studio:hostedApps.route.update.waiting', 'Not updated yet')}
+                  </Badge>
+                </li>
+              );
+            })}
+          </ul>
+        </CardBody>
+      </Card>
+      {allDone ? (
+        <p role="status" className="flex items-center gap-2 text-sm font-semibold text-pos">
+          <Check aria-hidden className="size-4" />
+          {t('studio:hostedApps.route.update.done', '{app} is on {version} on every database.', { app: staged.name, version: staged.version })}
+        </p>
+      ) : null}
+      <Button variant="ghost" size="sm" className="self-start" disabled={busy} onClick={onBack}>
+        <FileUp aria-hidden className="size-4" />
+        {t('studio:hostedApps.install.uploaded.replace', 'Upload a different bundle')}
+      </Button>
+    </div>
   );
 }
