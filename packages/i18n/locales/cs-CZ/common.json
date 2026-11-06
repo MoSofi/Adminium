@@ -2020,6 +2020,33 @@
       "close": "Zavřít"
     }
   },
+  "shownIn": {
+    "label": "Zobrazeno v",
+    "all": "Všechny pracovní prostory",
+    "chosen": "Jen tyto pracovní prostory",
+    "none": "Žádný pracovní prostor",
+    "noneHint": "Není uvedeno v žádném pracovním prostoru. Zaškrtněte některý, aby se tam zobrazilo. Co ho už používá, ho dál odesílá.",
+    "unseen": "{count, plural, one {Zobrazeno také v # pracovním prostoru, který nevidíte.} few {Zobrazeno také v # pracovních prostorech, které nevidíte.} many {Zobrazeno také v # pracovního prostoru, který nevidíte.} other {Zobrazeno také v # pracovních prostorech, které nevidíte.}}",
+    "unseenChip": "{count, plural, one {# další pracovní prostor} few {# další pracovní prostory} many {# dalšího pracovního prostoru} other {# dalších pracovních prostorů}}",
+    "filter": {
+      "label": "Pracovní prostor",
+      "other": "Ostatní databáze"
+    },
+    "hidden": {
+      "here": "Není uvedeno v {workspace}. Co ho používá, ho dál odesílá.",
+      "other": "Zde není uvedeno. Co ho používá, ho dál odesílá."
+    },
+    "kind": {
+      "emailTemplate": "E-mailová šablona",
+      "report": "Rozvržení sestavy",
+      "invoice": "Rozvržení faktury"
+    },
+    "deletePlan": {
+      "lead": "{count, plural, one {# položka je uvedena jen zde. Po smazání nebude uvedena v žádném pracovním prostoru:} few {# položky jsou uvedeny jen zde. Po smazání nebudou uvedeny v žádném pracovním prostoru:} many {# položky je uvedeno jen zde. Po smazání nebude uvedeno v žádném pracovním prostoru:} other {# položek je uvedeno jen zde. Po smazání nebudou uvedeny v žádném pracovním prostoru:}}",
+      "after": "Zůstanou zachovány a co je používá, je dál odesílá. Nové pracovní prostory pro ně můžete vybrat později."
+    },
+    "saveFailed": "Nepodařilo se změnit, kde je uvedeno"
+  },
   "workspaces": {
     "other": "Ostatní databáze",
     "filter": {

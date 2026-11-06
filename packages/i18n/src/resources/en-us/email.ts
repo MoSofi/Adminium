@@ -976,5 +976,20 @@ export default {
     "limitEmail": "One e-mail address was given on {form} as many times as it may be in a day.",
     "limitEntry": "The table {form} adds to took as many new rows from strangers as its app allows.",
     "limitBody": "It opens again at {time}. Raise the limit or use a harder check in the form’s Limits."
+  },
+  "sendAs": {
+    "label": "Send as",
+    "server": "The server",
+    "serverFrom": "The server · {from}",
+    "byRecord": "By the record’s workspace",
+    "workspaceFrom": "{workspace} · {from}",
+    "workspaceNoSender": "{workspace} · no sender yet",
+    "helper": {
+      "byRecord": "Mail about a record goes from the sender of the workspace its database is in.",
+      "server": "Every mail of this template goes from the server’s sender.",
+      "noSender": "{workspace} has no sender of its own yet, so this template goes from the server’s sender.",
+      "workspace": "Every mail of this template goes from {workspace}’s sender, whatever its record."
+    },
+    "failed": "This could not be saved. Try again."
   }
 } as const;

@@ -169,10 +169,16 @@ export function workspacesRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 0 ? null : findById(id);
     },
 
-    /** Delete a workspace: its databases stay, its memberships and links go (cascade). */
+    /**
+     * Delete a workspace: its databases stay, its memberships and links go
+     * (cascade), and the email templates that sent as it go back to "by the
+     * record" (their "Send as" names it with no foreign key, wave 0080).
+     */
     async remove(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_workspaces').where('id', '=', id).executeTakeFirst();
-      return affected(res.numDeletedRows) === 1;
+      if (affected(res.numDeletedRows) !== 1) return false;
+      await db.updateTable('adminium_email_templates').set({ sendAs: null }).where('sendAs', '=', id).execute();
+      return true;
     },
 
     /**
@@ -252,6 +258,28 @@ export function workspacesRepo(meta: MetaDb) {
         await db.insertInto('adminium_item_workspaces').values({ kind, itemId, workspaceId }).execute();
       }
       return true;
+    },
+
+    /** Every chosen workspace of every item of one kind, by item id (each list sorted). One read for a whole list. */
+    async linksOfKind(kind: ShownInKind): Promise<Map<string, string[]>> {
+      const rows = await db.selectFrom('adminium_item_workspaces').select(['itemId', 'workspaceId']).where('kind', '=', kind).execute();
+      const out = new Map<string, string[]>();
+      for (const row of rows) out.set(row.itemId, [...(out.get(row.itemId) ?? []), row.workspaceId]);
+      for (const list of out.values()) list.sort();
+      return out;
+    },
+
+    /** The items of one kind chosen for one workspace (an item shown in all is not among them). */
+    async chosenIn(kind: ShownInKind, workspaceId: string): Promise<Set<string>> {
+      const rows = await db.selectFrom('adminium_item_workspaces').select('itemId').where('kind', '=', kind).where('workspaceId', '=', workspaceId).execute();
+      return new Set(rows.map((row) => row.itemId));
+    },
+
+    /** Those of `ids` that name a workspace, in the order given, once each. */
+    async existing(ids: readonly string[]): Promise<string[]> {
+      if (ids.length === 0) return [];
+      const known = new Set((await db.selectFrom('adminium_workspaces').select('id').where('id', 'in', [...new Set(ids)]).execute()).map((row) => row.id));
+      return [...new Set(ids)].filter((id) => known.has(id));
     },
 
     /** The item went: its link rows go with it (there is no FK to cascade). */

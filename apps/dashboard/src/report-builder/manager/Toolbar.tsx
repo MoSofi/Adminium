@@ -10,6 +10,7 @@
 import { SearchInput, SegmentedControl, TabsList, TabsTrigger } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
+import { WorkspaceFilter } from '../../shown-in/ShownIn.js';
 import type { ReportCounts, ReportDocumentKind } from '../api.js';
 import { reportIcon } from '../icons.js';
 import type { ManagerLayout } from './useManagerPrefs.js';
@@ -21,6 +22,8 @@ export interface ToolbarProps {
   onSearchChange: (value: string) => void;
   layout: ManagerLayout;
   onLayoutChange: (layout: ManagerLayout) => void;
+  /** The Workspace filter (All in one menu, with workspaces on the server); null draws none. */
+  workspaceFilter?: { value: string; onChange: (next: string) => void } | null | undefined;
 }
 
 /** `Search {templates|reports}…` (comp 157, `tabPlural` 580). */
@@ -28,7 +31,7 @@ export function searchPlaceholder(tab: ReportDocumentKind): string {
   return tab === 'template' ? t('reportBuilder:manager.search.templates', 'Search templates…') : t('reportBuilder:manager.search.reports', 'Search reports…');
 }
 
-export function Toolbar({ tab, counts, search, onSearchChange, layout, onLayoutChange }: ToolbarProps) {
+export function Toolbar({ tab, counts, search, onSearchChange, layout, onLayoutChange, workspaceFilter = null }: ToolbarProps) {
   const TemplatesGlyph = reportIcon('layout-template');
   const ReportsGlyph = reportIcon('files');
   const GalleryGlyph = reportIcon('layout-grid');
@@ -45,8 +48,13 @@ export function Toolbar({ tab, counts, search, onSearchChange, layout, onLayoutC
           {t('reportBuilder:manager.tabs.reports', 'Reports')}
         </TabsTrigger>
       </TabsList>
+      {workspaceFilter === null ? null : (
+        <div className="ms-auto">
+          <WorkspaceFilter value={workspaceFilter.value} onChange={workspaceFilter.onChange} />
+        </div>
+      )}
       <SearchInput
-        className="ms-auto w-60 max-w-[44vw]"
+        className={workspaceFilter === null ? 'ms-auto w-60 max-w-[44vw]' : 'w-60 max-w-[44vw]'}
         placeholder={searchPlaceholder(tab)}
         aria-label={searchPlaceholder(tab)}
         value={search}

@@ -59,6 +59,8 @@ export interface SaveChoices {
   name: string;
   version: string;
   description?: string;
+  /** The app's icon, a lucide icon name. */
+  icon?: string;
   /** Where it was made, shown on the target ("Made at <label>"). Never a hostname. */
   label: string;
   /** The lineage drawn at the first save of this dashboard, else drawn now. */

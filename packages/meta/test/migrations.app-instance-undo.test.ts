@@ -30,7 +30,7 @@ for (const dialect of TEST_DIALECTS) {
     it('upgrades a store with an install, and keeps the first value replaced', async () => {
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: PRE_0079 });
       const installed = await manifestsRepo(t.meta, crypto).install(SHOP, T0);
-      expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS })).applied).toEqual(['0079_app_instance_undo']);
+      expect((await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS })).applied).toEqual(ALL_MIGRATIONS.filter((m) => m.name >= '0079_app_instance_undo').map((m) => m.name));
 
       const repo = appInstanceUndoRepo(t.meta);
       expect(await repo.list(installed.row.id)).toEqual([]);

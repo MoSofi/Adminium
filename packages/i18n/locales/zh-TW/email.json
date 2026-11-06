@@ -966,5 +966,20 @@
     "limitEmail": "同一電子郵件地址在 {form} 中填寫的次數已達到一天的上限。",
     "limitEntry": "{form} 寫入的資料表已收到其應用程式允許的訪客新列數上限。",
     "limitBody": "將於 {time} 重新開放。請在表單的「限制」中提高上限或使用更嚴格的驗證。"
+  },
+  "sendAs": {
+    "label": "寄件身分",
+    "server": "伺服器",
+    "serverFrom": "伺服器 · {from}",
+    "byRecord": "依記錄所在的工作區",
+    "workspaceFrom": "{workspace} · {from}",
+    "workspaceNoSender": "{workspace} · 尚無寄件者",
+    "helper": {
+      "byRecord": "與記錄相關的郵件，以其資料庫所在工作區的寄件者寄出。",
+      "server": "此範本的每封郵件都以伺服器的寄件者寄出。",
+      "noSender": "{workspace} 尚無自己的寄件者，因此此範本以伺服器的寄件者寄出。",
+      "workspace": "無論是哪筆記錄，此範本的每封郵件都以 {workspace} 的寄件者寄出。"
+    },
+    "failed": "無法儲存。請再試一次。"
   }
 }

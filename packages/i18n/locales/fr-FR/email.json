@@ -966,5 +966,20 @@
     "limitEmail": "Une adresse e-mail a été donnée dans {form} autant de fois qu’il est permis en une journée.",
     "limitEntry": "La table qu’alimente {form} a reçu autant de nouvelles lignes de visiteurs que son app l’autorise.",
     "limitBody": "Il rouvre à {time}. Augmentez la limite ou utilisez une vérification plus stricte dans les Limites du formulaire."
+  },
+  "sendAs": {
+    "label": "Envoyer en tant que",
+    "server": "Le serveur",
+    "serverFrom": "Le serveur · {from}",
+    "byRecord": "Selon l’espace de travail de l’enregistrement",
+    "workspaceFrom": "{workspace} · {from}",
+    "workspaceNoSender": "{workspace} · pas encore d’expéditeur",
+    "helper": {
+      "byRecord": "Un e-mail concernant un enregistrement part de l’expéditeur de l’espace de travail qui contient sa base de données.",
+      "server": "Chaque e-mail de ce modèle part de l’expéditeur du serveur.",
+      "noSender": "{workspace} n’a pas encore son propre expéditeur : ce modèle part donc de l’expéditeur du serveur.",
+      "workspace": "Chaque e-mail de ce modèle part de l’expéditeur de {workspace}, quel que soit l’enregistrement."
+    },
+    "failed": "Impossible d’enregistrer ce choix. Réessayez."
   }
 }

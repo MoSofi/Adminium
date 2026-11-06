@@ -29,6 +29,7 @@ import {
   jobsRepo,
   permissionsRepo,
   overridesRepo,
+  workspacesRepo,
 } from '@adminium/meta';
 
 import { automationsRoutes } from '../src/routes/automations/index.js';
@@ -685,6 +686,32 @@ describe('42 — the automations routes', () => {
       (table) => table.id === 'main.users',
     );
     expect(editorUsers?.canUpdate).toBe(false);
+  });
+
+  it('offers in one workspace only the templates shown there, and a rule naming a hidden one still saves', async () => {
+    const here = await workspacesRepo(t.meta).create({ name: 'Here', connectionIds: [connectionId] });
+    const elsewhere = await workspacesRepo(t.meta).create({ name: 'Elsewhere' });
+    const welcome = await emailTemplatesRepo(t.meta).findByKeyLocale('welcome', 'en_US');
+    await workspacesRepo(t.meta).setShownIn('email-template', welcome!.id, [elsewhere.id]);
+    type Sources = { templates: { key: string; shownIn: unknown }[]; hiddenTemplates: { key: string; shownIn: unknown }[] };
+
+    const whole = (await get('/automations/sources')).json() as Sources;
+    expect(whole.templates.find((row) => row.key === 'welcome')?.shownIn).toEqual({ mode: 'chosen', workspaceIds: [elsewhere.id] });
+    expect(whole.hiddenTemplates).toEqual([]);
+    const narrowed = await get(`/automations/sources?workspaceId=${here.id}`);
+    expect(narrowed.statusCode, narrowed.body).toBe(200);
+    const body = narrowed.json() as Sources;
+    // ⊆, and the hidden key is named so a step that holds it reads it as hidden here.
+    for (const row of body.templates) expect(whole.templates.map((one) => one.key)).toContain(row.key);
+    expect(body.templates.map((row) => row.key)).not.toContain('welcome');
+    expect(body.hiddenTemplates).toEqual([expect.objectContaining({ key: 'welcome', shownIn: { mode: 'chosen', workspaceIds: [elsewhere.id] } })]);
+    expect(((await get(`/automations/sources?workspaceId=${elsewhere.id}`)).json() as Sources).templates.map((row) => row.key)).toContain('welcome');
+    expect((await get('/automations/sources?workspaceId=wsp_absent')).statusCode).toBe(404);
+
+    // Sending is never narrowed: the rule is saved, whole and live.
+    const saved = await post('/automations', { name: 'Welcome', connectionId, trigger: TRIGGER(connectionId), graph: completeGraph(), enabled: true });
+    expect(saved.statusCode, saved.body).toBe(201);
+    expect(saved.json()).toMatchObject({ enabled: true, valid: true });
   });
 
   it('still offers sources when a table is hidden — an installed app’s sample ledger is', async () => {

@@ -5,6 +5,7 @@
  * which is the TRIGGER's connection and nothing else (`runner.ts`
  * `openSource`).
  */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -393,5 +394,45 @@ describe('ActionSettings — a notice an app tells in several languages', () => 
     // A step written here carries no other language, and says nothing of it.
     renderSettings({ kind: 'notification', to: { roles: [] }, title: 'Hello', body: null });
     expect(screen.queryByTestId('notif-languages')).toBeNull();
+  });
+});
+
+describe('ActionSettings — a template not listed in the tab’s workspace', () => {
+  const HIDDEN: Sources = {
+    ...SOURCES,
+    templates: [{ key: 'ready', name: 'Order ready', placeholders: [], ownedByApp: false, shownIn: { mode: 'all', workspaceIds: [] } }],
+    hiddenTemplates: [{ key: 'firing', name: 'Firing done', placeholders: [], ownedByApp: false, shownIn: { mode: 'chosen', workspaceIds: ['wsp_ks'] } }],
+  };
+
+  function renderWith(action: Action) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
+    queryClient.setQueryData(['bootstrap'], {
+      workspaces: { workspaces: [{ id: 'wsp_ks', name: 'Kiln Street Pottery', initials: 'KS', position: 0, connectionIds: [] }], otherDatabases: null, workspaceView: 'all', lastWorkspaceId: null, manage: true },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ActionSettings action={action} sources={HIDDEN} table={null} connectionId="cnx_1" onChange={vi.fn()} />
+      </QueryClientProvider>,
+    );
+  }
+
+  it('keeps the one a step names, says it still sends, and offers only the listed ones besides', async () => {
+    renderWith({ kind: 'email', templateKey: 'firing', to: null } as Action);
+    await screen.findByTestId('shown-in-hidden-note');
+    const select = screen.getByTestId('email-template') as HTMLSelectElement;
+    expect(select.value).toBe('firing');
+    expect([...select.options].map((option) => option.textContent)).toEqual(['Template', 'Order ready', 'Firing done']);
+    expect(screen.getByTestId('shown-in-hidden-note').textContent).toContain('Anything that uses it still sends it.');
+    expect(within(screen.getByTestId('shown-in-hidden-note')).getByTestId('workspace-chip').textContent).toBe('KSKiln Street Pottery');
+  });
+
+  it('offers no hidden one to a step that names none, and the digest’s select keeps its own the same way', async () => {
+    renderWith({ kind: 'email', templateKey: null, to: null } as Action);
+    expect([...(screen.getByTestId('email-template') as HTMLSelectElement).options].map((option) => option.textContent)).toEqual(['Template', 'Order ready']);
+    expect(screen.queryByTestId('shown-in-hidden-note')).toBeNull();
+    cleanup();
+    renderWith({ kind: 'digest', templateKey: 'firing', to: { roles: [] }, sections: [], sendEmpty: false } as Action);
+    expect(await screen.findByTestId('shown-in-hidden-note')).toBeTruthy();
+    expect((screen.getByTestId('digest-template') as HTMLSelectElement).value).toBe('firing');
   });
 });

@@ -182,8 +182,12 @@ describe.each(ENGINES)('pages saved into an app on %s', (dialect, available) => 
     const first = await convertToApp(saveSource(s, dialect), choices());
     // Somebody's own view is the person's choice; nothing is written for it until they make it.
     const asked = first.check.filter((item) => item.group === 'choice');
-    expect(asked).toEqual([expect.objectContaining({ code: 'PERSONAL_VIEW', kind: 'view', answer: { choices: ['make-shared', 'leave-out'], target: s.personalViewId } })]);
+    expect(asked).toEqual([expect.objectContaining({ code: 'PERSONAL_VIEW', kind: 'view', answer: { choices: ['make-shared', 'leave-out'], target: s.personalViewId, targets: { 'leave-out': `view:${s.personalViewId}` } } })]);
     expect(JSON.stringify(pageOf(first.manifest, 'orders').views)).not.toContain('Mine');
+    // Its leave-out, recorded as the item says, answers it.
+    const left = await convertToApp(saveSource(s, dialect), choices({ leaveOut: [`view:${s.personalViewId}`] }));
+    expect(left.check.filter((item) => item.group === 'choice')).toEqual([]);
+    expect(JSON.stringify(pageOf(left.manifest, 'orders').views)).not.toContain('Mine');
 
     const saved = await convertToApp(saveSource(s, dialect), choices({ shareViews: [s.personalViewId] }));
     expect(saved.check.filter((item) => item.group === 'choice')).toEqual([]);

@@ -41,7 +41,7 @@ type Row = Record<string, unknown>;
 export const MAX_SAMPLE_ROWS = 5000;
 
 /** Names a secret is usually kept under. */
-const SECRET_NAME = /(password|passwd|secret|token|api_?key|private_key|credential|salt|hash(ed)?_)/i;
+export const SECRET_NAME = /(password|passwd|secret|token|api_?key|private_key|credential|salt|hash(ed)?_)/i;
 
 
 /** A source that can be read for rows. */

@@ -7,10 +7,18 @@
  * leaves its databases where they are; deleting a database takes it out of
  * every workspace. Every change is audited and publishes `config-changed`,
  * so every open dashboard redraws its menu without a reload.
+ *
+ * A workspace may have a sender of its own (`PUT /workspaces/:id/sender`):
+ * the mail about its databases' records then goes as it (`email/workspace-
+ * sender.ts`). Its From must be an address the server's mail settings can
+ * send for; `GET /workspaces/sender-domains` says which.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { settingsRepo, workspacesRepo, WorkspaceNameTaken, type MetaDb, type Workspace } from '@adminium/meta';
 
+import { audited } from '../../audit/coverage.js';
+import { replyToOf } from '../../email/send.js';
+import { maySendFrom, sendingDomains } from '../../email/workspace-sender.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
   connectionWorkspacesBody,
@@ -24,6 +32,8 @@ import {
   workspaceListReply,
   workspaceOrderBody,
   workspaceRenameBody,
+  workspaceSenderBody,
+  workspaceSenderDomainsReply,
   type WorkspaceDto,
 } from './schema.js';
 
@@ -44,10 +54,15 @@ function dto(workspace: Workspace): WorkspaceDto {
   };
 }
 
-/** The name an item of a "Shown in" kind is listed by. */
-async function itemName(meta: MetaDb, kind: 'email-template' | 'report' | 'invoice', itemId: string): Promise<string> {
-  const table = kind === 'email-template' ? 'adminium_email_templates' : kind === 'report' ? 'adminium_report_documents' : 'adminium_invoice_documents';
-  return (await meta.db.selectFrom(table).select('name').where('id', '=', itemId).executeTakeFirst())?.name ?? itemId;
+/** The name an item of a "Shown in" kind is listed by, and an email template's key; null when the item is gone. */
+async function itemOf(meta: MetaDb, kind: 'email-template' | 'report' | 'invoice', itemId: string): Promise<{ name: string; family: string } | null> {
+  if (kind === 'email-template') {
+    const row = await meta.db.selectFrom('adminium_email_templates').select(['name', 'key']).where('id', '=', itemId).executeTakeFirst();
+    return row === undefined ? null : { name: row.name, family: `email-template:${row.key}` };
+  }
+  const table = kind === 'report' ? 'adminium_report_documents' : 'adminium_invoice_documents';
+  const row = await meta.db.selectFrom(table).select('name').where('id', '=', itemId).executeTakeFirst();
+  return row === undefined ? null : { name: row.name, family: `${kind}:${itemId}` };
 }
 
 export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -125,7 +140,14 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
   const deletePlan = async (id: string) => {
     const workspace = await mustFind(id);
     const shownOnlyIn = [];
-    for (const item of await workspaces.onlyIn(id)) shownOnlyIn.push({ ...item, name: await itemName(meta, item.kind, item.itemId) });
+    // An email template is chosen as a family (every language of its key): it is listed once.
+    const families = new Set<string>();
+    for (const item of await workspaces.onlyIn(id)) {
+      const found = await itemOf(meta, item.kind, item.itemId);
+      if (found === null || families.has(found.family)) continue;
+      families.add(found.family);
+      shownOnlyIn.push({ ...item, name: found.name });
+    }
     return { workspace: dto(workspace), connectionIds: workspace.connectionIds, shownOnlyIn, last: (await workspaces.count()) === 1 };
   };
 
@@ -143,6 +165,53 @@ export const workspacesRoutes: FastifyPluginAsyncZod = async (app) => {
     await changed(at);
     return { deleted: true as const, shownOnlyIn: plan.shownOnlyIn, last: plan.last };
   });
+
+  // ── the workspace's sender ─────────────────────────────────────────────────
+  app.get('/workspaces/sender-domains', { ...guarded, schema: { response: { 200: workspaceSenderDomainsReply } } }, async () => sendingDomains(meta));
+
+  app.put(
+    '/workspaces/:id/sender',
+    { ...guarded, config: { audit: audited('rbac') }, schema: { params: workspaceIdParams, body: workspaceSenderBody, response: { 200: workspaceCreateReply.shape.workspace } } },
+    async (request) => {
+      const before = await mustFind(request.params.id);
+      const from = request.body.from.trim().toLowerCase();
+      const sending = await sendingDomains(meta);
+      if (!maySendFrom(from, sending)) {
+        const accepted = [...sending.domains, ...sending.addresses.filter((address) => !sending.domains.some((domain) => address.endsWith(`@${domain}`)))];
+        throw new ValidationFailedError(
+          accepted.length === 0
+            ? 'This server has no sender yet. Set up e-mail in Settings first.'
+            : `This server can only send from ${accepted.join(', ')}. Use an address there.`,
+          { field: 'from', code: accepted.length === 0 ? 'no-mail' : 'not-a-sending-domain', domains: sending.domains, addresses: sending.addresses },
+        );
+      }
+      const typed = request.body.replyTo?.trim() ?? '';
+      const replyTo = typed === '' ? null : replyToOf(typed);
+      if (typed !== '' && replyTo === null) throw new ValidationFailedError('Enter one e-mail address, such as hello@example.com.', { field: 'replyTo', code: 'not-an-address' });
+      const blank = (value: string | null | undefined) => (value === null || value === undefined || value.trim() === '' ? null : value.trim());
+      const sender = { name: blank(request.body.name), from, replyTo, postal: blank(request.body.postal) };
+      const at = app.rbac.now();
+      const after = (await workspaces.setSender(before.id, sender, at))!;
+      await app.rbac.audit(request, { category: 'connection', action: 'workspace.sender', changes: { before: { workspaceId: before.id, sender: before.sender }, after: { sender } } });
+      await changed(at);
+      return dto(after);
+    },
+  );
+
+  app.delete(
+    '/workspaces/:id/sender',
+    { ...guarded, config: { audit: audited('rbac') }, schema: { params: workspaceIdParams, response: { 200: workspaceCreateReply.shape.workspace } } },
+    async (request) => {
+      const before = await mustFind(request.params.id);
+      const none = { name: null, from: null, replyTo: null, postal: null };
+      if (before.sender.from === null && before.sender.name === null && before.sender.replyTo === null && before.sender.postal === null) return dto(before);
+      const at = app.rbac.now();
+      const after = (await workspaces.setSender(before.id, none, at))!;
+      await app.rbac.audit(request, { category: 'connection', action: 'workspace.sender.clear', changes: { before: { workspaceId: before.id, sender: before.sender } } });
+      await changed(at);
+      return dto(after);
+    },
+  );
 
   app.put(
     '/connections/:id/workspaces',

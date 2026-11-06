@@ -14,7 +14,7 @@
  */
 import { infiniteQueryOptions, queryOptions, type QueryClient } from '@tanstack/react-query';
 
-import { automationsApi, type RunsQuery } from './api.js';
+import { automationsApi, type RunsQuery, type SourceTemplate, type Sources } from './api.js';
 import { RUNNING_STATUSES } from './model/vocabulary.js';
 
 export const AUTOMATIONS_KEY = ['automations'] as const;
@@ -37,10 +37,10 @@ export function rulesStatsQuery() {
   });
 }
 
-export function sourcesQuery() {
+export function sourcesQuery(workspaceId?: string) {
   return queryOptions({
-    queryKey: [...AUTOMATIONS_KEY, 'sources'] as const,
-    queryFn: () => automationsApi.sources(),
+    queryKey: [...AUTOMATIONS_KEY, 'sources', workspaceId ?? null] as const,
+    queryFn: () => automationsApi.sources(workspaceId),
     // The schema behind a rule does not move minute to minute, and every
     // select on the page reads this one payload.
     staleTime: 5 * 60_000,
@@ -93,4 +93,16 @@ export async function invalidateRules(queryClient: QueryClient): Promise<void> {
 /** The Refresh button (Workflow Logs 66) — list, detail and KPIs together. */
 export async function invalidateRuns(queryClient: QueryClient): Promise<void> {
   await queryClient.invalidateQueries({ queryKey: RUNS_KEY });
+}
+
+/**
+ * The template selects' cut, made on the client as well: "Other databases"
+ * is no workspace the server knows, so there the keys listed in a workspace
+ * of their own move to `hiddenTemplates` here. With a workspace the server
+ * has cut already, and this changes nothing.
+ */
+export function cutTemplates(sources: Sources, keeps: (shownIn: SourceTemplate['shownIn']) => boolean): Sources {
+  const kept = sources.templates.filter((row) => keeps(row.shownIn));
+  if (kept.length === sources.templates.length) return sources;
+  return { ...sources, templates: kept, hiddenTemplates: [...(sources.hiddenTemplates ?? []), ...sources.templates.filter((row) => !keeps(row.shownIn))] };
 }

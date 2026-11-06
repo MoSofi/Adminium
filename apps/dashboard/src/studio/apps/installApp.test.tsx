@@ -173,7 +173,6 @@ async function reachPlan(user: ReturnType<typeof userEvent.setup>) {
   await user.upload(await screen.findByLabelText(/Bundle file/i), file);
   // The operator's own hash — the path where the check is real end to end, and
   // the one that does not need WebCrypto in the test environment.
-  await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
   await user.click(screen.getByRole('button', { name: 'Upload' }));
 
   await screen.findByText(/Install into which database/i);
@@ -195,7 +194,7 @@ describe('the install wizard', () => {
     expect(calls.some((call) => call.url === '/api/v1/apps/install')).toBe(false);
 
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
 
     const install = calls.find((call) => call.url === '/api/v1/apps/install');
     expect(install?.body).toEqual({ key: 'clinic', version: '1.0.0', connectionId: CONNECTION.id });
@@ -226,10 +225,10 @@ describe('the install wizard', () => {
     expect(installs[0]?.body).toMatchObject({ planChecksum: 'a'.repeat(64) });
     // The stale check was replaced by a fresh one, and nothing installed.
     expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(2);
-    expect(screen.queryByText('Clinic Desk is installed')).toBeNull();
+    expect(screen.queryByText(/^Clinic Desk \S+ is installed on /)).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
   });
 
   it('names a reused table missing columns on the check step, and does not offer Install', async () => {
@@ -254,7 +253,7 @@ describe('the install wizard', () => {
     expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(true);
   });
 
-  it('says an app was made on this install, on the step an upload lands on', async () => {
+  it('says an app was made on this install, once its plan says it was not saved elsewhere', async () => {
     uploadReply = {
       status: 200,
       body: { key: 'clinic', version: '0.1.1', name: 'Clinic Desk', files: 3, integrity: 'sha512-x', sides: [], publisher: { id: 'local', name: 'Local' } },
@@ -264,7 +263,11 @@ describe('the install wizard', () => {
     await user.upload(await screen.findByLabelText(/Bundle file/i), new File(['x'], 'repairs.tgz', { type: 'application/gzip' }));
     await user.click(screen.getByRole('button', { name: 'Upload' }));
     await screen.findByText(/Install into which database/i);
-    expect(screen.getByText(/Made on this install\. It does not come from adminium\.dev/)).toBeTruthy();
+    // Not before the plan: a file saved on another server is not "made on this install".
+    expect(screen.queryByText(/Made on this install/)).toBeNull();
+    await user.click(screen.getByRole('radio', { name: /Practice/i }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText(/Made on this install\. It does not come from adminium\.dev/)).toBeTruthy();
   });
 
   it('asks only for the file, and installs the app the bundle says it is', async () => {
@@ -290,7 +293,6 @@ describe('the install wizard', () => {
       screen.getByLabelText(/Bundle file/i),
       new File(['pretend-tarball'], 'download.tgz', { type: 'application/gzip' }),
     );
-    await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
     expect(screen.getByRole('button', { name: 'Upload' }).hasAttribute('disabled')).toBe(false);
     await user.click(screen.getByRole('button', { name: 'Upload' }));
 
@@ -301,13 +303,13 @@ describe('the install wizard', () => {
       .map((args) => String(args[0]))
       .find((url) => url.startsWith('/api/v1/apps/upload'));
     expect([...new URL(raw!, 'http://x').searchParams.keys()]).toEqual(['expectedSha512']);
-    expect(screen.getByText('Step 2 of 4 · clinic')).toBeTruthy();
+    expect(screen.getByText('Step 2 of 4 · clinic 0.1.1')).toBeTruthy();
 
     await user.click(screen.getByRole('radio', { name: /Practice/i }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await screen.findByText(/Review the schema plan/i);
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
 
     const identity = { key: 'clinic', version: '0.1.1', connectionId: CONNECTION.id };
     expect(calls.find((call) => call.url === '/api/v1/apps/plan')?.body).toEqual(identity);
@@ -331,7 +333,6 @@ describe('the install wizard', () => {
       await screen.findByLabelText(/Bundle file/i),
       new File(['x'], 'photos.tgz', { type: 'application/gzip' }),
     );
-    await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
     await user.click(screen.getByRole('button', { name: 'Upload' }));
 
     await screen.findByText(/not an app bundle/i);
@@ -347,7 +348,6 @@ describe('the install wizard', () => {
       await screen.findByLabelText(/Bundle file/i),
       new File(['x'], 'clinic-1.0.0.tgz', { type: 'application/gzip' }),
     );
-    await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
     await user.click(screen.getByRole('button', { name: 'Upload' }));
     await screen.findByText(/Install into which database/i);
 
@@ -365,8 +365,7 @@ describe('the install wizard', () => {
     await user.click(screen.getByRole('button', { name: 'Back' }));
     await user.click(await screen.findByRole('button', { name: /Upload a different bundle/i }));
     expect(screen.getByLabelText(/Bundle file/i)).toBeTruthy();
-    // The old pasted hash described the old file; it does not carry over.
-    expect((screen.getByLabelText(/Integrity/i) as HTMLInputElement).value).toBe('');
+    // A new file starts the upload again.
     expect(screen.getByRole('button', { name: 'Upload' }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByText('Step 1 of 4')).toBeTruthy();
   });
@@ -394,7 +393,6 @@ describe('the install wizard', () => {
 
     const file = new File(['pretend-tarball'], 'clinic-1.0.0.tgz', { type: 'application/gzip' });
     await user.upload(await screen.findByLabelText(/Bundle file/i), file);
-    await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
     expect(client.getQueryState(APPS_QUERY_KEY)?.isInvalidated).toBe(false);
     await user.click(screen.getByRole('button', { name: 'Upload' }));
     await screen.findByText(/Install into which database/i);
@@ -405,18 +403,15 @@ describe('the install wizard', () => {
     });
   });
 
-  it('sends the operator’s own integrity value rather than one it computed', async () => {
+  it('hashes the file it sends: the upload asks for nothing but the file', async () => {
     const user = userEvent.setup();
     renderWizard();
     await reachPlan(user);
-    const upload = calls.find((call) => call.url === '/api/v1/apps/upload');
-    expect(upload).toBeTruthy();
-    // The query carries it; the recorded url is stripped of its query, so the
-    // raw call is re-read from the mock's own argument list.
+    // The upload carries the browser's own sha512 of the file, in SRI form.
     const raw = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls
       .map((args) => String(args[0]))
       .find((url) => url.startsWith('/api/v1/apps/upload'));
-    expect(raw).toContain(encodeURIComponent('sha512-abc='));
+    expect(new URL(raw!, 'http://x').searchParams.get('expectedSha512')).toMatch(/^sha512-[A-Za-z0-9+/]+={0,2}$/);
   });
 
   it('shows a connection as a choice before one is made (G1)', async () => {
@@ -425,7 +420,6 @@ describe('the install wizard', () => {
     // Reach the database step without selecting anything.
     const file = new File(['x'], 'clinic-1.0.0.tgz', { type: 'application/gzip' });
     await user.upload(await screen.findByLabelText(/Bundle file/i), file);
-    await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
     await user.click(screen.getByRole('button', { name: 'Upload' }));
     await screen.findByText(/Install into which database/i);
 
@@ -450,7 +444,7 @@ describe('the install wizard', () => {
     expect(screen.getByText('Step 1 of 4')).toBeTruthy();
 
     await reachPlan(user);
-    expect(screen.getByText('Step 3 of 4 · clinic')).toBeTruthy();
+    expect(screen.getByText('Step 3 of 4 · clinic 1.0.0')).toBeTruthy();
 
     // G5 — the summary pill carries the comp's diff glyph.
     const summary = document.querySelector('[data-part="plan-summary"]');
@@ -521,22 +515,30 @@ describe('the install wizard', () => {
     expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(true);
   });
 
-  it('names the connection an app is already installed on, and does not offer Install', async () => {
+  it('says per database which version another copy runs, and does not offer Install', async () => {
     moreConnections = [{ id: 'con_2', name: 'Old books', engine: 'mysql', readOnly: true, tableCount: 4 }];
+    installed = {
+      apps: [{ key: 'clinic', version: '0.9.0', source: 'file', installedAt: 0, connectionId: 'con_2', sides: [], missing: false }],
+      staged: [],
+    };
     plan = {
       ...plan,
       installable: false,
       create: [],
-      problems: [{ code: 'APP_INSTALLED_ELSEWHERE', table: 'clinic', connectionId: 'con_2', message: 'server words' }],
+      problems: [{ code: 'ONE_VERSION_PER_APP', table: 'clinic', connectionId: 'con_2', message: 'server words' }],
     };
+    const client = createQueryClient();
+    client.setQueryData(APPS_QUERY_KEY, installed);
     const user = userEvent.setup();
-    renderWizard();
+    render(
+      <QueryClientProvider client={client}>
+        <InstallAppWizard onClose={() => {}} />
+      </QueryClientProvider>,
+    );
     await reachPlan(user);
 
     expect(
-      screen.getByText(
-        'Clinic Desk is already installed on the connection Old books. An app runs on one connection: update it there, or uninstall it there before installing it on another.',
-      ),
+      screen.getByText('Old books has Clinic Desk 0.9.0, and every copy of an app runs one version. Update the copies first, then install this one here.'),
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(true);
   });
@@ -603,7 +605,6 @@ function checkPlan(taken: Record<string, unknown> = {}): Record<string, unknown>
 async function reachCheck(user: ReturnType<typeof userEvent.setup>) {
   const file = new File(['pretend-tarball'], 'clinic-1.0.0.tgz', { type: 'application/gzip' });
   await user.upload(await screen.findByLabelText(/Bundle file/i), file);
-  await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
   await user.click(screen.getByRole('button', { name: 'Upload' }));
   await screen.findByText(/Install into which database/i);
   await user.click(screen.getByRole('radio', { name: /Practice/i }));
@@ -709,7 +710,7 @@ describe('the table check', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
     const install = calls.find((call) => call.url === '/api/v1/apps/install');
     // The answers the check was made with, and that check's checksum.
     expect(install?.body).toMatchObject({
@@ -820,7 +821,7 @@ describe('the table check', () => {
     expect(screen.queryByText('Install failed')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
     const installs = calls.filter((call) => call.url === '/api/v1/apps/install');
     expect(installs).toHaveLength(2);
     expect(installs[1]?.body).toEqual(installs[0]?.body);
@@ -875,7 +876,7 @@ describe('the table check', () => {
     renderWizard();
     await reachCheck(user);
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
     const summary = document.querySelector('[data-part="done-summary"]');
     expect(summary?.textContent).toContain('Tables created in Practice2');
     expect(summary?.textContent).toContain('Tables used as they were1');
@@ -972,7 +973,7 @@ describe('sample data at install', () => {
     const box = within(screen.getByTestId('install-sample-data')).getByRole('checkbox');
     expect(box.getAttribute('aria-checked')).toBe('false');
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
     expect(summary()).toContain('Sample datanot added');
     expect(calls.some((call) => call.url === '/api/v1/apps/clinic/sample-data')).toBe(false);
   });
@@ -984,7 +985,7 @@ describe('sample data at install', () => {
     await reachCheck(user);
     await user.click(within(screen.getByTestId('install-sample-data')).getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
     await waitFor(() => expect(summary()).toContain('Sample dataadded'));
     const order = calls.map((call) => `${call.method} ${call.url}`);
     // The app first; its sample data can only go into tables that exist.
@@ -1053,7 +1054,7 @@ describe('public access at install', () => {
     ]);
     expect(within(card).getByRole('checkbox').getAttribute('aria-checked')).toBe('true');
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
     expect(sent()).toBe(true);
   });
 
@@ -1097,7 +1098,7 @@ describe('public access at install', () => {
     await reachCheck(user);
     await user.click(within(screen.getByTestId('install-public-access')).getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
     expect(sent()).toBe(false);
   });
 
@@ -1112,7 +1113,7 @@ describe('public access at install', () => {
     expect(box.hasAttribute('disabled')).toBe(true);
     expect(card.textContent).toContain('Only someone who may manage API keys can allow it');
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
     expect(sent()).toBe(false);
   });
 
@@ -1123,7 +1124,7 @@ describe('public access at install', () => {
     await reachCheck(user);
     expect(screen.queryByTestId('install-public-access')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Clinic Desk is installed');
+    await screen.findByText(/^Clinic Desk \S+ is installed on /);
     expect(sent()).toBeUndefined();
   });
 });
@@ -1490,7 +1491,7 @@ describe('the app shelf (47 step 4b)', () => {
     // the bundled package is already on disk, so there is nothing to upload.
     await screen.findByText('Install Clinic Desk');
     expect(screen.queryByLabelText(/Bundle file/i)).toBeNull();
-    expect(screen.getByText('Step 1 of 4 · clinic')).toBeTruthy();
+    expect(screen.getByText('Step 1 of 4 · clinic 1.0.0')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy();
     // Nothing was unpacked here, so no file count is announced — never "0".
     expect(screen.queryByText(/Files unpacked/)).toBeNull();

@@ -101,7 +101,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/add-ons/*` | 36 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
-| `/api/v1/apps/*` | 36 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
+| `/api/v1/apps/*` | 42 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, uninstall, and upload, review and install a workspace file (several apps in one), finishing a stopped one with Install the rest |
 | `/api/v1/assistant/*` | 13 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
@@ -118,7 +118,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/email-audience/*` | 8 | A campaign to the people of a table — the tables you may send to, their saved views, the first send’s review of people ticked before records were kept, the owner’s switch for existing customers, and a table’s e-mail settings (whether campaigns may mail it, its address and name columns) |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
 | `/api/v1/email-runs/*` | 7 | Campaign sends — cancel a scheduled or running run |
-| `/api/v1/email-templates/*` | 17 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
+| `/api/v1/email-templates/*` | 19 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
 | `/api/v1/events` | 1 | Server-sent events — the fallback when a WebSocket cannot be established |
 | `/api/v1/exports/*` | 7 | Queued exports of a whole result set, and their downloads |
 | `/api/v1/files/*` | 12 | Uploaded files and record attachments — upload, list, download (with Range and ETag), attach to a record, rename, move to trash and restore |
@@ -161,7 +161,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/users/*` | 11 | People on the server — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
 | `/api/v1/words` | 1 | What staff are told of the rows a screen shows, in an add-on's stock words — in, low or out for up to sixty rows of a table named as it is stored, and for a caller who reads the add-on's stock tables the figure behind the word: the exact count, the batch and its expiry, the line that runs out first, and whether stock or the day's portions bind |
-| `/api/v1/workspaces/*` | 6 | Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be in several workspaces or in none, and deleting a workspace leaves its databases where they are |
+| `/api/v1/workspaces/*` | 12 | Workspaces: named groups of the server’s databases, kept by whoever manages connections. A database may be in several workspaces or in none, and deleting a workspace leaves its databases where they are. Save workspace makes one app per database and downloads them as one file |
 
 <!-- END GENERATED: groups -->
 
@@ -248,6 +248,11 @@ DELETE /api/v1/api-keys/{id}
 
 ```http
 POST /api/v1/apps/{key}/documents/render
+POST /api/v1/apps/upload-workspace
+GET /api/v1/apps/workspace-files
+GET /api/v1/apps/workspace/{id}/install
+POST /api/v1/apps/workspace/{id}/install
+DELETE /api/v1/apps/workspace/{id}/install
 GET /api/v1/apps
 POST /api/v1/apps/upload
 GET /api/v1/apps/catalog
@@ -281,6 +286,7 @@ DELETE /api/v1/apps/staged/{key}/{version}
 DELETE /api/v1/apps/{key}
 POST /api/v1/apps/save/plan
 POST /api/v1/apps/save
+GET /api/v1/apps/save/inventory
 GET /api/v1/apps/saves
 GET /api/v1/apps/save/{id}/file
 ```
@@ -526,6 +532,8 @@ GET /api/v1/email-templates/{id}
 PUT /api/v1/email-templates/{id}
 PATCH /api/v1/email-templates/{id}
 DELETE /api/v1/email-templates/{id}
+GET /api/v1/email-templates/send-as-options
+PUT /api/v1/email-templates/{id}/send-as
 POST /api/v1/email-templates/{id}/duplicate
 POST /api/v1/email-templates/{id}/languages
 POST /api/v1/email-templates/{id}/from-template
@@ -1066,12 +1074,18 @@ GET /api/v1/words/{addOn}/{wordsId}
 ### `/workspaces`
 
 ```http
+POST /api/v1/workspaces/{id}/save/plan
+POST /api/v1/workspaces/{id}/save
+GET /api/v1/workspaces/save/{id}/file
 GET /api/v1/workspaces
 POST /api/v1/workspaces
 PATCH /api/v1/workspaces/{id}
 DELETE /api/v1/workspaces/{id}
 PUT /api/v1/workspaces/order
 GET /api/v1/workspaces/{id}/delete-plan
+GET /api/v1/workspaces/sender-domains
+PUT /api/v1/workspaces/{id}/sender
+DELETE /api/v1/workspaces/{id}/sender
 ```
 
 <!-- END GENERATED: operations -->

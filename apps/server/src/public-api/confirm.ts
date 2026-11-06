@@ -48,6 +48,8 @@ export interface ConfirmInput {
   timezone: string;
   /** The installed app the key belongs to, whose guest side the link leads to. */
   appKey: string | null;
+  /** The database the booking is in: the confirmation goes as its workspace's sender. Absent, the server's. */
+  connectionId?: string | null | undefined;
 }
 
 const text = (value: unknown) => (value === null || value === undefined ? '' : String(value));
@@ -115,6 +117,8 @@ export async function sendConfirmation(input: ConfirmInput): Promise<boolean> {
         to,
         templateKey: BOOKING_CONFIRMATION_TEMPLATE_KEY,
         locale,
+        // Mail about the booking: as the sender of the workspace its database is in.
+        ...(input.connectionId === undefined ? {} : { about: { connectionId: input.connectionId } }),
         vars: {
           appName: text(await settingsRepo(input.meta).get('branding.appName')),
           venue: venue?.name === undefined ? '' : text(settings[venue.name]),

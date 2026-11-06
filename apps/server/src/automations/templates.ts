@@ -66,6 +66,9 @@ export interface TemplateFamily {
   backed: string[];
   /** An app shipped it, and that app's own sender is what fills it. */
   ownedByApp: boolean;
+  /** The row that stands for the family, and its "Shown in" mode (every language of a key is shown alike). */
+  faceId: string;
+  shownIn: 'all' | 'chosen';
 }
 
 const usable = (row: EmailTemplate): boolean => row.enabled && row.archivedAt === null;
@@ -96,7 +99,7 @@ export async function templateFamilies(meta: MetaDb): Promise<{ live: TemplateFa
     const named = family.find((row) => row.locale === 'en_US') ?? shown;
     const needed = new Set(templateRequiredPlaceholders(shown));
     const reads = templatePlaceholders(shown);
-    live.push({ key, name: named.name, placeholders: reads, backed: reads.filter((name) => !needed.has(name)), ownedByApp: shown.managedBy !== null });
+    live.push({ key, name: named.name, placeholders: reads, backed: reads.filter((name) => !needed.has(name)), ownedByApp: shown.managedBy !== null, faceId: shown.id, shownIn: shown.shownIn });
   }
   return { live, off };
 }

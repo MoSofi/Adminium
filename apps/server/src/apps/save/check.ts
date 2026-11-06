@@ -18,6 +18,9 @@
 
 export type CheckGroup = 'choice' | 'after' | 'info';
 
+/** An answer and the `SaveChoices` list it is recorded in: `carryAsText`, `leaveOut`, `shareViews`, `clear`, `keep`. */
+export type CheckAnswerChoice = 'carry-as-text' | 'leave-out' | 'make-shared' | 'clear' | 'keep';
+
 export interface CheckItem {
   group: CheckGroup;
   /** A stable code the wizard words and groups by: `TYPE_NO_FORM`, `PERSONAL_VIEW`, `SECRET_FOUND`… */
@@ -34,7 +37,12 @@ export interface CheckItem {
    * (`carryAsText`, `shareViews`, `clear`, `leaveOut`…), and the value that
    * records it there (`<tableId>.<column>`, a view id, `<kind>:<item>:<field>`).
    */
-  answer?: { choices: readonly ('carry-as-text' | 'leave-out' | 'make-shared' | 'clear' | 'keep')[]; target: string };
+  answer?: {
+    choices: readonly CheckAnswerChoice[];
+    target: string;
+    /** Where one choice records another value than `target` (a leave-out names the whole entry): that choice records this. */
+    targets?: Partial<Record<CheckAnswerChoice, string>>;
+  };
   /** For `after`: the after-install kind the install records (`webhook`, `address`, `sender`, `system-grant`…). */
   afterKind?: string;
 }

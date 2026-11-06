@@ -73,6 +73,9 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'pages/PageMasterDetailBinding.tsx': [],
   // A people table's e-mail consent on the record page: the panel, its words and the dashboard's dialogs for it.
   'consent/RecordConsentPanel.tsx': ['consent/ConsentPanel.tsx', 'consent/consentDialogs.tsx', 'consent/consentWords.ts'],
+  // "Shown in" (`shownIn`): each piece waits for its words wherever a lazy screen draws it (email, reports, rules, a workspace's delete).
+  'shown-in/ShownIn.tsx': [],
+  'shown-in/ShownInField.tsx': [],
   'pages/dashboard-builder/DashboardBuilder.tsx': [
     'pages/dashboard-builder/BuilderGrid.tsx',
     'pages/dashboard-builder/ConfigInspector.tsx',

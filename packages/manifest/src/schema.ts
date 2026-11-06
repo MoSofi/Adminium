@@ -58,7 +58,7 @@ import {
   type TableIndex,
 } from './refs.js';
 import { compareSemver, parseSemverRange } from './semver.js';
-import { pageEnvelopeFieldSchema, pageViewsSchema, provenanceSchema, savedAppIssues } from './saved-apps.js';
+import { appIconSchema, pageEnvelopeFieldSchema, pageViewsSchema, provenanceSchema, savedAppIssues } from './saved-apps.js';
 import { appsBlockSchema, requiredAppIssues } from './app-requires.js';
 import { instanceIssues, instanceSchema } from './instance.js';
 import { assistantIssues, type AssistantTableShape } from './assistant.js';
@@ -3992,6 +3992,8 @@ export const appManifestSchema = z
     people: peopleSchema.optional(),
     /** Where a self-made app was saved (see `saved-apps.ts`). */
     provenance: provenanceSchema.optional(),
+    /** A self-made app's icon, a lucide name (see `saved-apps.ts`). */
+    icon: appIconSchema.optional(),
     /** The other apps a self-made app needs on its database (see `app-requires.ts`). */
     apps: appsBlockSchema.optional(),
     /** A self-made app's part that is the whole deployment's: its look, languages, wording and system emails (see `instance.ts`). */
