@@ -97,7 +97,6 @@ const GROUP_KEYS: ReadonlyMap<string, string> = new Map<string, string>([
   ['studio:hub.workspaces.deleted', 'the groups of databases: the menu, its lists and the Workspaces card'],
   ['studio:hub.workspaces.rename.title', 'the groups of databases: the menu, its lists and the Workspaces card'],
   ['studio:hub.workspaces.delete.body', 'the groups of databases: the menu, its lists and the Workspaces card'],
-  ['studio:hub.workspaces.delete.shownOnlyIn', 'the groups of databases: the menu, its lists and the Workspaces card'],
   ['studio:hub.workspaces.delete.last', 'the groups of databases: the menu, its lists and the Workspaces card'],
   ['studio:hub.workspaces.connection.title', 'the groups of databases: the menu, its lists and the Workspaces card'],
   ['studio:hub.workspaces.connection.newInline', 'the groups of databases: the menu, its lists and the Workspaces card'],
@@ -127,6 +126,7 @@ const GROUP_KEYS: ReadonlyMap<string, string> = new Map<string, string>([
   ['common:shownIn.deletePlan.lead', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
   ['common:shownIn.hidden.here', '"Shown in": a picked template not listed in the tab’s workspace, named by `{workspace}`'],
   ['common:shownIn.deletePlan.after', '"Shown in": where an email template, a report layout or an invoice layout is listed'],
+  ['studio:hostedApps.installed.emptyHere', 'Hosted apps in One at a time: the apps on the tab’s workspace’s databases'],
 ]);
 
 /** Repo-relative path prefixes whose every "workspace" is the group. */

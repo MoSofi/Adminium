@@ -854,6 +854,7 @@
       "install": "安裝應用程式",
       "emptyTitle": "尚未安裝任何應用程式",
       "emptyBody": "上傳已建置的介面包即可安裝。在這裡安裝的應用程式會立即提供服務——與指向目錄的做法不同，不需重新啟動。",
+      "emptyHere": "此工作區的資料庫上未安裝任何應用程式",
       "uninstall": "解除安裝",
       "stagedTitle": "已上傳但未安裝",
       "stagedHint": "捨棄你決定不用的那一個，或再次上傳相同識別碼以取代它。",
@@ -1256,15 +1257,9 @@
         "title": "重新命名工作區",
         "save": "重新命名"
       },
-      "kind": {
-        "emailTemplate": "電子郵件範本",
-        "report": "報表版面",
-        "invoice": "發票版面"
-      },
       "delete": {
         "title": "刪除 {name}？",
         "body": "其資料庫會保留，只是離開此工作區。",
-        "shownOnlyIn": "以下內容僅在此工作區顯示。刪除後將不再在任何工作區顯示：",
         "last": "這是最後一個工作區：所有人的選單將恢復為一個清單。",
         "confirm": "刪除"
       },
@@ -1279,6 +1274,7 @@
       "moved": "{name} 已移到第 {position} 位，共 {total} 位。",
       "move": "移動 {name}。拖曳或使用方向鍵。",
       "otherLock": "始終排在最後，無法重新命名或刪除。",
+      "sender": "寄件者",
       "empty": {
         "title": "尚無工作區",
         "body": "在建立工作區之前，所有人的選單會把所有資料庫的頁面列在一起。"
@@ -5446,6 +5442,7 @@
       "key": "鍵",
       "lastSaved": "上次儲存 {version}",
       "moreChoices": "更多選項",
+      "choicesTitle": "{database} 的更多選項",
       "name": "名稱",
       "needChoice": "{count, plural, other {# 項需要做出選擇}}",
       "noneIncluded": "至少勾選一個資料庫。",
@@ -5461,6 +5458,7 @@
       "title": "將 {workspace} 儲存為一個檔案",
       "tooBig": "此工作區檔案將超過 {size}。請拿掉一個資料庫或其範例列後重試。",
       "useMoreChoices": "在應用程式上使用「更多選項」來做出選擇。",
+      "useChoices": "使用這些選項",
       "version": "版本"
     },
     "saved": {

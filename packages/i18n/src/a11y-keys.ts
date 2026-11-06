@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3747 entries. */
+/** `namespace:key` — 3746 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -2205,6 +2205,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hostedApps.install.steps.done',
   'studio:hostedApps.install.steps.plan',
   'studio:hostedApps.installed.discardFailed',
+  'studio:hostedApps.installed.emptyHere',
   'studio:hostedApps.installed.emptyTitle',
   'studio:hostedApps.installed.renamed',
   'studio:hostedApps.instances.appLabel',
@@ -2301,9 +2302,6 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hub.workspaces.empty.title',
   'studio:hub.workspaces.error.deleteFailed',
   'studio:hub.workspaces.error.saveFailed',
-  'studio:hub.workspaces.kind.emailTemplate',
-  'studio:hub.workspaces.kind.invoice',
-  'studio:hub.workspaces.kind.report',
   'studio:hub.workspaces.move',
   'studio:hub.workspaces.new.first',
   'studio:hub.workspaces.new.name',
@@ -3175,6 +3173,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:workspaceFiles.install.steps.done',
   'studio:workspaceFiles.install.steps.review',
   'studio:workspaceFiles.refusal.title',
+  'studio:workspaceFiles.save.choicesTitle',
   'studio:workspaceFiles.save.include',
   'studio:workspaceFiles.save.title',
   'studio:workspaceFiles.saved.copyApp',

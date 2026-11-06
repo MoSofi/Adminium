@@ -864,6 +864,7 @@ export default {
       "install": "Nainstalovat aplikaci",
       "emptyTitle": "Zatím není nainstalována žádná aplikace",
       "emptyBody": "Nahrajte sestavený balíček rozhraní a nainstalujte ji. Aplikace nainstalované zde se servírují okamžitě — bez restartu, na rozdíl od adresáře.",
+      "emptyHere": "Na databázích tohoto pracovního prostoru není nainstalována žádná aplikace",
       "uninstall": "Odinstalovat",
       "stagedTitle": "Nahráno, ale nenainstalováno",
       "stagedHint": "Zahoďte ten, který jste zavrhli, nebo nahrajte stejný klíč znovu a nahraďte jej.",
@@ -1266,15 +1267,9 @@ export default {
         "title": "Přejmenovat pracovní prostor",
         "save": "Přejmenovat"
       },
-      "kind": {
-        "emailTemplate": "E-mailová šablona",
-        "report": "Rozvržení sestavy",
-        "invoice": "Rozvržení faktury"
-      },
       "delete": {
         "title": "Smazat {name}?",
         "body": "Jeho databáze zůstanou. Jen z tohoto prostoru odejdou.",
-        "shownOnlyIn": "Tyto položky se zobrazují jen v tomto prostoru. Po smazání se nezobrazí nikde:",
         "last": "Je to poslední pracovní prostor: nabídka všech se vrátí k jednomu seznamu.",
         "confirm": "Smazat"
       },
@@ -1289,6 +1284,7 @@ export default {
       "moved": "{name} přesunut na {position}. místo z {total}.",
       "move": "Přesunout {name}. Přetáhněte, nebo použijte šipky.",
       "otherLock": "Vždy poslední. Nelze přejmenovat ani smazat.",
+      "sender": "Odesílatel",
       "empty": {
         "title": "Zatím žádné pracovní prostory",
         "body": "Dokud žádný není, nabídka všech ukazuje stránky všech databází pohromadě."
@@ -5456,6 +5452,7 @@ export default {
       "key": "Klíč",
       "lastSaved": "Naposledy uloženo {version}",
       "moreChoices": "Další volby",
+      "choicesTitle": "Další volby pro {database}",
       "name": "Název",
       "needChoice": "{count, plural, one {# věc vyžaduje volbu} few {# věci vyžadují volbu} many {# věci vyžaduje volbu} other {# věcí vyžaduje volbu}}",
       "noneIncluded": "Zaškrtněte alespoň jednu databázi.",
@@ -5471,6 +5468,7 @@ export default {
       "title": "Uložit {workspace} jako jeden soubor",
       "tooBig": "Tento soubor pracovního prostoru by byl větší než {size}. Vynechejte databázi nebo její ukázkové řádky a zkuste to znovu.",
       "useMoreChoices": "Volby aplikace proveďte přes Další volby.",
+      "useChoices": "Použít tyto volby",
       "version": "Verze"
     },
     "saved": {

@@ -864,6 +864,7 @@ export default {
       "install": "Installér en app",
       "emptyTitle": "Ingen apps installeret endnu",
       "emptyBody": "Upload en bygget fladepakke for at installere en. Apps installeret her serveres med det samme — uden genstart, i modsætning til en mappe.",
+      "emptyHere": "Ingen app er installeret på dette arbejdsområdes databaser",
       "uninstall": "Afinstallér",
       "stagedTitle": "Uploadet, men ikke installeret",
       "stagedHint": "Kassér den, du har fravalgt, eller upload den samme nøgle igen for at erstatte den.",
@@ -1266,15 +1267,9 @@ export default {
         "title": "Omdøb arbejdsområde",
         "save": "Omdøb"
       },
-      "kind": {
-        "emailTemplate": "E-mailskabelon",
-        "report": "Rapportlayout",
-        "invoice": "Fakturalayout"
-      },
       "delete": {
         "title": "Slet {name}?",
         "body": "Dets databaser bliver. De forlader bare dette arbejdsområde.",
-        "shownOnlyIn": "Disse vises kun i dette arbejdsområde. Efter sletningen vises de ingen steder:",
         "last": "Det er det sidste arbejdsområde: alles menu bliver igen én liste.",
         "confirm": "Slet"
       },
@@ -1289,6 +1284,7 @@ export default {
       "moved": "{name} flyttet til {position} af {total}.",
       "move": "Flyt {name}. Træk, eller brug piletasterne.",
       "otherLock": "Altid sidst. Kan ikke omdøbes eller slettes.",
+      "sender": "Afsender",
       "empty": {
         "title": "Ingen arbejdsområder endnu",
         "body": "Indtil der er ét, viser alles menu siderne fra alle databaser samlet."
@@ -5456,6 +5452,7 @@ export default {
       "key": "Nøgle",
       "lastSaved": "Sidst gemt {version}",
       "moreChoices": "Flere valg",
+      "choicesTitle": "Flere valg for {database}",
       "name": "Navn",
       "needChoice": "{count, plural, one {# ting kræver et valg} other {# ting kræver et valg}}",
       "noneIncluded": "Sæt flueben ved mindst én database.",
@@ -5471,6 +5468,7 @@ export default {
       "title": "Gem {workspace} som én fil",
       "tooBig": "Denne arbejdsområdefil ville blive større end {size}. Udelad en database eller dens eksempelrækker, og prøv igen.",
       "useMoreChoices": "Brug Flere valg på en app for at træffe dens valg.",
+      "useChoices": "Brug disse valg",
       "version": "Version"
     },
     "saved": {

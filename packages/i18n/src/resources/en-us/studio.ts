@@ -864,6 +864,7 @@ export default {
       "install": "Install an app",
       "emptyTitle": "No apps installed yet",
       "emptyBody": "Upload a built surface bundle to install one. Apps installed here are served immediately — no restart, unlike a directory you point at.",
+      "emptyHere": "No app is installed on this workspace’s databases",
       "uninstall": "Uninstall",
       "stagedTitle": "Uploaded but not installed",
       "stagedHint": "Discard one you decided against, or upload the same key again to replace it.",
@@ -1266,15 +1267,9 @@ export default {
         "title": "Rename workspace",
         "save": "Rename"
       },
-      "kind": {
-        "emailTemplate": "Email template",
-        "report": "Report layout",
-        "invoice": "Invoice layout"
-      },
       "delete": {
         "title": "Delete {name}?",
         "body": "Its databases stay. They leave this workspace.",
-        "shownOnlyIn": "These are shown in this workspace alone. After the delete they are shown in none:",
         "last": "It is the last workspace: everyone’s menu goes back to one list.",
         "confirm": "Delete"
       },
@@ -1289,6 +1284,7 @@ export default {
       "moved": "{name} moved to {position} of {total}.",
       "move": "Move {name}. Drag, or use the arrow keys.",
       "otherLock": "Always last. It can’t be renamed or deleted.",
+      "sender": "Sender",
       "empty": {
         "title": "No workspaces yet",
         "body": "Until there is one, everyone’s menu lists every database’s pages together."
@@ -5456,6 +5452,7 @@ export default {
       "key": "Key",
       "lastSaved": "Last saved {version}",
       "moreChoices": "More choices",
+      "choicesTitle": "More choices for {database}",
       "name": "Name",
       "needChoice": "{count, plural, one {# thing needs a choice} other {# things need a choice}}",
       "noneIncluded": "Tick at least one database.",
@@ -5471,6 +5468,7 @@ export default {
       "title": "Save {workspace} as one file",
       "tooBig": "This workspace file would be larger than {size}. Leave out a database or its sample rows and try again.",
       "useMoreChoices": "Use More choices on an app to make its choices.",
+      "useChoices": "Use these choices",
       "version": "Version"
     },
     "saved": {

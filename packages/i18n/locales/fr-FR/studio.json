@@ -854,6 +854,7 @@
       "install": "Installer une application",
       "emptyTitle": "Aucune application installée",
       "emptyBody": "Téléversez un paquet de surface compilé pour en installer une. Les applications installées ici sont servies immédiatement — sans redémarrage, contrairement à un dossier.",
+      "emptyHere": "Aucune application n’est installée sur les bases de données de cet espace de travail",
       "uninstall": "Désinstaller",
       "stagedTitle": "Téléversés mais non installés",
       "stagedHint": "Écartez celui que vous avez renoncé à installer, ou téléversez à nouveau la même clé pour le remplacer.",
@@ -1256,15 +1257,9 @@
         "title": "Renommer l’espace de travail",
         "save": "Renommer"
       },
-      "kind": {
-        "emailTemplate": "Modèle d’e-mail",
-        "report": "Mise en page de rapport",
-        "invoice": "Mise en page de facture"
-      },
       "delete": {
         "title": "Supprimer {name} ?",
         "body": "Ses bases de données restent. Elles quittent seulement cet espace de travail.",
-        "shownOnlyIn": "Ces éléments ne s’affichent que dans cet espace. Après la suppression, ils ne s’afficheront nulle part :",
         "last": "C’est le dernier espace de travail : le menu de chacun redevient une seule liste.",
         "confirm": "Supprimer"
       },
@@ -1279,6 +1274,7 @@
       "moved": "{name} déplacé en position {position} sur {total}.",
       "move": "Déplacer {name}. Faites glisser ou utilisez les flèches.",
       "otherLock": "Toujours en dernier. Ne peut être ni renommé ni supprimé.",
+      "sender": "Expéditeur",
       "empty": {
         "title": "Aucun espace de travail pour l’instant",
         "body": "Tant qu’il n’y en a pas, le menu de chacun réunit les pages de toutes les bases."
@@ -5446,6 +5442,7 @@
       "key": "Clé",
       "lastSaved": "Dernier enregistrement {version}",
       "moreChoices": "Plus de choix",
+      "choicesTitle": "Plus de choix pour {database}",
       "name": "Nom",
       "needChoice": "{count, plural, one {# élément demande un choix} other {# éléments demandent un choix}}",
       "noneIncluded": "Cochez au moins une base de données.",
@@ -5461,6 +5458,7 @@
       "title": "Enregistrer {workspace} dans un seul fichier",
       "tooBig": "Ce fichier d’espace de travail dépasserait {size}. Retirez une base de données ou ses lignes d’exemple, puis réessayez.",
       "useMoreChoices": "Utilisez Plus de choix sur une app pour faire ses choix.",
+      "useChoices": "Utiliser ces choix",
       "version": "Version"
     },
     "saved": {

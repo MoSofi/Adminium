@@ -29259,6 +29259,10 @@
     "status": "mt",
     "srcHash": "f4b3f8d9feef"
   },
+  "studio.hostedApps.installed.emptyHere": {
+    "status": "mt",
+    "srcHash": "ada91d369fc3"
+  },
   "studio.hostedApps.installed.emptyTitle": {
     "status": "mt",
     "srcHash": "7210188bc048"
@@ -30435,10 +30439,6 @@
     "status": "mt",
     "srcHash": "96c0745e5c17"
   },
-  "studio.hub.workspaces.delete.shownOnlyIn": {
-    "status": "mt",
-    "srcHash": "4c3b7434b6aa"
-  },
   "studio.hub.workspaces.delete.title": {
     "status": "mt",
     "srcHash": "7fd57c94c8dc"
@@ -30478,18 +30478,6 @@
   "studio.hub.workspaces.error.saveFailed": {
     "status": "mt",
     "srcHash": "6db5172edc83"
-  },
-  "studio.hub.workspaces.kind.emailTemplate": {
-    "status": "mt",
-    "srcHash": "19fce65389ab"
-  },
-  "studio.hub.workspaces.kind.invoice": {
-    "status": "mt",
-    "srcHash": "f73c10e3ef57"
-  },
-  "studio.hub.workspaces.kind.report": {
-    "status": "mt",
-    "srcHash": "dcbe772e5ff6"
   },
   "studio.hub.workspaces.move": {
     "status": "mt",
@@ -30542,6 +30530,10 @@
   "studio.hub.workspaces.reorderFailed": {
     "status": "mt",
     "srcHash": "e421f2540a26"
+  },
+  "studio.hub.workspaces.sender": {
+    "status": "mt",
+    "srcHash": "17b874d28911"
   },
   "studio.hub.workspaces.subtitle": {
     "status": "mt",
@@ -41195,6 +41187,10 @@
     "status": "mt",
     "srcHash": "36256dc95d62"
   },
+  "studio.workspaceFiles.save.choicesTitle": {
+    "status": "mt",
+    "srcHash": "b4ebba5e8405"
+  },
   "studio.workspaceFiles.save.include": {
     "status": "mt",
     "srcHash": "d5bf6f0262dc"
@@ -41262,6 +41258,10 @@
   "studio.workspaceFiles.save.tooBig": {
     "status": "mt",
     "srcHash": "aa3ee1b20466"
+  },
+  "studio.workspaceFiles.save.useChoices": {
+    "status": "mt",
+    "srcHash": "458dfd5b21ef"
   },
   "studio.workspaceFiles.save.useMoreChoices": {
     "status": "mt",

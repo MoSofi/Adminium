@@ -864,6 +864,7 @@ export default {
       "install": "App installieren",
       "emptyTitle": "Noch keine Apps installiert",
       "emptyBody": "Laden Sie ein gebautes Oberflächenpaket hoch, um eine zu installieren. Hier installierte Apps werden sofort ausgeliefert — ohne Neustart, anders als bei einem Verzeichnis.",
+      "emptyHere": "Auf den Datenbanken dieses Arbeitsbereichs ist keine App installiert",
       "uninstall": "Deinstallieren",
       "stagedTitle": "Hochgeladen, aber nicht installiert",
       "stagedHint": "Verwerfen Sie, wogegen Sie sich entschieden haben, oder laden Sie denselben Schlüssel erneut hoch, um ihn zu ersetzen.",
@@ -1266,15 +1267,9 @@ export default {
         "title": "Arbeitsbereich umbenennen",
         "save": "Umbenennen"
       },
-      "kind": {
-        "emailTemplate": "E-Mail-Vorlage",
-        "report": "Berichtslayout",
-        "invoice": "Rechnungslayout"
-      },
       "delete": {
         "title": "{name} löschen?",
         "body": "Seine Datenbanken bleiben. Sie verlassen nur diesen Arbeitsbereich.",
-        "shownOnlyIn": "Diese werden nur in diesem Arbeitsbereich angezeigt. Nach dem Löschen nirgends mehr:",
         "last": "Es ist der letzte Arbeitsbereich: Das Menü aller wird wieder eine Liste.",
         "confirm": "Löschen"
       },
@@ -1289,6 +1284,7 @@ export default {
       "moved": "{name} an Position {position} von {total} verschoben.",
       "move": "{name} verschieben. Ziehen oder Pfeiltasten nutzen.",
       "otherLock": "Immer zuletzt. Lässt sich weder umbenennen noch löschen.",
+      "sender": "Absender",
       "empty": {
         "title": "Noch keine Arbeitsbereiche",
         "body": "Bis es einen gibt, zeigt das Menü aller die Seiten aller Datenbanken zusammen."
@@ -5456,6 +5452,7 @@ export default {
       "key": "Schlüssel",
       "lastSaved": "Zuletzt gespeichert {version}",
       "moreChoices": "Weitere Optionen",
+      "choicesTitle": "Weitere Optionen für {database}",
       "name": "Name",
       "needChoice": "{count, plural, one {# Punkt braucht eine Entscheidung} other {# Punkte brauchen eine Entscheidung}}",
       "noneIncluded": "Haken Sie mindestens eine Datenbank an.",
@@ -5471,6 +5468,7 @@ export default {
       "title": "{workspace} als eine Datei speichern",
       "tooBig": "Diese Arbeitsbereich-Datei wäre größer als {size}. Lassen Sie eine Datenbank oder ihre Beispielzeilen weg und versuchen Sie es erneut.",
       "useMoreChoices": "Nutzen Sie „Weitere Optionen“ bei einer App, um ihre Entscheidungen zu treffen.",
+      "useChoices": "Diese Optionen übernehmen",
       "version": "Version"
     },
     "saved": {
