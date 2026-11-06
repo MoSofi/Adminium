@@ -13,7 +13,7 @@
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
-import { readableTablesOf } from './tools/schema.js';
+import { inTabWorkspace, readableTablesOf } from './tools/schema.js';
 import type { AssistantToolDeps } from './types.js';
 
 /** One connected database, as the page facts count it. */
@@ -29,10 +29,9 @@ export interface ConnectionFacts {
 export async function readableConnections(deps: AssistantToolDeps): Promise<ConnectionFacts[]> {
   const rows = await deps.manager.connections.list();
   const out: ConnectionFacts[] = [];
-  // The tab's workspace, when it has one: its databases only.
-  const inWorkspace = deps.host.workspaceConnectionIds === undefined ? null : new Set(deps.host.workspaceConnectionIds);
+  // The tab's workspace, when it has one: its databases only, however many it holds.
   for (const row of rows) {
-    if (row.disabled || (inWorkspace !== null && !inWorkspace.has(row.id))) continue;
+    if (row.disabled || !inTabWorkspace(deps, row.id)) continue;
     let tables: string[] = [];
     try {
       const view = await loadSnapshotView(deps.meta, row.id);
@@ -67,9 +66,18 @@ export function tablesSummary(connections: readonly ConnectionFacts[]): { tables
  */
 export const PROMPT_TABLES_PER_CONNECTION = 60;
 
-export function connectionsSection(connections: readonly ConnectionFacts[]): string {
-  if (connections.length === 0) return 'No database is connected here.';
-  return connections
+/**
+ * What the prompt says when the tab is on a workspace: the list below is its
+ * databases, not the server's. The model is not told what else exists.
+ */
+export const WORKSPACE_PROMPT_NOTE =
+  'The person is working in one workspace (a group of this server\'s databases). These are its databases, the only ones you work with here. Asked about another database, say it may be in another workspace, which they can switch to in the menu.';
+
+/** `host`: the turn's, so a tab on a workspace says the list is that workspace's. */
+export function connectionsSection(connections: readonly ConnectionFacts[], host?: Pick<AssistantToolDeps['host'], 'workspaceConnectionIds'>): string {
+  const note = host?.workspaceConnectionIds === undefined ? '' : `${WORKSPACE_PROMPT_NOTE}\n`;
+  if (connections.length === 0) return `${note}No database is connected here.`;
+  return note + connections
     .map((connection) => {
       if (connection.tables.length === 0) {
         return `- ${connection.name} (${connection.id}, ${connection.engine}): no tables you may read.`;

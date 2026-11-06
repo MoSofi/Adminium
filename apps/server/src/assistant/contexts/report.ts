@@ -407,7 +407,7 @@ export const reportContext: AssistantContextAdapter = {
         `Documents: ${documentNamesSection(rows.map((row) => row.name))}.`,
         '',
         'Connected databases and the tables this person may read:',
-        connectionsSection(connections),
+        connectionsSection(connections, deps.host),
       ].join('\n'),
     };
   },

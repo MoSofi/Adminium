@@ -29,11 +29,32 @@ export function tableLabel(connectionName: string, tableId: string): string {
   return `${connectionName}.${tableId}`;
 }
 
-/** A connection whose snapshot cannot be loaded is reported, not thrown. `name` is the connection's, for {@link tableLabel}. */
+/** What the assistant is told of a database its tab's workspace does not hold: as if it were not connected. */
+export const OUTSIDE_WORKSPACE = {
+  code: 'NOT_FOUND',
+  message: 'That database is not in this workspace. Call list_connections for the ones here.',
+} as const;
+
+/**
+ * Whether the tab's workspace holds this database. A turn asked with no
+ * workspace works with every database the person reaches, as before
+ * workspaces; one asked in a workspace, with its databases only. It only
+ * narrows: rights are still asked table by table.
+ */
+export function inTabWorkspace(deps: Pick<AssistantToolDeps, 'host'>, connectionId: string): boolean {
+  const held = deps.host.workspaceConnectionIds;
+  return held === undefined || held.includes(connectionId);
+}
+
+/**
+ * A connection whose snapshot cannot be loaded is reported, not thrown. `name` is the connection's, for {@link tableLabel}.
+ * A database outside the tab's workspace is not found: every tool that opens one comes through here.
+ */
 export async function viewOrError(
   deps: AssistantToolDeps,
   connectionId: string,
 ): Promise<{ view: SnapshotView; name: string } | { error: { code: string; message: string } }> {
+  if (!inTabWorkspace(deps, connectionId)) return { error: { ...OUTSIDE_WORKSPACE } };
   const connection = await deps.manager.connections.findById(connectionId);
   if (connection === null) {
     return { error: { code: 'CONNECTION_NOT_FOUND', message: `No connection has the id ${JSON.stringify(connectionId)}.` } };
@@ -71,15 +92,14 @@ export async function readableTablesOf(view: SnapshotView, canRead: CanReadTable
 
 export const listConnectionsTool: AssistantTool = {
   name: 'list_connections',
-  description: 'The connected databases, with how many of their tables you may read.',
+  description: 'The connected databases, with how many of their tables you may read. When the person is working in one workspace (a group of the server\'s databases), only that workspace\'s databases are listed, and only those can be read.',
   args: { type: 'object', properties: {}, additionalProperties: false },
   async run(_args, deps) {
     const rows = await deps.manager.connections.list();
     const connections: { id: string; name: string; engine: string; readableTables: number }[] = [];
-    // The tab's workspace, when it has one: its databases only.
-    const inWorkspace = deps.host.workspaceConnectionIds === undefined ? null : new Set(deps.host.workspaceConnectionIds);
+    // The tab's workspace, when it has one: its databases only, however many it holds.
     for (const row of rows) {
-      if (row.disabled || (inWorkspace !== null && !inWorkspace.has(row.id))) continue;
+      if (row.disabled || !inTabWorkspace(deps, row.id)) continue;
       const resolved = await viewOrError(deps, row.id);
       if ('error' in resolved) {
         connections.push({ id: row.id, name: row.name, engine: row.engine, readableTables: 0 });
@@ -110,10 +130,7 @@ export const describeSchemaTool: AssistantTool = {
     if (connectionId === '') {
       return { error: { code: 'BAD_ARGS', message: 'describe_schema needs a `connectionId`.' } };
     }
-    // Outside the tab's workspace: as if it were not connected.
-    if (deps.host.workspaceConnectionIds !== undefined && !deps.host.workspaceConnectionIds.includes(connectionId)) {
-      return { error: { code: 'NOT_FOUND', message: 'That database is not in this workspace. Call list_connections for the ones here.' } };
-    }
+    // Outside the tab's workspace it is as if it were not connected (`viewOrError` says so).
     const resolved = await viewOrError(deps, connectionId);
     if ('error' in resolved) return { error: resolved.error };
     const view = resolved.view;

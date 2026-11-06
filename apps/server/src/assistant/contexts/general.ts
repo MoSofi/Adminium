@@ -50,7 +50,7 @@ export const generalContext: AssistantContextAdapter = {
       'A question about what they CAN do here ("can I give customers a discount code?") is a question about what this server offers: call list_add_ons before you say it cannot be done.',
       '',
       'The databases you may read:',
-      connectionsSection(connections),
+      connectionsSection(connections, deps.host),
     );
 
     return {
