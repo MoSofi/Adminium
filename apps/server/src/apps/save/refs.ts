@@ -25,10 +25,12 @@
  */
 import { slugify } from '@adminium/engine';
 import type { DatabaseModel, TableModel } from '@adminium/engine';
-import { appTablesRepo, emailTemplatesRepo, optionListsRepo, pagesRepo, permissionsRepo, rolesRepo, type AppTableRecord, type Page, type Role } from '@adminium/meta';
+import { appTablesRepo, emailTemplatesRepo, optionListsRepo, pagesRepo, permissionsRepo, rolesRepo, type Role } from '@adminium/meta';
 
 import { BUILTIN_EMAIL_TEMPLATE_KEYS } from '../../email/builtins.js';
-import type { SaveChoices, SaveSource } from './types.js';
+import type { HeldTable, SaveChoices, SavedTable, SaveRefs, SaveSource } from './types.js';
+
+export type { HeldTable, SavedTable, SaveRefs };
 
 /** Postgres's limit on a page address the manifest accepts (`manifest-pages.ts` `PAGE_SLUG`). */
 const PAGE_REF_MAX = 31;
@@ -39,54 +41,6 @@ const ROLE_SLUG_MAX = 40;
 /** A column ref the manifest accepts: the column travels under its own name only when it is one. */
 const COLUMN_REF = /^[a-z][a-z0-9_]*$/;
 
-export interface SavedTable {
-  /** The model's id (`public.orders`). */
-  id: string;
-  ref: string;
-  model: TableModel;
-  /** The file must carry `name` (the real name differs from the ref). */
-  needsName: boolean;
-  /** The file must carry `schema` (Postgres, not the default schema). */
-  needsSchema: boolean;
-}
-
-export interface HeldTable {
-  id: string;
-  record: AppTableRecord;
-}
-
-export interface SaveRefs {
-  /** The tables that travel, in model order. */
-  tables(): readonly SavedTable[];
-  /** Model table id → ref, or null when the table does not travel. */
-  table(id: string): string | null;
-  /** A real name (`orders`, `sales.orders`) or a model id → ref, or null. A bare name means the default schema. */
-  tableByName(real: string): string | null;
-  /** A table an install holds on this database (an add-on's, a catalog app's), by model id. */
-  heldBy(id: string): HeldTable | null;
-  /**
-   * A column's ref in the file: its own name, when that is a snake_case ref.
-   * Null otherwise: a file names columns by their real name, so a column such
-   * as `orderDate` cannot travel, and the part that meets one says so in Check.
-   */
-  column(tableId: string, name: string): string | null;
-
-  pages(): readonly { page: Page; ref: string }[];
-  page(id: string): string | null;
-
-  roles(): readonly { role: Role; key: string }[];
-  role(id: string): string | null;
-
-  /** An email template key → its name in the file, marking it used; null when no such template may travel. */
-  useTemplate(key: string): string | null;
-  usedTemplates(): readonly { key: string; name: string }[];
-  /** The `<appkey>-<name>` the install will give a template name. */
-  installedTemplateKey(name: string): string;
-
-  /** An option list key → its name in the file, marking it used; null for a built-in list (`builtin:…`) or one an app owns. */
-  useOptionList(key: string): string | null;
-  usedOptionLists(): readonly { key: string; name: string }[];
-}
 
 /** A unique name from a registry: `orders`, `orders_2`, `orders_3`, … */
 function allocator(join: string, max: number) {

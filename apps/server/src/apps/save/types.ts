@@ -14,13 +14,14 @@
  * it could not carry. A part never writes a value it was not told to copy: an
  * allow-list per kind, everything else dropped (the secret rule).
  */
-import type { DatabaseModel } from '@adminium/engine';
+import type { Kysely } from 'kysely';
+import type { DatabaseModel, TableModel } from '@adminium/engine';
 import type { AppManifest } from '@adminium/manifest';
-import type { MetaDb } from '@adminium/meta';
+import type { AppTableRecord, MetaDb, Page, Role } from '@adminium/meta';
+
+import type { SourceDatabase } from '../../connections/manager.js';
 
 import type { CheckList } from './check.js';
-import type { SaveRefs } from './refs.js';
-import type { RowAccess } from './rows.js';
 
 export type SaveDialect = 'postgres' | 'mysql' | 'sqlite';
 
@@ -112,3 +113,59 @@ export interface ConvertContext {
 }
 
 export type ConvertPart = (ctx: ConvertContext) => Promise<ManifestPart>;
+
+/** How the rows part reads the source database and its Files library. */
+export interface RowAccess {
+  db: Kysely<SourceDatabase>;
+  /** A file of the Files library by its id, or null when it is not there. Without it, pictures stay behind. */
+  readFile?: (fileId: string) => Promise<{ bytes: Uint8Array; filename: string; mime: string } | null>;
+}
+
+export interface SavedTable {
+  /** The model's id (`public.orders`). */
+  id: string;
+  ref: string;
+  model: TableModel;
+  /** The file must carry `name` (the real name differs from the ref). */
+  needsName: boolean;
+  /** The file must carry `schema` (Postgres, not the default schema). */
+  needsSchema: boolean;
+}
+
+export interface HeldTable {
+  id: string;
+  record: AppTableRecord;
+}
+
+export interface SaveRefs {
+  /** The tables that travel, in model order. */
+  tables(): readonly SavedTable[];
+  /** Model table id → ref, or null when the table does not travel. */
+  table(id: string): string | null;
+  /** A real name (`orders`, `sales.orders`) or a model id → ref, or null. A bare name means the default schema. */
+  tableByName(real: string): string | null;
+  /** A table an install holds on this database (an add-on's, a catalog app's), by model id. */
+  heldBy(id: string): HeldTable | null;
+  /**
+   * A column's ref in the file: its own name, when that is a snake_case ref.
+   * Null otherwise: a file names columns by their real name, so a column such
+   * as `orderDate` cannot travel, and the part that meets one says so in Check.
+   */
+  column(tableId: string, name: string): string | null;
+
+  pages(): readonly { page: Page; ref: string }[];
+  page(id: string): string | null;
+
+  roles(): readonly { role: Role; key: string }[];
+  role(id: string): string | null;
+
+  /** An email template key → its name in the file, marking it used; null when no such template may travel. */
+  useTemplate(key: string): string | null;
+  usedTemplates(): readonly { key: string; name: string }[];
+  /** The `<appkey>-<name>` the install will give a template name. */
+  installedTemplateKey(name: string): string;
+
+  /** An option list key → its name in the file, marking it used; null for a built-in list (`builtin:…`) or one an app owns. */
+  useOptionList(key: string): string | null;
+  usedOptionLists(): readonly { key: string; name: string }[];
+}

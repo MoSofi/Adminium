@@ -22,43 +22,14 @@
  *     save: the converter wrote a file the target would refuse, which is a bug
  *     to fix, not a choice for the person.
  */
-import type { AppManifest } from '@adminium/manifest';
-
-import type { CheckItem } from '../check.js';
-import type { SaveChoices, SaveSource } from '../types.js';
+import type { GateDeps, GateInput, GateProblem, GateResult } from './types.js';
 import { readContent } from './content.js';
 import { idProblems } from './ids.js';
 import { collectKnownSecrets, scanForSecrets } from './secrets.js';
 import { manifestProblems, planProblems, trialPackProblems } from './validate.js';
 import { secretWarnings } from './warnings.js';
 
-export interface GateInput {
-  manifest: AppManifest;
-  files: ReadonlyMap<string, Uint8Array>;
-  source: SaveSource;
-  choices: SaveChoices;
-}
-
-export interface GateDeps {
-  /** `ADMINIUM_SECRET`: every sealed value on this server is opened with a key derived from it. */
-  masterSecret: string;
-  /** The project's `.env` file, on a project deployment. */
-  projectEnvFile?: string | null;
-}
-
-export interface GateProblem {
-  code: 'MANIFEST_INVALID' | 'PLAN_REFUSED' | 'INSTANCE_ID_LEFT';
-  message: string;
-  /** Where: a manifest path (`pages[2].envelope.config.layout`) or a package file. */
-  path?: string;
-}
-
-export interface GateResult {
-  /** `choice` items the person answers (secret hits, warnings); answered ones are not here. */
-  choices: CheckItem[];
-  /** Hard refusals: the save cannot be written. */
-  problems: GateProblem[];
-}
+export type { GateDeps, GateInput, GateProblem, GateResult };
 
 /**
  * Runs every gate on the converter's result. The choices name places by

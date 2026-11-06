@@ -29,7 +29,7 @@ import { mailCarries, templateProblems } from '../../manifest-outbox.js';
 import { pagePlanProblems } from '../../manifest-page-config.js';
 import { roleIssues } from '../../manifest-roles.js';
 import type { SaveDialect } from '../types.js';
-import type { GateProblem } from './index.js';
+import type { GateProblem } from './types.js';
 
 const MANIFEST_FILE = 'manifest.json';
 

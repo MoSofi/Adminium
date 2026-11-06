@@ -26,13 +26,13 @@ import { createHash } from 'node:crypto';
 
 import { MAX_SEED_ROWS, SAMPLE_FORMAT, takesPicturesOnly, type RequiredColumn } from '@adminium/manifest';
 import { viewsRepo } from '@adminium/meta';
-import type { Kysely } from 'kysely';
 
-import type { SourceDatabase } from '../../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { compileFilter, compileQuickSearch, recordFilterSchema, type RecordFilter } from '../../crud/filters.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
-import type { ConvertContext, ConvertPart, ManifestPart, RowChoice, SaveSource } from './types.js';
+import type { ConvertContext, ConvertPart, ManifestPart, RowChoice, SaveSource, RowAccess } from './types.js';
+
+export type { RowAccess };
 import { planTables, type PlannedTable } from './tables.js';
 
 type Row = Record<string, unknown>;
@@ -43,12 +43,6 @@ export const MAX_SAMPLE_ROWS = 5000;
 /** Names a secret is usually kept under. */
 const SECRET_NAME = /(password|passwd|secret|token|api_?key|private_key|credential|salt|hash(ed)?_)/i;
 
-/** How the rows part reads the source database and its Files library. */
-export interface RowAccess {
-  db: Kysely<SourceDatabase>;
-  /** A file of the Files library by its id, or null when it is not there. Without it, pictures stay behind. */
-  readFile?: (fileId: string) => Promise<{ bytes: Uint8Array; filename: string; mime: string } | null>;
-}
 
 /** A source that can be read for rows. */
 export type RowsSource = SaveSource & { rows?: RowAccess };

@@ -11,7 +11,7 @@
  */
 import { GENERATED_PAGE_ID_SOURCE, ROW_ID_SOURCE } from '../../../project/instance-ids.js';
 import type { GateContent } from './content.js';
-import type { GateProblem } from './index.js';
+import type { GateProblem } from './types.js';
 
 const LEFTOVER = new RegExp(`${ROW_ID_SOURCE}|${GENERATED_PAGE_ID_SOURCE}`);
 

@@ -30,6 +30,7 @@ import { publicEndpointsRepo, publicKeysRepo, publicScopesRepo, rolesRepo, keyEn
 
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { parseDefinition, type PublicEndpointDefinition } from '../../public-api/endpoint.js';
+import { servedToPages, storedKeyKind } from '../../public-api/keys.js';
 import { planPublicEndpoints } from '../manifest-public.js';
 import { mapTableRefs } from '../real-refs.js';
 import type { ConvertContext, ConvertPart } from './types.js';
@@ -293,7 +294,8 @@ export const convertPublicAccess: ConvertPart = async (ctx) => {
   const roles = await rolesRepo(meta).list();
   for (const key of keys) {
     const leftOut = (why: string) => ctx.check.add({ group: 'info', code: 'PUBLIC_KEY_LEFT_OUT', kind: 'public', item: key.name, message: why });
-    if (key.kind !== 'browser') {
+    const kind = storedKeyKind(key.kind);
+    if (kind === null || !servedToPages(kind)) {
       leftOut('A server key is not saved: make one again after installing if it is needed.');
       continue;
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A SELF-MADE APP'S TABLE IN A SCHEMA OF ITS OWN, BESIDE A TWIN OF THE SAME
- * NAME (plan 76 §5.4).
+ * NAME.
  *
  * On Postgres a self-made app keeps `orders`, `jobs` and `extras` in the
  * schema `sales`, while the owner's own `public.orders`, `public.jobs` and
