@@ -376,6 +376,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   // name, a link Adminium does not show and one no foreign key keeps: the app's rules on its tables (apps/manifest-rules.ts).
   'column.hidden',
   'column.yesNo',
+  // A self-made app's column under its own name: created, ruled and read by that name (add-ons/install-ddl.ts, apps/manifest-rules.ts).
+  'column.name',
   'table.exclude',
   'table.switchedOff',
   'relation.label',

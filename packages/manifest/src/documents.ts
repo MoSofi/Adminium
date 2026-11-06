@@ -94,7 +94,7 @@ export type PairSource = z.infer<typeof pairSourceSchema>;
 const nightlySourceSchema = z
   .object({
     nightly: refSchema,
-    columns: z.record(slotId, z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)?$/, 'a night\'s column, or <rate via>.<column>')),
+    columns: z.record(slotId, z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/, 'a night\'s column, or <rate via>.<column>')),
   })
   .strict();
 

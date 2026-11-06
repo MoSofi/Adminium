@@ -19,6 +19,8 @@
  */
 import { z } from 'zod';
 
+import { SNAKE_REF } from './refs.js';
+
 /** The publisher of an app made on an install (`LOCAL_PUBLISHER_ID` in `schema.ts`, which reads this file). */
 const LOCAL_PUBLISHER_ID = 'local';
 
@@ -94,6 +96,7 @@ interface SavedAppShape {
       ref: string;
       name?: string | undefined;
       schema?: string | undefined;
+      columns?: readonly { ref: string }[] | undefined;
       exclude?: true | undefined;
       existingCustomers?: true | undefined;
       switchedOff?: { postings?: readonly string[] | undefined; adjust?: true | undefined } | undefined;
@@ -147,6 +150,30 @@ function tableNameIssues(m: SavedAppShape, local: boolean, onlyLocal: (path: Iss
   return out;
 }
 
+/**
+ * A column's ref is snake_case, except in a self-made app, where a column
+ * keeps the name it has in its own database (`orderDate`, `Order Date`): the
+ * file names it the same way everywhere. Two columns of a table may not differ
+ * by case alone, since MySQL and SQLite read them as one.
+ */
+function columnRefIssues(m: SavedAppShape, local: boolean): Issue[] {
+  const out: Issue[] = [];
+  (m.requiredSchema?.tables ?? []).forEach((table, t) => {
+    const seen = new Map<string, string>();
+    (table.columns ?? []).forEach((column, c) => {
+      const at: Issue['path'] = ['requiredSchema', 'tables', t, 'columns', c, 'ref'];
+      if (!SNAKE_REF.test(column.ref) && (!local || m.kind !== 'app')) {
+        out.push({ path: at, message: `column ref must be a snake_case identifier ("${column.ref}" is a name only a self-made app may keep)` });
+      }
+      const folded = column.ref.toLowerCase();
+      const held = seen.get(folded);
+      if (held !== undefined && held !== column.ref) out.push({ path: at, message: `"${column.ref}" and "${held}" are one column to a database that ignores case: name them apart` });
+      else seen.set(folded, column.ref);
+    });
+  });
+  return out;
+}
+
 /** Everything wrong with the saved-app words that one block alone cannot see. */
 export function savedAppIssues(m: SavedAppShape): Issue[] {
   const out: Issue[] = [];
@@ -169,6 +196,7 @@ export function savedAppIssues(m: SavedAppShape): Issue[] {
 
   const tables = m.requiredSchema?.tables ?? [];
   out.push(...tableNameIssues(m, local, onlyLocal));
+  out.push(...columnRefIssues(m, local));
   const excluded = new Set(tables.filter((table) => table.exclude === true).map((table) => table.ref));
   (m.pages ?? []).forEach((page, p) => {
     for (const [slot, ref] of Object.entries(page.bindings ?? {})) {

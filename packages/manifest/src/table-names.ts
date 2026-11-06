@@ -25,7 +25,7 @@ function byteLength(text: string): number {
 }
 
 /** What is wrong with a name shared by tables and schemas, or null. */
-function identifierIssue(what: 'table' | 'schema', name: string): string | null {
+function identifierIssue(what: 'table' | 'schema' | 'column', name: string): string | null {
   if (name.length === 0 || byteLength(name) > TABLE_NAME_MAX_BYTES) return `a ${what} name is 1 to ${String(TABLE_NAME_MAX_BYTES)} bytes`;
   if (name.includes('\u0000')) return `a ${what} name holds no NUL character`;
   if (name.trim() !== name) return `a ${what} name neither starts nor ends with a space`;
@@ -47,6 +47,11 @@ export function tableNameIssue(name: string): string | null {
  * Postgres keeps every `pg_` name for itself) and Adminium's are never an
  * app's. Which engine may have a schema at all is the planner's to say.
  */
+/** What is wrong with a column's own name, or null: the same rules as a table's. */
+export function columnNameIssue(name: string): string | null {
+  return identifierIssue('column', name);
+}
+
 export function tableSchemaIssue(schema: string): string | null {
   const issue = identifierIssue('schema', schema);
   if (issue !== null) return issue;

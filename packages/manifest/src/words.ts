@@ -263,6 +263,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'column.precision',
   'column.hidden',
   'column.yesNo',
+  // A self-made app's column under the name it has in its own database (`orderDate`), not snake_case.
+  'column.name',
   // A link's own name, a link Adminium does not show, a link no foreign key keeps.
   'relation.label',
   'relation.remove',
@@ -543,6 +545,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'column.precision': '0.3.49',
   'column.hidden': '0.3.49',
   'column.yesNo': '0.3.49',
+  'column.name': '0.3.49',
   'relation.label': '0.3.49',
   'relation.remove': '0.3.49',
   'relation.noConstraint': '0.3.49',
@@ -853,6 +856,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
       if (!isDoc(column)) return;
       const here = `${at}.columns.${String(c)}`;
       if (column['type'] === 'time') out.push({ word: 'column.time', path: `${here}.type` });
+      if (typeof column['ref'] === 'string' && !/^[a-z][a-z0-9_]*$/.test(column['ref'])) out.push({ word: 'column.name', path: `${here}.ref` });
       for (const key of ['precision', 'hidden', 'yesNo'] as const) {
         if (column[key] !== undefined) out.push({ word: `column.${key}`, path: `${here}.${key}` });
       }

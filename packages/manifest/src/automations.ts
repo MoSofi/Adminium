@@ -153,7 +153,7 @@ const writeValue = z.union([
     .object({
       setting: settingRef,
       /** Who a staff column is given when the setting names nobody who signs in: a staff column of the record, or one link further. */
-      else: z.object({ staff: z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)?$/, 'a column, or <link column>.<column>') }).strict().optional(),
+      else: z.object({ staff: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/, 'a column, or <link column>.<column>') }).strict().optional(),
     })
     .strict(),
   z
@@ -177,7 +177,7 @@ const values = z.record(refSchema, writeValue);
 
 const roleKey = z.string().regex(/^[a-z][a-z0-9-]*$/, 'a role key');
 /** A staff column of the record, or one of the row a link of it names: `owner_id`, `deal_id.owner_id`. */
-const staffPath = z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)?$/, 'a column, or <link column>.<column>');
+const staffPath = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/, 'a column, or <link column>.<column>');
 /** What later steps call a row a step made. */
 const stepName = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/, 'a step name is snake_case, at most 40 characters');
 

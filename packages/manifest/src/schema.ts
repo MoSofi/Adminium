@@ -44,6 +44,8 @@ import { conditionIssues, stateConditionSchema, statesIssues, statesSchema, type
 import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
 import {
   NUMERIC_TYPES,
+  SNAKE_REF,
+  isRef,
   labelsSchema,
   refSchema,
   scalarSchema,
@@ -1115,7 +1117,8 @@ export type ColumnRelation = z.infer<typeof columnRelationSchema>;
 
 export const requiredColumnSchema = z
   .object({
-    ref: z.string().regex(/^[a-z][a-z0-9_]*$/, 'column ref must be a snake_case identifier'),
+    // snake_case; a self-made app's column may keep its own name (`columnRefIssues`).
+    ref: z.string().refine(isRef, 'column ref must be a snake_case identifier'),
     type: z.enum(COLUMN_TYPES),
     semantic: z.enum(COLUMN_SEMANTICS).optional(),
     role: z.enum(COLUMN_ROLES).optional(),
@@ -1459,7 +1462,12 @@ export const requiredSchemaSchema = z
  */
 export const shapePartSchema = z
   .object({
-    columns: z.array(requiredColumnSchema).min(1).max(60),
+    // An add-on's own columns are always snake_case: only a self-made app keeps a column's own name.
+    columns: z
+      .array(requiredColumnSchema)
+      .min(1)
+      .max(60)
+      .refine((columns) => columns.every((column) => SNAKE_REF.test(column.ref)), 'column ref must be a snake_case identifier'),
     states: statesSchema.optional(),
     indexes: tableIndexesSchema.optional(),
     postings: postingsSchema.optional(),
