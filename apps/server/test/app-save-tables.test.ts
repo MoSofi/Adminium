@@ -18,7 +18,7 @@
  */
 import { parseEnumCheck } from '@adminium/engine';
 import { validateManifest } from '@adminium/manifest';
-import { optionListsRepo, overridesRepo } from '@adminium/meta';
+import { optionListsRepo, overridesRepo, permissionsRepo, rolesRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { findInstanceIds } from '../src/project/instance-ids.js';
@@ -95,7 +95,7 @@ for (const [dialect, available] of ENGINES) {
 
       // The file: valid, and no id of this install in it.
       const valid = validateManifest(manifest, { allowLocalPublisher: true });
-      expect(valid.ok, JSON.stringify(valid.issues)).toBe(true);
+      expect(valid.ok, JSON.stringify(valid.ok ? [] : valid.issues)).toBe(true);
       expect(findInstanceIds(manifest)).toEqual([]);
       const text = JSON.stringify(manifest);
       expect(text).not.toContain(h.connectionId);
@@ -222,5 +222,47 @@ describe.skipIf(!ENGINES[1]![1])('a native enum — postgres', () => {
       ['TYPE_NO_FORM', 'seen_from'],
     ]);
     expect(tablesOf(saved.manifest as unknown as Doc)[0]!.columns.map((column) => column.ref)).toEqual(['id']);
+  });
+});
+
+describe('rules that name tables and roles', () => {
+  it('names tables by their refs and roles by their keys, and says what does not travel', async () => {
+    const h = await harness('sqlite');
+    await made(h, [
+      `CREATE TABLE customers (id integer PRIMARY KEY, name varchar(80) NOT NULL, spent decimal(10,2))`,
+      `CREATE TABLE orders (id integer PRIMARY KEY, customer_id integer NOT NULL REFERENCES customers (id), total decimal(10,2) NOT NULL, ref varchar(16) UNIQUE, status varchar(16) NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'sent', 'paid')))`,
+      `CREATE TABLE notes (id integer PRIMARY KEY, code varchar(16), order_id integer REFERENCES orders (id))`,
+    ]);
+    const orders = await tableId(h, 'orders');
+    const clerk = await rolesRepo(h.meta).create({ slug: 'clerk', name: 'Clerk' });
+    const outsider = await rolesRepo(h.meta).create({ slug: 'outsider', name: 'Outsider' });
+    for (const role of [clerk, outsider]) await permissionsRepo(h.meta).grant(role.id, 'table', `${h.connectionId}/${orders}`, { read: true, create: false, update: false, delete: false, export: false, import: false } as never);
+    await override(h, 'customers', 'column.rollup', { from: orders, via: 'customer_id', sum: 'total' }, 'spent');
+    await override(h, 'customers', 'column.copy', { via: 'missing_link', from: 'name' }, 'name');
+    await override(h, 'orders', 'table.states', {
+      column: 'status',
+      initial: 'new',
+      moves: { new: [{ to: 'sent', roles: ['clerk'] }], sent: [{ to: 'paid', roles: ['clerk', 'outsider'] }, { to: 'new', roles: ['outsider'] }] },
+    });
+    await override(h, 'orders', 'column.normalize', { normalize: 'code' }, 'ref');
+    await override(h, 'notes', 'column.lookup', { from: 'code', table: orders, column: 'ref' }, 'order_id');
+
+    // Only the clerk travels; the notes table does not.
+    const saved = await save(h, 'sqlite', { roles: [clerk.id], tables: [await tableId(h, 'customers'), orders] });
+    const doc = saved.manifest as unknown as Doc;
+    expect(JSON.stringify(doc)).not.toContain(orders);
+    expect(columnOf(doc, 'customers', 'spent').rules).toEqual({ rollup: { from: 'orders', via: 'customer_id', sum: 'total' } });
+    expect(tablesOf(doc).find((table) => table.ref === 'orders')).toMatchObject({
+      states: { column: 'status', initial: 'new', moves: { new: [{ to: 'sent', roles: ['clerk'] }], sent: [{ to: 'paid', roles: ['clerk'] }] } },
+    });
+    expect(saved.check).toContainEqual(expect.objectContaining({ group: 'info', code: 'STATE_ROLE_NOT_CARRIED', item: 'orders' }));
+    // A copy through a link the table does not have is the validator's to refuse: taken off, and said.
+    expect(columnOf(doc, 'customers', 'name').rules).toBeUndefined();
+    expect(saved.check).toContainEqual(expect.objectContaining({ group: 'info', code: 'RULE_NOT_CARRIED', item: 'customers', field: 'name' }));
+
+    // With the notes table: its lookup names orders by its ref.
+    const all = await save(h, 'sqlite', { roles: [clerk.id] });
+    expect(all.check.filter((item) => item.item === 'notes')).toEqual([]);
+    expect(columnOf(all.manifest as unknown as Doc, 'notes', 'order_id').rules).toEqual({ lookup: { from: 'code', table: 'orders', column: 'ref' } });
   });
 });

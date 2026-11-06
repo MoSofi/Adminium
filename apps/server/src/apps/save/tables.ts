@@ -192,7 +192,7 @@ function tableLeftOut(ctx: ConvertContext, tableId: string): boolean {
 
 /**
  * A column or table with no form in the manifest: carried as text when the
- * person chose so, else left out — and asked about until they answer.
+ * person chose so, else left out, and asked about until they answer.
  * `true` when it is carried as text.
  */
 function noForm(c: Context, saved: SavedTable, column: string, why: string, code = 'TYPE_NO_FORM'): boolean {
@@ -919,6 +919,8 @@ function selfCheck(c: Context, tables: PlannedTable[]): void {
       compatibility: { minAdminiumVersion: c.ctx.source.adminiumVersion },
       requiredSchema: { tables: list.map((table) => table.written) },
       ...(Object.keys(c.optionLists).length > 0 ? { optionLists: c.optionLists } : {}),
+      // The roles that travel, by key: a move kept for one of them is the roles part's to fill in.
+      ...(c.ctx.refs.roles().length > 0 ? { roles: c.ctx.refs.roles().map(({ key }) => ({ key, name: key })) } : {}),
       pages: [],
       frontends: [{ side: 'staff', kind: 'none' }],
     };
