@@ -34,7 +34,8 @@ import type { FileStore } from '../../files/store.js';
 import type { CheckItem } from './check.js';
 import { convertToApp } from './convert.js';
 import { runSaveGates, type GateProblem } from './gates/index.js';
-import type { RowChoice, SaveChoices, SaveDialect, SaveSource } from './types.js';
+import type { SaveSourceWithFiles, SourceFiles } from './instance.js';
+import type { RowChoice, SaveChoices, SaveDialect } from './types.js';
 
 export interface SaveRequest {
   connectionId: string;
@@ -162,7 +163,7 @@ export function createSaveService(deps: SaveServiceDeps) {
       ...(request.rows === undefined ? {} : { rows: request.rows }),
       ...definedOf(request.answers ?? {}),
     };
-    const source: SaveSource = { meta: deps.meta, connectionId: request.connectionId, dialect, model, adminiumVersion: deps.adminiumVersion };
+    const source: SaveSourceWithFiles = { meta: deps.meta, connectionId: request.connectionId, dialect, model, adminiumVersion: deps.adminiumVersion, ...(deps.storage === null ? {} : { files: libraryReader(deps.meta, deps.storage) }) };
     const converted = await convertToApp(source, choices);
     const gates = await runSaveGates({ manifest: converted.manifest, files: converted.files, source, choices }, { masterSecret: deps.masterSecret, projectEnvFile: deps.projectEnvFile ?? null });
     const check = [...converted.check, ...gates.choices];
@@ -256,6 +257,19 @@ export function createSaveService(deps: SaveServiceDeps) {
 }
 
 export type SaveService = ReturnType<typeof createSaveService>;
+
+/** A file of the Files library by its id, its bytes whole; null when it is gone. */
+function libraryReader(meta: MetaDb, storage: FileStore): SourceFiles {
+  return {
+    async readFile(fileId) {
+      const file = await filesRepo(meta).findById(fileId);
+      if (file === null || file.deletedAt !== null) return null;
+      const chunks: Buffer[] = [];
+      for await (const chunk of await storage.read(file)) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+      return Buffer.concat(chunks);
+    },
+  };
+}
 
 /** The next version after the highest saved: 1.0.0 first, then the patch number + 1. */
 export function nextVersion(saves: readonly Pick<AppSave, 'version'>[]): string {
