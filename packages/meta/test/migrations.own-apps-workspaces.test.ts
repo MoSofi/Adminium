@@ -184,8 +184,14 @@ for (const dialect of TEST_DIALECTS) {
       const job = await installs.create({ integrity: fp, staged: 'stg_1', name: 'Fernhill Coffee', apps: [{ key: 'ops', version: '1.0.0', integrity: fp, target: null, state: 'pending' }], createdBy: null }, T0);
       expect(await installs.lock(job.id, 'run-1', T0)).toBe(true);
       expect(await installs.lock(job.id, 'run-2', T0 + 1)).toBe(false);
-      // A lock left by a gone process is taken over.
-      expect(await installs.lock(job.id, 'run-3', T0 + 16 * 60_000)).toBe(true);
+      // A run that keeps its lock fresh is never taken over, however long it goes on.
+      expect(await installs.refresh(job.id, 'run-1', T0 + 10 * 60_000)).toBe(true);
+      expect(await installs.lock(job.id, 'run-2', T0 + 16 * 60_000)).toBe(false);
+      expect(await installs.refresh(job.id, 'run-1', T0 + 20 * 60_000)).toBe(true);
+      expect(await installs.lock(job.id, 'run-2', T0 + 30 * 60_000)).toBe(false);
+      // A lock left by a gone process is taken over, and the run it was is told so.
+      expect(await installs.lock(job.id, 'run-3', T0 + 36 * 60_000)).toBe(true);
+      expect(await installs.refresh(job.id, 'run-1', T0 + 36 * 60_000)).toBe(false);
       await installs.update(job.id, { state: 'stopped', apps: [{ key: 'ops', version: '1.0.0', integrity: fp, target: conn, state: 'stopped', error: 'x' }] });
       await installs.unlock(job.id, 'run-3');
       expect(await installs.findById(job.id)).toMatchObject({ state: 'stopped', runLock: null, apps: [{ target: conn, state: 'stopped' }] });

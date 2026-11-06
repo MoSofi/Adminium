@@ -423,6 +423,58 @@ describe('workspace files on one engine', () => {
     expect(busy.body).toContain('WORKSPACE_INSTALL_RUNNING');
   });
 
+  it('keeps its lock while a long run goes on, and stops if another run took the row', async () => {
+    const src = await source('sqlite', open);
+    const saved = await src.service.save(src.workspaceId, {}, HOST);
+    const dst = await target('sqlite', open);
+    const file = fileOf(await upload(dst.h, saved.tarball));
+    const repo = workspaceInstallsRepo(dst.h.meta);
+    const manifests = manifestsRepo(dst.h.meta, identity);
+    let clock = Date.now();
+    const intruders: boolean[] = [];
+    const installed: string[] = [];
+    const installerWith = (heartbeatMs: number, during: () => Promise<void>) =>
+      createWorkspaceInstaller({
+        meta: dst.h.meta,
+        stagedIntegrity: async (key, version) => (await dst.h.deps.store.verifyTree(key, version)).integrity,
+        discardStaged: (key, version) => dst.h.deps.store.removeVersion(key, version),
+        copiesOf: async (key) => (await manifests.listByKey(key)).filter((m) => m.row.kind === 'app').map((m) => ({ installId: m.row.id, connectionId: m.row.connectionId, version: m.row.version })),
+        install: async ({ key, version, connectionId, answers }) => {
+          // Each install takes twenty minutes: longer than the age at which a lock counts as left.
+          clock += 20 * 60_000;
+          await during();
+          installed.push(key);
+          const reply = await dst.h.inject({ method: 'POST', url: '/apps/install', payload: { ...answers, key, version, connectionId } });
+          if (reply.statusCode !== 200) throw new AppError(reply.statusCode, 'INSTALL', reply.body);
+        },
+        update: async () => undefined,
+        connectionExists: async () => true,
+        now: () => clock,
+        heartbeatMs,
+      });
+    const apps = [{ key: 'archive', connectionId: dst.archive }, { key: 'clinic', connectionId: dst.h.connectionId }];
+    const actor = { userId: null, managesConnections: true };
+
+    // Taken over after the first app (the run's own lock left to go stale): the run stops before the next.
+    const overtaken = installerWith(3_600_000, async () => {
+      if (installed.length === 0) expect(await repo.lock(file.id, 'intruder', clock)).toBe(true);
+    });
+    await expect(overtaken.run(file.id, { apps }, actor)).rejects.toMatchObject({ statusCode: 409, details: { reason: 'WORKSPACE_INSTALL_RUNNING' } });
+    expect(installed).toEqual(['archive']);
+    await repo.unlock(file.id, 'intruder');
+
+    // Kept fresh: a second run asking while each app works is refused, and the lock is given back at the end.
+    const kept = installerWith(10, async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      intruders.push(await repo.lock(file.id, 'intruder', clock));
+    });
+    const run = await kept.run(file.id, { apps }, actor);
+    expect(run.state).toBe('done');
+    expect(installed).toEqual(['archive', 'clinic']);
+    expect(intruders).toEqual([false]);
+    expect((await repo.findById(file.id))?.runLock).toBeNull();
+  });
+
   it('throws a staged file away, with the app files nothing installed', async () => {
     const src = await source('sqlite', open);
     const saved = await src.service.save(src.workspaceId, {}, HOST);

@@ -8,8 +8,9 @@
  * that stops is finished later, after a reload, by running the same row again:
  * the apps already installed are skipped.
  *
- *  - **One run at a time per row**: the row's lock, taken over only once it
- *    is old enough that the run holding it is gone.
+ *  - **One run at a time per row**: the row's lock, kept fresh while the run
+ *    works, and taken over only once it is old enough that the run holding
+ *    it is gone.
  *  - **The workspace** is for connection managers only: create one, add to an
  *    existing one, or none. Every database chosen in an "Install on" joins it,
  *    even when its app is refused or stops: it groups the business's
@@ -81,12 +82,17 @@ export interface WorkspaceInstallerDeps {
   /** Told when the run changed the workspaces (for the menus). */
   workspacesChanged?: (() => Promise<void>) | undefined;
   now?: () => number;
+  /** How often a run keeps its lock fresh; tests shorten it. */
+  heartbeatMs?: number | undefined;
 }
 
 export interface InstallActor {
   userId: string | null;
   managesConnections: boolean;
 }
+
+/** How often a run keeps its lock fresh: well inside the age (15 minutes) at which another run may take it over. */
+const RUN_LOCK_HEARTBEAT_MS = 60_000;
 
 const DONE: ReadonlySet<WorkspaceInstallApp['state']> = new Set(['installed', 'updated', 'refused']);
 /** An install or an update that stopped part way is a stop, not a refusal: running it again resumes it. */
@@ -113,6 +119,26 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
     const copies = await deps.copiesOf(app.key);
     if (copies.some((copy) => copy.version === app.version)) return true;
     return app.state === 'stopped' && copies.some((copy) => compareSemver(app.version, copy.version) > 0);
+  }
+
+  /**
+   * Keep the run lock fresh while the run works: one app can take longer than
+   * the age at which a lock counts as left by a gone process, and a second
+   * "Install the rest" must not start beside a run that is still going.
+   */
+  function keepLock(id: string, runId: string): () => void {
+    const timer = setInterval(() => {
+      installs.refresh(id, runId, now()).catch(() => undefined);
+    }, deps.heartbeatMs ?? RUN_LOCK_HEARTBEAT_MS);
+    timer.unref?.();
+    return () => clearInterval(timer);
+  }
+
+  /** Before each app: the lock is still this run's, or another run has the row and this one stops. */
+  async function stillHeld(id: string, runId: string): Promise<void> {
+    if (!(await installs.refresh(id, runId, now()))) {
+      throw new ConflictError('This workspace file is being installed by another run. Wait for that to finish.', 'CONFLICT', { reason: 'WORKSPACE_INSTALL_RUNNING' });
+    }
   }
 
   async function mustFind(id: string): Promise<WorkspaceInstall> {
@@ -210,6 +236,7 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
       }
       let apps = row.apps.map((app) => ({ ...app }));
       let state: WorkspaceInstall['state'] = 'running';
+      const release = keepLock(id, runId);
       try {
         const asked = new Map(request.apps.map((one) => [one.key, one]));
         // A finished app keeps its target; the others take what this run chose.
@@ -224,6 +251,7 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
 
         for (const [n, app] of apps.entries()) {
           if (DONE.has(app.state) || app.target === null) continue;
+          await stillHeld(id, runId);
           let outcome: Pick<WorkspaceInstallApp, 'state' | 'reason' | 'error'>;
           try {
             outcome = await runApp(app, asked.get(app.key));
@@ -250,6 +278,7 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
           await installs.update(id, { apps, state }, now());
         }
       } finally {
+        release();
         await installs.unlock(id, runId, now());
       }
       return mustFind(id);

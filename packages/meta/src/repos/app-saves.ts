@@ -305,6 +305,16 @@ export function workspaceInstallsRepo(meta: MetaDb) {
         .executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
     },
+    /**
+     * Keep the run lock while the run goes on: a run that takes longer than
+     * the stale age would otherwise be taken over by a second "Install the
+     * rest" while it still works. False when the lock is no longer this
+     * run's (taken over, or given back).
+     */
+    async refresh(id: string, run: string, at: number = Date.now()): Promise<boolean> {
+      const res = await db.updateTable('adminium_workspace_installs').set({ lockedAt: at }).where('id', '=', id).where('runLock', '=', run).executeTakeFirst();
+      return affected(res.numUpdatedRows) === 1;
+    },
     async unlock(id: string, run: string, at: number = Date.now()): Promise<void> {
       await db.updateTable('adminium_workspace_installs').set({ runLock: null, lockedAt: null, updatedAt: at }).where('id', '=', id).where('runLock', '=', run).execute();
     },
