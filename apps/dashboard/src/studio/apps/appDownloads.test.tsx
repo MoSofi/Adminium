@@ -628,6 +628,35 @@ describe('updating an installed app', () => {
     expect(copies).toEqual([INSTALLED.connectionId]);
   });
 
+  it('offers to finish a copy’s stopped update after a reload, in its review, and sends what is ticked there', async () => {
+    installed = { apps: [{ ...INSTALLED, version: '0.1.2', unfinishedUpdate: { from: '0.1.1', to: '0.1.2', stage: 'instance' } }], staged: [] };
+    planReplies = [
+      {
+        ...plan,
+        version: '0.1.2',
+        checksum: 'f'.repeat(64),
+        tables: [],
+        instance: { needs: 'system:settings:manage', settings: [], files: [], languages: { on: ['de-DE'], off: [] }, wording: { changed: 0, same: 0 }, systemEmails: [], left: [] },
+      },
+    ];
+    await renderPage();
+    const row = await screen.findByText('The update to 0.1.2 stopped while applying the look and languages. Nothing was lost, and finishing it applies them.');
+    expect(row.closest('[data-part="unfinished-update"]')).toBeTruthy();
+    await userEvent.click(within(row.closest('[data-part="unfinished-update"]') as HTMLElement).getByRole('button', { name: 'Finish the update' }));
+
+    // Its review, on the version it moved to and its own database, saying where it stopped.
+    const dialog = await screen.findByRole('dialog');
+    expect(posted('/api/v1/apps/plan').at(-1)?.body).toMatchObject({ key: 'clinic', version: '0.1.2', connectionId: 'con_1' });
+    expect(within(dialog).getByRole('alert').textContent).toContain('stopped while applying the look and languages');
+    expect(within(dialog).queryByRole('button', { name: 'Update' })).toBeNull();
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Also apply the look and languages' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Finish the update' }));
+
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({ planChecksum: 'f'.repeat(64), instance: true });
+    expect(copies).toEqual(['con_1']);
+  });
+
   it('says where an update stopped, and finishes it with the same update', async () => {
     withUpdate({ updateStaged: true });
     updateReply = {

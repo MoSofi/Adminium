@@ -86,12 +86,20 @@ for (const [dialect, reachable] of LEGS) {
       expect(await appUpdatesRepo(h.meta).find(row.row.id)).toMatchObject({ fromVersion: '0.2.0', toVersion: '0.2.1', fromTables: ['reasons'], stoppedAt: 'pages' });
       expect(await count('units')).toBe(0);
 
+      // The installed list says so on the copy's row, so a reload still offers to finish it.
+      const listed = await h.app.inject({ method: 'GET', url: '/apps' });
+      expect(listed.statusCode, listed.body).toBe(200);
+      const studio = (listed.json() as { apps: { key: string; unfinishedUpdate?: unknown }[] }).apps.find((app) => app.key === 'studio');
+      expect(studio?.unfinishedUpdate).toEqual({ from: '0.2.0', to: '0.2.1', stage: 'pages' });
+
       // Run again: no newer version is staged, and the unfinished update is finished.
       const finished = await h.app.inject({ method: 'POST', url: '/apps/studio/update' });
       expect(finished.statusCode, finished.body).toBe(200);
       expect(finished.json()).toMatchObject({ from: '0.2.0', to: '0.2.1', app: { version: '0.2.1', seeds: { written: { units: 2 }, kept: [] } } });
       expect((await h.rows(`SELECT name FROM ${h.real('units')} ORDER BY id`)).map((one) => one['name'])).toEqual(['each', 'metre']);
       expect(await appUpdatesRepo(h.meta).find(row.row.id)).toBeNull();
+      const relisted = (await h.app.inject({ method: 'GET', url: '/apps' })).json() as { apps: { key: string; unfinishedUpdate?: unknown }[] };
+      expect(relisted.apps.find((app) => app.key === 'studio')).not.toHaveProperty('unfinishedUpdate');
       // The page the version brings is there once.
       expect((await pagesRepo(h.meta).listAll()).filter((page) => page.slug === 'studio-units')).toHaveLength(1);
 

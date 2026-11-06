@@ -135833,6 +135833,29 @@
                               "null"
                             ]
                           },
+                          "unfinishedUpdate": {
+                            "type": "object",
+                            "properties": {
+                              "from": {
+                                "type": "string"
+                              },
+                              "to": {
+                                "type": "string"
+                              },
+                              "stage": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "from",
+                              "to",
+                              "stage"
+                            ],
+                            "additionalProperties": false
+                          },
                           "sides": {
                             "type": "array",
                             "items": {
@@ -139480,6 +139503,29 @@
                         "null"
                       ]
                     },
+                    "unfinishedUpdate": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "type": "string"
+                        },
+                        "to": {
+                          "type": "string"
+                        },
+                        "stage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to",
+                        "stage"
+                      ],
+                      "additionalProperties": false
+                    },
                     "sides": {
                       "type": "array",
                       "items": {
@@ -140376,6 +140422,29 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "unfinishedUpdate": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string"
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "stage": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "from",
+                            "to",
+                            "stage"
+                          ],
+                          "additionalProperties": false
                         },
                         "sides": {
                           "type": "array",
@@ -141440,6 +141509,29 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "unfinishedUpdate": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string"
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "stage": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "from",
+                            "to",
+                            "stage"
+                          ],
+                          "additionalProperties": false
                         },
                         "sides": {
                           "type": "array",

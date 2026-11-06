@@ -216,6 +216,7 @@ export function HostedAppsPage() {
       <InstalledAppsCard
         busy={acquisition.busy}
         onUpdate={(app, row) => void acquisition.update(app, row)}
+        onFinishUpdate={(app) => void acquisition.finishUnfinished(app)}
         onInstall={() => {
           setChosen(undefined);
           setInstalling(true);

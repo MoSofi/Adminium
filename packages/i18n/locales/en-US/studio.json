@@ -949,7 +949,9 @@
       },
       "stopped": {
         "pages": "The update to {to} stopped while writing pages. Nothing was lost; {from}’s pages are still here.",
-        "other": "The update to {to} stopped part way. Nothing was lost, and finishing it carries on from where it stopped."
+        "other": "The update to {to} stopped part way. Nothing was lost, and finishing it carries on from where it stopped.",
+        "seeds": "The update to {to} stopped while adding its starting rows. Nothing was lost, and finishing it adds the rest.",
+        "instance": "The update to {to} stopped while applying the look and languages. Nothing was lost, and finishing it applies them."
       },
       "titleOn": "Update {app} on {database} to v{version}",
       "copyOf": "Copy {n} of {total} · {from} → {to}",

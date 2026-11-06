@@ -29471,6 +29471,10 @@
     "status": "mt",
     "srcHash": "eb36d8558cc2"
   },
+  "studio.hostedApps.update.stopped.instance": {
+    "status": "mt",
+    "srcHash": "4b2f98805c5a"
+  },
   "studio.hostedApps.update.stopped.other": {
     "status": "mt",
     "srcHash": "fed9369d0200"
@@ -29478,6 +29482,10 @@
   "studio.hostedApps.update.stopped.pages": {
     "status": "mt",
     "srcHash": "c0b1d963120a"
+  },
+  "studio.hostedApps.update.stopped.seeds": {
+    "status": "mt",
+    "srcHash": "7b16131bf99a"
   },
   "studio.hostedApps.update.subtitle": {
     "status": "mt",

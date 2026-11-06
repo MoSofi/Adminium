@@ -54,6 +54,7 @@ import { type DatabaseModel } from '@adminium/engine';
 import {
   addOnSettingsRepo,
   appTablesRepo,
+  appUpdatesRepo,
   auditRepo,
   connectionTenantConfig,
   connectionsRepo,
@@ -548,6 +549,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const rows = await manifests.list('app');
+        // A copy whose update moved its version and stopped: said on its row, so it can be finished after a reload.
+        const unfinished = new Map((await appUpdatesRepo(deps.meta).list()).map((update) => [update.manifestId, update]));
         const placements = (await request.server.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
         // How each app from the project folder stands: what was applied, and what was not.
         const folderState = rows.some((installed) => installed.row.source === FOLDER_SOURCE)
@@ -583,6 +586,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               : {}),
             installedAt: row.installedAt,
             connectionId: row.connectionId,
+            // Only a record of the version this copy runs: an older one is from an update that never moved it.
+            ...(unfinished.get(row.id)?.toVersion === row.version
+              ? { unfinishedUpdate: { from: unfinished.get(row.id)!.fromVersion, to: row.version, stage: unfinished.get(row.id)!.stoppedAt } }
+              : {}),
             sides: surfaces.map((surface) => {
               // Its own host when one is mapped to the app's own mount, else its prefix.
               const host = Object.entries(placements.domains).find(

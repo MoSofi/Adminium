@@ -128,12 +128,17 @@ export interface UpdateReviewProps {
 
 /** "The update to 1.1.0 stopped while writing pages. Nothing was lost; 1.0.0's pages are still here." */
 export function stoppedWords(details: UpdateStoppedDetails): string {
+  // The steps after the version moved: pages (with rules, roles, mails, documents and keys), starting rows, the look and languages.
   return details.stage === 'pages'
     ? t('studio:hostedApps.update.stopped.pages', 'The update to {to} stopped while writing pages. Nothing was lost; {from}’s pages are still here.', {
         to: details.to,
         from: details.from,
       })
-    : t('studio:hostedApps.update.stopped.other', 'The update to {to} stopped part way. Nothing was lost, and finishing it carries on from where it stopped.', {
+    : details.stage === 'seeds'
+      ? t('studio:hostedApps.update.stopped.seeds', 'The update to {to} stopped while adding its starting rows. Nothing was lost, and finishing it adds the rest.', { to: details.to })
+      : details.stage === 'instance'
+        ? t('studio:hostedApps.update.stopped.instance', 'The update to {to} stopped while applying the look and languages. Nothing was lost, and finishing it applies them.', { to: details.to })
+        : t('studio:hostedApps.update.stopped.other', 'The update to {to} stopped part way. Nothing was lost, and finishing it carries on from where it stopped.', {
         to: details.to,
       });
 }
@@ -219,6 +224,23 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
   const busy = props.busy || recheck.isPending;
   const stopped = props.stopped ?? null;
 
+  /*
+   * What Update sends, and what Finish the update sends when this dialog
+   * opened on an update stopped before (a reload): the answers on screen
+   * now, so a part written after the stop (the look and languages, say) is
+   * asked again rather than dropped.
+   */
+  const answersToSend = (): UpdateAnswers => ({
+    ...(plan.checksum === undefined ? {} : { planChecksum: plan.checksum }),
+    ...checked,
+    ...instanceAnswersOf(plan.instance, instance),
+    ...(access === null ? {} : { publicAccess: allowPublic && !publicAccessBlocked(access) }),
+    // Shown above: the Update button is the say.
+    ...(wider.length === 0 ? {} : { roleTables: true }),
+    // …and so is it for what the roles are newly given.
+    ...(grants.privacy.length === 0 && grants.addOn.length === 0 ? {} : { roleGrants: true }),
+  });
+
   const answerPage = (page: string, answer: PageAnswer | undefined) => {
     const next = { ...pagePicks };
     if (answer === undefined) delete next[page];
@@ -277,13 +299,13 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
               tone="danger"
               title={stoppedWords(stopped)}
               action={
-                <Button size="sm" disabled={busy} onClick={() => props.onConfirm(lastSent ?? {})}>
+                <Button size="sm" disabled={busy} onClick={() => props.onConfirm(lastSent ?? answersToSend())}>
                   {busy ? <Spinner size="sm" /> : <RotateCw aria-hidden className="size-4" />}
                   {t('studio:hostedApps.update.finish', 'Finish the update')}
                 </Button>
               }
             >
-              <MonoText className="block text-xs">{stopped.cause}</MonoText>
+              {stopped.cause === '' ? null : <MonoText className="block text-xs">{stopped.cause}</MonoText>}
             </Alert>
           )}
           {props.error === null || props.error === undefined ? null : (
@@ -394,16 +416,7 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
             disabled={busy || !plan.installable || hold !== null}
             aria-describedby={hold === null ? undefined : holdId}
             onClick={() => {
-              const sent: UpdateAnswers = {
-                ...(plan.checksum === undefined ? {} : { planChecksum: plan.checksum }),
-                ...checked,
-                ...instanceAnswersOf(plan.instance, instance),
-                ...(access === null ? {} : { publicAccess: allowPublic && !publicAccessBlocked(access) }),
-                // Shown above: the Update button is the say.
-                ...(wider.length === 0 ? {} : { roleTables: true }),
-                // …and so is it for what the roles are newly given.
-                ...(grants.privacy.length === 0 && grants.addOn.length === 0 ? {} : { roleGrants: true }),
-              };
+              const sent = answersToSend();
               setLastSent(sent);
               props.onConfirm(sent);
             }}

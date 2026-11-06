@@ -959,7 +959,9 @@ export default {
       },
       "stopped": {
         "pages": "Die Aktualisierung auf {to} wurde beim Schreiben der Seiten unterbrochen. Nichts ging verloren; die Seiten von {from} sind noch da.",
-        "other": "Die Aktualisierung auf {to} wurde unterwegs unterbrochen. Nichts ging verloren, und das Abschließen macht dort weiter, wo sie stoppte."
+        "other": "Die Aktualisierung auf {to} wurde unterwegs unterbrochen. Nichts ging verloren, und das Abschließen macht dort weiter, wo sie stoppte.",
+        "seeds": "Die Aktualisierung auf {to} wurde beim Hinzufügen der Startzeilen unterbrochen. Nichts ging verloren, und das Abschließen fügt den Rest hinzu.",
+        "instance": "Die Aktualisierung auf {to} wurde beim Übernehmen von Aussehen und Sprachen unterbrochen. Nichts ging verloren, und das Abschließen übernimmt sie."
       },
       "titleOn": "{app} auf {database} auf v{version} aktualisieren",
       "copyOf": "Kopie {n} von {total} · {from} → {to}",

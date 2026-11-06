@@ -959,7 +959,9 @@ export default {
       },
       "stopped": {
         "pages": "Opdateringen til {to} stoppede under skrivning af siderne. Intet gik tabt; siderne fra {from} er her stadig.",
-        "other": "Opdateringen til {to} stoppede undervejs. Intet gik tabt, og når du gør den færdig, fortsætter den, hvor den stoppede."
+        "other": "Opdateringen til {to} stoppede undervejs. Intet gik tabt, og når du gør den færdig, fortsætter den, hvor den stoppede.",
+        "seeds": "Opdateringen til {to} stoppede, mens dens startrækker blev tilføjet. Intet gik tabt, og når du gør den færdig, tilføjes resten.",
+        "instance": "Opdateringen til {to} stoppede, mens udseende og sprog blev anvendt. Intet gik tabt, og når du gør den færdig, anvendes de."
       },
       "titleOn": "Opdatér {app} på {database} til v{version}",
       "copyOf": "Kopi {n} af {total} · {from} → {to}",
