@@ -85,6 +85,8 @@ describe('the url-matched buckets', () => {
       { method: 'GET', url: '/api/v1/llm/models' },
       { method: 'POST', url: '/api/v1/branding/logo' },
       { method: 'POST', url: '/api/v1/imports/upload' },
+      { method: 'POST', url: '/api/v1/add-ons/upload' },
+      { method: 'POST', url: '/api/v1/apps/upload-workspace' },
       { method: 'GET', url: '/api/v1/exports/:id/download' },
       { method: 'GET', url: '/api/v1/imports/:id/error-report' },
       { method: 'GET', url: '/api/v1/imports/:id/preview' },
@@ -105,12 +107,14 @@ describe('the url-matched buckets', () => {
     expect(await budget('GET', '/api/v1/llm/models')).toBe(RATE_BUCKETS.llm.max);
 
     // The row has no `files` route group to live on, so it lands
-    // on the four surfaces that actually move file bytes.
+    // on the surfaces that actually move file bytes.
     for (const [method, url] of [
       ['POST', '/api/v1/branding/logo'],
       ['POST', '/api/v1/imports/upload'],
       ['GET', '/api/v1/exports/1/download'],
       ['GET', '/api/v1/imports/1/error-report'],
+      ['POST', '/api/v1/add-ons/upload'],
+      ['POST', '/api/v1/apps/upload-workspace'],
     ] as const) {
       expect(await budget(method, url), `${method} ${url}`).toBe(RATE_BUCKETS['file-bytes'].max);
     }

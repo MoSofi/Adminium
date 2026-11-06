@@ -93,6 +93,11 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/apps/save': rows('system', 'A save reads the rows the person chose, as the system, only once their own read, export and whole-table reach on each table are checked.'),
   'GET /api/v1/apps/saves': noRows('The saves made here: keys, versions and fingerprints, no source row.'),
   'GET /api/v1/apps/save/:id/file': noRows('A saved app file kept in the Files library: no source row is read.'),
+  'POST /api/v1/apps/upload-workspace': noRows('A workspace file\'s app files staged as uploads: no source row.'),
+  'GET /api/v1/apps/workspace-files': noRows('The workspace files staged here and how far each install got: no source row.'),
+  'GET /api/v1/apps/workspace/:id/install': noRows('The workspace files staged here and how far each install got: no source row.'),
+  'DELETE /api/v1/apps/workspace/:id/install': noRows('The workspace files staged here and how far each install got: no source row.'),
+  'POST /api/v1/apps/workspace/:id/install': rows('system', 'Each app installs or updates as an app install does: tables and starting rows as the system, under the manifests grant.'),
   'DELETE /api/v1/apps/staged/:key/:version': noRows('The list of apps, their packages, their settings and where they are served: no source row.'),
   'POST /api/v1/apps/upload': noRows('The list of apps, their packages, their settings and where they are served: no source row.'),
   // --- /assistant
@@ -600,6 +605,9 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/workspaces/:id/delete-plan': noRows('Workspaces group databases: names and memberships, not rows.'),
   'DELETE /api/v1/workspaces/:id': noRows('Workspaces group databases: names and memberships, not rows.'),
   'PUT /api/v1/connections/:id/workspaces': noRows('Workspaces group databases: names and memberships, not rows.'),
+  'POST /api/v1/workspaces/:id/save/plan': rows('system', 'A save reads the rows the person chose, as the system, only once their own read, export and whole-table reach on each table are checked.'),
+  'POST /api/v1/workspaces/:id/save': rows('system', 'A save reads the rows the person chose, as the system, only once their own read, export and whole-table reach on each table are checked.'),
+  'GET /api/v1/workspaces/save/:id/file': noRows('A saved workspace file packed again from the apps\' kept files: no source row is read.'),
   'PUT /api/v1/teams/:id/members/:userId': noRows('Teams and who leads them: people, not rows.'),
   // --- /users
   'GET /api/v1/users': noRows('Staff accounts and their roles.'),
