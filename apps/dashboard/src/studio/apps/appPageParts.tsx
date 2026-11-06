@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import { MonoText, cn, pascalCaseIconName, useLucideIcon } from '@adminium/ui';
 import { Package } from 'lucide-react';
 
+import type { BootstrapData } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
 
 /**
@@ -49,10 +50,8 @@ export interface ChipWorkspace {
  * The server's workspaces this person sees, read off the bootstrap reply.
  * Empty while the server has none: then no chip is drawn anywhere.
  */
-export function workspacesOf(bootstrap: unknown): ChipWorkspace[] {
-  const block = (bootstrap as { workspaces?: { workspaces?: unknown } } | null)?.workspaces;
-  const list = block?.workspaces;
-  return Array.isArray(list) ? (list as ChipWorkspace[]) : [];
+export function workspacesOf(bootstrap: Pick<BootstrapData, 'workspaces'> | null | undefined): ChipWorkspace[] {
+  return bootstrap?.workspaces?.workspaces ?? [];
 }
 
 /** The workspaces that hold a database, in their order. */

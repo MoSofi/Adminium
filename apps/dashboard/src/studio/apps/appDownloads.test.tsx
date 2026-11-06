@@ -27,6 +27,7 @@ import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
+import { chooseGroup, resetCurrentGroups } from '../../shell/workspaces/current.js';
 import type { AppCatalogReply, CatalogApp, InstalledApp } from './appsApi.js';
 
 class FakeWebSocket {
@@ -92,6 +93,8 @@ let planReplies: Record<string, unknown>[];
 let renameReplies: { status: number; body: unknown }[];
 let updateReply: { status: number; body: unknown };
 let schemaAuthoring: { authorable: boolean; reason: string | null } | undefined;
+/** Bootstrap's `workspaces` block; undefined: the server has none. */
+let bootstrapWorkspaces: unknown;
 
 beforeEach(() => {
   forgetStaleAsk();
@@ -113,6 +116,7 @@ beforeEach(() => {
     requiresSchemaChange: false,
   };
   schemaAuthoring = undefined;
+  bootstrapWorkspaces = undefined;
   planReplies = [];
   renameReplies = [];
   updateReply = {
@@ -134,7 +138,7 @@ function stubFetch() {
 
     if (url.startsWith('/api/v1/bootstrap')) {
       return Promise.resolve(
-        jsonResponse(200, { data: makeBootstrap({ nav: { groups: [] }, roles: ['super-admin'] }) }),
+        jsonResponse(200, { data: { ...makeBootstrap({ nav: { groups: [] }, roles: ['super-admin'] }), ...(bootstrapWorkspaces === undefined ? {} : { workspaces: bootstrapWorkspaces }) } }),
       );
     }
     if (url === '/api/v1/surfaces' && method === 'GET') {
@@ -1149,5 +1153,48 @@ describe('an app on two databases', () => {
     await waitFor(() => expect(posted('/api/v1/apps/clinic/update')).toHaveLength(2));
     // Each copy by its own database, in order (the plan's reads name the database in their body).
     expect(copies).toEqual(['con_1', 'con_2']);
+  });
+
+  it('names the copy in an update’s title', async () => {
+    installed = { apps: [{ ...INSTALLED, connectionId: 'con_2', installId: 'mf_b', connectionName: 'kiln', name: 'Clinic Desk' }], staged: [] };
+    catalog = { apps: [row({ installed: true, source: 'disk', state: 'installed', updateTo: '0.1.2', updateStaged: true })], catalogFetchedAt: 1, onlineEnabled: false };
+    plan = { ...plan, create: [{ ref: 'visits', columns: [{ ref: 'id', type: 'int' }] }], requiresSchemaChange: true };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Update Clinic Desk on kiln to v0.1.2')).toBeTruthy();
+  });
+
+  it('in One at a time, lists the copies on the tab’s workspace, and still updates every copy', async () => {
+    bootstrapWorkspaces = {
+      workspaces: [
+        { id: 'wsp_fc', name: 'Fernhill Coffee', initials: 'FC', position: 0, connectionIds: ['con_1'] },
+        { id: 'wsp_ks', name: 'Kiln Street Pottery', initials: 'KS', position: 1, connectionIds: ['con_2'] },
+      ],
+      otherDatabases: null,
+      workspaceView: 'one',
+      lastWorkspaceId: null,
+      manage: true,
+    };
+    chooseGroup('usr_test', 'wsp_ks');
+    try {
+      installed = {
+        apps: [
+          { ...INSTALLED, installId: 'mf_a', slug: '', address: 'clinic', connectionName: 'fernhill', name: 'Clinic Desk' },
+          { ...INSTALLED, connectionId: 'con_2', installId: 'mf_b', slug: 'kiln', address: 'clinic~kiln', connectionName: 'kiln', name: 'Clinic Desk' },
+        ],
+        staged: [],
+      };
+      catalog = { apps: [row({ installed: true, source: 'disk', state: 'installed', updateTo: '0.1.2', updateStaged: true })], catalogFetchedAt: 1, onlineEnabled: false };
+      plan = { ...plan, tables: [], create: [], reuse: [], problems: [], installable: true };
+      await renderPage();
+      await waitFor(() => expect(screen.getAllByTestId('installed-app-row')).toHaveLength(1));
+      expect(within(screen.getByTestId('installed-app-row')).getByText('on kiln')).toBeTruthy();
+      // One version per app: the copy on the other workspace moves too.
+      await userEvent.click(screen.getByRole('button', { name: 'Update every copy' }));
+      await waitFor(() => expect(posted('/api/v1/apps/clinic/update')).toHaveLength(2));
+    } finally {
+      resetCurrentGroups();
+    }
   });
 });

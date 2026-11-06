@@ -52,6 +52,7 @@ import { getFormatters } from '@adminium/i18n';
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { DEFAULT_BRANDING, brandingQuery } from '../../app/branding.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
+import { useCurrentWorkspace } from '../../workspaces/current.js';
 import { AppIcon, OnDatabase, WorkspaceChips, workspacesOf } from './appPageParts.js';
 import { DownloadAppDialog } from '../../apps/DownloadAppDialog.js';
 import { InstallScope, addressOf } from './installScope.js';
@@ -125,7 +126,11 @@ export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, onFinish
   // The workspaces for the chips: none until the bootstrap is in (it always is under the shell).
   const workspaces = workspacesOf(useQuery(bootstrapQuery()).data);
   const serverName = (useQuery(brandingQuery()).data ?? DEFAULT_BRANDING).appName;
-  const apps = groupCopies(data.apps);
+  const everyApp = groupCopies(data.apps);
+  // One at a time: the tab's workspace's apps, and those of no database. An update still moves every copy.
+  const { currentWorkspaceId, view, workspaces: groups } = useCurrentWorkspace();
+  const held = view === 'one' && currentWorkspaceId !== null ? groups.find((group) => group.id === currentWorkspaceId)?.connectionIds : undefined;
+  const apps = held === undefined ? everyApp : everyApp.filter((app) => app.connectionId === null || held.includes(app.connectionId));
   // "on fernhill" says something once apps sit on more than one database, or databases sit in workspaces.
   const databasesShown = workspaces.length > 0 || new Set(data.apps.map((app) => app.connectionId).filter((id) => id !== null)).size > 1;
   const [downloading, setDownloading] = useState<InstalledApp | null>(null);
@@ -169,7 +174,7 @@ export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, onFinish
         <span className="text-sm font-bold tracking-tight">
           {t('studio:hostedApps.installed.title', 'Installed apps')}
         </span>
-        <MonoText className="text-xs text-fg-subtle">{data.apps.length}</MonoText>
+        <MonoText className="text-xs text-fg-subtle">{apps.length}</MonoText>
         {updateCount === 0 ? null : (
           <Badge tone="warn" className="ms-auto">
             <ArrowUpCircle aria-hidden className="size-3.5" />
@@ -201,11 +206,13 @@ export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, onFinish
               'Upload a built surface bundle to install one. Apps installed here are served immediately — no restart, unlike a directory you point at.',
             )}
           />
+        ) : apps.length === 0 ? (
+          <EmptyState title={t('studio:hostedApps.installed.emptyHere', 'No app is installed on this workspace’s databases')} />
         ) : (
           <ul className="flex flex-col gap-3">
             {apps.map((app, index) => {
               const row = rowByKey.get(app.key);
-              const copies = apps.filter((other) => other.key === app.key);
+              const copies = everyApp.filter((other) => other.key === app.key);
               // The key's Update is drawn once, on its first copy.
               const firstOfKey = apps.findIndex((other) => other.key === app.key) === index;
               const own = app.publisher?.id === LOCAL_PUBLISHER_ID && app.folder === undefined;

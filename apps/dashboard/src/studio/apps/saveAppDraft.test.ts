@@ -222,7 +222,7 @@ describe('the databases Save as app offers', () => {
         manage: true,
       },
     } as unknown as Parameters<typeof saveDatabases>[1];
-    const rows = saveDatabases(connections, bootstrap);
+    const rows = saveDatabases(connections, bootstrap, 'ws_k');
     expect(rows.map((row) => [row.connection.name, row.workspaces, row.other])).toEqual([
       ['fernhill', ['Fernhill Coffee', 'Kiln Street Pottery'], false],
       ['kiln', ['Kiln Street Pottery'], false],
@@ -230,6 +230,10 @@ describe('the databases Save as app offers', () => {
     ]);
     const all = saveDatabases(connections, { ...(bootstrap as object), workspaces: { ...(bootstrap as unknown as { workspaces: object }).workspaces, workspaceView: 'all' } } as never);
     expect(all.map((row) => row.connection.name)).toEqual(['archive', 'fernhill', 'kiln']);
+    // The tab's workspace, never the server's last choice: "Other databases" puts its own first.
+    expect(saveDatabases(connections, bootstrap, 'other').map((row) => row.connection.name)).toEqual(['archive', 'fernhill', 'kiln']);
+    expect(saveDatabases(connections, bootstrap, 'ws_f').map((row) => row.connection.name)).toEqual(['fernhill', 'archive', 'kiln']);
+    expect(saveDatabases(connections, bootstrap).map((row) => row.connection.name)).toEqual(['archive', 'fernhill', 'kiln']);
   });
 
   it('has no chips while the server has no workspaces', () => {

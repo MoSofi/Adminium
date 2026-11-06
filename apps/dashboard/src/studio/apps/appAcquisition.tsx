@@ -109,6 +109,14 @@ interface UpdateConsent {
   connectionId?: string;
   /** Opened on an update that stopped before (read from the installed list): the dialog finishes it. */
   stopped?: UpdateStoppedDetails;
+  /** The copy, as its title names it: "Update Invoices on kiln". */
+  name?: string;
+  connectionName?: string;
+}
+
+/** A copy's name and database, for an update's title. */
+function copyNamed(app: InstalledApp): Pick<UpdateConsent, 'name' | 'connectionName'> {
+  return { ...(app.name == null ? {} : { name: app.name }), ...(app.connectionName == null ? {} : { connectionName: app.connectionName }) };
 }
 
 /** What the operator checked before an update: that plan's checksum, their answers, and their says on what it adds. */
@@ -275,7 +283,7 @@ export function useAppAcquisition() {
         const asksShare = (plan.shareOffers ?? []).length > 0;
         const asksPages = (plan.pageClashes ?? []).length > 0 || existingTables(plan).length > 0;
         if ((checkAsks(plan.tables) || asksShare || asksPages || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0 || asksGrants(plan)) && (plan.installable || askable)) {
-          setConsent({ key: app.key, to, plan, connectionId: app.connectionId });
+          setConsent({ key: app.key, to, plan, connectionId: app.connectionId, ...copyNamed(app) });
           return;
         }
         await applyUpdate(app.key, plan.checksum === undefined ? undefined : { planChecksum: plan.checksum }, app.connectionId);
@@ -296,12 +304,12 @@ export function useAppAcquisition() {
         edit.blocked.length === 0 &&
         edit.addColumns.length > 0
       ) {
-        setColumnsConsent({ key: app.key, to, plan, connectionId: app.connectionId });
+        setColumnsConsent({ key: app.key, to, plan, connectionId: app.connectionId, ...copyNamed(app) });
         return;
       }
       const refused = !plan.installable || short;
       if (!refused && plan.create.length > 0) {
-        setConsent({ key: app.key, to, plan, connectionId: app.connectionId });
+        setConsent({ key: app.key, to, plan, connectionId: app.connectionId, ...copyNamed(app) });
         return;
       }
     }
@@ -394,7 +402,7 @@ export function useAppAcquisition() {
         if (app.connectionId !== null) {
           const checked = await planApp({ key: app.key, version: pending.to, connectionId: app.connectionId }).catch(() => null);
           if (checked !== null) {
-            setConsent({ key: app.key, to: pending.to, plan: checked.plan, connectionId: app.connectionId, stopped: details });
+            setConsent({ key: app.key, to: pending.to, plan: checked.plan, connectionId: app.connectionId, stopped: details, ...copyNamed(app) });
             return;
           }
         }
@@ -506,7 +514,8 @@ export function UpdateConsentDialog({ state }: { state: AppAcquisition }) {
     return (
       <UpdateReviewDialog
         appKey={consent.key}
-        appName={consent.key}
+        appName={consent.name ?? consent.key}
+        connectionName={consent.connectionName}
         to={consent.to}
         from={consent.stopped?.from}
         stopped={consent.stopped}
@@ -527,10 +536,11 @@ export function UpdateConsentDialog({ state }: { state: AppAcquisition }) {
     >
       <ModalHeader
         icon={<ArrowUpCircle />}
-        title={t('studio:hostedApps.update.title', 'Update {app} to v{version}', {
-          app: consent.key,
-          version: consent.to,
-        })}
+        title={
+          consent.connectionName === undefined
+            ? t('studio:hostedApps.update.title', 'Update {app} to v{version}', { app: consent.name ?? consent.key, version: consent.to })
+            : t('studio:hostedApps.update.titleOn', 'Update {app} on {database} to v{version}', { app: consent.name ?? consent.key, database: consent.connectionName, version: consent.to })
+        }
         subtitle={t(
           'studio:hostedApps.update.subtitle',
           'This version needs tables the installed one did not have.',

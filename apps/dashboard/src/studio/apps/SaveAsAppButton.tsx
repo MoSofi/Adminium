@@ -13,14 +13,16 @@ import { FileArchive } from 'lucide-react';
 
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
-import { connectionsQuery } from '../hub/ConnectionsHub.js';
+import { connectionsQuery } from '../hub/connectionsQuery.js';
 import { engineName } from './SaveAppWizard.js';
+import { useCurrentWorkspace } from '../../workspaces/current.js';
 import { saveDatabases } from './saveAppDatabases.js';
 
 export function SaveAsAppButton({ onSave, size = 'sm' }: { onSave: (connectionId: string) => void; size?: 'sm' | 'md' }) {
   const { data: connections } = useSuspenseQuery(connectionsQuery());
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
-  const databases = saveDatabases(connections, bootstrap);
+  const { currentWorkspaceId } = useCurrentWorkspace();
+  const databases = saveDatabases(connections, bootstrap, currentWorkspaceId);
   const label = t('studio:saveApp.entry.button', 'Save as app');
 
   if (databases.length <= 1) {
