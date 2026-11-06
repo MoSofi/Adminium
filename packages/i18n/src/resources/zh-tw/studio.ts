@@ -5126,9 +5126,9 @@ export default {
         "review": "檢查"
       },
       "summary": {
-        "refused": "{apps}被拒絕。其餘應用程式會安裝。",
-        "refusedAll": "{apps}被拒絕。",
-        "waiting": "{ready}現在安裝。為 {apps} 做出選擇後即可加入。",
+        "refused": "{apps}{count, plural, other {被拒絕。}}其餘應用程式會安裝。",
+        "refusedAll": "{apps}{count, plural, other {被拒絕。}}",
+        "waiting": "{ready}{count, plural, other {現在安裝。}}為 {apps} 做出選擇後即可{others, plural, other {加入}}。",
         "waitingAll": "為 {apps} 選擇資料庫，並完成其檢查。"
       },
       "title": "安裝工作區檔案"

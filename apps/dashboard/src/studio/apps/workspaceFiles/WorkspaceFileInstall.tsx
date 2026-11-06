@@ -47,7 +47,7 @@ import { brandingQuery } from '../../../app/branding.js';
 import { t } from '../../../i18n/t.js';
 import { connectionsQuery } from '../../hub/ConnectionsHub.js';
 import { namesList, sentence } from '../addOnWords.js';
-import { APPS_QUERY_KEY, planApp, sha512Of, type AppInstallPlan } from '../appsApi.js';
+import { APPS_QUERY_KEY, planApp, sha512Of } from '../appsApi.js';
 import { TableCheck, type TakenPick } from '../InstallCheck.js';
 import { answersOf, hasTables } from '../InstallAppWizard.js';
 import {
@@ -204,11 +204,9 @@ export function WorkspaceFileInstall({ file, resumeId, onClose }: WorkspaceFileI
   useEffect(() => {
     if (file !== undefined && upload.isIdle) upload.mutate(file);
     // Once, for the file this screen was opened with.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file]);
   useEffect(() => {
     if (resume.data !== undefined && staged === null) take(resume.data);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resume.data]);
 
   // The workspace choice's start: a workspace named like the file is added to; otherwise one is made.

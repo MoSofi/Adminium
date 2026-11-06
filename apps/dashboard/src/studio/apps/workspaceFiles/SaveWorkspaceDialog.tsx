@@ -176,7 +176,6 @@ export function SaveWorkspaceDialog({ workspace, onClose, onMoreChoices }: { wor
     }, 350);
     return () => clearTimeout(timer);
     // `replan` is stable enough: its `mutate` is, and the effect is keyed on what it sends.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, first.data]);
 
   const save = useMutation({

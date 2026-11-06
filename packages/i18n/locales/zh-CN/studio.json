@@ -5116,9 +5116,9 @@
         "review": "检查"
       },
       "summary": {
-        "refused": "{apps}被拒绝。其余应用会安装。",
-        "refusedAll": "{apps}被拒绝。",
-        "waiting": "{ready}现在安装。为 {apps} 做出选择后即可加入。",
+        "refused": "{apps}{count, plural, other {被拒绝。}}其余应用会安装。",
+        "refusedAll": "{apps}{count, plural, other {被拒绝。}}",
+        "waiting": "{ready}{count, plural, other {现在安装。}}为 {apps} 做出选择后即可{others, plural, other {加入}}。",
         "waitingAll": "为 {apps} 选择数据库，并完成其检查。"
       },
       "title": "安装工作区文件"
