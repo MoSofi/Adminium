@@ -368,6 +368,8 @@ function PausableAction({
 interface ConnectionCardProps {
   connection: ConnectionDto;
   onOpenRemap: (connectionId: string) => void;
+  /** Absent when the viewer may not save apps — the button is then not drawn. */
+  onSaveAsApp?: ((connectionId: string) => void) | undefined;
   /** Absent when the viewer may not delete — the button is then not drawn. */
   onDelete?: ((connection: ConnectionDto) => void) | undefined;
   pollIntervalMs: number;
@@ -384,7 +386,7 @@ function MetaCell({ label, children, mono = true }: { label: string; children: R
   );
 }
 
-function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: ConnectionCardProps) {
+function ConnectionCard({ connection, onOpenRemap, onSaveAsApp, onDelete, pollIntervalMs }: ConnectionCardProps) {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
 
@@ -705,6 +707,12 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
         <Button size="sm" variant="secondary" onClick={() => setEditingRegional(true)}>
           {t('studio:hub.action.regional', 'Regional settings')}
         </Button>
+        {/* After Regional settings: a connection has no "…" menu, so it joins the row. */}
+        {onSaveAsApp === undefined ? null : (
+          <Button size="sm" variant="secondary" onClick={() => onSaveAsApp(connection.id)}>
+            {t('studio:hub.action.saveAsApp', 'Save as app')}
+          </Button>
+        )}
         {/* Resume is immediate; pausing asks first (see PauseConnectionModal). */}
         <Button
           size="sm"
@@ -807,6 +815,8 @@ export interface ConnectionsHubProps {
   onOpenRemap: (connectionId: string) => void;
   /** Opens `/studio/apps`; optional so bare mounts stay valid. */
   onOpenHostedApps?: (() => void) | undefined;
+  /** Opens Save as app on a database (Hosted apps' quick save); absent, the button is not drawn. */
+  onSaveAsApp?: ((connectionId: string) => void) | undefined;
   /** Introspection-job poll interval; tests pass 0. */
   pollIntervalMs?: number | undefined;
 }
@@ -815,6 +825,7 @@ export function ConnectionsHub({
   onConnectNew,
   onOpenRemap,
   onOpenHostedApps,
+  onSaveAsApp,
   pollIntervalMs = 1200,
 }: ConnectionsHubProps) {
   const { data: connections } = useSuspenseQuery(connectionsQuery());
@@ -823,6 +834,8 @@ export function ConnectionsHub({
   // today whoever sees a card holds it — but a list opened up to more roles
   // later must not start offering a delete that 403s, so the button asks.
   const mayDelete = holdsSystemAction(bootstrap, 'connections.manage');
+  // Saving an app rides `system:manifests:manage`: without it the button is not drawn.
+  const maySave = holdsSystemAction(bootstrap, 'manifests.manage');
   const [deleting, setDeleting] = useState<ConnectionDto | null>(null);
 
   const numbers = fmt();
@@ -915,6 +928,7 @@ export function ConnectionsHub({
                 key={connection.id}
                 connection={connection}
                 onOpenRemap={onOpenRemap}
+                onSaveAsApp={maySave ? onSaveAsApp : undefined}
                 onDelete={mayDelete ? setDeleting : undefined}
                 pollIntervalMs={pollIntervalMs}
               />

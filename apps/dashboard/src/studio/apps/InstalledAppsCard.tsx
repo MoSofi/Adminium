@@ -32,7 +32,7 @@
  * invisible, undeletable package and their next upload of that key silently
  * replaces it.
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import {
@@ -86,9 +86,11 @@ export interface InstalledAppsCardProps {
   onUpdate: (app: InstalledApp, row: CatalogApp) => void;
   /** A download or update is in flight. */
   busy?: boolean;
+  /** A secondary action before "Install an app" in the header ("Save as app"). */
+  beforeInstall?: ReactNode;
 }
 
-export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: InstalledAppsCardProps) {
+export function InstalledAppsCard({ onInstall, onUpdate, busy = false, beforeInstall }: InstalledAppsCardProps) {
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(installedAppsQuery());
   // The same reply the shelf reads, so the two cannot disagree about an update.
@@ -140,7 +142,8 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
             )}
           </Badge>
         )}
-        <Button className={updateCount === 0 ? 'ms-auto' : undefined} size="sm" onClick={onInstall}>
+        {beforeInstall === undefined ? null : <span className={updateCount === 0 ? 'ms-auto' : undefined}>{beforeInstall}</span>}
+        <Button className={updateCount === 0 && beforeInstall === undefined ? 'ms-auto' : undefined} size="sm" onClick={onInstall}>
           {t('studio:hostedApps.installed.install', 'Install an app')}
         </Button>
       </CardHeader>

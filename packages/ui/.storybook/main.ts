@@ -23,6 +23,8 @@ const config: StorybookConfig = {
     '../../../apps/dashboard/src/automations/**/*.stories.tsx',
     // A person's own pages: the Security page's Figma card, in the states its connection draws.
     '../../../apps/dashboard/src/account/**/*.stories.tsx',
+    // Save as app: the wizard's steps drawn from notes (the Database step's workspace chips, Check).
+    '../../../apps/dashboard/src/studio/apps/**/*.stories.tsx',
   ],
   addons: ['@storybook/addon-a11y'],
   async viteFinal(viteConfig) {

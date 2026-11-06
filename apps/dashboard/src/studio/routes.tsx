@@ -267,6 +267,7 @@ function HubRouteComponent() {
             void navigate({ to: '/studio/remap/$connectionId', params: { connectionId } })
           }
           onOpenHostedApps={() => void navigate({ to: '/studio/apps' })}
+          onSaveAsApp={(connectionId) => void navigate({ to: '/studio/apps', search: { save: connectionId } as never })}
         />
       </StudioBody>
     </StudioGuard>
