@@ -4,68 +4,68 @@
   "addOns": [
     {
       "key": "barcode-labels",
-      "version": "1.0.21",
-      "integrity": "sha512-5sd5/YDn8yDlEFSdxy34t2cSDIC8WQUlJ5q8aBpRAs6DqJQoydSmyZvVzKCUy1Uou6bpKgRaifsBDFyfToSEWA=="
+      "version": "1.0.22",
+      "integrity": "sha512-mm6k9ECiDXrWje6/DUuhfHtaXBqeU9sJ0YjApPXrYivJZooko7FLj+1SYQ4SQYamk7CKZR6NFyRaGJTeAEfl3g=="
     },
     {
       "key": "customiser",
-      "version": "1.0.21",
-      "integrity": "sha512-FX6jhT2QbHxTtshbNxM4/heRujR2v7Uv9TrBz2JRDXdcqkPhJlLFIKgHv7NpWRBhCfBH6HMBAX7K1beJCuB4sQ=="
+      "version": "1.0.22",
+      "integrity": "sha512-pho0GFPEsHYpaQcy+hjDB2/dLC5q8hamzlN7y5pnZVcCp3RWoineqBxd6GV5pzoTx8zuoL/u/1ib6xuL0PAKwQ=="
     },
     {
       "key": "design-studio",
-      "version": "1.0.21",
-      "integrity": "sha512-hcV9zA9ZwoUDUF3TJWVusAazfHdWefHyKTATZPrrM3gdFA/ePsVzlyuShXWbJkUQbw5nGVZlpk8D5qGCwIL3OQ=="
+      "version": "1.0.22",
+      "integrity": "sha512-COPwrIDdr2hJHryPxYiB3KbPZkD4uBr0ECuInH/uOoVGfky7SbJchSYteqyctwvHjSsggH/JpqKZiW3Cdqb1RA=="
     },
     {
       "key": "forms",
-      "version": "1.0.21",
-      "integrity": "sha512-SudgZPjErsVWI+b55sA/JcBq/OCeYN6Ye92QsEvLgDcpmos8/hnxYu1KUPA/XlH2eJMwjuNrPeiP5VrhJ3abug=="
+      "version": "1.0.22",
+      "integrity": "sha512-6xjXqRAZ6Dxr+IuRFZkIYVWsrr3OIYSljnBviR+ohD/hHvXFGfmv9asfnOp3xhN5Q63rFWnq+BMeyQMaENCxTw=="
     },
     {
       "key": "holiday-calendars",
-      "version": "1.0.21",
-      "integrity": "sha512-8Da5nB+P9WQ/umCf4VrvNuwW0MejXOJgsr23yxdvaxtGWUx86n5iy8RhRAqibh+AqAJ60MUVOz30u+z4HQWNgQ=="
+      "version": "1.0.22",
+      "integrity": "sha512-PVf4iWNXxVSZ8AGfNrH+C2+QGWO966lNIhe3mGf6cn7nTug1az0AkNiNPXbqRvMN/uwlgNW85vWQMmAYGqk+kA=="
     },
     {
       "key": "import-canva",
-      "version": "1.0.21",
-      "integrity": "sha512-zb2B9qk187aZLHSTNyQTJ3j7RX9vNup9Cbjz6nFOe0ZxW4c9Vq1gck13N1ulcRG9Gf2EH089mmIzPfRnjtSMaw=="
+      "version": "1.0.22",
+      "integrity": "sha512-rzng8TUxKgj/dGBVOLA8GFFS1zOxZ9Fh77mb9pCfc7ku1BrZc3ykp8dKs4YpyVn0L9XrpTnNiA+QkmXAy36ROQ=="
     },
     {
       "key": "inventory",
-      "version": "1.0.21",
-      "integrity": "sha512-NytLdTTCl+SfapAyWpJXMo8FRIjdGG/Rx1GFPT8Vfg4iLCTvA+3RvQiLhuOGzOI/cdnTSETFp3A69gDl1jqDxA=="
+      "version": "1.0.22",
+      "integrity": "sha512-Sqs2uot4aR+zSGbeAsU8pmXN1B9XO7HQMZvRGOWcTEZvQAtt4+h27A78MxEAKYWt3PSfxd4NI7kf1JToREojGg=="
     },
     {
       "key": "invoices",
-      "version": "1.0.21",
-      "integrity": "sha512-7pRMdk4NtjtJhNJllMoSzwA8bn3nzGBK+yHRARcuym/lQLAsY+PBjY0WE6N/Az/5zQyeyHs9nZbmT+Anjt8eXA=="
+      "version": "1.0.22",
+      "integrity": "sha512-PaZ2OBT6l1lddU9VWgDqem2cT2vCDaDLNTgOJswxmj/F1EjonAR2DC1q3xw5lPBkfWYe4tCeJuv5zJfiauW6dQ=="
     },
     {
       "key": "offers",
-      "version": "1.0.21",
-      "integrity": "sha512-KBdBz29AZnOWf7jumhyULpfetYTJUhJLmN4VwHDrsVYgbM4+3hPjUeV99kxk3et1dqsSSSR41mx40jR0va2Lsg=="
+      "version": "1.0.22",
+      "integrity": "sha512-buWsxcA9PsSBatqGEQrqh7rKZxW8kyIfApfAfGTHWpQF7A8ElbuHMvWiKze/XgqVZto9wQov64xi/ttcvvkKig=="
     },
     {
       "key": "payments-paypal",
-      "version": "1.0.21",
-      "integrity": "sha512-lUCtAcj4bwVOF5h1C+22aEqPvg5MujH2ID5BVy0NsTW7mCFRM92xblQ1QSgO7IyQ8yRIs+MqTe1ELvOibuLf+g=="
+      "version": "1.0.22",
+      "integrity": "sha512-q+ujCSENLlTY/YsG6WCQp2zkvLMF14Uws727QPZMvqdmTX8tzTUzSoLu8n739oKOlfSRs59wSglyZ3aMvOAYUQ=="
     },
     {
       "key": "payments-stripe",
-      "version": "1.0.21",
-      "integrity": "sha512-XLqK2Ci8jlfriOlSb/klZtyRM7PJCP+T4FHiJ7x+rfQqyxd8lmiHNWhZj7UXXG3IawxnQJvdrVuJvoTutTyD+Q=="
+      "version": "1.0.22",
+      "integrity": "sha512-NF1CIN/R1h95H/WjaRIm22g7lE9BtRWQ0c2AgFk3clHhmuVcUPQgJ9hLr6f6O5HmcOASdOwh8RlY7cumtlAxrw=="
     },
     {
       "key": "personalizer",
-      "version": "1.0.21",
-      "integrity": "sha512-YErLF51H2R+uuomZDpjXOBg+KSg7c16O+rIzkb4ebTqVYV/OXSaxI9apwJ80mIL26w1fSlVwKtXfVyvKAgokKA=="
+      "version": "1.0.22",
+      "integrity": "sha512-bM08bw91W6BwT70xqJg+pkGwVUVXQjzOR+RolpxSpOc6aPshAwKeiASHCxPn5pJB4p9mzo/gbAMGur3aVfAZgg=="
     },
     {
       "key": "shipping-dhl",
-      "version": "1.0.21",
-      "integrity": "sha512-GXTFRSs1CZLNAjShlavUKHBMAI2zkyDAIfu6TfRFXrsrSUjMsvPFoATf2u8T4o/gM5ERo4qx/0bJAk/UA3YiTA=="
+      "version": "1.0.22",
+      "integrity": "sha512-gS/TIBbvQwpmsK2VqI/kjyRe/KQ7J8+6g63jGILczs7TTN6Dw1Ztlv75MU8LK2vDbPY4foXERX0OvQSZ5XTpXg=="
     }
   ]
 }
