@@ -21,7 +21,7 @@ server loads:
 
 ```
 npm registry
-└── @adminiumjs/adminium@0.3.49         ← the published name of apps/server
+└── @adminiumjs/adminium@0.3.50         ← the published name of apps/server
     ├── dist/                          compiled server + CLI
     ├── dashboard/                     the pre-built React SPA (static files)
     ├── vocabulary/                    LLM allow-lists snapshotted at pack time
@@ -741,7 +741,7 @@ other package keeps its basename under the new scope, and internal
 `workspace:*` edges become npm aliases —
 
 ```json
-"@adminium/engine": "npm:@adminiumjs/engine@0.3.49"
+"@adminium/engine": "npm:@adminiumjs/engine@0.3.50"
 ```
 
 — so the compiled `import '@adminium/engine'` specifiers keep resolving without

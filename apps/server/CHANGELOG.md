@@ -1,5 +1,24 @@
 # @adminium/server
 
+## 0.3.50
+
+### Patch Changes
+
+- 0b822d1: The add-ons that come with Adminium are now 1.0.21: an app's role can be given everything the Customiser's set-up page reads and writes, the set-up adds the starter fonts' files itself, a proof shows a one-colour logo as the laser cuts it, the order-line panel names each part of the design's layout once, and Holiday Calendars' picker starts on the shop's own country. The retired Live Personalizer and Design Studio stay in the set for the shops that have them, and the Add-ons page no longer offers them for a new attach. Staff on an app's own screens can read the server's name and logo, and a table page opens on its own stored sort.
+- e56d7e6: A frame imported from Figma now brings its own pictures. The Designer starts each picture spot with the design's picture, and no longer asks whether to choose pictures now or use placeholders. Fetching them uses none of a Figma seat's 20 reads a month.
+- 7b0dda7: A new row can move the earlier rows of its table that share one of its links: `"supersedes": { "by": "<link>", "from": [<states>], "to": "<state>" }` under `states` (Adminium 0.3.50). A proof sent again for an order line moves the line's earlier proof still waiting, or with a change asked, to superseded, whichever door made the new one: a staff screen, the data API, a save of several rows, a guest's write, a rule or a project's code. Each earlier row moves by the table's own listed move, in the same write as the new row: a refused move refuses the create, and two rows made for one line at the same moment take their turns. Importing rows and sample data keep the state each row was in.
+- Updated dependencies [7b0dda7]
+  - @adminium/manifest@0.3.50
+  - @adminium/meta@0.3.50
+  - @adminium/adapter-mysql@0.3.50
+  - @adminium/adapter-postgres@0.3.50
+  - @adminium/adapter-sqlite@0.3.50
+  - @adminium/add-on-contracts@0.3.50
+  - @adminium/engine@0.3.50
+  - @adminium/i18n@0.3.50
+  - @adminium/llm@0.3.50
+  - @adminium/schema-import@0.3.50
+
 ## 0.3.49
 
 ### Patch Changes
