@@ -169,9 +169,8 @@ describe('ChangelogPage', () => {
 
   it('filters the rendered feed down to one tag', async () => {
     // Release-level emptying is asserted against the synthetic feed in the
-    // `filterReleases` block above; the shipped feed is a single 0.1.0 entry
-    // (see releases.ts — no other release was ever tagged), so what this proves
-    // here is that the chip really narrows what the PAGE renders.
+    // `filterReleases` block above; on the shipped feed what this proves is
+    // that the chip really narrows what the PAGE renders.
     const user = userEvent.setup();
     await renderPage();
     await screen.findByRole('heading', { name: 'Changelog' });

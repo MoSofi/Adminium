@@ -12,12 +12,12 @@
  * page. It is a data file, not an array inlined in a component — the page never
  * hardcodes copy.
  *
- * ONE ENTRY, AND THAT IS CORRECT. The feed must agree with the version the
- * About screen reports (`apps/server/src/version.ts` → apps/server/package.json).
- * It previously listed 0.2.0–0.5.0 as shipped releases; none of them were ever
- * cut — `git tag -l` is `v0.1.0` and nothing else — which made a freshly
- * installed instance look four releases stale to its own operator. Add an entry
- * here only when a tag exists for it.
+ * ONLY TAGGED RELEASES, AND NOT EVERY ONE. The feed must never run ahead of
+ * the version the About screen reports (`apps/server/src/version.ts` →
+ * apps/server/package.json). It once listed 0.2.0–0.5.0 before any of them
+ * were cut, which made a fresh install look four releases stale to its own
+ * operator. Add an entry only when its tag exists; small patch releases are
+ * left out and their changes read in the per-package CHANGELOG.md.
  *
  * It is a `.ts` module rather than `.json` on purpose: this repo deliberately
  * avoids JSON imports (see `packages/i18n/scripts/gen-resources.mjs` — the TS
@@ -61,6 +61,33 @@ export type Release = z.infer<typeof releaseSchema>;
 
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
+  {
+    version: '0.3.49',
+    date: '2026-11-07',
+    title: 'Your own apps, and workspaces',
+    summary:
+      'Save what you built on a database as an app of your own and install it on another server. Group a server’s databases into workspaces, one per team or business, each with its own menu and its own mail sender.',
+    changes: [
+      { tag: 'New', text: 'Save as app: turn a database’s tables, pages, roles, rules, mails, documents and reports into an app file, from Hosted apps or a connection’s card. Check lists what needs a choice and what the new owner fills in after installing. People, secrets and history never go in.' },
+      { tag: 'New', text: 'Choose which rows travel with a saved app: up to 200 starting rows or 5,000 sample rows per table, picked by the page’s order or a saved view. Personal columns stay empty unless you include them.' },
+      { tag: 'New', text: 'Saved from here lists every app version saved on this server, with its fingerprint, Download again and Save a newer version.' },
+      { tag: 'New', text: 'Installing your own app shows where it was made, checks it against the fingerprint shown when it was saved, can use the tables already there with no change to them, and asks about each page whose address is taken.' },
+      { tag: 'New', text: 'After you install: the app’s page lists the addresses, keys and senders to fill in after installing, and ticks each one off when it is done.' },
+      { tag: 'New', text: 'Install the same app once on each database. Each copy has its own page, settings, roles, templates and keys, and Update every copy keeps them on one version.' },
+      { tag: 'New', text: 'Workspaces group a server’s databases. Show them all in one menu or one at a time with a switcher; each browser tab keeps its own current workspace, and Library pages follow it.' },
+      { tag: 'New', text: 'Each workspace can have its own mail sender, so mail about a record goes from its own business, with its own postal address on marketing mail. A template can name who it always goes as.' },
+      { tag: 'New', text: 'Shown in: list an email template, campaign or report layout in chosen workspaces only. It narrows lists and pickers, never what is sent.' },
+      { tag: 'New', text: 'Save workspace puts one app per database into a single file. Installing it chooses a database for each app, can create the workspace, and finishes with Install the rest after a stop.' },
+      { tag: 'New', text: 'A saved app can carry the server’s look and words. It is applied only when someone who manages settings ticks it, and Undo on the app’s page puts back what was there.' },
+      { tag: 'New', text: 'Download an app you made in a project folder, with its screens’ source; Make it editable here copies that source into another project.' },
+      { tag: 'Improved', text: 'A saved app keeps its columns’ own names, such as orderDate or Order Total.' },
+      { tag: 'Improved', text: 'An update that stops part way says where, and Finish the update completes it, even after a reload.' },
+      { tag: 'Improved', text: 'The server as a whole is now called the server everywhere, and the sidebar group that held your pages is called Pages. Workspace means a group of databases.' },
+      { tag: 'Security', text: 'Rules in an installed app file that send data out arrive switched off and empty, whatever the file says. Only someone who manages automations turns them on.' },
+      { tag: 'Security', text: 'Before a file is saved, Adminium looks for every secret this server holds, whole, in pieces and encoded, and never writes one.' },
+      { tag: 'Security', text: 'Workspaces organise the menu and are not a security wall: roles still decide who sees what. The do-not-email list stays one for the whole server.' },
+    ],
+  },
   {
     version: '0.1.0',
     date: '2026-07-21',
