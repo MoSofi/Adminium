@@ -6,9 +6,11 @@
  * `before` is kept from the FIRST write: an update writes over the value again
  * and records only what it wrote now, so an undo still lands on what this
  * server had before any version of the app. `before` null means nothing was
- * set (no setting row, no word, no email row, no language row). When two
- * apps write one value, the later one's `before` is the earlier one's value;
- * the earlier one going hands its own `before` on ({@link appInstanceUndoRepo.setBefore}).
+ * set (no setting row, no word, no email row, no language row). When several
+ * apps write one value, their records lie in a stack by `updatedAt` (when
+ * each last wrote it), each `before` what lies under it; the caller keeps the
+ * stack in order ({@link appInstanceUndoRepo.setBefore}), and only a write
+ * (`put`) moves a record's `updatedAt`.
  *
  * Every method takes the store it is handed, so the install passes its own
  * transaction (`{ db: trx, dialect }`) and the values and their undo commit
@@ -110,13 +112,14 @@ export function appInstanceUndoRepo(meta: MetaDb) {
     },
 
     /**
-     * What a record puts back: the app that wrote before it went, so this one
-     * now puts back what was there before that one.
+     * What a record puts back: the record under it went or moved, so this one
+     * now lies on what that one lay on. Leaves `updatedAt`, the record's place
+     * in its value's stack.
      */
-    async setBefore(id: string, before: HeldValue, at: number = Date.now()): Promise<void> {
+    async setBefore(id: string, before: HeldValue): Promise<void> {
       await db
         .updateTable('adminium_app_instance_undo')
-        .set({ before: before === null ? null : packJson({ v: before.value ?? null }), updatedAt: at })
+        .set({ before: before === null ? null : packJson({ v: before.value ?? null }) })
         .where('id', '=', id)
         .execute();
     },

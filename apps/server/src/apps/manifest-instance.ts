@@ -15,8 +15,10 @@
  *    diff with every link host it holds, read as a mail client reads it
  *    (`email/link-hosts.ts`); an email whose hosts are not all ticked is left
  *    out, and says so, and so is one with a link whose host cannot be told,
- *    that runs code, or that hands this server's own link to another host,
- *    whatever is ticked ({@link reviewInstance});
+ *    that runs code, that holds a `<base>`, or that hands this server's own
+ *    link, a sign-in code or anything of a person to another host, whatever
+ *    is ticked; each host says which placeholders ride to it
+ *    ({@link reviewInstance});
  *  - everything is written in ONE meta transaction, with what each value
  *    replaced (`adminium_app_instance_undo`), so a failure part way changes
  *    nothing, an uninstall puts back exactly what was there (nothing, when
@@ -52,9 +54,9 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 
-import { BUILTIN_EMAIL_TEMPLATE_VARS } from '../email/builtins.js';
+import { BUILTIN_EMAIL_SHAREABLE_VARS, BUILTIN_EMAIL_TEMPLATE_VARS } from '../email/builtins.js';
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
-import { emailLinks } from '../email/link-hosts.js';
+import { emailLinks, type EmailLinks } from '../email/link-hosts.js';
 import { isEmailBlockKind } from '../email/render.js';
 import { ForbiddenError } from '../errors.js';
 import type { FileStore } from '../files/store.js';
@@ -263,7 +265,7 @@ interface InstancePlan {
   values: PlannedValue[];
   files: PlannedFile[];
   left: InstanceLeft[];
-  emails: { item: string; key: string; locale: string; held: EmailHeld; hosts: string[] }[];
+  emails: { item: string; key: string; locale: string; held: EmailHeld; hosts: string[]; carries: Record<string, string[]> }[];
 }
 
 /** The settings that name a picture of the Files library. */
@@ -284,13 +286,21 @@ export function ownLinkVars(key: string | null): string[] {
   return [...new Set(all.filter((name) => /Url$/.test(name) || name === 'link'))];
 }
 
+/** Whether a placeholder of a system email may never ride to an outside host, ticked or not. */
+const keptVar = (name: string): boolean => !BUILTIN_EMAIL_SHAREABLE_VARS.has(name);
+
 /**
- * Every outside host an email can send a person to or load from (see
- * `email/link-hosts.ts`), read with this server's own links of the email
- * `key`, or of every system email when none is named.
+ * Every outside host a system email can send a person to or load from, and
+ * what rides to each (see `email/link-hosts.ts`), read with this server's own
+ * links of the email `key`, or of every system email when none is named.
  */
+export function systemEmailLinks(content: unknown, key: string | null = null): EmailLinks {
+  return emailLinks(content, ownLinkVars(key), keptVar);
+}
+
+/** The outside hosts of {@link systemEmailLinks}. */
 export function linkHosts(content: unknown, key: string | null = null): string[] {
-  return emailLinks(content, ownLinkVars(key)).hosts;
+  return systemEmailLinks(content, key).hosts;
 }
 
 /** A file's blocks as the store keeps them: each with an id the editor addresses. */
@@ -396,13 +406,13 @@ async function planInstance(m: MetaDb, part: InstancePart): Promise<InstancePlan
       continue;
     }
     // Every host it can send a person to, read as a mail client reads it; one it cannot tell keeps the whole email out.
-    const links = emailLinks(email.content, ownLinkVars(email.key));
+    const links = systemEmailLinks(email.content, email.key);
     if (links.problems.length > 0) {
       left.push({ item, reason: links.problems.join('; ') });
       continue;
     }
     const held: EmailHeld = { subject: email.content.subject, preheader: email.content.preheader ?? '', blocks, footer: email.content.footer ?? '', isBuiltinCopy: false };
-    emails.push({ item, key: email.key, locale: email.locale, held, hosts: links.hosts });
+    emails.push({ item, key: email.key, locale: email.locale, held, hosts: links.hosts, carries: links.carries });
   }
   return { values, files, left, emails };
 }
@@ -440,6 +450,8 @@ export interface InstanceReview {
     blocks: { added: string[]; removed: string[]; changed: string[] };
     /** Every link host it holds: each is ticked on its own, and an email with one unticked is left out. */
     hosts: string[];
+    /** Per host of {@link hosts}: the placeholders a link to it carries, filled in when the mail is sent. */
+    carried: Record<string, string[]>;
   }[];
   left: InstanceLeft[];
 }
@@ -485,6 +497,7 @@ export async function reviewInstance(meta: MetaDb, manifest: Manifest): Promise<
           changed: [...after.keys()].filter((id) => before.has(id) && before.get(id) !== after.get(id)),
         },
         hosts: email.hosts,
+        carried: email.carries,
       };
     }),
   );
@@ -628,7 +641,7 @@ export async function applyInstance(input: ApplyInstanceInput): Promise<Instance
           touched(value.kind, value.item);
           result.written.push(id);
         }
-        await appInstanceUndoRepo(m).put({ manifestId: input.manifestId, kind: value.kind, item: value.item, before: now, applied: value.to }, at);
+        await placeOnTop(m, input.manifestId, value.kind, value.item, now, value.to, at);
         // The install's own earlier picture, replaced: let go (the storage sweep removes its bytes).
         if (value.kind === 'setting' && PICTURE_SETTINGS.includes(value.item) && typeof recorded?.applied === 'string' && recorded.applied !== value.to) {
           await filesRepo(m).markDeleted(recorded.applied, at);
@@ -653,32 +666,65 @@ export async function applyInstance(input: ApplyInstanceInput): Promise<Instance
   }
 }
 
+/*
+ * SEVERAL APPS ON ONE VALUE. The installs that wrote one value lie in a
+ * stack, the one that wrote it last on top (by when each last wrote it, see
+ * {@link stacked}); each record's `before` is what lies under it: the record
+ * below's value, or what this server had. The value shown is the top one's.
+ *
+ *  - An install that writes the value again from under another leaves its
+ *    place (the record above it now has its `before`) and goes on top, over
+ *    what is there now ({@link placeOnTop}).
+ *  - An install that goes from under another hands its `before` to the record
+ *    above it, and the value stays; from the top, the value goes back to its
+ *    `before` ({@link restoreOne}).
+ *
+ * So whatever order apps are installed, updated and taken away in, the value
+ * left is always the last one written by an app still here, or what this
+ * server had: never the value of an app that went.
+ */
+
+type UndoRecord = Awaited<ReturnType<ReturnType<typeof appInstanceUndoRepo>['listForItem']>>[number];
+
+/** The records of one value, bottom first: by when each last wrote it, then by id. */
+function stacked(records: readonly UndoRecord[]): UndoRecord[] {
+  return [...records].sort((a, b) => a.updatedAt - b.updatedAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/** Records that an install wrote a value over `now`, and puts its record on top of the value's stack. */
+async function placeOnTop(m: MetaDb, manifestId: string, kind: AppInstanceValueKind, item: string, now: HeldValue, applied: unknown, at: number): Promise<void> {
+  const undo = appInstanceUndoRepo(m);
+  const stack = stacked(await undo.listForItem(kind, item));
+  const others = stack.filter((record) => record.manifestId !== manifestId);
+  // On top: written after every other, whatever clock the caller passed.
+  const placedAt = Math.max(at, ...others.map((record) => record.updatedAt + 1));
+  const index = stack.findIndex((record) => record.manifestId === manifestId);
+  const above = index === -1 ? undefined : stack[index + 1];
+  if (above !== undefined) {
+    // From under another: the one above now lies on what this one lay on, and this one lies on what is there now.
+    await undo.setBefore(above.id, stack[index]!.before);
+    await undo.setBefore(stack[index]!.id, now);
+  }
+  await undo.put({ manifestId, kind, item, before: now, applied }, placedAt);
+}
+
 /**
  * Puts one value back as it was before this install wrote it, when it still
- * holds what the install wrote; forgets the undo either way.
- *
- * TWO APPS ON ONE VALUE. When another install wrote the value after this one,
- * the value is that app's: it stays, and that app's undo now puts back what
- * was there before this one (never this one's value, which is going). Should
- * this install have written it again since, the value goes back to what the
- * other app last wrote.
+ * holds what the install wrote; forgets the undo either way. From under
+ * another install, the value is that one's and stays: the record above takes
+ * this one's `before` (see the stack above).
  */
-async function restoreOne(m: MetaDb, record: { id: string; manifestId: string; kind: AppInstanceValueKind; item: string; before: HeldValue; applied: unknown; createdAt: number }, userId: string | null, at: number): Promise<boolean> {
+async function restoreOne(m: MetaDb, held: { id: string; manifestId: string; kind: AppInstanceValueKind; item: string; before: HeldValue; applied: unknown }, userId: string | null, at: number): Promise<boolean> {
   const undo = appInstanceUndoRepo(m);
-  const now = await readHeld(m, record.kind, record.item);
-  const others = (await undo.listForItem(record.kind, record.item)).filter((other) => other.manifestId !== record.manifestId);
-  const later = others.filter((other) => other.createdAt > record.createdAt || (other.createdAt === record.createdAt && other.id > record.id));
-  const ownStill = sameValue(record.kind, now, record.applied);
+  const now = await readHeld(m, held.kind, held.item);
+  const stack = stacked(await undo.listForItem(held.kind, held.item));
+  const index = stack.findIndex((one) => one.id === held.id);
+  const record = stack[index] ?? held;
+  const above = index === -1 ? undefined : stack[index + 1];
   let untouched = false;
-  if (later.length > 0) {
-    // The app that last wrote it, read before the hand-on below touches a record.
-    const newest = [...others].sort((a, b) => b.updatedAt - a.updatedAt || (b.id < a.id ? -1 : 1))[0]!;
-    await undo.setBefore(later[0]!.id, record.before, at);
-    if (ownStill) {
-      await writeHeld(m, record.kind, record.item, { value: newest.applied }, userId, at);
-      untouched = true;
-    }
-  } else if (ownStill) {
+  if (above !== undefined) {
+    await undo.setBefore(above.id, record.before);
+  } else if (sameValue(record.kind, now, record.applied)) {
     await writeHeld(m, record.kind, record.item, record.before, userId, at);
     untouched = true;
   }

@@ -27,11 +27,18 @@
  * value's to choose and cannot be told now. A backup (`{{name|words}}`) is
  * read as written too.
  *
+ * A placeholder rides to a host when it is in an address of that host, in
+ * words a mail client links to it, in a field of a `<form>` sent to it (any
+ * field of the markup: `form=` ties one to a form anywhere), or in the link
+ * of an `<a>` whose `ping` goes to it. Each host says which placeholders ride
+ * to it ({@link EmailLinks.carries}).
+ *
  * What cannot be told is a PROBLEM, never a guess: an address whose host is
  * filled in later, a kind of address an email has no business linking to
  * (`javascript:`, `data:`), a script, an event handler, a style that runs
- * code, one of this server's own links handed to an outside host. A caller
- * refuses the email over any problem.
+ * code, a `<base>` (it moves every relative link to its host), one of this
+ * server's own links or a value the caller keeps (a sign-in code) handed to
+ * an outside host. A caller refuses the email over any problem.
  */
 import { parseFragment, type DefaultTreeAdapterMap } from 'parse5';
 
@@ -46,8 +53,10 @@ const BASE = `https://${BASE_HOST}/`;
 /** This server, as a stand-in for one of its own links. Origin only: the worst case for what follows it. */
 const SELF_HOST = 'adminium-self.invalid';
 const SELF = `https://${SELF_HOST}`;
-/** A value filled in when the mail is sent, as the words of a text see it. */
-const VAR = 'zzadminiumvarzz';
+/** A value filled in when the mail is sent, as the words of a text see it: the placeholder's place in its value. */
+const marker = (index: number): string => `zzadminiumvar${String(index)}zz`;
+const MARKER = /zzadminiumvar(\d+)zz/g;
+const HAS_MARKER = /zzadminiumvar\d+zz/;
 const PROBE_HOST = 'adminium-probe.invalid';
 /** What a value filled in later might hold, to see whether the host moves with it. */
 const PROBES = [`//${PROBE_HOST}/`, `https://${PROBE_HOST}/`, `@${PROBE_HOST}/`, `.${PROBE_HOST}/`, `\\\\${PROBE_HOST}/`, `:@${PROBE_HOST}/`, 'javascript:x'];
@@ -103,15 +112,32 @@ export interface EmailLinks {
   hosts: string[];
   /** The outside hosts a value filled in when the mail is sent rides to. */
   carried: string[];
+  /** Per outside host in {@link carried}: the placeholders that ride to it, by name, sorted. */
+  carries: Record<string, string[]>;
   /** Why some address in it cannot be told, or may not be there at all; empty when every one was read. */
   problems: string[];
 }
 
 interface Collector {
   self: ReadonlySet<string>;
+  /** A value that may never ride to an outside host, ticked or not. */
+  kept: (name: string) => boolean;
   hosts: Set<string>;
-  carried: Set<string>;
+  carries: Map<string, Set<string>>;
   problems: Set<string>;
+}
+
+/** Placeholders ride to an outside host: each one kept is a problem, every other is said per host. */
+function carry(c: Collector, host: string, names: Iterable<string>): void {
+  for (const name of names) {
+    if (c.self.has(name) || c.kept(name)) {
+      c.problems.add(`it sends {{${name}}} to "${host}"`);
+      continue;
+    }
+    const riding = c.carries.get(host) ?? new Set<string>();
+    riding.add(name);
+    c.carries.set(host, riding);
+  }
 }
 
 /** What one address reads as. */
@@ -204,15 +230,18 @@ function sameRead(a: Read, b: Read): boolean {
 
 /**
  * One value that IS an address (an `href`, a button's url): its host, or the
- * problem. `strict` refuses a kind of address an email may not hold.
+ * problem. `strict` refuses a kind of address an email may not hold. Gives
+ * back the outside hosts it read.
  */
-function readAddress(raw: string, c: Collector, strict: boolean): void {
-  for (const value of forms(raw)) readOneAddress(value, c, strict);
+function readAddress(raw: string, c: Collector, strict: boolean): string[] {
+  const found = new Set<string>();
+  for (const value of forms(raw)) for (const host of readOneAddress(value, c, strict)) found.add(host);
+  return [...found];
 }
 
-function readOneAddress(value: string, c: Collector, strict: boolean): void {
+function readOneAddress(value: string, c: Collector, strict: boolean): string[] {
+  const found: string[] = [];
   const placeholders = placeholdersIn(value);
-  const own = placeholders.filter((one) => c.self.has(one.name));
   const others = placeholders.filter((one) => !c.self.has(one.name));
   const write = (backups: boolean, probe?: { at: number; with: string }): string => {
     let out = '';
@@ -252,11 +281,12 @@ function readOneAddress(value: string, c: Collector, strict: boolean): void {
       }
       if (isStandIn(host)) continue;
       c.hosts.add(host);
-      if (others.length > 0) c.carried.add(host);
+      found.push(host);
       // This server's own link (a password reset) handed to another host is never what a file means.
-      if (own.length > 0) c.problems.add(`it sends {{${own[0]!.name}}} to "${host}"`);
+      carry(c, host, placeholders.map((one) => one.name));
     }
   }
+  return found;
 }
 
 /** Words: every host a mail client would link in them on its own. */
@@ -270,28 +300,28 @@ function readOneWords(value: string, c: Collector): void {
   for (const backups of variants) {
     let text = '';
     let cursor = 0;
-    for (const one of placeholders) {
+    for (const [index, one] of placeholders.entries()) {
       text += value.slice(cursor, one.at);
       cursor = one.at + one.whole.length;
-      text += backups && one.backup !== undefined ? one.backup : c.self.has(one.name) ? SELF : VAR;
+      text += backups && one.backup !== undefined ? one.backup : c.self.has(one.name) ? SELF : marker(index);
     }
     text += value.slice(cursor);
     for (const token of text.split(/[\s<>"'`]+/u)) {
       if (token === '') continue;
-      const carries = token.includes(VAR);
+      const carries = [...token.matchAll(MARKER)].map((match) => placeholders[Number(match[1])]?.name ?? '');
       const carriesOwn = token.includes(SELF);
       const found: string[] = [];
       for (const start of token.matchAll(SCHEME_IN_WORDS)) {
         const candidate = token.slice(start.index);
-        const read = readUrl(candidate.replaceAll(VAR, 'a'));
-        if (candidate.includes(VAR) && !sameRead(read, readUrl(candidate.replaceAll(VAR, `.${PROBE_HOST}/`)))) {
-          c.problems.add(`a link in it goes to an address filled in only when it is sent: "${shown(candidate.replaceAll(VAR, '{{…}}'))}"`);
+        const read = readUrl(candidate.replaceAll(MARKER, 'a'));
+        if (HAS_MARKER.test(candidate) && !sameRead(read, readUrl(candidate.replaceAll(MARKER, `.${PROBE_HOST}/`)))) {
+          c.problems.add(`a link in it goes to an address filled in only when it is sent: "${shown(candidate.replaceAll(MARKER, '{{…}}'))}"`);
         }
         found.push(...read.hosts);
       }
       // `//host` with no scheme, where a reader takes it for one.
-      for (const start of token.matchAll(/(?<![:/\\])[/\\]{2}(?![/\\])/g)) found.push(...readUrl(token.slice(start.index).replaceAll(VAR, 'a')).hosts);
-      const bare = token.replaceAll(VAR, ' ').replaceAll(SELF, ' ');
+      for (const start of token.matchAll(/(?<![:/\\])[/\\]{2}(?![/\\])/g)) found.push(...readUrl(token.slice(start.index).replaceAll(MARKER, 'a')).hosts);
+      const bare = token.replaceAll(MARKER, ' ').replaceAll(SELF, ' ');
       for (const match of [...bare.matchAll(DOMAIN), ...bare.matchAll(IPV4)]) {
         try {
           found.push(cleanHost(new URL(`https://${match[0]}`).hostname));
@@ -302,11 +332,11 @@ function readOneWords(value: string, c: Collector): void {
       for (const host of found) {
         if (host === SELF_HOST || isStandIn(host)) continue;
         if (host.includes(SELF_HOST)) {
-          c.problems.add(`it names an address built on one of this server's own links: "${shown(token.replaceAll(SELF, '{{…}}').replaceAll(VAR, '{{…}}'))}"`);
+          c.problems.add(`it names an address built on one of this server's own links: "${shown(token.replaceAll(SELF, '{{…}}').replaceAll(MARKER, '{{…}}'))}"`);
           continue;
         }
         c.hosts.add(host);
-        if (carries) c.carried.add(host);
+        carry(c, host, carries);
         if (carriesOwn) c.problems.add(`it sends one of this server's own links to "${host}"`);
       }
     }
@@ -339,12 +369,17 @@ function textOfChildren(el: Element): string {
   return el.childNodes.map((child) => ('value' in child && child.nodeName === '#text' ? child.value : '')).join('');
 }
 
-/** Markup: every element, attribute and word in it, as a browser builds them. */
+/**
+ * Markup: every element, attribute and word in it, as a browser builds them.
+ * A form sent to an outside host takes every placeholder of the markup with
+ * it (a field joins a form anywhere by `form=`); a `ping` takes its link's.
+ */
 function readHtml(code: string, c: Collector, depth: number): void {
   if (depth > MAX_DEPTH) {
     c.problems.add('it holds markup nested too deep to read');
     return;
   }
+  const formHosts = new Set<string>();
   // As written too: whatever a reader that is not a browser makes of it, its words name no other host.
   readWords(code, c);
   const stack: Node[] = [parseFragment(code, { scriptingEnabled: false })];
@@ -362,15 +397,28 @@ function readHtml(code: string, c: Collector, depth: number): void {
       const el = node;
       const tag = el.tagName.toLowerCase();
       if (CODE_ELEMENTS.has(tag)) c.problems.add(`it holds a <${tag}>, which runs code`);
+      // Every relative link of the mail would go to its host, which nothing here reads.
+      if (tag === 'base') c.problems.add('it holds a <base>, which sends every relative link in it to another address');
       if (tag === 'style') readCss(textOfChildren(el), c);
       const isRefresh = tag === 'meta' && el.attrs.some((attr) => attr.name.toLowerCase() === 'http-equiv' && attr.value.trim().toLowerCase() === 'refresh');
       for (const attr of el.attrs) {
         const name = attributeName(attr);
         const value = attr.value;
         if (name.startsWith('on')) c.problems.add(`it runs code when "${attr.name}" fires`);
-        if (URL_ATTRIBUTES.has(name)) readAddress(value, c, true);
+        if (name === 'base') c.problems.add(`it holds "${attr.name}", which sends every relative link under it to another address`);
+        if (URL_ATTRIBUTES.has(name)) {
+          const hosts = readAddress(value, c, true);
+          if ((name === 'action' && tag === 'form') || name === 'formaction') for (const host of hosts) formHosts.add(host);
+        }
         if (LIST_ATTRIBUTES.has(name)) for (const part of value.split(',')) readAddress(part.trim().split(/\s+/)[0] ?? '', c, true);
-        if (WORD_ATTRIBUTES.has(name)) for (const part of value.split(/[\s,]+/)) readAddress(part, c, true);
+        if (WORD_ATTRIBUTES.has(name)) {
+          const hosts = value.split(/[\s,]+/).flatMap((part) => readAddress(part, c, true));
+          // A ping is told the address of the link that was followed.
+          if (name === 'ping') {
+            const link = el.attrs.filter((other) => attributeName(other) === 'href').flatMap((other) => placeholdersIn(other.value).map((one) => one.name));
+            for (const host of hosts) carry(c, host, link);
+          }
+        }
         if (name === 'style') readCss(value, c);
         if (name === 'srcdoc') readHtml(value, c, depth + 1);
         if (isRefresh && name === 'content') {
@@ -385,15 +433,21 @@ function readHtml(code: string, c: Collector, depth: number): void {
     }
     if ('childNodes' in node) for (let k = node.childNodes.length - 1; k >= 0; k -= 1) stack.push(node.childNodes[k]!);
   }
+  if (formHosts.size > 0) {
+    const fields = new Set(forms(code).flatMap((value) => placeholdersIn(value).map((one) => one.name)));
+    for (const host of formHosts) carry(c, host, fields);
+  }
 }
 
 /**
  * Every outside host an email's content can send a person to or load from,
  * and why any address in it cannot be told. `self` names the placeholders
- * that hold this server's own links (`resetUrl`).
+ * that hold this server's own links (`resetUrl`); `kept` says which other
+ * placeholders may never ride to an outside host (a sign-in code), ticked or
+ * not.
  */
-export function emailLinks(content: unknown, self: Iterable<string> = []): EmailLinks {
-  const c: Collector = { self: new Set(self), hosts: new Set(), carried: new Set(), problems: new Set() };
+export function emailLinks(content: unknown, self: Iterable<string> = [], kept: (name: string) => boolean = () => false): EmailLinks {
+  const c: Collector = { self: new Set(self), kept, hosts: new Set(), carries: new Map(), problems: new Set() };
   const visit = (value: unknown, field: string | null, depth: number): void => {
     if (depth > 64) {
       c.problems.add('it is nested too deep to read');
@@ -418,5 +472,6 @@ export function emailLinks(content: unknown, self: Iterable<string> = []): Email
     for (const [key, one] of Object.entries(record)) if (!STRUCTURE.has(key)) visit(one, key, depth + 1);
   };
   visit(content, null, 0);
-  return { hosts: [...c.hosts].sort(), carried: [...c.carried].sort(), problems: [...c.problems].sort() };
+  const carried = [...c.carries.keys()].sort();
+  return { hosts: [...c.hosts].sort(), carried, carries: Object.fromEntries(carried.map((host) => [host, [...c.carries.get(host)!].sort()])), problems: [...c.problems].sort() };
 }

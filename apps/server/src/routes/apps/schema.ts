@@ -535,6 +535,8 @@ export const appInstallPlanDto = z.object({
           footerChanged: z.boolean(),
           blocks: z.object({ added: z.array(z.string()), removed: z.array(z.string()), changed: z.array(z.string()) }),
           hosts: z.array(z.string()),
+          /** Per host: the placeholders a link to it carries, filled in when the mail is sent (the app's name, say). */
+          carried: z.record(z.string(), z.array(z.string())),
         }),
       ),
       left: z.array(z.object({ item: z.string(), reason: z.string() })),

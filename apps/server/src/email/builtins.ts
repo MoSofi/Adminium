@@ -210,6 +210,15 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
 };
 
 /**
+ * The placeholders of a system email that may ride in a link to an outside
+ * host somebody ticked (a help page that names the app): names of the
+ * business and plain numbers of time, nothing of a person and nothing of this
+ * server's (a link, a sign-in code, a document). Every other placeholder, one
+ * added later included, is refused in a link to an outside host.
+ */
+export const BUILTIN_EMAIL_SHAREABLE_VARS: ReadonlySet<string> = new Set(['appName', 'shop', 'business', 'venue', 'kind', 'expiresInMinutes', 'expiresInDays', 'minutes', 'days', 'cancelHours']);
+
+/**
  * What the seed hands ICU as each argument's value: the literal placeholder
  * the renderer will later substitute.
  */

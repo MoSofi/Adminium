@@ -199,6 +199,39 @@ for (const engine of META_ENGINES) {
       expect(await meta.db.selectFrom('adminium_app_instance_undo').select('id').execute()).toEqual([]);
     });
 
+    it('three apps on one setting, taken away in every order: the value is always the last one written by an app still here', async () => {
+      const install = async (key: string) => (await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).install({ manifestKey: key, version: '1.0.0', kind: 'app', source: 'file', document: app('1.0.0') })).row.id;
+      const ids: Record<string, string> = { A: manifestId, B: await install('fern-two'), C: await install('fern-three') };
+      const applyAs = (id: string, appName: string, at: number) => applyInstance({ meta, manifest: app('1.0.0', { branding: { appName } }) as never, manifestId: id, answers: { instance: true }, readFile: files(), library, userId: null, at });
+      // A writes, B writes over it, A is updated over B, C writes over all: the stack is B, A, C.
+      const writes: [string, string][] = [
+        ['A', 'a1'],
+        ['B', 'b'],
+        ['A', 'a2'],
+        ['C', 'c'],
+      ];
+      const orders = [
+        ['A', 'B', 'C'],
+        ['A', 'C', 'B'],
+        ['B', 'A', 'C'],
+        ['B', 'C', 'A'],
+        ['C', 'A', 'B'],
+        ['C', 'B', 'A'],
+      ];
+      for (const order of orders) {
+        for (const [index, [who, appName]] of writes.entries()) await applyAs(ids[who]!, appName, 1_000 * (index + 1));
+        const here = new Set(['A', 'B', 'C']);
+        for (const gone of order) {
+          await undoInstance(meta, ids[gone]!);
+          here.delete(gone);
+          // The last write of an app still here, else what this server had.
+          const last = writes.filter(([who]) => here.has(who)).at(-1);
+          expect(await settingOf(meta, 'branding.appName'), `${order.join('')} after ${gone}`).toBe(last?.[1] ?? 'Harbour');
+        }
+        expect(await meta.db.selectFrom('adminium_app_instance_undo').select('id').execute()).toEqual([]);
+      }
+    });
+
     it('undoing a language switch keeps what somebody made of its row since', async () => {
       await meta.db.deleteFrom('adminium_locales').where('locale', '=', 'fr_FR').execute();
       await apply('1.0.0', part({ branding: undefined, wording: undefined, systemEmails: undefined, settings: undefined }));
@@ -250,6 +283,31 @@ for (const engine of META_ENGINES) {
       const unticked = await apply('1.0.0', crafted('<a href="{{resetUrl}}">Reset</a> or see <a href="//help.example/x">help</a>'), { answers: { instance: true, instanceHosts: {} } });
       expect(unticked?.left).toEqual([{ item: 'password-reset/en_US', reason: 'it links to "help.example", which was not ticked' }]);
       expect(await subjectNow()).toBe(before);
+    });
+
+    it('a sign-in code, a person or a <base> never reaches an outside host, ticked or not; the review says what rides to each host', async () => {
+      const email = (key: string, code: string) => part({ systemEmails: [{ key, locale: 'en_US', content: { subject: 'Sign in', blocks: [{ id: 'go', block: 'email.html', data: { code } }] } }] });
+      const cases: [string, string, string][] = [
+        ['sign-in-code', '<p>{{code}}</p><img src="https://cdn.brand.example/l.png?c={{code}}">', 'it sends {{code}} to "cdn.brand.example"'],
+        ['sign-in-link', '<a href="{{link}}">Sign in</a><img src="https://cdn.brand.example/l.png?c={{code}}">', 'it sends {{code}} to "cdn.brand.example"'],
+        ['email-changed', '<img src="https://cdn.brand.example/l.png?e={{newEmail}}">', 'it sends {{newEmail}} to "cdn.brand.example"'],
+        ['password-reset', '<img src="https://cdn.brand.example/l.png?n={{name}}&e={{email}}">', 'it sends {{email}} to "cdn.brand.example"'],
+        ['password-reset', '<base href="https://cdn.brand.example/"><a href="r?t={{resetUrl}}">Reset</a>', 'it holds a <base>'],
+        ['password-reset', '<form action="https://cdn.brand.example/f"><input type="hidden" value="{{resetUrl}}"></form>', 'it sends {{resetUrl}} to "cdn.brand.example"'],
+      ];
+      for (const [key, code, reason] of cases) {
+        const item = `${key}/en_US`;
+        const review = await reviewInstance(meta, app('1.0.0', email(key, code)) as never);
+        expect(review?.systemEmails, code).toEqual([]);
+        expect(review?.left, code).toEqual([{ item, reason: expect.stringContaining(reason) }]);
+        const done = await apply('1.0.0', email(key, code), { answers: { instance: true, instanceHosts: { [item]: ['cdn.brand.example'] } } });
+        expect(done?.written.filter((id) => id.startsWith('email:')), code).toEqual([]);
+        expect(done?.left, code).toEqual([{ item, reason: expect.stringContaining(reason) }]);
+      }
+      // The app's name may ride to a help page somebody ticks: the review says so, per host.
+      const help = email('password-reset', '<a href="{{resetUrl}}">Reset</a> <a href="https://help.fernhill.example/?app={{appName}}">Help</a> <a href="https://desk.fernhill.example/">Desk</a>');
+      const review = await reviewInstance(meta, app('1.0.0', help) as never);
+      expect(review?.systemEmails).toEqual([expect.objectContaining({ hosts: ['desk.fernhill.example', 'help.fernhill.example'], carried: { 'help.fernhill.example': ['appName'] } })]);
     });
 
     it('an email whose link cannot be told, or runs code, is refused and says why', async () => {
@@ -359,7 +417,7 @@ for (const [dialect, available] of ENGINES) {
       expect(review['languages']['off'].sort()).toEqual(['ar_EG', 'cs_CZ', 'da_DK', 'fr_FR', 'zh_CN', 'zh_TW']);
       expect(review['wording']).toEqual({ changed: 1, same: 0 });
       expect(review['systemEmails']).toEqual([
-        expect.objectContaining({ id: 'password-reset/en_US', subject: expect.objectContaining({ to: 'Choose a new Fernhill password' }), hosts: ['desk.fernhill.example', HELP_HOST], blocks: expect.objectContaining({ added: ['help'] }) }),
+        expect.objectContaining({ id: 'password-reset/en_US', subject: expect.objectContaining({ to: 'Choose a new Fernhill password' }), hosts: ['desk.fernhill.example', HELP_HOST], carried: {}, blocks: expect.objectContaining({ added: ['help'] }) }),
       ]);
 
       // One host ticked: the email stays out, and the reply says so.

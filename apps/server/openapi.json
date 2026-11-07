@@ -138616,6 +138616,18 @@
                                     "items": {
                                       "type": "string"
                                     }
+                                  },
+                                  "carried": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
                                   }
                                 },
                                 "required": [
@@ -138626,7 +138638,8 @@
                                   "preheaderChanged",
                                   "footerChanged",
                                   "blocks",
-                                  "hosts"
+                                  "hosts",
+                                  "carried"
                                 ],
                                 "additionalProperties": false
                               }
