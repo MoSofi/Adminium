@@ -237,38 +237,40 @@ describe('save as app: the routes', () => {
     const h = harness;
     await shopTables(h);
     const files = library();
-    const { app } = await serve(h, 'sqlite', files, { owner: new Set(['*']) });
+    const ownerId = (await usersRepo(h.meta).create({ email: 'owner@corner.test', name: 'Owner', status: 'active' })).id;
+    const { app } = await serve(h, 'sqlite', files, { [ownerId]: new Set(['*']) });
 
-    const planned = await app.inject({ method: 'POST', url: '/apps/save/plan', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop' } });
+    const owner = { 'x-test-user': ownerId };
+    const planned = await app.inject({ method: 'POST', url: '/apps/save/plan', headers: owner, payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop' } });
     expect(planned.statusCode, planned.body).toBe(200);
     const plan = planned.json().plan as Record<string, unknown>;
     expect(Object.keys(plan).sort()).toEqual(['check', 'counts', 'key', 'label', 'lineage', 'minAdminiumVersion', 'problems', 'ready', 'version']);
     expect(plan['ready'], JSON.stringify(plan)).toBe(true);
 
-    const saved = await app.inject({ method: 'POST', url: '/apps/save', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', icon: 'shopping-bag' } });
+    const saved = await app.inject({ method: 'POST', url: '/apps/save', headers: owner, payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', icon: 'shopping-bag' } });
     expect(saved.statusCode, saved.body).toBe(200);
     const save = saved.json().save as { id: string; integrity: string; bytes: number; filename: string };
     expect(save).toMatchObject({ key: 'corner-shop', version: '1.0.0', filename: 'corner-shop-1.0.0.tgz' });
     expect(save.integrity).toMatch(/^sha512-[A-Za-z0-9+/]+=*$/);
 
-    const again = await app.inject({ method: 'POST', url: '/apps/save', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', version: '1.0.0' } });
+    const again = await app.inject({ method: 'POST', url: '/apps/save', headers: owner, payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', version: '1.0.0' } });
     expect(again.statusCode).toBe(409);
 
-    const list = await app.inject({ method: 'GET', url: '/apps/saves' });
+    const list = await app.inject({ method: 'GET', url: '/apps/saves', headers: owner });
     expect(list.statusCode).toBe(200);
     expect(list.json().saves).toEqual([expect.objectContaining({ id: save.id, key: 'corner-shop', version: '1.0.0', connectionId: h.connectionId, label: 'Corner shop', downloadable: true, integrity: save.integrity, bytes: save.bytes })]);
     expect(Object.keys(list.json().saves[0]).sort()).toEqual(['bytes', 'connectionId', 'description', 'downloadable', 'icon', 'id', 'integrity', 'key', 'label', 'name', 'savedAt', 'savedBy', 'savedByName', 'version']);
-    expect(list.json().saves[0]).toMatchObject({ name: 'Corner shop', description: null, icon: 'shopping-bag', savedBy: null, savedByName: null });
+    expect(list.json().saves[0]).toMatchObject({ name: 'Corner shop', description: null, icon: 'shopping-bag', savedBy: ownerId, savedByName: 'Owner' });
 
     // The inventory lists what its reader may read: one who reads every table sees them all.
-    const inventory = await app.inject({ method: 'GET', url: `/apps/save/inventory?connectionId=${h.connectionId}`, headers: { 'x-test-user': 'owner' } });
+    const inventory = await app.inject({ method: 'GET', url: `/apps/save/inventory?connectionId=${h.connectionId}`, headers: owner });
     expect(inventory.statusCode, inventory.body).toBe(200);
     expect(Object.keys(inventory.json().inventory).sort()).toEqual([
       'automations', 'connectionId', 'documents', 'emailTemplates', 'instance', 'invoiceLayouts', 'pages', 'payments', 'publicEndpoints', 'reports', 'roles', 'scheduledReports', 'tables', 'views',
     ]);
     expect(Object.keys(inventory.json().inventory.tables[0]).sort()).toEqual(['columns', 'id', 'links', 'name', 'personal', 'personalAllowed', 'rows', 'rowsAllowed', 'rowsExact', 'secretLike']);
 
-    const download = await app.inject({ method: 'GET', url: `/apps/save/${save.id}/file` });
+    const download = await app.inject({ method: 'GET', url: `/apps/save/${save.id}/file`, headers: owner });
     expect(download.statusCode).toBe(200);
     expect(download.headers['content-disposition']).toBe('attachment; filename="corner-shop-1.0.0.tgz"');
     const bytes = download.rawPayload;
@@ -279,9 +281,9 @@ describe('save as app: the routes', () => {
     expect(gunzipSync(bytes).toString('latin1')).toContain('package/manifest.json');
     // The icon is in the file, as a self-made app's own word.
     expect(gunzipSync(bytes).toString('utf8')).toContain('"icon": "shopping-bag"');
-    expect((await app.inject({ method: 'POST', url: '/apps/save/plan', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', icon: 'Not An Icon' } })).statusCode).not.toBe(200);
+    expect((await app.inject({ method: 'POST', url: '/apps/save/plan', headers: owner, payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop', icon: 'Not An Icon' } })).statusCode).not.toBe(200);
 
-    expect((await app.inject({ method: 'GET', url: '/apps/save/asv_missing/file' })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'GET', url: '/apps/save/asv_missing/file', headers: owner })).statusCode).toBe(404);
   });
 
   it('downloads a file again only for someone who holds every right its save needed', async () => {
@@ -358,7 +360,9 @@ describe('save as app: the routes', () => {
     });
     const user = async (name: string) => (await usersRepo(h.meta).create({ email: `${name}@corner.test`, name, status: 'active' })).id;
     const [ann, dee] = [await user('ann'), await user('dee')];
-    const { app } = await serve(h, 'sqlite', files, { [ann]: new Set(['*']), [dee]: new Set(['system:manifests:manage']) });
+    // Dee reads the tables, so the file can be made: what she lacks is managing files.
+    const reads = await Promise.all(['customers', 'orders'].map(async (name) => `table:${h.connectionId}:${await tableId(h, name)}:read`));
+    const { app } = await serve(h, 'sqlite', files, { [ann]: new Set(['*']), [dee]: new Set(['system:manifests:manage', ...reads]) });
     const payload = { connectionId: h.connectionId, key: 'corner-news', name: 'Corner news', include: { emailTemplates: ['news'] } };
 
     const refused = await app.inject({ method: 'POST', url: '/apps/save', headers: { 'x-test-user': dee }, payload });

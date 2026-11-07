@@ -15,7 +15,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { appSavesRepo, appUpdatesRepo, manifestsRepo, settingsRepo, workspaceInstallsRepo, workspaceSavesRepo, workspacesRepo } from '@adminium/meta';
+import { appSavesRepo, appUpdatesRepo, manifestsRepo, settingsRepo, usersRepo, workspaceInstallsRepo, workspaceSavesRepo, workspacesRepo } from '@adminium/meta';
 import { WORKSPACE_FILE_FLOOR } from '@adminium/manifest';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -758,6 +758,11 @@ describe('Save workspace: the routes and the command', () => {
     app.setValidatorCompiler(validatorCompiler);
     app.setSerializerCompiler(serializerCompiler);
     app.decorate('rbac', { require: () => async () => {} } as never);
+    // The person saving holds every right (the narrow harness has no role layer of its own).
+    const owner = await usersRepo(src.h.meta).create({ email: 'owner@corner.test', name: 'Owner', status: 'active' });
+    app.addHook('onRequest', async (request) => {
+      Object.assign(request, { user: { id: owner.id, name: 'Owner', email: 'owner@corner.test' }, can: async () => true });
+    });
     app.setErrorHandler((error, _request, reply) => {
       if (error instanceof AppError) return reply.status(error.statusCode).send(errorEnvelope(error.code, error.message, 'req_test', error.details));
       return reply.status(500).send(errorEnvelope('INTERNAL', String(error), 'req_test'));
@@ -786,7 +791,7 @@ describe('Save workspace: the routes and the command', () => {
 
       const listed = JSON.parse((await app.inject({ method: 'GET', url: '/apps/saves' })).body) as { saves: { key: string }[]; workspaces: { id: string; name: string; label: string; appSaveIds: string[] }[] };
       expect(listed.saves.map((one) => one.key).sort()).toEqual(['archive', 'clinic']);
-      expect(listed.workspaces).toMatchObject([{ id: reply.id, name: 'Corner Shop', label: 'Leith', filename: 'corner-shop.workspace.tgz' }]);
+      expect(listed.workspaces).toMatchObject([{ id: reply.id, name: 'Corner Shop', label: 'Leith', filename: 'corner-shop.workspace.tgz', downloadable: true }]);
       expect(listed.workspaces[0]!.appSaveIds).toHaveLength(2);
 
       const missing = await app.inject({ method: 'GET', url: '/workspaces/save/wss_nope/file' });

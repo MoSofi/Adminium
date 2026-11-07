@@ -21,7 +21,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { appIconSchema, workspaceFileName } from '@adminium/manifest';
-import { usersRepo, type MetaDb } from '@adminium/meta';
+import { appSavesRepo, usersRepo, type AppSave, type MetaDb } from '@adminium/meta';
 
 import type { SaveRights, SaveService } from '../../apps/save/service.js';
 import type { WorkspaceSaveService } from '../../apps/save/workspace.js';
@@ -157,6 +157,8 @@ export const appSavesReply = z.object({
       appSaveIds: z.array(z.string()),
       /** The file's name, as "Download again" gives it. */
       filename: z.string(),
+      /** Whether "Download again" can pack it for the caller: every app inside is downloadable for them. */
+      downloadable: z.boolean(),
     }),
   ),
 });
@@ -254,6 +256,22 @@ export const saveInventoryReply = z.object({
 
 const inventoryQuery = z.object({ connectionId: z.string().min(1) }).strict();
 
+/** The time a workspace file was saved, from its stored `workspace.json`; null when that cannot be read. */
+function savedAtOf(document: string): string | null {
+  try {
+    const savedAt = (JSON.parse(document) as { savedAt?: unknown } | null)?.savedAt;
+    return typeof savedAt === 'string' ? savedAt : null;
+  } catch {
+    return null;
+  }
+}
+
+async function everyApp(ids: readonly string[], may: (id: string) => Promise<boolean>): Promise<boolean> {
+  if (ids.length === 0) return false;
+  for (const id of ids) if (!(await may(id))) return false;
+  return true;
+}
+
 export interface AppSaveRoutesDeps {
   meta: MetaDb;
   service: SaveService;
@@ -311,6 +329,16 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const saves = await deps.service.list();
         const rights = rightsOf(request);
+        const byId = new Map(saves.map((save) => [save.id, save]));
+        // One save's record that cannot be read (or a check that fails) refuses that save's download, never the list.
+        const mayDownload = async (save: AppSave): Promise<boolean> => {
+          try {
+            return (await deps.service.missingRight(save, rights)) === null;
+          } catch (error) {
+            request.log.warn({ err: error, saveId: save.id }, 'could not ask the rights a save needs');
+            return false;
+          }
+        };
         const people = new Map<string, string | null>();
         for (const id of new Set(saves.flatMap((save) => (save.savedBy === null ? [] : [save.savedBy])))) people.set(id, (await usersRepo(deps.meta).findById(id))?.name ?? null);
         return { saves: await Promise.all(saves.map(async (save) => ({
@@ -327,9 +355,9 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
           savedAt: save.savedAt,
           integrity: save.integrity,
           bytes: save.bytes,
-          downloadable: save.fileId !== null && (await deps.service.missingRight(save, rights)) === null,
+          downloadable: save.fileId !== null && (await mayDownload(save)),
         }))),
-        workspaces: (await deps.workspaces.list()).map((save) => ({
+        workspaces: await Promise.all((await deps.workspaces.list()).map(async (save) => ({
           id: save.id,
           workspaceId: save.workspaceId,
           name: save.name,
@@ -339,8 +367,13 @@ export function appSaveRoutes(deps: AppSaveRoutesDeps): FastifyPluginAsyncZod {
           integrity: save.integrity,
           bytes: save.bytes,
           appSaveIds: save.appSaveIds,
-          filename: workspaceFileName(save.name, (JSON.parse(save.document) as { savedAt?: string }).savedAt ?? new Date(save.savedAt).toISOString()),
-        })),
+          filename: workspaceFileName(save.name, savedAtOf(save.document) ?? new Date(save.savedAt).toISOString()),
+          // Every app inside must be one the caller may download again, as "Download again" packs them all.
+          downloadable: await everyApp(save.appSaveIds, async (id) => {
+            const inner = byId.get(id) ?? (await appSavesRepo(deps.meta).findById(id));
+            return inner !== null && inner !== undefined && inner.fileId !== null && (await mayDownload(inner));
+          }),
+        }))),
       };
       },
     );

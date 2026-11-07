@@ -39,6 +39,14 @@ export interface SaveSource {
   readFile?: ((fileId: string) => Promise<Uint8Array | null>) | undefined;
   /** How the rows part reads the database and its pictures; absent: no rows can be saved. */
   rows?: RowAccess | undefined;
+  /**
+   * Who saves, for the personal views: only their own may travel, and
+   * another person's is never read, asked about or named. Absent, the
+   * host's (the command line): every view is its to share.
+   */
+  viewer?: { userId: string | null } | undefined;
+  /** Model ids of the tables the saver does not read: none travels, and a note never names one. */
+  unreadTables?: ReadonlySet<string> | undefined;
 }
 
 /** Rows a table carries. */

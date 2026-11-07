@@ -41,7 +41,7 @@ const flags: FlagSpecs = {
 };
 
 /** Host access holds every right. */
-const HOST: SaveRights = { userId: null, can: async () => true, readsWhole: async () => true, permissions: async () => ({ superAdmin: true }) };
+const HOST: SaveRights = { userId: null, host: true, can: async () => true, readsWhole: async () => true, permissions: async () => ({ superAdmin: true }) };
 
 export const appSaveCommand: Command = {
   name: 'save',

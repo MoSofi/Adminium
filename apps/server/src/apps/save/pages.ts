@@ -340,7 +340,7 @@ function assertOwnTables(scope: PageScope, document: unknown, what: string): voi
   if (ids.length > 0) throw new Error(`save: ${what} of the page "${scope.item}" holds an id of this install at ${ids[0]!.path}`);
 }
 
-/** The page's shared views, and the personal views its owners chose to share. */
+/** The page's shared views, and the saver's own views they chose to share (the host's: anybody's). */
 async function portableViews(scope: PageScope): Promise<PageView[]> {
   const { ctx, page } = scope;
   const rows = await ctx.source.meta.db.selectFrom('adminium_views').select('id').where('pageId', '=', page.id).orderBy('createdAt').orderBy('id').execute();
@@ -362,6 +362,9 @@ async function portableViews(scope: PageScope): Promise<PageView[]> {
     // A person's own arrangement of a dashboard is never a view of the app.
     if (view.kind === 'layout' && (view.userId !== null || view.name === LAYOUT_OVERRIDE_NAME)) continue;
     const personal = view.userId !== null;
+    // Another person's own view is theirs: it never travels, and Check never names it.
+    const viewer = ctx.source.viewer;
+    if (personal && viewer !== undefined && view.userId !== viewer.userId) continue;
     const item = `${scope.item}: ${view.name}`;
     if (personal && !shared.has(view.id)) {
       if (leaveOut.has(`view:${view.id}`)) continue;

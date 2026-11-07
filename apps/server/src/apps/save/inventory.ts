@@ -142,7 +142,8 @@ function tablesNamedIn(value: unknown, resolve: (name: string) => string | null,
   return out;
 }
 
-function tableOfEnvelope(config: unknown): string | null {
+/** The table a page's stored envelope shows (`source.table`), or null. */
+export function tableOfEnvelope(config: unknown): string | null {
   if (config === null || typeof config !== 'object') return null;
   const source = (config as Record<string, unknown>)['source'];
   if (source === null || typeof source !== 'object') return null;
@@ -271,12 +272,14 @@ export async function saveInventory(source: SaveSource, rights: InventoryRights)
     .filter((row) => !made.has(`scheduled-report:${row.id}`) && pageSet.has(row.pageId))
     .map((row) => ({ id: row.id, name: row.name, tableIds: [], pageId: row.pageId }));
 
+  // An endpoint of a table the saver does not read is left out with its table: its address is often the table's name.
   const publicEndpoints: InventoryItem[] = (await publicEndpointsRepo(meta).listByConnection(connectionId))
     .filter((endpoint) => endpoint.managedBy === null)
-    .map((endpoint) => {
+    .flatMap((endpoint) => {
       const parsed = parseDefinition(endpoint.definition);
       const table = parsed.ok ? resolve(String((parsed.definition as { source?: unknown }).source ?? '')) : null;
-      return { id: endpoint.id, name: endpoint.ref, tableIds: table === null ? [] : shown([table]) };
+      if (table !== null && !seen.has(table)) return [];
+      return [{ id: endpoint.id, name: endpoint.ref, tableIds: table === null ? [] : [table] }];
     });
 
   const payments = (await payableProfilesRepo(meta).list(connectionId)).some((profile) => profile.ownerApp === null);
