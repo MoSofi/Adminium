@@ -61,12 +61,13 @@ export function panelUrl(base: string, record: { connectionId: string; table: st
 
 /**
  * The copy of an add-on a record's panel is of: the one on the record's
- * database, else the one kept once per server. A server that does not say
- * which copy a row is (older than this dashboard) lists one row per key.
+ * database, else the one kept once per server. With one copy, that one (a
+ * server older than this dashboard lists one row per key and says no more).
  */
 export function copyForRecord(addOns: readonly AddOnDto[] | undefined, key: string, connectionId: string): AddOnDto | undefined {
   const copies = (addOns ?? []).filter((addOn) => addOn.key === key);
-  if (copies.length <= 1 && copies[0]?.installId === undefined) return copies[0];
+  // One copy: the key's only install, as it always was.
+  if (copies.length <= 1) return copies[0];
   return copies.find((copy) => copy.connectionId === connectionId) ?? copies.find((copy) => copy.connectionId === null);
 }
 

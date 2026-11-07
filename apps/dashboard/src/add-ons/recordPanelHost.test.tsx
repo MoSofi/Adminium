@@ -128,8 +128,11 @@ describe('a record panel', () => {
     expect(JSON.parse((await screen.findByTestId('panel')).textContent ?? '').install).toBe('man_server');
   });
 
-  it('draws nothing where neither the record\'s database nor the server has a copy', async () => {
-    const { container } = draw({ id: 1, design_id: 7 }, [LISTED], [{ ...ROW, installId: 'man_fernhill', connectionId: 'conn_9', slug: '', bundles: [LISTED] }]);
+  it('draws nothing where several copies are listed and none is the record\'s database\'s or the server\'s', async () => {
+    const { container } = draw({ id: 1, design_id: 7 }, [LISTED], [
+      { ...ROW, installId: 'man_fernhill', connectionId: 'conn_9', slug: '', bundles: [LISTED] },
+      { ...ROW, installId: 'man_kiln', connectionId: 'conn_8', slug: 'kiln', bundles: [LISTED] },
+    ]);
     await waitFor(() => expect(container.textContent).toBe(''));
     expect(loads.asked).toEqual([]);
   });
