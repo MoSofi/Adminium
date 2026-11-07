@@ -1427,10 +1427,11 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   async function endpointRefProblems(manifest: Manifest, connectionId: string, plan: InstallPlan): Promise<PlanProblem[]> {
     if (manifest.kind !== 'app' || (manifest.publicAccess ?? []).length === 0) return [];
     const shared = new Set((plan.tables ?? []).filter((t) => t.action === 'share').map((t) => t.ref));
-    const stored = new Map((await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).map((e) => [e.ref, e.managedBy]));
+    // By name whatever its case: an address is one endpoint however it is written (and MySQL's unique key says so).
+    const stored = new Map((await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).map((e) => [e.ref.toLowerCase(), e.managedBy]));
     const out: PlanProblem[] = [];
     for (const endpoint of planPublicEndpoints(manifest, plan.names ?? {}, null, { tablesMadeLater: true })) {
-      const holder = stored.get(endpoint.ref);
+      const holder = stored.get(endpoint.ref.toLowerCase());
       if (holder === undefined || holder === manifest.key) continue;
       const whose = holder === null ? 'an endpoint of this server' : `"${holder}"'s`;
       out.push({
@@ -3358,7 +3359,31 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     return done;
   }
 
-  async function update(actor: InstallActor, host: InstallHost, input: UpdateInput): Promise<UpdateAppReply> {
+  /**
+   * WHAT AN UPDATE WOULD REFUSE, BEFORE IT MOVES ANYTHING: the update's own
+   * checks, run as the update runs them, stopping where it would start to
+   * write. Several copies moved in one go ("Install the rest") are each asked
+   * first, so a refusal of one never leaves another already moved.
+   */
+  async function checkUpdate(actor: InstallActor, host: InstallHost, input: UpdateInput): Promise<void> {
+    await update(actor, host, input, true);
+  }
+
+  /** A version that no longer carries the server-wide part puts back what the running one wrote: asked of whoever updates, and of whoever finishes one. */
+  async function refuseInstanceRestore(manifest: Manifest, installed: InstalledManifest, to: string, actor: InstallActor): Promise<void> {
+    const dropsInstance = !carriesInstance(manifest) && (await instanceValuesNow(deps.meta, installed.row.id)).some((value) => !value.changed);
+    if (dropsInstance && !(await actor.can(PERMISSIONS.settingsManage))) {
+      throw new ForbiddenError(
+        `${to} of "${installed.row.manifestKey}" no longer changes the look and languages of the whole server, so updating puts back what it changed. That needs the permission to change the server’s settings: ask someone who has it to update it.`,
+        'FORBIDDEN',
+        { reason: 'INSTANCE_RESTORE_NEEDS_SETTINGS' },
+      );
+    }
+  }
+
+  async function update(actor: InstallActor, host: InstallHost, input: UpdateInput): Promise<UpdateAppReply>;
+  async function update(actor: InstallActor, host: InstallHost, input: UpdateInput, checkOnly: true): Promise<null>;
+  async function update(actor: InstallActor, host: InstallHost, input: UpdateInput, checkOnly = false): Promise<UpdateAppReply | null> {
     const { key } = input;
     const userId = actor.id;
     const userLabel = actor.label;
@@ -3377,8 +3402,18 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const updates = appUpdatesRepo(deps.meta);
     const unfinished = await updates.find(installed.row.id);
     if (unfinished !== null && unfinished.toVersion === installed.row.version && installed.document !== null) {
-      // Whoever finishes it is held to the same: what its live keys serve changes only by someone who may manage API keys.
-      await refuseServedChanges(installed.document as Manifest, installed, await actor.can(PERMISSIONS.apiKeysManage));
+      /*
+       * Whoever finishes it is held to the same as whoever started it: what
+       * its live keys serve changes only by someone who may manage API keys,
+       * and the server-wide part is put back, or written, only by someone who
+       * may change the server's settings.
+       */
+      const resumed = installed.document as Manifest;
+      await refuseServedChanges(resumed, installed, await actor.can(PERMISSIONS.apiKeysManage));
+      await refuseInstanceRestore(resumed, installed, installed.row.version, actor);
+      const resumedInstance = await instanceRefusal(resumed, input.body?.instance, actor.can);
+      if (resumedInstance !== null) throw resumedInstance;
+      if (checkOnly) return null;
       return writeUpdated(actor, host, input, installed, {
         manifest: installed.document as Manifest,
         from: unfinished.fromVersion,
@@ -3386,7 +3421,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         fromTables: unfinished.fromTables,
       });
     }
-    if (unfinished !== null) await updates.finish(installed.row.id);
+    if (unfinished !== null && !checkOnly) await updates.finish(installed.row.id);
 
     const from = installed.row.version;
     const to = (await deps.store.versions(key)).find(
@@ -3465,14 +3500,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * running one wrote over the server, as the uninstall would: that is a
      * change of the server's settings, asked of whoever updates.
      */
-    const dropsInstance = !carriesInstance(manifest) && (await instanceValuesNow(deps.meta, installed.row.id)).some((value) => !value.changed);
-    if (dropsInstance && !(await actor.can(PERMISSIONS.settingsManage))) {
-      throw new ForbiddenError(
-        `${to} of "${key}" no longer changes the look and languages of the whole server, so updating puts back what it changed. That needs the permission to change the server’s settings: ask someone who has it to update it.`,
-        'FORBIDDEN',
-        { reason: 'INSTANCE_RESTORE_NEEDS_SETTINGS' },
-      );
-    }
+    await refuseInstanceRestore(manifest, installed, to, actor);
 
     /*
      * AN ADD-ON MOUNTED ON THIS APP MUST STILL WORK WITH IT. A new version
@@ -3569,6 +3597,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         );
       }
     }
+    // Asked only what it would refuse: nothing has moved, and nothing does.
+    if (checkOnly) return null;
     /*
      * THE ORDER, AND WHY IT CAN BE FINISHED.
      *
@@ -4016,7 +4046,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     if (manifest.kind !== 'app' || (manifest.publicAccess ?? []).length === 0 || connectionId === null || deps.publicAccess === undefined) return [];
     const at = Date.now();
     const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
-    const live = (await publicKeysRepo(deps.meta).listManagedBy(manifest.key, install.row.id)).filter((k) => here.has(k.id));
+    // The keys the update's consent reads as this install's: its own, and one of the app's with no install named on its database (made by hand, or before installs were recorded).
+    const live = (await publicKeysRepo(deps.meta).listManagedBy(manifest.key)).filter((k) => (k.installId === null || k.installId === install.row.id) && here.has(k.id));
     if (live.length === 0) return [];
     const view = await deps.publicAccess.viewFor(connectionId);
     if (view === null) return [];
@@ -4365,6 +4396,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     auditAppEvent,
     install: (actor: InstallActor, host: InstallHost, input: InstallInput) => whileMoving(input.key, () => install(actor, host, input)),
     update: (actor: InstallActor, host: InstallHost, input: UpdateInput) => whileMoving(input.key, () => update(actor, host, input)),
+    checkUpdate,
     applyInPlace: (actor: InstallActor, host: InstallHost, input: ApplyInPlaceInput) => whileMoving(input.key, () => applyInPlace(actor, host, input)),
     putInParts,
     tablesMadeFor,

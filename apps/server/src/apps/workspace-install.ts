@@ -93,6 +93,8 @@ export interface WorkspaceInstallerDeps {
   copiesOf(key: string): Promise<AppCopy[]>;
   install(input: { key: string; version: string; connectionId: string; answers: Record<string, unknown> }): Promise<void>;
   update(input: { key: string; installId: string; connectionId: string | null; answers: Record<string, unknown> }): Promise<void>;
+  /** What that update would refuse, asked with nothing moved: throws its refusal. */
+  checkUpdate(input: { key: string; installId: string; connectionId: string | null; answers: Record<string, unknown> }): Promise<void>;
   connectionExists(connectionId: string): Promise<boolean>;
   /** Told when the run changed the workspaces (for the menus). */
   workspacesChanged?: (() => Promise<void>) | undefined;
@@ -217,6 +219,13 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
       // Each copy's own answers; the single set only for the only copy there is; none for any other.
       const only = copies.length === 1 ? copies[0]!.installId : null;
       const answersFor = (copy: AppCopy): Record<string, unknown> => asked?.updates?.[copy.installId] ?? (copy.installId === only ? asked?.update : undefined) ?? {};
+      /*
+       * Every copy this run moves is asked first, with its own answers: a
+       * refusal of one (what its public access serves, the server's settings)
+       * leaves every copy where it was, never one moved beside one that is not.
+       */
+      const moved = [...unfinished, ...copies.filter((copy) => !unfinished.includes(copy) && compareSemver(app.version, copy.version) > 0)];
+      for (const copy of moved) await deps.checkUpdate({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: answersFor(copy) });
       // An update that moved its version and stopped is finished first: the same update run again resumes it.
       for (const copy of unfinished) await deps.update({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: answersFor(copy) });
       if (unfinished.length > 0) copies = (await deps.copiesOf(app.key)).filter(isFinishedCopy);

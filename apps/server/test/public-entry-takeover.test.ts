@@ -103,6 +103,19 @@ for (const [dialect, available] of ENGINES) {
       expect(after?.managedBy).toBeNull();
     });
 
+    it('reads a name in other letters as the same endpoint: refused on the check, and by the endpoint service', async () => {
+      const h = (harness = await installHarness(dialect, { full: true }));
+      const before = await operatorEndpoint(h);
+      const refused = await h.install(shop('1.0.0', [{ ...LIST, path: '/nOTES' }]), { publicAccess: true });
+      expect(said(refused)).toMatch(/^422 VALIDATION_FAILED SHARE_REF_TAKEN: The public access "nOTES" this app asks for has the name of an endpoint here that is an endpoint of this server\./);
+      expect((await publicEndpointsRepo(h.meta).listByConnection(h.connectionId)).map((endpoint) => endpoint.ref)).toEqual(['notes']);
+      expect((await publicEndpointsRepo(h.meta).findByRef(h.connectionId, 'notes'))?.definition).toBe(before);
+      // A second endpoint saved under the name in other letters is the first one's name: refused, never stored beside it.
+      const parsed = JSON.parse(before) as Record<string, unknown>;
+      await expect(h.deps.publicAccess!.service.saveEndpoint({ connectionId: h.connectionId, ref: 'nOTES', definition: { ...parsed, path: '/nOTES' } as never, origin: 'custom' })).rejects.toMatchObject({ name: 'EndpointRefTaken' });
+      expect((await publicEndpointsRepo(h.meta).listByConnection(h.connectionId)).map((endpoint) => endpoint.ref)).toEqual(['notes']);
+    });
+
     it('refuses an update that adds such an entry, and leaves the operator’s endpoint as it was', async () => {
       const h = (harness = await installHarness(dialect, { full: true }));
       const before = await operatorEndpoint(h);
@@ -131,6 +144,26 @@ for (const [dialect, available] of ENGINES) {
       expect(said(refused)).toMatch(/^403 .*changes what its public access serves \("orders"\), which only someone who may manage API keys can allow/);
       expect(await served()).toBe(before);
       // Someone who may: the endpoint follows the version.
+      mayManageKeys = true;
+      const updated = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
+      expect(updated.statusCode, updated.body).toBe(200);
+      expect(await served()).not.toContain('"note"');
+    });
+
+    it('holds a key of the app with no install named to the same: its consent carries the update, and what it serves changes only for someone who may manage API keys', async () => {
+      let mayManageKeys = true;
+      const h = (harness = await installHarness(dialect, { full: true, can: (permission) => permission !== PERMISSIONS.apiKeysManage || mayManageKeys }));
+      const first = await h.install(shop('1.0.0', [LIST]), { publicAccess: true });
+      expect(first.statusCode, first.body).toBe(200);
+      // The app's key as one made by hand, or before installs were recorded on keys: no install named.
+      await h.meta.db.updateTable('adminium_public_keys').set({ installId: null }).where('managedBy', '=', 'shop').execute();
+      const served = async () => (await publicEndpointsRepo(h.meta).findByRef(h.connectionId, 'orders'))?.definition;
+      const before = await served();
+      await h.stage(shop('1.0.1', [{ ...LIST, select: ['id', 'code'] }]));
+      mayManageKeys = false;
+      const refused = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
+      expect(said(refused)).toMatch(/^403 .*changes what its public access serves \("orders"\)/);
+      expect(await served()).toBe(before);
       mayManageKeys = true;
       const updated = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
       expect(updated.statusCode, updated.body).toBe(200);

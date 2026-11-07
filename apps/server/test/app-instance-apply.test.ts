@@ -16,7 +16,7 @@
 import { createHash } from 'node:crypto';
 
 import { INSTANCE_SETTING_KEYS, instanceSchema, validateManifest } from '@adminium/manifest';
-import { appInstanceUndoRepo, filesRepo, manifestsRepo, readBool, settingsRepo, type MetaDb } from '@adminium/meta';
+import { appInstanceUndoRepo, appUpdatesRepo, filesRepo, manifestsRepo, readBool, settingsRepo, type MetaDb } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { applyInstance, linkHosts, reviewInstance, undoInstance } from '../src/apps/manifest-instance.js';
@@ -450,6 +450,39 @@ for (const [dialect, available] of ENGINES) {
       expect(await snapshot(h.meta)).toEqual(original);
       const installed = await manifestsRepo(h.meta, { encrypt: (v) => v, decrypt: (v) => v }).findInScope('fern-notes', h.connectionId);
       expect(await appInstanceUndoRepo(h.meta).list(installed!.row.id)).toEqual([]);
+    });
+
+    it('a stopped update is finished, or checked, only by someone who may put the server back, as it was started', async () => {
+      h = await installHarness(dialect, { library: memoryLibrary() });
+      await dressTarget(h.meta);
+      await h.stage(app('1.0.0'), logo);
+      const reply = await install({ instance: true, instanceHosts: ALL_HOSTS });
+      expect(reply.statusCode, reply.body).toBe(200);
+      const { instance: _dropped, ...plain } = app('1.1.0');
+      await h.stage(plain);
+      const service = createAppInstallService(h.deps);
+      // Manages apps, not the server's settings.
+      const actor = { id: null, label: 'staff', kind: 'user' as const, superAdmin: async () => false, can: async (permission: string) => permission !== 'system:settings:manage' };
+      const host = { log: { info: () => undefined, warn: () => undefined } };
+      const manifests = manifestsRepo(h.meta, { encrypt: (v) => v, decrypt: (v) => v });
+      const installed = (await manifests.findInScope('fern-notes', h.connectionId))!;
+
+      // Asked only what it would refuse: the same refusal, and nothing moves.
+      await expect(service.checkUpdate(actor as never, host as never, { key: 'fern-notes', body: {} })).rejects.toMatchObject({ statusCode: 403, details: { reason: 'INSTANCE_RESTORE_NEEDS_SETTINGS' } });
+      expect((await manifests.findById(installed.row.id))!.row.version).toBe('1.0.0');
+
+      // Started by someone who may, and stopped once its version moved: the record an update that stopped leaves.
+      const moved = validateManifest(plain, { allowLocalPublisher: true });
+      expect(moved.ok).toBe(true);
+      await manifests.setVersion(installed.row.id, { version: '1.1.0', document: moved.ok ? moved.manifest : null });
+      await appUpdatesRepo(h.meta).begin({ manifestId: installed.row.id, fromVersion: '1.0.0', toVersion: '1.1.0', fromTables: [] });
+      await appUpdatesRepo(h.meta).stopped(installed.row.id, 'instance');
+
+      // Finishing it puts the server back: refused to whoever may not, the server as it was.
+      await expect(service.checkUpdate(actor as never, host as never, { key: 'fern-notes', body: {} })).rejects.toMatchObject({ statusCode: 403, details: { reason: 'INSTANCE_RESTORE_NEEDS_SETTINGS' } });
+      await expect(service.update(actor as never, host as never, { key: 'fern-notes', body: {} })).rejects.toMatchObject({ statusCode: 403, details: { reason: 'INSTANCE_RESTORE_NEEDS_SETTINGS' } });
+      expect(await settingOf(h.meta, 'branding.appName')).toBe('Fernhill');
+      expect(await appUpdatesRepo(h.meta).find(installed.row.id)).not.toBeNull();
     });
 
     it('a logo its package does not hold as it says stops the plan', async () => {

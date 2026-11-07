@@ -550,6 +550,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         copiesOf,
         install: (request, body) => service.install(actorOf(request), hostOf(request), body),
         update: (request, { key, installId, connectionId, body }) => service.update(actorOf(request), hostOf(request), { key, body, installId, ...(connectionId === null ? {} : { connectionId }) }),
+        checkUpdate: (request, { key, installId, connectionId, body }) => service.checkUpdate(actorOf(request), hostOf(request), { key, body, installId, ...(connectionId === null ? {} : { connectionId }) }),
         auditAppEvent: (action, after, userId, userLabel) => auditAppEvent(action, after, userId, userLabel),
       }),
     );

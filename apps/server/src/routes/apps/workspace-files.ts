@@ -134,6 +134,8 @@ export interface WorkspaceFileRoutesDeps {
   copiesOf: (key: string) => Promise<{ installId: string; connectionId: string | null; connectionName: string; version: string; status?: string | undefined }[]>;
   install: (request: FastifyRequest, body: z.infer<typeof installAppBody>) => Promise<unknown>;
   update: (request: FastifyRequest, input: { key: string; installId: string; connectionId: string | null; body: z.infer<typeof updateAppBody> }) => Promise<unknown>;
+  /** What that update would refuse, with nothing moved. */
+  checkUpdate: (request: FastifyRequest, input: { key: string; installId: string; connectionId: string | null; body: z.infer<typeof updateAppBody> }) => Promise<void>;
   auditAppEvent: (action: string, after: Record<string, unknown>, userId: string | null, userLabel: string) => Promise<void>;
 }
 
@@ -213,6 +215,9 @@ export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAs
       },
       update: async ({ key, installId, connectionId, answers }) => {
         await w.update(request, { key, installId, connectionId, body: answers as z.infer<typeof updateAppBody> });
+      },
+      checkUpdate: async ({ key, installId, connectionId, answers }) => {
+        await w.checkUpdate(request, { key, installId, connectionId, body: answers as z.infer<typeof updateAppBody> });
       },
       connectionExists: async (connectionId) => (await connectionsRepo(deps.meta, deps.credentialCrypto).findById(connectionId)) !== null,
       workspacesChanged: async () => {
