@@ -10,24 +10,34 @@
  * names no file for (the reader lacks its permission) draws nothing; one
  * whose code cannot be loaded says so, and runs nothing.
  *
+ * With a copy of the add-on on each of two databases, the panel is the copy
+ * on the record's database: its calls to its add-on's routes name that copy,
+ * and its data kit reads it.
+ *
  * Which readers are offered a panel at all is the server's (three gates,
  * asked as the reader: `apps/server/test/design-kit-panels.test.ts`).
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { RecordPanelFact } from '../api/pages.js';
 import { ADD_ONS_QUERY_KEY } from '../studio/add-ons/addOnsApi.js';
-import { AddOnKeyContext } from './data-kit/context.js';
+import { api } from '../app/api.js';
+import { AddOnInstallContext, AddOnKeyContext } from './data-kit/context.js';
 
 const loads = vi.hoisted(() => ({ asked: [] as { url: string; integrity: string }[], fail: false }));
 
 /** What the panel draws: everything it was handed, and whose key it runs in. */
 function Panel(props: { connectionId: string; table: string; row: string; linked: string | null }) {
   const key = useContext(AddOnKeyContext);
-  return <p data-testid="panel">{JSON.stringify({ ...props, key })}</p>;
+  const install = useContext(AddOnInstallContext);
+  // A call of its own to its add-on's routes, as a panel's code makes one.
+  useEffect(() => {
+    void api.get('/api/v1/add-ons/design-kit/kit').catch(() => undefined);
+  }, []);
+  return <p data-testid="panel">{JSON.stringify({ ...props, key, install })}</p>;
 }
 
 vi.mock('./client.js', async (original) => ({
@@ -44,9 +54,11 @@ const { default: RecordPanelHost } = await import('./RecordPanelHost.js');
 const PANEL: RecordPanelFact = { addOn: 'design-kit', id: 'design-kit-editor', title: 'Design', titleKey: 'design-kit.panel.title', column: 'design_id', order: 0 };
 const LISTED = { path: 'dist/panel.js', url: '/api/v1/add-ons/design-kit/panels/design-kit-editor/bundle', integrity: 'sha256-cGFuZWw=', panel: 'design-kit-editor' };
 
-function draw(row: Record<string, unknown> | null, bundles: unknown[] = [LISTED]) {
+const ROW = { key: 'design-kit', name: 'Design kit', version: '1.0.0', connectKind: 'none', enabled: true, hostApi: 2 };
+
+function draw(row: Record<string, unknown> | null, bundles: unknown[] = [LISTED], listed: unknown[] = [{ ...ROW, bundles }]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
-  client.setQueryData(ADD_ONS_QUERY_KEY, [{ key: 'design-kit', name: 'Design kit', version: '1.0.0', connectKind: 'none', enabled: true, hostApi: 2, bundles }]);
+  client.setQueryData(ADD_ONS_QUERY_KEY, listed);
   return render(
     <QueryClientProvider client={client}>
       <RecordPanelHost panel={PANEL} connectionId="conn_1" table="main.printing_order_lines" recordId="1" row={row} />
@@ -54,8 +66,19 @@ function draw(row: Record<string, unknown> | null, bundles: unknown[] = [LISTED]
   );
 }
 
+/** The install each call to the add-on's routes named. */
+const named: (string | null)[] = [];
+vi.stubGlobal(
+  'fetch',
+  vi.fn(async (_path: string, init?: RequestInit) => {
+    named.push(new Headers(init?.headers).get('x-adminium-install'));
+    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+  }),
+);
+
 afterEach(() => {
   cleanup();
+  named.length = 0;
   loads.asked = [];
   loads.fail = false;
 });
@@ -64,7 +87,7 @@ describe('a record panel', () => {
   it('is fetched for this record, pinned to the listed fingerprint, and handed the record and the row it links to', async () => {
     draw({ id: 1, design_id: 7 });
     const drawn = await screen.findByTestId('panel');
-    expect(JSON.parse(drawn.textContent ?? '')).toEqual({ connectionId: 'conn_1', table: 'main.printing_order_lines', row: '1', linked: '7', key: 'design-kit' });
+    expect(JSON.parse(drawn.textContent ?? '')).toEqual({ connectionId: 'conn_1', table: 'main.printing_order_lines', row: '1', linked: '7', key: 'design-kit', install: null });
     expect(loads.asked).toEqual([{ url: `${LISTED.url}?connection=conn_1&table=main.printing_order_lines&row=1`, integrity: LISTED.integrity }]);
   });
 
@@ -84,5 +107,30 @@ describe('a record panel', () => {
     draw({ id: 1, design_id: 7 });
     expect(await screen.findByText('This panel could not be loaded. Nothing from it has been run.')).toBeTruthy();
     expect(screen.queryByTestId('panel')).toBeNull();
+  });
+
+  it('is the copy on the record\'s database: its calls name that copy, and its data kit reads it', async () => {
+    const copies = [
+      { ...ROW, installId: 'man_fernhill', connectionId: 'conn_9', slug: '', bundles: [LISTED] },
+      { ...ROW, installId: 'man_kiln', connectionId: 'conn_1', slug: 'kiln', bundles: [LISTED] },
+    ];
+    draw({ id: 1, design_id: 7 }, [LISTED], copies);
+    expect(JSON.parse((await screen.findByTestId('panel')).textContent ?? '').install).toBe('man_kiln');
+    await waitFor(() => expect(named).toEqual(['man_kiln']));
+  });
+
+  it('is the copy kept once per server when the record\'s database has none of its own', async () => {
+    const copies = [
+      { ...ROW, installId: 'man_fernhill', connectionId: 'conn_9', slug: '', bundles: [LISTED] },
+      { ...ROW, installId: 'man_server', connectionId: null, slug: '', bundles: [LISTED] },
+    ];
+    draw({ id: 1, design_id: 7 }, [LISTED], copies);
+    expect(JSON.parse((await screen.findByTestId('panel')).textContent ?? '').install).toBe('man_server');
+  });
+
+  it('draws nothing where neither the record\'s database nor the server has a copy', async () => {
+    const { container } = draw({ id: 1, design_id: 7 }, [LISTED], [{ ...ROW, installId: 'man_fernhill', connectionId: 'conn_9', slug: '', bundles: [LISTED] }]);
+    await waitFor(() => expect(container.textContent).toBe(''));
+    expect(loads.asked).toEqual([]);
   });
 });

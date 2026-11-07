@@ -15,17 +15,24 @@
  * the list names no file for — its reader lacks the panel's permission, or
  * the package ships none — draws nothing at all, never an error: a package
  * may declare a screen and not ship it yet.
+ *
+ * WHICH COPY. An add-on may be installed once per database. The panel is the
+ * copy on the record's database (else the one kept once per server): while
+ * it is drawn, every call it makes to its add-on's routes names that copy
+ * (`X-Adminium-Install`), as a page of one copy does, and its data kit reads
+ * that copy's tables.
  */
-import { Component, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { Component, Suspense, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { RecordPanelProps } from '@adminium/add-on-contracts';
 import { Spinner } from '@adminium/ui';
 
 import type { RecordPanelFact } from '../api/pages.js';
-import { addOnsQuery } from '../studio/add-ons/addOnsApi.js';
+import { scopeInstall } from '../app/api.js';
+import { addOnsQuery, type AddOnDto } from '../studio/add-ons/addOnsApi.js';
 import { t } from '../i18n/t.js';
 import { isComponent, loadAddOnModule } from './client.js';
-import { AddOnKeyContext } from './data-kit/context.js';
+import { AddOnInstallContext, AddOnKeyContext } from './data-kit/context.js';
 
 type PanelComponent = (props: RecordPanelProps) => ReactNode;
 
@@ -52,6 +59,29 @@ export function panelUrl(base: string, record: { connectionId: string; table: st
   return `${base}?${query.toString()}`;
 }
 
+/**
+ * The copy of an add-on a record's panel is of: the one on the record's
+ * database, else the one kept once per server. A server that does not say
+ * which copy a row is (older than this dashboard) lists one row per key.
+ */
+export function copyForRecord(addOns: readonly AddOnDto[] | undefined, key: string, connectionId: string): AddOnDto | undefined {
+  const copies = (addOns ?? []).filter((addOn) => addOn.key === key);
+  if (copies.length <= 1 && copies[0]?.installId === undefined) return copies[0];
+  return copies.find((copy) => copy.connectionId === connectionId) ?? copies.find((copy) => copy.connectionId === null);
+}
+
+/** Names the panel's copy on its add-on's routes while it is drawn; the panel is drawn once the scope is set. */
+function InstallScoped({ addOnKey, installId, children }: { addOnKey: string; installId: string | null; children: ReactNode }) {
+  const [ready, setReady] = useState(installId === null);
+  useLayoutEffect(() => {
+    if (installId === null) return undefined;
+    const off = scopeInstall(`/api/v1/add-ons/${encodeURIComponent(addOnKey)}`, installId);
+    setReady(true);
+    return off;
+  }, [addOnKey, installId]);
+  return ready ? <>{children}</> : null;
+}
+
 export interface RecordPanelHostProps {
   panel: RecordPanelFact;
   connectionId: string;
@@ -64,7 +94,8 @@ export interface RecordPanelHostProps {
 export default function RecordPanelHost({ panel, connectionId, table, recordId, row }: RecordPanelHostProps) {
   const addOns = useQuery(addOnsQuery);
   const [state, setState] = useState<{ status: 'loading' } | { status: 'ready'; Component: PanelComponent } | { status: 'failed' }>({ status: 'loading' });
-  const installed = addOns.data?.find((addOn) => addOn.key === panel.addOn);
+  const installed = copyForRecord(addOns.data, panel.addOn, connectionId);
+  const installId = installed?.installId ?? null;
   const bundle = installed?.bundles.find((file) => file.panel === panel.id);
   const url = bundle === undefined ? undefined : panelUrl(bundle.url, { connectionId, table, row: recordId });
 
@@ -109,9 +140,13 @@ export default function RecordPanelHost({ panel, connectionId, table, recordId, 
           </div>
         }
       >
-        <AddOnKeyContext.Provider value={panel.addOn}>
-          <Panel connectionId={connectionId} table={table} row={recordId} linked={linked} />
-        </AddOnKeyContext.Provider>
+        <InstallScoped addOnKey={panel.addOn} installId={installId}>
+          <AddOnKeyContext.Provider value={panel.addOn}>
+            <AddOnInstallContext.Provider value={installId}>
+              <Panel connectionId={connectionId} table={table} row={recordId} linked={linked} />
+            </AddOnInstallContext.Provider>
+          </AddOnKeyContext.Provider>
+        </InstallScoped>
       </Suspense>
     </PanelBoundary>
   );
