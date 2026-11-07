@@ -335,8 +335,11 @@ export interface BootstrapData {
    * The add-ons whose settings this reader keeps through the per-add-on grant
    * (`addOn:<key>:settings`) without managing add-ons: the rail links each
    * one's settings screen. Absent from an older server, and when there is none.
+   * `key` is the copy's address (`<key>~<slug>` for a later copy on another
+   * database); `connectionName` is that database's name (null for a copy kept
+   * once per server; absent from a server older than this dashboard).
    */
-  addOnSettings?: { key: string; name: string }[];
+  addOnSettings?: { key: string; name: string; connectionName?: string | null }[];
   /**
    * Pages hidden from the sidebar but alive (follow-up): Studio's "Hide from
    * sidebar" and the generated cascade-child default both land pages here.

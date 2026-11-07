@@ -22,16 +22,16 @@
  * (`X-Adminium-Install`), as a page of one copy does, and its data kit reads
  * that copy's tables.
  */
-import { Component, Suspense, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
+import { Component, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { RecordPanelProps } from '@adminium/add-on-contracts';
 import { Spinner } from '@adminium/ui';
 
 import type { RecordPanelFact } from '../api/pages.js';
-import { scopeInstall } from '../app/api.js';
 import { addOnsQuery, type AddOnDto } from '../studio/add-ons/addOnsApi.js';
 import { t } from '../i18n/t.js';
 import { isComponent, loadAddOnModule } from './client.js';
+import { InstallScoped } from './InstallScoped.js';
 import { AddOnInstallContext, AddOnKeyContext } from './data-kit/context.js';
 
 type PanelComponent = (props: RecordPanelProps) => ReactNode;
@@ -69,18 +69,6 @@ export function copyForRecord(addOns: readonly AddOnDto[] | undefined, key: stri
   // One copy: the key's only install, as it always was.
   if (copies.length <= 1) return copies[0];
   return copies.find((copy) => copy.connectionId === connectionId) ?? copies.find((copy) => copy.connectionId === null);
-}
-
-/** Names the panel's copy on its add-on's routes while it is drawn; the panel is drawn once the scope is set. */
-function InstallScoped({ addOnKey, installId, children }: { addOnKey: string; installId: string | null; children: ReactNode }) {
-  const [ready, setReady] = useState(installId === null);
-  useLayoutEffect(() => {
-    if (installId === null) return undefined;
-    const off = scopeInstall(`/api/v1/add-ons/${encodeURIComponent(addOnKey)}`, installId);
-    setReady(true);
-    return off;
-  }, [addOnKey, installId]);
-  return ready ? <>{children}</> : null;
 }
 
 export interface RecordPanelHostProps {

@@ -86,7 +86,7 @@ describe.each(LEGS)("the settings an app's owner keeps of an add-on — %s", (di
   });
 
   it.skipIf(!available)('names the add-on to the owner who keeps its settings, and to nobody else', async () => {
-    expect(await kept(people.owner)).toEqual([{ key: KEY, name: 'Holiday Calendars' }]);
+    expect(await kept(people.owner)).toEqual([{ key: KEY, name: 'Holiday Calendars', connectionName: 'Studio' }]);
     expect(await kept(people.clerk)).toBeUndefined();
     expect(await kept(people.admin)).toBeUndefined();
     expect(await kept(people.manager)).toBeUndefined();
@@ -119,7 +119,7 @@ describe.each(LEGS)("the settings an app's owner keeps of an add-on — %s", (di
       const on = await h.inject({ method: 'PATCH', url: `/add-ons/${KEY}`, payload: { attachedTo: 'studio', enabled: true } });
       expect(on.statusCode, on.body).toBe(200);
     }
-    expect(await kept(people.owner)).toEqual([{ key: KEY, name: 'Holiday Calendars' }]);
+    expect(await kept(people.owner)).toEqual([{ key: KEY, name: 'Holiday Calendars', connectionName: 'Studio' }]);
   });
 
   // Last: from here the add-on has two copies, and a request that names neither must say which.
