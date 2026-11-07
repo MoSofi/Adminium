@@ -1351,6 +1351,20 @@ describe('acquisition routes', () => {
       await app.close();
     });
 
+    it('offers a retired add-on for no fresh attach, and still lists one a shop has installed', async () => {
+      // Kept in the bundled set so a shop with the Personalizer attached can still update Maker Shop; offered to no one else.
+      await stage('holiday-calendars');
+      await stage('personalizer');
+      await stage('design-studio', undefined, ['printing']);
+      const app = await buildApp();
+      const keys = async (): Promise<string[]> => ((await app.inject({ method: 'GET', url: '/api/v1/add-ons/catalog' })).json() as { addOns: Array<{ key: string }> }).addOns.map((one) => one.key);
+      expect(await keys()).toEqual(['holiday-calendars']);
+      const installed = await app.inject({ method: 'POST', url: '/api/v1/add-ons', payload: { key: 'design-studio', version: '1.0.0', attachTo: ['printing'] } });
+      expect(installed.statusCode, installed.body).toBeLessThan(300);
+      expect(await keys()).toEqual(['design-studio', 'holiday-calendars']);
+      await app.close();
+    });
+
     it('reports an installed add-on as installed, not staged', async () => {
       await stage('holiday-calendars');
       const app = await buildApp();

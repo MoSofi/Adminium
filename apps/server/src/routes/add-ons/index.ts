@@ -153,6 +153,7 @@ import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { getPrincipal } from '../../rbac/principal.js';
 import { APP_VERSION } from '../../version.js';
+import { isRetiredAddOn } from '../../add-ons/retired.js';
 import {
   addOnBundleParams,
   addOnPageBundleParams,
@@ -1052,8 +1053,9 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             : { version: entry.version, minAdminiumVersion: entry.minAdminiumVersion };
         }
 
-        // Everything on disk first: it needs no network to be true.
+        // Everything on disk first: it needs no network to be true. A retired add-on is listed only where it is installed (`retired.ts`).
         for (const [key, version] of staged) {
+          if (isRetiredAddOn(key) && !installed.has(key)) continue;
           let name = key;
           let described: string | null = null;
           let categories: string[] = [];
@@ -1109,6 +1111,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // what was fetched before (the Apps page has always read it so).
         const online = (await deps.catalog?.isEnabled()) ?? false;
         for (const entry of online ? feed.values() : []) {
+          if (isRetiredAddOn(entry.key) && !installed.has(entry.key)) continue;
           const blocked = blockedBy(entry);
           const existing = rows.get(entry.key);
           if (existing === undefined) {
