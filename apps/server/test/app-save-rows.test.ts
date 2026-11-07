@@ -17,7 +17,7 @@
  * TEST_MYSQL_URL (`./app-install-harness.ts`).
  */
 import { sampleBundleIssues, sampleBundleSchema, validateManifest, type Manifest } from '@adminium/manifest';
-import { pagesRepo, viewsRepo } from '@adminium/meta';
+import { pagesRepo, usersRepo, viewsRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { findSampleApp } from '../src/apps/sample-data.js';
@@ -163,6 +163,47 @@ for (const [dialect, available] of ENGINES) {
       const first = await save(h, dialect, { rows: { [items]: { mode: 'starting' } } }, true);
       expect(ids(seedRows(asFile(first).files, 'items'))).toEqual(Array.from({ length: 200 }, (_v, i) => i + 1));
       expect(first.check).toContainEqual(expect.objectContaining({ group: 'info', code: 'ROWS_FIRST', item: 'items' }));
+    });
+
+    it('picks rows only by a view the saver may use, read with the saver\'s own reads', async () => {
+      const h = await harness(dialect);
+      const values = Array.from({ length: 250 }, (_v, i) => `(${String(i + 1)}, ${String(i + 1)}, 'p${String(i + 1)}@example.test')`);
+      await made(h, [`CREATE TABLE items (${counting(dialect)}, n integer NOT NULL, email varchar(120))`, `INSERT INTO items (id, n, email) VALUES ${values.join(', ')}`]);
+      await override(h, 'items', 'column.pii', { masked: true, kind: 'email' }, 'email', 'auto');
+      const items = await tableId(h, 'items');
+      const page = await pagesRepo(h.meta).create({ connectionId: h.connectionId, slug: 'items', type: 'page-crud', title: 'Items', config: { v: 1, kind: 'page', template: 'page-crud', source: { connectionId: h.connectionId, table: items } } });
+      const me = await usersRepo(h.meta).create({ email: `me-${dialect}@shop.test`, name: 'Me', status: 'active' });
+      const other = await usersRepo(h.meta).create({ email: `other-${dialect}@shop.test`, name: 'Other', status: 'active' });
+      const theirs = await viewsRepo(h.meta).create({ pageId: page.id, userId: other.id, name: 'Theirs', config: { v: 1, filters: [{ column: 'n', op: 'gte', value: 30 }], sort: { column: 'n', dir: 'desc' } } });
+      const probe = await viewsRepo(h.meta).create({ pageId: page.id, userId: me.id, name: 'Probe', config: { v: 1, filters: [{ column: 'email', op: 'eq', value: 'p240@example.test' }] } });
+      const sorted = await viewsRepo(h.meta).create({ pageId: page.id, userId: me.id, name: 'By address', config: { v: 1, sort: { column: 'email', dir: 'desc' } } });
+      const searched = await viewsRepo(h.meta).create({ pageId: page.id, userId: me.id, name: 'Search', config: { v: 1, search: 'p24' } });
+      const shared = await viewsRepo(h.meta).create({ pageId: page.id, userId: null, name: 'Big ones', config: { v: 1, filters: [{ column: 'n', op: 'gte', value: 30 }], sort: { column: 'n', dir: 'desc' } } });
+      const source = await sourceOf(h, dialect, true);
+      source.rows!.saver = { userId: me.id, canReadPii: async () => false };
+      const firstIds = Array.from({ length: 200 }, (_v, i) => i + 1);
+
+      // Somebody else's view reads as gone: its filter never picks the rows.
+      const byTheirs = await convertToApp(source, choicesFor({ rows: { [items]: { mode: 'starting', viewId: theirs.id } } }));
+      expect(ids(seedRows(asFile(byTheirs).files, 'items'))).toEqual(firstIds);
+      expect(byTheirs.check).toContainEqual(expect.objectContaining({ group: 'info', code: 'ROWS_VIEW_GONE', item: 'items' }));
+
+      // Without read_pii, a filter, a sort or a search on a personal column is not used: no probe of a value they cannot see.
+      for (const view of [probe, sorted]) {
+        const result = await convertToApp(source, choicesFor({ rows: { [items]: { mode: 'starting', viewId: view.id } } }));
+        expect(ids(seedRows(asFile(result).files, 'items'))).toEqual(firstIds);
+        expect(result.check).toContainEqual(expect.objectContaining({ group: 'info', code: 'ROWS_VIEW_UNREAD', item: 'items' }));
+      }
+      // A search reads only the columns they may: here none, so it narrows nothing.
+      const bySearch = await convertToApp(source, choicesFor({ rows: { [items]: { mode: 'starting', viewId: searched.id } } }));
+      expect(ids(seedRows(asFile(bySearch).files, 'items'))).toEqual(firstIds);
+
+      // A shared view picks them, and so does the probe for a saver who reads personal columns.
+      const byShared = await convertToApp(source, choicesFor({ rows: { [items]: { mode: 'starting', viewId: shared.id } } }));
+      expect(seedRows(asFile(byShared).files, 'items')[0]).toMatchObject({ id: 250, n: 250 });
+      source.rows!.saver = { userId: me.id, canReadPii: async () => true };
+      const byProbe = await convertToApp(source, choicesFor({ rows: { [items]: { mode: 'starting', viewId: probe.id } } }));
+      expect(ids(seedRows(asFile(byProbe).files, 'items'))).toEqual([240]);
     });
 
     it('writes parents first, and links rows that point at each other once both are in', async () => {

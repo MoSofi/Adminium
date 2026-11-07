@@ -326,8 +326,10 @@ export {
 } from './workspace-file.js';
 
 export {
+  DEFAULT_TABLE_SCHEMA,
   SUPABASE_SCHEMAS,
   TABLE_NAME_MAX_BYTES,
+  withoutDefaultSchema,
   namesItsTable,
   qualifyTableName,
   realTableName,

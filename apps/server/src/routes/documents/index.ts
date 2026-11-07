@@ -34,7 +34,7 @@
  * to `system:manifests:manage`.
  */
 
-import { narrowToWorkspace } from '../../workspaces/list-filter.js';
+import { workspaceScope } from '../../workspaces/list-filter.js';
 import { installReachOf } from '../../installs/reach.js';
 import { installOnConnection, installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import type { AppManifest } from '@adminium/manifest';
@@ -505,10 +505,14 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
       '/documents/profiles',
       {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
-        preSerialization: narrowToWorkspace(() => app.rbac.meta, 'profiles', (row) => row['connectionId'] as string | null),
         schema: { querystring: documentProfilesListQuery, response: { 200: documentProfilesListReply } },
       },
-      async (request) => ({ profiles: (await profiles.list(request.query)).map(toProfileReply) }),
+      async (request) => {
+        // A workspace's databases, narrowed in the query.
+        const scope = await workspaceScope(app.rbac.meta, request);
+        const { connectionId, addOnKey } = request.query;
+        return { profiles: (await profiles.list({ connectionId, addOnKey, ...(scope === undefined ? {} : { connectionIds: [...scope] }) })).map(toProfileReply) };
+      },
     );
 
     app.post(

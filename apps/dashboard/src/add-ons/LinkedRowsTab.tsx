@@ -222,11 +222,12 @@ export default function LinkedRowsTab({ tab, connectionId, recordId }: LinkedRow
   const list = rows.data?.data ?? [];
   const total = rows.data?.page?.total ?? list.length;
   const words = useQuery({
-    queryKey: ['words', tab.addOn, tab.summary?.words ?? '', tab.match.tableRef, recordId],
+    queryKey: ['words', tab.addOn, tab.summary?.words ?? '', connectionId, tab.match.tableRef, recordId],
     // Said of a record that has something linked; a record with nothing has nothing to say.
     enabled: tab.summary !== null && list.length > 0,
     queryFn: async () => {
-      const search = new URLSearchParams({ table: tab.match.tableRef, ids: recordId });
+      // Asked of the add-on's copy on the record's database: with a copy on each of two, the key alone names neither.
+      const search = new URLSearchParams({ table: tab.match.tableRef, ids: recordId, connectionId });
       const reply = await api.get<{ data: WordsAnswer[] }>(`/api/v1/words/${encodeURIComponent(tab.addOn)}/${encodeURIComponent(tab.summary?.words ?? '')}?${search.toString()}`);
       return reply.data[0] ?? null;
     },

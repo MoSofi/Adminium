@@ -2524,7 +2524,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           service: saveService,
           // Save workspace: one app per database, each made by the service above, in one file.
-          workspaces: createWorkspaceSaveService({ meta, save: saveService, adminiumVersion: APP_VERSION, dialectOf: saveDialectOf, displayName: async () => settingsRepo(meta).get('branding.appName') }),
+          workspaces: createWorkspaceSaveService({
+            meta,
+            save: saveService,
+            adminiumVersion: APP_VERSION,
+            masterSecret: env.ADMINIUM_SECRET,
+            projectEnvFile: projectRoot === null ? null : join(projectRoot, '.env'),
+            dialectOf: saveDialectOf,
+            displayName: async () => settingsRepo(meta).get('branding.appName'),
+          }),
         }),
       );
       // An app's own screens as a file: Download of a project app, and Make it editable here of an installed one.

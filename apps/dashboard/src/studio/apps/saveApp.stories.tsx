@@ -49,8 +49,8 @@ const INVENTORY: SaveInventory = {
   tables: [{ id: 'public.activity_log', name: 'activity_log', columns: 8, rows: 400, rowsExact: true, links: [], personal: [], secretLike: [], rowsAllowed: true, personalAllowed: true }],
   pages: [{ id: 'page_roasts', title: 'Needs packing', tableId: 'public.activity_log', generated: true }],
   views: [
-    { id: 'view_1', name: 'Today’s roasts', pageId: 'page_roasts', ownerId: 'usr_rosa', ownerName: 'Rosa Okafor' },
-    { id: 'view_2', name: 'Low stock beans', pageId: 'page_roasts', ownerId: 'usr_june', ownerName: 'June Park' },
+    { id: 'view_1', name: 'Today’s roasts', pageId: 'page_roasts', ownerId: 'usr_rosa' },
+    { id: 'view_2', name: 'Low stock beans', pageId: 'page_roasts', ownerId: 'usr_rosa' },
   ],
   roles: [],
   automations: [],

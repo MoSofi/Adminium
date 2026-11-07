@@ -41,8 +41,8 @@ function inventory(over: Partial<SaveInventory> = {}): SaveInventory {
       { id: 'page_orders', title: 'Orders', tableId: 'public.orders', generated: false },
     ],
     views: [
-      { id: 'view_shared', name: 'Everyone', pageId: 'page_orders', ownerId: null, ownerName: null },
-      { id: 'view_mine', name: 'Late ones', pageId: 'page_orders', ownerId: 'usr_rosa', ownerName: 'Rosa Okafor' },
+      { id: 'view_shared', name: 'Everyone', pageId: 'page_orders', ownerId: null },
+      { id: 'view_mine', name: 'Late ones', pageId: 'page_orders', ownerId: 'usr_rosa' },
     ],
     roles: [{ id: 'role_1', name: 'Roasters' }],
     automations: [{ id: 'aut_1', name: 'Welcome new customers', tableIds: ['public.customers'] }],

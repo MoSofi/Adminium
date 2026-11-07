@@ -327,7 +327,7 @@ export type ProjectUiExport = (typeof PROJECT_UI_EXPORTS)[number];
  * THE DASHBOARD'S OWN HELPERS — the fifth namespace (51d, O7).
  *
  * The first four are libraries an add-on could in principle bundle for itself
- * (wrongly, but it could). These twelve are the HOST: its translation function,
+ * (wrongly, but it could). These are the HOST: its translation function,
  * its API client, its toast bus, its page chrome, its icon resolver. An add-on
  * page cannot reimplement them — a second `t()` reads a second catalogue, a
  * second API client misses the CSRF token, a second toast bus renders toasts
@@ -342,12 +342,24 @@ export type ProjectUiExport = (typeof PROJECT_UI_EXPORTS)[number];
  * it was first needed — it is a pure `Intl.RelativeTimeFormat` wrapper over the
  * host's cached formatters. Published here rather than copied, so two relative
  * clocks cannot disagree on the same screen.
+ *
+ * "SHOWN IN" (from 0.3.49) is the host's too: where an item an add-on keeps
+ * is listed, drawn as the engine's own Library pages draw it, over the
+ * workspaces the person's session says they see. Seven parts and three
+ * hooks; an add-on stores the value and the host draws it.
  */
 export const ADD_ON_APP_EXPORTS = [
   'ApiError',
+  'CurrentWorkspaceChip',
   'DocumentPaymentPanel',
+  'HiddenHereNote',
   'PageActions',
   'PageSurface',
+  'ShownInChips',
+  'ShownInControl',
+  'ShownInField',
+  'ShownInHeader',
+  'WorkspaceFilter',
   'api',
   'formatSince',
   'lucideByName',
@@ -356,6 +368,9 @@ export const ADD_ON_APP_EXPORTS = [
   'useLocaleTag',
   'useAppToasts',
   'useShortcut',
+  'useShownInList',
+  'useShownInPicker',
+  'useShownInScope',
 ] as const;
 export type AddOnAppExport = (typeof ADD_ON_APP_EXPORTS)[number];
 

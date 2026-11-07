@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `GET /words/:addOn/:wordsId?table=<stored name>&ids=<id,id,…>[&date=]` —
+ * `GET /words/:addOn/:wordsId?table=<stored name>&ids=<id,id,…>[&date=][&connectionId=]` —
  * WHAT STAFF ARE TOLD of the rows a screen shows, in an add-on's stock words.
  *
  *  - The table is named as it is stored (`pos:menu_items`, `inventory:items`):

@@ -5541,7 +5541,8 @@ export default {
       "title": "已安裝 {done}/{total} 個應用程式",
       "waiting": "尚未安裝",
       "what": "安裝結果",
-      "workspace": "工作區"
+      "workspace": "工作區",
+      "workspaceGone": "它們在 {server} 上。工作區 {workspace} 已被刪除，因此其餘應用程式不在任何工作區中。"
     },
     "error": "發生問題",
     "install": {
@@ -5574,7 +5575,11 @@ export default {
         "waiting": "{ready}{count, plural, other {現在安裝。}}為 {apps} 做出選擇後即可{others, plural, other {加入}}。",
         "waitingAll": "為 {apps} 選擇資料庫，並完成其檢查。"
       },
-      "title": "安裝工作區檔案"
+      "title": "安裝工作區檔案",
+      "workspaceGone": {
+        "title": "工作區已被刪除",
+        "body": "工作區 {workspace} 在前幾個應用程式安裝後被刪除。其餘應用程式將不放入任何工作區。"
+      }
     },
     "refusal": {
       "extra": "檔案中包含其應用程式清單未列出的內容。",
@@ -5609,7 +5614,8 @@ export default {
       "tooBig": "此工作區檔案將超過 {size}。請拿掉一個資料庫或其範例列後重試。",
       "useMoreChoices": "在應用程式上使用「更多選項」來做出選擇。",
       "useChoices": "使用這些選項",
-      "version": "版本"
+      "version": "版本",
+      "leaks": "此工作區檔案會在工作區、資料庫或標籤名稱中帶有本伺服器的密鑰或 ID。請重新命名後再次儲存。"
     },
     "saved": {
       "copyApp": "複製 {file} 的指紋",

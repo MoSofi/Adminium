@@ -28,10 +28,13 @@ export async function workspaceScope(meta: MetaDb, request: FastifyRequest): Pro
   const query = (request.query ?? {}) as Record<string, unknown>;
   const workspaceId = typeof query['workspaceId'] === 'string' && query['workspaceId'] !== '' ? query['workspaceId'] : undefined;
   if (workspaceId === undefined) return undefined;
-  // As sent: a route's own query schema may not keep a `connectionId` it does not filter by.
-  const sent = new URL(request.raw.url ?? '/', 'http://adminium.invalid').searchParams.get('connectionId');
-  if ((typeof query['connectionId'] === 'string' && query['connectionId'] !== '') || (sent !== null && sent !== '')) {
-    throw new ValidationFailedError('Name a workspace or a database, not both.', { workspaceId, connectionId: query['connectionId'] ?? sent });
+  // As sent: a route's own query schema may not keep a `connectionId` it does not filter by. A list of databases is one too.
+  const params = new URL(request.raw.url ?? '/', 'http://adminium.invalid').searchParams;
+  for (const field of ['connectionId', 'connectionIds']) {
+    const sent = params.get(field);
+    const parsed = query[field];
+    const named = (typeof parsed === 'string' && parsed !== '') || (Array.isArray(parsed) && parsed.length > 0) || (sent !== null && sent !== '');
+    if (named) throw new ValidationFailedError('Name a workspace or a database, not both.', { workspaceId, [field]: parsed ?? sent });
   }
   const allowed = await workspaceConnections(meta, request, workspaceId);
   if (allowed === null) throw new NotFoundError('There is no such workspace.', { workspaceId });

@@ -287,7 +287,9 @@ export function WorkspaceFileInstall({ file, resumeId, onClose }: WorkspaceFileI
               ...(plan?.instance === undefined ? {} : instanceAnswersOf(plan.instance, a.instance)),
               ...(plan?.checksum === undefined ? {} : { planChecksum: plan.checksum }),
             };
-            return { key: app.key, connectionId: target, install: sent, update: sent };
+            // The review was read on the target: its answers are the answers of the copy there, and of an only copy.
+            const onTarget = app.installs.find((copy) => copy.connectionId === target);
+            return { key: app.key, connectionId: target, install: sent, update: sent, ...(onTarget === undefined ? {} : { updates: { [onTarget.installId]: sent } }) };
           }),
       };
       return installWorkspaceFile(staged.id, body);
@@ -387,7 +389,11 @@ export function WorkspaceFileInstall({ file, resumeId, onClose }: WorkspaceFileI
             onFingerprint={setFingerprint}
             fieldId={`${holdId}-fp`}
           />
-          {managesConnections && workspacesRead ? (
+          {staged.workspace?.gone === true ? (
+            <Alert tone="warn" title={t('studio:workspaceFiles.install.workspaceGone.title', 'The workspace was deleted')}>
+              {t('studio:workspaceFiles.install.workspaceGone.body', 'The workspace {workspace} was deleted after the first apps were installed. The rest install in no workspace.', { workspace: staged.workspace.name ?? staged.name })}
+            </Alert>
+          ) : managesConnections && workspacesRead ? (
             <WorkspaceChoiceCard
               name={staged.name}
               server={server}
@@ -815,7 +821,9 @@ function DoneScreen({
             {t('studio:workspaceFiles.done.title', '{done} of {total} apps are installed', { done, total })}
           </h3>
           <p className="mt-1 text-sm text-fg-muted">
-            {file.workspace?.mode === 'create' && workspace !== null
+            {file.workspace?.gone === true
+              ? t('studio:workspaceFiles.done.workspaceGone', 'They are on {server}. The workspace {workspace} was deleted, so the rest are in no workspace.', { server, workspace: file.workspace.name ?? file.name })
+              : file.workspace?.mode === 'create' && workspace !== null
               ? t('studio:workspaceFiles.done.inNew', 'They are on {server}, in the new workspace {workspace}.', { server, workspace: workspace.name })
               : workspace !== null
                 ? t('studio:workspaceFiles.done.inExisting', 'They are on {server}, in the workspace {workspace}.', { server, workspace: workspace.name })

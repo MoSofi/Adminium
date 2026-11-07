@@ -16,7 +16,7 @@
 import { createHash } from 'node:crypto';
 
 import { INSTANCE_SETTING_KEYS, instanceSchema, validateManifest } from '@adminium/manifest';
-import { appInstanceUndoRepo, filesRepo, manifestsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { appInstanceUndoRepo, filesRepo, manifestsRepo, readBool, settingsRepo, type MetaDb } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { applyInstance, linkHosts, reviewInstance, undoInstance } from '../src/apps/manifest-instance.js';
@@ -164,6 +164,50 @@ for (const engine of META_ENGINES) {
       expect(undone.kept).toEqual(['setting:branding.appName']);
       expect(await settingOf(meta, 'branding.appName')).toBe('Fernhill Farm');
       expect(await settingOf(meta, 'assistant.name')).toBe('Milo');
+    });
+
+    it('two apps on one setting: the undo of either never brings back the value of one that went', async () => {
+      const second = await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).install({ manifestKey: 'fern-two', version: '1.0.0', kind: 'app', source: 'file', document: app('1.0.0') });
+      const two = second.row.id;
+      const name = (appName: string): Doc => ({ branding: { appName } });
+      const applyAs = (id: string, instance: Doc, at: number) => applyInstance({ meta, manifest: app('1.0.0', instance) as never, manifestId: id, answers: { instance: true }, readFile: files(), library, userId: null, at });
+
+      // The first app goes while the second's value stands: it stays, and the second's undo now lands on Harbour.
+      await applyAs(manifestId, name('Fernhill'), 1_000);
+      await applyAs(two, name('Second'), 2_000);
+      expect(await undoInstance(meta, manifestId)).toMatchObject({ restored: [], kept: ['setting:branding.appName'] });
+      expect(await settingOf(meta, 'branding.appName')).toBe('Second');
+      expect(await undoInstance(meta, two)).toMatchObject({ restored: ['setting:branding.appName'] });
+      expect(await settingOf(meta, 'branding.appName')).toBe('Harbour');
+
+      // The later app goes first: the earlier one's value comes back, then Harbour.
+      await applyAs(manifestId, name('Fernhill'), 3_000);
+      await applyAs(two, name('Second'), 4_000);
+      await undoInstance(meta, two);
+      expect(await settingOf(meta, 'branding.appName')).toBe('Fernhill');
+      await undoInstance(meta, manifestId);
+      expect(await settingOf(meta, 'branding.appName')).toBe('Harbour');
+
+      // The first app wrote it again after the second (an update): going, it puts back the second's value, never its own.
+      await applyAs(manifestId, name('Fernhill'), 5_000);
+      await applyAs(two, name('Second'), 6_000);
+      await applyAs(manifestId, name('Fernhill again'), 7_000);
+      await undoInstance(meta, manifestId);
+      expect(await settingOf(meta, 'branding.appName')).toBe('Second');
+      await undoInstance(meta, two);
+      expect(await settingOf(meta, 'branding.appName')).toBe('Harbour');
+      expect(await meta.db.selectFrom('adminium_app_instance_undo').select('id').execute()).toEqual([]);
+    });
+
+    it('undoing a language switch keeps what somebody made of its row since', async () => {
+      await meta.db.deleteFrom('adminium_locales').where('locale', '=', 'fr_FR').execute();
+      await apply('1.0.0', part({ branding: undefined, wording: undefined, systemEmails: undefined, settings: undefined }));
+      const off = await meta.db.selectFrom('adminium_locales').select(['enabled']).where('locale', '=', 'fr_FR').executeTakeFirst();
+      expect(off === undefined ? null : readBool(off.enabled)).toBe(false);
+      await meta.db.updateTable('adminium_locales').set({ native: 'Français maison', sortOrder: 4 }).where('locale', '=', 'fr_FR').execute();
+      await undoInstance(meta, manifestId);
+      const row = await meta.db.selectFrom('adminium_locales').select(['enabled', 'native', 'sortOrder']).where('locale', '=', 'fr_FR').executeTakeFirst();
+      expect(row === undefined ? null : { enabled: readBool(row.enabled), native: row.native, sortOrder: Number(row.sortOrder) }).toEqual({ enabled: true, native: 'Français maison', sortOrder: 4 });
     });
 
     it('an email with a link host left unticked stays out, and says which', async () => {
@@ -370,6 +414,31 @@ for (const [dialect, available] of ENGINES) {
       await expect(service.removals.checkDrop(await service.removals.listOf(installed), { dropTables: false, superAdmin: false, settingsManage: false })).resolves.toBeUndefined();
       const again = await h.inject({ method: 'GET', url: '/apps/fern-notes/uninstall-plan' });
       expect(JSON.parse(again.body) as Doc).not.toHaveProperty('instance');
+    });
+
+    it('a version that no longer carries the part puts back what the one before wrote, asked of whoever updates', async () => {
+      h = await installHarness(dialect, { library: memoryLibrary() });
+      await dressTarget(h.meta);
+      const original = await snapshot(h.meta);
+      await h.stage(app('1.0.0'), logo);
+      const reply = await install({ instance: true, instanceHosts: ALL_HOSTS });
+      expect(reply.statusCode, reply.body).toBe(200);
+      expect(await settingOf(h.meta, 'branding.appName')).toBe('Fernhill');
+      const { instance: _dropped, ...plain } = app('1.1.0');
+      await h.stage(plain);
+
+      const service = createAppInstallService(h.deps);
+      const actor = { id: null, label: 'staff', kind: 'user' as const, superAdmin: async () => false, can: async (permission: string) => permission !== 'system:settings:manage' };
+      const host = { log: { info: () => undefined, warn: () => undefined } };
+      await expect(service.update(actor as never, host as never, { key: 'fern-notes', body: {} })).rejects.toMatchObject({ statusCode: 403, details: { reason: 'INSTANCE_RESTORE_NEEDS_SETTINGS' } });
+      expect(await settingOf(h.meta, 'branding.appName')).toBe('Fernhill');
+
+      const updated = await h.inject({ method: 'POST', url: '/apps/fern-notes/update', payload: {} });
+      expect(updated.statusCode, updated.body).toBe(200);
+      expect((JSON.parse(updated.body) as Doc)['app']['instance']['restored']).toEqual(expect.arrayContaining(['setting:branding.appName', 'setting:assistant.name']));
+      expect(await snapshot(h.meta)).toEqual(original);
+      const installed = await manifestsRepo(h.meta, { encrypt: (v) => v, decrypt: (v) => v }).findInScope('fern-notes', h.connectionId);
+      expect(await appInstanceUndoRepo(h.meta).list(installed!.row.id)).toEqual([]);
     });
 
     it('a logo its package does not hold as it says stops the plan', async () => {

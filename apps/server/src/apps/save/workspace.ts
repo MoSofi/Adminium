@@ -18,6 +18,12 @@
  *
  * At most one app carries the server-wide part (`instance`): the dialog's
  * "Server settings: from {database} / none", none by default.
+ *
+ * The workspace file's own documents (`workspace.json` and the stub
+ * manifest) carry names typed by hand: the workspace's, the label's and each
+ * database's. They are read like every file a save writes, for the secrets
+ * this server keeps and its ids (`project/apps/pack-leaks.ts`); a hit refuses
+ * the save, naming the document and its line, never the value.
  */
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -39,6 +45,8 @@ import { appSavesRepo, workspaceSavesRepo, workspacesRepo, type MetaDb, type Wor
 
 import { packStagedTree } from '../../add-ons/pack.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { packLeaks } from '../../project/apps/pack-leaks.js';
+import { collectKnownSecrets } from './gates/secrets.js';
 import type { SaveDialect } from './types.js';
 import type { MadeFile, SavePlan, SaveRequest, SaveRights, SaveService } from './service.js';
 
@@ -97,6 +105,10 @@ export interface WorkspaceSaveDeps {
   meta: MetaDb;
   save: SaveService;
   adminiumVersion: string;
+  /** `ADMINIUM_SECRET`: the file's own documents are read for every secret this server keeps. */
+  masterSecret: string;
+  /** The project's `.env`, whose values are secrets too; null when there is none. */
+  projectEnvFile?: string | null | undefined;
   dialectOf(connectionId: string): Promise<SaveDialect | null>;
   displayName(): Promise<string>;
   now?: () => number;
@@ -181,6 +193,24 @@ export function createWorkspaceSaveService(deps: WorkspaceSaveDeps) {
     return all.filter((one) => one.connectionIds.some((id) => wanted.has(id))).map((one) => one.name);
   }
 
+  /** The file's own documents, read for this server's secrets and ids: a hit refuses the save. */
+  async function refuseLeaks(text: string, document: Pick<WorkspaceFile, 'name' | 'savedAt' | 'minAdminiumVersion'>): Promise<void> {
+    const leaks = packLeaks(
+      [...ownDocuments(text, document)].map(([path, value]) => [path, Buffer.from(value)] as const),
+      {
+        secrets: await collectKnownSecrets(deps.meta, deps.masterSecret, deps.projectEnvFile ?? null),
+        connectionIds: (await deps.meta.db.selectFrom('adminium_connections').select('id').execute()).map((row) => row.id),
+      },
+    );
+    if (leaks.length > 0) {
+      throw new ConflictError(
+        'The workspace file would carry a secret or an id of this server in its own list of apps, so it was not made. Rename the workspace, the databases or the label named, then save again.',
+        'CONFLICT',
+        { reason: 'WORKSPACE_FILE_LEAKS', leaks },
+      );
+    }
+  }
+
   function floorOf(versions: readonly string[]): string {
     return [WORKSPACE_FILE_FLOOR, ...versions].sort(compareSemver).at(-1)!;
   }
@@ -249,6 +279,7 @@ export function createWorkspaceSaveService(deps: WorkspaceSaveDeps) {
         })),
       };
       const text = `${JSON.stringify(document, null, 2)}\n`;
+      await refuseLeaks(text, document);
       const inner = new Map(made.map(({ file }) => [`apps/${file.filename}`, file.tarball]));
       const tarball = await packWorkspaceFile(text, document, inner);
       if (tarball.byteLength > WORKSPACE_FILE_MAX_BYTES) {
@@ -349,13 +380,20 @@ function integrityOf(bytes: Uint8Array): string {
   return `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
 }
 
+/** The workspace file's own documents, by their paths in it: `workspace.json` as written, and the stub manifest. */
+export function ownDocuments(documentText: string, document: Pick<WorkspaceFile, 'name' | 'savedAt' | 'minAdminiumVersion'>): Map<string, string> {
+  const stub = workspaceStubManifest(workspaceFileKey(document.name, document.savedAt), document.minAdminiumVersion);
+  return new Map([
+    [WORKSPACE_FILE, documentText],
+    ['manifest.json', `${JSON.stringify(stub, null, 2)}\n`],
+  ]);
+}
+
 /** The workspace file's bytes: the document as written, its stub manifest, and each app file. Deterministic. */
 export async function packWorkspaceFile(documentText: string, document: Pick<WorkspaceFile, 'name' | 'savedAt' | 'minAdminiumVersion'>, inner: ReadonlyMap<string, Uint8Array>): Promise<Uint8Array> {
   const dir = await mkdtemp(join(tmpdir(), 'adminium-workspace-'));
   try {
-    await writeFile(join(dir, WORKSPACE_FILE), documentText);
-    const stub = workspaceStubManifest(workspaceFileKey(document.name, document.savedAt), document.minAdminiumVersion);
-    await writeFile(join(dir, 'manifest.json'), `${JSON.stringify(stub, null, 2)}\n`);
+    for (const [path, text] of ownDocuments(documentText, document)) await writeFile(join(dir, path), text);
     for (const [path, bytes] of inner) {
       const target = join(dir, path);
       if (!target.startsWith(`${dir}/apps/`)) throw new Error(`workspace file: "${path}" is outside apps/`);

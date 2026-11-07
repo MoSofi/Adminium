@@ -45,6 +45,7 @@ import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
+import { CurrentWorkspaceChip, WorkspaceFilter, useTabListWorkspace } from '../../shell/workspaces/listWorkspace.js';
 import { studioApi } from '../api.js';
 import {
   endpointsQuery,
@@ -112,9 +113,17 @@ export function ApiKeysPage() {
     queries: [publicApiStateQuery(), keysQuery(), CONNECTIONS_QUERY],
   });
 
-  // With two or more connections the page is scoped to one, by `?connection=`.
+  /*
+   * Keys and endpoints are one database's, picked by `?connection=` when there
+   * are two or more. Under workspaces the pick is among the tab's workspace's
+   * databases (One at a time) or those of the one the filter names (All in one
+   * menu); the endpoints read is still the picked database's.
+   */
+  const workspace = useTabListWorkspace();
+  const group = workspace.workspaceId === undefined ? undefined : workspace.groups.find((one) => one.id === workspace.workspaceId);
+  const choices = group === undefined ? connections : connections.filter((c) => group.connectionIds.includes(c.id));
   const connectionId =
-    connections.find((c) => c.id === search.connection)?.id ?? connections[0]?.id ?? null;
+    choices.find((c) => c.id === search.connection)?.id ?? choices[0]?.id ?? null;
   const endpointsLookup = useQuery({ ...endpointsQuery(connectionId ?? ''), enabled: connectionId !== null });
   const statsLookup = useQuery({ ...statsQuery(connectionId ?? ''), enabled: connectionId !== null });
   const endpoints: EndpointDto[] = endpointsLookup.data?.endpoints ?? [];
@@ -196,8 +205,10 @@ export function ApiKeysPage() {
       <PageActions
         title={t('studio:apiKeys.title', 'API keys & tokens')}
         subtitle={t('studio:apiKeys.subtitle', 'Manage programmatic access to your server')}
+        titleAdornment={<CurrentWorkspaceChip list={workspace} />}
       >
-        {connections.length > 1 && connectionId !== null ? (
+        <WorkspaceFilter list={workspace} />
+        {choices.length > 1 && connectionId !== null ? (
           <label className="flex items-center">
             <span className="sr-only">{t('studio:apiKeys.connection.label', 'Connection')}</span>
             <select
@@ -207,7 +218,7 @@ export function ApiKeysPage() {
               }}
               className="h-[34px] w-[200px] rounded-[10px] border border-border-strong bg-surface-2 px-2.5 text-[12.5px] text-fg outline-none"
             >
-              {connections.map((c) => (
+              {choices.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>

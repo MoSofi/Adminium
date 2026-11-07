@@ -5531,7 +5531,8 @@
       "title": "Nainstalováno je {done} z {total} aplikací",
       "waiting": "zatím nenainstalováno",
       "what": "Co se stalo",
-      "workspace": "Pracovní prostor"
+      "workspace": "Pracovní prostor",
+      "workspaceGone": "Jsou na serveru {server}. Pracovní prostor {workspace} byl smazán, takže zbytek není v žádném pracovním prostoru."
     },
     "error": "Něco se pokazilo",
     "install": {
@@ -5564,7 +5565,11 @@
         "waiting": "{ready} {count, plural, one {se nainstaluje teď.} few {se nainstalují teď.} many {se nainstalují teď.} other {se nainstalují teď.}} Proveďte volby pro {apps}, abyste {others, plural, one {ji přidali} few {je přidali} many {je přidali} other {je přidali}}.",
         "waitingAll": "Vyberte databázi pro {apps} a odpovězte na kontrolu."
       },
-      "title": "Instalovat soubor pracovního prostoru"
+      "title": "Instalovat soubor pracovního prostoru",
+      "workspaceGone": {
+        "title": "Pracovní prostor byl smazán",
+        "body": "Pracovní prostor {workspace} byl smazán po instalaci prvních aplikací. Zbytek se nainstaluje bez pracovního prostoru."
+      }
     },
     "refusal": {
       "extra": "Soubor obsahuje něco, co jeho seznam aplikací neuvádí.",
@@ -5599,7 +5604,8 @@
       "tooBig": "Tento soubor pracovního prostoru by byl větší než {size}. Vynechejte databázi nebo její ukázkové řádky a zkuste to znovu.",
       "useMoreChoices": "Volby aplikace proveďte přes Další volby.",
       "useChoices": "Použít tyto volby",
-      "version": "Verze"
+      "version": "Verze",
+      "leaks": "Soubor pracovního prostoru by v názvu pracovního prostoru, databáze nebo štítku nesl tajný údaj nebo identifikátor tohoto serveru. Přejmenujte ho a uložte znovu."
     },
     "saved": {
       "copyApp": "Kopírovat otisk souboru {file}",

@@ -165,7 +165,17 @@ async function writeHeld(m: MetaDb, kind: AppInstanceValueKind, item: string, he
     }
     case 'locale': {
       if (held === null) {
-        await m.db.deleteFrom('adminium_locales').where('locale', '=', item).execute();
+        /*
+         * No row was there: the built-in language was on. The row the install
+         * made goes only while it is still as made; one somebody named, sorted
+         * or shaped since keeps all of that and is switched back on.
+         */
+        const row = await m.db.selectFrom('adminium_locales').selectAll().where('locale', '=', item).executeTakeFirst();
+        if (row === undefined) return;
+        const asMade =
+          readBool(row.isBuiltin) && row.english === null && row.native === null && row.dir === null && row.fontHint === null && row.intlTag === null && row.pluralCategories === null && Number(row.sortOrder) === 0;
+        if (asMade) await m.db.deleteFrom('adminium_locales').where('locale', '=', item).execute();
+        else await m.db.updateTable('adminium_locales').set({ enabled: writeBool(m, true), updatedBy: userId, updatedAt: at }).where('locale', '=', item).execute();
         return;
       }
       const enabled = writeBool(m, held.value === true);
@@ -643,18 +653,42 @@ export async function applyInstance(input: ApplyInstanceInput): Promise<Instance
   }
 }
 
-/** Puts one value back as it was, when it still holds what the install wrote; forgets the undo either way. */
-async function restoreOne(m: MetaDb, record: { manifestId: string; kind: AppInstanceValueKind; item: string; before: HeldValue; applied: unknown }, userId: string | null, at: number): Promise<boolean> {
+/**
+ * Puts one value back as it was before this install wrote it, when it still
+ * holds what the install wrote; forgets the undo either way.
+ *
+ * TWO APPS ON ONE VALUE. When another install wrote the value after this one,
+ * the value is that app's: it stays, and that app's undo now puts back what
+ * was there before this one (never this one's value, which is going). Should
+ * this install have written it again since, the value goes back to what the
+ * other app last wrote.
+ */
+async function restoreOne(m: MetaDb, record: { id: string; manifestId: string; kind: AppInstanceValueKind; item: string; before: HeldValue; applied: unknown; createdAt: number }, userId: string | null, at: number): Promise<boolean> {
+  const undo = appInstanceUndoRepo(m);
   const now = await readHeld(m, record.kind, record.item);
-  const untouched = sameValue(record.kind, now, record.applied);
-  if (untouched) await writeHeld(m, record.kind, record.item, record.before, userId, at);
+  const others = (await undo.listForItem(record.kind, record.item)).filter((other) => other.manifestId !== record.manifestId);
+  const later = others.filter((other) => other.createdAt > record.createdAt || (other.createdAt === record.createdAt && other.id > record.id));
+  const ownStill = sameValue(record.kind, now, record.applied);
+  let untouched = false;
+  if (later.length > 0) {
+    // The app that last wrote it, read before the hand-on below touches a record.
+    const newest = [...others].sort((a, b) => b.updatedAt - a.updatedAt || (b.id < a.id ? -1 : 1))[0]!;
+    await undo.setBefore(later[0]!.id, record.before, at);
+    if (ownStill) {
+      await writeHeld(m, record.kind, record.item, { value: newest.applied }, userId, at);
+      untouched = true;
+    }
+  } else if (ownStill) {
+    await writeHeld(m, record.kind, record.item, record.before, userId, at);
+    untouched = true;
+  }
   // A picture the install kept is let go once no setting names it.
   if (record.kind === 'setting' && PICTURE_SETTINGS.includes(record.item) && typeof record.applied === 'string') {
     let named = false;
     for (const key of PICTURE_SETTINGS) if ((await readHeld(m, 'setting', key))?.value === record.applied) named = true;
     if (!named) await filesRepo(m).markDeleted(record.applied, at);
   }
-  await appInstanceUndoRepo(m).remove(record.manifestId, record.kind, record.item);
+  await undo.remove(record.manifestId, record.kind, record.item);
   return untouched;
 }
 

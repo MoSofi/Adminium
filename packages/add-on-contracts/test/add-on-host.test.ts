@@ -13,7 +13,7 @@
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import type { AddOnAppNamespace, AddOnDocumentPaymentPanelProps } from '../src/runtime/app-types.js';
+import type { AddOnAppNamespace, AddOnDocumentPaymentPanelProps, AddOnShownIn, AddOnShownInChipsProps, AddOnShownInFieldProps, AddOnShownInList } from '../src/runtime/app-types.js';
 
 import {
   ADD_ON_APP_EXPORTS,
@@ -177,9 +177,22 @@ describe('the shims export exactly what their lists promise', () => {
     expect(ADD_ON_APP_EXPORTS).toContain('useAppToasts');
     // And the host's own Payment panel for a designer invoice, the twelfth.
     expect(ADD_ON_APP_EXPORTS).toContain('DocumentPaymentPanel');
-    expect(ADD_ON_APP_EXPORTS).toHaveLength(12);
+    // "Shown in": seven parts and three hooks, drawn by the host over the workspaces the person sees.
+    for (const name of ['CurrentWorkspaceChip', 'HiddenHereNote', 'ShownInChips', 'ShownInControl', 'ShownInField', 'ShownInHeader', 'WorkspaceFilter', 'useShownInList', 'useShownInPicker', 'useShownInScope']) expect(ADD_ON_APP_EXPORTS).toContain(name);
+    expect(ADD_ON_APP_EXPORTS).toHaveLength(22);
     // An older host has none: its type says so, so a page cannot render it unchecked.
     expectTypeOf<AddOnAppNamespace['DocumentPaymentPanel']>().toEqualTypeOf<ComponentType<AddOnDocumentPaymentPanelProps> | undefined>();
+  });
+
+  it('"Shown in" is drawn by the host from what the add-on stores', () => {
+    // The value an add-on keeps on its rows and sends back on a PATCH.
+    expectTypeOf<AddOnShownIn>().toEqualTypeOf<{ mode: 'all' | 'chosen'; workspaceIds: string[] }>();
+    expectTypeOf<AddOnAppNamespace['ShownInChips']>().toEqualTypeOf<ComponentType<AddOnShownInChipsProps>>();
+    // The editor's control saves each change itself, through the add-on's own PATCH.
+    expectTypeOf<AddOnShownInFieldProps['save']>().toEqualTypeOf<(next: AddOnShownIn) => Promise<unknown>>();
+    // A list sends the cut's workspace to its own route, and keeps what the cut keeps.
+    expectTypeOf<ReturnType<AddOnAppNamespace['useShownInList']>>().toEqualTypeOf<AddOnShownInList>();
+    expectTypeOf<AddOnShownInList['workspaceId']>().toEqualTypeOf<string | undefined>();
   });
 
   it('publishes no way to build a route or a second query client', () => {

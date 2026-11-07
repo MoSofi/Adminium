@@ -18,6 +18,8 @@ export const staffWordsQuery = z
     ids: z.string().min(1).max(4000),
     /** The day asked about; today when absent. */
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    /** The database whose install of the add-on is meant, where it is installed on several (or send `X-Adminium-Install`). */
+    connectionId: z.string().min(1).max(64).optional(),
   })
   .strict();
 

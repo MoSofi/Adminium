@@ -84,7 +84,7 @@ export const workspaceSaveCommand: Command = {
         displayName,
         dataDb: async (connectionId) => (await runtime.manager.data(connectionId)).db,
       });
-      const service = createWorkspaceSaveService({ meta, save, adminiumVersion: APP_VERSION, dialectOf, displayName });
+      const service = createWorkspaceSaveService({ meta, save, adminiumVersion: APP_VERSION, masterSecret: env.ADMINIUM_SECRET, projectEnvFile: resolve(deps.cwd, '.env'), dialectOf, displayName });
 
       const plan = await service.plan(workspace.id, request, HOST);
       io.out(`${plan.name}: ${String(plan.apps.length)} app(s), made at "${plan.label}", needs Adminium ${plan.minAdminiumVersion}.`);

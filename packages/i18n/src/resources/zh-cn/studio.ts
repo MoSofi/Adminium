@@ -5541,7 +5541,8 @@ export default {
       "title": "已安装 {done}/{total} 个应用",
       "waiting": "尚未安装",
       "what": "安装结果",
-      "workspace": "工作区"
+      "workspace": "工作区",
+      "workspaceGone": "它们在 {server} 上。工作区 {workspace} 已被删除，因此其余应用不在任何工作区中。"
     },
     "error": "出了点问题",
     "install": {
@@ -5574,7 +5575,11 @@ export default {
         "waiting": "{ready}{count, plural, other {现在安装。}}为 {apps} 做出选择后即可{others, plural, other {加入}}。",
         "waitingAll": "为 {apps} 选择数据库，并完成其检查。"
       },
-      "title": "安装工作区文件"
+      "title": "安装工作区文件",
+      "workspaceGone": {
+        "title": "工作区已被删除",
+        "body": "工作区 {workspace} 在前几个应用安装后被删除。其余应用将不放入任何工作区。"
+      }
     },
     "refusal": {
       "extra": "文件中包含其应用列表未列出的内容。",
@@ -5609,7 +5614,8 @@ export default {
       "tooBig": "此工作区文件将超过 {size}。请去掉一个数据库或其示例行后重试。",
       "useMoreChoices": "在应用上使用“更多选项”来做出选择。",
       "useChoices": "使用这些选项",
-      "version": "版本"
+      "version": "版本",
+      "leaks": "此工作区文件会在工作区、数据库或标签名称中带有本服务器的密钥或 ID。请重命名后再次保存。"
     },
     "saved": {
       "copyApp": "复制 {file} 的指纹",

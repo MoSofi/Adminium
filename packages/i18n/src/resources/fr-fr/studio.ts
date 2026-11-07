@@ -5541,7 +5541,8 @@ export default {
       "title": "{done} apps sur {total} sont installées",
       "waiting": "pas encore installée",
       "what": "Ce qui s’est passé",
-      "workspace": "Espace de travail"
+      "workspace": "Espace de travail",
+      "workspaceGone": "Elles sont sur {server}. L’espace de travail {workspace} a été supprimé : les autres ne sont dans aucun espace de travail."
     },
     "error": "Un problème est survenu",
     "install": {
@@ -5574,7 +5575,11 @@ export default {
         "waiting": "{ready} {count, plural, one {s’installe maintenant.} other {s’installent maintenant.}} Faites les choix pour {apps} afin de {others, plural, one {l’ajouter} other {les ajouter}}.",
         "waitingAll": "Choisissez une base de données pour {apps} et répondez à sa vérification."
       },
-      "title": "Installer un fichier d’espace de travail"
+      "title": "Installer un fichier d’espace de travail",
+      "workspaceGone": {
+        "title": "L’espace de travail a été supprimé",
+        "body": "L’espace de travail {workspace} a été supprimé après l’installation des premières apps. Les autres s’installent sans espace de travail."
+      }
     },
     "refusal": {
       "extra": "Le fichier contient quelque chose que sa liste d’apps ne nomme pas.",
@@ -5609,7 +5614,8 @@ export default {
       "tooBig": "Ce fichier d’espace de travail dépasserait {size}. Retirez une base de données ou ses lignes d’exemple, puis réessayez.",
       "useMoreChoices": "Utilisez Plus de choix sur une app pour faire ses choix.",
       "useChoices": "Utiliser ces choix",
-      "version": "Version"
+      "version": "Version",
+      "leaks": "Le fichier d’espace de travail contiendrait un secret ou un identifiant de ce serveur dans un nom d’espace de travail, de base de données ou de libellé. Renommez-le, puis enregistrez de nouveau."
     },
     "saved": {
       "copyApp": "Copier l’empreinte de {file}",

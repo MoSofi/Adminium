@@ -113,3 +113,34 @@ export function realTableName(table: { ref: string; name?: string | undefined; s
 export function namesItsTable(table: { name?: string | undefined; schema?: string | undefined }): boolean {
   return table.name !== undefined || table.schema !== undefined;
 }
+
+/**
+ * The schema a table is in when none is named: Postgres's `public`. Postgres
+ * is the only engine an app's table names a schema on (MySQL's and SQLite's
+ * are refused by the planner), so a file that names it says nothing more than
+ * a file that does not.
+ */
+export const DEFAULT_TABLE_SCHEMA = 'public';
+
+/**
+ * A manifest with `schema: "public"` taken off each table, as it is read in:
+ * the default schema named or not is one table, never two identities of it.
+ * The table keeps its real name (its `name`, else its ref), so naming the
+ * schema still keeps the table off the app's prefix. Unchanged when no table
+ * names it.
+ */
+export function withoutDefaultSchema<M extends { requiredSchema?: { tables?: readonly { ref: string; name?: string | undefined; schema?: string | undefined }[] | undefined } | undefined }>(manifest: M): M {
+  const tables = manifest.requiredSchema?.tables;
+  if (tables === undefined || !tables.some((table) => table.schema === DEFAULT_TABLE_SCHEMA)) return manifest;
+  return {
+    ...manifest,
+    requiredSchema: {
+      ...manifest.requiredSchema,
+      tables: tables.map((table) => {
+        if (table.schema !== DEFAULT_TABLE_SCHEMA) return table;
+        const { schema: _schema, ...rest } = table;
+        return { ...rest, name: table.name ?? table.ref };
+      }),
+    },
+  };
+}

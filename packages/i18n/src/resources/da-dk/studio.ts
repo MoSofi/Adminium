@@ -5541,7 +5541,8 @@ export default {
       "title": "{done} af {total} apps er installeret",
       "waiting": "ikke installeret endnu",
       "what": "Hvad der skete",
-      "workspace": "Arbejdsområde"
+      "workspace": "Arbejdsområde",
+      "workspaceGone": "De er på {server}. Arbejdsområdet {workspace} blev slettet, så resten er ikke i noget arbejdsområde."
     },
     "error": "Noget gik galt",
     "install": {
@@ -5574,7 +5575,11 @@ export default {
         "waiting": "{ready} {count, plural, one {installeres nu.} other {installeres nu.}} Træf valgene for {apps} for at tilføje {others, plural, one {den} other {dem}}.",
         "waitingAll": "Vælg en database til {apps}, og besvar dens kontrol."
       },
-      "title": "Installér en arbejdsområdefil"
+      "title": "Installér en arbejdsområdefil",
+      "workspaceGone": {
+        "title": "Arbejdsområdet blev slettet",
+        "body": "Arbejdsområdet {workspace} blev slettet, efter de første apps blev installeret. Resten installeres uden arbejdsområde."
+      }
     },
     "refusal": {
       "extra": "Filen indeholder noget, som dens liste over apps ikke nævner.",
@@ -5609,7 +5614,8 @@ export default {
       "tooBig": "Denne arbejdsområdefil ville blive større end {size}. Udelad en database eller dens eksempelrækker, og prøv igen.",
       "useMoreChoices": "Brug Flere valg på en app for at træffe dens valg.",
       "useChoices": "Brug disse valg",
-      "version": "Version"
+      "version": "Version",
+      "leaks": "Arbejdsområdefilen ville indeholde en hemmelighed eller et id fra denne server i et navn på et arbejdsområde, en database eller en etiket. Omdøb det, og gem igen."
     },
     "saved": {
       "copyApp": "Kopiér fingeraftrykket af {file}",

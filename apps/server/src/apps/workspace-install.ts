@@ -15,6 +15,16 @@
  *    existing one, or none. Every database chosen in an "Install on" joins it,
  *    even when its app is refused or stops: it groups the business's
  *    databases, and a refusal usually means the database already has the app.
+ *    A workspace an earlier run made or chose and somebody deleted since is
+ *    never made again: the rest install with none, and the row says so
+ *    (`gone`).
+ *  - **Each app goes with its own answers**: an app this run's request does
+ *    not name waits for them, whatever an earlier run chose. One named without
+ *    install answers installs with the safe ones (public access not allowed).
+ *    Each copy an update moves takes the answers given for it (`updates`, by
+ *    install); the single `update` set stands for the only copy there is, and
+ *    any other copy is updated with none (nothing granted, nothing written
+ *    over the server).
  *  - **A newer app is an update** of every copy of its key (one version per
  *    app on a server), through the existing update, each copy on its own;
  *    then it is installed on its target when the target has no copy.
@@ -42,9 +52,14 @@ export interface WorkspaceInstallAppRequest {
   connectionId: string | null;
   /** The install's answers, as its review recorded them (`POST /apps/install`'s body without key, version and database). */
   install?: Record<string, unknown> | undefined;
-  /** The update's answers, for an app that updates the copies already here (`POST /apps/:key/update`'s body). */
+  /** The update's answers when the app has one copy here (`POST /apps/:key/update`'s body). */
   update?: Record<string, unknown> | null | undefined;
+  /** Each copy's update answers, by its install id: copies differ, and so do their reviews. */
+  updates?: Record<string, Record<string, unknown> | null | undefined> | undefined;
 }
+
+/** The install answers of an app named with none: public access is never allowed by default. */
+export const SAFE_INSTALL_ANSWERS: Readonly<Record<string, unknown>> = Object.freeze({ publicAccess: false });
 
 export interface WorkspaceInstallRequest {
   workspace?: WorkspaceChoice | undefined;
@@ -153,7 +168,10 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
     if (held !== null && held.workspaceId !== undefined) {
       // Chosen and made on an earlier run: kept, whatever this run asks.
       if ((await workspaces.findById(held.workspaceId)) !== null) return held;
+      // Deleted since: never made again, nor another taken in its place. The rest install with none.
+      return { mode: 'none', ...(held.name === undefined ? {} : { name: held.name }), gone: true };
     }
+    if (held?.gone === true) return held;
     const choice = asked ?? (held === null ? { mode: 'none' as const } : held.mode === 'existing' && held.workspaceId !== undefined ? { mode: 'existing' as const, workspaceId: held.workspaceId } : held.mode === 'create' && held.name !== undefined ? { mode: 'create' as const, name: held.name } : { mode: 'none' as const });
     if (choice.mode === 'none') return { mode: 'none' };
     if (!actor.managesConnections) throw new ForbiddenError('Putting databases in a workspace needs managing connections. Install with no workspace.', 'FORBIDDEN', { reason: 'WORKSPACE_CHOICE_NOT_YOURS' });
@@ -196,13 +214,16 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
       if (staged !== app.integrity) {
         return { state: 'refused', reason: 'WORKSPACE_APP_NOT_STAGED', error: `${app.name ?? app.key} ${app.version} is no longer the file that was uploaded. Upload the workspace file again.` };
       }
+      // Each copy's own answers; the single set only for the only copy there is; none for any other.
+      const only = copies.length === 1 ? copies[0]!.installId : null;
+      const answersFor = (copy: AppCopy): Record<string, unknown> => asked?.updates?.[copy.installId] ?? (copy.installId === only ? asked?.update : undefined) ?? {};
       // An update that moved its version and stopped is finished first: the same update run again resumes it.
-      for (const copy of unfinished) await deps.update({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: asked?.update ?? {} });
+      for (const copy of unfinished) await deps.update({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: answersFor(copy) });
       if (unfinished.length > 0) copies = (await deps.copiesOf(app.key)).filter(isFinishedCopy);
       const older = copies.filter((copy) => compareSemver(app.version, copy.version) > 0);
       // A newer version moves every copy; one already newer is refused by the update itself.
-      for (const copy of older) await deps.update({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: asked?.update ?? {} });
-      if (!copies.some((copy) => copy.connectionId === target)) await deps.install({ key: app.key, version: app.version, connectionId: target, answers: asked?.install ?? {} });
+      for (const copy of older) await deps.update({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: answersFor(copy) });
+      if (!copies.some((copy) => copy.connectionId === target)) await deps.install({ key: app.key, version: app.version, connectionId: target, answers: asked?.install ?? SAFE_INSTALL_ANSWERS });
       return { state: older.length > 0 || unfinished.length > 0 ? 'updated' : 'installed' };
     } catch (error) {
       if (error instanceof AppError && error.statusCode < 500 && !STOP_CODES.has(error.code)) {
@@ -250,7 +271,8 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
         }
 
         for (const [n, app] of apps.entries()) {
-          if (DONE.has(app.state) || app.target === null) continue;
+          // Not named in this run: it waits for its answers, never installs with an earlier run's place and none.
+          if (DONE.has(app.state) || app.target === null || !asked.has(app.key)) continue;
           await stillHeld(id, runId);
           let outcome: Pick<WorkspaceInstallApp, 'state' | 'reason' | 'error'>;
           try {

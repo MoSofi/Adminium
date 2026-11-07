@@ -223,7 +223,8 @@ describe('the summary', () => {
     mount();
     expect(await screen.findByText('Enough for 8 more')).toBeTruthy();
     expect(screen.getByText('Flour runs out first')).toBeTruthy();
-    expect(crud.wordsAsked).toEqual(['/api/v1/words/inventory/stock?table=pos%3Amenu_items&ids=12']);
+    // Asked of the add-on's copy on the record's database.
+    expect(crud.wordsAsked).toEqual(['/api/v1/words/inventory/stock?table=pos%3Amenu_items&ids=12&connectionId=cnx_1']);
     expect(screen.queryByText('Expires soon')).toBeNull();
     expect(summaryWords({ id: '12', state: 'in', exact: '8' }, 'list')).toEqual({ line: 'Enough for 8 more', first: null, soon: false });
   });
