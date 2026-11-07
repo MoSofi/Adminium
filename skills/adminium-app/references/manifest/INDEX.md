@@ -83,13 +83,13 @@
 | `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7416 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 6322 |
 | `references/manifest/people.md` | People | 979 |
-| `references/manifest/people-2.md` | People (part 2) | 7597 |
+| `references/manifest/people-2.md` | People (part 2) | 7673 |
+| `references/manifest/people-3.md` | People (part 3) | 308 |
 | `references/manifest/public-access.md` | Public access | 2014 |
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7649 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 6896 |
 | `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
 | `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
 | `references/manifest/public-access--a-person-s-own-rows.md` | Public access — A person's own rows | 7450 |
-| `references/manifest/public-access--rows-visible-with-their-parent.md` | Public access — Rows visible with their parent | 2567 |
 
 More: `references/manifest/INDEX-2.md`

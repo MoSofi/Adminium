@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/public-access--rows-visible-with-their-parent.md` | Public access — Rows visible with their parent | 2567 |
 | `references/manifest/public-access--a-create-with-its-child-rows.md` | Public access — A create with its child rows | 5159 |
 | `references/manifest/public-access--dry-runs-price-checks-and-retries.md` | Public access — Dry runs, price checks and retries | 1764 |
 | `references/manifest/public-access--a-person-found-by-address.md` | Public access — A person found by address | 2051 |
