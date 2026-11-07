@@ -83,7 +83,7 @@
 | `references/manifest/emails--emailtemplates.md` | Emails — emailTemplates | 7416 |
 | `references/manifest/emails--emailtemplates-2.md` | Emails — emailTemplates (part 2) | 6322 |
 | `references/manifest/people.md` | People | 979 |
-| `references/manifest/people-2.md` | People (part 2) | 7673 |
+| `references/manifest/people-2.md` | People (part 2) | 7722 |
 | `references/manifest/people-3.md` | People (part 3) | 308 |
 | `references/manifest/public-access.md` | Public access | 2014 |
 | `references/manifest/public-access-2.md` | Public access (part 2) | 7649 |

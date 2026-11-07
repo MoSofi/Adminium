@@ -126,8 +126,9 @@ follows another row is never moved.
 - **Campaign sends** keep their state with the address and name emptied.
   Their downloads and the files on their rows are deleted, those in the bin
   too. Of a copy of them, the files its copy columns name go, and so do
-  those the bin still keeps of the row (a proof made again: the one it
-  replaced) when every file column of that table is a copy of theirs.
+  those the bin still keeps of the row that the audit log shows in one of
+  those columns (a proof made again: the one it replaced). A file attached
+  to the row and removed, never in a column, stays in the bin.
 - **The audit log and removed rows** keep every entry (who changed what, and
   when), but the images of their rows lose the fields above, their own
   writes through a public page lose where they came from, and any text that
