@@ -1465,8 +1465,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
     if (mine.some((row) => isSampleRow(row) && row.table_ref.startsWith(`${addOnKey}:`))) return null;
 
     const { section, own, named, ownTables, namesTheirSample } = await readSection(app, addOnKey, addOn);
-    // …or of an own table only this file fills (a file may hold nothing else).
-    if (mine.some(ofSection(addOnKey, ownTables))) return null;
+    // …or of an own table only this file fills (a file may hold nothing else). Its rows, never its files: they say nothing went in.
+    if (mine.some((row) => isSampleRow(row) && ownTables.has(row.table_ref))) return null;
     const labels = await labelsIn(app, connectionId, handle);
     const theirs = await labelsIn(addOn, connectionId, handle);
     // A row that points at the ADD-ON's own sample: the whole file waits until that sample is in.
@@ -1809,6 +1809,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
       let reused = 0;
       /** Rows taken from another app's sample rather than written. */
       let takenShared = 0;
+      /** Set when a section's pass put none of its rows in: its files are let go, and the section waits. */
+      let unused = false;
 
       await handle.db.transaction().execute(async (trx) => {
         const db = asDb(trx);
@@ -2297,9 +2299,11 @@ export function createSampleDataService(deps: SampleDataDeps) {
             .execute();
         }
         reused = adopted.size + takenShared;
+        // A section none of whose rows went in (each left out) keeps none of its files: it is tried again, files and all, later.
+        unused = pass.section !== undefined && reused === 0 && Object.values(counts).every((n) => n === 0);
         /** A file's entry: a section's says whose, so the section's removal takes it with its rows. */
         const fileKey = (id: string): string => canonicalJson(pass.section === undefined ? { id } : { id, section: pass.section });
-        for (const id of adoptedFiles) {
+        for (const id of unused ? [] : adoptedFiles) {
           const file = await files.findById(id);
           if (file === null || file.deletedAt !== null || file.entityConnectionId !== connectionId) continue;
           seq += 1;
@@ -2317,7 +2321,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
             .execute();
         }
         // The copies made for the rows after an image's first: removed with the sample, like the images.
-        for (const id of copies) {
+        for (const id of unused ? [] : copies) {
           seq += 1;
           await db
             .insertInto(ledger as never)
@@ -2332,7 +2336,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
             } as never)
             .execute();
         }
-        for (const [label, id] of fileIds) {
+        for (const [label, id] of unused ? [] : fileIds) {
           seq += 1;
           await db
             .insertInto(ledger as never)
@@ -2358,6 +2362,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       });
 
       committed = true;
+      if (unused) for (const id of [...fileIds.values(), ...copies]) await files.markDeleted(id).catch(() => undefined);
       if (moves.length > 0 && pass.section !== undefined) {
         const posted = await makeMoves({ app, section: pass.section, moves, wrote, connectionId, handle, view, names, timeZone, refOf: (tableId) => storedTableRef(refIndex, tableId), opts, now });
         for (const [ref, n] of Object.entries(posted)) counts[ref] = (counts[ref] ?? 0) + n;
@@ -2398,10 +2403,10 @@ export function createSampleDataService(deps: SampleDataDeps) {
         category: 'app',
         action: 'app.sample-data.add',
         connectionId,
-        changes: { after: { key: app.key, counts, reused, files: fileIds.size } },
+        changes: { after: { key: app.key, counts, reused, files: unused ? 0 : fileIds.size } },
       });
       await deps.publish?.(connectionId);
-      return { counts, files: fileIds.size };
+      return { counts, files: unused ? 0 : fileIds.size };
     } catch (error) {
       // After the commit the rows are in, and they name these people and files: a later step that failed (a counter
       // moved on, the audit entry, telling the open screens) takes neither away. The error is still said.

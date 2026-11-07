@@ -248,4 +248,18 @@ describe.each(LEGS)('the files of an app\'s sample rows for an add-on — %s', (
       h = null;
     }
   });
+
+  it.runIf(available)('a section whose every row is left out keeps none of its files, and is not taken as loaded', async () => {
+    // Pointing at the kit's sample, which is in, at a row it does not have: the row is left out.
+    const w = await world(mediaWith(ASSETS, { item_id: { '@ref': 'sugar' }, photo: { '@asset': 'photo-box' }, model: { '@asset': 'model-box' } }));
+    h = w.harness;
+    await service(h).add(w.addOn, OPTS);
+    const added = await service(h).add(w.app, OPTS);
+    expect(added.counts).toEqual({ orders: 2 });
+    expect(added.files).toBe(0);
+    await expectNothingKept(h);
+    // Its list holds the app's own rows and nothing of the section: no file entry stands in for rows that never went in.
+    const ledger = (await h.rows("SELECT table_ref FROM shop_sample_data ORDER BY seq")).map((row) => row['table_ref']);
+    expect(ledger).toEqual(['orders', 'orders']);
+  });
 });
