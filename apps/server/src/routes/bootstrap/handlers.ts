@@ -412,10 +412,11 @@ export async function dashboardAddOnManifests(
  * something to set (a setting that is no secret, or a settings panel of its
  * own), and the grant held for it now (`addOnSettingsGrantHeld`: an app's
  * role only while that app's install has the add-on connected and switched
- * on). `key` is the install's address. Nobody who manages add-ons is told of
- * any: the add-ons page is theirs.
+ * on). `key` is the install's address, and `connectionName` its database's
+ * name (null for a copy kept once per server). Nobody who manages add-ons is
+ * told of any: the add-ons page is theirs.
  */
-async function settingsKeptByGrant(meta: MetaDb, request: FastifyRequest, permissions: PermissionSet | null): Promise<{ key: string; name: string }[]> {
+async function settingsKeptByGrant(meta: MetaDb, request: FastifyRequest, permissions: PermissionSet | null): Promise<{ key: string; name: string; connectionName: string | null }[]> {
   if (permissions === null || permissions.superAdmin) return [];
   const named = new Set(
     [...permissions.grants].flatMap((grant) => {
@@ -428,7 +429,13 @@ async function settingsKeptByGrant(meta: MetaDb, request: FastifyRequest, permis
   const viewer = getPrincipal(request);
   if (viewer === null) return [];
   const installs = installsOf(meta);
-  const out: { key: string; name: string }[] = [];
+  const out: { key: string; name: string; connectionName: string | null }[] = [];
+  // The database each copy is on, by name: two copies of one add-on are two rows the reader tells apart.
+  let names: Map<string, string> | null = null;
+  const nameOf = async (scopeKey: string): Promise<string | null> => {
+    names ??= new Map((await meta.db.selectFrom('adminium_connections').select(['id', 'name']).execute()).map((row) => [row.id, row.name]));
+    return names.get(scopeKey) ?? null;
+  };
   for (const key of [...named].sort()) {
     for (const install of await installs.listByKey(key)) {
       if (install.row.kind !== 'add-on' || install.row.status !== 'installed') continue;
@@ -437,7 +444,7 @@ async function settingsKeptByGrant(meta: MetaDb, request: FastifyRequest, permis
       const manifest = parsed.data;
       const somethingToSet = (manifest.settings ?? []).some((setting) => setting.secret !== true) || (manifest.addOn.slots ?? []).some((slot) => slot.slot === 'settings.add-on.panel');
       if (!somethingToSet || !(await addOnSettingsGrantHeld(meta, viewer, install))) continue;
-      out.push({ key: grantKeyOf(install.row), name: manifest.name });
+      out.push({ key: grantKeyOf(install.row), name: manifest.name, connectionName: await nameOf(install.row.scopeKey) });
     }
   }
   return out;

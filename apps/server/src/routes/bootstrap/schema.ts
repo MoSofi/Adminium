@@ -442,7 +442,17 @@ export const bootstrapReply = z.object({
      * Absent when there is none (and for whoever manages add-ons, who keeps
      * them on the add-ons page).
      */
-    addOnSettings: z.array(z.object({ key: z.string(), name: z.string() })).optional(),
+    addOnSettings: z
+      .array(
+        z.object({
+          /** The copy's address: `<key>`, or `<key>~<slug>` for a later copy on another database. */
+          key: z.string(),
+          name: z.string(),
+          /** The copy's database, by name; null for a copy kept once per server. Absent from a server older than 0.3.49. */
+          connectionName: z.string().nullable().optional(),
+        }),
+      )
+      .optional(),
     /**
      * Pages hidden from the sidebar but very much alive (follow-up): same item
      * shape as the nav, no group. The dashboard resolves `/p/<slug>` URLs,
