@@ -6,7 +6,8 @@
  * and a size the column takes. A file id it does not hold, one held for
  * another column or table, a staff upload and a binned file are each refused
  * as `file-not-here`; a public write that holds nothing names nothing. A
- * held SVG is one the upload store cleaned: cleaned again, the bytes kept.
+ * held SVG is one the upload store cleaned: cleaned again, the bytes kept;
+ * and so is an SVG a sample's add made (an import).
  */
 import { createHash } from 'node:crypto';
 
@@ -99,6 +100,26 @@ for (const engine of META_ENGINES) {
       expect(await judge({ artwork: binned }, holds)).toEqual({ artwork: { code: 'file-not-here' } });
       expect(await judge({ artwork: picture }, holds)).toEqual({ artwork: { code: 'file-type' } });
       expect(await judge({ artwork: large }, holds)).toEqual({ artwork: { code: 'file-too-large', n: 1_000 } });
+    });
+
+    it('takes a sample\'s SVG only when its bytes are the cleaner\'s own, as on every other door', async () => {
+      const raw = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="x()"><rect width="1" height="1"/></svg>', 'utf8');
+      const cleaned = cleanSvg(raw);
+      const minted = async (bytes: Buffer) =>
+        (await filesRepo(meta).create({ filename: 'logo.svg', mime: 'image/svg+xml', sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), kind: 'upload', uploadedBy: null, entityConnectionId: 'conn_1' })).id;
+      const kept = await minted(cleaned);
+      const uncleaned = await minted(raw);
+      const bytes = new Map([
+        [kept, cleaned],
+        [uncleaned, raw],
+      ]);
+      const imported = (values: Record<string, unknown>, bytesOf?: (f: { id: string }) => Promise<Buffer | undefined>) =>
+        createFileColumnJudge({ meta, bytesOf }).judge({ connectionId: 'conn_1', table: LINES, origin: 'import', actor: { kind: 'user', id: null, label: 'test' }, values, stored: null, minted: new Set([kept, uncleaned]) });
+      const read = async (f: { id: string }) => bytes.get(f.id);
+      expect(await imported({ logo: kept }, read)).toBeNull();
+      expect(await imported({ logo: uncleaned }, read)).toEqual({ logo: { code: 'file-not-here' } });
+      // Bytes that cannot be read: not taken.
+      expect(await imported({ logo: kept })).toEqual({ logo: { code: 'file-not-here' } });
     });
   });
 }

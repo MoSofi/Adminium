@@ -14,7 +14,7 @@
  *
  *  - a file the WRITER uploaded — a signed-in person, through a person's own
  *    door (a save, a bulk edit, a record's button); a rule, an import and
- *    project code name none, and an app's sample data names only the pictures
+ *    project code name none, and an app's sample data names only the files
  *    it added from its own bundle in the same pass, each row its own;
  *  - on a PUBLIC write, only a guest's upload this very write holds for that
  *    table and that column (`public-uploads/columns.ts`): a stranger's file,
@@ -31,8 +31,9 @@
  *    bytes (`public-api/picture.ts`). A picture sent through another door
  *    keeps the place it was taken, and is refused here;
  *  - and, an SVG, one the cleaner wrote as it was uploaded for a file
- *    column: cleaned again, the same bytes (`files/svg.ts`). One sent
- *    through another door was never cleaned, and is refused here.
+ *    column or added by a sample (`apps/sample-files.ts`): cleaned again,
+ *    the same bytes (`files/svg.ts`). One sent through another door was
+ *    never cleaned, and is refused here.
  *
  * Each refusal is the field's own issue. Whose a file is, whether it exists,
  * and which record holds it are said alike (`file-not-here`): a refusal is
@@ -213,6 +214,11 @@ export function createFileColumnJudge(deps: FileColumnJudgeDeps): FileColumnJudg
             }
             if (file.sizeBytes > rule.maxBytes) {
               refuse(column.name, { code: 'file-too-large', n: rule.maxBytes });
+              break;
+            }
+            // An SVG the sample's add cleaned as it took it, like every other door's: cleaned again, the same bytes.
+            if (isSvgMime(file.mime) && !(await svgCleanAsKept(file, deps.bytesOf, rule.maxBytes))) {
+              refuse(column.name, { code: 'file-not-here' });
               break;
             }
           }

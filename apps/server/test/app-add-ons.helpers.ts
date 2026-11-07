@@ -13,10 +13,11 @@
  *
  * SQLite always; Postgres with TEST_POSTGRES_URL, MySQL with TEST_MYSQL_URL.
  */
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 
 import BetterSqlite3 from 'better-sqlite3';
 import { sql } from 'kysely';
@@ -294,13 +295,26 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
   };
   const manifests = manifestsRepo(meta, CRYPTO);
   const runtime = opts.documents?.runtime;
-  // Sample data, for an app's and for an add-on's own: files are kept nowhere (no sample here ships a picture).
+  // Sample data, for an app's and for an add-on's own: its files kept in memory, read back as a store reads them (a file column checks an SVG's bytes).
+  const sampleBytes = new Map<string, Buffer>();
+  const sampleFiles = {
+    write: async (input: { id: string; bytes: Buffer | string }) => {
+      const buffer = Buffer.from(input.bytes);
+      sampleBytes.set(`samples/${input.id}`, buffer);
+      return { storageKey: `samples/${input.id}`, sizeBytes: buffer.byteLength, sha256: createHash('sha256').update(buffer).digest('hex'), destinationId: null, storage: 'memory' };
+    },
+    open: async (file: { storageKey: string }) => {
+      const held = sampleBytes.get(file.storageKey);
+      if (held === undefined) throw new Error(`No bytes kept under ${file.storageKey}.`);
+      return { stream: Readable.from([held]), sizeBytes: held.byteLength };
+    },
+  };
   const sampleData: SampleDataDeps = {
     meta,
     manager,
     store: appStore,
     addOnFiles: { readVerifiedFile: (key, version, relativePath) => addOnStore.readVerifiedFile(key, version, relativePath) },
-    files: { write: async () => ({ storageKey: 'x', sizeBytes: 0, sha256: '', destinationId: null, storage: 'memory' }) } as unknown as SampleDataDeps['files'],
+    files: sampleFiles as unknown as SampleDataDeps['files'],
   };
   await app.register(
     addOnRoutes({ ...installer, serverVersion: '0.4.0', catalog, sampleData, ...(runtime === undefined ? {} : { runtime }) }),

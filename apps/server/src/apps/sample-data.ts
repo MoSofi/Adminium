@@ -43,8 +43,9 @@
  * reference the scan missed makes the database refuse, and nothing is removed.
  */
 import { addOnTablesFor } from './add-on-tables.js';
+import { keptSampleFile, SampleFileRefused } from './sample-files.js';
 import { createHash } from 'node:crypto';
-import { basename, extname } from 'node:path';
+import { basename } from 'node:path';
 
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
@@ -103,6 +104,7 @@ import { ledgersOf } from '../ledgers/rules.js';
 import { fetchByPk, pkLabel } from '../crud/records.js';
 import { writeStores } from '../crud/write-stores.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
+import { createFileColumnJudge, storedBytes } from '../files/column-judge.js';
 import type { FileStore } from '../files/store.js';
 import type { JobHandlerContext, JobRegistry } from '../jobs/registry.js';
 import type { Row } from '../crud/mask.js';
@@ -749,19 +751,6 @@ function keysAsText(values: Row, given: Row, table: ResolvedTable): Row {
 
 /** Key types an identity sequence counts in. */
 const INTEGER_TYPES = new Set(['integer', 'bigint', 'smallint']);
-
-const MIME_BY_EXTENSION: Record<string, string> = {
-  '.webp': 'image/webp',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  // A shop's product models, as the upload door stores them (`files/sniff.ts`): a column's `accept` is judged on these.
-  '.glb': 'model/gltf-binary',
-  '.stl': 'model/stl',
-  '.3mf': 'model/3mf',
-};
 
 // ── the service ───────────────────────────────────────────────────────────
 
@@ -1732,15 +1721,23 @@ export function createSampleDataService(deps: SampleDataDeps) {
     let committed = false;
     try {
       for (const [label, asset] of Object.entries(bundle.assets)) {
-        const { bytes, sha256: actual } = await filesOf(app).readVerifiedFile(app.key, app.version, asset.file);
+        const { bytes: read, sha256: actual } = await filesOf(app).readVerifiedFile(app.key, app.version, asset.file);
         if (actual !== asset.sha256) {
           throw new ValidationFailedError(`The sample file "${asset.file}" is not the file the bundle names.`, {
             reason: 'SAMPLE_INVALID',
           });
         }
+        // Held to what an upload of it is held to: an SVG cleaned, a model what its name says, each within its public cap.
+        let kept: { bytes: Buffer; mime: string };
+        try {
+          kept = await keptSampleFile(read, asset.file);
+        } catch (error) {
+          if (!(error instanceof SampleFileRefused)) throw error;
+          throw new ValidationFailedError(error.message, { reason: 'SAMPLE_INVALID' });
+        }
+        const { bytes, mime } = kept;
         const id = newId('file');
         const filename = basename(asset.file);
-        const mime = MIME_BY_EXTENSION[extname(filename).toLowerCase()] ?? 'application/octet-stream';
         const stored = await deps.files.write({ id, kind: 'upload', filename, mime, bytes });
         await files.create({
           id,
@@ -1790,7 +1787,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
           if (identity !== null) lentBy.set(identity, [...(lentBy.get(identity) ?? []), entry]);
         }
       }
-      const writes = createWriteService(writeStores(deps.meta));
+      // The judge reads the files' bytes, so an SVG named is shown to be one the cleaner wrote.
+      const writes = createWriteService({ ...writeStores(deps.meta), files: createFileColumnJudge({ meta: deps.meta, bytesOf: storedBytes(deps.files) }) });
       const context: WriteContext = {
         origin: 'import',
         hops: 0,
