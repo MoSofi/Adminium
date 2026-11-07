@@ -24,7 +24,7 @@ import { Spinner } from '@adminium/ui';
 
 import { loadAddOnNamespace } from '../../add-ons/client.js';
 import { t } from '../../i18n/t.js';
-import { ADD_ONS_QUERY_KEY, saveAddOnSettings, type AddOnDto } from './addOnsApi.js';
+import { ADD_ONS_QUERY_KEY, copyOf, saveAddOnSettings, type AddOnDto } from './addOnsApi.js';
 
 /** The slot an add-on's own settings form fills. */
 export const SETTINGS_SLOT = 'settings.add-on.panel';
@@ -126,7 +126,7 @@ export function SettingsPanelFill({ addOn }: { addOn: AddOnDto }) {
     // Drawn at once with the change; saved, and the list read again, so every other reader of the values sees it.
     setValues((current) => ({ ...current, ...change }));
     setSaveFailed(false);
-    saveAddOnSettings(addOn.key, change).then(
+    saveAddOnSettings(addOn.key, change, ...copyOf(addOn)).then(
       (reply) => {
         saved.current = reply.values;
         setValues(reply.values);

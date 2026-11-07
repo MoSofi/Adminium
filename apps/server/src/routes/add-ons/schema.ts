@@ -68,10 +68,26 @@ export const appNeedDto = z.object({
   features: z.array(featureNeedDto),
 });
 
-/** One host this add-on is mounted on, and whether it is on there. */
+/**
+ * One host this add-on is mounted on, and whether it is on there.
+ *
+ * An add-on may be installed once per database, so two rows of the list may
+ * share a key. Each attachment says which copy it is of (`installId`, its
+ * database and address slug) and which install of the host it joins
+ * (`hostInstall`): a side keeps the attachments whose `hostInstall` is its
+ * own install. Absent from a server older than 0.3.49.
+ */
 export const addOnAttachmentDto = z.object({
   attachedTo: hostKey,
   enabled: z.boolean(),
+  /** The add-on's install this attachment is of. */
+  installId: z.string().optional(),
+  /** That install's database; null for a copy kept once per server. */
+  connectionId: z.string().nullable().optional(),
+  /** That install's address slug: `''` for the bare one. */
+  slug: z.string().optional(),
+  /** The host's install it joins; `''` while the host is not installed. */
+  hostInstall: z.string().optional(),
 });
 
 /**
@@ -85,6 +101,12 @@ export const addOnDto = z.object({
   key: addOnKey,
   name: z.string(),
   version: z.string(),
+  /** This copy's install: two copies of one add-on are two rows with one key. Absent from a server older than 0.3.49. */
+  installId: z.string().optional(),
+  /** This copy's database; null for a copy kept once per server. */
+  connectionId: z.string().nullable().optional(),
+  /** This copy's address slug: `''` for the bare one. */
+  slug: z.string().optional(),
   /** `none` | `api-key` | `oauth2` — what connecting this add-on requires. */
   connectKind: z.enum(['none', 'api-key', 'oauth2']),
   /** Whether a credential is stored. Never the credential itself. */

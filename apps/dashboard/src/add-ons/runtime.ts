@@ -71,6 +71,18 @@ import { DocumentPaymentPanel } from '../payments-panel/documentPanelDoor.js';
 import { useLocaleTag } from './locale.js';
 import { registerMessages } from './messages.js';
 import {
+  CurrentWorkspaceChip,
+  HiddenHereNote,
+  ShownInChips,
+  ShownInControl,
+  ShownInField,
+  ShownInHeader,
+  WorkspaceFilter,
+  useShownInList,
+  useShownInPicker,
+  useShownInScope,
+} from './shownInKit.js';
+import {
   HOST_API_VERSION,
   installAddOnRuntime,
   type AddOnAppNamespace,
@@ -97,7 +109,7 @@ export function ensureAddOnRuntime(options: { data?: boolean } = {}): Promise<vo
         query: { QueryClient, queryOptions, useMutation, useQuery, useQueryClient },
         i18n: { tagForLocale },
         /*
-         * The host itself (O7). These twelve are why an add-on page can BE a
+         * The host itself (O7). These are why an add-on page can BE a
          * dashboard page rather than an iframe with a border: it renders into
          * the shell's own chrome, translates through the running catalogue,
          * and calls the API with the session's CSRF token.
@@ -111,9 +123,16 @@ export function ensureAddOnRuntime(options: { data?: boolean } = {}): Promise<vo
          */
         app: {
           ApiError,
+          CurrentWorkspaceChip,
           DocumentPaymentPanel,
+          HiddenHereNote,
           PageActions,
           PageSurface,
+          ShownInChips,
+          ShownInControl,
+          ShownInField,
+          ShownInHeader,
+          WorkspaceFilter,
           api,
           formatSince,
           lucideByName,
@@ -122,6 +141,10 @@ export function ensureAddOnRuntime(options: { data?: boolean } = {}): Promise<vo
           useLocaleTag,
           useAppToasts,
           useShortcut,
+          // "Shown in": the parts load with their first draw (`./shownInKit.tsx`).
+          useShownInList,
+          useShownInPicker,
+          useShownInScope,
         } satisfies AddOnAppNamespace,
     };
     installAddOnRuntime({

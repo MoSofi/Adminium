@@ -72,6 +72,7 @@ import {
   type AddOnManifest,
 } from '@adminium/manifest';
 import {
+  SERVER_SCOPE,
   SecretSettingRefused,
   addOnSettingsRepo,
   appTablesRepo,
@@ -691,10 +692,12 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     // `credentialStatus` deliberately, not `getCredential`: a LIST must never
     // decrypt anything.
     const credential = await manifests.credentialStatus(installed.row.id);
+    const copy = { installId: installed.row.id, connectionId: installed.row.scopeKey === SERVER_SCOPE ? null : installed.row.scopeKey, slug: installed.row.instanceSlug };
     return {
       key: manifest.key,
       name: manifest.name,
       version: installed.row.version,
+      ...copy,
       connectKind: block.connect.kind,
       connected: credential !== null,
       // The one disk read in this DTO. Without it the list is a pure meta read
@@ -707,6 +710,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       attachments: installed.attachments.map((a) => ({
         attachedTo: a.attachedTo,
         enabled: a.disabledAt === null,
+        ...copy,
+        hostInstall: a.hostInstall,
       })),
       // Both optional in the schema: an add-on may fill no slot (a data pack
       // the host reads through a typed surface) or provide no contract.

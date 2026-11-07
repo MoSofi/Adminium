@@ -84,6 +84,7 @@ import {
   connectionChoices,
   installAddOn,
   refreshCatalog,
+  copyOf,
   saveAddOnSettings,
   setAddOnEnabled,
   fetchUninstallPlan,
@@ -333,7 +334,7 @@ export function SettingsForm({ addOn, busy }: { addOn: AddOnDto; busy: boolean }
 
   const save = useMutation({
     // Only the fields drawn here: a value the add-on's own control saved is never written back from an older draft.
-    mutationFn: () => saveAddOnSettings(addOn.key, Object.fromEntries(editable.filter((setting) => Object.prototype.hasOwnProperty.call(draft, setting.key)).map((setting) => [setting.key, draft[setting.key]]))),
+    mutationFn: () => saveAddOnSettings(addOn.key, Object.fromEntries(editable.filter((setting) => Object.prototype.hasOwnProperty.call(draft, setting.key)).map((setting) => [setting.key, draft[setting.key]])), ...copyOf(addOn)),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['studio', 'add-ons'] }),
   });
 
@@ -824,7 +825,7 @@ export function AddOnsPage() {
     const target = { key: addOn.key, name: addOn.name, version: addOn.version };
     const go = () =>
       void (async () => {
-        const done = await run(() => setAddOnEnabled(addOn.key, attachedTo, !enabled), { action: 'switch-off', addOn: target, host: attachedTo });
+        const done = await run(() => setAddOnEnabled(addOn.key, attachedTo, !enabled, ...copyOf(addOn)), { action: 'switch-off', addOn: target, host: attachedTo });
         // Switched on, and its public entries were left off the app's key: ask, rather than leave it silently closed.
         const left = done?.publicAccess?.skipped.map((entry) => entry.ref).filter((ref) => ref !== '*') ?? [];
         if (!enabled && left.length > 0) setAskPublic({ addOn, host: attachedTo, refs: left });
@@ -1050,7 +1051,7 @@ export function AddOnsPage() {
           ) : (
             <ul className="flex flex-col gap-4">
               {installed.map((addOn) => (
-                <li key={addOn.key} id={`add-on-${addOn.key}`} className="flex flex-col gap-2">
+                <li key={addOn.installId ?? addOn.key} id={`add-on-${addOn.key}${addOn.slug === undefined || addOn.slug === '' ? '' : `~${addOn.slug}`}`} className="flex flex-col gap-2">
                   <span className="flex items-center gap-2">
                     <strong>{addOn.name}</strong>
                     <Badge tone="neutral">{addOn.version}</Badge>

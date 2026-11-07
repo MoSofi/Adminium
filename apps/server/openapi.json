@@ -11698,6 +11698,16 @@
             "schema": {
               "type": "string",
               "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
               "maxLength": 80
             },
             "in": "path",
@@ -149927,6 +149937,18 @@
                         "version": {
                           "type": "string"
                         },
+                        "installId": {
+                          "type": "string"
+                        },
+                        "connectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -149958,6 +149980,21 @@
                               },
                               "enabled": {
                                 "type": "boolean"
+                              },
+                              "installId": {
+                                "type": "string"
+                              },
+                              "connectionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "hostInstall": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -150696,6 +150733,18 @@
                         "version": {
                           "type": "string"
                         },
+                        "installId": {
+                          "type": "string"
+                        },
+                        "connectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -150727,6 +150776,21 @@
                               },
                               "enabled": {
                                 "type": "boolean"
+                              },
+                              "installId": {
+                                "type": "string"
+                              },
+                              "connectionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "hostInstall": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -151096,6 +151160,18 @@
                           "version": {
                             "type": "string"
                           },
+                          "installId": {
+                            "type": "string"
+                          },
+                          "connectionId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
                           "connectKind": {
                             "type": "string",
                             "enum": [
@@ -151127,6 +151203,21 @@
                                 },
                                 "enabled": {
                                   "type": "boolean"
+                                },
+                                "installId": {
+                                  "type": "string"
+                                },
+                                "connectionId": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "hostInstall": {
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -151486,6 +151577,18 @@
                         "version": {
                           "type": "string"
                         },
+                        "installId": {
+                          "type": "string"
+                        },
+                        "connectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -151517,6 +151620,21 @@
                               },
                               "enabled": {
                                 "type": "boolean"
+                              },
+                              "installId": {
+                                "type": "string"
+                              },
+                              "connectionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "hostInstall": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -152779,6 +152897,18 @@
                         "version": {
                           "type": "string"
                         },
+                        "installId": {
+                          "type": "string"
+                        },
+                        "connectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -152810,6 +152940,21 @@
                               },
                               "enabled": {
                                 "type": "boolean"
+                              },
+                              "installId": {
+                                "type": "string"
+                              },
+                              "connectionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "hostInstall": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -153379,6 +153524,18 @@
                         "version": {
                           "type": "string"
                         },
+                        "installId": {
+                          "type": "string"
+                        },
+                        "connectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -153410,6 +153567,21 @@
                               },
                               "enabled": {
                                 "type": "boolean"
+                              },
+                              "installId": {
+                                "type": "string"
+                              },
+                              "connectionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "hostInstall": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -153876,6 +154048,18 @@
                         "version": {
                           "type": "string"
                         },
+                        "installId": {
+                          "type": "string"
+                        },
+                        "connectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -153907,6 +154091,21 @@
                               },
                               "enabled": {
                                 "type": "boolean"
+                              },
+                              "installId": {
+                                "type": "string"
+                              },
+                              "connectionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "hostInstall": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -154258,6 +154457,18 @@
                         "version": {
                           "type": "string"
                         },
+                        "installId": {
+                          "type": "string"
+                        },
+                        "connectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -154289,6 +154500,21 @@
                               },
                               "enabled": {
                                 "type": "boolean"
+                              },
+                              "installId": {
+                                "type": "string"
+                              },
+                              "connectionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "hostInstall": {
+                                "type": "string"
                               }
                             },
                             "required": [

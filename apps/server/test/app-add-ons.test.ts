@@ -372,7 +372,7 @@ describe('ranges and features (sqlite)', () => {
     );
     const installed = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'paged', version: '1.0.0', attachTo: [] } });
     expect(installed.statusCode, installed.body).toBe(200);
-    expect(installed.json().addOn.attachments).toEqual([{ attachedTo: 'dashboard', enabled: true }]);
+    expect(installed.json().addOn.attachments).toMatchObject([{ attachedTo: 'dashboard', enabled: true }]);
   });
 
   it('answers SCHEMA_DRIFT when an add-on moved between the check and the install', async () => {

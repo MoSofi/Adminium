@@ -197,8 +197,121 @@ export interface AddOnDocumentPaymentPanelProps {
   onChanged?: (() => void) | undefined;
 }
 
+/**
+ * "SHOWN IN": where an item an add-on keeps (an invoice layout, a template)
+ * is listed. In every workspace (`all`, the default), or in the chosen ones
+ * (`chosen`, possibly none). It narrows lists and pickers; a send never asks.
+ * The add-on stores it on its own rows and sends it back on a PATCH; the
+ * host draws it and says which workspaces this person may see (from their
+ * session: no workspace-managing permission is needed).
+ *
+ * A server with no workspaces draws none of it: `scope.active` is false, the
+ * control and the filter draw nothing, and a list is not narrowed.
+ */
+export interface AddOnShownIn {
+  mode: 'all' | 'chosen';
+  /** The chosen workspaces; empty for `all`, and for "chosen, none". */
+  workspaceIds: string[];
+}
+
+/** A workspace as "Shown in" draws it. */
+export interface AddOnShownInWorkspace {
+  id: string;
+  name: string;
+  /** Up to two letters for its tile. */
+  initials: string;
+  position: number;
+}
+
+/** The workspaces this person sees, and which one this tab is in. */
+export interface AddOnShownInScope {
+  /** The workspaces this person sees, by position. Empty when the server has none (or none for them). */
+  workspaces: AddOnShownInWorkspace[];
+  /** Whether "Shown in" is drawn at all: only when there is a workspace to choose. */
+  active: boolean;
+  /** Whether "Other databases" (the databases in no workspace) is a group for this person. */
+  otherDatabases: boolean;
+  /** How the menu shows workspaces: one at a time, or all in one menu. */
+  view: 'one' | 'all';
+  /** The tab's workspace (an id, or `~other` for "Other databases"); null when the tab is in none. */
+  currentWorkspaceId: string | null;
+}
+
+/**
+ * A list's "Shown in" cut. In One at a time it follows the tab's workspace;
+ * in All in one menu it is the list's own Workspace filter. Send
+ * `workspaceId` with the list's request (as `?workspaceId=`, which only
+ * narrows), and keep the rows `keeps` keeps ("Other databases" is no
+ * workspace the server knows, so its cut is made here).
+ */
+export interface AddOnShownInList {
+  scope: AddOnShownInScope;
+  workspaceId: string | undefined;
+  keeps: (shownIn: AddOnShownIn | undefined) => boolean;
+  /** Whether the list draws its "Shown in" column (or card chips). */
+  showColumn: boolean;
+  /** The Workspace filter's value and setter, for `WorkspaceFilter`: drawn in All in one menu only, null otherwise. */
+  filter: { value: string; onChange: (next: string) => void } | null;
+}
+
+/** A picker's cut: what is listed in the tab's workspace, in either view. */
+export type AddOnShownInPicker = Pick<AddOnShownInList, 'scope' | 'workspaceId' | 'keeps'>;
+
+/** Where an item is listed, as chips: a list cell or a card's foot. */
+export interface AddOnShownInChipsProps {
+  shownIn: AddOnShownIn | undefined;
+  className?: string | undefined;
+}
+
+/** "Shown in" on an item's editor: the two choices, and the workspaces under the second. Controlled. */
+export interface AddOnShownInControlProps {
+  value: AddOnShownIn;
+  onChange: (next: AddOnShownIn) => void;
+  disabled?: boolean | undefined;
+  className?: string | undefined;
+}
+
+/**
+ * `ShownInControl`, saved as it changes: each change is its own small write
+ * (`save`, a PATCH of `{ shownIn }`), one at a time and in order; a write that
+ * fails puts the control back and says so.
+ */
+export interface AddOnShownInFieldProps {
+  /** What the server holds now. */
+  value: AddOnShownIn | undefined;
+  /** Writes one change; resolves when the server has it. */
+  save: (next: AddOnShownIn) => Promise<unknown>;
+  disabled?: boolean | undefined;
+  className?: string | undefined;
+}
+
+/** A list's "Workspace" select, for All in one menu: `''` is every workspace. Pass `useShownInList().filter`. */
+export interface AddOnWorkspaceFilterProps {
+  value: string;
+  onChange: (next: string) => void;
+}
+
+/** A chosen item that is not listed in the tab's workspace: it still sends, and the note says where it is listed. */
+export interface AddOnHiddenHereNoteProps {
+  shownIn: AddOnShownIn;
+}
+
 export interface AddOnAppNamespace {
   ApiError: AddOnApiErrorConstructor;
+  /** The tab's workspace, when a list is narrowed to it (One at a time): drawn under a list page's title. From 0.3.49. */
+  CurrentWorkspaceChip: ComponentType;
+  /** From 0.3.49. */
+  HiddenHereNote: ComponentType<AddOnHiddenHereNoteProps>;
+  /** From 0.3.49. */
+  ShownInChips: ComponentType<AddOnShownInChipsProps>;
+  /** From 0.3.49. */
+  ShownInControl: ComponentType<AddOnShownInControlProps>;
+  /** From 0.3.49. */
+  ShownInField: ComponentType<AddOnShownInFieldProps>;
+  /** A list's "Shown in" column header. From 0.3.49. */
+  ShownInHeader: ComponentType;
+  /** From 0.3.49. */
+  WorkspaceFilter: ComponentType<AddOnWorkspaceFilterProps>;
   /**
    * Every host from this one on publishes it. An older host has none, so the
    * type says so: a page checks it is there before rendering it.
@@ -214,4 +327,10 @@ export interface AddOnAppNamespace {
   useLocaleTag: AddOnLocaleTag;
   useAppToasts: () => AddOnToastQueue;
   useShortcut: (def: AddOnShortcutDef) => void;
+  /** A list's "Shown in" cut. From 0.3.49. */
+  useShownInList: () => AddOnShownInList;
+  /** A picker's "Shown in" cut. From 0.3.49. */
+  useShownInPicker: () => AddOnShownInPicker;
+  /** The workspaces this person sees, and the tab's. From 0.3.49. */
+  useShownInScope: () => AddOnShownInScope;
 }

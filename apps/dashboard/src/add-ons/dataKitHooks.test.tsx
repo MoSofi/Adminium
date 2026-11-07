@@ -483,6 +483,8 @@ describe('a look-up, the words, a document, an export', () => {
     expect(calls[0]!.path).toBe('/api/v1/words/stock/stock');
     expect(calls[0]!.search.get('table')).toBe('shop:dishes');
     expect(calls[0]!.search.get('ids')!.split(',')).toHaveLength(60);
+    // Asked of the copy whose page this is: its database, which the kit names.
+    expect(calls[0]!.search.get('connectionId')).toBe(CONN);
     // One of its own tables goes by the name another manifest would use for it.
     expect(calls[1]!.search.get('table')).toBe('stock:items');
     await expect(words.result.current.ask('elsewhere', [1])).rejects.toThrow('"elsewhere" is not a table of stock');

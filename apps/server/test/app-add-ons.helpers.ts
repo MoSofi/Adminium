@@ -45,6 +45,7 @@ import { addOnRoutes } from '../src/routes/add-ons/index.js';
 import { appRoutes } from '../src/routes/apps/index.js';
 import { documentRoutes } from '../src/routes/documents/index.js';
 import { createDocumentPipeline } from '../src/documents/compose.js';
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { RenderDeps } from '../src/documents/render.js';
 import { packageTarball } from './app-bundle-helpers.js';
 import { memoryStorage } from './memory-storage.helpers.js';
@@ -154,7 +155,7 @@ export interface Harness {
   /** Read the database again, as a person does after changing it by hand. */
   introspect: () => Promise<void>;
   stageApp: (manifest: Record<string, unknown>, files?: Record<string, string | Uint8Array>) => Promise<void>;
-  inject: (req: { method: string; url: string; payload?: unknown; as?: User | null }) => Promise<{ statusCode: number; body: string; json: () => Body }>;
+  inject: (req: { method: string; url: string; payload?: unknown; as?: User | null; headers?: Record<string, string> }) => Promise<{ statusCode: number; body: string; json: () => Body }>;
   /** Stage an app and ask for its plan on the harness's connection. */
   plan: (manifest: Record<string, unknown>) => Promise<{ statusCode: number; json: () => Body; body: string }>;
   /** Install a staged app on the harness's connection. */
@@ -179,6 +180,8 @@ export interface HarnessOptions {
   onRebuild?: (() => void) | undefined;
   /** The source pool's size: one connection shows a read made through the pool from inside a save (it waits for ever). The adapter's own when absent. */
   sourcePoolMax?: number | undefined;
+  /** More routes beside the add-on and app routes, over the same meta and connections (signed in the same way). */
+  routes?: ((deps: { meta: MetaDb; manager: ConnectionManager }) => readonly FastifyPluginAsyncZod[]) | undefined;
 }
 
 export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}): Promise<Harness> {
@@ -337,15 +340,16 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
     pipeline = createDocumentPipeline({ meta, manager, storage, runtime });
     await app.register(documentRoutes({ meta, storage, runtime, enqueue: () => Promise.resolve({ id: 'job_1' }), pipeline }));
   }
+  for (const routes of opts.routes?.({ meta, manager }) ?? []) await app.register(routes);
   await app.ready();
   const handle = await manager.data(connection.id);
 
-  const inject: Harness['inject'] = async ({ method, url, payload, as }) =>
+  const inject: Harness['inject'] = async ({ method, url, payload, as, headers = {} }) =>
     app.inject({
       method: method as 'GET',
       url,
       ...(payload === undefined ? {} : { payload: payload as Record<string, unknown> }),
-      headers: as === undefined ? {} : { 'x-test-user-id': as === null ? 'anonymous' : as.id },
+      headers: { ...headers, ...(as === undefined ? {} : { 'x-test-user-id': as === null ? 'anonymous' : as.id }) },
     });
 
   const stageApp: Harness['stageApp'] = async (manifest, files = {}) => {

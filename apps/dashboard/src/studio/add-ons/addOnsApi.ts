@@ -22,7 +22,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 
-import { api, ApiError, csrfHeaders } from '../../app/api.js';
+import { api, ApiError, csrfHeaders, installOptions } from '../../app/api.js';
 import type { PlanRoleTable } from '../apps/appsApi.js';
 
 export const ADD_ONS_QUERY_KEY = ['add-ons'] as const;
@@ -34,6 +34,14 @@ export type ConnectKind = 'none' | 'api-key' | 'oauth2';
 export interface AddOnAttachment {
   attachedTo: string;
   enabled: boolean;
+  /** The add-on's install this attachment is of. Absent from an older server. */
+  installId?: string;
+  /** That install's database; null for a copy kept once per server. */
+  connectionId?: string | null;
+  /** That install's address slug: `''` for the bare one. */
+  slug?: string;
+  /** The host's install it joins; `''` while the host is not installed. */
+  hostInstall?: string;
 }
 
 /** Mirrors `addOnDto`. */
@@ -41,6 +49,16 @@ export interface AddOnDto {
   key: string;
   name: string;
   version: string;
+  /**
+   * This copy's install. An add-on may be installed once per database, so two
+   * rows may share a key: what is done to a row names its copy. Absent from an
+   * older server.
+   */
+  installId?: string;
+  /** This copy's database; null for a copy kept once per server. */
+  connectionId?: string | null;
+  /** This copy's address slug: `''` for the bare one. */
+  slug?: string;
   connectKind: ConnectKind;
   /** Whether a credential is stored. Never the credential. */
   connected: boolean;
@@ -75,6 +93,14 @@ export interface AddOnDto {
    * server.
    */
   usedBy?: AddOnUse[];
+}
+
+/**
+ * The copy a change to a row names, as the trailing argument of a call that
+ * takes one: none for a server that does not say (a key installed once).
+ */
+export function copyOf(addOn: Pick<AddOnDto, 'installId'>): [] | [string] {
+  return addOn.installId === undefined ? [] : [addOn.installId];
 }
 
 /** One installed app's need of an add-on. Mirrors `appNeedDto`. */
@@ -286,8 +312,10 @@ export async function setAddOnEnabled(
   key: string,
   attachedTo: string,
   enabled: boolean,
+  /** The copy switched, where the add-on is installed on several databases. */
+  installId?: string,
 ): Promise<{ addOn: AddOnDto; publicAccess?: SettledAccess }> {
-  return api.patch(`/api/v1/add-ons/${key}`, { attachedTo, enabled });
+  return api.patch(`/api/v1/add-ons/${key}`, { attachedTo, enabled }, installOptions(installId));
 }
 
 /** `drop`: also delete the tables it made, with the add-on's key typed — a Super Admin's deliberate act. */
@@ -487,6 +515,8 @@ export async function completeOAuth(
 export async function saveAddOnSettings(
   key: string,
   values: Record<string, unknown>,
+  /** The copy whose settings these are, where the add-on is installed on several databases. */
+  installId?: string,
 ): Promise<{ key: string; values: Record<string, unknown>; updatedAt: number }> {
-  return await api.put(`/api/v1/add-ons/${encodeURIComponent(key)}/settings`, { values });
+  return await api.put(`/api/v1/add-ons/${encodeURIComponent(key)}/settings`, { values }, installOptions(installId));
 }
