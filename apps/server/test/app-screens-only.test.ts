@@ -177,7 +177,7 @@ describe('someone who opens only an app’s own screens', () => {
     expect((await get('/api/v1/bootstrap', cookie)).statusCode).toBe(403);
   });
 
-  it('may read the workspace’s name and logo to head their screens with, and change neither', () => {
+  it('may read the server’s name and logo to head their screens with, and change neither', () => {
     const allowed = (method: string, route: string) => allowedForScreensOnly(method, route, {}, new Set(['conn_1']), ['clients']);
     expect(allowed('GET', '/api/v1/branding')).toBe(true);
     expect(allowed('GET', '/api/v1/branding/logo')).toBe(true);
