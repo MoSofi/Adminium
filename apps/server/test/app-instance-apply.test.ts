@@ -372,6 +372,8 @@ for (const [dialect, available] of ENGINES) {
 
       // 1.1.0, ticked with every host: the values are replaced, the undo still holds Harbour.
       await h.stage(app('1.1.0', part({ branding: { appName: 'Fernhill & Co' } })));
+      const carried = await h.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'fern-notes', version: '1.1.0', connectionId: h.connectionId } });
+      expect((JSON.parse(carried.body) as Doc)['plan']).not.toHaveProperty('instanceRestore');
       const updated = await h.inject({ method: 'POST', url: '/apps/fern-notes/update', payload: { instance: true, instanceHosts: ALL_HOSTS } });
       expect(updated.statusCode, updated.body).toBe(200);
       expect((JSON.parse(updated.body) as Doc)['app']['instance']['restored']).toEqual(expect.arrayContaining(['setting:appearance.accent', 'setting:branding.logoFileId']));
@@ -426,6 +428,15 @@ for (const [dialect, available] of ENGINES) {
       expect(await settingOf(h.meta, 'branding.appName')).toBe('Fernhill');
       const { instance: _dropped, ...plain } = app('1.1.0');
       await h.stage(plain);
+
+      // The update's review names what goes back, by kind and item, never a value, and who may run it.
+      const planned = await h.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'fern-notes', version: '1.1.0', connectionId: h.connectionId } });
+      expect(planned.statusCode, planned.body).toBe(200);
+      const restore = (JSON.parse(planned.body) as Doc)['plan']['instanceRestore'] as Doc;
+      expect(restore).toMatchObject({ needs: 'system:settings:manage', canRestore: true });
+      expect(restore['values']).toEqual(expect.arrayContaining([{ kind: 'setting', item: 'branding.appName' }, { kind: 'setting', item: 'assistant.name' }, { kind: 'word', item: 'de_DE:common:common.save' }]));
+      expect(JSON.stringify(restore)).not.toContain('Fernhill');
+      expect(JSON.stringify(restore)).not.toContain('Fern"');
 
       const service = createAppInstallService(h.deps);
       const actor = { id: null, label: 'staff', kind: 'user' as const, superAdmin: async () => false, can: async (permission: string) => permission !== 'system:settings:manage' };

@@ -970,7 +970,13 @@ export default {
       "copyOf": "第 {n} 份，共 {total} 份 · {from} → {to}",
       "reviewSubtitle": "查看此版本带来的内容。",
       "onlyThis": "此对话框中只更改 {database} 上的 {app}。它在那里的设置、角色和邮件模板会保留。",
-      "finish": "完成更新"
+      "finish": "完成更新",
+      "instanceRestore": {
+        "title": "服务器外观将恢复原样",
+        "body": "{count, plural, other {此版本不再包含服务器的外观和语言。它设置的 # 个值将恢复原样：外观、文字和系统邮件。}}",
+        "manager": "只有可以更改服务器设置的人才能运行此更新。",
+        "locked": "只有可以更改服务器设置的人才能运行此更新：请让拥有该权限的人来操作。"
+      }
     },
     "veto": {
       "title": "此部署无法在线浏览",

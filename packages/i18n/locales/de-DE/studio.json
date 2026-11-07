@@ -960,7 +960,13 @@
       "copyOf": "Kopie {n} von {total} · {from} → {to}",
       "reviewSubtitle": "Prüfen Sie, was diese Version mitbringt.",
       "onlyThis": "In diesem Dialog ändert sich nur {app} auf {database}. Ihre Einstellungen, Rollen und Mailvorlagen dort bleiben erhalten.",
-      "finish": "Aktualisierung abschließen"
+      "finish": "Aktualisierung abschließen",
+      "instanceRestore": {
+        "title": "Das Aussehen des Servers wird zurückgesetzt",
+        "body": "{count, plural, one {Diese Version bringt das Aussehen und die Sprachen des Servers nicht mehr mit. # Wert, den sie gesetzt hat, wird auf den vorherigen Stand zurückgesetzt: das Aussehen, die Texte und die System-E-Mails.} other {Diese Version bringt das Aussehen und die Sprachen des Servers nicht mehr mit. # Werte, die sie gesetzt hat, werden auf den vorherigen Stand zurückgesetzt: das Aussehen, die Texte und die System-E-Mails.}}",
+        "manager": "Nur wer die Einstellungen des Servers ändern darf, kann diese Aktualisierung ausführen.",
+        "locked": "Nur wer die Einstellungen des Servers ändern darf, kann diese Aktualisierung ausführen: Bitten Sie jemanden mit dieser Berechtigung."
+      }
     },
     "veto": {
       "title": "Diese Installation kann nicht online suchen",

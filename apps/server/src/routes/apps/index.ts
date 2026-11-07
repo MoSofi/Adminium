@@ -97,7 +97,7 @@ import {
 import { addOnsHereFor, asInstalledHere, partsLeftOut, planModulesOf, planWholeOf, tickedByDefault } from '../../apps/app-modules.js';
 import { surfacesOfInstalled } from '../../apps/installed.js';
 import { afterInstallView, rightOf as afterInstallRightOf } from '../../apps/after-install-view.js';
-import { INSTANCE_EVENTS, instanceValuesNow, undoInstance } from '../../apps/manifest-instance.js';
+import { INSTANCE_EVENTS, carriesInstance, instanceValuesNow, undoInstance } from '../../apps/manifest-instance.js';
 import { workspaceFileRefusal } from '../../apps/workspace-files.js';
 import { workspaceFileRoutes } from './workspace-files.js';
 import { refusalReason, uploadRefusalMessage } from '../../add-ons/upload-refusal.js';
@@ -1237,9 +1237,15 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         );
         // What the add-ons refuse whatever the install says, so `installable` is the install's answer too.
         const addOnProblems = addOnPlanProblems(manifest.name, addOns);
+        // An update to a version without the server-wide part puts back what the copy here wrote over the server.
+        const restored =
+          copyHere !== null && copyHere.row.kind === 'app' && copyHere.row.version !== version && !carriesInstance(declared)
+            ? (await instanceValuesNow(deps.meta, copyHere.row.id)).filter((value) => !value.changed).map((value) => ({ kind: value.kind, item: value.item }))
+            : [];
         return {
           plan: {
             ...dto,
+            ...(restored.length === 0 ? {} : { instanceRestore: { needs: PERMISSIONS.settingsManage, canRestore: await canOf(request)(PERMISSIONS.settingsManage), values: restored } }),
             ...(addOnProblems.length === 0 ? {} : { installable: false, problems: [...dto.problems, ...addOnProblems] }),
             ...(publicAccess === undefined ? {} : { publicAccess }),
             ...(addOns.length === 0 ? {} : { addOns }),

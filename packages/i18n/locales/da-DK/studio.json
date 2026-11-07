@@ -960,7 +960,13 @@
       "copyOf": "Kopi {n} af {total} · {from} → {to}",
       "reviewSubtitle": "Kontrollér, hvad denne version bringer.",
       "onlyThis": "Kun {app} på {database} ændres i denne dialog. Dens indstillinger, roller og mailskabeloner der beholdes.",
-      "finish": "Gør opdateringen færdig"
+      "finish": "Gør opdateringen færdig",
+      "instanceRestore": {
+        "title": "Serverens udseende vender tilbage",
+        "body": "{count, plural, one {Denne version indeholder ikke længere serverens udseende og sprog. # værdi, den satte, vender tilbage til, hvad den var: udseendet, ordene og systemmailene.} other {Denne version indeholder ikke længere serverens udseende og sprog. # værdier, den satte, vender tilbage til, hvad de var: udseendet, ordene og systemmailene.}}",
+        "manager": "Kun en, der må ændre serverens indstillinger, kan køre denne opdatering.",
+        "locked": "Kun en, der må ændre serverens indstillinger, kan køre denne opdatering: bed en med den tilladelse om det."
+      }
     },
     "veto": {
       "title": "Denne installation kan ikke gennemse online",

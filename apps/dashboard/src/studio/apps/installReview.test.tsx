@@ -354,6 +354,35 @@ describe('routing by version', () => {
     expect(screen.getByText('This copy gets its own settings, roles and email templates. Clinic Desk on fernhill and kiln is not touched.')).toBeTruthy();
   });
 
+  it('warns that a version without the server-wide part puts the look back, and holds Update for someone who may not', async () => {
+    uploadReply = { status: 200, body: { ...LOCAL, version: '1.1.0', route: 'update', installs: [copies[0]], databasesFree: 2 } };
+    const restore = { needs: 'system:settings:manage', values: [{ kind: 'setting', item: 'branding.appName' }, { kind: 'word', item: 'de_DE:common:common.save' }] };
+    plan = ownPlan({ version: '1.1.0', tables: [], pageClashes: [], instanceRestore: { ...restore, canRestore: false } });
+    const user = userEvent.setup();
+    renderWizard();
+    await upload(user);
+    await user.click(await screen.findByRole('button', { name: 'Update every copy (fernhill)' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('The server’s look goes back')).toBeTruthy();
+    expect(within(dialog).getByText('This version no longer carries the server’s look and languages. 2 values it set go back to what they were: the look, the words and the system emails.')).toBeTruthy();
+    expect(within(dialog).getByText('Only someone who may change the server’s settings can run this update: ask someone who has that permission.')).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Update' }).hasAttribute('disabled')).toBe(true);
+    expect(calls.filter((call) => call.url === '/api/v1/apps/clinic/update')).toHaveLength(0);
+  });
+
+  it('lets a settings manager run the update that puts the look back', async () => {
+    uploadReply = { status: 200, body: { ...LOCAL, version: '1.1.0', route: 'update', installs: [copies[0]], databasesFree: 2 } };
+    plan = ownPlan({ version: '1.1.0', tables: [], pageClashes: [], instanceRestore: { needs: 'system:settings:manage', canRestore: true, values: [{ kind: 'setting', item: 'branding.appName' }] } });
+    const user = userEvent.setup();
+    renderWizard();
+    await upload(user);
+    await user.click(await screen.findByRole('button', { name: 'Update every copy (fernhill)' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Only someone who may change the server’s settings can run this update.')).toBeTruthy();
+    await user.click(within(dialog).getByRole('button', { name: 'Update' }));
+    expect(await screen.findByText('Clinic Desk is on 1.1.0 on every database.')).toBeTruthy();
+  });
+
   it('finishes an update that stopped part way with the same update', async () => {
     uploadReply = { status: 200, body: { ...LOCAL, version: '1.1.0', route: 'update', installs: [copies[0]], databasesFree: 2 } };
     plan = ownPlan({ version: '1.1.0', tables: [], pageClashes: [] });

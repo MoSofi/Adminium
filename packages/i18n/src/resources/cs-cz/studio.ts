@@ -970,7 +970,13 @@ export default {
       "copyOf": "Kopie {n} z {total} · {from} → {to}",
       "reviewSubtitle": "Zkontrolujte, co tato verze přináší.",
       "onlyThis": "V tomto dialogu se mění jen {app} na {database}. Její nastavení, role a e-mailové šablony tam zůstanou.",
-      "finish": "Dokončit aktualizaci"
+      "finish": "Dokončit aktualizaci",
+      "instanceRestore": {
+        "title": "Vzhled serveru se vrátí",
+        "body": "{count, plural, one {Tato verze už nenese vzhled a jazyky serveru. # hodnota, kterou nastavila, se vrátí na původní stav: vzhled, texty a systémové e-maily.} few {Tato verze už nenese vzhled a jazyky serveru. # hodnoty, které nastavila, se vrátí na původní stav: vzhled, texty a systémové e-maily.} many {Tato verze už nenese vzhled a jazyky serveru. # hodnoty, které nastavila, se vrátí na původní stav: vzhled, texty a systémové e-maily.} other {Tato verze už nenese vzhled a jazyky serveru. # hodnot, které nastavila, se vrátí na původní stav: vzhled, texty a systémové e-maily.}}",
+        "manager": "Tuto aktualizaci může spustit jen ten, kdo smí měnit nastavení serveru.",
+        "locked": "Tuto aktualizaci může spustit jen ten, kdo smí měnit nastavení serveru: požádejte někoho s tímto oprávněním."
+      }
     },
     "veto": {
       "title": "Toto nasazení nemůže procházet online",

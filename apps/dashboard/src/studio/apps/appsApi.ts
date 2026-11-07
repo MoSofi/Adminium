@@ -909,6 +909,12 @@ export interface AppInstallPlan {
   savedParts?: { reports: number; invoiceLayouts: number; scheduledReports: number; payments: boolean };
   /** A self-made file's deployment-wide part, applied only when ticked. Absent for a file without one. */
   instance?: InstancePart;
+  /**
+   * An update to a version without the deployment-wide part: what the running
+   * one wrote over the server that the update puts back, by kind and item
+   * (never a value). Only a settings manager may run it (`canRestore`).
+   */
+  instanceRestore?: { needs: string; canRestore: boolean; values: { kind: 'setting' | 'word' | 'email' | 'locale'; item: string }[] };
 }
 
 /** One page of the app whose address a page here already has. Mirrors `plan.pageClashes[]`. */

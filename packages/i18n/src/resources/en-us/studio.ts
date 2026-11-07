@@ -970,7 +970,13 @@ export default {
       "copyOf": "Copy {n} of {total} · {from} → {to}",
       "reviewSubtitle": "Check what this version brings.",
       "onlyThis": "Only {app} on {database} changes in this dialog. Its settings, roles and email templates there are kept.",
-      "finish": "Finish the update"
+      "finish": "Finish the update",
+      "instanceRestore": {
+        "title": "The server’s look goes back",
+        "body": "{count, plural, one {This version no longer carries the server’s look and languages. # value it set goes back to what it was: the look, the words and the system emails.} other {This version no longer carries the server’s look and languages. # values it set go back to what they were: the look, the words and the system emails.}}",
+        "manager": "Only someone who may change the server’s settings can run this update.",
+        "locked": "Only someone who may change the server’s settings can run this update: ask someone who has that permission."
+      }
     },
     "veto": {
       "title": "This deployment cannot browse online",

@@ -970,7 +970,13 @@ export default {
       "copyOf": "Copie {n} sur {total} · {from} → {to}",
       "reviewSubtitle": "Vérifiez ce qu’apporte cette version.",
       "onlyThis": "Seule {app} sur {database} change dans cette fenêtre. Ses paramètres, rôles et modèles d’e-mail y sont conservés.",
-      "finish": "Terminer la mise à jour"
+      "finish": "Terminer la mise à jour",
+      "instanceRestore": {
+        "title": "L’apparence du serveur revient en arrière",
+        "body": "{count, plural, one {Cette version n’apporte plus l’apparence ni les langues du serveur. # valeur qu’elle a définie revient à ce qu’elle était : l’apparence, les textes et les e-mails système.} other {Cette version n’apporte plus l’apparence ni les langues du serveur. # valeurs qu’elle a définies reviennent à ce qu’elles étaient : l’apparence, les textes et les e-mails système.}}",
+        "manager": "Seule une personne autorisée à modifier les réglages du serveur peut lancer cette mise à jour.",
+        "locked": "Seule une personne autorisée à modifier les réglages du serveur peut lancer cette mise à jour : demandez-le à quelqu’un qui a cette permission."
+      }
     },
     "veto": {
       "title": "Ce déploiement ne peut pas consulter le catalogue en ligne",

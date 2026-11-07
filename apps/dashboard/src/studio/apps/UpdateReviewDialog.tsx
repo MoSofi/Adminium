@@ -99,7 +99,32 @@ export function publicAccessAdded(plan: AppInstallPlan): NonNullable<AppInstallP
 
 /** Whether the review has anything a self-made file's update must show: a clash, where it came from, its look, what to fill in. */
 export function reviewAsks(plan: AppInstallPlan): boolean {
-  return (plan.pageClashes ?? []).length > 0 || plan.madeAt !== undefined || plan.instance !== undefined || (plan.afterInstall ?? []).length > 0;
+  return (plan.pageClashes ?? []).length > 0 || plan.madeAt !== undefined || plan.instance !== undefined || plan.instanceRestore !== undefined || (plan.afterInstall ?? []).length > 0;
+}
+
+/**
+ * A new version without the server-wide part: what the running one wrote over
+ * the whole server goes back to what it was, and only a settings manager may
+ * run that. Counted by kind; never a value.
+ */
+function InstanceRestoreNote({ restore }: { restore: NonNullable<AppInstallPlan['instanceRestore']> }) {
+  const count = restore.values.length;
+  return (
+    <Alert tone="warn" title={t('studio:hostedApps.update.instanceRestore.title', 'The server’s look goes back')}>
+      <span className="block">
+        {t(
+          'studio:hostedApps.update.instanceRestore.body',
+          '{count, plural, one {This version no longer carries the server’s look and languages. # value it set goes back to what it was: the look, the words and the system emails.} other {This version no longer carries the server’s look and languages. # values it set go back to what they were: the look, the words and the system emails.}}',
+          { count },
+        )}
+      </span>
+      <span className="mt-1 block">
+        {restore.canRestore
+          ? t('studio:hostedApps.update.instanceRestore.manager', 'Only someone who may change the server’s settings can run this update.')
+          : t('studio:hostedApps.update.instanceRestore.locked', 'Only someone who may change the server’s settings can run this update: ask someone who has that permission.')}
+      </span>
+    </Alert>
+  );
 }
 
 export interface UpdateReviewProps {
@@ -220,6 +245,9 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
   const wider = roleTablesWider(plan);
   const grants = grantsAddedOf(plan);
   const integrity = props.integrity ?? '';
+  const restore = plan.instanceRestore;
+  // Putting the server's look back is a change of its settings: only a settings manager runs this update.
+  const restoreLocked = restore !== undefined && !restore.canRestore;
   const hold = reviewHold({ plan, pages: checked.pages, fingerprint, integrity });
   const busy = props.busy || recheck.isPending;
   const stopped = props.stopped ?? null;
@@ -392,6 +420,7 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
           )}
           <OutsideAddressesCard items={plan.afterInstall} forUpdate />
           {plan.instance === undefined ? null : <InstanceCard part={plan.instance} answers={instance} onAnswers={setInstance} />}
+          {restore === undefined ? null : <InstanceRestoreNote restore={restore} />}
           <AfterInstallCard items={plan.afterInstall} />
           {access === null ? null : <PublicAccessInstallCard access={access} checked={allowPublic} onChange={setAllowPublic} />}
           <RoleTablesUpdateCard entries={wider} />
@@ -413,7 +442,7 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
           </Button>
         ) : stopped !== null ? null : (
           <Button
-            disabled={busy || !plan.installable || hold !== null}
+            disabled={busy || !plan.installable || hold !== null || restoreLocked}
             aria-describedby={hold === null ? undefined : holdId}
             onClick={() => {
               const sent = answersToSend();

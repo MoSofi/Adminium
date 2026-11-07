@@ -960,7 +960,13 @@
       "copyOf": "第 {n} 份，共 {total} 份 · {from} → {to}",
       "reviewSubtitle": "查看此版本帶來的內容。",
       "onlyThis": "此對話框中只變更 {database} 上的 {app}。它在那裡的設定、角色和郵件範本會保留。",
-      "finish": "完成更新"
+      "finish": "完成更新",
+      "instanceRestore": {
+        "title": "伺服器外觀將恢復原樣",
+        "body": "{count, plural, other {此版本不再包含伺服器的外觀和語言。它設定的 # 個值將恢復原樣：外觀、文字和系統郵件。}}",
+        "manager": "只有可以變更伺服器設定的人才能執行此更新。",
+        "locked": "只有可以變更伺服器設定的人才能執行此更新：請讓擁有該權限的人來操作。"
+      }
     },
     "veto": {
       "title": "此部署無法線上瀏覽",
