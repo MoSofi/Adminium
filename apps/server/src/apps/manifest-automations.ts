@@ -29,16 +29,18 @@
  *
  * A step can also send out with no address field at all, so these count too
  * ({@link outboundSteps}): a step that writes words of its own into a column
- * a mail goes to (or an address anywhere), an add-on's step given an address
- * of the file's own, a mail whose template or own values link to an outside
- * host with the record's values in the link (or a link nobody can tell). Each
+ * a mail goes to (or an address anywhere), a mail to a column whose value the
+ * file chose (a default, a copy, its seeded rows), an add-on's step given an
+ * address of the file's own, a mail whose template or own values link to an
+ * outside host with the record's values in the link (or a link nobody can
+ * tell). Each
  * keeps its words, and its rule arrives switched off with an item on the
  * list for the owner to look at; an update that brings a new one switches an
  * unchanged rule off again. When unsure, a step counts as sending out.
  *
  * Meta store only: no source transaction, no lock.
  */
-import type { AddOnStep } from '@adminium/add-on-contracts';
+import { ADD_ON_STEP_PERSON, type AddOnStep } from '@adminium/add-on-contracts';
 
 import type { RuleSteps } from '../automations/validate.js';
 import { createHash } from 'node:crypto';
@@ -128,6 +130,8 @@ function literalOf(text: string): string {
 
 /** Whether words a file wrote reach somebody outside by themselves: an address, a host, a phone number (`phones`). */
 function reachesOut(text: string, phones: boolean): boolean {
+  // An add-on step's person (`@record`, `@link:contact_id`) is a row of the database, never an address.
+  if (ADD_ON_STEP_PERSON.test(text.trim())) return false;
   const literal = literalOf(text);
   if (literal === '') return false;
   if (literal.includes('@')) return true;
@@ -137,6 +141,59 @@ function reachesOut(text: string, phones: boolean): boolean {
 }
 
 type ManifestStep = { id: string; kind: string; action?: Record<string, unknown> & { kind: string }; branches?: { nodes: ManifestStep[] }[] };
+
+type FileColumn = { ref: string; default?: unknown; references?: string; rules?: Record<string, unknown> };
+type FileTable = { ref: string; columns?: FileColumn[] };
+
+/** Rules of a column that work its value out from what the file wrote (a formula's words, a prefix, a lookup's table). */
+const WORKED_OUT: readonly string[] = ['formula', 'format', 'lookup', 'band'];
+
+/**
+ * Whether the file itself can choose a column's value, an address a mail to
+ * that column goes to: a default of its own, a default read from a setting,
+ * a rule that works it out, a copy of such a column, or rows the file brings
+ * (its seeds; its sample data, which it does not say the tables of).
+ */
+function fileChosenColumn(manifest: Manifest, tableRef: string | undefined, column: string): boolean {
+  const tables = ((manifest as { requiredSchema?: { tables?: FileTable[] } }).requiredSchema?.tables ?? []) as FileTable[];
+  const seeds = ((manifest as { seeds?: { table: string; rows?: Record<string, unknown>[]; file?: string }[] }).seeds ?? []);
+  const sample = (manifest as { sampleData?: unknown }).sampleData !== undefined;
+  const seen = new Set<string>();
+  const chosen = (table: FileTable, ref: string): boolean => {
+    const id = `${table.ref}.${ref}`;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    const col = (table.columns ?? []).find((one) => one.ref === ref);
+    if (col === undefined) return false;
+    if (typeof col.default === 'string' && col.default.trim() !== '') return true;
+    const rules = col.rules ?? {};
+    if (rules['default'] !== undefined || WORKED_OUT.some((rule) => rules[rule] !== undefined)) return true;
+    if (sample || seeds.some((seed) => seed.table === table.ref && (seed.file !== undefined || (seed.rows ?? []).some((row) => row[ref] !== undefined && row[ref] !== null && row[ref] !== '')))) return true;
+    // A copy from the linked row: chosen when the column it copies is.
+    const copy = rules['copy'] as { via?: string; from?: string } | undefined;
+    if (copy !== undefined) {
+      const target = tables.find((one) => one.ref === (table.columns ?? []).find((c) => c.ref === copy.via)?.references);
+      if (target === undefined || typeof copy.from !== 'string' || chosen(target, copy.from)) return true;
+    }
+    // A stamp: words of the file's own by origin, or another column of the row.
+    const set = (rules['stamp'] as { set?: unknown } | undefined)?.set;
+    if (set !== null && typeof set === 'object') {
+      if ('byOrigin' in set) return true;
+      const from = (set as { copy?: unknown }).copy;
+      if (typeof from === 'string' && chosen(table, from)) return true;
+    }
+    return false;
+  };
+  const named = tables.filter((table) => table.ref === tableRef);
+  return (named.length > 0 ? named : tables).some((table) => chosen(table, column));
+}
+
+/** The table a rule's record is a row of: the record's, or the rows a schedule walks. */
+function recordTableOf(rule: ManifestAutomation): string | undefined {
+  const trigger = rule.trigger as { table?: unknown; forEach?: { table?: unknown } };
+  if (typeof trigger.table === 'string') return trigger.table;
+  return typeof trigger.forEach?.table === 'string' ? trigger.forEach.table : undefined;
+}
 
 function manifestSteps(nodes: readonly ManifestStep[]): ManifestStep[] {
   return nodes.flatMap((node) => [node, ...(node.branches ?? []).flatMap((branch) => manifestSteps(branch.nodes))]);
@@ -148,14 +205,18 @@ function manifestSteps(nodes: readonly ManifestStep[]): ManifestStep[] {
  * the file alone, every rule at once, since one rule may write the address
  * another mails:
  *
- *  - a step that writes words of its own into a column a mail step sends to,
- *    and that mail step; one that writes an address anywhere, or a link to an
- *    outside host with the record's values in it;
+ *  - a step that writes words of its own (or a value of a setting, a date)
+ *    into a column a mail step sends to, and that mail step; one that writes
+ *    an address anywhere, or a link to an outside host with the record's
+ *    values in it;
+ *  - a mail to a column whose value the file chose: a default, a copy of one,
+ *    a rule that works it out, rows the file brings;
  *  - an add-on's step with an address, a host or a phone number of the
  *    file's own in an input;
  *  - a mail or summary whose template links to an outside host with a value
- *    of the record in the link, or holds a link nobody can tell; a mail whose
- *    own values (`vars`) name an outside host or an address.
+ *    of the record in the link (a form sent there, a `<base>` too), or holds
+ *    a link nobody can tell; a mail whose own values (`vars`) name an outside
+ *    host or an address.
  */
 export function outboundSteps(manifest: Manifest): Map<string, string[]> {
   const rules = ((manifest as { automations?: ManifestAutomation[] }).automations ?? []) as ManifestAutomation[];
@@ -177,9 +238,10 @@ export function outboundSteps(manifest: Manifest): Map<string, string[]> {
     return action['kind'] === 'email' && to?.kind === 'field' && typeof to.column === 'string' ? to.column : null;
   };
 
-  // The columns a mail goes to, and those a step writes words of its own into.
+  // The columns a mail goes to, and those a step writes words of its own into (or any value that is not words: a setting's, a date).
   const mailed = new Set<string>();
   const written = new Set<string>();
+  const ownWords = (value: unknown): boolean => (typeof value === 'string' ? literalOf(value) !== '' : value !== null && value !== undefined);
   for (const rule of rules) {
     for (const step of stepsOf(rule)) {
       const action = step.action;
@@ -187,7 +249,7 @@ export function outboundSteps(manifest: Manifest): Map<string, string[]> {
       const field = fieldOf(action);
       if (field !== null) mailed.add(field);
       if (action.kind === 'record.create' || action.kind === 'record.update') {
-        for (const [column, value] of Object.entries((action['values'] ?? {}) as Record<string, unknown>)) if (typeof value === 'string' && literalOf(value) !== '') written.add(column);
+        for (const [column, value] of Object.entries((action['values'] ?? {}) as Record<string, unknown>)) if (ownWords(value)) written.add(column);
       }
     }
   }
@@ -201,7 +263,9 @@ export function outboundSteps(manifest: Manifest): Map<string, string[]> {
       let sends = false;
       if (action.kind === 'record.create' || action.kind === 'record.update') {
         for (const [column, value] of Object.entries((action['values'] ?? {}) as Record<string, unknown>)) {
-          if (typeof value !== 'string' || literalOf(value) === '') continue;
+          if (!ownWords(value)) continue;
+          if (mailed.has(column)) sends = true;
+          if (typeof value !== 'string') continue;
           const carries = placeholdersIn(value).length > 0;
           const hosts = emailLinks({ text: value });
           if (mailed.has(column) || literalOf(value).includes('@') || (carries && (hosts.hosts.length > 0 || hosts.problems.length > 0))) sends = true;
@@ -209,7 +273,7 @@ export function outboundSteps(manifest: Manifest): Map<string, string[]> {
       }
       if (action.kind === 'email') {
         const field = fieldOf(action);
-        if (field !== null && written.has(field)) sends = true;
+        if (field !== null && (written.has(field) || fileChosenColumn(manifest, recordTableOf(rule), field))) sends = true;
         if (templateLeaks(action['templateKey'])) sends = true;
         for (const value of Object.values((action['vars'] ?? {}) as Record<string, unknown>)) if (typeof value === 'string' && reachesOut(value, false)) sends = true;
       }
