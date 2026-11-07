@@ -19,8 +19,12 @@ export const SEND_AS_SERVER = 'server';
 export interface SendAsOptions {
   /** The server's From; null while no mail is set up. */
   server: string | null;
-  /** Every workspace, with its own From (null: it has none, and goes as the server). */
-  workspaces: { id: string; name: string; from: string | null }[];
+  /**
+   * The workspaces this person sees. `from` is the workspace's own From, sent
+   * only to those who manage senders (null otherwise); `hasSender` says
+   * whether it has one, for everyone.
+   */
+  workspaces: { id: string; name: string; from: string | null; hasSender: boolean }[];
 }
 
 export const sendAsOptionsQuery = () =>

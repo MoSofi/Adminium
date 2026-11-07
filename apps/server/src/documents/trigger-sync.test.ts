@@ -272,11 +272,11 @@ describe('uninstalling an add-on stops its rules', () => {
       trigger: { event: 'record.created', automationId: result.automationId },
     });
 
-    expect(await syncTriggersForAddOn(meta, { addOnKey: 'invoices', installId: PROFILE_INSTALL }, false)).toBe(1);
+    expect(await syncTriggersForAddOn(meta, { addOnKey: 'invoices', installId: PROFILE_INSTALL, connectionId }, false)).toBe(1);
     expect((await rules.findById(result.automationId!))?.enabled).toBe(false);
     // Disabling the mapping alone would leave a rule that fires on every write
     // and skips every time, for an add-on that is gone.
-    expect(await syncTriggersForAddOn(meta, { addOnKey: 'barcode-labels', installId: PROFILE_INSTALL }, false)).toBe(0);
+    expect(await syncTriggersForAddOn(meta, { addOnKey: 'barcode-labels', installId: PROFILE_INSTALL, connectionId }, false)).toBe(0);
   });
 
   it('leaves a mapping that owns no rule alone, and does not count it', async () => {
@@ -311,7 +311,7 @@ describe('uninstalling an add-on stops its rules', () => {
     expect(result.automationId).toBeNull();
     await profiles.patch(refused.id, { trigger: { event: 'record.deleted', automationId: null } });
 
-    expect(await syncTriggersForAddOn(meta, { addOnKey: 'invoices', installId: PROFILE_INSTALL }, false)).toBe(0);
+    expect(await syncTriggersForAddOn(meta, { addOnKey: 'invoices', installId: PROFILE_INSTALL, connectionId }, false)).toBe(0);
   });
 });
 
@@ -365,9 +365,9 @@ describe('the matcher hears of a mapping’s rule', () => {
     const made = await syncProfileTrigger(meta, first);
     await profiles.patch(first.id, { trigger: { event: 'record.created', automationId: made.automationId } });
 
-    await syncTriggersForAddOn(meta, { addOnKey: 'invoices', installId: PROFILE_INSTALL }, false);
+    await syncTriggersForAddOn(meta, { addOnKey: 'invoices', installId: PROFILE_INSTALL, connectionId }, false);
     expect(await matcher.rulesFor(created)).toHaveLength(0);
-    await syncTriggersForAddOn(meta, { addOnKey: 'invoices', installId: PROFILE_INSTALL }, true);
+    await syncTriggersForAddOn(meta, { addOnKey: 'invoices', installId: PROFILE_INSTALL, connectionId }, true);
     expect(await matcher.rulesFor(created)).toHaveLength(1);
 
     await syncProfileTrigger(meta, null, { previous: (await profiles.findById(first.id))! });

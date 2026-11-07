@@ -42,7 +42,8 @@ import { summaryOf } from '../../invoices/summary.js';
 import { documentBalance, documentRef, followDocumentStatus, statusAfter } from '../../payments/document-status.js';
 import type { PayableSources } from '../../payments/payables.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
-import { saveShownIn, shownInFilter, shownInOf } from '../../workspaces/shown-in.js';
+import { saveShownIn, shownInFilter, shownInOf, shownInSeenOnly } from '../../workspaces/shown-in.js';
+import { visibleWorkspaceIds } from '../../workspaces/visibility.js';
 import {
   invoiceAddLanguageBody,
   invoiceCreateBody,
@@ -165,6 +166,8 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
   }
 
   return async (app) => {
+    // A "Shown in" names only the workspaces this person sees.
+    app.addHook('preSerialization', shownInSeenOnly(meta));
     async function requireSettingsManage(request: FastifyRequest, what: string): Promise<void> {
       if (await request.can(PERMISSIONS.settingsManage)) return;
       throw new ForbiddenError(`You do not have permission to ${what}.`, 'FORBIDDEN', {
@@ -348,7 +351,7 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
           });
         }
         if (shownIn !== undefined) {
-          const moved = await saveShownIn(meta, 'invoice', [row.id], shownIn);
+          const moved = await saveShownIn(meta, 'invoice', [row.id], shownIn, await visibleWorkspaceIds(meta, request));
           await app.rbac.audit(request, {
             category: 'settings',
             action: 'invoice-document.shown-in',

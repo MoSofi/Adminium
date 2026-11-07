@@ -78560,12 +78560,16 @@
                               "string",
                               "null"
                             ]
+                          },
+                          "hasSender": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
                           "id",
                           "name",
-                          "from"
+                          "from",
+                          "hasSender"
                         ],
                         "additionalProperties": false
                       }

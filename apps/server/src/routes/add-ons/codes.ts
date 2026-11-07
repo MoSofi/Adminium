@@ -16,6 +16,7 @@
  * stored. For somebody who may make rows of the add-on's codes; limited per
  * user.
  */
+import { installReachOf } from '../../installs/reach.js';
 import { installsOf, resolveInstall, selectorOf } from '../../installs/resolve.js';
 import { tableOfReal } from '../../installs/table-id.js';
 import { addOnManifestSchema, adjusterOf, type Manifest } from '@adminium/manifest';
@@ -68,7 +69,7 @@ export function addOnCodesRoutes(deps: CodesMakeDeps): FastifyPluginAsyncZod {
       async (request) => {
         const addOnKey = request.params.key;
         // The install the request names (the header, or ?connectionId=), else the key's only one.
-        const found = await resolveInstall(installsOf(deps.meta), addOnKey, selectorOf(request), { kind: 'add-on' });
+        const found = await resolveInstall(installsOf(deps.meta), addOnKey, selectorOf(request), { kind: 'add-on', reaches: installReachOf(deps.meta, request) });
         const row = found === null ? undefined : { manifest: found.document as unknown, status: found.row.status, connectionId: found.row.connectionId };
         const parsed = row === undefined ? null : addOnManifestSchema.safeParse(typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest);
         const adjuster = parsed?.success === true ? adjusterOf(parsed.data as unknown as Manifest) : null;

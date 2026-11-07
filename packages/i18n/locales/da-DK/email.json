@@ -974,11 +974,13 @@
     "byRecord": "Efter postens arbejdsområde",
     "workspaceFrom": "{workspace} · {from}",
     "workspaceNoSender": "{workspace} · ingen afsender endnu",
+    "unseenWorkspace": "Et arbejdsområde, du ikke kan se",
     "helper": {
       "byRecord": "Mails om en post sendes fra afsenderen for det arbejdsområde, dens database ligger i.",
       "server": "Alle mails fra denne skabelon sendes fra serverens afsender.",
       "noSender": "{workspace} har endnu ikke sin egen afsender, så denne skabelon sendes fra serverens afsender.",
-      "workspace": "Alle mails fra denne skabelon sendes fra afsenderen for {workspace}, uanset posten."
+      "workspace": "Alle mails fra denne skabelon sendes fra afsenderen for {workspace}, uanset posten.",
+      "unseen": "Alle mails fra denne skabelon sendes fra afsenderen for et arbejdsområde, du ikke kan se."
     },
     "failed": "Dette kunne ikke gemmes. Prøv igen.",
     "docsLink": "Sådan vælger Send som en afsender"

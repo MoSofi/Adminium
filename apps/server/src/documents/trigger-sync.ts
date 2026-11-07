@@ -44,6 +44,7 @@ import {
   type AutomationTrigger,
   type DocumentProfile,
   type MetaDb,
+  type ProfileInstall,
 } from '@adminium/meta';
 
 /**
@@ -245,11 +246,11 @@ async function reconcileProfileTrigger(
  */
 export async function syncTriggersForAddOn(
   meta: MetaDb,
-  install: { addOnKey: string; installId: string },
+  install: ProfileInstall,
   enabled: boolean,
 ): Promise<number> {
-  // One install's mappings: Kiln's going leaves Fernhill's rules firing.
-  const profiles = (await documentProfilesRepo(meta).list({ addOnKey: install.addOnKey })).filter((profile) => profile.installId === install.installId);
+  // One install's mappings: Kiln's going leaves Fernhill's rules firing. An unmarked one on its database is its own.
+  const profiles = await documentProfilesRepo(meta).listForInstall(install);
   const rules = automationsRepo(meta);
   let touched = 0;
   for (const profile of profiles) {

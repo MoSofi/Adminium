@@ -974,11 +974,13 @@
     "byRecord": "依記錄所在的工作區",
     "workspaceFrom": "{workspace} · {from}",
     "workspaceNoSender": "{workspace} · 尚無寄件者",
+    "unseenWorkspace": "你看不到的工作區",
     "helper": {
       "byRecord": "與記錄相關的郵件，以其資料庫所在工作區的寄件者寄出。",
       "server": "此範本的每封郵件都以伺服器的寄件者寄出。",
       "noSender": "{workspace} 尚無自己的寄件者，因此此範本以伺服器的寄件者寄出。",
-      "workspace": "無論是哪筆記錄，此範本的每封郵件都以 {workspace} 的寄件者寄出。"
+      "workspace": "無論是哪筆記錄，此範本的每封郵件都以 {workspace} 的寄件者寄出。",
+      "unseen": "此範本的每封郵件都以一個你看不到的工作區的寄件者寄出。"
     },
     "failed": "無法儲存。請再試一次。",
     "docsLink": "「寄件身分」如何選擇寄件者"

@@ -264,6 +264,24 @@ for (const [dialect, available] of ENGINES) {
       expect(gone.statusCode, gone.body).toBe(200);
       expect(await h.tableNames()).toContain('kit_entries');
     });
+
+    it('are held on their own database only: one on another database never keeps an app from dropping its own', async () => {
+      h = await addOnHarness(dialect);
+      await h.stageApp(
+        appManifest('gamma', {
+          requiredSchema: { tables: [{ ref: 'kit_entries', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'note', type: 'text', nullable: true }] }] },
+        }),
+      );
+      expect((await h.install('gamma', '0.2.0')).statusCode).toBe(200);
+      // The add-on, with a same-named table, installed on another database (its row as an install writes it).
+      const other = await h.addConnection('Elsewhere');
+      await manifestsRepo(h.meta, CRYPTO).install({ manifestKey: 'ledger-kit', version: '1.1.0', kind: 'add-on', source: 'file', document: kit, connectionId: other, scopeKey: other });
+      const plan = await h.inject({ method: 'GET', url: '/apps/gamma/uninstall-plan' });
+      expect(plan.json().tables).toEqual([{ table: 'kit_entries', droppable: true }]);
+      const gone = await h.inject({ method: 'DELETE', url: '/apps/gamma', payload: { dropTables: true, confirmKey: 'gamma' } });
+      expect(gone.statusCode, gone.body).toBe(200);
+      expect(await h.tableNames()).not.toContain('kit_entries');
+    });
   });
 
   describe.skipIf(!available)(`an app install that stops after it updated an add-on, on ${dialect}`, () => {

@@ -28,7 +28,7 @@
  */
 
 import { narrowToWorkspace } from '../../workspaces/list-filter.js';
-import { shownInFilter, shownInOf } from '../../workspaces/shown-in.js';
+import { shownInFilter, shownInOf, shownInSeenOnly } from '../../workspaces/shown-in.js';
 import { assertNotPrivate } from '../../crud/row-limit.js';
 import { reachOfRequest, requestReadsWhole } from '../../crud/row-reach-request.js';
 import type { FastifyRequest } from 'fastify';
@@ -362,6 +362,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
   }
 
   return async (app) => {
+    // A "Shown in" names only the workspaces this person sees.
+    app.addHook('preSerialization', shownInSeenOnly(meta));
     const guard = app.rbac.require(PERMISSIONS.automationsManage);
 
     app.get(

@@ -16,11 +16,11 @@
  * On every engine this run can reach, through the real installer and the
  * whole server, people signing in with a password.
  */
-import { permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import { manifestsRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { matrixRowsFromGrants, PERMISSIONS } from '../src/rbac/permissions.js';
-import { addOnHarness, addOnManifest, appManifest, type Harness } from './app-add-ons.helpers.js';
+import { addOnHarness, addOnManifest, appManifest, CRYPTO, type Harness } from './app-add-ons.helpers.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
@@ -120,5 +120,31 @@ describe.each(LEGS)("the settings an app's owner keeps of an add-on — %s", (di
       expect(on.statusCode, on.body).toBe(200);
     }
     expect(await kept(people.owner)).toEqual([{ key: KEY, name: 'Holiday Calendars' }]);
+  });
+
+  // Last: from here the add-on has two copies, and a request that names neither must say which.
+  it.skipIf(!available)('asks the owner which copy, naming only the one they keep; the clerk is refused with no list', async () => {
+    // A second copy of the add-on, on a database of its own (a server engine's second connection is the same database, so the row is written as an install writes it).
+    const kiln = await h.addConnection('Kiln');
+    const manifests = manifestsRepo(h.meta, CRYPTO);
+    const first = (await manifests.listByKey(KEY))[0]!;
+    await manifests.install({ manifestKey: KEY, version: '1.0.0', kind: 'add-on', source: 'file', document: first.document, connectionId: kiln, scopeKey: kiln, instanceSlug: 'kiln' });
+    const save = (who: { cookie: string }) => send(who, 'PUT', `/add-ons/${KEY}/settings`, { values: { days: [] } });
+
+    const owner = await save(people.owner);
+    expect(owner.statusCode, owner.body).toBe(409);
+    const asked = (owner.json() as { error: { code: string; details: { installs: { connectionId: string | null }[] } } }).error;
+    expect(asked.code).toBe('APP_INSTALL_AMBIGUOUS');
+    expect(asked.details.installs.map((one) => one.connectionId)).toEqual([h.connectionId]);
+    expect(owner.body).not.toContain(kiln);
+
+    const clerk = await save(people.clerk);
+    expect(clerk.statusCode, clerk.body).toBe(403);
+    expect(clerk.body).not.toContain('APP_INSTALL_AMBIGUOUS');
+    expect(clerk.body).not.toContain(kiln);
+
+    const admin = await save(people.admin);
+    expect(admin.statusCode, admin.body).toBe(409);
+    expect((admin.json() as { error: { details: { installs: unknown[] } } }).error.details.installs).toHaveLength(2);
   });
 });

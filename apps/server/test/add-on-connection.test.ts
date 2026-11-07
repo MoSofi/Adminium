@@ -9,7 +9,7 @@ import { appTablesRepo, manifestsRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { LEGS } from './invoicing-install.helpers.js';
-import { addOnHarness, type Harness } from './app-add-ons.helpers.js';
+import { addOnHarness, addOnManifest, type Harness } from './app-add-ons.helpers.js';
 import { ledgerKitFiles, ledgerKitManifest } from './fixtures/ledger-kit/index.js';
 
 const CRYPTO = { encrypt: (v: string) => v, decrypt: (v: string) => v };
@@ -55,6 +55,20 @@ describe('where an add-on\'s tables go', () => {
     }
     expect(((await manifestsRepo(h.meta, CRYPTO).listByKey('ledger-kit'))[0] ?? null)).toBeNull();
     expect((await h.tableNames()).filter((name) => name.startsWith('ledger_kit_'))).toEqual([]);
+  });
+
+  it('an add-on with no tables, attached to an app on two databases: the list names each database by its name', async () => {
+    h = await addOnHarness('sqlite', { unbuiltWords: {} });
+    await h.stageApp(SHOP);
+    expect((await h.install('shop', '0.3.0')).statusCode).toBe(200);
+    const second = await h.addConnection('Second');
+    const first = (await manifestsRepo(h.meta, CRYPTO).listByKey('shop'))[0]!;
+    await manifestsRepo(h.meta, CRYPTO).install({ manifestKey: 'shop', version: '0.3.0', kind: 'app', source: 'file', document: first.document, connectionId: second, scopeKey: second, instanceSlug: 'second' });
+    await h.stageAddOn(addOnManifest('stamps', { addOn: { attaches: [{ app: 'shop' }] } }));
+    const reply = await h.inject({ method: 'POST', url: '/add-ons', payload: { key: 'stamps', version: '1.0.0', attachTo: ['shop'] } });
+    expect(reply.statusCode, reply.body).toBe(409);
+    expect(reply.json()).toMatchObject({ error: { code: 'ADD_ON_SCHEMA_CONNECTION', details: { connections: [{ id: second, name: 'Second' }, { id: h.connectionId, name: 'Studio' }] } } });
+    expect(await manifestsRepo(h.meta, CRYPTO).listByKey('stamps')).toEqual([]);
   });
 
   it('the one named is the one used', async () => {

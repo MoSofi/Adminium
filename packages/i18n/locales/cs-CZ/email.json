@@ -974,11 +974,13 @@
     "byRecord": "Podle pracovního prostoru záznamu",
     "workspaceFrom": "{workspace} · {from}",
     "workspaceNoSender": "{workspace} · zatím bez odesílatele",
+    "unseenWorkspace": "Pracovní prostor, který nevidíte",
     "helper": {
       "byRecord": "E-mail o záznamu odchází od odesílatele pracovního prostoru, ve kterém je jeho databáze.",
       "server": "Každý e-mail této šablony odchází od odesílatele serveru.",
       "noSender": "{workspace} zatím nemá vlastního odesílatele, proto tato šablona odchází od odesílatele serveru.",
-      "workspace": "Každý e-mail této šablony odchází od odesílatele {workspace}, bez ohledu na záznam."
+      "workspace": "Každý e-mail této šablony odchází od odesílatele {workspace}, bez ohledu na záznam.",
+      "unseen": "Každý e-mail této šablony odchází od odesílatele pracovního prostoru, který nevidíte."
     },
     "failed": "Nepodařilo se to uložit. Zkuste to znovu.",
     "docsLink": "Jak Odeslat jako vybírá odesílatele"

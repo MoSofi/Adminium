@@ -547,8 +547,10 @@ export async function placeAddOnInstall(
   else {
     const databases = [...new Set(hostInstalls.map((one) => one.row.scopeKey).filter((scope) => scope !== SERVER_SCOPE))];
     if (databases.length > 1) {
+      // Each by the name the person gave it, as every other list of databases to choose from says it.
+      const named = new Map((await deps.meta.db.selectFrom('adminium_connections').select(['id', 'name']).where('id', 'in', databases).execute()).map((row) => [row.id, row.name] as const));
       throw new AppError(409, 'ADD_ON_SCHEMA_CONNECTION', `The apps "${manifest.name}" attaches to are installed on several databases. Choose the one it is for.`, {
-        connections: databases.map((id) => ({ id, name: id })),
+        connections: databases.map((id) => ({ id, name: named.get(id) ?? id })).sort((a, b) => a.name.localeCompare(b.name)),
       });
     }
     scopeKey = databases[0] ?? SERVER_SCOPE;

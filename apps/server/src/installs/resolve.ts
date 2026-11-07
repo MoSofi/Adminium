@@ -189,8 +189,21 @@ export function ambiguousInstall(key: string, installs: readonly InstalledManife
 export interface ResolveOptions {
   /** `app` or `add-on`: an install of the other kind is not this one. */
   kind?: 'app' | 'add-on';
-  /** Connection names for the ambiguity's details. */
+  /** Connection names for the ambiguity's details. Read only after `reaches` has cut the list. */
   connectionNames?: () => Promise<ReadonlyMap<string, string>>;
+  /**
+   * Which of several installs the caller may reach (`installs/reach.ts`).
+   * Asked only when there are several and nothing names which, and before
+   * anything is named: the 409 lists only these. A request-facing route
+   * passes it; a caller with no person behind it does not.
+   */
+  reaches?: (install: InstalledManifest) => boolean | Promise<boolean>;
+  /**
+   * What a caller who reaches none of the installs is told: the route's own
+   * refusal. Absent, the key reads as not installed where it asked (null, or
+   * the 404 of `requireInstall`).
+   */
+  unreached?: () => Error;
 }
 
 /**
@@ -227,7 +240,14 @@ async function candidates(manifests: ManifestsRepo, key: string, selector: Insta
 export async function resolveInstall(manifests: ManifestsRepo, key: string, selector: InstallSelector, options: ResolveOptions = {}): Promise<InstalledManifest | null> {
   const found = (await candidates(manifests, key, selector)).filter((install) => options.kind === undefined || install.row.kind === options.kind);
   if (found.length <= 1) return found[0] ?? null;
-  throw ambiguousInstall(key, found, (await options.connectionNames?.()) ?? new Map());
+  // Authorised before anything is named: only the installs this caller reaches are listed.
+  const reached: InstalledManifest[] = [];
+  for (const install of found) if (options.reaches === undefined || (await options.reaches(install))) reached.push(install);
+  if (reached.length === 0) {
+    if (options.unreached !== undefined) throw options.unreached();
+    return null;
+  }
+  throw ambiguousInstall(key, reached, (await options.connectionNames?.()) ?? new Map());
 }
 
 /** `resolveInstall`, with a 404 for none. */

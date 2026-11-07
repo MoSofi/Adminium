@@ -984,11 +984,13 @@ export default {
     "byRecord": "Selon l’espace de travail de l’enregistrement",
     "workspaceFrom": "{workspace} · {from}",
     "workspaceNoSender": "{workspace} · pas encore d’expéditeur",
+    "unseenWorkspace": "Un espace de travail que vous ne voyez pas",
     "helper": {
       "byRecord": "Un e-mail concernant un enregistrement part de l’expéditeur de l’espace de travail qui contient sa base de données.",
       "server": "Chaque e-mail de ce modèle part de l’expéditeur du serveur.",
       "noSender": "{workspace} n’a pas encore son propre expéditeur : ce modèle part donc de l’expéditeur du serveur.",
-      "workspace": "Chaque e-mail de ce modèle part de l’expéditeur de {workspace}, quel que soit l’enregistrement."
+      "workspace": "Chaque e-mail de ce modèle part de l’expéditeur de {workspace}, quel que soit l’enregistrement.",
+      "unseen": "Chaque e-mail de ce modèle part de l’expéditeur d’un espace de travail que vous ne voyez pas."
     },
     "failed": "Impossible d’enregistrer ce choix. Réessayez.",
     "docsLink": "Comment « Envoyer en tant que » choisit l’expéditeur"

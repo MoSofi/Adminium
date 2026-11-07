@@ -524,6 +524,13 @@ describe('a later copy of an app', () => {
     expect(moved.statusCode).toBe(409);
     expect(moved.json().error.details.reason).toBe('INSTALL_OWNS_DATABASE');
     expect((await put('/api/v1/surfaces/clients~nowhere/name', { name: 'x' })).statusCode).toBe(404);
+
+    // Nor is the plain copy pointed at the later copy's database: that data is the later copy's, under its own grant.
+    const taken = await put('/api/v1/surfaces/clients/connection', { connectionId: kiln.id });
+    expect(taken.statusCode).toBe(409);
+    expect(taken.json().error.details).toMatchObject({ reason: 'INSTALL_OWNS_DATABASE', connectionId: kiln.id, address: 'clients~kiln' });
+    expect((await settingsRepo(fixture.meta).get('surfaces.apps'))?.['clients']?.connectionId).toBeUndefined();
+    expect((await put('/api/v1/surfaces/clients/connection', { connectionId: fernhill.id })).statusCode).toBe(200);
   });
 });
 

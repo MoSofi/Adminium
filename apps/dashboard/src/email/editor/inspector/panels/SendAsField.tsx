@@ -58,15 +58,19 @@ export function SendAsField({ documentId, sendAs }: SendAsFieldProps) {
   const data = options.data;
   const value = set.isPending && set.variables !== undefined ? (set.variables ?? '') : (sendAs ?? '');
   const chosen = data.workspaces.find((workspace) => workspace.id === value);
+  // Chosen by somebody who sees a workspace this person does not: kept, and said as that.
+  const unseen = value !== '' && value !== SEND_AS_SERVER && chosen === undefined;
 
   const helper =
     value === ''
       ? t('email:sendAs.helper.byRecord', 'Mail about a record goes from the sender of the workspace its database is in.')
       : value === SEND_AS_SERVER
         ? t('email:sendAs.helper.server', 'Every mail of this template goes from the server’s sender.')
-        : chosen !== undefined && chosen.from === null
-          ? t('email:sendAs.helper.noSender', '{workspace} has no sender of its own yet, so this template goes from the server’s sender.', { workspace: chosen.name })
-          : t('email:sendAs.helper.workspace', 'Every mail of this template goes from {workspace}’s sender, whatever its record.', { workspace: chosen?.name ?? '' });
+        : chosen === undefined
+          ? t('email:sendAs.helper.unseen', 'Every mail of this template goes from the sender of a workspace you can’t see.')
+          : !chosen.hasSender
+            ? t('email:sendAs.helper.noSender', '{workspace} has no sender of its own yet, so this template goes from the server’s sender.', { workspace: chosen.name })
+            : t('email:sendAs.helper.workspace', 'Every mail of this template goes from {workspace}’s sender, whatever its record.', { workspace: chosen.name });
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -86,11 +90,14 @@ export function SendAsField({ documentId, sendAs }: SendAsFieldProps) {
         <option value={SEND_AS_SERVER}>{serverLabel(data)}</option>
         {data.workspaces.map((workspace) => (
           <option key={workspace.id} value={workspace.id}>
-            {workspace.from === null
+            {!workspace.hasSender
               ? t('email:sendAs.workspaceNoSender', '{workspace} · no sender yet', { workspace: workspace.name })
-              : t('email:sendAs.workspaceFrom', '{workspace} · {from}', { workspace: workspace.name, from: workspace.from })}
+              : workspace.from === null
+                ? workspace.name
+                : t('email:sendAs.workspaceFrom', '{workspace} · {from}', { workspace: workspace.name, from: workspace.from })}
           </option>
         ))}
+        {unseen ? <option value={value}>{t('email:sendAs.unseenWorkspace', 'A workspace you can’t see')}</option> : null}
       </Select>
     </FormField>
     <DocsLink href={docsUrl('guides/workspaces/senders#send-as')} className="self-start">

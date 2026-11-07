@@ -155,6 +155,41 @@ for (const [dialect, available] of ENGINES) {
       expect(single.statusCode, single.body).toBe(200);
     }, 120_000);
 
+    it('names only the copies a person reaches when it asks which, and nothing to one who reaches none', async () => {
+      // Null while installing: every permission. Then one person's grants.
+      let held: ReadonlySet<string> | null = null;
+      const h = (open = await installHarness(dialect, { can: (permission) => held === null || held.has(permission) }));
+      expect((await h.install(bills())).statusCode).toBe(200);
+      const other = await h.otherConnection();
+      expect((await h.inject({ method: 'POST', url: '/apps/install', payload: { key: 'bills', version: '1.0.0', connectionId: other.id } })).statusCode).toBe(200);
+      const installs = (body: string) => (JSON.parse(body) as { error: { code: string; details: { installs: { slug: string; connectionName: string | null }[] } } }).error;
+
+      // Kiln's clerk: the choice names Kiln's copy alone, by its database's name.
+      held = new Set(['app:bills~second:staff']);
+      for (const url of ['/apps/bills/rules', '/apps/bills/settings']) {
+        const asked = await h.inject({ method: 'GET', url });
+        expect(asked.statusCode, `${url} ${asked.body}`).toBe(409);
+        expect(installs(asked.body).code).toBe('APP_INSTALL_AMBIGUOUS');
+        expect(installs(asked.body).details.installs).toEqual([expect.objectContaining({ slug: 'second', connectionName: expect.any(String) })]);
+        expect(asked.body).not.toContain(h.connectionId);
+      }
+
+      // Somebody who reaches neither copy is refused as they would be anyway: no list, no names.
+      held = new Set();
+      const rules = await h.inject({ method: 'GET', url: '/apps/bills/rules' });
+      expect(rules.statusCode, rules.body).toBe(403);
+      expect(rules.body).not.toContain('APP_INSTALL_AMBIGUOUS');
+      const settings = await h.inject({ method: 'GET', url: '/apps/bills/settings' });
+      expect(settings.statusCode, settings.body).toBe(404);
+      expect(settings.body).not.toContain(other.id);
+
+      // Whoever manages installs is offered both.
+      held = new Set(['system:manifests:manage']);
+      const both = await h.inject({ method: 'GET', url: '/apps/bills/settings' });
+      expect(both.statusCode).toBe(409);
+      expect(installs(both.body).details.installs.map((one) => one.slug).sort()).toEqual(['', 'second']);
+    }, 120_000);
+
     it('runs one version per app: another version on the second database is refused', async () => {
       const h = (open = await installHarness(dialect));
       expect((await h.install(bills('1.0.0'))).statusCode).toBe(200);

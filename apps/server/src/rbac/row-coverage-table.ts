@@ -282,7 +282,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/email-templates/:id/duplicate': noRows('Email designs and their sends to the server\'s users; a picture or attachment is opened as a file.'),
   'POST /api/v1/email-templates/:id/from-template': noRows('Email designs and their sends to the server\'s users; a picture or attachment is opened as a file.'),
   'POST /api/v1/email-templates/:id/languages': noRows('Email designs and their sends to the server\'s users; a picture or attachment is opened as a file.'),
-  'GET /api/v1/email-templates/send-as-options': noRows('The server\'s From and each workspace\'s name and From, no source row.'),
+  'GET /api/v1/email-templates/send-as-options': noRows('The server\'s From and each workspace the person sees, its From only to those who manage senders; no source row.'),
   'PUT /api/v1/email-templates/:id/send-as': noRows('Which sender a template goes as: the template rows and a workspace\'s name, no source row.'),
   'GET /api/v1/email-templates/:id/runs': noRows('Email designs and their sends to the server\'s users; a picture or attachment is opened as a file.'),
   'POST /api/v1/email-templates/:id/send': rows(['visible', 'list'], 'A picture or an attachment a design names by its file is opened as a file is: through the record it hangs on, as the person saving or sending; a table\'s people are tried as the sender lists the table.'),
