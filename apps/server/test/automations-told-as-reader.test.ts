@@ -191,6 +191,11 @@ for (const [dialect, reachable] of LEGS) {
       const pair = await teams.create('Pair');
       await teams.setMember(pair.id, s.ids['ann']!, true);
       await teams.setMember(pair.id, s.ids['reed']!, true);
+      // The owner mail names an outside address in its vars, so it arrives switched off; the owner turns it on, and
+      // what is proved below is that the record's own address still wins over the step's.
+      const ownerMail = await ruleOf('owner-mail');
+      expect(ownerMail.enabled).toBe(false);
+      expect(said(await s.send('owner', 'PATCH', `/api/v1/automations/${ownerMail.id}`, { enabled: true }))).toBe('ok');
     }, 180_000);
     afterAll(async () => {
       await s?.close();
