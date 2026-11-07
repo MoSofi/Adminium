@@ -23,6 +23,18 @@ const app = requireAddOnHost().app as unknown as AddOnAppNamespace;
 export const ApiError = app.ApiError;
 /** The same name as a TYPE, so `catch (e: ApiError)` compiles. */
 export type ApiError = AddOnApiError;
+/*
+ * "Shown in" (from 0.3.49): a page that imports these sets its
+ * `compatibility.minAdminiumVersion` to 0.3.49 or later, so it is never
+ * mounted on a host without them.
+ */
+export const CurrentWorkspaceChip = app.CurrentWorkspaceChip;
+export const HiddenHereNote = app.HiddenHereNote;
+export const ShownInChips = app.ShownInChips;
+export const ShownInControl = app.ShownInControl;
+export const ShownInField = app.ShownInField;
+export const ShownInHeader = app.ShownInHeader;
+export const WorkspaceFilter = app.WorkspaceFilter;
 /** Undefined on a host older than it. */
 export const DocumentPaymentPanel = app.DocumentPaymentPanel;
 export const PageActions = app.PageActions;
@@ -35,5 +47,8 @@ export const t = app.t;
 export const useLocaleTag = app.useLocaleTag;
 export const useAppToasts = app.useAppToasts;
 export const useShortcut = app.useShortcut;
+export const useShownInList = app.useShownInList;
+export const useShownInPicker = app.useShownInPicker;
+export const useShownInScope = app.useShownInScope;
 
 export default app;
