@@ -105,4 +105,14 @@ describe('the folder check with the add-ons in sight', () => {
     app({ sample, files: { ...main, 'apps/shop/seeds/cards.json': rows('cards') } });
     expect(said(check(new Map([[CARDS_KIT, kit()]])))).toEqual([]);
   });
+
+  it('its rows for an add-on name files of their own, each in seeds/ and there', () => {
+    const sample = { file: 'seeds/sample.json', addOns: { [CARDS_KIT]: { file: 'seeds/cards.json' } } };
+    const main = { 'apps/shop/seeds/sample.json': { format: 'adminium.sample/1', app: 'shop', tables: [{ ref: 'orders', rows: [{ note: 'First' }] }] } };
+    const rows = { format: 'adminium.sample/1', app: 'shop', addOn: CARDS_KIT, assets: { box: { file: 'seeds/models/box.glb', sha256: 'a'.repeat(64) } }, tables: [{ ref: 'cards', rows: [{ label: 'For Mia' }] }] };
+    app({ sample, files: { ...main, 'apps/shop/seeds/cards.json': rows } });
+    expect(said(check(new Map([[CARDS_KIT, kit()]])))).toEqual(['names seeds/models/box.glb, which does not exist.']);
+    app({ sample, files: { ...main, 'apps/shop/seeds/cards.json': rows, 'apps/shop/seeds/models/box.glb': 'glTF' } });
+    expect(said(check(new Map([[CARDS_KIT, kit()]])))).toEqual([]);
+  });
 });

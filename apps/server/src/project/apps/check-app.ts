@@ -202,6 +202,14 @@ export function checkApp(root: string, key: string, opts: { version: string; add
     }
   }
 
+  /** A sample file's own files: each in seeds/, and there. */
+  const assetFindings = (assets: Readonly<Record<string, { file: string }>>, where: string): void => {
+    for (const [label, asset] of Object.entries(assets)) {
+      if (asset.file.split('/').includes('..')) findings.push(error(where, `assets.${label}`, `names ${asset.file}, which leaves seeds/.`));
+      else if (!existsSync(join(folder.dir, asset.file))) findings.push(error(where, `assets.${label}`, `names ${asset.file}, which does not exist.`));
+    }
+  };
+
   // The sample data: there, readable, and about this app's tables.
   const sample = manifest.sampleData?.file;
   if (sample !== undefined) {
@@ -216,10 +224,7 @@ export function checkApp(root: string, key: string, opts: { version: string; add
           for (const issue of parsed.error.issues) findings.push(error(where, issue.path.map(String).join('.'), issue.message));
         } else {
           for (const issue of sampleBundleIssues(parsed.data, manifest)) findings.push(error(where, issue.path, issue.message));
-          for (const [label, asset] of Object.entries(parsed.data.assets)) {
-            if (asset.file.split('/').includes('..')) findings.push(error(where, `assets.${label}`, `names ${asset.file}, which leaves seeds/.`));
-            else if (!existsSync(join(folder.dir, asset.file))) findings.push(error(where, `assets.${label}`, `names ${asset.file}, which does not exist.`));
-          }
+          assetFindings(parsed.data.assets, where);
         }
       } catch (cause) {
         findings.push(error(where, '', `not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`));
@@ -245,6 +250,7 @@ export function checkApp(root: string, key: string, opts: { version: string; add
         findings.push(error(where, 'addOn', `is "${parsed.data.addOn}", and the manifest lists this file under "${addOnKey}".`));
       }
       for (const issue of sampleSectionIssues(parsed.data, manifest, addOns?.get(addOnKey))) findings.push(error(where, issue.path, issue.message));
+      assetFindings(parsed.data.assets, where);
       if (addOns?.has(addOnKey) !== true) {
         findings.push({ level: 'note', file: where, path: '', message: `its tables of "${addOnKey}" are checked when it is applied: that add-on is not in sight here.` });
       }

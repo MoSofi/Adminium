@@ -185,7 +185,18 @@ export interface SampleApp {
   manifest: Manifest;
 }
 
+/** A file the sample added to the library: `pk` holds its id, and — for a file of an app's rows for an add-on — that add-on's key (`section`). */
 const FILE_REF = '@file';
+
+/** The add-on whose section added a file entry; null for a file of the owner's own sample. */
+function fileSectionOf(row: LedgerRow): string | null {
+  try {
+    const section = (JSON.parse(row.pk) as { section?: unknown }).section;
+    return typeof section === 'string' ? section : null;
+  } catch {
+    return null;
+  }
+}
 /** A staff member the sample made (`sampleData.people`): `pk` holds the user's id, `label` the person's key. */
 const PERSON_REF = '@person';
 /** A team the sample made (`sampleData.teams`): `pk` holds the team's id, `label` the name the manifest gives it. */
@@ -746,6 +757,10 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
+  // A shop's product models, as the upload door stores them (`files/sniff.ts`): a column's `accept` is judged on these.
+  '.glb': 'model/gltf-binary',
+  '.stl': 'model/stl',
+  '.3mf': 'model/3mf',
 };
 
 // ── the service ───────────────────────────────────────────────────────────
@@ -1416,9 +1431,9 @@ export function createSampleDataService(deps: SampleDataDeps) {
     return { section, own, named, ownTables, namesTheirSample: [...named].some((label) => !own.has(label) && !appBundleLabels.has(label) && !seeded.has(label)) };
   }
 
-  /** Whether a row of an app's list of sample rows is of its section for this add-on: a row of the add-on's table, or of an own table only that file fills. */
+  /** Whether a row of an app's list of sample rows is of its section for this add-on: a row of the add-on's table, of an own table only that file fills, or a file that file added. */
   const ofSection = (addOnKey: string, ownTables: ReadonlySet<string>) => (row: LedgerRow): boolean =>
-    isSampleRow(row) && (row.table_ref.startsWith(`${addOnKey}:`) || ownTables.has(row.table_ref));
+    (isSampleRow(row) && (row.table_ref.startsWith(`${addOnKey}:`) || ownTables.has(row.table_ref))) || (row.table_ref === FILE_REF && fileSectionOf(row) === addOnKey);
 
   /** The apps whose loaded section for this add-on points at a row of the add-on's own sample: those rows leave before that sample does. */
   async function sectionsNaming(addOn: SampleApp, connectionId: string): Promise<{ app: SampleApp; ownTables: ReadonlySet<string> }[]> {
@@ -1470,7 +1485,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
     for (const [label, key] of theirs) if (!labels.has(label)) labels.set(label, key);
     for (const [label, key] of (await seededLabels(addOn, connectionId, handle)).found) if (!labels.has(label)) labels.set(label, key);
     return {
-      bundle: { ...section, assets: {}, tables: section.tables.map((table) => ({ ...table, ref: table.own === true ? table.ref : `${addOnKey}:${table.ref}` })) },
+      // Its files are its own: a label resolves within this file, and the files leave with its rows.
+      bundle: { ...section, tables: section.tables.map((table) => ({ ...table, ref: table.own === true ? table.ref : `${addOnKey}:${table.ref}` })) },
       section: addOnKey,
       owns: (ref) => ref.startsWith(`${addOnKey}:`),
       labels,
@@ -1718,7 +1734,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       for (const [label, asset] of Object.entries(bundle.assets)) {
         const { bytes, sha256: actual } = await filesOf(app).readVerifiedFile(app.key, app.version, asset.file);
         if (actual !== asset.sha256) {
-          throw new ValidationFailedError(`The sample image "${asset.file}" is not the file the bundle names.`, {
+          throw new ValidationFailedError(`The sample file "${asset.file}" is not the file the bundle names.`, {
             reason: 'SAMPLE_INVALID',
           });
         }
@@ -1743,7 +1759,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
         fileIds.set(label, id);
         assetsById.set(id, { filename, mime, bytes });
       }
-      opts.progress?.(20, 'Added the images');
+      opts.progress?.(20, 'Added the files');
       const sampleFileIds = new Set(fileIds.values());
 
       const ledger = await ensureLedger(app, connectionId, handle);
@@ -2283,6 +2299,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
             .execute();
         }
         reused = adopted.size + takenShared;
+        /** A file's entry: a section's says whose, so the section's removal takes it with its rows. */
+        const fileKey = (id: string): string => canonicalJson(pass.section === undefined ? { id } : { id, section: pass.section });
         for (const id of adoptedFiles) {
           const file = await files.findById(id);
           if (file === null || file.deletedAt !== null || file.entityConnectionId !== connectionId) continue;
@@ -2292,7 +2310,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
             .values({
               seq,
               table_ref: FILE_REF,
-              pk: canonicalJson({ id }),
+              pk: fileKey(id),
               label: null,
               row_hash: '',
               col_hashes: '{}',
@@ -2308,7 +2326,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
             .values({
               seq,
               table_ref: FILE_REF,
-              pk: canonicalJson({ id }),
+              pk: fileKey(id),
               label: null,
               row_hash: '',
               col_hashes: '{}',
@@ -2323,7 +2341,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
             .values({
               seq,
               table_ref: FILE_REF,
-              pk: canonicalJson({ id }),
+              pk: fileKey(id),
               label,
               row_hash: '',
               col_hashes: '{}',
@@ -2594,15 +2612,17 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const seeded = await seededLabels(app, connectionId, await deps.manager.data(connectionId));
       const done = await addPass(app, { bundle, owns: (ref) => !ref.includes(':'), labels: seeded.found, leftOut: seeded.gone }, opts);
       const counts = { ...done.counts };
+      let files = done.files;
       for (const section of await sectionsFor(app, connectionId)) {
         const added = await addPass(app, section, opts);
         for (const [ref, count] of Object.entries(added.counts)) counts[ref] = (counts[ref] ?? 0) + count;
+        files += added.files;
       }
       // The sections of apps that named this add-on's sample and were waiting for it.
       if (app.manifest.kind === 'add-on') {
         for (const waiting of await sectionsWaitingFor(app, connectionId)) await addPass(waiting.app, waiting.pass, opts);
       }
-      return { counts, files: done.files };
+      return { counts, files };
     },
 
     /**
@@ -2669,7 +2689,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
     },
   };
 
-  /** The removal itself; `only` narrows it to some of the ledger's rows (one section), leaving the rest and the files as they are. */
+  /** The removal itself; `only` narrows it to some of the ledger's rows and files (one section), leaving the rest as they are. */
   async function removeRows(
     app: SampleApp,
     opts: { keepChanged: boolean; userId: string | null; userLabel: string },
@@ -2772,7 +2792,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
           if (back.length > 0) await updateRows(db, handle.dialect, table, Object.fromEntries(back.map((column) => [column, null])) as never, key);
         }
         // The files' entries go too; a file a kept row still names stays in the library.
-        if (only === undefined) for (const row of all.filter((entry) => entry.table_ref === FILE_REF)) removedSeqs.push(row.seq);
+        // A removal narrowed to one section takes the files that section added, and no other.
+        for (const row of all.filter((entry) => entry.table_ref === FILE_REF && (only === undefined || only(entry)))) removedSeqs.push(row.seq);
         // What another app's sample lists too: out of this ledger, never out of the table.
         for (const seq of shared) removedSeqs.push(seq);
         for (const seq of ghosts) removedSeqs.push(seq);
@@ -2810,7 +2831,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
         const current = table === null || key === null ? undefined : await fetchByPk(asDb(handle.db), table, key);
         for (const value of Object.values(current ?? {})) if (isId(value, 'file')) keptValues.add(value as string);
       }
-      for (const row of only === undefined ? all.filter((entry) => entry.table_ref === FILE_REF) : []) {
+      for (const row of all.filter((entry) => entry.table_ref === FILE_REF && (only === undefined || only(entry)))) {
         const id = (JSON.parse(row.pk) as { id: string }).id;
         if (!keptValues.has(id)) await files.markDeleted(id).catch(() => undefined);
       }
