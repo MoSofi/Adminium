@@ -24,8 +24,10 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 
 import { RecordFormDialog } from '../page-crud/RecordFormDialog.js';
 import type { ControlOption } from '../page-crud/controls/index.js';
-import type { ColumnFacts } from '../page-crud/field-mapping.js';
-import type { FormRelationFact } from '../../page-config/index.js';
+import type { ColumnFacts, ListOptionsResolver } from '../page-crud/field-mapping.js';
+import type { CrudFormConfig, FormColumnFact, FormRelationFact } from '../../page-config/index.js';
+import { editableColumnsOf, editFormDocumentOf, useEditChildren } from '../page-crud/edit-form.js';
+import type { ChildFacts, ChildRow } from '../page-crud/RecordForm.js';
 import { DELETE_REASON_MAX, isDeletePreview } from '../page-crud/crud-api.js';
 import type { PageCrudFiles } from '../page-crud/PageCrud.js';
 import type { ResolvedFile } from '../../families/tables/cells.js';
@@ -222,11 +224,24 @@ export interface PageRecordProps {
   /** `config.keyField` — hero headline column; falls back to the display value. */
   keyField?: string | null | undefined;
   /**
-   * What the server says a column HOLDS, for the columns whose edit field
-   * depends on it: a place gets the place field, an area the drawing of one.
-   * Only those columns: this page's edit form otherwise reads its stored spec.
+   * What the server says about each column RIGHT NOW (`columnFacts` on the
+   * page reply): who fills it, whether this role may set it, its values' words
+   * in the reader's language. The edit dialog reads them as the list's does,
+   * so a choice offers "Sent again" rather than `superseded`. Absent ⇒ the
+   * stored spec decides.
    */
   fieldFacts?: ColumnFacts | undefined;
+  /**
+   * The edit form as the list's edit draws it: the page's designed `config.form`
+   * (already parsed by the host; `null` when nobody designed one, and then the
+   * form is derived from `formColumns`), the table's columns as the server has
+   * them, the answers of a column whose options name a list, and the tables a
+   * line-items field draws from. All absent ⇒ the flat stack of `columns`.
+   */
+  form?: CrudFormConfig | null | undefined;
+  formColumns?: readonly FormColumnFact[] | undefined;
+  listOptions?: ListOptionsResolver | undefined;
+  childFacts?: Readonly<Record<string, ChildFacts>> | undefined;
   /** `config.readOnly` — no write affordance anywhere on the page. */
   readOnly?: boolean | undefined;
   /** `config.detail.tabs`. */
@@ -1019,6 +1034,10 @@ export function PageRecord({
   currency,
   labels,
   fieldFacts,
+  form,
+  formColumns,
+  listOptions,
+  childFacts,
   testId,
 }: PageRecordProps) {
   const t = useMaybeT();
@@ -1114,6 +1133,18 @@ export function PageRecord({
 
   const record = result?.data ?? null;
 
+  /*
+   * The edit dialog's form, built as the list's edit builds it (`edit-form.ts`):
+   * the same row edits with the same fields, order and words on both pages.
+   */
+  const editDocument = useMemo(
+    () => editFormDocumentOf(form, formColumns, relations, columns),
+    [form, formColumns, relations, columns],
+  );
+  const editColumns = useMemo(() => editableColumnsOf(columns, formColumns), [columns, formColumns]);
+  // The lines a line-items field holds, read when Edit is pressed: the dialog opens once they are in.
+  const { children: editChildren, pending: editChildrenPending } = useEditChildren(editOpen ? record : null, childFacts, api);
+
   // The file columns' values, resolved when the edit dialog opens (one call for the record).
   useEffect(() => {
     if (!editOpen || files === undefined || record === null) return undefined;
@@ -1162,11 +1193,11 @@ export function PageRecord({
   const showEdit = writable && canUpdate;
   const showDelete = writable && canDelete;
 
-  const handleUpdate = (values: CrudRow, changedLinks?: Record<string, string[]>) => {
+  const handleUpdate = (values: CrudRow, changedLinks?: Record<string, string[]>, children?: Record<string, ChildRow[]>) => {
     setEditErrors({});
     api
       // The record as the page loaded it: the state the person saw, when the save moves it.
-      .update(recordId, values, changedLinks, undefined, record ?? undefined)
+      .update(recordId, values, children !== undefined ? (changedLinks ?? {}) : changedLinks, children, record ?? undefined)
       .then((updated) => {
         setEditOpen(false);
         queue.push({
@@ -1566,15 +1597,19 @@ export function PageRecord({
       {/* Edit — the same dialog as every other form in the product (D3). */}
       {showEdit && (
         <RecordFormDialog
-          open={editOpen}
+          open={editOpen && !editChildrenPending}
           onOpenChange={(open) => !open && setEditOpen(false)}
           mode="edit"
           entity={entity}
           tableName={plainTableName(source.table)}
           formId="page-record-edit-form"
-          columns={columns}
+          document={editDocument}
+          columns={editColumns}
           {...(relations === undefined ? {} : { relations, initialLinks: links })}
+          {...(childFacts === undefined ? {} : { childFacts })}
+          {...(editChildren === undefined ? {} : { initialChildren: editChildren })}
           initialValues={record}
+          recordId={recordId}
           errors={editErrors}
           {...(files === undefined ? {} : { uploadFile: files.upload, files: editFiles })}
           {...(files?.choose === undefined ? {} : { chooseFile: files.choose })}
@@ -1583,6 +1618,9 @@ export function PageRecord({
           availability={api.availability?.bind(api)}
           places={places}
           {...(fieldFacts === undefined ? {} : { facts: fieldFacts })}
+          {...(listOptions === undefined ? {} : { listOptions })}
+          {...(currency === undefined ? {} : { currency })}
+          {...(locale === undefined ? {} : { locale })}
           onSubmit={handleUpdate}
           {...(labels?.close === undefined ? {} : { labels: { close: labels.close } })}
         />

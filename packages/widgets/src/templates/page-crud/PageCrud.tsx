@@ -26,11 +26,11 @@ import { RecordDetail } from './RecordDetail.js';
 import { parseRefList } from '../../page-config/file-refs.js';
 import type { FileFieldUpload } from './FileField.js';
 import type { PictureChooser } from '../../pictures/PictureField.js';
-import { MAX_CHILD_ROWS, type ChildFacts, type ChildRow } from './RecordForm.js';
+import type { ChildFacts } from './RecordForm.js';
 import { RecordFormDialog } from './RecordFormDialog.js';
+import { editableColumnsOf, editFormDocumentOf, useEditChildren } from './edit-form.js';
 import {
   filterControlFor,
-  formDocumentFor,
   type CrudFilterField,
   type CrudFormConfig,
   type FormColumnFact,
@@ -590,7 +590,6 @@ export function PageCrud({
    * The child rows each line-items relation already holds, read when the edit
    * dialog opens. A create has none — there is no parent to hold any.
    */
-  const [editChildren, setEditChildren] = useState<Record<string, ChildRow[]> | undefined>(undefined);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
   // --- delete ----------------------------------------------------------------
@@ -766,53 +765,8 @@ export function PageCrud({
     };
   }, [editRecord, formRelations, api, columns]);
 
-  /*
-   * The lines each line-items field already holds. One read per relation when
-   * the edit dialog opens, and none at all for a form with no such field or a
-   * host that cannot read related rows.
-   */
-  useEffect(() => {
-    const facts = childFacts;
-    const readRelated = api.listRelated?.bind(api);
-    if (editRecord === null || facts === undefined || readRelated === undefined) {
-      setEditChildren(undefined);
-      return;
-    }
-    const wanted = Object.entries(facts);
-    if (wanted.length === 0) {
-      setEditChildren(undefined);
-      return;
-    }
-    let alive = true;
-    void Promise.all(
-      wanted.map(async ([relationId, fact]) => {
-        try {
-          const rows = await readRelated({
-            table: fact.table,
-            column: fact.foreignColumn,
-            value: editRecord[fact.parentKeyColumn],
-            limit: MAX_CHILD_ROWS,
-          });
-          return [
-            relationId,
-            rows.map((row) => ({
-              key: Object.fromEntries(fact.primaryKey.map((name: string) => [name, row[name]])),
-              values: row,
-            })),
-          ] as const;
-        } catch {
-          // A table this caller cannot read leaves the field empty rather than
-          // the dialog broken; the write path refuses the save anyway.
-          return [relationId, []] as const;
-        }
-      }),
-    ).then((entries) => {
-      if (alive) setEditChildren(Object.fromEntries(entries));
-    });
-    return () => {
-      alive = false;
-    };
-  }, [editRecord, childFacts, api]);
+  // The lines each line-items field already holds, read when the edit dialog is asked for: it opens once they are in.
+  const { children: editChildren, pending: editChildrenPending } = useEditChildren(editRecord, childFacts, api);
 
   /**
    * The bar's own view of each filter: what it is called, and what it offers.
@@ -1120,55 +1074,14 @@ export function PageCrud({
     }
   };
 
-  /*
-   * THE FORM DOCUMENT (D10). A page carries one only when somebody designed a
-   * form; with none it is derived from the live column facts, which is what
-   * makes the dialog follow the table rather than the day the page was made.
-   *
-   * With no facts at all — an older server, a page with no source table — there
-   * is nothing to derive from and the form renders the flat stack of stored
-   * columns it always has.
-   */
-  const formDocument = useMemo(() => {
-    if (formColumns === undefined || formColumns.length === 0) return null;
-    /*
-     * THE STORED SPEC WINS over the server's freshly-built one, here as well as
-     * in `editableColumns` — and here is where it MATTERS, because the
-     * derivation stamps a control per column and a control chosen from the
-     * wrong spec is frozen into the document before any renderer sees it.
-     *
-     * What the page knows and the schema does not: an admin bound this page's
-     * attachments to a column, which makes it a FILE column for this page and
-     * a plain `text` column everywhere else. Deriving from the fact alone drew
-     * it as a text box.
-     */
-    const stored = new Map(columns.map((column) => [column.name, column]));
-    const merged = formColumns.map((fact) => {
-      const own = stored.get(String((fact.spec as { name?: unknown }).name ?? ''));
-      return own === undefined ? fact : { ...fact, spec: { ...fact.spec, ...own } };
-    });
-    return formDocumentFor(form ?? null, {
-      columns: merged,
-      ...(formRelations === undefined ? {} : { relations: formRelations }),
-    });
-  }, [form, formColumns, formRelations, columns]);
+  // The form document: designed, or derived from the live column facts (see `edit-form.ts`).
+  const formDocument = useMemo(
+    () => editFormDocumentOf(form, formColumns, formRelations, columns),
+    [form, formColumns, formRelations, columns],
+  );
 
-  /**
-   * The columns the FORM renders, which is not the same list as the grid's:
-   * every writable column of the table, in table order, with the spec the
-   * server built from the effective schema.
-   */
-  const editableColumns = useMemo(() => {
-    if (formColumns === undefined || formColumns.length === 0) return columns;
-    const stored = new Map(columns.map((column) => [column.name, column]));
-    return formColumns.map((fact) => {
-      const specced = fact.spec as unknown as GridColumnSpec;
-      // The STORED spec wins where there is one: it carries what an admin
-      // edited on this page (a label, a file block, an enum tone), which the
-      // server's freshly-built spec knows nothing about.
-      return stored.get(specced.name) ?? specced;
-    });
-  }, [columns, formColumns]);
+  // The columns the FORM renders: every column of the table, the stored spec winning.
+  const editableColumns = useMemo(() => editableColumnsOf(columns, formColumns), [columns, formColumns]);
   /**
    * The columns the record PANEL shows: the grid's, as the page set them, then
    * the rest of the table's. A grid keeps to a handful of columns and the panel
@@ -1543,7 +1456,7 @@ export function PageCrud({
         * The PEEK below stays a drawer: it is a preview, not a form.
         */}
       <RecordFormDialog
-        open={editRecord !== null}
+        open={editRecord !== null && !editChildrenPending}
         onOpenChange={(open) => {
           if (!open) {
             setEditRecord(null);
