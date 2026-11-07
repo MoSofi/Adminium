@@ -5,7 +5,7 @@
 
 import { loadProjectBundler, type LoadBundler } from '../../../project/build.js';
 import { hasPhoneCode } from '../../../project/apps/phone.js';
-import { checkApp, type AppCheck } from '../../../project/apps/check-app.js';
+import { checkAppWithFiles, type AppCheck } from '../../../project/apps/check-app.js';
 import { resolveAppKey } from '../../../project/apps/read-app.js';
 import { buildAppSides, sideBuildPath, type BuiltSide } from '../../../project/apps/side-build.js';
 import type { ProjectLocation } from '../../../project/locate.js';
@@ -32,7 +32,7 @@ export async function checkAndBuild(
   key: string,
   opts: { loadBundler?: LoadBundler; quiet?: boolean; brief?: boolean } = {},
 ): Promise<BuiltApp | null> {
-  const check = checkApp(project.root, key, { version: APP_VERSION });
+  const check = await checkAppWithFiles(project.root, key, { version: APP_VERSION });
   if (hasErrors(check) || check.manifest === null) {
     printCheck(io, check);
     return null;

@@ -9,6 +9,7 @@
  * tables — and, in words, what the customer side is allowed to reach.
  */
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -18,15 +19,18 @@ import {
   namedAddOns,
   sampleBundleIssues,
   sampleBundleSchema,
+  sampleDirective,
   sampleSectionIssues,
   validateManifest,
   type AddOnManifest,
   type AppManifest,
+  type SampleBundle,
 } from '@adminium/manifest';
 
 import { addAndReadRefusal, anonymousAddAndRead, openToAnyone } from '../../apps/anonymous-access.js';
 import { meetsMinimum } from '../../apps/catalog.js';
 import { roleIssues } from '../../apps/manifest-roles.js';
+import { sampleFileAsKept, SampleFileRefused, sampleModelRefusal } from '../../apps/sample-files.js';
 import { unbuiltInManifest } from '../../crud/unbuilt-rules.js';
 import { declaredLedgers, hostAdjustIssue, hostPostingIssue } from './ledger-parts.js';
 import { serverCodeSources } from '../build-shared.js';
@@ -107,6 +111,39 @@ export function accessInWords(manifest: AppManifest, addOns?: AddOnsInSight): st
 export type AddOnsInSight = ReadonlyMap<string, AddOnManifest>;
 
 const error = (file: string, path: string, message: string): AppFinding => ({ level: 'error', file, path, message });
+
+/** A column as a sample's file is held to it: its `maxBytes`, when it holds files. */
+interface SampleColumn {
+  ref: string;
+  rules?: { file?: { maxBytes: number } | undefined } | undefined;
+}
+
+/** A sample's file that passed every other check, left to be read whole. */
+interface SampleModel {
+  where: string;
+  label: string;
+  path: string;
+  bytes: Buffer;
+  file: string;
+}
+
+/** The files each check left to be read whole, by its findings: nothing outside this module sees them. */
+const pendingModels = new WeakMap<AppFinding[], SampleModel[]>();
+
+/**
+ * {@link checkApp}, and its sample's models read whole as the add reads them
+ * (`apps/sample-files.ts`): a `.glb` that is no GLB is said here, not when
+ * the sample is added. For the checks that gate what ships (the CLI's check
+ * and build, packing, the project build, the Designer's check).
+ */
+export async function checkAppWithFiles(root: string, key: string, opts: { version: string; addOns?: AddOnsInSight | undefined }): Promise<AppCheck> {
+  const check = checkApp(root, key, opts);
+  for (const model of pendingModels.get(check.findings) ?? []) {
+    const refusal = await sampleModelRefusal(model.path, model.bytes, model.file);
+    if (refusal !== null) check.findings.push(error(model.where, `assets.${model.label}`, refusal));
+  }
+  return check;
+}
 
 /**
  * Check `apps/<key>/`. `version` is the Adminium doing the checking; `addOns`
@@ -202,13 +239,64 @@ export function checkApp(root: string, key: string, opts: { version: string; add
     }
   }
 
-  /** A sample file's own files: each in seeds/, and there. */
-  const assetFindings = (assets: Readonly<Record<string, { file: string }>>, where: string): void => {
-    for (const [label, asset] of Object.entries(assets)) {
-      if (asset.file.split('/').includes('..')) findings.push(error(where, `assets.${label}`, `names ${asset.file}, which leaves seeds/.`));
-      else if (!existsSync(join(folder.dir, asset.file))) findings.push(error(where, `assets.${label}`, `names ${asset.file}, which does not exist.`));
+  /** The files read whole only by `checkAppWithFiles`. */
+  const models: SampleModel[] = [];
+  pendingModels.set(findings, models);
+  /**
+   * A sample file's own files: each in seeds/, there, the file its sha256
+   * names, and kept as the add keeps it (`apps/sample-files.ts`): an SVG the
+   * cleaner takes, within its kind's public cap and every column's
+   * `maxBytes` that a row gives it to. A model is read whole by
+   * `checkAppWithFiles`, which can wait for it.
+   */
+  const assetFindings = (bundle: SampleBundle, where: string, columnsOf: (table: SampleBundle['tables'][number]) => readonly SampleColumn[] | undefined): void => {
+    // The smallest `maxBytes` of a column some row gives each file to.
+    const capOf = new Map<string, { column: string; maxBytes: number }>();
+    for (const table of bundle.tables) {
+      const columns = columnsOf(table);
+      for (const row of table.rows) {
+        for (const [ref, value] of Object.entries(row)) {
+          const given = sampleDirective(value);
+          const maxBytes = columns?.find((column) => column.ref === ref)?.rules?.file?.maxBytes;
+          if (given?.kind !== 'asset' || maxBytes === undefined) continue;
+          const held = capOf.get(given.label);
+          if (held === undefined || maxBytes < held.maxBytes) capOf.set(given.label, { column: `${table.ref}.${ref}`, maxBytes });
+        }
+      }
+    }
+    for (const [label, asset] of Object.entries(bundle.assets)) {
+      const path = join(folder.dir, asset.file);
+      if (asset.file.split('/').includes('..')) {
+        findings.push(error(where, `assets.${label}`, `names ${asset.file}, which leaves seeds/.`));
+        continue;
+      }
+      if (!existsSync(path)) {
+        findings.push(error(where, `assets.${label}`, `names ${asset.file}, which does not exist.`));
+        continue;
+      }
+      const bytes = readFileSync(path);
+      const actual = createHash('sha256').update(bytes).digest('hex');
+      if (actual !== asset.sha256) {
+        findings.push(error(where, `assets.${label}.sha256`, `is not the sha256 of ${asset.file}, which is ${actual}.`));
+        continue;
+      }
+      let kept: ReturnType<typeof sampleFileAsKept>;
+      try {
+        kept = sampleFileAsKept(bytes, asset.file);
+      } catch (cause) {
+        if (!(cause instanceof SampleFileRefused)) throw cause;
+        findings.push(error(where, `assets.${label}`, cause.message));
+        continue;
+      }
+      const cap = capOf.get(label);
+      if (cap !== undefined && kept.bytes.length > cap.maxBytes) {
+        findings.push(error(where, `assets.${label}`, `names ${asset.file}, ${String(kept.bytes.length)} bytes, and "${cap.column}" takes files of at most ${String(cap.maxBytes)} bytes.`));
+        continue;
+      }
+      if (kept.kind === 'glb' || kept.kind === 'stl' || kept.kind === '3mf') models.push({ where, label, path, bytes, file: asset.file });
     }
   };
+  const ownColumns = (table: SampleBundle['tables'][number]): readonly SampleColumn[] | undefined => manifest.requiredSchema.tables.find((candidate) => candidate.ref === table.ref)?.columns;
 
   // The sample data: there, readable, and about this app's tables.
   const sample = manifest.sampleData?.file;
@@ -224,7 +312,7 @@ export function checkApp(root: string, key: string, opts: { version: string; add
           for (const issue of parsed.error.issues) findings.push(error(where, issue.path.map(String).join('.'), issue.message));
         } else {
           for (const issue of sampleBundleIssues(parsed.data, manifest)) findings.push(error(where, issue.path, issue.message));
-          assetFindings(parsed.data.assets, where);
+          assetFindings(parsed.data, where, ownColumns);
         }
       } catch (cause) {
         findings.push(error(where, '', `not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`));
@@ -250,7 +338,8 @@ export function checkApp(root: string, key: string, opts: { version: string; add
         findings.push(error(where, 'addOn', `is "${parsed.data.addOn}", and the manifest lists this file under "${addOnKey}".`));
       }
       for (const issue of sampleSectionIssues(parsed.data, manifest, addOns?.get(addOnKey))) findings.push(error(where, issue.path, issue.message));
-      assetFindings(parsed.data.assets, where);
+      const addOnTables = addOns?.get(addOnKey)?.requiredSchema?.tables ?? [];
+      assetFindings(parsed.data, where, (table) => (table.own === true ? ownColumns(table) : addOnTables.find((candidate) => candidate.ref === table.ref)?.columns));
       if (addOns?.has(addOnKey) !== true) {
         findings.push({ level: 'note', file: where, path: '', message: `its tables of "${addOnKey}" are checked when it is applied: that add-on is not in sight here.` });
       }

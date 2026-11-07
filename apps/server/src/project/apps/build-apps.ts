@@ -29,7 +29,7 @@ import { LOCAL_PUBLISHER_ID } from '@adminium/manifest';
 import type { FolderApp } from '../../apps/app-files.js';
 import { BUILD_DIR } from '../build-shared.js';
 import type { ClientBundler as Bundler } from '../client-build.js';
-import { checkApp, type AppFinding } from './check-app.js';
+import { checkAppWithFiles, type AppFinding } from './check-app.js';
 import { APPS_DIR, MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appDir, listAppKeys, type AppSide } from './read-app.js';
 import { hasOwnBuild, isBuildApproved, readAppBuild, runOwnBuild, unapprovedProblem, type StepRunner } from './own-build.js';
 import { buildAppSides } from './side-build.js';
@@ -205,7 +205,7 @@ async function buildOne(root: string, key: string, opts: BuildAppsOptions): Prom
     inputs: {},
   });
 
-  const check = checkApp(root, key, { version: opts.version });
+  const check = await checkAppWithFiles(root, key, { version: opts.version });
   const errors = check.findings.filter((finding) => finding.level === 'error').map(findingText);
   // A folder app is the person's own: a publisher's app arrives as a package.
   if (check.manifest !== null && check.manifest.publisher.id !== LOCAL_PUBLISHER_ID) {

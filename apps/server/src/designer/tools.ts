@@ -33,7 +33,7 @@ import { dirname, join, relative, sep } from 'node:path';
 
 import { nodeProgram } from '../project/programs.js';
 
-import { checkApp, type AppFinding } from '../project/apps/check-app.js';
+import { checkApp, checkAppWithFiles, type AppFinding } from '../project/apps/check-app.js';
 import { CONVERTED_MARK } from '../project/apps/design-check.js';
 import { builtInStylesDir, findDesignSkill, listDesignSkills, skillGuidance, styleForBusiness, styleNamed, stylesToOffer, type DesignSkill } from '../project/apps/design-skills.js';
 import { applyLook, cleanLook, directionFromWords, lookInUse, mentionsLook, missingFonts, ownFontPatch, readLook, resolveLook, sidesWithScreens, type Look } from '../project/apps/look.js';
@@ -961,7 +961,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
             if (read.ok && isAddOnManifest(read.manifest)) inSight.set(key, read.manifest);
           }
         }
-        const check = named.length === 0 || readAddOn === undefined ? first : checkApp(deps.root, appKey, { version: deps.version, addOns: inSight });
+        // Its sample's models read whole too, as the add reads them.
+        const check = await checkAppWithFiles(deps.root, appKey, { version: deps.version, ...(named.length === 0 || readAddOn === undefined ? {} : { addOns: inSight }) });
         // A rule that names an add-on: checked against it when it is here, and said to be unchecked when it is not.
         const ruled = new Map<string, string>();
         for (const table of check.manifest?.requiredSchema.tables ?? []) {

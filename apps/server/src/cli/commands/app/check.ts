@@ -9,7 +9,7 @@ import { isDeepStrictEqual } from 'node:util';
 
 import { composeManifest, splitManifest, validateManifest } from '@adminium/manifest';
 
-import { checkApp } from '../../../project/apps/check-app.js';
+import { checkAppWithFiles } from '../../../project/apps/check-app.js';
 import { MANIFEST_FILE, MANIFEST_PARTS_DIR, appDir, appPath, readAppFolder, resolveAppKey } from '../../../project/apps/read-app.js';
 import { APP_VERSION } from '../../../version.js';
 import { parseFlags, type FlagSpecs } from '../../args.js';
@@ -93,7 +93,7 @@ export const appCheckCommand: Command = {
       if (values['json'] !== true) io.out(`Wrote ${String(written.length)} part file(s) to ${appPath(key, MANIFEST_PARTS_DIR)}/ and removed ${MANIFEST_FILE}.`);
     }
 
-    const check = checkApp(project.root, key, { version: APP_VERSION });
+    const check = await checkAppWithFiles(project.root, key, { version: APP_VERSION });
     if (values['json'] === true) {
       io.out(
         JSON.stringify(

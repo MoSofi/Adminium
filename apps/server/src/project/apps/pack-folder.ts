@@ -34,7 +34,7 @@ import { join } from 'node:path';
 import { compareSemver, LOCAL_PUBLISHER_ID } from '@adminium/manifest';
 
 import { readAddOnTarball } from '../../add-ons/archive.js';
-import { checkApp, type AppFinding } from './check-app.js';
+import { checkAppWithFiles, type AppFinding } from './check-app.js';
 import { packLeaks, type PackLeakScan } from './pack-leaks.js';
 import { packApp, PackTooLargeError, type PackedApp } from './pack-app.js';
 import { appDir, appPath, listAppKeys, MANIFEST_FILE, MANIFEST_PARTS_DIR, readAppFolder } from './read-app.js';
@@ -136,7 +136,7 @@ export async function packFolderApp(input: PackFolderInput): Promise<PackedFolde
     writeFileSync(file, `${JSON.stringify({ ...written, version: input.version }, null, 2)}\n`);
   }
 
-  const check = checkApp(root, key, { version: input.adminiumVersion });
+  const check = await checkAppWithFiles(root, key, { version: input.adminiumVersion });
   const errors = errorsOf(check.findings);
   if (errors.length > 0 || check.manifest === null) {
     throw new PackFolderRefused('PACK_CHECK_FAILED', 'The app did not pass its check, so it cannot be packed.', {
