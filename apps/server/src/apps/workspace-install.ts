@@ -93,8 +93,12 @@ export interface WorkspaceInstallerDeps {
   copiesOf(key: string): Promise<AppCopy[]>;
   install(input: { key: string; version: string; connectionId: string; answers: Record<string, unknown> }): Promise<void>;
   update(input: { key: string; installId: string; connectionId: string | null; answers: Record<string, unknown> }): Promise<void>;
-  /** What that update would refuse, asked with nothing moved: throws its refusal. */
-  checkUpdate(input: { key: string; installId: string; connectionId: string | null; answers: Record<string, unknown> }): Promise<void>;
+  /**
+   * What that update would refuse, asked with nothing moved: throws its
+   * refusal. `afterResume`: the update that follows finishing a stopped one,
+   * asked before the finish.
+   */
+  checkUpdate(input: { key: string; installId: string; connectionId: string | null; answers: Record<string, unknown>; afterResume?: boolean }): Promise<void>;
   connectionExists(connectionId: string): Promise<boolean>;
   /** Told when the run changed the workspaces (for the menus). */
   workspacesChanged?: (() => Promise<void>) | undefined;
@@ -226,6 +230,10 @@ export function createWorkspaceInstaller(deps: WorkspaceInstallerDeps) {
        */
       const moved = [...unfinished, ...copies.filter((copy) => !unfinished.includes(copy) && compareSemver(app.version, copy.version) > 0)];
       for (const copy of moved) await deps.checkUpdate({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: answersFor(copy) });
+      // A stopped update finished below this file's version is moved again after: that update is asked now too.
+      for (const copy of unfinished) {
+        if (compareSemver(app.version, copy.version) > 0) await deps.checkUpdate({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: answersFor(copy), afterResume: true });
+      }
       // An update that moved its version and stopped is finished first: the same update run again resumes it.
       for (const copy of unfinished) await deps.update({ key: app.key, installId: copy.installId, connectionId: copy.connectionId, answers: answersFor(copy) });
       if (unfinished.length > 0) copies = (await deps.copiesOf(app.key)).filter(isFinishedCopy);

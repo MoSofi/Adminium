@@ -3364,9 +3364,19 @@ export function createAppInstallService(deps: AppRoutesDeps) {
    * checks, run as the update runs them, stopping where it would start to
    * write. Several copies moved in one go ("Install the rest") are each asked
    * first, so a refusal of one never leaves another already moved.
+   *
+   * `afterResume` asks about the update that follows a stopped one: a copy
+   * whose update moved its version and stopped is finished first, and then
+   * moved again when a newer version waits. That next update is asked here
+   * as it will run once the first is finished, before either moves. What the
+   * finishing writes never changes its answer on rights: someone without the
+   * right to manage API keys, or to change the server's settings, finishes it
+   * only when it changes nothing its live keys serve and writes nothing over
+   * the server (the finish's own check), so what the next update's check of
+   * those reads is the same before the finish as after it.
    */
-  async function checkUpdate(actor: InstallActor, host: InstallHost, input: UpdateInput): Promise<void> {
-    await update(actor, host, input, true);
+  async function checkUpdate(actor: InstallActor, host: InstallHost, input: UpdateInput, options: { afterResume?: boolean } = {}): Promise<void> {
+    await update(actor, host, input, true, options.afterResume === true);
   }
 
   /** A version that no longer carries the server-wide part puts back what the running one wrote: asked of whoever updates, and of whoever finishes one. */
@@ -3382,8 +3392,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   }
 
   async function update(actor: InstallActor, host: InstallHost, input: UpdateInput): Promise<UpdateAppReply>;
-  async function update(actor: InstallActor, host: InstallHost, input: UpdateInput, checkOnly: true): Promise<null>;
-  async function update(actor: InstallActor, host: InstallHost, input: UpdateInput, checkOnly = false): Promise<UpdateAppReply | null> {
+  async function update(actor: InstallActor, host: InstallHost, input: UpdateInput, checkOnly: true, afterResume: boolean): Promise<null>;
+  async function update(actor: InstallActor, host: InstallHost, input: UpdateInput, checkOnly = false, afterResume = false): Promise<UpdateAppReply | null> {
     const { key } = input;
     const userId = actor.id;
     const userLabel = actor.label;
@@ -3401,7 +3411,9 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      */
     const updates = appUpdatesRepo(deps.meta);
     const unfinished = await updates.find(installed.row.id);
-    if (unfinished !== null && unfinished.toVersion === installed.row.version && installed.document !== null) {
+    // Asked about the update after the finish: checked from the version it recorded, as the next update runs.
+    const resuming = unfinished !== null && unfinished.toVersion === installed.row.version && installed.document !== null && !(checkOnly && afterResume);
+    if (unfinished !== null && resuming) {
       /*
        * Whoever finishes it is held to the same as whoever started it: what
        * its live keys serve changes only by someone who may manage API keys,

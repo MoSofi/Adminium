@@ -485,6 +485,37 @@ for (const [dialect, available] of ENGINES) {
       expect(await appUpdatesRepo(h.meta).find(installed.row.id)).not.toBeNull();
     });
 
+    it('the update after a stopped one is asked before the stopped one is finished', async () => {
+      h = await installHarness(dialect, { library: memoryLibrary() });
+      await dressTarget(h.meta);
+      await h.stage(app('1.0.0'), logo);
+      const reply = await install({ instance: true, instanceHosts: ALL_HOSTS });
+      expect(reply.statusCode, reply.body).toBe(200);
+      // 1.2.0 no longer carries the server-wide part: updating to it puts the server back.
+      const { instance: _dropped, ...plain } = app('1.2.0');
+      await h.stage(plain);
+      const service = createAppInstallService(h.deps);
+      const actor = { id: null, label: 'staff', kind: 'user' as const, superAdmin: async () => false, can: async (permission: string) => permission !== 'system:settings:manage' };
+      const host = { log: { info: () => undefined, warn: () => undefined } };
+      const manifests = manifestsRepo(h.meta, { encrypt: (v) => v, decrypt: (v) => v });
+      const installed = (await manifests.findInScope('fern-notes', h.connectionId))!;
+      // Its update to 1.1.0, which still carries the part, moved its version and stopped.
+      const moved = validateManifest(app('1.1.0'), { allowLocalPublisher: true });
+      expect(moved.ok).toBe(true);
+      await manifests.setVersion(installed.row.id, { version: '1.1.0', document: moved.ok ? moved.manifest : null });
+      await appUpdatesRepo(h.meta).begin({ manifestId: installed.row.id, fromVersion: '1.0.0', toVersion: '1.1.0', fromTables: [] });
+      await appUpdatesRepo(h.meta).stopped(installed.row.id, 'pages');
+
+      // Finishing 1.1.0 is theirs to do; the update to 1.2.0 after it is not, and is refused before anything moves.
+      await expect(service.checkUpdate(actor as never, host as never, { key: 'fern-notes', body: {} })).resolves.toBeUndefined();
+      await expect(service.checkUpdate(actor as never, host as never, { key: 'fern-notes', body: {} }, { afterResume: true })).rejects.toMatchObject({ statusCode: 403, details: { reason: 'INSTANCE_RESTORE_NEEDS_SETTINGS' } });
+      expect((await manifests.findById(installed.row.id))!.row.version).toBe('1.1.0');
+      expect(await appUpdatesRepo(h.meta).find(installed.row.id)).toMatchObject({ toVersion: '1.1.0', stoppedAt: 'pages' });
+      expect(await settingOf(h.meta, 'branding.appName')).toBe('Fernhill');
+      // Someone who may change the server's settings is asked nothing more.
+      await expect(service.checkUpdate({ ...actor, can: async () => true } as never, host as never, { key: 'fern-notes', body: {} }, { afterResume: true })).resolves.toBeUndefined();
+    });
+
     it('a logo its package does not hold as it says stops the plan', async () => {
       h = await installHarness(dialect, { library: memoryLibrary() });
       await h.stage(app('1.0.0'), { 'instance/logo.svg': OTHER_LOGO });
