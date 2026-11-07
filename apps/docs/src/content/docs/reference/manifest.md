@@ -1796,6 +1796,7 @@ lines are locked and payments may be recorded against it.
 | `timed` | no | 1–8 moves Adminium makes by itself once a moment has passed; see [Timed moves](#timed-moves). |
 | `effects` | no | 1–8 moves of the row a link points at, set off by this row's move or by a change of the link; see [Effects](#effects). |
 | `create` | no | `{ "requires" }`: what a new row must meet to be created; see [Conditions on a new row](#conditions-on-a-new-row). |
+| `supersedes` | no | `{ "by", "from", "to" }`: a new row moves the earlier rows sharing its link `by` that are still in one of `from` to `to` (a proof sent again). Needs Adminium 0.3.50. See [A new row supersedes the earlier ones](#a-new-row-supersedes-the-earlier-ones). |
 
 A move's `requires` says what must be true first:
 
@@ -2118,6 +2119,60 @@ effect moves one row, never a chain). The parent may not be a line of another ta
 people by the day, keep a [limit](#capacity) of its own, be private, be the app's outbox, or be
 watched by a project hook (refused when the row is made). An add-on's shape keeps its children's
 `moveOnCreate` as it wrote it.
+
+#### A new row supersedes the earlier ones
+
+A new row may move the earlier rows of its own table that share one of its links, in the same
+write: a proof sent again for an order line moves the line's earlier proof, still waiting for the
+shopper's answer, to "sent again". Say it with `supersedes` (Adminium 0.3.50):
+
+```json
+"states": {
+  "column": "state", "initial": "sent",
+  "moves": {
+    "sent": ["approved", "change_asked", "superseded"],
+    "change_asked": ["superseded"]
+  },
+  "supersedes": { "by": "line_id", "from": ["sent", "change_asked"], "to": "superseded" }
+}
+```
+
+| Field | Rule |
+|---|---|
+| `by` | A foreign key of this table (a `fk` column, not the key). The earlier rows are those pointing at the same row. |
+| `from` | 1–16 states, each named once. Only rows in one of them move. |
+| `to` | The state they move to: not one of `from`, and every state in `from` has a listed move to it. |
+
+When a row is created, every other row of the table with the same `by` value and a state in
+`from` moves to `to`, once the new row is in. Each moves by this table's own listed move from its
+state, judged as that move: its conditions on the row, its lock, its stamps, the totals and limits
+it moves. Each is announced as a change of that row by whoever made the new one: its screens
+refresh, its audit names them, and a rule that runs on the move runs.
+
+- **Every door.** A create from a staff screen or the data API (with or without a retry key, one
+  row or several in one save), a guest's public write, a rule's `record.create`, a project's code:
+  each new row moves the earlier ones. Several rows made in one save move each other in order: the
+  last is the one left in `initial`.
+- **The new row itself is never moved**, and a new row whose `by` is empty moves nothing. A row in
+  a state not in `from` (an approved proof) is left as it is, and so is a row of another line.
+- **One write.** A move refused (an earlier row whose move's conditions do not hold) refuses the
+  whole create, `409` `STATE_MOVE_REFUSED`, and no row is made or moved. A create refused for any
+  other reason moves nothing.
+- **In turn.** The row `by` points at is held first, so two rows made for one line at the same
+  moment take their turns: the second finds the first, and one row is left waiting.
+- **The table's rule, not the person's.** As with an [effect](#effects), the earlier rows move
+  whether or not the person who made the new one may read or change them, and the roles a move is
+  kept for do not stop it.
+- Only a create moves them. A change of a row's link, or a move of its own, moves no other row.
+  Importing rows and loading sample data are history: they keep the state each row was in and move
+  nothing. A save that moved an earlier row offers no Undo.
+
+The moves are made as an effect's are, so the same limits apply: each move from `from` to `to` is
+not an undo, not a ledger's own (`planned`), and does not wait for another row; a move to `to` is
+not judged late by another row's time, and sets off none of this table's own [effects](#effects).
+The table may not be a line of another table's states, book people by the day, keep a
+[limit](#capacity), be private, be the app's outbox, or be watched by a project hook (refused
+when the row is made). An add-on's shape keeps its `supersedes` as it wrote it: an app adds none.
 
 #### Undo of a move
 

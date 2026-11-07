@@ -34,10 +34,11 @@
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
 | `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 5565 |
 | `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 5609 |
-| `references/manifest/requiredschema--states.md` | requiredSchema — States | 7671 |
-| `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7686 |
-| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7624 |
-| `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 6578 |
+| `references/manifest/requiredschema--states.md` | requiredSchema — States | 7649 |
+| `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7789 |
+| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7547 |
+| `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 7225 |
+| `references/manifest/requiredschema--states-5.md` | requiredSchema — States (part 5) | 3307 |
 | `references/manifest/requiredschema--buttons-on-a-record.md` | requiredSchema — Buttons on a record | 3020 |
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
 | `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |

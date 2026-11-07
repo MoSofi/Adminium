@@ -41,6 +41,7 @@ lines are locked and payments may be recorded against it.
 | `timed` | no | 1–8 moves Adminium makes by itself once a moment has passed; see [Timed moves](https://docs.adminium.dev/reference/manifest/#timed-moves). |
 | `effects` | no | 1–8 moves of the row a link points at, set off by this row's move or by a change of the link; see [Effects](https://docs.adminium.dev/reference/manifest/#effects). |
 | `create` | no | `{ "requires" }`: what a new row must meet to be created; see [Conditions on a new row](https://docs.adminium.dev/reference/manifest/#conditions-on-a-new-row). |
+| `supersedes` | no | `{ "by", "from", "to" }`: a new row moves the earlier rows sharing its link `by` that are still in one of `from` to `to` (a proof sent again). Needs Adminium 0.3.50. See [A new row supersedes the earlier ones](https://docs.adminium.dev/reference/manifest/#a-new-row-supersedes-the-earlier-ones). |
 
 A move's `requires` says what must be true first:
 
@@ -77,16 +78,3 @@ and, with `lock`:
 
 Time and purchases billed on invoice lines, so that nothing is billed twice (each link `unique`),
 and billed again once the invoice is void:
-
-```json
-"children": {
-  "invoice_lines": {
-    "via": "invoice_id", "lock": true,
-    "release": { "when": ["void"], "columns": ["time_entry_id", "expense_id"] },
-    "lockLinked": {
-      "time_entry_id": ["hours", "logged_hours", "project_id", "date"],
-      "expense_id": ["amount", "currency", "project_id", "client_id"]
-    }
-  }
-}
-```

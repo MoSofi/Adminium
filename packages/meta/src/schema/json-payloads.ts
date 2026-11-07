@@ -713,6 +713,8 @@ const statesTiming = {
     })
     .strict()
     .optional(),
+  /** A new row moves the earlier rows sharing its link `by` that are in one of `from` to `to`, by the table's own listed moves. */
+  supersedes: z.object({ by: ruleColumn, from: z.array(stateName).min(1).max(16), to: stateName }).strict().optional(),
 };
 /** Stamps of a moment: now plus minutes or hours, a deadline, a moment of the row or a linked row. */
 const momentStamps = [

@@ -131,7 +131,7 @@ import { bandsAfterFormulas, settleBands } from './band.js';
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
 import { fillFromElsewhere, fillLinksFromElsewhere, settingsReaderOn, type RuleSettingsStore } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
-import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdLinkedFirst, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, movesParentsOnCreate, rowMoved, StateMoveRefused, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
+import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdLinkedFirst, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, movesParentsOnCreate, rowMoved, StateMoveRefused, supersedesOnCreate, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
 import { attachWindows, holds, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
 import { momentVias } from './moments.js';
 import { refuseUnbuiltTable } from './unbuilt-rules.js';
@@ -2729,9 +2729,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         zone: await zoneFor(rules, target),
         origin: context.origin,
         declared: context.declared,
-        // A move's or a changed link's effects; a new row's move of its parent (`moveOnCreate`), made the same way.
+        // A move's or a changed link's effects; a new row's move of its parent (`moveOnCreate`) or of the earlier rows it supersedes, made the same way.
         effect:
-          (action === 'update' && (rules.states?.effects?.length ?? 0) > 0) || (action === 'create' && !history && movesParentsOnCreate(target.table))
+          (action === 'update' && (rules.states?.effects?.length ?? 0) > 0) || (action === 'create' && !history && movesOnCreate(target.table))
             ? effectWriter(target, context, clock)
             : undefined,
         ...(renewing === undefined ? {} : { renewing }),
@@ -2766,6 +2766,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     key: unknown,
     column: string,
     state: string,
+    /** The row as the caller holds it: read past a snapshot that may not see it (see `EffectWriter`). */
+    held?: Row,
   ): Promise<PreparedEffect | null> {
     const moved = await withRights({ ...from, table: from.view.table(link.table), db, rights: undefined });
     const rules = rulesOf(moved);
@@ -2800,7 +2802,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       });
     }
     const pk = { [link.key]: key };
-    const before = (await fetchByPk(db, moved.table, pk)) ?? null;
+    const before = held ?? (await fetchByPk(db, moved.table, pk)) ?? null;
     if (before === null) return null;
     // A row moved by another row's move posts nothing: a move that would is made on its own.
     await refuseBatch({ target: { ...moved, db }, rules, action: 'update', context: { ...context, origin: context.origin === 'import' ? 'bulk' : context.origin }, rows: [{ values: { [column]: state }, record: before }], effect: moved.table.name });
@@ -2918,6 +2920,39 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   }
 
   /**
+   * The totals the earlier rows a new row supersedes (`states.supersedes`)
+   * climb into as they move, named from a look at those rows now, holding
+   * nothing. The rows are found again, held, once the new row is in.
+   */
+  async function supersedeStarts(db: Db, target: WriteTarget, context: WriteContext, clock: WriteClock, values: Row): Promise<ClimbStart[]> {
+    const states = target.table.table?.states;
+    const rule = states?.supersedes;
+    const [keyColumn] = target.table.primaryKey;
+    const value = rule === undefined ? undefined : values[rule.by];
+    if (states === undefined || rule === undefined || keyColumn === undefined || value === null || value === undefined || value === '') return [];
+    const rules = rulesOf(target);
+    if ((rules?.rollupsInto?.length ?? 0) === 0) return [];
+    const earlier = (await db
+      .selectFrom(target.table.id)
+      .selectAll()
+      .where((eb) => eb(db.dynamic.ref(rule.by), '=', value))
+      .where((eb) => eb(db.dynamic.ref(states.column), 'in', rule.from as never))
+      .execute()) as Row[];
+    const out: ClimbStart[] = [];
+    for (const row of earlier) {
+      const prepared = await prepareEffect(db, target, context, clock, { via: rule.by, table: target.table.id, key: keyColumn }, row[keyColumn], states.column, rule.to, row);
+      if (prepared === null || !movesTotal(prepared.rules, prepared.rules?.rollupsInto ?? [], prepared.checked)) continue;
+      out.push(...chainStarts(prepared.rules, [{ record: { ...prepared.before, ...prepared.checked }, before: prepared.before }]));
+    }
+    return out;
+  }
+
+  /** Whether a new row of this table moves other rows as it is made: its parent (`moveOnCreate`), or the earlier rows it supersedes. */
+  function movesOnCreate(table: ResolvedTable): boolean {
+    return movesParentsOnCreate(table) || supersedesOnCreate(table);
+  }
+
+  /**
    * An effect's move of the row a link points at (`states.effects`), inside
    * the write's transaction on its handle, judged as the app's declared move
    * of that row by the writer who made the first: its limits (a change of what
@@ -2928,8 +2963,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * save.
    */
   function effectWriter(target: WriteTarget, context: WriteContext, clock: WriteClock): EffectWriter {
-    return async (db, link, key, column, state, guard) => {
-      const prepared = await prepareEffect(db, target, context, clock, link, key, column, state);
+    return async (db, link, key, column, state, guard, stored) => {
+      const prepared = await prepareEffect(db, target, context, clock, link, key, column, state, stored);
       if (prepared === null) return null;
       const { rules, pk, before, checked } = prepared;
       const within: WriteTarget = { ...prepared.target, db };
@@ -4250,8 +4285,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       });
       const currency = currencyFor(target);
       await refuseUngrantedChain(target, [...(rules?.rollupsInto ?? []), ...(rules?.ownRollups ?? [])]);
-      // A new row that moves its parent (history moves nothing).
-      const movesParent = context.origin !== 'import' && movesParentsOnCreate(target.table);
+      // A new row that moves its parent, or the earlier rows it supersedes (history moves nothing).
+      const movesParent = context.origin !== 'import' && movesOnCreate(target.table);
       const booking = rules?.booking;
       const need = booking === undefined ? null : bookingNeed(booking, checked, null);
       const now = new Date();
@@ -4291,7 +4326,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // A parent this row moves (`moveOnCreate`): the totals its move climbs into, held with this row's own, top-down,
         // before the parent itself is held — the order a change of the parent takes them in.
         if (movesParent && target.dialect !== 'sqlite') {
-          const also = await parentMoveStarts(db, within, context, clock, placed);
+          const also = [...(await parentMoveStarts(db, within, context, clock, placed)), ...(await supersedeStarts(db, within, context, clock, placed))];
           if (also.length > 0) await holdChainWith(db, target.dialect, [...chainStarts(rules, [{ record: placed, before: null }]), ...also], NO_CURRENCY, false);
         }
         // The parents whose totals this row moves, held before it is written.
@@ -4643,8 +4678,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (!dry && rootRow.target.dialect !== 'sqlite') {
           const also: ClimbStart[] = [];
           for (const row of everyRow) {
-            if (!movesParentsOnCreate(row.target.table) || context.origin === 'import') continue;
+            if (!movesOnCreate(row.target.table) || context.origin === 'import') continue;
             also.push(...(await at(row.node, () => parentMoveStarts(trx, { ...row.target, db: trx }, context, clock, peeked.get(row) ?? row.node.values))));
+            also.push(...(await at(row.node, () => supersedeStarts(trx, { ...row.target, db: trx }, context, clock, peeked.get(row) ?? row.node.values))));
           }
           if (also.length > 0) await holdChainWith(trx, rootRow.target.dialect, also, NO_CURRENCY, false);
         }
