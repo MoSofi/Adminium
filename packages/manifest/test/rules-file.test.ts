@@ -150,6 +150,10 @@ describe('a column that holds files', () => {
       expect(issues({ photo: { '@asset': 'nope' } })).toContain('"nope" is not one of the bundle’s assets.');
       // A picture-only rule on a column that is no image column still takes nothing from a sample.
       expect(issues({ signature: { '@asset': 'wings' } })).toContain('"sign_offs.signature" holds files a signed-in person uploads, so a sample row leaves it empty.');
+      // A picture column takes a picture: a model is refused by its kind.
+      const withModel = (row: Record<string, unknown>) =>
+        sampleBundleIssues(sampleBundleSchema.parse({ format: 'adminium.sample/1', app: 'crew', assets: { box: { file: 'seeds/box.glb', sha256: SHA } }, tables: [{ ref: 'sign_offs', rows: [{ id: 1, signer_name: 'Ada', ...row }] }] }), result.manifest).map((issue) => issue.message);
+      expect(withModel({ photo: { '@asset': 'box' } })).toContain('"sign_offs.photo" takes png, jpeg, webp, gif files, and "box" is seeds/box.glb: give it a file of one of those kinds, named for its kind (.png, .jpg, .jpeg, .webp, .gif).');
     });
 
     it('is a picture a public entry may show to every visitor', () => {

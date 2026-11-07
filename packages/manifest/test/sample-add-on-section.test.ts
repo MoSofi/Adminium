@@ -151,3 +151,36 @@ describe('@table', () => {
     expect(sampleBundleIssues(section(), manifestOf<AppManifest>(shopDoc())).map((issue) => issue.path)).toEqual(expect.arrayContaining(['addOn', 'tables.2.own']));
   });
 });
+
+describe('a file of rows for an add-on ships its own files', () => {
+  const SHA = 'a'.repeat(64);
+  /** The kit, its items given a preview model, a cut file and a print model: columns of one product asset each. */
+  const kitWithAssets = (): Doc => {
+    const doc = { ...structuredClone(kitDoc()), compatibility: { minAdminiumVersion: '0.3.43' } };
+    const tables = (doc['requiredSchema'] as { tables: { ref: string; columns: Doc[] }[] }).tables;
+    tables.find((table) => table.ref === 'items')!.columns.push(
+      { ref: 'model', type: 'text', maxLength: 600, nullable: true, rules: { file: { accept: ['glb'], maxBytes: 30 * 1024 * 1024 } } },
+      { ref: 'cut', type: 'text', maxLength: 600, nullable: true, rules: { file: { accept: ['svg'], maxBytes: 2 * 1024 * 1024 } } },
+      { ref: 'print', type: 'text', maxLength: 600, nullable: true, rules: { file: { accept: ['stl', '3mf'], maxBytes: 30 * 1024 * 1024 } } },
+    );
+    return doc;
+  };
+  const withAssets = (row: Doc): SampleBundle =>
+    section({
+      assets: { 'model-box': { file: 'seeds/models/box.glb', sha256: SHA }, 'cut-box': { file: 'seeds/cuts/box.svg', sha256: SHA }, 'print-box': { file: 'seeds/prints/box.3mf', sha256: SHA }, photo: { file: 'seeds/photos/box.jpg', sha256: SHA } },
+      tables: [{ ref: 'items', rows: [{ '@label': 'kit:box', name: 'Box', ...row }] }],
+    });
+
+  it('a model, a cut file and a print model, each in a column that takes its kind', () => {
+    expect(messages(withAssets({ model: { '@asset': 'model-box' }, cut: { '@asset': 'cut-box' }, print: { '@asset': 'print-box' } }), shopDoc(), kitWithAssets())).toBe('');
+    expect(messages(withAssets({ model: null }), shopDoc(), kitWithAssets())).toBe('');
+  });
+
+  it('a file of a kind the column does not take, a label it does not list, or a file id are refused', () => {
+    const told = (row: Doc) => messages(withAssets(row), shopDoc(), kitWithAssets());
+    expect(told({ model: { '@asset': 'cut-box' } })).toContain('"items.model" takes glb files, and "cut-box" is seeds/cuts/box.svg: give it a file of one of those kinds, named for its kind (.glb).');
+    expect(told({ print: { '@asset': 'photo' } })).toContain('"items.print" takes stl, 3mf files');
+    expect(told({ model: { '@asset': 'nope' } })).toContain('"nope" is not one of the bundle’s assets.');
+    expect(told({ model: 'file_01JZZZZZZZZZZZZZZZZZZZZZZZ' })).toContain('"items.model" holds a file: a sample row gives it one of the bundle\'s files ({"@asset": …}) or leaves it empty.');
+  });
+});
