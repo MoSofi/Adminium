@@ -9,19 +9,25 @@
  * as the new one. Erasing her takes both, bytes and row; the search lists
  * the same files the preview counts and the erasure takes.
  *
+ * The bin does not say which column a file was in, so the audit log's
+ * images of the row's writes say it: a binned file goes when a column of
+ * hers on the row held it. A document staff attached to her proof and
+ * removed again, never in a column, stays the bin's (it may be put back).
+ *
  * And what stays: a quote of hers (`quotes`) holds her picture as a copy and
  * the shop's terms in a file column that is no copy of hers; the terms stay,
- * and so does a file of the quote's in the bin (the bin does not say which
- * column it was in). A proof of hers that names Ben's picture does not take
- * it: naming a file is not taking it. Ben's proofs keep theirs, the binned
- * one too. Her own row's files go, the binned one too.
+ * the terms they replaced too, while the picture her quote held before goes.
+ * A proof of hers that names Ben's picture does not take it: naming a file
+ * is not taking it. Ben's proofs keep theirs, the binned one too. Her own
+ * row's files go, the binned one too.
  *
  * On every engine this run can reach.
  */
-import { filesRepo, newId, type StoredFile } from '@adminium/meta';
+import { auditRepo, filesRepo, newId, type StoredFile } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createConsentService } from '../src/consent/service.js';
+import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
 import type { FileStore } from '../src/files/store.js';
 import { erasePerson, previewErasure, type EraseDeps } from '../src/privacy/erase.js';
 import { findPerson } from '../src/privacy/sources.js';
@@ -87,9 +93,27 @@ describe.each(LEGS)("a copy's files in the bin, erased with the person — %s", 
     } as never);
     return fileId;
   };
-  /** What a column set again does to the file it named: to the bin, still the row's (`files/reconcile.ts`). */
+  /** What a removed attachment, or a column set again, does to the file: to the bin, still the row's (`files/reconcile.ts`). */
   const bin = async (name: string) => {
     expect(await filesRepo(h.meta).markDeleted(files[name]!.id)).toBe(true);
+  };
+  /** The table's id, as a write's audit entry names it. */
+  const tableId = async (name: string) => (await loadSnapshotView(h.meta, h.connectionId)).model.tables.find((table) => table.name === name)!.id;
+  /** A column set again, as a save does it: its audit entry, the old file to the bin, the new one in the column. */
+  const remake = async (table: string, id: number, column: string, before: string, after: string) => {
+    await keep(before, table, id);
+    await auditRepo(h.meta).append({
+      actorKind: 'user',
+      actorId: h.owner.id,
+      actorLabel: 'Owner',
+      category: 'data',
+      action: 'record.update',
+      connectionId: h.connectionId,
+      entity: { connectionId: h.connectionId, table: await tableId(table), pk: { id }, label: String(id) },
+      changes: { before: { id, [column]: files[before]!.id }, after: { id, [column]: await keep(after, table, id) } },
+    });
+    await bin(before);
+    await h.rows(`UPDATE ${table} SET ${column} = '${files[after]!.id}' WHERE id = ${String(id)}`);
   };
   const gone = async (name: string) => (await filesRepo(h.meta).findById(files[name]!.id)) === null && (await storage.head(files[name]!)) === null;
   const kept = async (name: string) => (await filesRepo(h.meta).findById(files[name]!.id)) !== null && (await storage.head(files[name]!)) !== null;
@@ -115,18 +139,17 @@ describe.each(LEGS)("a copy's files in the bin, erased with the person — %s", 
     await keep('ownold', 'shop_customers', 1);
     await bin('ownold');
     await h.rows(`UPDATE shop_customers SET passport = '${await keep('ownnew', 'shop_customers', 1)}' WHERE id = 1`);
-    // Her proof, made twice: the first picture is in the bin.
-    await keep('proofold', 'shop_proofs', 1);
-    await bin('proofold');
-    await h.rows(`UPDATE shop_proofs SET picture = '${await keep('proofnew', 'shop_proofs', 1)}' WHERE id = 1`);
+    // Her proof, made twice: the first picture is in the bin. And a document attached to it and removed, never in a column.
+    await remake('shop_proofs', 1, 'picture', 'proofold', 'proofnew');
+    await keep('proofdoc', 'shop_proofs', 1);
+    await bin('proofdoc');
     // Ben's proof, made twice too.
-    await keep('benold', 'shop_proofs', 2);
-    await bin('benold');
-    await h.rows(`UPDATE shop_proofs SET picture = '${await keep('bennew', 'shop_proofs', 2)}' WHERE id = 2`);
+    await remake('shop_proofs', 2, 'picture', 'benold', 'bennew');
     // A proof of hers that names Ben's picture: it is his row's.
     await h.rows(`UPDATE shop_proofs SET picture = '${files['bennew']!.id}' WHERE id = 3`);
-    // Her quote: her picture, the shop's terms, and a file of the quote's in the bin.
-    await h.rows(`UPDATE shop_quotes SET picture = '${await keep('quotepic', 'shop_quotes', 1)}', terms = '${await keep('terms', 'shop_quotes', 1)}' WHERE id = 1`);
+    // Her quote: her picture made twice, the shop's terms written twice, and a removed attachment of the quote's.
+    await remake('shop_quotes', 1, 'picture', 'quotepicold', 'quotepic');
+    await remake('shop_quotes', 1, 'terms', 'termsold', 'terms');
     await keep('quoteold', 'shop_quotes', 1);
     await bin('quoteold');
   }, 240_000);
@@ -137,18 +160,18 @@ describe.each(LEGS)("a copy's files in the bin, erased with the person — %s", 
 
   it.skipIf(!available)('lists the files the preview counts: her rows, her copies, and what the bin keeps of them', async () => {
     const counted = await filesCounted();
-    const theirs = ['ownold', 'ownnew', 'proofold', 'proofnew', 'quotepic'].map((name) => files[name]!.id).sort();
+    const theirs = ['ownold', 'ownnew', 'proofold', 'proofnew', 'quotepicold', 'quotepic'].map((name) => files[name]!.id).sort();
     expect(counted.keys).toEqual(theirs);
-    expect(counted.listed).toBe(5);
+    expect(counted.listed).toBe(6);
     expect(counted.goes).toBe(counted.listed);
   });
 
   it.skipIf(!available)('erases a proof made again with her: the picture it replaced too, bytes and row; what is not hers stays', async () => {
     const done = await erasePerson(deps, MARTA);
     expect(done.filesFailed).toBe(0);
-    expect(done.counts['files']).toBe(5);
-    for (const name of ['ownold', 'ownnew', 'proofold', 'proofnew', 'quotepic']) expect(await gone(name), name).toBe(true);
-    for (const name of ['bennew', 'benold', 'terms', 'quoteold']) expect(await kept(name), name).toBe(true);
+    expect(done.counts['files']).toBe(6);
+    for (const name of ['ownold', 'ownnew', 'proofold', 'proofnew', 'quotepicold', 'quotepic']) expect(await gone(name), name).toBe(true);
+    for (const name of ['bennew', 'benold', 'terms', 'termsold', 'quoteold', 'proofdoc']) expect(await kept(name), name).toBe(true);
     expect((await h.rows('SELECT id, picture FROM shop_proofs ORDER BY id')).map((row) => row['picture'] ?? null)).toEqual([null, files['bennew']!.id, null]);
     // Nothing more of hers is listed, and nothing more is counted.
     expect(await filesCounted()).toMatchObject({ listed: 0, goes: 0 });

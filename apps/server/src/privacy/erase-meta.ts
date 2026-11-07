@@ -370,6 +370,19 @@ export interface CopyRowFiles {
   columns: ReadonlySet<string>;
 }
 
+/** The file ids each column named holds, wherever an object of `value` has it (nested too: an audit entry's `before`, `after`, a public write's `values`). */
+function filesNamedUnder(value: unknown, columns: ReadonlySet<string>, out: Set<string>): void {
+  if (Array.isArray(value)) {
+    for (const item of value) filesNamedUnder(item, columns, out);
+    return;
+  }
+  if (value === null || typeof value !== 'object') return;
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (columns.has(key)) for (const id of fileIdsIn(item)) out.add(id);
+    else filesNamedUnder(item, columns, out);
+  }
+}
+
 /**
  * The files of their copies, as the search lists them and the erasure takes
  * them. Never another column's files: the row is not theirs.
@@ -378,37 +391,43 @@ export interface CopyRowFiles {
  *    version's proof), when it is this row's or no record's: naming a file
  *    is not taking it (`files/reconcile.ts`), so another row's file, or the
  *    Files library's, stays;
- *  - what such a column named before and let go: a proof made again leaves
+ *  - what such a column held before and let go: a proof made again leaves
  *    the first in the bin, still the row's, and it shows their words as much
- *    as the new one. The bin does not say which column a file was in, so
- *    these go only when every column of the table that holds files is one
- *    of theirs on the row; otherwise the bin's own sweep takes them.
+ *    as the new one. The bin does not say which column a file was in, nor
+ *    whether it was in one at all (a document staff attached to the row and
+ *    removed is binned the same way, and may be put back), so the audit
+ *    log's images of the row's writes say it: a binned file of the row goes
+ *    only when one of them holds it in a column of theirs. One the log no
+ *    longer shows (a column kept masked, an entry past its keeping) is left
+ *    to the bin's own sweep.
  */
 export async function copyFileIds(meta: MetaDb, copies: readonly CopyRowFiles[]): Promise<string[]> {
   const { db } = meta;
   const files = filesRepo(meta);
   const out = new Set<string>();
-  const ofRow = (file: { entityConnectionId: string | null; entityTable: string | null; entityId: string | null }, copy: CopyRowFiles): boolean =>
-    file.entityConnectionId === copy.connectionId &&
-    (file.entityTable === auditEntityKeyPart(copy.table.id) || file.entityTable === auditEntityKeyPart(copy.table.name)) &&
-    file.entityId === auditEntityKeyPart(copy.key);
-  const binnedFrom: CopyRowFiles[] = [];
+  const sameRow = (connectionId: string | null, table: string | null, key: string | null, copy: CopyRowFiles): boolean =>
+    connectionId === copy.connectionId && (table === auditEntityKeyPart(copy.table.id) || table === auditEntityKeyPart(copy.table.name)) && key === auditEntityKeyPart(copy.key);
+  /** Each copy row with a file column of theirs, and those columns. */
+  const holding: { copy: CopyRowFiles; columns: Set<string> }[] = [];
   for (const copy of copies) {
-    const holding = fileColumnsOf(copy.table).map((column) => column.name);
-    const theirs = holding.filter((column) => copy.columns.has(column));
+    const theirs = fileColumnsOf(copy.table)
+      .map((column) => column.name)
+      .filter((column) => copy.columns.has(column));
     if (theirs.length === 0) continue;
     for (const column of theirs) {
       for (const id of fileIdsIn(copy.row[column])) {
         const file = await files.findById(id);
-        if (file !== null && (file.attachedAt === null || ofRow(file, copy))) out.add(id);
+        if (file !== null && (file.attachedAt === null || sameRow(file.entityConnectionId, file.entityTable, file.entityId, copy))) out.add(id);
       }
     }
-    if (theirs.length === holding.length) binnedFrom.push(copy);
+    holding.push({ copy, columns: new Set(theirs) });
   }
-  for (const connectionId of new Set(binnedFrom.map((copy) => copy.connectionId))) {
-    const mine = binnedFrom.filter((copy) => copy.connectionId === connectionId);
-    const tables = [...new Set(mine.flatMap((copy) => [auditEntityKeyPart(copy.table.id), auditEntityKeyPart(copy.table.name)]))];
-    for (const keys of chunks([...new Set(mine.map((copy) => auditEntityKeyPart(copy.key)))])) {
+  for (const connectionId of new Set(holding.map((one) => one.copy.connectionId))) {
+    const mine = holding.filter((one) => one.copy.connectionId === connectionId);
+    const tables = [...new Set(mine.flatMap((one) => [auditEntityKeyPart(one.copy.table.id), auditEntityKeyPart(one.copy.table.name)]))];
+    for (const keys of chunks([...new Set(mine.map((one) => auditEntityKeyPart(one.copy.key)))])) {
+      // The rows' files in the bin…
+      const binned = new Map<(typeof mine)[number], Set<string>>();
       const rows = await db
         .selectFrom('adminium_files')
         .select(['id', 'entityConnectionId', 'entityTable', 'entityId'])
@@ -418,7 +437,30 @@ export async function copyFileIds(meta: MetaDb, copies: readonly CopyRowFiles[])
         .where('deletedAt', 'is not', null)
         .execute();
       // Compared exactly: another table's row with the same key, or a key differing only in case, is not this one.
-      for (const row of rows) if (mine.some((copy) => ofRow(row, copy))) out.add(row.id);
+      for (const row of rows) {
+        for (const one of mine) {
+          if (!sameRow(row.entityConnectionId, row.entityTable, row.entityId, one.copy)) continue;
+          binned.set(one, (binned.get(one) ?? new Set()).add(row.id));
+        }
+      }
+      if (binned.size === 0) continue;
+      // …and the files the log's images of those rows' writes show in a column of theirs.
+      const entries = await db
+        .selectFrom('adminium_audit_log')
+        .select(['connectionId', 'entity', 'entityTable', 'entityId', 'changes'])
+        .where('entityTable', 'in', tables)
+        .where('entityId', 'in', [...new Set([...binned.keys()].map((one) => auditEntityKeyPart(one.copy.key)))])
+        .execute();
+      for (const entry of entries) {
+        const entity = readJson<{ connectionId?: unknown } | null>(entry.entity);
+        const from = typeof entity?.connectionId === 'string' ? entity.connectionId : entry.connectionId;
+        for (const [one, held] of binned) {
+          if (!sameRow(from, entry.entityTable, entry.entityId, one.copy)) continue;
+          const named = new Set<string>();
+          filesNamedUnder(readJson<unknown>(entry.changes), one.columns, named);
+          for (const id of held) if (named.has(id)) out.add(id);
+        }
+      }
     }
   }
   return [...out];
