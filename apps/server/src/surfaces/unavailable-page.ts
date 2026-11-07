@@ -235,8 +235,14 @@ export interface MovedPageInput {
   appName: string;
   /** The workspace's own name, or null while it still carries the default. */
   venueName: string | null;
-  /** The copies still installed, each by its database's name and its own address. */
+  /**
+   * The copies still installed that this reader reaches, each by its
+   * database's name and its own address. Empty: none is named, and `hidden`
+   * says why.
+   */
   copies: readonly { database: string; url: string }[];
+  /** With no copy named: `sign-in` for a reader not signed in (with where to sign in), `no-copy` for one who reaches none. */
+  hidden?: { why: 'sign-in'; signInUrl: string } | { why: 'no-copy' } | undefined;
   lang: string;
   t: (key: string, fallback: string, args?: Record<string, unknown>) => string;
 }
@@ -250,14 +256,35 @@ export function renderMovedPage(input: MovedPageInput): string {
   const app = input.appName;
   const dir = input.lang.toLowerCase().startsWith('ar') ? 'rtl' : 'ltr';
   const only = input.copies.length === 1 ? input.copies[0]! : null;
+  const hidden = input.copies.length === 0 ? (input.hidden ?? { why: 'no-copy' as const }) : null;
   const title =
-    only === null
-      ? t('studio:surfacePages.moved.other', '{app} is installed on other databases.', { app })
-      : t('studio:surfacePages.moved.one', '{app} is installed on {database}.', { app, database: only.database });
-  const links = input.copies
-    .map((copy) => `<li><a href="${escapeHtml(copy.url)}">${escapeHtml(t('studio:surfacePages.moved.open', 'Open {app} on {database}', { app, database: copy.database }))}</a></li>`)
-    .join('\n');
-  const lead = escapeHtml(t('studio:surfacePages.moved.body', 'This address belonged to a copy that has been taken away.'));
+    hidden !== null
+      ? t('studio:surfacePages.moved.hidden', '{app} has moved.', { app })
+      : only === null
+        ? t('studio:surfacePages.moved.other', '{app} is installed on other databases.', { app })
+        : t('studio:surfacePages.moved.one', '{app} is installed on {database}.', { app, database: only.database });
+  /*
+   * Where it went is told only to who may open it: never before sign-in, and
+   * to someone signed in only the copies they reach. A guest of the customer
+   * side has no account to sign in with, so is told only that it moved.
+   */
+  const links =
+    hidden === null
+      ? input.copies
+          .map((copy) => `<li><a href="${escapeHtml(copy.url)}">${escapeHtml(t('studio:surfacePages.moved.open', 'Open {app} on {database}', { app, database: copy.database }))}</a></li>`)
+          .join('\n')
+      : hidden.why === 'sign-in' && input.side === 'staff'
+        ? `<li><a href="${escapeHtml(hidden.signInUrl)}">${escapeHtml(t('studio:surfacePages.moved.signInLink', 'Sign in'))}</a></li>`
+        : '';
+  const lead = escapeHtml(
+    hidden === null
+      ? t('studio:surfacePages.moved.body', 'This address belonged to a copy that has been taken away.')
+      : input.side === 'customer'
+        ? t('studio:surfacePages.moved.guest', 'This address has moved.')
+        : hidden.why === 'sign-in'
+          ? t('studio:surfacePages.moved.signIn', 'This address moved; sign in to see where.')
+          : t('studio:surfacePages.moved.noCopy', 'This address moved to a copy this account can’t open.'),
+  );
   const body =
     input.side === 'customer'
       ? `<main class="guest">
@@ -265,13 +292,13 @@ export function renderMovedPage(input: MovedPageInput): string {
 ${input.venueName === null ? '' : `<div class="venue">${escapeHtml(input.venueName)}</div>`}
 <h1>${escapeHtml(title)}</h1>
 <p class="lead">${lead}</p>
-<ul class="moves">${links}</ul>
+${links === '' ? '' : `<ul class="moves">${links}</ul>`}
 </main>`
       : `<main class="card">
 <div class="power">${MOVED_ICON}</div>
 <h1 class="title">${escapeHtml(title)}</h1>
 <p class="advice">${lead}</p>
-<ul class="moves">${links}</ul>
+${links === '' ? '' : `<ul class="moves">${links}</ul>`}
 </main>`;
   return `<!doctype html>
 <html lang="${escapeHtml(input.lang)}" dir="${dir}">

@@ -3451,7 +3451,12 @@ export default {
       "one": "{app} est installé sur {database}.",
       "other": "{app} est installé sur d’autres bases de données.",
       "body": "Cette adresse appartenait à une copie qui a été retirée.",
-      "open": "Ouvrir {app} sur {database}"
+      "open": "Ouvrir {app} sur {database}",
+      "hidden": "{app} a déménagé.",
+      "signIn": "Cette adresse a changé ; connectez-vous pour voir où.",
+      "signInLink": "Se connecter",
+      "noCopy": "Cette adresse mène désormais à une copie que ce compte ne peut pas ouvrir.",
+      "guest": "Cette adresse a changé."
     }
   },
   "appSettings": {

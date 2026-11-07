@@ -183,7 +183,9 @@ describe('a plain address whose copy is gone', () => {
     expect((await get(app, '/apps/clients/customer/', NAVIGATE)).body).toContain('clients-customer');
 
     await manifestsRepo(t!.meta, IDENTITY).uninstall(first);
-    const page = await get(app, '/apps/clients/customer/', { ...NAVIGATE, 'accept-language': 'en-US' });
+    // Signed in: where it went (who reaches which copy is `retired-address-reach.test.ts`).
+    const { cookie } = await login(app);
+    const page = await get(app, '/apps/clients/customer/', { ...NAVIGATE, 'accept-language': 'en-US', cookie: cookie! });
     expect(page.statusCode).toBe(410);
     expect(page.headers['content-type']).toContain('text/html');
     expect(page.body).not.toMatch(/<script/i);
@@ -191,9 +193,9 @@ describe('a plain address whose copy is gone', () => {
     expect(page.body).toContain('href="/apps/clients/kiln/customer/"');
     expect(page.body).toContain('Open clients on Kiln');
     // In the reader's language.
-    expect((await get(app, '/apps/clients/customer/', { ...NAVIGATE, 'accept-language': 'de-DE' })).body).toContain('clients ist auf Kiln installiert.');
+    expect((await get(app, '/apps/clients/customer/', { ...NAVIGATE, 'accept-language': 'de-DE', cookie: cookie! })).body).toContain('clients ist auf Kiln installiert.');
 
-    const fetched = await get(app, '/apps/clients/customer/surface-config.json');
+    const fetched = await get(app, '/apps/clients/customer/surface-config.json', { cookie: cookie! });
     expect(fetched.statusCode).toBe(410);
     expect(fetched.json().error).toMatchObject({ code: 'APP_ADDRESS_RETIRED', details: { appKey: 'clients', installs: [{ database: 'Kiln', slug: 'kiln', url: '/apps/clients/kiln/customer/' }] } });
   });

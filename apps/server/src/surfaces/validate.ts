@@ -236,7 +236,8 @@ export async function validateInstanceEntries(
       issues.push({
         path: `${appKey}.${row.slug}`,
         message: `"${row.slug}" points at a database another install of the app is on, as "${owner.instanceSlug}". That database's screens are its install's.`,
-        code: 'instance_owned',
+        // The refusal `PUT /surfaces/:appKey/connection` gives for the same thing.
+        code: 'INSTALL_OWNS_DATABASE',
       });
     }
   }

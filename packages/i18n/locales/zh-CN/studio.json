@@ -3441,7 +3441,12 @@
       "one": "{app} 已安装在 {database} 上。",
       "other": "{app} 已安装在其他数据库上。",
       "body": "此地址属于一个已被移除的副本。",
-      "open": "在 {database} 上打开 {app}"
+      "open": "在 {database} 上打开 {app}",
+      "hidden": "{app} 已迁移。",
+      "signIn": "此地址已迁移；登录后可查看迁移到了哪里。",
+      "signInLink": "登录",
+      "noCopy": "此地址已迁移到此账户无法打开的副本。",
+      "guest": "此地址已迁移。"
     }
   },
   "appSettings": {

@@ -53,10 +53,11 @@ added on a clash. Its addresses are `/apps/<key>/<slug>/<side>/`, `/a/<key>~<slu
 `/studio/apps/<key>~<slug>` and `/add-ons/<key>~<slug>/…`, and its grants are
 `app:<key>~<slug>:staff`. An app has at most 32 copies.
 
-When the first copy is uninstalled, its plain addresses are not handed to another copy. They show
-"Invoices & Receipts is installed on kiln" with a link to each copy (`410`, code
-`APP_ADDRESS_RETIRED`), and none opens by itself. A later install takes the freed address only when
-it asks for it.
+When the first copy is uninstalled, its plain addresses are not handed to another copy. They answer
+`410`, code `APP_ADDRESS_RETIRED`, and none opens by itself. Someone signed in sees "Invoices &
+Receipts is installed on kiln" with a link to each copy they can open. Someone signed out, or with no
+copy they can open, is told only that the address moved, and no database is named. A later install
+takes the freed address only when it asks for it.
 
 ### Screens of a later copy
 

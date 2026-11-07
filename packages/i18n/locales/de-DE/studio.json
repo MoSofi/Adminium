@@ -3441,7 +3441,12 @@
       "one": "{app} ist auf {database} installiert.",
       "other": "{app} ist auf anderen Datenbanken installiert.",
       "body": "Diese Adresse gehörte zu einer Kopie, die entfernt wurde.",
-      "open": "{app} auf {database} öffnen"
+      "open": "{app} auf {database} öffnen",
+      "hidden": "{app} ist umgezogen.",
+      "signIn": "Diese Adresse ist umgezogen; melden Sie sich an, um zu sehen, wohin.",
+      "signInLink": "Anmelden",
+      "noCopy": "Diese Adresse ist zu einer Kopie umgezogen, die dieses Konto nicht öffnen kann.",
+      "guest": "Diese Adresse ist umgezogen."
     }
   },
   "appSettings": {

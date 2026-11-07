@@ -531,6 +531,14 @@ describe('a later copy of an app', () => {
     expect(taken.json().error.details).toMatchObject({ reason: 'INSTALL_OWNS_DATABASE', connectionId: kiln.id, address: 'clients~kiln' });
     expect((await settingsRepo(fixture.meta).get('surfaces.apps'))?.['clients']?.connectionId).toBeUndefined();
     expect((await put('/api/v1/surfaces/clients/connection', { connectionId: fernhill.id })).statusCode).toBe(200);
+
+    // An extra instance is refused the same database, the same way, and nothing is stored.
+    const instance = await put('/api/v1/surfaces/instances', { instances: { clients: [{ slug: 'kiln', connectionId: kiln.id }, { slug: 'old', connectionId: kiln.id }] } });
+    expect(instance.statusCode).toBe(422);
+    expect(instance.json().error.details.issues).toEqual([expect.objectContaining({ path: 'clients.old', code: 'INSTALL_OWNS_DATABASE' })]);
+    expect((await settingsRepo(fixture.meta).get('surfaces.apps'))?.['clients']?.instances).toBeUndefined();
+    // On the plain copy's own database it may go, as it always could.
+    expect((await put('/api/v1/surfaces/instances', { instances: { clients: [{ slug: 'kiln', connectionId: kiln.id }, { slug: 'old', connectionId: fernhill.id }] } })).statusCode).toBe(200);
   });
 });
 
