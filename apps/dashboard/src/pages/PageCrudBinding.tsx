@@ -36,8 +36,6 @@ import {
   PageCrud,
   rowIdOf,
   withFactChoices,
-  type ColumnFacts,
-  type GridColumnSpec,
   type PageCrudFiles,
   type PageCrudGridState,
 } from '@adminium/widgets';
@@ -55,7 +53,7 @@ import { ProjectActionMenu, useProjectActions } from './projectActions.js';
 import { useAppToasts } from './toasts.js';
 import { linkPiecesOf, searchWithout, useLinkFilters, usePageSearch, withLinkWhere } from './linkFilters.js';
 import { listViewOf, rememberListView } from './listView.js';
-import type { FormChildFactReply } from '../api/pages.js';
+import { childFactsOf } from './formChildren.js';
 import type { PageTemplateProps } from './template-types.js';
 import { ViewSwitcher } from './views/ViewSwitcher.js';
 import { useSavedViews } from './views/useSavedViews.js';
@@ -151,24 +149,7 @@ export function PageCrudBinding({
    * rather than in the template because it is the page REPLY's shape being
    * projected onto the template's — the same job `columns` and `form` do.
    */
-  const childFacts = useMemo(() => {
-    if (formChildren === undefined || formChildren.length === 0) return undefined;
-    return Object.fromEntries(
-      formChildren.map((child: FormChildFactReply) => [
-        child.relationId,
-        {
-          label: child.label,
-          table: child.childTable,
-          foreignColumn: child.foreignColumn,
-          // The parent column the child points at is its own key: the server
-          // refuses a relation that points anywhere else.
-          parentKeyColumn: primaryKeyOf(columns)[0] ?? 'id',
-          primaryKey: primaryKeyOf(child.columns.map((column) => column.spec)),
-          ...childColumnsOf(child, page.id),
-        },
-      ]),
-    );
-  }, [formChildren, columns, page.id]);
+  const childFacts = useMemo(() => childFactsOf(formChildren, columns, page.id), [formChildren, columns, page.id]);
 
   /*
    * The toolbar's filters. Stored when somebody defined them in Studio,
@@ -562,36 +543,4 @@ export function PageCrudBinding({
       {manifestBulk.dialog}
     </>
   );
-}
-
-/**
- * A line-items table's columns and what the server says of each — its choice
- * columns' words and tones included, so a line's status reads in the person's
- * language in the repeater as it does in the grid.
- */
-function childColumnsOf(child: FormChildFactReply, pageId: string): { columns: readonly GridColumnSpec[]; facts: ColumnFacts } {
-  const facts: ColumnFacts = Object.fromEntries(
-    child.columns.map((column) => [
-      String(column.spec['name'] ?? ''),
-      {
-        filledBy: column.filledBy,
-        required: column.required,
-        ...(column.requiredWhen === undefined ? {} : { requiredWhen: column.requiredWhen }),
-        ...(column.mentions === true ? { mentions: true as const } : {}),
-        writable: column.writable,
-        ...(column.insertable === undefined ? {} : { insertable: column.insertable }),
-        ...(column.updatable === undefined ? {} : { updatable: column.updatable }),
-        ...(column.options === undefined ? {} : { options: column.options }),
-        ...(column.enumLabels === undefined ? {} : { enumLabels: column.enumLabels }),
-        ...(column.enumTones === undefined ? {} : { enumTones: column.enumTones }),
-      },
-    ]),
-  );
-  const columns = parseColumns({ columns: child.columns.map((column) => column.spec) }, pageId);
-  return { columns: withFactChoices(columns, facts), facts };
-}
-
-/** The key columns of a spec list, in order. */
-function primaryKeyOf(specs: readonly Record<string, unknown>[]): string[] {
-  return specs.filter((spec) => spec['primaryKey'] === true).map((spec) => String(spec['name']));
 }

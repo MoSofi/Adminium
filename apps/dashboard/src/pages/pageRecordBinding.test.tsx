@@ -1241,3 +1241,96 @@ describe('the record page edits every column of the row', () => {
     expect(within(dialog).getByText('Note to the customer')).toBeDefined();
   });
 });
+
+/**
+ * The record page's Edit is the list's edit of the same row: the form the page
+ * designed (its fields, their order) and a choice column's values in the
+ * person's words. It drew the flat stack of columns with the stored values
+ * (a proof's `superseded` where the app says "Sent again").
+ */
+describe('the record page edits with the form the list edits with', () => {
+  const fact = (spec: Record<string, unknown>, ordinal: number, extra: Record<string, unknown> = {}) => ({
+    spec,
+    ordinal,
+    writable: true,
+    filledBy: null,
+    required: false,
+    ...extra,
+  });
+  const reply = (form?: Record<string, unknown>) => () => {
+    const envelope = recordEnvelope();
+    return jsonResponse(200, {
+      data: form === undefined ? envelope : { ...envelope, config: { ...envelope.config, form } },
+      columnFacts: {
+        table: { labelSingular: 'Kunde', labelPlural: 'Kunden' },
+        columns: [
+          fact({ name: 'id', label: 'ID', logicalType: 'integer', primaryKey: true, hasDefault: true }, 0, { filledBy: 'database' }),
+          fact({ name: 'name', label: 'Name', logicalType: 'text' }, 1),
+          fact({ name: 'status', label: 'Status', logicalType: 'enum', enumValues: ['active'] }, 2, { enumLabels: { active: 'Aktiv' } }),
+          fact({ name: 'phone', label: 'Phone', logicalType: 'text', semantic: 'phone', pii: true }, 3),
+        ],
+      },
+    });
+  };
+  const designed = { v: 2, sections: [{ id: 'main', fields: [{ column: 'status' }, { column: 'name' }] }] };
+  /** The dialog's field names, top to bottom. */
+  const fieldNames = (dialog: HTMLElement) =>
+    [...dialog.querySelectorAll('label, legend')]
+      .map((node) => node.textContent?.replace('*', '').trim() ?? '')
+      .filter((text, index, all) => ['Name', 'Status', 'Phone'].includes(text) && all.indexOf(text) === index);
+  const openRecordEdit = async (pageReply: () => Response, fixture: Fixture = {}) => {
+    const user = userEvent.setup();
+    await renderAt('/p/customers/r/1', { pageReply, ...fixture });
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    return screen.findByRole('dialog');
+  };
+
+  it('offers a choice column’s values in the person’s words', async () => {
+    const dialog = await openRecordEdit(reply());
+    expect(within(dialog).getAllByText('Aktiv').length).toBeGreaterThan(0);
+    expect(within(dialog).queryByText('active')).toBeNull();
+  });
+
+  it('draws the page’s designed form: its fields, in its order, as the list’s edit does', async () => {
+    const user = userEvent.setup();
+    await renderAt('/p/customers', { pageReply: reply(designed) });
+    await screen.findByText('Northwind');
+    await user.click(screen.getByRole('button', { name: 'Peek' }));
+    const drawer = await screen.findByRole('dialog');
+    await user.click(await within(drawer).findByRole('button', { name: 'Edit' }));
+    const listEdit = await waitFor(() => {
+      const form = document.querySelector('#page-crud-edit-form');
+      expect(form).not.toBeNull();
+      return form as HTMLElement;
+    });
+    const listFields = fieldNames(listEdit);
+    cleanup();
+    resetAppStreamTransport();
+
+    const dialog = await openRecordEdit(reply(designed));
+    expect(fieldNames(dialog)).toEqual(['Status', 'Name']);
+    expect(fieldNames(dialog)).toEqual(listFields);
+    expect(within(dialog).queryByText('Phone')).toBeNull();
+  });
+
+  it('keeps a locked row’s fields read-only, whatever the table allows', async () => {
+    const schemaReply = () =>
+      jsonResponse(200, {
+        model: {
+          tables: [
+            {
+              id: 'public.customers',
+              name: 'customers',
+              columns: [{ name: 'id' }, { name: 'name' }, { name: 'status' }, { name: 'phone' }],
+              states: { column: 'status', initial: 'draft', moves: {}, lock: { when: ['active'], except: ['phone'] } },
+            },
+          ],
+        },
+      });
+    // A designed form names its own controls: the lock has to reach the field through the facts.
+    const form = { v: 2, sections: [{ id: 'main', fields: [{ column: 'status' }, { column: 'name' }, { column: 'phone' }] }] };
+    const dialog = await openRecordEdit(reply(form), { schemaReply });
+    await waitFor(() => expect(within(dialog).queryByRole('textbox', { name: /Name/ })).toBeNull());
+    expect(within(dialog).getByRole('textbox', { name: /Phone/ })).toBeDefined();
+  });
+});
