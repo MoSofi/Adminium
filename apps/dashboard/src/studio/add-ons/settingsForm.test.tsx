@@ -26,9 +26,10 @@ afterEach(() => {
   saveAddOnSettings.mockClear();
 });
 
-function mount(settingValues: Record<string, unknown>) {
+function mount(settingValues: Record<string, unknown>, copy: { installId?: string } = {}) {
   const addOn = {
     key: 'holiday-calendars',
+    ...copy,
     settings: [{ key: 'days', type: 'json', label: null, help: null, secret: false }],
     settingValues,
   } as unknown as AddOnDto;
@@ -61,5 +62,13 @@ describe('a json setting', () => {
     await user.type(box, 'not json');
     expect(screen.getByText('That is not valid JSON, so it was not saved.')).toBeDefined();
     expect((screen.getByRole('button', { name: 'Save settings' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('saves to the copy it shows, where the add-on is installed on several databases', async () => {
+    const user = userEvent.setup();
+    const box = mount({ days: [] }, { installId: 'man_kiln' });
+    await user.clear(box);
+    await user.click(screen.getByRole('button', { name: 'Save settings' }));
+    expect(saveAddOnSettings).toHaveBeenCalledWith('holiday-calendars', { days: null }, 'man_kiln');
   });
 });
