@@ -3,7 +3,10 @@
  * Save as app: the steps drawn from notes rather than from the comp. The
  * Database step lists every database once with its workspace chips (the comp
  * predates workspaces); Check shows a secret that blocks saving, a question,
- * the personal views at "0 of N", and an answered item.
+ * the personal views at "0 of N", and an answered item. A page that also
+ * holds another person's own view lists only the saver's views and the shared
+ * ones: the other person's view never travels, is never named, and asks
+ * nothing, so the file is ready.
  *
  * The wizard's choices mode, as Save workspace's "More choices" opens it in a
  * modal over the dialog: the database is fixed, so there are four steps, no
@@ -106,6 +109,94 @@ const PLAN: SavePlan = {
   ],
 };
 
+/*
+ * Rosa saves. The page also holds June's own "Low stock beans", which the
+ * server neither lists nor asks about: only Rosa's view and the shared one
+ * reach the screen.
+ */
+const WITH_ANOTHER_PERSONS_VIEW: SaveInventory = {
+  ...INVENTORY,
+  views: [
+    { id: 'view_shared', name: 'Everyone’s queue', pageId: 'page_roasts', ownerId: null },
+    { id: 'view_1', name: 'Today’s roasts', pageId: 'page_roasts', ownerId: 'usr_rosa' },
+  ],
+};
+const READY_PLAN: SavePlan = {
+  ...PLAN,
+  ready: true,
+  check: PLAN.check.filter((item) => item.group !== 'choice'),
+};
+
+function CheckAnotherPersonsViewStays(): ReactNode {
+  const [draft, setDraft] = useState<SaveDraft>(() => draftFromInventory(WITH_ANOTHER_PERSONS_VIEW, { name: 'Fernhill Ops', key: 'fernhill-ops' }));
+  const props: SaveFlowShared = {
+    databases: [],
+    connectionId: 'con_f',
+    inventory: WITH_ANOTHER_PERSONS_VIEW,
+    inventoryError: null,
+    draft,
+    setDraft,
+    saves: [],
+    plan: READY_PLAN,
+    planPending: false,
+    planError: null,
+    save: () => undefined,
+    saving: false,
+    saveError: null,
+    resetSaveError: () => undefined,
+    saved: null,
+    catalogKeys: new Set(),
+    onClose: () => undefined,
+  };
+  return (
+    <div className="max-w-[880px] p-6 leading-[normal]">
+      <SaveAppCheck {...props} onBackToInclude={() => undefined} />
+    </div>
+  );
+}
+
+/*
+ * A plan that still asks about a personal view the screen does not list (no
+ * switch of the views block answers it): it is asked like any other question,
+ * and the count says so.
+ */
+const UNLISTED_VIEW: CheckItem = {
+  group: 'choice',
+  code: 'PERSONAL_VIEW',
+  kind: 'view',
+  item: 'Needs packing: My open orders',
+  message: '',
+  answer: { choices: ['make-shared', 'leave-out'], target: 'view_unlisted', targets: { 'leave-out': 'view:view_unlisted' } },
+};
+
+function CheckUnlistedView(): ReactNode {
+  const [draft, setDraft] = useState<SaveDraft>(() => draftFromInventory(WITH_ANOTHER_PERSONS_VIEW, { name: 'Fernhill Ops', key: 'fernhill-ops' }));
+  const props: SaveFlowShared = {
+    databases: [],
+    connectionId: 'con_f',
+    inventory: WITH_ANOTHER_PERSONS_VIEW,
+    inventoryError: null,
+    draft,
+    setDraft,
+    saves: [],
+    plan: { ...READY_PLAN, ready: false, check: [...READY_PLAN.check, UNLISTED_VIEW] },
+    planPending: false,
+    planError: null,
+    save: () => undefined,
+    saving: false,
+    saveError: null,
+    resetSaveError: () => undefined,
+    saved: null,
+    catalogKeys: new Set(),
+    onClose: () => undefined,
+  };
+  return (
+    <div className="max-w-[880px] p-6 leading-[normal]">
+      <SaveAppCheck {...props} onBackToInclude={() => undefined} />
+    </div>
+  );
+}
+
 function Check({ answered = false }: { answered?: boolean }): ReactNode {
   const base = draftFromInventory(INVENTORY, { name: 'Fernhill Ops', key: 'fernhill-ops' });
   const [draft, setDraft] = useState<SaveDraft>(answered ? { ...base, answers: { a: { item: NO_TYPE, choice: 'carry-as-text' } } } : base);
@@ -193,6 +284,8 @@ export const DatabaseWithoutWorkspaces = {
 };
 export const CheckBlocksSaving = { tags: ['vrt'], render: () => <Check /> };
 export const CheckAnswered = { tags: ['vrt'], render: () => <Check answered /> };
+export const CheckAnotherPersonsView = { tags: ['vrt'], render: () => <CheckAnotherPersonsViewStays /> };
+export const CheckAskedAboutAnUnlistedView = { render: () => <CheckUnlistedView /> };
 export const ChoicesWhatToInclude = { tags: ['vrt'], render: () => <Choices step={1} /> };
 export const ChoicesAboutTheApp = { tags: ['vrt'], render: () => <Choices step={2} /> };
 export const ChoicesCheckUseThese = { tags: ['vrt'], render: () => <Choices step={3} /> };

@@ -32,8 +32,8 @@ import { DocsLink } from '../../kb/DocsLink.js';
 import { docsUrl } from '../../kb/docsLinks.js';
 import type { SaveFlowShared } from './saveAppShared.js';
 import type { AnswerChoice, CheckItem } from './saveAppApi.js';
-import { groupCheck, itemId, needsCount, personalViews, type SaveDraft } from './saveAppDraft.js';
-import { answerLabel, answeredSentence, checkSentence, groupedAfter, groupedInfo } from './saveAppWords.js';
+import { groupCheck, itemId, needsCount, personalViews, unansweredViewItems, type SaveDraft } from './saveAppDraft.js';
+import { answerLabel, answeredSentence, checkSentence, groupedAfter, groupedInfo, problemSentence, saveErrorText } from './saveAppWords.js';
 
 type Tone = 'danger' | 'warn' | 'info' | 'neutral';
 
@@ -41,12 +41,12 @@ const TONE_TEXT: Record<Tone, string> = { danger: 'text-danger', warn: 'text-war
 const TONE_SOFT: Record<Tone, string> = { danger: 'bg-danger-soft text-danger', warn: 'bg-warn-soft text-warn', info: 'bg-info-soft text-info', neutral: 'bg-surface-3 text-fg-muted' };
 
 /** What holds Save, for the footer; null when nothing does. */
-export function checkFooterNote({ plan }: Pick<SaveFlowShared, 'plan'>): string | null {
+export function checkFooterNote({ plan, inventory, draft }: Pick<SaveFlowShared, 'plan' | 'inventory' | 'draft'>): string | null {
   if (plan === undefined || plan.ready) return null;
   if (plan.problems.length > 0) return t('studio:saveApp.check.noteProblems', 'Fix what blocks saving to save.');
   const groups = groupCheck(plan);
   if (groups.blocks.length > 0) return t('studio:saveApp.check.noteSecret', 'Clear or leave out the saved secret to save.');
-  const open = needsCount(plan, 0).choices;
+  const open = needsCount(plan, inventory === undefined || draft === null ? [] : personalViews(inventory, draft)).choices;
   if (open > 0) return t('studio:saveApp.check.noteChoices', '{count, plural, one {Answer # choice to save.} other {Answer # choices to save.}}', { count: open });
   return null;
 }
@@ -61,10 +61,12 @@ export function SaveAppCheck(props: SaveAppCheckProps) {
   if (draft === null || inventory === undefined) return null;
   const views = personalViews(inventory, draft);
   const groups = plan === undefined ? null : groupCheck(plan);
+  // A personal view the plan asks about that the views block cannot answer: asked like any other question.
+  const viewQuestions = plan === undefined ? [] : unansweredViewItems(plan, views);
   const answered = Object.entries(draft.answers);
   const answeredBlocks = answered.filter(([, given]) => given.item.code === 'SECRET_FOUND');
   const answeredChoices = answered.filter(([, given]) => given.item.code !== 'SECRET_FOUND');
-  const needs = plan === undefined ? { blocks: 0, choices: 0 } : needsCount(plan, views.length);
+  const needs = plan === undefined ? { blocks: 0, choices: 0 } : needsCount(plan, views);
   const after = groups === null ? [] : groupedAfter(groups.after);
   const info = plan === undefined || groups === null ? [] : groupedInfo(groups.info, plan.counts['tables'] ?? 0, plan.minAdminiumVersion);
 
@@ -108,12 +110,12 @@ export function SaveAppCheck(props: SaveAppCheckProps) {
       </div>
       {planError === null ? null : (
         <Alert tone="danger" title={t('studio:saveApp.planFailed', 'The file could not be checked')}>
-          {planError.message}
+          {saveErrorText(planError)}
         </Alert>
       )}
       {saveError === null ? null : (
         <Alert tone="danger" role="alert" title={t('studio:saveApp.saveFailed', 'Could not save. Nothing was written. Try again.')}>
-          <p>{saveError.message}</p>
+          <p>{saveErrorText(saveError)}</p>
           <Button className="mt-2" size="sm" variant="secondary" loading={saving} onClick={props.save}>
             {t('studio:saveApp.tryAgain', 'Try again')}
           </Button>
@@ -126,7 +128,7 @@ export function SaveAppCheck(props: SaveAppCheckProps) {
             <Group tone="danger" icon={<OctagonX aria-hidden className="size-[15px] shrink-0" />} label={t('studio:saveApp.check.blocks', 'Blocks saving')} count={needs.blocks}>
               {plan.problems.map((problem, index) => (
                 <Row key={`problem-${String(index)}`} tone="danger" icon={<OctagonX aria-hidden className="size-[15px]" />}>
-                  <p className="text-[13px] leading-[1.5]">{problem.message}</p>
+                  <p className="text-[13px] leading-[1.5]">{problemSentence(problem)}</p>
                   <div>
                     <Button size="sm" variant="secondary" onClick={props.onBackToInclude}>
                       {t('studio:saveApp.check.backToInclude', 'Back to What to include')}
@@ -143,9 +145,9 @@ export function SaveAppCheck(props: SaveAppCheckProps) {
             </Group>
           ) : null}
 
-          {groups.choices.length + answeredChoices.length + views.length > 0 ? (
+          {groups.choices.length + viewQuestions.length + answeredChoices.length + views.length > 0 ? (
             <Group tone="warn" icon={<TriangleAlert aria-hidden className="size-[15px] shrink-0" />} label={t('studio:saveApp.check.choices', 'Needs a choice')} count={needs.choices}>
-              {groups.choices.map((item) => (
+              {[...groups.choices, ...viewQuestions].map((item) => (
                 <QuestionRow key={itemId(item)} item={item} tone="warn" icon={iconFor(item)} onAnswer={answer} />
               ))}
               {answeredChoices.map(([id, given]) => (

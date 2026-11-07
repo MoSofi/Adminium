@@ -8,8 +8,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
+import { AppToastProvider } from '../../../pages/toasts.js';
 import { makeBootstrap } from '../../../test/fixtures.js';
 import type { AppInstallPlan } from '../appsApi.js';
+import type { CheckItem } from '../saveAppApi.js';
 import { SaveWorkspaceDialog, SavedWorkspaceDialog, firstPlanKey } from './SaveWorkspaceDialog.js';
 import { WORKSPACES_FOR_FILE_KEY, WorkspaceFileInstall, planQueryKey, workspaceFileQueryKey } from './WorkspaceFileInstall.js';
 import { WorkspaceFilesWaiting, WorkspaceSavesList } from './WorkspaceSavesList.js';
@@ -35,7 +37,9 @@ function client(options: { managesConnections?: boolean; settings?: boolean; wor
 function Frame({ children, c = client() }: { children: ReactNode; c?: QueryClient }): ReactNode {
   return (
     <QueryClientProvider client={c}>
-      <div className="flex max-w-[1080px] flex-col gap-4 p-6 leading-[normal]">{children}</div>
+      <AppToastProvider>
+        <div className="flex max-w-[1080px] flex-col gap-4 p-6 leading-[normal]">{children}</div>
+      </AppToastProvider>
     </QueryClientProvider>
   );
 }
@@ -45,14 +49,14 @@ function Frame({ children, c = client() }: { children: ReactNode; c?: QueryClien
 const WORKSPACE = { id: 'wsp-fernhill', name: 'Fernhill Coffee', connectionIds: ['c-fernhill', 'c-archive', 'c-suppliers'] };
 
 function savePlan(choices: boolean): WorkspaceSavePlan {
-  const plan = (key: string, version: string, check: { message: string }[]) => ({
+  const plan = (key: string, version: string, check: Pick<CheckItem, 'code' | 'kind' | 'item' | 'field' | 'answer'>[]) => ({
     key,
     version,
     lineage: 'kept' as const,
     label: 'Fernhill main',
     minAdminiumVersion: '0.3.49',
     ready: check.length === 0,
-    check: check.map((item, n) => ({ group: 'choice' as const, code: 'X', kind: 'table', item: String(n), message: item.message })),
+    check: check.map((item) => ({ group: 'choice' as const, message: '', ...item })),
     problems: [],
     counts: { tables: 3 },
   });
@@ -66,9 +70,9 @@ function savePlan(choices: boolean): WorkspaceSavePlan {
     instanceFrom: null,
     workspaces: ['Fernhill Coffee'],
     apps: [
-      { connectionId: 'c-fernhill', database: { name: 'fernhill', engine: 'postgres' }, key: 'fernhill-ops', name: 'Fernhill Ops', lastSaved: '1.0.0', plan: plan('fernhill-ops', '1.0.1', choices ? [{ message: 'activity_log.ip_address has no matching type' }, { message: '10 saved views belong to people' }] : []) },
+      { connectionId: 'c-fernhill', database: { name: 'fernhill', engine: 'postgres' }, key: 'fernhill-ops', name: 'Fernhill Ops', lastSaved: '1.0.0', plan: plan('fernhill-ops', '1.0.1', choices ? [{ code: 'TYPE_NO_FORM', kind: 'column', item: 'activity_log', field: 'ip_address' }, { code: 'PERSONAL_VIEW', kind: 'view', item: 'Needs packing: Today’s roasts' }] : []) },
       { connectionId: 'c-archive', database: { name: 'fernhill_archive', engine: 'postgres' }, key: 'fernhill-archive', name: 'Fernhill Archive', lastSaved: null, plan: plan('fernhill-archive', '1.0.0', []) },
-      { connectionId: 'c-suppliers', database: { name: 'suppliers', engine: 'postgres' }, key: 'suppliers', name: 'Suppliers', lastSaved: null, plan: plan('suppliers', '1.0.0', choices ? [{ message: 'supplier_contacts.phone looks personal' }] : []) },
+      { connectionId: 'c-suppliers', database: { name: 'suppliers', engine: 'postgres' }, key: 'suppliers', name: 'Suppliers', lastSaved: null, plan: plan('suppliers', '1.0.0', choices ? [{ code: 'ROWS_PERSONAL_REQUIRED', kind: 'column', item: 'supplier_contacts', field: 'phone' }] : []) },
     ],
   };
 }
@@ -187,7 +191,7 @@ function Done({ stopped }: { stopped: boolean }) {
 
 function Lists() {
   const c = client();
-  c.setQueryData(APP_SAVES_QUERY_KEY, { saves: [], workspaces: [{ id: 'wss-1', workspaceId: WORKSPACE.id, name: 'Fernhill Coffee', label: 'Fernhill main', savedBy: null, savedAt: SAVED.savedAt, integrity: SAVED.integrity, bytes: SAVED.bytes, appSaveIds: ['a', 'b', 'c'], filename: SAVED.filename }] });
+  c.setQueryData(APP_SAVES_QUERY_KEY, { saves: [], workspaces: [{ id: 'wss-1', workspaceId: WORKSPACE.id, name: 'Fernhill Coffee', label: 'Fernhill main', savedBy: null, savedAt: SAVED.savedAt, integrity: SAVED.integrity, bytes: SAVED.bytes, appSaveIds: ['a', 'b', 'c'], filename: SAVED.filename, downloadable: true }] });
   c.setQueryData(WORKSPACE_FILES_QUERY_KEY, [file({ state: 'stopped' })]);
   return (
     <Frame c={c}>

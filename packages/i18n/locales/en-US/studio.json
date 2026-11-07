@@ -5314,7 +5314,8 @@
       "copy": "Copy fingerprint",
       "again": "Download again",
       "newer": "Save a newer version",
-      "docsLink": "About saved versions"
+      "docsLink": "About saved versions",
+      "notDownloadable": "Download again is not open to you: its copy is gone, or it carries something you do not have the rights for."
     },
     "entry": {
       "button": "Save as app",
@@ -5491,6 +5492,29 @@
       "receipt": "Receipt",
       "warehouse": "Warehouse",
       "cupSoda": "Cup"
+    },
+    "problem": {
+      "instanceId": "The file would hold an id of this server at {place}, so it cannot be made. Leave out what holds it, then check again.",
+      "instanceIdNoPlace": "The file would hold an id of this server, so it cannot be made. Leave out what holds it, then check again.",
+      "manifest": "The file would not pass the checks every app file meets at {place}, so it cannot be made. Leave out what it names, then check again.",
+      "manifestNoPlace": "The file would not pass the checks every app file meets, so it cannot be made. Leave out what it names, then check again.",
+      "plan": "Installing the file would be refused at {place}, so it cannot be made. Leave out what it names, then check again.",
+      "planNoPlace": "Installing the file would be refused, so it cannot be made. Leave out what it names, then check again.",
+      "other": "The file cannot be made as it is. Leave out what was added last, then check again."
+    },
+    "error": {
+      "snapshotMissing": "This database has not been read yet. Refresh its schema, then save.",
+      "keyElsewhere": "An app with this key was saved from another database. Give this app another key.",
+      "versionSaved": "This version was saved before. Save a newer version.",
+      "versionOlder": "A higher version was saved before. Save a version above it.",
+      "instanceNotYours": "Saving the look, languages, wording and system emails needs managing settings.",
+      "rowsNotYours": "Saving rows needs reading and exporting the whole table, and personal columns need reading them. Leave out what you may not save.",
+      "filesNotYours": "The app carries files from the Files library, and saving them needs managing files.",
+      "tableNotYours": "You may not save a table you cannot read, nor a page or a public endpoint of one. Leave it out, then save again.",
+      "viewNotYours": "You may share only your own views. Leave out a view that is not yours, then save again.",
+      "refused": "The file cannot be made. Fix what blocks saving in Check, then save again.",
+      "needsAnswers": "Something in Check still needs an answer. Answer it, then save again.",
+      "downloadNotYours": "You may not download this file again: it carries something you do not have the rights for."
     }
   },
   "workspaceFiles": {
@@ -5589,7 +5613,9 @@
       "missing": "An app the file names is not in it.",
       "nested": "A workspace file inside a workspace file is not installed.",
       "title": "This workspace file can’t be installed",
-      "twoInstances": "Two apps inside carry the server settings. A workspace file carries them with one app at most."
+      "twoInstances": "Two apps inside carry the server settings. A workspace file carries them with one app at most.",
+      "app": "This app can’t be installed on that database as it is.",
+      "plan": "This app can’t be installed on that database as it is. Open it to see what stands in the way."
     },
     "save": {
       "button": "Save workspace",
@@ -5653,7 +5679,18 @@
       "staged": "{workspace} is uploaded and waits to be installed.",
       "stopped": "{workspace}: {done} of {total} installed. The install stopped part way."
     },
-    "docsLink": "How workspace files work"
+    "docsLink": "How workspace files work",
+    "saveRefusal": {
+      "changed": "The workspace file came out different from the one saved. Save the workspace again.",
+      "tooLarge": "This workspace file would be larger than 128 MB. Leave out a database or its sample rows and try again.",
+      "appTooLarge": "An app would be larger than 32 MB. Leave out its sample rows and try again.",
+      "empty": "Choose at least one database to save.",
+      "tooMany": "A workspace file holds too many apps. Leave out a database.",
+      "notMember": "Some of those databases are not in this workspace.",
+      "duplicate": "Each database becomes one app: name it once.",
+      "duplicateKey": "Two apps would have the same key. Give each its own.",
+      "instanceFrom": "The server settings travel with one of the apps saved."
+    }
   },
   "apps": {
     "copies": {

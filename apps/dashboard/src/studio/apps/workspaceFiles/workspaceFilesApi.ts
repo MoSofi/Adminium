@@ -9,7 +9,7 @@
  *  - `POST /apps/upload-workspace`, `GET /apps/workspace-files`,
  *    `GET|POST|DELETE /apps/workspace/:id/install`.
  */
-import { SAVES_FRESH_MS } from '../saveAppApi.js';
+import { SAVES_FRESH_MS, downloadFrom, refusalOf } from '../saveAppApi.js';
 import { queryOptions } from '@tanstack/react-query';
 
 import { ApiError, api, csrfHeaders } from '../../../app/api.js';
@@ -105,6 +105,11 @@ export function workspaceSaveFileHref(id: string): string {
   return `/api/v1/workspaces/save/${encodeURIComponent(id)}/file`;
 }
 
+/** A saved workspace file again, saved by the browser under its own name; answers that name. */
+export async function downloadWorkspaceSave(id: string, filename: string): Promise<string> {
+  return downloadFrom(workspaceSaveFileHref(id), filename);
+}
+
 /** A workspace file saved here, as the saves list names it. */
 export interface WorkspaceSaveRow {
   id: string;
@@ -118,6 +123,8 @@ export interface WorkspaceSaveRow {
   appSaveIds: string[];
   /** The file's name, as "Download again" gives it. */
   filename: string;
+  /** Whether "Download again" still has every app's copy, and the caller holds every right those saves needed. */
+  downloadable: boolean;
 }
 
 /** The saves made here. `saves` is Save as app's; `workspaces` is this module's. */
@@ -216,16 +223,9 @@ export async function uploadWorkspaceFile(file: Blob, expectedSha512: string): P
     headers: { accept: 'application/json', 'content-type': 'application/octet-stream', ...csrfHeaders() },
     body: file,
   });
-  const body = (await response.json().catch(() => null)) as ({ workspaceFile?: WorkspaceFile } & { error?: { code?: unknown; message?: unknown; details?: unknown } }) | null;
-  if (!response.ok || body?.workspaceFile === undefined) {
-    throw new ApiError(
-      response.status,
-      typeof body?.error?.code === 'string' ? body.error.code : 'UPLOAD_FAILED',
-      typeof body?.error?.message === 'string' ? body.error.message : `Upload failed with status ${String(response.status)}.`,
-      null,
-      body?.error?.details,
-    );
-  }
+  if (!response.ok) throw await refusalOf(response, 'UPLOAD_FAILED');
+  const body = (await response.json().catch(() => null)) as { workspaceFile?: WorkspaceFile } | null;
+  if (body?.workspaceFile === undefined) throw new ApiError(response.status, 'UPLOAD_FAILED', 'UPLOAD_FAILED', null, null);
   return body.workspaceFile;
 }
 

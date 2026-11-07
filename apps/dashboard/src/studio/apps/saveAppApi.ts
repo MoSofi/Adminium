@@ -210,19 +210,42 @@ export const ANSWER_LIST: Record<AnswerChoice, keyof SaveAnswers> = {
   keep: 'keep',
 };
 
+/** The code a failed reply with no envelope stands for, by its status. */
+function codeOfStatus(status: number, fallback: string): string {
+  if (status === 401) return 'UNAUTHENTICATED';
+  if (status === 403) return 'FORBIDDEN';
+  if (status === 404) return 'NOT_FOUND';
+  if (status === 409) return 'CONFLICT';
+  if (status === 429) return 'RATE_LIMITED';
+  return fallback;
+}
+
+/**
+ * A failed reply as an `ApiError`, keeping its code and details (the reason
+ * the screens word). The message is the server's own when it sent one, else
+ * the code: screens word an error from its reason and code, never its message.
+ */
+export async function refusalOf(response: Response, fallbackCode: string): Promise<ApiError> {
+  const body = (await response.json().catch(() => null)) as { error?: { message?: unknown; code?: unknown; requestId?: unknown; details?: unknown } } | null;
+  const code = typeof body?.error?.code === 'string' ? body.error.code : codeOfStatus(response.status, fallbackCode);
+  const message = typeof body?.error?.message === 'string' ? body.error.message : code;
+  return new ApiError(response.status, code, message, typeof body?.error?.requestId === 'string' ? body.error.requestId : null, body?.error?.details);
+}
+
 /** A saved file's bytes, saved by the browser under its own name; answers that name. */
 export async function downloadSavedFile(id: string): Promise<string> {
-  const response = await fetch(`/api/v1/apps/save/${encodeURIComponent(id)}/file`, {
+  return downloadFrom(`/api/v1/apps/save/${encodeURIComponent(id)}/file`, 'app.tgz');
+}
+
+/** A file the server hands out, saved by the browser under the name it gives; answers that name. */
+export async function downloadFrom(path: string, fallbackName: string): Promise<string> {
+  const response = await fetch(path, {
     credentials: 'same-origin',
     headers: { accept: 'application/gzip', ...csrfHeaders() },
   });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: { message?: unknown; code?: unknown } } | null;
-    const message = typeof body?.error?.message === 'string' ? body.error.message : `Download failed with status ${String(response.status)}.`;
-    throw new ApiError(response.status, typeof body?.error?.code === 'string' ? body.error.code : 'DOWNLOAD_FAILED', message, null, null);
-  }
+  if (!response.ok) throw await refusalOf(response, 'DOWNLOAD_FAILED');
   const disposition = response.headers.get('content-disposition') ?? '';
-  const name = /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'app.tgz';
+  const name = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackName;
   const blob = await response.blob();
   if (typeof URL.createObjectURL !== 'function') return name;
   const url = URL.createObjectURL(blob);

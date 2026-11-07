@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createQueryClient } from '../../../app/query.js';
 import { installTestI18n } from '../../../i18n/testing.js';
+import { AppToastProvider } from '../../../pages/toasts.js';
 import { jsonResponse, makeBootstrap } from '../../../test/fixtures.js';
 import { InstallAppWizard } from '../InstallAppWizard.js';
 import { SaveWorkspaceDialog } from './SaveWorkspaceDialog.js';
@@ -72,7 +73,11 @@ function stubFetch() {
 function withClient(node: React.ReactNode, actions: string[] = ['manifests.manage', 'settings.manage', 'connections.manage']): { client: QueryClient } {
   const client = createQueryClient();
   client.setQueryData(['bootstrap'], makeBootstrap({ systemActions: actions as never }));
-  render(<QueryClientProvider client={client}>{node}</QueryClientProvider>);
+  render(
+    <QueryClientProvider client={client}>
+      <AppToastProvider>{node}</AppToastProvider>
+    </QueryClientProvider>,
+  );
   return { client };
 }
 
@@ -93,7 +98,7 @@ const WORKSPACE = { id: 'wsp-1', name: 'Fernhill Coffee', connectionIds: ['c-fer
 
 function savePlan(opts: { choices?: boolean; apps?: string[] | undefined } = {}) {
   const all = [
-    { connectionId: 'c-fernhill', database: { name: 'fernhill', engine: 'postgres' }, key: 'fernhill-ops', name: 'Fernhill Ops', lastSaved: '1.0.0', version: '1.0.1', check: opts.choices === true ? [{ group: 'choice', code: 'X', kind: 'k', item: 'i', message: '10 saved views belong to people' }] : [] },
+    { connectionId: 'c-fernhill', database: { name: 'fernhill', engine: 'postgres' }, key: 'fernhill-ops', name: 'Fernhill Ops', lastSaved: '1.0.0', version: '1.0.1', check: opts.choices === true ? [{ group: 'choice', code: 'TYPE_NO_FORM', kind: 'column', item: 'activity_log', field: 'ip_address', message: 'raw check words' }] : [] },
     { connectionId: 'c-archive', database: { name: 'fernhill_archive', engine: 'postgres' }, key: 'fernhill-archive', name: 'Fernhill Archive', lastSaved: null, version: '1.0.0', check: [] },
   ].filter((app) => opts.apps === undefined || opts.apps.includes(app.connectionId));
   return {
@@ -133,7 +138,10 @@ describe('Save workspace', () => {
     expect((screen.getAllByLabelText('Version')[0] as HTMLInputElement).value).toBe('1.0.1');
     expect(screen.getByText(/Last saved/)).toBeTruthy();
     expect(screen.getByText('1 thing needs a choice')).toBeTruthy();
-    expect(screen.getByText('Fernhill Ops').closest('li')?.textContent).toContain('10 saved views belong to people');
+    // Worded from its code, never the server's sentence.
+    const line = screen.getByText('Fernhill Ops').closest('li')?.textContent ?? '';
+    expect(line).toContain('activity_log.ip_address has no matching type');
+    expect(line).not.toContain('raw check words');
     expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Use More choices on an app to make its choices.')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /More choices/ })).toHaveLength(2);
@@ -186,15 +194,39 @@ describe('Save workspace', () => {
 });
 
 describe('the saves list and the files waiting', () => {
+  const savedRow = (over: Record<string, unknown> = {}) => ({ id: 'wss-1', workspaceId: 'wsp-1', name: 'Fernhill Coffee', label: 'Fernhill main', savedBy: null, savedAt: 0, integrity: SAVED.integrity, bytes: 421_888, appSaveIds: ['a', 'b'], filename: 'fernhill-coffee.workspace.tgz', downloadable: true, ...over });
+
   it('lists a workspace file saved here with Download again', async () => {
-    routes['GET /api/v1/apps/saves'] = () => ({ status: 200, body: { saves: [], workspaces: [{ id: 'wss-1', workspaceId: 'wsp-1', name: 'Fernhill Coffee', label: 'Fernhill main', savedBy: null, savedAt: 0, integrity: SAVED.integrity, bytes: 421_888, appSaveIds: ['a', 'b'], filename: 'fernhill-coffee.workspace.tgz' }] } });
+    routes['GET /api/v1/apps/saves'] = () => ({ status: 200, body: { saves: [], workspaces: [savedRow()] } });
     const again = vi.fn();
     withClient(<WorkspaceSavesList onSaveAgain={again} />);
     expect(await screen.findByText('Fernhill Coffee')).toBeTruthy();
     expect(screen.getByText('2 apps')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Download again' }).getAttribute('href')).toBe('/api/v1/workspaces/save/wss-1/file');
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Save a newer version' }));
+    const download = screen.getByRole('button', { name: 'Download again' });
+    expect(download).toHaveProperty('disabled', false);
+    const user = userEvent.setup();
+    await user.click(download);
+    await waitFor(() => expect(calls.some((call) => call.url === '/api/v1/workspaces/save/wss-1/file')).toBe(true));
+    await user.click(screen.getByRole('button', { name: 'Save a newer version' }));
     expect(again).toHaveBeenCalledWith('wsp-1');
+  });
+
+  it('keeps Download again off, with the reason, for someone who may not download the file', async () => {
+    routes['GET /api/v1/apps/saves'] = () => ({ status: 200, body: { saves: [], workspaces: [savedRow({ downloadable: false })] } });
+    withClient(<WorkspaceSavesList />);
+    const download = await screen.findByRole('button', { name: 'Download again' });
+    expect(download).toHaveProperty('disabled', true);
+    expect(download.getAttribute('aria-describedby')).toBe('workspace-save-locked-wss-1');
+    expect(document.getElementById('workspace-save-locked-wss-1')?.textContent).toMatch(/Download again is not open to you/);
+  });
+
+  it('says a refused download in words, never the server’s reply', async () => {
+    routes['GET /api/v1/apps/saves'] = () => ({ status: 200, body: { saves: [], workspaces: [savedRow()] } });
+    routes['GET /api/v1/workspaces/save/wss-1/file'] = () => ({ status: 403, body: { error: { code: 'FORBIDDEN', message: 'raw server words', requestId: 'r', details: { reason: 'SAVE_DOWNLOAD_NOT_YOURS' } } } });
+    withClient(<WorkspaceSavesList />);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Download again' }));
+    expect(await screen.findByText(/You may not download this file again/)).toBeTruthy();
+    expect(screen.queryByText(/raw server words/)).toBeNull();
   });
 
   it('offers a stopped file again after a reload, and discards one', async () => {

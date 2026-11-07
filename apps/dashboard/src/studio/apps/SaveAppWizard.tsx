@@ -46,7 +46,7 @@ import { SaveAppInclude } from './SaveAppInclude.js';
 import { downloadSavedFile } from './saveAppApi.js';
 import { AppIconPicker } from './saveAppIcons.js';
 import { aboutProblems, nextVersionFor, savesOf } from './saveAppAbout.js';
-import { monoSentence } from './saveAppWords.js';
+import { monoSentence, saveErrorText } from './saveAppWords.js';
 
 export type WizardStep = 0 | 1 | 2 | 3 | 4;
 
@@ -133,7 +133,7 @@ export function SaveAppWizard(props: SaveAppWizardProps) {
                   if (saved === null) return;
                   void downloadSavedFile(saved.id).then(
                     (name) => toasts.push({ variant: 'success', title: t('studio:saveApp.download.done', '{file} downloaded', { file: name }) }),
-                    (error: unknown) => toasts.push({ variant: 'error', title: t('studio:saveApp.download.failed', 'The file could not be downloaded'), description: error instanceof Error ? error.message : String(error) }),
+                    (error: unknown) => toasts.push({ variant: 'error', title: t('studio:saveApp.download.failed', 'The file could not be downloaded'), description: saveErrorText(error) }),
                   );
                 }}
               >

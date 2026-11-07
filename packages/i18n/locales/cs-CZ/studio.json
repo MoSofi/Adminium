@@ -5314,7 +5314,8 @@
       "copy": "Kopírovat otisk",
       "again": "Stáhnout znovu",
       "newer": "Uložit novější verzi",
-      "docsLink": "O uložených verzích"
+      "docsLink": "O uložených verzích",
+      "notDownloadable": "Možnost Stáhnout znovu pro vás není dostupná: jeho kopie už neexistuje, nebo nese něco, k čemu nemáte oprávnění."
     },
     "entry": {
       "button": "Uložit jako aplikaci",
@@ -5491,6 +5492,29 @@
       "receipt": "Účtenka",
       "warehouse": "Sklad",
       "cupSoda": "Kelímek"
+    },
+    "problem": {
+      "instanceId": "Soubor by na místě {place} obsahoval identifikátor tohoto serveru, proto ho nelze vytvořit. Vynechte to, co ho obsahuje, a zkontrolujte znovu.",
+      "instanceIdNoPlace": "Soubor by obsahoval identifikátor tohoto serveru, proto ho nelze vytvořit. Vynechte to, co ho obsahuje, a zkontrolujte znovu.",
+      "manifest": "Soubor by na místě {place} neprošel kontrolami, kterými musí projít každý soubor aplikace, proto ho nelze vytvořit. Vynechte to, co je tam uvedeno, a zkontrolujte znovu.",
+      "manifestNoPlace": "Soubor by neprošel kontrolami, kterými musí projít každý soubor aplikace, proto ho nelze vytvořit. Vynechte to, co je tam uvedeno, a zkontrolujte znovu.",
+      "plan": "Instalace souboru by na místě {place} byla odmítnuta, proto ho nelze vytvořit. Vynechte to, co je tam uvedeno, a zkontrolujte znovu.",
+      "planNoPlace": "Instalace souboru by byla odmítnuta, proto ho nelze vytvořit. Vynechte to, co je tam uvedeno, a zkontrolujte znovu.",
+      "other": "Soubor v této podobě nelze vytvořit. Vynechte to, co bylo přidáno naposledy, a zkontrolujte znovu."
+    },
+    "error": {
+      "snapshotMissing": "Tato databáze ještě nebyla načtena. Obnovte její schéma a pak uložte.",
+      "keyElsewhere": "Aplikace s tímto klíčem byla uložena z jiné databáze. Dejte této aplikaci jiný klíč.",
+      "versionSaved": "Tato verze už byla uložena. Uložte novější verzi.",
+      "versionOlder": "Vyšší verze už byla uložena. Uložte verzi nad ní.",
+      "instanceNotYours": "Uložení vzhledu, jazyků, textů a systémových e-mailů vyžaduje oprávnění spravovat nastavení.",
+      "rowsNotYours": "Uložení řádků vyžaduje oprávnění číst a exportovat celou tabulku a osobní sloupce vyžadují oprávnění je číst. Vynechte, co uložit nesmíte.",
+      "filesNotYours": "Aplikace nese soubory z knihovny souborů a jejich uložení vyžaduje oprávnění spravovat soubory.",
+      "tableNotYours": "Nemůžete uložit tabulku, kterou nemůžete číst, ani její stránku nebo veřejný koncový bod. Vynechte ji a uložte znovu.",
+      "viewNotYours": "Sdílet můžete jen svá vlastní zobrazení. Vynechte zobrazení, které není vaše, a uložte znovu.",
+      "refused": "Soubor nelze vytvořit. V kroku Kontrola opravte, co brání uložení, a uložte znovu.",
+      "needsAnswers": "V kroku Kontrola ještě něco čeká na odpověď. Odpovězte a uložte znovu.",
+      "downloadNotYours": "Tento soubor nesmíte stáhnout znovu: nese něco, k čemu nemáte oprávnění."
     }
   },
   "workspaceFiles": {
@@ -5589,7 +5613,9 @@
       "missing": "Aplikace, kterou soubor uvádí, v něm není.",
       "nested": "Soubor pracovního prostoru uvnitř souboru pracovního prostoru se neinstaluje.",
       "title": "Tento soubor pracovního prostoru nelze nainstalovat",
-      "twoInstances": "Dvě aplikace v souboru nesou nastavení serveru. Soubor pracovního prostoru je nese nejvýše s jednou aplikací."
+      "twoInstances": "Dvě aplikace v souboru nesou nastavení serveru. Soubor pracovního prostoru je nese nejvýše s jednou aplikací.",
+      "app": "Tuto aplikaci nelze v této podobě nainstalovat do té databáze.",
+      "plan": "Tuto aplikaci nelze v této podobě nainstalovat do té databáze. Otevřete ji a uvidíte, co tomu brání."
     },
     "save": {
       "button": "Uložit pracovní prostor",
@@ -5653,7 +5679,18 @@
       "staged": "{workspace} je nahrán a čeká na instalaci.",
       "stopped": "{workspace}: nainstalováno {done} z {total}. Instalace se v průběhu zastavila."
     },
-    "docsLink": "Jak fungují soubory pracovních prostorů"
+    "docsLink": "Jak fungují soubory pracovních prostorů",
+    "saveRefusal": {
+      "changed": "Soubor pracovního prostoru vyšel jinak než ten uložený. Uložte pracovní prostor znovu.",
+      "tooLarge": "Tento soubor pracovního prostoru by byl větší než 128 MB. Vynechte databázi nebo její ukázkové řádky a zkuste to znovu.",
+      "appTooLarge": "Aplikace by byla větší než 32 MB. Vynechte její ukázkové řádky a zkuste to znovu.",
+      "empty": "Vyberte k uložení alespoň jednu databázi.",
+      "tooMany": "Soubor pracovního prostoru by obsahoval příliš mnoho aplikací. Vynechte databázi.",
+      "notMember": "Některé z těchto databází nejsou v tomto pracovním prostoru.",
+      "duplicate": "Každá databáze se stane jednou aplikací: uveďte ji jen jednou.",
+      "duplicateKey": "Dvě aplikace by měly stejný klíč. Dejte každé vlastní.",
+      "instanceFrom": "Nastavení serveru se přenáší s jednou z ukládaných aplikací."
+    }
   },
   "apps": {
     "added": {

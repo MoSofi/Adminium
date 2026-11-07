@@ -12,7 +12,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { installTestI18n } from '../../i18n/testing.js';
 import { setI18nInstance, type I18nInstance } from '../../i18n/t.js';
 import type { CheckItem } from './saveAppApi.js';
-import { checkSentence } from './saveAppWords.js';
+import { ApiError } from '../../app/api.js';
+import { checkSentence, problemSentence, saveErrorText } from './saveAppWords.js';
 
 const instanceLeft: CheckItem = {
   group: 'info',
@@ -84,5 +85,33 @@ describe('checkSentence', () => {
     installTestI18n();
     const text = textOf({ group: 'info', code: 'SOMETHING_NEWER', kind: 'table', item: 'orders', field: 'total', message: 'A newer server says this.' });
     expect(text).toBe('Table ‘orders’ · total · A newer server says this.');
+  });
+});
+
+describe('problemSentence and saveErrorText', () => {
+  it('words a refusal of the file from its code, with the place in mono, never the server’s sentence', () => {
+    installTestI18n();
+    const text = render(<p>{problemSentence({ code: 'INSTANCE_ID_LEFT', path: 'pages[0].config' })}</p>).container.textContent ?? '';
+    expect(text).toBe('The file would hold an id of this server at pages[0].config, so it cannot be made. Leave out what holds it, then check again.');
+    expect(render(<p>{problemSentence({ code: 'SOMETHING_NEW' })}</p>).container.textContent).toMatch(/^The file cannot be made as it is/);
+  });
+
+  it('words a refused save from its reason, then its code, never the server’s message', () => {
+    installTestI18n();
+    const refused = (code: string, reason?: string) => new ApiError(409, code, 'raw server words', 'r', reason === undefined ? undefined : { reason });
+    expect(saveErrorText(refused('CONFLICT', 'SAVE_NEEDS_ANSWERS'))).toBe('Something in Check still needs an answer. Answer it, then save again.');
+    expect(saveErrorText(refused('FORBIDDEN', 'SAVE_DOWNLOAD_NOT_YOURS'))).toMatch(/^You may not download this file again/);
+    expect(saveErrorText(refused('CONFLICT', 'SAVE_TABLE_NOT_YOURS'))).toMatch(/^You may not save a table you cannot read/);
+    expect(saveErrorText(refused('CONFLICT', 'SAVE_VIEW_NOT_YOURS'))).toMatch(/^You may share only your own views/);
+    expect(saveErrorText(refused('CONFLICT', 'A_NEWER_REASON'))).toBe('That change conflicts with the current state. Refresh and try again.');
+    expect(saveErrorText(refused('SOMETHING_ELSE'))).toBe('Something went wrong. Share the request id with support.');
+    expect(saveErrorText(new TypeError('Failed to fetch'))).toBe('You appear to be offline. Reconnect to continue.');
+  });
+
+  it('says it in the person’s language', () => {
+    installGerman();
+    const text = saveErrorText(new ApiError(409, 'CONFLICT', 'raw server words', 'r', { reason: 'APP_VERSION_SAVED' }));
+    expect(text).not.toContain('raw server words');
+    expect(text).not.toContain('This version was saved before');
   });
 });

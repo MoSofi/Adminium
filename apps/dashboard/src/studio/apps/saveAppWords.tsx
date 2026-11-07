@@ -14,8 +14,10 @@
 import type { ReactNode } from 'react';
 import { MonoText } from '@adminium/ui';
 
+import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
-import type { AnswerChoice, CheckItem } from './saveAppApi.js';
+import { workspaceSaveRefusal } from './workspaceFiles/workspaceSaveWords.js';
+import type { AnswerChoice, CheckItem, GateProblem } from './saveAppApi.js';
 
 /**
  * A sentence whose named values render in mono (table names, keys,
@@ -552,4 +554,101 @@ export function groupedInfo(items: readonly CheckItem[], tables: number, minVers
     text: monoSentence((m) => t('studio:saveApp.info.minVersion', 'Needs Adminium {version} or newer.', { version: m['version']! }), { version: minVersion }),
   });
   return out;
+}
+
+/**
+ * A refusal of the file itself (a gate's problem), worded from its code. The
+ * place in the file it names renders in mono; the server's English is never
+ * shown, and a code this dashboard does not know reads as the general refusal.
+ */
+export function problemSentence(problem: Pick<GateProblem, 'code' | 'path'>): ReactNode {
+  const path = problem.path ?? '';
+  switch (problem.code) {
+    case 'INSTANCE_ID_LEFT':
+      return path === ''
+        ? t('studio:saveApp.problem.instanceIdNoPlace', 'The file would hold an id of this server, so it cannot be made. Leave out what holds it, then check again.')
+        : monoSentence((m) => t('studio:saveApp.problem.instanceId', 'The file would hold an id of this server at {place}, so it cannot be made. Leave out what holds it, then check again.', { place: m['place']! }), { place: path });
+    case 'MANIFEST_INVALID':
+      return path === ''
+        ? t('studio:saveApp.problem.manifestNoPlace', 'The file would not pass the checks every app file meets, so it cannot be made. Leave out what it names, then check again.')
+        : monoSentence((m) => t('studio:saveApp.problem.manifest', 'The file would not pass the checks every app file meets at {place}, so it cannot be made. Leave out what it names, then check again.', { place: m['place']! }), { place: path });
+    case 'PLAN_REFUSED':
+      return path === ''
+        ? t('studio:saveApp.problem.planNoPlace', 'Installing the file would be refused, so it cannot be made. Leave out what it names, then check again.')
+        : monoSentence((m) => t('studio:saveApp.problem.plan', 'Installing the file would be refused at {place}, so it cannot be made. Leave out what it names, then check again.', { place: m['place']! }), { place: path });
+    default:
+      return t('studio:saveApp.problem.other', 'The file cannot be made as it is. Leave out what was added last, then check again.');
+  }
+}
+
+/** The reason code a refusal carries in its details. */
+function reasonOfError(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  const reason = (error.details as { reason?: unknown } | null | undefined)?.reason;
+  return typeof reason === 'string' ? reason : null;
+}
+
+/**
+ * A refusal of a save, its check or its download, worded from the reason it
+ * carries, else from its error code. The server's English is never shown.
+ */
+export function saveErrorText(error: unknown): string {
+  switch (reasonOfError(error)) {
+    case 'SNAPSHOT_MISSING':
+      return t('studio:saveApp.error.snapshotMissing', 'This database has not been read yet. Refresh its schema, then save.');
+    case 'APP_KEY_SAVED_ELSEWHERE':
+      return t('studio:saveApp.error.keyElsewhere', 'An app with this key was saved from another database. Give this app another key.');
+    case 'APP_VERSION_SAVED':
+      return t('studio:saveApp.error.versionSaved', 'This version was saved before. Save a newer version.');
+    case 'APP_VERSION_OLDER':
+      return t('studio:saveApp.error.versionOlder', 'A higher version was saved before. Save a version above it.');
+    case 'SAVE_INSTANCE_NOT_YOURS':
+      return t('studio:saveApp.error.instanceNotYours', 'Saving the look, languages, wording and system emails needs managing settings.');
+    case 'SAVE_ROWS_NOT_YOURS':
+      return t('studio:saveApp.error.rowsNotYours', 'Saving rows needs reading and exporting the whole table, and personal columns need reading them. Leave out what you may not save.');
+    case 'SAVE_FILES_NOT_YOURS':
+      return t('studio:saveApp.error.filesNotYours', 'The app carries files from the Files library, and saving them needs managing files.');
+    case 'SAVE_TABLE_NOT_YOURS':
+      return t('studio:saveApp.error.tableNotYours', 'You may not save a table you cannot read, nor a page or a public endpoint of one. Leave it out, then save again.');
+    case 'SAVE_VIEW_NOT_YOURS':
+      return t('studio:saveApp.error.viewNotYours', 'You may share only your own views. Leave out a view that is not yours, then save again.');
+    case 'SAVE_REFUSED':
+      return t('studio:saveApp.error.refused', 'The file cannot be made. Fix what blocks saving in Check, then save again.');
+    case 'SAVE_NEEDS_ANSWERS':
+      return t('studio:saveApp.error.needsAnswers', 'Something in Check still needs an answer. Answer it, then save again.');
+    case 'SAVE_DOWNLOAD_NOT_YOURS':
+      return t('studio:saveApp.error.downloadNotYours', 'You may not download this file again: it carries something you do not have the rights for.');
+    default:
+      break;
+  }
+  const workspace = workspaceSaveRefusal(reasonOfError(error));
+  if (workspace !== null) return workspace;
+  const code = error instanceof ApiError ? error.code : error instanceof TypeError ? 'OFFLINE' : null;
+  switch (code) {
+    case 'FORBIDDEN':
+      return t('errors:FORBIDDEN', 'You don’t have permission to do that.');
+    case 'NOT_FOUND':
+      return t('errors:NOT_FOUND', 'That resource doesn’t exist or was removed.');
+    case 'CONFLICT':
+      return t('errors:CONFLICT', 'That change conflicts with the current state. Refresh and try again.');
+    case 'VALIDATION_FAILED':
+      return t('errors:VALIDATION_FAILED', 'Some fields need attention before this can be saved.');
+    case 'RATE_LIMITED':
+      return t('errors:RATE_LIMITED', 'Too many requests — wait a moment and try again.');
+    case 'PAYLOAD_TOO_LARGE':
+      return t('errors:PAYLOAD_TOO_LARGE', 'That request is too large.');
+    case 'UNAUTHENTICATED':
+      return t('errors:UNAUTHENTICATED', 'You need to sign in to continue.');
+    case 'SESSION_EXPIRED':
+      return t('errors:SESSION_EXPIRED', 'Your session expired. Sign in again to continue.');
+    case 'OFFLINE':
+      return t('errors:OFFLINE', 'You appear to be offline. Reconnect to continue.');
+    default:
+      return t('errors:INTERNAL', 'Something went wrong. Share the request id with support.');
+  }
+}
+
+/** Why "Download again" is off for this person. */
+export function notDownloadableText(): string {
+  return t('studio:saveApp.saved.notDownloadable', 'Download again is not open to you: its copy is gone, or it carries something you do not have the rights for.');
 }
