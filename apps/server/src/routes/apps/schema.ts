@@ -540,6 +540,22 @@ export const appInstallPlanDto = z.object({
       left: z.array(z.object({ item: z.string(), reason: z.string() })),
     })
     .optional(),
+  /**
+   * An update's check, for a new version that no longer carries the
+   * deployment-wide part: what the running one wrote over the server and that
+   * is still as it wrote it, which the update puts back. Each value by its
+   * kind and item (`setting`, `branding.appName`), never the value itself;
+   * only someone who may change the server's settings (`needs`) can run the
+   * update (`canRestore` says whether the caller may). Absent when nothing
+   * would be put back.
+   */
+  instanceRestore: z
+    .object({
+      needs: z.string(),
+      canRestore: z.boolean(),
+      values: z.array(z.object({ kind: z.enum(['setting', 'word', 'email', 'locale']), item: z.string() })),
+    })
+    .optional(),
   /** The app shows maps and nobody has yet said whether this install shows them: the check step asks. */
   maps: z.boolean().optional(),
   /**

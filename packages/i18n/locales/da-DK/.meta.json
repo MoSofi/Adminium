@@ -30107,6 +30107,22 @@
     "status": "mt",
     "srcHash": "fcd83e00f7e2"
   },
+  "studio.hostedApps.update.instanceRestore.body": {
+    "status": "mt",
+    "srcHash": "980ede463c41"
+  },
+  "studio.hostedApps.update.instanceRestore.locked": {
+    "status": "mt",
+    "srcHash": "775010cfa461"
+  },
+  "studio.hostedApps.update.instanceRestore.manager": {
+    "status": "mt",
+    "srcHash": "6992014a3795"
+  },
+  "studio.hostedApps.update.instanceRestore.title": {
+    "status": "mt",
+    "srcHash": "52d1c6cbbf25"
+  },
   "studio.hostedApps.update.missingColumns": {
     "status": "mt",
     "srcHash": "5d2f4c1163fe"

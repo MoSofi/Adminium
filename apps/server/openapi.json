@@ -138656,6 +138656,48 @@
                           ],
                           "additionalProperties": false
                         },
+                        "instanceRestore": {
+                          "type": "object",
+                          "properties": {
+                            "needs": {
+                              "type": "string"
+                            },
+                            "canRestore": {
+                              "type": "boolean"
+                            },
+                            "values": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "setting",
+                                      "word",
+                                      "email",
+                                      "locale"
+                                    ]
+                                  },
+                                  "item": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "item"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "needs",
+                            "canRestore",
+                            "values"
+                          ],
+                          "additionalProperties": false
+                        },
                         "maps": {
                           "type": "boolean"
                         },
