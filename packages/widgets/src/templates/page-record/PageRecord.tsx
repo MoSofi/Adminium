@@ -23,10 +23,9 @@ import { ArrowRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { RecordFormDialog } from '../page-crud/RecordFormDialog.js';
-import type { ControlOption } from '../page-crud/controls/index.js';
 import type { ColumnFacts, ListOptionsResolver } from '../page-crud/field-mapping.js';
 import type { CrudFormConfig, FormColumnFact, FormRelationFact } from '../../page-config/index.js';
-import { editableColumnsOf, editFormDocumentOf, useEditChildren } from '../page-crud/edit-form.js';
+import { editableColumnsOf, editFormDocumentOf, readRecordLinks, readRelations, useEditChildren, type RecordLinks } from '../page-crud/edit-form.js';
 import type { ChildFacts, ChildRow } from '../page-crud/RecordForm.js';
 import { DELETE_REASON_MAX, isDeletePreview } from '../page-crud/crud-api.js';
 import type { PageCrudFiles } from '../page-crud/PageCrud.js';
@@ -1058,7 +1057,7 @@ export function PageRecord({
    * What each link relation points at, with names: the chips this record shows,
    * and the set the edit dialog starts from. Re-read whenever the record is.
    */
-  const [links, setLinks] = useState<Record<string, ControlOption[]>>({});
+  const [linkRead, setLinkRead] = useState<RecordLinks & { read: boolean }>(() => ({ links: {}, unread: new Set(), read: false }));
   const [deleteTarget, setDeleteTarget] = useState<{ references: CrudReferenceCount[]; loaded: boolean } | null>(null);
 
   useEffect(() => {
@@ -1085,40 +1084,28 @@ export function PageRecord({
   /*
    * The links, one read per relation, alongside the record's own. A table with
    * no link relation — or a host whose api cannot read them — makes no request
-   * at all and renders exactly as it did before link fields existed.
+   * at all and renders exactly as it did before link fields existed. A relation
+   * this caller cannot read shows nothing rather than breaking the record, and
+   * is left out of the edit form: saved as an empty set, it would unlink
+   * everything the record has.
    */
   useEffect(() => {
     const readLinks = api.links?.bind(api);
     if (relations === undefined || relations.length === 0 || readLinks === undefined) {
-      setLinks({});
+      setLinkRead({ links: {}, unread: new Set(), read: true });
       return;
     }
     let alive = true;
-    void Promise.all(
-      relations.map(async (relation) => {
-        try {
-          const rows = await readLinks(recordId, relation.relationId);
-          return [
-            relation.relationId,
-            rows.map((row) => ({
-              value: row.key,
-              label: row.name,
-              ...(row.detail === undefined ? {} : { description: row.detail }),
-            })),
-          ] as const;
-        } catch {
-          // A relation this caller cannot read shows nothing rather than
-          // breaking the record; the write path refuses a save anyway.
-          return [relation.relationId, []] as const;
-        }
-      }),
-    ).then((entries) => {
-      if (alive) setLinks(Object.fromEntries(entries));
+    setLinkRead((current) => ({ ...current, read: false }));
+    void readRecordLinks(readLinks, recordId, relations).then((read) => {
+      if (alive) setLinkRead({ ...read, read: true });
     });
     return () => {
       alive = false;
     };
   }, [api, recordId, reloadTick, relations]);
+  const links = linkRead.links;
+  const editRelations = useMemo(() => readRelations(relations, linkRead.unread), [relations, linkRead.unread]);
 
   const cellContext: CellContext = useMemo(
     () => ({
@@ -1597,7 +1584,7 @@ export function PageRecord({
       {/* Edit — the same dialog as every other form in the product (D3). */}
       {showEdit && (
         <RecordFormDialog
-          open={editOpen && !editChildrenPending}
+          open={editOpen && !editChildrenPending && linkRead.read}
           onOpenChange={(open) => !open && setEditOpen(false)}
           mode="edit"
           entity={entity}
@@ -1605,7 +1592,7 @@ export function PageRecord({
           formId="page-record-edit-form"
           document={editDocument}
           columns={editColumns}
-          {...(relations === undefined ? {} : { relations, initialLinks: links })}
+          {...(editRelations === undefined ? {} : { relations: editRelations, initialLinks: links })}
           {...(childFacts === undefined ? {} : { childFacts })}
           {...(editChildren === undefined ? {} : { initialChildren: editChildren })}
           initialValues={record}

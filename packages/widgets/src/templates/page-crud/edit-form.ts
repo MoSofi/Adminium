@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 
 import { formDocumentFor, type CrudFormConfig, type FormColumnFact, type FormRelationFact } from '../../page-config/index.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
+import type { ControlOption } from './controls/index.js';
 import type { CrudApi, CrudRow } from './crud-api.js';
 import { MAX_CHILD_ROWS, type ChildFacts, type ChildRow } from './RecordForm.js';
 
@@ -124,3 +125,92 @@ export function useEditChildren(
   const held = reads && read?.record === record ? read.children : undefined;
   return { children: held, pending: reads && held === undefined };
 }
+
+/** What a record links to, per relation, and the relations whose read failed. */
+export interface RecordLinks {
+  links: Record<string, ControlOption[]>;
+  /** Relations this caller could not read: the form neither shows nor sends them. */
+  unread: ReadonlySet<string>;
+}
+
+/**
+ * One read per relation of what the record links to, with names. A read that
+ * fails is UNREAD rather than empty: a save replaces each link field's set with
+ * what the form holds, so an empty set standing in for "could not read" would
+ * unlink everything the record had.
+ */
+export async function readRecordLinks(
+  readLinks: NonNullable<CrudApi['links']>,
+  recordId: string,
+  relations: readonly FormRelationFact[],
+): Promise<RecordLinks> {
+  const unread = new Set<string>();
+  const entries = await Promise.all(
+    relations.map(async (relation) => {
+      try {
+        const rows = await readLinks(recordId, relation.relationId);
+        return [
+          [
+            relation.relationId,
+            rows.map((row) => ({
+              value: row.key,
+              label: row.name,
+              ...(row.detail === undefined ? {} : { description: row.detail }),
+            })),
+          ] as const,
+        ];
+      } catch {
+        unread.add(relation.relationId);
+        return [];
+      }
+    }),
+  );
+  return { links: Object.fromEntries(entries.flat()), unread };
+}
+
+/**
+ * The link relations an edit form may offer: those whose links were read. One
+ * left out is said in its place by a designed form ("not available") and is
+ * never sent, so the save leaves its links as they are.
+ */
+export function readRelations(
+  relations: readonly FormRelationFact[] | undefined,
+  unread: ReadonlySet<string>,
+): readonly FormRelationFact[] | undefined {
+  if (relations === undefined || unread.size === 0) return relations;
+  return relations.filter((relation) => !unread.has(relation.relationId));
+}
+
+/**
+ * The links of the row being edited, read while `record` is set (the dialog is
+ * asked for). `pending` while the read is out: the form takes its links once,
+ * as it mounts, so the caller holds the dialog until they are in.
+ */
+export function useEditLinks(
+  record: CrudRow | null,
+  recordId: string | null,
+  relations: readonly FormRelationFact[] | undefined,
+  api: CrudApi,
+): RecordLinks & { pending: boolean } {
+  const [read, setRead] = useState<{ record: CrudRow; links: RecordLinks } | null>(null);
+  const readLinks = api.links?.bind(api);
+  const reads = record !== null && recordId !== null && readLinks !== undefined && (relations ?? []).length > 0;
+  useEffect(() => {
+    if (!reads || record === null || recordId === null || readLinks === undefined) {
+      setRead(null);
+      return;
+    }
+    let alive = true;
+    void readRecordLinks(readLinks, recordId, relations ?? []).then((links) => {
+      if (alive) setRead({ record, links });
+    });
+    return () => {
+      alive = false;
+    };
+    // `readLinks` is made from `api` on every draw.
+  }, [record, recordId, relations, api]);
+  const held = reads && read?.record === record ? read.links : undefined;
+  return { links: held?.links ?? {}, unread: held?.unread ?? NONE_UNREAD, pending: reads && held === undefined };
+}
+
+const NONE_UNREAD: ReadonlySet<string> = new Set();

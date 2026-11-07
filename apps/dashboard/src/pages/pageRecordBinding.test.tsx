@@ -167,12 +167,18 @@ interface Fixture {
   orderReply?: () => Response;
   /** `POST /api/v1/consent/panel`; absent answers 404, as for a reader refused it. */
   consentReply?: () => Response;
+  /** `GET …/public.customers/1/links/:relation`, by relation id. */
+  linksReply?: (relationId: string) => Response | Promise<Response>;
 }
 
 function stubFetch(fixture: Fixture = {}) {
   const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
+    const linksOf = /^\/api\/v1\/data\/conn_1\/public\.customers\/1\/links\/([^/?]+)/.exec(url);
+    if (linksOf !== null && fixture.linksReply !== undefined) {
+      return Promise.resolve(fixture.linksReply(decodeURIComponent(linksOf[1] ?? '')));
+    }
     if (url === '/api/v1/consent/panel' && method === 'POST' && fixture.consentReply !== undefined) {
       return Promise.resolve(fixture.consentReply());
     }
@@ -1334,3 +1340,55 @@ describe('the record page edits with the form the list edits with', () => {
     expect(within(dialog).getByRole('textbox', { name: /Phone/ })).toBeDefined();
   });
 });
+
+/**
+ * An edit keeps the links a record has, on the list and on the record page:
+ * the save replaces each link field's set with what the form holds, so a form
+ * that opened before the links were read, or one standing an empty set in for
+ * a read that failed, unlinked them. Through the real adapter, to the PATCH.
+ */
+describe('an edit keeps the record’s links', () => {
+  const relation = (relationId: string, label: string) => ({ relationId, label, targetTable: 'public.tags', targetKey: 'id', targetName: 'name' });
+  const reply = () =>
+    jsonResponse(200, {
+      data: recordEnvelope(),
+      columnFacts: {
+        table: { labelSingular: 'Customer', labelPlural: 'Customers' },
+        columns: [],
+        relations: [relation('m2m:tags', 'Tags'), relation('m2m:owners', 'Owners')],
+      },
+    });
+  const later = (response: Response) => new Promise<Response>((resolve) => setTimeout(() => resolve(response), 30));
+  const linksReply = (relationId: string) =>
+    relationId === 'm2m:tags'
+      ? later(jsonResponse(200, { data: [{ key: 5, name: 'Urgent' }] }))
+      : later(jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'no', requestId: 'req_t' } }));
+  const patchedLinks = (fetchMock: ReturnType<typeof vi.fn>) => {
+    const call = fetchMock.mock.calls.find(([url, init]) => String(url).startsWith('/api/v1/data/conn_1/public.customers/1') && (init as RequestInit | undefined)?.method === 'PATCH');
+    return (JSON.parse(String((call?.[1] as RequestInit).body)) as { links?: unknown }).links;
+  };
+  const saveIn = async (user: ReturnType<typeof userEvent.setup>) => {
+    const dialog = await screen.findByRole('dialog', { name: /edit/i });
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+  };
+
+  it('on the list: sends the links it read, and nothing for one it could not', async () => {
+    const user = userEvent.setup();
+    const { fetchMock } = await renderAt('/p/customers', { pageReply: reply, linksReply });
+    await screen.findByText('Northwind');
+    await user.click(screen.getByRole('button', { name: 'Peek' }));
+    const drawer = await screen.findByRole('dialog');
+    await user.click(await within(drawer).findByRole('button', { name: 'Edit' }));
+    await saveIn(user);
+    await waitFor(() => expect(patchedLinks(fetchMock)).toEqual({ 'm2m:tags': ['5'] }));
+  });
+
+  it('on the record page: the same', async () => {
+    const user = userEvent.setup();
+    const { fetchMock } = await renderAt('/p/customers/r/1', { pageReply: reply, linksReply });
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    await saveIn(user);
+    await waitFor(() => expect(patchedLinks(fetchMock)).toEqual({ 'm2m:tags': ['5'] }));
+  });
+});
+
