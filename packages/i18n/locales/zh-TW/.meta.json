@@ -29727,6 +29727,22 @@
     "status": "mt",
     "srcHash": "3a432f55b8a6"
   },
+  "studio.hostedApps.review.existing.whyChanges": {
+    "status": "mt",
+    "srcHash": "72ebae146eaa"
+  },
+  "studio.hostedApps.review.existing.whyNotOffered": {
+    "status": "mt",
+    "srcHash": "228dc54ccac8"
+  },
+  "studio.hostedApps.review.existing.whyRename": {
+    "status": "mt",
+    "srcHash": "579362a1dca9"
+  },
+  "studio.hostedApps.review.existing.whyRequired": {
+    "status": "mt",
+    "srcHash": "c21d9adbc5bf"
+  },
   "studio.hostedApps.review.fingerprint.bad": {
     "status": "mt",
     "srcHash": "31c5fcd147ee"
@@ -29770,6 +29786,10 @@
   "studio.hostedApps.review.instance.caption": {
     "status": "mt",
     "srcHash": "a1cc66cc16e9"
+  },
+  "studio.hostedApps.review.instance.carries": {
+    "status": "mt",
+    "srcHash": "a5a865d43635"
   },
   "studio.hostedApps.review.instance.emails": {
     "status": "mt",

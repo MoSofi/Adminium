@@ -1030,7 +1030,11 @@ export default {
         "useNote": "Les utilise telles quelles, avec leurs lignes. Ne les renomme jamais.",
         "used": "{count, plural, one {# utilisée telle quelle · 0 modification} other {# utilisées telles quelles · 0 modification}}",
         "cannot": "{table} ne peut pas être utilisée telle quelle.",
-        "cannotHelp": "Renommez la table ici, ou enregistrez à nouveau l’application sans elle."
+        "cannotHelp": "Renommez la table ici, ou enregistrez à nouveau l’application sans elle.",
+        "whyRename": "Utiliser les tables existantes ne renomme jamais une table pour faire de la place.",
+        "whyRequired": "Elle exige des colonnes que l’application ne remplit jamais : chaque ligne que l’application y enregistrerait serait refusée.",
+        "whyNotOffered": "Elle n’est pas proposée telle quelle.",
+        "whyChanges": "L’utiliser modifierait ces colonnes : {columns}. Utiliser les tables existantes n’en modifie aucune."
       },
       "change": "Modifier",
       "pages": {
@@ -1070,6 +1074,7 @@ export default {
         "showChanges": "Voir les modifications",
         "noLinks": "Il ne contient aucun lien : il est appliqué avec cette partie.",
         "links": "Les liens de cet e-mail mènent à :",
+        "carries": "Un lien vers {host} transmet {names}, renseigné à l’envoi de l’e-mail.",
         "subject": "Objet : {from} → {to}",
         "blocks": "Blocs : {added} ajoutés · {removed} retirés · {changed} modifiés",
         "preheader": "Texte d’aperçu modifié",

@@ -965,6 +965,8 @@ export interface InstanceEmail {
   blocks: { added: string[]; removed: string[]; changed: string[] };
   /** Every link host it holds: each is ticked on its own, and an email with one unticked is left out. */
   hosts: string[];
+  /** Per host: the placeholders a link to it carries, filled in when the mail is sent. Absent from an older server. */
+  carried?: Record<string, string[]>;
 }
 
 /** One role's hold on one of an add-on's tables, as the check shows it (mirrors the server's `roleTables`). */

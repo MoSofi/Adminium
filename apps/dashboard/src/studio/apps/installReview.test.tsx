@@ -19,6 +19,8 @@ import { createQueryClient } from '../../app/query.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import { InstallAppWizard } from './InstallAppWizard.js';
+import { InstanceCard, NO_INSTANCE_ANSWERS, unusableWhy } from './installReview.js';
+import type { AppInstallPlan, InstancePart } from './appsApi.js';
 
 const CONNECTIONS = [
   { id: 'c1', name: 'fernhill', engine: 'postgres', readOnly: false, tableCount: 30 },
@@ -201,13 +203,28 @@ describe('the review of a file saved from a dashboard', () => {
       ownPlan({
         installable: false,
         pageClashes: [],
+        tables: [
+          {
+            ref: 'orders',
+            table: 'orders',
+            class: 'taken',
+            action: 'undecided',
+            offers: ['rename-existing', 'alt-prefix'],
+            reuseRefusal: 'It requires "channel", which this app never fills.',
+            edits: [],
+            blocked: [],
+            columns: [{ ref: 'id', type: 'int' }],
+          },
+        ],
         problems: [{ code: 'EXISTING_TABLE_UNUSABLE', table: 'orders', message: '"orders" is here already and cannot be used as it is: its column channel is required.' }],
       }),
     ];
     await user.click(screen.getByRole('button', { name: 'Use the existing tables' }));
     const card = await screen.findByRole('alert');
     expect(card.textContent).toContain('orders can’t be used as it is.');
-    expect(card.textContent).toContain('its column channel is required');
+    // Worded here from the table the check made, never the server's English.
+    expect(card.textContent).toContain('It requires columns the app never fills, so every row the app saves there would be refused.');
+    expect(card.textContent).not.toContain('is here already');
     expect(within(card).queryByRole('button', { name: /leave/i })).toBeNull();
     // Said once, in its card: not again in the refusal list above.
     expect(screen.queryByText('This app cannot be installed here')).toBeNull();
@@ -423,5 +440,48 @@ describe('routing by version', () => {
     const refusal = await screen.findByRole('alert');
     expect(refusal.textContent).toContain('Clinic Desk 1.0.0 is already installed on every database here.');
     expect(screen.queryByRole('button', { name: 'Install on another database' })).toBeNull();
+  });
+});
+
+describe('the review words what the server checked', () => {
+  it('says why a table cannot be used as it is, from the table the check made', () => {
+    const table = { ref: 'orders', table: 'orders', class: 'taken', offers: [], edits: [], blocked: [], columns: [] };
+    const why = (more: Record<string, unknown>) => unusableWhy({ problems: [], tables: [{ ...table, ...more }] } as unknown as AppInstallPlan, 'orders');
+    expect(why({ action: 'rename-existing' })).toBe('Using the existing tables never renames one out of the way.');
+    expect(why({ action: 'undecided' })).toBe('It isn’t offered for use as it is.');
+    expect(why({ action: 'reuse', edits: [{ kind: 'add-column', column: 'paid' }, { kind: 'widen', column: 'note', from: 'varchar(40)', to: 'varchar(200)' }] })).toBe(
+      'Using it would change these columns: paid and note. Using the existing tables changes none of them.',
+    );
+  });
+
+  it('says, per link host of an edited system email, which placeholders ride to it', () => {
+    const part = {
+      needs: 'system:settings:manage',
+      settings: [],
+      files: [],
+      languages: { on: [], off: [] },
+      wording: { changed: 0, same: 0 },
+      left: [],
+      systemEmails: [
+        {
+          id: 'password-reset/en_US',
+          key: 'password-reset',
+          locale: 'en_US',
+          subject: null,
+          preheaderChanged: false,
+          footerChanged: false,
+          blocks: { added: [], removed: [], changed: [] },
+          hosts: ['desk.fernhill.example', 'help.fernhill.example'],
+          carried: { 'help.fernhill.example': ['appName'] },
+        },
+      ],
+    } as InstancePart;
+    const { container } = render(
+      <QueryClientProvider client={createQueryClient()}>
+        <InstanceCard part={part} answers={NO_INSTANCE_ANSWERS} onAnswers={() => undefined} />
+      </QueryClientProvider>,
+    );
+    const lines = [...container.querySelectorAll('[data-part="instance-carried"]')].map((line) => line.textContent);
+    expect(lines).toEqual(['A link to help.fernhill.example carries {{appName}}, filled in when the email is sent.']);
   });
 });

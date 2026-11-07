@@ -1020,7 +1020,11 @@
         "useNote": "Bruger dem, som de er, med deres rækker. Omdøber dem aldrig.",
         "used": "{count, plural, one {# brugt, som den er · 0 ændringer i den} other {# brugt, som de er · 0 ændringer i dem}}",
         "cannot": "{table} kan ikke bruges, som den er.",
-        "cannotHelp": "Omdøb tabellen her, eller gem appen igen uden den."
+        "cannotHelp": "Omdøb tabellen her, eller gem appen igen uden den.",
+        "whyRename": "Brug af de eksisterende tabeller omdøber aldrig en tabel for at gøre plads.",
+        "whyRequired": "Den kræver kolonner, som appen aldrig udfylder, så hver række, appen gemmer der, ville blive afvist.",
+        "whyNotOffered": "Den tilbydes ikke til brug, som den er.",
+        "whyChanges": "Brug af den ville ændre disse kolonner: {columns}. Brug af de eksisterende tabeller ændrer ingen af dem."
       },
       "change": "Skift",
       "pages": {
@@ -1060,6 +1064,7 @@
         "showChanges": "Vis ændringer",
         "noLinks": "Den har ingen links, så den anvendes med denne del.",
         "links": "Links i denne mail går til:",
+        "carries": "Et link til {host} medsender {names}, udfyldt når e-mailen sendes.",
         "subject": "Emne: {from} → {to}",
         "blocks": "Blokke: {added} tilføjet · {removed} fjernet · {changed} ændret",
         "preheader": "Forhåndsvisningstekst ændret",

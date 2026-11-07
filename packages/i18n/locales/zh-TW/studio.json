@@ -1020,7 +1020,11 @@
         "useNote": "依原樣使用它們及其中的列。從不重新命名。",
         "used": "{count, plural, other {# 個依原樣使用 · 不做任何變更}}",
         "cannot": "{table} 無法依原樣使用。",
-        "cannotHelp": "請在這裡重新命名該資料表，或不帶它重新儲存應用程式。"
+        "cannotHelp": "請在這裡重新命名該資料表，或不帶它重新儲存應用程式。",
+        "whyRename": "使用現有的資料表從不會為騰出位置而重新命名資料表。",
+        "whyRequired": "它要求填寫應用程式從不填寫的欄，因此應用程式儲存到其中的每一列都會被拒絕。",
+        "whyNotOffered": "它不提供依原樣使用。",
+        "whyChanges": "使用它會變更這些欄：{columns}。使用現有的資料表不會變更其中任何一個。"
       },
       "change": "變更",
       "pages": {
@@ -1060,6 +1064,7 @@
         "showChanges": "顯示變更",
         "noLinks": "它沒有連結，因此隨這一部分一起套用。",
         "links": "此郵件中的連結指向：",
+        "carries": "指向 {host} 的連結帶有 {names}，在寄出郵件時填入。",
         "subject": "主旨：{from} → {to}",
         "blocks": "區塊：新增 {added} · 移除 {removed} · 修改 {changed}",
         "preheader": "預覽文字已修改",

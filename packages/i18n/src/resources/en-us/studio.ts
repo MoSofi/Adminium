@@ -1030,7 +1030,11 @@ export default {
         "useNote": "Uses them as they are, with their rows. Never renames them.",
         "used": "{count, plural, one {# used as it is · 0 changes to it} other {# used as they are · 0 changes to them}}",
         "cannot": "{table} can’t be used as it is.",
-        "cannotHelp": "Rename the table here, or save the app again without it."
+        "cannotHelp": "Rename the table here, or save the app again without it.",
+        "whyRename": "Using the existing tables never renames one out of the way.",
+        "whyRequired": "It requires columns the app never fills, so every row the app saves there would be refused.",
+        "whyNotOffered": "It isn’t offered for use as it is.",
+        "whyChanges": "Using it would change these columns: {columns}. Using the existing tables changes none of them."
       },
       "change": "Change",
       "pages": {
@@ -1070,6 +1074,7 @@ export default {
         "showChanges": "Show changes",
         "noLinks": "It has no links, so it is applied with this part.",
         "links": "Links in this email go to:",
+        "carries": "A link to {host} carries {names}, filled in when the email is sent.",
         "subject": "Subject: {from} → {to}",
         "blocks": "Blocks: {added} added · {removed} removed · {changed} changed",
         "preheader": "Preview text changed",

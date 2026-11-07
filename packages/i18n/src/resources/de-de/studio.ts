@@ -1030,7 +1030,11 @@ export default {
         "useNote": "Verwendet sie so, wie sie sind, mit ihren Zeilen. Benennt sie nie um.",
         "used": "{count, plural, one {# so verwendet, wie sie ist · 0 Änderungen daran} other {# so verwendet, wie sie sind · 0 Änderungen daran}}",
         "cannot": "{table} kann nicht so verwendet werden, wie sie ist.",
-        "cannotHelp": "Benennen Sie die Tabelle hier um, oder speichern Sie die App ohne sie erneut."
+        "cannotHelp": "Benennen Sie die Tabelle hier um, oder speichern Sie die App ohne sie erneut.",
+        "whyRename": "Beim Verwenden der vorhandenen Tabellen wird nie eine umbenannt, um Platz zu machen.",
+        "whyRequired": "Sie verlangt Spalten, die die App nie ausfüllt, daher würde jede Zeile abgelehnt, die die App dort speichert.",
+        "whyNotOffered": "Sie wird nicht zur Verwendung im jetzigen Zustand angeboten.",
+        "whyChanges": "Ihre Verwendung würde diese Spalten ändern: {columns}. Beim Verwenden der vorhandenen Tabellen wird keine davon geändert."
       },
       "change": "Ändern",
       "pages": {
@@ -1070,6 +1074,7 @@ export default {
         "showChanges": "Änderungen zeigen",
         "noLinks": "Sie enthält keine Links und wird mit diesem Teil übernommen.",
         "links": "Links in dieser Mail führen zu:",
+        "carries": "Ein Link zu {host} enthält {names}, eingesetzt beim Senden der E-Mail.",
         "subject": "Betreff: {from} → {to}",
         "blocks": "Blöcke: {added} hinzugefügt · {removed} entfernt · {changed} geändert",
         "preheader": "Vorschautext geändert",

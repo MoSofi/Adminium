@@ -1030,7 +1030,11 @@ export default {
         "useNote": "Použije je tak, jak jsou, i s jejich řádky. Nikdy je nepřejmenuje.",
         "used": "{count, plural, one {# použita tak, jak je · 0 změn} few {# použity tak, jak jsou · 0 změn} many {# použito tak, jak jsou · 0 změn} other {# použito tak, jak jsou · 0 změn}}",
         "cannot": "{table} nelze použít tak, jak je.",
-        "cannotHelp": "Přejmenujte tabulku zde, nebo aplikaci uložte znovu bez ní."
+        "cannotHelp": "Přejmenujte tabulku zde, nebo aplikaci uložte znovu bez ní.",
+        "whyRename": "Použití existujících tabulek nikdy žádnou nepřejmenuje, aby uvolnilo místo.",
+        "whyRequired": "Vyžaduje sloupce, které aplikace nikdy nevyplní, takže každý řádek, který by tam aplikace uložila, by byl odmítnut.",
+        "whyNotOffered": "Není nabízena k použití tak, jak je.",
+        "whyChanges": "Její použití by změnilo tyto sloupce: {columns}. Použití existujících tabulek žádnou z nich nemění."
       },
       "change": "Změnit",
       "pages": {
@@ -1070,6 +1074,7 @@ export default {
         "showChanges": "Zobrazit změny",
         "noLinks": "Nemá žádné odkazy, takže se použije s touto částí.",
         "links": "Odkazy v tomto e-mailu vedou na:",
+        "carries": "Odkaz na {host} nese {names}, doplněné při odeslání e-mailu.",
         "subject": "Předmět: {from} → {to}",
         "blocks": "Bloky: přidáno {added} · odebráno {removed} · změněno {changed}",
         "preheader": "Text náhledu změněn",

@@ -1020,7 +1020,11 @@
         "useNote": "按原样使用它们及其中的行。从不重命名。",
         "used": "{count, plural, other {# 个按原样使用 · 不做任何更改}}",
         "cannot": "{table} 无法按原样使用。",
-        "cannotHelp": "请在这里重命名该表，或不带它重新保存应用。"
+        "cannotHelp": "请在这里重命名该表，或不带它重新保存应用。",
+        "whyRename": "使用现有的表从不会为腾出位置而重命名表。",
+        "whyRequired": "它要求填写应用从不填写的列，因此应用保存到其中的每一行都会被拒绝。",
+        "whyNotOffered": "它不提供按原样使用。",
+        "whyChanges": "使用它会更改这些列：{columns}。使用现有的表不会更改其中任何一个。"
       },
       "change": "更改",
       "pages": {
@@ -1060,6 +1064,7 @@
         "showChanges": "显示更改",
         "noLinks": "它没有链接，因此随这一部分一起应用。",
         "links": "此邮件中的链接指向：",
+        "carries": "指向 {host} 的链接带有 {names}，在发送邮件时填入。",
         "subject": "主题：{from} → {to}",
         "blocks": "区块：新增 {added} · 删除 {removed} · 修改 {changed}",
         "preheader": "预览文字已修改",
