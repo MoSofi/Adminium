@@ -28,7 +28,7 @@ import type { FileFieldUpload } from './FileField.js';
 import type { PictureChooser } from '../../pictures/PictureField.js';
 import type { ChildFacts } from './RecordForm.js';
 import { RecordFormDialog } from './RecordFormDialog.js';
-import { editableColumnsOf, editFormDocumentOf, useEditChildren } from './edit-form.js';
+import { editableColumnsOf, editFormDocumentOf, readRelations, useEditChildren, useEditLinks } from './edit-form.js';
 import {
   filterControlFor,
   type CrudFilterField,
@@ -38,7 +38,6 @@ import {
 } from '../../page-config/index.js';
 import { FilterBar, ReferenceFilterPicker, type FilterSpec } from './filters/FilterBar.js';
 import { LinkFilterChips, type PageCrudLinkFilter } from './filters/LinkFilterChips.js';
-import type { ControlOption } from './controls/index.js';
 import { optionsForColumn, withFactChoices } from './field-mapping.js';
 import type { ColumnFacts, ListOptionsResolver } from './field-mapping.js';
 import { fieldMessagesOf } from './field-issues.js';
@@ -585,7 +584,6 @@ export function PageCrud({
    * instead of showing raw keys, and so a save that touches nothing else
    * replaces each set with itself.
    */
-  const [editLinks, setEditLinks] = useState<Record<string, ControlOption[]>>({});
   /**
    * The child rows each line-items relation already holds, read when the edit
    * dialog opens. A create has none — there is no parent to hold any.
@@ -727,43 +725,13 @@ export function PageCrud({
   const fieldErrorsOf = (reason: unknown): Record<string, string> | null => fieldMessagesOf(t, reason);
 
   /*
-   * One read per relation when the edit dialog opens, and none at all for a
-   * table with no link fields or a host that cannot read them.
+   * The record's links, read when the edit dialog is asked for: it opens once
+   * they are in, and a relation that could not be read is left out of the form
+   * rather than saved as an empty set.
    */
-  useEffect(() => {
-    const relations = formRelations ?? [];
-    const readLinks = api.links?.bind(api);
-    if (editRecord === null || relations.length === 0 || readLinks === undefined) {
-      setEditLinks({});
-      return;
-    }
-    let alive = true;
-    const recordId = rowIdOf(columns, editRecord);
-    void Promise.all(
-      relations.map(async (relation) => {
-        try {
-          const rows = await readLinks(recordId, relation.relationId);
-          return [
-            relation.relationId,
-            rows.map((row) => ({
-              value: row.key,
-              label: row.name,
-              ...(row.detail === undefined ? {} : { description: row.detail }),
-            })),
-          ] as const;
-        } catch {
-          // A relation this caller cannot read leaves the field empty rather
-          // than the dialog broken; the write path refuses the save anyway.
-          return [relation.relationId, []] as const;
-        }
-      }),
-    ).then((entries) => {
-      if (alive) setEditLinks(Object.fromEntries(entries));
-    });
-    return () => {
-      alive = false;
-    };
-  }, [editRecord, formRelations, api, columns]);
+  const editLinkRead = useEditLinks(editRecord, editRecord === null ? null : rowIdOf(columns, editRecord), formRelations, api);
+  const editLinks = editLinkRead.links;
+  const editRelations = useMemo(() => readRelations(formRelations, editLinkRead.unread), [formRelations, editLinkRead.unread]);
 
   // The lines each line-items field already holds, read when the edit dialog is asked for: it opens once they are in.
   const { children: editChildren, pending: editChildrenPending } = useEditChildren(editRecord, childFacts, api);
@@ -1456,7 +1424,7 @@ export function PageCrud({
         * The PEEK below stays a drawer: it is a preview, not a form.
         */}
       <RecordFormDialog
-        open={editRecord !== null && !editChildrenPending}
+        open={editRecord !== null && !editChildrenPending && !editLinkRead.pending}
         onOpenChange={(open) => {
           if (!open) {
             setEditRecord(null);
@@ -1471,7 +1439,7 @@ export function PageCrud({
         formId="page-crud-edit-form"
         document={formDocument}
         columns={editableColumns}
-        {...(formRelations === undefined ? {} : { relations: formRelations })}
+        {...(editRelations === undefined ? {} : { relations: editRelations })}
         {...(childFacts === undefined ? {} : { childFacts })}
         {...(editChildren === undefined ? {} : { initialChildren: editChildren })}
         initialLinks={editLinks}
