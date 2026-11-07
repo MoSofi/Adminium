@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { installFloorWords, statesSchema, supersedesSchema, validateManifest, WORD_FLOORS } from '../src/index.js';
+import { installFloorWords, statesSchema, supersedesIssues, supersedesSchema, validateManifest, WORD_FLOORS, type States } from '../src/index.js';
 
 const en = (text: string) => ({ 'en-US': text });
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -134,7 +134,7 @@ describe('states.supersedes', () => {
     (tables(chain)[0]!['columns'] as unknown[]).push({ ref: 'state', type: 'enum', enum: ['open', 'redo'], default: 'open' });
     tables(chain)[0]!['states'] = { column: 'state', initial: 'open', moves: { open: ['redo'] } };
     states(chain)['effects'] = [{ on: { to: 'superseded' }, via: 'line_id', set: { state: 'redo' } }];
-    expect(issuesOf(chain).join('\n')).toContain(`${AT}.to: "proofs" sets off effects of its own; an effect moves one row, never a chain`);
+    expect(issuesOf(chain).join('\n')).toContain(`${AT}.to: "proofs" sets off effects of its own on a move to "superseded"; a new row moves the earlier rows, never a chain`);
 
     const line = shop();
     (tables(line)[0]!['columns'] as unknown[]).push({ ref: 'state', type: 'enum', enum: ['open', 'done'], default: 'open' });
@@ -145,6 +145,15 @@ describe('states.supersedes', () => {
     (tables(limited)[0]!['columns'] as unknown[]).push({ ref: 'slots', type: 'int', default: 3 });
     proofs(limited)['capacity'] = { kind: 'parent', via: 'line_id', size: { column: 'slots' } };
     expect(issuesOf(limited).join('\n')).toContain(`${AT}: "proofs" keeps a limit, whose lock a new row's write cannot take for the rows it moves`);
+  });
+
+  it('is one judge with a states rule saved in Studio: what around the table refuses it is told by the caller', () => {
+    const own = states(shop()) as unknown as States;
+    expect(supersedesIssues(own, 'proofs', {})).toEqual([]);
+    expect(supersedesIssues(own, 'proofs', { booked: true, outbox: true }).map((issue) => `${issue.path.join('.')}: ${issue.message}`)).toEqual([
+      `supersedes.to: "proofs" is the app's outbox, whose messages move only by the outbox's own moves`,
+      `supersedes.to: "proofs" books people by the day, and its lock cannot be taken inside another row's write`,
+    ]);
   });
 
   it('is refused on a private table: a new row does not move another person\'s rows', () => {
