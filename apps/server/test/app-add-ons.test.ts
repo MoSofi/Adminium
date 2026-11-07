@@ -160,6 +160,26 @@ for (const [dialect, available] of ENGINES) {
       expect(await installedKeys(h)).toEqual(['app:studio@0.2.0']);
     });
 
+    it('offers no retired add-on an app only suggests, and still installs one it requires', async () => {
+      h = await addOnHarness(dialect);
+      // The Live Personalizer stays bundled for the shops that have it; a shop without it is not offered it.
+      await h.stageAddOn(addOnManifest('personalizer', { version: '1.0.0', name: 'Live Personalizer', requiredSchema: { tables: [] } }));
+      const suggesting = appManifest('studio', {
+        addOns: { suggests: [{ key: 'personalizer', range: '>=1.0.0', reason: { 'en-US': 'Lettering.' } }] },
+        requiredSchema: { tables: [{ ref: 'jobs', columns: [{ ref: 'id', type: 'int', role: 'pk' }] }] },
+      });
+      const planned = await h.plan(suggesting);
+      expect(planned.statusCode, planned.body).toBe(200);
+      // The plan names no add-on at all (its list is left out when empty).
+      expect(planned.json().plan.addOns ?? []).toEqual([]);
+      const requiring = appManifest('studio', {
+        addOns: { requires: [{ key: 'personalizer', range: '>=1.0.0', reason: { 'en-US': 'Lettering.' } }] },
+        requiredSchema: { tables: [{ ref: 'jobs', columns: [{ ref: 'id', type: 'int', role: 'pk' }] }] },
+      });
+      const required = await h.plan(requiring);
+      expect(required.json().plan.addOns[0]).toMatchObject({ key: 'personalizer', need: 'requires', action: 'install' });
+    });
+
     it('updates an outdated add-on with the app only when asked to, and connects it', async () => {
       h = await addOnHarness(dialect);
       await h.stageAddOn(kit('1.0.0'));

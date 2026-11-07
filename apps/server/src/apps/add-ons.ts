@@ -64,6 +64,7 @@ import {
 import { featuresNeeding, needKindOf, needsOf, type AppNeed, type FeatureNeed, type NeedKind } from '../add-ons/needs.js';
 import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
 import { installOnConnection, serverWideOrOnly } from '../installs/resolve.js';
+import { isRetiredAddOn } from '../add-ons/retired.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
 
 export interface AppAddOnDeps {
@@ -253,6 +254,8 @@ export async function resolveAppAddOns(
     // The add-on as this database has it: its own install here, or a server-wide one.
     const installed = input.connectionId === null ? await serverWideOrOnly(manifests, key) : await installOnConnection(manifests, key, input.connectionId);
     const isAddOn = installed !== null && installed.row.kind === 'add-on';
+    // A retired add-on an app only suggests is offered to no one who has not got it (`retired.ts`); one it requires stays, or the app could not install.
+    if (installed === null && need === 'suggests' && isRetiredAddOn(key)) continue;
     const offers = await offersFor(deps, key, bundled, feed);
     const inRange = offers.filter((offer) => satisfiesSemverRange(offer.version, entry.range));
     const problems: { code: string; message: string }[] = [];
