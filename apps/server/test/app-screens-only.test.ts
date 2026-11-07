@@ -177,6 +177,17 @@ describe('someone who opens only an app’s own screens', () => {
     expect((await get('/api/v1/bootstrap', cookie)).statusCode).toBe(403);
   });
 
+  it('may read the workspace’s name and logo to head their screens with, and change neither', () => {
+    const allowed = (method: string, route: string) => allowedForScreensOnly(method, route, {}, new Set(['conn_1']), ['clients']);
+    expect(allowed('GET', '/api/v1/branding')).toBe(true);
+    expect(allowed('GET', '/api/v1/branding/logo')).toBe(true);
+    for (const method of ['PUT', 'PATCH', 'POST', 'DELETE']) {
+      expect(allowed(method, '/api/v1/branding'), method).toBe(false);
+      expect(allowed(method, '/api/v1/branding/logo'), method).toBe(false);
+    }
+    expect(allowed('GET', '/api/v1/branding/settings')).toBe(false);
+  });
+
   it('may ask the stock words of an add-on their app uses: that route, read only, and that add-on', () => {
     const WORDS = '/api/v1/words/:addOn/:wordsId';
     const theirs = new Set(['stock']);

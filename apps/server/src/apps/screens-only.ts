@@ -12,7 +12,8 @@
  * bringing a file in to a table their role may import (a "paste a list"
  * screen of their app), and the files a record of theirs keeps (a crew's
  * signature and photos, a copy of one for another record), and a record's e-mail consent (the panel, and recording consent,
- * "Replied" and "They said no" on it). Forty-odd routes check only that someone is signed in, so this
+ * "Replied" and "They said no" on it), and the workspace's name and logo to head
+ * their screens with. Forty-odd routes check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
 import type { FastifyRequest } from 'fastify';
@@ -180,6 +181,9 @@ export function allowedForScreensOnly(
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;
+  // The workspace's own name and logo, read only: what their screens head with (a packer's sign-out bar). The same two say
+  // nothing a sign-in page does not; changing them stays the dashboard's.
+  if (method === 'GET' && (rest === '/branding' || rest === '/branding/logo')) return true;
   if (rest === '/events') return true;
   const id = (params as { id?: unknown } | null)?.id;
   return method === 'GET' && rest === '/connections/:id/schema' && typeof id === 'string' && connections.has(id);

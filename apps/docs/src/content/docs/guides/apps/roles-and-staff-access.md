@@ -135,7 +135,8 @@ is sent to the app instead of the dashboard:
   attached, otherwise at `/apps/<key>/staff/`;
 - the dashboard's API refuses them with `403` and the code `APP_SCREENS_ONLY`, except for what the
   app's screens need: signing in and out, their own account, the records their roles grant, live
-  updates, translations, their own app's documents (drawn for a record, then shown and printed,
+  updates, translations, the workspace's name and logo (`GET /api/v1/branding` and
+  `/api/v1/branding/logo`, from 0.3.50), their own app's documents (drawn for a record, then shown and printed,
   as a front desk prints a folio), and the stock words of an add-on connected to their app
   (`GET /api/v1/words/<add-on>/<words>`: "low", "3 left", the batch about to expire). A document
   still needs every table and column it prints to be one their roles read, and the stock words
