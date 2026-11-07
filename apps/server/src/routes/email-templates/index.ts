@@ -139,6 +139,9 @@ import {
   type EmailSendLogRowView,
 } from './schema.js';
 
+/** "Send as" a workspace the reader does not see, as their replies say it. Saved again, it keeps that workspace. */
+export const SEND_AS_UNSEEN = 'unseen';
+
 export interface EmailTemplatesRoutesDeps {
   meta: MetaDb;
   /**
@@ -525,6 +528,14 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
   return async (app) => {
     // A "Shown in" names only the workspaces this person sees.
     app.addHook('preSerialization', shownInSeenOnly(meta));
+    // So does "Send as": a workspace they do not see is said as one, never by its id.
+    app.addHook('preSerialization', async (request, _reply, payload: unknown) => {
+      if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return payload;
+      const reply = payload as { sendAs?: unknown };
+      if (typeof reply.sendAs !== 'string' || reply.sendAs === TEMPLATE_SEND_AS_SERVER || reply.sendAs === SEND_AS_UNSEEN) return payload;
+      if (!(await visibleWorkspaceIds(meta, request)).has(reply.sendAs)) reply.sendAs = SEND_AS_UNSEEN;
+      return payload;
+    });
     const secret = deps.secret ?? app.authContext?.env.ADMINIUM_SECRET ?? null;
 
     /** What a table audience reads; refused when this server was put together without it. */
@@ -958,11 +969,14 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         await requireSettingsManage(request, 'edit email templates');
         const row = await mustFind(request.params.id);
         const wanted = request.body.sendAs;
+        const seen = await visibleWorkspaceIds(meta, request);
+        const before = await templates.sendAsOf(row.key);
+        // A workspace they do not see, read back as one and saved again: it stays the one it was.
+        if (wanted === SEND_AS_UNSEEN && before !== null && before !== TEMPLATE_SEND_AS_SERVER && !seen.has(before)) return { key: row.key, sendAs: SEND_AS_UNSEEN };
         // A workspace this person does not see is not found, as on every list that names one.
-        if (wanted !== null && wanted !== TEMPLATE_SEND_AS_SERVER && !(await visibleWorkspaceIds(meta, request)).has(wanted)) {
+        if (wanted !== null && wanted !== TEMPLATE_SEND_AS_SERVER && !seen.has(wanted)) {
           throw new NotFoundError('There is no such workspace.', { sendAs: wanted });
         }
-        const before = await templates.sendAsOf(row.key);
         if (before !== wanted) await templates.setSendAs(row.key, wanted, app.rbac.now());
         await app.rbac.audit(request, {
           category: 'settings',
