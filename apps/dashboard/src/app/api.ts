@@ -134,23 +134,41 @@ export function installOptions(installId: string | null | undefined): ApiOptions
  * `api`), and cannot know which copy of the add-on it was opened for. The
  * page host scopes its add-on's paths to the install it shows while it is
  * mounted. Longest prefix wins; an explicit header always does.
+ *
+ * Each mount holds its own scope. Two copies of one add-on drawn at once (a
+ * record's panels of two databases) cannot be told apart by a path, so a
+ * request under that prefix names neither and the server asks which (or
+ * picks the only one the person reaches), never the copy mounted last; the
+ * host's own calls name their copy explicitly. When one of them unmounts, the
+ * other's scope is whole again.
  */
-const installScopes = new Map<string, string>();
+const installScopes = new Map<string, { installId: string }[]>();
 
-/** Name `installId` on every request under `prefix` until the returned function is called. */
+/** Name `installId` on every request under `prefix` while this mount lasts: until the returned function is called. */
 export function scopeInstall(prefix: string, installId: string): () => void {
-  installScopes.set(prefix, installId);
+  const mount = { installId };
+  installScopes.set(prefix, [...(installScopes.get(prefix) ?? []), mount]);
   return () => {
-    if (installScopes.get(prefix) === installId) installScopes.delete(prefix);
+    const left = (installScopes.get(prefix) ?? []).filter((one) => one !== mount);
+    if (left.length === 0) installScopes.delete(prefix);
+    else installScopes.set(prefix, left);
   };
 }
 
-function scopedInstall(path: string): Record<string, string> {
+/** The install a path's mounted scope names: one copy, or none when copies of different installs are mounted under it. */
+export function scopedInstallOf(path: string): string | null {
   let best: string | null = null;
   for (const prefix of installScopes.keys()) {
     if ((path === prefix || path.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`) || path.startsWith(`${prefix}?`)) && (best === null || prefix.length > best.length)) best = prefix;
   }
-  return best === null ? {} : { [INSTALL_HEADER]: installScopes.get(best) as string };
+  if (best === null) return null;
+  const ids = new Set((installScopes.get(best) ?? []).map((mount) => mount.installId));
+  return ids.size === 1 ? [...ids][0]! : null;
+}
+
+function scopedInstall(path: string): Record<string, string> {
+  const installId = scopedInstallOf(path);
+  return installId === null ? {} : { [INSTALL_HEADER]: installId };
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {

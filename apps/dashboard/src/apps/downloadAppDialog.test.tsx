@@ -122,4 +122,29 @@ describe('an install scoped by its path', () => {
     await api.get('/api/v1/add-ons/invoices/kit');
     expect(calls.map((call) => call.headers['x-adminium-install'] ?? null)).toEqual(['mf_kiln', null, null]);
   });
+
+  it('keeps a scope per mount: two copies drawn at once name neither, and one left is whole again', async () => {
+    const { api } = await import('../app/api.js');
+    calls.length = 0;
+    const kiln = scopeInstall('/api/v1/add-ons/invoices', 'mf_kiln');
+    const fernhill = scopeInstall('/api/v1/add-ons/invoices', 'mf_fernhill');
+    // Which copy's page asks cannot be told from the path: never the one mounted last.
+    await api.get('/api/v1/add-ons/invoices/kit');
+    fernhill();
+    // The copy still drawn names itself again.
+    await api.get('/api/v1/add-ons/invoices/kit');
+    // Two mounts of one copy are one scope.
+    const again = scopeInstall('/api/v1/add-ons/invoices', 'mf_kiln');
+    await api.get('/api/v1/add-ons/invoices/kit');
+    again();
+    await api.get('/api/v1/add-ons/invoices/kit');
+    kiln();
+    await api.get('/api/v1/add-ons/invoices/kit');
+    expect(calls.map((call) => call.headers['x-adminium-install'] ?? null)).toEqual([null, 'mf_kiln', 'mf_kiln', 'mf_kiln', null]);
+    // A call that names its copy is sent as it says, whatever is mounted.
+    const both = [scopeInstall('/api/v1/add-ons/invoices', 'mf_kiln'), scopeInstall('/api/v1/add-ons/invoices', 'mf_fernhill')];
+    await api.get('/api/v1/add-ons/invoices/kit', { headers: { 'x-adminium-install': 'mf_fernhill' } });
+    for (const off of both) off();
+    expect(calls.at(-1)?.headers['x-adminium-install']).toBe('mf_fernhill');
+  });
 });
