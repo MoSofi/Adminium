@@ -248,7 +248,7 @@ for (const engine of META_ENGINES) {
       expect(await rowFileIds(meta, [{ connectionId: conn, table: CONTACTS, tableName: 'crm_contacts', key: '3' }])).toEqual([binned.id]);
     });
 
-    it("finds a copy's files: what its columns of hers name, and what the bin keeps of them when every file column is hers", async () => {
+    it("finds a copy's files: what its columns of hers name, and what they held before that the bin keeps", async () => {
       const column = (name: string, file: boolean) => [name, { name, ...(file ? { file: { accept: ['pdf'] } } : {}) }] as const;
       const proofs = { id: 'public.shop_proofs', name: 'shop_proofs', columns: new Map([column('id', false), column('words', false), column('picture', true)]) } as unknown as ResolvedTable;
       const quotes = { id: 'public.shop_quotes', name: 'shop_quotes', columns: new Map([column('id', false), column('picture', true), column('terms', true)]) } as unknown as ResolvedTable;
@@ -257,17 +257,31 @@ for (const engine of META_ENGINES) {
         if (binned) await filesRepo(meta).markDeleted(file.id);
         return file.id;
       };
+      /** A save of one row's column, as the audit log keeps it. */
+      const saved = (table: string, key: number, changes: Record<string, unknown>, connectionId = conn) =>
+        auditRepo(meta).append({ actorKind: 'user', actorId: 'usr_1', actorLabel: 'Dana', category: 'data', action: 'record.update', connectionId, entity: entity(connectionId, table, key), changes });
       const proofNew = await kept('public.shop_proofs', 7);
       const proofOld = await kept('shop_proofs', 7, true);
+      await saved('public.shop_proofs', 7, { before: { id: 7, picture: proofOld }, after: { id: 7, picture: proofNew } });
+      // A document attached to her proof and removed: never in a column, it stays the bin's.
+      const document = await kept('public.shop_proofs', 7, true);
+      // Binned, and named only in another database's entry about a row with the same table and key.
+      const elsewhere = await kept('public.shop_proofs', 7, true);
+      await saved('public.shop_proofs', 7, { after: { picture: elsewhere } }, other);
       const bens = await kept('public.shop_proofs', 8);
       const bensOld = await kept('public.shop_proofs', 8, true);
+      await saved('public.shop_proofs', 8, { before: { picture: bensOld }, after: { picture: bens } });
       const unclaimed = await kept('public.shop_proofs', 9, false, false);
       const library = await filesRepo(meta).create({ filename: 'lib.pdf', mime: 'application/pdf', sizeBytes: 1, sha256: 'a'.repeat(64), kind: 'upload', uploadedBy: null, attachedAt: 1 });
       // Another table's row with the same key, in the bin: not this one.
       const otherTable = await kept('public.shop_orders', 7, true);
+      await saved('public.shop_orders', 7, { before: { picture: otherTable } });
       const quotePicture = await kept('public.shop_quotes', 7);
+      const quotePictureOld = await kept('public.shop_quotes', 7, true);
       const terms = await kept('public.shop_quotes', 7);
-      const quoteOld = await kept('public.shop_quotes', 7, true);
+      const termsOld = await kept('public.shop_quotes', 7, true);
+      // A list column's value, as Postgres and MySQL hand JSON back: nested in the entry's images.
+      await saved('public.shop_quotes', 7, { before: { picture: [quotePictureOld], terms: termsOld }, after: { picture: [quotePicture], terms } });
       const her = (table: ResolvedTable, key: string, row: Record<string, unknown>, columns: string[]) => ({ connectionId: conn, table, key, row, columns: new Set(columns) });
       const found = await copyFileIds(meta, [
         her(proofs, '7', { id: 7, words: 'Marta', picture: proofNew }, ['words', 'picture']),
@@ -277,8 +291,8 @@ for (const engine of META_ENGINES) {
         // Only her words on it: none of its files are hers.
         her(proofs, '8', { id: 8, words: 'Ben & Marta', picture: bens }, ['words']),
       ]);
-      expect(found.sort()).toEqual([proofNew, proofOld, unclaimed, quotePicture].sort());
-      for (const id of [bens, bensOld, library.id, otherTable, terms, quoteOld]) expect(found).not.toContain(id);
+      expect(found.sort()).toEqual([proofNew, proofOld, unclaimed, quotePicture, quotePictureOld].sort());
+      for (const id of [document, elsewhere, bens, bensOld, library.id, otherTable, terms, termsOld]) expect(found).not.toContain(id);
     });
   });
 }
