@@ -2,6 +2,12 @@
 
 # Manifest spec: requiredSchema — States
 
+```json
+"create": { "requires": {
+  "linked": [{ "via": "ticket_id", "where": [{ "column": "status", "in": ["valid", "offered"] }] }],
+  "time": { "after": { "column": "doors_at", "via": "event_id", "minus": { "minutes": 30 } } } } }
+```
+
 `requires` takes `where`, `linked`, `time` and `setting`, at least one, in the shapes above (no
 `children`). They are judged inside the create's transaction on every door but an import, which
 is history; a staff device's `occurredAt` stands in for now. A refusal is `409`
@@ -109,8 +115,3 @@ time. History (an import, sample data) sets off no effect. A move that set off a
 Undo.
 
 #### A new child moves its parent
-
-A child row may move the row it belongs to, in the same write: the crew's sign-off, made on a
-phone by somebody who reads no job, signs the job off, and the office's counts and the rules that
-run on a job signed off follow. Say it on the child, under the parent's `children`, with
-`moveOnCreate` (Adminium 0.3.30):

@@ -2,6 +2,19 @@
 
 # Manifest spec: requiredSchema — States
 
+```json
+"children": {
+  "invoice_lines": {
+    "via": "invoice_id", "lock": true,
+    "release": { "when": ["void"], "columns": ["time_entry_id", "expense_id"] },
+    "lockLinked": {
+      "time_entry_id": ["hours", "logged_hours", "project_id", "date"],
+      "expense_id": ["amount", "currency", "project_id", "client_id"]
+    }
+  }
+}
+```
+
 A void invoice's line may set `time_entry_id` to `null`; setting it to another entry, changing
 anything else on the line, or deleting it stays `RECORD_LOCKED`, and so does emptying it while the
 invoice is sent. While a line points at an entry, a change to one of the entry's listed columns is
@@ -111,9 +124,3 @@ move's last day holds the staff too.
 
 `create` holds a new row to the same conditions before it is created at all: a check-in recorded
 only for a paid ticket, on its day, from half an hour before the doors.
-
-```json
-"create": { "requires": {
-  "linked": [{ "via": "ticket_id", "where": [{ "column": "status", "in": ["valid", "offered"] }] }],
-  "time": { "after": { "column": "doors_at", "via": "event_id", "minus": { "minutes": 30 } } } } }
-```
