@@ -225,7 +225,9 @@ export function createFigmaReader(deps: FigmaReaderDeps): FigmaReader {
     );
     // In the frame's order, whichever download finished first.
     got.sort((a, b) => wanted.indexOf(a.ref) - wanted.indexOf(b.ref));
-    if (!passing) cache.putPictures(key, got, missing);
+    // A download that may pass keeps nothing for this version (the next import tries again), so none is said to be kept.
+    if (passing) return 0;
+    cache.putPictures(key, got, missing);
     return got.length;
   };
 

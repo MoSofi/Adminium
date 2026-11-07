@@ -30,6 +30,8 @@ export interface FakeFigma {
   /** The headers each call carried, in order. */
   seen: { url: string; headers: Record<string, string> }[];
   /** What the next calls of a kind answer instead: a status and its headers, `null-image`, a picture of its own. */
+  /** The file's own pictures whose download answers 503 (a storage hiccup that may pass), by image reference. */
+  failingFills?: ReadonlySet<string>;
   fail: Partial<Record<'me' | 'meta' | 'nodes' | 'images' | 'fills' | 'download', { status: number; headers?: Record<string, string> } | 'null-image' | 'hang'>>;
   /** The picture each render serves; a small PNG when not set. */
   picture?: Buffer;
@@ -111,6 +113,8 @@ async function answer(fake: FakeFigma, url: URL, headers: Record<string, string>
   if (failing === 'hang') return new Promise(() => {});
   if (failing !== undefined && failing !== 'null-image') return json(failing.status, { status: failing.status, err: 'refused' }, failing.headers);
   if (kind === 'download' && url.pathname.startsWith('/fill/')) {
+    const ref = decodeURIComponent(url.pathname.slice('/fill/'.length));
+    if (fake.failingFills?.has(ref) === true) return json(503, { status: 503, err: 'refused' });
     const bytes = fake.fillPictures.get(decodeURIComponent(url.pathname.slice('/fill/'.length))) ?? jpegOf();
     return { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': String(bytes.length) }, body: (async function* () { yield bytes; })(), destroy: () => {} };
   }

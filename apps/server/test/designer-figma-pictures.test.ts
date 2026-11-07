@@ -167,6 +167,17 @@ describe('an import of a frame', () => {
     expect((await reader.importFrame(AVA, LINK)).pictures).toBe(1);
   });
 
+  it('says no picture is kept when one download may pass later, and the next import keeps them all', async () => {
+    const frame = checkoutFrame();
+    (frame.document.children ?? []).push({ id: '1:6', name: 'Side photo', type: 'RECTANGLE', fills: [{ type: 'IMAGE', scaleMode: 'FILL', imageRef: 'def' }], absoluteBoundingBox: { x: 32, y: 680, width: 400, height: 240 } });
+    fake.files.set(KEY, { name: 'Crispy Bites', version: '42', nodes: { '1:2': frame } });
+    // One picture arrives, the other's storage answers 503: nothing is kept for this version, so the import says none.
+    fake.failingFills = new Set(['def']);
+    expect((await reader.importFrame(AVA, LINK)).pictures).toBe(0);
+    fake.failingFills = new Set();
+    expect((await reader.importFrame(AVA, LINK)).pictures).toBe(2);
+  });
+
   it('asks no addresses for a frame with no picture', async () => {
     const plain = checkoutFrame();
     plain.document.children = (plain.document.children ?? []).filter((child) => child.id !== '1:4');
