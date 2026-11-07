@@ -401,10 +401,12 @@ export {
   stateConditionSchema,
   stateMoveSchema,
   statesSchema,
+  supersedesSchema,
   type StateChild,
   type StateCondition,
   type StateMove,
   type States,
+  type Supersedes,
   type UndoColumn,
 } from './states.js';
 export {
