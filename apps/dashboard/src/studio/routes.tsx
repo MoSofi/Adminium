@@ -411,6 +411,13 @@ function PublicApiRouteComponent() {
   );
 }
 
+/** `?upload=1` opens the install's upload step (an own app's "Upload a newer version"); `?save=<connection>` opens Save as app. */
+function hostedAppsSearch(search: Record<string, unknown>): { upload?: boolean; save?: string } {
+  const upload = search['upload'] === true || search['upload'] === '1' || search['upload'] === 'true';
+  const save = typeof search['save'] === 'string' ? search['save'] : undefined;
+  return { ...(upload ? { upload: true } : {}), ...(save === undefined ? {} : { save }) };
+}
+
 function HostedAppsRouteComponent() {
   return (
     // The permission the app routes themselves check: it was
@@ -603,11 +610,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
   const hostedAppsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/apps',
-    // `?upload=1` opens the install's upload step (an own app's "Upload a newer version"); `?save=<connection>` opens Save as app.
-    validateSearch: (search: Record<string, unknown>): { upload?: boolean; save?: string } => ({
-      ...(search['upload'] === true || search['upload'] === '1' || search['upload'] === 'true' ? { upload: true } : {}),
-      ...(typeof search['save'] === 'string' ? { save: search['save'] } : {}),
-    }),
+    validateSearch: hostedAppsSearch,
     component: HostedAppsRouteComponent,
   });
 
