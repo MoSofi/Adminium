@@ -12,6 +12,12 @@ request**.
 An air-gapped install browses the bundled set, installs from it, enables,
 disables, and uninstalls — all of it local file I/O.
 
+Two bundled add-ons are **retired**: the Live Personalizer and Design Studio,
+both replaced by the Customiser. They stay in the set so a shop that has one
+attached can still update Maker Shop or Print Shop, but from 0.3.50 the Add-ons
+page lists them only where they are already installed: there to update, detach
+and remove, never offered for a new attach.
+
 Seeding is per-package and best-effort: one unreadable bundle entry is reported
 in the boot log and skipped, and the rest still arrive. A bundled package whose
 bytes no longer match its integrity sidecar is a corrupt image and is refused
