@@ -18,7 +18,7 @@
  * contradicted by the database.
  */
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type RelationKind, type TableModel } from '@adminium/engine';
-import { dayColumns, FILE_COLUMN_KINDS, FILE_UPLOAD_KINDS, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, notPastIssues, undoMoveIssues, type States } from '@adminium/manifest';
+import { dayColumns, FILE_COLUMN_KINDS, FILE_UPLOAD_KINDS, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, notPastIssues, supersedesIssues, undoMoveIssues, type States } from '@adminium/manifest';
 
 import { storedAdjust, storedCheck, storedPosting } from '@adminium/meta';
 import { z } from 'zod';
@@ -1007,7 +1007,12 @@ export function statesRuleIssue(
    * state are judged only when a save changes the states, so a rule saved
    * before those checks does not stop every later save.
    */
-  related?: { rules: readonly { op: string; columnName: string | null; value: unknown }[]; kept?: boolean },
+  related?: {
+    rules: readonly { op: string; columnName: string | null; value: unknown }[];
+    kept?: boolean;
+    /** The states rules of the other tables, saved beside it: a table another holds as lines is moved by no new row of its own. */
+    elsewhere?: readonly { tableName: string; value: unknown }[];
+  },
 ): string | null {
   // The shape was proved by the store's own schema (`validateOverrideInput`),
   // which knows a table here is its id in the snapshot (`main.studio_lines`).
@@ -1080,17 +1085,19 @@ export function statesRuleIssue(
     decided: (name) => deciding.has(name) || table.columns.find((c) => c.name === name)?.isGenerated === true,
   });
   if (undo !== undefined) return `${undo.message.charAt(0).toUpperCase()}${undo.message.slice(1)}.`;
-  // A new row moves the earlier ones sharing its link: by a link the write can hold, and by a listed move from each state.
+  // A new row moves the earlier ones sharing its link: by a link the write can hold, and by moves judged as an app's manifest judges them.
   const supersedes = states.supersedes;
   if (supersedes !== undefined) {
     if (!own(supersedes.by)) return `${table.name} has no column ${JSON.stringify(supersedes.by)}.`;
     if (linkTargetOf(table, supersedes.by, model) === undefined) return `${table.name}.${supersedes.by} does not point at another table.`;
-    for (const from of supersedes.from) {
-      if (from === supersedes.to) return `A row already in ${JSON.stringify(from)} has nothing to move to.`;
-      if (!(states.moves[from] ?? []).some((move) => (typeof move === 'string' ? move : move.to) === supersedes.to)) {
-        return `No listed move goes from ${JSON.stringify(from)} to ${JSON.stringify(supersedes.to)}, so a new row cannot move a row in ${JSON.stringify(from)}.`;
-      }
-    }
+    const beside = related?.rules ?? [];
+    const lineOf = (related?.elsewhere ?? []).find((other) => Object.prototype.hasOwnProperty.call((other.value as States | null)?.children ?? {}, table.id));
+    const [issue] = supersedesIssues(states, table.name, {
+      limited: beside.some((rule) => rule.op === 'table.capacity'),
+      booked: beside.some((rule) => rule.op === 'table.booking' || rule.op === 'table.occupies'),
+      lineOf: lineOf === undefined ? undefined : (model.tables.find((candidate) => candidate.id === lineOf.tableName)?.name ?? lineOf.tableName),
+    });
+    if (issue !== undefined) return `${issue.message.charAt(0).toUpperCase()}${issue.message.slice(1)}.`;
   }
   return conditionedStatesIssue(states, table, model);
 }

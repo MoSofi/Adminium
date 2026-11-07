@@ -79,6 +79,12 @@ function shop(): Record<string, unknown> {
           columns: [id, { ref: 'line_id', type: 'fk', references: 'order_lines' }, { ref: 'state', type: 'enum', enum: ['sent', 'superseded'], default: 'sent' }],
           states: { column: 'state', initial: 'sent', moves: { sent: ['superseded'] }, supersedes: { by: 'line_id', from: ['sent'], to: 'superseded' } },
         },
+        {
+          // A mock-up of a line, whose key the database makes itself on MySQL (made so below): a key the insert cannot read back.
+          ref: 'mockups',
+          columns: [id, { ref: 'line_id', type: 'fk', references: 'order_lines' }, { ref: 'state', type: 'enum', enum: ['sent', 'superseded'], default: 'sent' }],
+          states: { column: 'state', initial: 'sent', moves: { sent: ['superseded'] }, supersedes: { by: 'line_id', from: ['sent'], to: 'superseded' } },
+        },
         { ref: 'redo_requests', columns: [id, { ref: 'line_id', type: 'fk', references: 'order_lines' }] },
       ],
     },
@@ -86,7 +92,7 @@ function shop(): Record<string, unknown> {
       {
         key: 'maker',
         name: 'Maker',
-        permissions: ['table:@proofs:read', 'table:@proofs:create', 'table:@sketches:read', 'table:@sketches:create', 'table:@order_lines:read', 'page:@shop-proofs:view'],
+        permissions: ['table:@proofs:read', 'table:@proofs:create', 'table:@sketches:read', 'table:@sketches:create', 'table:@mockups:read', 'table:@mockups:create', 'table:@order_lines:read', 'page:@shop-proofs:view'],
       },
     ],
     pages: [{ ref: 'shop-proofs', template: 'page-crud', title: { key: 't.p', fallback: 'Proofs' }, nav: { group: 'work', icon: 'list', order: 1 }, bindings: { rows: 'proofs' } }],
@@ -149,6 +155,34 @@ for (const [dialect, reachable] of LEGS) {
       expect(withRule({ by: 'note', from: ['sent'], to: 'superseded' })).toContain('note does not point at another table');
       expect(withRule({ by: 'line_id', from: ['approved'], to: 'superseded' })).toBe('No listed move goes from "approved" to "superseded", so a new row cannot move a row in "approved".');
       expect(withRule({ by: 'line_id', from: ['superseded'], to: 'superseded' })).toBe('A row already in "superseded" has nothing to move to.');
+
+      // The moves themselves, judged as an app's manifest judges them.
+      const name = proofs.name;
+      const moves = value['moves'] as Record<string, unknown[]>;
+      const judged = (changes: Record<string, unknown>, related?: Parameters<typeof statesRuleIssue>[3]) => statesRuleIssue({ ...value, ...changes }, proofs, model, related);
+      expect(judged({ moves: { ...moves, change_asked: [{ to: 'superseded', undo: true }], superseded: ['change_asked'] } })).toBe(
+        'The move from "change_asked" to "superseded" is an undo, which only a person makes.',
+      );
+      expect(judged({ moves: { ...moves, change_asked: [{ to: 'superseded', planned: true }] } })).toBe(
+        'The move from "change_asked" to "superseded" is planned, which only a ledger\'s own update makes.',
+      );
+      expect(judged({ moves: { ...moves, change_asked: [{ to: 'superseded', requires: { linked: [{ via: 'line_id', where: [{ column: 'name', eq: 'x' }] }] } }] } })).toBe(
+        'The move from "change_asked" to "superseded" waits for another row, so a new row cannot make it.',
+      );
+      expect(judged({ late: [{ to: 'superseded', moment: { column: 'name', via: 'line_id' }, within: { hours: 1 }, mode: 'refuse' }] })).toBe(
+        'A move to "superseded" is judged late by another row\'s time, so a new row cannot make it.',
+      );
+      expect(judged({ effects: [{ on: { to: 'superseded' }, via: 'line_id', set: { name: 'x' } }] })).toBe(
+        `"${name}" sets off effects of its own on a move to "superseded"; a new row moves the earlier rows, never a chain.`,
+      );
+      expect(judged({}, { rules: [{ op: 'table.capacity', columnName: null, value: {} }] })).toBe(`"${name}" keeps a limit, whose lock a new row's write cannot take for the rows it moves.`);
+      expect(judged({}, { rules: [{ op: 'table.booking', columnName: null, value: {} }] })).toBe(`"${name}" books people by the day, and its lock cannot be taken inside another row's write.`);
+      const lines = model.tables.find((t) => t.id.endsWith(s.t('order_lines')))!;
+      expect(judged({}, { rules: [], elsewhere: [{ tableName: lines.id, value: { column: 'state', children: { [rule.tableName]: { via: 'line_id', lock: true } } } }] })).toBe(
+        `"${name}" rows are lines of "${lines.name}", which would be held after this write's own rows.`,
+      );
+      // Another table's states that hold no rows of this one say nothing.
+      expect(judged({}, { rules: [], elsewhere: [{ tableName: lines.id, value: { column: 'state', children: {} } }] })).toBeNull();
     });
 
     it('a second proof moves the first to superseded, stamped and counted; the new one waits; another line is left alone', async () => {
@@ -233,6 +267,18 @@ for (const [dialect, reachable] of LEGS) {
         const sketches = (await s.rows(`SELECT state FROM shop_sketches WHERE line_id = ${String(ring)}`)).map((row) => String(row['state']));
         expect(sketches.filter((state) => state === 'sent')).toHaveLength(1);
       }
+    });
+
+    it.runIf(dialect === 'mysql')('a new row whose key the database makes, and the insert cannot read back, is never moved itself', async () => {
+      // MySQL hands back no key it made with an expression (only an auto-increment's): the new row is found by none.
+      await s.rows('ALTER TABLE shop_mockups MODIFY id CHAR(36) NOT NULL DEFAULT (UUID())');
+      const ring = await line('Tie pin');
+      const mockup = () => s.make('maker', 'mockups', { line_id: ring });
+      const mockups = async () => (await s.rows(`SELECT state FROM shop_mockups WHERE line_id = ${String(ring)}`)).map((row) => String(row['state'])).sort();
+      await mockup();
+      expect(await mockups()).toEqual(['sent']);
+      await mockup();
+      expect(await mockups()).toEqual(['sent', 'superseded']);
     });
 
     it('a create refused leaves every row as it was: an earlier proof already moved is moved back', async () => {

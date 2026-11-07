@@ -990,42 +990,87 @@ function conditionedMoveIssues<C extends ColumnShape>(
     }
   }
 
-  // A new row moves the earlier rows sharing its link (`supersedes`): each by this table's own listed move, made inside the
-  // new row's write as an effect's move is — so held to the same limits, on rows of this table.
+  // A new row moves the earlier rows sharing its link (`supersedes`): the link and the states are this manifest's to name;
+  // the moves themselves are judged by the one judge a states rule saved in Studio is judged by too.
   const supersedes = states.supersedes;
   if (supersedes !== undefined) {
-    const here = (...rest: (string | number)[]) => at('supersedes', ...rest);
-    // The link is what the write holds first, so two new rows on one link take their turns: a plain column could not be held.
-    linkTarget(supersedes.by, here('by'));
-    known(supersedes.to, here('to'));
-    supersedes.from.forEach((from, f) => {
-      const path = here('from', f);
-      known(from, path);
-      if (supersedes.from.indexOf(from) !== f) {
-        out.push({ path, message: `"${from}" is named twice` });
-        return;
-      }
-      if (from === supersedes.to) {
-        out.push({ path, message: `a row already in "${from}" has nothing to move to` });
-        return;
-      }
-      const move = listed(from, supersedes.to);
-      if (move === undefined) {
-        out.push({ path, message: `no listed move goes from "${from}" to "${supersedes.to}", so a new row cannot move a row in "${from}"` });
-        return;
-      }
-      if (typeof move === 'string') return;
-      if (move.undo === true) out.push({ path, message: `the move from "${from}" to "${supersedes.to}" is an undo, which only a person makes` });
-      if (move.planned === true) out.push({ path, message: `the move from "${from}" to "${supersedes.to}" is planned, which only a ledger's own update makes` });
-      // The earlier row is moved after the new row's own rows are held: its move may wait only for its own row.
-      if (waitsElsewhere(move)) out.push({ path, message: `the move from "${from}" to "${supersedes.to}" waits for another row, so a new row cannot make it` });
-    });
-    if (reached(supersedes.to) && (states.late ?? []).some((late) => late.to === supersedes.to && [late.moment, ...(late.moment.or ?? [])].some((m) => m.via !== undefined))) {
-      out.push({ path: here('to'), message: `a move to "${supersedes.to}" is judged late by another row's time, so a new row cannot make it` });
-    }
-    effectTargetIssues(table, states, here('to'), [supersedes.to]);
-    if (ctx.limitedOf?.(table) === true) out.push({ path: here(), message: `"${table}" keeps a limit, whose lock a new row's write cannot take for the rows it moves` });
+    // The link is what the write holds first, so two new rows on it take their turns: a plain column could not be held.
+    linkTarget(supersedes.by, at('supersedes', 'by'));
+    known(supersedes.to, at('supersedes', 'to'));
+    supersedes.from.forEach((from, f) => known(from, at('supersedes', 'from', f)));
+    const around = { limited: ctx.limitedOf?.(table) === true, booked: ctx.bookedOf?.(table) === true, lineOf: ctx.lineOf?.(table), outbox: table === ctx.outboxTable };
+    for (const issue of supersedesIssues(states, table, around)) out.push({ path: at(...issue.path), message: issue.message });
   }
+  return out;
+}
+
+/** What around a table a new row's move of its earlier rows (`supersedes`) is judged on. */
+export interface SupersedesAround {
+  /** The table keeps a limit. */
+  limited?: boolean | undefined;
+  /** The table books people by the day (`booking`, `occupies`). */
+  booked?: boolean | undefined;
+  /** The table whose states hold this one's rows as lines, if any. */
+  lineOf?: string | undefined;
+  /** The table is the app's outbox. */
+  outbox?: boolean | undefined;
+}
+
+/**
+ * Everything wrong with the moves `states.supersedes` makes: each state of
+ * `from` once, other than `to`, with a listed move to it that is neither an
+ * undo nor a ledger's own and waits for no other row; a move to `to` judged
+ * late by no other row's time and setting off none of the table's own
+ * effects; and a table whose rows can be moved inside another row's write.
+ * The earlier rows are moved after the new row's own rows are held, as an
+ * effect's row is, so the same limits hold. Paths are relative to the
+ * states. The one judge for an app's manifest and a states rule saved in
+ * Studio (the server's `statesRuleIssue`); the link and the state names are
+ * each caller's to check against what it knows.
+ */
+export function supersedesIssues(
+  states: Pick<States, 'moves' | 'late' | 'effects' | 'supersedes'>,
+  table: string,
+  around: SupersedesAround,
+): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  const rule = states.supersedes;
+  if (rule === undefined) return out;
+  const { to } = rule;
+  rule.from.forEach((from, f) => {
+    const path = ['supersedes', 'from', f];
+    if (rule.from.indexOf(from) !== f) {
+      out.push({ path, message: `"${from}" is named twice` });
+      return;
+    }
+    if (from === to) {
+      out.push({ path, message: `a row already in "${from}" has nothing to move to` });
+      return;
+    }
+    const move = (states.moves[from] ?? []).find((candidate) => moveTarget(candidate) === to);
+    if (move === undefined) {
+      out.push({ path, message: `no listed move goes from "${from}" to "${to}", so a new row cannot move a row in "${from}"` });
+      return;
+    }
+    if (typeof move === 'string') return;
+    if (move.undo === true) out.push({ path, message: `the move from "${from}" to "${to}" is an undo, which only a person makes` });
+    if (move.planned === true) out.push({ path, message: `the move from "${from}" to "${to}" is planned, which only a ledger's own update makes` });
+    // The earlier row is moved after the new row's own rows are held: its move may wait only for its own row.
+    if (waitsElsewhere(move)) out.push({ path, message: `the move from "${from}" to "${to}" waits for another row, so a new row cannot make it` });
+  });
+  const here = ['supersedes', 'to'];
+  if ((states.late ?? []).some((late) => late.to === to && [late.moment, ...(late.moment.or ?? [])].some((m) => m.via !== undefined))) {
+    out.push({ path: here, message: `a move to "${to}" is judged late by another row's time, so a new row cannot make it` });
+  }
+  // A chain: the state it moves them to is one this table's own effects start from.
+  if ((states.effects ?? []).some((effect) => !isChangeEffect(effect) && effect.on.to === to)) {
+    out.push({ path: here, message: `"${table}" sets off effects of its own on a move to "${to}"; a new row moves the earlier rows, never a chain` });
+  }
+  if (around.outbox === true) out.push({ path: here, message: `"${table}" is the app's outbox, whose messages move only by the outbox's own moves` });
+  // Moved inside the new row's write, after its own rows are held: a lock taken per day, or a parent held first, would come too late.
+  if (around.booked === true) out.push({ path: here, message: `"${table}" books people by the day, and its lock cannot be taken inside another row's write` });
+  if (around.lineOf !== undefined) out.push({ path: here, message: `"${table}" rows are lines of "${around.lineOf}", which would be held after this write's own rows` });
+  if (around.limited === true) out.push({ path: ['supersedes'], message: `"${table}" keeps a limit, whose lock a new row's write cannot take for the rows it moves` });
   return out;
 }
 
