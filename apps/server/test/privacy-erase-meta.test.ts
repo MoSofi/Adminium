@@ -23,8 +23,9 @@ import { auditRepo, connectionsRepo, emailRunsRepo, emailSendsRepo, emailTemplat
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
+import type { ResolvedTable } from '../src/crud/identifiers.js';
 import type { FileStore } from '../src/files/store.js';
-import { blankCampaignSends, campaignSendIds, nullAddress, nullColumns, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress } from '../src/privacy/erase-meta.js';
+import { blankCampaignSends, campaignSendIds, copyFileIds, nullAddress, nullColumns, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress } from '../src/privacy/erase-meta.js';
 import { alreadyBlank, blankValue, type ColumnFacts } from '../src/privacy/erase-values.js';
 import { TEST_SECRET } from './helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
@@ -239,6 +240,45 @@ for (const engine of META_ENGINES) {
       const broken = { remove: async () => Promise.reject(new Error('disk')), driverFor: async () => ({ remove: async () => undefined }) } as unknown as FileStore;
       expect(await purgeRowFiles(meta, broken, [ids['file-ben']!])).toEqual({ purged: 0, failed: 1 });
       expect(await filesRepo(meta).findById(ids['file-ben']!)).not.toBeNull();
+    });
+
+    it("finds her own row's files in the bin too", async () => {
+      const binned = await filesRepo(meta).create({ filename: 'old.pdf', mime: 'application/pdf', sizeBytes: 1, sha256: 'a'.repeat(64), kind: 'upload', uploadedBy: null, attachedAt: 1, entity: entity(conn, CONTACTS, 3) });
+      await filesRepo(meta).markDeleted(binned.id);
+      expect(await rowFileIds(meta, [{ connectionId: conn, table: CONTACTS, tableName: 'crm_contacts', key: '3' }])).toEqual([binned.id]);
+    });
+
+    it("finds a copy's files: what its columns of hers name, and what the bin keeps of them when every file column is hers", async () => {
+      const column = (name: string, file: boolean) => [name, { name, ...(file ? { file: { accept: ['pdf'] } } : {}) }] as const;
+      const proofs = { id: 'public.shop_proofs', name: 'shop_proofs', columns: new Map([column('id', false), column('words', false), column('picture', true)]) } as unknown as ResolvedTable;
+      const quotes = { id: 'public.shop_quotes', name: 'shop_quotes', columns: new Map([column('id', false), column('picture', true), column('terms', true)]) } as unknown as ResolvedTable;
+      const kept = async (table: string, key: number, binned = false, attached = true) => {
+        const file = await filesRepo(meta).create({ filename: 'f.pdf', mime: 'application/pdf', sizeBytes: 1, sha256: 'a'.repeat(64), kind: 'upload', uploadedBy: null, attachedAt: attached ? 1 : null, entity: attached ? entity(conn, table, key) : null });
+        if (binned) await filesRepo(meta).markDeleted(file.id);
+        return file.id;
+      };
+      const proofNew = await kept('public.shop_proofs', 7);
+      const proofOld = await kept('shop_proofs', 7, true);
+      const bens = await kept('public.shop_proofs', 8);
+      const bensOld = await kept('public.shop_proofs', 8, true);
+      const unclaimed = await kept('public.shop_proofs', 9, false, false);
+      const library = await filesRepo(meta).create({ filename: 'lib.pdf', mime: 'application/pdf', sizeBytes: 1, sha256: 'a'.repeat(64), kind: 'upload', uploadedBy: null, attachedAt: 1 });
+      // Another table's row with the same key, in the bin: not this one.
+      const otherTable = await kept('public.shop_orders', 7, true);
+      const quotePicture = await kept('public.shop_quotes', 7);
+      const terms = await kept('public.shop_quotes', 7);
+      const quoteOld = await kept('public.shop_quotes', 7, true);
+      const her = (table: ResolvedTable, key: string, row: Record<string, unknown>, columns: string[]) => ({ connectionId: conn, table, key, row, columns: new Set(columns) });
+      const found = await copyFileIds(meta, [
+        her(proofs, '7', { id: 7, words: 'Marta', picture: proofNew }, ['words', 'picture']),
+        // Her proof that names Ben's file, an upload nobody claimed yet, and the library's.
+        her(proofs, '9', { id: 9, picture: JSON.stringify([bens, unclaimed, library.id]) }, ['picture']),
+        her(quotes, '7', { id: 7, picture: quotePicture, terms }, ['picture']),
+        // Only her words on it: none of its files are hers.
+        her(proofs, '8', { id: 8, words: 'Ben & Marta', picture: bens }, ['words']),
+      ]);
+      expect(found.sort()).toEqual([proofNew, proofOld, unclaimed, quotePicture].sort());
+      for (const id of [bens, bensOld, library.id, otherTable, terms, quoteOld]) expect(found).not.toContain(id);
     });
   });
 }

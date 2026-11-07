@@ -15,7 +15,9 @@
  *   - the rules' run history: a run started by one of their rows, or whose
  *     trigger holds their address;
  *   - notifications to staff about one of their rows, or naming their address;
- *   - files attached to one of their rows.
+ *   - files attached to one of their rows; of a row that is theirs only as a
+ *     copy, the files of their copies alone (`copyFileIds`), as the erasure
+ *     takes them.
  *
  * Addresses are compared as `normaliseAddress` spells them (trimmed, lower
  * case), never as the stop list folds them (`+tag`, Gmail's dots): that
@@ -45,6 +47,8 @@ export interface FoundRow {
   table: string;
   tableName: string;
   key: string;
+  /** A row of theirs only as a copy (a design's version): its files are the ones `copyFileIds` says, never every file attached to it. */
+  copy?: boolean;
 }
 
 /** How many rows of one store are read at a time. */
@@ -119,7 +123,7 @@ async function* batches<T extends { id: string }>(read: (after: string | null) =
 }
 
 /** The meta store's sources for one person (see the header). Only sources with something in them are answered. */
-export async function findInMeta(meta: MetaDb, address: string, rows: readonly FoundRow[], options: { byAddress?: boolean } = {}): Promise<FoundSource[]> {
+export async function findInMeta(meta: MetaDb, address: string, rows: readonly FoundRow[], options: { byAddress?: boolean; copyFiles?: readonly string[] } = {}): Promise<FoundSource[]> {
   const { db } = meta;
   const byAddress = options.byAddress !== false;
   // Matched by the address alone: only for the whole workspace.
@@ -285,6 +289,12 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
 
   // ── files attached to their rows ──────────────────────────────────────────
   const files = source('files', 'gave');
+  // A copy row's files are theirs only as `copyFileIds` says: never another column's, nor a file the row merely names.
+  const whole = rowIndex(rows.filter((row) => row.copy !== true));
+  const ofCopies = new Set(options.copyFiles ?? []);
+  const seen = new Set<string>();
+  const fileRow = (row: Record<string, unknown>) =>
+    plainRow({ id: row.id, filename: row.filename, mime: row.mime, sizeBytes: row.sizeBytes, kind: row.kind, table: row.entityTable, row: row.entityId, createdAt: row.createdAt, deletedAt: row.deletedAt });
   if (tables.length > 0) {
     for await (const batch of batches((after) => {
       let query = db
@@ -296,10 +306,22 @@ export async function findInMeta(meta: MetaDb, address: string, rows: readonly F
       return query.orderBy('id', 'asc').limit(BATCH).execute();
     })) {
       for (const row of batch) {
-        if (!isOneOf(index, row.entityConnectionId, row.entityTable, row.entityId)) continue;
-        add(files, row.id, plainRow({ id: row.id, filename: row.filename, mime: row.mime, sizeBytes: row.sizeBytes, kind: row.kind, table: row.entityTable, row: row.entityId, createdAt: row.createdAt, deletedAt: row.deletedAt }));
+        if (!ofCopies.has(row.id) && !isOneOf(whole, row.entityConnectionId, row.entityTable, row.entityId)) continue;
+        seen.add(row.id);
+        add(files, row.id, fileRow(row));
       }
     }
+  }
+  // A file a copy of theirs names that no row of theirs holds (an upload no record claimed yet).
+  const rest = [...ofCopies].filter((id) => !seen.has(id)).sort();
+  for (let at = 0; at < rest.length; at += BATCH) {
+    const batch = await db
+      .selectFrom('adminium_files')
+      .select(['id', 'filename', 'mime', 'sizeBytes', 'kind', 'entityTable', 'entityId', 'createdAt', 'deletedAt'])
+      .where('id', 'in', rest.slice(at, at + BATCH))
+      .orderBy('id', 'asc')
+      .execute();
+    for (const row of batch) add(files, row.id, fileRow(row));
   }
   out.push(files);
 

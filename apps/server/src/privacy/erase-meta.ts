@@ -18,8 +18,9 @@
  *    as stopped, since the address is on the do-not-email list from now on.
  *    A run's failure list loses its entries to them, and any send's reason
  *    or job's last error that holds the address is emptied (`sweepMailAddress`).
- *  - FILES attached to their own rows are deleted past the bin: bytes first,
- *    then the row (as the bin's own sweep does).
+ *  - FILES attached to their own rows, in the bin too, and the files of their
+ *    copies (`copyFileIds`) are deleted past the bin: bytes first, then the
+ *    row (as the bin's own sweep does).
  *
  * Addresses are compared as `normaliseAddress` spells them, and a text is
  * said to hold one only when it holds it whole (`holdsAddress`): `xmarta@…`
@@ -28,6 +29,10 @@
 import { auditEntityKeyPart, filesRepo, packJson, readJson, type MetaDb } from '@adminium/meta';
 import { sql } from 'kysely';
 
+import type { ResolvedTable } from '../crud/identifiers.js';
+import type { Row } from '../crud/mask.js';
+import { fileColumnsOf } from '../files/column-judge.js';
+import { fileIdsIn } from '../files/column-values.js';
 import type { FileStore } from '../files/store.js';
 import { removeCleanedPicture } from '../public-api/picture-store.js';
 import { holdsAny } from './meta-sources.js';
@@ -354,6 +359,69 @@ export async function rowFileIds(meta: MetaDb, people: readonly PersonRowRef[]):
     }
   }
   return [...new Set(out)];
+}
+
+/** One row of theirs as a copy (a design's version), with the columns of it that are theirs. */
+export interface CopyRowFiles {
+  connectionId: string;
+  table: ResolvedTable;
+  key: string;
+  row: Row;
+  columns: ReadonlySet<string>;
+}
+
+/**
+ * The files of their copies, as the search lists them and the erasure takes
+ * them. Never another column's files: the row is not theirs.
+ *
+ *  - what a copy column of theirs that holds files names now (a design
+ *    version's proof), when it is this row's or no record's: naming a file
+ *    is not taking it (`files/reconcile.ts`), so another row's file, or the
+ *    Files library's, stays;
+ *  - what such a column named before and let go: a proof made again leaves
+ *    the first in the bin, still the row's, and it shows their words as much
+ *    as the new one. The bin does not say which column a file was in, so
+ *    these go only when every column of the table that holds files is one
+ *    of theirs on the row; otherwise the bin's own sweep takes them.
+ */
+export async function copyFileIds(meta: MetaDb, copies: readonly CopyRowFiles[]): Promise<string[]> {
+  const { db } = meta;
+  const files = filesRepo(meta);
+  const out = new Set<string>();
+  const ofRow = (file: { entityConnectionId: string | null; entityTable: string | null; entityId: string | null }, copy: CopyRowFiles): boolean =>
+    file.entityConnectionId === copy.connectionId &&
+    (file.entityTable === auditEntityKeyPart(copy.table.id) || file.entityTable === auditEntityKeyPart(copy.table.name)) &&
+    file.entityId === auditEntityKeyPart(copy.key);
+  const binnedFrom: CopyRowFiles[] = [];
+  for (const copy of copies) {
+    const holding = fileColumnsOf(copy.table).map((column) => column.name);
+    const theirs = holding.filter((column) => copy.columns.has(column));
+    if (theirs.length === 0) continue;
+    for (const column of theirs) {
+      for (const id of fileIdsIn(copy.row[column])) {
+        const file = await files.findById(id);
+        if (file !== null && (file.attachedAt === null || ofRow(file, copy))) out.add(id);
+      }
+    }
+    if (theirs.length === holding.length) binnedFrom.push(copy);
+  }
+  for (const connectionId of new Set(binnedFrom.map((copy) => copy.connectionId))) {
+    const mine = binnedFrom.filter((copy) => copy.connectionId === connectionId);
+    const tables = [...new Set(mine.flatMap((copy) => [auditEntityKeyPart(copy.table.id), auditEntityKeyPart(copy.table.name)]))];
+    for (const keys of chunks([...new Set(mine.map((copy) => auditEntityKeyPart(copy.key)))])) {
+      const rows = await db
+        .selectFrom('adminium_files')
+        .select(['id', 'entityConnectionId', 'entityTable', 'entityId'])
+        .where('entityConnectionId', '=', connectionId)
+        .where('entityTable', 'in', tables)
+        .where('entityId', 'in', keys)
+        .where('deletedAt', 'is not', null)
+        .execute();
+      // Compared exactly: another table's row with the same key, or a key differing only in case, is not this one.
+      for (const row of rows) if (mine.some((copy) => ofRow(row, copy))) out.add(row.id);
+    }
+  }
+  return [...out];
 }
 
 /** Files deleted past the bin: bytes first, then the row (as the bin's own sweep does). Answers how many went and how many could not. */

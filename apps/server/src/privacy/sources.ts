@@ -52,6 +52,7 @@ import { peopleTablesOf } from '../people/tables-of.js';
 import type { DeclaredPeopleTable } from '../people/declared.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
 import { theirCopyRows } from './copy-rows.js';
+import { copyFileIds, type CopyRowFiles } from './erase-meta.js';
 import { parsedJson } from './erase-values.js';
 import { findFormRows, formSources } from './form-answers.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
@@ -232,6 +233,8 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
   const sources: FoundSource[] = [];
   const lawLinked: LawLinkedRows[] = [];
   const appRows: FoundRow[] = [];
+  /** Their copies' rows the erasure empties: their files are read from them (`copyFileIds`). */
+  const copyRows: CopyRowFiles[] = [];
   const peopleRows: { connectionId: string; table: string; key: string }[] = [];
   let person: PersonFound['person'] = null;
 
@@ -256,8 +259,8 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
     const keysOf = new Map<string, unknown[]>();
     /** Their rows as found, per people table: their phone numbers are read from them. */
     const rowsOf = new Map<string, Row[]>();
-    const note = (table: ResolvedTable, rows: readonly Row[]) => {
-      for (const row of rows) appRows.push({ connectionId, table: table.id, tableName: table.name, key: rowKeyOf(table, row) });
+    const note = (table: ResolvedTable, rows: readonly Row[], copy = false) => {
+      for (const row of rows) appRows.push({ connectionId, table: table.id, tableName: table.name, key: rowKeyOf(table, row), ...(copy ? { copy } : {}) });
     };
 
     // ── the people tables ───────────────────────────────────────────────────
@@ -296,10 +299,14 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
           const json = new Set([...theirs.columns].flatMap(([column, role]) => (role === 'json' ? [column] : [])));
           found.rows.push(exported(table, theirs.row, new Set([...theirs.columns.keys(), ...theirs.links]), json));
         }
+        // A table the law keeps stays whole, as the erasure leaves it: every file on its rows is listed, as on a kept row.
+        const erased = !kept.has(table.id);
         note(
           table,
           rows.map((theirs) => theirs.row),
+          erased,
         );
+        if (erased) for (const theirs of rows) copyRows.push({ connectionId, table, key: theirs.key, row: theirs.row, columns: new Set(theirs.columns.keys()) });
         sources.push(found);
       }
     }
@@ -389,7 +396,7 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
   }
 
   // ── what Adminium keeps itself ────────────────────────────────────────────
-  sources.push(...(await findInMeta(meta, address, appRows, { byAddress: whole })));
+  sources.push(...(await findInMeta(meta, address, appRows, { byAddress: whole, copyFiles: await copyFileIds(meta, copyRows) })));
 
   return { address, person, sources, lawLinked };
 }

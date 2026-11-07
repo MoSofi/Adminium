@@ -19,7 +19,9 @@
  *     failure lists their entries, and a send's reason or a job's last error
  *     that holds the address is emptied; their downloads
  *     ("Download everything"), the files on their own rows and the files a
- *     copy column of theirs names (a design version's file) are deleted;
+ *     copy column of theirs names (a design version's file) are deleted,
+ *     with those the bin still keeps of them (a proof made again: the one
+ *     it replaced), as the search lists them;
  *  5. the audit log's and the removed-row history's images of their rows
  *     lose the fields the erasure empties, and any text that still holds the
  *     address is nulled (the entries stay: who changed what, and when);
@@ -54,11 +56,9 @@ import type { ConsentService } from '../consent/index.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { pkLabel } from '../crud/records.js';
-import { fileColumnsOf } from '../files/column-judge.js';
-import { fileIdsIn } from '../files/column-values.js';
 import type { FileStore } from '../files/store.js';
 import { translatorFor } from '../i18n/server-i18n.js';
-import { blankCampaignSends, campaignSendIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type ImageTarget, type PersonRowRef } from './erase-meta.js';
+import { blankCampaignSends, campaignSendIds, copyFileIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type CopyRowFiles, type ImageTarget, type PersonRowRef } from './erase-meta.js';
 import { findPersonRows, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
 import type { AnswerFilesRemover } from '../forms/answers.js';
@@ -128,25 +128,14 @@ async function erasedNameOf(meta: MetaDb): Promise<string> {
   return t('studio:privacy.erasedPerson', { defaultValue: 'Erased person' });
 }
 
-/** Their own rows, as Adminium's stores find a row (by the table's id or its name). */
-/**
- * The files a copy of theirs names: a copy column that holds files (a design
- * version's production file) is emptied by the erasure, and the files it
- * named go with it. Never another column's files: the row is not theirs.
- */
-function copyFileIds(rows: PersonRows): string[] {
-  const out = new Set<string>();
-  for (const database of rows.databases) {
-    for (const source of database.sources) {
-      if (source.kind !== 'copy') continue;
-      const holding = new Set(fileColumnsOf(source.table).map((column) => column.name));
-      if (holding.size === 0) continue;
-      for (const row of source.rows) for (const column of row.columns) if (holding.has(column)) for (const id of fileIdsIn(row.before[column])) out.add(id);
-    }
-  }
-  return [...out];
+/** Their copies' rows, with the columns of each that are theirs: what their files are read from (`copyFileIds`). */
+function copyRows(rows: PersonRows): CopyRowFiles[] {
+  return rows.databases.flatMap((database) =>
+    database.sources.filter((source) => source.kind === 'copy').flatMap((source) => source.rows.map((row) => ({ connectionId: source.connectionId, table: source.table, key: row.key, row: row.before, columns: new Set(row.columns) }))),
+  );
 }
 
+/** Their own rows, as Adminium's stores find a row (by the table's id or its name). */
 function peopleRefs(rows: PersonRows): PersonRowRef[] {
   return rows.databases.flatMap((database) =>
     database.sources.filter((source) => source.kind === 'people').flatMap((source) => source.rows.map((row) => ({ connectionId: source.connectionId, table: source.table.id, tableName: source.table.name, key: row.key }))),
@@ -216,7 +205,7 @@ export async function previewErasure(deps: EraseDeps, rawAddress: string, scope?
   if (consent > 0) goes.push({ kind: 'consent', count: consent });
   const sends = (await campaignSendIds(deps.meta, address, people, whole)).length;
   if (sends > 0) goes.push({ kind: 'campaign-mail', count: sends });
-  const files = new Set([...(await rowFileIds(deps.meta, people)), ...copyFileIds(rows)]).size;
+  const files = new Set([...(await rowFileIds(deps.meta, people)), ...(await copyFileIds(deps.meta, copyRows(rows)))]).size;
   if (files > 0) goes.push({ kind: 'files', count: files });
   const stays = await whatStays(deps.meta, await findPerson(deps, address, apps));
   const found = goes.length > 0 || stays.some((item) => item.count !== null && item.count > 0) || (whole && (await deps.consent.stop.entryFor(address)) !== null);
@@ -291,7 +280,7 @@ export async function erasePerson(deps: EraseDeps, rawAddress: string, scope?: E
     }
   }
   counts['downloads'] = downloads.deleted;
-  const files = await purgeRowFiles(meta, deps.storage, [...new Set([...(await rowFileIds(meta, people)), ...copyFileIds(rows)])]);
+  const files = await purgeRowFiles(meta, deps.storage, [...new Set([...(await rowFileIds(meta, people)), ...(await copyFileIds(meta, copyRows(rows)))])]);
   counts['files'] = files.purged;
   filesFailed += files.failed;
 
