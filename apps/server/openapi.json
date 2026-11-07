@@ -2495,6 +2495,12 @@
                               },
                               "name": {
                                 "type": "string"
+                              },
+                              "connectionName": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
                               }
                             },
                             "required": [
