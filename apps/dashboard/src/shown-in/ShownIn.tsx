@@ -132,7 +132,7 @@ export function ShownInControl({ value, onChange, disabled = false, className }:
           <Radio value="all" label={t('shownIn.all', 'All workspaces')} data-testid="shown-in-mode-all" />
         </div>
         <div className="py-1.5">
-          <Radio value="chosen" label={t('shownIn.chosen', 'Only these workspaces')} aria-controls={listId} data-testid="shown-in-mode-chosen" />
+          <Radio value="chosen" label={t('shownIn.chosen', 'Only these workspaces')} aria-controls={value.mode === 'chosen' ? listId : undefined} data-testid="shown-in-mode-chosen" />
         </div>
       </RadioGroup>
       {value.mode === 'chosen' ? (

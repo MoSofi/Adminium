@@ -120,9 +120,9 @@ export function WorkspaceFilesWaiting({ onOpen }: { onOpen: (id: string) => void
       {data.map((file) => {
         const done = doneCount(file);
         return (
-          <li key={file.id} className="flex flex-wrap items-center gap-3 rounded-[12px] border border-warn/25 bg-warn-soft px-[15px] py-3 text-[13px] leading-[1.5]" role="status">
+          <li key={file.id} className="flex flex-wrap items-center gap-3 rounded-[12px] border border-warn/25 bg-warn-soft px-[15px] py-3 text-[13px] leading-[1.5]">
             <Archive aria-hidden className="size-4 shrink-0 text-warn" />
-            <span className="min-w-0 flex-1">
+            <span className="min-w-0 flex-1" role="status">
               {file.state === 'stopped'
                 ? t('studio:workspaceFiles.waiting.stopped', '{workspace}: {done} of {total} installed. The install stopped part way.', { workspace: file.name, done, total: file.apps.length })
                 : t('studio:workspaceFiles.waiting.staged', '{workspace} is uploaded and waits to be installed.', { workspace: file.name })}
