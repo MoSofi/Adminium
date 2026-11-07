@@ -7,8 +7,9 @@
  * key looks like, in the places a person types: page text, email templates,
  * public endpoint replies, automations (a webhook's body and its header's
  * name, where a pasted provider key usually sits), documents, reports,
- * invoice layouts, scheduled reports, rows (seeds and sample files) and every
- * other package file:
+ * invoice layouts, scheduled reports, the tables (a column's literal default,
+ * its rules and labels), option lists, roles, rows (seeds and sample files)
+ * and every other package file:
  *  - a provider's shape: a private key block, a well-known key prefix;
  *  - a high-randomness string: 24 characters or more, letters and digits
  *    mixed, with a Shannon entropy of at least 4 bits a character, that is not
@@ -21,7 +22,23 @@ import { itemTargetOf, targetOf, type GateContent, type Leaf } from './content.j
 import { leafPlace } from './secrets.js';
 
 /** The manifest blocks a person types text into. */
-const TYPED_BLOCKS = new Set(['pages', 'emailTemplates', 'outbox', 'publicAccess', 'publicKeys', 'seeds', 'instance', 'automations', 'documents', 'reports', 'invoiceLayouts', 'scheduledReports']);
+const TYPED_BLOCKS = new Set([
+  'pages',
+  'emailTemplates',
+  'outbox',
+  'publicAccess',
+  'publicKeys',
+  'seeds',
+  'instance',
+  'automations',
+  'documents',
+  'reports',
+  'invoiceLayouts',
+  'scheduledReports',
+  'requiredSchema',
+  'optionLists',
+  'roles',
+]);
 
 /** Shapes providers give their secrets. Matched anywhere in a string. */
 const PROVIDER_SHAPES: readonly { name: string; pattern: RegExp }[] = [
