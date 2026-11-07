@@ -37,7 +37,9 @@ It looks in:
   waiting for its confirmation too) and the **survey invitations** sent to it;
 - what Adminium keeps itself: campaign mail sent to them and its failures,
   rendered documents, invoices, payments, the payment services' messages, the
-  rules' run history, staff notifications, and files attached to their rows.
+  rules' run history, staff notifications, and files attached to their rows
+  (on a row that is theirs only as a copy, the files its copy columns hold,
+  and those the bin still keeps of them: the same files an erasure takes).
 
 The answer lists each source with how many rows it holds and their keys. A
 private table is not read. Secret columns are never read out.
@@ -122,7 +124,10 @@ follows another row is never moved.
   unsubscribed. The list is one for the whole server, even when the server
   sends for several businesses under their own senders.
 - **Campaign sends** keep their state with the address and name emptied.
-  Their downloads and the files on their rows are deleted.
+  Their downloads and the files on their rows are deleted, those in the bin
+  too. Of a copy of them, the files its copy columns name go, and so do
+  those the bin still keeps of the row (a proof made again: the one it
+  replaced) when every file column of that table is a copy of theirs.
 - **The audit log and removed rows** keep every entry (who changed what, and
   when), but the images of their rows lose the fields above, their own
   writes through a public page lose where they came from, and any text that
