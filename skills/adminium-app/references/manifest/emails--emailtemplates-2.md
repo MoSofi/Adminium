@@ -2,6 +2,18 @@
 
 # Manifest spec: Emails — emailTemplates
 
+```json
+{ "block": "email.rows",
+  "data": {
+    "from": { "link": "order", "table": "order_items", "via": "order_id", "orderBy": "position",
+              "unless": "voided", "limit": 50 },
+    "joins": { "options": { "table": "order_item_options", "via": "order_item_id", "column": "name",
+                            "orderBy": "position", "separator": " · " } },
+    "row": { "title": "{{row.qty}} × {{row.name}}", "meta": "{{row.options}}",
+             "amount": "{{row.line_total.money}}" },
+    "empty": "Nothing on this order." } }
+```
+
 | Field | Rule |
 |---|---|
 | `from` | `link`, one of the outbox's `links`; `table`, the child table, and `via`, its foreign key back to the linked row; then `orderBy`, `where` (`{ "column", "in" }`), `unless` (a bool column that leaves a row out) and `limit`, at most 50 rows. |

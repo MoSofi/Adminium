@@ -32,6 +32,10 @@ removed if nobody edited it.
 | `vars` | no | Up to 60 variable names the template reads, for the editor's list. |
 | `locales` | yes | The template in each language it ships, keyed by BCP 47 tag. `en-US` is required. |
 | `attach` | no | `{ "kind", "link", "optional"? }`: a document the email carries, drawn by an add-on for the row the outbox link `link` names (a receipt for a sale). `kind` is a document kind (see [Documents](https://docs.adminium.dev/reference/manifest/#documents)); `link` is one of the outbox's `links`. A message whose document cannot be drawn fails rather than going without it. With `"optional": true`, a message goes without the document while the add-on that draws its kind is not attached and switched on for the app, and every block marked `"data": { "withAttachment": true }` is left out with it ("Your receipt is attached"). Any other failure to draw it still fails the message. |
+| `kind` | no | `template` (the default: the outbox or a rule sends it) or `campaign` (the owner sends it to an audience). A template the outbox or a rule sends is never a campaign. Needs Adminium 0.3.49. |
+| `category` | no | What the mail is for: `transactional` (the default), `lifecycle` or `marketing`. Needs Adminium 0.3.49. |
+| `brand` | no | The mail's own `{ "name", "mark", "accent", "fromName", "fromEmail" }`, in place of the server's: `mark` one of the twelve shipped marks or `logo`, `accent` a six-digit hex colour. The sender is checked against the configured senders when it sends; a saved app's sender arrives empty, for the owner to fill in. Needs Adminium 0.3.49. |
+| `attachments` | no | 1–20 files of the package the mail carries, each `{ "file": "<relative path>" }` (`emails/terms.pdf`). Kept in the Files library, and let go when no mail names them. Needs Adminium 0.3.49. |
 
 Each language is `{ "subject", "preheader"?, "blocks", "footer"? }`: a subject and a preheader of
 up to 200 characters, 1–40 blocks, and a footer of up to 1000. A block is
@@ -84,15 +88,3 @@ with no `outbox` is refused when it has a template no rule sends. The install's 
 
 An `email.rows` block lists the rows of a child table that link to the row an outbox link names,
 one line each: an order's dishes, an order's tickets with a QR code each.
-
-```json
-{ "block": "email.rows",
-  "data": {
-    "from": { "link": "order", "table": "order_items", "via": "order_id", "orderBy": "position",
-              "unless": "voided", "limit": 50 },
-    "joins": { "options": { "table": "order_item_options", "via": "order_item_id", "column": "name",
-                            "orderBy": "position", "separator": " · " } },
-    "row": { "title": "{{row.qty}} × {{row.name}}", "meta": "{{row.options}}",
-             "amount": "{{row.line_total.money}}" },
-    "empty": "Nothing on this order." } }
-```

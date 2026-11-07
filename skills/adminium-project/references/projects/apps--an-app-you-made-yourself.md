@@ -9,7 +9,7 @@ An app made in your own project carries the publisher `local`:
 ```
 
 It runs from your project's folder, or installs from a file you upload. Adminium says so where it
-shows the app — "Made on this install" — because nobody but you has checked it. An app in a project
+shows the app ("Your own app", made at your server's name), because nobody but you has checked it. An app in a project
 folder must be `local`. Any other publisher but Adminium's own is
 refused, an add-on can never be `local`, and a `local` app can neither replace an installed app
 from another publisher nor take the key of an app the online catalogue lists.

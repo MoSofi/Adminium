@@ -19,7 +19,7 @@ and appears in the app's own sidebar section.
 
 | Field | Required | Rule |
 |---|---|---|
-| `ref` | yes | kebab-case. It becomes the page's address, `/p/<ref>`. Every app installed on the same database shares these addresses, so start it with the app key (`pos-menu`). The plan refuses an install whose page ref another app's page already uses there. |
+| `ref` | yes | kebab-case. It becomes the page's address, `/p/<ref>`. Every app installed on the same database shares these addresses, so start it with the app key (`pos-menu`). Another app's page at the address refuses the install (`PAGE_SLUG_TAKEN`). Any other page there is a choice on the install's review: replace it (only if nobody edited it), move it to another address, or skip the app's page. Left unanswered through the API, a released app's page is skipped with a warning, and a self-made app's install is refused (`PAGE_SLUG_UNANSWERED`). |
 | `template` | yes | The page template; see below. |
 | `title` | yes | An i18n message. `fallback` is the English title. |
 | `titles` | no | The title in other languages, keyed by BCP 47 tag, each 1–120 characters. The sidebar shows the operator's language until the operator renames the page. |
@@ -28,6 +28,8 @@ and appears in the app's own sidebar section.
 | `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`, a `board` for `page-board`. |
 | `feature` | no | The id of one of the app's [`addOns.features`](https://docs.adminium.dev/reference/manifest/#add-ons). Until every add-on the feature requires is installed, attached to the app and switched on there, the page leaves the sidebar and is listed apart, with the add-ons it needs. |
 | `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the page belongs to. While that part is off the page leaves the sidebar and its address answers `409` `PART_OFF`. Needs Adminium 0.3.28. |
+| `envelope` | no | A self-made app's only: the page as a person arranged it, in place of `config`. See [A page's envelope and its views](https://docs.adminium.dev/reference/manifest/#a-pages-envelope-and-its-views). Needs Adminium 0.3.49. |
+| `views` | no | A self-made app's only: 1–24 shared views of the page. Needs Adminium 0.3.49. |
 
 **Templates.** A table-bound template reads one table: `page-crud`, `page-board`,
 `page-calendar`, `page-scheduler`, `page-directory`, `page-master-detail`, `page-queue-inbox`,

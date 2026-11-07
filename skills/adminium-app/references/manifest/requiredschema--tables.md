@@ -22,6 +22,11 @@
 | `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the table belongs to. Needs Adminium 0.3.28. |
 | `removal` | no | `{ "reason"?: true \| "required", "history"?: true }`: a removal of a row takes a reason, and the removed row stays readable through a row it linked to; see [Removed rows](https://docs.adminium.dev/reference/manifest/#removed-rows). Needs Adminium 0.3.35. |
 | `keep` | no | `{ "law": "tax" \| "health" \| "contract" \| "safety" }`: the law makes the business keep the table's rows; see [Kept by law](https://docs.adminium.dev/reference/manifest/#kept-by-law). Needs Adminium 0.3.38. |
+| `exclude` | no | `true`: the table is left out of Adminium. No list, form or link shows it, and no page may be bound to it. Installed as the table's exclude mark, which the operator may change. Needs Adminium 0.3.49. |
+| `existingCustomers` | no | `true`, on a table listed in [`people`](https://docs.adminium.dev/reference/manifest/#people): the source let existing customers get marketing mail. An install never switches it on; it says so, for someone who sends campaigns to tick. Needs Adminium 0.3.49. |
+| `switchedOff` | no | `{ "postings"?: [1–6 posting ids], "adjust"?: true }`: the table's [postings](https://docs.adminium.dev/reference/manifest/#postings) and its [price rule](https://docs.adminium.dev/reference/manifest/#a-price-an-add-on-lowers), installed but kept switched off. Each posting must be one of the table's own, and `adjust` needs the table's `adjust`. Needs Adminium 0.3.49. |
+| `name` | no | A self-made app's only: the table's real name, when it is not the ref (`Order Lines`). See [A table's real name and schema](https://docs.adminium.dev/reference/manifest/#a-tables-real-name-and-schema). Needs Adminium 0.3.49. |
+| `schema` | no | A self-made app's only: the Postgres schema the table is in (`sales`). Needs Adminium 0.3.49. |
 
 `label`, `labelPlural`, `keyField` and every column `label` are installed as the operator's own
 labels would be. The operator can rename anything; a name they changed is theirs, and a later

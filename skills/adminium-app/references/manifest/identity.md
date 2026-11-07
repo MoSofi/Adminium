@@ -14,6 +14,8 @@
 | `description` | yes | An i18n message, shown on the app's card. |
 | `categories` | yes | At least one. For an app: `commerce`, `hospitality`, `operations`, `crm`, `internal-tools`. Add-ons have their own list; see [Add-on manifests](https://docs.adminium.dev/reference/manifest/#add-on-manifests). |
 | `capabilities` | no | What the package uses; see [Capabilities](https://docs.adminium.dev/reference/manifest/#capabilities). |
+| `provenance` | no | A self-made app's only: where and when the file was saved. See [`provenance`](https://docs.adminium.dev/reference/manifest/#provenance). Needs Adminium 0.3.49. |
+| `icon` | no | A self-made app's only: a Lucide icon name in kebab case (`coffee`, `shopping-bag`), at most 60 characters. See [`icon`](https://docs.adminium.dev/reference/manifest/#icon). Needs Adminium 0.3.49. |
 
 > **Caution: Two publishers only**
 > Adminium accepts `"publisher": { "id": "adminium", … }`, and for an app, `"id": "local"`: an app

@@ -4,10 +4,16 @@
 
 | Field | Required | Rule |
 |---|---|---|
+| `withhold` | no | Columns left out of a row for some readers. See [Withheld columns](https://docs.adminium.dev/reference/manifest/#withheld-columns). |
+| `limits` | no | Limits on a change a guest makes. See [Limits on a guest's change](https://docs.adminium.dev/reference/manifest/#limits-on-a-guests-change). |
 | `unlockBy` | no | Rows readable only with a code that unlocks them. See [Codes that unlock rows](https://docs.adminium.dev/reference/manifest/#codes-that-unlock-rows). |
 | `pictures` | no | 1–4 image columns any visitor may see. See [Pictures](https://docs.adminium.dev/reference/manifest/#pictures). |
 | `assets` | no | 1–8 file columns of product assets (models, fonts, SVG pieces) any visitor's browser may load. See [Assets](https://docs.adminium.dev/reference/manifest/#assets). Needs Adminium 0.3.43. |
 | `rule`, `showLeft`, `under` | no | On an `availability` entry: which limit it answers, whether it says what is left, and the column a page asks by. See [Availability](https://docs.adminium.dev/reference/manifest/#availability). |
+| `path` | no | A self-made app's only: the endpoint's own address (`/open_orders`) in place of the one Adminium names: `/`, a lower-case letter, then letters, digits and `_`. Needs Adminium 0.3.49. |
+| `pagination` | no | A self-made app's only: `{ "defaultLimit", "maxLimit", "order"? }`, 1–200 rows a page, the default no longer than the longest, and `order` as `column.asc` or `column.desc`. Needs Adminium 0.3.49. |
+| `rateLimit` | no | A self-made app's only: `{ "requests", "window" }`, 1–10,000 requests a guest may make per `1s`, `1m` or `1h`. Needs Adminium 0.3.49. |
+| `response` | no | A self-made app's only: `wrapped` (rows in `data`). An app's own key reads rows wrapped, so `array` and `single` are refused for an app's entries. Needs Adminium 0.3.49. |
 
 `writableValues` and `writableWhen` pin both ends of a change: `status` may become `cancelled`,
 and only while it is `booked`. `writableWhen` is part of the change itself, never of a read, so a

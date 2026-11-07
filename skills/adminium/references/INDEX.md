@@ -23,9 +23,9 @@ file. Every file is 8 KB or less.
 | `references/projects/apps--run-it-from-the-folder--taking-things-out.md` | Run it from the folder — Taking things out | 2175 |
 | `references/projects/apps--run-it-from-the-folder--on-a-server.md` | Run it from the folder — On a server | 4209 |
 | `references/projects/apps--the-manifest-as-parts.md` | The manifest, as parts | 1878 |
-| `references/projects/apps--an-app-you-made-yourself.md` | An app you made yourself | 905 |
+| `references/projects/apps--an-app-you-made-yourself.md` | An app you made yourself | 920 |
 | `references/projects/apps--check-it.md` | Check it | 999 |
-| `references/projects/apps--try-it-then-pack-it.md` | Try it, then pack it | 1640 |
+| `references/projects/apps--try-it-then-pack-it.md` | Try it, then pack it | 2030 |
 | `references/projects/apps--screens-of-its-own.md` | Screens of its own | 3662 |
 | `references/projects/folder--overview.md` | The project folder | 1500 |
 | `references/projects/folder--adminium-config-ts.md` | `adminium.config.ts` | 2111 |
@@ -87,7 +87,8 @@ file. Every file is 8 KB or less.
 | `references/cli/folder-facts.md` | `folder-facts` | 595 |
 | `references/cli/build.md` | `build` | 1221 |
 | `references/cli/check.md` | `check` | 1558 |
-| `references/cli/app.md` | `app` | 7277 |
+| `references/cli/app.md` | `app` | 7528 |
+| `references/cli/workspace.md` | `workspace` | 1844 |
 | `references/cli/pull.md` | `pull` | 1333 |
 | `references/cli/eject.md` | `eject` | 1119 |
 | `references/cli/try.md` | `try` | 1463 |

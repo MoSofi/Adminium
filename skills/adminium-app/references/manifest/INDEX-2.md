@@ -20,7 +20,8 @@
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
 | `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3390 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
-| `references/manifest/automations.md` | Automations | 6855 |
+| `references/manifest/automations.md` | Automations | 7120 |
+| `references/manifest/automations-2.md` | Automations (part 2) | 1062 |
 | `references/manifest/automations--a-notice-in-the-reader-s-language.md` | Automations — A notice in the reader's language | 1558 |
 | `references/manifest/automations--the-lead-of-the-person-on-the-row.md` | Automations — The lead of the person on the row | 1413 |
 | `references/manifest/automations--the-people-listed-on-the-row.md` | Automations — The people listed on the row | 1966 |
@@ -38,7 +39,18 @@
 | `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 7784 |
 | `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 3549 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 2826 |
-| `references/manifest/add-on-manifests.md` | Add-on manifests | 5061 |
+| `references/manifest/a-self-made-app.md` | A self-made app | 669 |
+| `references/manifest/a-self-made-app--new-in-0-3-49.md` | A self-made app — New in 0.3.49 | 2774 |
+| `references/manifest/a-self-made-app--provenance.md` | A self-made app — `provenance` | 1338 |
+| `references/manifest/a-self-made-app--icon.md` | A self-made app — `icon` | 406 |
+| `references/manifest/a-self-made-app--a-page-s-envelope-and-its-views.md` | A self-made app — A page's envelope and its views | 1336 |
+| `references/manifest/a-self-made-app--a-table-s-real-name-and-schema.md` | A self-made app — A table's real name and schema | 1029 |
+| `references/manifest/a-self-made-app--columns-under-their-own-names.md` | A self-made app — Columns under their own names | 932 |
+| `references/manifest/a-self-made-app--apps-requires.md` | A self-made app — `apps.requires` | 1407 |
+| `references/manifest/a-self-made-app--instance.md` | A self-made app — `instance` | 2327 |
+| `references/manifest/a-self-made-app--reports-invoicelayouts-and-scheduledreports.md` | A self-made app — `reports`, `invoiceLayouts` and `scheduledReports` | 1310 |
+| `references/manifest/a-self-made-app--payments.md` | A self-made app — `payments` | 1226 |
+| `references/manifest/add-on-manifests.md` | Add-on manifests | 5370 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 7800 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own-2.md` | Add-on manifests — An add-on with tables of its own (part 2) | 2439 |
 | `references/manifest/add-on-manifests--what-an-app-s-role-may-hold-of-an-add-on-s-table.md` | Add-on manifests — What an app's role may hold of an add-on's table | 4079 |

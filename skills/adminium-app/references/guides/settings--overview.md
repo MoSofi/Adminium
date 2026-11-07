@@ -13,3 +13,9 @@ exists.
 
 Installing, updating and uninstalling are covered in
 [Installing apps](https://docs.adminium.dev/self-hosting/installing-apps/).
+
+An app installed on several databases has a page per copy: the first at `/studio/apps/<key>`, a
+later one at `/studio/apps/<key>~<slug>`, each reading "on *database*". Everything on a copy's page
+acts on that copy alone, and **Update every copy** moves them all to one version. See
+[An app on several databases](https://docs.adminium.dev/self-hosting/apps-per-database/). An app saved with Save as app has a
+few cards of its own, described in [Installing your own app](https://docs.adminium.dev/guides/your-own-apps/install/#the-apps-page).

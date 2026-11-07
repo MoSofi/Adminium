@@ -31,6 +31,9 @@ npx @adminiumjs/adminium app pack
 
 [`adminium app pack`](https://docs.adminium.dev/reference/cli/#app-pack) writes `.adminium/packs/<key>-<version>.tgz` and
 its fingerprint beside it. Install it on any Adminium from **Studio → Hosted apps → Install an
-app**: upload the file and paste the fingerprint
-([Installing apps](https://docs.adminium.dev/self-hosting/installing-apps/)). The project's hooks and actions are not part of
+app**: upload the file and check it against the fingerprint on the review
+([Installing apps](https://docs.adminium.dev/self-hosting/installing-apps/)). On a project server, **Download** on the app's
+row on Hosted apps packs it the same way from the dashboard. The package carries the screens' source,
+without build settings or scripts, so another project server can make it editable there
+([Apps with screens of their own](https://docs.adminium.dev/guides/your-own-apps/save-as-app/#apps-with-screens-of-their-own)). The project's hooks and actions are not part of
 the package: they stay in the project.

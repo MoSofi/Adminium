@@ -29,7 +29,14 @@
 | `references/errors/staff-and-api-key-write-codes--a-ledger-s-refusal.md` | Staff and API-key write codes — A ledger's refusal | 2086 |
 | `references/errors/staff-and-api-key-write-codes--what-a-read-limit-leaves-out.md` | Staff and API-key write codes — What a read limit leaves out | 933 |
 | `references/errors/codes-met-outside-a-request--an-email-that-is-not-sent.md` | Codes met outside a request — An email that is not sent | 758 |
-| `references/errors/codes-met-outside-a-request--an-app-s-install-check.md` | Codes met outside a request — An app's install check | 1056 |
+| `references/errors/codes-met-outside-a-request--an-app-s-install-check.md` | Codes met outside a request — An app's install check | 3098 |
+| `references/errors/codes-met-outside-a-request--uploading-installing-and-updating-an-app.md` | Codes met outside a request — Uploading, installing and updating an app | 2803 |
+| `references/errors/codes-met-outside-a-request--an-app-on-several-databases.md` | Codes met outside a request — An app on several databases | 1597 |
+| `references/errors/codes-met-outside-a-request--the-app-s-page.md` | Codes met outside a request — The app's page | 629 |
+| `references/errors/codes-met-outside-a-request--saving-an-app.md` | Codes met outside a request — Saving an app | 1771 |
+| `references/errors/codes-met-outside-a-request--packing-a-project-app-and-making-one-editable.md` | Codes met outside a request — Packing a project app, and making one editable | 1847 |
+| `references/errors/codes-met-outside-a-request--workspace-files.md` | Codes met outside a request — Workspace files | 3410 |
+| `references/errors/codes-met-outside-a-request--workspaces-and-their-senders.md` | Codes met outside a request — Workspaces and their senders | 1117 |
 | `references/errors/codes-met-outside-a-request--installing-updating-and-removing-an-add-on.md` | Codes met outside a request — Installing, updating and removing an add-on | 2226 |
 | `references/errors/codes-met-outside-a-request--saving-an-endpoint-in-studio.md` | Codes met outside a request — Saving an endpoint in Studio | 4623 |
 | `references/errors/codes-met-outside-a-request--saving-an-invoice-made-on-the-invoices-page.md` | Codes met outside a request — Saving an invoice made on the Invoices page | 1188 |

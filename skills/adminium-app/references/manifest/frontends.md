@@ -26,6 +26,7 @@ there and is not declared.
 | `placement` | no | Staff side only: `internal` opens the screens inside the dashboard, `external` on their own address (a till). The operator can change it. Absent means `internal`. |
 | `enabled` | no | Whether the side starts switched on. Absent means on. |
 | `records` | no | Staff side only: where a record opens on this side, from a table ref to a path with one `{id}`; see [Where a record opens](https://docs.adminium.dev/reference/manifest/#where-a-record-opens). Needs Adminium 0.3.28. |
+| `instances` | no | `true`: the side reads its instance base and sends the `X-Adminium-Install` header, so every copy of the app (one per database) opens it. Without it, only the first copy's screens open; a later copy brings its pages, tables, roles and rules, and says its screens open for the first install only. See [An app on several databases](https://docs.adminium.dev/self-hosting/apps-per-database/#screens-of-a-later-copy). Needs Adminium 0.3.49. |
 
 ### Where a record opens
 

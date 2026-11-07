@@ -34,4 +34,13 @@ first if it has to, then checks the tables again:
   app's install or update that brings it along, lists each app's role that gets more, and is
   refused without `"roleTables": true`.
 - The app keeps its place: same row, same database connection, same mounts. Older versions of the
-  package are removed from disk only after the update succeeds.
+  package are removed from disk only after the update succeeds, and only when no copy runs them.
+- **Every copy moves together.** An app installed on several databases has one **Update every
+  copy**: each copy is updated in turn, through its own check. See
+  [One version for every copy](https://docs.adminium.dev/self-hosting/apps-per-database/#one-version-for-every-copy).
+- **An update that stops part way is finished, not undone.** The copy's row says where it stopped,
+  and **Finish the update** runs it again from there, even after a reload.
+
+Uploading a file of an installed app routes it: a newer file offers **Update every copy**, the same
+version offers **Install on another database**, and an older one is refused, naming each database's
+version.

@@ -18,6 +18,7 @@ an object keyed by kebab-case list name.
 ```
 
 Each list has a `label` and 1–500 `values`, each with a `value` (1–256 characters) and an optional
-`label` and `tone`. A list is installed once as `<key>-<name>` (`pos-zones`). The operator can edit
+`label`, `tone` and `description` (1–512 characters, a line shown under the answer where it is
+chosen; needs Adminium 0.3.49). A list is installed once as `<key>-<name>` (`pos-zones`). The operator can edit
 it like any other list, so a later version never overwrites it, and a list of that key someone
 already made is left alone.

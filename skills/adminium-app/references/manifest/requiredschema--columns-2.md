@@ -2,6 +2,38 @@
 
 # Manifest spec: requiredSchema — Columns
 
+| Type | Created as |
+|---|---|
+| `id` | A string key (`varchar`). |
+| `int`, `bigint` | Integer. With `role: "pk"`, the key numbers itself (an identity or auto-increment column); an explicit value is still accepted. |
+| `text` | `text`, or `varchar(maxLength)`. A column with a `code` rule is exactly as wide as its codes. |
+| `decimal`, `money` | Decimal. |
+| `float` | Floating point. |
+| `bool` | Boolean. |
+| `enum` | A `varchar(32)` (or `varchar(64)` when a value is longer than 32 characters) with a check that limits it to the `enum` values. |
+| `json` | JSON. |
+| `date` | Date. |
+| `time` | A time of day: `time` on Postgres and MySQL, text on SQLite. Needs Adminium 0.3.49. |
+| `timestamptz` | Timestamp with time zone. |
+| `uuid` | UUID. |
+| `fk` | A foreign key, typed like its target's primary key. |
+| `blob` | Binary. |
+
+#### Defaults
+
+A default must mean the same thing on Postgres, MySQL and SQLite, so only these are accepted:
+
+- `timestamptz`: only the string `"now"`.
+- `text`: a string, and the column needs `maxLength` (MySQL gives unbounded text no default). The
+  default must fit in it.
+- `enum`: one of its values.
+- `int`, `bigint`: a whole number. `decimal`, `money`, `float`: a number.
+- `bool`: `true` or `false`.
+- `json`, `blob`, `date`, `id`, `uuid`, `fk` and primary keys take no default.
+
+A value that comes from somewhere else when the row is made (the connection's currency, a
+setting) is not a database default: use the [`default` rule](https://docs.adminium.dev/reference/manifest/#column-rules).
+
 `"now"` is filled by Adminium on every create, through every door, so what the create works out can
 read it (a visit's [hours](https://docs.adminium.dev/reference/manifest/#hours-between-two-moments) are there from the start). On MySQL the
 database is given no default for it at all: an app's `timestamptz` is a `DATETIME` there, kept on

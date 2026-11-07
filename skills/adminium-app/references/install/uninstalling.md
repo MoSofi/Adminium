@@ -4,6 +4,8 @@
 
 **Uninstall**, on the installed row or in the **Danger zone** of the app's page, opens a dialog
 that lists what goes and what stays, read from the server before anything happens.
+When the app is installed on several databases, it acts on one copy only ("Uninstall Invoices &
+Receipts from kiln"), and the app's files leave the server with its last copy.
 
 | Removed | Kept |
 |---|---|

@@ -5,13 +5,19 @@
 **Install an app** (an upload) and **More choices** (in the one dialog) open the wizard. It has four steps:
 **Bundle**, **Database**, **Schema plan** and **Done**.
 
-1. **Bundle.** For an upload, the `.tgz` and, optionally, its `sha512-` fingerprint. For an app
-   from the shelf, the app you picked.
+1. **Bundle.** For an upload, the `.tgz`. For an app from the shelf, the app you picked.
 2. **Database.** The connection the app's tables go into, and the one it reads afterwards. Only a
-   writable connection can be chosen.
+   writable connection that is already connected can be chosen. The step says which version is
+   being installed, and a database that already has the app reads **Installed** with its version.
 3. **Schema plan.** The table check, the app's public access and the sample data box, described
    below. Nothing has been written yet.
-4. **Done.** Which tables were created, which were used as they were, and which pages were made.
+4. **Done.** Which version went onto which database, which tables were created, which were used as
+   they were, and which pages were made.
+
+An uploaded file shows **Check against the fingerprint published with the release** on the review.
+Paste the `sha512-` fingerprint from where you got the file: if it does not match, Install stays
+off. A file you or someone else saved with **Save as app** gets a longer review; see
+[Installing your own app](https://docs.adminium.dev/guides/your-own-apps/install/).
 
 ### Check the tables
 
@@ -95,9 +101,16 @@ stopped: tables that were made are recognised as this install's own, and nothing
 **Back to Schema plan** checks the tables again first. An install that stopped part way is not
 served until it finishes.
 
-### An app already installed on another connection
+### A page whose address is taken
 
-An app runs on one connection. Once it is installed (or stopped part way) on one, the plan for any
-other connection says it cannot be installed there and names the connection it is on, and an
-install sent anyway answers `409` with the code `APP_INSTALLED_ELSEWHERE`. Nothing is written.
-Update it where it is, or uninstall it there first and then install it on the other connection.
+When a page on the database already has the address one of the app's pages uses, the review asks
+what to do with each: **Replace it** (only a page nobody edited), **Rename the page here**, or
+**Skip it**. Install waits for an answer. See
+[Pages whose names are taken](https://docs.adminium.dev/guides/your-own-apps/install/#pages-whose-names-are-taken).
+
+### The same app on another database
+
+An app can be installed once on each database, each copy with its own settings, roles, templates
+and keys. Install it again and pick another database, or upload its file again and choose **Install
+on another database**. Every copy runs the same version. See
+[An app on several databases](https://docs.adminium.dev/self-hosting/apps-per-database/).

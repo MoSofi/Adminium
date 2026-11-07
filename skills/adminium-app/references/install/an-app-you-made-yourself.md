@@ -15,18 +15,24 @@ To install it on another Adminium, it installs the same way as a sideloaded one.
 .adminium/packs/repairs-0.1.0.tgz.integrity
 ```
 
-Choose **Install an app**, upload the `.tgz`, and paste the contents of the `.integrity` file. From
-there the install is the one described above: the database, the table check, public access and
-sample data.
+Choose **Install an app**, upload the `.tgz`, and paste the contents of the `.integrity` file into
+the fingerprint check on the review. From there the install is the one described above: the
+database, the table check, public access and sample data. On a project server, **Download** on the
+app's row does the same as `app pack` from the dashboard.
 
-Such an app carries the publisher `local`, and Adminium says so. The wizard shows **Made on this
-install. It does not come from adminium.dev, and nobody else has checked it.** and the installed
-list marks it **Made here**. Three rules keep a self-made app from passing for anything else:
+An app saved from a database with [Save as app](https://docs.adminium.dev/guides/your-own-apps/save-as-app/) installs the
+same way, with a longer review: see [Installing your own app](https://docs.adminium.dev/guides/your-own-apps/install/).
+
+Such an app carries the publisher `local`, and Adminium says so. A file that says where it was made
+reads **Your own app** with "Made at *label* on *date*"; one that does not shows **Made on this
+install. It does not come from adminium.dev, and nobody else has checked it.** Three rules keep a
+self-made app from passing for anything else:
 
 - it cannot replace an installed app from another publisher, and an app from another publisher
   cannot replace it: the upload is refused with `PUBLISHER_CHANGED`. Uninstall first, or give your
   app another key;
-- it cannot take the key of an app the online catalogue lists (`KEY_IN_CATALOG`);
+- it cannot take the key of an app the online catalogue lists (`KEY_IN_CATALOG`), and a different
+  self-made app under the same key is refused (`LINEAGE_DIFFERS`);
 - the online catalogue never delivers one: a download whose manifest says `local` is discarded.
 
 An app with no screens of its own, only tables and dashboard pages, may be installed this way when

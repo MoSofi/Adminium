@@ -124,7 +124,8 @@ larger than an upload takes (32 MB). The project's hooks and actions are not
 part of an app package.
 
 Install the file from **Studio → Hosted apps → Install an app**: upload it and
-paste the fingerprint. See [Installing apps](https://docs.adminium.dev/self-hosting/installing-apps/).
+check it against the fingerprint on the review. See [Installing apps](https://docs.adminium.dev/self-hosting/installing-apps/).
+The package also carries the app's source, stripped of anything that runs when it is built.
 
 ### `app save`
 
@@ -147,4 +148,6 @@ view, a value that looks like a secret), nothing is written: give the answers in
 an `--answers` JSON file shaped as `{ "include": …, "rows": …, "answers": … }`
 and run it again. `--plan` prints the list and writes nothing.
 
-It writes `<key>-<version>.tgz` (or `--out`) and prints its fingerprint.
+It writes `<key>-<version>.tgz` (or `--out`) and prints its fingerprint. What
+travels, Check's groups and who may save what are in
+[Save as app](https://docs.adminium.dev/guides/your-own-apps/save-as-app/).

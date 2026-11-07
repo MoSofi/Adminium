@@ -2,6 +2,10 @@
 
 # An app's settings page: Extra instances
 
+To give a second database its own copy of an app, with its own settings, roles and templates,
+install the app again on that database: see [An app on several databases](https://docs.adminium.dev/self-hosting/apps-per-database/).
+An instance is the older, lighter way: the same copy's screens again, reading another database.
+
 One installed app can serve more than one database, for example two branches with a database each.
 On **Studio → Hosted apps**, the **Instances** card adds one: pick the **App**, type a **URL
 segment**, choose the connection it **Reads**, and **Save instances**.

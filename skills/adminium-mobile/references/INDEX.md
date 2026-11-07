@@ -9,5 +9,5 @@ file. Every file is 8 KB or less.
 |---|---|---|
 | guides | 50 | `references/guides/INDEX.md` |
 | public-api | 6 | `references/public-api/INDEX.md` |
-| errors | 29 | `references/errors/INDEX.md` |
-| cli | 25 | `references/cli/INDEX.md` |
+| errors | 36 | `references/errors/INDEX.md` |
+| cli | 26 | `references/cli/INDEX.md` |

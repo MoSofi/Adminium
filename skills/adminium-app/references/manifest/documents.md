@@ -30,6 +30,9 @@ invoice, receipt or statement, drawn by an add-on that renders documents. Up to 
 | `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the document belongs to: it is not drawn while that part is off. Needs Adminium 0.3.28. |
 | `requestValues` | no | 1–8 slots the app's own screen may fill when it asks for the document (a label sheet's `count`). Each must be a slot the entry does not map; when the add-on is attached, its outline must have the slot, with no default, holding a number or a text. See below. |
 | `where` | no | `{ "column", "in": [...] }`: only rows whose column holds one of 1–16 values have this document (a `receipt` for `payments.kind` `taken`, not for money given back). Asked for another row, the render answers `409` `DOCUMENT_NOT_FOR_ROW`; an email that would carry it goes without it. |
+| `options` | no | How it is drawn: `{ "locale"?, "paper"?, "formats"?, "prefix"?, "literals"? }`: its language tag, paper size, `html` and/or `pdf`, what a document number starts with (`INV-`, up to 20 characters) and up to 32 fixed texts by slot. The operator's to change afterwards. Needs Adminium 0.3.49. |
+| `trigger` | no | `{ "event", "when"? }`: drawn by itself on `record.created` or `record.updated`, and with `when: { "column", "value"? }` (updates only) when that column changes, or changes to that value. Needs Adminium 0.3.49. |
+| `deliver` | no | `{ "store"?, "emailSlot"? }`: a drawn document is kept, and emailed to the address a slot holds. The slot arrives empty, for the owner to choose. Needs Adminium 0.3.49. |
 
 The slots are the add-on's words (`number`, `issuedAt`, `items`): a shape's own profiles, in the
 add-on's manifest, show the ones it draws. Each slot reads one of:
@@ -80,9 +83,3 @@ Each source is `{ "table", "via", "date", "amount", "number"?, "where"?, "unless
 foreign key `via` points at the document's table, its date and amount columns, and optionally its
 number. `where` is `{ "column", "in": [1–16 values] }`, only rows whose column holds one of them
 (sent invoices, never drafts); a row whose `unless` column is set is left out (a voided payment).
-
-The period is chosen when the statement is drawn, never as dates: `all` (the default), `year`
-(from 1 January) or `12m` (the last twelve months). What came before the period is carried in as
-the opening balance, and rows dated after today are left out. A statement is issued on the day it
-is drawn, on the venue's clock: that fills its issue date (`issuedAt`) unless the profile maps a
-column to it.

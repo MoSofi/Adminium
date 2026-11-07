@@ -5,7 +5,7 @@
 | Field | Required | Rule |
 |---|---|---|
 | `table` | yes | One of the app's table refs. |
-| `methods` | yes | At least one of `GET`, `POST`, `PATCH`. `PATCH` needs a `claim`, a `claimedBy` that is not `optional`, or a `visibleWith`. |
+| `methods` | yes | At least one of `GET`, `POST`, `PATCH`. `PATCH` needs a `claim`, a `claimedBy` that is not `optional`, or a `visibleWith`. A self-made app may also use `PUT` (replace a row), `DELETE` (remove one) and `BATCH` (write many at a time), each only with a claim, as `PATCH`; anywhere else `DELETE` is only an add-on's own link's. Needs Adminium 0.3.49. |
 | `kind` | no | `records` (the default) or `availability`. |
 | `key` | no | The browser key that serves the entry: `customer` (the default) or a name in [`publicKeys`](https://docs.adminium.dev/reference/manifest/#publickeys). |
 | `module` | no | The [part](https://docs.adminium.dev/reference/manifest/#parts) of the app the entry belongs to: while that part is off the entry answers as one that is not there. Needs Adminium 0.3.28. |
@@ -42,5 +42,3 @@
 | `shareLink` | no | A share-code column: a create answers, once, the new row's own link. See [A row's own link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link). |
 | `newLink` | no | `{ "column", "kind", "when"? }`: "Make a new link" for a signed-in person's row, or "Send it again" through a row's own link. See [A row's own link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link). |
 | `forget` | no | On an identity entry: what "delete my details" empties. See [Delete my details](https://docs.adminium.dev/reference/manifest/#delete-my-details). |
-| `withhold` | no | Columns left out of a row for some readers. See [Withheld columns](https://docs.adminium.dev/reference/manifest/#withheld-columns). |
-| `limits` | no | Limits on a change a guest makes. See [Limits on a guest's change](https://docs.adminium.dev/reference/manifest/#limits-on-a-guests-change). |

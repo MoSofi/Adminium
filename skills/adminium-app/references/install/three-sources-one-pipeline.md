@@ -5,7 +5,7 @@
 | Source | Network | Where it comes from |
 |---|---|---|
 | **Bundled** | none | Tarballs in the folder [`ADMINIUM_BUNDLED_APPS`](https://docs.adminium.dev/self-hosting/installing-apps/#adminium_bundled_apps) names, seeded into the app store at boot. |
-| **Uploaded** | none | A `.tgz` you upload yourself, with the fingerprint you paste. |
+| **Uploaded** | none | A `.tgz` you upload yourself, checked against the fingerprint you paste on the review. |
 | **The list from adminium.dev** | on for a new install; a switch | Released apps listed by adminium.dev, downloaded from `downloads.adminium.dev`. |
 
 No build Adminium publishes carries a bundled app set — not the Docker image, not the desktop app,

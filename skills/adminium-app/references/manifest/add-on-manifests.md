@@ -39,6 +39,7 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 | `checker` | no | What the add-on reads to say whether a design may be ordered. See [The design question](https://docs.adminium.dev/reference/manifest/#the-design-question). |
 | `panels` | no | 1–6 of its own screens drawn on the record pages of tables that link into one of its tables. See [A panel on another table's record](https://docs.adminium.dev/reference/manifest/#a-panel-on-another-tables-record). |
 | `shapes` | no | 1–8 shapes apps build their tables on. See below. |
+| `scope` | no | `"server"`: the add-on is installed once for the whole server, not once per database. Payment providers say so: two businesses on one server share one provider account. Without it, an add-on installs on its host app's database (or the one chosen), once per database. Needs Adminium 0.3.49. |
 
 Contract ids and slot ids come from closed registries in the add-on contracts package. How
 Adminium runs add-on code, and why only first-party add-ons are accepted, is explained in

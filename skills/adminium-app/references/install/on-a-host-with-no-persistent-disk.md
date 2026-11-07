@@ -19,7 +19,7 @@ or a container with no volume — **every installed app is lost at the next depl
   A lost app you uploaded yourself is never in that feed, so before 0.3.0 it appeared in no list
   at all while the install record still said it was there; it is now listed as Missing regardless.
 
-To bring an app back, choose **Install an app**, upload the same version's file with its
+To bring an app back, choose **Install an app**, upload the same version's file, check its
 fingerprint, and confirm. The plan reuses the tables the app already has: nothing is created twice
 and nothing is dropped. The shelf cannot do this for you: it shows the app as missing and offers
 no download.
