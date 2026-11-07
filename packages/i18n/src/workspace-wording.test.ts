@@ -172,6 +172,10 @@ const GROUP_FILES: ReadonlyMap<string, string> = new Map([
   ['apps/dashboard/src/email/editor/inspector/panels/SendAsField.tsx', '"Send as": a workspace’s sender, or the server’s'],
   ['apps/docs/src/content/docs/guides/workspaces/', 'the guides to workspaces: the menu, a workspace’s sender, workspace files'],
   ['apps/docs/src/content/docs/guides/your-own-apps/', 'Save as app and its install: a database’s workspace chips, and saving a whole workspace'],
+  // A skill's references are copies of the docs, made by `pnpm skills-references`: their words are checked at the source.
+  ...['adminium', 'adminium-add-ons', 'adminium-app', 'adminium-design', 'adminium-mobile', 'adminium-project', 'adminium-surface'].map(
+    (skill): [string, string] => [`skills/${skill}/references/`, 'copies of the docs, checked where they are written'],
+  ),
 ]);
 
 /** Exact source strings that are about the groups. */
