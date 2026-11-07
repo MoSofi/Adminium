@@ -63,10 +63,12 @@ describe('a mount serves the install its grant names', () => {
     const installOf = async (url: string): Promise<unknown> => {
       const config = await t!.app.inject({ method: 'GET', url, headers: { cookie: cookie ?? '' } });
       expect(config.statusCode, `${url} ${config.body}`).toBe(200);
-      return config.json().installId;
+      const body = config.json() as { installId: string; slug: string };
+      return [body.installId, body.slug];
     };
-    expect(await installOf('/apps/clients/staff/surface-config.json')).toBe(plain.row.id);
-    expect(await installOf('/apps/clients/old/staff/surface-config.json')).toBe(plain.row.id);
-    expect(await installOf('/apps/clients/kiln/staff/surface-config.json')).toBe(later.row.id);
+    // The copy's own address part comes with it: '' for the first copy, even under an old instance's address.
+    expect(await installOf('/apps/clients/staff/surface-config.json')).toEqual([plain.row.id, '']);
+    expect(await installOf('/apps/clients/old/staff/surface-config.json')).toEqual([plain.row.id, '']);
+    expect(await installOf('/apps/clients/kiln/staff/surface-config.json')).toEqual([later.row.id, 'kiln']);
   });
 });

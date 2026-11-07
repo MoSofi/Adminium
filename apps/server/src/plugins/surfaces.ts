@@ -571,12 +571,13 @@ async function copiesElsewhere(meta: MetaDb, appKey: string, side: string): Prom
  * Its id goes into the screens' config, and the screens send it back as
  * `X-Adminium-Install`.
  */
-async function installOfMount(meta: MetaDb, settings: SurfaceSettings, appKey: string, slug: string | null): Promise<{ id: string } | null> {
+async function installOfMount(meta: MetaDb, settings: SurfaceSettings, appKey: string, slug: string | null): Promise<{ id: string; slug: string } | null> {
   const address = addressForMount(settings, appKey, slug);
   const known = settings.installs?.[address];
-  if (known !== undefined) return { id: known.id };
+  const query = meta.db.selectFrom('adminium_manifests').select(['id', 'instanceSlug as slug']);
+  if (known !== undefined) return (await query.where('id', '=', known.id).executeTakeFirst()) ?? { id: known.id, slug: address === appKey ? '' : (slug ?? '') };
   const addressSlug = address === appKey ? '' : (slug ?? '');
-  return (await meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', appKey).where('kind', '=', 'app').where('instanceSlug', '=', addressSlug).executeTakeFirst()) ?? null;
+  return (await query.where('manifestKey', '=', appKey).where('kind', '=', 'app').where('instanceSlug', '=', addressSlug).executeTakeFirst()) ?? null;
 }
 
 export const surfacesPlugin = fp<SurfacesPluginOptions>(
@@ -881,7 +882,9 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         return {
           connectionId: bound,
           // Sent back on every call as `X-Adminium-Install`: the server then knows which copy of the app is asking.
-          ...(install === null ? {} : { installId: install.id }),
+          // `slug` is the copy's address part ('' for the first): on a mapped domain the path cannot say it, and the
+          // screens need it to name what the server keeps per copy (a later copy's email templates, say).
+          ...(install === null ? {} : { installId: install.id, slug: install.slug }),
           appName,
           ...(addOns === null ? {} : { addOns }),
           ...(sharedTables === null ? {} : { sharedTables }),
@@ -937,7 +940,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       const addOns = await addOnsOf(appKey, 'customer', bound, install?.id ?? null);
       return {
         baseUrl: '',
-        ...(install === null ? {} : { installId: install.id }),
+        ...(install === null ? {} : { installId: install.id, slug: install.slug }),
         publishableKey: key === null ? shared[linkOnly as string]! : openPublishableKey(crypto, key.tokenEncrypted),
         appName,
         ...(addOns === null ? {} : { addOns }),
