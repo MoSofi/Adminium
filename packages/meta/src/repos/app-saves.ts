@@ -252,7 +252,8 @@ export interface WorkspaceInstall {
   staged: string;
   name: string;
   apps: WorkspaceInstallApp[];
-  workspaceChoice: { mode: 'create' | 'existing' | 'none'; workspaceId?: string; name?: string } | null;
+  /** `gone`: the workspace an earlier run made or chose was deleted since, so the rest install with none. */
+  workspaceChoice: { mode: 'create' | 'existing' | 'none'; workspaceId?: string; name?: string; gone?: true } | null;
   state: WorkspaceInstallState;
   runLock: string | null;
   lockedAt: number | null;

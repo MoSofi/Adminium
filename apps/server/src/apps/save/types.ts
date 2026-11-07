@@ -130,6 +130,12 @@ export interface RowAccess {
    * staff member reads never travels for anybody.
    */
   reader?: { superAdmin?: boolean; readLimits?: ReadLimits | undefined } | undefined;
+  /**
+   * Who saves, for the view that picks starting rows: only one they may use
+   * (theirs, or a shared one), compiled with their own `read_pii`. Absent, the
+   * host's (the command line): any view, every column.
+   */
+  saver?: { userId: string | null; canReadPii(tableId: string): Promise<boolean> } | undefined;
 }
 
 /** What the rows part carried that needs the saver's own rights ("Download again" asks the same). */

@@ -41695,6 +41695,10 @@
     "status": "mt",
     "srcHash": "4ca0a75c2b7f"
   },
+  "studio.workspaceFiles.done.workspaceGone": {
+    "status": "mt",
+    "srcHash": "d8095807a753"
+  },
   "studio.workspaceFiles.error": {
     "status": "mt",
     "srcHash": "8d886c0ba6f2"
@@ -41795,6 +41799,14 @@
     "status": "mt",
     "srcHash": "b80d81783353"
   },
+  "studio.workspaceFiles.install.workspaceGone.body": {
+    "status": "mt",
+    "srcHash": "55663569de7f"
+  },
+  "studio.workspaceFiles.install.workspaceGone.title": {
+    "status": "mt",
+    "srcHash": "bb1eb739c136"
+  },
   "studio.workspaceFiles.refusal.extra": {
     "status": "mt",
     "srcHash": "42d130a1bbf2"
@@ -41846,6 +41858,10 @@
   "studio.workspaceFiles.save.lastSaved": {
     "status": "mt",
     "srcHash": "d40a03c33e07"
+  },
+  "studio.workspaceFiles.save.leaks": {
+    "status": "mt",
+    "srcHash": "1307c65a18fa"
   },
   "studio.workspaceFiles.save.moreChoices": {
     "status": "mt",

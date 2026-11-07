@@ -5541,7 +5541,8 @@ export default {
       "title": "{done} of {total} apps are installed",
       "waiting": "not installed yet",
       "what": "What happened",
-      "workspace": "Workspace"
+      "workspace": "Workspace",
+      "workspaceGone": "They are on {server}. The workspace {workspace} was deleted, so the rest are in no workspace."
     },
     "error": "Something went wrong",
     "install": {
@@ -5574,7 +5575,11 @@ export default {
         "waiting": "{ready} {count, plural, one {installs now.} other {install now.}} Make the choices for {apps} to add {others, plural, one {it} other {them}}.",
         "waitingAll": "Choose a database for {apps}, and answer its review."
       },
-      "title": "Install a workspace file"
+      "title": "Install a workspace file",
+      "workspaceGone": {
+        "title": "The workspace was deleted",
+        "body": "The workspace {workspace} was deleted after the first apps were installed. The rest install in no workspace."
+      }
     },
     "refusal": {
       "extra": "The file carries something its list of apps does not name.",
@@ -5609,7 +5614,8 @@ export default {
       "tooBig": "This workspace file would be larger than {size}. Leave out a database or its sample rows and try again.",
       "useMoreChoices": "Use More choices on an app to make its choices.",
       "useChoices": "Use these choices",
-      "version": "Version"
+      "version": "Version",
+      "leaks": "The workspace file would carry a secret or an id of this server in a workspace, database or label name. Rename it, then save again."
     },
     "saved": {
       "copyApp": "Copy the fingerprint of {file}",

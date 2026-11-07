@@ -16,9 +16,10 @@
  *   released  the app was uninstalled and the table kept
  *   dropped   the app was uninstalled and the table dropped with its data
  *
- * A record is never deleted by an uninstall; its manifest row is, and the
- * foreign key sets `manifest_id` to NULL, so the next install of the same app
- * key re-attaches it ({@link appTablesRepo.attach}).
+ * A record is never deleted by an uninstall, save a `pending` one (a table an
+ * install stopped before making); its manifest row is, and the foreign key
+ * sets `manifest_id` to NULL, so the next install of the same app key
+ * re-attaches it ({@link appTablesRepo.attach}).
  */
 
 import type { Selectable } from 'kysely';
@@ -320,10 +321,23 @@ export function appTablesRepo(meta: MetaDb) {
     },
 
     /**
+     * Forget the tables an install was about to create and never recorded as
+     * made (`pending`): its uninstall leaves no claim on a name, so a table
+     * made by hand under it later is never taken for the app's own.
+     */
+    async removePending(connectionId: string, appKey: string): Promise<number> {
+      const res = await db.deleteFrom('adminium_app_tables').where('connectionId', '=', connectionId).where('appKey', '=', appKey).where('state', '=', 'pending').executeTakeFirst();
+      return Number(res.numDeletedRows);
+    },
+
+    /**
      * Re-attach an app's leftover records to a fresh install's manifest row.
-     * The foreign key set them to NULL when the previous row went.
+     * The foreign key set them to NULL when the previous row went. A `pending`
+     * record left so (an install stopped, then uninstalled) is forgotten
+     * first: it is no table the app made.
      */
     async attach(connectionId: string, appKey: string, manifestId: string, at: number = Date.now()): Promise<number> {
+      await db.deleteFrom('adminium_app_tables').where('connectionId', '=', connectionId).where('appKey', '=', appKey).where('state', '=', 'pending').where('manifestId', 'is', null).execute();
       const res = await db
         .updateTable('adminium_app_tables')
         .set({ manifestId, updatedAt: at })

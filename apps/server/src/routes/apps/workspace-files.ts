@@ -18,7 +18,7 @@
  * Choosing a workspace needs managing connections besides.
  */
 import { WORKSPACE_FILE_FLOOR, compareSemver, workspaceFileKey } from '@adminium/manifest';
-import { connectionsRepo, workspaceInstallsRepo, type WorkspaceInstall } from '@adminium/meta';
+import { connectionsRepo, workspaceInstallsRepo, workspacesRepo, type WorkspaceInstall } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -76,8 +76,11 @@ const workspaceFileDto = z.object({
   /** The fingerprint of the file as uploaded: `sha512-` + base64. */
   integrity: z.string(),
   state: z.enum(['staged', 'running', 'stopped', 'done', 'discarded']),
-  /** The workspace chosen, once a run chose one. */
-  workspace: z.object({ mode: z.enum(['create', 'existing', 'none']), workspaceId: z.string().optional(), name: z.string().optional() }).nullable(),
+  /**
+   * The workspace chosen, once a run chose one. `gone`: the one it made or
+   * chose was deleted since, so the rest install with none (`name` says which).
+   */
+  workspace: z.object({ mode: z.enum(['create', 'existing', 'none']), workspaceId: z.string().optional(), name: z.string().optional(), gone: z.boolean().optional() }).nullable(),
   apps: z.array(workspaceFileApp),
   createdAt: z.number(),
   updatedAt: z.number(),
@@ -107,8 +110,10 @@ export const installWorkspaceBody = z
             connectionId: z.string().min(1).nullable(),
             /** The app's review answers for an install, as `POST /apps/install` takes them. */
             install: installAppBody.omit({ key: true, version: true, connectionId: true }).optional(),
-            /** The app's review answers for an update of its copies, as `POST /apps/:key/update` takes them. */
+            /** The app's review answers for an update of its only copy, as `POST /apps/:key/update` takes them. */
             update: updateAppBody.optional(),
+            /** Each copy's update answers, by its install id. A copy with none is updated with none: nothing granted. */
+            updates: z.record(z.string().min(1).max(64), updateAppBody).optional(),
           })
           .strict(),
       )
@@ -137,6 +142,17 @@ const CONNECTIONS_MANAGE = 'system:connections:manage';
 export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAsyncZod {
   const { deps } = w;
   const installs = workspaceInstallsRepo(deps.meta);
+
+  /**
+   * The workspace a run chose, as the review reads it: one deleted since is
+   * said to be gone before the next run, which installs the rest with none.
+   */
+  async function workspaceOf(choice: WorkspaceInstall['workspaceChoice']): Promise<z.infer<typeof workspaceFileDto>['workspace']> {
+    if (choice === null) return null;
+    const deleted = choice.workspaceId !== undefined && (await workspacesRepo(deps.meta).findById(choice.workspaceId)) === null;
+    if (choice.gone === true || deleted) return { mode: 'none', ...(choice.name === undefined ? {} : { name: choice.name }), gone: true };
+    return { mode: choice.mode, ...(choice.workspaceId === undefined ? {} : { workspaceId: choice.workspaceId }), ...(choice.name === undefined ? {} : { name: choice.name }) };
+  }
 
   /** The row as the review reads it: each app with where it goes now and the database it may start on. */
   async function dto(row: WorkspaceInstall): Promise<z.infer<typeof workspaceFileDto>> {
@@ -173,7 +189,7 @@ export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAs
       minAdminiumVersion: document?.minAdminiumVersion ?? WORKSPACE_FILE_FLOOR,
       integrity: row.integrity,
       state: row.state,
-      workspace: row.workspaceChoice === null ? null : { mode: row.workspaceChoice.mode, ...(row.workspaceChoice.workspaceId === undefined ? {} : { workspaceId: row.workspaceChoice.workspaceId }), ...(row.workspaceChoice.name === undefined ? {} : { name: row.workspaceChoice.name }) },
+      workspace: await workspaceOf(row.workspaceChoice),
       apps,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

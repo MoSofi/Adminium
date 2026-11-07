@@ -15,7 +15,7 @@ import { Readable } from 'node:stream';
 import { gunzipSync } from 'node:zlib';
 
 import { WORD_FLOORS, type AppManifest } from '@adminium/manifest';
-import { appSavesRepo, emailTemplatesRepo, filesRepo, newId, usersRepo, workspacesRepo } from '@adminium/meta';
+import { appSavesRepo, emailTemplatesRepo, filesRepo, newId, usersRepo, viewsRepo, workspacesRepo } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { runCli } from '../src/cli/run.js';
@@ -77,7 +77,7 @@ async function serve(h: Harness, dialect: Dialect, files: FileStore, people: Peo
     if (error instanceof AppError) return reply.status(error.statusCode).send(errorEnvelope(error.code, error.message, 'req_test', error.details));
     return reply.status(500).send(errorEnvelope('INTERNAL', String(error), 'req_test'));
   });
-  const workspaces = createWorkspaceSaveService({ meta: h.meta, save: service, adminiumVersion: '0.3.49', dialectOf: async (id) => (id === h.connectionId ? dialect : null), displayName: async () => 'Corner shop' });
+  const workspaces = createWorkspaceSaveService({ meta: h.meta, save: service, adminiumVersion: '0.3.49', masterSecret: 'a-test-master-secret-of-enough-length', dialectOf: async (id) => (id === h.connectionId ? dialect : null), displayName: async () => 'Corner shop' });
   await app.register(appSaveRoutes({ meta: h.meta, service, workspaces }));
   await app.ready();
   return { service, app };
@@ -182,6 +182,47 @@ describe.each(ENGINES)('save as app: what a database could include, on %s', (dia
     expect(theirs.instance).toBe(false);
     await expect(service.inventory('conn_missing', ALL)).rejects.toMatchObject({ statusCode: 404 });
   });
+
+  it.runIf(available)('shows the saver only what they may see: tables, columns, row counts and views', async () => {
+    harness = await installHarness(dialect);
+    const h = harness;
+    await shopTables(h);
+    const { service } = await serve(h, dialect, library());
+    const everything = await service.inventory(h.connectionId, ALL);
+    const customers = everything.tables.find((table) => table.name === 'customers')!;
+    const orders = everything.tables.find((table) => table.name === 'orders')!;
+    const ordersPage = everything.pages.find((page) => page.tableId === orders.id)!;
+    const customersPage = everything.pages.find((page) => page.tableId === customers.id)!;
+    const me = await usersRepo(h.meta).create({ email: `me-${dialect}@corner.test`, name: 'Me', status: 'active' });
+    const other = await usersRepo(h.meta).create({ email: `other-${dialect}@corner.test`, name: 'Rosa Okafor', status: 'active' });
+    const views = viewsRepo(h.meta);
+    await views.create({ pageId: ordersPage.id, userId: me.id, name: 'Mine', config: { v: 1 } });
+    await views.create({ pageId: ordersPage.id, userId: null, name: 'Shared', config: { v: 1 } });
+    await views.create({ pageId: ordersPage.id, userId: other.id, name: 'Their secret plan', config: { v: 1 } });
+    await views.create({ pageId: customersPage.id, userId: null, name: 'Customers shared', config: { v: 1 } });
+
+    // Reads orders only, sees none of its note, and reads only part of its rows.
+    const rights: SaveRights = {
+      userId: me.id,
+      can: async (grant) => grant.startsWith(`table:${h.connectionId}:${orders.id}:`) && !grant.endsWith(':read_pii'),
+      readsWhole: async () => false,
+      permissions: async () => ({ readLimits: { limited: [{ grant: `table:${h.connectionId}:${orders.id}:read`, limit: { readable: ['customer_id'] } }], unlimited: new Set() } }),
+    };
+    const theirs = await service.inventory(h.connectionId, rights);
+    expect(theirs.tables.map((table) => table.name)).toEqual(['orders']);
+    expect(theirs.tables[0]).toMatchObject({ columns: 2, rows: null, rowsExact: false, rowsAllowed: false, links: [], personalAllowed: false });
+    expect(JSON.stringify(theirs)).not.toContain('customers');
+    expect(JSON.stringify(theirs)).not.toContain('"note"');
+    expect(theirs.pages.map((page) => page.id)).toEqual([ordersPage.id]);
+    expect(theirs.views.map((view) => view.name).sort()).toEqual(['Mine', 'Shared']);
+    expect(theirs.views.every((view) => view.ownerId === null || view.ownerId === me.id)).toBe(true);
+    expect(JSON.stringify(theirs)).not.toContain('Rosa Okafor');
+    expect(JSON.stringify(theirs)).not.toContain('Their secret plan');
+
+    // The whole table read: its estimate shows.
+    const whole = await service.inventory(h.connectionId, { ...rights, readsWhole: async () => true });
+    expect(whole.tables[0]!.rows).toBe(orders.rows);
+  });
 });
 
 describe('save as app: the routes', () => {
@@ -196,7 +237,7 @@ describe('save as app: the routes', () => {
     const h = harness;
     await shopTables(h);
     const files = library();
-    const { app } = await serve(h, 'sqlite', files);
+    const { app } = await serve(h, 'sqlite', files, { owner: new Set(['*']) });
 
     const planned = await app.inject({ method: 'POST', url: '/apps/save/plan', payload: { connectionId: h.connectionId, key: 'corner-shop', name: 'Corner shop' } });
     expect(planned.statusCode, planned.body).toBe(200);
@@ -219,7 +260,8 @@ describe('save as app: the routes', () => {
     expect(Object.keys(list.json().saves[0]).sort()).toEqual(['bytes', 'connectionId', 'description', 'downloadable', 'icon', 'id', 'integrity', 'key', 'label', 'name', 'savedAt', 'savedBy', 'savedByName', 'version']);
     expect(list.json().saves[0]).toMatchObject({ name: 'Corner shop', description: null, icon: 'shopping-bag', savedBy: null, savedByName: null });
 
-    const inventory = await app.inject({ method: 'GET', url: `/apps/save/inventory?connectionId=${h.connectionId}` });
+    // The inventory lists what its reader may read: one who reads every table sees them all.
+    const inventory = await app.inject({ method: 'GET', url: `/apps/save/inventory?connectionId=${h.connectionId}`, headers: { 'x-test-user': 'owner' } });
     expect(inventory.statusCode, inventory.body).toBe(200);
     expect(Object.keys(inventory.json().inventory).sort()).toEqual([
       'automations', 'connectionId', 'documents', 'emailTemplates', 'instance', 'invoiceLayouts', 'pages', 'payments', 'publicEndpoints', 'reports', 'roles', 'scheduledReports', 'tables', 'views',

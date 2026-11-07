@@ -65,6 +65,25 @@ for (const dialect of TEST_DIALECTS) {
       expect((await manifests.findById(two.row.id))?.row.status).toBe('installed');
     });
 
+    it('forgets a table an install never made: on its uninstall, and when an uninstalled one left it', async () => {
+      const connectionId = await connection(t.meta);
+      const manifests = manifestsRepo(t.meta, crypto);
+      const repo = appTablesRepo(t.meta);
+      const one = await manifests.install({ manifestKey: 'pos', version: '0.1.0', kind: 'app', source: 'file', document: {}, connectionId, scopeKey: connectionId, status: 'installing' });
+      await repo.record({ appKey: 'pos', manifestId: one.row.id, connectionId, ref: 'tickets', tableName: 'tickets', owned: true, state: 'created' });
+      await repo.record({ appKey: 'pos', manifestId: one.row.id, connectionId, ref: 'shifts', tableName: 'shifts', owned: true, state: 'pending' });
+      expect(await repo.removePending(connectionId, 'pos')).toBe(1);
+      expect((await repo.forInstall(connectionId, 'pos')).map((record) => record.ref)).toEqual(['tickets']);
+
+      // One left by an uninstall from before: the next install's attach forgets it, so a later "shifts" made by hand is never its own.
+      await repo.record({ appKey: 'pos', manifestId: one.row.id, connectionId, ref: 'shifts', tableName: 'shifts', owned: true, state: 'pending' });
+      await manifests.uninstall(one.row.id);
+      const two = await manifests.install({ manifestKey: 'pos', version: '0.1.0', kind: 'app', source: 'file', document: {}, connectionId, scopeKey: connectionId, status: 'installing' });
+      expect(await repo.attach(connectionId, 'pos', two.row.id)).toBe(1);
+      const found = await repo.record({ appKey: 'pos', manifestId: two.row.id, connectionId, ref: 'shifts', tableName: 'shifts', owned: false, state: 'adopted' });
+      expect(found).toMatchObject({ state: 'adopted', owned: false });
+    });
+
     it('keeps the rules it wrote, and ignores an entry it cannot read', async () => {
       const connectionId = await connection(t.meta);
       const repo = appTablesRepo(t.meta);

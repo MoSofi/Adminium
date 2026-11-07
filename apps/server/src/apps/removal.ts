@@ -496,6 +496,8 @@ export function createRemovals(deps: RemovalDeps) {
     }
     const kept = list.tables.filter((entry) => !dropped.includes(realTableOf(entry.record)));
     for (const entry of kept) await tables.setState(entry.record.id, 'released');
+    // A table it was about to create when it stopped is no table of its own: the name holds no claim after it.
+    if (list.connectionId !== null) await tables.removePending(list.connectionId, list.key);
     return { rulesRemoved, emailsRemoved, dropped, kept, instanceRestored: instance.restored.length };
   }
 

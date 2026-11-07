@@ -10,7 +10,11 @@
  *
  *  - Starting rows: at most 200. Over 200, a saved view picks them (its
  *    filters, search and sort); without one, the first 200 in key order, and
- *    Check says so. Sample rows: up to 5,000 a table.
+ *    Check says so. Sample rows: up to 5,000 a table. The view is one the
+ *    saver may use (their own, or a shared one), read with the saver's own
+ *    reads: a filter, a search or a sort on a column they may not read, or on
+ *    a personal one without `read_pii`, is not used, so no filter probes a
+ *    value they could not see.
  *  - Ids travel: rows go only into empty tables, so they cannot clash, and the
  *    install moves a counting key past them.
  *  - Parents first. A cycle through nullable links is written in two passes:
@@ -33,6 +37,7 @@ import { viewsRepo } from '@adminium/meta';
 
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { compileFilter, compileQuickSearch, recordFilterSchema, type RecordFilter } from '../../crud/filters.js';
+import { AppError } from '../../errors.js';
 import { readViewOf } from '../../crud/read-view.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { shareCodesOn, type ShareCodes } from '../../public-api/share-codes.js';
@@ -104,10 +109,10 @@ export const convertRows: ConvertPart = async (ctx) => {
     picked.push({ planned, id: tableId, ref: planned.saved.ref, name, mode: choice.mode, columns, key, rows: [], personal: new Set() });
   }
 
-  for (const table of picked) table.rows = await readRows(ctx, access, view, table, chosen.find(([id]) => id === table.id)![1]);
+  const reading: Reading = { reader: access.reader ?? { superAdmin: true }, view: readViewOf(view, access.reader ?? { superAdmin: true }), shareCodes: await shareCodesOn(ctx.source.meta, ctx.source.connectionId) };
+  for (const table of picked) table.rows = await readRows(ctx, access, view, reading, table, chosen.find(([id]) => id === table.id)![1]);
   const people = new Map<string, string>();
   const assets: Record<string, { file: string; sha256: string }> = {};
-  const reading: Reading = { reader: access.reader ?? { superAdmin: true }, view: readViewOf(view, access.reader ?? { superAdmin: true }), shareCodes: await shareCodesOn(ctx.source.meta, ctx.source.connectionId) };
   for (const table of picked) await shapeValues(ctx, access, view, reading, table, people, assets);
   parentsFirst(ctx, picked);
   for (const table of picked) {
@@ -145,10 +150,16 @@ function info(ctx: ConvertContext, code: string, item: string, message: string, 
 
 // ── reading ────────────────────────────────────────────────────────────────
 
-/** A saved view's filters, search and sort, when the person picked rows by one. */
-async function viewOf(ctx: ConvertContext, viewId: string | undefined, name: string): Promise<{ filter: RecordFilter | null; search: string | null; sort: { column: string; dir: 'asc' | 'desc' } | null } | null> {
+/**
+ * A saved view's filters, search and sort, when the person picked rows by one.
+ * Only a view the saver may use counts: a shared one, or their own. Any other
+ * reads as gone, so the answer never says whether somebody else's view is there.
+ */
+async function viewOf(ctx: ConvertContext, access: RowAccess, viewId: string | undefined, name: string): Promise<{ filter: RecordFilter | null; search: string | null; sort: { column: string; dir: 'asc' | 'desc' } | null } | null> {
   if (viewId === undefined) return null;
-  const saved = await viewsRepo(ctx.source.meta).findById(viewId);
+  const found = await viewsRepo(ctx.source.meta).findById(viewId);
+  const usable = found !== null && found.kind === 'filters' && (access.saver === undefined || found.userId === null || found.userId === access.saver.userId);
+  const saved = usable ? found : null;
   const config = saved?.config as { filters?: unknown; search?: unknown; sort?: unknown } | undefined;
   if (saved === null || config === undefined || config === null) {
     info(ctx, 'ROWS_VIEW_GONE', name, `The view chosen for "${name}" is not there any more: its rows are picked in key order.`);
@@ -168,24 +179,40 @@ async function viewOf(ctx: ConvertContext, viewId: string | undefined, name: str
   };
 }
 
-async function readRows(ctx: ConvertContext, access: RowAccess, view: SnapshotView, table: Picked, choice: RowChoice): Promise<Row[]> {
+async function readRows(ctx: ConvertContext, access: RowAccess, view: SnapshotView, reading: Reading, table: Picked, choice: RowChoice): Promise<Row[]> {
   const cap = table.mode === 'starting' ? MAX_SEED_ROWS : MAX_SAMPLE_ROWS;
   const db = access.db;
   const resolved = resolvedOf(view, table.id);
   const names = table.columns.map((column) => column.ref);
   const counted = await db.selectFrom(table.id).select((eb) => eb.fn.countAll().as('n')).executeTakeFirst();
   const total = Number((counted as { n?: unknown } | undefined)?.n ?? 0);
-  const picking = total > cap ? await viewOf(ctx, choice.viewId, table.name) : null;
+  let picking = total > cap ? await viewOf(ctx, access, choice.viewId, table.name) : null;
 
-  let query = db.selectFrom(table.id).select(names.map((name) => db.dynamic.ref(name)));
+  const base = () => db.selectFrom(table.id).select(names.map((name) => db.dynamic.ref(name)));
+  let query = base();
+  if (picking !== null) {
+    // Compiled as the saver reads the table: their read limits, and personal columns only with `read_pii`.
+    const read = resolvedOf(reading.view, table.id);
+    const canReadPii = access.saver === undefined ? true : await access.saver.canReadPii(table.id);
+    const compile = { view: reading.view, table: read, canReadPii, dynamic: db.dynamic, dialect: ctx.source.dialect };
+    const searchable = [...read.columns.values()].filter((column) => column.unreadable !== true).map((column) => column.name);
+    const picked = picking;
+    try {
+      if (picked.filter !== null) query = query.where((eb) => compileFilter(eb as never, compile, picked.filter!));
+      if (picked.search !== null) query = query.where((eb) => compileQuickSearch(eb as never, compile, picked.search!, searchable) ?? eb(eb.val(1), '=', 1));
+      if (picked.sort !== null && read.columns.has(picked.sort.column)) {
+        reading.view.readableColumn(read, picked.sort.column, canReadPii);
+        query = query.orderBy(db.dynamic.ref(picked.sort.column), picked.sort.dir);
+      }
+    } catch (error) {
+      if (!(error instanceof AppError) || error.statusCode >= 500) throw error;
+      info(ctx, 'ROWS_VIEW_UNREAD', table.name, `The view chosen for "${table.name}" filters in a way the save cannot read: its rows are picked in key order.`);
+      picking = null;
+      query = base();
+    }
+  }
   const byPage = total > cap && picking === null ? pageOrder(ctx, table.id).filter((key) => resolved.columns.has(key.column)) : [];
   for (const key of byPage) query = query.orderBy(db.dynamic.ref(key.column), key.dir);
-  if (picking !== null) {
-    const compile = { view, table: resolved, canReadPii: true, dynamic: db.dynamic, dialect: ctx.source.dialect };
-    if (picking.filter !== null) query = query.where((eb) => compileFilter(eb as never, compile, picking.filter!));
-    if (picking.search !== null) query = query.where((eb) => compileQuickSearch(eb as never, compile, picking.search!) ?? eb(eb.val(1), '=', 1));
-    if (picking.sort !== null && resolved.columns.has(picking.sort.column)) query = query.orderBy(db.dynamic.ref(picking.sort.column), picking.sort.dir);
-  }
   for (const column of table.key.length > 0 ? table.key : names.slice(0, 1)) query = query.orderBy(db.dynamic.ref(column), 'asc');
   const rows = (await query.limit(cap).execute()) as Row[];
   if (total > cap && picking === null) {

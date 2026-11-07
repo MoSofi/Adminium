@@ -197,6 +197,10 @@ export function SaveWorkspaceDialog({ workspace, onClose, onMoreChoices }: { wor
         setError(null);
         return;
       }
+      if (reasonOf(cause) === 'WORKSPACE_FILE_LEAKS') {
+        setError(t('studio:workspaceFiles.save.leaks', 'The workspace file would carry a secret or an id of this server in a workspace, database or label name. Rename it, then save again.'));
+        return;
+      }
       setError(cause.message);
     },
   });

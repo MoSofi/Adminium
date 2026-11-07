@@ -21,6 +21,8 @@ import {
   uniqueColumnName,
   uniqueSetName,
   validateManifest,
+  withoutDefaultSchema,
+  DEFAULT_TABLE_SCHEMA,
   type Manifest,
   type PlanContext,
   type SchemaModelView,
@@ -240,5 +242,22 @@ describe('constraint names of a table under its own name', () => {
     expect(uniqueColumnName('pos_tickets', 'code')).toBe('uq_pos_tickets_code');
     expect(foreignKeyName('sales.Order Lines', 'customer_id')).toBe('fk_Order Lines_customer_id');
     expect(foreignKeyName('sales.Order Lines', 'customer_id')).toBe(foreignKeyName('Order Lines', 'customer_id'));
+  });
+});
+
+describe('the default schema named', () => {
+  it('is read as no schema, keeping the table off the prefix under its own name', () => {
+    const manifest = shop({}, [table({ ref: 'orders', schema: 'public' }), table({ ref: 'lines', name: 'Order Lines', schema: 'public' }), table({ ref: 'notes', schema: 'sales' })]);
+    const read = withoutDefaultSchema(manifest as { requiredSchema: { tables: { ref: string; name?: string; schema?: string }[] } });
+    expect(read.requiredSchema.tables).toEqual([
+      { ref: 'orders', name: 'orders', columns: [{ ref: 'id', type: 'int', role: 'pk' }] },
+      { ref: 'lines', name: 'Order Lines', columns: [{ ref: 'id', type: 'int', role: 'pk' }] },
+      { ref: 'notes', schema: 'sales', columns: [{ ref: 'id', type: 'int', role: 'pk' }] },
+    ]);
+    expect(read.requiredSchema.tables.map((one) => realTableName(one, 'shop_'))).toEqual(['orders', 'Order Lines', 'sales.notes']);
+    expect(DEFAULT_TABLE_SCHEMA).toBe('public');
+    // Nothing named: the very same manifest.
+    const plain = shop();
+    expect(withoutDefaultSchema(plain as never)).toBe(plain);
   });
 });

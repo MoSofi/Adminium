@@ -12,6 +12,12 @@
  * Ids are the source's own (the wizard sends them back under `include`); they
  * never reach the file. Nothing here is written, and no value of a row is read:
  * row counts are the last schema read's estimates.
+ *
+ * It shows the saver what they may see and nothing more: a table they do not
+ * read is left out (and its name with it, wherever an item names it), a
+ * column their read does not show is left out of every list, a row estimate
+ * is given only for a table they read whole, and the views are the ones they
+ * may use (their own and the shared ones), never whose a view is.
  */
 import type { TableModel } from '@adminium/engine';
 import {
@@ -23,15 +29,16 @@ import {
   publicEndpointsRepo,
   reportDocumentsRepo,
   scheduledReportsRepo,
-  usersRepo,
   workspacesRepo,
 } from '@adminium/meta';
 
+import { readViewOf } from '../../crud/read-view.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { isUntouched } from '../../pages/generated-stamp.js';
 import { parseDefinition } from '../../public-api/endpoint.js';
 import { BUILTIN_EMAIL_TEMPLATE_KEYS } from '../../email/builtins.js';
 import { buildSaveRefs, tableIdFor } from './refs.js';
+import type { ReadLimits } from '../../rbac/read-limits.js';
 import { SECRET_NAME } from './rows.js';
 import { madeByInstalls, shownHere } from './saved-parts.js';
 import type { SaveSource } from './types.js';
@@ -48,8 +55,9 @@ export interface InventoryLink {
 export interface InventoryTable {
   id: string;
   name: string;
+  /** The columns the saver's read shows. */
   columns: number;
-  /** The last schema read's count; null when the database gave none. */
+  /** The last schema read's count; null when the database gave none, or the saver reads only part of the table. */
   rows: number | null;
   rowsExact: boolean;
   links: InventoryLink[];
@@ -75,9 +83,8 @@ export interface InventoryView {
   id: string;
   name: string;
   pageId: string;
-  /** Null for a shared view. */
+  /** Null for a shared view; the saver's own id for one of theirs (nobody else's is listed). */
   ownerId: string | null;
-  ownerName: string | null;
 }
 
 export interface InventoryItem {
@@ -113,6 +120,8 @@ export interface InventoryRights {
   userId: string | null;
   can(grant: string): Promise<boolean>;
   readsWhole(connectionId: string, tableId: string): Promise<boolean>;
+  /** The saver's resolved permissions, for the columns their read does not show. */
+  permissions(): Promise<{ superAdmin?: boolean; readLimits?: ReadLimits | undefined }>;
 }
 
 /** Every string under a `table` (or `listed`) key of a stored rule, read as a table of the model. */
@@ -153,27 +162,43 @@ export async function saveInventory(source: SaveSource, rights: InventoryRights)
   const refs = await buildSaveRefs(source, { key: 'inventory', name: 'inventory', version: '1.0.0', label: 'inventory', lineage: 'inventory', savedAt: new Date(0).toISOString() });
   const resolve = (name: string): string | null => tableIdFor(model, name);
   const view = await loadSnapshotView(meta, connectionId);
+  // The source as the saver reads it: a column their read does not show, or a code no staff member reads, is unreadable.
+  const readView = readViewOf(view, await rights.permissions());
 
   const tables: InventoryTable[] = [];
+  // The tables the saver reads: an item naming any other leaves that name out.
+  const seen = new Set<string>();
   for (const saved of refs.tables()) {
     const table = saved.model;
+    const base = `table:${connectionId}:${table.id}`;
+    if (!(await rights.can(`${base}:read`))) continue;
+    seen.add(table.id);
+  }
+  const shown = (ids: Iterable<string>): string[] => [...ids].filter((id) => seen.has(id));
+  for (const saved of refs.tables()) {
+    const table = saved.model;
+    if (!seen.has(table.id)) continue;
     const live = view.linkTable(table.id);
+    const read = readView.linkTable(table.id);
+    const readable = table.columns.filter((column) => read?.columns.get(column.name)?.unreadable !== true);
+    const readableNames = new Set(readable.map((column) => column.name));
     const personal: string[] = [];
     const secretLike: string[] = [];
-    for (const column of table.columns) {
+    for (const column of readable) {
       const resolved = live?.columns.get(column.name);
       if (resolved?.secret === true || column.semantics?.flags.secret === true || SECRET_NAME.test(column.name)) secretLike.push(column.name);
       else if (resolved?.masked === true) personal.push(column.name);
     }
     const base = `table:${connectionId}:${table.id}`;
-    const rowsAllowed = (await rights.can(`${base}:read`)) && (await rights.can(`${base}:export`)) && (await rights.readsWhole(connectionId, table.id));
+    const whole = await rights.readsWhole(connectionId, table.id);
+    const rowsAllowed = whole && (await rights.can(`${base}:export`));
     tables.push({
       id: table.id,
       name: table.name,
-      columns: table.columns.length,
-      rows: table.rowCountEstimate,
-      rowsExact: table.rowCountExact,
-      links: linksOf(table),
+      columns: readable.length,
+      rows: whole ? table.rowCountEstimate : null,
+      rowsExact: whole && table.rowCountExact,
+      links: linksOf(table).filter((link) => readableNames.has(link.column) && seen.has(link.to)),
       personal,
       secretLike,
       rowsAllowed,
@@ -181,27 +206,29 @@ export async function saveInventory(source: SaveSource, rights: InventoryRights)
     });
   }
 
-  const pages: InventoryPage[] = refs.pages().map(({ page }) => {
+  // A page of a table the saver does not read is left out with its table.
+  const pages: InventoryPage[] = refs.pages().flatMap(({ page }) => {
     const table = tableOfEnvelope(page.config);
-    return { id: page.id, title: page.title, tableId: table === null ? null : resolve(table), generated: isUntouched(page.config) };
+    const tableId = table === null ? null : resolve(table);
+    if (tableId !== null && !seen.has(tableId)) return [];
+    return [{ id: page.id, title: page.title, tableId, generated: isUntouched(page.config) }];
   });
 
-  // Views: the pages' shared ones, and every person's own (Check asks about those one by one).
+  /*
+   * Views: the ones the saver may use on the pages listed, their own and the
+   * shared ones. Another person's view is never listed, nor whose a view is.
+   */
   const pageIds = pages.map((page) => page.id);
   const viewRows =
     pageIds.length === 0
       ? []
       : await meta.db.selectFrom('adminium_views').select(['id', 'pageId', 'userId', 'kind', 'name']).where('pageId', 'in', pageIds).orderBy('createdAt').orderBy('id').execute();
-  const names = new Map<string, string | null>();
-  const nameOf = async (userId: string): Promise<string | null> => {
-    if (!names.has(userId)) names.set(userId, (await usersRepo(meta).findById(userId))?.name ?? null);
-    return names.get(userId) ?? null;
-  };
   const views: InventoryView[] = [];
   for (const row of viewRows) {
     // A person's own arrangement of a dashboard is never a view of the app.
     if (row.kind === 'layout') continue;
-    views.push({ id: row.id, name: row.name, pageId: row.pageId, ownerId: row.userId, ownerName: row.userId === null ? null : await nameOf(row.userId) });
+    if (row.userId !== null && row.userId !== rights.userId) continue;
+    views.push({ id: row.id, name: row.name, pageId: row.pageId, ownerId: row.userId });
   }
 
   const roles = refs.roles().map(({ role }) => ({ id: role.id, name: role.name }));
@@ -210,7 +237,7 @@ export async function saveInventory(source: SaveSource, rights: InventoryRights)
   const automations: InventoryItem[] = (await automationsRepo(meta).list({ connectionId }))
     .filter((rule) => rule.managedBy === null && !madeByDocuments.has(rule.id))
     .reverse()
-    .map((rule) => ({ id: rule.id, name: rule.name, tableIds: [...tablesNamedIn(rule, resolve)] }));
+    .map((rule) => ({ id: rule.id, name: rule.name, tableIds: shown(tablesNamedIn(rule, resolve)) }));
 
   const builtins: ReadonlySet<string> = new Set(BUILTIN_EMAIL_TEMPLATE_KEYS);
   const campaigns = new Map<string, string>();
@@ -224,7 +251,7 @@ export async function saveInventory(source: SaveSource, rights: InventoryRights)
     .filter((profile) => profile.ownerApp === null && profile.enabled)
     .map((profile) => {
       const id = resolve(profile.table);
-      return { id: profile.id, name: profile.name, tableIds: id === null ? [] : [id] };
+      return { id: profile.id, name: profile.name, tableIds: id === null ? [] : shown([id]) };
     });
 
   const made = await madeByInstalls(meta);
@@ -232,12 +259,12 @@ export async function saveInventory(source: SaveSource, rights: InventoryRights)
   const reports: InventoryItem[] = [];
   for (const row of await reportDocumentsRepo(meta).list()) {
     if (made.has(`report:${row.id}`) || !(await shownHere(meta, 'report', row.id, here))) continue;
-    reports.push({ id: row.id, name: row.name, tableIds: [...tablesNamedIn(row.body, resolve)] });
+    reports.push({ id: row.id, name: row.name, tableIds: shown(tablesNamedIn(row.body, resolve)) });
   }
   const invoiceLayouts: InventoryItem[] = [];
   for (const row of await invoiceDocumentsRepo(meta).list({ kind: 'template' })) {
     if (made.has(`invoice-layout:${row.id}`) || !(await shownHere(meta, 'invoice', row.id, here))) continue;
-    invoiceLayouts.push({ id: row.id, name: row.name, tableIds: [...tablesNamedIn(row.body, resolve)] });
+    invoiceLayouts.push({ id: row.id, name: row.name, tableIds: shown(tablesNamedIn(row.body, resolve)) });
   }
   const pageSet = new Set(pageIds);
   const scheduledReports: InventoryItem[] = (await scheduledReportsRepo(meta).list())
@@ -249,7 +276,7 @@ export async function saveInventory(source: SaveSource, rights: InventoryRights)
     .map((endpoint) => {
       const parsed = parseDefinition(endpoint.definition);
       const table = parsed.ok ? resolve(String((parsed.definition as { source?: unknown }).source ?? '')) : null;
-      return { id: endpoint.id, name: endpoint.ref, tableIds: table === null ? [] : [table] };
+      return { id: endpoint.id, name: endpoint.ref, tableIds: table === null ? [] : shown([table]) };
     });
 
   const payments = (await payableProfilesRepo(meta).list(connectionId)).some((profile) => profile.ownerApp === null);

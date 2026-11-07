@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3752 entries. */
+/** `namespace:key` — 3754 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -3145,6 +3145,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:test.title',
   'studio:uninstall.close',
   'studio:uninstall.failed',
+  'studio:uninstall.instance',
   'studio:uninstall.kept',
   'studio:uninstall.planFailed',
   'studio:uninstall.removed',
@@ -3178,6 +3179,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:workspaceFiles.install.steps.bundle',
   'studio:workspaceFiles.install.steps.done',
   'studio:workspaceFiles.install.steps.review',
+  'studio:workspaceFiles.install.workspaceGone.title',
   'studio:workspaceFiles.refusal.title',
   'studio:workspaceFiles.save.choicesTitle',
   'studio:workspaceFiles.save.include',

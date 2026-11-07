@@ -172,6 +172,27 @@ describe.each(ENGINES)('a self-made app\'s tables under their own names, on %s',
     expect(Object.values(await records(h)).map((record) => record[2])).toEqual(['dropped', 'dropped', 'dropped']);
   });
 
+  it.skipIf(!available)('read `schema: "public"` as naming none: one table, never a second identity of it', async () => {
+    harness = await installHarness(dialect);
+    const h = harness;
+    const installed = await h.install(shop('1.0.0', 'public'));
+    expect(installed.statusCode, installed.body).toBe(200);
+    expect((await records(h))['orders']).toEqual([null, ORDERS, 'created']);
+    const stored = (await h.meta.db.selectFrom('adminium_manifests').select(['manifest']).where('manifestKey', '=', 'shop').executeTakeFirst())?.manifest;
+    expect(JSON.stringify(stored)).not.toContain('schema\\":\\"public');
+    expect(JSON.stringify(stored)).not.toContain('"schema":"public"');
+
+    // The same table without the schema named is the same table: an update makes nothing.
+    await h.stage(shop('1.1.0'));
+    const planned = await h.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'shop', version: '1.1.0', connectionId: h.connectionId } });
+    expect(planned.statusCode, planned.body).toBe(200);
+    expect(planned.json()).toMatchObject({ plan: { installable: true, create: [] } });
+    const updated = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect((await records(h))['orders']).toEqual([null, ORDERS, 'created']);
+    expect((await appTablesRepo(h.meta).forInstall(h.connectionId, 'shop')).length).toBe(3);
+  });
+
   it.skipIf(!available || dialect === 'postgres')('refuse a schema at the plan, before anything is made', async () => {
     harness = await installHarness(dialect);
     const h = harness;

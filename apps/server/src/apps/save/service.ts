@@ -223,6 +223,7 @@ export function createSaveService(deps: SaveServiceDeps) {
       source.rows = {
         db: await deps.dataDb(request.connectionId),
         reader: await rights.permissions(),
+        saver: { userId: rights.userId, canReadPii: (tableId: string) => rights.can(`table:${request.connectionId}:${tableId}:read_pii`) },
         ...(readFile === undefined
           ? {}
           : {

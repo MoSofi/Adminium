@@ -1225,6 +1225,38 @@ describe('an install that stops part way', () => {
     await app.close();
   });
 
+  it('forgets the table it never made when uninstalled: a later one of that name is never its own', async () => {
+    const app = await buildApp();
+    await upload(app, 'sample-desk', bundleFor('sample-desk', {}, TWO));
+    failAfterTable = 'clinicians';
+    const body = { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION };
+    expect((await app.inject({ method: 'POST', url: '/apps/install', payload: body })).statusCode).toBe(409);
+    expect((await appTablesRepo(meta).forInstall(CONNECTION, 'sample-desk')).map((r) => [r.ref, r.state])).toEqual([
+      ['clinicians', 'created'],
+      ['visits', 'pending'],
+    ]);
+
+    const gone = await app.inject({ method: 'DELETE', url: '/apps/sample-desk' });
+    expect(gone.statusCode, gone.body).toBe(200);
+    expect((await appTablesRepo(meta).forInstall(CONNECTION, 'sample-desk')).map((r) => [r.ref, r.state])).toEqual([['clinicians', 'released']]);
+
+    // Somebody makes "visits" by hand; the app comes back and uses what is there.
+    failAfterTable = null;
+    await upload(app, 'sample-desk', bundleFor('sample-desk', {}, TWO));
+    existingTables = [
+      { ref: 'clinicians', columns: [{ ref: 'id', isPrimaryKey: true }, { ref: 'name' }] },
+      { ref: 'visits', columns: [{ ref: 'id', isPrimaryKey: true }, { ref: 'clinician_id' }] },
+    ];
+    const again = await app.inject({ method: 'POST', url: '/apps/install', payload: { ...body, existing: 'use' } });
+    expect(again.statusCode, again.body).toBe(200);
+    const records = await appTablesRepo(meta).forInstall(CONNECTION, 'sample-desk');
+    expect(records.map((r) => [r.ref, r.state, r.owned])).toEqual([
+      ['clinicians', 'created', true],
+      ['visits', 'adopted', false],
+    ]);
+    await app.close();
+  });
+
   it('records a table it found as adopted, never as its own', async () => {
     const app = await buildApp();
     await upload(app, 'sample-desk');
