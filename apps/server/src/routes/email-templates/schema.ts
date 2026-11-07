@@ -139,8 +139,9 @@ export const emailDocumentDetail = emailDocumentSummary.extend({
   /**
    * "Send as", one value for every language of the template: null = the
    * sender of the workspace the mail's record is in (the server's for a
-   * database in none, and for mail about no record); `server`; or a
-   * workspace id.
+   * database in none, and for mail about no record); `server`; a workspace
+   * id; or `unseen`, a workspace the reader does not see (sent back as
+   * `unseen`, it stays that workspace).
    */
   sendAs: z.string().nullable(),
 });

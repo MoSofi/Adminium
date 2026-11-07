@@ -1603,18 +1603,31 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          * the whole list, not one per row.
          */
         const mayManage = typeof request.can !== 'function' || (await request.can(PERMISSIONS.manifestsManage));
-        const needs = mayManage ? await needsByAddOn(deps.meta) : new Map<string, AppNeed[]>();
-        const addOns = await Promise.all((await manifests.list('add-on')).map((installed) => toDto(installed, needs.get(installed.row.manifestKey) ?? [])));
-        // A page kept behind a permission is named only to who may open it (or who manages add-ons): the list is read by everybody signed in.
-        if (mayManage) return { addOns };
+        const installs = await manifests.list('add-on');
+        if (mayManage) {
+          const needs = await needsByAddOn(deps.meta);
+          return { addOns: await Promise.all(installs.map((installed) => toDto(installed, needs.get(installed.row.manifestKey) ?? []))) };
+        }
+        /*
+         * A copy names its database (its connection id, its slug). Someone who
+         * does not manage add-ons is told only of the copies on databases they
+         * reach (and of those kept once per server), as every list that names
+         * an install; and a copy's settings values only where they may change
+         * them.
+         */
+        const reaches = installReachOf(deps.meta, request);
+        const principal = getPrincipal(request);
+        const reached = (await Promise.all(installs.map(async (installed) => ((await reaches(installed)) ? installed : null)))).filter((installed): installed is InstalledManifest => installed !== null);
         return {
           addOns: await Promise.all(
-            addOns.map(async (addOn) => {
-              // …and a panel's, only to who holds its permission (its route asks the rest).
+            reached.map(async (installed) => {
+              const addOn = await toDto(installed, []);
+              const settingsHeld = principal !== null && (await addOnSettingsGrantHeld(deps.meta, principal, installed));
+              // A page kept behind a permission is named only to who may open it, and a panel's only to who holds its permission (its route asks the rest).
               const open = await Promise.all(
                 addOn.bundles.map(async (bundle) => (bundle.ref === undefined || (await request.can(addOnPagePermission(bundle.ref)))) && (bundle.panel === undefined || (await request.can(addOnPagePermission(bundle.panel))))),
               );
-              return { ...addOn, bundles: addOn.bundles.filter((_bundle, index) => open[index]) };
+              return { ...addOn, settingValues: settingsHeld ? addOn.settingValues : {}, bundles: addOn.bundles.filter((_bundle, index) => open[index]) };
             }),
           ),
         };

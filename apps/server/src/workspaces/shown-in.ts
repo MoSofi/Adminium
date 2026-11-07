@@ -64,7 +64,14 @@ export async function saveShownIn(
   const was = first === undefined ? null : await workspaces.shownIn(kind, first);
   const before: ShownInView = was ?? { mode: 'all', workspaceIds: [] };
   const named = seen === undefined ? input.workspaceIds : input.workspaceIds.filter((id) => seen.has(id));
-  const kept = seen === undefined || before.mode === 'all' ? [] : before.workspaceIds.filter((id) => !seen.has(id));
+  /*
+   * What a workspace they do not see had stays: its link when the item was
+   * chosen there, and, when the item was shown in all, the item itself, so
+   * narrowing it to their own workspaces never takes it from one they cannot
+   * see, whatever they saved before.
+   */
+  const unseenNow = seen === undefined ? [] : before.mode === 'all' ? (await workspaces.list()).map((workspace) => workspace.id) : before.workspaceIds;
+  const kept = seen === undefined ? [] : unseenNow.filter((id) => !seen.has(id));
   const chosen = input.mode === 'all' ? null : [...new Set(await workspaces.existing([...named, ...kept]))].sort();
   for (const id of itemIds) await workspaces.setShownIn(kind, id, chosen);
   return { before, after: chosen === null ? { mode: 'all', workspaceIds: [] } : { mode: 'chosen', workspaceIds: chosen } };

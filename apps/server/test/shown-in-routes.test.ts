@@ -23,6 +23,7 @@ import { emailTemplatesRoutes } from '../src/routes/email-templates/index.js';
 import { invoicesRoutes } from '../src/routes/invoices/index.js';
 import { reportDocumentsRoutes } from '../src/routes/report-documents/index.js';
 import { workspacesRoutes } from '../src/routes/workspaces/index.js';
+import { saveShownIn } from '../src/workspaces/shown-in.js';
 import { buildBareApp, type BareApp } from './jobs-helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 
@@ -105,6 +106,19 @@ describe.each(META_ENGINES)('"Shown in" — $name', (engine) => {
     const invoiceB = await made('/invoices', { kind: 'template', name: 'Plain invoice' });
     return { firing: firing.id, firingDe: firingDe.id, news: news.id, reportA, reportB, invoiceA, invoiceB };
   }
+
+  it.skipIf(!engine.available)('keeps a workspace its saver cannot see through any order of saves: all, then their own alone, then none', async () => {
+    const s = await seed();
+    // Chosen in Kiln by someone who sees it; then saved by someone who sees Fernhill Coffee alone.
+    await saveShownIn(meta, 'report', [s.reportA], { mode: 'chosen', workspaceIds: [kiln] });
+    const seen = new Set([coffee]);
+    expect((await saveShownIn(meta, 'report', [s.reportA], { mode: 'all', workspaceIds: [] }, seen)).after).toEqual({ mode: 'all', workspaceIds: [] });
+    const narrowed = await saveShownIn(meta, 'report', [s.reportA], { mode: 'chosen', workspaceIds: [coffee] }, seen);
+    expect(narrowed.after).toEqual({ mode: 'chosen', workspaceIds: [coffee, kiln].sort() });
+    const none = await saveShownIn(meta, 'report', [s.reportA], { mode: 'chosen', workspaceIds: [] }, seen);
+    expect(none.after).toEqual({ mode: 'chosen', workspaceIds: [kiln] });
+    expect(await workspacesRepo(meta).shownIn('report', s.reportA)).toEqual({ mode: 'chosen', workspaceIds: [kiln] });
+  });
 
   it.skipIf(!engine.available)('is set by who edits the item, for a whole email family, with workspaces that exist, and audited', async () => {
     const s = await seed();
@@ -268,7 +282,8 @@ describe.each(META_ENGINES)('"Shown in" — $name', (engine) => {
     // Naming a workspace they do not see changes nothing of it.
     expect((await call('PATCH', `/report-documents/${s.reportA}`, editor, { shownIn: { mode: 'chosen', workspaceIds: [kiln] } })).statusCode).toBe(200);
     expect((await workspacesRepo(meta).shownIn('report', s.reportA))?.workspaceIds.sort()).toEqual([coffee, kiln].sort());
+    // An item shown in all, narrowed by them to none they see, stays in the workspace they do not see.
     expect((await call('PATCH', `/email-templates/${s.news}`, editor, { shownIn: { mode: 'chosen', workspaceIds: [coffee] } })).statusCode).toBe(200);
-    expect(await workspacesRepo(meta).shownIn('email-template', s.news)).toEqual({ mode: 'chosen', workspaceIds: [] });
+    expect(await workspacesRepo(meta).shownIn('email-template', s.news)).toEqual({ mode: 'chosen', workspaceIds: [coffee] });
   });
 });

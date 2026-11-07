@@ -84,12 +84,13 @@ describe('the code of a page kept behind its permission', () => {
     expect((await pageCode(h, who)).statusCode).toBe(200);
   });
 
-  it('is named in the list only to who may open it; a slot fill is named to everybody', async () => {
+  it('is named in the list only to who may open it; a slot fill to everybody who reaches its database', async () => {
     h = await installed();
-    const bundlesFor = async (who: User) => ((await h!.inject({ method: 'GET', url: '/add-ons', as: who })).json().addOns.find((entry: { key: string }) => entry.key === 'stock-kit').bundles as { path: string; ref?: string }[]).map((bundle) => bundle.path).sort();
+    const bundlesFor = async (who: User) => ((await h!.inject({ method: 'GET', url: '/add-ons', as: who })).json().addOns.find((entry: { key: string }) => entry.key === 'stock-kit')?.bundles as { path: string; ref?: string }[] | undefined)?.map((bundle) => bundle.path).sort();
     expect(await bundlesFor(await person(h, 'stock-kit-manager'))).toEqual(['dist/count.js', 'dist/fill.js']);
     expect(await bundlesFor(await person(h, 'stock-kit-reader'))).toEqual(['dist/fill.js']);
-    expect(await bundlesFor(await person(h, null))).toEqual(['dist/fill.js']);
+    // Someone who reaches nothing of its database is not told of the copy at all.
+    expect(await bundlesFor(await person(h, null))).toBeUndefined();
   });
 
   it('is not there for anybody while the add-on is switched off for the dashboard, and is back when it is switched on', async () => {

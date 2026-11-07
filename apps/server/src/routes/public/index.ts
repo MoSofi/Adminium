@@ -87,7 +87,7 @@ import { publicLedgerRefusal, publicPostings, cardMiss } from './ledger-refusals
 import { askedFor, prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { createPublicRow } from '../../public-api/create-row.js';
-import { customerHostIn, guestBaseOn } from '../../public-api/guest-base.js';
+import { customerHostIn, guestBaseOfKey } from '../../public-api/guest-base.js';
 import { addressesOf, hashToken, normaliseToken, stillOpen, tokenClaimOf, tokenSessionOpen, type TokenClaim, type TokenGrant } from '../../public-api/token-claim.js';
 import { addOnSettingsParams, addOnSettingsReply, publicAddOnSettings } from '../../public-api/add-on-settings.js';
 import { fileIdOf, privateFileHeaders, privateFileParams } from '../../public-api/private-file.js';
@@ -4734,7 +4734,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         return null;
       }
       // The key's own install: a later install's link opens its own guest side, not the bare install's.
-      const base = ok.key.managedBy === null ? null : await guestBaseOn({ meta, hostFor: hostForOf(app) }, ok.key.managedBy, ok.key.connectionId);
+      const base = await guestBaseOfKey({ meta, hostFor: hostForOf(app) }, ok.key);
       return { identity, base };
     };
 
@@ -4873,6 +4873,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (ready === null) return reply;
         if (ready.base !== null) {
           await queueLinkWork({ mode: 'resend', keyId: ok.key.keyId, tokenHash: hashLinkToken(request.body.token), locale: await linkLocale(request, undefined) });
+        } else {
+          // Nowhere to point a link: nothing is sent, the same answer is given, and the desk is told why, as for a first link.
+          request.log.warn({ keyId: ok.key.keyId, app: ok.key.managedBy }, 'sign-in link not sent: the app has no public address (map a customer domain or set the public origin)');
+          await auditWrite(request, ok, 'public.claim.link.no-address', { ref: ready.identity.ref });
         }
         return reply.code(202).send({ data: {} });
       },

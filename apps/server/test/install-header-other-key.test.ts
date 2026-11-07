@@ -180,4 +180,36 @@ describe.each(LEGS)('a side’s own install on add-on routes — %s', (dialect, 
     expect(byInstall.get(ids.vaultFernhill)).toMatchObject({ connectionId: h.connectionId, slug: '', attachments: [{ attachedTo: 'desk', enabled: true, installId: ids.vaultFernhill, connectionId: h.connectionId, slug: '', hostInstall: ids.deskFernhill }] });
     expect(byInstall.get(ids.vaultKiln)).toMatchObject({ connectionId: kiln, slug: 'kiln', attachments: [{ attachedTo: 'desk', enabled: true, installId: ids.vaultKiln, connectionId: kiln, hostInstall: ids.deskKiln }] });
   });
+
+  it.skipIf(!available)('names to someone who manages no add-ons only the copies on databases they reach, and settings only where they may change them', async () => {
+    const put = (installId: string, tone: string) => h.inject({ method: 'PUT', url: '/add-ons/stock-kit/settings', payload: { values: { tone } }, headers: side(installId) });
+    expect((await put(ids.deskFernhill, 'fernhill tone')).statusCode).toBe(200);
+    expect((await put(ids.deskKiln, 'kiln tone')).statusCode).toBe(200);
+    const roles = rolesRepo(h.meta);
+    const users = usersRepo(h.meta);
+    // Fernhill's stock manager (its settings grant) and Fernhill's stock reader (a table of Fernhill's, nothing more).
+    const manager = await users.create({ email: 'manager@fernhill.test', name: 'Manager' });
+    await roles.assignToUser(manager.id, (await roles.findBySlug('stock-kit-manager'))!.id);
+    const reader = await users.create({ email: 'reader@fernhill.test', name: 'Reader' });
+    await roles.assignToUser(reader.id, (await roles.findBySlug('stock-kit-reader'))!.id);
+    const list = async (as: User): Promise<Doc[]> => {
+      const reply = await h.inject({ method: 'GET', url: '/add-ons', as });
+      expect(reply.statusCode, reply.body).toBe(200);
+      return reply.json().addOns as Doc[];
+    };
+    for (const as of [manager, reader]) {
+      const rows = await list(as);
+      const installs = rows.map((row) => row['installId']);
+      expect(installs).toEqual(expect.arrayContaining([ids.stockFernhill, ids.vaultFernhill]));
+      expect(installs).not.toContain(ids.stockKiln);
+      expect(installs).not.toContain(ids.vaultKiln);
+      // Kiln is named nowhere: not by its database, its slug, or its settings.
+      const said = JSON.stringify(rows);
+      expect(said).not.toContain(kiln);
+      expect(said).not.toContain('kiln');
+    }
+    const stockOf = (rows: Doc[]) => rows.find((row) => row['installId'] === ids.stockFernhill)!;
+    expect(stockOf(await list(manager))['settingValues']).toEqual({ tone: 'fernhill tone' });
+    expect(stockOf(await list(reader))['settingValues']).toEqual({});
+  });
 });

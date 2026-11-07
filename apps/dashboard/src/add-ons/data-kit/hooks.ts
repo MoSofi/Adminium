@@ -46,7 +46,7 @@ import type {
 } from '@adminium/add-on-contracts/runtime';
 
 import { createCrudApi } from '../../api/crud.js';
-import { api, ApiError } from '../../app/api.js';
+import { api, ApiError, installOptions } from '../../app/api.js';
 import { deleteFile, uploadFile } from '../../files/api.js';
 import { addOnKitQuery, resolveOwnTable, resolveTable, useKit, type Kit } from './resolve.js';
 
@@ -408,7 +408,8 @@ export function useLookUp(addOnKey?: string): UseLookUpResult {
       setError(null);
       try {
         // The answer is the server's, passed through: no code ever comes back, so none is kept here.
-        const reply = await api.post<LookUpReply>(`/api/v1/add-ons/${encodeURIComponent(key)}/look-up`, { value: typed });
+        // Its own add-on's copy is the one this page is of; another add-on's is the server's to find.
+        const reply = await api.post<LookUpReply>(`/api/v1/add-ons/${encodeURIComponent(key)}/look-up`, { value: typed }, key === kit.addOnKey ? installOptions(kit.install) : undefined);
         if (!reply.found || reply.kind === undefined || reply.table === undefined || reply.key === undefined) return null;
         return {
           kind: reply.kind,
@@ -479,7 +480,7 @@ export function useDocument(): UseDocumentResult {
           ...(options.once === undefined ? {} : { once: options.once }),
           ...(options.locale === undefined ? {} : { locale: options.locale }),
           ...(options.values === undefined ? {} : { values: options.values }),
-        });
+        }, installOptions(kit.install));
         const address = options.print === true ? (reply.printUrl ?? reply.contentUrl) : (reply.contentUrl ?? reply.printUrl);
         if (address === undefined || address === null) throw new Error('The document was drawn and has no address to open.');
         // Opened, never fetched: a print ticket good for one use is spent by the tab that prints, not by this page.
@@ -542,9 +543,9 @@ export function useFormSummary(formId: string | number | null): UseFormSummaryRe
   const kit = useKit();
   const id = formId === null ? null : keyText(formId);
   const result = useQuery({
-    queryKey: ['add-on-form-summary', kit.addOnKey, id] as const,
+    queryKey: ['add-on-form-summary', kit.addOnKey, kit.install, id] as const,
     enabled: id !== null,
-    queryFn: () => api.get<{ data: FormSummaryAnswer }>(`/api/v1/add-ons/${encodeURIComponent(kit.addOnKey)}/forms/${encodeURIComponent(id ?? '')}/summary`),
+    queryFn: () => api.get<{ data: FormSummaryAnswer }>(`/api/v1/add-ons/${encodeURIComponent(kit.addOnKey)}/forms/${encodeURIComponent(id ?? '')}/summary`, installOptions(kit.install)),
   });
   const { refetch } = result;
   const again = useCallback(() => void refetch(), [refetch]);

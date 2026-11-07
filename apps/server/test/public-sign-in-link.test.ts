@@ -470,6 +470,22 @@ describe.each(LEGS)('signing in by an emailed link — %s', (dialect, available)
     await settingsRepo(h.meta).set('system.publicOrigin', PUBLIC_ORIGIN);
   });
 
+  it.skipIf(!available)('sends the link of an install kept for the whole server to that install’s own address', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    tick(6 * 24 * 60 * 60_000);
+    await h.rows(`insert into ${h.real('clients')} (contact_name, email) values ('Dee Old', 'dee@example.com')`);
+    // An install from before an app was installed per database: recorded on no database, its key on the one it reads.
+    const row = await h.meta.db.selectFrom('adminium_manifests').select(['id', 'connectionId']).where('manifestKey', '=', 'studio').where('kind', '=', 'app').executeTakeFirstOrThrow();
+    await h.meta.db.updateTable('adminium_manifests').set({ connectionId: null }).where('id', '=', row.id).execute();
+    try {
+      expect((await ask('dee@example.com')).statusCode).toBe(202);
+      await drain();
+      expect(linkOf((await links('dee@example.com')).at(-1)!).url.startsWith(`${PUBLIC_ORIGIN}/apps/studio/customer/c#`)).toBe(true);
+    } finally {
+      await h.meta.db.updateTable('adminium_manifests').set({ connectionId: row.connectionId }).where('id', '=', row.id).execute();
+    }
+  });
+
   it.skipIf(!available)('sweeps decoys with every other challenge once they are two days old', async () => {
     const repo = publicChallengesRepo(h.meta);
     const all = async () => (await h.meta.db.selectFrom('adminium_public_challenges').select('id').where('purpose', '=', LINK_PURPOSE).execute()).length;

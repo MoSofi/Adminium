@@ -9,7 +9,7 @@
 import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { api } from '../../app/api.js';
+import { api, installOptions } from '../../app/api.js';
 import { useAddOnInstall, useAddOnKey } from './context.js';
 
 export interface KitTable {
@@ -47,23 +47,27 @@ export const addOnKitQuery = (addOnKey: string, install: string | null = null) =
   queryOptions({
     // The key's only install keeps the plain key; a copy adds its install, so two copies never share a read.
     queryKey: (install === null ? ['add-on-kit', addOnKey] : ['add-on-kit', addOnKey, install]) as readonly string[],
-    queryFn: () => api.get<KitReply>(`/api/v1/add-ons/${encodeURIComponent(addOnKey)}/kit`),
+    // The copy named on the request itself: another copy's page drawn beside this one never stands in for it.
+    queryFn: () => api.get<KitReply>(`/api/v1/add-ons/${encodeURIComponent(addOnKey)}/kit`, installOptions(install)),
     // A grant changed by an owner is felt within a minute, and at once after any refusal (the hooks refetch on a 403).
     staleTime: 60_000,
   });
 
 export interface Kit {
   addOnKey: string;
+  /** The copy whose page this is; null for the key's only install. */
+  install: string | null;
   reply: KitReply;
 }
 
 /** The kit's one read for the add-on whose page this is. Suspends until it is in. */
 export function useKit(): Kit {
   const addOnKey = useAddOnKey();
-  const { data } = useSuspenseQuery(addOnKitQuery(addOnKey, useAddOnInstall()));
+  const install = useAddOnInstall();
+  const { data } = useSuspenseQuery(addOnKitQuery(addOnKey, install));
   // The same object while the read is the same: a hook that keys on it (`useRead`, `useAccess`) hands a page the
   // same value on every draw, so a page's effect keyed on that value runs once and not for ever.
-  return useMemo(() => ({ addOnKey, reply: data }), [addOnKey, data]);
+  return useMemo(() => ({ addOnKey, install, reply: data }), [addOnKey, install, data]);
 }
 
 export interface ResolvedKitTable {

@@ -175,7 +175,9 @@ describe('who uses an add-on', () => {
     await h.stageApp(appManifest('studio', { addOns: needs('invoices') }));
     expect((await h.install('studio', '0.2.0')).statusCode).toBe(200);
     expect((await h.inject({ method: 'GET', url: '/add-ons' })).json().addOns[0].usedBy).toHaveLength(1);
+    // A reader of every table: the copy is theirs to be told of, who uses it is not.
     const reader = await usersRepo(h.meta).create({ email: 'r@test', name: 'R' });
+    await rolesRepo(h.meta).assignToUser(reader.id, (await rolesRepo(h.meta).findBySlug('viewer'))!.id);
     const list = await h.inject({ method: 'GET', url: '/add-ons', as: reader });
     expect(list.statusCode, list.body).toBe(200);
     expect(list.json().addOns[0].usedBy).toEqual([]);

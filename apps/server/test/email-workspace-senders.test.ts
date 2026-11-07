@@ -638,6 +638,34 @@ for (const engine of META_ENGINES) {
         expect((await call('PUT', `/email-templates/${template.id}/send-as`, editor, { sendAs: kiln.id })).json().sendAs).toBe(kiln.id);
       });
 
+      it('says a "Send as" workspace an editor cannot see as one, never by its id, and keeps it when they save it back', async () => {
+        // Edits templates and reaches a page of Kiln's database only: Fernhill Coffee is not theirs to see.
+        const editor = await usersRepo(meta).create({ email: 'kiln-only@shared-host.example', name: 'Kiln only', status: 'active' });
+        const role = await rolesRepo(meta).create({ slug: 'kiln-only-editor', name: 'Kiln only editor' });
+        await rolesRepo(meta).assignToUser(editor.id, role.id);
+        for (const row of matrixRowsFromGrants([PERMISSIONS.settingsManage]).rows) await permissionsRepo(meta).grant(role.id, row.resourceKind, row.resourceRef, row.actions as never);
+        const page = await pagesRepo(meta).create({ connectionId: conn.kiln, slug: 'kiln-glazes', type: 'crud', title: 'Glazes', navGroup: 'workspace', config: { v: 1, kind: 'crud', template: 'page-crud', config: {} }, createdBy: null });
+        await permissionsRepo(meta).grant(role.id, 'page', page.id, { view: true, edit: false } as never);
+
+        const template = (await emailTemplatesRepo(meta).findByKeyLocale('firing-done', 'en_US'))!;
+        expect((await call('PUT', `/email-templates/${template.id}/send-as`, owner, { sendAs: coffee.id })).json().sendAs).toBe(coffee.id);
+        const read = await call('GET', `/email-templates/${template.id}`, editor);
+        expect(read.statusCode, read.body).toBe(200);
+        expect(read.json().sendAs).toBe('unseen');
+        expect(read.body).not.toContain(coffee.id);
+        // The owner still reads it by its id.
+        expect((await call('GET', `/email-templates/${template.id}`, owner)).json().sendAs).toBe(coffee.id);
+        // Saved back as it was read: it stays Fernhill Coffee.
+        const kept = await call('PUT', `/email-templates/${template.id}/send-as`, editor, { sendAs: 'unseen' });
+        expect(kept.statusCode, kept.body).toBe(200);
+        expect(kept.json().sendAs).toBe('unseen');
+        expect(await emailTemplatesRepo(meta).sendAsOf('firing-done')).toBe(coffee.id);
+        // "unseen" names nothing when the template's workspace is one they see.
+        expect((await call('PUT', `/email-templates/${template.id}/send-as`, owner, { sendAs: kiln.id })).statusCode).toBe(200);
+        expect((await call('PUT', `/email-templates/${template.id}/send-as`, editor, { sendAs: 'unseen' })).statusCode).toBe(404);
+        expect(await emailTemplatesRepo(meta).sendAsOf('firing-done')).toBe(kiln.id);
+      });
+
       it('names a template’s sender: a workspace, the server, or by the record; a workspace that is not there is not found', async () => {
         const template = (await emailTemplatesRepo(meta).findByKeyLocale('firing-done', 'en_US'))!;
         await emailTemplatesRepo(meta).upsert('firing-done', 'de_DE', { name: 'Brand fertig', subject: 'Fertig', blocks: [], enabled: true });

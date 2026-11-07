@@ -526,6 +526,10 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     await state.ensure(now());
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const { check, at, revision, existing, writes } = await plan(input);
+      // An address is one endpoint whatever its case: another written in other letters is that endpoint's name, never a second one beside it.
+      if (existing === null && (await endpoints.listByConnection(input.connectionId)).some((other) => other.ref.toLowerCase() === input.ref.toLowerCase())) {
+        throw new EndpointRefTaken(`"${input.ref}" is another endpoint's ref, in other letters`);
+      }
       if (check.issues.length > 0) throw new EndpointSaveRefused(check.issues, check.keys);
 
       const committed = await meta.db.transaction().execute(async (trx) => {
@@ -617,7 +621,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     const existing = await endpoints.findByRef(input.connectionId, input.ref);
     if (existing === null) throw new EndpointNotFound(`no endpoint "${input.ref}"`);
     if (input.to === input.ref) return existing;
-    if ((await endpoints.findByRef(input.connectionId, input.to)) !== null) {
+    if ((await endpoints.listByConnection(input.connectionId)).some((other) => other.id !== existing.id && other.ref.toLowerCase() === input.to.toLowerCase())) {
       throw new EndpointRefTaken(`"${input.to}" is another endpoint's ref`);
     }
     const live = await affectedKeys(input.connectionId, existing.id, input.ref, now());

@@ -196,6 +196,7 @@ describe.each(ENGINES)('save workspace and install it, on %s', (dialect, availab
         if (reply.statusCode !== 200) throw new AppError(reply.statusCode, 'INSTALL', reply.body);
       },
       update: async () => undefined,
+      checkUpdate: async () => undefined,
       connectionExists: async () => true,
     });
     const body = { workspace: { mode: 'create' as const, name: 'Corner Shop' }, apps: [{ key: 'archive', connectionId: dst.archive }, { key: 'clinic', connectionId: dst.h.connectionId }] };
@@ -269,6 +270,7 @@ describe.each(ENGINES)('save workspace and install it, on %s', (dialect, availab
         const reply = await dst.h.inject({ method: 'POST', url: `/apps/${key}/update?connectionId=${connectionId!}`, payload: {} });
         if (reply.statusCode !== 200) throw new AppError(reply.statusCode, 'UPDATE', reply.body);
       },
+      checkUpdate: async () => undefined,
       connectionExists: async () => true,
     });
     const apps = [{ key: 'archive', connectionId: dst.archive }, { key: 'clinic', connectionId: branch.id }];
@@ -311,6 +313,45 @@ describe.each(ENGINES)('save workspace and install it, on %s', (dialect, availab
     expect(copies.sort()).toEqual([[branch.id, '1.0.1'], [dst.h.connectionId, '1.0.1']].sort());
   });
 
+  it.runIf(available)('asks the update after a stopped one before it finishes either: refused, nothing moves', async () => {
+    const src = await source(dialect, open);
+    const first = await src.service.save(src.workspaceId, {}, HOST);
+    const dst = await target(dialect, open);
+    const one = fileOf(await upload(dst.h, first.tarball));
+    const here = [{ key: 'archive', connectionId: dst.archive }, { key: 'clinic', connectionId: dst.h.connectionId }];
+    expect(fileOf(await dst.h.inject({ method: 'POST', url: `/apps/workspace/${one.id}/install`, payload: { apps: here } })).state).toBe('done');
+    const file = fileOf(await upload(dst.h, (await src.service.save(src.workspaceId, {}, HOST)).tarball));
+    const manifests = manifestsRepo(dst.h.meta, identity);
+    const copyHere = (await manifests.listByKey('clinic'))[0]!;
+    // Clinic's update to the version it runs moved and stopped: finished first, then moved again to the file's newer one.
+    await appUpdatesRepo(dst.h.meta).begin({ manifestId: copyHere.row.id, fromVersion: '0.9.0', toVersion: copyHere.row.version, fromTables: [] });
+    await appUpdatesRepo(dst.h.meta).stopped(copyHere.row.id, 'pages');
+    const calls: unknown[] = [];
+    const installer = createWorkspaceInstaller({
+      meta: dst.h.meta,
+      stagedIntegrity: async (key, version) => (await dst.h.deps.store.verifyTree(key, version)).integrity,
+      discardStaged: async () => undefined,
+      copiesOf: async (key) => (await manifests.listByKey(key)).filter((m) => m.row.kind === 'app').map((m) => ({ installId: m.row.id, connectionId: m.row.connectionId, version: m.row.version, status: m.row.status })),
+      install: async ({ key }) => {
+        calls.push(['install', key]);
+      },
+      update: async ({ key }) => {
+        calls.push(['update', key]);
+      },
+      // Finishing it is theirs to do; the update after it changes what its public access serves, which is not.
+      checkUpdate: async ({ key, afterResume }) => {
+        calls.push(['check', key, afterResume === true]);
+        if (afterResume === true) throw new AppError(403, 'FORBIDDEN', 'This version of "clinic" changes what its public access serves ("visits"), which only someone who may manage API keys can allow.');
+      },
+      connectionExists: async () => true,
+    });
+    const run = await installer.run(file.id, { apps: [{ key: 'clinic', connectionId: dst.h.connectionId }] }, { userId: null, managesConnections: false });
+    expect(calls).toEqual([['check', 'clinic', false], ['check', 'clinic', true]]);
+    expect(run.apps.find((app) => app.key === 'clinic')).toMatchObject({ state: 'refused', reason: 'FORBIDDEN' });
+    expect(await appUpdatesRepo(dst.h.meta).find(copyHere.row.id)).toMatchObject({ toVersion: copyHere.row.version, stoppedAt: 'pages' });
+    expect((await manifests.listByKey('clinic')).map((m) => m.row.version)).toEqual([copyHere.row.version]);
+  });
+
   it.runIf(available)('keeps the newer file when the row is thrown away while its update is waiting', async () => {
     const { dst, file, manifests } = await updateStops(open, false);
     const gone = await dst.h.inject({ method: 'DELETE', url: `/apps/workspace/${file.id}/install` });
@@ -344,6 +385,7 @@ describe.each(ENGINES)('a workspace deleted between runs, on %s', (dialect, avai
         installed.push(key);
       },
       update: async () => undefined,
+      checkUpdate: async () => undefined,
       connectionExists: async () => true,
     });
     const actor = { userId: null, managesConnections: true };
@@ -412,6 +454,7 @@ describe('workspace files on one engine', () => {
       copiesOf: async () => [],
       install: async () => undefined,
       update: async () => undefined,
+      checkUpdate: async () => undefined,
       connectionExists: async () => true,
     });
     await expect(installer.run(file.id, { workspace: { mode: 'create', name: 'Mine' }, apps: [] }, { userId: null, managesConnections: false })).rejects.toMatchObject({ statusCode: 403 });
@@ -445,6 +488,7 @@ describe('workspace files on one engine', () => {
         if (reply.statusCode !== 200) throw new AppError(reply.statusCode, 'INSTALL', reply.body);
       },
       update: async () => undefined,
+      checkUpdate: async () => undefined,
       connectionExists: async () => true,
     });
     const actor = { userId: null, managesConnections: true };
@@ -479,6 +523,7 @@ describe('workspace files on one engine', () => {
         calls.push(['update', key, installId, answers]);
         for (const copy of copies.get(key) ?? []) if (copy.installId === installId) copy.version = '1.0.0';
       },
+      checkUpdate: async () => undefined,
       connectionExists: async () => true,
     });
     const actor = { userId: null, managesConnections: false };
@@ -503,6 +548,38 @@ describe('workspace files on one engine', () => {
       ['install', 'archive', dst.archive, { publicAccess: false }],
     ]);
     expect(rest.state).toBe('done');
+  });
+
+  it('asks every copy before it moves any: a refusal of one leaves them all where they were', async () => {
+    const src = await source('sqlite', open);
+    const saved = await src.service.save(src.workspaceId, {}, HOST);
+    const dst = await target('sqlite', open);
+    const file = fileOf(await upload(dst.h, saved.tarball));
+    const copies = new Map([['clinic', [{ installId: 'man_a', connectionId: 'con_a', version: '0.9.0' }, { installId: 'man_b', connectionId: 'con_b', version: '0.9.0' }]]]);
+    const calls: unknown[] = [];
+    const installer = createWorkspaceInstaller({
+      meta: dst.h.meta,
+      stagedIntegrity: async (key, version) => (await dst.h.deps.store.verifyTree(key, version)).integrity,
+      discardStaged: async () => undefined,
+      copiesOf: async (key) => copies.get(key) ?? [],
+      install: async ({ key, connectionId }) => {
+        calls.push(['install', key, connectionId]);
+      },
+      update: async ({ key, installId }) => {
+        calls.push(['update', key, installId]);
+        for (const copy of copies.get(key) ?? []) if (copy.installId === installId) copy.version = '1.0.0';
+      },
+      // The second copy's live key serves what the new version changes: only someone who may manage API keys may.
+      checkUpdate: async ({ key, installId }) => {
+        calls.push(['check', key, installId]);
+        if (installId === 'man_b') throw new AppError(403, 'FORBIDDEN', 'This version of "clinic" changes what its public access serves ("visits"), which only someone who may manage API keys can allow.');
+      },
+      connectionExists: async () => true,
+    });
+    const run = await installer.run(file.id, { apps: [{ key: 'clinic', connectionId: dst.h.connectionId }] }, { userId: null, managesConnections: false });
+    expect(calls).toEqual([['check', 'clinic', 'man_a'], ['check', 'clinic', 'man_b']]);
+    expect(copies.get('clinic')!.map((copy) => copy.version)).toEqual(['0.9.0', '0.9.0']);
+    expect(run.apps.find((app) => app.key === 'clinic')).toMatchObject({ state: 'refused', reason: 'FORBIDDEN' });
   });
 
   it('refuses a workspace file whose own list would carry an id or a secret of this server', async () => {
@@ -558,7 +635,8 @@ describe('workspace files on one engine', () => {
           if (reply.statusCode !== 200) throw new AppError(reply.statusCode, 'INSTALL', reply.body);
         },
         update: async () => undefined,
-        connectionExists: async () => true,
+        checkUpdate: async () => undefined,
+      connectionExists: async () => true,
         now: () => clock,
         heartbeatMs,
       });

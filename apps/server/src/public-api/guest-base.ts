@@ -12,7 +12,7 @@
  * domains and `system.publicOrigin`. With neither, there is no link to send,
  * and the caller says so to staff instead of guessing.
  */
-import { settingsRepo, type MetaDb } from '@adminium/meta';
+import { publicKeysRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 
 import type { DomainMapping } from '../surfaces/settings.js';
 
@@ -82,4 +82,28 @@ export async function guestBaseOn(deps: GuestBaseDeps, appKey: string, connectio
 export async function hasPublicOrigin(meta: MetaDb): Promise<boolean> {
   const origin = await settingsRepo(meta).get('system.publicOrigin');
   return typeof origin === 'string' && origin !== '';
+}
+
+/**
+ * The guest base of the install an app's key was made by: the key's own
+ * install when it names one, which is where its guests are whatever database
+ * the key reads (an install kept for the whole server, from before an app was
+ * installed per database, has keys on a database it is not recorded on).
+ * Else the app's install on the key's database. Null for an operator's own
+ * key, and when neither has an address.
+ */
+export async function guestBaseOfKey(deps: GuestBaseDeps, key: { keyId: string; managedBy: string | null; connectionId: string }): Promise<string | null> {
+  if (key.managedBy === null) return null;
+  const installId = (await publicKeysRepo(deps.meta).findById(key.keyId))?.installId ?? null;
+  if (installId !== null) {
+    const own = await deps.meta.db
+      .selectFrom('adminium_manifests')
+      .select('instanceSlug')
+      .where('id', '=', installId)
+      .where('manifestKey', '=', key.managedBy)
+      .where('kind', '=', 'app')
+      .executeTakeFirst();
+    if (own !== undefined) return guestBase(deps, key.managedBy, own.instanceSlug);
+  }
+  return guestBaseOn(deps, key.managedBy, key.connectionId);
 }
