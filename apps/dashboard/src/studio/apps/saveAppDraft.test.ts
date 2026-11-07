@@ -21,6 +21,7 @@ import {
   needsCount,
   requestOf,
   tick,
+  unansweredViewItems,
   untick,
 } from './saveAppDraft.js';
 import { aboutProblems, looksLikeAddress, nextVersionFor } from './saveAppAbout.js';
@@ -159,8 +160,20 @@ describe('the save draft', () => {
   it('counts what needs the person as Check does: blocks, then choices with the views as one', () => {
     const p = plan([secret, noType, { group: 'after', code: 'SENDER', kind: 'email', item: 'Welcome', message: 'x' }], { problems: [{ code: 'PLAN_REFUSED', message: 'no' }] });
     expect(groupCheck(p)).toMatchObject({ blocks: [secret], choices: [noType] });
-    expect(needsCount(p, 0)).toEqual({ blocks: 2, choices: 1 });
-    expect(needsCount(p, 10)).toEqual({ blocks: 2, choices: 2 });
+    expect(needsCount(p, [])).toEqual({ blocks: 2, choices: 1 });
+    expect(needsCount(p, [{ id: 'view_mine' }, { id: 'view_other' }])).toEqual({ blocks: 2, choices: 2 });
+  });
+
+  it('counts a personal view the plan still asks about and the views block cannot answer, so ready is never said over a refusal', () => {
+    // Another person's view the server still asks about: the inventory never lists it, so no switch answers it.
+    const theirs: CheckItem = { ...personalView, item: 'Orders: My open orders', answer: { choices: ['make-shared', 'leave-out'], target: 'view_theirs', targets: { 'leave-out': 'view:view_theirs' } } };
+    const p = plan([theirs]);
+    expect(needsCount(p, [])).toEqual({ blocks: 0, choices: 1 });
+    expect(needsCount(p, [{ id: 'view_mine' }])).toEqual({ blocks: 0, choices: 2 });
+    expect(unansweredViewItems(p, [{ id: 'view_mine' }])).toEqual([theirs]);
+    // One the block shows is answered there, and is not asked twice.
+    expect(unansweredViewItems(plan([personalView]), [{ id: 'view_mine' }])).toEqual([]);
+    expect(needsCount(plan([personalView]), [{ id: 'view_mine' }])).toEqual({ blocks: 0, choices: 1 });
   });
 
   it('words a key of several columns as kept unique together, never as text', () => {

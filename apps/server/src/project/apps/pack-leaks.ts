@@ -8,8 +8,10 @@
  * the file is handed out, every file in it is read line by line, the way Save
  * as app reads what it writes:
  *  - the secret scan: every secret this server keeps (sealed values, webhook
- *    addresses, the project's `.env`, the server's own secret), found whole,
- *    in pieces, encoded or decoded (`apps/save/gates/secrets.ts`);
+ *    addresses, the project's `.env` values named as secrets, the server's
+ *    own secret), found whole, in pieces, encoded or decoded
+ *    (`apps/save/gates/secrets.ts`); a value known but not secret (a host, a
+ *    sender address, a public site's address) refuses nothing here;
  *  - the id gate: a meta row id, a generated page id, a database's id, or a
  *    `connectionId` key in a JSON file (`apps/save/gates/ids.ts`).
  * A hit names its kind, its file and its line, never the value.
@@ -42,7 +44,8 @@ export interface PackLeakScan {
 
 /** Each line of each file that holds a secret or an id of this server, in file order; at most {@link PACK_LEAKS_MAX}. */
 export function packLeaks(files: Iterable<readonly [string, Uint8Array]>, scan: PackLeakScan): PackLeak[] {
-  const index = indexSecrets(scan.secrets);
+  // A hard refusal rests on real secrets only: a host or a public address named in the code is no leak.
+  const index = indexSecrets(scan.secrets.filter((secret) => secret.soft !== true));
   const ids = scan.connectionIds.filter((id) => id.length >= 8);
   const out: PackLeak[] = [];
   for (const [file, bytes] of files) {

@@ -28,7 +28,7 @@
  *  opens Save as app's wizard** (`onMoreChoices`); the dialog cannot open it
  *  by itself.
  */
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Checkbox, IconTile, Input, Modal, ModalBody, ModalHeader, MonoText, Select, Spinner } from '@adminium/ui';
 import { Archive, CircleCheck, Copy, Database, Download, Package, PackageCheck, PackagePlus, SlidersHorizontal, TriangleAlert } from 'lucide-react';
@@ -40,6 +40,7 @@ import { docsUrl } from '../../../kb/docsLinks.js';
 import { formatBytes } from '../../storage/storageApi.js';
 import { sentence } from '../addOnWords.js';
 import { APP_SAVES_QUERY_KEY as SINGLE_SAVES_QUERY_KEY } from '../saveAppApi.js';
+import { checkSentence, problemSentence, saveErrorText } from '../saveAppWords.js';
 import {
   APP_SAVES_QUERY_KEY,
   planWorkspaceSave,
@@ -97,10 +98,13 @@ function requestOf(rows: readonly Row[], instanceFrom: string | null): Workspace
 }
 
 /** The Check of every app, merged: what needs a choice (and what is refused), each named by its app. */
-export function mergedChoices(plan: WorkspaceSavePlan): { key: string; app: string; message: string }[] {
+export function mergedChoices(plan: WorkspaceSavePlan): { key: string; app: string; text: ReactNode }[] {
   return plan.apps.flatMap((app) => [
-    ...app.plan.problems.map((problem, n) => ({ key: `${app.key}:problem:${String(n)}`, app: app.name, message: problem.message })),
-    ...app.plan.check.filter((item) => item.group === 'choice').map((item, n) => ({ key: `${app.key}:choice:${String(n)}`, app: app.name, message: item.message })),
+    ...app.plan.problems.map((problem, n) => ({ key: `${app.key}:problem:${String(n)}`, app: app.name, text: problemSentence(problem) })),
+    ...app.plan.check
+      .filter((item) => item.group === 'choice')
+      // Worded from its parts; how it is answered is the app's own Check's business.
+      .map(({ answer: _answer, ...item }, n) => ({ key: `${app.key}:choice:${String(n)}`, app: app.name, text: checkSentence(item) })),
   ]);
 }
 
@@ -173,7 +177,7 @@ export function SaveWorkspaceDialog({ workspace, onClose, onMoreChoices }: { wor
         onError: (cause) => {
           if (n !== asked.current) return;
           setPlan(null);
-          setError(cause.message);
+          setError(saveErrorText(cause));
         },
       });
     }, 350);
@@ -197,11 +201,7 @@ export function SaveWorkspaceDialog({ workspace, onClose, onMoreChoices }: { wor
         setError(null);
         return;
       }
-      if (reasonOf(cause) === 'WORKSPACE_FILE_LEAKS') {
-        setError(t('studio:workspaceFiles.save.leaks', 'The workspace file would carry a secret or an id of this server in a workspace, database or label name. Rename it, then save again.'));
-        return;
-      }
-      setError(cause.message);
+      setError(saveErrorText(cause));
     },
   });
 
@@ -231,7 +231,7 @@ export function SaveWorkspaceDialog({ workspace, onClose, onMoreChoices }: { wor
         {rows === null ? (
           first.isError ? (
             <Alert tone="danger" title={t('studio:workspaceFiles.error', 'Something went wrong')}>
-              {first.error.message}
+              {saveErrorText(first.error)}
             </Alert>
           ) : (
             <div className="flex justify-center py-6">
@@ -356,7 +356,7 @@ export function SaveWorkspaceDialog({ workspace, onClose, onMoreChoices }: { wor
             <ul className="mt-2 flex flex-col gap-1 ps-6 text-[12.5px] leading-[1.5] text-fg-muted">
               {choices.map((choice) => (
                 <li key={choice.key}>
-                  <span className="font-bold text-fg">{choice.app}</span> · {choice.message}
+                  <span className="font-bold text-fg">{choice.app}</span> · {choice.text}
                 </li>
               ))}
             </ul>

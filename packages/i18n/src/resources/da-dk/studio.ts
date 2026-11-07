@@ -5330,7 +5330,8 @@ export default {
       "copy": "Kopiér fingeraftryk",
       "again": "Download igen",
       "newer": "Gem en nyere version",
-      "docsLink": "Om gemte versioner"
+      "docsLink": "Om gemte versioner",
+      "notDownloadable": "Download igen er ikke tilgængelig for dig: kopien er væk, eller den indeholder noget, du ikke har rettigheder til."
     },
     "entry": {
       "button": "Gem som app",
@@ -5507,6 +5508,29 @@ export default {
       "receipt": "Kvittering",
       "warehouse": "Lager",
       "cupSoda": "Krus"
+    },
+    "problem": {
+      "instanceId": "Filen ville indeholde et id fra denne server ved {place}, så den kan ikke laves. Udelad det, der indeholder det, og tjek igen.",
+      "instanceIdNoPlace": "Filen ville indeholde et id fra denne server, så den kan ikke laves. Udelad det, der indeholder det, og tjek igen.",
+      "manifest": "Filen ville ikke bestå de tjek, som enhver appfil skal bestå, ved {place}, så den kan ikke laves. Udelad det, der nævnes, og tjek igen.",
+      "manifestNoPlace": "Filen ville ikke bestå de tjek, som enhver appfil skal bestå, så den kan ikke laves. Udelad det, der nævnes, og tjek igen.",
+      "plan": "Installationen af filen ville blive afvist ved {place}, så den kan ikke laves. Udelad det, der nævnes, og tjek igen.",
+      "planNoPlace": "Installationen af filen ville blive afvist, så den kan ikke laves. Udelad det, der nævnes, og tjek igen.",
+      "other": "Filen kan ikke laves, som den er. Udelad det, der blev tilføjet sidst, og tjek igen."
+    },
+    "error": {
+      "snapshotMissing": "Denne database er ikke læst endnu. Opdater dens skema, og gem derefter.",
+      "keyElsewhere": "En app med denne nøgle blev gemt fra en anden database. Giv denne app en anden nøgle.",
+      "versionSaved": "Denne version er gemt før. Gem en nyere version.",
+      "versionOlder": "En højere version er gemt før. Gem en version over den.",
+      "instanceNotYours": "For at gemme udseende, sprog, tekster og systemmails skal du kunne administrere indstillinger.",
+      "rowsNotYours": "For at gemme rækker skal du kunne læse og eksportere hele tabellen, og personlige kolonner kræver, at du må læse dem. Udelad det, du ikke må gemme.",
+      "filesNotYours": "Appen indeholder filer fra filbiblioteket, og for at gemme dem skal du kunne administrere filer.",
+      "tableNotYours": "Du må ikke gemme en tabel, du ikke kan læse, eller en side eller et offentligt endpoint til den. Udelad den, og gem igen.",
+      "viewNotYours": "Du må kun dele dine egne visninger. Udelad en visning, der ikke er din, og gem igen.",
+      "refused": "Filen kan ikke laves. Ret det, der blokerer for at gemme, under Tjek, og gem igen.",
+      "needsAnswers": "Noget under Tjek mangler stadig et svar. Besvar det, og gem igen.",
+      "downloadNotYours": "Du må ikke downloade denne fil igen: den indeholder noget, du ikke har rettigheder til."
     }
   },
   "workspaceFiles": {
@@ -5605,7 +5629,9 @@ export default {
       "missing": "En app, som filen nævner, er der ikke.",
       "nested": "En arbejdsområdefil inde i en arbejdsområdefil bliver ikke installeret.",
       "title": "Denne arbejdsområdefil kan ikke installeres",
-      "twoInstances": "To apps i filen har serverindstillingerne med. En arbejdsområdefil har dem med i højst én app."
+      "twoInstances": "To apps i filen har serverindstillingerne med. En arbejdsområdefil har dem med i højst én app.",
+      "app": "Denne app kan ikke installeres på den database, som den er.",
+      "plan": "Denne app kan ikke installeres på den database, som den er. Åbn den for at se, hvad der står i vejen."
     },
     "save": {
       "button": "Gem arbejdsområde",
@@ -5669,7 +5695,18 @@ export default {
       "staged": "{workspace} er uploadet og venter på at blive installeret.",
       "stopped": "{workspace}: {done} af {total} installeret. Installationen stoppede undervejs."
     },
-    "docsLink": "Sådan virker arbejdsområdefiler"
+    "docsLink": "Sådan virker arbejdsområdefiler",
+    "saveRefusal": {
+      "changed": "Arbejdsområdefilen blev anderledes end den gemte. Gem arbejdsområdet igen.",
+      "tooLarge": "Denne arbejdsområdefil ville blive større end 128 MB. Udelad en database eller dens eksempelrækker, og prøv igen.",
+      "appTooLarge": "En app ville blive større end 32 MB. Udelad dens eksempelrækker, og prøv igen.",
+      "empty": "Vælg mindst én database at gemme.",
+      "tooMany": "En arbejdsområdefil ville indeholde for mange apps. Udelad en database.",
+      "notMember": "Nogle af de databaser er ikke i dette arbejdsområde.",
+      "duplicate": "Hver database bliver til én app: nævn den kun én gang.",
+      "duplicateKey": "To apps ville have samme nøgle. Giv hver sin egen.",
+      "instanceFrom": "Serverindstillingerne flyttes med en af de gemte apps."
+    }
   },
   "apps": {
     "added": {

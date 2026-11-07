@@ -20,7 +20,9 @@ import { t } from '../../../i18n/t.js';
 import { formatBytes } from '../../storage/storageApi.js';
 import { savedDate } from '../installReview.js';
 import { sentence } from '../addOnWords.js';
-import { appSavesQuery, discardWorkspaceFile, workspaceFilesQuery, workspaceSaveFileHref, WORKSPACE_FILES_QUERY_KEY, type WorkspaceSaveRow } from './workspaceFilesApi.js';
+import { useAppToasts } from '../../../pages/toasts.js';
+import { notDownloadableText, saveErrorText } from '../saveAppWords.js';
+import { appSavesQuery, discardWorkspaceFile, downloadWorkspaceSave, workspaceFilesQuery, WORKSPACE_FILES_QUERY_KEY, type WorkspaceSaveRow } from './workspaceFilesApi.js';
 import { doneCount } from './workspaceFileStatus.js';
 
 const ROW_BUTTON = 'h-8 rounded-[10px] px-[11px] text-[12.5px] font-bold';
@@ -40,6 +42,8 @@ export function WorkspaceSavesList({ onSaveAgain }: { onSaveAgain?: ((workspaceI
 
 function WorkspaceSaveItem({ row, onSaveAgain }: { row: WorkspaceSaveRow; onSaveAgain?: ((workspaceId: string) => void) | undefined }) {
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const toasts = useAppToasts();
   const filename = row.filename;
   return (
     <li className="flex flex-wrap items-center gap-3.5 border-t border-border px-5 py-[13px] leading-[normal]" data-testid={`workspace-save-${row.id}`}>
@@ -57,16 +61,36 @@ function WorkspaceSaveItem({ row, onSaveAgain }: { row: WorkspaceSaveRow; onSave
         <div className="mt-[3px] text-[12.5px] text-fg-muted">
           {sentence('studio:workspaceFiles.saves.saved', 'saved {date} · {size}', { date: <MonoText>{savedDate(new Date(row.savedAt).toISOString())}</MonoText>, size: <MonoText>{formatBytes(row.bytes)}</MonoText> })}
         </div>
+        {row.downloadable ? null : (
+          <p className="mt-[3px] text-[12.5px] text-fg-muted" id={`workspace-save-locked-${row.id}`} data-part="not-downloadable">
+            {notDownloadableText()}
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap gap-1.5">
         <Button variant="ghost" className={ROW_BUTTON} onClick={() => void navigator.clipboard?.writeText(row.integrity).then(() => setCopied(true))}>
           {copied ? <CircleCheck aria-hidden className="size-[15px] text-pos" /> : <Copy aria-hidden className="size-[15px]" />}
           {copied ? t('studio:workspaceFiles.copied', 'Copied') : t('studio:workspaceFiles.saves.copy', 'Copy fingerprint')}
         </Button>
-        <a href={workspaceSaveFileHref(row.id)} download={filename} className={`inline-flex items-center gap-[7px] border border-border-strong bg-surface shadow-sm ${ROW_BUTTON}`}>
+        <Button
+          variant="secondary"
+          className={ROW_BUTTON}
+          disabled={!row.downloadable}
+          loading={downloading}
+          aria-describedby={row.downloadable ? undefined : `workspace-save-locked-${row.id}`}
+          onClick={() => {
+            setDownloading(true);
+            void downloadWorkspaceSave(row.id, filename)
+              .then(
+                (name) => toasts.push({ variant: 'success', title: t('studio:saveApp.download.done', '{file} downloaded', { file: name }) }),
+                (error: unknown) => toasts.push({ variant: 'error', title: t('studio:saveApp.download.failed', 'The file could not be downloaded'), description: saveErrorText(error) }),
+              )
+              .finally(() => setDownloading(false));
+          }}
+        >
           <Download aria-hidden className="size-[15px]" />
           {t('studio:workspaceFiles.saves.download', 'Download again')}
-        </a>
+        </Button>
         {onSaveAgain === undefined || row.workspaceId === null ? null : (
           <Button variant="secondary" className={ROW_BUTTON} onClick={() => onSaveAgain(row.workspaceId!)}>
             <PackagePlus aria-hidden className="size-[15px]" />

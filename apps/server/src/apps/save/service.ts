@@ -30,9 +30,9 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { parseDatabaseModel } from '@adminium/engine';
+import { parseDatabaseModel, type DatabaseModel } from '@adminium/engine';
 import type { AppManifest } from '@adminium/manifest';
-import { appSavesRepo, filesRepo, newId, snapshotsRepo, type AppSave, type AppSaveCarried, type MetaDb } from '@adminium/meta';
+import { appSavesRepo, filesRepo, newId, pagesRepo, publicEndpointsRepo, snapshotsRepo, type AppSave, type AppSaveCarried, type MetaDb } from '@adminium/meta';
 
 import type { Kysely } from 'kysely';
 
@@ -44,7 +44,9 @@ import { readLimitOf, type ReadLimits } from '../../rbac/read-limits.js';
 import type { CheckItem } from './check.js';
 import { carryOutAnswers } from './answers.js';
 import { convertToApp } from './convert.js';
-import { saveInventory, type SaveInventory } from './inventory.js';
+import { parseDefinition } from '../../public-api/endpoint.js';
+import { saveInventory, tableOfEnvelope, type SaveInventory } from './inventory.js';
+import { tableIdFor } from './refs.js';
 import { runSaveGates, type GateProblem } from './gates/index.js';
 import type { RowChoice, RowsCarried, SaveChoices, SaveDialect, SaveSource } from './types.js';
 
@@ -88,6 +90,11 @@ export interface SaveRequest {
 /** What the person saving may do, asked by the route of the request (or "everything", by the CLI). */
 export interface SaveRights {
   userId: string | null;
+  /**
+   * Host access (the command line): it reads every table and may share
+   * anybody's view. A person's rights never set it.
+   */
+  host?: boolean | undefined;
   /** A grant string (`table:<connectionId>:<tableId>:read`, `system:files:manage`…). */
   can(grant: string): Promise<boolean>;
   /** Whether the saver reads the whole table (no row reach narrows it). */
@@ -179,6 +186,7 @@ export function createSaveService(deps: SaveServiceDeps) {
     const lineage = kept ?? randomBytes(16).toString('base64url');
 
     await refuseWithoutRights(request, rights);
+    const { include, unread } = await narrowedInclude(request, model, rights);
 
     const label = request.label?.trim() || (await deps.displayName());
     const choices: SaveChoices = {
@@ -190,7 +198,7 @@ export function createSaveService(deps: SaveServiceDeps) {
       label,
       lineage,
       savedAt: new Date(now()).toISOString(),
-      ...definedOf(request.include ?? {}),
+      ...definedOf(include),
       ...(request.rows === undefined ? {} : { rows: request.rows }),
       ...definedOf(request.answers ?? {}),
     };
@@ -203,6 +211,8 @@ export function createSaveService(deps: SaveServiceDeps) {
       dialect,
       model,
       adminiumVersion: deps.adminiumVersion,
+      ...(rights.host === true ? {} : { viewer: { userId: rights.userId } }),
+      ...(unread.size === 0 ? {} : { unreadTables: unread }),
       ...(storage === null
         ? {}
         : {
@@ -260,7 +270,62 @@ export function createSaveService(deps: SaveServiceDeps) {
     return { plan, converted, lineage, carried };
   }
 
+  /**
+   * What goes in, as far as the saver reads it. A table they do not read
+   * never travels, nor anything of it (its pages, its public endpoints):
+   * asked for by id, the save is refused, as rows the saver may not take
+   * are; left to the default, it is the tables they read, and the pages and
+   * endpoints of those. The wizard lists only what they read, so it never
+   * asks for another; the default narrows quietly so a quick save of a
+   * database the saver reads in part still works. The host reads every table.
+   */
+  async function narrowedInclude(request: SaveRequest, model: DatabaseModel, rights: SaveRights): Promise<{ include: NonNullable<SaveRequest['include']>; unread: ReadonlySet<string> }> {
+    const include = { ...(request.include ?? {}) };
+    const unread = new Set<string>();
+    if (rights.host === true) return { include, unread };
+    for (const table of model.tables) {
+      if (!(await rights.can(`table:${request.connectionId}:${table.id}:read`))) unread.add(table.id);
+    }
+    if (unread.size === 0) return { include, unread };
+    const notYours = () => new ConflictError('You may not save a table you do not read, nor a page or a public endpoint of one.', 'CONFLICT', { reason: 'SAVE_TABLE_NOT_YOURS' });
+    const unreadName = (name: string | null): boolean => {
+      if (name === null) return false;
+      const id = tableIdFor(model, name);
+      return id !== null && unread.has(id);
+    };
+
+    if (include.tables === undefined) include.tables = model.tables.filter((table) => !unread.has(table.id)).map((table) => table.id);
+    else if (include.tables.some((id) => unread.has(tableIdFor(model, id) ?? id))) throw notYours();
+
+    const pages = await pagesRepo(deps.meta).listForConnection(request.connectionId);
+    const ofUnread = new Set(pages.filter((page) => unreadName(tableOfEnvelope(page.config))).map((page) => page.id));
+    if (include.pages === undefined) include.pages = pages.filter((page) => !ofUnread.has(page.id)).map((page) => page.id);
+    else if (include.pages.some((id) => ofUnread.has(id))) throw notYours();
+
+    const endpoints = await publicEndpointsRepo(deps.meta).listByConnection(request.connectionId);
+    const onUnread = new Set(
+      endpoints
+        .filter((endpoint) => {
+          const parsed = parseDefinition(endpoint.definition);
+          return parsed.ok && unreadName(String((parsed.definition as { source?: unknown }).source ?? ''));
+        })
+        .map((endpoint) => endpoint.id),
+    );
+    if (include.publicEndpoints === undefined) {
+      if (onUnread.size > 0) include.publicEndpoints = endpoints.filter((endpoint) => !onUnread.has(endpoint.id)).map((endpoint) => endpoint.id);
+    } else if (include.publicEndpoints.some((id) => onUnread.has(id))) throw notYours();
+    return { include, unread };
+  }
+
   async function refuseWithoutRights(request: SaveRequest, rights: SaveRights): Promise<void> {
+    // Only the saver's own views may be made views of the app: another person's is theirs.
+    const shareViews = request.answers?.shareViews ?? [];
+    if (rights.host !== true && shareViews.length > 0) {
+      const owners = await deps.meta.db.selectFrom('adminium_views').select(['id', 'userId']).where('id', 'in', [...shareViews]).execute();
+      if (owners.some((view) => view.userId !== null && view.userId !== rights.userId)) {
+        throw new ConflictError('You may share only your own views.', 'CONFLICT', { reason: 'SAVE_VIEW_NOT_YOURS' });
+      }
+    }
     if (request.include?.instance === true && !(await rights.can('system:settings:manage'))) {
       throw new ConflictError('Saving the look, languages, wording and system emails needs managing settings.', 'CONFLICT', { reason: 'SAVE_INSTANCE_NOT_YOURS' });
     }
@@ -384,6 +449,8 @@ export type SaveService = ReturnType<typeof createSaveService>;
 export async function missingRight(save: Pick<AppSave, 'connectionId' | 'savedBy' | 'carried'>, rights: SaveRights): Promise<string | null> {
   const carried = save.carried;
   if (carried === null) return save.savedBy !== null && save.savedBy === rights.userId ? null : 'it was saved before Adminium kept what it carries, so only the person who saved it may.';
+  // A record that cannot be read could have carried anything: nobody may, as the strictest reading.
+  if (carried === 'unknown') return 'Adminium cannot read what it carries, so nobody may. Save the app again.';
   if (carried.instance && !(await rights.can('system:settings:manage'))) return 'it carries the look, languages, wording and system emails, which needs managing settings.';
   if (carried.files && !(await rights.can('system:files:manage'))) return 'it carries files from the Files library, which needs managing files.';
   const connectionId = save.connectionId;

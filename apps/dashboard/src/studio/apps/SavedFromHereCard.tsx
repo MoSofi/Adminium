@@ -20,6 +20,7 @@ import { useAppToasts } from '../../pages/toasts.js';
 import type { ConnectionDto } from '../api.js';
 import { appSavesQuery, downloadSavedFile, type AppSaveRow } from './saveAppApi.js';
 import { appIconOf } from './saveAppIcons.js';
+import { notDownloadableText, saveErrorText } from './saveAppWords.js';
 import { WorkspaceSavesList } from './workspaceFiles/WorkspaceSavesList.js';
 
 export interface SavedFromHereCardProps {
@@ -80,6 +81,11 @@ export function SavedFromHereCard({ connections, saveButton, onSaveNewer }: Save
                         </>
                       )}
                     </p>
+                    {save.downloadable ? null : (
+                      <p className="text-[12.5px] text-fg-muted" id={`save-locked-${save.id}`} data-part="not-downloadable">
+                        {notDownloadableText()}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
@@ -99,6 +105,7 @@ export function SavedFromHereCard({ connections, saveButton, onSaveNewer }: Save
                       size="sm"
                       variant="secondary"
                       disabled={!save.downloadable}
+                      aria-describedby={save.downloadable ? undefined : `save-locked-${save.id}`}
                       onClick={() => {
                         void downloadSavedFile(save.id).then(
                           (name) => toasts.push({ variant: 'success', title: t('studio:saveApp.download.done', '{file} downloaded', { file: name }) }),
@@ -106,7 +113,7 @@ export function SavedFromHereCard({ connections, saveButton, onSaveNewer }: Save
                             toasts.push({
                               variant: 'error',
                               title: t('studio:saveApp.download.failed', 'The file could not be downloaded'),
-                              description: error instanceof Error ? error.message : String(error),
+                              description: saveErrorText(error),
                             }),
                         );
                       }}

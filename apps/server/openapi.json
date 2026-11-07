@@ -148243,6 +148243,9 @@
                           },
                           "filename": {
                             "type": "string"
+                          },
+                          "downloadable": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -148255,7 +148258,8 @@
                           "integrity",
                           "bytes",
                           "appSaveIds",
-                          "filename"
+                          "filename",
+                          "downloadable"
                         ],
                         "additionalProperties": false
                       }

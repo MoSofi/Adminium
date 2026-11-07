@@ -38347,6 +38347,54 @@
     "status": "mt",
     "srcHash": "eed5bb86a568"
   },
+  "studio.saveApp.error.downloadNotYours": {
+    "status": "mt",
+    "srcHash": "7eadf4479248"
+  },
+  "studio.saveApp.error.filesNotYours": {
+    "status": "mt",
+    "srcHash": "52f75f92a351"
+  },
+  "studio.saveApp.error.instanceNotYours": {
+    "status": "mt",
+    "srcHash": "ef9ada38a4f2"
+  },
+  "studio.saveApp.error.keyElsewhere": {
+    "status": "mt",
+    "srcHash": "bc2b84e6d31e"
+  },
+  "studio.saveApp.error.needsAnswers": {
+    "status": "mt",
+    "srcHash": "d285bbf0646a"
+  },
+  "studio.saveApp.error.refused": {
+    "status": "mt",
+    "srcHash": "82e86e52cbed"
+  },
+  "studio.saveApp.error.rowsNotYours": {
+    "status": "mt",
+    "srcHash": "41ebda257e0b"
+  },
+  "studio.saveApp.error.snapshotMissing": {
+    "status": "mt",
+    "srcHash": "5de04d1a8e4b"
+  },
+  "studio.saveApp.error.tableNotYours": {
+    "status": "mt",
+    "srcHash": "d9c35d917f0f"
+  },
+  "studio.saveApp.error.versionOlder": {
+    "status": "mt",
+    "srcHash": "7178271dc616"
+  },
+  "studio.saveApp.error.versionSaved": {
+    "status": "mt",
+    "srcHash": "8bf7369e94a8"
+  },
+  "studio.saveApp.error.viewNotYours": {
+    "status": "mt",
+    "srcHash": "9be5dc6d86dc"
+  },
   "studio.saveApp.footerStep": {
     "status": "mt",
     "srcHash": "78cee4b898d5"
@@ -39151,6 +39199,34 @@
     "status": "mt",
     "srcHash": "8903d6213c45"
   },
+  "studio.saveApp.problem.instanceId": {
+    "status": "mt",
+    "srcHash": "a4481e36d763"
+  },
+  "studio.saveApp.problem.instanceIdNoPlace": {
+    "status": "mt",
+    "srcHash": "9c32f47065bc"
+  },
+  "studio.saveApp.problem.manifest": {
+    "status": "mt",
+    "srcHash": "beecd738aba9"
+  },
+  "studio.saveApp.problem.manifestNoPlace": {
+    "status": "mt",
+    "srcHash": "b92fe5dfa272"
+  },
+  "studio.saveApp.problem.other": {
+    "status": "mt",
+    "srcHash": "a98f4760a869"
+  },
+  "studio.saveApp.problem.plan": {
+    "status": "mt",
+    "srcHash": "d4730f1b2dc4"
+  },
+  "studio.saveApp.problem.planNoPlace": {
+    "status": "mt",
+    "srcHash": "995589663cbc"
+  },
   "studio.saveApp.progress": {
     "status": "mt",
     "srcHash": "501c2b7b022a"
@@ -39238,6 +39314,10 @@
   "studio.saveApp.saved.newer": {
     "status": "mt",
     "srcHash": "e83b229e2add"
+  },
+  "studio.saveApp.saved.notDownloadable": {
+    "status": "mt",
+    "srcHash": "718829f060ae"
   },
   "studio.saveApp.saved.title": {
     "status": "mt",
@@ -41875,6 +41955,10 @@
     "status": "mt",
     "srcHash": "bb1eb739c136"
   },
+  "studio.workspaceFiles.refusal.app": {
+    "status": "mt",
+    "srcHash": "f05981466ee4"
+  },
   "studio.workspaceFiles.refusal.extra": {
     "status": "mt",
     "srcHash": "42d130a1bbf2"
@@ -41894,6 +41978,10 @@
   "studio.workspaceFiles.refusal.nested": {
     "status": "mt",
     "srcHash": "e0c0191ea6fe"
+  },
+  "studio.workspaceFiles.refusal.plan": {
+    "status": "mt",
+    "srcHash": "5ee30876c32f"
   },
   "studio.workspaceFiles.refusal.title": {
     "status": "mt",
@@ -41994,6 +42082,42 @@
   "studio.workspaceFiles.save.version": {
     "status": "mt",
     "srcHash": "2da600bf9404"
+  },
+  "studio.workspaceFiles.saveRefusal.appTooLarge": {
+    "status": "mt",
+    "srcHash": "656db5e49526"
+  },
+  "studio.workspaceFiles.saveRefusal.changed": {
+    "status": "mt",
+    "srcHash": "43673e210984"
+  },
+  "studio.workspaceFiles.saveRefusal.duplicate": {
+    "status": "mt",
+    "srcHash": "1bfc7588a48a"
+  },
+  "studio.workspaceFiles.saveRefusal.duplicateKey": {
+    "status": "mt",
+    "srcHash": "9964196d6788"
+  },
+  "studio.workspaceFiles.saveRefusal.empty": {
+    "status": "mt",
+    "srcHash": "d7c5e6ca7ef3"
+  },
+  "studio.workspaceFiles.saveRefusal.instanceFrom": {
+    "status": "mt",
+    "srcHash": "f2602cf56073"
+  },
+  "studio.workspaceFiles.saveRefusal.notMember": {
+    "status": "mt",
+    "srcHash": "d865ee252f03"
+  },
+  "studio.workspaceFiles.saveRefusal.tooLarge": {
+    "status": "mt",
+    "srcHash": "a065e65ceb77"
+  },
+  "studio.workspaceFiles.saveRefusal.tooMany": {
+    "status": "mt",
+    "srcHash": "6b8caf2e7959"
   },
   "studio.workspaceFiles.saved.copyApp": {
     "status": "mt",

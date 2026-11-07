@@ -535,7 +535,8 @@ function link(c: Context, saved: SavedTable, col: ColumnModel, out: Writable<Col
   const ref = c.ctx.refs.table(target.tableId);
   const to = c.model.tables.find((one) => one.id === target.tableId);
   if (ref === null || to === undefined) {
-    info(c, 'LINK_TABLE_LEFT_OUT', 'column', table.name, `"${table.name}.${col.name}" links to "${to?.name ?? target.tableId}", which is not in the app, so it is carried as a plain column.`, col.name);
+    const named = c.ctx.source.unreadTables?.has(target.tableId) === true ? 'a table' : `"${to?.name ?? target.tableId}"`;
+    info(c, 'LINK_TABLE_LEFT_OUT', 'column', table.name, `"${table.name}.${col.name}" links to ${named}, which is not in the app, so it is carried as a plain column.`, col.name);
     return;
   }
   if (to.primaryKey.length !== 1 || to.primaryKey[0] !== target.column) {

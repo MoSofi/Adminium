@@ -50,6 +50,7 @@ import { docsUrl } from '../../../kb/docsLinks.js';
 import { useOpenWorkspace } from '../../../workspaces/open.js';
 import { connectionsQuery } from '../../hub/connectionsQuery.js';
 import { namesList, sentence } from '../addOnWords.js';
+import { saveErrorText } from '../saveAppWords.js';
 import { APPS_QUERY_KEY, planApp, sha512Of } from '../appsApi.js';
 import { TableCheck, type TakenPick } from '../InstallCheck.js';
 import { answersOf, hasTables } from '../InstallAppWizard.js';
@@ -152,8 +153,22 @@ export function wholeFileRefusal(error: unknown): { title: string; body: ReactNo
   };
   return {
     title: t('studio:workspaceFiles.refusal.title', 'This workspace file can’t be installed'),
-    body: (reason === null ? undefined : words[reason]) ?? (error instanceof Error ? error.message : String(error)),
+    body: (reason === null ? undefined : words[reason]) ?? refusalText(error),
   };
+}
+
+/** Any other refusal, in words: the install review's own when it knows the reason, else by its code. */
+export function refusalText(error: unknown): ReactNode {
+  if (error instanceof ApiError) {
+    const said = uploadRefusal(error.code, error.details);
+    if (said !== null) return said.body;
+  }
+  return saveErrorText(error);
+}
+
+/** Why one app of the file was not installed, from its reason. */
+function appRefusalText(refusal: { reason: string }): ReactNode {
+  return uploadRefusal(refusal.reason, { reason: refusal.reason })?.body ?? t('studio:workspaceFiles.refusal.app', 'This app can’t be installed on that database as it is.');
 }
 
 export interface WorkspaceFileInstallProps {
@@ -176,7 +191,7 @@ export function WorkspaceFileInstall({ file, resumeId, onClose }: WorkspaceFileI
   const [step, setStep] = useState<StepId>(resumeId === undefined ? 'bundle' : 'review');
   const [staged, setStaged] = useState<WorkspaceFile | null>(null);
   const [refusal, setRefusal] = useState<{ title: string; body: ReactNode } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ReactNode>(null);
   const [fingerprint, setFingerprint] = useState('');
   const [targets, setTargets] = useState<Record<string, string | null>>({});
   const [answers, setAnswers] = useState<Record<string, AppAnswers>>({});
@@ -302,7 +317,7 @@ export function WorkspaceFileInstall({ file, resumeId, onClose }: WorkspaceFileI
       void queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
       void queryClient.invalidateQueries({ queryKey: bootstrapQuery().queryKey });
     },
-    onError: (cause) => setError(cause.message),
+    onError: (cause) => setError(refusalText(cause)),
   });
 
   const discard = useMutation({
@@ -347,7 +362,7 @@ export function WorkspaceFileInstall({ file, resumeId, onClose }: WorkspaceFileI
       ) : staged === null ? (
         resume.isError ? (
           <Alert tone="danger" title={t('studio:workspaceFiles.error', 'Something went wrong')}>
-            {resume.error.message}
+            {refusalText(resume.error)}
           </Alert>
         ) : (
           <p role="status" className="flex items-center gap-2 text-sm text-fg-muted">
@@ -544,15 +559,12 @@ function StatusPill({ app, status }: { app: WorkspaceFileApp; status: AppStatus 
 
 /** Why an app is refused, in words: its own refusal, or its plan's. */
 function refusalWords(app: WorkspaceFileApp, review: (AppReviewState & { error: unknown }) | undefined): ReactNode {
-  if (app.refusal !== null) {
-    const said = uploadRefusal(app.refusal.reason, { reason: app.refusal.reason });
-    return said?.body ?? app.refusal.message;
-  }
+  if (app.refusal !== null) return appRefusalText(app.refusal);
   if (review?.planError != null) {
     const said = uploadRefusal(review.planError.code, review.planError.details);
-    return said?.body ?? review.planError.message;
+    return said?.body ?? saveErrorText(review.error);
   }
-  return review?.plan?.problems.map((problem) => problem.message).join(' ') ?? null;
+  return (review?.plan?.problems.length ?? 0) > 0 ? t('studio:workspaceFiles.refusal.plan', 'This app can’t be installed on that database as it is. Open it to see what stands in the way.') : null;
 }
 
 function AppRow({
@@ -855,7 +867,7 @@ function DoneScreen({
               ) : app.state === 'refused' ? (
                 <span className="flex items-center gap-1.5 text-[12.5px] text-fg-muted">
                   <Badge tone="danger">{t('studio:workspaceFiles.done.notInstalled', 'Not installed')}</Badge>
-                  {app.refusal?.message ?? ''}
+                  {app.refusal === null ? null : appRefusalText(app.refusal)}
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5 text-[12.5px] text-fg-muted">

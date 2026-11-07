@@ -22,7 +22,8 @@
  * kind, the item, the field and which secret it is (a connection's password,
  * the SMTP password), never the value.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { parseEnv } from 'node:util';
 
 import { llmKeyCryptoFromSecret } from '@adminium/llm';
@@ -90,7 +91,22 @@ export interface KnownSecret {
   label: string;
   value: string;
   shape: SecretShape;
+  /**
+   * Known here, but not shaped like a secret: a host, a user name, a sender
+   * address, a value of the project's `.env` whose name says nothing secret
+   * (a public site's address). Save as app still asks about it, since a hit
+   * may be a slip; a hard refusal (a download, a workspace file's own list)
+   * never rests on it.
+   */
+  soft?: true;
 }
+
+/** A `.env` name that says its value is a secret: a key, a token, a password, a database address. */
+export const SECRET_ENV_NAME =
+  /SECRET|TOKEN|PASSW|API_?KEY|PRIVATE|CREDENTIAL|DSN|SALT|CONNECTION_STRING|(?:^|_)(?:KEYS?|PASS|PWD|AUTH|SIGNING)(?:_|$)|(?:DATABASE|(?:^|_)DB|REDIS|MONGO(?:DB)?|POSTGRES(?:QL)?|PG|MYSQL|AMQP|RABBITMQ)_UR[LI]$/i;
+
+/** `.env` files that hold examples, not this project's values. */
+const ENV_EXAMPLE = /\.(?:example|sample|template|dist|defaults?)$/i;
 
 /** Shorter than this, a value means nothing on its own and is not looked for. */
 export const SECRET_MIN_LENGTH = 8;
@@ -145,17 +161,26 @@ function meaningful(value: string): boolean {
 
 class SecretList {
   readonly #out: KnownSecret[] = [];
-  readonly #seen = new Set<string>();
+  readonly #seen = new Map<string, KnownSecret>();
 
-  add(label: string, value: unknown, shape?: SecretShape): void {
+  add(label: string, value: unknown, shape?: SecretShape, soft = false): void {
     if (typeof value !== 'string') return;
     const trimmed = value.trim();
     if (!meaningful(trimmed)) return;
     const kind = shape ?? shapeOf(trimmed);
     const key = `${kind}\u0000${trimmed}`;
-    if (this.#seen.has(key)) return;
-    this.#seen.add(key);
-    this.#out.push({ label, value: trimmed, shape: kind });
+    const held = this.#seen.get(key);
+    if (held !== undefined) {
+      // The same value kept as a secret elsewhere is a secret.
+      if (!soft && held.soft === true) {
+        delete held.soft;
+        held.label = label;
+      }
+      return;
+    }
+    const secret: KnownSecret = { label, value: trimmed, shape: kind, ...(soft ? { soft: true as const } : {}) };
+    this.#seen.set(key, secret);
+    this.#out.push(secret);
   }
 
   /** A value that may be JSON: each string of it, else the value itself. */
@@ -169,14 +194,19 @@ class SecretList {
     walkValues(parsed, (value) => this.addAny(label, value));
   }
 
-  /** A value of any form: a database address by its parts, a PEM key by its body, else as it is. */
-  addAny(label: string, value: string): void {
+  /**
+   * A value of any form: a database address by its parts (its user and host
+   * known, not secret), a PEM key by its body, else as it is.
+   */
+  addAny(label: string, value: string, soft = false): void {
     const parts = databaseAddressParts(value);
     if (parts !== null) {
-      this.add(`${label} (the whole address)`, value, 'whole');
-      this.add(`${label} (its user)`, parts.user, 'whole');
-      this.add(`${label} (its password)`, parts.password, 'opaque');
-      this.add(`${label} (its host)`, parts.host, 'whole');
+      // An address with a password is a secret whatever it was named.
+      const plain = soft && parts.password === '';
+      this.add(`${label} (the whole address)`, value, 'whole', plain);
+      this.add(`${label} (its user)`, parts.user, 'whole', true);
+      this.add(`${label} (its password)`, parts.password, 'opaque', plain);
+      this.add(`${label} (its host)`, parts.host, 'whole', true);
       return;
     }
     const pem = pemBody(value);
@@ -184,7 +214,7 @@ class SecretList {
       this.add(label, pem, 'opaque');
       return;
     }
-    this.add(label, value);
+    this.add(label, value, undefined, soft);
   }
 
   list(): KnownSecret[] {
@@ -358,7 +388,7 @@ export async function collectKnownSecrets(meta: MetaDb, masterSecret: string, pr
   for (const row of await db.selectFrom('adminium_automations').select(['graph']).execute()) {
     walkWebhookSteps(readJsonFrom(meta, row.graph), (step) => {
       list.add('a rule\'s webhook address', step['url'], 'address');
-      list.add('a rule\'s webhook header', step['headerName'], 'whole');
+      list.add('a rule\'s webhook header', step['headerName'], 'whole', true);
       list.add('a rule\'s webhook header value', openedOrPlain(webhook, step['headerValueEncrypted']), 'opaque');
     });
   }
@@ -377,9 +407,9 @@ export async function collectKnownSecrets(meta: MetaDb, masterSecret: string, pr
     if (row.key === 'email.smtp') {
       const stored = (value ?? {}) as { host?: unknown; user?: unknown; passEncrypted?: unknown; from?: unknown };
       list.add('the SMTP password', openedOrPlain(smtp, stored.passEncrypted), 'opaque');
-      list.add('the SMTP user', stored.user, 'whole');
-      list.add('the SMTP host', stored.host, 'whole');
-      list.add('the SMTP sender address', stored.from, 'whole');
+      list.add('the SMTP user', stored.user, 'whole', true);
+      list.add('the SMTP host', stored.host, 'whole', true);
+      list.add('the SMTP sender address', stored.from, 'whole', true);
     } else if (row.key === 'llm.apiKey') {
       list.add('the AI provider\'s key', openedOrPlain(llmOpen, value), 'opaque');
     } else {
@@ -388,19 +418,38 @@ export async function collectKnownSecrets(meta: MetaDb, masterSecret: string, pr
   }
 
   if (projectEnvFile !== undefined && projectEnvFile !== null) {
-    let text: string | null = null;
-    try {
-      text = readFileSync(projectEnvFile, 'utf8');
-    } catch {
-      text = null;
-    }
-    if (text !== null) {
+    for (const file of projectEnvFiles(projectEnvFile)) {
+      let text: string | null = null;
+      try {
+        text = readFileSync(file, 'utf8');
+      } catch {
+        text = null;
+      }
+      if (text === null) continue;
+      const where = basename(file) === basename(projectEnvFile) ? '' : ` (${basename(file)})`;
       for (const [name, value] of Object.entries(parseEnv(text))) {
-        if (typeof value === 'string') list.addAny(`the project's ${name}`, value);
+        if (typeof value === 'string') list.addAny(`the project's ${name}${where}`, value, !SECRET_ENV_NAME.test(name));
       }
     }
   }
   return list.list();
+}
+
+/**
+ * The project's `.env` and the files beside it that hold its values too
+ * (`.env.local`, `.env.production`, any `.env.<name>`), never an example's.
+ */
+export function projectEnvFiles(envFile: string): string[] {
+  const dir = dirname(envFile);
+  const base = basename(envFile);
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return [envFile];
+  }
+  const siblings = names.filter((name) => name.startsWith(`${base}.`) && !ENV_EXAMPLE.test(name)).sort();
+  return [envFile, ...siblings.map((name) => join(dir, name))];
 }
 
 /** Each webhook step of a rule's graph, at any depth. */

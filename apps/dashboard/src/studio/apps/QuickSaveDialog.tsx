@@ -12,12 +12,12 @@
  */
 import { CircleCheck, TriangleAlert } from 'lucide-react';
 import { Alert, Button, FormField, Input, Modal, ModalBody, ModalHeader, MonoText, Spinner } from '@adminium/ui';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { t } from '../../i18n/t.js';
 import type { SaveFlowShared } from './saveAppShared.js';
-import { groupCheck, needsCount, personalViews } from './saveAppDraft.js';
-import { checkSentence, monoSentence } from './saveAppWords.js';
+import { groupCheck, needsCount, personalViews, unansweredViewItems } from './saveAppDraft.js';
+import { checkSentence, monoSentence, problemSentence, saveErrorText } from './saveAppWords.js';
 import { aboutProblems, nextVersionFor } from './saveAppAbout.js';
 
 export interface QuickSaveDialogProps extends SaveFlowShared {
@@ -32,13 +32,13 @@ export function QuickSaveDialog(props: QuickSaveDialogProps) {
   const views = inventory === undefined || draft === null ? [] : personalViews(inventory, draft);
   const problems = draft === null ? null : aboutProblems(draft, saves, connectionId, props.catalogKeys);
   const counts = plan?.counts ?? {};
-  const needs = plan === undefined ? null : needsCount(plan, views.length);
+  const needs = plan === undefined ? null : needsCount(plan, views);
   const open = needs === null ? 0 : needs.blocks + needs.choices;
   const ready = plan !== undefined && plan.ready && !planPending;
   const groups = plan === undefined ? null : groupCheck(plan);
-  const summaries = [
-    ...(plan?.problems ?? []).map((problem) => problem.message),
-    ...(groups === null ? [] : [...groups.blocks, ...groups.choices]),
+  const summaries: ReactNode[] = [
+    ...(plan?.problems ?? []).map((problem) => problemSentence(problem)),
+    ...(plan === undefined || groups === null ? [] : [...groups.blocks, ...groups.choices, ...unansweredViewItems(plan, views)].map((item) => checkSentence(item))),
   ].slice(0, 2);
   const more = (counts['emailTemplates'] ?? 0) + (counts['documents'] ?? 0) + (counts['reports'] ?? 0) + (counts['invoiceLayouts'] ?? 0) + (counts['scheduledReports'] ?? 0);
 
@@ -165,7 +165,7 @@ export function QuickSaveDialog(props: QuickSaveDialogProps) {
                     {summaries.map((summary, index) => (
                       <span key={index}>
                         {index > 0 ? ' · ' : null}
-                        {typeof summary === 'string' ? summary : checkSentence(summary)}
+                        {summary}
                       </span>
                     ))}
                     {views.length > 0 && summaries.length < 2 ? (
@@ -180,12 +180,12 @@ export function QuickSaveDialog(props: QuickSaveDialogProps) {
             </div>
             {planError === null ? null : (
               <Alert tone="danger" title={t('studio:saveApp.planFailed', 'The file could not be checked')}>
-                {planError.message}
+                {saveErrorText(planError)}
               </Alert>
             )}
             {saveError === null ? null : (
               <Alert tone="danger" role="alert" title={t('studio:saveApp.saveFailed', 'Could not save. Nothing was written. Try again.')}>
-                {saveError.message}
+                {saveErrorText(saveError)}
               </Alert>
             )}
           </>
@@ -217,7 +217,7 @@ function inventoryErrorOrLoading(props: Pick<SaveFlowShared, 'inventoryError'>) 
   if (props.inventoryError !== null) {
     return (
       <Alert tone="danger" title={t('studio:saveApp.inventoryFailed', 'This database could not be read for saving')}>
-        {props.inventoryError.message}
+        {saveErrorText(props.inventoryError)}
       </Alert>
     );
   }

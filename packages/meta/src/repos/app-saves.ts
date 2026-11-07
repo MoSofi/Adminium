@@ -14,6 +14,7 @@
  *    rest" survives a reload and one run at a time holds a row.
  */
 import type { Selectable } from 'kysely';
+import { z } from 'zod';
 
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
@@ -32,10 +33,37 @@ export interface AppSaveCarried {
   instance: boolean;
 }
 
+/** The stored record's shape: a value that is not this reads as `'unknown'`. */
+const appSaveCarriedSchema = z
+  .object({
+    rows: z.record(z.string(), z.array(z.string())),
+    personal: z.array(z.string()),
+    files: z.boolean(),
+    instance: z.boolean(),
+  })
+  .strict();
+
 export type AppSave = Omit<Selectable<AdminiumAppSavesTable>, 'carried'> & {
-  /** Null on a save from before the record was kept. */
-  carried: AppSaveCarried | null;
+  /**
+   * Null on a save from before the record was kept; `'unknown'` when the
+   * stored record cannot be read (a damaged value): whoever asks treats it as
+   * carrying everything.
+   */
+  carried: AppSaveCarried | 'unknown' | null;
 };
+
+/** The stored record, read with its schema: never a throw, `'unknown'` for anything it is not. */
+export function readAppSaveCarried(value: unknown): AppSaveCarried | 'unknown' | null {
+  if (value === null || value === undefined) return null;
+  let parsed: unknown;
+  try {
+    parsed = typeof value === 'string' ? JSON.parse(value) : value;
+  } catch {
+    return 'unknown';
+  }
+  const checked = appSaveCarriedSchema.safeParse(parsed);
+  return checked.success ? checked.data : 'unknown';
+}
 
 export interface CreateAppSaveInput {
   appKey: string;
@@ -60,7 +88,7 @@ export class AppVersionSaved extends Error {
 
 export function appSavesRepo(meta: MetaDb) {
   const { db } = meta;
-  const read = (row: Selectable<AdminiumAppSavesTable>): AppSave => ({ ...row, bytes: Number(row.bytes), carried: readJsonOrNull<AppSaveCarried>(row.carried) });
+  const read = (row: Selectable<AdminiumAppSavesTable>): AppSave => ({ ...row, bytes: Number(row.bytes), carried: readAppSaveCarried(row.carried) });
   return {
     async create(input: CreateAppSaveInput, at: number = Date.now()): Promise<AppSave> {
       const held = await db
@@ -70,10 +98,11 @@ export function appSavesRepo(meta: MetaDb) {
         .where('version', '=', input.version)
         .executeTakeFirst();
       if (held !== undefined) throw new AppVersionSaved(`${input.appKey} ${input.version}`);
-      const row: AppSave = { id: newId('asv'), ...input, fileId: input.fileId ?? null, name: input.name ?? null, description: input.description ?? null, icon: input.icon ?? null, carried: input.carried ?? null, savedAt: at };
+      const carried = input.carried ?? null;
+      const row: AppSave = { id: newId('asv'), ...input, fileId: input.fileId ?? null, name: input.name ?? null, description: input.description ?? null, icon: input.icon ?? null, carried, savedAt: at };
       await db
         .insertInto('adminium_app_saves')
-        .values({ ...row, carried: row.carried === null ? null : packJson(row.carried) })
+        .values({ ...row, carried: carried === null ? null : packJson(carried) })
         .execute();
       return row;
     },

@@ -429,8 +429,9 @@ describe('the warning layer', () => {
     expect(JSON.stringify(found)).not.toContain(paymentKey);
   });
 
-  it('reads only the places a person types: a role\'s key is not text', () => {
-    expect(warn(shop({ roles: [{ key: 'clerk', name: `Clerk ${randomKey}` }] }), new Map())).toEqual([]);
+  it('reads a role\'s name, as a place a person types', () => {
+    expect(warn(shop({ roles: [{ key: 'clerk', name: `Clerk ${randomKey}` }] }), new Map()).map((item) => [item.code, item.kind, item.item])).toEqual([['SECRET_LIKELY', 'role', 'clerk']]);
+    expect(warn(shop({ roles: [{ key: 'clerk', name: 'Clerk' }] }), new Map())).toEqual([]);
   });
 });
 

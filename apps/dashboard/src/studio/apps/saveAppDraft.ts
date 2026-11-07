@@ -299,15 +299,28 @@ export function groupCheck(plan: Pick<SavePlan, 'check'>): CheckGroups {
 }
 
 /**
- * How many things need the person: Check's "Blocks saving" and "Needs a
- * choice" counts together, the personal views as one. The quick save shows
- * this same number.
+ * The personal views the plan still asks about that the views block cannot
+ * answer: one whose view is not among the views shown (the inventory lists
+ * the saver's own views only). Each is a question of its own, answered like
+ * any other.
  */
-export function needsCount(plan: SavePlan, personalViewCount: number): { blocks: number; choices: number } {
+export function unansweredViewItems(plan: Pick<SavePlan, 'check'>, shown: readonly Pick<SaveInventory['views'][number], 'id'>[]): CheckItem[] {
+  const ids = new Set(shown.map((view) => view.id));
+  return groupCheck(plan).views.filter((item) => item.answer === undefined || !ids.has(item.answer.target));
+}
+
+/**
+ * How many things need the person: Check's "Blocks saving" and "Needs a
+ * choice" counts together, the personal views shown as one, and every
+ * personal view the plan still asks about that they cannot answer as one
+ * each. The quick save shows this same number.
+ */
+export function needsCount(plan: SavePlan, shown: readonly Pick<SaveInventory['views'][number], 'id'>[]): { blocks: number; choices: number } {
   const groups = groupCheck(plan);
   return {
     blocks: plan.problems.length + groups.blocks.length,
-    // The personal views hold a default answer, so the plan no longer lists them: the draft's count says they are there.
-    choices: groups.choices.length + (personalViewCount > 0 ? 1 : 0),
+    // The views shown hold a default answer, so the plan no longer lists them: the draft's count says they are there.
+    choices: groups.choices.length + unansweredViewItems(plan, shown).length + (shown.length > 0 ? 1 : 0),
   };
 }
+

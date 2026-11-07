@@ -5320,7 +5320,8 @@
       "copy": "Fingerabdruck kopieren",
       "again": "Erneut herunterladen",
       "newer": "Neuere Version speichern",
-      "docsLink": "Über gespeicherte Versionen"
+      "docsLink": "Über gespeicherte Versionen",
+      "notDownloadable": "„Erneut herunterladen“ steht Ihnen nicht zur Verfügung: Die Kopie ist nicht mehr da, oder die Datei enthält etwas, für das Ihnen die Rechte fehlen."
     },
     "entry": {
       "button": "Als App speichern",
@@ -5497,6 +5498,29 @@
       "receipt": "Beleg",
       "warehouse": "Lager",
       "cupSoda": "Becher"
+    },
+    "problem": {
+      "instanceId": "Die Datei würde bei {place} eine ID dieses Servers enthalten und kann daher nicht erstellt werden. Lassen Sie weg, was die ID enthält, und prüfen Sie erneut.",
+      "instanceIdNoPlace": "Die Datei würde eine ID dieses Servers enthalten und kann daher nicht erstellt werden. Lassen Sie weg, was die ID enthält, und prüfen Sie erneut.",
+      "manifest": "Die Datei würde bei {place} die Prüfungen nicht bestehen, die jede App-Datei bestehen muss, und kann daher nicht erstellt werden. Lassen Sie weg, was dort genannt ist, und prüfen Sie erneut.",
+      "manifestNoPlace": "Die Datei würde die Prüfungen nicht bestehen, die jede App-Datei bestehen muss, und kann daher nicht erstellt werden. Lassen Sie weg, was dort genannt ist, und prüfen Sie erneut.",
+      "plan": "Die Installation der Datei würde bei {place} abgelehnt, daher kann sie nicht erstellt werden. Lassen Sie weg, was dort genannt ist, und prüfen Sie erneut.",
+      "planNoPlace": "Die Installation der Datei würde abgelehnt, daher kann sie nicht erstellt werden. Lassen Sie weg, was dort genannt ist, und prüfen Sie erneut.",
+      "other": "Die Datei kann so nicht erstellt werden. Lassen Sie weg, was zuletzt hinzugefügt wurde, und prüfen Sie erneut."
+    },
+    "error": {
+      "snapshotMissing": "Diese Datenbank wurde noch nicht gelesen. Aktualisieren Sie ihr Schema und speichern Sie dann.",
+      "keyElsewhere": "Eine App mit diesem Schlüssel wurde aus einer anderen Datenbank gespeichert. Geben Sie dieser App einen anderen Schlüssel.",
+      "versionSaved": "Diese Version wurde schon gespeichert. Speichern Sie eine neuere Version.",
+      "versionOlder": "Eine höhere Version wurde schon gespeichert. Speichern Sie eine Version darüber.",
+      "instanceNotYours": "Zum Speichern von Aussehen, Sprachen, Texten und System-E-Mails müssen Sie Einstellungen verwalten dürfen.",
+      "rowsNotYours": "Zum Speichern von Zeilen müssen Sie die ganze Tabelle lesen und exportieren dürfen, für persönliche Spalten müssen Sie diese lesen dürfen. Lassen Sie weg, was Sie nicht speichern dürfen.",
+      "filesNotYours": "Die App enthält Dateien aus der Dateibibliothek, und zum Speichern müssen Sie Dateien verwalten dürfen.",
+      "tableNotYours": "Sie dürfen keine Tabelle speichern, die Sie nicht lesen können, und auch keine Seite oder keinen öffentlichen Endpunkt davon. Lassen Sie sie weg und speichern Sie erneut.",
+      "viewNotYours": "Sie dürfen nur Ihre eigenen Ansichten teilen. Lassen Sie eine Ansicht weg, die nicht Ihnen gehört, und speichern Sie erneut.",
+      "refused": "Die Datei kann nicht erstellt werden. Beheben Sie unter „Prüfen“, was das Speichern blockiert, und speichern Sie erneut.",
+      "needsAnswers": "Unter „Prüfen“ wartet noch etwas auf eine Antwort. Beantworten Sie es und speichern Sie erneut.",
+      "downloadNotYours": "Sie dürfen diese Datei nicht erneut herunterladen: Sie enthält etwas, für das Ihnen die Rechte fehlen."
     }
   },
   "workspaceFiles": {
@@ -5595,7 +5619,9 @@
       "missing": "Eine App, die die Datei nennt, ist nicht darin.",
       "nested": "Eine Arbeitsbereich-Datei in einer Arbeitsbereich-Datei wird nicht installiert.",
       "title": "Diese Arbeitsbereich-Datei kann nicht installiert werden",
-      "twoInstances": "Zwei Apps darin bringen die Servereinstellungen mit. Eine Arbeitsbereich-Datei bringt sie mit höchstens einer App mit."
+      "twoInstances": "Zwei Apps darin bringen die Servereinstellungen mit. Eine Arbeitsbereich-Datei bringt sie mit höchstens einer App mit.",
+      "app": "Diese App kann so nicht auf dieser Datenbank installiert werden.",
+      "plan": "Diese App kann so nicht auf dieser Datenbank installiert werden. Öffnen Sie sie, um zu sehen, was im Weg steht."
     },
     "save": {
       "button": "Arbeitsbereich speichern",
@@ -5659,7 +5685,18 @@
       "staged": "{workspace} ist hochgeladen und wartet auf die Installation.",
       "stopped": "{workspace}: {done} von {total} installiert. Die Installation wurde mittendrin abgebrochen."
     },
-    "docsLink": "So funktionieren Arbeitsbereich-Dateien"
+    "docsLink": "So funktionieren Arbeitsbereich-Dateien",
+    "saveRefusal": {
+      "changed": "Die Arbeitsbereich-Datei ist anders ausgefallen als die gespeicherte. Speichern Sie den Arbeitsbereich erneut.",
+      "tooLarge": "Diese Arbeitsbereich-Datei wäre größer als 128 MB. Lassen Sie eine Datenbank oder ihre Beispielzeilen weg und versuchen Sie es erneut.",
+      "appTooLarge": "Eine App wäre größer als 32 MB. Lassen Sie ihre Beispielzeilen weg und versuchen Sie es erneut.",
+      "empty": "Wählen Sie mindestens eine Datenbank zum Speichern aus.",
+      "tooMany": "Eine Arbeitsbereich-Datei würde zu viele Apps enthalten. Lassen Sie eine Datenbank weg.",
+      "notMember": "Einige dieser Datenbanken sind nicht in diesem Arbeitsbereich.",
+      "duplicate": "Jede Datenbank wird zu einer App: Nennen Sie sie nur einmal.",
+      "duplicateKey": "Zwei Apps hätten denselben Schlüssel. Geben Sie jeder einen eigenen.",
+      "instanceFrom": "Die Servereinstellungen werden mit einer der gespeicherten Apps übertragen."
+    }
   },
   "apps": {
     "added": {

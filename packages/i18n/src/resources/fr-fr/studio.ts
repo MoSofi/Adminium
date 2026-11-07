@@ -5330,7 +5330,8 @@ export default {
       "copy": "Copier l’empreinte",
       "again": "Télécharger à nouveau",
       "newer": "Enregistrer une version plus récente",
-      "docsLink": "À propos des versions enregistrées"
+      "docsLink": "À propos des versions enregistrées",
+      "notDownloadable": "« Télécharger à nouveau » ne vous est pas ouvert : sa copie n’existe plus, ou il contient quelque chose pour lequel vous n’avez pas les droits."
     },
     "entry": {
       "button": "Enregistrer comme application",
@@ -5507,6 +5508,29 @@ export default {
       "receipt": "Reçu",
       "warehouse": "Entrepôt",
       "cupSoda": "Gobelet"
+    },
+    "problem": {
+      "instanceId": "Le fichier contiendrait un identifiant de ce serveur à {place}, il ne peut donc pas être créé. Excluez ce qui le contient, puis vérifiez de nouveau.",
+      "instanceIdNoPlace": "Le fichier contiendrait un identifiant de ce serveur, il ne peut donc pas être créé. Excluez ce qui le contient, puis vérifiez de nouveau.",
+      "manifest": "Le fichier ne passerait pas, à {place}, les vérifications que tout fichier d’application doit passer, il ne peut donc pas être créé. Excluez ce qui y est désigné, puis vérifiez de nouveau.",
+      "manifestNoPlace": "Le fichier ne passerait pas les vérifications que tout fichier d’application doit passer, il ne peut donc pas être créé. Excluez ce qui y est désigné, puis vérifiez de nouveau.",
+      "plan": "L’installation du fichier serait refusée à {place}, il ne peut donc pas être créé. Excluez ce qui y est désigné, puis vérifiez de nouveau.",
+      "planNoPlace": "L’installation du fichier serait refusée, il ne peut donc pas être créé. Excluez ce qui y est désigné, puis vérifiez de nouveau.",
+      "other": "Le fichier ne peut pas être créé tel quel. Excluez ce qui a été ajouté en dernier, puis vérifiez de nouveau."
+    },
+    "error": {
+      "snapshotMissing": "Cette base de données n’a pas encore été lue. Actualisez son schéma, puis enregistrez.",
+      "keyElsewhere": "Une application avec cette clé a été enregistrée depuis une autre base de données. Donnez une autre clé à cette application.",
+      "versionSaved": "Cette version a déjà été enregistrée. Enregistrez une version plus récente.",
+      "versionOlder": "Une version plus élevée a déjà été enregistrée. Enregistrez une version supérieure.",
+      "instanceNotYours": "Enregistrer l’apparence, les langues, les textes et les e-mails système nécessite de pouvoir gérer les réglages.",
+      "rowsNotYours": "Enregistrer des lignes nécessite de pouvoir lire et exporter toute la table, et les colonnes personnelles nécessitent de pouvoir les lire. Excluez ce que vous ne pouvez pas enregistrer.",
+      "filesNotYours": "L’application contient des fichiers de la bibliothèque de fichiers, et les enregistrer nécessite de pouvoir gérer les fichiers.",
+      "tableNotYours": "Vous ne pouvez pas enregistrer une table que vous ne pouvez pas lire, ni une de ses pages ou de ses points d’accès publics. Laissez-la de côté, puis enregistrez à nouveau.",
+      "viewNotYours": "Vous ne pouvez partager que vos propres vues. Laissez de côté une vue qui n’est pas la vôtre, puis enregistrez à nouveau.",
+      "refused": "Le fichier ne peut pas être créé. Corrigez dans Vérification ce qui bloque l’enregistrement, puis enregistrez de nouveau.",
+      "needsAnswers": "Un élément de Vérification attend encore une réponse. Répondez-y, puis enregistrez de nouveau.",
+      "downloadNotYours": "Vous ne pouvez pas télécharger à nouveau ce fichier : il contient quelque chose pour lequel vous n’avez pas les droits."
     }
   },
   "workspaceFiles": {
@@ -5605,7 +5629,9 @@ export default {
       "missing": "Une app que le fichier nomme n’y est pas.",
       "nested": "Un fichier d’espace de travail dans un fichier d’espace de travail n’est pas installé.",
       "title": "Ce fichier d’espace de travail ne peut pas être installé",
-      "twoInstances": "Deux apps du fichier emportent les réglages du serveur. Un fichier d’espace de travail les emporte avec une seule app au plus."
+      "twoInstances": "Deux apps du fichier emportent les réglages du serveur. Un fichier d’espace de travail les emporte avec une seule app au plus.",
+      "app": "Cette application ne peut pas être installée telle quelle sur cette base de données.",
+      "plan": "Cette application ne peut pas être installée telle quelle sur cette base de données. Ouvrez-la pour voir ce qui l’en empêche."
     },
     "save": {
       "button": "Enregistrer l’espace de travail",
@@ -5669,7 +5695,18 @@ export default {
       "staged": "{workspace} est envoyé et attend d’être installé.",
       "stopped": "{workspace} : {done} sur {total} installées. L’installation s’est arrêtée en cours de route."
     },
-    "docsLink": "Fonctionnement des fichiers d’espace de travail"
+    "docsLink": "Fonctionnement des fichiers d’espace de travail",
+    "saveRefusal": {
+      "changed": "Le fichier d’espace de travail obtenu diffère de celui enregistré. Enregistrez de nouveau l’espace de travail.",
+      "tooLarge": "Ce fichier d’espace de travail dépasserait 128 Mo. Retirez une base de données ou ses lignes d’exemple, puis réessayez.",
+      "appTooLarge": "Une application dépasserait 32 Mo. Retirez ses lignes d’exemple, puis réessayez.",
+      "empty": "Choisissez au moins une base de données à enregistrer.",
+      "tooMany": "Un fichier d’espace de travail contiendrait trop d’applications. Retirez une base de données.",
+      "notMember": "Certaines de ces bases de données ne font pas partie de cet espace de travail.",
+      "duplicate": "Chaque base de données devient une application : ne la mentionnez qu’une fois.",
+      "duplicateKey": "Deux applications auraient la même clé. Donnez à chacune la sienne.",
+      "instanceFrom": "Les réglages du serveur sont transmis avec l’une des applications enregistrées."
+    }
   },
   "apps": {
     "added": {

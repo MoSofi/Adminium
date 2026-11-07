@@ -40,4 +40,22 @@ describe('the Save as app stories', () => {
     expect(screen.getByRole('button', { name: 'Use these choices' })).toHaveProperty('disabled', false);
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
   });
+
+  it('lists only the saver’s own and shared views when the page holds another person’s view, and asks nothing about it', () => {
+    const { container } = render(<>{stories.CheckAnotherPersonsView.render()}</>);
+    const text = container.textContent ?? '';
+    expect(text).toContain('Today’s roasts');
+    expect(text).not.toContain('Low stock beans');
+    // Nothing blocks; the saver's own view is the one thing that needs a choice, and it holds its default answer.
+    const pills = container.querySelector('[data-part="check-pills"]')?.textContent ?? '';
+    expect(pills).toContain('Blocks saving0');
+    expect(pills).toContain('Needs a choice1');
+  });
+
+  it('asks about a personal view the plan names that the views block does not show, and counts it', () => {
+    const { container } = render(<>{stories.CheckAskedAboutAnUnlistedView.render()}</>);
+    expect(container.textContent).toContain('My open orders');
+    expect(container.querySelector('[data-part="check-pills"]')?.textContent).toContain('Needs a choice2');
+    expect(screen.getAllByRole('button', { name: 'Leave it out' }).length).toBeGreaterThan(0);
+  });
 });
