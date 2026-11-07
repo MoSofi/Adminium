@@ -91,6 +91,32 @@ for (const [dialect, available] of ENGINES) {
       expect(Number(di!['id'])).toBeGreaterThan(7);
     });
 
+    it('keeps the rows of a table keyed by a guest link\'s code behind, and carries a key that is any other code', async () => {
+      const h = await harness(dialect);
+      await made(h, [
+        `CREATE TABLE passes (code varchar(16) PRIMARY KEY, guest varchar(80) NOT NULL)`,
+        `INSERT INTO passes (code, guest) VALUES ('GUESTLINK8K2Q4WZ', 'Ann')`,
+        `CREATE TABLE tickets (ref varchar(12) PRIMARY KEY, seat varchar(8) NOT NULL)`,
+        `INSERT INTO tickets (ref, seat) VALUES ('TK-7Q2M', 'A1')`,
+      ]);
+      await override(h, 'passes', 'column.code', { length: 16, hiddenFromStaff: true }, 'code');
+      await override(h, 'tickets', 'column.code', { prefix: 'TK-', length: 4 }, 'ref');
+      const passes = await tableId(h, 'passes');
+      const tickets = await tableId(h, 'tickets');
+
+      const saved = await save(h, dialect, { rows: { [passes]: { mode: 'starting' }, [tickets]: { mode: 'starting' } } }, true);
+      // The key is the link's code: the rows cannot travel without it, so they are the person's choice.
+      expect(saved.check).toContainEqual(expect.objectContaining({ group: 'choice', code: 'ROWS_HIDDEN_REQUIRED', item: 'passes', field: 'code', answer: { choices: ['leave-out'], target: `rows:${passes}` } }));
+      expect(JSON.stringify(Object.values(asFile(saved).files))).not.toContain('GUESTLINK8K2Q4WZ');
+      // A key that is a plain code travels: the rows link to it.
+      expect(seedRows(asFile(saved).files, 'tickets')).toEqual([{ ref: 'TK-7Q2M', seat: 'A1' }]);
+
+      const answered = await save(h, dialect, { rows: { [passes]: { mode: 'starting' }, [tickets]: { mode: 'starting' } }, leaveOut: [`rows:${passes}`] }, true);
+      expect(answered.check.filter((item) => item.code === 'ROWS_HIDDEN_REQUIRED')).toEqual([]);
+      expect(JSON.stringify([...answered.files.values()].map((bytes) => Buffer.from(bytes).toString('utf8')))).not.toContain('GUESTLINK8K2Q4WZ');
+      expect(answered.carried.rows[passes]).toBeUndefined();
+    });
+
     it('never carries a code, a guest link\'s code or a column the saver cannot read, whatever is ticked', async () => {
       const h = await harness(dialect);
       await made(h, [

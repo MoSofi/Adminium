@@ -291,11 +291,18 @@ function holdsDirective(value: unknown): boolean {
  *  - `link`: a code no staff member reads, or one a shared link opens its row
  *    with (anyone holding the file could open that row's page);
  *  - `code`: any other code Adminium makes: the target makes its own.
- * The key is never held back: every reader sees it.
+ * Every reader sees the key, so it is held back only as a link's code (a
+ * table keyed by its share token): then the rows cannot travel at all. A key
+ * that is any other code travels: the other rows link to it.
  */
 function neverTravels(reading: Reading, connectionId: string, table: Picked, column: RequiredColumn): 'unread' | 'link' | 'code' | null {
+  const never = heldBack(reading, connectionId, table, column);
+  if (!table.planned.saved.model.primaryKey.includes(column.ref)) return never;
+  return never === 'link' ? 'link' : null;
+}
+
+function heldBack(reading: Reading, connectionId: string, table: Picked, column: RequiredColumn): 'unread' | 'link' | 'code' | null {
   const name = column.ref;
-  if (table.planned.saved.model.primaryKey.includes(name)) return null;
   const effective = resolvedOf(reading.view, table.id).table.columns.find((one) => one.name === name);
   const code = effective?.code ?? (column.rules as { code?: { hiddenFromStaff?: true } } | undefined)?.code;
   if (code?.hiddenFromStaff === true || reading.shareCodes.get(table.planned.saved.model.name)?.has(name) === true) return 'link';
@@ -330,7 +337,9 @@ async function shapeValues(ctx: ConvertContext, access: RowAccess, view: Snapsho
         never === 'link'
           ? `"${table.name}.${name}" is the code a shared link opens its row with: its values never travel, whatever is ticked.`
           : `"${table.name}.${name}" is not shown to your role: its values never travel, whatever is ticked.`;
-      if (column.nullable === true || model.default !== null || (column.rules as { code?: unknown } | undefined)?.code !== undefined) {
+      // A key held back cannot be left empty nor made again: the other rows link to it, so the rows stay behind.
+      const isKey = table.planned.saved.model.primaryKey.includes(name);
+      if (!isKey && (column.nullable === true || model.default !== null || (column.rules as { code?: unknown } | undefined)?.code !== undefined)) {
         if (column.nullable === true) nulls.add(name);
         info(ctx, never === 'link' ? 'ROWS_LINK_CODE_LEFT_OUT' : 'ROWS_UNREADABLE_LEFT_OUT', table.name, message, name);
       } else {
