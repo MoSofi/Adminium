@@ -6,7 +6,7 @@
  * on both. The record page's dialog was once the flat stack of columns, which
  * showed a designed form's table as raw enum values and type badges.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { formDocumentFor, type CrudFormConfig, type FormColumnFact, type FormRelationFact } from '../../page-config/index.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
@@ -70,28 +70,35 @@ export function editableColumnsOf(
 /**
  * The lines each line-items field already holds, for the row being edited.
  * One read per relation while `record` is set (the dialog is asked for), and
- * none at all for a form with no such field or a host that cannot read
- * related rows.
+ * none at all for a form with no such field.
  *
  * `pending` while the read is out: the form takes its lines once, when it
  * mounts, so a dialog opened before they arrive would show none and keep
  * showing none. The caller holds the dialog until they are in.
+ *
+ * A save sends every line-items field the form holds and the server makes the
+ * record's lines exactly those, so a read that FAILED (a dropped connection, a
+ * 500, a refusal) is `unread` rather than "no lines": the caller leaves that
+ * field out of the form (`readChildFacts`) and the record keeps its lines. A
+ * host that cannot read related rows at all reads none of them.
  */
 export function useEditChildren(
   record: CrudRow | null,
   childFacts: Readonly<Record<string, ChildFacts>> | undefined,
   api: CrudApi,
-): { children: Record<string, ChildRow[]> | undefined; pending: boolean } {
-  const [read, setRead] = useState<{ record: CrudRow; children: Record<string, ChildRow[]> } | null>(null);
+): { children: Record<string, ChildRow[]> | undefined; unread: ReadonlySet<string>; pending: boolean } {
+  const [read, setRead] = useState<{ record: CrudRow; children: Record<string, ChildRow[]>; unread: ReadonlySet<string> } | null>(null);
   const readRelated = api.listRelated?.bind(api);
   const wanted = Object.entries(childFacts ?? {});
-  const reads = record !== null && readRelated !== undefined && wanted.length > 0;
+  const asked = record !== null && wanted.length > 0;
+  const reads = asked && readRelated !== undefined;
   useEffect(() => {
     if (!reads || record === null || readRelated === undefined) {
       setRead(null);
       return;
     }
     let alive = true;
+    const unread = new Set<string>();
     void Promise.all(
       wanted.map(async ([relationId, fact]) => {
         try {
@@ -102,28 +109,45 @@ export function useEditChildren(
             limit: MAX_CHILD_ROWS,
           });
           return [
-            relationId,
-            rows.map((row) => ({
-              key: Object.fromEntries(fact.primaryKey.map((name: string) => [name, row[name]])),
-              values: row,
-            })),
-          ] as const;
+            [
+              relationId,
+              rows.map((row) => ({
+                key: Object.fromEntries(fact.primaryKey.map((name: string) => [name, row[name]])),
+                values: row,
+              })),
+            ] as const,
+          ];
         } catch {
-          // A table this caller cannot read leaves the field empty rather than
-          // the dialog broken; the write path refuses the save anyway.
-          return [relationId, []] as const;
+          unread.add(relationId);
+          return [];
         }
       }),
     ).then((entries) => {
-      if (alive) setRead({ record, children: Object.fromEntries(entries) });
+      if (alive) setRead({ record, children: Object.fromEntries(entries.flat()), unread });
     });
     return () => {
       alive = false;
     };
     // `wanted` and `readRelated` are made from `childFacts` and `api` on every draw.
   }, [record, childFacts, api]);
-  const held = reads && read?.record === record ? read.children : undefined;
-  return { children: held, pending: reads && held === undefined };
+  // A host that cannot read the lines: every line-items field is unread, the same set on every draw.
+  const none = useMemo(() => new Set(Object.keys(childFacts ?? {})), [childFacts]);
+  if (asked && !reads) return { children: undefined, unread: none, pending: false };
+  const held = reads && read?.record === record ? read : undefined;
+  return { children: held?.children, unread: held?.unread ?? NONE_UNREAD, pending: reads && held === undefined };
+}
+
+/**
+ * The line-items tables an edit form may offer: those whose lines were read.
+ * One left out is said in its place by the form ("not available") and is never
+ * sent, so the save leaves its lines as they are.
+ */
+export function readChildFacts(
+  childFacts: Readonly<Record<string, ChildFacts>> | undefined,
+  unread: ReadonlySet<string>,
+): Readonly<Record<string, ChildFacts>> | undefined {
+  if (childFacts === undefined || unread.size === 0) return childFacts;
+  return Object.fromEntries(Object.entries(childFacts).filter(([relationId]) => !unread.has(relationId)));
 }
 
 /** What a record links to, per relation, and the relations whose read failed. */

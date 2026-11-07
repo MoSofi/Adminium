@@ -28,7 +28,7 @@ import type { FileFieldUpload } from './FileField.js';
 import type { PictureChooser } from '../../pictures/PictureField.js';
 import type { ChildFacts } from './RecordForm.js';
 import { RecordFormDialog } from './RecordFormDialog.js';
-import { editableColumnsOf, editFormDocumentOf, readRelations, useEditChildren, useEditLinks } from './edit-form.js';
+import { editableColumnsOf, editFormDocumentOf, readChildFacts, readRelations, useEditChildren, useEditLinks } from './edit-form.js';
 import {
   filterControlFor,
   type CrudFilterField,
@@ -734,7 +734,9 @@ export function PageCrud({
   const editRelations = useMemo(() => readRelations(formRelations, editLinkRead.unread), [formRelations, editLinkRead.unread]);
 
   // The lines each line-items field already holds, read when the edit dialog is asked for: it opens once they are in.
-  const { children: editChildren, pending: editChildrenPending } = useEditChildren(editRecord, childFacts, api);
+  const { children: editChildren, unread: unreadChildren, pending: editChildrenPending } = useEditChildren(editRecord, childFacts, api);
+  // A line-items field whose lines could not be read is left out: saved as no lines, it would remove them.
+  const editChildFacts = useMemo(() => readChildFacts(childFacts, unreadChildren), [childFacts, unreadChildren]);
 
   /**
    * The bar's own view of each filter: what it is called, and what it offers.
@@ -1440,7 +1442,7 @@ export function PageCrud({
         document={formDocument}
         columns={editableColumns}
         {...(editRelations === undefined ? {} : { relations: editRelations })}
-        {...(childFacts === undefined ? {} : { childFacts })}
+        {...(editChildFacts === undefined ? {} : { childFacts: editChildFacts })}
         {...(editChildren === undefined ? {} : { initialChildren: editChildren })}
         initialLinks={editLinks}
         {...(editRecord === null

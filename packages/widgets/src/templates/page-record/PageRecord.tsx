@@ -25,7 +25,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { RecordFormDialog } from '../page-crud/RecordFormDialog.js';
 import type { ColumnFacts, ListOptionsResolver } from '../page-crud/field-mapping.js';
 import type { CrudFormConfig, FormColumnFact, FormRelationFact } from '../../page-config/index.js';
-import { editableColumnsOf, editFormDocumentOf, readRecordLinks, readRelations, useEditChildren, type RecordLinks } from '../page-crud/edit-form.js';
+import { editableColumnsOf, editFormDocumentOf, readRecordLinks, readChildFacts, readRelations, useEditChildren, type RecordLinks } from '../page-crud/edit-form.js';
 import type { ChildFacts, ChildRow } from '../page-crud/RecordForm.js';
 import { DELETE_REASON_MAX, isDeletePreview } from '../page-crud/crud-api.js';
 import type { PageCrudFiles } from '../page-crud/PageCrud.js';
@@ -1130,7 +1130,9 @@ export function PageRecord({
   );
   const editColumns = useMemo(() => editableColumnsOf(columns, formColumns), [columns, formColumns]);
   // The lines a line-items field holds, read when Edit is pressed: the dialog opens once they are in.
-  const { children: editChildren, pending: editChildrenPending } = useEditChildren(editOpen ? record : null, childFacts, api);
+  const { children: editChildren, unread: unreadChildren, pending: editChildrenPending } = useEditChildren(editOpen ? record : null, childFacts, api);
+  // A line-items field whose lines could not be read is left out: saved as no lines, it would remove them.
+  const editChildFacts = useMemo(() => readChildFacts(childFacts, unreadChildren), [childFacts, unreadChildren]);
 
   // The file columns' values, resolved when the edit dialog opens (one call for the record).
   useEffect(() => {
@@ -1593,7 +1595,7 @@ export function PageRecord({
           document={editDocument}
           columns={editColumns}
           {...(editRelations === undefined ? {} : { relations: editRelations, initialLinks: links })}
-          {...(childFacts === undefined ? {} : { childFacts })}
+          {...(editChildFacts === undefined ? {} : { childFacts: editChildFacts })}
           {...(editChildren === undefined ? {} : { initialChildren: editChildren })}
           initialValues={record}
           recordId={recordId}
