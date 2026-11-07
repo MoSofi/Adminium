@@ -62,13 +62,13 @@ env:
 jobs:
   build:
     name: build (${{ matrix.platform }})
-    # macos-14 is Apple silicon; electron-builder cross-builds the x64 dmg/zip on
+    # macos-15 is Apple silicon; electron-builder cross-builds the x64 dmg/zip on
     # it. windows-2022 and ubuntu-22.04 are the canonical runners.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             platform: mac
           - os: windows-2022
             platform: win
@@ -139,7 +139,7 @@ jobs:
       - name: Build desktop bundle + workspace deps
         run: pnpm turbo run build --filter=@adminium/desktop
         # The server's tsc needs about 2.5 GB. Node's default heap follows the
-        # runner's memory, and on macos-14 (7 GB) it stops near 2 GB.
+        # runner's memory, and on macos-15 (7 GB) it stops near 2 GB.
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
