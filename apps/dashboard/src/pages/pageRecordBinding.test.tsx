@@ -1339,6 +1339,34 @@ describe('the record page edits with the form the list edits with', () => {
     await waitFor(() => expect(within(dialog).queryByRole('textbox', { name: /Name/ })).toBeNull());
     expect(within(dialog).getByRole('textbox', { name: /Phone/ })).toBeDefined();
   });
+
+  it('keeps a locked row’s column read-only though the page cannot draw it', async () => {
+    const schemaReply = () =>
+      jsonResponse(200, {
+        model: {
+          tables: [
+            {
+              id: 'public.customers',
+              name: 'customers',
+              columns: [{ name: 'id' }, { name: 'name' }, { name: 'status' }, { name: 'phone' }, { name: 'code' }],
+              states: { column: 'status', initial: 'draft', moves: {}, lock: { when: ['active'], except: ['phone'] } },
+            },
+          ],
+        },
+      });
+    // A kind of column this dashboard has no spec for (a newer server's): the record does not show it, its form edits it.
+    const withCode = () => {
+      const base = reply({ v: 2, sections: [{ id: 'main', fields: [{ column: 'name' }, { column: 'code' }, { column: 'phone' }] }] })();
+      return base.json().then((body: { columnFacts: { columns: unknown[] } }) => {
+        body.columnFacts.columns.push(fact({ name: 'code', label: 'Code', logicalType: 'vector' }, 4));
+        return jsonResponse(200, body);
+      });
+    };
+    const dialog = await openRecordEdit(withCode as unknown as () => Response, { schemaReply });
+    await waitFor(() => expect(within(dialog).queryByRole('textbox', { name: /Name/ })).toBeNull());
+    expect(within(dialog).queryByRole('textbox', { name: /Code/ })).toBeNull();
+    expect(within(dialog).getByRole('textbox', { name: /Phone/ })).toBeDefined();
+  });
 });
 
 /**

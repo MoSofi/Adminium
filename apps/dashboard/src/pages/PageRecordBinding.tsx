@@ -651,16 +651,24 @@ export function PageRecordBinding({
             content: null,
           },
         ];
-  // The columns this record holds still: locked by its state, not released by the move under way, or kept by a link.
+  /*
+   * The columns this record holds still: locked by its state, not released by
+   * the move under way, or kept by a link. Judged over every column the edit
+   * form can draw, not only those the page shows: the form draws the table's
+   * own columns too, one this dashboard has no spec for among them.
+   */
   const heldColumns = useMemo(() => {
     const released = releasedKey === null ? null : new Set(releasedKey.split('\u0000'));
     if (locked === null && released === null && (kept === undefined || kept.size === 0)) return null;
+    const names = new Set([
+      ...shownColumns.map((column) => column.name),
+      ...(formColumns ?? []).map((column) => String(column.spec['name'] ?? '')),
+      ...Object.keys(columnFacts ?? {}),
+    ]);
     return new Set(
-      shownColumns
-        .filter((column) => (locked?.(column.name) ?? false) || (released !== null && !released.has(column.name)) || (kept?.has(column.name) ?? false))
-        .map((column) => column.name),
+      [...names].filter((name) => name !== '' && ((locked?.(name) ?? false) || (released !== null && !released.has(name)) || (kept?.has(name) ?? false))),
     );
-  }, [locked, releasedKey, kept, shownColumns]);
+  }, [locked, releasedKey, kept, shownColumns, formColumns, columnFacts]);
   const pageColumns = useMemo(
     () => (heldColumns === null ? shownColumns : shownColumns.map((column) => (heldColumns.has(column.name) ? { ...column, readOnly: true } : column))),
     [heldColumns, shownColumns],
