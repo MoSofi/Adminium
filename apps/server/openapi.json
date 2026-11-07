@@ -133847,6 +133847,9 @@
                                 },
                                 "name": {
                                   "type": "string"
+                                },
+                                "gone": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -134115,6 +134118,9 @@
                                   },
                                   "name": {
                                     "type": "string"
+                                  },
+                                  "gone": {
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
@@ -134394,6 +134400,9 @@
                                 },
                                 "name": {
                                   "type": "string"
+                                },
+                                "gone": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -135170,6 +135179,254 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "updates": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "planChecksum": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  },
+                                  "choices": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string",
+                                      "pattern": "^[a-z][a-z0-9_]*$"
+                                    },
+                                    "additionalProperties": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "action": {
+                                              "type": "string",
+                                              "enum": [
+                                                "reuse"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "action"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "action": {
+                                              "type": "string",
+                                              "enum": [
+                                                "share"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "action"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "action": {
+                                              "type": "string",
+                                              "enum": [
+                                                "rename-existing"
+                                              ]
+                                            },
+                                            "to": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 64
+                                            }
+                                          },
+                                          "required": [
+                                            "action",
+                                            "to"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "shares": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string",
+                                      "pattern": "^[a-z][a-z0-9-]*@\\d+$"
+                                    },
+                                    "additionalProperties": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "action": {
+                                              "type": "string",
+                                              "enum": [
+                                                "share"
+                                              ]
+                                            },
+                                            "with": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 64
+                                            }
+                                          },
+                                          "required": [
+                                            "action",
+                                            "with"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "action": {
+                                              "type": "string",
+                                              "enum": [
+                                                "separate"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "action"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "pages": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string",
+                                      "pattern": "^[a-z][a-z0-9-]*$"
+                                    },
+                                    "additionalProperties": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "action": {
+                                              "type": "string",
+                                              "enum": [
+                                                "replace"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "action"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "action": {
+                                              "type": "string",
+                                              "enum": [
+                                                "rename-existing"
+                                              ]
+                                            },
+                                            "to": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 64
+                                            }
+                                          },
+                                          "required": [
+                                            "action",
+                                            "to"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "action": {
+                                              "type": "string",
+                                              "enum": [
+                                                "skip"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "action"
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "existing": {
+                                    "type": "string",
+                                    "enum": [
+                                      "use"
+                                    ]
+                                  },
+                                  "instance": {
+                                    "type": "boolean"
+                                  },
+                                  "instanceHosts": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string",
+                                      "pattern": "^[a-z][a-z0-9-]*\\/[A-Za-z0-9_]{2,24}$"
+                                    },
+                                    "additionalProperties": {
+                                      "maxItems": 50,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 253
+                                      }
+                                    }
+                                  },
+                                  "publicAccess": {
+                                    "type": "boolean"
+                                  },
+                                  "addOns": {
+                                    "maxItems": 16,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "key": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                                        },
+                                        "version": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 64
+                                        },
+                                        "update": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "version"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "roleTables": {
+                                    "type": "boolean"
+                                  },
+                                  "roleGrants": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -135269,6 +135526,9 @@
                                 },
                                 "name": {
                                   "type": "string"
+                                },
+                                "gone": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -135545,6 +135805,9 @@
                                 },
                                 "name": {
                                   "type": "string"
+                                },
+                                "gone": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -147479,20 +147742,13 @@
                                   "string",
                                   "null"
                                 ]
-                              },
-                              "ownerName": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
                               }
                             },
                             "required": [
                               "id",
                               "name",
                               "pageId",
-                              "ownerId",
-                              "ownerName"
+                              "ownerId"
                             ],
                             "additionalProperties": false
                           }
