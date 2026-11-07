@@ -282,6 +282,29 @@ export function unusableTables(plan: AppInstallPlan): AppInstallPlan['problems']
   return plan.problems.filter((problem) => problem.code === 'EXISTING_TABLE_UNUSABLE');
 }
 
+/** Why a taken table is not offered for use as it is: the columns it requires that the app never fills, by name. */
+export function reuseRequiresWords(columns: readonly string[]): string {
+  return t('studio:hostedApps.review.existing.whyRequiredColumns', 'It requires {columns}, which the app never fills, so every row the app saves there would be refused.', { columns: namesList(columns) });
+}
+
+/**
+ * Why a table can't be used as it is, read from the table the check made, as
+ * the server decides it: renamed out of the way, not offered for use as it
+ * is (a column the app never fills), or used only with a change to it.
+ */
+export function unusableWhy(plan: AppInstallPlan, ref: string): string {
+  const table = plan.tables?.find((one) => one.ref === ref);
+  if (table?.action === 'rename-existing') return t('studio:hostedApps.review.existing.whyRename', 'Using the existing tables never renames one out of the way.');
+  if (table !== undefined && table.action !== 'reuse' && table.action !== 'share') {
+    if ((table.reuseRequires ?? []).length > 0) return reuseRequiresWords(table.reuseRequires ?? []);
+    return table.reuseRefusal === undefined
+      ? t('studio:hostedApps.review.existing.whyNotOffered', 'It isn’t offered for use as it is.')
+      : t('studio:hostedApps.review.existing.whyRequired', 'It requires columns the app never fills, so every row the app saves there would be refused.');
+  }
+  const columns = [...new Set([...(table?.edits ?? []).map((edit) => edit.column), ...(table?.blocked ?? []).map((blocked) => blocked.column)])];
+  return t('studio:hostedApps.review.existing.whyChanges', 'Using it would change these columns: {columns}. Using the existing tables changes none of them.', { columns: namesList(columns) });
+}
+
 /**
  * "30 tables already exist here with these names" and the one button that
  * uses them all as they are, with their rows. Never a rename. A table that
@@ -352,7 +375,7 @@ export function ExistingTablesCard({
               <p className="font-bold text-danger">
                 {sentence('studio:hostedApps.review.existing.cannot', '{table} can’t be used as it is.', { table: <Mono>{tableName(plan, problem.table)}</Mono> })}
               </p>
-              <p className="mt-1 text-fg-muted">{problem.message}</p>
+              <p className="mt-1 text-fg-muted">{unusableWhy(plan, problem.table)}</p>
             </div>
           ))}
           <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
@@ -759,6 +782,17 @@ function InstanceEmailRow({
           })}
         </fieldset>
       )}
+      {/* What rides to each host: the placeholders a link to it carries, filled in when the email is sent. */}
+      {email.hosts
+        .filter((host) => (email.carried?.[host] ?? []).length > 0)
+        .map((host) => (
+          <p key={host} data-part="instance-carried" className="mt-1 text-xs text-fg-muted">
+            {sentence('studio:hostedApps.review.instance.carries', 'A link to {host} carries {names}, filled in when the email is sent.', {
+              host: <Mono>{host}</Mono>,
+              names: <Mono>{namesList((email.carried?.[host] ?? []).map((name) => `{{${name}}}`))}</Mono>,
+            })}
+          </p>
+        ))}
       {open ? (
         <div id={diffId} className="mt-2 flex flex-col gap-1 border-t border-border pt-2 text-xs text-fg-muted">
           {email.subject === null ? null : (

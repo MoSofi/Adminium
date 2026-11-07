@@ -314,6 +314,7 @@ describe('a name somebody else holds', () => {
     const payments = plan.tables?.find((t) => t.ref === 'payments');
     expect(payments?.offers).toEqual(['rename-existing', 'alt-prefix']);
     expect(payments?.reuseRefusal).toContain('"location_id"');
+    expect(payments?.reuseRequires).toEqual(['location_id']);
     expect(plan.installable).toBe(false);
   });
 

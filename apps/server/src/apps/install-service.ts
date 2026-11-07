@@ -157,7 +157,7 @@ import {
   type PublicAccessCommit,
 } from './manifest-public.js';
 import { installOutbox, libraryFiles, mailCarries, plannedAfterInstallOfSenders, templateProblems, type OutboxResult } from './manifest-outbox.js';
-import { installAutomations, plannedAfterInstallOfRules } from './manifest-automations.js';
+import { installAutomations, plannedAfterInstallOfRules, sampleTablesOf } from './manifest-automations.js';
 import { recordAfterInstall, type AfterInstallItem } from './after-install.js';
 import { requiredAppsHere, requiredTablesGone } from './required-apps.js';
 import { deliveryItems, installSavedParts, plannedAfterInstallOfParts, savedPartsRefusal } from './saved-parts.js';
@@ -429,9 +429,9 @@ export interface InstallAnswers {
  * nobody yet, a payment service has no keys), and the parts only such a file
  * carries. Absent for a file that has none of them.
  */
-function reviewOf(manifest: Manifest): Pick<AppInstallPlanDto, 'madeAt' | 'afterInstall' | 'savedParts'> {
+function reviewOf(manifest: Manifest, sampleTables: ReadonlySet<string> | undefined): Pick<AppInstallPlanDto, 'madeAt' | 'afterInstall' | 'savedParts'> {
   const provenance = (manifest as { provenance?: { label?: string; savedAt: string; adminiumVersion: string } }).provenance;
-  const afterInstall = [...plannedAfterInstallOfRules(manifest), ...plannedAfterInstallOfParts(manifest), ...plannedAfterInstallOfSenders(manifest), ...plannedAfterInstallOfRoles(manifest)];
+  const afterInstall = [...plannedAfterInstallOfRules(manifest, sampleTables), ...plannedAfterInstallOfParts(manifest), ...plannedAfterInstallOfSenders(manifest), ...plannedAfterInstallOfRoles(manifest)];
   const parts = manifest.kind === 'app' ? manifest : null;
   const savedParts =
     parts === null || (parts.reports === undefined && parts.invoiceLayouts === undefined && parts.scheduledReports === undefined && parts.payments === undefined)
@@ -1329,7 +1329,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               })),
             }),
         ...(plan.names === undefined ? {} : { names: plan.names }),
-        ...reviewOf(manifest),
+        // The tables its sample files fill, read from its package: a mail to a column of one counts as going where the file chose.
+        ...reviewOf(manifest, await sampleTablesOf(manifest, async (path) => (await files.readVerifiedFile(manifest.key, manifest.version, path)).bytes)),
         ...(carriesInstance(manifest) ? { instance: await reviewInstance(deps.meta, manifest) } : {}),
         ...(plan.shareOffers === undefined
           ? {}
@@ -2033,6 +2034,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
             connectionId,
             view,
             realId: (ref) => tableIdOrNull(view.model, realNames[ref] ?? ref) ?? ref,
+            sampleTables: await sampleTablesOf(manifest, async (path) => (await files.readVerifiedFile(manifest.key, manifest.version, path)).bytes),
           });
           if (shippedRules !== undefined) {
             if (shippedRules.kept.length > 0) host.log.info({ kept: shippedRules.kept, app: manifest.key }, 'shipped rules the owner changed were left as they are');

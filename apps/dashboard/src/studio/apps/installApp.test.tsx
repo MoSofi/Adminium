@@ -569,6 +569,7 @@ function checkPlan(taken: Record<string, unknown> = {}): Record<string, unknown>
     action: 'undecided',
     offers: ['rename-existing', 'alt-prefix'],
     reuseRefusal: 'It requires "location_id", which this app never fills.',
+    reuseRequires: ['location_id'],
     ...taken,
   });
   const undecided = takenRow.action === 'undecided';
@@ -697,7 +698,8 @@ describe('the table check', () => {
 
     const keep = screen.getByRole('radio', { name: /Use it and keep its data/ });
     expect(keep.hasAttribute('disabled')).toBe(true);
-    expect(screen.getByText(/requires "location_id"/)).toBeTruthy();
+    // Worded here from the column the check named, not the server's English.
+    expect(screen.getByText('It requires location_id, which the app never fills, so every row the app saves there would be refused.')).toBeTruthy();
 
     await user.click(screen.getByRole('radio', { name: /Rename the existing table/ }));
     await waitFor(() => expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(2));
