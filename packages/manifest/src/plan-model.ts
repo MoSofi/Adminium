@@ -162,7 +162,7 @@ export interface PlanProblem {
     // Added by the server: with "use the existing tables", a table that is there cannot be used as it is (it would be
     // changed, renamed, or is not offered for reuse).
     | 'EXISTING_TABLE_UNUSABLE'
-    // Added by the server: a self-made app's file installed onto the very database it was saved from (D12).
+    // Added by the server: a self-made app's file installed onto the very database it was saved from.
     | 'SAVED_FROM_HERE'
     // Added by the server: a deployment-wide part whose logo or favicon its package does not hold as it says.
     | 'INSTANCE_INVALID';

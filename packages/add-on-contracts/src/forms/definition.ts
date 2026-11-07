@@ -34,7 +34,7 @@ export const FORM_SECTIONS_MAX = 12;
 export const FORM_CHOICES_MIN = 2;
 export const FORM_CHOICES_MAX = 30;
 
-/** The eleven kinds of question (comp E4.3). */
+/** The eleven kinds of question. */
 export const FORM_QUESTION_KINDS = ['short', 'long', 'one', 'several', 'date', 'number', 'score', 'stars', 'file', 'tick', 'hidden'] as const;
 export type FormQuestionKind = (typeof FORM_QUESTION_KINDS)[number];
 
