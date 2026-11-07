@@ -2,6 +2,8 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+An expression is a number, a column of the same row by its ref (`"qty"`), or one of these objects:
+
 | Expression | Value |
 |---|---|
 | `{ "add": [a, b, …] }` | The sum of 2–8 expressions. |
