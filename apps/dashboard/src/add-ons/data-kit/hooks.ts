@@ -446,7 +446,8 @@ export function useWords(wordsId: string): UseWordsResult {
         // Anything else must be one of its hosts, by the name it is stored under; a stranger is refused by name.
         if (own === undefined) resolveTable(kit, table);
         const stored = own !== undefined ? `${kit.addOnKey}:${table}` : table;
-        const search = new URLSearchParams({ table: stored, ids: ids.slice(0, WORDS_IDS_MAX).map(String).join(',') });
+        // Asked of the copy whose page this is (its database): with a copy on each of two, the key alone names neither.
+        const search = new URLSearchParams({ table: stored, ids: ids.slice(0, WORDS_IDS_MAX).map(String).join(','), connectionId: kit.reply.connectionId });
         return (await api.get<{ data: WordsAnswer[] }>(`/api/v1/words/${encodeURIComponent(kit.addOnKey)}/${encodeURIComponent(wordsId)}?${search.toString()}`)).data;
       },
     }),
