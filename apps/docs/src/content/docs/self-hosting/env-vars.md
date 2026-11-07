@@ -19,6 +19,7 @@ half-configured and fail later.
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
 | `ADMINIUM_META_POOL_MAX` | No | `10` | How many connections a Postgres or MySQL meta store's pool may open. Integer 1–100. See below. |
 | `ADMINIUM_SOURCE_POOL_MAX` | No | *(per pool: 10, schema reads 5)* | How many connections each pool opened against a source database may hold. Integer 1–100. See below. |
+| `ADMINIUM_RATE_LIMIT_SCALE` | No | `1` | **Test servers only.** Multiplies every request limit. Integer 1–1000. Ignored when `NODE_ENV` is `production`. See below. |
 | `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
 | `ADMINIUM_DATA_DIR` | No | `./data`, or `~/.adminium` | Writable directory for files, exports, backups, installed apps and add-ons, and the embedded meta store. Put it on a persistent disk: a host that empties it on every deploy loses installed apps and add-ons, whatever else is configured. Docker and the desktop app set it for you. A CLI run that does not: `./data` when the working directory is a project (it holds a `package.json`, a `.git`, a `Dockerfile`, a `go.mod`…) or already holds an Adminium instance, and `~/.adminium` otherwise — so `npx @adminiumjs/adminium try` from a home directory leaves nothing behind in it. A service should always set it, since its working directory decides the default. |
 | `ADMINIUM_STORAGE_URL` | No | *(this server's disk)* | Where uploaded and generated files live. Seeded once, on a boot with no storage destination configured. See below. |
@@ -154,6 +155,23 @@ can be open together; `ADMINIUM_META_POOL_MAX` below the meta role's.
 ADMINIUM_META_POOL_MAX=4
 ADMINIUM_SOURCE_POOL_MAX=2
 ```
+
+## `ADMINIUM_RATE_LIMIT_SCALE`
+
+For a **test server** that a browser suite drives as a handful of people. Adminium limits how many
+requests each person may make a minute (300 for most of the API), how many sign-ins one address may
+try (5 a minute), and how much the public API serves. A suite that signs in a few people and walks
+every screen as them spends most of its time waiting for a person's minute to end. This multiplies
+every one of those limits:
+
+```sh
+ADMINIUM_RATE_LIMIT_SCALE=50
+```
+
+The server logs a warning at boot saying the limits are multiplied. Unset, every limit is a real
+server's. **Never set it on a server people use**: the limits are what stop password guessing and
+floods. It is **ignored when `NODE_ENV` is `production`** (the Docker image sets it), and the boot
+log says so. Keep one test that runs with it unset, to prove the real limits still hold.
 
 ## `ADMINIUM_STORAGE_URL`
 

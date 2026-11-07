@@ -272,6 +272,7 @@ import {
   type PublicRateLimiter,
   type RateDecision,
 } from '../../public-api/limiter.js';
+import { rateLimitScale } from '../../config/rate-limit-scale.js';
 import { parseBearerPublishableKey, parsePublicSessionToken } from '../../public-api/keys.js';
 import { createConsentTicks } from '../../public-api/consent-tick.js';
 import type { PeopleConsent } from '../../people/consent-writes.js';
@@ -900,7 +901,7 @@ function busy(reply: FastifyReply): FastifyReply {
 
 export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const { env, meta, manager, isEnabled } = deps;
-  const limiter = deps.limiter ?? createPublicRateLimiter();
+  const limiter = deps.limiter ?? createPublicRateLimiter(Date.now, rateLimitScale(env).scale);
   /** Requests that got as far as a resolved key and a ref: what `stats` counts. */
   const chargeable = new WeakMap<FastifyRequest, { keyId: string; ref: string }>();
   /** A read's or a write's place on the whole key, handed back once the request is answered as refused. */

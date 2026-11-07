@@ -118,6 +118,7 @@ import type { FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 
 import type { Env } from '../config/env.js';
+import { rateLimitScale } from '../config/rate-limit-scale.js';
 import { createMapPolicy, MAPS_OFF, withMapServer } from '../geo/map-policy.js';
 import { createPictureHosts } from '../config/picture-hosts.js';
 import { ForbiddenError, RateLimitedError } from '../errors.js';
@@ -706,6 +707,11 @@ export const corePlugin = fp<CorePluginOptions>(
       return payload;
     });
 
+    // A test server may widen every budget (`ADMINIUM_RATE_LIMIT_SCALE`); said once, loudly, so it is never a surprise.
+    const { scale, ignored } = rateLimitScale(env);
+    if (scale > 1) app.log.warn({ scale }, `request limits are multiplied by ${String(scale)}: for test servers only`);
+    if (ignored) app.log.warn('ADMINIUM_RATE_LIMIT_SCALE is ignored: NODE_ENV is production, so request limits stay as they are');
+
     // Bucket assignment. Added BEFORE @fastify/rate-limit registers so its
     // own onRoute hook (which reads `config.rateLimit`) runs after this one.
     app.addHook('onRoute', (route) => {
@@ -728,7 +734,7 @@ export const corePlugin = fp<CorePluginOptions>(
       route.config = {
         ...route.config,
         rateLimit: {
-          max: spec.max,
+          max: spec.max * scale,
           timeWindow: spec.timeWindowMs,
           keyGenerator:
             subjectOf === undefined

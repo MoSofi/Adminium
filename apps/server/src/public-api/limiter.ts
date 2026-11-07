@@ -474,7 +474,10 @@ export function rateKeyFor(limit: PublicLimit, id: RateIdentity): string {
   return `${limit}|pub:${id.keyId}:ip:${rateAddress(id.ip)}`;
 }
 
-export function createPublicRateLimiter(now: () => number = Date.now): PublicRateLimiter {
+/**
+ * `scale` multiplies every limit (`ADMINIUM_RATE_LIMIT_SCALE`, a test server's setting); 1 keeps a real server's.
+ */
+export function createPublicRateLimiter(now: () => number = Date.now, scale = 1): PublicRateLimiter {
   /*
    * Two maps: the class and flood windows, and the endpoint windows, which
    * can be far more numerous (key × ref × visitor) and live up to an hour. A
@@ -505,7 +508,8 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
     }
   };
 
-  const decide = (map: Map<string, Window>, key: string, spec: { max: number; windowMs: number }, cost: number, commit: boolean): RateDecision => {
+  const decide = (map: Map<string, Window>, key: string, given: { max: number; windowMs: number }, cost: number, commit: boolean): RateDecision => {
+    const spec = { max: given.max * scale, windowMs: given.windowMs };
     const at = now();
     sweep(map, at);
     const existing = map.get(key);
@@ -531,7 +535,8 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
    * request still counts — so their behaviour for every existing scope is
    * byte-for-byte what it was.
    */
-  const count = (key: string, spec: { max: number; windowMs: number }): RateDecision => {
+  const count = (key: string, given: { max: number; windowMs: number }): RateDecision => {
+    const spec = { max: given.max * scale, windowMs: given.windowMs };
     const at = now();
     sweep(windows, at);
     const existing = windows.get(key);

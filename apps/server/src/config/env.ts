@@ -236,6 +236,14 @@ export const envSchema = z.object({
    */
   ADMINIUM_SOURCE_POOL_MAX: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(100).optional()),
   /**
+   * For test servers only: every request limit (the API's per-person and per-address
+   * budgets, and the public API's) is multiplied by this. A browser suite that drives
+   * one server as a handful of people otherwise spends most of its time waiting out a
+   * person's minute. Unset: 1, the limits a real server keeps. Never set it on a server
+   * people use: the limits are what stop password guessing and floods. Logged at boot.
+   */
+  ADMINIUM_RATE_LIMIT_SCALE: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(1000).optional()),
+  /**
    * Files, exports, backups, add-on packages, the bootstrap file and the
    * embedded meta store.
    *

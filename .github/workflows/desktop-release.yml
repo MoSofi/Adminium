@@ -62,13 +62,13 @@ env:
 jobs:
   build:
     name: build (${{ matrix.platform }})
-    # macos-14 is Apple silicon; electron-builder cross-builds the x64 dmg/zip on
+    # macos-15 is Apple silicon; electron-builder cross-builds the x64 dmg/zip on
     # it. windows-2022 and ubuntu-22.04 are the canonical runners.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             platform: mac
           - os: windows-2022
             platform: win
@@ -139,7 +139,7 @@ jobs:
       - name: Build desktop bundle + workspace deps
         run: pnpm turbo run build --filter=@adminium/desktop
         # The server's tsc needs about 2.5 GB. Node's default heap follows the
-        # runner's memory, and on macos-14 (7 GB) it stops near 2 GB.
+        # runner's memory, and on macos-15 (7 GB) it stops near 2 GB.
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
@@ -447,6 +447,23 @@ jobs:
             echo "::error::no .dmg found under apps/desktop/dist/ — packaging layout changed?"
             exit 1
           fi
+          # Apple's ticket server drops a lookup now and then ("The network connection
+          # was lost", NSURLErrorDomain -1005): it failed three tries of 0.3.49 in a
+          # row, minutes after the same ticket stapled. Retry only that drop, with a
+          # growing wait; any other answer (a missing ticket) fails at once.
+          stapler_retry() {
+            local out try=1
+            while ! out="$(xcrun stapler "$@" 2>&1)"; do
+              if [ "$try" -ge 5 ] || ! grep -q 'NSURLErrorDomain' <<<"$out"; then
+                printf '%s\n' "$out"
+                return 1
+              fi
+              echo "stapler $1 lost its connection to Apple; try $((try + 1)) in $((try * 20))s" >&2
+              sleep $((try * 20))
+              try=$((try + 1))
+            done
+            printf '%s\n' "$out"
+          }
           for dmg in "${dmgs[@]}"; do
             echo "──────── notarizing $dmg"
             xcrun notarytool submit "$dmg" \
@@ -454,7 +471,7 @@ jobs:
               --key-id "$APPLE_API_KEY_ID" \
               --issuer "$APPLE_API_ISSUER" \
               --wait
-            xcrun stapler staple "$dmg"
+            stapler_retry staple "$dmg"
           done
           echo "Notarized and stapled ${#dmgs[@]} dmg(s)"
 
@@ -513,6 +530,24 @@ jobs:
             fi
           }
 
+          # Apple's ticket server drops a lookup now and then ("The network connection
+          # was lost", NSURLErrorDomain -1005): it failed three tries of 0.3.49 in a
+          # row, minutes after the same ticket stapled. Retry only that drop, with a
+          # growing wait; any other answer (a missing ticket) fails at once.
+          stapler_retry() {
+            local out try=1
+            while ! out="$(xcrun stapler "$@" 2>&1)"; do
+              if [ "$try" -ge 5 ] || ! grep -q 'NSURLErrorDomain' <<<"$out"; then
+                printf '%s\n' "$out"
+                return 1
+              fi
+              echo "stapler $1 lost its connection to Apple; try $((try + 1)) in $((try * 20))s" >&2
+              sleep $((try * 20))
+              try=$((try + 1))
+            done
+            printf '%s\n' "$out"
+          }
+
           shopt -s nullglob
           # electron-builder stages x64 in dist/mac and arm64 in dist/mac-arm64.
           apps=( apps/desktop/dist/mac*/*.app )
@@ -558,7 +593,7 @@ jobs:
 
             # Notarization must be stapled, not merely performed — a stapled ticket
             # is what lets first launch succeed offline.
-            if ! out="$(xcrun stapler validate "$app" 2>&1)"; then
+            if ! out="$(stapler_retry validate "$app")"; then
               fail "$app has no stapled notarization ticket: $out"
             fi
           done
@@ -576,7 +611,7 @@ jobs:
           # (The zip needs none — it is not a container format staples apply to; its
           # .app was checked above, and that is what electron-updater consumes.)
           for dmg in apps/desktop/dist/*.dmg; do
-            if ! out="$(xcrun stapler validate "$dmg" 2>&1)"; then
+            if ! out="$(stapler_retry validate "$dmg")"; then
               fail "$dmg has no stapled notarization ticket: $out"
             fi
           done
