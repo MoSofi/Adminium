@@ -154,6 +154,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'states.notPast',
   // A new child row moves its parent by the parent's own listed move (states.ts `moveParentsOnCreate`).
   'states.moveOnCreate',
+  // A new row moves the earlier rows sharing its link on (states.ts `supersedeOnCreate`).
+  'states.supersedes',
   // A column a public write fills only with some values of another: asked for then, refused at any other time.
   'publicAccess.requiresWhen',
   'rollup.capUnless',

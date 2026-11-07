@@ -321,6 +321,8 @@ export interface TableStatesRule {
   effects?: StateEffect[];
   /** What a new row must meet to be created. */
   create?: CreateRequires;
+  /** A new row moves the earlier rows sharing its link `by` that are in one of `from` to `to`, by this table's own listed moves. */
+  supersedes?: { by: string; from: string[]; to: string };
   /** The buttons a record page offers on a row. */
   actions?: StateActionRule[];
 }
@@ -1305,7 +1307,7 @@ export interface ApplyOverridesOptions {
   addOnTables?: ((addOn: string, ref: string, fromTableId: string | null) => { tableId: string; key: string | null } | null) | undefined;
 }
 
-/** Every link a table's states read through: linked conditions, moments on a linked row, the rows effects move. */
+/** Every link a table's states read through: linked conditions, moments on a linked row, the rows effects move, the row a new row supersedes by. */
 function stateVias(states: TableStatesRule): string[] {
   const moments = (m: Moment | undefined): string[] => (m === undefined ? [] : [m, ...(m.or ?? [])].flatMap((one) => (one.via === undefined ? [] : [one.via])));
   const conditions = (requires: { linked?: LinkedCondition[] | undefined; time?: TimeCondition | undefined } | undefined): string[] => [
@@ -1320,6 +1322,8 @@ function stateVias(states: TableStatesRule): string[] {
       ...conditions(states.create?.requires),
       ...(states.late ?? []).flatMap((late) => moments(late.moment)),
       ...(states.effects ?? []).map((effect) => (isChangeEffect(effect) ? effect.on.change : effect.via)),
+      // The row the earlier rows share, held first so two new rows on it take their turns.
+      ...(states.supersedes === undefined ? [] : [states.supersedes.by]),
     ]),
   ];
 }

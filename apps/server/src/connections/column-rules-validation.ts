@@ -1080,6 +1080,18 @@ export function statesRuleIssue(
     decided: (name) => deciding.has(name) || table.columns.find((c) => c.name === name)?.isGenerated === true,
   });
   if (undo !== undefined) return `${undo.message.charAt(0).toUpperCase()}${undo.message.slice(1)}.`;
+  // A new row moves the earlier ones sharing its link: by a link the write can hold, and by a listed move from each state.
+  const supersedes = states.supersedes;
+  if (supersedes !== undefined) {
+    if (!own(supersedes.by)) return `${table.name} has no column ${JSON.stringify(supersedes.by)}.`;
+    if (linkTargetOf(table, supersedes.by, model) === undefined) return `${table.name}.${supersedes.by} does not point at another table.`;
+    for (const from of supersedes.from) {
+      if (from === supersedes.to) return `A row already in ${JSON.stringify(from)} has nothing to move to.`;
+      if (!(states.moves[from] ?? []).some((move) => (typeof move === 'string' ? move : move.to) === supersedes.to)) {
+        return `No listed move goes from ${JSON.stringify(from)} to ${JSON.stringify(supersedes.to)}, so a new row cannot move a row in ${JSON.stringify(from)}.`;
+      }
+    }
+  }
   return conditionedStatesIssue(states, table, model);
 }
 

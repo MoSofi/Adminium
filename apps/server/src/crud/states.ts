@@ -169,9 +169,12 @@ export interface EffectWritten {
  * own steps (fill, stamps, checks, its limits and totals, and this table's
  * states, judged as the app's declared move), on the transaction's handle.
  * `guard` is the moving row's: a quote's effect is judged the same way and
- * written nowhere. Returns the row moved, or null when it is already there.
+ * written nowhere. `held` is the row as the caller already holds it, read
+ * past any snapshot (MySQL's plain read inside a transaction may not see a
+ * row another write committed since it began). Returns the row moved, or
+ * null when it is already there.
  */
-export type EffectWriter = (db: Db, link: StateLink, key: unknown, column: string, state: string, guard: StateGuard) => Promise<EffectWritten | null>;
+export type EffectWriter = (db: Db, link: StateLink, key: unknown, column: string, state: string, guard: StateGuard, held?: Row) => Promise<EffectWritten | null>;
 
 const GUARD = Symbol('adminium.state-guard');
 
@@ -743,6 +746,9 @@ export async function guardedInsert<T>(
       const link = stateLinkOf(table, via);
       return link === undefined ? [] : [{ link, value: row[via], forUpdate: false }];
     });
+    // The row the earlier rows share, held as a row a write changes: two new rows on it take their turns, so the second finds the first.
+    const supersedes = guard.history ? undefined : supersedeLink(table, row);
+    if (supersedes !== undefined) reads.push({ link: supersedes, value: row[supersedes.via], forUpdate: true });
     const held = await holdLinkedRows(tx, hold, [...kept.holds, ...reads]);
     kept.check(held);
     if (waits !== undefined && states !== undefined) {
@@ -765,9 +771,79 @@ export async function guardedInsert<T>(
       }
       // Then the parents a new row moves, the row in: counted by what their move asks for.
       await moveParentsOnCreate(tx, table, parents, guard);
+      // And the earlier rows it supersedes, last: rows of this table, after the rows it is tied to.
+      if (supersedes !== undefined) await supersedeOnCreate(tx, hold, table, row, out as Row | null, supersedes, guard);
     }
     return out;
   });
+}
+
+/**
+ * The link a new row supersedes the earlier ones by (`states.supersedes`), or
+ * undefined: the table supersedes nothing, or this row's link is empty. A link
+ * the model can no longer follow refuses the write: the rows it would move
+ * could not be held in turn.
+ */
+function supersedeLink(table: ResolvedTable, row: Row): StateLink | undefined {
+  const rule = table.table?.states?.supersedes;
+  if (rule === undefined) return undefined;
+  const value = row[rule.by];
+  if (value === null || value === undefined || value === '') return undefined;
+  const link = stateLinkOf(table, rule.by);
+  if (link === undefined) {
+    throw new RecordLocked(`${table.name}.${rule.by} no longer links another table, so the earlier rows a new one moves on cannot be found.`, { column: rule.by, unresolved: true });
+  }
+  return link;
+}
+
+/**
+ * The earlier rows a new row supersedes (`states.supersedes`): every other
+ * row of the table pointing at the same row through `by` and still in one of
+ * `from`, each moved to `to` by this table's own listed move, made as an
+ * effect's move is — through the write service's own statement, judged as the
+ * app's declared move (its conditions, its lock, its limits and totals),
+ * inside the new row's transaction, so a refused move refuses the new row and
+ * a refused new row moves nothing. The rows are found once the new row is in
+ * and the row they share is held: a second new row on the same link waits for
+ * the first and finds it. Each row is held as it is found, in the database's
+ * key order. The new row itself is never moved.
+ *
+ * It is the table's rule, not the writer's: a row the writer may not read is
+ * moved too, and the roles a move is kept for do not stop it — as they do not
+ * stop an effect. History supersedes nothing (it writes the state each row was
+ * in); a quote judges the moves and writes none.
+ */
+async function supersedeOnCreate(db: Db, dialect: Dialect, table: ResolvedTable, row: Row, made: Row | null, link: StateLink, guard: StateGuard): Promise<void> {
+  const states = table.table?.states;
+  const rule = states?.supersedes;
+  if (states === undefined || rule === undefined) return;
+  const [keyColumn] = table.primaryKey;
+  if (keyColumn === undefined || table.primaryKey.length !== 1) {
+    throw new RecordLocked(`A new ${table.name} row moves the earlier ones on, and a table without a one-column key cannot have them moved.`, { column: rule.by });
+  }
+  const own = made?.[keyColumn];
+  let query = db
+    .selectFrom(table.id)
+    .selectAll()
+    .where((eb) => eb(db.dynamic.ref(rule.by), '=', row[link.via]))
+    .where((eb) => eb(db.dynamic.ref(states.column), 'in', rule.from as never))
+    .orderBy(keyColumn as never);
+  if (own !== null && own !== undefined) query = query.where((eb) => eb(db.dynamic.ref(keyColumn), '<>', own));
+  if (dialect !== 'sqlite') query = dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
+  const earlier = (await query.execute()) as Row[];
+  if (earlier.length === 0) return;
+  if (guard.effect === undefined) {
+    throw new RecordLocked(`A new ${table.name} row moves the earlier ones on, and this write cannot make that move.`, { column: rule.by });
+  }
+  for (const stored of earlier) {
+    const written = await guard.effect(db, { via: rule.by, table: table.id, key: keyColumn }, stored[keyColumn], states.column, rule.to, guard, stored);
+    if (written !== null) (guard.effected ??= []).push(written);
+  }
+}
+
+/** Whether a new row of this table may move earlier rows of it on (`supersedes`). */
+export function supersedesOnCreate(table: ResolvedTable): boolean {
+  return table.table?.states?.supersedes !== undefined;
 }
 
 /**
