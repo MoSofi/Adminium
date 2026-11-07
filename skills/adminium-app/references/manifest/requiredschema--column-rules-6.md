@@ -78,6 +78,8 @@ lower. A column may also say what a guest may upload into it (`upload`, below).
   visitor ([`pictures`](https://docs.adminium.dev/reference/manifest/#pictures)), and a sample row may give it one of the bundle's pictures,
   `{ "@asset": "<label>" }`, which the sample adds as that row's own file. An image column whose file
   rule takes any other kind is refused. An image column with no `file` rule holds links, as before.
+  A column of one product asset (a `file` rule with no `maxCount` whose `accept` names only `svg`,
+  `glb`, `stl`, `3mf` or `woff2`) likewise takes one of the bundle's SVGs or models of a kind it accepts.
 
   ```json
   { "ref": "photo", "type": "text", "nullable": true, "semantic": "image",
@@ -95,6 +97,3 @@ lower. A column may also say what a guest may upload into it (`upload`, below).
   column from an app's own screen.
 
 #### Totals and balances
-
-A rollup can also filter its child rows, keep a balance beside the total, and refuse a change
-that would take the balance below zero: what a visit's fee, its payments and its write-offs need.

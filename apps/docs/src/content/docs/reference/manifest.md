@@ -715,6 +715,8 @@ lower. A column may also say what a guest may upload into it (`upload`, below).
   visitor ([`pictures`](#pictures)), and a sample row may give it one of the bundle's pictures,
   `{ "@asset": "<label>" }`, which the sample adds as that row's own file. An image column whose file
   rule takes any other kind is refused. An image column with no `file` rule holds links, as before.
+  A column of one product asset (a `file` rule with no `maxCount` whose `accept` names only `svg`,
+  `glb`, `stl`, `3mf` or `woff2`) likewise takes one of the bundle's SVGs or models of a kind it accepts.
 
   ```json
   { "ref": "photo", "type": "text", "nullable": true, "semantic": "image",
@@ -5884,7 +5886,7 @@ A value is plain JSON, or one of these directives:
 | `"@week": true` | Added to either `@day` form instead: the days count from the bundle's `weekAnchor` in the week nearest today (three days either way), so every date keeps the weekday it was written for: a weekend stay stays on a weekend, whatever day the sample is added on. Needs `weekAnchor`. |
 | `{"@month": -2, "@dom": 14}` | A date in the venue's time zone: that day of the month, so many months back (`0` is this month). Add `"@time": "10:00"` for a time on that day. A day past the month's end is its last day, and a day that has not come yet is today (a time not yet come, now). Use it for history counted in calendar months: "this month" and "in May" read the same whether the sample is added on the 3rd or the 28th. |
 | `{ "@t": { "en-US": "…" } }` | Text in the language of the person adding the sample. Keys are `xx` or `xx-XX`. |
-| `{ "@asset": "<label>" }` | A file from `assets`, added to the Files library. |
+| `{ "@asset": "<label>" }` | A file from `assets`, added to the Files library: a picture (`.png`, `.jpg`, `.webp`, `.gif`) for a picture column, or an SVG or a model (`.svg`, `.glb`, `.stl`, `.3mf`) for a column of one product asset whose `accept` names its kind. The column's `maxBytes` holds it as it holds an upload. An app's rows for an add-on name their own `assets`, which leave with those rows. |
 
 Beside its `@label`, a row may carry the row directive `@byClock`, so that a sample day's
 statuses match the time it is added at:

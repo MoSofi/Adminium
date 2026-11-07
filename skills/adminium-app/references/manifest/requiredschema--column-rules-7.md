@@ -2,6 +2,9 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A rollup can also filter its child rows, keep a balance beside the total, and refuse a change
+that would take the balance below zero: what a visit's fee, its payments and its write-offs need.
+
 | Field | Rule |
 |---|---|
 | `where` | `{ "column", "eq" }`: only child rows whose column equals the value are added up (`voided` is `false`). The value must fit the column, and the column must not be nullable: a row left empty would drop out of the total unseen. |
