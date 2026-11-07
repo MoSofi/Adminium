@@ -289,7 +289,7 @@ describe('a person who reaches part of a workspace', () => {
   it('is told only of the databases they reach, and every row they have sits in its workspace', async () => {
     // The server sends each workspace's databases cut to the ones this person reaches, and their engines alone.
     const reached = new Set<string>([DB.fernhill.id, DB.kiln.id]);
-    const kept = (item: NavItem): boolean => item.connectionId === null || reached.has(item.connectionId);
+    const kept = (item: NavItem): boolean => typeof item.connectionId !== 'string' || reached.has(item.connectionId);
     const cut = (ids: readonly string[]) => ids.filter((id) => reached.has(id));
     // Their rows: the pages of the databases they reach (each still naming its workspaces), and those of none.
     const stamped = { groups: nav(true).groups.map((group) => ({ ...group, items: group.items.filter(kept) })) };
