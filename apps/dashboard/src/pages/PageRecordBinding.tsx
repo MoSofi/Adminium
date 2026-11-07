@@ -26,7 +26,7 @@
 import { useQueries, useQuery, useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { parseCrudAttachmentsConfig, parseCrudDetailConfig } from '@adminium/engine/config';
+import { parseCrudAttachmentsConfig, parseCrudDetailConfig, parseCrudForm } from '@adminium/engine/config';
 // The DEEP path, not `@adminium/engine/config`: that barrel is entry-resident
 // (its blocks are read on first paint) and a re-export through it would pull
 // this module into every cold boot for one lazy binding's sake.
@@ -50,6 +50,7 @@ import { bootstrapQuery, findPageBySlug, flattenNav, holdsSystemAction, slugForT
 import { hrefForPage } from '../app/links.js';
 import { createCrudApi } from '../api/crud.js';
 import { withPlaces } from '../api/places.js';
+import { listKeysOf, useListOptions } from '../api/optionLists.js';
 import { pageQuery } from '../api/pages.js';
 import { diffRows, type AuditListReply } from '../audit/auditApi.js';
 import {
@@ -90,6 +91,7 @@ import { Alert } from '@adminium/ui';
 import { addOnWords } from '../add-ons/messages.js';
 import { leftToOthers, RecordStateActions } from './RecordStateActions.js';
 import { childWritable, deleteRefused, linkKeptColumns, lockedFields, lockedIn, releasedColumns, stateFactsQuery, stateOf, timedMove, type TableStateFacts } from './recordLocks.js';
+import { childFactsOf } from './formChildren.js';
 import type { PageTemplateProps } from './template-types.js';
 
 // The tab of an add-on's rows is loaded when a record has one, never with the page.
@@ -115,6 +117,7 @@ export function PageRecordBinding({
   columnFacts,
   formColumns,
   formRelations,
+  formChildren,
   currency,
   tableLabelPlural,
   removalReason,
@@ -133,11 +136,14 @@ export function PageRecordBinding({
   // A choice column reads as the list beside it does: the server's words for
   // its values, in this person's language, where the page sets none.
   const shownColumns = useMemo(() => withFactChoices(columns, columnFacts), [columns, columnFacts]);
-  // A place and an area are edited here as in the list's own form: by their field, never as raw JSON.
-  const fieldFacts = useMemo(() => {
-    const held = Object.entries(columnFacts ?? {}).filter(([, fact]) => fact.place === true || fact.area === true);
-    return held.length === 0 ? undefined : Object.fromEntries(held);
-  }, [columnFacts]);
+  /*
+   * The edit dialog draws the form the list's edit draws for the same row: the
+   * page's designed form (or the one derived from the table), the answers of a
+   * column whose options name a list, and the tables a line-items field holds.
+   */
+  const form = useMemo(() => parseCrudForm(page.config), [page.config]);
+  const listOptions = useListOptions(useMemo(() => listKeysOf(columnFacts), [columnFacts]));
+  const childFacts = useMemo(() => childFactsOf(formChildren, columns, page.id), [formChildren, columns, page.id]);
   // The record fetch carries the page's lookup + aggregate params — explicit
   // AND the derived FK-display ones — so lookup, reverse-link and FK-chip
   // columns render on the record page exactly as in the list.
@@ -645,13 +651,32 @@ export function PageRecordBinding({
             content: null,
           },
         ];
-  const pageColumns = useMemo(() => {
+  // The columns this record holds still: locked by its state, not released by the move under way, or kept by a link.
+  const heldColumns = useMemo(() => {
     const released = releasedKey === null ? null : new Set(releasedKey.split('\u0000'));
-    if (locked === null && released === null && (kept === undefined || kept.size === 0)) return shownColumns;
-    return shownColumns.map((column) =>
-      (locked?.(column.name) ?? false) || (released !== null && !released.has(column.name)) || (kept?.has(column.name) ?? false) ? { ...column, readOnly: true } : column,
+    if (locked === null && released === null && (kept === undefined || kept.size === 0)) return null;
+    return new Set(
+      shownColumns
+        .filter((column) => (locked?.(column.name) ?? false) || (released !== null && !released.has(column.name)) || (kept?.has(column.name) ?? false))
+        .map((column) => column.name),
     );
   }, [locked, releasedKey, kept, shownColumns]);
+  const pageColumns = useMemo(
+    () => (heldColumns === null ? shownColumns : shownColumns.map((column) => (heldColumns.has(column.name) ? { ...column, readOnly: true } : column))),
+    [heldColumns, shownColumns],
+  );
+  /*
+   * What the server says of each column, for the edit dialog, as the list's
+   * edit has it: a choice reads in the person's words, a place gets its field.
+   * A held column is not writable on this record, whatever the table allows:
+   * the server's facts know nothing of the row's state.
+   */
+  const fieldFacts = useMemo(() => {
+    if (columnFacts === undefined || heldColumns === null) return columnFacts;
+    return Object.fromEntries(
+      Object.entries(columnFacts).map(([name, fact]) => [name, heldColumns.has(name) ? { ...fact, writable: false } : fact]),
+    );
+  }, [columnFacts, heldColumns]);
   const noDelete = facts !== null && row !== null && deleteRefused(facts, row);
 
   const recordApi = useMemo(() => {
@@ -853,6 +878,10 @@ export function PageRecordBinding({
         // and the same field in its edit dialog.
         {...(formRelations === undefined ? {} : { relations: formRelations })}
         {...(fieldFacts === undefined ? {} : { fieldFacts })}
+        form={form}
+        {...(formColumns === undefined ? {} : { formColumns: formColumns as never })}
+        listOptions={listOptions}
+        {...(childFacts === undefined ? {} : { childFacts })}
         // The connection's own currency for money cells.
         {...(currency === undefined ? {} : { currency })}
         tabs={tabs}
