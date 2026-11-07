@@ -85,6 +85,24 @@ describe('the settings an app role keeps of an add-on', () => {
     expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([['Holiday Calendars settings', '/add-on-settings/holiday-calendars']]);
   });
 
+  it('link each copy of an add-on kept on two databases at its own address, and say which database', async () => {
+    await renderRail(
+      { groups: [], pages: [] },
+      {
+        addOnSettings: [
+          { key: 'holiday-calendars', name: 'Holiday Calendars', connectionName: 'Fernhill' },
+          { key: 'holiday-calendars~kiln', name: 'Holiday Calendars', connectionName: 'Kiln' },
+        ],
+      },
+    );
+    const rows = document.querySelector<HTMLElement>('[data-part="nav-add-on-settings"]')!;
+    const links = within(rows).getAllByRole('link');
+    expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['Holiday Calendars settings Fernhill', '/add-on-settings/holiday-calendars'],
+      ['Holiday Calendars settings Kiln', '/add-on-settings/holiday-calendars~kiln'],
+    ]);
+  });
+
   it('are not drawn when the bootstrap names none', async () => {
     await renderRail({ groups: [], pages: [] });
     expect(document.querySelector('[data-part="nav-add-on-settings"]')).toBeNull();

@@ -249,18 +249,32 @@ export const SETTINGS_GROUP: NavGroupKey = 'library';
  * grant (`addOn:<key>:settings`, an app's role carries it) without managing
  * add-ons: its own settings screen, as the add-ons page would draw them.
  */
-export function AddOnSettingsLinkList({ addOns }: { addOns: readonly { key: string; name: string }[] }) {
+export function AddOnSettingsLinkList({ addOns }: { addOns: readonly { key: string; name: string; connectionName?: string | null | undefined }[] }) {
   if (addOns.length === 0) return null;
+  // An add-on kept on two databases is two rows of one name: each also says its database.
+  const named = new Map<string, number>();
+  for (const addOn of addOns) named.set(addOn.name, (named.get(addOn.name) ?? 0) + 1);
   return (
     <ul className="m-0 flex list-none flex-col gap-1 p-0" data-part="nav-add-on-settings">
-      {addOns.map((addOn) => (
-        <li key={addOn.key}>
-          <Link to="/add-on-settings/$key" params={{ key: addOn.key }} className={NAV_LINK_CLASS}>
-            <SlidersHorizontal className="size-[18px] shrink-0" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate">{t('nav.addOnSettings', '{name} settings', { name: addOn.name })}</span>
-          </Link>
-        </li>
-      ))}
+      {addOns.map((addOn) => {
+        const where = (named.get(addOn.name) ?? 0) > 1 ? (addOn.connectionName ?? null) : null;
+        return (
+          <li key={addOn.key}>
+            {/* The copy's address: `<key>~<slug>` opens a later copy's settings. */}
+            <Link to="/add-on-settings/$key" params={{ key: addOn.key }} className={NAV_LINK_CLASS}>
+              <SlidersHorizontal className="size-[18px] shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate">{t('nav.addOnSettings', '{name} settings', { name: addOn.name })}</span>
+              {/* A space for the name read aloud; a flex row draws none. */}
+              {where === null ? null : ' '}
+              {where === null ? null : (
+                <span data-part="nav-add-on-settings-database" className="max-w-[45%] shrink-0 truncate text-[12px] font-semibold text-fg-subtle">
+                  {where}
+                </span>
+              )}
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }
