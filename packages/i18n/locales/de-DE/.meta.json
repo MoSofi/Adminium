@@ -41103,6 +41103,18 @@
     "status": "mt",
     "srcHash": "076561d623ed"
   },
+  "studio.surfacePages.moved.guest": {
+    "status": "mt",
+    "srcHash": "c25b25f48c33"
+  },
+  "studio.surfacePages.moved.hidden": {
+    "status": "mt",
+    "srcHash": "1029b6d788da"
+  },
+  "studio.surfacePages.moved.noCopy": {
+    "status": "mt",
+    "srcHash": "aaea3aafb067"
+  },
   "studio.surfacePages.moved.one": {
     "status": "mt",
     "srcHash": "a116ec2093b1"
@@ -41114,6 +41126,14 @@
   "studio.surfacePages.moved.other": {
     "status": "mt",
     "srcHash": "3ac1e05cb7c2"
+  },
+  "studio.surfacePages.moved.signIn": {
+    "status": "mt",
+    "srcHash": "d4f503e5c71c"
+  },
+  "studio.surfacePages.moved.signInLink": {
+    "status": "mt",
+    "srcHash": "ada2e9e96fa9"
   },
   "studio.surfacePages.notFound.body": {
     "status": "mt",

@@ -3435,7 +3435,12 @@
       "one": "{app} je nainstalovaná v databázi {database}.",
       "other": "{app} je nainstalovaná v jiných databázích.",
       "body": "Tato adresa patřila kopii, která byla odebrána.",
-      "open": "Otevřít {app} v databázi {database}"
+      "open": "Otevřít {app} v databázi {database}",
+      "hidden": "Aplikace {app} se přesunula.",
+      "signIn": "Tato adresa se přesunula; přihlaste se a uvidíte kam.",
+      "signInLink": "Přihlásit se",
+      "noCopy": "Tato adresa se přesunula ke kopii, kterou tento účet nemůže otevřít.",
+      "guest": "Tato adresa se přesunula."
     }
   },
   "appSettings": {

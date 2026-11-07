@@ -3435,7 +3435,12 @@
       "one": "{app} 已安裝在 {database} 上。",
       "other": "{app} 已安裝在其他資料庫上。",
       "body": "此網址屬於一個已被移除的副本。",
-      "open": "在 {database} 上開啟 {app}"
+      "open": "在 {database} 上開啟 {app}",
+      "hidden": "{app} 已搬移。",
+      "signIn": "此網址已搬移；登入後可查看搬到了哪裡。",
+      "signInLink": "登入",
+      "noCopy": "此網址已搬移到此帳號無法開啟的副本。",
+      "guest": "此網址已搬移。"
     }
   },
   "appSettings": {

@@ -105,7 +105,9 @@ import {
   type SurfaceSettingsCache,
   NO_SURFACE_SETTINGS,
 } from '../surfaces/settings.js';
-import { renderMovedPage, renderNotFoundPage, renderUnavailablePage } from '../surfaces/unavailable-page.js';
+import { installReachOf } from '../installs/reach.js';
+import { installsOf } from '../installs/resolve.js';
+import { renderMovedPage, renderNotFoundPage, renderUnavailablePage, type MovedPageInput } from '../surfaces/unavailable-page.js';
 import { sendSurfaceIndex, type SurfaceAssistant } from './surface-index.js';
 
 /** Where the script-free "not available" page's Sign out posts. */
@@ -386,6 +388,7 @@ async function sendMovedPage(
   meta: MetaDb,
   surface: HostedSurface,
   copies: readonly { database: string; url: string }[],
+  hidden: MovedPageInput['hidden'],
   settings: SurfaceSettings,
   request: FastifyRequest,
   reply: FastifyReply,
@@ -403,6 +406,7 @@ async function sendMovedPage(
     appName: appNameOf(settings, surface.appKey, ownLabel === '' ? null : ownLabel),
     venueName: workspace === DEFAULT_WORKSPACE_NAME ? null : workspace,
     copies,
+    ...(hidden === undefined ? {} : { hidden }),
     lang: bcp47(locale),
     t: (key, fallback, args) => i18n.t(key, { defaultValue: fallback, ...args }),
   });
@@ -543,18 +547,18 @@ async function installConnectionOf(meta: MetaDb, appKey: string): Promise<string
  * address. Null while a copy has the plain address (or none is installed):
  * the address is answered as it always was.
  */
-async function copiesElsewhere(meta: MetaDb, appKey: string, side: string): Promise<{ database: string; url: string; slug: string }[] | null> {
-  // key-wide: every copy of the app, to say where each one is.
+async function copiesElsewhere(meta: MetaDb, appKey: string, side: string): Promise<{ id: string; database: string; url: string; slug: string }[] | null> {
+  // key-wide: every copy of the app, to say where each one is (to whoever reaches it: see the gate).
   const rows = await meta.db
     .selectFrom('adminium_manifests')
     .leftJoin('adminium_connections', 'adminium_connections.id', 'adminium_manifests.scopeKey')
-    .select(['adminium_manifests.instanceSlug as slug', 'adminium_connections.name as database'])
+    .select(['adminium_manifests.id as id', 'adminium_manifests.instanceSlug as slug', 'adminium_connections.name as database'])
     .where('adminium_manifests.manifestKey', '=', appKey)
     .where('adminium_manifests.kind', '=', 'app')
     .execute();
   if (rows.length === 0 || rows.some((row) => row.slug === '')) return null;
   return rows
-    .map((row) => ({ database: row.database ?? row.slug, slug: row.slug, url: `/apps/${appKey}/${row.slug}/${side}/` }))
+    .map((row) => ({ id: row.id, database: row.database ?? row.slug, slug: row.slug, url: `/apps/${appKey}/${row.slug}/${side}/` }))
     .sort((a, b) => a.database.localeCompare(b.database));
 }
 
@@ -691,13 +695,32 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         if (slug === null && opts.metaDb !== undefined) {
           const elsewhere = await copiesElsewhere(opts.metaDb, surface.appKey, surface.side);
           if (elsewhere !== null) {
+            /*
+             * WHERE IT WENT, only to who may open it: nothing before sign-in,
+             * and to someone signed in only the copies they reach. A
+             * database's name is not for a stranger.
+             */
+            const signedIn = request.user !== null && request.session !== null;
+            const shown: { database: string; url: string; slug: string }[] = [];
+            if (signedIn) {
+              const reaches = installReachOf(opts.metaDb, request);
+              const installs = installsOf(opts.metaDb);
+              for (const copy of elsewhere) {
+                const install = await installs.findById(copy.id);
+                if (install !== null && (await reaches(install))) shown.push({ database: copy.database, url: copy.url, slug: copy.slug });
+              }
+            }
             if (isDocumentNavigation(request)) {
-              await sendMovedPage(opts.metaDb, surface, elsewhere, (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS, request, reply);
+              const hidden = shown.length > 0 ? undefined : signedIn ? { why: 'no-copy' as const } : { why: 'sign-in' as const, signInUrl: `/login?next=${encodeURIComponent(request.url)}` };
+              await sendMovedPage(opts.metaDb, surface, shown, hidden, (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS, request, reply);
               return true;
             }
-            throw new AppError(410, 'APP_ADDRESS_RETIRED', `${surface.appKey} is no longer at this address: it is installed on ${elsewhere.map((copy) => copy.database).join(', ')}.`, {
+            if (shown.length === 0) {
+              throw new AppError(410, 'APP_ADDRESS_RETIRED', signedIn ? 'This address moved to a copy this account can’t open.' : 'This address moved; sign in to see where.', { appKey: surface.appKey });
+            }
+            throw new AppError(410, 'APP_ADDRESS_RETIRED', `${surface.appKey} is no longer at this address: it is installed on ${shown.map((copy) => copy.database).join(', ')}.`, {
               appKey: surface.appKey,
-              installs: elsewhere,
+              installs: shown,
             });
           }
         }

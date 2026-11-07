@@ -3445,7 +3445,12 @@ export default {
       "one": "{app} is installed on {database}.",
       "other": "{app} is installed on other databases.",
       "body": "This address belonged to a copy that has been taken away.",
-      "open": "Open {app} on {database}"
+      "open": "Open {app} on {database}",
+      "hidden": "{app} has moved.",
+      "signIn": "This address moved; sign in to see where.",
+      "signInLink": "Sign in",
+      "noCopy": "This address moved to a copy this account can’t open.",
+      "guest": "This address has moved."
     }
   },
   "appSettings": {

@@ -3445,7 +3445,12 @@ export default {
       "one": "{app} er installeret på {database}.",
       "other": "{app} er installeret på andre databaser.",
       "body": "Denne adresse tilhørte en kopi, der er blevet fjernet.",
-      "open": "Åbn {app} på {database}"
+      "open": "Åbn {app} på {database}",
+      "hidden": "{app} er flyttet.",
+      "signIn": "Denne adresse er flyttet; log ind for at se hvorhen.",
+      "signInLink": "Log ind",
+      "noCopy": "Denne adresse er flyttet til en kopi, som denne konto ikke kan åbne.",
+      "guest": "Denne adresse er flyttet."
     }
   },
   "appSettings": {
