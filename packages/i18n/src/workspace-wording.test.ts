@@ -158,6 +158,7 @@ const GROUP_FILES: ReadonlyMap<string, string> = new Map([
   ['apps/dashboard/src/studio/connect/steps/WorkspacesField.tsx', 'the workspaces a new connection goes in'],
   ['apps/dashboard/src/test/workspaceLists.tsx', 'a test helper for the lists that follow the workspaces'],
   ['apps/dashboard/src/shown-in/', '"Shown in": where an email template, a report layout or an invoice layout is listed, by workspace'],
+  ['apps/dashboard/src/changelog/releases.ts', 'the release notes that introduced workspaces, as groups of databases'],
   ['apps/docs/src/content/docs/reference/rest-api.md', 'documents the /workspaces routes'],
   ['apps/docs/src/content/docs/anatomy/', 'the pnpm sense: "twenty-one workspaces" are the packages of the monorepo'],
   ['apps/docs/src/content/docs/contributing/', 'the pnpm sense, as above'],
