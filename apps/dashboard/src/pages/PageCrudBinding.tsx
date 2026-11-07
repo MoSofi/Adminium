@@ -49,7 +49,7 @@ import { pictureChooser } from '../files/pictureChooser.js';
 import { listKeysOf, useListOptions } from '../api/optionLists.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
-import { parseColumns, projectionParamsOf, withFactSpecs, withFkDisplay, withLookups } from './columnSpecs.js';
+import { parseColumns, parseDefaultSort, projectionParamsOf, withFactSpecs, withFkDisplay, withLookups } from './columnSpecs.js';
 import { useManifestBulkActions } from './ManifestBulkAction.js';
 import { ProjectActionMenu, useProjectActions } from './projectActions.js';
 import { useAppToasts } from './toasts.js';
@@ -370,12 +370,18 @@ export function PageCrudBinding({
 
   // Initial grid state: an explicitly applied view wins; otherwise the state
   // the user left this page in (list → record → back, T12); otherwise the
-  // page's own default filters (a Messages page without its skipped rows);
-  // otherwise base.
+  // page's own defaults: its filters (a Messages page without its skipped
+  // rows) and its sort (a Jobs list soonest due first), as a record page's
+  // tabs read the same sort; otherwise base.
   const defaultFilters = parseCrudDefaultFilters(page.config);
+  const defaultSort = parseDefaultSort(page.config);
   const viewProps = configToProps(
     appliedView?.config ??
-      (restoredState !== null ? gridStateToConfig(restoredState) : defaultFilters === null ? null : { v: 1, filters: defaultFilters }),
+      (restoredState !== null
+        ? gridStateToConfig(restoredState)
+        : defaultFilters === null && defaultSort === null
+          ? null
+          : { v: 1, ...(defaultFilters === null ? {} : { filters: defaultFilters }), ...(defaultSort === null ? {} : { sort: defaultSort }) }),
   );
   const sourceTable = page.source.table ?? crud.table;
 

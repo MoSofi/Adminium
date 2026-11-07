@@ -60,7 +60,7 @@ function stubViewsFetch(initialViews: SavedView[]) {
   return { posted };
 }
 
-function renderBinding(crud: ReturnType<typeof fakeCrud>) {
+function renderBinding(crud: ReturnType<typeof fakeCrud>, page = makeCrudEnvelope()) {
   const queryClient = createQueryClient();
   const adapters = {
     crud: crud as never,
@@ -72,7 +72,7 @@ function renderBinding(crud: ReturnType<typeof fakeCrud>) {
   render(
     <QueryClientProvider client={queryClient}>
       <AppToastProvider>
-        <PageCrudBinding page={makeCrudEnvelope()} adapters={adapters} />
+        <PageCrudBinding page={page} adapters={adapters} />
       </AppToastProvider>
     </QueryClientProvider>,
   );
@@ -141,5 +141,18 @@ describe('page-crud saved views', () => {
         expect.objectContaining({ q: 'bar', limit: 25, order: [{ column: 'name', dir: 'desc' }] }),
       );
     });
+  });
+
+  it('opens on the page’s own stored sort when no view or earlier state says otherwise', async () => {
+    stubViewsFetch([]);
+    const crud = fakeCrud(okList);
+    const base = makeCrudEnvelope();
+    // A page of its own: the state an earlier test left a page in is kept for it (list → record → back).
+    renderBinding(crud, makeCrudEnvelope({ id: 'page_sorted', config: { ...base.config, defaultSort: [{ column: 'name', dir: 'asc' }] } }));
+    await waitFor(() => {
+      expect(crud.list).toHaveBeenCalled();
+    });
+    // The first read already asks the page's order, as a record page's tabs do.
+    expect(crud.list.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ order: [{ column: 'name', dir: 'asc' }] }));
   });
 });
