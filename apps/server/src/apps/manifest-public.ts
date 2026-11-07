@@ -861,11 +861,13 @@ export async function installPublicAccess(input: {
    * whoever is being installed.
    */
   const guest = (entry: PlannedPublicEndpoint) => input.manifest.kind !== 'app' || entry.owner !== input.manifest.key;
-  const storedOwner = new Map((await publicEndpointsRepo(input.meta).listByConnection(input.connectionId)).map((endpoint) => [endpoint.ref, endpoint.managedBy]));
+  // By name whatever its case, as the check compares them.
+  const storedOwner = new Map((await publicEndpointsRepo(input.meta).listByConnection(input.connectionId)).map((endpoint) => [endpoint.ref.toLowerCase(), endpoint.managedBy]));
   const planned: PlannedPublicEndpoint[] = [];
   const takenHere: string[] = [];
   for (const entry of every.filter((candidate) => !unsound(candidate))) {
-    if (storedOwner.has(entry.ref) && storedOwner.get(entry.ref) !== entry.owner) {
+    const name = entry.ref.toLowerCase();
+    if (storedOwner.has(name) && storedOwner.get(name) !== entry.owner) {
       if (guest(entry)) {
         skipped.push({ ref: entry.ref, reason: `an endpoint "${entry.ref}" is here already and is not this add-on's: it is left as it is` });
         continue;
