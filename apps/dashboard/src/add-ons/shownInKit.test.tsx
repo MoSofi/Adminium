@@ -109,7 +109,7 @@ describe('"Shown in" on an add-on\'s page', () => {
 
   it('the editor\'s control saves each change through the add-on\'s own write, and a hidden item says where it is listed', async () => {
     const user = userEvent.setup();
-    const save = vi.fn((_next: AddOnShownIn) => Promise.resolve());
+    const save = vi.fn<(next: AddOnShownIn) => Promise<void>>(() => Promise.resolve());
     const { ShownInField, HiddenHereNote, useShownInPicker } = app;
     function Editor() {
       const picker = useShownInPicker();
