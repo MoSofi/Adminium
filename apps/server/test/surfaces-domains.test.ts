@@ -492,7 +492,8 @@ describe('surface-config.json (D10)', () => {
       url: '/apps/clients/staff/surface-config.json',
       headers: { cookie: cookie ?? '' },
     });
-    expect(res.json()).toEqual({ connectionId: installedInto.id, appName: null, ...SIGNED_IN, ...HOST_VENUE });
+    // The install the plain mount's grant names, which the screens send back on every call.
+    expect(res.json()).toEqual({ connectionId: installedInto.id, installId: 'mft_clients', appName: null, ...SIGNED_IN, ...HOST_VENUE });
 
     // Once the install records its tables under real names, the app is told them.
     await appTablesRepo(t!.meta).record({
@@ -509,7 +510,7 @@ describe('surface-config.json (D10)', () => {
       url: '/apps/clients/staff/surface-config.json',
       headers: { cookie: cookie ?? '' },
     });
-    expect(named.json()).toEqual({ connectionId: installedInto.id, appName: null, tables: { invoices: 'clients_invoices' }, ...SIGNED_IN, ...HOST_VENUE });
+    expect(named.json()).toEqual({ connectionId: installedInto.id, installId: 'mft_clients', appName: null, tables: { invoices: 'clients_invoices' }, ...SIGNED_IN, ...HOST_VENUE });
   });
 
   it('serves an INSTANCE its own connection, at /apps/<key>/<slug>/<side>/', async () => {
