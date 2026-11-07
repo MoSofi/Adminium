@@ -15,7 +15,7 @@ import { appAfterInstallRepo, automationsRepo, type Automation } from '@adminium
 import type { Manifest } from '@adminium/manifest';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { installAutomations, outboundSteps, plannedAfterInstallOfRules } from '../src/apps/manifest-automations.js';
+import { installAutomations, outboundSteps, plannedAfterInstallOfRules, sampleTablesOf } from '../src/apps/manifest-automations.js';
 import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
 import { bareAddress } from '../src/installs/resolve.js';
 import { addOnHarness, ENGINES, type Harness } from './app-add-ons.helpers.js';
@@ -159,6 +159,33 @@ describe('the steps that send out with no address to fill in', () => {
     expect(shaped([write, mailTo('m', 'buyer_email')], [])).toEqual({ w: ['y'], m: ['x'] });
     // A default on a column nothing mails sends nothing.
     expect(shaped([mailTo('m', 'buyer_email')], [audit({ default: 'audit@attacker.example' })])).toEqual({});
+  });
+
+  it('sample rows count only for the tables the sample files fill, when those files were read', () => {
+    const mailTo = (key: string, column: string, on: Doc) => ({ ...RULE(key, [node('x', 'action', { action: { kind: 'email', templateKey: 'stock-kit-plain', to: { kind: 'field', column }, class: 'service' } })]), trigger: on });
+    const doc = kit([mailTo('items-mail', 'buyer_email', trigger), mailTo('takes-mail', 'note', { kind: 'record', event: 'created', table: 'takes' })]);
+    const found = (sampleTables?: ReadonlySet<string>) => Object.fromEntries(outboundSteps({ ...doc, sampleData: { file: 'seeds/sample.json' } } as unknown as Manifest, sampleTables));
+    // The file fills takes only: the mail to an items column goes to the person's own address.
+    expect(found(new Set(['takes']))).toEqual({ 'takes-mail': ['x'] });
+    expect(found(new Set())).toEqual({});
+    // Its files not read: every table counts.
+    expect(found()).toEqual({ 'items-mail': ['x'], 'takes-mail': ['x'] });
+  });
+
+  it('reads the tables a sample file and its rows for add-ons fill; one it cannot read counts every table', async () => {
+    const bundle = (refs: string[]) => Buffer.from(JSON.stringify({ format: 'adminium.sample/1', app: 'stock-kit', tables: refs.map((ref) => ({ ref, rows: [{ '@label': 'a' }] })) }));
+    const files: Record<string, Uint8Array> = { 'seeds/sample.json': bundle(['takes']), 'seeds/for-sms.json': bundle(['texts', 'items']), 'seeds/broken.json': Buffer.from('not json') };
+    const read = async (path: string): Promise<Uint8Array> => {
+      const bytes = files[path];
+      if (bytes === undefined) throw new Error(`no ${path}`);
+      return bytes;
+    };
+    const tablesOf = (sampleData: Doc | undefined) => sampleTablesOf({ ...kit(), ...(sampleData === undefined ? {} : { sampleData }) } as unknown as Manifest, read);
+    expect(await tablesOf(undefined)).toEqual(new Set());
+    expect(await tablesOf({ file: 'seeds/sample.json' })).toEqual(new Set(['takes']));
+    expect(await tablesOf({ file: 'seeds/sample.json', addOns: { sms: { file: 'seeds/for-sms.json' } } })).toEqual(new Set(['takes', 'texts', 'items']));
+    expect(await tablesOf({ file: 'seeds/broken.json' })).toBeUndefined();
+    expect(await tablesOf({ file: 'seeds/missing.json' })).toBeUndefined();
   });
 
   it('a template with a <base>, or a form sent to an outside host with the record in it, counts', () => {

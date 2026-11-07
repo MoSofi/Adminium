@@ -149,15 +149,43 @@ type FileTable = { ref: string; columns?: FileColumn[] };
 const WORKED_OUT: readonly string[] = ['formula', 'format', 'lookup', 'band'];
 
 /**
+ * The tables an app's sample files fill, read from its package: the file
+ * `sampleData.file` names, and its rows for each add-on. Empty for a file
+ * that ships none; undefined when a sample file cannot be read as a sample
+ * file, so that every table counts as filled.
+ */
+export async function sampleTablesOf(manifest: Manifest, readFile: (path: string) => Promise<Uint8Array>): Promise<ReadonlySet<string> | undefined> {
+  const sample = (manifest as { sampleData?: { file?: string; addOns?: Record<string, { file?: string }> } }).sampleData;
+  const paths = [sample?.file, ...Object.values(sample?.addOns ?? {}).map((one) => one.file)].filter((path): path is string => typeof path === 'string');
+  const out = new Set<string>();
+  for (const path of paths) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(Buffer.from(await readFile(path)).toString('utf8'));
+    } catch {
+      return undefined;
+    }
+    const tables = (parsed as { tables?: unknown } | null)?.tables;
+    if (!Array.isArray(tables)) return undefined;
+    for (const table of tables as { ref?: unknown }[]) {
+      if (typeof table?.ref !== 'string') return undefined;
+      out.add(table.ref);
+    }
+  }
+  return out;
+}
+
+/**
  * Whether the file itself can choose a column's value, an address a mail to
  * that column goes to: a default of its own, a default read from a setting,
- * a rule that works it out, a copy of such a column, or rows the file brings
- * (its seeds; its sample data, which it does not say the tables of).
+ * a rule that works it out, a copy of such a column, or rows the file brings:
+ * its seeds, and its sample rows of the tables `sampleTables` names (every
+ * table, when its sample files were not read).
  */
-function fileChosenColumn(manifest: Manifest, tableRef: string | undefined, column: string): boolean {
+function fileChosenColumn(manifest: Manifest, tableRef: string | undefined, column: string, sampleTables: ReadonlySet<string> | undefined): boolean {
   const tables = ((manifest as { requiredSchema?: { tables?: FileTable[] } }).requiredSchema?.tables ?? []) as FileTable[];
   const seeds = ((manifest as { seeds?: { table: string; rows?: Record<string, unknown>[]; file?: string }[] }).seeds ?? []);
-  const sample = (manifest as { sampleData?: unknown }).sampleData !== undefined;
+  const hasSample = (manifest as { sampleData?: unknown }).sampleData !== undefined;
   const seen = new Set<string>();
   const chosen = (table: FileTable, ref: string): boolean => {
     const id = `${table.ref}.${ref}`;
@@ -168,7 +196,8 @@ function fileChosenColumn(manifest: Manifest, tableRef: string | undefined, colu
     if (typeof col.default === 'string' && col.default.trim() !== '') return true;
     const rules = col.rules ?? {};
     if (rules['default'] !== undefined || WORKED_OUT.some((rule) => rules[rule] !== undefined)) return true;
-    if (sample || seeds.some((seed) => seed.table === table.ref && (seed.file !== undefined || (seed.rows ?? []).some((row) => row[ref] !== undefined && row[ref] !== null && row[ref] !== '')))) return true;
+    const sampled = hasSample && (sampleTables === undefined || sampleTables.has(table.ref));
+    if (sampled || seeds.some((seed) => seed.table === table.ref && (seed.file !== undefined || (seed.rows ?? []).some((row) => row[ref] !== undefined && row[ref] !== null && row[ref] !== '')))) return true;
     // A copy from the linked row: chosen when the column it copies is.
     const copy = rules['copy'] as { via?: string; from?: string } | undefined;
     if (copy !== undefined) {
@@ -210,7 +239,9 @@ function manifestSteps(nodes: readonly ManifestStep[]): ManifestStep[] {
  *    an address anywhere, or a link to an outside host with the record's
  *    values in it;
  *  - a mail to a column whose value the file chose: a default, a copy of one,
- *    a rule that works it out, rows the file brings;
+ *    a rule that works it out, rows the file brings (`sampleTables`: the
+ *    tables its sample files fill, from {@link sampleTablesOf}; absent when
+ *    the package was not read, and then every table counts);
  *  - an add-on's step with an address, a host or a phone number of the
  *    file's own in an input;
  *  - a mail or summary whose template links to an outside host with a value
@@ -218,7 +249,7 @@ function manifestSteps(nodes: readonly ManifestStep[]): ManifestStep[] {
  *    a link nobody can tell; a mail whose own values (`vars`) name an outside
  *    host or an address.
  */
-export function outboundSteps(manifest: Manifest): Map<string, string[]> {
+export function outboundSteps(manifest: Manifest, sampleTables?: ReadonlySet<string>): Map<string, string[]> {
   const rules = ((manifest as { automations?: ManifestAutomation[] }).automations ?? []) as ManifestAutomation[];
   const templates = new Map((((manifest as { emailTemplates?: { key: string }[] }).emailTemplates ?? []) as { key: string }[]).map((template) => [template.key, template]));
   const leaks = new Map<string, boolean>();
@@ -273,7 +304,7 @@ export function outboundSteps(manifest: Manifest): Map<string, string[]> {
       }
       if (action.kind === 'email') {
         const field = fieldOf(action);
-        if (field !== null && (written.has(field) || fileChosenColumn(manifest, recordTableOf(rule), field))) sends = true;
+        if (field !== null && (written.has(field) || fileChosenColumn(manifest, recordTableOf(rule), field, sampleTables))) sends = true;
         if (templateLeaks(action['templateKey'])) sends = true;
         for (const value of Object.values((action['vars'] ?? {}) as Record<string, unknown>)) if (typeof value === 'string' && reachesOut(value, false)) sends = true;
       }
@@ -491,7 +522,7 @@ function asFilledIn(graph: AutomationGraph): AutomationGraph {
  * stand-ins for what only the install knows (its tables, roles and zone) — a
  * document a rule draws counts as there when the app declares it.
  */
-export function plannedAfterInstallOfRules(manifest: Manifest): AfterInstallItem[] {
+export function plannedAfterInstallOfRules(manifest: Manifest, sampleTables?: ReadonlySet<string>): AfterInstallItem[] {
   if (manifest.kind !== 'app') return [];
   const documents = manifest.documents ?? [];
   const binding: Binding = {
@@ -503,7 +534,7 @@ export function plannedAfterInstallOfRules(manifest: Manifest): AfterInstallItem
     profileId: (document) => (documents.some((entry) => entry.table === document.table && entry.kind === document.kind) ? 'planned' : null),
   };
   const rules = ((manifest as { automations?: ManifestAutomation[] }).automations ?? []) as ManifestAutomation[];
-  const outbound = outboundSteps(manifest);
+  const outbound = outboundSteps(manifest, sampleTables);
   return rules.flatMap((rule) => [...afterInstallItemsOfRule(rule.key, bind(rule, binding).graph), ...outboundItems(rule.key, outbound)]);
 }
 
@@ -564,6 +595,8 @@ export interface InstallAutomationsInput {
   view: SnapshotView;
   /** A table's short name → its id here; a name that is not here is answered as it came, and the check below refuses it. */
   realId: (ref: string) => string;
+  /** The tables the app's sample files fill ({@link sampleTablesOf}); absent, every table counts as filled. */
+  sampleTables?: ReadonlySet<string> | undefined;
   at?: number | undefined;
 }
 
@@ -606,7 +639,7 @@ export async function installAutomations(input: InstallAutomationsInput): Promis
   // The app's own document profiles here, made before its rules: what a document step draws.
   const profiles = await documentProfilesRepo(meta).listOwnedBy(connectionId, manifest.key);
   // Steps that send out with no address to fill in; and those the owner was already shown, by an earlier version.
-  const outbound = outboundSteps(manifest);
+  const outbound = outboundSteps(manifest, input.sampleTables);
   const shown = new Set((await appAfterInstallRepo(meta).list(input.install.id)).filter((row) => row.kind === 'outbound').map((row) => `${row.item}\u0000${row.field}`));
 
   for (const rule of shipped) {

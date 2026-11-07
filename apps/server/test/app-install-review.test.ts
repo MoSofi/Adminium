@@ -70,6 +70,31 @@ function shop(version = '1.0.0', withSchedule = true): Doc {
   });
 }
 
+/** An app whose sample file fills its orders and not its suppliers, with a rule mailing a column of each. */
+function mailShop(): Doc {
+  const table = (ref: string) => ({ ref, columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'name', type: 'text', maxLength: 80, nullable: true }, { ref: 'email', type: 'text', maxLength: 200, nullable: true }] });
+  const mail = (key: string, table: string) => ({
+    key,
+    name: key,
+    enabled: true,
+    trigger: { kind: 'record', event: 'created', table },
+    graph: { version: 1, nodes: [node('t', 'trigger'), node('m', 'action', { action: { kind: 'email', templateKey: 'mail-shop-thanks', to: { kind: 'field', column: 'email' }, class: 'service' } })] },
+  });
+  return appManifest('mail-shop', {
+    name: 'Mail shop',
+    version: '1.0.0',
+    publisher: { id: 'local', name: 'This Adminium' },
+    compatibility: { minAdminiumVersion: '0.3.49', engines: ['postgres', 'mysql', 'sqlite'] },
+    requiredSchema: { tables: [table('orders'), table('suppliers')] },
+    pages: [{ ref: 'orders', template: 'page-crud', title: { key: 'mail-shop.orders', fallback: 'Orders' }, nav: { group: 'manifest:mail-shop', icon: 'list', order: 1 }, bindings: { main: 'orders' } }],
+    frontends: [{ side: 'staff', kind: 'none' }],
+    emailTemplates: [{ key: 'mail-shop-thanks', name: 'Thanks', locales: { 'en-US': { subject: 'Thanks, {{record.name}}', blocks: [{ block: 'email.text', data: { text: 'Thank you.' } }] } } }],
+    sampleData: { file: 'seeds/sample.json' },
+    automations: [mail('mail-order', 'orders'), mail('mail-supplier', 'suppliers')],
+  });
+}
+const MAIL_SHOP_SAMPLE = JSON.stringify({ format: 'adminium.sample/1', app: 'mail-shop', tables: [{ ref: 'orders', rows: [{ '@label': 'o1', name: 'Ada', email: 'ada@example.com' }] }] });
+
 const afterInstallOf = async (h: Harness) => {
   const row = await h.meta.db.selectFrom('adminium_manifests').select('id').where('manifestKey', '=', 'corner-shop').executeTakeFirstOrThrow();
   return (await appAfterInstallRepo(h.meta).list(row.id)).map((item) => [item.kind, item.item, item.field]).sort();
@@ -107,6 +132,19 @@ for (const [dialect, available] of ENGINES) {
       const updated = await h.inject({ method: 'POST', url: '/apps/corner-shop/update', payload: {} });
       expect(updated.statusCode, updated.body).toBe(200);
       expect(await afterInstallOf(h)).toEqual(listed.filter(([kind]) => kind !== 'recipients'));
+    });
+
+    it('reads its sample file: a mail to a column of a table the file fills arrives switched off, the others as shipped', async () => {
+      h = await addOnHarness(dialect);
+      await h.stageApp(mailShop(), { 'seeds/sample.json': MAIL_SHOP_SAMPLE });
+      const planned = await h.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'mail-shop', version: '1.0.0', connectionId: h.connectionId } });
+      expect(planned.statusCode, planned.body).toBe(200);
+      const outbound = (planned.json().plan.afterInstall as { kind: string; item: string; field: string }[]).filter((item) => item.kind === 'outbound');
+      expect(outbound).toEqual([{ kind: 'outbound', item: 'mail-order', field: 'm' }]);
+      const installed = await h.install('mail-shop', '1.0.0');
+      expect(installed.statusCode, installed.body).toBe(200);
+      const rules = await h.meta.db.selectFrom('adminium_automations').select(['templateKey', 'enabled']).where('managedBy', '=', 'mail-shop').execute();
+      expect(Object.fromEntries(rules.map((rule) => [rule.templateKey, Boolean(rule.enabled)]))).toEqual({ 'mail-order': false, 'mail-supplier': true });
     });
 
     it('is not installed back onto the database it was saved from', async () => {
