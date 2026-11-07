@@ -1023,6 +1023,8 @@ export interface PlannedAppTable {
   offers: TableOffer[];
   /** Why using a taken table as it is would not work, for a person. */
   reuseRefusal?: string;
+  /** The columns that stop reuse (each required, never filled by the app). Absent from an older server: `reuseRefusal` alone. */
+  reuseRequires?: string[];
   renameExistingTo?: string;
   /** For a shared table: the key of the app whose table it is, and that app's name. */
   sharedWith?: string;

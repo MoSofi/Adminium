@@ -282,6 +282,11 @@ export function unusableTables(plan: AppInstallPlan): AppInstallPlan['problems']
   return plan.problems.filter((problem) => problem.code === 'EXISTING_TABLE_UNUSABLE');
 }
 
+/** Why a taken table is not offered for use as it is: the columns it requires that the app never fills, by name. */
+export function reuseRequiresWords(columns: readonly string[]): string {
+  return t('studio:hostedApps.review.existing.whyRequiredColumns', 'It requires {columns}, which the app never fills, so every row the app saves there would be refused.', { columns: namesList(columns) });
+}
+
 /**
  * Why a table can't be used as it is, read from the table the check made, as
  * the server decides it: renamed out of the way, not offered for use as it
@@ -291,6 +296,7 @@ export function unusableWhy(plan: AppInstallPlan, ref: string): string {
   const table = plan.tables?.find((one) => one.ref === ref);
   if (table?.action === 'rename-existing') return t('studio:hostedApps.review.existing.whyRename', 'Using the existing tables never renames one out of the way.');
   if (table !== undefined && table.action !== 'reuse' && table.action !== 'share') {
+    if ((table.reuseRequires ?? []).length > 0) return reuseRequiresWords(table.reuseRequires ?? []);
     return table.reuseRefusal === undefined
       ? t('studio:hostedApps.review.existing.whyNotOffered', 'It isn’t offered for use as it is.')
       : t('studio:hostedApps.review.existing.whyRequired', 'It requires columns the app never fills, so every row the app saves there would be refused.');

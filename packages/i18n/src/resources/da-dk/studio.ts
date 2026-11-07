@@ -1033,6 +1033,7 @@ export default {
         "cannotHelp": "Omdøb tabellen her, eller gem appen igen uden den.",
         "whyRename": "Brug af de eksisterende tabeller omdøber aldrig en tabel for at gøre plads.",
         "whyRequired": "Den kræver kolonner, som appen aldrig udfylder, så hver række, appen gemmer der, ville blive afvist.",
+        "whyRequiredColumns": "Den kræver {columns}, som appen aldrig udfylder, så hver række, appen gemmer der, ville blive afvist.",
         "whyNotOffered": "Den tilbydes ikke til brug, som den er.",
         "whyChanges": "Brug af den ville ændre disse kolonner: {columns}. Brug af de eksisterende tabeller ændrer ingen af dem."
       },

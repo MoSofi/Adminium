@@ -1033,6 +1033,7 @@ export default {
         "cannotHelp": "Přejmenujte tabulku zde, nebo aplikaci uložte znovu bez ní.",
         "whyRename": "Použití existujících tabulek nikdy žádnou nepřejmenuje, aby uvolnilo místo.",
         "whyRequired": "Vyžaduje sloupce, které aplikace nikdy nevyplní, takže každý řádek, který by tam aplikace uložila, by byl odmítnut.",
+        "whyRequiredColumns": "Vyžaduje {columns}, které aplikace nikdy nevyplní, takže každý řádek, který by tam aplikace uložila, by byl odmítnut.",
         "whyNotOffered": "Není nabízena k použití tak, jak je.",
         "whyChanges": "Její použití by změnilo tyto sloupce: {columns}. Použití existujících tabulek žádnou z nich nemění."
       },

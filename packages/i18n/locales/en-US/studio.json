@@ -1023,6 +1023,7 @@
         "cannotHelp": "Rename the table here, or save the app again without it.",
         "whyRename": "Using the existing tables never renames one out of the way.",
         "whyRequired": "It requires columns the app never fills, so every row the app saves there would be refused.",
+        "whyRequiredColumns": "It requires {columns}, which the app never fills, so every row the app saves there would be refused.",
         "whyNotOffered": "It isn’t offered for use as it is.",
         "whyChanges": "Using it would change these columns: {columns}. Using the existing tables changes none of them."
       },

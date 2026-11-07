@@ -418,6 +418,8 @@ export const appInstallPlanDto = z.object({
         action: z.enum(['create', 'reuse', 'share', 'rename-existing', 'undecided']),
         offers: z.array(z.enum(['reuse', 'share', 'separate', 'rename-existing', 'alt-prefix'])),
         reuseRefusal: z.string().optional(),
+        /** The columns that stop reuse: each refuses a row without a value, and the app never fills it. `reuseRefusal` says the same in English. */
+        reuseRequires: z.array(z.string()).optional(),
         renameExistingTo: z.string().optional(),
         /** For `share`: the key of the app whose table it is, and that app's name. */
         sharedWith: z.string().optional(),

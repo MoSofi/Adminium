@@ -138095,6 +138095,12 @@
                               "reuseRefusal": {
                                 "type": "string"
                               },
+                              "reuseRequires": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
                               "renameExistingTo": {
                                 "type": "string"
                               },

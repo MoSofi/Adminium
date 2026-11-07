@@ -59,6 +59,7 @@ import {
   type PlannedAppTable,
   type ShareOffer,
 } from './appsApi.js';
+import { reuseRequiresWords } from './installReview.js';
 
 /** What the operator picked for one taken table. */
 export type TakenPick = 'reuse' | 'rename-existing' | 'alt-prefix';
@@ -562,7 +563,9 @@ function TakenChoices({ table, ...props }: TableCheckProps & { table: PlannedApp
     {
       value: 'reuse',
       title: t('studio:hostedApps.install.check.keep', 'Use it and keep its data'),
+      // Worded here from the columns the check named; a server older than that sends its English alone.
       note:
+        ((table.reuseRequires ?? []).length > 0 ? reuseRequiresWords(table.reuseRequires ?? []) : undefined) ??
         table.reuseRefusal ??
         t(
           'studio:hostedApps.install.check.reuseNote',

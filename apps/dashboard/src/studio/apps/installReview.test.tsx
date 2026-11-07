@@ -449,6 +449,9 @@ describe('the review words what the server checked', () => {
     const why = (more: Record<string, unknown>) => unusableWhy({ problems: [], tables: [{ ...table, ...more }] } as unknown as AppInstallPlan, 'orders');
     expect(why({ action: 'rename-existing' })).toBe('Using the existing tables never renames one out of the way.');
     expect(why({ action: 'undecided' })).toBe('It isn’t offered for use as it is.');
+    // The columns the check named, by name; a server older than that field sends its English alone, worded without them.
+    expect(why({ action: 'undecided', reuseRequires: ['channel', 'source'], reuseRefusal: 'x' })).toBe('It requires channel and source, which the app never fills, so every row the app saves there would be refused.');
+    expect(why({ action: 'undecided', reuseRefusal: 'x' })).toBe('It requires columns the app never fills, so every row the app saves there would be refused.');
     expect(why({ action: 'reuse', edits: [{ kind: 'add-column', column: 'paid' }, { kind: 'widen', column: 'note', from: 'varchar(40)', to: 'varchar(200)' }] })).toBe(
       'Using it would change these columns: paid and note. Using the existing tables changes none of them.',
     );

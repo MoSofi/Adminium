@@ -1033,6 +1033,7 @@ export default {
         "cannotHelp": "Benennen Sie die Tabelle hier um, oder speichern Sie die App ohne sie erneut.",
         "whyRename": "Beim Verwenden der vorhandenen Tabellen wird nie eine umbenannt, um Platz zu machen.",
         "whyRequired": "Sie verlangt Spalten, die die App nie ausfüllt, daher würde jede Zeile abgelehnt, die die App dort speichert.",
+        "whyRequiredColumns": "Sie verlangt {columns}, die die App nie ausfüllt, daher würde jede Zeile abgelehnt, die die App dort speichert.",
         "whyNotOffered": "Sie wird nicht zur Verwendung im jetzigen Zustand angeboten.",
         "whyChanges": "Ihre Verwendung würde diese Spalten ändern: {columns}. Beim Verwenden der vorhandenen Tabellen wird keine davon geändert."
       },

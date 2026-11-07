@@ -29743,6 +29743,10 @@
     "status": "mt",
     "srcHash": "c21d9adbc5bf"
   },
+  "studio.hostedApps.review.existing.whyRequiredColumns": {
+    "status": "mt",
+    "srcHash": "699e45f294e2"
+  },
   "studio.hostedApps.review.fingerprint.bad": {
     "status": "mt",
     "srcHash": "31c5fcd147ee"

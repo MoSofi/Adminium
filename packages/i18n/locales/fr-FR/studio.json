@@ -1023,6 +1023,7 @@
         "cannotHelp": "Renommez la table ici, ou enregistrez à nouveau l’application sans elle.",
         "whyRename": "Utiliser les tables existantes ne renomme jamais une table pour faire de la place.",
         "whyRequired": "Elle exige des colonnes que l’application ne remplit jamais : chaque ligne que l’application y enregistrerait serait refusée.",
+        "whyRequiredColumns": "Elle exige {columns}, que l’application ne remplit jamais : chaque ligne que l’application y enregistrerait serait refusée.",
         "whyNotOffered": "Elle n’est pas proposée telle quelle.",
         "whyChanges": "L’utiliser modifierait ces colonnes : {columns}. Utiliser les tables existantes n’en modifie aucune."
       },
