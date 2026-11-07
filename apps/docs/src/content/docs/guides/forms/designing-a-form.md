@@ -7,6 +7,9 @@ description: The form designer in Studio — layouts, sections, field settings, 
 dialog shows today, so you start from what people already see rather than from
 an empty canvas.
 
+The form you design is the one the page's **New** and **Edit** dialogs show,
+and the one **Edit** shows on each record's own page.
+
 ## Layouts
 
 A layout changes the arrangement, never the fields, the controls or the values.
