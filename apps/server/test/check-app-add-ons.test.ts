@@ -32,7 +32,7 @@ const kit = (): AddOnManifest => {
 };
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
-function app(over: { link?: Record<string, unknown>; files?: Record<string, unknown>; sample?: unknown } = {}): void {
+function app(over: { link?: Record<string, unknown>; files?: Record<string, unknown>; sample?: unknown; floor?: string } = {}): void {
   const manifest = {
     kind: 'app',
     manifestVersion: 1,
@@ -43,7 +43,7 @@ function app(over: { link?: Record<string, unknown>; files?: Record<string, unkn
     license: 'UNLICENSED',
     description: { key: 'shop.description', fallback: 'A shop.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.18' },
+    compatibility: { minAdminiumVersion: over.floor ?? '0.3.18' },
     frontends: [{ side: 'staff', kind: 'none' }],
     requiredSchema: {
       prefixed: true,
@@ -61,7 +61,7 @@ function app(over: { link?: Record<string, unknown>; files?: Record<string, unkn
     writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
   }
 }
-const check = (addOns?: ReadonlyMap<string, AddOnManifest>) => checkApp(root, 'shop', { version: '0.3.18', ...(addOns === undefined ? {} : { addOns }) });
+const check = (addOns?: ReadonlyMap<string, AddOnManifest>) => checkApp(root, 'shop', { version: '0.3.51', ...(addOns === undefined ? {} : { addOns }) });
 const said = (result: ReturnType<typeof check>, level = 'error') => result.findings.filter((finding) => finding.level === level).map((finding) => finding.message);
 
 describe('the folder check with the add-ons in sight', () => {
@@ -113,9 +113,31 @@ describe('the folder check with the add-ons in sight', () => {
     // The helper writes each file as JSON: the model's sha256 is of what it writes.
     const written = `${JSON.stringify('glTF', null, 2)}\n`;
     const rows = { format: 'adminium.sample/1', app: 'shop', addOn: CARDS_KIT, assets: { box: { file: 'seeds/models/box.glb', sha256: createHash('sha256').update(written).digest('hex') } }, tables: [{ ref: 'cards', rows: [{ label: 'For Mia' }] }] };
-    app({ sample, files: { ...main, 'apps/shop/seeds/cards.json': rows } });
+    app({ sample, floor: '0.3.51', files: { ...main, 'apps/shop/seeds/cards.json': rows } });
     expect(said(check(new Map([[CARDS_KIT, kit()]])))).toEqual(['names seeds/models/box.glb, which does not exist.']);
-    app({ sample, files: { ...main, 'apps/shop/seeds/cards.json': rows, 'apps/shop/seeds/models/box.glb': 'glTF' } });
+    app({ sample, floor: '0.3.51', files: { ...main, 'apps/shop/seeds/cards.json': rows, 'apps/shop/seeds/models/box.glb': 'glTF' } });
+    expect(said(check(new Map([[CARDS_KIT, kit()]])))).toEqual([]);
+  });
+
+  it('its rows for an add-on that ship files hold the floor at the release that adds them', () => {
+    const sample = { file: 'seeds/sample.json', addOns: { [CARDS_KIT]: { file: 'seeds/cards.json' } } };
+    const main = { 'apps/shop/seeds/sample.json': { format: 'adminium.sample/1', app: 'shop', tables: [{ ref: 'orders', rows: [{ note: 'First' }] }] } };
+    const written = `${JSON.stringify('a picture', null, 2)}\n`;
+    const withFile = { format: 'adminium.sample/1', app: 'shop', addOn: CARDS_KIT, assets: { card: { file: 'seeds/card.png', sha256: createHash('sha256').update(written).digest('hex') } }, tables: [{ ref: 'cards', rows: [{ label: 'For Mia' }] }] };
+    const files = { ...main, 'apps/shop/seeds/cards.json': withFile, 'apps/shop/seeds/card.png': 'a picture' };
+    const floorSaid = 'ships files with its rows for "cards-kit" ("sampleData.addOns.assets"), which Adminium 0.3.51 and later add, and compatibility.minAdminiumVersion is 0.3.50: set it to 0.3.51 or later.';
+    // A release before adds the section with none of its files: the floor says so.
+    app({ sample, floor: '0.3.50', files });
+    expect(said(check(new Map([[CARDS_KIT, kit()]])))).toEqual([floorSaid]);
+    // Not in sight, the same: the files are the app's own.
+    expect(said(check())).toEqual([floorSaid]);
+    // A row that names a file, with no assets, is the same word.
+    app({ sample, floor: '0.3.50', files: { ...main, 'apps/shop/seeds/cards.json': { ...withFile, assets: {}, tables: [{ ref: 'cards', rows: [{ label: 'For Mia', picture: { '@asset': 'card' } }] }] } } });
+    expect(said(check()).filter((message) => message.includes('sampleData.addOns.assets'))).toEqual([floorSaid]);
+    // At the floor, nothing; and a section with no files keeps the old floor.
+    app({ sample, floor: '0.3.51', files });
+    expect(said(check(new Map([[CARDS_KIT, kit()]])))).toEqual([]);
+    app({ sample, floor: '0.3.18', files: { ...main, 'apps/shop/seeds/cards.json': { ...withFile, assets: {} } } });
     expect(said(check(new Map([[CARDS_KIT, kit()]])))).toEqual([]);
   });
 });

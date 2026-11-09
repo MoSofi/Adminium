@@ -156,6 +156,9 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'states.moveOnCreate',
   // A new row moves the earlier rows sharing its link on (states.ts `supersedeOnCreate`).
   'states.supersedes',
+  // A sample's own files: an add-on section's (`apps/sample-data.ts`), and an SVG or model for a product-asset column.
+  'sampleData.addOns.assets',
+  'sampleData.productAssets',
   // A column a public write fills only with some values of another: asked for then, refused at any other time.
   'publicAccess.requiresWhen',
   'rollup.capUnless',

@@ -20,8 +20,11 @@ import {
   sampleBundleIssues,
   sampleBundleSchema,
   sampleDirective,
+  sampleFileKindOf,
   sampleSectionIssues,
   validateManifest,
+  WORD_FLOORS,
+  type ManifestWordName,
   type AddOnManifest,
   type AppManifest,
   type SampleBundle,
@@ -37,6 +40,9 @@ import { serverCodeSources } from '../build-shared.js';
 import { MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appPath, readAppFolder, sideEntry, type AppFolder, type AppProblem, type AppSide } from './read-app.js';
 import { PHONE_SIDE, hasPhoneCode, phoneShapeProblems } from './phone.js';
 import { hasOwnBuild } from './own-build.js';
+
+/** The sample files only a column of product assets takes: an SVG piece and the models. */
+const PRODUCT_ASSET_FILE_KINDS: ReadonlySet<string> = new Set(['svg', 'glb', 'stl', '3mf']);
 
 export interface AppFinding extends AppProblem {
   level: 'error' | 'warn' | 'note';
@@ -296,6 +302,26 @@ export function checkApp(root: string, key: string, opts: { version: string; add
       if (kept.kind === 'glb' || kept.kind === 'stl' || kept.kind === '3mf') models.push({ where, label, path, bytes, file: asset.file });
     }
   };
+  /**
+   * A sample file's words that came after the floor the manifest declares:
+   * an Adminium that old adds the rows without the files, or refuses them,
+   * so the floor is raised instead (the same rule the validator holds a
+   * manifest's own words to, read here because they live in the files).
+   */
+  const sampleFloorFindings = (bundle: SampleBundle, where: string, section: string | null): void => {
+    const words: ManifestWordName[] = [];
+    const namesAsset = bundle.tables.some((table) => table.rows.some((row) => Object.values(row).some((value) => sampleDirective(value)?.kind === 'asset')));
+    if (section !== null && (Object.keys(bundle.assets).length > 0 || namesAsset)) words.push('sampleData.addOns.assets');
+    if (Object.values(bundle.assets).some((asset) => PRODUCT_ASSET_FILE_KINDS.has(sampleFileKindOf(asset.file) ?? ''))) words.push('sampleData.productAssets');
+    for (const word of words) {
+      const needs = WORD_FLOORS[word];
+      if (needs === undefined || meetsMinimum(needs, manifest.compatibility.minAdminiumVersion)) continue;
+      const what = word === 'sampleData.addOns.assets' ? `ships files with its rows for "${section ?? ''}"` : 'gives an SVG or a model file to a sample row';
+      findings.push(
+        error(where, 'assets', `${what} ("${word}"), which Adminium ${needs} and later add, and compatibility.minAdminiumVersion is ${manifest.compatibility.minAdminiumVersion}: set it to ${needs} or later.`),
+      );
+    }
+  };
   const ownColumns = (table: SampleBundle['tables'][number]): readonly SampleColumn[] | undefined => manifest.requiredSchema.tables.find((candidate) => candidate.ref === table.ref)?.columns;
 
   // The sample data: there, readable, and about this app's tables.
@@ -313,6 +339,7 @@ export function checkApp(root: string, key: string, opts: { version: string; add
         } else {
           for (const issue of sampleBundleIssues(parsed.data, manifest)) findings.push(error(where, issue.path, issue.message));
           assetFindings(parsed.data, where, ownColumns);
+          sampleFloorFindings(parsed.data, where, null);
         }
       } catch (cause) {
         findings.push(error(where, '', `not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`));
@@ -340,6 +367,7 @@ export function checkApp(root: string, key: string, opts: { version: string; add
       for (const issue of sampleSectionIssues(parsed.data, manifest, addOns?.get(addOnKey))) findings.push(error(where, issue.path, issue.message));
       const addOnTables = addOns?.get(addOnKey)?.requiredSchema?.tables ?? [];
       assetFindings(parsed.data, where, (table) => (table.own === true ? ownColumns(table) : addOnTables.find((candidate) => candidate.ref === table.ref)?.columns));
+      sampleFloorFindings(parsed.data, where, addOnKey);
       if (addOns?.has(addOnKey) !== true) {
         findings.push({ level: 'note', file: where, path: '', message: `its tables of "${addOnKey}" are checked when it is applied: that add-on is not in sight here.` });
       }

@@ -29,7 +29,7 @@ const SVG_NS = 'xmlns="http://www.w3.org/2000/svg"';
 const id = { ref: 'id', type: 'int', role: 'pk' };
 
 /** A shop whose own parts each carry a preview model, a cut file and a print model, and a sample that gives them these files. */
-function app(files: Record<string, string | Buffer>, assets: Record<string, string>, row: Record<string, unknown>): void {
+function app(files: Record<string, string | Buffer>, assets: Record<string, string>, row: Record<string, unknown>, floor = '0.3.51'): void {
   const manifest = {
     kind: 'app',
     manifestVersion: 1,
@@ -40,7 +40,7 @@ function app(files: Record<string, string | Buffer>, assets: Record<string, stri
     license: 'UNLICENSED',
     description: { key: 'shop.description', fallback: 'A shop.' },
     categories: ['operations'],
-    compatibility: { minAdminiumVersion: '0.3.43' },
+    compatibility: { minAdminiumVersion: floor },
     frontends: [{ side: 'staff', kind: 'none' }],
     requiredSchema: {
       prefixed: true,
@@ -78,7 +78,7 @@ function app(files: Record<string, string | Buffer>, assets: Record<string, stri
   }
 }
 
-const opts = { version: '0.3.50' };
+const opts = { version: '0.3.51' };
 const errors = (findings: readonly { level: string; message: string }[]) => findings.filter((finding) => finding.level === 'error').map((finding) => finding.message);
 const said = async () => errors((await checkAppWithFiles(root, 'shop', opts)).findings);
 
@@ -90,6 +90,16 @@ describe("the folder check of a sample's files", () => {
       cut: { '@asset': 'cut' },
       print: { '@asset': 'print' },
     });
+    expect(await said()).toEqual([]);
+  });
+
+  it('holds the floor at the release that gives a sample row an SVG or a model', async () => {
+    app({ 'seeds/box.glb': goodGlb() }, { model: 'seeds/box.glb' }, { model: { '@asset': 'model' } }, '0.3.50');
+    expect(await said()).toEqual([
+      'gives an SVG or a model file to a sample row ("sampleData.productAssets"), which Adminium 0.3.51 and later add, and compatibility.minAdminiumVersion is 0.3.50: set it to 0.3.51 or later.',
+    ]);
+    // A sample with no such file keeps the floor it had.
+    app({}, {}, {}, '0.3.43');
     expect(await said()).toEqual([]);
   });
 
