@@ -1629,19 +1629,25 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          */
         const set = request.server.hasDecorator('rbac') ? await request.server.rbac.resolve(request) : null;
         const screensOnly = set?.screensOnly ?? null;
-        const theirs = (installed: InstalledManifest): boolean => screensOnly === null || installed.attachments.some((attachment) => screensOnly.includes(attachment.attachedTo));
+        // Their copies of their apps, where their roles name them: a copy of the same app on another database is not theirs.
+        // An attachment that names no copy (made before an app could have two) is the app's, as it always was.
+        const copies = set?.screensOnlyInstalls ?? [];
+        const ofTheirs = (attachment: { attachedTo: string; hostInstall?: string | undefined }): boolean =>
+          screensOnly !== null && screensOnly.includes(attachment.attachedTo) && (copies.length === 0 || (attachment.hostInstall ?? '') === '' || copies.includes(attachment.hostInstall ?? ''));
+        const theirs = (installed: InstalledManifest): boolean => screensOnly === null || installed.attachments.some(ofTheirs);
         const reached = (await Promise.all(installs.map(async (installed) => ((await reaches(installed)) && theirs(installed) ? installed : null)))).filter((installed): installed is InstalledManifest => installed !== null);
         return {
           addOns: await Promise.all(
             reached.map(async (installed) => {
               const whole = await toDto(installed, []);
-              const addOn = screensOnly === null ? whole : { ...whole, attachments: whole.attachments.filter((attachment) => screensOnly.includes(attachment.attachedTo)) };
+              const addOn = screensOnly === null ? whole : { ...whole, attachments: whole.attachments.filter(ofTheirs) };
               const settingsHeld = principal !== null && (await addOnSettingsGrantHeld(deps.meta, principal, installed));
               // A page kept behind a permission is named only to who may open it, and a panel's only to who holds its permission (its route asks the rest).
               const open = await Promise.all(
                 addOn.bundles.map(async (bundle) => (bundle.ref === undefined || (await request.can(addOnPagePermission(bundle.ref)))) && (bundle.panel === undefined || (await request.can(addOnPagePermission(bundle.panel))))),
               );
-              return { ...addOn, settingValues: settingsHeld ? addOn.settingValues : {}, bundles: addOn.bundles.filter((_bundle, index) => open[index]) };
+              // A screen of theirs is told that the add-on is there, never what its settings hold, whatever their role may change.
+              return { ...addOn, settingValues: settingsHeld && screensOnly === null ? addOn.settingValues : {}, bundles: addOn.bundles.filter((_bundle, index) => open[index]) };
             }),
           ),
         };
