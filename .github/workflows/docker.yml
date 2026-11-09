@@ -245,7 +245,20 @@ jobs:
           echo "meta store is postgres"
 
           # Readiness actually checks the store, unlike the liveness healthcheck.
-          curl -fsS http://127.0.0.1:4600/api/v1/readyz | grep -q '"meta":"ok"'
+          # Readiness waits for the bundled add-ons to be seeded (a few seconds after
+          # liveness): poll it, with a deadline, rather than asking once.
+          ready=""
+          for i in $(seq 1 30); do
+            ready="$(curl -sS http://127.0.0.1:4600/api/v1/readyz || true)"
+            if echo "$ready" | grep -q '"ok":true'; then break; fi
+            if [ "$i" = "30" ]; then
+              echo "::error::readyz never answered ready within 60s: $ready"
+              docker compose --profile with-meta logs
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "$ready" | grep -q '"meta":"ok"'
           echo "readyz confirms the meta store"
 
           # Migrations ran against Postgres and the wizard is reachable — the

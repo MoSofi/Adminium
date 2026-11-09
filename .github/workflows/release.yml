@@ -458,7 +458,20 @@ jobs:
             exit 1
           }
           # Readiness must agree that the store it is actually using is up.
-          curl -fsS http://127.0.0.1:4600/api/v1/readyz | grep -q '"meta":"ok"'
+          # Readiness waits for the bundled add-ons to be seeded (a few seconds after
+          # liveness): poll it, with a deadline, rather than asking once.
+          ready=""
+          for i in $(seq 1 30); do
+            ready="$(curl -sS http://127.0.0.1:4600/api/v1/readyz || true)"
+            if echo "$ready" | grep -q '"ok":true'; then break; fi
+            if [ "$i" = "30" ]; then
+              echo "::error::readyz never answered ready within 60s: $ready"
+              docker compose --profile with-meta logs
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "$ready" | grep -q '"meta":"ok"'
           # And the schema must really be there: the wizard is the exit criterion.
           curl -fsS http://127.0.0.1:4600/api/v1/setup/state | grep -q '"required":true'
           echo "with-meta smoke test passed: postgres meta store, migrated, wizard reachable"
