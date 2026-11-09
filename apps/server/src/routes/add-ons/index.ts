@@ -1620,11 +1620,22 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          */
         const reaches = installReachOf(deps.meta, request);
         const principal = getPrincipal(request);
-        const reached = (await Promise.all(installs.map(async (installed) => ((await reaches(installed)) ? installed : null)))).filter((installed): installed is InstalledManifest => installed !== null);
+        /*
+         * Someone who opens only an app's own screens (a print shop's counter)
+         * is told only of the add-ons connected to their apps, and of no other
+         * app they are connected to: what a screen of theirs needs to know
+         * (that DHL is there, so "Book a collection" shows), and nothing of
+         * the rest of the server.
+         */
+        const set = request.server.hasDecorator('rbac') ? await request.server.rbac.resolve(request) : null;
+        const screensOnly = set?.screensOnly ?? null;
+        const theirs = (installed: InstalledManifest): boolean => screensOnly === null || installed.attachments.some((attachment) => screensOnly.includes(attachment.attachedTo));
+        const reached = (await Promise.all(installs.map(async (installed) => ((await reaches(installed)) && theirs(installed) ? installed : null)))).filter((installed): installed is InstalledManifest => installed !== null);
         return {
           addOns: await Promise.all(
             reached.map(async (installed) => {
-              const addOn = await toDto(installed, []);
+              const whole = await toDto(installed, []);
+              const addOn = screensOnly === null ? whole : { ...whole, attachments: whole.attachments.filter((attachment) => screensOnly.includes(attachment.attachedTo)) };
               const settingsHeld = principal !== null && (await addOnSettingsGrantHeld(deps.meta, principal, installed));
               // A page kept behind a permission is named only to who may open it, and a panel's only to who holds its permission (its route asks the rest).
               const open = await Promise.all(

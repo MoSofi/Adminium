@@ -12,7 +12,7 @@
  * bringing a file in to a table their role may import (a "paste a list"
  * screen of their app), and the files a record of theirs keeps (a crew's
  * signature and photos, a copy of one for another record), and a record's e-mail consent (the panel, and recording consent,
- * "Replied" and "They said no" on it), and the server's name and logo to head
+ * "Replied" and "They said no" on it), the add-ons connected to their apps, and the server's name and logo to head
  * their screens with. Forty-odd routes check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
@@ -169,6 +169,9 @@ export function allowedForScreensOnly(
   // A file shipped beside a page of an add-on of their app (a starter font its panel draws a proof with). The route serves it
   // only to who holds the page's own permission, which their app's role gives where it grants the page.
   if (method === 'GET' && route === ADD_ON_PAGE_FILES_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
+  // Which add-ons their apps have (a counter's screen offers "Book a collection" once DHL is there). The route tells a
+  // screens-only person of the add-ons connected to their apps alone, never their settings' values or secrets.
+  if (method === 'GET' && rest === '/add-ons') return true;
   // …and the page it prints, by the one-time ticket the render answered.
   if (method === 'GET' && rest === '/documents/print-once/:ticket') return true;
   // A file brought in to a table of their app, from a screen of their app (the kit's import part). Each of these
