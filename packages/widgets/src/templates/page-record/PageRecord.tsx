@@ -26,7 +26,7 @@ import { RecordFormDialog } from '../page-crud/RecordFormDialog.js';
 import type { ColumnFacts, ListOptionsResolver } from '../page-crud/field-mapping.js';
 import type { CrudFormConfig, FormColumnFact, FormRelationFact } from '../../page-config/index.js';
 import { editableColumnsOf, editFormDocumentOf, readRecordLinks, readChildFacts, readRelations, useEditChildren, type RecordLinks } from '../page-crud/edit-form.js';
-import type { ChildFacts, ChildRow } from '../page-crud/RecordForm.js';
+import type { ChildFacts, ChildRow, StateMovesFact } from '../page-crud/RecordForm.js';
 import { DELETE_REASON_MAX, isDeletePreview } from '../page-crud/crud-api.js';
 import type { PageCrudFiles } from '../page-crud/PageCrud.js';
 import type { ResolvedFile } from '../../families/tables/cells.js';
@@ -105,6 +105,18 @@ export interface PageRecordRelatedResolution {
    * affordance is NEW, so nothing regresses by requiring the signal.
    */
   canCreate?: boolean | undefined;
+  /*
+   * What the table's own page creates a row with, so the tab's "New row" is
+   * the same form: the page's designed form (or none), every column of the
+   * table as the server knows it now, those facts by column (the words of a
+   * choice, what may be written), and the file transport for its file
+   * columns. Absent, the tab's form is the flat stack of the list's columns
+   * it always was: no picture field, and a choice's raw values.
+   */
+  form?: CrudFormConfig | null | undefined;
+  formColumns?: readonly FormColumnFact[] | undefined;
+  facts?: ColumnFacts | undefined;
+  files?: PageCrudFiles | undefined;
 }
 
 /** Host adapter for the related-record tabs. */
@@ -241,6 +253,8 @@ export interface PageRecordProps {
   formColumns?: readonly FormColumnFact[] | undefined;
   listOptions?: ListOptionsResolver | undefined;
   childFacts?: Readonly<Record<string, ChildFacts>> | undefined;
+  /** The table's states: the edit dialog offers only the moves they allow from the record's state. */
+  stateMoves?: StateMovesFact | undefined;
   /** `config.readOnly` — no write affordance anywhere on the page. */
   readOnly?: boolean | undefined;
   /** `config.detail.tabs`. */
@@ -527,13 +541,24 @@ function RelatedRecordsTab({
         ? tab.label.toLowerCase().slice(0, -1)
         : tab.label.toLowerCase()
       : entityFromTable(tab.table);
+  /*
+   * The table page's own create form: its designed sections over every column
+   * of the table, and the link to this record left out (its value is this
+   * record's, put in at submit).
+   */
   const createColumns = useMemo(
     () =>
       resolution === 'pending' || resolution === null
         ? []
-        : resolution.columns.filter((column) => column.name !== fkColumn),
+        : editableColumnsOf(resolution.columns, resolution.formColumns).filter((column) => column.name !== fkColumn),
     [resolution, fkColumn],
   );
+  const createDocument = useMemo(
+    () => (resolution === 'pending' || resolution === null ? null : editFormDocumentOf(resolution.form, resolution.formColumns, undefined, resolution.columns)),
+    [resolution],
+  );
+  const createFacts = resolution === 'pending' || resolution === null ? undefined : resolution.facts;
+  const createFiles = resolution === 'pending' || resolution === null ? undefined : resolution.files;
 
   const handleCreate = (values: CrudRow) => {
     if (crud === null || fkColumn === undefined) return;
@@ -589,9 +614,17 @@ function RelatedRecordsTab({
       entity={childEntity}
       tableName={plainTableName(tab.table)}
       formId={`page-record-add-${tab.table}`}
+      document={createDocument}
       columns={createColumns}
       errors={createErrors}
+      {...(createFacts === undefined ? {} : { facts: createFacts })}
+      {...(createFiles === undefined ? {} : { uploadFile: createFiles.upload })}
+      {...(createFiles?.choose === undefined ? {} : { chooseFile: createFiles.choose })}
+      {...(createFiles?.maxBytes === undefined ? {} : { maxFileBytes: createFiles.maxBytes })}
+      {...(cellContext.currency === undefined ? {} : { currency: cellContext.currency })}
+      {...(locale === undefined ? {} : { locale })}
       lookup={crud.lookup?.bind(crud)}
+      availability={crud.availability?.bind(crud)}
       onSubmit={handleCreate}
     />
   ) : null;
@@ -1033,6 +1066,7 @@ export function PageRecord({
   currency,
   labels,
   fieldFacts,
+  stateMoves,
   form,
   formColumns,
   listOptions,
@@ -1607,6 +1641,7 @@ export function PageRecord({
           availability={api.availability?.bind(api)}
           places={places}
           {...(fieldFacts === undefined ? {} : { facts: fieldFacts })}
+          {...(stateMoves === undefined ? {} : { stateMoves })}
           {...(listOptions === undefined ? {} : { listOptions })}
           {...(currency === undefined ? {} : { currency })}
           {...(locale === undefined ? {} : { locale })}

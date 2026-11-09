@@ -173,6 +173,23 @@ export interface ChildRow {
   values: CrudRow;
 }
 
+/** A table's states as the form reads them: the column, the first state, and the moves out of each. */
+export interface StateMovesFact {
+  column: string;
+  initial: string;
+  moves: Readonly<Record<string, readonly (string | { to: string; planned?: boolean | undefined })[]>>;
+}
+
+/** The states a row in `from` may be put in: its own, and the targets of its moves. */
+export function statesReachable(rule: StateMovesFact, from: string): Set<string> {
+  const out = new Set([from]);
+  for (const move of rule.moves[from] ?? []) {
+    if (typeof move === 'string') out.add(move);
+    else if (move.planned !== true) out.add(move.to);
+  }
+  return out;
+}
+
 export interface RecordFormProps {
   columns: readonly GridColumnSpec[];
   /**
@@ -189,6 +206,14 @@ export interface RecordFormProps {
   document?: CrudFormConfig | undefined;
   /** Initial values — the record on edit, {} on create. */
   initialValues?: CrudRow | undefined;
+  /**
+   * The table's states, when it keeps them: on edit, its state column offers
+   * the row's own state and the moves its states allow from there; every
+   * other state is shown and cannot be chosen (the server refuses a move
+   * the rule does not list). A move only the add-on that keeps the row makes
+   * (`planned`) is not offered.
+   */
+  stateMoves?: StateMovesFact | undefined;
   mode: 'create' | 'edit';
   /** Per-column server errors (unique violation etc.), by column name. */
   errors?: Readonly<Record<string, string>> | undefined;
@@ -342,6 +367,7 @@ export function RecordForm({
   columns,
   document: formDocument,
   initialValues,
+  stateMoves,
   currentUser,
   mode,
   errors,
@@ -747,8 +773,17 @@ export function RecordForm({
    * the precedence, because `controlForColumn` has to agree with it about what
    * this column even is.
    */
-  const optionsFor = (column: GridColumnSpec, fact?: ColumnFact | undefined): ControlOption[] =>
-    optionsForColumn(column, fact, listOptions);
+  // On edit, the states the row may be put in from the one it was loaded in.
+  const reachable = useMemo(() => {
+    if (stateMoves === undefined || mode !== 'edit') return null;
+    const held = initialValues?.[stateMoves.column];
+    return statesReachable(stateMoves, held === null || held === undefined || held === '' ? stateMoves.initial : String(held));
+  }, [stateMoves, mode, initialValues]);
+  const optionsFor = (column: GridColumnSpec, fact?: ColumnFact | undefined): ControlOption[] => {
+    const options = optionsForColumn(column, fact, listOptions);
+    if (reachable === null || column.name !== stateMoves?.column) return options;
+    return options.map((option) => (reachable.has(option.value) ? option : { ...option, disabled: true }));
+  };
 
   /**
    * What a column's current value is CALLED — the option's label where there is

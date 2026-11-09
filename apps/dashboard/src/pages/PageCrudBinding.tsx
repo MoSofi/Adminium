@@ -30,7 +30,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { withPlaces } from '../api/places.js';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@adminium/ui';
 import {
   PageCrud,
@@ -54,6 +54,7 @@ import { useAppToasts } from './toasts.js';
 import { linkPiecesOf, searchWithout, useLinkFilters, usePageSearch, withLinkWhere } from './linkFilters.js';
 import { listViewOf, rememberListView } from './listView.js';
 import { childFactsOf } from './formChildren.js';
+import { stateFactsQuery } from './recordLocks.js';
 import type { PageTemplateProps } from './template-types.js';
 import { ViewSwitcher } from './views/ViewSwitcher.js';
 import { useSavedViews } from './views/useSavedViews.js';
@@ -365,6 +366,9 @@ export function PageCrudBinding({
           : { v: 1, ...(defaultFilters === null ? {} : { filters: defaultFilters }), ...(defaultSort === null ? {} : { sort: defaultSort }) }),
   );
   const sourceTable = page.source.table ?? crud.table;
+  // Its states, read once a connection (the record page reads the same): a row's edit offers only the moves they allow.
+  const stateFacts = useQuery({ ...stateFactsQuery(page.source.connectionId ?? ''), enabled: page.source.connectionId !== null });
+  const states = stateFacts.data?.get(sourceTable)?.states;
 
   /**
    * The file transport for this page.
@@ -496,6 +500,7 @@ export function PageCrudBinding({
         {...(columnFacts === undefined ? {} : { columnFacts })}
         listOptions={listOptions}
         {...(formColumns === undefined ? {} : { formColumns: formColumns as never })}
+        {...(states?.moves === undefined ? {} : { stateMoves: { column: states.column, initial: states.initial, moves: states.moves } })}
         filterFields={filterFields}
         {...(formRelations === undefined ? {} : { formRelations })}
         {...(childFacts === undefined ? {} : { childFacts })}

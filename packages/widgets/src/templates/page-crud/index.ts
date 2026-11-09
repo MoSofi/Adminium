@@ -51,7 +51,7 @@ export {
   type FieldIssueCode,
 } from './field-issues.js';
 export { FileField, type FileFieldProps, type FileFieldUpload } from './FileField.js';
-export { FK_LOOKUP_DEBOUNCE_MS, RecordForm, type RecordFormProps } from './RecordForm.js';
+export { FK_LOOKUP_DEBOUNCE_MS, RecordForm, statesReachable, type RecordFormProps, type StateMovesFact } from './RecordForm.js';
 export { RecordDetail, type RecordDetailProps } from './RecordDetail.js';
 export { RecordFormDialog, type RecordFormDialogProps } from './RecordFormDialog.js';
 export {

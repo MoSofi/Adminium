@@ -56,7 +56,7 @@ export function SelectControl(props: ControlProps) {
         {props.column.nullable ? '—' : t('ui:combobox.placeholder', 'Select…')}
       </option>
       {options.map((option) => (
-        <option key={option.value} value={option.value}>
+        <option key={option.value} value={option.value} disabled={option.disabled === true}>
           {labelOf(option)}
         </option>
       ))}
@@ -87,6 +87,7 @@ export function SegmentedChoiceControl(props: ControlProps) {
           // into a rule is a free string, so an unknown one draws no dot rather
           // than a colour nobody chose.
           ...(tone === undefined || !TONES.has(tone) ? {} : { dot: uiToneOf(tone as never) }),
+          ...(option.disabled === true ? { disabled: true } : {}),
         };
       })}
       /*
@@ -108,7 +109,7 @@ export function PillSwitchControl(props: ControlProps) {
   return (
     <ChoiceChips
       aria-label={props.field?.label ?? props.column.label}
-      options={options.map((option) => ({ value: option.value, label: labelOf(option) }))}
+      options={options.map((option) => ({ value: option.value, label: labelOf(option), ...(option.disabled === true ? { disabled: true } : {}) }))}
       value={asText(props.value) === '' ? null : asText(props.value)}
       {...(props.disabled === true ? { disabled: true } : {})}
       onValueChange={(next) => props.onChange(next)}
@@ -140,6 +141,7 @@ export function ChoiceCardsControl(props: ControlProps) {
           value={option.value}
           title={labelOf(option)}
           {...(option.description === undefined ? {} : { description: option.description })}
+          {...(option.disabled === true ? { disabled: true } : {})}
         />
       ))}
     </RadioGroup>

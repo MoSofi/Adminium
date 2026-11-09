@@ -26,7 +26,7 @@ import { RecordDetail } from './RecordDetail.js';
 import { parseRefList } from '../../page-config/file-refs.js';
 import type { FileFieldUpload } from './FileField.js';
 import type { PictureChooser } from '../../pictures/PictureField.js';
-import type { ChildFacts } from './RecordForm.js';
+import type { ChildFacts, StateMovesFact } from './RecordForm.js';
 import { RecordFormDialog } from './RecordFormDialog.js';
 import { editableColumnsOf, editFormDocumentOf, readChildFacts, readRelations, useEditChildren, useEditLinks } from './edit-form.js';
 import {
@@ -199,6 +199,8 @@ export interface PageCrudProps {
    * eight-column cap never listed, which a form has to be able to set.
    */
   formColumns?: readonly FormColumnFact[] | undefined;
+  /** The table's states: a row's edit offers only the moves they allow from its state. */
+  stateMoves?: StateMovesFact | undefined;
   /**
    * The page's own `config.form` block, already parsed by the host (the binding
    * parses `config.labels` the same way). `null` — the norm — means nobody has
@@ -339,6 +341,7 @@ export function PageCrud({
   childFacts,
   filterFields,
   formColumns,
+  stateMoves,
   form,
   files,
   onEvent,
@@ -1441,6 +1444,7 @@ export function PageCrud({
         formId="page-crud-edit-form"
         document={formDocument}
         columns={editableColumns}
+        {...(stateMoves === undefined ? {} : { stateMoves })}
         {...(editRelations === undefined ? {} : { relations: editRelations })}
         {...(editChildFacts === undefined ? {} : { childFacts: editChildFacts })}
         {...(editChildren === undefined ? {} : { initialChildren: editChildren })}

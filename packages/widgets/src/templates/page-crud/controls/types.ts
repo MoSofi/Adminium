@@ -24,6 +24,8 @@ export interface ControlOption {
   label?: string | undefined;
   tone?: string | undefined;
   description?: string | undefined;
+  /** Shown and not choosable: a state the row cannot move to from where it is. */
+  disabled?: boolean | undefined;
 }
 
 /**

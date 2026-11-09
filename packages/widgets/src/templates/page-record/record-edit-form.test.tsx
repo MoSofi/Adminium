@@ -117,6 +117,32 @@ describe("the record page's edit dialog", () => {
     expect(within(dialog).getAllByText('Sent again').length).toBeGreaterThan(0);
   });
 
+  it("offers only the moves the table's states allow from the record's state; the rest shown and not choosable", async () => {
+    // A proof sent again can go nowhere: every other state is there, and none can be picked.
+    const stateMoves = { column: 'status', initial: 'sent', moves: { sent: ['approved', { to: 'superseded' }], approved: [] as string[], superseded: [] as string[] } };
+    const { dialog } = await openEdit({ fieldFacts: FACTS, formColumns: FORM_COLUMNS, form: DESIGNED, stateMoves });
+    const state = (name: string) => within(dialog).getByRole('radio', { name }) as HTMLButtonElement;
+    expect(state('Sent again').disabled).toBe(false);
+    expect(state('Sent').disabled).toBe(true);
+    expect(state('Approved').disabled).toBe(true);
+    cleanup();
+
+    // One still waiting may be approved or sent again; a move only the add-on that keeps the row makes is not offered.
+    const waiting = makeApi();
+    (waiting.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { ...RECORD, status: 'sent' }, inboundCounts: [] });
+    const planned = { ...stateMoves, moves: { ...stateMoves.moves, sent: ['approved', { to: 'superseded', planned: true }] } };
+    const again = await openEdit({ fieldFacts: FACTS, formColumns: FORM_COLUMNS, form: DESIGNED, stateMoves: planned }, waiting);
+    const other = (name: string) => within(again.dialog).getByRole('radio', { name }) as HTMLButtonElement;
+    expect(other('Sent').disabled).toBe(false);
+    expect(other('Approved').disabled).toBe(false);
+    expect(other('Sent again').disabled).toBe(true);
+  });
+
+  it('limits nothing when the table keeps no states', async () => {
+    const { dialog } = await openEdit({ fieldFacts: FACTS, formColumns: FORM_COLUMNS, form: DESIGNED });
+    for (const name of ['Sent', 'Approved', 'Sent again']) expect((within(dialog).getByRole('radio', { name }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it('reads the lines a line-items field holds, and saves them as the row’s children', async () => {
     const relation = 'rel_proof_marks';
     const childFacts: Record<string, ChildFacts> = {

@@ -13,6 +13,7 @@ import type {
 } from './PageRecord.js';
 import type { CrudApi, CrudReferenceCount, CrudRow } from '../page-crud/crud-api.js';
 import { gridColumnSpecSchema } from '../../families/tables/column-spec.js';
+import { parseCrudForm } from '../../page-config/index.js';
 import type { GridColumnSpecInput } from '../../families/tables/column-spec.js';
 
 const spec = (input: GridColumnSpecInput) => gridColumnSpecSchema.parse(input);
@@ -326,6 +327,46 @@ describe('in-tab create (30 follow-up — "Add item")', () => {
       expect(related.list).toHaveBeenCalledTimes(2);
       expect(api.get).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it("draws the table page's own create form: its designed fields, a column the list leaves out, a choice in its words, a file's upload", async () => {
+    // A proof made from its invoice's page: the list shows the description alone, the page's form asks for more.
+    const user = userEvent.setup();
+    const childApi = makeChildApi();
+    const all = [
+      ...relatedColumns,
+      fkSpec,
+      spec({ name: 'kind', label: 'Kind', logicalType: 'enum', enumValues: ['lettering', 'design'] }),
+      spec({ name: 'picture', label: 'Picture', logicalType: 'varchar', file: { ref: 'id', accept: ['png'], maxBytes: 1024 } } as GridColumnSpecInput),
+      spec({ name: 'note', label: 'Note', logicalType: 'text' }),
+    ];
+    const formColumns = all.map((column, ordinal) => ({ spec: column as never, ordinal, writable: true, filledBy: column.name === 'item_id' ? ('database' as const) : null, required: false }));
+    const upload = vi.fn(async () => ({ ref: 'file_1', file: { id: 'file_1' } as never }));
+    const related = creatableRelated(childApi, {
+      resolve: vi.fn(async () => ({
+        columns: [relatedColumns[1]!, fkSpec],
+        defaultSort: null,
+        canCreate: true,
+        form: parseCrudForm({ form: { v: 2, sections: [{ id: 'main', fields: [{ column: 'kind' }, { column: 'picture' }, { column: 'note' }, { column: 'invoice_id' }] }] } }),
+        formColumns,
+        facts: { kind: { filledBy: null, required: false, writable: true, enumLabels: { lettering: 'The lettering', design: 'The design' } } },
+        files: { resolve: vi.fn(async () => new Map()), upload },
+      })),
+    });
+    renderRecord(makeApi(), { related });
+
+    await user.click(await screen.findByRole('button', { name: 'New row' }));
+    const form = document.getElementById('page-record-add-public.invoice_items') as HTMLElement;
+    // The designed fields, the note the list leaves out among them; the link to this invoice never a field.
+    expect(within(form).getByLabelText(/Note/)).toBeTruthy();
+    expect(within(form).queryByLabelText(/Invoice$/)).toBeNull();
+    expect(within(form).queryByLabelText(/Description/)).toBeNull();
+    // A choice in the app's words, not its stored values.
+    expect(within(form).getAllByText('The lettering').length).toBeGreaterThan(0);
+    expect(within(form).queryByText('lettering')).toBeNull();
+    // The picture is a file field: an upload, not a box for an id.
+    expect(within(form).queryByRole('textbox', { name: /Picture/ })).toBeNull();
+    expect(form.querySelector('input[type="file"]')).not.toBeNull();
   });
 
   it('offers nothing without the capability, without the api, or on a readOnly page (D7)', async () => {

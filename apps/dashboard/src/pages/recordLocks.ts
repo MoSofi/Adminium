@@ -25,6 +25,8 @@ import { api } from '../app/api.js';
 export interface StatesRule {
   column: string;
   initial: string;
+  /** The moves out of each state: a target, or one written with what it asks (only `to` and `planned` are read here). */
+  moves?: Record<string, (string | { to: string; planned?: boolean })[]>;
   lock?: { when: string[]; except?: string[] };
   noDelete?: { when: 'numbered' | string[] };
   /** A write naming the state the row already holds is refused (a ticket let in once). */

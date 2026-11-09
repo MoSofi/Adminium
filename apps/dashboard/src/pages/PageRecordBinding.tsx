@@ -257,14 +257,31 @@ export function PageRecordBinding({
           const result = await queryClient.ensureQueryData(pageQuery(item.pageId));
           if (result.status !== 'ok') return null;
           // The lending page's plan, FK-display lookups included — tab rows
-          // show FK chips too, and they deserve names the same way.
-          const plan = withFkDisplay(parseColumns(result.page.config, item.pageId));
+          // show FK chips too, and they deserve names the same way — each column
+          // told what the server knows of it now, as the page's own list is.
+          const plan = withFkDisplay(withFactSpecs(parseColumns(result.page.config, item.pageId), result.formColumns));
           tabLookups.set(table, plan.lookups);
           tabProjections.set(table, projectionParamsOf(plan.columns, result.page.config));
           return {
             // Its choice columns in the words its own list uses.
             columns: withFactChoices(plan.columns, result.columnFacts),
             defaultSort: parseDefaultSort(result.page.config),
+            // Its "New row" is the page's own create form: designed sections, every column, the
+            // words of a choice, and a file column's upload (a proof's picture), not the list's columns.
+            form: parseCrudForm(result.page.config),
+            formColumns: result.formColumns as never,
+            facts: result.columnFacts,
+            ...(connectionId === null
+              ? {}
+              : {
+                  files: {
+                    resolve: (refs: readonly string[]) => resolveFiles([...refs]),
+                    upload: async ({ file, column, signal, onProgress }: Parameters<PageCrudFiles['upload']>[0]) => {
+                      const uploaded = await uploadFile({ file, connectionId, table, column, signal, onProgress });
+                      return { ref: uploaded.ref ?? uploaded.data.id, file: uploaded.data };
+                    },
+                  } satisfies PageCrudFiles,
+                }),
             // The in-tab "New row" gate: the TARGET page's per-caller create
             // capability AND its own readOnly — the same pair that governs the
             // button on that page itself, so the tab can never offer a write
@@ -886,6 +903,8 @@ export function PageRecordBinding({
         // and the same field in its edit dialog.
         {...(formRelations === undefined ? {} : { relations: formRelations })}
         {...(fieldFacts === undefined ? {} : { fieldFacts })}
+        // Its states: the edit dialog offers only the moves they allow from the record's state.
+        {...(facts?.states?.moves === undefined ? {} : { stateMoves: { column: facts.states.column, initial: facts.states.initial, moves: facts.states.moves } })}
         form={form}
         {...(formColumns === undefined ? {} : { formColumns: formColumns as never })}
         listOptions={listOptions}
