@@ -47,13 +47,14 @@ import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { ValidationFailedError } from '../errors.js';
+import { translatorFor } from '../i18n/server-i18n.js';
 import { rowKeyOf } from '../payments/payables.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import type { DeclaredPeopleTable } from '../people/declared.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
 import { theirCopyRows } from './copy-rows.js';
 import { copyFileIds, type CopyRowFiles } from './erase-meta.js';
-import { parsedJson } from './erase-values.js';
+import { erasedColumns, parsedJson } from './erase-values.js';
 import { findFormRows, formSources } from './form-answers.js';
 import { findInMeta, ROWS_MAX, type FoundRow } from './meta-sources.js';
 import { inScope, type AppScope } from './scope.js';
@@ -221,6 +222,12 @@ function consentRow(event: ConsentEvent): Record<string, unknown> {
   });
 }
 
+/** "Erased person", in the install's own language (D21): what a name that may not be empty reads from now on. */
+export async function erasedNameOf(meta: MetaDb): Promise<string> {
+  const { t } = await translatorFor(meta, null);
+  return t('studio:privacy.erasedPerson', { defaultValue: 'Erased person' });
+}
+
 /**
  * Everything the install keeps about one address (see the header), within
  * `apps` (none: the whole workspace). `rawAddress` is refused when it is no
@@ -241,6 +248,8 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
   const installed = (await manifestsRepo(meta, NO_SECRETS).list('app')).filter((entry) => entry.row.connectionId !== null && PRESENT.has(entry.row.status) && inScope(apps, entry.row.manifestKey));
   const outboxes = await appOutboxesRepo(meta).list();
   const connections = [...new Set(installed.map((entry) => entry.row.connectionId as string))].sort();
+  // What a name column already erased reads: it counts as emptied, as the erasure counts it.
+  const erasedName = await erasedNameOf(meta);
 
   for (const connectionId of connections) {
     let view: SnapshotView;
@@ -306,7 +315,8 @@ export async function findPerson(deps: PrivacyFindDeps, rawAddress: string, apps
           rows.map((theirs) => theirs.row),
           erased,
         );
-        if (erased) for (const theirs of rows) copyRows.push({ connectionId, table, key: theirs.key, row: theirs.row, columns: new Set(theirs.columns.keys()) });
+        // Only the columns the erasure empties: a file in one it cannot empty stays, and is not said to go.
+        if (erased) for (const theirs of rows) copyRows.push({ connectionId, table, key: theirs.key, row: theirs.row, columns: new Set(erasedColumns(table, theirs.row, theirs.columns, erasedName)) });
         sources.push(found);
       }
     }

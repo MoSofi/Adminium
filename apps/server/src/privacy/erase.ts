@@ -57,14 +57,13 @@ import type { ConnectionManager } from '../connections/manager.js';
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { pkLabel } from '../crud/records.js';
 import type { FileStore } from '../files/store.js';
-import { translatorFor } from '../i18n/server-i18n.js';
 import { blankCampaignSends, campaignSendIds, copyFileIds, purgeRowFiles, rowFileIds, scrubAuditImages, scrubRemovedRows, sweepAddress, sweepMailAddress, type CopyLink, type CopyRowFiles, type ImageTarget, type PersonRowRef } from './erase-meta.js';
 import { findPersonRows, writePersonRows, type ErasedSource, type LeftColumn, type PersonRows } from './erase-rows.js';
 import { eraseFormRows, findFormRows, formImageTargets } from './form-answers.js';
 import type { AnswerFilesRemover } from '../forms/answers.js';
 import { personHash, personHashes } from './export.js';
 import type { AppScope } from './scope.js';
-import { findPerson, searchAddress } from './sources.js';
+import { erasedNameOf, findPerson, searchAddress } from './sources.js';
 import { whatStays, type StaysItem } from './what-stays.js';
 
 export interface EraseDeps {
@@ -120,12 +119,6 @@ export interface EraseResult {
   filesFailed: number;
   /** The keyed hash the erasure's own audit entry keeps. */
   address: { hash: string; version: number };
-}
-
-/** "Erased person", in the install's own language (D21): what a name that may not be empty reads from now on. */
-async function erasedNameOf(meta: MetaDb): Promise<string> {
-  const { t } = await translatorFor(meta, null);
-  return t('studio:privacy.erasedPerson', { defaultValue: 'Erased person' });
 }
 
 /** Their copies' rows, with the columns of each that are theirs: what their files are read from (`copyFileIds`). */

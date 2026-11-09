@@ -55,7 +55,7 @@ import type { DeclaredPeopleTable } from '../people/declared.js';
 import { peopleTablesOf } from '../people/tables-of.js';
 import { forgetOf, forgetsOn, type TableForgets } from '../public-api/forgets-on.js';
 import { inList, linkColumnsOf, theirCopyRows } from './copy-rows.js';
-import { alreadyBlank, blankValue, columnFacts, type ErasedRole } from './erase-values.js';
+import { alreadyBlank, blankValue, columnFacts, erasedColumns, type ErasedRole } from './erase-values.js';
 import { addressIs, keptTablesOf, NO_SECRETS, PRESENT, tableOf, type AppOnDatabase } from './sources.js';
 import { inScope, type AppScope } from './scope.js';
 
@@ -170,21 +170,17 @@ const pkOf = (table: ResolvedTable, row: Row): Row => Object.fromEntries(table.p
  */
 function blankRow(table: ResolvedTable, row: Row, columns: ReadonlyMap<string, ErasedRole>, dialect: Dialect, erasedName: string, left: Map<string, number>): { values: Row; columns: string[] } {
   const values: Row = {};
-  const written: string[] = [];
+  // Which columns go is `erasedColumns`'s to say: the search lists a copy row's files by the same answer.
+  const written = erasedColumns(table, row, columns, erasedName);
   for (const [column, role] of columns) {
     const facts = columnFacts(table, column);
-    if (facts === null) continue;
-    if (alreadyBlank(row[column], facts, role, erasedName)) {
-      written.push(column);
-      continue;
-    }
+    if (facts === null || alreadyBlank(row[column], facts, role, erasedName)) continue;
     const blank = blankValue(facts, role, dialect, erasedName, row[column]);
     if ('left' in blank) {
       left.set(column, (left.get(column) ?? 0) + 1);
       continue;
     }
     values[column] = blank.value === null ? null : bindWriteValue(table.columns.get(column)!, blank.value, dialect);
-    written.push(column);
   }
   return { values, columns: written };
 }

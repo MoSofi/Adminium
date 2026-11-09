@@ -79,17 +79,36 @@ export function parsedJson(value: unknown): unknown {
   }
 }
 
+/** Whether the rule can empty a column at all (see the header): never a generated one, nor a non-empty one it has no blank for. */
+export function canBlank(facts: ColumnFacts, role: ErasedRole): boolean {
+  if (facts.generated) return false;
+  return facts.nullable || role === 'json' || facts.logicalType === 'boolean' || TEXT.has(facts.logicalType);
+}
+
+/**
+ * THE COLUMNS OF A ROW THE ERASURE EMPTIES, of `columns` (each with what it
+ * is to the person): those it can write a blank to, and those already blank.
+ * One answer for the row's write (`erase-rows.ts`), the files the erasure
+ * deletes with a copy row, and the files the search lists for it: a file in
+ * a column the erasure cannot empty stays, so it is never said to go.
+ */
+export function erasedColumns(table: ResolvedTable, row: Readonly<Record<string, unknown>>, columns: ReadonlyMap<string, ErasedRole>, erasedName: string): string[] {
+  return [...columns].flatMap(([column, role]) => {
+    const facts = columnFacts(table, column);
+    return facts !== null && (alreadyBlank(row[column], facts, role, erasedName) || canBlank(facts, role)) ? [column] : [];
+  });
+}
+
 /**
  * What one field becomes (see the header), or `{left: true}` when the column
  * cannot be emptied. `current` is the value it holds now: an empty JSON value
  * keeps its kind.
  */
 export function blankValue(facts: ColumnFacts, role: ErasedRole, dialect: Dialect, erasedName: string, current?: unknown): { value: unknown } | { left: true } {
-  if (facts.generated) return { left: true };
+  if (!canBlank(facts, role)) return { left: true };
   if (facts.nullable) return { value: null };
   if (role === 'json') return { value: Array.isArray(parsedJson(current)) ? '[]' : '{}' };
   if (facts.logicalType === 'boolean') return { value: dialect === 'postgres' ? false : 0 };
-  if (!TEXT.has(facts.logicalType)) return { left: true };
   if (facts.unique) return { value: uniqueToken(role, facts.maxLength) };
   if (role === 'name') return { value: facts.maxLength !== null && erasedName.length > facts.maxLength ? erasedName.slice(0, facts.maxLength) : erasedName };
   return { value: '' };
