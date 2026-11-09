@@ -10,7 +10,7 @@
 | `columns` | yes | At least one. Column refs must be unique within the table. |
 | `label` | no | A [label](https://docs.adminium.dev/reference/manifest/#conventions) for one row ("Category"): form titles, buttons, empty states, link fields. Without it Adminium names the table from its real name. |
 | `labelPlural` | no | A label for the table ("Categories"). Needs `label`. |
-| `keyField` | no | The column that names a row wherever another table links to it (a category's `name`). Must be one of the table's columns. |
+| `keyField` | no | The column that names a row wherever another table links to it (a category's `name`, an order's `number`). Must be one of the table's columns. A key field that is no name a person reads (an e-mail address, a phone number, a personal or secret column, the last digits of a card, anything of four characters or fewer) names nothing: the link is named by the column Adminium would pick without it. |
 | `shape` | no | `<name>@<version>`, such as `menu@1`. Two apps that declare the same shape on a table can use one table between them. See [Shared tables](https://docs.adminium.dev/reference/manifest/#shared-tables). |
 | `builtOn` | no | `<add-on key>/<shape name>@<version>`, such as `invoices/invoice@1`: the table is built on a shape an add-on defines. Needs `part`. See [Tables built on an add-on's shape](https://docs.adminium.dev/reference/manifest/#tables-built-on-an-add-ons-shape). A table has `shape` or `builtOn`, not both. |
 | `part` | with `builtOn` | snake_case: which part of the shape the table is (`document`, `lines`, `payments`). Only a table with `builtOn` has one. |

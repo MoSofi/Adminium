@@ -6,7 +6,9 @@
  * keep the customer's `name`. A proof links to its order: its form's picker,
  * and every chip of the link, name the order "BR-2276", not "Iris P." (the
  * column a guess picks first, and the same for four orders of one customer).
- * A table that declares no key field keeps the guess.
+ * A table that declares no key field keeps the guess, and so does one whose
+ * key field is no name: customers keyed by their e-mail are called by name,
+ * and a payment is never named by its card's last digits.
  *
  * On every engine this run can reach.
  */
@@ -29,9 +31,20 @@ function shop(): Record<string, unknown> {
       tables: [
         { ref: 'orders', keyField: 'number', columns: [pk, { ref: 'number', type: 'text', maxLength: 16, nullable: true, unique: true }, { ref: 'name', type: 'text', maxLength: 80, nullable: true }] },
         { ref: 'makers', columns: [pk, { ref: 'name', type: 'text', maxLength: 80, nullable: true }, { ref: 'code', type: 'text', maxLength: 16, nullable: true, unique: true }] },
+        // Keyed by their address, called by their name.
+        { ref: 'customers', keyField: 'email', columns: [pk, { ref: 'email', type: 'text', maxLength: 254, nullable: true, unique: true }, { ref: 'name', type: 'text', maxLength: 80, nullable: true }] },
+        // Keyed by a card's last digits, never named by them.
+        { ref: 'payments', keyField: 'card_last4', columns: [pk, { ref: 'client_key', type: 'text', maxLength: 64, nullable: true, unique: true }, { ref: 'card_last4', type: 'text', maxLength: 4, nullable: true }] },
         {
           ref: 'proofs',
-          columns: [pk, { ref: 'order_id', type: 'fk', references: 'orders', nullable: true }, { ref: 'maker_id', type: 'fk', references: 'makers', nullable: true }, { ref: 'note', type: 'text', maxLength: 80, nullable: true }],
+          columns: [
+            pk,
+            { ref: 'order_id', type: 'fk', references: 'orders', nullable: true },
+            { ref: 'maker_id', type: 'fk', references: 'makers', nullable: true },
+            { ref: 'customer_id', type: 'fk', references: 'customers', nullable: true },
+            { ref: 'payment_id', type: 'fk', references: 'payments', nullable: true },
+            { ref: 'note', type: 'text', maxLength: 80, nullable: true },
+          ],
         },
       ],
     },
@@ -61,5 +74,12 @@ describe.each(LEGS)('a link named by its table\'s key field — %s', (dialect, a
     const fk = (name: string) => facts!.columns.find((column) => column.spec['name'] === name)!.spec['fk'] as { display?: string };
     expect(fk('order_id').display).toBe('number');
     expect(fk('maker_id').display).toBe('name');
+  });
+
+  it.skipIf(!available)('names a customer keyed by e-mail by name, and a payment keyed by its card digits by something else', async () => {
+    const facts = await columnFactsFor(h.meta, h.connectionId, proofs);
+    const fk = (name: string) => facts!.columns.find((column) => column.spec['name'] === name)!.spec['fk'] as { display?: string };
+    expect(fk('customer_id').display).toBe('name');
+    expect(fk('payment_id').display).not.toBe('card_last4');
   });
 });

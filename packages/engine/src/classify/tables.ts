@@ -331,9 +331,28 @@ function isTextish(column: ColumnModel): boolean {
   return TEXTISH.has(column.logicalType);
 }
 
+/** A column of the last digits of a card or an account (`card_last4`), whatever its type. */
+const LAST_DIGITS_RE = /(^|_)last_?(4|four|digits)(_|$)/;
+
+/**
+ * Whether a declared key field may NAME a row wherever another links to it:
+ * a label a person reads. An address, a phone number, anything personal or
+ * secret, and the last digits of a card are keys and not names: a customer
+ * keyed by e-mail is still called by their name, and a role whose e-mail is
+ * masked would otherwise see the next column instead, another label than
+ * its colleagues. So is anything four characters or shorter.
+ */
+function namesARow(column: TableModel['columns'][number], classified: ClassifiedColumn | undefined): boolean {
+  const semantics = classified?.semantics;
+  if (semantics !== undefined && (semantics.primary === 'email' || semantics.primary === 'phone' || semantics.flags.pii !== null || semantics.flags.secret || semantics.flags.maskedByDefault)) return false;
+  if (LAST_DIGITS_RE.test(normalizeName(column.name))) return false;
+  return column.maxLength === null || column.maxLength === undefined || column.maxLength > 4;
+}
+
 /**
  * Per 05 (assignment note): "first text-ish unique/title/name column".
- * Preference order: the table's declared key field → exact title/name →
+ * Preference order: the table's declared key field, when it is a name a
+ * person reads (`namesARow`) → exact title/name →
  * `_name`-suffixed → unique text-ish (slug/email/username) → first text-ish
  * non-PK non-secret column.
  *
@@ -343,7 +362,8 @@ function isTextish(column: ColumnModel): boolean {
  * by its number (`BR-2276`) was otherwise named by the customer's `name`
  * column, the guess's first pick, so a picker of orders listed one name four
  * times and could not be told apart. Taken only when the guess could take it
- * too: a text-ish column that is no key and no secret.
+ * too (a text-ish column that is no key and no secret) and it names the row:
+ * a customer keyed by their e-mail is still called by their name.
  */
 export function selectDisplayColumn(
   table: TableModel,
@@ -357,7 +377,7 @@ export function selectDisplayColumn(
   );
   const declared = (table as TableModel & { keyField?: unknown }).keyField;
   const keyed = typeof declared === 'string' ? candidates.find((c) => c.name === declared) : undefined;
-  if (keyed) return keyed.name;
+  if (keyed && namesARow(keyed, columns.find((c) => c.column === keyed.name))) return keyed.name;
   const exact = candidates.find((c) => TITLE_RE.test(normalizeName(c.name)));
   if (exact) return exact.name;
   const suffixed = candidates.find((c) => TITLE_SUFFIX_RE.test(normalizeName(c.name)));

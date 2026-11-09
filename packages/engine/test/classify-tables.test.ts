@@ -329,6 +329,47 @@ describe('display column + natural key selection', () => {
     }
   });
 
+  it('names a row by its key field only when that is a name a person reads: never an address, a phone or the last digits of a card', () => {
+    const shop = parseDatabaseModel({
+      irVersion: 1,
+      dialect: 'postgres',
+      name: 'keyed-people',
+      tables: [
+        {
+          schema: 'public',
+          name: 'customers',
+          columns: [
+            { name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false },
+            { name: 'email', logicalType: 'varchar', maxLength: 254, isUnique: true },
+            { name: 'phone', logicalType: 'varchar', maxLength: 32 },
+            { name: 'name', logicalType: 'varchar', maxLength: 80 },
+          ],
+          primaryKey: ['id'],
+        },
+        {
+          schema: 'public',
+          name: 'payments',
+          columns: [
+            { name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false },
+            { name: 'client_key', logicalType: 'varchar', maxLength: 64, isUnique: true },
+            { name: 'card_last4', logicalType: 'varchar', maxLength: 4 },
+            { name: 'pin_hint', logicalType: 'varchar', maxLength: 4 },
+          ],
+          primaryKey: ['id'],
+        },
+      ],
+    });
+    const [customers, payments] = shop.tables as [typeof shop.tables[number], typeof shop.tables[number]];
+    for (const keyField of ['email', 'phone']) {
+      expect(classifyTable(shop, { ...customers, keyField } as typeof customers).displayColumn, keyField).toBe('name');
+    }
+    const unkeyed = classifyTable(shop, payments).displayColumn;
+    for (const keyField of ['card_last4', 'pin_hint']) {
+      expect(classifyTable(shop, { ...payments, keyField } as typeof payments).displayColumn, keyField).toBe(unkeyed);
+    }
+    expect(unkeyed).not.toBe('card_last4');
+  });
+
   it('people tables use the person name', () => {
     expect(classified.get('public.users')!.displayColumn).toBe('full_name');
   });
