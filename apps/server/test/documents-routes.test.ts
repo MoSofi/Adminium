@@ -56,8 +56,20 @@ vi.mock('../src/documents/trigger-sync.js', async (importOriginal) => {
   };
 });
 
+/* The document an app owns, switched off with its add-on for the app: off for the profile named here. */
+const documentOff = vi.hoisted(() => ({ profileId: null as string | null }));
+vi.mock('../src/documents/app-documents.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../src/documents/app-documents.js')>();
+  return {
+    ...real,
+    ownedDocumentOff: (...args: Parameters<typeof real.ownedDocumentOff>) =>
+      (args[1] as { id: string }).id === documentOff.profileId ? Promise.resolve({ addOn: 'invoices', feature: 'invoice', reason: 'its add-on is switched off for the app' }) : real.ownedDocumentOff(...args),
+  };
+});
+
 afterEach(() => {
   failNextSync.value = false;
+  documentOff.profileId = null;
 });
 
 const crypto: DsnCrypto = {
@@ -550,6 +562,13 @@ describe('reading a document depends on every table its mapping reads', () => {
     expect(listed.map((one) => one.id)).toEqual([profile.id]);
     expect(listed[0]).toMatchObject({ name: 'Invoice', table: 'public.orders', enabled: true, mapping: {}, options: {}, trigger: null, deliver: {} });
     await reader.close();
+
+    // A mapping whose document is switched off (its add-on off for the app) would be refused by the draw: not listed.
+    documentOff.profileId = profile.id;
+    const offNow = await serverWith(meta, [], owner.id);
+    expect((await ids(offNow)).profiles).toEqual([]);
+    await offNow.close();
+    documentOff.profileId = null;
 
     // The manager sees every mapping whole, the one switched off too.
     const manager = await serverWith(meta, ['system:manifests:manage'], owner.id);

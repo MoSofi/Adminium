@@ -511,7 +511,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
          * who reads every table the document does: asked by a person without
          * the grant, this answered 403 on every record page and the button
          * never showed. Such a person gets the switched-on mappings they
-         * could draw, each with its name only: what it reads, how it is
+         * could draw (every check the draw makes, made here), each with its name only: what it reads, how it is
          * triggered and where it is sent stay the manager's.
          */
         preHandler: app.requireAuth,
@@ -534,7 +534,14 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
               break;
             }
           }
-          if (reads) drawable.push(profile);
+          if (!reads) continue;
+          // …and the rest of what a draw asks (`POST /documents/render`), so Make never offers what it would refuse:
+          // no column their role does not read, no rows of a table they read in part, and its add-on switched on.
+          const whole = await viewOf(profile.connectionId)();
+          if (whole !== null && documentColumnRefused(profile, await readViewFor(request, whole)) !== null) continue;
+          if (whole !== null && (await bodyInPart(request, profile, whole)) !== null) continue;
+          if ((await ownedDocumentOff(deps.meta, profile, deps.runtime)) !== null) continue;
+          drawable.push(profile);
         }
         return { profiles: drawable.map((profile) => ({ ...toProfileReply(profile), mapping: {}, options: {}, trigger: null, deliver: {} })) };
       },
