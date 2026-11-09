@@ -1,5 +1,30 @@
 # @adminium/server
 
+## 0.3.52
+
+### Patch Changes
+
+- 0836f43: The add-ons that come with Adminium are now 1.0.23. In the Customiser, an order line's "Make the proof" waits until the design has loaded, and a proof that would leave out every word and picture the shopper chose is refused. Each shop app's owner sets up only its own app's bases and fonts, and each app's staff read only their own customers' designs. The shop's one-colour line, bleed and safe line are kept in a new "Shop settings" dialog on the set-up page. Every card on "Choose a design" shows its own design, and a base's rounded corners can be cleared.
+- 2f17c13: A record page no longer gets a 403 from `GET /api/v1/documents/profiles` for a person without the manifests permission (an app's owner): the route answers everyone signed in, and such a person gets the switched-on mappings they could draw (they read every table the document reads), each by its name only. The record page's Make button now shows for them, as `POST /documents/render` already allowed; setting mappings up stays with `manifests.manage`.
+- 9b9cdd6: A link to a row is named by the `keyField` its table declares when that is a name a person reads: a proof's order reads "BR-2276" in its picker and chips, not the customer's name four times over. A key field that is an e-mail address, a phone number, anything personal or secret, or the last digits of a card (anything of four characters or fewer) names nothing, and the link keeps the column it was named by: a customer keyed by their e-mail is still called by their name. The reference picker keeps every row the server found for the words typed, so an order found by its number is listed even when its label is another column, and it asks the server once a query instead of again each time the answer is drawn. A record page's related list makes a new row with the form the table's own page creates with: its designed fields, a column the list leaves out (a proof's note), a choice in the app's words and a file column's upload.
+- 7ce7173: The person-data search lists a copy row's files only from the columns the erasure empties: a file in a column it cannot empty (one the database works out itself) stays, and is no longer listed as going. The search, the preview and the erasure now read one rule.
+- d163620: `/api/v1/readyz` answers 503 with `checks.packages: "seeding"` until the boot has put the apps and add-ons that come with Adminium in its store, and an app's install check waits for them too: a script that installed an app a few seconds after a first boot was checked against a store still filling, and the install was then refused with "The database changed since this install was checked". When only the app's add-ons moved between the check and the install, the refusal now says so (`details.changed: "add-ons"`) instead of blaming the database. The check's checksum now carries those two parts, so an install checked on an earlier release and sent to this one is refused as a changed database: check it again after the update.
+- 872da15: Said here because 0.3.50 and 0.3.51 shipped it without a word. Erasing a person deletes the files their copy rows hold (a proof's picture), and a file such a column held before and let go (a proof made again leaves the first in the bin) when the audit log shows it there; the person-data search, the erase preview and the erase count those files alike. A record page's Edit now opens the form its list edits with (the page's designed form, a choice in its own words), keeps the record's links and line items when it saves or when reading them fails, and holds a locked column even when the page does not show it. A states rule that supersedes earlier rows finds them before the new row is written (a new row is never one of them, whatever key the database gives it), and a supersedes rule saved in Studio is judged as an app's manifest is.
+- 38b3cdc: The app check holds an app's floor at Adminium 0.3.51 when its sample ships files that release was the first to add: files in its rows for an add-on (their own `assets`, or a row naming one), and an SVG or a model given to a column of product assets. An app declaring an older floor installed there, and its sample section could not be added.
+- b1a3d6e: Someone who opens only an app's own screens (a print shop's counter) may now read `GET /api/v1/add-ons`, and is told only of the add-ons connected to their apps, never their settings' values: a counter's dispatch screen now learns DHL is there and offers "Book a collection". Another app's add-ons, and the other apps an add-on is connected to, stay out of their answer. Where their roles belong to one copy of an app (one database of two), only that copy's attachments are listed.
+- Updated dependencies [9b9cdd6]
+- Updated dependencies [38b3cdc]
+  - @adminium/engine@0.3.52
+  - @adminium/manifest@0.3.52
+  - @adminium/llm@0.3.52
+  - @adminium/adapter-mysql@0.3.52
+  - @adminium/adapter-postgres@0.3.52
+  - @adminium/adapter-sqlite@0.3.52
+  - @adminium/schema-import@0.3.52
+  - @adminium/add-on-contracts@0.3.52
+  - @adminium/i18n@0.3.52
+  - @adminium/meta@0.3.52
+
 ## 0.3.51
 
 ### Patch Changes

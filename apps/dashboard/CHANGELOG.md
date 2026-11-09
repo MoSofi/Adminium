@@ -1,5 +1,23 @@
 # @adminium/dashboard
 
+## 0.3.52
+
+### Patch Changes
+
+- 9b9cdd6: Editing a row of a table that keeps states offers its state column's moves only: the row's own state and the states its rules let it move to from there stay choosable, the rest are shown and cannot be picked (a won deal's Edit no longer offers every stage the server would refuse). A move only the add-on that keeps the row makes is not offered.
+- 9b9cdd6: A link to a row is named by the `keyField` its table declares when that is a name a person reads: a proof's order reads "BR-2276" in its picker and chips, not the customer's name four times over. A key field that is an e-mail address, a phone number, anything personal or secret, or the last digits of a card (anything of four characters or fewer) names nothing, and the link keeps the column it was named by: a customer keyed by their e-mail is still called by their name. The reference picker keeps every row the server found for the words typed, so an order found by its number is listed even when its label is another column, and it asks the server once a query instead of again each time the answer is drawn. A record page's related list makes a new row with the form the table's own page creates with: its designed fields, a column the list leaves out (a proof's note), a choice in the app's words and a file column's upload.
+- 872da15: Said here because 0.3.50 and 0.3.51 shipped it without a word. Erasing a person deletes the files their copy rows hold (a proof's picture), and a file such a column held before and let go (a proof made again leaves the first in the bin) when the audit log shows it there; the person-data search, the erase preview and the erase count those files alike. A record page's Edit now opens the form its list edits with (the page's designed form, a choice in its own words), keeps the record's links and line items when it saves or when reading them fails, and holds a locked column even when the page does not show it. A states rule that supersedes earlier rows finds them before the new row is written (a new row is never one of them, whatever key the database gives it), and a supersedes rule saved in Studio is judged as an app's manifest is.
+- Updated dependencies [9b9cdd6]
+- Updated dependencies [9b9cdd6]
+- Updated dependencies [872da15]
+  - @adminium/widgets@0.3.52
+  - @adminium/engine@0.3.52
+  - @adminium/add-on-contracts@0.3.52
+  - @adminium/charts@0.3.52
+  - @adminium/i18n@0.3.52
+  - @adminium/tokens@0.3.52
+  - @adminium/ui@0.3.52
+
 ## 0.3.51
 
 ### Patch Changes
