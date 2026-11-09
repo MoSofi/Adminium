@@ -504,14 +504,39 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     app.get(
       '/documents/profiles',
       {
-        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        /*
+         * Read by everyone signed in, set up by `manifests.manage` alone. A
+         * record page asks which mappings draw from its table to show its
+         * Make button, and drawing (`POST /documents/render`) is anyone's
+         * who reads every table the document does: asked by a person without
+         * the grant, this answered 403 on every record page and the button
+         * never showed. Such a person gets the switched-on mappings they
+         * could draw, each with its name only: what it reads, how it is
+         * triggered and where it is sent stay the manager's.
+         */
+        preHandler: app.requireAuth,
         schema: { querystring: documentProfilesListQuery, response: { 200: documentProfilesListReply } },
       },
       async (request) => {
         // A workspace's databases, narrowed in the query.
         const scope = await workspaceScope(app.rbac.meta, request);
         const { connectionId, addOnKey } = request.query;
-        return { profiles: (await profiles.list({ connectionId, addOnKey, ...(scope === undefined ? {} : { connectionIds: [...scope] }) })).map(toProfileReply) };
+        const all = await profiles.list({ connectionId, addOnKey, ...(scope === undefined ? {} : { connectionIds: [...scope] }) });
+        if (typeof request.can !== 'function' || (await request.can(PERMISSIONS.manifestsManage))) return { profiles: all.map(toProfileReply) };
+        const drawable: DocumentProfile[] = [];
+        for (const profile of all) {
+          if (!profile.enabled) continue;
+          const canRead = await canReadTableFor(deps.meta, request.user?.id ?? null, profile.connectionId);
+          let reads = true;
+          for (const table of await documentReads(profile, viewOf(profile.connectionId))) {
+            if (!(await canRead(table))) {
+              reads = false;
+              break;
+            }
+          }
+          if (reads) drawable.push(profile);
+        }
+        return { profiles: drawable.map((profile) => ({ ...toProfileReply(profile), mapping: {}, options: {}, trigger: null, deliver: {} })) };
       },
     );
 

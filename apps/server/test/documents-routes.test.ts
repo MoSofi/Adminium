@@ -31,6 +31,8 @@ import {
   documentProfilesRepo,
   documentsRepo,
   initMetaDb,
+  permissionsRepo,
+  rolesRepo,
   type DsnCrypto,
   type MetaDb,
 } from '@adminium/meta';
@@ -104,7 +106,7 @@ describe('every documents route declares a guard', () => {
     await probe.close();
   });
 
-  it('gates the three ADMIN routes behind manifests.manage, not merely on being signed in', async () => {
+  it('gates the ADMIN routes behind manifests.manage, not merely on being signed in', async () => {
     /*
      * A profile decides what an add-on may read and what it renders — the
      * same authority as installing one (O6). The three profile-writing routes
@@ -141,7 +143,6 @@ describe('every documents route declares a guard', () => {
     await probe.ready();
 
     for (const route of [
-      'GET /api/v1/documents/profiles',
       'POST /api/v1/documents/profiles',
       'PUT /api/v1/documents/profiles/:id',
       'DELETE /api/v1/documents/profiles/:id',
@@ -154,6 +155,8 @@ describe('every documents route declares a guard', () => {
       'GET /api/v1/documents/kinds',
       'GET /api/v1/documents/providers',
       'POST /api/v1/documents/render',
+      // Read by anyone signed in, answered by what they may draw (the next describe).
+      'GET /api/v1/documents/profiles',
     ]) {
       expect(seen.get(route), `${route} should be authenticated, not admin-only`).toBe(authGuard);
     }
@@ -519,6 +522,41 @@ describe('reading a document depends on every table its mapping reads', () => {
     const no = await theirs.inject({ method: 'GET', url: `/api/v1/documents/${intent.id}` });
     expect((no.json() as { redacted: boolean }).redacted).toBe(true);
     await theirs.close();
+  });
+
+  it('lists to a person without manifests.manage only the mappings they could draw, by name', async () => {
+    // A record page's Make button asks this for everyone who opens the record: a 403 here hid it from all but the admin.
+    const { meta, connectionId, profile } = await seed();
+    const off = await documentProfilesRepo(meta).create({ addOnKey: 'invoices', kind: 'invoice', name: 'Old invoice', connectionId, table: 'public.orders', mapping: { customerName: { column: 'customer' } }, enabled: false } as never);
+    const role = await rolesRepo(meta).create({ slug: 'counter', name: 'Counter' });
+    const owner = await usersRepo(meta).create({ email: 'owner@adminium.test', name: 'Owner', status: 'active' });
+    await rolesRepo(meta).assignToUser(owner.id, role.id);
+    const ids = async (app: Awaited<ReturnType<typeof serverWith>>) => {
+      const res = await app.inject({ method: 'GET', url: `/api/v1/documents/profiles?connectionId=${connectionId}` });
+      expect(res.statusCode, res.body).toBe(200);
+      return res.json() as { profiles: { id: string; name: string; mapping: unknown; deliver: unknown; enabled: boolean }[] };
+    };
+
+    // Reads the orders and not their lines: it draws nothing, and is told of nothing.
+    await permissionsRepo(meta).grant(role.id, 'table', `${connectionId}/public.orders`, { read: true, create: false, update: false, delete: false, export: false, import: false });
+    const narrow = await serverWith(meta, [], owner.id);
+    expect((await ids(narrow)).profiles).toEqual([]);
+    await narrow.close();
+
+    // Reads both: the switched-on mapping, by name, and none of how it is set up.
+    await permissionsRepo(meta).grant(role.id, 'table', `${connectionId}/public.order_lines`, { read: true, create: false, update: false, delete: false, export: false, import: false });
+    const reader = await serverWith(meta, [], owner.id);
+    const listed = (await ids(reader)).profiles;
+    expect(listed.map((one) => one.id)).toEqual([profile.id]);
+    expect(listed[0]).toMatchObject({ name: 'Invoice', table: 'public.orders', enabled: true, mapping: {}, options: {}, trigger: null, deliver: {} });
+    await reader.close();
+
+    // The manager sees every mapping whole, the one switched off too.
+    const manager = await serverWith(meta, ['system:manifests:manage'], owner.id);
+    const all = (await ids(manager)).profiles;
+    expect(all.map((one) => one.id).sort()).toEqual([profile.id, off.id].sort());
+    expect(all.find((one) => one.id === profile.id)!.mapping).toMatchObject({ customerName: { column: 'customer' } });
+    await manager.close();
   });
 
   it('refuses to enqueue a render of a mapping the caller cannot read', async () => {
