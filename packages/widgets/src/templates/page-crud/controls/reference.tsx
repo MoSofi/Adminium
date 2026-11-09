@@ -94,8 +94,12 @@ function FkField({
   const fields = lookupFields(reference);
   const withAvatar = reference?.avatar === true;
   const [options, setOptions] = useState<CrudLookupOption[]>([]);
+  /** The words the options on hand are the server's answer to: its matches stand, whatever their label says. */
+  const [answered, setAnswered] = useState('');
   const [forbidden, setForbidden] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The query the last search was set off for. */
+  const asked = useRef('');
 
   const search = (query: string, onLoaded: (loaded: CrudLookupOption[]) => void): void => {
     void lookup(lookupFk(fk), query, fields).then(onLoaded, (error: unknown) => {
@@ -171,14 +175,29 @@ function FkField({
       onValueChange={(next) => onChange(next)}
       emptyText={t('ui:combobox.noMatches', 'No matches')}
       placeholder={t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: fk.label ?? fk.table })}
-      // Debounced server-side search on the display column
-      // Combobox filters locally as well, so this only widens the option set.
+      /*
+       * Debounced server-side search, which matches every text column of the
+       * target (an order's number, its customer's name). Until it answers, the
+       * options on hand are narrowed here by what they show; once it has, its
+       * rows stand as they are: narrowed by the label again, an order found
+       * by its number but shown by another column was dropped, and the picker
+       * said "No matches" for a row the server had found.
+       */
       filter={(option, query) => {
-        if (timer.current !== null) clearTimeout(timer.current);
-        timer.current = setTimeout(() => {
-          search(query, setOptions);
-        }, FK_LOOKUP_DEBOUNCE_MS);
-        return option.label.toLowerCase().includes(query.trim().toLowerCase());
+        const wanted = query.trim().toLowerCase();
+        // Asked once a query, a pause after the last key: not again each time its answer draws the list.
+        if (wanted !== asked.current) {
+          asked.current = wanted;
+          if (timer.current !== null) clearTimeout(timer.current);
+          timer.current = setTimeout(() => {
+            search(query, (loaded) => {
+              setOptions(loaded);
+              setAnswered(wanted);
+            });
+          }, FK_LOOKUP_DEBOUNCE_MS);
+        }
+        if (wanted === answered) return true;
+        return option.label.toLowerCase().includes(wanted) || (option.description ?? '').toLowerCase().includes(wanted);
       }}
     />
   );

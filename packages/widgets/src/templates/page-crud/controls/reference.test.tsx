@@ -103,6 +103,29 @@ describe('the reference picker', () => {
     expect((screen.getByDisplayValue('7') as HTMLInputElement).disabled).toBe(true);
   });
 
+  it('shows what the server found for the words typed, though its label does not hold them, and asks once', async () => {
+    // An order found by its number, shown by its customer's name: the server matched it, so it is listed.
+    const found = [{ value: '5', label: 'Iris P.', detail: 'Walnut coasters' }];
+    const lookup = vi.fn().mockImplementation(async (_fk: unknown, query: string) => (query === '' ? ROWS : query === 'BR-2276' ? found : []));
+    const { user } = renderPicker({ lookup });
+    await waitFor(() => expect(lookup).toHaveBeenCalledTimes(1));
+    await user.type(screen.getByRole('combobox'), 'BR-2276');
+    expect(await screen.findByRole('option', { name: /Iris P\./ })).toBeTruthy();
+    expect(screen.queryByText('No matches')).toBeNull();
+    // The answer drawn does not set off the same search again.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(lookup.mock.calls.filter((call) => call[1] === 'BR-2276')).toHaveLength(1);
+  });
+
+  it('narrows the rows on hand by their detail line too, before the server answers', async () => {
+    const lookup = vi.fn().mockImplementation(async (_fk: unknown, query: string) => (query === '' ? ROWS : new Promise(() => undefined)));
+    const { user } = renderPicker({ lookup });
+    await waitFor(() => expect(lookup).toHaveBeenCalledTimes(1));
+    await user.type(screen.getByRole('combobox'), 'family');
+    expect(await screen.findByRole('option', { name: /Ben Halloran/ })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /Amara Osei/ })).toBeNull();
+  });
+
   it('keeps working when a search simply fails', async () => {
     const lookup = vi.fn().mockRejectedValue(new Error('network'));
     renderPicker({ lookup });

@@ -300,6 +300,35 @@ describe('display column + natural key selection', () => {
     expect(classified.get('public.orders')!.displayColumn).toBe('reference');
   });
 
+  it('takes the key field a table declares over the guess, when the guess could take it', () => {
+    // An app's orders, named by their number: the table read through the effective schema carries `keyField`.
+    const orders = parseDatabaseModel({
+      irVersion: 1,
+      dialect: 'postgres',
+      name: 'keyed',
+      tables: [
+        {
+          schema: 'public',
+          name: 'orders',
+          columns: [
+            { name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false },
+            { name: 'number', logicalType: 'varchar', maxLength: 16, isUnique: true },
+            { name: 'name', logicalType: 'varchar', maxLength: 80 },
+            { name: 'count', logicalType: 'integer' },
+          ],
+          primaryKey: ['id'],
+        },
+      ],
+    });
+    const table = orders.tables[0]!;
+    expect(classifyTable(orders, table).displayColumn).toBe('name');
+    expect(classifyTable(orders, { ...table, keyField: 'number' } as typeof table).displayColumn).toBe('number');
+    // A key field the guess could not take (a number, the key itself, a column that is not there) leaves the guess.
+    for (const keyField of ['count', 'id', 'gone']) {
+      expect(classifyTable(orders, { ...table, keyField } as typeof table).displayColumn, keyField).toBe('name');
+    }
+  });
+
   it('people tables use the person name', () => {
     expect(classified.get('public.users')!.displayColumn).toBe('full_name');
   });

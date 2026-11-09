@@ -333,8 +333,17 @@ function isTextish(column: ColumnModel): boolean {
 
 /**
  * Per 05 (assignment note): "first text-ish unique/title/name column".
- * Preference order: exact title/name → `_name`-suffixed → unique text-ish
- * (slug/email/username) → first text-ish non-PK non-secret column.
+ * Preference order: the table's declared key field → exact title/name →
+ * `_name`-suffixed → unique text-ish (slug/email/username) → first text-ish
+ * non-PK non-secret column.
+ *
+ * THE DECLARED KEY FIELD FIRST. A table read through the server's effective
+ * schema carries the `keyField` an app's manifest (or the operator) set: "the
+ * column that names a row wherever another table links to it". An order named
+ * by its number (`BR-2276`) was otherwise named by the customer's `name`
+ * column, the guess's first pick, so a picker of orders listed one name four
+ * times and could not be told apart. Taken only when the guess could take it
+ * too: a text-ish column that is no key and no secret.
  */
 export function selectDisplayColumn(
   table: TableModel,
@@ -346,6 +355,9 @@ export function selectDisplayColumn(
   const candidates = table.columns.filter(
     (c) => isTextish(c) && !c.isPrimaryKey && !secret.has(c.name),
   );
+  const declared = (table as TableModel & { keyField?: unknown }).keyField;
+  const keyed = typeof declared === 'string' ? candidates.find((c) => c.name === declared) : undefined;
+  if (keyed) return keyed.name;
   const exact = candidates.find((c) => TITLE_RE.test(normalizeName(c.name)));
   if (exact) return exact.name;
   const suffixed = candidates.find((c) => TITLE_SUFFIX_RE.test(normalizeName(c.name)));
