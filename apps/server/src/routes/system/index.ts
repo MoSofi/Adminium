@@ -8,8 +8,10 @@
  *    dependency, because a restart cannot fix a dependency. This is what the
  *    Dockerfile HEALTHCHECK and docker-compose.yml run.
  *  - `/readyz` — READINESS. Can it serve a real request, i.e. is the meta store
- *    reachable? Answers 503 when not, so a load balancer stops routing to an
- *    instance that would 500 every request.
+ *    reachable, and has the boot put the bundled apps and add-ons in the
+ *    store? Answers 503 when not, so a load balancer stops routing to an
+ *    instance that would 500 every request, and a script installing an app
+ *    on a first boot waits for the add-ons it needs.
  * Point orchestration at whichever question you are actually asking; see
  * `./handlers.ts` for why conflating the two is a trap.
  *
@@ -45,7 +47,9 @@ export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod =
     async (_request, reply) => {
       // The meta handle rides on `authContext`, null when the server booted
       // without a meta store — which `readyz` reports as not-ready too.
-      const result = await readyz(app.authContext?.meta ?? null);
+      // `packagesSeeding` is the composed server's: a bare one has no seed to wait for.
+      const seeding = app.hasDecorator('packagesSeeding') && (app as unknown as { packagesSeeding: () => boolean }).packagesSeeding();
+      const result = await readyz(app.authContext?.meta ?? null, seeding);
       void reply.status(result.ok ? 200 : 503);
       return result;
     },

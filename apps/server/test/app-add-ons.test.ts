@@ -267,6 +267,22 @@ for (const [dialect, available] of ENGINES) {
       const now = await h.inject({ method: 'DELETE', url: '/add-ons/ledger-kit' });
       expect(now.statusCode, now.body).toBe(200);
     });
+
+    it('still says the database changed when it did, for an app that names add-ons', async () => {
+      h = await addOnHarness(dialect);
+      await h.stageAddOn(kit('1.1.0'), { bundled: true });
+      const planned = await h.plan(studio());
+      expect(planned.statusCode, planned.body).toBe(200);
+      // A table the app would make is made by hand in between: the add-ons are as they were.
+      await h.rows('CREATE TABLE jobs (id INT PRIMARY KEY, title VARCHAR(40))');
+      await h.introspect();
+      const drifted = await h.install('studio', '0.2.0', { planChecksum: planned.json().plan.checksum });
+      expect(drifted.statusCode, drifted.body).toBe(409);
+      expect(drifted.json().error.code).toBe('SCHEMA_DRIFT');
+      expect(drifted.json().error.details.changed).toBe('database');
+      expect(drifted.json().error.message).toBe('The database changed since this install was checked. Review the new check before installing.');
+      expect(await installedKeys(h)).toEqual([]);
+    });
   });
 }
 
@@ -406,7 +422,39 @@ describe('ranges and features (sqlite)', () => {
     const drifted = await h.install('studio', '0.2.0', { planChecksum: checksum });
     expect(drifted.statusCode, drifted.body).toBe(409);
     expect(drifted.json().error.code).toBe('SCHEMA_DRIFT');
+    // It says what moved: the add-ons, not the database, which nobody touched.
+    expect(drifted.json().error.details.changed).toBe('add-ons');
+    expect(drifted.json().error.message).toContain('The add-ons "studio" uses changed on this server since this install was checked');
+    expect(drifted.json().error.message).not.toContain('The database changed');
     expect(await installedKeys(h)).toEqual(['add-on:notes@1.1.0']);
+  });
+
+  it('waits for the bundled add-ons to be in the store before it checks an app that names one', async () => {
+    let seeded!: () => void;
+    const seed = new Promise<void>((resolve) => {
+      seeded = resolve;
+    });
+    h = await addOnHarness('sqlite', { seeded: seed });
+    const harness = h;
+    let answered = false;
+    // A first boot: the check is asked for while the seed is still copying the bundled add-ons.
+    const asked = harness
+      .plan(appManifest('studio', { addOns: { requires: [{ key: 'notes', range: '>=1.1.0', reason: { 'en-US': 'Notes.' } }] } }))
+      .then((reply) => {
+        answered = true;
+        return reply;
+      });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(answered).toBe(false);
+    await harness.stageAddOn(addOnManifest('notes', { version: '1.1.0' }), { bundled: true });
+    seeded();
+    const planned = await asked;
+    expect(planned.statusCode, planned.body).toBe(200);
+    // Seen as the server carries it, not as missing: the install that follows is checked against the same store.
+    expect(planned.json().plan.addOns[0]).toMatchObject({ key: 'notes', source: 'bundled', staged: true, offeredVersion: '1.1.0' });
+    expect(planned.json().plan.installable).toBe(true);
+    const installed = await harness.install('studio', '0.2.0', { planChecksum: planned.json().plan.checksum });
+    expect(installed.statusCode, installed.body).toBe(200);
   });
 
   it('says why an add-on cannot be had: the catalogue off, not read, or read and not listing it', async () => {

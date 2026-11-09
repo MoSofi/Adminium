@@ -29,7 +29,8 @@ that server are kept and flagged, so you can
 
 The image listens on `PORT` (4600 by default) as the `node` user, answers
 `/api/v1/healthz` for liveness and `/api/v1/readyz` for readiness — the latter
-checks the meta store, so it is the one a load balancer should watch.
+checks the meta store and waits for the add-ons that come with Adminium, so it
+is the one a load balancer, or a script that installs an app, should watch.
 
 :::caution[`localhost` means the container]
 Inside a container, a database URL on `localhost` or `127.0.0.1` points at the

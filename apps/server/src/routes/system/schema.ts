@@ -32,6 +32,11 @@ export type SystemHealthzReply = z.infer<typeof systemHealthzReply>;
 export const systemReadyzChecks = z.object({
   /** `not-configured` = booted without a meta store; `unreachable` = it failed. */
   meta: z.enum(['ok', 'unreachable', 'not-configured']),
+  /**
+   * `seeding` = the boot is still putting the apps and add-ons this server
+   * carries in its store; an install checked now would see one as missing.
+   */
+  packages: z.enum(['ok', 'seeding']),
 });
 
 export const systemReadyzReply = z.object({

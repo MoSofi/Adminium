@@ -17,6 +17,8 @@
  * that carries an app — builds its own actor and host and calls the same code.
  */
 
+import { createHash } from 'node:crypto';
+
 import { storedPageKey as pageKey, storedPhoneKey as phoneKey, storedVisitorKey as visitorKey } from '../public-api/keys.js';
 import {
   compareSemver,
@@ -277,6 +279,14 @@ export interface AppRoutesDeps {
         catalog?: CatalogClient | undefined;
         /** Where the bundled add-on tarballs are; defaults to the boot seed's own rule. */
         bundledDir?: string | undefined;
+        /**
+         * Settles once the boot has put the add-ons this server carries in its
+         * store. What an app names is read only after it: a check made while
+         * the seed is still copying them would show a bundled add-on as
+         * missing, and the install it precedes would then be refused for a
+         * change no one made. Absent, nothing is waited for.
+         */
+        seeded?: Promise<unknown> | undefined;
       }
     | undefined;
 }
@@ -547,6 +557,27 @@ export function planChecksum(plan: InstallPlan, existing: readonly ExistingTable
       tables,
     }),
   );
+}
+
+/**
+ * The checksum of a plan that names add-ons: the database's part and the
+ * add-ons' part side by side, so a refusal can say which of the two moved.
+ * The add-ons' part is base64url, to keep the whole within the 128
+ * characters a checksum may be.
+ */
+export function withAddOnsChecksum(databasePart: string, addOns: unknown): string {
+  return `${databasePart}.${createHash('sha256').update(JSON.stringify(addOns)).digest('base64url')}`;
+}
+
+/**
+ * Which part of a reviewed plan moved: only the add-ons' (the database reads
+ * as it did), or the database's. A checksum without an add-ons part, or one
+ * made by another version, reads as the database's.
+ */
+export function checksumChange(expected: string, actual: string): 'database' | 'add-ons' {
+  const [expectedDatabase, expectedAddOns] = expected.split('.');
+  const [actualDatabase, actualAddOns] = actual.split('.');
+  return expectedAddOns !== undefined && actualAddOns !== undefined && expectedDatabase === actualDatabase ? 'add-ons' : 'database';
 }
 
 /** A table record's shape fields: the part it is built on and the columns the shape owns, or none. */
@@ -962,6 +993,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   async function addOnRowsFor(manifest: Manifest, connectionId: string | null, withPlans: boolean): Promise<AppAddOnRow[]> {
     if (!namesAddOns(manifest)) return [];
     if (deps.addOns !== undefined) {
+      await deps.addOns.seeded;
       return resolveAppAddOns(
         { ...deps.addOns, serverVersion },
         { manifest, connectionId, withPlans },
@@ -1314,7 +1346,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         checksum:
           addOnRows === undefined || addOnRows.length === 0
             ? planChecksum(plan, tables)
-            : sha256Hex(JSON.stringify([planChecksum(plan, tables), addOnIdentity(addOnRows)])),
+            : withAddOnsChecksum(planChecksum(plan, tables), addOnIdentity(addOnRows)),
         ...(plan.tables === undefined
           ? {}
           : {
@@ -2407,10 +2439,13 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * would otherwise be installed against without anyone having seen it.
      */
     if (expectedChecksum !== undefined && expectedChecksum !== dto.checksum) {
+      const changed = checksumChange(expectedChecksum, dto.checksum);
       throw new ConflictError(
-        'The database changed since this install was checked. Review the new check before installing.',
+        changed === 'add-ons'
+          ? `The add-ons "${key}" uses changed on this server since this install was checked (one was added, updated or finished arriving); the database did not. Review the new check before installing.`
+          : 'The database changed since this install was checked. Review the new check before installing.',
         'SCHEMA_DRIFT',
-        { expected: expectedChecksum, actual: dto.checksum },
+        { expected: expectedChecksum, actual: dto.checksum, changed },
       );
     }
     /*

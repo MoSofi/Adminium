@@ -123,7 +123,7 @@ matches what you are asking.
 | | Route | Asks | Fails when |
 |---|---|---|---|
 | **Liveness** | `/api/v1/healthz` | Is the process up and serving? | The process is wedged or gone |
-| **Readiness** | `/api/v1/readyz` | Can it serve a real request? | The meta store is unreachable (503) |
+| **Readiness** | `/api/v1/readyz` | Can it serve a real request? | The meta store is unreachable, or the boot is still adding the apps and add-ons that come with Adminium (503) |
 
 Adminium's **container healthcheck is the liveness probe**: it runs
 `GET /api/v1/healthz` and asserts `ok: true` in the parsed JSON body — not
@@ -152,6 +152,11 @@ interval: 30s · timeout: 5s · retries: 3 · start_period: 40s
 
 `start_period` is generous because the first boot applies the meta migrations
 before it starts listening.
+
+A script that installs an app on a fresh instance (a first boot in CI, say)
+should wait for `/api/v1/readyz`, not `/api/v1/healthz`: for a few seconds after
+it starts listening, Adminium is still adding the add-ons it comes with, and
+`readyz` answers 503 with `checks.packages: "seeding"` until they are all there.
 
 The `meta-db` service uses `pg_isready`.
 

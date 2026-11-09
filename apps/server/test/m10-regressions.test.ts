@@ -23,7 +23,8 @@ import {
 import { symbols as pinoSymbols } from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildLogger } from '../src/app.js';
+import { buildLogger, buildServer } from '../src/app.js';
+import { readyz } from '../src/routes/system/handlers.js';
 import { hashPassword } from '../src/auth/passwords.js';
 import { composeServer, TELEMETRY_SCHEDULE_NAME } from '../src/compose.js';
 import { PAYMENTS_RECORD_JOB, PAYMENTS_RECORD_PICKUP_NAME } from '../src/payments/record.js';
@@ -339,7 +340,7 @@ describe('probes', () => {
       metaDsn: null,
     });
     const runService = createRunService({ meta });
-    const { app } = await composeServer({
+    const { app, packagesSeeded } = await composeServer({
       env: makeEnv(),
       metaStore: storeHandle(meta),
       manager,
@@ -350,10 +351,12 @@ describe('probes', () => {
       telemetry: false,
     });
     await app.ready();
+    // Ready once the boot has put the bundled packages in the store (the seeding case is the next test).
+    await packagesSeeded;
 
     const ready = await app.inject({ method: 'GET', url: '/api/v1/readyz' });
     expect(ready.statusCode).toBe(200);
-    expect(ready.json<{ checks: { meta: string } }>().checks.meta).toBe('ok');
+    expect(ready.json<{ checks: { meta: string; packages: string } }>().checks).toEqual({ meta: 'ok', packages: 'ok' });
 
     // Kill the store. THE POINT: /healthz cannot tell, /readyz must.
     await meta.db.destroy();
@@ -366,6 +369,28 @@ describe('probes', () => {
     expect(dead.statusCode).toBe(503);
     expect(dead.json<{ checks: { meta: string } }>().checks.meta).toBe('unreachable');
 
+    await app.close();
+  });
+
+  it('/readyz is not ready while the boot is still seeding the bundled apps and add-ons', async () => {
+    const meta = memoryMeta();
+    await expect(readyz(meta, true)).resolves.toMatchObject({ ok: false, checks: { meta: 'ok', packages: 'seeding' } });
+    await expect(readyz(meta, false)).resolves.toMatchObject({ ok: true, checks: { meta: 'ok', packages: 'ok' } });
+    await meta.db.destroy();
+
+    // The route asks the composed server's own flag.
+    let seeding = true;
+    const app = await buildServer({ env: makeEnv(), logger: false });
+    app.decorate('packagesSeeding', () => seeding);
+    await app.ready();
+    const early = await app.inject({ method: 'GET', url: '/api/v1/readyz' });
+    expect(early.statusCode).toBe(503);
+    expect(early.json<{ checks: { packages: string } }>().checks.packages).toBe('seeding');
+    // The process is live all along: only readiness waits.
+    expect((await app.inject({ method: 'GET', url: '/api/v1/healthz' })).statusCode).toBe(200);
+    seeding = false;
+    const late = await app.inject({ method: 'GET', url: '/api/v1/readyz' });
+    expect(late.json<{ checks: { packages: string } }>().checks.packages).toBe('ok');
     await app.close();
   });
 });

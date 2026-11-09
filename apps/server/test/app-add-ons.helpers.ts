@@ -181,6 +181,8 @@ export interface HarnessOptions {
   onRebuild?: (() => void) | undefined;
   /** The source pool's size: one connection shows a read made through the pool from inside a save (it waits for ever). The adapter's own when absent. */
   sourcePoolMax?: number | undefined;
+  /** The boot's seed of the bundled add-ons, as the server hands it to the app routes: a check waits for it. */
+  seeded?: Promise<unknown> | undefined;
   /** More routes beside the add-on and app routes, over the same meta and connections (signed in the same way). */
   routes?: ((deps: { meta: MetaDb; manager: ConnectionManager }) => readonly FastifyPluginAsyncZod[]) | undefined;
 }
@@ -332,7 +334,7 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
     directoryKeys: () => [],
     serverVersion: '0.4.0',
     schemaTarget,
-    addOns: { installer, catalog, bundledDir },
+    addOns: { installer, catalog, bundledDir, ...(opts.seeded === undefined ? {} : { seeded: opts.seeded }) },
     // As a real server: an app's sample data is asked for through the app's own routes.
     sampleData,
     ...(runtime === undefined ? {} : { addOnRuntime: runtime }),

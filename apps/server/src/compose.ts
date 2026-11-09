@@ -2481,7 +2481,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // the operator picked instead of one inferred from a host.
         schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
         catalog: appCatalog,
-        addOns: { installer: addOnInstaller, catalog: addOnCatalog, bundledDir: resolve(BUNDLED_ADD_ONS_DIR) },
+        addOns: { installer: addOnInstaller, catalog: addOnCatalog, bundledDir: resolve(BUNDLED_ADD_ONS_DIR), seeded: Promise.all([appSeed, addOnSeed]) },
         // Which add-ons are loaded now: an app's documents are on only while theirs is.
         addOnRuntime: () => addOnRuntime,
         sampleData: sampleDataDeps,
@@ -3601,6 +3601,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * reinstalling anything, and a later boot costs one `versions()` call per
    * install.
    */
+  // `/readyz` answers 503 until both seeds have settled (`routes/system`).
+  let packagesSeeding = true;
+  void Promise.all([appSeed, addOnSeed]).finally(() => {
+    packagesSeeding = false;
+  });
+  if (!app.hasDecorator('packagesSeeding')) app.decorate('packagesSeeding', () => packagesSeeding);
   const packagesReady = Promise.all([appSeed, addOnSeed])
     .then(async () => {
       const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));

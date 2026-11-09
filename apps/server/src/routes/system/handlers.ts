@@ -29,7 +29,7 @@ export function healthz(): SystemHealthzReply {
 /**
  * READINESS (lists `/readyz` beside `/healthz`): can this instance actually
  * serve a request? That means the meta store — without it every authenticated
- * route 500s, however alive the process is.
+ * route 500s, however alive the process is — and the bundled packages seeded.
  *
  * Load balancers and orchestrators key traffic on THIS, not on `healthz`: an
  * instance whose Postgres has died or been partitioned away is live but
@@ -38,18 +38,25 @@ export function healthz(): SystemHealthzReply {
  * One `SELECT 1` — enough to prove the pool can hand out a working connection,
  * cheap enough to run on a probe interval.
  */
-export async function readyz(meta: MetaDb | null): Promise<SystemReadyzReply> {
+export async function readyz(meta: MetaDb | null, seeding = false): Promise<SystemReadyzReply> {
+  /*
+   * Not ready until the boot has put the bundled apps and add-ons in the
+   * store either: a script that installs an app the moment this says yes
+   * would otherwise be checked against a store that is still filling, and
+   * its install refused for a change no one made. A few seconds, once a boot.
+   */
+  const packages = seeding ? 'seeding' : 'ok';
   if (meta === null) {
-    return { ok: false, version: APP_VERSION, checks: { meta: 'not-configured' } };
+    return { ok: false, version: APP_VERSION, checks: { meta: 'not-configured', packages } };
   }
   try {
     await sql`select 1`.execute(meta.db);
-    return { ok: true, version: APP_VERSION, checks: { meta: 'ok' } };
+    return { ok: !seeding, version: APP_VERSION, checks: { meta: 'ok', packages } };
   } catch {
     // Deliberately not surfacing the driver's message: a connection error
     // routinely quotes the whole DSN ("password authentication failed for user
     // … host=…"), and this route is unauthenticated.
-    return { ok: false, version: APP_VERSION, checks: { meta: 'unreachable' } };
+    return { ok: false, version: APP_VERSION, checks: { meta: 'unreachable', packages } };
   }
 }
 
