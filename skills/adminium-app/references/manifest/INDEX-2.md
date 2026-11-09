@@ -38,7 +38,7 @@
 | `references/manifest/automations--a-row-a-step-makes.md` | Automations — A row a step makes | 3179 |
 | `references/manifest/sample-data.md` | Sample data | 975 |
 | `references/manifest/sample-data--sample-people.md` | Sample data — Sample people | 5060 |
-| `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 6932 |
+| `references/manifest/sample-data--sample-people-2.md` | Sample data — Sample people (part 2) | 7089 |
 | `references/manifest/seeds-and-widgets.md` | seeds and widgets | 2826 |
 | `references/manifest/a-self-made-app.md` | A self-made app | 669 |
 | `references/manifest/a-self-made-app--new-in-0-3-49.md` | A self-made app — New in 0.3.49 | 2774 |

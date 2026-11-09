@@ -89,10 +89,18 @@
                             "unreachable",
                             "not-configured"
                           ]
+                        },
+                        "packages": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "seeding"
+                          ]
                         }
                       },
                       "required": [
-                        "meta"
+                        "meta",
+                        "packages"
                       ],
                       "additionalProperties": false
                     }
@@ -130,10 +138,18 @@
                             "unreachable",
                             "not-configured"
                           ]
+                        },
+                        "packages": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "seeding"
+                          ]
                         }
                       },
                       "required": [
-                        "meta"
+                        "meta",
+                        "packages"
                       ],
                       "additionalProperties": false
                     }
