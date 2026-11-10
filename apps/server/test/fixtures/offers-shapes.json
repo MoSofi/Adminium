@@ -2,7 +2,7 @@
   "kind": "add-on",
   "key": "offers",
   "name": "Offers & gift cards",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "compatibility": {
     "minAdminiumVersion": "0.3.22",
     "requires": []
