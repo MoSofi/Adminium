@@ -14,6 +14,15 @@ their short names. A table of the app itself that links into the add-on goes in 
 marked `"own": true`. A row may point at a row of the app's own sample or of the add-on's own
 sample by its label (`{ "@ref": "…" }`), and name one of the app's tables with `{ "@table": "orders" }`.
 
+The file may ship its own files, as the app's own sample file does: an `assets` map from a label to
+`{ "file": "seeds/…", "sha256": "<64 hex>" }`, and `{ "@asset": "<label>" }` in a row. A label is
+read within this file only. Pictures go in a picture column; an SVG piece or a 3D model (`.svg`,
+`.glb`, `.stl`, `.3mf`) goes in a column of one product asset whose `accept` names its kind. Each
+file is held to what an upload of it is held to (the column's `maxBytes`, an SVG cleaned, a model
+read whole) and to its `sha256`. The files leave with the rows. Needs Adminium 0.3.51:
+`adminium app check` asks for that floor when the file ships one. See
+[the sample directives](https://docs.adminium.dev/reference/manifest/#sample-data).
+
 These rows are added with the app's sample while the add-on is installed in the same database,
 connected to the app and switched on. They are listed as the app's, and removing the app's sample
 takes them out again. A file that names rows of the add-on's own sample waits until that sample is

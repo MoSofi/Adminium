@@ -13,6 +13,7 @@ own answer these codes. `details` names the add-on and, where it helps, what to 
 | `409` | `SCHEMA_DRIFT` | The database changed since the check that was read (`planChecksum`). Check again, then repeat. |
 | `422` | `VALIDATION_FAILED`, `details.code: "ADD_ON_PAGE_REF_TAKEN"` | One of its pages has a name another installed add-on has, or one under that add-on's key. A page's name opens it, so the two cannot be installed together. |
 | `409` | `ADD_ON_INSTALL_INCOMPLETE` | The install stopped part way. `details.stage` says where (`tables`, `writers`, `seeds`, `finish`). Nothing was undone: the same request finishes it. |
+| `409` | `ADD_ON_BARE_TABLES` | An update to a version that keeps its tables under its own prefix, of an add-on installed with plain table names before Adminium recorded its tables: the update would leave its rows behind. `details.tables` names them, `details.connections` the databases that hold them. Adminium never renames an add-on's tables or moves its rows: keep the version you have. From 0.3.43. |
 | `409` | `ADD_ON_UPDATE_INCOMPLETE` | The same, for an update. Until it is finished the add-on does nothing. |
 | `409` | `ADD_ON_IN_USE` | It cannot be removed: a rule of an app still hands rows to it, or an app uses it for a feature. `details` says which. |
 | `403` | `FORBIDDEN` with `details.reason: "DROP_NEEDS_SUPER_ADMIN"` | Deleting its tables with it needs Super Admin. |

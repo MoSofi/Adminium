@@ -81,7 +81,7 @@
 | `references/guides/public-access--signing-in-with-an-emailed-link.md` | Signing in with an emailed link | 1744 |
 | `references/guides/public-access--a-link-that-opens-one-row.md` | A link that opens one row | 1800 |
 | `references/guides/public-access--rows-reached-through-their-parent.md` | Rows reached through their parent | 846 |
-| `references/guides/public-access--files-and-documents.md` | Files and documents | 946 |
+| `references/guides/public-access--files-and-documents.md` | Files and documents | 1904 |
 | `references/guides/public-access--the-human-check.md` | The human check | 1611 |
 | `references/guides/public-access--limits-on-a-stranger-s-create.md` | Limits on a stranger's create | 2319 |
 | `references/guides/public-access--a-kiosk.md` | A kiosk | 2376 |

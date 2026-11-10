@@ -20,6 +20,24 @@
 | `references/guides/building-on-an-add-on--take-stock-when-a-row-is-saved.md` | Take stock when a row is saved | 3284 |
 | `references/guides/building-on-an-add-on--discounts-codes-and-gift-cards-on-an-order.md` | Discounts, codes and gift cards on an order | 4441 |
 | `references/guides/building-on-an-add-on--an-add-on-with-tables-of-its-own.md` | An add-on with tables of its own | 4279 |
+| `references/guides/add-ons-with-tables--overview.md` | Add-ons that keep tables of their own | 622 |
+| `references/guides/add-ons-with-tables--what-it-may-declare.md` | What it may declare | 1068 |
+| `references/guides/add-ons-with-tables--one-database.md` | One database | 515 |
+| `references/guides/add-ons-with-tables--the-check-before-anything-is-made.md` | The check, before anything is made | 719 |
+| `references/guides/add-ons-with-tables--its-pages-are-a-screen-not-a-wall.md` | Its pages are a screen, not a wall | 1283 |
+| `references/guides/add-ons-with-tables--the-data-kit.md` | The data kit | 4710 |
+| `references/guides/add-ons-with-tables--the-data-kit--printing-from-a-page.md` | The data kit — Printing from a page | 886 |
+| `references/guides/add-ons-with-tables--the-data-kit--files-in-its-own-columns.md` | The data kit — Files in its own columns | 1902 |
+| `references/guides/add-ons-with-tables--the-data-kit--reading-an-app-s-prices.md` | The data kit — Reading an app's prices | 1845 |
+| `references/guides/add-ons-with-tables--starting-rows.md` | Starting rows | 525 |
+| `references/guides/add-ons-with-tables--updating.md` | Updating | 507 |
+| `references/guides/add-ons-with-tables--removing.md` | Removing | 691 |
+| `references/guides/add-ons-with-tables--a-ledger-and-code-that-decides.md` | A ledger, and code that decides | 2282 |
+| `references/guides/add-ons-with-tables--checking-a-design.md` | Checking a design | 2313 |
+| `references/guides/add-ons-with-tables--a-panel-on-another-table-s-record.md` | A panel on another table's record | 775 |
+| `references/guides/add-ons-with-tables--what-an-app-s-roles-may-hold-of-its-tables.md` | What an app's roles may hold of its tables | 2142 |
+| `references/guides/add-ons-with-tables--rules-tabs-and-stock-words.md` | Rules, tabs and stock words | 1200 |
+| `references/guides/add-ons-with-tables--what-it-opens-to-the-public.md` | What it opens to the public | 1196 |
 | `references/guides/emails--overview.md` | An app's emails | 915 |
 | `references/guides/emails--the-outbox-table.md` | The outbox table | 1443 |
 | `references/guides/emails--what-queues-a-row.md` | What queues a row | 6742 |
@@ -68,28 +86,5 @@
 | `references/guides/discounts-and-codes--uses-are-recorded-once.md` | Uses are recorded once | 1003 |
 | `references/guides/discounts-and-codes--a-reduction-by-hand.md` | A reduction by hand | 596 |
 | `references/guides/discounts-and-codes--what-a-return-gives-back.md` | What a return gives back | 1136 |
-| `references/guides/discounts-and-codes--when-the-add-on-cannot-be-asked.md` | When the add-on cannot be asked | 793 |
-| `references/guides/discounts-and-codes--what-the-owner-can-change.md` | What the owner can change | 809 |
-| `references/guides/discounts-and-codes--trying-an-offer-before-it-is-on.md` | Trying an offer before it is on | 586 |
-| `references/guides/offers--overview.md` | The Offers & gift cards add-on | 806 |
-| `references/guides/offers--discounts.md` | Discounts | 1886 |
-| `references/guides/offers--codes.md` | Codes | 464 |
-| `references/guides/offers--vouchers-and-packs.md` | Vouchers and packs | 918 |
-| `references/guides/offers--gift-cards-and-credit.md` | Gift cards and credit | 1381 |
-| `references/guides/offers--look-up.md` | Look up | 531 |
-| `references/guides/offers--emails-and-printing.md` | Emails and printing | 1027 |
-| `references/guides/offers--offer-rules.md` | Offer rules | 1275 |
-| `references/guides/offers--staff-discounts.md` | Staff discounts | 462 |
-| `references/guides/offers--roles.md` | Roles | 724 |
-| `references/guides/offers--what-a-customer-can-ask-without-signing-in.md` | What a customer can ask without signing in | 731 |
-| `references/guides/offers--sample-data.md` | Sample data | 722 |
-| `references/guides/offers--cards-from-an-older-system.md` | Cards from an older system | 1115 |
-| `references/guides/offers--for-app-developers.md` | For app developers | 734 |
-| `references/guides/take-payments--overview.md` | Take payments | 399 |
-| `references/guides/take-payments--who-the-seller-is.md` | Who the seller is | 883 |
-| `references/guides/take-payments--what-you-need.md` | What you need | 693 |
-| `references/guides/take-payments--who-may-do-what.md` | Who may do what | 662 |
-| `references/guides/take-payments--set-it-up.md` | Set it up | 5140 |
-| `references/guides/take-payments--on-a-record.md` | On a record | 1201 |
 
 More: `references/guides/INDEX-2.md`

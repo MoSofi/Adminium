@@ -22,6 +22,7 @@ next number in a series and `done_at` is written when the status becomes `done`.
 | `rollup` | A total or a count over child rows, kept up to date. |
 | `stamp` | A value written when something happens: the moment, who did it, a deadline. |
 | `lookup` | A foreign key filled from a code a person types into another column. |
+| `band` | A foreign key filled with the band a number falls in: a quantity's price break, a weight's delivery band. |
 | `perNight` | A price worked out night by night. |
 | `notAfter`, `notBefore` | A date kept on one side of today, or of another date. |
 | `linkable` | A foreign key that names only a row meeting some conditions (a price still offered), or holding what the row written holds (a contact of the deal's company). |
@@ -31,10 +32,22 @@ next number in a series and `done_at` is written when the status becomes `done`.
 | `retryKey` | The column a staff create keeps its retry key in. |
 
 - One rule decides a column's value. `copy`, `default`, `sequence`, `format`, `code`, `formula`,
-  `rollup`, `stamp`, `lookup` and `perNight` cannot be combined, except a `copy` with a `default`
-  behind it.
+  `rollup`, `stamp`, `lookup`, `band` and `perNight` cannot be combined, except a `copy` with a
+  `default` behind it.
 - A column Adminium fills cannot be `writable` in `access.json`, and a primary key takes neither
   `sequence` nor `code`.
 - Every name a rule uses must be a column or table of the manifest, of the right type.
+
+Some of these have a guide of their own:
+
+- [Prices by quantity, sheets and weight](https://docs.adminium.dev/guides/apps/quantity-prices/): `band`, `copy` and a
+  `formula` that rounds up (from 0.3.43).
+- [Ready-by dates in working days](https://docs.adminium.dev/guides/apps/working-days/): a `stamp` that counts working days,
+  with the shop's week, cut-off and closures (from 0.3.43).
+- [Pictures on public pages](https://docs.adminium.dev/guides/apps/public-pictures/) and
+  [Models, fonts and SVG pieces](https://docs.adminium.dev/guides/apps/public-assets/): a `file` column every visitor's
+  browser loads.
+- [Guests' uploads](https://docs.adminium.dev/guides/apps/guest-uploads/): a `file` column a customer uploads into from the
+  app's public pages (from 0.3.43).
 
 Reference: [Column rules](https://docs.adminium.dev/reference/manifest/#column-rules).

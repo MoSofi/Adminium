@@ -11,6 +11,7 @@
 | `references/guides/building-a-side--a-staff-side.md` | A staff side | 5939 |
 | `references/guides/building-a-side--a-customer-side.md` | A customer side | 3718 |
 | `references/guides/building-a-side--pages-and-their-addresses.md` | Pages and their addresses | 3134 |
+| `references/guides/building-a-side--every-copy-of-the-app.md` | Every copy of the app | 2535 |
 | `references/guides/building-a-side--the-venue-s-clock-and-money.md` | The venue's clock and money | 769 |
 | `references/guides/building-a-side--looking-at-a-side-without-adminium.md` | Looking at a side without Adminium | 1224 |
 | `references/guides/building-a-side--what-a-served-screen-may-not-load.md` | What a served screen may not load | 783 |
@@ -36,7 +37,7 @@
 | `references/guides/public-access--signing-in-with-an-emailed-link.md` | Signing in with an emailed link | 1744 |
 | `references/guides/public-access--a-link-that-opens-one-row.md` | A link that opens one row | 1800 |
 | `references/guides/public-access--rows-reached-through-their-parent.md` | Rows reached through their parent | 846 |
-| `references/guides/public-access--files-and-documents.md` | Files and documents | 946 |
+| `references/guides/public-access--files-and-documents.md` | Files and documents | 1904 |
 | `references/guides/public-access--the-human-check.md` | The human check | 1611 |
 | `references/guides/public-access--limits-on-a-stranger-s-create.md` | Limits on a stranger's create | 2319 |
 | `references/guides/public-access--a-kiosk.md` | A kiosk | 2376 |
@@ -69,20 +70,22 @@
 | `references/guides/public-pictures--sizes-and-types.md` | Sizes and types | 1200 |
 | `references/guides/public-pictures--rate-limits.md` | Rate limits | 658 |
 | `references/guides/public-pictures--upgrading.md` | Upgrading | 272 |
+| `references/guides/public-assets--overview.md` | Models, fonts and SVG pieces on public pages | 797 |
+| `references/guides/public-assets--the-kinds.md` | The kinds | 2312 |
+| `references/guides/public-assets--declaring-them.md` | Declaring them | 2058 |
+| `references/guides/public-assets--what-a-page-loads.md` | What a page loads | 1371 |
+| `references/guides/public-assets--when-an-asset-is-served.md` | When an asset is served | 790 |
+| `references/guides/public-assets--sizes.md` | Sizes | 709 |
+| `references/guides/public-assets--headers.md` | Headers | 1079 |
+| `references/guides/public-assets--cleaned-svg.md` | Cleaned SVG | 2573 |
+| `references/guides/guest-uploads--overview.md` | Guests' uploads | 564 |
+| `references/guides/guest-uploads--declaring-it.md` | Declaring it | 1710 |
+| `references/guides/guest-uploads--sending-the-file.md` | Sending the file | 2230 |
+| `references/guides/guest-uploads--when-a-file-is-refused.md` | When a file is refused | 1046 |
+| `references/guides/guest-uploads--tiff-and-svg.md` | TIFF and SVG | 629 |
+| `references/guides/guest-uploads--the-owner-s-limits.md` | The owner's limits | 1052 |
+| `references/guides/guest-uploads--related.md` | Related | 476 |
 | `references/guides/roles-and-staff-access--overview.md` | App roles and staff access | 346 |
 | `references/guides/roles-and-staff-access--who-may-open-an-app-s-staff-screens.md` | Who may open an app's staff screens | 848 |
-| `references/guides/roles-and-staff-access--the-roles-an-app-brings.md` | The roles an app brings | 1326 |
-| `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
-| `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
-| `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 2210 |
-| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 3391 |
-| `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
-| `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1753 |
-| `references/guides/orders-with-lines--overview.md` | An order with its lines | 1439 |
-| `references/guides/orders-with-lines--the-tables.md` | The tables | 2063 |
-| `references/guides/orders-with-lines--the-create-entry.md` | The create entry | 6922 |
-| `references/guides/orders-with-lines--placing-the-order.md` | Placing the order | 3283 |
-| `references/guides/orders-with-lines--the-price-first.md` | The price first | 3039 |
-| `references/guides/orders-with-lines--the-price-check.md` | The price check | 1152 |
 
 More: `references/guides/INDEX-2.md`

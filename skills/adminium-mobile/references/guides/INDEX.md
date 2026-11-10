@@ -21,7 +21,7 @@
 | `references/guides/public-access--signing-in-with-an-emailed-link.md` | Signing in with an emailed link | 1744 |
 | `references/guides/public-access--a-link-that-opens-one-row.md` | A link that opens one row | 1800 |
 | `references/guides/public-access--rows-reached-through-their-parent.md` | Rows reached through their parent | 846 |
-| `references/guides/public-access--files-and-documents.md` | Files and documents | 946 |
+| `references/guides/public-access--files-and-documents.md` | Files and documents | 1904 |
 | `references/guides/public-access--the-human-check.md` | The human check | 1611 |
 | `references/guides/public-access--limits-on-a-stranger-s-create.md` | Limits on a stranger's create | 2319 |
 | `references/guides/public-access--a-kiosk.md` | A kiosk | 2376 |
@@ -54,3 +54,18 @@
 | `references/guides/public-pictures--sizes-and-types.md` | Sizes and types | 1200 |
 | `references/guides/public-pictures--rate-limits.md` | Rate limits | 658 |
 | `references/guides/public-pictures--upgrading.md` | Upgrading | 272 |
+| `references/guides/public-assets--overview.md` | Models, fonts and SVG pieces on public pages | 797 |
+| `references/guides/public-assets--the-kinds.md` | The kinds | 2312 |
+| `references/guides/public-assets--declaring-them.md` | Declaring them | 2058 |
+| `references/guides/public-assets--what-a-page-loads.md` | What a page loads | 1371 |
+| `references/guides/public-assets--when-an-asset-is-served.md` | When an asset is served | 790 |
+| `references/guides/public-assets--sizes.md` | Sizes | 709 |
+| `references/guides/public-assets--headers.md` | Headers | 1079 |
+| `references/guides/public-assets--cleaned-svg.md` | Cleaned SVG | 2573 |
+| `references/guides/guest-uploads--overview.md` | Guests' uploads | 564 |
+| `references/guides/guest-uploads--declaring-it.md` | Declaring it | 1710 |
+| `references/guides/guest-uploads--sending-the-file.md` | Sending the file | 2230 |
+| `references/guides/guest-uploads--when-a-file-is-refused.md` | When a file is refused | 1046 |
+| `references/guides/guest-uploads--tiff-and-svg.md` | TIFF and SVG | 629 |
+| `references/guides/guest-uploads--the-owner-s-limits.md` | The owner's limits | 1052 |
+| `references/guides/guest-uploads--related.md` | Related | 476 |

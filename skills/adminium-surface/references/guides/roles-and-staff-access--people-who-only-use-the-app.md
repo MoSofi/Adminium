@@ -32,6 +32,15 @@ is sent to the app instead of the dashboard:
   with: `GET /api/v1/add-ons/<add-on>/pages/<page>/files/…`) are served to them too, while the
   add-on is connected to their app and their role holds that page's permission
   (`page:@<page>:view`). Needs Adminium 0.3.47.
+  They may also ask which add-ons their app has (`GET /api/v1/add-ons`), so a screen offers what
+  an add-on adds once it is there ("Book a collection" when a carrier add-on is connected). The
+  answer names only the add-ons connected to their own apps, and of each only those apps; it never
+  carries an add-on's settings values, whatever their role may change. Needs Adminium 0.3.52.
+  And they are served the code with which such an add-on fills a place on their app's staff screens
+  (`GET /api/v1/add-ons/<add-on>/bundle/<file>`, a fill of a staff-side slot). The add-ons list
+  names only those files, each at an address that ends in `?v=` and a pin of its bytes, so a new
+  version is a new address and the browser may keep the file. An add-on's page, or a file that
+  fills nothing on their screens, is refused `403`. Needs Adminium 0.3.53.
 - the [assistant](https://docs.adminium.dev/guides/llm-assist/milo/#on-an-apps-own-staff-address), when an administrator
   has given their role the assistant permission: its button is on the app's staff screens, and it
   answers about their app's data within what their roles read. An app's manifest cannot grant

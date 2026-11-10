@@ -24,12 +24,12 @@
 | `references/guides/manifest-by-task--build-on-an-add-on.md` | Build on an add-on | 1236 |
 | `references/guides/manifest-by-task--stock-from-the-inventory-add-on.md` | Stock from the Inventory add-on | 2189 |
 | `references/guides/manifest-by-task--discounts-codes-and-gift-cards-from-the-offers-add-on.md` | Discounts, codes and gift cards from the Offers add-on | 2174 |
-| `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 2712 |
+| `references/guides/manifest-by-task--values-adminium-fills-in.md` | Values Adminium fills in | 3615 |
 | `references/guides/manifest-by-task--things-a-manifest-cannot-do.md` | Things a manifest cannot do | 941 |
 | `references/guides/sample-data--overview.md` | Sample data | 414 |
 | `references/guides/sample-data--adding-it.md` | Adding it | 4036 |
 | `references/guides/sample-data--sample-times-that-follow-the-calendar.md` | Sample times that follow the calendar | 2543 |
-| `references/guides/sample-data--rows-for-an-add-on-the-app-names.md` | Rows for an add-on the app names | 4975 |
+| `references/guides/sample-data--rows-for-an-add-on-the-app-names.md` | Rows for an add-on the app names | 5710 |
 | `references/guides/sample-data--sample-people.md` | Sample people | 1893 |
 | `references/guides/sample-data--while-it-is-loaded.md` | While it is loaded | 664 |
 | `references/guides/sample-data--removing-it.md` | Removing it | 1954 |
@@ -40,7 +40,7 @@
 | `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
 | `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
 | `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 2210 |
-| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 3391 |
+| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 4240 |
 | `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
 | `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1753 |
 | `references/guides/settings--overview.md` | An app's settings page | 1311 |

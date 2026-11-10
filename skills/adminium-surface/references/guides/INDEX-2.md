@@ -4,6 +4,19 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/guides/roles-and-staff-access--the-roles-an-app-brings.md` | The roles an app brings | 1326 |
+| `references/guides/roles-and-staff-access--personal-data.md` | Personal data | 1375 |
+| `references/guides/roles-and-staff-access--edits-limited-to-some-columns.md` | Edits limited to some columns | 2384 |
+| `references/guides/roles-and-staff-access--reads-limited-to-some-columns.md` | Reads limited to some columns | 2210 |
+| `references/guides/roles-and-staff-access--people-who-only-use-the-app.md` | People who only use the app | 4240 |
+| `references/guides/roles-and-staff-access--someone-without-access.md` | Someone without access | 902 |
+| `references/guides/roles-and-staff-access--signing-in-on-the-app-s-own-address.md` | Signing in on the app's own address | 1753 |
+| `references/guides/orders-with-lines--overview.md` | An order with its lines | 1439 |
+| `references/guides/orders-with-lines--the-tables.md` | The tables | 2063 |
+| `references/guides/orders-with-lines--the-create-entry.md` | The create entry | 6922 |
+| `references/guides/orders-with-lines--placing-the-order.md` | Placing the order | 3283 |
+| `references/guides/orders-with-lines--the-price-first.md` | The price first | 3039 |
+| `references/guides/orders-with-lines--the-price-check.md` | The price check | 1152 |
 | `references/guides/orders-with-lines--retries.md` | Retries | 1973 |
 | `references/guides/orders-with-lines--what-a-guest-is-told.md` | What a guest is told | 2002 |
 | `references/guides/orders-with-lines--what-a-price-was-reduced-by.md` | What a price was reduced by | 1259 |
