@@ -57,8 +57,8 @@ A form's `reference` field may narrow its picker by another field of the same fo
 the target whose `column` holds the value the form's `field` has now (a proof's order line, among
 the lines of the order chosen above it); while that field is empty, it offers every row. `field` is
 a column of the page's table, `column` one of the target table. It narrows the choices and is no
-rule: a row saved another way keeps its value. Needs Adminium 0.3.53; an older one installs the
-form and offers every row.
+rule: a row saved another way keeps its value. Needs Adminium 0.3.53: a manifest that uses it
+must name 0.3.53 or later as its `minAdminiumVersion`, or its check refuses it.
 
 A form's chips field (`"control": "reference-chips"`) may name the table it picks from or the
 link table between the two (`"relation": "clinician_visit_types"`). A link table is one that
@@ -86,23 +86,3 @@ open that form, with the day filled in.
 
 `config.board` says what the columns of a `page-board` are. It needs
 `"minAdminiumVersion": "0.3.28"`.
-
-```json
-"config": { "board": {
-  "column": "stage_id",
-  "columnsFrom": { "table": "stages", "label": "name", "order": "position", "badge": { "column": "odds", "as": "percent" } },
-  "title": "name",
-  "totals": [{ "column": "amount", "fn": "sum" }, { "column": "weighted_value", "fn": "sum" }],
-  "only": { "state": "open" },
-  "card": {
-    "link": "company_id.name",
-    "person": "owner_id",
-    "amount": "amount",
-    "secondAmount": { "column": "weighted_value", "label": "w", "labels": { "de-DE": "gew." } },
-    "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30, "label": "in stage", "labels": { "de-DE": "in der Phase" } },
-    "date": "expected_close"
-  },
-  "toolbar": { "total": true, "person": "owner_id" },
-  "note": { "text": "Columns come from Stages", "texts": { "de-DE": "Die Spalten kommen aus den Phasen" }, "href": "/p/crm-stages" }
-} }
-```

@@ -2,6 +2,26 @@
 
 # Manifest spec: Pages
 
+```json
+"config": { "board": {
+  "column": "stage_id",
+  "columnsFrom": { "table": "stages", "label": "name", "order": "position", "badge": { "column": "odds", "as": "percent" } },
+  "title": "name",
+  "totals": [{ "column": "amount", "fn": "sum" }, { "column": "weighted_value", "fn": "sum" }],
+  "only": { "state": "open" },
+  "card": {
+    "link": "company_id.name",
+    "person": "owner_id",
+    "amount": "amount",
+    "secondAmount": { "column": "weighted_value", "label": "w", "labels": { "de-DE": "gew." } },
+    "daysSince": { "column": "entered_stage_at", "warnFrom": 14, "alertFrom": 30, "label": "in stage", "labels": { "de-DE": "in der Phase" } },
+    "date": "expected_close"
+  },
+  "toolbar": { "total": true, "person": "owner_id" },
+  "note": { "text": "Columns come from Stages", "texts": { "de-DE": "Die Spalten kommen aus den Phasen" }, "href": "/p/crm-stages" }
+} }
+```
+
 | Field | Required | Rule |
 |---|---|---|
 | `column` | yes | The column of the page's table a card is placed by. With `columnsFrom` it is a link (`"type": "fk"`) to that table. Without `columnsFrom` it is an `enum` column, and the board's columns are its values. |
@@ -45,17 +65,3 @@ among "Everyone" only. Choosing a person narrows the cards, each column's count 
 the toolbar's total to that person's cards, still within what the person looking may read: a rep
 held to their own deals who chooses a colleague sees no card. The choice holds while the page is
 open.
-
-`only` makes the board a board of some of its table's rows: `"only": { "state": "open" }` is the
-open deals, `"only": { "kind": ["new", "renewal"], "hot": true }` the hot deals of two kinds. It
-holds for the cards and for the headers alike, so a column's count and totals are of the cards
-`only` keeps. A column of `only` is an `enum`, a `bool`, a link (`fk`, by the key it holds),
-`text` or a whole number (`int`, `bigint`) of the page's table, and not the board's own `column`;
-a value of an `enum` is one of its values, and a value of a link is of the kind the table it links
-to is keyed by: a whole number for an `int` or `bigint` key, text for any other. A card added on
-the board is given each value `only` names alone (`"state": "open"`, not a list), so it is on the
-board; where the table's own rules refuse that value for a new row, the add is refused and the
-board says why. A role that may not read a column `only` names (it is
-not among the role's `readable` columns, or it is personal data the role may not read) gets
-neither the cards nor the figures: the headers show no count and no total, never those of every
-row. So name a column every role that opens the board may read.

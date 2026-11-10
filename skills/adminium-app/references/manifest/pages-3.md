@@ -2,6 +2,20 @@
 
 # Manifest spec: Pages
 
+`only` makes the board a board of some of its table's rows: `"only": { "state": "open" }` is the
+open deals, `"only": { "kind": ["new", "renewal"], "hot": true }` the hot deals of two kinds. It
+holds for the cards and for the headers alike, so a column's count and totals are of the cards
+`only` keeps. A column of `only` is an `enum`, a `bool`, a link (`fk`, by the key it holds),
+`text` or a whole number (`int`, `bigint`) of the page's table, and not the board's own `column`;
+a value of an `enum` is one of its values, and a value of a link is of the kind the table it links
+to is keyed by: a whole number for an `int` or `bigint` key, text for any other. A card added on
+the board is given each value `only` names alone (`"state": "open"`, not a list), so it is on the
+board; where the table's own rules refuse that value for a new row, the add is refused and the
+board says why. A role that may not read a column `only` names (it is
+not among the role's `readable` columns, or it is personal data the role may not read) gets
+neither the cards nor the figures: the headers show no count and no total, never those of every
+row. So name a column every role that opens the board may read.
+
 The manifest is refused when `column` is not a link to `columnsFrom.table` (or, with no
 `columnsFrom`, not an `enum`), when a name is not a column of the right table, when a total is not
 a number or money column, when `only` names the board's own `column`, a column of another type

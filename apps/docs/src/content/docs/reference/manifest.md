@@ -2797,8 +2797,8 @@ A form's `reference` field may narrow its picker by another field of the same fo
 the target whose `column` holds the value the form's `field` has now (a proof's order line, among
 the lines of the order chosen above it); while that field is empty, it offers every row. `field` is
 a column of the page's table, `column` one of the target table. It narrows the choices and is no
-rule: a row saved another way keeps its value. Needs Adminium 0.3.53; an older one installs the
-form and offers every row.
+rule: a row saved another way keeps its value. Needs Adminium 0.3.53: a manifest that uses it
+must name 0.3.53 or later as its `minAdminiumVersion`, or its check refuses it.
 
 A form's chips field (`"control": "reference-chips"`) may name the table it picks from or the
 link table between the two (`"relation": "clinician_visit_types"`). A link table is one that
