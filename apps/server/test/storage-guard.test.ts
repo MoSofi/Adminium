@@ -110,6 +110,21 @@ describe.each(Object.keys(drivers))('%s driver behind an endpoint that redirects
   });
 });
 
+describe('a 3xx with nowhere to go', () => {
+  it('is handed to the driver, so S3 says which endpoint the bucket needs', async () => {
+    const body = '<?xml version="1.0" encoding="UTF-8"?><Error><Code>PermanentRedirect</Code><Message>The bucket you are attempting to access must be addressed using the specified endpoint.</Message><Endpoint>b.s3.eu-west-1.amazonaws.com</Endpoint></Error>';
+    const fetchImpl: typeof fetch = async () => new Response(body, { status: 301, headers: { 'content-type': 'application/xml' } });
+    const driver = createS3Driver({
+      config: { region: 'us-east-1', bucket: 'b', prefix: 'adminium', forcePathStyle: false },
+      credentials: { accessKeyId: 'AK', secretAccessKey: 'SK' },
+      fetchImpl,
+    });
+    await expect(driver.open('upload/2026/11/a.pdf')).rejects.toThrow('PermanentRedirect: The bucket you are attempting to access must be addressed');
+    const probed = await driver.probe();
+    expect(probed.ok ? '' : probed.error).toContain('PermanentRedirect');
+  });
+});
+
 describe('webdav MKCOL', () => {
   it('still reads a 301 as "the collection exists", without following it', async () => {
     const seen: { method: string; redirect: RequestRedirect | undefined }[] = [];

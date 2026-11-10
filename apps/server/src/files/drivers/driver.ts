@@ -108,7 +108,8 @@ export interface FileDriver {
  * The default `redirect: 'follow'` lets an endpoint answer
  * `302 http://169.254.169.254/…` and have the cloud's credentials streamed
  * back as the file; the guard only ever saw the first address. So nothing is
- * followed, and a 3xx is a driver error naming where it pointed. `allow`
+ * followed, and a 3xx with a `Location` is a driver error naming where it
+ * pointed (one without is handed back as a response to report). `allow`
  * keeps a redirect a protocol treats as an answer (WebDAV's MKCOL 301 for a
  * collection that already exists) as a plain response, still unfollowed.
  */
@@ -121,6 +122,10 @@ export function fetchWithoutRedirects(
     if (response.status < 300 || response.status > 399) return response;
     const method = init?.method ?? 'GET';
     if (allow(method, response.status)) return response;
+    // A 3xx with nowhere to go is an answer, not a redirect: S3 says "wrong
+    // region" as a 301 PermanentRedirect whose body names the right endpoint,
+    // and the driver's own error path reads that body.
+    if (!response.headers.has('location')) return response;
     await response.arrayBuffer().catch(() => undefined);
     let to = '';
     try {
