@@ -52,4 +52,22 @@ describe("a page form's controls", () => {
     expect(formIssues(manifest, page('order_id'))).toEqual([]);
     expect(formIssues(manifest, page('ghost_id'))).toEqual(['"proofs" has no column "ghost_id" to narrow "line_id" by']);
   });
+
+  it('name a column the picked table does not have, which the picker filters its rows on', () => {
+    const manifest = {
+      kind: 'app',
+      key: 'shop',
+      requiredSchema: {
+        tables: [
+          { ref: 'orders', columns: [{ ref: 'id', type: 'int', role: 'pk' }] },
+          { ref: 'lines', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'order_id', type: 'fk', references: 'orders' }] },
+          { ref: 'proofs', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'order_id', type: 'fk', references: 'orders' }, { ref: 'line_id', type: 'fk', references: 'lines' }] },
+        ],
+      },
+    } as unknown as Manifest;
+    const page = (column: string) =>
+      ({ ref: 'shop-proofs', template: 'page-crud', bindings: { rows: 'proofs' }, config: { form: { v: 2, sections: [{ id: 'main', fields: [{ column: 'order_id' }, { column: 'line_id', reference: { scope: { field: 'order_id', column } } }] }] } } }) as unknown as ManifestPage;
+    expect(formIssues(manifest, page('order_id'))).toEqual([]);
+    expect(formIssues(manifest, page('orderid'))).toEqual(['"lines" has no column "orderid" to narrow "line_id" by']);
+  });
 });
