@@ -1,5 +1,15 @@
 # @adminium/widgets
 
+## 0.3.54
+
+### Patch Changes
+
+- 69a7a8a: A reference picker no longer sends the search you were still typing after its form has closed: closing the form drops a search that was waiting for you to pause.
+- @adminium/charts@0.3.54
+  - @adminium/i18n@0.3.54
+  - @adminium/tokens@0.3.54
+  - @adminium/ui@0.3.54
+
 ## 0.3.53
 
 ### Patch Changes

@@ -1,5 +1,31 @@
 # @adminium/server
 
+## 0.3.54
+
+### Patch Changes
+
+- 813386c: The add-ons that come with Adminium are now 1.0.26. In the Customiser, a shopper can order a ready-made design again (1.0.24 and 1.0.25 refused every one in the shop), the order-line panel stops reading the shop's set-up again after each save on the dashboard, a words layer kept in a font the shop switched off is no longer refused by the shop's editor, a blank design is named by its kind ("The blank page"), and the Shop settings dialog says its settings cover the shop apps that use this install of the Customiser.
+- fdf817a: A connection string must now be for the engine the connection is for: a SQLite string offered for a PostgreSQL or MySQL connection (or the other way round) is refused with a message naming both, when the connection is tested or created and whenever a saved one connects. A host written as a number in another form (`2852039166`, `0xa9fea9fe`, `127.1`, `[::ffff:169.254.169.254]`, `[::1]`) is now read as the address it stands for, so the cloud metadata address is refused in every spelling, and in production so is this machine's own address. The same reading applies to model, webhook and email addresses.
+- 7ebf34c: When an add-on is installed on several databases and a screen asks for its kit without saying which copy, the refusal now names each copy's database, as the other routes do, instead of leaving the name empty.
+- cbeb02f: A MySQL connection string may carry Prisma's `sslaccept`, `connection_limit` and `pool_timeout` again, so PlanetScale's Prisma string (`?sslaccept=strict`) is accepted and a saved connection that uses one connects as before. None of the three changes where the connection goes.
+- f217b18: A column an app marks as a file (a proof's PDF) is shown as the file on a page's list and record, as the form already treated it, instead of the stored file's id as text.
+- c16368e: A column switched to "Mask" on a page in Studio stays masked again: after a save the switch no longer turned itself off, and the list and record show the column behind a reveal as before. Only a column an app (or an operator) says holds no personal data is still drawn in clear whatever the page says.
+- f50c959: An app whose form narrows a reference picker by a column the picked table does not have (`reference.scope.column`) is now refused when it is checked or installed, naming the table and the column, instead of installing a picker that offers nothing.
+- 6ffa3b9: An S3 destination set to the wrong region shows S3's own message again ("PermanentRedirect: The bucket you are attempting to access must be addressed using the specified endpoint"), instead of a bare "answered a redirect".
+- 641c7aa: An app's own staff screens now say which copy of the app they are when they call Adminium, so reading the app's automation rules (`staff.rules()`) works when the app is installed on more than one database, instead of being refused as "installed on 2 databases".
+- b7c9740: An S3 endpoint or a WebDAV address that points at the cloud metadata service is now refused when the destination is created, edited or tested, and a destination saved with one earlier stops being used. In production, an address on this machine itself (`127.0.0.1`, `localhost`, `[::1]`) is refused too; put the storage service behind its own host name. For S3 the check covers the address the requests really go to, which is built from the region and the bucket when no endpoint is set.
+- 5b05ac5: When an app numbers a column per record (a line's position on its order, a job's place in its order), every update of the app now numbers the rows that have no number yet: each order's lines without one take the next numbers after the largest it holds, in the order they were made, and the numbers already there stay. What is worked out from the number (a line's label) follows. This also reaches lines added by hand under an earlier version, though the update does not change the rule. A document's own series (an invoice's number) is not given out after the fact.
+- @adminium/engine@0.3.54
+  - @adminium/llm@0.3.54
+  - @adminium/adapter-mysql@0.3.54
+  - @adminium/adapter-postgres@0.3.54
+  - @adminium/adapter-sqlite@0.3.54
+  - @adminium/schema-import@0.3.54
+  - @adminium/add-on-contracts@0.3.54
+  - @adminium/i18n@0.3.54
+  - @adminium/manifest@0.3.54
+  - @adminium/meta@0.3.54
+
 ## 0.3.53
 
 ### Patch Changes

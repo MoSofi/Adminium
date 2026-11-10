@@ -1,5 +1,19 @@
 # @adminium/dashboard
 
+## 0.3.54
+
+### Patch Changes
+
+- 6eaf7a6: Opening a record's edit form no longer asks the server for more related rows than it answers at once (it was refused with "limit too high"); a long list of lines is read a page at a time.
+- Updated dependencies [69a7a8a]
+  - @adminium/widgets@0.3.54
+  - @adminium/engine@0.3.54
+  - @adminium/add-on-contracts@0.3.54
+  - @adminium/charts@0.3.54
+  - @adminium/i18n@0.3.54
+  - @adminium/tokens@0.3.54
+  - @adminium/ui@0.3.54
+
 ## 0.3.53
 
 ### Patch Changes

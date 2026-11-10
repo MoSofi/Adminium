@@ -1,5 +1,12 @@
 # @adminium/charts
 
+## 0.3.54
+
+### Patch Changes
+
+- @adminium/i18n@0.3.54
+  - @adminium/tokens@0.3.54
+
 ## 0.3.53
 
 ### Patch Changes
