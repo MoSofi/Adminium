@@ -137,8 +137,8 @@ export function installOptions(installId: string | null | undefined): ApiOptions
  *
  * Each mount holds its own scope. Two copies of one add-on drawn at once (a
  * record's panels of two databases) cannot be told apart by a path, so a
- * request under that prefix names neither and the server asks which (or
- * picks the only one the person reaches), never the copy mounted last; the
+ * request under that prefix names neither and the server asks which (409,
+ * even when the person reaches only one), never the copy mounted last; the
  * host's own calls name their copy explicitly. When one of them unmounts, the
  * other's scope is whole again.
  */
