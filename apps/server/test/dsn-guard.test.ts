@@ -123,6 +123,8 @@ describe('the host is read the way the drivers read it', () => {
     }
     const mysql = [
       'mysql://USER:PASSWORD@aws.connect.psdb.cloud/mydb?ssl={"rejectUnauthorized":true}',
+      // PlanetScale's Prisma string, and Prisma's pool parameters: mysql2 ignores all three.
+      'mysql://USER:PASSWORD@aws.connect.psdb.cloud/mydb?sslaccept=strict&connection_limit=5&pool_timeout=10',
       'mysql://u@db.example.com:3306/shop?charset=utf8mb4&timezone=Z&connectTimeout=5000',
     ];
     for (const dsn of mysql) {

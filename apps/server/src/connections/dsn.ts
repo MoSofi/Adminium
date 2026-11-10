@@ -103,7 +103,8 @@ const ALLOWED_PARAMETERS: Readonly<Record<'postgres' | 'mysql', ReadonlySet<stri
     'pool_timeout',
     'sslaccept',
   ]),
-  mysql: new Set(['ssl', 'sslmode', 'charset', 'timezone', 'connectTimeout']),
+  // Prisma's `sslaccept`, `connection_limit` and `pool_timeout` are not mysql2 options: it warns and ignores them.
+  mysql: new Set(['ssl', 'sslmode', 'charset', 'timezone', 'connectTimeout', 'sslaccept', 'connection_limit', 'pool_timeout']),
 };
 
 const PG_SSLMODES = new Set(['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full', 'no-verify']);
