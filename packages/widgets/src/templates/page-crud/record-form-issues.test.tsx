@@ -20,6 +20,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { gridColumnSpecSchema, type GridColumnSpec, type GridColumnSpecInput } from '../../families/tables/column-spec.js';
 import { RecordForm } from './RecordForm.js';
 import { fieldMessagesOf } from './field-issues.js';
+import { parseCrudForm } from '../../page-config/index.js';
 import type { ColumnFact, ColumnFacts } from './field-mapping.js';
 
 afterEach(cleanup);
@@ -95,6 +96,30 @@ describe('a required field the person left blank', () => {
   it('shows the created_at the facts say nothing fills', () => {
     form({ facts: { ...FACTS, created_at: fact({ required: true }) } });
     expect(screen.getByLabelText(/Created/)).toBeTruthy();
+  });
+});
+
+describe('a field the form itself marks required', () => {
+  // The column may be empty in the database (a proof saved before its picture); a new row from this form may not.
+  const document = parseCrudForm({ form: { v: 2, sections: [{ id: 's1', fields: [{ column: 'full_name' }, { column: 'notes', required: true }] }] } })!;
+
+  it('is refused on a new row when left blank, under the field, and nothing is sent', async () => {
+    const { onSubmit } = form({ document });
+    await userEvent.type(screen.getByLabelText(/Full name/), 'Ada');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('This field is required.')).toBeTruthy();
+    expect(screen.getByLabelText(/Notes/).getAttribute('aria-invalid')).toBe('true');
+    await userEvent.type(screen.getByLabelText(/Notes/), 'Ring');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ full_name: 'Ada', notes: 'Ring' });
+  });
+
+  it('leaves an edit that does not touch it alone, as an edit sends only what changed', async () => {
+    const { onSubmit } = form({ document, mode: 'edit', initialValues: { id: 1, full_name: 'Ada', notes: null } });
+    await userEvent.type(screen.getByLabelText(/Full name/), ' L');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });
 

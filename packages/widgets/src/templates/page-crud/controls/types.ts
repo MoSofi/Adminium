@@ -70,9 +70,10 @@ export interface ControlProps extends SlotInjected {
   /** The reader's locale — a calendar's month names and week start. */
   locale?: string | undefined;
   /**
-   * The rest of the form's values, READ-ONLY. One control needs them: a
+   * The rest of the form's values, READ-ONLY. Two controls need them: a
    * calendar whose availability is scoped by another field (the room, the
-   * practitioner) has to know what that field says. It is deliberately not a
+   * practitioner), and a reference picker narrowed by one (`reference.scope`),
+   * have to know what that field says. It is deliberately not a
    * setter — a control that writes another field's value is a control that
    * owns the form.
    */

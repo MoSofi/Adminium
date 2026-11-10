@@ -582,6 +582,10 @@ export function RecordForm({
   const collect = (over: readonly GridColumnSpec[]): { out: CrudRow; refused: Record<string, string> } => {
     const out: CrudRow = {};
     const refused: Record<string, string> = {};
+    // The fields the form's document marks required (a proof's picture): held to it as the column's own rule is.
+    const documentRequired = new Set(
+      (formDocument?.sections ?? []).flatMap((section) => section.fields.flatMap((field) => ('column' in field && field.required === true ? [field.column] : []))),
+    );
     for (const column of over) {
       // A relation's stand-in column is not a column of this row: its keys go
       // in the second argument, as rows of another table. A recap's stand-in
@@ -618,7 +622,7 @@ export function RecordForm({
        * server, which answered 500 with no column named. Now the form says so
        * itself, before the request, under the field.
        */
-      if (isRequired(column, fact, values, mode === 'edit' ? initialValues : undefined) && isBlank(raw) && !(mode === 'edit' && raw === undefined)) {
+      if ((documentRequired.has(column.name) || isRequired(column, fact, values, mode === 'edit' ? initialValues : undefined)) && isBlank(raw) && !(mode === 'edit' && raw === undefined)) {
         refused[column.name] = t('ui:formDialog.issue.required', 'This field is required.');
         continue;
       }
@@ -900,8 +904,8 @@ export function RecordForm({
       ...(availability === undefined ? {} : { availability }),
       ...(places === undefined ? {} : { places }),
       ...(recordId === undefined ? {} : { recordId }),
-      // Read-only, and only one control asks for them: a calendar scoped by
-      // another field has to know what that field currently says.
+      // Read-only: a calendar, or a reference picker, scoped by another field
+      // has to know what that field currently says.
       siblings: values,
     };
 
