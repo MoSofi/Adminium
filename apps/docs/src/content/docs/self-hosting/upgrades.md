@@ -148,6 +148,26 @@ and in its `Dockerfile`'s image tag. Move both together — `npm run check`
 compares them — and read
 [Upgrading Adminium](/projects/deploy/#upgrading-adminium).
 
+## Settings a release stops taking
+
+A release sometimes refuses a setting an earlier one took, when the setting
+could send Adminium somewhere it should not go. The setting is kept, but what
+depends on it stops working until you change it. After an upgrade to 0.3.53,
+check two things:
+
+- **Database connection strings.** A string that carries a parameter the
+  release refuses (`?host=`, `?port=`, `?sslrootcert=`, `?socketPath=` and
+  others) stops connecting, and the error names the parameter. In production a
+  string must also name a host. Edit the connection and take the parameter
+  out: see [PostgreSQL](/guides/connect/postgres/#connection-string) and
+  [MySQL](/guides/connect/mysql/#connection-string).
+- **S3 and WebDAV storage.** A destination whose endpoint answers with a
+  redirect fails its test and every read and write. Set it to the address it
+  redirects to: see
+  [An endpoint that redirects](/guides/files/storage-destinations/#an-endpoint-that-redirects).
+
+Rehearsing the upgrade (below) shows both before production does.
+
 ## Rehearse it
 
 The meta store is a database like any other. Restore last night's backup

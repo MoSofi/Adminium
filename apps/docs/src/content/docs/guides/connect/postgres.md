@@ -25,6 +25,15 @@ which would send the connection to a different place than the host the string
 names, and the certificate-file parameters (`sslrootcert`, `sslcert`, `sslkey`),
 which read files on the Adminium server. A percent-encoded host is refused too.
 
+In production (`NODE_ENV=production`) the string must name a host. One with no
+host (`postgres://user@/db`) would reach a socket on the Adminium machine, and is
+refused.
+
+These checks are from 0.3.53, and they also hold for a connection saved before.
+A connection whose string carries a refused parameter stops connecting after the
+upgrade, and its error names the parameter. Edit the connection, take the
+parameter out (the host and port go before the `?`), and save it again.
+
 In the wizard you can paste a full DSN or fill host / port / user / password /
 database and let Adminium compose it.
 

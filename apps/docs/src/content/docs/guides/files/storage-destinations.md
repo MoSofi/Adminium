@@ -281,6 +281,22 @@ wrong endpoint.
 A destination that has never been tested says so. One that failed shows
 *Unreachable* until it passes.
 
+#### An endpoint that redirects
+
+From 0.3.53, Adminium does not follow a redirect from an S3 or WebDAV
+destination. An endpoint that answers with one (a `301` or a `302` to another
+address) fails its test, and every read and write, with a message that names
+where it pointed:
+
+```text
+GET answered a redirect (HTTP 301 to https://files.example.net). A storage endpoint may not redirect; set the destination to the address it redirects to.
+```
+
+Set the endpoint, or the WebDAV collection URL, to that final address. A
+destination that worked on an earlier release and sits behind a redirect (an
+`http://` address that moves to `https://`, say) stops working after the
+upgrade until you do.
+
 ### Set as default
 
 Exactly one destination is the default. Once one exists, **every new file of

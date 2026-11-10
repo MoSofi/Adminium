@@ -22,7 +22,16 @@ Percent-encode anything exotic in the password.
 form); `charset`, `timezone` and `connectTimeout` are accepted too. Any other
 parameter is refused, naming it. That includes `socketPath`, which would send
 the connection somewhere other than the host the string names, and `flags` and
-`multipleStatements`, which change what the connection may do.
+`multipleStatements`, which change what the connection may do. A
+percent-encoded host is refused too.
+
+In production (`NODE_ENV=production`) the string must name a host. One with no
+host would reach a socket on the Adminium machine, and is refused.
+
+These checks are from 0.3.53, and they also hold for a connection saved before.
+A connection whose string carries a refused parameter stops connecting after the
+upgrade, and its error names the parameter. Edit the connection, take the
+parameter out, and save it again.
 
 ## A read-only user
 
