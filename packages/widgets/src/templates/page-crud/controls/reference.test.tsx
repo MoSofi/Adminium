@@ -157,6 +157,16 @@ describe('the reference picker', () => {
     expect(screen.queryByRole('option', { name: /Amara Osei/ })).toBeNull();
   });
 
+  it('asks nothing once the field is gone, though a search was waiting for its pause', async () => {
+    const lookup = vi.fn().mockResolvedValue(ROWS);
+    const { user } = renderPicker({ lookup });
+    await waitFor(() => expect(lookup).toHaveBeenCalledTimes(1));
+    await user.type(screen.getByRole('combobox'), 'ben');
+    cleanup();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(lookup.mock.calls.filter((call) => call[1] === 'ben')).toHaveLength(0);
+  });
+
   it('keeps working when a search simply fails', async () => {
     const lookup = vi.fn().mockRejectedValue(new Error('network'));
     renderPicker({ lookup });

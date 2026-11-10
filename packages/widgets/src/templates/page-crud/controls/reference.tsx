@@ -117,6 +117,14 @@ function FkField({
     });
   };
 
+  // A search still waiting for its pause is dropped with the field: nothing is asked for a form that has closed.
+  useEffect(
+    () => () => {
+      if (timer.current !== null) clearTimeout(timer.current);
+    },
+    [],
+  );
+
   // Initial option load (empty query → first page of choices).
   useEffect(() => {
     let alive = true;
