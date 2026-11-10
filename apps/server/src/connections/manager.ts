@@ -153,14 +153,14 @@ export class ConnectionManager {
     return this.#registry.has(engine as never);
   }
 
-  /** The guard alone, for a DSN stored now and dialled later. Throws 422. */
-  assertDsnAllowed(dsn: string): void {
-    guardDsn(dsn, { blockLoopback: this.#blockLoopback });
+  /** The guard alone, for a DSN stored now and dialled later by `engine`. Throws 422. */
+  assertDsnAllowed(dsn: string, engine: string): void {
+    guardDsn(dsn, { blockLoopback: this.#blockLoopback, engine });
   }
 
   /** Guard + dial + test + probe one DSN with a short-lived introspect-role instance. */
   async testDsn(engine: string, dsn: string): Promise<ConnectionTestSummary> {
-    guardDsn(dsn, { blockLoopback: this.#blockLoopback });
+    guardDsn(dsn, { blockLoopback: this.#blockLoopback, engine });
     const provider = this.provider(engine);
     let adapter: DatabaseAdapter<'introspect'> | null = null;
     try {
@@ -342,7 +342,7 @@ export class ConnectionManager {
     if (dsns?.introspectDsn == null) {
       throw new ValidationFailedError('Connection has no introspect DSN.', { connectionId });
     }
-    guardDsn(dsns.introspectDsn, { blockLoopback: this.#blockLoopback });
+    guardDsn(dsns.introspectDsn, { blockLoopback: this.#blockLoopback, engine: connection.engine });
     const provider = this.provider(connection.engine);
     return provider.create({ role: 'introspect', dsn: dsns.introspectDsn, ...this.#pool });
   }
@@ -370,7 +370,7 @@ export class ConnectionManager {
     if (dsns?.dataDsn == null) {
       throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
     }
-    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback });
+    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback, engine: connection.engine });
     const provider = this.provider(connection.engine);
     return provider.create({ role: 'data', dsn: dsns.dataDsn, ...this.#pool });
   }
@@ -379,9 +379,9 @@ export class ConnectionManager {
   async #privilegeAdapter(connectionId: string): Promise<DatabaseAdapter<'data'>> {
     const dsns = await this.connections.getDsns(connectionId);
     if (dsns?.dataDsn == null) throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
-    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback });
     const connection = await this.mustFind(connectionId);
     this.assertEnabled(connection);
+    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback, engine: connection.engine });
     return this.provider(connection.engine).create({ role: 'data', dsn: dsns.dataDsn, poolMax: 1 });
   }
 
@@ -419,7 +419,7 @@ export class ConnectionManager {
     if (dsns?.dataDsn == null) {
       throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
     }
-    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback });
+    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback, engine: connection.engine });
     const provider = this.provider(connection.engine);
     const engine = await provider.createQueryEngine({ role: 'data', dsn: dsns.dataDsn, ...this.#pool });
     // The engine package types the dialect opaquely; the server (which owns

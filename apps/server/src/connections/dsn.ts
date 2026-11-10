@@ -8,7 +8,10 @@
  * tightens it further at M15).
  */
 
+import { isIP } from 'node:net';
+
 import { AppError, ValidationFailedError } from '../errors.js';
+import { addressKind } from '../llm/outbound.js';
 
 export interface ParsedDsn {
   scheme: 'postgres' | 'mysql' | 'sqlite';
@@ -158,11 +161,22 @@ export function parseDsn(dsn: string): ParsedDsn {
   return parsed;
 }
 
-function ipv4Octets(host: string): number[] | null {
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
-  if (m === null) return null;
-  const octets = m.slice(1).map(Number);
-  return octets.every((o) => o <= 255) ? octets : null;
+/**
+ * The host as the system resolver will read it. `getaddrinfo` takes the old
+ * inet_aton spellings (`2852039166`, `0xa9fea9fe`, `127.1`, `0177.0.0.1`) and
+ * IPv4 inside IPv6 (`::ffff:169.254.169.254`), and a `postgres:`/`mysql:` URL
+ * keeps its host exactly as written. The WHATWG parser for an http URL turns
+ * every one of those into the plain address, so the checks below see what the
+ * driver will dial. A name that is not an address comes back lower-cased.
+ */
+export function canonicalHost(host: string): string {
+  const bare = host.toLowerCase().replace(/^\[|\]$/g, '');
+  try {
+    const wrapped = bare.includes(':') ? `[${bare}]` : bare;
+    return new URL(`http://${wrapped}/`).hostname.replace(/^\[|\]$/g, '');
+  } catch {
+    return bare;
+  }
 }
 
 export interface DsnGuardOptions {
@@ -172,22 +186,21 @@ export interface DsnGuardOptions {
 
 /**
  * Shared outbound-host SSRF guard. Cloud-metadata endpoints (169.254.0.0/16,
- * metadata.google.internal, the AWS IPv6 IMDS fd00:ec2::254) are ALWAYS blocked
- * — that is the credential-theft target; loopback is blocked only per {@link
- * DsnGuardOptions}. Used for both source DSNs and any user-configurable
- * outbound URL (e.g. the LLM provider baseUrl). Throws 422.
+ * IPv6 link-local, metadata.google.internal, the AWS IPv6 IMDS fd00:ec2::254)
+ * are ALWAYS blocked — that is the credential-theft target; loopback is
+ * blocked only per {@link DsnGuardOptions}. The host is read as the resolver
+ * reads it ({@link canonicalHost}). Used for both source DSNs and any
+ * user-configurable outbound URL (e.g. the LLM provider baseUrl). Throws 422.
  */
 export function assertOutboundHostAllowed(host: string, opts: DsnGuardOptions = {}): void {
-  const h = host.toLowerCase().replace(/^\[|\]$/g, '');
-  const octets = ipv4Octets(h);
-  const isMetadata =
-    (octets !== null && octets[0] === 169 && octets[1] === 254) ||
-    h === 'metadata.google.internal' ||
-    h === 'fd00:ec2::254';
+  const h = canonicalHost(host);
+  const name = h.replace(/\.$/, '');
+  const kind = isIP(h) === 0 ? null : addressKind(h);
+  const isMetadata = kind === 'metadata' || name === 'metadata.google.internal';
   if (isMetadata) {
     throw new ValidationFailedError('Host resolves to a blocked address range.', { host: h });
   }
-  const loopback = h === 'localhost' || h === '::1' || (octets !== null && octets[0] === 127);
+  const loopback = kind === 'loopback' || name === 'localhost' || name.endsWith('.localhost');
   if (loopback && opts.blockLoopback === true) {
     throw new ValidationFailedError('Loopback hosts are not allowed in production.', { host: h });
   }
@@ -211,12 +224,29 @@ export function guardOutboundUrl(rawUrl: string, opts: DsnGuardOptions = {}): vo
   assertOutboundHostAllowed(url.hostname, opts);
 }
 
+export interface DsnCheckOptions extends DsnGuardOptions {
+  /**
+   * The engine the string will be handed to. The drivers do not look at the
+   * scheme: `pg` and `mysql2` read a `sqlite:` string as a URL and dial its
+   * host and parameters, which the guard skips for SQLite. So a string whose
+   * scheme names a different engine is refused.
+   */
+  engine?: string | undefined;
+}
+
 /**
  * The SSRF guard, run before any dial. Cloud-metadata is always blocked;
- * loopback per {@link DsnGuardOptions}. Throws 422.
+ * loopback per {@link DsnGuardOptions}; a scheme that does not match the
+ * engine is refused. Throws 422.
  */
-export function guardDsn(dsn: string, opts: DsnGuardOptions = {}): ParsedDsn {
+export function guardDsn(dsn: string, opts: DsnCheckOptions = {}): ParsedDsn {
   const parsed = parseDsn(dsn);
+  if (opts.engine !== undefined && parsed.scheme !== opts.engine) {
+    throw new ValidationFailedError(
+      `This is a ${parsed.scheme} connection string, but the connection is for ${opts.engine}. Use a ${opts.engine} string, or pick ${parsed.scheme} as the engine.`,
+      { scheme: parsed.scheme, engine: opts.engine },
+    );
+  }
   if (parsed.scheme === 'sqlite') return parsed;
   // No host means the driver's default, which is this machine.
   if (parsed.host === null && opts.blockLoopback === true) {

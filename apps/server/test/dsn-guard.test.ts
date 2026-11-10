@@ -10,12 +10,13 @@
  * first that the driver really would go somewhere else (the hole), then that
  * the guard refuses the string.
  */
+import { lookup } from 'node:dns/promises';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { guardDsn, maskDsn, parseDsn } from '../src/connections/dsn.js';
+import { assertOutboundHostAllowed, guardDsn, guardOutboundUrl, maskDsn, parseDsn } from '../src/connections/dsn.js';
 
 const require = createRequire(import.meta.url);
 const pgParse = (createRequire(require.resolve('pg')) as NodeRequire)('pg-connection-string').parse as (
@@ -139,6 +140,40 @@ describe('the host is read the way the drivers read it', () => {
 
   it('leaves SQLite paths alone', () => {
     expect(guardDsn('sqlite:/data/app.db?mode=ro').file).toBe('/data/app.db?mode=ro');
+  });
+});
+
+describe('an address spelled another way is still the address', () => {
+  it('refuses the metadata address in every spelling the resolver accepts', async () => {
+    const spellings = ['2852039166', '0xa9fea9fe', '0xa9.0xfe.0xa9.0xfe', '0251.0376.0251.0376', '169.254.43518', '[::ffff:169.254.169.254]', '[::ffff:a9fe:a9fe]', '[fe80::1]', '[fd00:ec2:0::254]'];
+    for (const host of spellings.slice(0, 5)) {
+      expect((await lookup(host)).address, host).toBe('169.254.169.254'); // the hole
+    }
+    for (const host of spellings) {
+      expect(() => guardDsn(`postgres://u@${host}/app`), host).toThrow('blocked address range');
+      expect(() => guardDsn(`mysql://u@${host}:3306/app`), host).toThrow('blocked address range');
+      expect(() => guardOutboundUrl(`http://${host}/latest/meta-data/`), host).toThrow('blocked address range');
+    }
+  });
+
+  it('refuses loopback in every spelling in production, and allows it in development', async () => {
+    const spellings = ['127.1', '0x7f000001', '2130706433', '0177.0.0.1', '0', '0.0.0.0', '[::1]', '[0:0:0:0:0:0:0:1]', '[::ffff:127.0.0.1]', 'LOCALHOST', 'localhost.', 'db.localhost'];
+    // `0177.0.0.1` is octal to glibc and decimal to macOS; it is refused either way.
+    for (const host of spellings.slice(0, 3)) {
+      expect((await lookup(host)).address, host).toBe('127.0.0.1'); // the hole
+    }
+    for (const host of spellings) {
+      expect(() => guardDsn(`postgres://u@${host}/app`, PROD), host).toThrow('Loopback');
+      expect(() => guardDsn(`postgres://u@${host}/app`), host).not.toThrow();
+    }
+  });
+
+  it('leaves names and public addresses as they are', () => {
+    for (const host of ['db.example.com', '10.0.0.5', '[2001:db8::1]', '8.8.8.8', 'pg-1.internal']) {
+      expect(() => guardDsn(`postgres://u@${host}/app`, PROD), host).not.toThrow();
+    }
+    expect(() => assertOutboundHostAllowed('smtp.example.com', PROD)).not.toThrow();
+    expect(() => assertOutboundHostAllowed('metadata.google.internal.')).toThrow('blocked address range');
   });
 });
 
