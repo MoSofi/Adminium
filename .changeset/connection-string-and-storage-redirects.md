@@ -1,0 +1,5 @@
+---
+'@adminium/server': patch
+---
+
+Two security fixes. A database connection string can no longer send Adminium somewhere other than the host it names: a parameter that changes the host, port or socket (`?host=`, `?port=`, `?socketPath=`), reads a file from the server (`?sslrootcert=`, `?sslcert=`, `?sslkey=`) or changes how the driver behaves (`?flags=`, `?multipleStatements=`) is now refused, naming the parameter to remove, and so is a percent-encoded host. The usual provider parameters still work (`sslmode`, `ssl`, `channel_binding`, `options`, `application_name`, `pgbouncer`, `schema`; for MySQL `ssl`, `charset`, `timezone`). In production a connection string must name a host. An existing connection whose string carries a refused parameter stops connecting until the parameter is removed. And S3 and WebDAV storage no longer follow redirects: an endpoint that answers with a redirect fails its test and every read and write with a message naming where it pointed, so set the destination to the final address.
