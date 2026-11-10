@@ -133,6 +133,9 @@ export interface BoundCrudApi extends CrudApi {
   readonly table: string;
 }
 
+/** The most rows `GET /data/<connection>/<table>` answers in one call. */
+const LIST_PAGE_MAX = 200;
+
 function listSearch(params: CrudListParams): string {
   const search = new URLSearchParams();
   if (params.select !== undefined && params.select.length > 0) search.set('select', params.select.join(','));
@@ -448,13 +451,22 @@ export function createCrudApi(connectionId: string, table: string, opts: CrudApi
     },
 
     async listRelated(ref): Promise<CrudRow[]> {
-      const reply = await api.get<CrudListResult>(
-        `${baseFor(ref.table)}${listSearch({
-          where: { column: ref.column, op: 'eq', value: ref.value },
-          limit: ref.limit ?? 50,
-        })}`,
-      );
-      return reply.data;
+      // The list route answers at most LIST_PAGE_MAX rows a call: a longer read (a form's lines) goes a page at a time.
+      const wanted = ref.limit ?? 50;
+      const rows: CrudRow[] = [];
+      while (rows.length < wanted) {
+        const take = Math.min(LIST_PAGE_MAX, wanted - rows.length);
+        const reply = await api.get<CrudListResult>(
+          `${baseFor(ref.table)}${listSearch({
+            where: { column: ref.column, op: 'eq', value: ref.value },
+            limit: take,
+            ...(rows.length === 0 ? {} : { offset: rows.length }),
+          })}`,
+        );
+        rows.push(...reply.data);
+        if (reply.data.length < take) break;
+      }
+      return rows;
     },
   };
 }

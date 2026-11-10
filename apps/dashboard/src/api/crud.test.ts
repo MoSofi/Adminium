@@ -159,6 +159,24 @@ describe('createCrudApi serialization', () => {
     expect(rows).toEqual([{ id: 4 }]);
   });
 
+  it('reads a long list of related records a page at a time, never past the route’s own limit', async () => {
+    const asked: { limit: string | null; offset: string | null }[] = [];
+    captureFetch((url) => {
+      const search = new URL(String(url), 'http://localhost').searchParams;
+      asked.push({ limit: search.get('limit'), offset: search.get('offset') });
+      const from = Number(search.get('offset') ?? 0);
+      const count = Math.max(0, Math.min(Number(search.get('limit')), 450 - from));
+      return jsonResponse(200, { data: Array.from({ length: count }, (_, i) => ({ id: from + i + 1 })) });
+    });
+    const rows = await crud.listRelated?.({ table: 'public.messages', column: 'proof_id', value: 4, limit: 1000 });
+    expect(asked).toEqual([
+      { limit: '200', offset: null },
+      { limit: '200', offset: '200' },
+      { limit: '200', offset: '400' },
+    ]);
+    expect(rows?.map((row) => row['id'])).toEqual(Array.from({ length: 450 }, (_, i) => i + 1));
+  });
+
   it('returns the delete cascade preview (dry run) untouched', async () => {
     captureFetch((url) => {
       expect(url).toContain('/5?dryRun=true');
