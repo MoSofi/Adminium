@@ -185,6 +185,9 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           throw new ValidationFailedError('Provide `dsn` or `roles.data`.', {});
         }
 
+        // The introspect role is stored here and dialled later, so it is
+        // guarded now; the data role is guarded by its test.
+        if (introspectDsn !== dataDsn) manager.assertDsnAllowed(introspectDsn);
         // Test the data role — its probe drives read-only + meta placement.
         const summary = await manager.testDsn(body.engine, dataDsn);
         if (summary.ok) manager.enforceMetaPlacement(dataDsn, summary);

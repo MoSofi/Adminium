@@ -18,6 +18,13 @@ password (`@`, `/`, `:`).
 | `search_path` | Adminium introspects the schemas your role can see; it does not depend on `search_path` to find them. |
 | `options` | Passed through to the server. Adminium appends its own session settings after yours, so a `-c statement_timeout` you set here is overridden and anything else survives. A transaction pooler refuses `options` from either side — see [Pooled endpoints](#pooled-endpoints). |
 
+Also accepted: `ssl`, `channel_binding`, `sslnegotiation`, `application_name`,
+`connect_timeout`, and the `pgbouncer` and `schema` that ORMs add. Any other
+parameter is refused, naming it. That includes `host`, `hostaddr` and `port`,
+which would send the connection to a different place than the host the string
+names, and the certificate-file parameters (`sslrootcert`, `sslcert`, `sslkey`),
+which read files on the Adminium server. A percent-encoded host is refused too.
+
 In the wizard you can paste a full DSN or fill host / port / user / password /
 database and let Adminium compose it.
 

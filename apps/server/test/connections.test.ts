@@ -91,6 +91,37 @@ describe.skipIf(!AVAILABLE)('connections manager (live PG)', () => {
     expect(res.statusCode).toBe(422);
   });
 
+  it('refuses a ?host= that would replace the host the guard checked, on test and on create', async () => {
+    // The URL names a host that does not exist; the driver would dial the
+    // query parameter instead, which is the live database.
+    const url = new URL(pg.dsn);
+    const realHost = url.hostname;
+    url.hostname = 'unreachable.invalid';
+    url.searchParams.set('host', realHost);
+    const smuggled = url.toString();
+
+    const test = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/connections/test',
+      headers: asUser(t.users.admin),
+      payload: { engine: 'postgres', dsn: smuggled },
+    });
+    expect(test.statusCode).toBe(422);
+    expect((test.json() as { error: { message: string } }).error.message).toContain('"host" parameter is not allowed');
+
+    // A stored-for-later introspect role is guarded at create too, not only
+    // the data role the create tests.
+    const create = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/connections',
+      headers: asUser(t.users.admin),
+      payload: { name: 'smuggled', engine: 'postgres', roles: { data: pg.dsn, introspect: smuggled } },
+    });
+    expect(create.statusCode).toBe(422);
+    const list = await t.app.inject({ method: 'GET', url: '/api/v1/connections', headers: asUser(t.users.admin) });
+    expect((list.json() as { connections: { name: string }[] }).connections.map((c) => c.name)).not.toContain('smuggled');
+  });
+
   it('creates a connection: tested, encrypted at rest, DSN masked in replies', async () => {
     const dsnWithPassword = pg.dsn.replace('@', ':supersecret@').replace('://', '://user_x:supersecret@');
     // use the plain working dsn — password variant only for masking assertions below

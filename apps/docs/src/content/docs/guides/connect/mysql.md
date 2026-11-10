@@ -18,6 +18,12 @@ mysql://user:password@host:3306/database
 
 Percent-encode anything exotic in the password.
 
+`ssl` takes a profile name or `{"rejectUnauthorized":true}` (PlanetScale's
+form); `charset`, `timezone` and `connectTimeout` are accepted too. Any other
+parameter is refused, naming it. That includes `socketPath`, which would send
+the connection somewhere other than the host the string names, and `flags` and
+`multipleStatements`, which change what the connection may do.
+
 ## A read-only user
 
 ```sql

@@ -153,6 +153,11 @@ export class ConnectionManager {
     return this.#registry.has(engine as never);
   }
 
+  /** The guard alone, for a DSN stored now and dialled later. Throws 422. */
+  assertDsnAllowed(dsn: string): void {
+    guardDsn(dsn, { blockLoopback: this.#blockLoopback });
+  }
+
   /** Guard + dial + test + probe one DSN with a short-lived introspect-role instance. */
   async testDsn(engine: string, dsn: string): Promise<ConnectionTestSummary> {
     guardDsn(dsn, { blockLoopback: this.#blockLoopback });

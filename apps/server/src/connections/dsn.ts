@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * DSN parsing, masking, and the connection-string SSRF guard. Scheme
- * allowlist `postgres|mysql|sqlite`; cloud-metadata addresses are always
+ * allowlist `postgres|mysql|sqlite`, and a query-parameter allowlist per
+ * engine so the string names one host only; cloud-metadata addresses are always
  * refused. Loopback blocking is production-only by default — a DB on the
  * same box is the normal self-host case (`ADMINIUM_NETWORK_POLICY=strict`
  * tightens it further at M15).
@@ -34,8 +35,8 @@ const DEFAULT_PORTS: Readonly<Record<ParsedDsn['scheme'], number | null>> = {
   sqlite: null,
 };
 
-/** Parse + allowlist a DSN; throws 422 `VALIDATION_FAILED` outside the grammar. */
-export function parseDsn(dsn: string): ParsedDsn {
+/** Split a DSN into its parts without judging its parameters (masking, comparison). */
+function readDsn(dsn: string): { parsed: ParsedDsn; url: URL | null } {
   const schemeMatch = /^([a-z][a-z0-9+.-]*):/i.exec(dsn);
   const rawScheme = schemeMatch?.[1]?.toLowerCase();
   const scheme = rawScheme === undefined ? undefined : SCHEME_ALIASES[rawScheme];
@@ -46,7 +47,7 @@ export function parseDsn(dsn: string): ParsedDsn {
   }
   if (scheme === 'sqlite') {
     const file = dsn.replace(/^(sqlite:\/\/|sqlite:|file:)/i, '');
-    return { scheme, host: null, port: null, database: null, user: null, file };
+    return { parsed: { scheme, host: null, port: null, database: null, user: null, file }, url: null };
   }
   let url: URL;
   try {
@@ -56,13 +57,105 @@ export function parseDsn(dsn: string): ParsedDsn {
   }
   const port = url.port.length > 0 ? Number(url.port) : DEFAULT_PORTS[scheme];
   return {
-    scheme,
-    host: url.hostname.length > 0 ? url.hostname : null,
-    port,
-    database: url.pathname.replace(/^\//, '') || null,
-    user: url.username.length > 0 ? decodeURIComponent(url.username) : null,
-    file: null,
+    parsed: {
+      scheme,
+      host: url.hostname.length > 0 ? url.hostname : null,
+      port,
+      database: url.pathname.replace(/^\//, '') || null,
+      user: url.username.length > 0 ? decodeURIComponent(url.username) : null,
+      file: null,
+    },
+    url,
   };
+}
+
+/**
+ * The query parameters a DSN may carry, per engine. Anything else is refused.
+ *
+ * The drivers copy query parameters into their config, and several of them
+ * outrank the URL: `pg` dials `?host=` and `?port=` in place of the host the
+ * guard checked (a unix socket too, `?host=/var/run/postgresql`) and reads
+ * `sslcert`, `sslkey` and `sslrootcert` from disk; `mysql2` dials
+ * `?socketPath=` and takes `flags`, `localAddress` and `multipleStatements`.
+ * So the guard cannot check "the host" unless the string can name only one.
+ * The lists hold what managed providers and ORMs put in the strings they hand
+ * out (Neon's `channel_binding`, Prisma's `schema` and `pgbouncer`), none of
+ * which moves the connection elsewhere.
+ */
+const ALLOWED_PARAMETERS: Readonly<Record<'postgres' | 'mysql', ReadonlySet<string>>> = {
+  postgres: new Set([
+    'sslmode',
+    'ssl',
+    'sslnegotiation',
+    'channel_binding',
+    'uselibpqcompat',
+    'application_name',
+    'fallback_application_name',
+    'connect_timeout',
+    'options',
+    'search_path',
+    'pgbouncer',
+    'schema',
+    'connection_limit',
+    'pool_timeout',
+    'sslaccept',
+  ]),
+  mysql: new Set(['ssl', 'sslmode', 'charset', 'timezone', 'connectTimeout']),
+};
+
+const PG_SSLMODES = new Set(['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full', 'no-verify']);
+const PG_SSL_FLAGS = new Set(['true', 'false', '1', '0', 'no-verify']);
+
+/**
+ * mysql2 parses `?ssl=` as JSON when it can. A profile name or a bare boolean
+ * passes; an object may only switch certificate checking, because every other
+ * TLS option it could carry (`ca`, `servername`, `checkServerIdentity`) changes
+ * what the connection trusts or where it believes it is.
+ */
+function mysqlSslAllowed(value: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return true; // a profile name: mysql2 refuses an unknown one itself
+  }
+  if (typeof parsed === 'boolean') return true;
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+  return Object.entries(parsed).every(([key, v]) => key === 'rejectUnauthorized' && typeof v === 'boolean');
+}
+
+function assertDsnParameters(scheme: 'postgres' | 'mysql', url: URL): void {
+  const allowed = ALLOWED_PARAMETERS[scheme];
+  for (const [name, value] of url.searchParams) {
+    if (!allowed.has(name)) {
+      throw new ValidationFailedError(
+        `The connection string's "${name}" parameter is not allowed. Remove it from the string; the host, port and database go before the "?".`,
+        { parameter: name, allowed: [...allowed] },
+      );
+    }
+    const valueOk =
+      scheme === 'postgres'
+        ? (name !== 'sslmode' || PG_SSLMODES.has(value)) && (name !== 'ssl' || PG_SSL_FLAGS.has(value))
+        : name !== 'ssl' || mysqlSslAllowed(value);
+    if (!valueOk) {
+      throw new ValidationFailedError(`The connection string's "${name}" parameter has a value that is not allowed.`, {
+        parameter: name,
+      });
+    }
+  }
+  // Both drivers percent-decode the host before they dial it, so
+  // `%31%32%37.0.0.1` reaches 127.0.0.1 and `%2Fvar%2Frun%2Fpostgresql` a unix
+  // socket while the guard reads neither. No real host name needs a `%`.
+  if (url.hostname.includes('%')) {
+    throw new ValidationFailedError('The connection string\'s host may not be percent-encoded.', {});
+  }
+}
+
+/** Parse + allowlist a DSN; throws 422 `VALIDATION_FAILED` outside the grammar. */
+export function parseDsn(dsn: string): ParsedDsn {
+  const { parsed, url } = readDsn(dsn);
+  if (url !== null && parsed.scheme !== 'sqlite') assertDsnParameters(parsed.scheme, url);
+  return parsed;
 }
 
 function ipv4Octets(host: string): number[] | null {
@@ -125,6 +218,10 @@ export function guardOutboundUrl(rawUrl: string, opts: DsnGuardOptions = {}): vo
 export function guardDsn(dsn: string, opts: DsnGuardOptions = {}): ParsedDsn {
   const parsed = parseDsn(dsn);
   if (parsed.scheme === 'sqlite') return parsed;
+  // No host means the driver's default, which is this machine.
+  if (parsed.host === null && opts.blockLoopback === true) {
+    throw new ValidationFailedError('The connection string names no host.', {});
+  }
   assertOutboundHostAllowed(parsed.host ?? '', opts);
   return parsed;
 }
@@ -134,7 +231,7 @@ export function maskDsn(dsn: string | null): string | null {
   if (dsn === null) return null;
   let parsed: ParsedDsn;
   try {
-    parsed = parseDsn(dsn);
+    parsed = readDsn(dsn).parsed;
   } catch {
     return null; // never leak an unparseable (possibly credentialed) string
   }
@@ -154,8 +251,8 @@ export function sameDatabase(a: string | null, b: string | null): boolean {
   let pa: ParsedDsn;
   let pb: ParsedDsn;
   try {
-    pa = parseDsn(a);
-    pb = parseDsn(b);
+    pa = readDsn(a).parsed;
+    pb = readDsn(b).parsed;
   } catch {
     return false;
   }
