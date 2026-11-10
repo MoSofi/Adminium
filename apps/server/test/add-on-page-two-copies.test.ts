@@ -45,7 +45,11 @@ const shop = (key: 'maker' | 'printing') =>
     addOns: { suggests: [{ key: DESIGN_KIT, range: '^1.0.0', reason: { 'en-US': 'Shoppers design their products.' } }] },
     people: undefined,
     compatibility: { minAdminiumVersion: '0.3.44', engines: ['postgres', 'mysql', 'sqlite'] },
-    roles: [{ key: 'owner', name: 'Owner', permissions: ['table:@orders:read', `page:@${PAGE}:view`] }],
+    roles: [
+      { key: 'owner', name: 'Owner', permissions: ['table:@orders:read', `page:@${PAGE}:view`] },
+      // Opens the set-up page and reads no table of the shop's database.
+      { key: 'viewer', name: 'Viewer', permissions: [`page:@${PAGE}:view`] },
+    ],
   });
 
 describe.each(LEGS)('an add-on page with a copy of the add-on per app — %s', (dialect, available) => {
@@ -54,7 +58,7 @@ describe.each(LEGS)('an add-on page with a copy of the add-on per app — %s', (
   let kiln = '';
   let signIns = 0;
   const copies = { studio: '', kiln: '' };
-  const people: Record<'admin' | 'maker' | 'print', { cookie: string }> = {} as never;
+  const people: Record<'admin' | 'maker' | 'print' | 'viewer', { cookie: string }> = {} as never;
 
   const person = async (email: string, slug: string) => {
     const user = await usersRepo(h.meta).create({ email, name: email.split('@')[0]!, passwordHash: await adminPasswordHash() });
@@ -88,6 +92,7 @@ describe.each(LEGS)('an add-on page with a copy of the add-on per app — %s', (
     served = await servePublic(h as never, null, { ADMINIUM_DATA_DIR: h.dataDir });
     people.admin = await person('admin@shops.test', 'super-admin');
     people.maker = await person('owner@maker.test', 'maker-owner');
+    people.viewer = await person('viewer@maker.test', 'maker-viewer');
   }, 240_000);
   afterAll(async () => {
     if (!available) return;
@@ -95,11 +100,14 @@ describe.each(LEGS)('an add-on page with a copy of the add-on per app — %s', (
     await h?.close();
   });
 
-  it.skipIf(!available)('with one app: one row, naming its install, and the kit answers with or without it', async () => {
-    for (const who of [people.admin, people.maker]) {
+  it.skipIf(!available)('with one app: one row, naming its install and no database, and the kit answers with or without it', async () => {
+    // The viewer reads no table of the shop's database: it is not told which database that is.
+    for (const who of [people.admin, people.maker, people.viewer]) {
       const listed = await rows(who);
       expect(listed).toHaveLength(1);
-      expect(listed[0]).toMatchObject({ address: DESIGN_KIT, installId: copies.studio, connectionId: h.connectionId });
+      expect(listed[0]).toMatchObject({ address: DESIGN_KIT, installId: copies.studio });
+      expect(listed[0]).not.toHaveProperty('connectionId');
+      expect(listed[0]).not.toHaveProperty('connectionName');
       expect((await kit(who)).statusCode).toBe(200);
       expect((await kit(who, copies.studio)).statusCode).toBe(200);
     }
@@ -129,6 +137,17 @@ describe.each(LEGS)('an add-on page with a copy of the add-on per app — %s', (
       expect(listed[1]!.connectionName).toBe('Kiln');
       expect(listed[0]!.connectionName).not.toBe('Kiln');
       expect(typeof listed[0]!.connectionName).toBe('string');
+    });
+
+    it.skipIf(!available)('names no database to a reader who reaches neither copy', async () => {
+      const res = await served.composed.app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { cookie: people.viewer.cookie } });
+      expect(res.statusCode, res.body).toBe(200);
+      expect(res.body).not.toContain('Kiln');
+      expect(res.body).not.toContain(kiln);
+      for (const row of await rows(people.viewer)) {
+        expect(row).not.toHaveProperty('connectionId');
+        expect(row).not.toHaveProperty('connectionName');
+      }
     });
 
     it.skipIf(!available)("lists each shop's owner their own copy alone", async () => {

@@ -846,10 +846,11 @@ export function buildAddOnNav(
     const several = rows.length > 1;
     // Two copies, two rows of each page: one per copy the reader reaches, each opening its own copy.
     const reached = several ? rows.filter((row) => row.installId === undefined || copies.reaches(row.installId)) : rows;
+    // Its database is named only to tell two copies apart, and only of a copy the reader reaches: one copy names none.
     const copyOf = (row: (typeof rows)[number]): Partial<BootstrapAddOnPage> => ({
       ...(row.address === undefined ? {} : { address: row.address }),
       ...(row.installId === undefined ? {} : { installId: row.installId }),
-      ...(row.connectionId === undefined ? {} : { connectionId: row.connectionId, connectionName: row.connectionId === null ? null : copies.connectionName(row.connectionId) }),
+      ...(!several || row.connectionId === undefined ? {} : { connectionId: row.connectionId, connectionName: row.connectionId === null ? null : copies.connectionName(row.connectionId) }),
     });
 
     for (const page of manifest.addOn.pages ?? []) {
