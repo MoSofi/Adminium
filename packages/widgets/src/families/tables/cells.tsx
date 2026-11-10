@@ -470,17 +470,26 @@ function CellContent({
     return <FkChipCell column={column} row={row} value={value} context={context} />;
   }
 
+  /* A chip is clipped inside its cell, as the FK chip is: a long word ("The
+     Customiser design") ends in an ellipsis rather than painting over the next
+     column, and the whole word is its title. */
   if (column.semantic === 'status-workflow') {
     const tone = enumTone(column, String(value));
+    const label = column.enumLabels?.[String(value)] ?? String(value);
     return (
-      <StatusPill status={String(value)} {...(tone === undefined ? {} : { tone })}>
-        {column.enumLabels?.[String(value)] ?? String(value)}
+      <StatusPill status={String(value)} {...(tone === undefined ? {} : { tone })} className="max-w-full" title={label} data-part="cell-enum">
+        <span className="truncate">{label}</span>
       </StatusPill>
     );
   }
   // A choice column: its word for the value, when it has one, in its tone.
   if (column.semantic === 'category-enum' || column.logicalType === 'enum' || column.enumLabels !== undefined) {
-    return <Badge tone={enumTone(column, String(value)) ?? 'neutral'}>{column.enumLabels?.[String(value)] ?? String(value)}</Badge>;
+    const label = column.enumLabels?.[String(value)] ?? String(value);
+    return (
+      <Badge tone={enumTone(column, String(value)) ?? 'neutral'} className="max-w-full" title={label} data-part="cell-enum">
+        <span className="truncate">{label}</span>
+      </Badge>
+    );
   }
 
   if (column.logicalType === 'boolean') {

@@ -152,6 +152,24 @@ describe('CellValue — type-aware cell renderers', () => {
     expect(screen.getByText('Past due')).toBeDefined();
   });
 
+  it('a long choice word is clipped inside its cell, whole in its title', () => {
+    for (const semantic of ['category-enum', 'status-workflow'] as const) {
+      const { container } = render(
+        <CellValue
+          column={spec({ name: 'source', label: 'Drawn from', logicalType: 'enum', semantic, enumLabels: { design: 'The Customiser design' } })}
+          row={{ source: 'design' }}
+        />,
+      );
+      const chip = container.querySelector('[data-part="cell-enum"]') as HTMLElement;
+      expect(chip.className).toContain('max-w-full');
+      expect(chip.getAttribute('title')).toBe('The Customiser design');
+      const text = screen.getByText('The Customiser design');
+      expect(text.className).toContain('truncate');
+      expect(chip.contains(text)).toBe(true);
+      cleanup();
+    }
+  });
+
   it('category enum → Badge', () => {
     render(
       <CellValue
