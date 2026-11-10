@@ -141,6 +141,14 @@ export class ConnectionManager {
     this.connections = connectionsRepo(opts.meta, opts.crypto);
   }
 
+  /**
+   * Whether this server refuses addresses on this machine (production, but not the desktop app,
+   * whose databases and storage are local). Storage destinations follow the same answer.
+   */
+  get blockLoopback(): boolean {
+    return this.#blockLoopback;
+  }
+
   get meta(): MetaDb {
     return this.#meta;
   }

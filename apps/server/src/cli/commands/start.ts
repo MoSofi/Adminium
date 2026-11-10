@@ -390,6 +390,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       meta: runtime.metaStore.meta,
       crypto: storageCryptoFromSecret(env.ADMINIUM_SECRET),
       env,
+      blockLoopback: runtime.manager.blockLoopback,
       log: (message) => {
         io.out(message);
       },

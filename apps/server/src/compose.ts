@@ -911,6 +911,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const destinationResolver = createDestinationResolver({
     repo: destinationsRepo(meta, storageCrypto),
     localRoot: resolve(env.ADMINIUM_DATA_DIR, FILES_DIR),
+    // As the connections do: the desktop app's storage may be on this machine.
+    blockLoopback: manager.blockLoopback,
   });
   // The first-boot destination seed, and it has TWO CALL SITES
   // deliberately.
@@ -948,6 +950,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       meta,
       crypto: storageCrypto,
       env,
+      blockLoopback: manager.blockLoopback,
       log: (message) => {
         app.log.debug(message);
       },

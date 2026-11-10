@@ -35,6 +35,8 @@
 
 import { destinationsRepo, type MetaDb, type DsnCrypto, type StorageDestination } from '@adminium/meta';
 
+import { assertDestinationAddressAllowed } from '../files/destinations.js';
+
 export interface StorageSeedEnv {
   ADMINIUM_STORAGE_URL?: string | undefined;
   AWS_ENDPOINT_URL_S3?: string | undefined;
@@ -51,6 +53,8 @@ export interface SeedStorageDestinationOptions {
   log: (message: string) => void;
   warn: (message: string) => void;
   now?: number | undefined;
+  /** Refuse an address on this machine, as the destinations do (default: in production). */
+  blockLoopback?: boolean | undefined;
 }
 
 export type SeedStorageDestinationResult =
@@ -284,6 +288,14 @@ async function runSeed(opts: SeedStorageDestinationOptions): Promise<SeedStorage
     );
     return { kind: 'skipped', reason: 'already-configured' };
   }
+
+  // The address a destination saved in Studio may not have (the cloud metadata service, or this
+  // machine in production) is refused here too: seeded, it would only fail every file call later.
+  // The refusal is warned and the boot goes on, as for an unusable value.
+  // The plan is built by the parsers above, in the shape of its driver's config.
+  assertDestinationAddressAllowed(plan.driver, plan.config as StorageDestination['config'], {
+    blockLoopback: opts.blockLoopback ?? process.env.NODE_ENV === 'production',
+  });
 
   const destination = await repo.create(
     {

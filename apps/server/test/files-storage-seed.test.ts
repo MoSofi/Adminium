@@ -37,7 +37,7 @@ beforeEach(async () => {
   warnings = [];
 });
 
-const seed = (env: StorageSeedEnv) =>
+const seed = (env: StorageSeedEnv, blockLoopback?: boolean) =>
   seedStorageDestination({
     meta,
     crypto: TEST_STORAGE_CRYPTO,
@@ -45,6 +45,7 @@ const seed = (env: StorageSeedEnv) =>
     log: (m) => logs.push(m),
     warn: (m) => warnings.push(m),
     now: 1_750_000_000_000,
+    ...(blockLoopback === undefined ? {} : { blockLoopback }),
   });
 
 const repo = () => destinationsRepo(meta, TEST_STORAGE_CRYPTO);
@@ -134,6 +135,25 @@ describe('ADMINIUM_STORAGE_URL', () => {
     }
     // Nothing was stored by any of them.
     expect(await repo().isEmpty()).toBe(true);
+  });
+});
+
+describe('an address a destination may not have', () => {
+  it('refuses the cloud metadata service, stores nothing and lets the boot go on', async () => {
+    const result = await seed(
+      { ADMINIUM_STORAGE_URL: 's3://files?endpoint=http://169.254.169.254&accessKey=AKIAEXAMPLE&secretKey=x' },
+      false,
+    );
+    expect(result.kind).toBe('refused');
+    expect(await repo().isEmpty()).toBe(true);
+    expect(warnings.join(' ')).toMatch(/storage destination/i);
+  });
+
+  it('refuses this machine where loopback is refused, and seeds it where it is not (the desktop app)', async () => {
+    const env = { ADMINIUM_STORAGE_URL: 's3://files?endpoint=http://127.0.0.1:9000&accessKey=minio&secretKey=x' };
+    expect((await seed(env, true)).kind).toBe('refused');
+    expect(await repo().isEmpty()).toBe(true);
+    expect((await seed(env, false)).kind).toBe('seeded');
   });
 });
 
@@ -276,7 +296,7 @@ describe('composeServer seeds the destination too', () => {
     composed = undefined;
   });
 
-  async function compose(overrides: Record<string, string>): Promise<MetaDb> {
+  async function compose(overrides: Record<string, string>, blockLoopback?: boolean): Promise<MetaDb> {
     // A store of its own: `composeServer` boots a whole server against it, and
     // the shared `meta` above is deliberately bare.
     const composedMeta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
@@ -292,6 +312,7 @@ describe('composeServer seeds the destination too', () => {
       meta: composedMeta,
       crypto: dsnCryptoFromSecret(TEST_SECRET),
       metaDsn: null,
+      ...(blockLoopback === undefined ? {} : { blockLoopback }),
     });
     const runService = createRunService({ meta: composedMeta });
     composed = await composeServer({
@@ -332,6 +353,16 @@ describe('composeServer seeds the destination too', () => {
     expect(await composedRepo(composedMeta).getSecret(stored?.id ?? '')).toBe(
       '{"accessKeyId":"tid_example","secretAccessKey":"tsec_example"}',
     );
+  });
+
+  it("follows the connections' loopback answer: the desktop app may keep its storage on this machine", async () => {
+    const local = { ADMINIUM_STORAGE_URL: 's3://files?endpoint=http://127.0.0.1:9000&accessKey=minio&secretKey=x' };
+    const desktop = await compose(local, false);
+    expect((await composedRepo(desktop).findDefault())?.driver).toBe('s3');
+    await composed?.app.close();
+    composed = undefined;
+    const production = await compose(local, true);
+    expect(await composedRepo(production).isEmpty()).toBe(true);
   });
 
   it('leaves the store alone when nothing is configured', async () => {
