@@ -10,15 +10,21 @@
  * key field is no name: customers keyed by their e-mail are called by name,
  * and a payment is never named by its card's last digits.
  *
+ * The proofs' list page, stored once at install, names the link the same way
+ * when a person of the shop reads it: its chips follow the key field as the
+ * picker does.
+ *
  * On every engine this run can reach.
  */
 import { parseDatabaseModel } from '@adminium/engine';
-import { snapshotsRepo } from '@adminium/meta';
+import { rolesRepo, snapshotsRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { columnFactsFor } from '../src/routes/pages/column-facts.js';
 import { addOnHarness, appManifest, type Harness } from './app-add-ons.helpers.js';
+import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { LEGS } from './invoicing-install.helpers.js';
+import { servePublic } from './public-lane.helpers.js';
 
 const pk = { ref: 'id', type: 'int', role: 'pk' } as const;
 
@@ -48,6 +54,8 @@ function shop(): Record<string, unknown> {
         },
       ],
     },
+    pages: [{ ref: 'shop-proofs', template: 'page-crud', title: { key: 'mft.shop.proofs', fallback: 'Proofs' }, nav: { group: 'manage', icon: 'image', order: 1 }, bindings: { rows: 'proofs' } }],
+    roles: [{ key: 'owner', name: 'Owner', permissions: ['table:@proofs:read', 'table:@orders:read', 'table:@makers:read', 'page:@shop-proofs:view'] }],
   });
 }
 
@@ -74,6 +82,24 @@ describe.each(LEGS)('a link named by its table\'s key field — %s', (dialect, a
     const fk = (name: string) => facts!.columns.find((column) => column.spec['name'] === name)!.spec['fk'] as { display?: string };
     expect(fk('order_id').display).toBe('number');
     expect(fk('maker_id').display).toBe('name');
+  });
+
+  it.skipIf(!available)("names the link on the proofs' list page the same way, read by the shop's owner", async () => {
+    const served = await servePublic(h as never, null, { ADMINIUM_DATA_DIR: h.dataDir });
+    try {
+      const user = await usersRepo(h.meta).create({ email: 'owner@shop.test', name: 'Owner', passwordHash: await adminPasswordHash() });
+      await rolesRepo(h.meta).assignToUser(user.id, (await rolesRepo(h.meta).findBySlug('shop-owner'))!.id);
+      const login = await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', remoteAddress: '10.14.0.1', payload: { email: 'owner@shop.test', password: ADMIN_PASSWORD } });
+      expect(login.statusCode, login.body).toBe(200);
+      const page = await h.meta.db.selectFrom('adminium_pages').select('id').where('slug', '=', 'shop-proofs').executeTakeFirstOrThrow();
+      const res = await served.composed.app.inject({ method: 'GET', url: `/api/v1/pages/${page.id}`, headers: { cookie: sessionCookie(login.headers['set-cookie']) } });
+      expect(res.statusCode, res.body).toBe(200);
+      const columns = ((res.json() as { data: { config: { columns: { name: string; fk?: { display?: string } }[] } } }).data.config.columns);
+      expect(columns.find((column) => column.name === 'order_id')?.fk?.display).toBe('number');
+      expect(columns.find((column) => column.name === 'maker_id')?.fk?.display).toBe('name');
+    } finally {
+      await served.close();
+    }
   });
 
   it.skipIf(!available)('names a customer keyed by e-mail by name, and a payment keyed by its card digits by something else', async () => {

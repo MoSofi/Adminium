@@ -76,7 +76,7 @@ import { assertPagePartOn, cardsOfPartsOff, cardsOfPartsOn, withCardsOfPartsOn }
 import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
 import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
-import { columnFactsFor, factsViewFor, hiddenColumnsOf, labelWordsOf, withoutColumns, withReaderLabels, withReaderTitle, withStoredLabels, withYesNoColumns } from './column-facts.js';
+import { columnFactsFor, factsViewFor, hiddenColumnsOf, labelWordsOf, withoutColumns, withReaderLabels, withReaderTitle, withStoredLabels, withLinkNames, withYesNoColumns } from './column-facts.js';
 import { bulkActionFacts, stateActionFacts } from './state-actions.js';
 import { recordPanelsFor } from '../../add-ons/record-panels.js';
 import { recordTabsFor, type TabInstalls } from '../../add-ons/record-tabs.js';
@@ -701,7 +701,8 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         };
         const hiddenColumns = source === null || permissions === undefined ? [] : await hiddenColumnsOf(deps.meta, source.connectionId, source.table, permissions);
         // A column marked a yes/no since the page was stored reads as one here too.
-        const yesNo = withYesNoColumns(withReaderTitle(page.config, reader), columnFacts);
+        // …and a link is named as its table names its rows today, as the form's picker names them.
+        const yesNo = withLinkNames(withYesNoColumns(withReaderTitle(page.config, reader), columnFacts), columnFacts);
         // A heading that is still the column's own name is read in the person's language, as the form's field is.
         const typed =
           source === null || columnFacts === null

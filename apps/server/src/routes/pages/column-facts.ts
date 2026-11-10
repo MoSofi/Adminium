@@ -598,6 +598,43 @@ export function labelWordsOf(rows: readonly { op: string; tableName: string; col
 }
 
 /**
+ * A stored list's links named as the table they point at names its rows
+ * TODAY: the column a chip reads (`fk.display`) taken from the facts, which
+ * follow the target's `keyField` as the form's picker does. A page is stored
+ * once and a link's name can change after (an app's update gives its order
+ * lines a code to be known by), so a chip read "Rowan Walker" where the picker
+ * offered "BR-2291". A link whose table names nothing today keeps what it had.
+ */
+export function withLinkNames(config: unknown, facts: ColumnFactsBlock | null): unknown {
+  if (facts === null || typeof config !== 'object' || config === null) return config;
+  const live = new Map<string, string>();
+  for (const fact of facts.columns) {
+    const fk = fact.spec['fk'] as { display?: unknown } | undefined;
+    if (typeof fk?.display === 'string') live.set(String(fact.spec['name']), fk.display);
+  }
+  if (live.size === 0) return config;
+  let changed = false;
+  const refresh = (block: Record<string, unknown>): Record<string, unknown> => {
+    if (!Array.isArray(block['columns'])) return block;
+    const columns = (block['columns'] as unknown[]).map((column) => {
+      if (typeof column !== 'object' || column === null) return column;
+      const stored = column as Record<string, unknown>;
+      const fk = stored['fk'];
+      const now = live.get(String(stored['name']));
+      if (typeof fk !== 'object' || fk === null || now === undefined || (fk as { display?: unknown }).display === now) return column;
+      changed = true;
+      const { displayKey: _displayKey, ...rest } = fk as Record<string, unknown>;
+      return { ...stored, fk: { ...rest, display: now } };
+    });
+    return { ...block, columns };
+  };
+  const envelope = refresh(config as Record<string, unknown>);
+  const inner = envelope['config'];
+  const out = typeof inner === 'object' && inner !== null ? { ...envelope, config: refresh(inner as Record<string, unknown>) } : envelope;
+  return changed ? out : config;
+}
+
+/**
  * A page's stored envelope with the columns that have since become a yes/no
  * read as one.
  *
