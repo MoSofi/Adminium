@@ -1520,10 +1520,34 @@ export function enumCheckColumn(
     const name = authored[1]!;
     if (columns.includes(name)) return name;
   }
+  // A name is looked for outside the values: a state `change_asked` beside a column `change_asked` is a value of `state`.
+  const bare = withoutSingleQuoted(expression);
   const candidates = columns
-    .filter((name) => new RegExp(`(^|[^a-z0-9_])${name}([^a-z0-9_]|$)`, 'i').test(expression))
+    .filter((name) => new RegExp(`(^|[^a-z0-9_])${name}([^a-z0-9_]|$)`, 'i').test(bare))
     .sort((a, b) => b.length - a.length);
   return candidates[0] ?? null;
+}
+
+/** An expression with its single-quoted literals (`'sent'`, `'it''s'`) blanked, in one forward pass. */
+function withoutSingleQuoted(expression: string): string {
+  let out = '';
+  let inside = false;
+  for (let at = 0; at < expression.length; at += 1) {
+    const char = expression[at] as string;
+    if (char !== "'") {
+      out += inside ? ' ' : char;
+      continue;
+    }
+    // `''` inside a literal is one quote, not its end.
+    if (inside && expression[at + 1] === "'") {
+      at += 1;
+      out += '  ';
+      continue;
+    }
+    inside = !inside;
+    out += ' ';
+  }
+  return out;
 }
 
 export function desiredTableToModel(
