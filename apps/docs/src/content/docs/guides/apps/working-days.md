@@ -26,7 +26,8 @@ working week, the cut-off and the closures:
 
 - **`from`** is the moment the order came in: a `date` or `timestamptz` column of the row, or `"now"`.
 - **`days`** is a fixed number, or a column. Here it is the order's `service`, an enum, and `map`
-  gives each service its days. An `int` column is read as the days themselves.
+  gives each service its days. An `int` column is read as the days themselves, and that column may
+  be a [formula](/reference/manifest/#formulas) (see [Days a formula works out](#days-a-formula-works-out)).
 - **`weekdays`** and **`cutoff`** name two of the app's own [settings](/guides/apps/settings/), so the
   shop changes them on its settings page and no one edits the manifest. Either may instead be written
   in: `["mon", "tue", "wed", "thu", "fri"]`, `"14:00"`.
@@ -69,6 +70,23 @@ Any table with two date columns does:
 A row with an empty `active` counts as active. The closures are read in the write itself, so a bank
 holiday added a moment ago counts for the very next order.
 
+#### Public holidays from the Holiday Calendars add-on
+
+The shop need not type its bank holidays in. The Holiday Calendars add-on keeps each country's
+public holidays as rows of its own table, `holidays`. An app that suggests the add-on can give its
+closures table a link into that table, with [`addOnLink`](/reference/manifest/#column-rules):
+
+```json
+{ "ref": "holiday_id", "type": "int", "nullable": true,
+  "rules": { "addOnLink": { "addOn": "holiday-calendars", "table": "holidays" } } }
+```
+
+The app's own screen then offers "Add as a closure" beside a holiday: it writes a closures row with
+the holiday's date as both ends and the link filled in. The add-on never writes the app's table.
+The count reads only the closure's dates and `active`, so a closure made from a holiday counts like
+one typed by hand. Maker Shop and Print Shop do this. See
+[Add-ons with tables](/guides/add-ons-with-tables/).
+
 ## How the count goes
 
 1. **The day it is received.** The order is received on the shop's day of `from`, when that is a
@@ -93,12 +111,43 @@ at 23:30 the night the clocks change lands on the day the shop would say.
 ## When it is counted again
 
 The stamp fires like any stamp: on a create, and whenever a column in its `on` list changes. In the
-example, changing an order from standard to express moves its date. To count again from the moment
-something happens (the proof approved), add a second stamp that sets the same column from `"now"`
-when the status moves.
+example, changing an order from standard to express moves its date.
+
+A column has one stamp. To count again from the moment something happens (the proof approved),
+count from `"now"` and give `on` a list of the moments that count, up to three:
+
+```json
+{ "ref": "ready_by", "type": "date", "nullable": true,
+  "rules": { "stamp": {
+    "set": { "addWorkingDays": { "from": "now", "days": "turnaround_days",
+                                 "weekdays": "working_days", "cutoff": "cutoff",
+                                 "closures": { "table": "closures", "from": "starts_on",
+                                               "to": "ends_on", "active": "active" } } },
+    "on": ["create",
+           { "column": "proof_state", "values": ["approved"] },
+           { "columns": ["turnaround_days"] }],
+    "notEarlier": true } } }
+```
 
 A guest's value for the date is dropped: a customer cannot pick their own ready-by. Staff may move it
 by hand, as with any stamp, until the stamp fires again.
+
+### A date the customer was told never comes forward
+
+Counting again can give an earlier date than the one the customer was told. A job promised for
+Friday, approved on Monday with three working days to go, would move to Thursday. With
+`"notEarlier": true` the column keeps the later of the date it holds and the new one: a later date
+moves it on, an earlier one leaves it where it is. An empty column takes the new date. It works for
+a `date` or a `timestamptz` column. Needs Adminium 0.3.53.
+
+### Days a formula works out
+
+`days` may name a formula column of the row, and `on` may watch one
+(`{ "columns": ["turnaround_days"] }`): standard or express days, plus a day for each change the
+customer asked for. The stamp is then worked out after the formulas, on a create and on a change.
+When the formula reads a total of child rows (a count of the proofs sent back), adding, changing or
+removing one of those rows counts the date again, as a change of the row itself would. An import of
+history and an undo never do. Needs Adminium 0.3.44.
 
 ## Showing the customer
 
