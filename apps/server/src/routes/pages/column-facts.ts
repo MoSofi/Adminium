@@ -238,8 +238,12 @@ function blockFor(
     // A reference names its table as a person does ("Categories"), where it has a name.
     const target = spec.fk === undefined ? undefined : view.model.tables.find((t) => t.id === spec.fk?.table);
     const targetName = target === undefined ? undefined : (target.labelPlural ?? target.label);
+    const { pii: _guessed, ...unguessed } = spec as GridColumnSpecInput & { pii?: unknown };
     const named = {
-      ...spec,
+      // Drawn as personal data ("•••", with a reveal for who may) exactly when the server masks it: the app's or the
+      // operator's word over the guess from its name (a works' own e-mail is no person's).
+      ...unguessed,
+      ...(resolved.masked ? { pii: true } : {}),
       ...(label === undefined ? {} : { label }),
       ...(spec.fk === undefined || targetName === undefined ? {} : { fk: { ...spec.fk, label: targetName } }),
       ...(spec.fk === undefined ? addOnLinkFk(view, column.addOnLink) : {}),
@@ -599,7 +603,8 @@ export function labelWordsOf(rows: readonly { op: string; tableName: string; col
 
 /**
  * A stored list's links named as the table they point at names its rows
- * TODAY: the column a chip reads (`fk.display`) taken from the facts, which
+ * TODAY, and its columns marked personal as the server masks them today (an
+ * app's `personal: false` over the guess from a name): the column a chip reads (`fk.display`) taken from the facts, which
  * follow the target's `keyField` as the form's picker does. A page is stored
  * once and a link's name can change after (an app's update gives its order
  * lines a code to be known by), so a chip read "Rowan Walker" where the picker
@@ -608,20 +613,29 @@ export function labelWordsOf(rows: readonly { op: string; tableName: string; col
 export function withLinkNames(config: unknown, facts: ColumnFactsBlock | null): unknown {
   if (facts === null || typeof config !== 'object' || config === null) return config;
   const live = new Map<string, string>();
+  // …and whether a column is drawn as personal data, as the server masks it today (an app's `personal: false`).
+  const personal = new Map<string, boolean>();
   for (const fact of facts.columns) {
     const fk = fact.spec['fk'] as { display?: unknown } | undefined;
     if (typeof fk?.display === 'string') live.set(String(fact.spec['name']), fk.display);
+    personal.set(String(fact.spec['name']), fact.spec['pii'] === true);
   }
-  if (live.size === 0) return config;
+  if (live.size === 0 && personal.size === 0) return config;
   let changed = false;
   const refresh = (block: Record<string, unknown>): Record<string, unknown> => {
     if (!Array.isArray(block['columns'])) return block;
     const columns = (block['columns'] as unknown[]).map((column) => {
       if (typeof column !== 'object' || column === null) return column;
-      const stored = column as Record<string, unknown>;
+      let stored = column as Record<string, unknown>;
+      const masked = personal.get(String(stored['name']));
+      if (masked !== undefined && (stored['pii'] === true) !== masked) {
+        changed = true;
+        const { pii: _pii, ...rest } = stored;
+        stored = masked ? { ...rest, pii: true } : rest;
+      }
       const fk = stored['fk'];
       const now = live.get(String(stored['name']));
-      if (typeof fk !== 'object' || fk === null || now === undefined || (fk as { display?: unknown }).display === now) return column;
+      if (typeof fk !== 'object' || fk === null || now === undefined || (fk as { display?: unknown }).display === now) return stored;
       changed = true;
       const { displayKey: _displayKey, ...rest } = fk as Record<string, unknown>;
       return { ...stored, fk: { ...rest, display: now } };

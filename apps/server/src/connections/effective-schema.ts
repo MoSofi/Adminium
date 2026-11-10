@@ -277,6 +277,8 @@ export interface ColumnStampRule {
   clearOnBack?: true;
   /** Always the server's: a value a writer sends is dropped, and a brought file's line carrying one is refused. */
   strict?: true;
+  /** Never earlier than the date the column holds: the later of the two is written. */
+  notEarlier?: true;
 }
 
 /**
@@ -1844,6 +1846,10 @@ export function applyOverrides(
             ...column.semantics,
             flags: { ...column.semantics.flags, pii: value.kind as never, maskedByDefault: value.masked === true },
           };
+        } else if (column.semantics !== null && value.masked === false) {
+          // Said to be no personal data (an app's `personal: false`, a Super Admin correcting the guess): the guess's
+          // flags go too, so no form, list or record draws it as one ("•••") while the server sends it in clear.
+          column.semantics = { ...column.semantics, flags: { ...column.semantics.flags, pii: null, maskedByDefault: false } };
         }
         break;
       }
