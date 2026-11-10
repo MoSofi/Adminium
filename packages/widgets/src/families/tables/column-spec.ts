@@ -478,7 +478,8 @@ export function displayValueOf(columns: readonly GridColumnSpec[], row: GridRow)
   const display = columns.find((column) => column.isDisplay) ?? columns.find((column) => column.semantic === 'person-name');
   if (display !== undefined) {
     const value = row[display.name];
-    if (value !== null && value !== undefined && String(value) !== '') return String(value);
+    // A choice column's word for the value, as its cell shows it.
+    if (value !== null && value !== undefined && String(value) !== '') return display.enumLabels?.[String(value)] ?? String(value);
   }
   return rowIdOf(columns, row);
 }

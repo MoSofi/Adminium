@@ -1195,8 +1195,10 @@ export function PageRecord({
     // absent values fall through to the drawer's PK fallback — row identity
     // always resolves.
     const keyed = keyField == null ? undefined : record[keyField];
+    // A choice column's word for the value ("Lettering"), as its cell shows it, and not the stored value.
+    const words = keyField == null ? undefined : columns.find((column) => column.name === keyField)?.enumLabels;
     return keyed !== null && keyed !== undefined && String(keyed) !== ''
-      ? String(keyed)
+      ? (words?.[String(keyed)] ?? String(keyed))
       : displayValueOf(columns, record);
   }, [record, columns, keyField]);
 

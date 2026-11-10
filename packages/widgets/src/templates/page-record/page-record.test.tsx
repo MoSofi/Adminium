@@ -120,6 +120,14 @@ describe('PageRecord', () => {
     expect((await screen.findByRole('heading', { level: 2 })).textContent).toBe('INV-1007');
   });
 
+  it("heads a record whose title is a choice with the choice's word, not the stored value", async () => {
+    const worded = [...columns, spec({ name: 'kind', label: 'Drawn from', logicalType: 'enum', enumValues: ['lettering'], enumLabels: { lettering: 'The lettering' } })];
+    const api = makeApi();
+    api.get = vi.fn(async () => ({ data: { ...RECORD, kind: 'lettering' }, inboundCounts: REFERENCES }));
+    renderRecord(api, { columns: worded, keyField: 'kind', related: makeRelated() });
+    expect((await screen.findByRole('heading', { level: 2 })).textContent).toBe('The lettering');
+  });
+
   it('renders the keyField value even when the list cap dropped its column spec', async () => {
     // Generation's ~8-column cap routinely excludes the display column (a
     // free-text company name) from `config.columns` while still naming it in
