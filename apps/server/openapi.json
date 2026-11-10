@@ -2475,6 +2475,24 @@
                                   },
                                   "unlisted": {
                                     "type": "boolean"
+                                  },
+                                  "address": {
+                                    "type": "string"
+                                  },
+                                  "installId": {
+                                    "type": "string"
+                                  },
+                                  "connectionId": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "connectionName": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -153397,6 +153415,15 @@
     "/api/v1/add-ons/{key}/bundle/{*}": {
       "get": {
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "v",
+            "required": false
+          },
           {
             "schema": {
               "type": "string",
