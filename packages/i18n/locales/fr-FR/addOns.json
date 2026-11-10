@@ -16,6 +16,12 @@
     "title": "Cette page n’a pas pu être chargée",
     "body": "Le code du module n’a pas pu être récupéré, ou il ne correspondait pas à l’empreinte enregistrée lors de l’installation. Rien n’en a été exécuté."
   },
+  "refused": {
+    "body": "Le code de la page s’est chargé, mais le serveur a refusé une de ses demandes : {reason}"
+  },
+  "crashed": {
+    "body": "Le code de la page s’est chargé, puis s’est arrêté sur une erreur : {reason}"
+  },
   "listFailed": {
     "body": "La liste des modules installés n’a pas pu être lue ; impossible donc de savoir quel fichier cette page doit charger."
   },

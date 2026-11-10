@@ -26,6 +26,12 @@ export default {
     "title": "Siden kunne ikke indlæses",
     "body": "Add-on'ets kode kunne ikke hentes, eller den svarede ikke til det fingeraftryk, der blev registreret ved installationen. Intet af den er blevet kørt."
   },
+  "refused": {
+    "body": "Sidens kode blev indlæst, men serveren afviste noget, den bad om: {reason}"
+  },
+  "crashed": {
+    "body": "Sidens kode blev indlæst, men stoppede med en fejl: {reason}"
+  },
   "listFailed": {
     "body": "Listen over installerede add-ons kunne ikke læses, så det kan ikke afgøres, hvilken fil denne side skal indlæse."
   },

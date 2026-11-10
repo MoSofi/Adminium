@@ -26,7 +26,7 @@ import { useParams } from '@tanstack/react-router';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Spinner } from '@adminium/ui';
 
-import { scopeInstall } from '../app/api.js';
+import { ApiError, scopeInstall } from '../app/api.js';
 import { addOnNavOf, appSectionsOf, bootstrapQuery, flattenNav, type AddOnNavPage } from '../app/bootstrap.js';
 import { splitAddress } from '../apps/installAddress.js';
 import { RetiredAddress } from '../apps/RetiredAddress.js';
@@ -43,7 +43,9 @@ type PageComponent = (props: Record<string, never>) => ReactNode;
 type MountState =
   | { status: 'loading' }
   | { status: 'ready'; Component: PageComponent }
-  | { status: 'failed'; error: Error };
+  | { status: 'failed'; error: Error }
+  /** The code loaded and ran, then stopped: the page's own crash, or a request of its refused. */
+  | { status: 'crashed'; error: Error };
 
 /**
  * A page's own crash, kept off the shell.
@@ -190,6 +192,26 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
     );
   }
 
+  /*
+   * The code was fetched, checked and ran; then the page stopped. Usually a
+   * request of its own was refused (the server's sentence says why), and the
+   * fingerprint has nothing to do with it, so it is not blamed.
+   */
+  if (state.status === 'crashed') {
+    const reason = state.error.message;
+    return (
+      <Failed
+        title={t('addOns:failed.title', 'This page could not be loaded')}
+        body={
+          state.error instanceof ApiError
+            ? t('addOns:refused.body', 'The page’s code loaded, but the server refused something it asked for: {reason}', { reason })
+            : t('addOns:crashed.body', 'The page’s code loaded, but stopped with an error: {reason}', { reason })
+        }
+        onRetry={() => setAttempt((value) => value + 1)}
+      />
+    );
+  }
+
   if (state.status === 'failed') {
     return (
       <Failed
@@ -215,7 +237,7 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
   return (
     <PageBoundary
       onError={(error) => {
-        setState({ status: 'failed', error });
+        setState({ status: 'crashed', error });
       }}
     >
       <Suspense
@@ -281,10 +303,11 @@ function ResolvedAddOnPage() {
   const bootstrap = useSuspenseQuery(bootstrapQuery());
   // `invoices~kiln` is a later copy's address: the pages are the add-on's, the install is that copy.
   const { key } = splitAddress(address);
-  const pages = addOnNavOf(bootstrap.data).pages.filter((page) => page.addOnKey === key);
+  const all = addOnNavOf(bootstrap.data).pages.filter((page) => page.addOnKey === key);
+  // A row naming a copy opens that copy alone: the pages here are this address's own, and those every copy shares.
+  const pages = all.filter((page) => page.address === undefined || page.address === address);
   const sections = appSectionsOf(bootstrap.data).filter((section) => section.kind === 'add-on' && splitAddress(section.appKey).key === key);
   const section = sections.find((candidate) => candidate.appKey === address) ?? null;
-  const installId = (section as { installId?: string | undefined } | null)?.installId ?? null;
 
   /*
    * The first segment of the splat is the page ref; the rest belongs to the
@@ -294,13 +317,28 @@ function ResolvedAddOnPage() {
    */
   const ref = (_splat ?? '').split('/')[0] ?? '';
   const page = ref === '' ? pages[0] : pages.find((candidate) => candidate.ref === ref);
+  // The copy the page asks: its own row's, else its section's.
+  const installId = page?.installId ?? (section as { installId?: string | undefined } | null)?.installId ?? null;
 
   // A plain address whose copy is gone, while other copies stay: it says where they are, and opens none by itself.
-  if (pages.length > 0 && section === null && sections.length > 0) {
+  if (all.length > 0 && section === null && sections.length > 0) {
     return (
       <RetiredAddress
         appName={sections[0]?.label ?? key}
         copies={sections.map((copy) => ({ key, address: copy.appKey, connectionName: connectionNameOf(bootstrap.data, copy as { connectionId?: string | null }) }))}
+        linkTo="add-on"
+        rest={_splat ?? ''}
+      />
+    );
+  }
+
+  // An address of no copy this reader has (a copy gone, or one of another database's), while they have others: where those are.
+  if (pages.length === 0 && all.length > 0) {
+    const copies = [...new Map(all.map((row) => [row.address ?? key, row] as const)).values()];
+    return (
+      <RetiredAddress
+        appName={t(copies[0]!.labelKey, copies[0]!.fallback)}
+        copies={copies.map((copy) => ({ key, address: copy.address ?? key, connectionName: copy.connectionName ?? null }))}
         linkTo="add-on"
         rest={_splat ?? ''}
       />

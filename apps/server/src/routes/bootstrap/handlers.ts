@@ -34,7 +34,7 @@ import {
   type User,
 } from '@adminium/meta';
 import { DEFAULT_NAV_GROUP } from '@adminium/add-on-contracts';
-import { addOnManifestSchema, isSidePath, navLinkSchema, type NavLink, type NavLinkScreen } from '@adminium/manifest';
+import { addOnManifestSchema, isSidePath, navLinkSchema, type AddOnManifest, type NavLink, type NavLinkScreen } from '@adminium/manifest';
 
 import { addOnPagePermission, appsSwitchedOn, pagesAreGated, pagesOnDashboard } from '../../add-ons/page-gate.js';
 
@@ -45,6 +45,7 @@ import { loadAppParts, partIsOn, partsOfOwner } from '../../rbac/app-parts.js';
 import { parseGrant, PERMISSIONS } from '../../rbac/permissions.js';
 import { getPrincipal } from '../../rbac/principal.js';
 import { grantKeyOf, installsOf } from '../../installs/resolve.js';
+import { installReachOf } from '../../installs/reach.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
 import { MAPS_OFF } from '../../geo/map-policy.js';
 import type { AuthContext } from '../../plugins/auth.js';
@@ -805,7 +806,8 @@ export function buildUnavailableApps(
  *    where it is handled, over the rows it is actually about to draw.
  */
 export function buildAddOnNav(
-  installed: readonly { document: unknown }[],
+  /** Each install on the dashboard; two copies of one add-on (one per database) are two rows. */
+  installed: readonly { document: unknown; address?: string | undefined; installId?: string | undefined; connectionId?: string | null | undefined }[],
   /**
    * Whether this reader may open a page that is kept behind its own
    * permission (`page:<ref>:view`). Asked only for an add-on built for a
@@ -819,26 +821,42 @@ export function buildAddOnNav(
    * catalogue holds no add-on's key, so what it is given is what it draws.
    */
   locale: string = 'en-US',
+  /**
+   * Which copies of an add-on installed on several databases this reader
+   * reaches (by install id), and each database's name. Absent: every copy,
+   * named by nothing.
+   */
+  copies: { reaches: (installId: string) => boolean; connectionName: (connectionId: string) => string | null } = { reaches: () => true, connectionName: () => null },
 ): BootstrapAddOnNav {
   const pages: BootstrapAddOnPage[] = [];
   const declared: BootstrapAddOnGroup[] = [];
-  // Two copies of an add-on (one per database) have one set of pages: each copy's section links them by its own address.
-  const listed = new Set<string>();
-
+  // Each add-on's copies, in the order the rows came: the first parsed row speaks for the package (one version per server).
+  const byKey = new Map<string, { manifest: AddOnManifest; rows: (typeof installed)[number][] }>();
   for (const row of installed) {
     const parsed = addOnManifestSchema.safeParse(row.document);
     if (!parsed.success) continue;
-    const manifest = parsed.data;
-    const addOnKey = manifest.key;
-    if (listed.has(addOnKey)) continue;
-    listed.add(addOnKey);
+    const held = byKey.get(parsed.data.key);
+    if (held === undefined) byKey.set(parsed.data.key, { manifest: parsed.data, rows: [row] });
+    else held.rows.push(row);
+  }
+
+  for (const [addOnKey, { manifest, rows }] of byKey) {
     const gated = pagesAreGated(manifest);
     const sectionGroups = addOnSectionGroups(manifest);
+    const several = rows.length > 1;
+    // Two copies, two rows of each page: one per copy the reader reaches, each opening its own copy.
+    const reached = several ? rows.filter((row) => row.installId === undefined || copies.reaches(row.installId)) : rows;
+    const copyOf = (row: (typeof rows)[number]): Partial<BootstrapAddOnPage> => ({
+      ...(row.address === undefined ? {} : { address: row.address }),
+      ...(row.installId === undefined ? {} : { installId: row.installId }),
+      ...(row.connectionId === undefined ? {} : { connectionId: row.connectionId, connectionName: row.connectionId === null ? null : copies.connectionName(row.connectionId) }),
+    });
 
     for (const page of manifest.addOn.pages ?? []) {
       // A page kept behind a permission is not told to a reader who lacks it: no row, and no link to it either.
       if (gated && !mayOpen(page.ref)) continue;
-      pages.push({
+      const inSection = page.nav?.group !== undefined && sectionGroups.has(page.nav.group);
+      const row: BootstrapAddOnPage = {
         addOnKey,
         ref: page.ref,
         labelKey: page.title.key,
@@ -849,10 +867,14 @@ export function buildAddOnNav(
         order: page.nav?.order ?? 0,
         adminOnly: page.nav?.adminOnly ?? false,
         detail: page.detail ?? false,
-        inSection: page.nav?.group !== undefined && sectionGroups.has(page.nav.group),
+        inSection,
         // No place in the rail: listed so a link to it knows the reader may open it, and drawn nowhere.
         unlisted: page.nav === undefined,
-      });
+      };
+      // In its add-on's own section, each copy's section links it by that copy's address: one row speaks for them all.
+      if (inSection) pages.push(row);
+      else if (!several) pages.push({ ...row, ...copyOf(rows[0]!) });
+      else for (const copy of reached) pages.push({ ...row, ...copyOf(copy) });
     }
 
     for (const group of manifest.addOn.navGroups ?? []) {
@@ -866,7 +888,7 @@ export function buildAddOnNav(
     }
   }
 
-  pages.sort((a, b) => a.order - b.order || a.addOnKey.localeCompare(b.addOnKey) || a.ref.localeCompare(b.ref));
+  pages.sort((a, b) => a.order - b.order || a.addOnKey.localeCompare(b.addOnKey) || a.ref.localeCompare(b.ref) || (a.address ?? '').localeCompare(b.address ?? ''));
 
   // A group whose every page sits in its add-on's own section heads nothing in the shared rail.
   const used = new Set(pages.filter((page) => !page.inSection && !page.unlisted).map((page) => page.group));
@@ -1107,7 +1129,29 @@ export async function bootstrapHandler(
       if (typeof request.can !== 'function' || (await request.can(addOnPagePermission(page.ref)))) openCodePages.add(page.ref);
     }
   }
-  const addOnNav = buildAddOnNav(addOnDocuments, (ref) => openCodePages.has(ref), prefs.locale);
+  /*
+   * AN ADD-ON ON TWO DATABASES is two copies, and a page of its code opens
+   * one of them: the rail lists it once per copy this reader reaches (as the
+   * routes that copy answers decide it), each naming its install and its
+   * database. Asked only of a key with several copies.
+   */
+  const reachedCopies = new Set<string>();
+  const copiesByKey = new Map<string, string[]>();
+  for (const row of addOnDocuments) copiesByKey.set(row.key, [...(copiesByKey.get(row.key) ?? []), row.installId]);
+  const several = [...copiesByKey.values()].filter((ids) => ids.length > 1).flat();
+  if (several.length > 0) {
+    const reaches = installReachOf(ctx.meta, request);
+    const installs = installsOf(ctx.meta);
+    for (const id of several) {
+      const install = await installs.findById(id);
+      if (install !== null && (await reaches(install))) reachedCopies.add(id);
+    }
+  }
+  const connectionNameOf = new Map(connectionRows.map((row) => [row.id, row.name] as const));
+  const addOnNav = buildAddOnNav(addOnDocuments, (ref) => openCodePages.has(ref), prefs.locale, {
+    reaches: (installId) => reachedCopies.has(installId),
+    connectionName: (connectionId) => connectionNameOf.get(connectionId) ?? null,
+  });
   const addOnSettings = await settingsKeptByGrant(ctx.meta, request, permissions);
   const addOnKeys = new Set(sectionAddOns.map((row) => row.key));
   const withheld = visibleRows.filter((row) => row.appKey != null && unmet.get(row.appKey)?.has(row.slug) === true);

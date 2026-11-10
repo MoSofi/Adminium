@@ -16,6 +16,12 @@
     "title": "Diese Seite konnte nicht geladen werden",
     "body": "Der Code des Add-ons konnte nicht geladen werden oder stimmte nicht mit dem bei der Installation erfassten Fingerabdruck überein. Es wurde nichts davon ausgeführt."
   },
+  "refused": {
+    "body": "Der Code der Seite wurde geladen, aber der Server hat eine ihrer Anfragen abgelehnt: {reason}"
+  },
+  "crashed": {
+    "body": "Der Code der Seite wurde geladen, ist dann aber mit einem Fehler stehen geblieben: {reason}"
+  },
   "listFailed": {
     "body": "Die Liste der installierten Add-ons konnte nicht gelesen werden, daher lässt sich nicht bestimmen, welche Datei diese Seite laden soll."
   },

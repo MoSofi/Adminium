@@ -26,6 +26,12 @@ export default {
     "title": "无法加载此页面",
     "body": "无法获取该 Add-on 的代码，或其内容与安装时记录的指纹不符。其中的代码未被执行。"
   },
+  "refused": {
+    "body": "页面代码已加载，但服务器拒绝了它的一个请求：{reason}"
+  },
+  "crashed": {
+    "body": "页面代码已加载，但因出错而停止：{reason}"
+  },
   "listFailed": {
     "body": "无法读取已安装的 Add-on 列表，因此无法确定此页面应加载哪个文件。"
   },

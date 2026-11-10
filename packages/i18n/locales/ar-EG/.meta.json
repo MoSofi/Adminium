@@ -1,4 +1,8 @@
 {
+  "addOns.crashed.body": {
+    "status": "mt",
+    "srcHash": "009bc13b9030"
+  },
   "addOns.failed.body": {
     "status": "mt",
     "srcHash": "9660c98e233c"
@@ -26,6 +30,10 @@
   "addOns.notInstalled.title": {
     "status": "mt",
     "srcHash": "144a45d4d098"
+  },
+  "addOns.refused.body": {
+    "status": "mt",
+    "srcHash": "114501a5a3eb"
   },
   "addOns.retry": {
     "status": "mt",

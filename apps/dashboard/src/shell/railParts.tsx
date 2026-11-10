@@ -31,6 +31,7 @@ import { unreadCountQuery } from '../api/notifications.js';
 import {
   activeHostedItem,
   addOnNavOf,
+  addOnPageAddress,
   appSectionsOf,
   holdsSystemAction,
   hostedAppsOf,
@@ -293,19 +294,31 @@ export function AddOnSettingsLinkList({ addOns }: { addOns: readonly { key: stri
  */
 export function AddOnLinkList({ pages }: { pages: readonly AddOnNavPage[] }) {
   if (pages.length === 0) return null;
+  // A page of an add-on kept on two databases is a row per copy: each of those also says its database.
+  const copies = new Map<string, number>();
+  for (const page of pages) copies.set(`${page.addOnKey}/${page.ref}`, (copies.get(`${page.addOnKey}/${page.ref}`) ?? 0) + 1);
   return (
     <ul className="m-0 flex list-none flex-col gap-1 p-0" data-part="nav-add-on-pages">
       {pages.map((page) => {
         const Icon = lucideByName(page.icon);
+        const address = addOnPageAddress(page);
+        const where = (copies.get(`${page.addOnKey}/${page.ref}`) ?? 0) > 1 ? (page.connectionName ?? address) : null;
         return (
-          <li key={`${page.addOnKey}/${page.ref}`}>
+          <li key={`${address}/${page.ref}`}>
             <Link
               to="/add-ons/$key/$"
-              params={{ key: page.addOnKey, _splat: page.ref }}
+              params={{ key: address, _splat: page.ref }}
               className={NAV_LINK_CLASS}
             >
               <Icon className="size-[18px] shrink-0" aria-hidden="true" />
               <span className="min-w-0 flex-1 truncate">{t(page.labelKey, page.fallback)}</span>
+              {/* A space for the name read aloud; a flex row draws none. */}
+              {where === null ? null : ' '}
+              {where === null ? null : (
+                <span data-part="nav-add-on-page-database" className="max-w-[45%] shrink-0 truncate text-[12px] font-semibold text-fg-subtle">
+                  {where}
+                </span>
+              )}
             </Link>
           </li>
         );

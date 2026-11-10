@@ -172,16 +172,24 @@ export interface AmbiguousInstall {
   slug: string;
 }
 
-/** `409 APP_INSTALL_AMBIGUOUS`: several installs, nothing naming which. */
-export function ambiguousInstall(key: string, installs: readonly InstalledManifest[], names: ReadonlyMap<string, string> = new Map()): ConflictError {
+/**
+ * `409 APP_INSTALL_AMBIGUOUS`: several installs, nothing naming which.
+ *
+ * `installs` are the ones the caller may be told of (each is listed, by its
+ * database); `total` is how many there are in all, which the sentence counts
+ * truthfully without naming the others. Absent, they are the same.
+ */
+export function ambiguousInstall(key: string, installs: readonly InstalledManifest[], names: ReadonlyMap<string, string> = new Map(), total: number = installs.length): ConflictError {
   const list: AmbiguousInstall[] = installs.map((install) => ({
     installId: install.row.id,
     connectionId: install.row.scopeKey === SERVER_SCOPE ? null : install.row.scopeKey,
     connectionName: install.row.scopeKey === SERVER_SCOPE ? null : (names.get(install.row.scopeKey) ?? null),
     slug: install.row.instanceSlug,
   }));
-  return new ConflictError(`${key} is installed on ${installs.length} databases. Say which one: send X-Adminium-Install or ?connectionId=.`, 'APP_INSTALL_AMBIGUOUS', {
+  const yours = installs.length === total ? '' : ` (${installs.length} of them ${installs.length === 1 ? 'is' : 'are'} yours to open)`;
+  return new ConflictError(`${key} is installed on ${total} databases${yours}. Say which one: send X-Adminium-Install or ?connectionId=.`, 'APP_INSTALL_AMBIGUOUS', {
     key,
+    installedOn: total,
     installs: list,
   });
 }
@@ -247,7 +255,7 @@ export async function resolveInstall(manifests: ManifestsRepo, key: string, sele
     if (options.unreached !== undefined) throw options.unreached();
     return null;
   }
-  throw ambiguousInstall(key, reached, (await options.connectionNames?.()) ?? new Map());
+  throw ambiguousInstall(key, reached, (await options.connectionNames?.()) ?? new Map(), found.length);
 }
 
 /** `resolveInstall`, with a 404 for none. */

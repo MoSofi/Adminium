@@ -13,6 +13,7 @@
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -61,11 +62,19 @@ const INSTALLED = {
   bundles: [BUNDLE],
 };
 
+/** Each request the page made to its add-on's own routes, with the install it named. */
+const asked: { url: string; install: string | null }[] = [];
+
 function stubFetch(over: { addOns?: unknown[]; pages?: unknown[]; addOnsStatus?: number } = {}) {
+  asked.length = 0;
   vi.stubGlobal(
     'fetch',
-    vi.fn().mockImplementation((input: unknown) => {
+    vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
       const url = String(input);
+      if (url.startsWith('/api/v1/add-ons/invoices/kit')) {
+        asked.push({ url, install: new Headers(init?.headers).get('x-adminium-install') });
+        return Promise.resolve(jsonResponse(200, { tables: {} }));
+      }
       if (url.startsWith('/api/v1/branding')) {
         return Promise.resolve(
           jsonResponse(200, { data: { appName: 'Adminium', logoUrl: null, showVersion: true } }),
@@ -237,6 +246,86 @@ describe('mounting an add-on page', () => {
       vi.stubGlobal('WebSocket', FakeWebSocket);
     }
     restoreImporter = null;
+  });
+
+  it('opens each copy of an add-on kept on two databases at its own address, every call naming that copy', async () => {
+    const copies = [
+      { ...PAGE, address: 'invoices', installId: 'mft_birch', connectionId: 'conn_a', connectionName: 'Birch Row' },
+      { ...PAGE, address: 'invoices~print', installId: 'mft_print', connectionId: 'conn_b', connectionName: 'Marlow Press' },
+    ];
+    const { api } = await import('../app/api.js');
+    for (const [path, install] of [
+      ['/add-ons/invoices~print/documents', 'mft_print'],
+      ['/add-ons/invoices/documents', 'mft_birch'],
+    ] as const) {
+      stubFetch({ pages: copies });
+      restoreImporter = setAddOnModuleImporter(() =>
+        Promise.resolve({
+          default: function Page() {
+            const [done, setDone] = useState(false);
+            useEffect(() => {
+              void api.get('/api/v1/add-ons/invoices/kit').then(() => setDone(true));
+            }, []);
+            return <p>{done ? 'kit read' : 'reading'}</p>;
+          },
+        }),
+      );
+      const { unmount } = await renderAt(path);
+      expect(await screen.findByText('kit read')).toBeDefined();
+      expect(asked.map((one) => one.install)).toEqual([install]);
+      unmount();
+      restoreImporter();
+      restoreImporter = null;
+      forgetAddOnModules();
+    }
+  });
+
+  it("lists the copies the reader has at an address of none of theirs, and opens none of them", async () => {
+    stubFetch({ pages: [{ ...PAGE, address: 'invoices~print', installId: 'mft_print', connectionId: 'conn_b', connectionName: 'Marlow Press' }] });
+    let imported = 0;
+    restoreImporter = setAddOnModuleImporter(() => {
+      imported += 1;
+      return Promise.resolve({ default: () => <p>never drawn</p> });
+    });
+    await renderAt('/add-ons/invoices/documents');
+    const retired = await screen.findByTestId('retired-address');
+    expect(retired.querySelector('a')?.getAttribute('href')).toBe('/add-ons/invoices~print/documents');
+    expect(retired.textContent).toContain('Marlow Press');
+    expect(imported).toBe(0);
+  });
+
+  it('says what the server refused when a request of the page is refused, and blames no fingerprint', async () => {
+    stubFetch();
+    const { ApiError } = await import('../app/api.js');
+    restoreImporter = setAddOnModuleImporter(() =>
+      Promise.resolve({
+        default: function Page(): never {
+          throw new ApiError(409, 'APP_INSTALL_AMBIGUOUS', 'invoices is installed on 2 databases. Say which one.', 'req_c');
+        },
+      }),
+    );
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await renderAt('/add-ons/invoices/documents');
+    expect(await screen.findByText(/the server refused something it asked for: invoices is installed on 2 databases/)).toBeDefined();
+    expect(screen.queryByText(/fingerprint/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeDefined();
+    spy.mockRestore();
+  });
+
+  it('says the page stopped, with its error, when its own code breaks', async () => {
+    stubFetch();
+    restoreImporter = setAddOnModuleImporter(() =>
+      Promise.resolve({
+        default: function Page(): never {
+          throw new Error('cannot read the base');
+        },
+      }),
+    );
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await renderAt('/add-ons/invoices/documents');
+    expect(await screen.findByText(/stopped with an error: cannot read the base/)).toBeDefined();
+    expect(screen.queryByText(/fingerprint/)).toBeNull();
+    spy.mockRestore();
   });
 
   it('says the add-on is not installed rather than rendering nothing', async () => {

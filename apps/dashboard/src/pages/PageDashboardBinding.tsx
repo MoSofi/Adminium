@@ -29,6 +29,7 @@ import { staffLinkPath } from '@adminium/widgets/page-config';
 
 import { extractBindings } from '../api/pageDocument.js';
 import { addOnNavOf, bootstrapQuery, findPageBySlug } from '../app/bootstrap.js';
+import { splitAddress } from '../apps/installAddress.js';
 import { DashboardBuilder } from './dashboard-builder/index.js';
 import { openStaffTarget, staffTargetFor } from './staffLink.js';
 import type { PageTemplateProps } from './template-types.js';
@@ -59,7 +60,7 @@ export function PageDashboardBinding({ page, adapters, canEditLayout, currency }
       if (page !== null) return bootstrap !== undefined && findPageBySlug(bootstrap, decodeURIComponent(page[1]!)) !== null;
       // An add-on's own page — one with no place in the rail too: listed for whoever may open it.
       const own = /^\/add-ons\/([^/]+)\/([^/]+)/.exec(path);
-      if (own !== null) return bootstrap !== undefined && addOnNavOf(bootstrap).pages.some((one) => one.addOnKey === decodeURIComponent(own[1]!) && one.ref === decodeURIComponent(own[2]!));
+      if (own !== null) return bootstrap !== undefined && addOnNavOf(bootstrap).pages.some((one) => one.addOnKey === splitAddress(decodeURIComponent(own[1]!)).key && one.ref === decodeURIComponent(own[2]!));
       return true;
     },
     [staffAt, bootstrap],

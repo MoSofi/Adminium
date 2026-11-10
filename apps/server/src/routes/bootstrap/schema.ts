@@ -160,6 +160,19 @@ export const bootstrapAddOnPage = z.object({
    * this reader may open it, and drawn as no row anywhere.
    */
   unlisted: z.boolean(),
+  /**
+   * The copy of the add-on this row opens: its address (`<key>`, or
+   * `<key>~<slug>` for a later copy on another database), its install, and
+   * that database. An add-on installed on two databases has one row per copy
+   * the reader reaches, and each opens and asks its own copy. Absent on a row
+   * drawn in its add-on's own section (the section is the copy), and from an
+   * older server.
+   */
+  address: z.string().optional(),
+  installId: z.string().optional(),
+  connectionId: z.string().nullable().optional(),
+  /** That database's name, so two rows of one page can be told apart; null for a copy kept once per server. */
+  connectionName: z.string().nullable().optional(),
 });
 export type BootstrapAddOnPage = z.infer<typeof bootstrapAddOnPage>;
 

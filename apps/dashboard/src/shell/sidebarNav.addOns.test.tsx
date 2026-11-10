@@ -118,6 +118,26 @@ describe('add-on rail rows', () => {
     expect(groupHeadingOf(link)).toBe('Library');
   });
 
+  it('draws a page of an add-on kept on two databases once per copy, each linking its own copy and saying its database', async () => {
+    await renderRail({
+      groups: [],
+      pages: [
+        { ...invoicesPage, address: 'invoices', installId: 'mft_a', connectionId: 'conn_a', connectionName: 'Birch Row' },
+        { ...invoicesPage, address: 'invoices~print', installId: 'mft_b', connectionId: 'conn_b', connectionName: 'Marlow Press' },
+      ],
+    });
+    const first = await screen.findByRole('link', { name: 'Invoice documents Birch Row' });
+    const second = screen.getByRole('link', { name: 'Invoice documents Marlow Press' });
+    expect(first.getAttribute('href')).toBe('/add-ons/invoices/documents');
+    expect(second.getAttribute('href')).toBe('/add-ons/invoices~print/documents');
+  });
+
+  it('links a single copy by its own address, naming no database', async () => {
+    await renderRail({ groups: [], pages: [{ ...invoicesPage, address: 'invoices~print', installId: 'mft_b', connectionId: 'conn_b', connectionName: 'Marlow Press' }] });
+    const link = await screen.findByRole('link', { name: 'Invoice documents' });
+    expect(link.getAttribute('href')).toBe('/add-ons/invoices~print/documents');
+  });
+
   it('draws a heading for a built-in group that has nothing else in it', async () => {
     // `planning` has no generated pages and no platform links on a stock
     // instance, so without its own branch the row would have nowhere to hang

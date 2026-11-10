@@ -53,6 +53,10 @@ added on a clash. Its addresses are `/apps/<key>/<slug>/<side>/`, `/a/<key>~<slu
 `/studio/apps/<key>~<slug>` and `/add-ons/<key>~<slug>/…`, and its grants are
 `app:<key>~<slug>:staff`. An app has at most 32 copies.
 
+A page of an add-on kept on two databases (each shop app with its own Customiser) is one row in the
+sidebar per copy you can open, each with its database's name beside it, and each opens and asks its
+own copy.
+
 When the first copy is uninstalled, its plain addresses are not handed to another copy. They answer
 `410`, code `APP_ADDRESS_RETIRED`, and none opens by itself. Someone signed in sees "Invoices &
 Receipts is installed on kiln" with a link to each copy they can open. Someone signed out, or with no
@@ -97,7 +101,8 @@ with one of:
 - the address form `<key>~<slug>` in the path.
 
 With one copy, nothing needs naming. With several and none named, the answer is `409` with the code
-`APP_INSTALL_AMBIGUOUS`, and `details.installs` lists each copy's database and slug. A route never
+`APP_INSTALL_AMBIGUOUS`, and `details.installs` lists the database and slug of each copy you can
+open; `details.installedOn` counts them all. A route never
 picks a copy for you. The public API (`/api/v1/public/*`) needs no naming: the key a page presents
 belongs to one copy.
 

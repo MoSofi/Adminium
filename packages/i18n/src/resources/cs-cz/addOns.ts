@@ -26,6 +26,12 @@ export default {
     "title": "Tuto stránku se nepodařilo načíst",
     "body": "Kód add-onu se nepodařilo stáhnout, nebo neodpovídal otisku zaznamenanému při instalaci. Nic z něj nebylo spuštěno."
   },
+  "refused": {
+    "body": "Kód stránky se načetl, ale server odmítl jeden z jejích požadavků: {reason}"
+  },
+  "crashed": {
+    "body": "Kód stránky se načetl, ale zastavil se s chybou: {reason}"
+  },
   "listFailed": {
     "body": "Seznam nainstalovaných add-onů se nepodařilo načíst, takže nelze určit, který soubor má tato stránka načíst."
   },

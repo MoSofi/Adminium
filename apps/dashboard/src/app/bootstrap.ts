@@ -70,6 +70,22 @@ export interface AddOnNavPage {
   inSection?: boolean;
   /** No place in the rail: listed so a link to it knows this reader may open it. Absent from an older server. */
   unlisted?: boolean;
+  /**
+   * The copy this row opens: `<key>` or `<key>~<slug>`. An add-on installed on
+   * two databases has a row per copy the reader reaches. Absent on a row drawn
+   * in its add-on's own section, and from an older server.
+   */
+  address?: string;
+  /** That copy's install: every call the page makes to its add-on names it. */
+  installId?: string;
+  connectionId?: string | null;
+  /** The copy's database, by name (null for one kept once per server). */
+  connectionName?: string | null;
+}
+
+/** Where a page row opens: its copy's address, else the add-on's key. */
+export function addOnPageAddress(page: Pick<AddOnNavPage, 'addOnKey' | 'address'>): string {
+  return page.address ?? page.addOnKey;
 }
 
 export interface AddOnNavGroup {
@@ -692,5 +708,5 @@ export function defaultPageSlug(nav: NavTree, appPages: readonly NavItem[] = [])
  */
 export function defaultAddOnPage(addOnNav: AddOnNav): { key: string; ref: string } | null {
   const first = [...addOnNav.pages].filter((page) => page.unlisted !== true).sort((a, b) => a.order - b.order)[0];
-  return first === undefined ? null : { key: first.addOnKey, ref: first.ref };
+  return first === undefined ? null : { key: addOnPageAddress(first), ref: first.ref };
 }

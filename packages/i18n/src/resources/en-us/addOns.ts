@@ -26,6 +26,12 @@ export default {
     "title": "This page could not be loaded",
     "body": "The add-on’s code could not be fetched, or it did not match the fingerprint recorded when it was installed. Nothing from it has been run."
   },
+  "refused": {
+    "body": "The page’s code loaded, but the server refused something it asked for: {reason}"
+  },
+  "crashed": {
+    "body": "The page’s code loaded, but stopped with an error: {reason}"
+  },
   "listFailed": {
     "body": "The list of installed add-ons could not be read, so there is no way to tell which file this page should load."
   },
