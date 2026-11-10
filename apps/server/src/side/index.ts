@@ -677,6 +677,8 @@ export interface ConnectOptions {
 }
 
 const CSRF_HEADER = 'x-adminium-csrf';
+/** Names the copy of the app a call comes from (`installId` in the served config). */
+const INSTALL_HEADER = 'x-adminium-install';
 const PAGE_MAX = 200;
 
 async function errorOf(response: Response): Promise<SideError> {
@@ -714,6 +716,9 @@ export async function connectStaff(options: ConnectOptions = {}): Promise<StaffS
   const access = doc['access'] === undefined || doc['access'] === null ? null : record(record(doc['access'])['tables']);
   const zone = text(doc['timezone']);
   let csrf = text(doc['csrfToken']);
+  // Which copy of the app this side is, sent back on every call: on a server holding the app on several databases,
+  // a route named by the app's key alone (its rules) would otherwise be refused as not saying which copy it means.
+  const install: Record<string, string> = text(doc['installId']) === null ? {} : { [INSTALL_HEADER]: text(doc['installId']) as string };
 
   const real = (table: string): string => tables[table] ?? table;
   const url = (table: string, id?: string | number): string => {
@@ -728,7 +733,7 @@ export async function connectStaff(options: ConnectOptions = {}): Promise<StaffS
       doFetch(address, {
         method,
         credentials: 'same-origin',
-        headers: { ...(body === undefined ? {} : { 'content-type': 'application/json' }), ...(csrf === null ? {} : { [CSRF_HEADER]: csrf }) },
+        headers: { ...install, ...(body === undefined ? {} : { 'content-type': 'application/json' }), ...(csrf === null ? {} : { [CSRF_HEADER]: csrf }) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     let response = await send();
@@ -744,7 +749,7 @@ export async function connectStaff(options: ConnectOptions = {}): Promise<StaffS
   }
 
   async function read(address: string): Promise<unknown> {
-    const response = await doFetch(address, { credentials: 'same-origin' });
+    const response = await doFetch(address, { credentials: 'same-origin', ...(Object.keys(install).length === 0 ? {} : { headers: install }) });
     if (!response.ok) throw await errorOf(response);
     return (await response.json()) as unknown;
   }
