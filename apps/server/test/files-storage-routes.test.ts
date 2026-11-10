@@ -267,6 +267,63 @@ describe('storage routes', () => {
     }
   });
 
+  describe('a destination whose address this server may not call', () => {
+    const metadataConfigs = () => [
+      { driver: 'webdav', config: { url: 'http://169.254.169.254/latest/meta-data/iam/security-credentials/', prefix: 'adminium' } },
+      { driver: 'webdav', config: { url: 'http://2852039166/latest/', prefix: 'adminium' } },
+      { driver: 's3', config: { ...s3Config(), endpoint: 'http://169.254.169.254' }, secret: s3Secret },
+      { driver: 's3', config: { ...s3Config(), endpoint: 'http://[::ffff:169.254.169.254]' }, secret: s3Secret },
+      // No endpoint: the address is built from the region, and from the bucket when not path-style.
+      { driver: 's3', config: { region: 'x@169.254.169.254/', bucket: 'b', prefix: 'adminium', forcePathStyle: true }, secret: s3Secret },
+      { driver: 's3', config: { region: 'us-east-1', bucket: '169.254.169.254/', prefix: 'adminium', forcePathStyle: false }, secret: s3Secret },
+    ];
+
+    it('is refused on create and on a draft test, and nothing is stored', async () => {
+      for (const payload of metadataConfigs()) {
+        const created = await create({ name: 'Metadata', ...payload });
+        expect(created.statusCode, JSON.stringify(payload.config)).toBe(422);
+        expect(created.payload).toContain('blocked address range');
+        const tested = await app.inject({ method: 'POST', url: '/api/v1/storage/destinations/test', headers: asUser(admin), payload });
+        expect(tested.statusCode, JSON.stringify(payload.config)).toBe(422);
+      }
+      expect(await destinationsRepo(meta, TEST_STORAGE_CRYPTO).isEmpty()).toBe(true);
+    });
+
+    it('is refused on a PATCH, which leaves the stored address as it was', async () => {
+      const id = (await create()).json().data.id as string;
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/v1/storage/destinations/${id}`,
+        headers: asUser(admin),
+        payload: { config: { ...s3Config(), endpoint: 'http://169.254.169.254' } },
+      });
+      expect(res.statusCode).toBe(422);
+      expect((await destinationsRepo(meta, TEST_STORAGE_CRYPTO).findById(id))?.config).toEqual(s3Config());
+    });
+
+    it('is refused when a stored one is tested or read, so a row saved earlier is never called', async () => {
+      const row = await destinationsRepo(meta, TEST_STORAGE_CRYPTO).create(
+        { name: 'Old', driver: 'webdav', config: { url: 'http://0xa9fea9fe/latest/', prefix: 'adminium' }, createdBy: null },
+        Date.now(),
+      );
+      const tested = await app.inject({ method: 'POST', url: `/api/v1/storage/destinations/${row.id}/test`, headers: asUser(admin) });
+      expect(tested.statusCode).toBe(422);
+      const resolver = createDestinationResolver({ repo: destinationsRepo(meta, TEST_STORAGE_CRYPTO), localRoot: dataDir });
+      await expect(resolver.driverFor(row.id)).rejects.toMatchObject({ statusCode: 422 });
+    });
+
+    it('refuses this machine only in production', () => {
+      const repo = destinationsRepo(meta, TEST_STORAGE_CRYPTO);
+      const production = createDestinationResolver({ repo, localRoot: dataDir, blockLoopback: true });
+      const development = createDestinationResolver({ repo, localRoot: dataDir, blockLoopback: false });
+      for (const url of ['http://127.0.0.1:9000', 'http://127.1:9000', 'http://[::1]:9000', 'http://localhost:9000']) {
+        expect(() => production.assertAllowed('webdav', { url, prefix: 'a' }), url).toThrow('Loopback');
+        expect(() => development.assertAllowed('webdav', { url, prefix: 'a' }), url).not.toThrow();
+      }
+      expect(() => production.assertAllowed('webdav', { url: 'https://dav.example.com/files', prefix: 'a' })).not.toThrow();
+    });
+  });
+
   it('sets a default and refuses to make a disabled one the default', async () => {
     const id = (await create()).json().data.id as string;
     const promoted = await app.inject({

@@ -61,17 +61,25 @@ function describeS3Error(status: number, body: string): string {
   return message === undefined ? `${code} (HTTP ${String(status)})` : `${code}: ${message}`;
 }
 
+/**
+ * Where every request for this bucket goes, without the key. AWS's own
+ * endpoints are derived from the region; everything else is configured.
+ * `endpoint` is stored WITHOUT the bucket in it, so switching between
+ * path-style and virtual-host style is a boolean, not a re-typed URL. The
+ * address guard reads this too, so it checks the host the requests use.
+ */
+export function s3BucketUrl(config: S3DestinationConfig): string {
+  const origin = (config.endpoint ?? `https://s3.${config.region}.amazonaws.com`).replace(/\/+$/, '');
+  if (config.forcePathStyle) return `${origin}/${config.bucket}`;
+  const url = new URL(origin);
+  url.host = `${config.bucket}.${url.host}`;
+  return url.origin;
+}
+
 export function createS3Driver(opts: S3DriverOptions): FileDriver {
   const { config, credentials } = opts;
   // Every request, the probe's included, refuses redirects.
   const doFetch = fetchWithoutRedirects(opts.fetchImpl ?? fetch);
-
-  /**
-   * AWS's own endpoints are derived from the region; everything else is
-   * configured. `endpoint` is stored WITHOUT the bucket in it, so switching
-   * between path-style and virtual-host style is a boolean, not a re-typed URL.
-   */
-  const origin = (config.endpoint ?? `https://s3.${config.region}.amazonaws.com`).replace(/\/+$/, '');
 
   function urlFor(key: string): string {
     if (!isSafeRemoteKey(key)) {
@@ -79,11 +87,7 @@ export function createS3Driver(opts: S3DriverOptions): FileDriver {
     }
     // Each segment encoded once, separators preserved — the signer canonicalises
     // the same way, and a mismatch here is a 403 with no explanation.
-    const encodedKey = uriEncode(key, false);
-    if (config.forcePathStyle) return `${origin}/${config.bucket}/${encodedKey}`;
-    const url = new URL(origin);
-    url.host = `${config.bucket}.${url.host}`;
-    return `${url.origin}/${encodedKey}`;
+    return `${s3BucketUrl(config)}/${uriEncode(key, false)}`;
   }
 
   async function send(

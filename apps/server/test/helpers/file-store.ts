@@ -54,6 +54,7 @@ export function createTestFileStore(opts: TestFileStoreOptions): FileStore {
           },
           defaultDestinationId: async () => null,
           publicBases: async () => [],
+          assertAllowed: () => undefined,
           clearCache: () => undefined,
         }
       : createDestinationResolver({ repo: destinationsRepo(opts.meta, TEST_STORAGE_CRYPTO), localRoot });

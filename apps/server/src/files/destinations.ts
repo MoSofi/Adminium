@@ -22,8 +22,10 @@
 
 import type { DestinationsRepo, StorageDestination } from '@adminium/meta';
 
+import { guardOutboundUrl } from '../connections/dsn.js';
+import { ValidationFailedError } from '../errors.js';
 import { createLocalDriver } from './drivers/local.js';
-import { createS3Driver } from './drivers/s3.js';
+import { createS3Driver, s3BucketUrl } from './drivers/s3.js';
 import { createWebdavDriver } from './drivers/webdav.js';
 import type { FileDriver } from './drivers/driver.js';
 
@@ -52,6 +54,8 @@ export interface DestinationResolver {
   defaultDestinationId(): Promise<string | null>;
   /** Enabled destinations that publish a public base — the ref parser's input. */
   publicBases(): Promise<{ id: string; publicBaseUrl?: string | null | undefined }[]>;
+  /** Refuse a config whose address this server may not call (422), before it is stored. */
+  assertAllowed(driver: StorageDestination['driver'], config: StorageDestination['config']): void;
   /** Drop cached drivers (a secret rotation, a test that re-seeds). */
   clearCache(): void;
 }
@@ -86,12 +90,38 @@ function parseSecret(driver: string, raw: string | null): Record<string, string>
   return out;
 }
 
+/**
+ * The address a remote destination's requests go to must not be the cloud
+ * metadata service (always), or this machine (in production): a file read
+ * would stream back whatever answers there. The S3 address is the one the
+ * requests use, bucket host included. Throws 422.
+ */
+export function assertDestinationAddressAllowed(
+  driver: StorageDestination['driver'],
+  config: StorageDestination['config'],
+  opts: { blockLoopback: boolean },
+): void {
+  let address: string | null = null;
+  if (driver === 's3' && 'bucket' in config) {
+    try {
+      address = s3BucketUrl(config);
+    } catch {
+      throw new ValidationFailedError('The storage address is not a valid URL.', { config: 'endpoint' });
+    }
+  } else if (driver === 'webdav' && 'url' in config) {
+    address = config.url;
+  }
+  if (address !== null) guardOutboundUrl(address, opts);
+}
+
 function buildDriver(
   driver: StorageDestination['driver'],
   config: StorageDestination['config'],
   secret: Record<string, string>,
   localRootFallback: string,
+  blockLoopback: boolean,
 ): FileDriver {
+  assertDestinationAddressAllowed(driver, config, { blockLoopback });
   switch (driver) {
     case 'local': {
       const root = 'root' in config ? config.root : localRootFallback;
@@ -131,10 +161,13 @@ export interface DestinationResolverOptions {
   repo: DestinationsRepo;
   /** `<dataDir>/files` — the implicit destination's root (D3). */
   localRoot: string;
+  /** Refuse this machine's own address as a remote destination; default: in production. */
+  blockLoopback?: boolean | undefined;
 }
 
 export function createDestinationResolver(opts: DestinationResolverOptions): DestinationResolver {
   const { repo, localRoot } = opts;
+  const blockLoopback = opts.blockLoopback ?? process.env.NODE_ENV === 'production';
   const local = createLocalDriver({ root: localRoot });
   const cache = new Map<string, { updatedAt: number; driver: FileDriver }>();
 
@@ -156,13 +189,17 @@ export function createDestinationResolver(opts: DestinationResolverOptions): Des
       if (cached !== undefined && cached.updatedAt === row.updatedAt) return cached.driver;
 
       const secret = parseSecret(row.driver, row.hasSecret ? await repo.getSecret(row.id) : null);
-      const driver = buildDriver(row.driver, row.config, secret, localRoot);
+      const driver = buildDriver(row.driver, row.config, secret, localRoot, blockLoopback);
       cache.set(row.id, { updatedAt: row.updatedAt, driver });
       return driver;
     },
 
     driverForDraft(draft) {
-      return buildDriver(draft.driver, draft.config, parseSecret(draft.driver, draft.secret ?? null), localRoot);
+      return buildDriver(draft.driver, draft.config, parseSecret(draft.driver, draft.secret ?? null), localRoot, blockLoopback);
+    },
+
+    assertAllowed(driver, config) {
+      assertDestinationAddressAllowed(driver, config, { blockLoopback });
     },
 
     async defaultDestinationId() {
