@@ -2,6 +2,11 @@
 
 # Manifest spec: requiredSchema — Column rules
 
+A public write stamps like any other write, except `user-name` and `user-id`: a browser key is
+nobody, so they write nothing. What it knows of the person is their own signed-in row, which is
+what `claim` reads. For an automation, `user-name` is the rule's name. Sample data, an app's seed
+rows and undo stamp nothing, since a stamp of today's time over history would be false.
+
 A file somebody brings in is different: each line is their own create or their own change. A
 stamp is written into a column the line leaves out or leaves empty, as it would be for a save
 (`now` is the moment of the import, `user-id` and `user-name` are the person who brought the

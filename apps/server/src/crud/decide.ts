@@ -573,9 +573,28 @@ function stampRow(stamps: readonly ColumnStamp[], action: WriteAction, values: R
       continue;
     }
     out ??= { ...values };
-    out[stamp.column] = value;
+    out[stamp.column] = laterOf(stamp, value, before);
   }
   return out ?? values;
+}
+
+/** The instant a date or a moment stands for, to compare two of them; null for none. */
+function timeOf(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const at = value instanceof Date ? value.getTime() : Date.parse(String(value));
+  return Number.isFinite(at) ? at : null;
+}
+
+/**
+ * A stamp kept from moving earlier (`notEarlier`): the later of what it gives
+ * and what the column holds — a ready-by told to the customer never comes
+ * forward. An empty column, or a value that is no date, takes what it gives.
+ */
+function laterOf(stamp: ColumnStamp, value: unknown, before: Row | null): unknown {
+  if (stamp.notEarlier !== true || before === null) return value;
+  const held = timeOf(before[stamp.column]);
+  const given = timeOf(value);
+  return held !== null && given !== null && held > given ? before[stamp.column] : value;
 }
 
 const isAddDays = (stamp: ColumnStamp) => typeof stamp.set === 'object' && 'addDays' in stamp.set;
@@ -609,7 +628,7 @@ async function workingDayStamps(stamps: readonly ColumnStamp[], action: WriteAct
       continue;
     }
     out ??= { ...values };
-    out[stamp.column] = value;
+    out[stamp.column] = laterOf(stamp, value, before);
   }
   return out ?? values;
 }

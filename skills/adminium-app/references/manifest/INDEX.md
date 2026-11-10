@@ -18,7 +18,7 @@
 | `references/manifest/requiredschema--columns-2.md` | requiredSchema — Columns (part 2) | 3750 |
 | `references/manifest/requiredschema--column-rules.md` | requiredSchema — Column rules | 7394 |
 | `references/manifest/requiredschema--column-rules-2.md` | requiredSchema — Column rules (part 2) | 7581 |
-| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 6333 |
+| `references/manifest/requiredschema--column-rules-3.md` | requiredSchema — Column rules (part 3) | 6348 |
 | `references/manifest/requiredschema--column-rules-4.md` | requiredSchema — Column rules (part 4) | 7046 |
 | `references/manifest/requiredschema--column-rules-5.md` | requiredSchema — Column rules (part 5) | 6181 |
 | `references/manifest/requiredschema--column-rules-6.md` | requiredSchema — Column rules (part 6) | 6764 |
@@ -27,8 +27,8 @@
 | `references/manifest/requiredschema--column-rules-9.md` | requiredSchema — Column rules (part 9) | 7540 |
 | `references/manifest/requiredschema--column-rules-10.md` | requiredSchema — Column rules (part 10) | 7006 |
 | `references/manifest/requiredschema--column-rules-11.md` | requiredSchema — Column rules (part 11) | 7715 |
-| `references/manifest/requiredschema--column-rules-12.md` | requiredSchema — Column rules (part 12) | 7788 |
-| `references/manifest/requiredschema--column-rules-13.md` | requiredSchema — Column rules (part 13) | 6600 |
+| `references/manifest/requiredschema--column-rules-12.md` | requiredSchema — Column rules (part 12) | 7815 |
+| `references/manifest/requiredschema--column-rules-13.md` | requiredSchema — Column rules (part 13) | 6978 |
 | `references/manifest/requiredschema--moments.md` | requiredSchema — Moments | 2748 |
 | `references/manifest/requiredschema--capacity.md` | requiredSchema — Capacity | 7647 |
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |

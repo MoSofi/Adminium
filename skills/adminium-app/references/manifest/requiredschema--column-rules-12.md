@@ -33,6 +33,7 @@ values: the time a patient checked in, who took a payment.
 | `on` | When: `"create"`; `{ "column", "values" }`, another column of the table and 1–16 values it must change to; `{ "column", "filled": true }`, the moment another column, a nullable one, is first filled; `{ "columns": [...] }`, whenever one of 1–8 other columns changes (a create sets them all); or a list of 2–3 of these, any of which writes the stamp. |
 | `clearOnBack` | `true`: emptied again when a move marked [`undo`](https://docs.adminium.dev/reference/manifest/#undo-of-a-move) takes the row back out of a state the stamp watches (the time an order was marked ready, when the kitchen undoes the Ready). The column is nullable, the stamp watches the table's state column, and some `undo` move leaves one of the states it watches. |
 | `strict` | `true`: the value is always Adminium's, on every door and for every writer, Super Admin included: a value a create, a change, a bulk edit, a rule, the public API or an add-on sends for the column is dropped (the stamp writes it, or the row keeps what it holds), and a line of a brought file that carries one is refused, the column named, in the preview and in the run (a line that leaves it empty is stamped as its bringer). Who ticked "may be e-mailed" and when is never typed. Only history keeps its own: an app's sample data and an undo. Not with a `byOrigin` that leaves staff their own word. Needs Adminium 0.3.35. |
+| `notEarlier` | `true`: never earlier than the date the column holds. When the stamp fires, the column takes the later of the two: a job's ready-by told to the customer, stamped again on approval as so many working days from now, never comes forward. An empty column takes what the stamp gives. Each stamp of the column says it for itself. A `date` or `timestamptz` column only. Needs Adminium 0.3.53. |
 
 What a stamp writes:
 
@@ -72,8 +73,3 @@ is Adminium's, and a value a writer sends there is dropped, with two exceptions 
 `addDays` date (the desk may still move a due date) and a `byOrigin` column with no `staff`
 value. A `byOrigin` value that is itself `now`, `today`, `user-name` or `user-id` writes what that
 stamp would.
-
-A public write stamps like any other write, except `user-name` and `user-id`: a browser key is
-nobody, so they write nothing. What it knows of the person is their own signed-in row, which is
-what `claim` reads. For an automation, `user-name` is the rule's name. Sample data, an app's seed
-rows and undo stamp nothing, since a stamp of today's time over history would be false.

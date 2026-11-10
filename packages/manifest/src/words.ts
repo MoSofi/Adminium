@@ -318,6 +318,8 @@ export const INSTALL_FLOOR_WORD_NAMES = [
   'sampleData.productAssets',
   // A form's reference picker narrowed by another field of the same form (an order line among the chosen order's).
   'form.referenceScope',
+  // A stamp that never moves its date earlier than the one the column holds.
+  'stamp.notEarlier',
 ] as const;
 export type ManifestWordName = (typeof INSTALL_FLOOR_WORD_NAMES)[number];
 
@@ -602,6 +604,8 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'sampleData.productAssets': '0.3.51',
   // A release before drops the key at install, and the picker offers every row.
   'form.referenceScope': '0.3.53',
+  // A release before refuses the key.
+  'stamp.notEarlier': '0.3.53',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */
@@ -821,6 +825,7 @@ export function installFloorWords(document: unknown): ManifestWord[] {
         else if (bound !== undefined && ((type !== 'date' && type !== 'timestamptz') || (isDoc(bound) && bound['days'] !== undefined))) out.push({ word: 'bounds.other', path: `${here}.${side}` });
       }
       if (isDoc(rules['stamp']) && rules['stamp']['strict'] !== undefined) out.push({ word: 'stamp.strict', path: `${here}.stamp.strict` });
+      if (isDoc(rules['stamp']) && rules['stamp']['notEarlier'] !== undefined) out.push({ word: 'stamp.notEarlier', path: `${here}.stamp.notEarlier` });
       if (rules['band'] !== undefined) out.push({ word: 'column.band', path: `${here}.band` });
       if (isDoc(rules['stamp']) && isDoc(rules['stamp']['set']) && rules['stamp']['set']['addWorkingDays'] !== undefined) {
         out.push({ word: 'stamp.addWorkingDays', path: `${here}.stamp.set.addWorkingDays` });

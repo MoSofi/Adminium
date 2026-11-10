@@ -1419,6 +1419,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       clearOnBack: z.literal(true).optional(),
       /** Always the server's: a value a writer sends is dropped, and a brought file's line carrying one is refused. */
       strict: z.literal(true).optional(),
+      /** Never earlier than the date the column holds: the later of the two is written. */
+      notEarlier: z.literal(true).optional(),
     }),
   }),
   z.object({
