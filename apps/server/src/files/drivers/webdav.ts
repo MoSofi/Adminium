@@ -32,6 +32,7 @@ import type { WebdavDestinationConfig } from '@adminium/meta';
 import { newId } from '@adminium/meta';
 
 import {
+  fetchWithoutRedirects,
   FileDriverError,
   FileNotFoundError,
   type ByteRange,
@@ -56,7 +57,12 @@ export interface WebdavDriverOptions {
 
 export function createWebdavDriver(opts: WebdavDriverOptions): FileDriver {
   const { config } = opts;
-  const doFetch = opts.fetchImpl ?? fetch;
+  // Every request, the probe's included, refuses redirects. MKCOL's 301 is an
+  // answer (the collection exists), so it comes back as a response, unfollowed.
+  const doFetch = fetchWithoutRedirects(
+    opts.fetchImpl ?? fetch,
+    (method, status) => method === 'MKCOL' && status === 301,
+  );
   const base = config.url.replace(/\/+$/, '');
 
   const authorization =

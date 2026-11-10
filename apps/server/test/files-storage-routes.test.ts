@@ -228,6 +228,45 @@ describe('storage routes', () => {
     expect(await destinationsRepo(meta, TEST_STORAGE_CRYPTO).isEmpty()).toBe(true);
   });
 
+  it('fails a test against an endpoint that redirects, rather than following it', async () => {
+    const { createServer } = await import('node:http');
+    let followed = 0;
+    const target = createServer((_request, response) => {
+      followed += 1;
+      response.end('{"SecretAccessKey":"stolen"}');
+    });
+    await new Promise<void>((done) => target.listen(0, '127.0.0.1', done));
+    const targetUrl = `http://127.0.0.1:${String((target.address() as { port: number }).port)}`;
+    const hostile = createServer((request, response) => {
+      request.resume();
+      response.writeHead(302, { location: `${targetUrl}/latest/meta-data/` }).end();
+    });
+    await new Promise<void>((done) => hostile.listen(0, '127.0.0.1', done));
+    const hostileUrl = `http://127.0.0.1:${String((hostile.address() as { port: number }).port)}`;
+    try {
+      for (const payload of [
+        { driver: 's3', config: { ...s3Config(), endpoint: hostileUrl }, secret: s3Secret },
+        { driver: 'webdav', config: { url: hostileUrl, prefix: 'adminium' } },
+      ]) {
+        const res = await app.inject({
+          method: 'POST',
+          url: '/api/v1/storage/destinations/test',
+          headers: asUser(admin),
+          payload,
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().data.ok).toBe(false);
+        expect(res.json().data.error).toContain('redirect');
+      }
+      expect(followed).toBe(0);
+    } finally {
+      hostile.closeAllConnections();
+      target.closeAllConnections();
+      await new Promise((done) => hostile.close(done));
+      await new Promise((done) => target.close(done));
+    }
+  });
+
   it('sets a default and refuses to make a disabled one the default', async () => {
     const id = (await create()).json().data.id as string;
     const promoted = await app.inject({

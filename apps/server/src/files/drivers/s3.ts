@@ -33,6 +33,7 @@ import type { S3DestinationConfig } from '@adminium/meta';
 import { newId } from '@adminium/meta';
 
 import {
+  fetchWithoutRedirects,
   FileDriverError,
   FileNotFoundError,
   type ByteRange,
@@ -62,7 +63,8 @@ function describeS3Error(status: number, body: string): string {
 
 export function createS3Driver(opts: S3DriverOptions): FileDriver {
   const { config, credentials } = opts;
-  const doFetch = opts.fetchImpl ?? fetch;
+  // Every request, the probe's included, refuses redirects.
+  const doFetch = fetchWithoutRedirects(opts.fetchImpl ?? fetch);
 
   /**
    * AWS's own endpoints are derived from the region; everything else is

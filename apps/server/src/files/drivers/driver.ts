@@ -101,3 +101,36 @@ export interface FileDriver {
   probe(): Promise<ProbeResult>;
   usage?(): Promise<DriverUsage>;
 }
+
+/**
+ * `fetch` for a remote storage endpoint, with redirects refused.
+ *
+ * The default `redirect: 'follow'` lets an endpoint answer
+ * `302 http://169.254.169.254/…` and have the cloud's credentials streamed
+ * back as the file; the guard only ever saw the first address. So nothing is
+ * followed, and a 3xx is a driver error naming where it pointed. `allow`
+ * keeps a redirect a protocol treats as an answer (WebDAV's MKCOL 301 for a
+ * collection that already exists) as a plain response, still unfollowed.
+ */
+export function fetchWithoutRedirects(
+  doFetch: typeof fetch,
+  allow: (method: string, status: number) => boolean = () => false,
+): typeof fetch {
+  return async (input, init) => {
+    const response = await doFetch(input, { ...init, redirect: 'manual' });
+    if (response.status < 300 || response.status > 399) return response;
+    const method = init?.method ?? 'GET';
+    if (allow(method, response.status)) return response;
+    await response.arrayBuffer().catch(() => undefined);
+    let to = '';
+    try {
+      const location = response.headers.get('location');
+      if (location !== null) to = ` to ${new URL(location, String(input)).origin}`;
+    } catch {
+      // an unreadable Location is still a redirect
+    }
+    throw new FileDriverError(
+      `${method} answered a redirect (HTTP ${String(response.status)}${to}). A storage endpoint may not redirect; set the destination to the address it redirects to.`,
+    );
+  };
+}
