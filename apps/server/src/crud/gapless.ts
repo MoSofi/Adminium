@@ -387,3 +387,56 @@ async function take<T>(
     }
   }
 }
+
+/**
+ * NUMBER THE ROWS ALREADY THERE that have none: an app's update that puts a
+ * gapless number on a column its rows already fill (a job's position on its
+ * order). Creates take their numbers at the INSERT, so a row written before
+ * the rule stays empty for ever otherwise. Per series (per parent row with
+ * `scope`), in key order, each after the largest number the series holds:
+ * numbers already there are kept, and the series carries on after them. The
+ * text written from the number goes in beside it where the row has none.
+ *
+ * Inside the caller's transaction. On Postgres each series is held by its
+ * transaction lock, as a create holds it; on MySQL a create taking the same
+ * number meets the series' unique index and steps past it, or fails the
+ * update (which can be run again).
+ */
+export async function numberRowsWithout(
+  db: Db,
+  dialect: Dialect,
+  table: ResolvedTable,
+  sequence: GaplessSequence,
+  write: (row: Row, set: Row) => Promise<void>,
+  reader?: RuleSettingsReader,
+): Promise<number> {
+  const setting = sequence.startSetting === undefined ? null : wholeNumber(await settingValue(db, sequence.startSetting, reader));
+  const claim: Claim = { sequence, start: Math.max(sequence.start, setting ?? 0, 1), prefix: await prefixOf(db, sequence, reader) };
+  const text = sequence.logicalType === 'text' || sequence.logicalType === 'varchar';
+  const wanted = [...new Set([...table.primaryKey, ...(sequence.scope === undefined ? [] : [sequence.scope]), sequence.column, ...(sequence.format === undefined ? [] : [sequence.format.column])])];
+  let query = db
+    .selectFrom(table.id)
+    .select(wanted.map((column) => sql<unknown>`${sql.ref(column)}`.as(column)))
+    .where(text ? sql<boolean>`(${sql.ref(sequence.column)} is null or ${sql.ref(sequence.column)} = '')` : sql<boolean>`${sql.ref(sequence.column)} is null`);
+  for (const key of table.primaryKey) query = query.orderBy(sql`${sql.ref(key)}`);
+  const rows = (await query.execute()) as Row[];
+  const series = new Map<string, Row[]>();
+  for (const row of rows) {
+    const name = seriesName(table, sequence, row);
+    series.set(name, [...(series.get(name) ?? []), row]);
+  }
+  let written = 0;
+  for (const [name, members] of series) {
+    if (dialect === 'postgres') await advisoryLocks(db, [{ name, busy: 'NUMBER_BUSY' }]);
+    let n = Math.max((await largest(db, table, sequence, members[0]!, false)) + 1, claim.start);
+    for (const row of members) {
+      const set = numbered({}, claim, n);
+      const format = sequence.format?.column;
+      if (format !== undefined && row[format] !== null && row[format] !== undefined && row[format] !== '') delete set[format];
+      await write(row, set);
+      n += 1;
+      written += 1;
+    }
+  }
+  return written;
+}

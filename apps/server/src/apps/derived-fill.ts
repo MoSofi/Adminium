@@ -30,6 +30,9 @@
  *    left alone, and said.
  *  - A `copy` that always wins is taken from the linked row as it is now for
  *    every row; one that only fills a blank fills only the rows still blank.
+ *  - A gapless number the app's sample rows take too (`sequence { gapless,
+ *    sample }`) is given to each row that has none, per series, after the
+ *    largest the series holds; numbers already there stay.
  *
  * In ONE transaction of the source database: filled whole, or not at all. The
  * caller runs it as a stage of the update, before the version is recorded, so
@@ -45,6 +48,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { tableRulesFor, type RollupInto, type TableRules } from '../crud/column-rules.js';
 import { evaluateAll } from '../crud/formulas.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
+import { numberRowsWithout } from '../crud/gapless.js';
 import { settleBalances, settleParent, storableValues } from '../crud/write-service.js';
 import { sameValue } from '../crud/write-values.js';
 import { canonicalJson } from './sample-data.js';
@@ -53,8 +57,8 @@ import { tableOfReal } from '../installs/table-id.js';
 type Db = Kysely<SourceDatabase>;
 type Row = Record<string, unknown>;
 
-/** How Adminium works a column out. */
-export type DerivedKind = 'copy' | 'formula' | 'rollup' | 'balance';
+/** How Adminium works a column out (`number`: a gapless number the app's sample rows take too, and its text). */
+export type DerivedKind = 'copy' | 'formula' | 'rollup' | 'balance' | 'number';
 
 /** A column of the app's (by the manifest's short table name) Adminium works out. */
 export interface DerivedColumn {
@@ -91,6 +95,25 @@ function derivations(manifest: unknown): Map<string, Derivation> {
     for (const column of (table.columns ?? []) as RequiredColumn[]) {
       const rules = column.rules;
       if (rules === undefined) continue;
+      /*
+       * A gapless number every row takes, sample rows too (`sample`): a job's
+       * position on its order. Rows made before the rule have none, and a
+       * number is only ever taken at a create. A series without `sample` is a
+       * document's (an invoice's), given when the document is made and never
+       * after the fact, so its rows are left as they are. The text written
+       * from the number goes with it, so what reads the text follows too.
+       */
+      const sequence = rules.sequence;
+      if (sequence?.gapless === true && sequence.sample === true) {
+        const number: Derivation = {
+          kind: 'number',
+          rule: canonicalJson({ sequence }),
+          reads: sequence.scope === undefined ? [] : [at(table.ref, sequence.scope)],
+        };
+        out.set(at(table.ref, column.ref), number);
+        const text = (table.columns ?? []).find((other) => other.rules?.format?.from === column.ref);
+        if (text !== undefined) out.set(at(table.ref, text.ref), { ...number, reads: [at(table.ref, column.ref)] });
+      }
       if (rules.copy !== undefined) {
         const parent = table.columns.find((c) => c.ref === rules.copy!.via)?.references;
         out.set(at(table.ref, column.ref), {
@@ -254,6 +277,16 @@ async function fillRollup(db: Db, dialect: Dialect, table: ResolvedTable, rules:
   return written;
 }
 
+/** A gapless number for each row that has none, per series, after the largest already there (`numberRowsWithout`). */
+async function fillNumbers(db: Db, dialect: Dialect, table: ResolvedTable, rules: TableRules, column: string): Promise<number | string> {
+  // The text written from a number is written with it.
+  if (rules.gapless?.some((sequence) => sequence.format?.column === column) === true) return 0;
+  const sequence = rules.gapless?.find((one) => one.column === column);
+  if (sequence === undefined) return 'no number without gaps on the column now';
+  if (table.primaryKey.length === 0) return 'the table has no key';
+  return numberRowsWithout(db, dialect, table, sequence, (row, set) => writeRow(db, dialect, table, row, set));
+}
+
 /**
  * Work `columns` out for every row their tables hold, in the order given
  * (see {@link addedDerivedColumns}), through `db` — the caller's transaction.
@@ -288,7 +321,9 @@ export async function fillDerivedColumns(input: {
       continue;
     }
     const done =
-      derived.kind === 'copy'
+      derived.kind === 'number'
+        ? await fillNumbers(db, dialect, table, rules, derived.column)
+        : derived.kind === 'copy'
         ? await fillCopy(db, dialect, table, rules, derived.column)
         : derived.kind === 'formula'
           ? await fillFormula(db, dialect, table, rules, derived.column, input.currency)
