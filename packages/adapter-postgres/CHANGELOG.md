@@ -1,5 +1,12 @@
 # @adminium/adapter-postgres
 
+## 0.3.53
+
+### Patch Changes
+
+- Updated dependencies [86dd478]
+  - @adminium/engine@0.3.53
+
 ## 0.3.52
 
 ### Patch Changes

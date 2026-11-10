@@ -1,5 +1,23 @@
 # @adminium/dashboard
 
+## 0.3.53
+
+### Patch Changes
+
+- f6c8515: When two apps each hold their own copy of an add-on (a maker's shop and a print shop, each with its Customiser), the add-on's page now opens: the menu lists it once per copy you reach, named by its database, and the page asks its own copy. Asked with no copy named, the refusal counts every copy and names only yours. A page that loads and then stops says what failed instead of blaming the add-on's fingerprint.
+- 41901c3: An edit form shows a link by its name ("BR-2291"), as a new row's does, instead of its number, and a list's or a record's link chip names the row the way the form's picker does, following the key field its table declares today. A record whose title is a choice shows the choice's word ("The lettering"). A field an app's form marks required is asked for on a new row before anything is sent, with "This field is required." under it. A form's picker can be narrowed by another field of the same form (`reference.scope`, from 0.3.53: an order line among the chosen order's lines).
+- 8fc15d0: Lists and record pages no longer ask for project actions on a server that runs no project. A long choice in a list ("The Customiser design") ends in "…" inside its column, with the whole word on hover, instead of running into the next column.
+- Updated dependencies [41901c3]
+- Updated dependencies [8fc15d0]
+- Updated dependencies [86dd478]
+  - @adminium/widgets@0.3.53
+  - @adminium/engine@0.3.53
+  - @adminium/add-on-contracts@0.3.53
+  - @adminium/charts@0.3.53
+  - @adminium/i18n@0.3.53
+  - @adminium/tokens@0.3.53
+  - @adminium/ui@0.3.53
+
 ## 0.3.52
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @adminium/widgets
 
+## 0.3.53
+
+### Patch Changes
+
+- 41901c3: An edit form shows a link by its name ("BR-2291"), as a new row's does, instead of its number, and a list's or a record's link chip names the row the way the form's picker does, following the key field its table declares today. A record whose title is a choice shows the choice's word ("The lettering"). A field an app's form marks required is asked for on a new row before anything is sent, with "This field is required." under it. A form's picker can be narrowed by another field of the same form (`reference.scope`, from 0.3.53: an order line among the chosen order's lines).
+- 8fc15d0: Lists and record pages no longer ask for project actions on a server that runs no project. A long choice in a list ("The Customiser design") ends in "…" inside its column, with the whole word on hover, instead of running into the next column.
+- @adminium/charts@0.3.53
+  - @adminium/i18n@0.3.53
+  - @adminium/tokens@0.3.53
+  - @adminium/ui@0.3.53
+
 ## 0.3.52
 
 ### Patch Changes

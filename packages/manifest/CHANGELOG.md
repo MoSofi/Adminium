@@ -1,5 +1,13 @@
 # @adminium/manifest
 
+## 0.3.53
+
+### Patch Changes
+
+- 41901c3: An edit form shows a link by its name ("BR-2291"), as a new row's does, instead of its number, and a list's or a record's link chip names the row the way the form's picker does, following the key field its table declares today. A record whose title is a choice shows the choice's word ("The lettering"). A field an app's form marks required is asked for on a new row before anything is sent, with "This field is required." under it. A form's picker can be narrowed by another field of the same form (`reference.scope`, from 0.3.53: an order line among the chosen order's lines).
+- ff2b16d: A stamp may say `notEarlier: true`: when it fires, a date column keeps the later of the date it holds and the new one, so a ready-by told to a customer never moves forward. Needs Adminium 0.3.53.
+- @adminium/add-on-contracts@0.3.53
+
 ## 0.3.52
 
 ### Patch Changes

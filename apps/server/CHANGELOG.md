@@ -1,5 +1,31 @@
 # @adminium/server
 
+## 0.3.53
+
+### Patch Changes
+
+- f6c8515: When two apps each hold their own copy of an add-on (a maker's shop and a print shop, each with its Customiser), the add-on's page now opens: the menu lists it once per copy you reach, named by its database, and the page asks its own copy. Asked with no copy named, the refusal counts every copy and names only yours. A page that loads and then stops says what failed instead of blaming the add-on's fingerprint.
+- 58e146c: The add-ons that come with Adminium are now 1.0.24. In the Customiser, an order that holds two customised items is taken (each design's new version is labelled by its design), the full editor offers only the base's own fonts and never another app's, each font sample is drawn in its own font, the New base dialog marks the shop's own kind, and an order line's panel reads its set-up once instead of after every save and says when no proof was made yet.
+- 195d21e: Two security fixes. A database connection string can no longer send Adminium somewhere other than the host it names: a parameter that changes the host, port or socket (`?host=`, `?port=`, `?socketPath=`), reads a file from the server (`?sslrootcert=`, `?sslcert=`, `?sslkey=`) or changes how the driver behaves (`?flags=`, `?multipleStatements=`) is now refused, naming the parameter to remove, and so is a percent-encoded host. The usual provider parameters still work (`sslmode`, `ssl`, `channel_binding`, `options`, `application_name`, `pgbouncer`, `schema`; for MySQL `ssl`, `charset`, `timezone`). In production a connection string must name a host. An existing connection whose string carries a refused parameter stops connecting until the parameter is removed. And S3 and WebDAV storage no longer follow redirects: an endpoint that answers with a redirect fails its test and every read and write with a message naming where it pointed, so set the destination to the final address.
+- 41901c3: An edit form shows a link by its name ("BR-2291"), as a new row's does, instead of its number, and a list's or a record's link chip names the row the way the form's picker does, following the key field its table declares today. A record whose title is a choice shows the choice's word ("The lettering"). A field an app's form marks required is asked for on a new row before anything is sent, with "This field is required." under it. A form's picker can be narrowed by another field of the same form (`reference.scope`, from 0.3.53: an order line among the chosen order's lines).
+- 6558e33: A column an app says holds no personal data (a print works' own e-mail and phone) is no longer drawn as "•••" on its record, list and form: the dashboard marks a column personal exactly when the server masks it.
+- c20337b: Staff who open only an app's own screens (a print shop's counter, prepress, the press) are now served the add-on code those screens draw, and are no longer handed code they would be refused: the counter's dispatch screen shows "Book a collection" again, and no screen asks for a bundle it gets a 403 for. A screen loads each add-on's code once instead of twice.
+- ff2b16d: A stamp may say `notEarlier: true`: when it fires, a date column keeps the later of the date it holds and the new one, so a ready-by told to a customer never moves forward. Needs Adminium 0.3.53.
+- 86dd478: An app update that adds a column named like one of its table's states (a proof's `change_asked`) no longer fails its schema change on Postgres and MySQL: the state column's list of allowed values stays on the state column.
+- Updated dependencies [41901c3]
+- Updated dependencies [ff2b16d]
+- Updated dependencies [86dd478]
+  - @adminium/manifest@0.3.53
+  - @adminium/engine@0.3.53
+  - @adminium/llm@0.3.53
+  - @adminium/adapter-mysql@0.3.53
+  - @adminium/adapter-postgres@0.3.53
+  - @adminium/adapter-sqlite@0.3.53
+  - @adminium/schema-import@0.3.53
+  - @adminium/add-on-contracts@0.3.53
+  - @adminium/i18n@0.3.53
+  - @adminium/meta@0.3.53
+
 ## 0.3.52
 
 ### Patch Changes

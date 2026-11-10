@@ -1,5 +1,14 @@
 # @adminium/engine
 
+## 0.3.53
+
+### Patch Changes
+
+- 86dd478: An app update that adds a column named like one of its table's states (a proof's `change_asked`) no longer fails its schema change on Postgres and MySQL: the state column's list of allowed values stays on the state column.
+- Updated dependencies [41901c3]
+- Updated dependencies [8fc15d0]
+  - @adminium/widgets@0.3.53
+
 ## 0.3.52
 
 ### Patch Changes
