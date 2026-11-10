@@ -175,7 +175,11 @@ describe.each(LEGS)('an add-on page with a copy of the add-on per app — %s', (
       expect(refused.error.message).toContain('installed on 2 databases (1 of them is yours to open)');
       expect(refused.error.details.installedOn).toBe(2);
       expect(refused.error.details.installs.map((one) => one.installId)).toEqual([copies.studio]);
+      // The copy it names is named by its database, as every other route's choice names it.
+      const studioName = (await h.manager.connections.findById(h.connectionId))!.name;
+      expect((refused.error.details.installs as { connectionName?: string | null }[]).map((one) => one.connectionName)).toEqual([studioName]);
       expect(mine.body).not.toContain(copies.kiln);
+      expect(mine.body).not.toContain('Kiln');
       const all = (await kit(people.admin)).json() as { error: { message: string; details: { installedOn: number; installs: unknown[] } } };
       expect(all.error.message).toContain('installed on 2 databases. Say which one');
       expect(all.error.details.installs).toHaveLength(2);

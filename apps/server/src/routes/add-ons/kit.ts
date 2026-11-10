@@ -193,6 +193,9 @@ async function formsHosts(
 }
 
 export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
+  /** Connection names, for a refusal that lists a key's installs. */
+  const connectionNames = async (): Promise<Map<string, string>> =>
+    new Map((await deps.meta.db.selectFrom('adminium_connections').select(['id', 'name']).execute()).map((row) => [row.id, row.name]));
   return async (app) => {
     app.get(
       '/add-ons/:key/kit',
@@ -200,7 +203,7 @@ export function addOnKitRoutes(deps: AddOnKitDeps): FastifyPluginAsyncZod {
       async (request) => {
         const { key } = request.params;
         // The install the request names (the header, or ?connectionId=), else the key's only one.
-        const found = await resolveInstall(installsOf(deps.meta), key, selectorOf(request), { kind: 'add-on', reaches: installReachOf(deps.meta, request) });
+        const found = await resolveInstall(installsOf(deps.meta), key, selectorOf(request), { kind: 'add-on', connectionNames, reaches: installReachOf(deps.meta, request) });
         const row = found === null ? undefined : { manifest: found.document as unknown, status: found.row.status, connectionId: found.row.connectionId };
         const parsed = row === undefined ? null : addOnManifestSchema.safeParse(typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest);
         // Not there, switched off, being changed, or with no tables of its own on any database: one answer.
