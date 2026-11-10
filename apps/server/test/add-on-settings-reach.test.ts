@@ -97,7 +97,7 @@ describe.each(LEGS)("the settings an app's owner keeps of an add-on — %s", (di
     expect(list.statusCode, list.body).toBe(200);
     const listed = (list.json() as { addOns: { key: string; slots: { slot: string; client: string }[]; bundles: { path: string; url: string }[]; settingValues: Record<string, unknown> }[] }).addOns.find((one) => one.key === KEY)!;
     expect(listed.slots).toEqual([expect.objectContaining({ slot: 'settings.add-on.panel', client: 'dist/client.js' })]);
-    expect(listed.bundles.map((bundle) => bundle.url)).toEqual([`/api/v1/add-ons/${KEY}/bundle/dist/client.js`]);
+    expect(listed.bundles.map((bundle) => bundle.url.replace(/\?v=[0-9a-f]{16}$/, ''))).toEqual([`/api/v1/add-ons/${KEY}/bundle/dist/client.js`]);
     const file = await send(people.owner, 'GET', `/add-ons/${KEY}/bundle/dist/client.js`);
     expect(file.statusCode, file.body).toBe(200);
     expect(file.body).toBe(CLIENT);

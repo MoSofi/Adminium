@@ -222,7 +222,7 @@ describe('an add-on released before pages were kept behind a permission', () => 
     expect((await h.inject({ method: 'GET', url: '/add-ons/papers/bundle/dist/count.js', as: null })).statusCode).toBe(401);
     // The list still names the one address it always named, and no page ref.
     const listed = (await h.inject({ method: 'GET', url: '/add-ons' })).json().addOns.find((entry: { key: string }) => entry.key === 'papers');
-    expect(listed.bundles).toEqual([expect.objectContaining({ path: 'dist/count.js', url: '/api/v1/add-ons/papers/bundle/dist/count.js' })]);
+    expect(listed.bundles).toEqual([expect.objectContaining({ path: 'dist/count.js', url: expect.stringMatching(/^\/api\/v1\/add-ons\/papers\/bundle\/dist\/count\.js\?v=[0-9a-f]{16}$/) })]);
     expect(listed.bundles[0]).not.toHaveProperty('ref');
   });
 });

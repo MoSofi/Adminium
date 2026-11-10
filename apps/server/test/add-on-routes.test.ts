@@ -839,7 +839,8 @@ describe('bundle serving with SRI', () => {
     const bundle = await installAndList(app);
 
     expect(bundle.path).toBe('dist/client.js');
-    expect(bundle.url).toBe('/api/v1/add-ons/holiday-calendars/bundle/dist/client.js');
+    // The address names the bytes it serves (`?v=`, the start of their sha256): a new version is a new address.
+    expect(bundle.url).toMatch(/^\/api\/v1\/add-ons\/holiday-calendars\/bundle\/dist\/client\.js\?v=[0-9a-f]{16}$/);
     expect(bundle.integrity).toMatch(/^sha256-[A-Za-z0-9+/]+=*$/);
     await app.close();
   });
@@ -1954,7 +1955,7 @@ describe('acquisition routes', () => {
         addOns: { key: string; bundles: { url: string }[] }[];
       };
       expect(list.addOns[0]?.bundles.map((bundle) => bundle.url)).toEqual([
-        '/api/v1/add-ons/holiday-calendars/bundle/dist/client.js',
+        expect.stringMatching(/^\/api\/v1\/add-ons\/holiday-calendars\/bundle\/dist\/client\.js\?v=[0-9a-f]{16}$/),
       ]);
       await app.close();
     });

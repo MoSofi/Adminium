@@ -1835,7 +1835,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           throw new NotFoundError(`"${key}" does not ship a bundle at "${file}".`);
         }
         // Somebody who opens only an app's screens is served what those screens draw: a fill of a staff-side slot.
-        const set = request.server.hasDecorator('rbac') && request.apiKeyPrincipal == null ? await request.server.rbac.resolve(request) : null;
+        // A harness that mounts this route with no permission layer has nobody to hold to it.
+        const set = typeof request.can === 'function' && request.server.hasDecorator('rbac') && request.apiKeyPrincipal == null ? await request.server.rbac.resolve(request) : null;
         if (set !== null && set.screensOnly !== null && !staffSlotFilesOf(manifest).has(file)) {
           throw new ForbiddenError(`"${file}" of "${key}" fills nothing on your app's screens.`, 'FORBIDDEN', { addOn: key });
         }
