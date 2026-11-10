@@ -13,7 +13,7 @@
  * screen of their app), and the files a record of theirs keeps (a crew's
  * signature and photos, a copy of one for another record), and a record's e-mail consent (the panel, and recording consent,
  * "Replied" and "They said no" on it), the add-ons connected to their apps, and the server's name and logo to head
- * their screens with. Forty-odd routes check only that someone is signed in, so this
+ * their screens with, and the code of an add-on of their app that fills a place on those screens. Forty-odd routes check only that someone is signed in, so this
  * list — not those routes — is the boundary.
  */
 import type { FastifyRequest } from 'fastify';
@@ -71,6 +71,8 @@ export const ADD_ON_DOCUMENT_ROUTE = `${API}/add-ons/:key/documents/render`;
 export const ADD_ON_PANEL_BUNDLE_ROUTE = `${API}/add-ons/:key/panels/:id/bundle`;
 /** The route a page's own shipped files come through (a design kit's starter fonts, which its record panel draws with too). */
 export const ADD_ON_PAGE_FILES_ROUTE = `${API}/add-ons/:key/pages/:ref/files/*`;
+/** The route a screen loads an add-on's slot fills through (a carrier's "Book a collection" on the dispatch screen). */
+export const ADD_ON_BUNDLE_ROUTE = `${API}/add-ons/:key/bundle/*`;
 
 /**
  * The add-ons a screens-only person's apps use: connected to one of their
@@ -169,6 +171,9 @@ export function allowedForScreensOnly(
   // A file shipped beside a page of an add-on of their app (a starter font its panel draws a proof with). The route serves it
   // only to who holds the page's own permission, which their app's role gives where it grants the page.
   if (method === 'GET' && route === ADD_ON_PAGE_FILES_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
+  // The code of an add-on of their app that fills a place on their app's screens (DHL's "Book a collection" on the
+  // dispatch screen). The route serves them only a file that fills a slot of the staff screens, the files their list names.
+  if (method === 'GET' && route === ADD_ON_BUNDLE_ROUTE && typeof key === 'string' && addOns.has(key)) return true;
   // Which add-ons their apps have (a counter's screen offers "Book a collection" once DHL is there). The route tells a
   // screens-only person of the add-ons connected to their apps alone, never their settings' values or secrets.
   if (method === 'GET' && rest === '/add-ons') return true;

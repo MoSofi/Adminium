@@ -39,6 +39,15 @@ export const addOnPageFileParams = z.object({ key: addOnKey, ref: z.string().min
 export const addOnPanelBundleParams = z.object({ key: addOnKey, id: z.string().min(1).max(80) });
 export const addOnPanelBundleQuery = z.object({ connection: z.string().min(1).max(200), table: z.string().min(1).max(300), row: z.string().min(1).max(500) });
 
+/**
+ * The pin a slot file's address carries (`?v=`, the first 16 hex of its
+ * sha256), as the add-ons list hands it out. With the pin the bytes have now,
+ * the reply may be kept: a host that fetches the file to hash it and then
+ * imports it asks the server once. Any other value, or none, is served too,
+ * and kept by nobody.
+ */
+export const addOnBundleQuery = z.object({ v: z.string().max(64).optional() });
+
 export const addOnBundleParams = z.object({
   key: addOnKey,
   /**

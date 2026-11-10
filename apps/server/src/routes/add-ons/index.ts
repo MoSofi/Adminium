@@ -62,7 +62,7 @@
  * build behind, and only `openapi-check` catches it.
  */
 
-import { PAYMENT_PROVIDER_CONTRACT } from '@adminium/add-on-contracts';
+import { PAYMENT_PROVIDER_CONTRACT, SLOT_REGISTRY } from '@adminium/add-on-contracts';
 import {
   compareSemver,
   installsLikeAnApp,
@@ -156,6 +156,7 @@ import { APP_VERSION } from '../../version.js';
 import { isRetiredAddOn } from '../../add-ons/retired.js';
 import {
   addOnBundleParams,
+  addOnBundleQuery,
   addOnPageBundleParams,
   addOnPageFileParams,
   addOnPanelBundleParams,
@@ -285,6 +286,9 @@ export interface AddOnRoutesDeps {
 
 /** The add-on block of a validated manifest, narrowed for reading. */
 type AddOnBlock = AddOnManifest['addOn'];
+
+/** The slots drawn on an app's staff screens: the staff side's, and those of both sides. */
+const STAFF_SLOTS: ReadonlySet<string> = new Set(SLOT_REGISTRY.filter((slot) => slot.surface === 'staff' || slot.surface === 'both').map((slot) => slot.id));
 
 /**
  * The FULL validator, not just the schema parse.
@@ -469,6 +473,22 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     return [...new Set((manifest.addOn.slots ?? []).map((slot) => slot.client))].filter((path) => !gated.has(path));
   }
 
+  /**
+   * The files that fill a place on an app's staff screens: a slot of the
+   * staff side, or of both sides. What somebody who opens only those screens
+   * (a print shop's counter) is told of and served: their screens draw these
+   * and nothing else of an add-on's code by its list (a record panel has its
+   * own address, for one row).
+   */
+  function staffSlotFilesOf(manifest: AddOnManifest): Set<string> {
+    const open = new Set(openBundlePathsOf(manifest));
+    return new Set(
+      (manifest.addOn.slots ?? [])
+        .filter((fill) => STAFF_SLOTS.has(fill.slot) && open.has(fill.client) && !(manifest.addOn.panels ?? []).some((panel) => panel.client === fill.client))
+        .map((fill) => fill.client),
+    );
+  }
+
   /** Every file a host may be told to load, with its address: one per slot file, and — behind a permission — one per page. */
   function bundleEntriesOf(manifest: AddOnManifest): { path: string; url: string; ref?: string; panel?: string }[] {
     const open = openBundlePathsOf(manifest)
@@ -480,8 +500,13 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     return [...open, ...(manifest.addOn.pages ?? []).map((page) => ({ path: page.client, url: `/api/v1/add-ons/${manifest.key}/pages/${page.ref}/bundle`, ref: page.ref })), ...panels];
   }
 
+  /** The pin a slot file's address carries: enough of its sha256 that a new version is a new address. */
+  function pinTagOf(sha256Hex: string): string {
+    return sha256Hex.slice(0, 16);
+  }
+
   /** One file of an installed package, re-hashed against the pin recorded when it was unpacked. */
-  async function sendBundle(reply: FastifyReply, key: string, version: string, file: string): Promise<FastifyReply> {
+  async function sendBundle(reply: FastifyReply, key: string, version: string, file: string, askedPin?: string): Promise<FastifyReply> {
     let bytes: Buffer;
     let sha256: string;
     try {
@@ -503,11 +528,14 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     return reply
       .header('content-type', 'text/javascript; charset=utf-8')
       .header('x-adminium-integrity', sriFor(sha256))
-      // Immutable: the URL carries no version, but the bytes are pinned to
-      // the installed version's hash and an upgrade changes the integrity
-      // the host is told to pin — so a stale cache fails the pin rather
-      // than silently serving the old half of a half-upgraded add-on.
-      .header('cache-control', 'no-cache')
+      // Kept only under an address that names these very bytes (`?v=`, the
+      // pin the list hands out): a new version is a new address, so nothing
+      // stale is ever kept, and a host that fetches the file to hash it and
+      // then imports it asks once. Private: it is served to who is signed in.
+      // Any other address is asked again each time, as before: the bytes are
+      // pinned to the installed version's hash, so a stale copy would fail
+      // the pin rather than run.
+      .header('cache-control', askedPin !== undefined && askedPin === pinTagOf(sha256) ? 'private, max-age=31536000, immutable' : 'no-cache')
       .send(bytes);
   }
 
@@ -771,7 +799,9 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
                 installed.row.version,
                 path,
               );
-              return { path, url, integrity: sriFor(sha256), ...(ref === undefined ? {} : { ref }), ...(panel === undefined ? {} : { panel }) };
+              // A slot file's address names its bytes, so it may be kept (`sendBundle`); a page's and a panel's are asked each time.
+              const at = ref === undefined && panel === undefined ? `${url}?v=${pinTagOf(sha256)}` : url;
+              return { path, url: at, integrity: sriFor(sha256), ...(ref === undefined ? {} : { ref }), ...(panel === undefined ? {} : { panel }) };
             } catch {
               return null;
             }
@@ -1647,7 +1677,11 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
                 addOn.bundles.map(async (bundle) => (bundle.ref === undefined || (await request.can(addOnPagePermission(bundle.ref)))) && (bundle.panel === undefined || (await request.can(addOnPagePermission(bundle.panel))))),
               );
               // A screen of theirs is told that the add-on is there, never what its settings hold, whatever their role may change.
-              return { ...addOn, settingValues: settingsHeld && screensOnly === null ? addOn.settingValues : {}, bundles: addOn.bundles.filter((_bundle, index) => open[index]) };
+              // And only of the code their screens draw from the list: a slot fill of the staff side. A page is the dashboard's.
+              const staffFiles = screensOnly === null ? null : staffSlotFilesOf(parseManifest(installed.document, installed.row.manifestKey));
+              const drawn = (bundle: { path: string; ref?: string | undefined; panel?: string | undefined }): boolean =>
+                staffFiles === null || (bundle.ref === undefined && bundle.panel === undefined && staffFiles.has(bundle.path));
+              return { ...addOn, settingValues: settingsHeld && screensOnly === null ? addOn.settingValues : {}, bundles: addOn.bundles.filter((bundle, index) => open[index] && drawn(bundle)) };
             }),
           ),
         };
@@ -1780,7 +1814,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // nothing: hosted mode is the only mode that reads this, and it has a
         // session by construction.
         preHandler: app.requireAuth,
-        schema: { params: addOnBundleParams },
+        schema: { params: addOnBundleParams, querystring: addOnBundleQuery },
       },
       async (request, reply) => {
         const { key } = request.params;
@@ -1800,7 +1834,12 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         if (!openBundlePathsOf(manifest).includes(file)) {
           throw new NotFoundError(`"${key}" does not ship a bundle at "${file}".`);
         }
-        return sendBundle(reply, key, installed.version, file);
+        // Somebody who opens only an app's screens is served what those screens draw: a fill of a staff-side slot.
+        const set = request.server.hasDecorator('rbac') && request.apiKeyPrincipal == null ? await request.server.rbac.resolve(request) : null;
+        if (set !== null && set.screensOnly !== null && !staffSlotFilesOf(manifest).has(file)) {
+          throw new ForbiddenError(`"${file}" of "${key}" fills nothing on your app's screens.`, 'FORBIDDEN', { addOn: key });
+        }
+        return sendBundle(reply, key, installed.version, file, request.query.v);
       },
     );
 
