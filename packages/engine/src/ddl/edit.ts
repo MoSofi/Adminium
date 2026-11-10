@@ -1520,8 +1520,9 @@ export function enumCheckColumn(
     const name = authored[1]!;
     if (columns.includes(name)) return name;
   }
-  // A name is looked for outside the values: a state `change_asked` beside a column `change_asked` is a value of `state`.
-  const bare = withoutSingleQuoted(expression);
+  // A name is looked for outside the values (a state `change_asked` beside a column `change_asked` is a value of
+  // `state`) and outside Postgres's casts (`::text`, `::character varying[]`), which name types, never columns.
+  const bare = withoutSingleQuoted(expression).replace(/::\s*(character varying|double precision|time(stamp)? with(out)? time zone|[a-z_][a-z0-9_]*)(\[\])?/gi, (cast) => ' '.repeat(cast.length));
   const candidates = columns
     .filter((name) => new RegExp(`(^|[^a-z0-9_])${name}([^a-z0-9_]|$)`, 'i').test(bare))
     .sort((a, b) => b.length - a.length);

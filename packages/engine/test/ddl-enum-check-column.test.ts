@@ -26,6 +26,13 @@ describe("a choice's CHECK, named by its column", () => {
     }
   });
 
+  it("never takes a Postgres cast's type for a column", () => {
+    const text = "((kind)::text = ANY ((ARRAY['a'::character varying, 'b'::character varying])::text[]))";
+    expect(enumCheckColumn(text, ['text', 'kind'])).toBe('kind');
+    expect(enumCheckColumn("((mode)::text = ANY ((ARRAY['a'::character varying])::text[]))", ['mode', 'character'])).toBe('mode');
+    expect(parseEnumCheck(text, ['text', 'kind'])).toEqual({ column: 'kind', values: ['a', 'b'] });
+  });
+
   it('still prefers the longer of two names it finds outside the values', () => {
     expect(enumCheckColumn("((status_id)::text = ANY ((ARRAY['a'::text])))", ['status', 'status_id'])).toBe('status_id');
     expect(enumCheckColumn("note in ('it''s state')", ['note', 'state'])).toBe('note');
