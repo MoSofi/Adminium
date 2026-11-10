@@ -5,7 +5,8 @@
  * the bulk bar.
  *
  * The server lists only the actions the signed-in person may run, and a
- * server that runs no project answers with none, so a page with no actions
+ * server that runs no project is not asked at all (its bootstrap carries no
+ * `project`), so a page with no actions
  * draws exactly what it drew before. An action's label, question and message
  * are the project's own text and are shown as they are.
  *
@@ -33,6 +34,7 @@ import {
 import { Zap } from 'lucide-react';
 
 import { api, ApiError } from '../app/api.js';
+import { bootstrapQuery, type BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { useAppToasts } from './toasts.js';
 
@@ -118,7 +120,10 @@ export function useProjectActions(
 ): ProjectActionsForTable {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
-  const { data } = useQuery({ ...projectActionsQuery(), enabled: connectionId != null && table != null });
+  // A server that runs no project folder says so in its bootstrap (no `project`), and has no `/project` routes to ask.
+  const bootstrap = queryClient.getQueryData<BootstrapData>(bootstrapQuery().queryKey);
+  const runsProject = bootstrap === undefined || bootstrap.project !== undefined;
+  const { data } = useQuery({ ...projectActionsQuery(), enabled: runsProject && connectionId != null && table != null });
   const [pending, setPending] = useState<PendingRun | null>(null);
   const [busy, setBusy] = useState(false);
 

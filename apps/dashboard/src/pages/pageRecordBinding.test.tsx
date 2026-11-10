@@ -192,7 +192,8 @@ function stubFetch(fixture: Fixture = {}) {
       return Promise.resolve(fixture.orderReply());
     }
     if (url.startsWith('/api/v1/bootstrap')) {
-      const bootstrap = fixture.bootstrap?.() ?? makeBootstrap();
+      // A server whose project defines actions runs a project folder, and its bootstrap says so.
+      const bootstrap = fixture.bootstrap?.() ?? (fixture.projectActions === undefined ? makeBootstrap() : { ...makeBootstrap(), project: { databases: { main: 'conn_1' }, client: null } });
       // The table→slug map's inputs: each page names its source table.
       for (const group of bootstrap.nav.groups) {
         for (const item of group.items) {
@@ -887,6 +888,18 @@ describe('project actions (the project’s own buttons)', () => {
     await renderAt('/p/customers/r/1');
     await screen.findByRole('heading', { level: 2 });
     expect(screen.queryByTestId('project-action-refund')).toBeNull();
+  });
+
+  it('never asks a server that runs no project for its actions, on a record page or a list', async () => {
+    for (const path of ['/p/customers/r/1', '/p/customers']) {
+      const { fetchMock } = await renderAt(path);
+      await screen.findAllByText('Northwind');
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      expect(fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/api/v1/project/actions'))).toEqual([]);
+      cleanup();
+    }
   });
 
   it('list: a row menu and, for a bulk action, the bulk bar; the rows are read again after each', async () => {
