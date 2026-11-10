@@ -144,6 +144,12 @@ export interface ColumnFactsBlock {
    * pointing AT this table, with the child's own columns.
    */
   children: ChildFact[];
+  /**
+   * The columns said to hold no personal data (an app's `personal: false`, an
+   * operator's "not personal"). Server-side only: the reply's schema drops it.
+   * A page's own "Mask" on any other column stays the page's.
+   */
+  notPersonal?: string[];
 }
 
 /**
@@ -222,7 +228,9 @@ function blockFor(
   const rules = tableRulesFor({ view, table });
   const fillByColumn = new Map((rules?.fills ?? []).map((fill) => [fill.column, fill]));
   const columns: ColumnFact[] = [];
+  const notPersonal: string[] = [];
   for (const column of table.table.columns) {
+    if (column.masked === false) notPersonal.push(column.name);
     const resolved = table.columns.get(column.name);
     if (resolved === undefined || resolved.secret) continue;
     const spec = specByName.get(column.name);
@@ -322,6 +330,7 @@ function blockFor(
     columns,
     relations,
     children,
+    ...(notPersonal.length === 0 ? {} : { notPersonal }),
   };
 }
 
@@ -603,8 +612,10 @@ export function labelWordsOf(rows: readonly { op: string; tableName: string; col
 
 /**
  * A stored list's links named as the table they point at names its rows
- * TODAY, and its columns marked personal as the server masks them today (an
- * app's `personal: false` over the guess from a name): the column a chip reads (`fk.display`) taken from the facts, which
+ * TODAY, and its columns marked personal where the server masks them today; a
+ * stored mark is dropped only where the column was said to hold no personal
+ * data (an app's `personal: false` over the guess from a name), so a page's
+ * own "Mask" stays: the column a chip reads (`fk.display`) taken from the facts, which
  * follow the target's `keyField` as the form's picker does. A page is stored
  * once and a link's name can change after (an app's update gives its order
  * lines a code to be known by), so a chip read "Rowan Walker" where the picker
@@ -613,13 +624,14 @@ export function labelWordsOf(rows: readonly { op: string; tableName: string; col
 export function withLinkNames(config: unknown, facts: ColumnFactsBlock | null): unknown {
   if (facts === null || typeof config !== 'object' || config === null) return config;
   const live = new Map<string, string>();
-  // …and whether a column is drawn as personal data, as the server masks it today (an app's `personal: false`).
+  // …and whether a column is drawn as personal data: always where the server masks it, never where it was said not to be.
   const personal = new Map<string, boolean>();
   for (const fact of facts.columns) {
     const fk = fact.spec['fk'] as { display?: unknown } | undefined;
     if (typeof fk?.display === 'string') live.set(String(fact.spec['name']), fk.display);
-    personal.set(String(fact.spec['name']), fact.spec['pii'] === true);
+    if (fact.spec['pii'] === true) personal.set(String(fact.spec['name']), true);
   }
+  for (const name of facts.notPersonal ?? []) if (!personal.has(name)) personal.set(name, false);
   if (live.size === 0 && personal.size === 0) return config;
   let changed = false;
   const refresh = (block: Record<string, unknown>): Record<string, unknown> => {

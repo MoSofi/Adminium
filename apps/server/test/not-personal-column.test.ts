@@ -96,4 +96,29 @@ describe.each(LEGS)('a column an app says is no personal data — %s', (dialect,
   it.skipIf(!available)("still marks a customer's e-mail personal", async () => {
     expect(personal(await page('works-customers'), 'email')).toEqual({ list: true, form: true });
   });
+
+  it.skipIf(!available)("keeps a page's own Mask from Studio, except on a column said to hold no personal data", async () => {
+    // Studio's column manager: an admin switches "Mask" on for a column the server sends in clear.
+    const admin = await usersRepo(h.meta).create({ email: 'studio@works.test', name: 'Studio', passwordHash: await adminPasswordHash() });
+    await rolesRepo(h.meta).assignToUser(admin.id, (await rolesRepo(h.meta).findBySlug('super-admin'))!.id);
+    const login = await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', remoteAddress: '10.15.0.2', payload: { email: 'studio@works.test', password: ADMIN_PASSWORD } });
+    expect(login.statusCode, login.body).toBe(200);
+    const studio = sessionCookie(login.headers['set-cookie']);
+    const mask = async (slug: string, names: string[]) => {
+      const row = await h.meta.db.selectFrom('adminium_pages').select(['id', 'config']).where('slug', '=', slug).executeTakeFirstOrThrow();
+      const envelope = (typeof row.config === 'string' ? JSON.parse(row.config) : row.config) as { config: { columns: { name: string; pii?: boolean }[] } };
+      const body = { ...envelope.config, columns: envelope.config.columns.map((column) => (names.includes(column.name) ? { ...column, pii: true } : column)) };
+      const saved = await served.composed.app.inject({ method: 'PATCH', url: `/api/v1/pages/${row.id}/config`, headers: { cookie: studio }, payload: { config: body } });
+      expect(saved.statusCode, saved.body).toBe(200);
+    };
+    await mask('works-customers', ['name']);
+    await mask('works-settings', ['name', 'email']);
+
+    // Read back, as Studio reloads it and as the owner's list draws it.
+    expect((await page('works-customers')).data.config.columns.find((column) => column.name === 'name')?.pii).toBe(true);
+    const settings = await page('works-settings');
+    expect(settings.data.config.columns.find((column) => column.name === 'name')?.pii).toBe(true);
+    // The app said the works' e-mail is no person's: that word stands over the page's mark.
+    expect(personal(settings, 'email')).toEqual({ list: false, form: false });
+  });
 });
