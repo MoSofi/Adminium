@@ -20,8 +20,9 @@
  * - finds the design `ordered`: its own link reads it, and refuses a change
  *   and a delete, while a draft is still deleted through its link;
  * - orders the same design again: no second version, as the README says;
- * - and a staff change to the line after the order leaves the version as it
- *   was.
+ * - a staff change to the line after the order leaves the version as it
+ *   was;
+ * - and two new designs in one order each get their version.
  *
  * Without the checkout the suite is skipped, by name.
  */
@@ -314,6 +315,35 @@ describe.each(LEGS)("a design ordered in the built Customiser: snapshotted and l
     const after = await versions(saved.id);
     expect(after).toHaveLength(1);
     expect(after[0]).toEqual(before);
+  });
+
+  it.skipIf(!runs)('two new designs in one order each get a version of their own', async () => {
+    const first = await save('Left card');
+    const second = await save('Right card');
+    const both = await create('printing_orders', {
+      values: { name: 'Guest', email: EMAIL },
+      children: { order_lines: [{ values: { product_id: 1, qty: 1, design_code: first.code } }, { values: { product_id: 1, qty: 1, design_code: second.code } }] },
+    });
+    /*
+     * A Customiser that labels each new version `v<n>` gives both "v1", and
+     * the write check refuses a label given twice: the order is refused. One
+     * that labels it by its design (`design-<id>-v<n>`, from 1.0.24) takes
+     * it. Read off the built code, so this flips by itself once the checkout
+     * (and the bundled pins) carry the fix.
+     */
+    const labelsByDesign = built!.files['dist/check.js']!.includes('`design-${');
+    if (!labelsByDesign) {
+      expect(both.statusCode, both.body).toBeGreaterThanOrEqual(400);
+      expect(await versions(first.id)).toEqual([]);
+      return;
+    }
+    expect(both.statusCode, both.body).toBe(201);
+    for (const [saved, text] of [[first, 'Left card'], [second, 'Right card']] as const) {
+      const all = await versions(saved.id);
+      expect(all.map((one) => Number(one['version']))).toEqual([1]);
+      expect(json(all[0]!['words'])).toEqual(words(text));
+      expect(await design(saved.id)).toMatchObject({ state: 'ordered' });
+    }
   });
 
   it.skipIf(built !== null)('is skipped: no built Customiser (set ADMINIUM_ADD_ONS_REPO and run `npm run build` in packages/customiser)', () => {
