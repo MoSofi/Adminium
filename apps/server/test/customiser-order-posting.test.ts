@@ -326,17 +326,11 @@ describe.each(LEGS)("a design ordered in the built Customiser: snapshotted and l
     });
     /*
      * A Customiser that labels each new version `v<n>` gives both "v1", and
-     * the write check refuses a label given twice: the order is refused. One
-     * that labels it by its design (`design-<id>-v<n>`, from 1.0.24) takes
-     * it. Read off the built code, so this flips by itself once the checkout
-     * (and the bundled pins) carry the fix.
+     * the write check refuses a label given twice: the order is refused. The
+     * one that ships labels it by its design (`design-<id>-v<n>`), so the
+     * order is taken; a checkout that went back to `v<n>` fails here.
      */
-    const labelsByDesign = built!.files['dist/check.js']!.includes('`design-${');
-    if (!labelsByDesign) {
-      expect(both.statusCode, both.body).toBeGreaterThanOrEqual(400);
-      expect(await versions(first.id)).toEqual([]);
-      return;
-    }
+    expect(built!.files['dist/check.js']).toContain('`design-${');
     expect(both.statusCode, both.body).toBe(201);
     for (const [saved, text] of [[first, 'Left card'], [second, 'Right card']] as const) {
       const all = await versions(saved.id);
