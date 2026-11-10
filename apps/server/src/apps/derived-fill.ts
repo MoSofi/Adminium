@@ -32,7 +32,9 @@
  *    every row; one that only fills a blank fills only the rows still blank.
  *  - A gapless number the app's sample rows take too (`sequence { gapless,
  *    sample }`) is given to each row that has none, per series, after the
- *    largest the series holds; numbers already there stay.
+ *    largest the series holds; numbers already there stay. On every update,
+ *    not only the one that brings the rule: a row added without a number
+ *    under an earlier version is numbered by the next.
  *
  * In ONE transaction of the source database: filled whole, or not at all. The
  * caller runs it as a stage of the update, before the version is recorded, so
@@ -162,7 +164,9 @@ export function addedDerivedColumns(before: unknown, after: Manifest): DerivedCo
   const was = derivations(before);
   const now = derivations(after);
   const due = new Set<string>();
-  for (const [id, derivation] of now) if (was.get(id)?.rule !== derivation.rule) due.add(id);
+  // A number is given to every row still without one at EVERY update, the rule changed or not: rows a person added
+  // while an earlier version ran without numbering them (or before the rule) are numbered whenever the app moves on.
+  for (const [id, derivation] of now) if (derivation.kind === 'number' || was.get(id)?.rule !== derivation.rule) due.add(id);
   if (due.size === 0) return [];
   // Whatever reads a column worked out again is worked out again too.
   for (let grew = true; grew; ) {

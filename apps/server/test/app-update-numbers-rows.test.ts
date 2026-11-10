@@ -23,8 +23,8 @@ vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.53' }));
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 
-function shop(version: '0.1.0' | '0.1.1'): Record<string, unknown> {
-  const next = version === '0.1.1';
+function shop(version: '0.1.0' | '0.1.1' | '0.1.2'): Record<string, unknown> {
+  const next = version !== '0.1.0';
   return {
     kind: 'app',
     manifestVersion: 1,
@@ -116,6 +116,20 @@ for (const [dialect, reachable] of LEGS) {
     it('leaves a document’s series (no sample rows in it) as it was', async () => {
       const [invoice] = await s.rows('SELECT number_seq FROM shop_invoices WHERE id = 1');
       expect(invoice!['number_seq']).toBeNull();
+    });
+
+    it('numbers a line still without one at the next update, though that update leaves the rule as it was', async () => {
+      // Added straight into the database while 0.1.1 runs: no create path, so no number.
+      await s.rows(`INSERT INTO shop_lines (id, order_id, what, position) VALUES (20, 2, 'late', NULL)`);
+      const tarball = packageTarball({ 'manifest.json': JSON.stringify(shop('0.1.2')), 'staff/index.html': '<!doctype html><html><body></body></html>' });
+      const staged = await s.app.inject({ method: 'POST', url: `/api/v1/apps/upload?expectedSha512=${encodeURIComponent(sha512Integrity(tarball))}`, headers: { cookie: s.cookie['owner']!, 'content-type': 'application/octet-stream' }, payload: Buffer.from(tarball) });
+      expect(staged.statusCode, staged.body).toBe(200);
+      const again = await s.send('owner', 'POST', '/api/v1/apps/shop/update', {});
+      expect(again.statusCode, again.body).toBe(200);
+      const [late] = await s.rows('SELECT position, label FROM shop_lines WHERE id = 20');
+      expect([Number(late!['position']), late!['label']]).toEqual([3, 'late/3']);
+      // The numbers already given stay as they were.
+      expect((await s.rows('SELECT position FROM shop_lines WHERE order_id = 2 ORDER BY id')).map((row) => Number(row['position']))).toEqual([1, 2, 3]);
     });
 
     it('carries the series on from there for a line made after', async () => {
