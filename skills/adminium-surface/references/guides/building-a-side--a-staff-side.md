@@ -71,7 +71,8 @@ const rules = await staff.rules();
 ```
 
 `staff.rules()` asks `GET /api/v1/apps/<key>/rules`, which a screen built without this module can
-ask itself.
+ask itself, sending the `installId` from `surface-config.json` as `X-Adminium-Install` (the module
+does).
 
 Each entry is one rule the installed app ships: its `key` from the manifest, its `name` in the
 reader's language, and whether it is `on` now. Nothing else of a rule is answered: not what

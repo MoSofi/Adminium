@@ -215,6 +215,9 @@ ADMINIUM_STORAGE_URL: s3://adminium?endpoint=https://minio.example.com&region=us
 
 Path-style addressing **on**: a self-hosted server issues no per-bucket
 hostnames. The region is ignored by the server but still signed, so give it one.
+In production the endpoint may not be this machine's own address (`127.0.0.1`,
+`localhost`, `[::1]`): give the storage server a host name of its own (`minio` in
+Docker Compose, `minio.example.com`). From 0.3.54 such an address is refused.
 
 ### Supabase Storage
 
