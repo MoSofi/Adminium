@@ -220,6 +220,7 @@ export default defineConfig({
                 },
                 { label: 'Pictures on public pages', link: '/guides/apps/public-pictures/' },
                 { label: 'Models, fonts and SVG pieces on public pages', link: '/guides/apps/public-assets/' },
+                { label: 'Guests’ uploads', link: '/guides/apps/guest-uploads/' },
                 { label: 'Booking rules and limits', link: '/guides/apps/booking-rules/' },
                 { label: 'Prices by quantity, sheets and weight', link: '/guides/apps/quantity-prices/' },
                 { label: 'Ready-by dates in working days', link: '/guides/apps/working-days/' },

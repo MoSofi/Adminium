@@ -219,7 +219,7 @@ moves them to the trash, and undoing the delete brings them back.
 
 **The type is decided by reading the bytes, not by the file name.** Adminium
 holds back the first 8 KiB of every upload and matches it against a closed list
-of signatures: PDF; PNG, JPEG, GIF, WebP, HEIC/HEIF, SVG; ZIP, and Word/Excel/
+of signatures: PDF; PNG, JPEG, GIF, WebP, HEIC/HEIF, SVG, TIFF; ZIP, and Word/Excel/
 PowerPoint documents; MP4/QuickTime, WebM, MP3, WAV, Ogg; GLB 3D models and WOFF2
 fonts. Two kinds are read whole because no head can tell them: an STL model (by
 its `.stl` name and its own form) and a 3MF model (a zip whose own directory
@@ -250,6 +250,32 @@ first two, never widen them:
 
 Anything not on the list — an executable, an HTML file — is refused whatever it
 is named.
+
+A TIFF (from 0.3.43, a print shop's artwork) is kept and handed back only as a
+download. No page draws it, the dashboard's preview included.
+
+### Files in an app's columns
+
+An app's [file column](/reference/manifest/#files-in-a-column) says which kinds
+it takes and how large, at most 100 MiB a file from 0.3.43 (25 MiB before). It
+narrows `files.maxBytes` and `files.allowedTypes`, never widens them: a column
+that says 100 MiB on a server set to 50 MB takes 50 MB.
+
+A column may also take files from guests, through the app's public pages: a
+customer's logo, a print job's artwork. The column says what a guest may send,
+and the files wait in a space of their own until the guest's order or booking
+is saved. See [Guests' uploads](/guides/apps/guest-uploads/). The owner sizes
+that space in the server settings:
+
+| Setting | Default |
+|---|---|
+| `publicUploads.quotaBytes` | 2 GB: guests' files waiting to be attached, all together |
+| `publicUploads.columnsShare` | 50: the percent of it kept for files for an app's columns; the rest is for forms' files |
+| `publicUploads.perAddressDaily` | 30 files from one network address in a day |
+| `publicUploads.perAddressDailyBytes` | 500 MB from one network address in a day |
+
+Past one, a guest's file is refused, and every Super Admin is told once an
+hour, naming the space that is full.
 
 ## Downloads
 
