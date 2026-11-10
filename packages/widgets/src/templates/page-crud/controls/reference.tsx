@@ -78,6 +78,7 @@ function FkField({
   onChange,
   id,
   label,
+  siblings,
 }: {
   column: GridColumnSpec;
   field?: CrudFormColumnField | undefined;
@@ -87,11 +88,17 @@ function FkField({
   /** A name when there is no visible label — a cell in a line-items table. */
   label?: string | undefined;
   id?: string | undefined;
+  /** The form's other values, for a picker narrowed by one of them. */
+  siblings?: Readonly<Record<string, unknown>> | undefined;
 }) {
   const t = useMaybeT();
   const fk = column.fk as NonNullable<GridColumnSpec['fk']>;
   const reference = field?.reference;
-  const fields = lookupFields(reference);
+  // Narrowed by another field of the form while that field has a value: the order line among the chosen order's.
+  const scopeValue = reference?.scope === undefined ? undefined : siblings?.[reference.scope.field];
+  const scoped = reference?.scope !== undefined && scopeValue !== null && scopeValue !== undefined && String(scopeValue) !== '' ? { column: reference.scope.column, value: String(scopeValue) } : undefined;
+  const plain = lookupFields(reference);
+  const fields = scoped === undefined ? plain : { ...plain, where: scoped };
   const withAvatar = reference?.avatar === true;
   const [options, setOptions] = useState<CrudLookupOption[]>([]);
   /** The words the options on hand are the server's answer to: its matches stand, whatever their label says. */
@@ -120,9 +127,34 @@ function FkField({
       alive = false;
     };
     // `search` is rebuilt every render; what it READS is in this list.
-  }, [lookup, fk.table, fk.column, fk.display, fields?.name, fields?.detail?.join(',')]);
+  }, [lookup, fk.table, fk.column, fk.display, fields?.name, fields?.detail?.join(','), scoped?.column, scoped?.value]);
 
   const current = value === null || value === undefined ? null : String(value);
+
+  /*
+   * The record's own value, when the first page of choices does not hold it
+   * (an edit of the 23rd order): read on its own, by its key, for its label,
+   * so an edit shows "BR-2291" where a new row would, and never the raw key
+   * while the row can be read.
+   */
+  const [own, setOwn] = useState<CrudLookupOption | null>(null);
+  const missing = current !== null && current !== '' && !options.some((option) => option.value === current) && own?.value !== current;
+  useEffect(() => {
+    if (!missing || current === null) return undefined;
+    let alive = true;
+    void lookup(lookupFk(fk), '', { ...plain, where: { column: fk.column, value: current } }).then(
+      (loaded) => {
+        const found = loaded.find((option) => option.value === current);
+        if (alive && found !== undefined) setOwn(found);
+      },
+      // Not readable, or gone: the raw key stays, as before.
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+    // `plain` is rebuilt every render; what it READS is in this list.
+  }, [missing, current, lookup, fk.table, fk.column, fk.display, plain?.name, plain?.detail?.join(',')]);
 
   const comboboxOptions: ComboboxOption[] = useMemo(() => {
     const rows = options.map((option) => {
@@ -142,10 +174,17 @@ function FkField({
      * touched the moment anything else was saved.
      */
     if (current !== null && current !== '' && !rows.some((row) => row.value === current)) {
-      rows.unshift({ value: current, label: current });
+      const known = own?.value === current ? own : null;
+      const description = known === null ? undefined : (known.detail ?? known.description);
+      rows.unshift({
+        value: current,
+        label: known?.label ?? current,
+        ...(description === undefined || description === '' ? {} : { description }),
+        ...(withAvatar && known !== null ? { leading: <Initials label={known.label} /> } : {}),
+      });
     }
     return rows;
-  }, [options, current, withAvatar]);
+  }, [options, current, withAvatar, own]);
 
   if (forbidden) {
     return (
@@ -241,6 +280,7 @@ export function ReferenceControl(props: ControlProps) {
       onChange={(next) => props.onChange(next)}
       {...(props.id === undefined ? {} : { id: props.id })}
       {...(props['aria-label'] === undefined ? {} : { label: props['aria-label'] })}
+      {...(props.siblings === undefined ? {} : { siblings: props.siblings })}
     />
   );
 }

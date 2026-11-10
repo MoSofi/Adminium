@@ -198,6 +198,12 @@ export interface CrudLookupOption {
 export interface CrudLookupFields {
   name?: string | undefined;
   detail?: readonly string[] | undefined;
+  /**
+   * Only the target's rows whose `column` equals `value`: a picker narrowed
+   * by another field of its form (`reference.scope`), or the one row a
+   * record's own value names, read for its label.
+   */
+  where?: { column: string; value: string } | undefined;
 }
 
 /** The most characters a removal's reason takes: the manifest's own limit (`REMOVAL_REASON_MAX`), which the server holds a reason to. */

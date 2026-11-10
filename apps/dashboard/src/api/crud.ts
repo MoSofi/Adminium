@@ -426,8 +426,10 @@ export function createCrudApi(connectionId: string, table: string, opts: CrudApi
       const name = fields?.name ?? fk.display;
       const detail = [...(fields?.detail ?? [])];
       const select = [...new Set([fk.column, ...(name === undefined ? [] : [name]), ...detail])];
+      // Narrowed to the rows a `where` names: a picker scoped by another field, or the one row a record's value is.
+      const where = fields?.where === undefined ? {} : { where: { column: fields.where.column, op: 'eq' as const, value: fields.where.value } };
       const reply = await api.get<CrudListResult>(
-        `${baseFor(fk.table)}${listSearch({ q: query, limit: 20, select })}`,
+        `${baseFor(fk.table)}${listSearch({ q: query, limit: 20, select, ...where })}`,
       );
       return reply.data.map((row) => {
         // " · " joins what is actually there: a row missing one detail reads as

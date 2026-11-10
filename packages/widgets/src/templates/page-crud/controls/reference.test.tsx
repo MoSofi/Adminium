@@ -36,10 +36,11 @@ function renderPicker(options: {
   field?: CrudFormColumnField | undefined;
   value?: unknown;
   lookup?: ReturnType<typeof vi.fn>;
+  siblings?: Record<string, unknown>;
 } = {}) {
   const lookup = options.lookup ?? vi.fn().mockResolvedValue(ROWS);
   const onChange = vi.fn();
-  render(
+  const picker = (siblings: Record<string, unknown> | undefined) => (
     <ReferenceControl
       column={DOCTOR}
       {...(options.field === undefined ? {} : { field: options.field })}
@@ -49,9 +50,11 @@ function renderPicker(options: {
       mode="create"
       lookup={lookup as never}
       aria-label="Primary physician"
-    />,
+      {...(siblings === undefined ? {} : { siblings })}
+    />
   );
-  return { lookup, onChange, user: userEvent.setup() };
+  const { rerender } = render(picker(options.siblings));
+  return { lookup, onChange, user: userEvent.setup(), rerender: (siblings: Record<string, unknown>) => rerender(picker(siblings)) };
 }
 
 describe('the reference picker', () => {
@@ -92,6 +95,34 @@ describe('the reference picker', () => {
     // The row was deleted, or it is past the first twenty. Dropping it would
     // blank a value nobody touched the moment anything else was saved.
     expect(await screen.findByRole('option', { name: /99/ })).toBeTruthy();
+  });
+
+  it("names an edit's own value by its label when the first page of choices does not hold it", async () => {
+    const lookup = vi.fn().mockImplementation(async (_fk: unknown, _query: string, fields?: { where?: { column: string; value: string } }) =>
+      fields?.where?.column === 'id' && fields.where.value === '23' ? [{ value: '23', label: 'Cara Moss', detail: 'Paediatrics · Bldg 3' }] : ROWS,
+    );
+    const { user } = renderPicker({ lookup, value: 23 });
+    await waitFor(() => expect(lookup.mock.calls.some((call) => (call[2] as { where?: unknown } | undefined)?.where !== undefined)).toBe(true));
+    expect(lookup.mock.calls.find((call) => (call[2] as { where?: unknown } | undefined)?.where !== undefined)?.[2]).toEqual({ where: { column: 'id', value: '23' } });
+    await user.click(screen.getByRole('combobox'));
+    expect(await screen.findByRole('option', { name: /Cara Moss/ })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /^23$/ })).toBeNull();
+  });
+
+  it('offers only the rows of the value another field of the form holds, and all of them while it is empty', async () => {
+    const field: CrudFormColumnField = { column: 'doctor_id', reference: { scope: { field: 'clinic_id', column: 'clinic_id' } } };
+    const lookup = vi.fn().mockImplementation(async (_fk: unknown, _query: string, fields?: { where?: { column: string; value: string } }) =>
+      fields?.where?.value === '4' ? [ROWS[1]] : ROWS,
+    );
+    const { user, rerender } = renderPicker({ field, lookup, siblings: { clinic_id: null } });
+    await waitFor(() => expect(lookup).toHaveBeenCalledTimes(1));
+    expect(lookup.mock.calls[0]?.[2]).toBeUndefined();
+    rerender({ clinic_id: 4 });
+    await waitFor(() => expect(lookup).toHaveBeenCalledTimes(2));
+    expect(lookup.mock.calls[1]?.[2]).toEqual({ where: { column: 'clinic_id', value: '4' } });
+    await user.click(screen.getByRole('combobox'));
+    expect(await screen.findByRole('option', { name: /Ben Halloran/ })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /Amara Osei/ })).toBeNull();
   });
 
   it('disables itself, with the reason, when the target cannot be read', async () => {

@@ -122,6 +122,14 @@ const referenceSchema = z.object({
   value: z.string().optional(),
   detail: z.array(z.string()).max(2).optional(),
   avatar: z.boolean().optional(),
+  /**
+   * Which rows the picker offers, by another field of the same form: only
+   * the target's rows whose `column` holds the value `field` has now (a
+   * proof's order line, among the lines of the order chosen above). While
+   * `field` is empty, every row. A narrowing of the choices, not a rule: a
+   * row saved otherwise keeps its value.
+   */
+  scope: z.object({ field: z.string().min(1), column: z.string().min(1) }).optional(),
 });
 
 const columnFieldSchema = z.object({

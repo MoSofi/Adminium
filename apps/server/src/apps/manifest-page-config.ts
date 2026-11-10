@@ -106,6 +106,10 @@ function ownFormIssues(manifest: Manifest, page: ManifestPage): string[] {
     if (section.aside !== undefined && !columns.has(section.aside)) out.push(`"${table.ref}" has no column "${section.aside}"`);
     for (const field of section.fields) {
       if ('column' in field && !columns.has(field.column)) out.push(`"${table.ref}" has no column "${field.column}"`);
+      // A picker narrowed by another field of the form names a column of this table.
+      if ('column' in field && field.reference?.scope !== undefined && !columns.has(field.reference.scope.field)) {
+        out.push(`"${table.ref}" has no column "${field.reference.scope.field}" to narrow "${field.column}" by`);
+      }
       if ('relation' in field) {
         const { ref, column } = splitRelation(field.relation);
         const other = declared.get(ref);

@@ -365,6 +365,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'roles.privacyPeople',
   // The columns a records page's list opens on, written to the page at install (apps/manifest-page-config.ts).
   'config.columns',
+  // A form's reference picker narrowed by another field: kept in the form at install, read by the picker (widgets reference.tsx).
+  'form.referenceScope',
   // Where a self-made app was saved: stored with its manifest, read by nothing that runs.
   'app.provenance',
   // A page as a person arranged it and its shared views: made the target's own at install (apps/manifest-envelopes.ts,

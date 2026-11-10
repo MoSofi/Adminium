@@ -50,7 +50,7 @@
 | `references/manifest/parts.md` | Parts | 5719 |
 | `references/manifest/maps.md` | Maps | 4830 |
 | `references/manifest/option-lists.md` | Option lists | 960 |
-| `references/manifest/pages.md` | Pages | 7189 |
+| `references/manifest/pages.md` | Pages | 7790 |
 | `references/manifest/pages-2.md` | Pages (part 2) | 7053 |
 | `references/manifest/pages-3.md` | Pages (part 3) | 2608 |
 | `references/manifest/pages--tab-words-filters-and-bulk-actions.md` | Pages — Tab words, filters and bulk actions | 5603 |

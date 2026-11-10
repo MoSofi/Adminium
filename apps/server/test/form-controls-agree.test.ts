@@ -36,4 +36,20 @@ describe("a page form's controls", () => {
     expect(formIssues(manifest, page())).toEqual([]);
     expect(formIssues(manifest, page('file'))).toHaveLength(1);
   });
+
+  it('keep a picker narrowed by another field of the form, and name a field the table does not have', () => {
+    expect(reads({ column: 'line_id', control: 'reference', reference: { scope: { field: 'order_id', column: 'order_id' } } })).toBe(true);
+    // Kept as written: the picker reads it after the install.
+    const kept = crudFormConfigSchema.parse({ v: 2, sections: [{ id: 'main', fields: [{ column: 'line_id', reference: { scope: { field: 'order_id', column: 'order_id' } } }] }] });
+    expect((kept.sections[0]!.fields[0] as { reference?: unknown }).reference).toEqual({ scope: { field: 'order_id', column: 'order_id' } });
+    const manifest = {
+      kind: 'app',
+      key: 'shop',
+      requiredSchema: { tables: [{ ref: 'proofs', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'order_id', type: 'int', nullable: true }, { ref: 'line_id', type: 'int', nullable: true }] }] },
+    } as unknown as Manifest;
+    const page = (field: string) =>
+      ({ ref: 'shop-proofs', template: 'page-crud', bindings: { rows: 'proofs' }, config: { form: { v: 2, sections: [{ id: 'main', fields: [{ column: 'line_id', reference: { scope: { field, column: 'order_id' } } }] }] } } }) as unknown as ManifestPage;
+    expect(formIssues(manifest, page('order_id'))).toEqual([]);
+    expect(formIssues(manifest, page('ghost_id'))).toEqual(['"proofs" has no column "ghost_id" to narrow "line_id" by']);
+  });
 });
