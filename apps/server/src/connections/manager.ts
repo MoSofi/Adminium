@@ -25,6 +25,7 @@ import {
   type AdapterRegistry,
   type CapabilityProbeResult,
   type DatabaseAdapter,
+  type DatabaseEndpoint,
   type QueryEngine,
   type TablePrivilegeMap,
   type TestResult,
@@ -33,7 +34,8 @@ import type { Dialect } from '@adminium/engine';
 import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@adminium/meta';
 
 import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
-import { guardDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase, type DatabaseHost } from './dsn.js';
+import type { HostLookup } from '../net/address-guard.js';
+import { checkDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase, type DatabaseHost } from './dsn.js';
 import { PRIVILEGES_PROBE_TIMEOUT_MS, PRIVILEGES_TTL_MS } from './privileges.js';
 
 /** Every meta table is `adminium_`-prefixed. */
@@ -118,6 +120,8 @@ export interface ConnectionManagerOptions {
    * `ADMINIUM_SOURCE_POOL_MAX`); unset leaves each adapter's own default.
    */
   sourcePoolMax?: number | undefined;
+  /** Test seam: how a source host is looked up before each new pool. */
+  lookup?: HostLookup | undefined;
 }
 
 /** 502-ish mapping for adapter failures surfaced through API routes. */
@@ -136,6 +140,7 @@ export class ConnectionManager {
   readonly #blockLoopback: boolean;
   readonly #databaseHosts: readonly DatabaseHost[];
   readonly #pool: { poolMax?: number };
+  readonly #lookup: HostLookup | undefined;
   readonly connections: ReturnType<typeof connectionsRepo>;
   readonly #dataHandles = new Map<string, Promise<DataHandle>>();
   readonly #privileges = new Map<string, { at: number; rights: Promise<TablePrivilegeMap | null> }>();
@@ -147,6 +152,7 @@ export class ConnectionManager {
     this.#blockLoopback = opts.blockLoopback ?? process.env.NODE_ENV === 'production';
     this.#databaseHosts = opts.databaseHosts ?? [];
     this.#pool = opts.sourcePoolMax === undefined ? {} : { poolMax: opts.sourcePoolMax };
+    this.#lookup = opts.lookup;
     this.connections = connectionsRepo(opts.meta, opts.crypto);
   }
 
@@ -175,19 +181,35 @@ export class ConnectionManager {
     return this.#registry.has(engine as never);
   }
 
-  /** The guard alone, for a DSN stored now and dialled later by `engine`. Throws 422. */
-  assertDsnAllowed(dsn: string, engine: string): void {
-    guardDsn(dsn, { blockLoopback: this.#blockLoopback, engine, databaseHosts: this.#databaseHosts });
+  /** The whole guard, the host's lookup included, for a DSN stored now and dialled later by `engine`. Throws 422. */
+  async checkDsnAllowed(dsn: string, engine: string): Promise<void> {
+    await this.#dialConfig(dsn, engine);
+  }
+
+  /**
+   * What an adapter is handed for one new pool: the guard and the host's
+   * lookup run again (a name can answer differently since the connection was
+   * saved), and a network database gets its fields with the checked
+   * addresses, never the string. SQLite keeps its DSN: a path, not a host.
+   */
+  async #dialConfig(dsn: string, engine: string): Promise<{ dsn: string } | { endpoint: DatabaseEndpoint }> {
+    const checked = await checkDsn(dsn, {
+      blockLoopback: this.#blockLoopback,
+      engine,
+      databaseHosts: this.#databaseHosts,
+      lookup: this.#lookup,
+    });
+    return checked.endpoint === null ? { dsn } : { endpoint: checked.endpoint };
   }
 
   /** Guard + dial + test + probe one DSN with a short-lived introspect-role instance. */
   async testDsn(engine: string, dsn: string): Promise<ConnectionTestSummary> {
-    this.assertDsnAllowed(dsn, engine);
+    const target = await this.#dialConfig(dsn, engine);
     const provider = this.provider(engine);
     let adapter: DatabaseAdapter<'introspect'> | null = null;
     try {
       // AdapterProvider.create() receives the config and owns the dial.
-      adapter = await provider.create({ role: 'introspect', dsn, ...this.#pool });
+      adapter = await provider.create({ role: 'introspect', ...target, ...this.#pool });
       const test: TestResult = await adapter.test();
       if (!test.ok) {
         return {
@@ -364,9 +386,9 @@ export class ConnectionManager {
     if (dsns?.introspectDsn == null) {
       throw new ValidationFailedError('Connection has no introspect DSN.', { connectionId });
     }
-    this.assertDsnAllowed(dsns.introspectDsn, connection.engine);
+    const target = await this.#dialConfig(dsns.introspectDsn, connection.engine);
     const provider = this.provider(connection.engine);
-    return provider.create({ role: 'introspect', dsn: dsns.introspectDsn, ...this.#pool });
+    return provider.create({ role: 'introspect', ...target, ...this.#pool });
   }
 
   /**
@@ -392,9 +414,9 @@ export class ConnectionManager {
     if (dsns?.dataDsn == null) {
       throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
     }
-    this.assertDsnAllowed(dsns.dataDsn, connection.engine);
+    const target = await this.#dialConfig(dsns.dataDsn, connection.engine);
     const provider = this.provider(connection.engine);
-    return provider.create({ role: 'data', dsn: dsns.dataDsn, ...this.#pool });
+    return provider.create({ role: 'data', ...target, ...this.#pool });
   }
 
   /** A one-connection data-role adapter for the grants probe: one more connection, briefly, once a minute. */
@@ -403,8 +425,8 @@ export class ConnectionManager {
     if (dsns?.dataDsn == null) throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
     const connection = await this.mustFind(connectionId);
     this.assertEnabled(connection);
-    this.assertDsnAllowed(dsns.dataDsn, connection.engine);
-    return this.provider(connection.engine).create({ role: 'data', dsn: dsns.dataDsn, poolMax: 1 });
+    const target = await this.#dialConfig(dsns.dataDsn, connection.engine);
+    return this.provider(connection.engine).create({ role: 'data', ...target, poolMax: 1 });
   }
 
   /**
@@ -441,9 +463,9 @@ export class ConnectionManager {
     if (dsns?.dataDsn == null) {
       throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
     }
-    this.assertDsnAllowed(dsns.dataDsn, connection.engine);
+    const target = await this.#dialConfig(dsns.dataDsn, connection.engine);
     const provider = this.provider(connection.engine);
-    const engine = await provider.createQueryEngine({ role: 'data', dsn: dsns.dataDsn, ...this.#pool });
+    const engine = await provider.createQueryEngine({ role: 'data', ...target, ...this.#pool });
     // The engine package types the dialect opaquely; the server (which owns
     // the kysely dependency) casts at this composition boundary.
     const db = new Kysely<SourceDatabase>({ dialect: engine.dialect as KyselyDialect });

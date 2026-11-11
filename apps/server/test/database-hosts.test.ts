@@ -15,7 +15,7 @@
  * borrow the entry.
  */
 import BetterSqlite3 from 'better-sqlite3';
-import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
+import { AdapterRegistry, type AdapterProvider, type DatabaseEndpoint } from '@adminium/engine/adapter';
 import { createSqliteMetaDb, firstRun, type MetaDb } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -220,12 +220,17 @@ describe('the guard in production', () => {
 
 // ── the source-connection front doors ──────────────────────────────────────
 
-/** An adapter that answers a test without dialling, recording the strings it was handed. */
+/**
+ * An adapter that answers a test without dialling, recording where it was
+ * sent: the fields it was handed (never a string), written back as a URL.
+ */
 function recordingProvider(dialled: string[]): AdapterProvider {
   return {
     dialect: 'postgres',
-    create: (config: { dsn: string }) => {
-      dialled.push(config.dsn);
+    create: (config: { dsn?: string; endpoint?: DatabaseEndpoint }) => {
+      const at = config.endpoint;
+      if (config.dsn !== undefined || at === undefined) throw new Error('the adapter was handed a connection string');
+      dialled.push(`postgres://${at.user ?? ''}@${at.host}:${String(at.port)}/${at.database ?? ''}`);
       return {
         test: async () => ({ ok: true, latencyMs: 1, serverVersion: 'PostgreSQL 18', canWrite: true }),
         probeCapabilities: async () => ({
@@ -264,13 +269,14 @@ describe('the connection manager', () => {
       registry,
       metaDsn: null,
       blockLoopback: true,
+      lookup: async () => ['127.0.0.1'],
       ...(list === undefined ? {} : { databaseHosts: hosts(list) }),
     });
   }
 
   it('refuses a loopback source without the list, before it dials', async () => {
     await expect(manager(undefined).testDsn('postgres', 'postgres://u@localhost:5432/app')).rejects.toThrow('ADMINIUM_DATABASE_HOSTS');
-    expect(() => manager(undefined).assertDsnAllowed('postgres://u@localhost:5432/app', 'postgres')).toThrow('ADMINIUM_DATABASE_HOSTS');
+    await expect(manager(undefined).checkDsnAllowed('postgres://u@localhost:5432/app', 'postgres')).rejects.toThrow('ADMINIUM_DATABASE_HOSTS');
     expect(dialled).toEqual([]);
   });
 
