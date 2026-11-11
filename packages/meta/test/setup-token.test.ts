@@ -138,6 +138,33 @@ for (const dialect of TEST_DIALECTS) {
       expect(await isBootstrapRequired(t.meta)).toBe(false);
     });
 
+    it('required: a missing row is a refusal, never an open door', async () => {
+      // Another process on the same store took the row away.
+      await settingsRepo(t.meta).unset(SETUP_TOKEN_KEY);
+      for (const setupToken of [undefined, TOKEN, '']) {
+        await expect(
+          createFirstSuperAdmin(t.meta, { email: 'mallory@evil.test', passwordHash: 'h' }, undefined, { setupToken, required: true }),
+        ).rejects.toThrow(SetupTokenError);
+      }
+      expect(await usersRepo(t.meta).count()).toBe(0);
+      expect(await isBootstrapRequired(t.meta)).toBe(true);
+    });
+
+    it('required: still the token that opens it, and a wrong one claims nothing', async () => {
+      await expect(
+        createFirstSuperAdmin(t.meta, { email: 'mallory@evil.test', passwordHash: 'h' }, undefined, { setupToken: 'WRONG', required: true }),
+      ).rejects.toThrow(SetupTokenError);
+      const user = await createFirstSuperAdmin(t.meta, { email: 'owner@example.com', passwordHash: 'h' }, undefined, { setupToken: TOKEN, required: true });
+      expect(user.email).toBe('owner@example.com');
+      expect(await readSetupToken(t.meta)).toBeNull();
+    });
+
+    it('not required (a server only this computer reaches): a row another boot left is spent unasked', async () => {
+      const user = await createFirstSuperAdmin(t.meta, { email: 'owner@example.com', passwordHash: 'h' }, undefined, { required: false });
+      expect(user.email).toBe('owner@example.com');
+      expect(await readSetupToken(t.meta)).toBeNull();
+    });
+
     it('a caller on this computer (`local`) needs no token, and still spends it', async () => {
       const owner = await createLocalOwner(t.meta);
       expect(owner.passwordHash).toBeNull();

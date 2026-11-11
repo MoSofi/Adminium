@@ -58,7 +58,8 @@ function ipv6Bytes(address: string): number[] | null {
  * The IPv4 address an IPv6 one carries, where it is a way of reaching it:
  * IPv4-mapped `::ffff:a.b.c.d`, IPv4-compatible `::a.b.c.d` (`::` and `::1`
  * included, which read as 0.0.0.0 and 0.0.0.1: this machine), NAT64
- * `64:ff9b::/96` and 6to4 `2002::/16`. Null for any other address.
+ * `64:ff9b::/96` and its local-use `64:ff9b:1::/48` (the last 32 bits), and
+ * 6to4 `2002::/16`. Null for any other address.
  */
 export function embeddedIpv4(address: string): string | null {
   const bytes = ipv6Bytes(address);
@@ -68,6 +69,8 @@ export function embeddedIpv4(address: string): string | null {
   if (zero(0, 10) && bytes[10] === 255 && bytes[11] === 255) return v4(12);
   if (zero(0, 12)) return v4(12);
   if (bytes[0] === 0x00 && bytes[1] === 0x64 && bytes[2] === 0xff && bytes[3] === 0x9b && zero(4, 12)) return v4(12);
+  // RFC 8215's local-use prefix: a network picks its own length, and a /96 under it carries the address last, as above.
+  if (bytes[0] === 0x00 && bytes[1] === 0x64 && bytes[2] === 0xff && bytes[3] === 0x9b && bytes[4] === 0x00 && bytes[5] === 0x01) return v4(12);
   if (bytes[0] === 0x20 && bytes[1] === 0x02) return v4(2);
   return null;
 }

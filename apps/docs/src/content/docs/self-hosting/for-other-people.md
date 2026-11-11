@@ -19,8 +19,8 @@ section elsewhere in these docs; this page says which ones to set and why.
 A fresh server asks for a one-time **setup token** before it creates the first
 account, and prints the token in its log. Nobody who only finds the address can
 take the instance. Either create the first account yourself and invite your
-client, or hand them the token (or a link carrying it after `#setup-token=`) by
-a channel you trust.
+client, or hand them the token (or a link to
+`https://<your address>/setup#setup-token=<token>`) by a channel you trust.
 
 Set your own token with `ADMINIUM_SETUP_TOKEN` when your deploy tool can
 generate one, so you never have to read the log.
@@ -88,13 +88,22 @@ ADMINIUM_STORAGE_DIRS=/srv/client/files
 A project's hooks and actions run inside the server, and the Designer can start
 programs: an app's tests, a build, a package install. Once the server has
 started, `ADMINIUM_SECRET`, the setup token, the archive key, your AI keys and
-the other keys you set are no longer in the process environment, and every
-program the server starts gets a short, named environment without them.
+the other keys you set are no longer in `process.env`, and every program the
+server starts gets a short, named environment without them.
+
+That is not the whole way. The operating system still shows the environment
+the server **started** with to code running as the same user, and a hook or a
+program the server started runs as that user. So give each secret as a file
+(`ADMINIUM_SECRET_FILE=/run/secrets/adminium_secret`, the same `_FILE` ending
+for the others), as Docker and Kubernetes secrets do: then the value is never
+in any environment. A secret given as a plain variable keeps working, but
+stays readable that way.
 
 Give each instance its own random `ADMINIUM_SECRET`. Two instances that share
 one accept each other's signed values.
 
 → [Out of reach once the server has started](/self-hosting/security/#out-of-reach-once-the-server-has-started) ·
+[Secrets from files](/self-hosting/env-vars/#secrets-from-files-_file) ·
 [`ADMINIUM_SECRET`](/self-hosting/env-vars/#adminium_secret)
 
 ## 6. Moving the instance, or handing it over
@@ -138,8 +147,8 @@ ADMINIUM_DEPLOY_LINK=off
 
 ```bash
 NODE_ENV=production
-ADMINIUM_SECRET=…                     # its own, per instance
-ADMINIUM_SETUP_TOKEN=…                # or read the one the log prints
+ADMINIUM_SECRET_FILE=/run/secrets/adminium_secret   # its own, per instance; or ADMINIUM_SECRET=…
+ADMINIUM_SETUP_TOKEN_FILE=/run/secrets/setup_token  # or read the one the log prints
 ADMINIUM_DATABASE_HOSTS=localhost:5432
 ADMINIUM_LOCAL_DATABASES=off
 ADMINIUM_NETWORK_POLICY=strict
@@ -150,7 +159,13 @@ ADMINIUM_DEPLOY_LINK=off              # if you host it yourself
 
 None of these limits what a super admin can do inside Adminium itself: roles,
 pages and data stay theirs. They limit what the server does on your machine and
-your network on their behalf. A project's `.env` cannot change any of these
-limits: a value it sets for one of them is ignored, and the server says so.
+your network on their behalf. They are yours as the operator: set them where
+the server is started (the service file, the container's environment, the
+host's settings). A project's `.env` is read too, after them, and fills in
+whatever they leave unset, so whoever can write that file on your server can
+set these limits as well; keep it yours. The one name a project's `.env` can
+never set is `ADMINIUM_RUNTIME`: the server ignores it there and says so. (The
+desktop app, which opens folders it did not make, ignores every one of these
+names in a folder's `.env`.)
 
 Then work through the [security checklist](/self-hosting/security/#the-checklist).

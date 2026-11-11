@@ -16,7 +16,7 @@ import { isIP } from 'node:net';
 import { databaseEndpointFromDsn, type DatabaseEndpoint } from '@adminium/engine/adapter';
 
 import { AppError, HostLookupFailedError, ValidationFailedError } from '../errors.js';
-import { addressKind, canonicalHost, checkHost, hostSpelling, METADATA_NAME, type HostLookup } from '../net/address-guard.js';
+import { addressKind, canonicalHost, checkHost, hostSpelling, METADATA_NAME, type HostCheck, type HostLookup, type HostPolicy } from '../net/address-guard.js';
 
 export { canonicalHost } from '../net/address-guard.js';
 
@@ -410,44 +410,110 @@ export interface CheckedDsn {
 }
 
 /**
+ * How long one re-check's answer serves new connections. A pool opens a burst
+ * of sockets within milliseconds, and they share one lookup; past this, the
+ * next socket looks the name up again. Five seconds is the TTL RDS and Aurora
+ * put on their endpoints, so after a failover moves the name, new
+ * connections follow it within about one TTL instead of dialling the old
+ * primary until a restart. A lookup is cheap; staying on a stale address is
+ * not.
+ */
+export const ADDRESS_RECHECK_MS = 5_000;
+
+/** The error a connection fails with when the re-check refuses: `code` reads as a connection failure in both adapters. */
+function recheckRefusal(check: Extract<HostCheck, { ok: false }>): Error {
+  const at = check.address === undefined ? '' : ` (${check.address})`;
+  const why =
+    check.reason === 'unresolved'
+      ? `The host ${check.host} could not be looked up.`
+      : `The host ${check.host} now resolves to an address this server does not connect to${at}: ${check.reason}.`;
+  return Object.assign(new Error(why), { code: 'ENOTFOUND', reason: check.reason });
+}
+
+/**
+ * The guard's lookup, run again for each new connection under the SAME policy
+ * as the first check (never a looser one): what the adapters dial through
+ * (`DatabaseEndpoint.resolveAddresses`). One answer serves every socket asked
+ * for within {@link ADDRESS_RECHECK_MS}, and sockets asking while a lookup is
+ * in flight wait for it. A refusal is not kept: the next socket asks again.
+ */
+export function addressRechecker(
+  host: string,
+  policy: HostPolicy,
+  first: readonly string[],
+  now: () => number = () => Date.now(),
+): () => Promise<readonly string[]> {
+  // An empty first answer (a name that did not resolve, let through outside production) is not reused.
+  let held: { at: number; addresses: readonly string[] } | null = first.length > 0 ? { at: now(), addresses: first } : null;
+  let pending: Promise<readonly string[]> | null = null;
+  return () => {
+    if (held !== null && now() - held.at < ADDRESS_RECHECK_MS) return Promise.resolve(held.addresses);
+    if (pending !== null) return pending;
+    pending = checkHost(host, policy)
+      .then((check) => {
+        if (!check.ok) throw recheckRefusal(check);
+        // Outside production an unresolved name passes with no address: the driver's own error, as before.
+        if (check.addresses.length === 0) throw Object.assign(new Error(`getaddrinfo ENOTFOUND ${host}`), { code: 'ENOTFOUND', hostname: host });
+        held = { at: now(), addresses: check.addresses };
+        return check.addresses;
+      })
+      .finally(() => {
+        pending = null;
+      });
+    return pending;
+  };
+}
+
+/**
  * {@link guardDsn}, then the lookup, for a DSN about to be dialled: run on
  * every new pool, not only when the connection is saved, because a name can
  * answer differently tomorrow.
  *
- * Where loopback is refused (production), the host is looked up as the
- * driver would look it up and EVERY address is checked: cloud metadata
- * always, loopback unless the host and port are on `databaseHosts`. A name
- * that does not resolve is refused: an answer that fails now may succeed with
- * any address the next time the driver asks. The addresses that passed go
- * into the endpoint, and the driver connects to them and nothing else, so a
- * second lookup cannot swap them (DNS rebinding).
+ * The host is looked up as the driver would look it up and EVERY address is
+ * checked: cloud metadata always, everywhere; loopback where it is refused
+ * (production) unless the host and port are on `databaseHosts`. The
+ * addresses that passed go into the endpoint, and the driver connects to
+ * checked addresses and nothing else, so a second lookup cannot swap them
+ * (DNS rebinding). Each NEW connection of the pool runs the same check again
+ * ({@link addressRechecker}), so a name that moves (a failover) is followed
+ * and a name moved somewhere refused is refused on the next connection.
  *
  * Under `ADMINIUM_NETWORK_POLICY=strict` ({@link DsnGuardOptions.blockPrivate})
  * the same lookup also refuses the server's own network, unless the host and
  * port are on `databaseHosts`; it runs wherever strict is set, production or
  * not.
  *
- * Where neither is refused (the desktop app, `dev`), nothing is looked up:
- * the checks on the string apply as before, and the driver resolves the name.
- * Throws 422 for a refusal, 502 `HOST_LOOKUP_FAILED` for a name that could not
- * be looked up.
+ * Where loopback or private addresses are refused, a name that does not
+ * resolve is refused: an answer that fails now may succeed with any address
+ * the next time. Where neither is (the desktop app, `dev`), only metadata is
+ * refused, and a name that does not resolve is let through for the driver to
+ * report, so a machine offline still opens its own databases. Throws 422 for
+ * a refusal, 502 `HOST_LOOKUP_FAILED` for a name that could not be looked up
+ * where that fails closed.
  */
 export async function checkDsn(dsn: string, opts: DsnResolveOptions = {}): Promise<CheckedDsn> {
   const parsed = guardDsn(dsn, opts);
   if (parsed.scheme === 'sqlite') return { parsed, endpoint: null };
   const endpoint = databaseEndpointFromDsn(dsn, parsed.scheme === 'postgres' ? 'uri' : 'component');
   if (endpoint === null) throw new ValidationFailedError('Malformed DSN.', {});
-  if ((opts.blockLoopback !== true && opts.blockPrivate !== true) || parsed.host === null) return { parsed, endpoint };
-  const listed = databaseHostListed(opts.databaseHosts, parsed);
-  const check = await checkHost(parsed.host, {
+  if (parsed.host === null) return { parsed, endpoint };
+  const policy: HostPolicy = {
     // "Allow databases on this server" lets any loopback address through; private and metadata are still checked.
     blockLoopback: opts.blockLoopback === true && opts.localDatabases !== true,
     blockPrivate: opts.blockPrivate === true,
-    listed,
-    failClosed: true,
+    listed: databaseHostListed(opts.databaseHosts, parsed),
+    failClosed: opts.blockLoopback === true || opts.blockPrivate === true,
     lookup: opts.lookup,
-  });
-  if (check.ok) return { parsed, endpoint: { ...endpoint, addresses: check.addresses } };
+  };
+  const check = await checkHost(parsed.host, policy);
+  if (check.ok) {
+    // An address needs no lookup: it was checked as written, and stays what it is.
+    if (!check.looked) return { parsed, endpoint: { ...endpoint, addresses: check.addresses } };
+    return {
+      parsed,
+      endpoint: { ...endpoint, addresses: check.addresses, resolveAddresses: addressRechecker(parsed.host, policy, check.addresses) },
+    };
+  }
   const at = check.address === undefined ? '' : ` (${check.address})`;
   switch (check.reason) {
     case 'metadata':

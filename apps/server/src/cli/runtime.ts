@@ -25,8 +25,8 @@ import type { AllowedVocabularies } from '@adminium/llm';
 import type { AdminiumServer } from '../app.js';
 import { composeServer } from '../compose.js';
 import { childEnvironment } from '../config/child-env.js';
-import { envSchema, formatEnvErrorTable, type Env } from '../config/env.js';
-import { withHeldSecrets } from '../config/operator-secrets.js';
+import { envSchema, formatEnvErrorTable, secretFileIssues, type Env } from '../config/env.js';
+import { readSecretFiles, withHeldSecrets } from '../config/operator-secrets.js';
 import { ConnectionManager } from '../connections/manager.js';
 import { dsnCryptoFromSecret } from '../connections/crypto.js';
 import { registerAdapters } from '../connections/register-adapters.js';
@@ -44,6 +44,7 @@ import type { OnMetaRelocated } from '../meta/relocate.js';
 import { openMetaStore, sqlitePathFromUrl, type MetaStoreHandle } from '../meta/store.js';
 import { mayOpenBrowser } from '../project/programs.js';
 import type { ProjectServerOptions } from '../project/service.js';
+import { setupTokenRequired } from '../setup/token.js';
 import { loadAllowedVocabularies } from './allowlist.js';
 import { CliError } from './exit.js';
 import { defaultDataDir } from './data-dir.js';
@@ -84,9 +85,11 @@ export function loadCliEnv(
   overrides: EnvOverrides = {},
   sources: Readonly<Record<string, string>> = {},
 ): Env {
+  // A secret given as a file (`<NAME>_FILE`) is read as if it had been set in `<NAME>`.
+  const files = readSecretFiles(withHeldSecrets(env));
   const merged: Record<string, string | undefined> = {
     // A second boot in this process reads `process.env` with the secrets the first one took out of it.
-    ...withHeldSecrets(env),
+    ...files.env,
     ...(overrides.port === undefined ? {} : { PORT: String(overrides.port) }),
     ...(overrides.host === undefined ? {} : { HOST: overrides.host }),
     ...(overrides.dataDir === undefined ? {} : { ADMINIUM_DATA_DIR: overrides.dataDir }),
@@ -118,14 +121,15 @@ export function loadCliEnv(
   }
 
   const result = envSchema.safeParse(merged);
-  if (result.success) return result.data;
+  const issues = secretFileIssues(files.problems, result.success ? [] : result.error.issues);
+  if (result.success && issues.length === 0) return result.data;
 
-  const secretIssue = result.error.issues.some((issue) => issue.path[0] === 'ADMINIUM_SECRET');
+  const secretIssue = issues.some((issue) => issue.path[0] === 'ADMINIUM_SECRET');
   // A flag replaced the value, so the project is not where it came from.
-  const origins = [...new Set(result.error.issues.map((issue) => String(issue.path[0])))]
+  const origins = [...new Set(issues.map((issue) => String(issue.path[0])))]
     .filter((name) => sources[name] !== undefined && merged[name] === env[name])
     .map((name) => `${name} came from ${sources[name] ?? ''}.`);
-  const table = [formatEnvErrorTable(result.error.issues), ...(origins.length > 0 ? ['', ...origins] : [])].join('\n');
+  const table = [formatEnvErrorTable(issues), ...(origins.length > 0 ? ['', ...origins] : [])].join('\n');
   throw new CliError(
     secretIssue
       ? 'ADMINIUM_SECRET is required — it derives the key that encrypts every stored DSN and API key.'
@@ -294,6 +298,12 @@ export interface StartedServer {
 
 export interface StartServerOptions {
   /**
+   * Whether this server asks for the setup token (`setupTokenRequired`,
+   * `setup/token.ts`). Unset: asked as `adminium start` asks, which only the
+   * desktop app does not; a boot that asks less says so.
+   */
+  setupTokenRequired?: boolean | undefined;
+  /**
    * Fired after a meta relocation commits, so the host can rebuild against the
    * new store (`cli/relocation-host.ts`). Omitted ⇒ the relocation route is not
    * registered at all: a topology with no way to restart itself must not offer
@@ -349,6 +359,8 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
     // A server started for people asks adminium.dev for its lists at start, where a list is on (0.3.16).
     catalogBootRefresh: true,
     env,
+    // Fails closed: a boot that forgets to say is asked as `start` is.
+    setupTokenRequired: opts.setupTokenRequired ?? setupTokenRequired({ runtime: env.ADMINIUM_RUNTIME, host: env.HOST, mode: 'server' }),
     metaStore: runtime.metaStore,
     manager: runtime.manager,
     runService: runtime.runService,

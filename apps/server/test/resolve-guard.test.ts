@@ -9,18 +9,20 @@
  * answer anything the next time the driver asks. So in production the host is
  * looked up the way the drivers look it up, every address is checked, a name
  * that does not resolve is refused, and the addresses that passed travel to
- * the adapter in the DSN's fields: the driver never looks the name up again,
- * so a second answer cannot redirect it (DNS rebinding).
+ * the adapter in the DSN's fields: the driver never looks the name up itself,
+ * so a second answer cannot redirect it (DNS rebinding). Each new connection
+ * of a pool runs the same check again, so a name that moves (a failover) is
+ * followed and a name moved somewhere refused is refused.
  *
  * The lookup is injected throughout; nothing here asks a real resolver.
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { AdapterRegistry, type AdapterProvider, type DatabaseEndpoint } from '@adminium/engine/adapter';
 import { createSqliteMetaDb, firstRun } from '@adminium/meta';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
-import { checkDsn, parseDatabaseHost, type DatabaseHost } from '../src/connections/dsn.js';
+import { ADDRESS_RECHECK_MS, checkDsn, parseDatabaseHost, type DatabaseHost } from '../src/connections/dsn.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { resolveAndCheck } from '../src/llm/outbound.js';
 import { addressKind, checkHost, embeddedIpv4, type HostLookup } from '../src/net/address-guard.js';
@@ -128,6 +130,7 @@ describe('cloud metadata is refused in every form, listed or not', () => {
     ['Oracle Cloud', '192.0.0.192'],
     ['AWS IPv6', 'fd00:ec2::254'],
     ['NAT64', '64:ff9b::a9fe:a9fe'],
+    ['local-use NAT64', '64:ff9b:1::a9fe:a9fe'],
     ['6to4', '2002:a9fe:a9fe::1'],
     ['IPv4-compatible', '::a9fe:a9fe'],
     ['IPv4-mapped', '::ffff:169.254.169.254'],
@@ -154,6 +157,12 @@ describe('cloud metadata is refused in every form, listed or not', () => {
     expect(addressKind('2001:db8::1')).toBe('public');
     expect(addressKind('not an address')).toBe('public');
     expect(embeddedIpv4('64:ff9b::192.0.0.192')).toBe('192.0.0.192');
+    // RFC 8215 local-use NAT64: the last 32 bits.
+    expect(embeddedIpv4('64:ff9b:1::a9fe:a9fe')).toBe('169.254.169.254');
+    expect(addressKind('64:ff9b:1::a9fe:a9fe')).toBe('metadata');
+    expect(addressKind('64:ff9b:1:abcd::7f00:1')).toBe('loopback');
+    expect(addressKind('64:ff9b:1::a00:1')).toBe('private');
+    expect(addressKind('64:ff9b:1::808:808')).toBe('public');
     expect(embeddedIpv4('::ffff:a9fe:a9fe')).toBe('169.254.169.254');
     expect(embeddedIpv4('2001:db8::1')).toBeNull();
     expect(embeddedIpv4('10.0.0.1')).toBeNull();
@@ -184,6 +193,7 @@ describe('the driver dials what was checked', () => {
           password: 'pw',
           params: { sslmode: 'require' },
           addresses: ['203.0.113.10'],
+          resolveAddresses: expect.any(Function),
         },
       },
     ]);
@@ -257,18 +267,99 @@ describe('the driver dials what was checked', () => {
   });
 });
 
+describe('each new connection of a pool checks its host again', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A lookup whose answer the test moves, counting the lookups. */
+  function moving(first: readonly string[]): { lookup: HostLookup; answer: readonly string[]; asked: number } {
+    const state = {
+      answer: first,
+      asked: 0,
+      lookup: async (): Promise<readonly string[]> => {
+        state.asked += 1;
+        return state.answer;
+      },
+    };
+    return state;
+  }
+
+  async function pooled(lookup: HostLookup, opts: { blockLoopback?: boolean } = {}): Promise<() => Promise<readonly string[]>> {
+    const checked = await checkDsn('postgres://app@db.example.com:5432/shop', { blockLoopback: opts.blockLoopback ?? true, lookup });
+    const resolve = checked.endpoint?.resolveAddresses;
+    if (resolve === undefined) throw new Error('no re-check on the endpoint');
+    return resolve;
+  }
+
+  it('dials the new address after the name moves (a failover), without a restart', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const lookup = moving(['203.0.113.10']);
+    const resolve = await pooled(lookup.lookup);
+    // The first sockets reuse the pool's own check.
+    expect(await resolve()).toEqual(['203.0.113.10']);
+    expect(lookup.asked).toBe(1);
+    lookup.answer = ['203.0.113.20'];
+    vi.advanceTimersByTime(ADDRESS_RECHECK_MS + 1);
+    expect(await resolve()).toEqual(['203.0.113.20']);
+    expect(lookup.asked).toBe(2);
+  });
+
+  it('refuses the next socket when the name moves to metadata or this machine', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const lookup = moving(['203.0.113.10']);
+    const resolve = await pooled(lookup.lookup);
+    lookup.answer = ['169.254.169.254'];
+    vi.advanceTimersByTime(ADDRESS_RECHECK_MS + 1);
+    await expect(resolve()).rejects.toMatchObject({ code: 'ENOTFOUND', reason: 'metadata' });
+    lookup.answer = ['203.0.113.10', '127.0.0.1'];
+    await expect(resolve()).rejects.toMatchObject({ reason: 'loopback', message: expect.stringContaining('(127.0.0.1)') });
+  });
+
+  it('a burst of sockets shares one lookup', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const lookup = moving(['203.0.113.10']);
+    const resolve = await pooled(lookup.lookup);
+    vi.advanceTimersByTime(ADDRESS_RECHECK_MS + 1);
+    lookup.answer = ['203.0.113.20'];
+    const burst = await Promise.all(Array.from({ length: 10 }, async () => resolve()));
+    expect(burst.every((addresses) => addresses[0] === '203.0.113.20')).toBe(true);
+    expect(await resolve()).toEqual(['203.0.113.20']);
+    expect(lookup.asked).toBe(2);
+  });
+});
+
 describe('where loopback is allowed (the desktop app, dev)', () => {
-  it('looks nothing up and dials as before, but still hands the adapter fields', async () => {
-    const lookup = table({});
+  it('looks the name up and refuses metadata only; a name that does not resolve is left to the driver', async () => {
+    const lookup = table({ localhost: ['127.0.0.1'], 'db.example.com': ['192.168.1.20'], 'evil.example.com': ['169.254.169.254'] });
     const dialled: Dialled[] = [];
     const desktop = new ConnectionManager({ meta: fakeMeta, crypto, registry: recordingRegistry(dialled), blockLoopback: false, lookup });
     expect((await desktop.testDsn('postgres', 'postgres://app@localhost:5432/shop')).ok).toBe(true);
+    expect((await desktop.testDsn('postgres', 'postgres://app@db.example.com:5432/shop')).ok).toBe(true);
+    // Offline, or a name not created yet: no lookup failure of ours; the driver reports its own.
     expect((await desktop.testDsn('postgres', 'postgres://app@nowhere.example.com/shop')).ok).toBe(true);
-    expect(lookup.asked).toEqual([]);
-    expect(dialled.map((config) => config.endpoint?.host)).toEqual(['localhost', 'nowhere.example.com']);
-    expect(dialled.every((config) => config.dsn === undefined && config.endpoint?.addresses === undefined)).toBe(true);
-    // The metadata address stays refused by its spelling.
+    expect(lookup.asked).toEqual(['localhost', 'db.example.com', 'nowhere.example.com']);
+    expect(dialled.map((config) => config.endpoint?.addresses)).toEqual([['127.0.0.1'], ['192.168.1.20'], []]);
+    expect(dialled.every((config) => config.dsn === undefined)).toBe(true);
+    // The unresolved name's connection asks again, and fails as the driver would.
+    await expect(dialled[2]?.endpoint?.resolveAddresses?.()).rejects.toMatchObject({ code: 'ENOTFOUND', message: 'getaddrinfo ENOTFOUND nowhere.example.com' });
+    // A name that resolves to the metadata address is refused here too, as is the address itself.
+    await expect(desktop.testDsn('postgres', 'postgres://app@evil.example.com/shop')).rejects.toThrow('blocked address range');
     await expect(desktop.testDsn('postgres', 'postgres://app@169.254.169.254/shop')).rejects.toThrow('blocked address range');
+    expect(dialled).toHaveLength(3);
+  });
+
+  it('a name moved to metadata later is refused on the next connection', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      let answer: readonly string[] = ['192.168.1.20'];
+      const checked = await checkDsn('postgres://app@db.example.com/shop', { blockLoopback: false, lookup: async () => answer });
+      answer = ['169.254.169.254'];
+      vi.advanceTimersByTime(ADDRESS_RECHECK_MS + 1);
+      await expect(checked.endpoint?.resolveAddresses?.()).rejects.toMatchObject({ reason: 'metadata' });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('a SQLite source keeps its path', async () => {

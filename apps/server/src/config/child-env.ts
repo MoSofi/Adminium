@@ -22,7 +22,33 @@ import { isOperatorSecretName } from './operator-secrets.js';
 export type ChildEnvProfile = 'program' | 'build' | 'packages' | 'browser';
 
 /** What every program needs to start, on every system. */
-const PROGRAM_NAMES = ['PATH', 'HOME', 'TMPDIR', 'TEMP', 'TMP', 'LANG', 'SystemRoot', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'ComSpec', 'PATHEXT'] as const;
+const PROGRAM_NAMES = [
+  'PATH',
+  'HOME',
+  'TMPDIR',
+  'TEMP',
+  'TMP',
+  'LANG',
+  // Windows' own: where Windows, its shell and the installed programs are, and what the machine is. A program
+  // started without them fails in ways that name none of them (no `cmd.exe`, no Program Files, no CPU count).
+  'SystemRoot',
+  'windir',
+  'SystemDrive',
+  'ProgramFiles',
+  'ProgramFiles(x86)',
+  'ProgramW6432',
+  'ProgramData',
+  'CommonProgramFiles',
+  'ComSpec',
+  'PATHEXT',
+  'NUMBER_OF_PROCESSORS',
+  'PROCESSOR_ARCHITECTURE',
+  'APPDATA',
+  'LOCALAPPDATA',
+  'USERPROFILE',
+  'HOMEDRIVE',
+  'HOMEPATH',
+] as const;
 
 const PACKAGES_NAMES = [
   'NODE_ENV',
@@ -51,31 +77,54 @@ const BROWSER_NAMES = ['DISPLAY', 'WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR', 'XDG_CUR
 /** A name that holds a credential, whatever program it is for: never copied from this server's environment. */
 const CREDENTIAL = /TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|APIKEY|PRIVATE_KEY|CREDENTIAL|_AUTH/i;
 
-function named(profile: ChildEnvProfile, name: string): boolean {
-  if ((PROGRAM_NAMES as readonly string[]).includes(name)) return true;
-  if (profile === 'packages') return (PACKAGES_NAMES as readonly string[]).includes(name) || PACKAGES_PREFIXES.some((prefix) => name.startsWith(prefix));
-  if (profile === 'browser') return (BROWSER_NAMES as readonly string[]).includes(name);
-  return false;
+/**
+ * The name `name` is listed as in `profile`, or null when it is not listed. On Windows names are matched whatever
+ * their case, as Windows matches them (it spells PATH `Path`), and the child is given the listed spelling.
+ */
+function named(profile: ChildEnvProfile, name: string, windows: boolean): string | null {
+  const lists: (readonly string[])[] = [PROGRAM_NAMES];
+  if (profile === 'packages') lists.push(PACKAGES_NAMES);
+  if (profile === 'browser') lists.push(BROWSER_NAMES);
+  for (const list of lists) {
+    const found = windows ? list.find((listed) => listed.toUpperCase() === name.toUpperCase()) : list.find((listed) => listed === name);
+    if (found !== undefined) return found;
+  }
+  if (profile === 'packages' && PACKAGES_PREFIXES.some((prefix) => (windows ? name.toLowerCase().startsWith(prefix.toLowerCase()) : name.startsWith(prefix)))) {
+    return name;
+  }
+  return null;
+}
+
+/** Whether `name` is an operator secret; on Windows in any case, as Windows reads names. */
+function secretName(name: string, windows: boolean): boolean {
+  return isOperatorSecretName(name) || (windows && isOperatorSecretName(name.toUpperCase()));
 }
 
 /**
  * The environment for a child of profile `profile`: the names its profile lists, read from `from` (this process's
  * environment by default), then `add`, the values the caller means it to have. No operator secret is in it, whichever of the two
- * named one; nor is a credential copied from `from`.
+ * named one; nor is a credential copied from `from`. `platform` decides how names compare: on `win32` without regard
+ * to case.
  */
 export function childEnvironment(
   profile: ChildEnvProfile,
   add: Readonly<Record<string, string | undefined>> = {},
   from: Readonly<Record<string, string | undefined>> = process.env,
+  platform: NodeJS.Platform = process.platform,
 ): Record<string, string> {
+  const windows = platform === 'win32';
   const out: Record<string, string> = {};
   for (const [name, value] of Object.entries(from)) {
-    if (value === undefined || !named(profile, name) || CREDENTIAL.test(name) || isOperatorSecretName(name)) continue;
-    out[name] = value;
+    if (value === undefined || CREDENTIAL.test(name) || secretName(name, windows)) continue;
+    const as = named(profile, name, windows);
+    if (as !== null) out[as] = value;
   }
   if (profile === 'build') out['CI'] = '1';
   for (const [name, value] of Object.entries(add)) {
-    if (value === undefined || isOperatorSecretName(name)) continue;
+    if (value === undefined || secretName(name, windows)) continue;
+    // On Windows a caller's `Path` replaces the copied `PATH`, rather than sitting beside it.
+    const same = windows ? Object.keys(out).find((key) => key.toUpperCase() === name.toUpperCase()) : undefined;
+    if (same !== undefined) Reflect.deleteProperty(out, same);
     out[name] = value;
   }
   return out;

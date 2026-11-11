@@ -58,7 +58,7 @@ import { CliError, EXIT_OK } from '../exit.js';
 import type { CliIo, SelectChoice, Style } from '../io.js';
 import { createStyle, supportsColor } from '../io.js';
 import { loadCliEnv } from '../runtime.js';
-import { prepareSetupToken, setupTokenLines, type PreparedSetupToken } from '../../setup/token.js';
+import { prepareSetupToken, setupTokenLines, setupTokenRequired, type PreparedSetupToken } from '../../setup/token.js';
 import type { CliDeps, StartedServer } from '../runtime.js';
 
 /**
@@ -522,6 +522,7 @@ export const initCommand: Command = {
         const relocationHost = createRelocationHost({
           env,
           deps,
+          setupTokenMode: 'try',
           log: (message) => {
             io.note(message);
           },
@@ -633,7 +634,7 @@ export const initCommand: Command = {
       for (const warning of generated.warnings) io.warn(warning);
 
       // ── Step 6 — boot ─────────────────────────────────────────────────────
-      const server = await deps.startServer(runtime);
+      const server = await deps.startServer(runtime, { setupTokenRequired: setupTokenRequired({ runtime: env.ADMINIUM_RUNTIME, host: env.HOST, mode: 'try' }) });
       started = true;
       await openAndClose({
         io,

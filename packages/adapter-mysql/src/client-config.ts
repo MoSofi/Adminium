@@ -10,9 +10,12 @@
  * file does not map never reaches the driver.
  *
  * When the server checked the host's addresses, every connection is opened to
- * those addresses (in the resolver's order, falling back between them as
- * `net.connect` does) and never looks the name up again, so a name whose
- * answer changes after the check cannot move the connection. `host` stays the
+ * checked addresses (in the resolver's order, falling back between them as
+ * `net.connect` does) and the driver never looks the name up itself. Where the
+ * server hands its re-check (`resolveAddresses`), each new connection asks it:
+ * a database whose name moved (a failover) is reached at its new address, and
+ * a name moved somewhere refused is refused, while a name whose answer changes
+ * between a check and its dial still cannot move that connection. `host` stays the
  * name: `mysql2` sends it as the TLS server name and checks the certificate
  * against it, and has no setting to do so for a host given as an address.
  */
@@ -34,10 +37,23 @@ export interface MysqlEndpointConfig {
   stream?: () => net.Socket;
 }
 
-/** A `lookup` that answers with the checked addresses, whatever the name says now. */
-export function pinnedLookup(addresses: readonly string[]): LookupFunction {
-  const entries = addresses.map((address) => ({ address, family: isIP(address) === 6 ? 6 : 4 }));
-  return (_name, options, callback) => {
+/** Where the checked addresses come from: fixed at the check, or the server's check run again for each connection. */
+export type AddressSource = readonly string[] | (() => Promise<readonly string[]>);
+
+/** The endpoint's address source: the re-check when the server gave one, else the fixed addresses. */
+export function addressSource(endpoint: DatabaseEndpoint): AddressSource | undefined {
+  return endpoint.resolveAddresses ?? endpoint.addresses;
+}
+
+/**
+ * A `lookup` that answers with the checked addresses, whatever the name says
+ * now. Given the server's re-check, it asks it once per connection (the
+ * server shares one answer across a burst) and answers with what passed, or
+ * fails the connection with the refusal.
+ */
+export function pinnedLookup(source: AddressSource): LookupFunction {
+  const answer = (addresses: readonly string[], options: { all?: boolean | undefined }, callback: Parameters<LookupFunction>[2]): void => {
+    const entries = addresses.map((address) => ({ address, family: isIP(address) === 6 ? 6 : 4 }));
     const [first] = entries;
     if (first === undefined) {
       callback(Object.assign(new Error('no checked address to connect to'), { code: 'ENOTFOUND' }), '', 4);
@@ -45,6 +61,13 @@ export function pinnedLookup(addresses: readonly string[]): LookupFunction {
     }
     if (options.all === true) callback(null, entries);
     else callback(null, first.address, first.family);
+  };
+  if (typeof source !== 'function') return (_name, options, callback) => answer(source, options, callback);
+  return (_name, options, callback) => {
+    source().then(
+      (addresses) => answer(addresses, options, callback),
+      (error: unknown) => callback(error instanceof Error ? error : new Error(String(error)), '', 4),
+    );
   };
 }
 
@@ -96,11 +119,11 @@ export function mysqlEndpointConfig(endpoint: DatabaseEndpoint): MysqlEndpointCo
   if (timezone !== undefined) config.timezone = timezone;
   const connectTimeout = Number(params['connectTimeout']);
   if (params['connectTimeout'] !== undefined && Number.isFinite(connectTimeout)) config.connectTimeout = connectTimeout;
-  const addresses = endpoint.addresses;
-  if (addresses !== undefined) {
+  const source = addressSource(endpoint);
+  if (source !== undefined) {
     const host = endpoint.host;
     const port = endpoint.port ?? 3306;
-    const lookup = pinnedLookup(addresses);
+    const lookup = pinnedLookup(source);
     // What `mysql2` does for its own socket: no Nagle, keep-alive once connected.
     config.stream = () => {
       const socket = net.connect({ host, port, lookup });

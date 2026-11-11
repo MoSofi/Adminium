@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { variableSources } from '../src/project/boot.js';
+import { prepareProject, variableSources } from '../src/project/boot.js';
 import { HELPERS_SOURCE } from '../src/project/build.js';
 import {
   configFields,
@@ -190,5 +190,65 @@ describe('package managers', () => {
     expect(runScript('npm', 'start')).toBe('npm start');
     expect(runScript('yarn', 'check')).toBe('yarn run check');
     expect(runScript('pnpm', 'adminium:dev')).toBe('pnpm run adminium:dev');
+  });
+});
+
+describe('what a folder never decides', () => {
+  let root: string;
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'adminium-never-from-a-folder-'));
+    writeFileSync(join(root, 'adminium.config.mjs'), 'export default {};\n');
+    writeFileSync(join(root, 'package.json'), '{"name":"p","private":true,"type":"module"}\n');
+  });
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('a .env cannot say the desktop app started this server (which would turn the setup token off)', async () => {
+    writeFileSync(join(root, '.env'), 'ADMINIUM_RUNTIME=desktop\nHOST=0.0.0.0\nADMINIUM_TRUST_PROXY=true\n');
+    const env: Record<string, string | undefined> = { PATH: process.env.PATH };
+    const prepared = await prepareProject({ cwd: root, env, version: '0.0.0' });
+    expect(env.ADMINIUM_RUNTIME).toBeUndefined();
+    expect(prepared?.env.ADMINIUM_RUNTIME).toBeUndefined();
+    expect(prepared?.refused).toEqual(['ADMINIUM_RUNTIME']);
+    // The rest of the operator's own folder is obeyed on a terminal.
+    expect(env.HOST).toBe('0.0.0.0');
+    expect(env.ADMINIUM_TRUST_PROXY).toBe('true');
+  });
+});
+
+describe("the operator's secrets and the project's own code", () => {
+  let root: string;
+  const saved = { ...process.env };
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'adminium-secrets-before-config-'));
+    writeFileSync(join(root, 'package.json'), '{"name":"p","private":true,"type":"module"}\n');
+    // What the config can see of the environment when it is imported.
+    writeFileSync(
+      join(root, 'adminium.config.mjs'),
+      'globalThis.__p75SeenAtImport = { secret: process.env.ADMINIUM_SECRET ?? null, ai: process.env.ADMINIUM_AI_API_KEY ?? null, setup: process.env.ADMINIUM_SETUP_TOKEN ?? null };\nexport default {};\n',
+    );
+  });
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+    for (const name of Object.keys(process.env)) if (!(name in saved)) Reflect.deleteProperty(process.env, name);
+    Object.assign(process.env, saved);
+    Reflect.deleteProperty(globalThis, '__p75SeenAtImport');
+  });
+
+  it('are out of process.env before the config is imported, and the boot still gets them', async () => {
+    const secret = 's'.repeat(64);
+    writeFileSync(join(root, '.env'), `ADMINIUM_SECRET=${secret}\n`);
+    Reflect.deleteProperty(process.env, 'ADMINIUM_SECRET');
+    Reflect.deleteProperty(process.env, 'ADMINIUM_PROJECT_DIR');
+    process.env.ADMINIUM_AI_API_KEY = 'sk-from-the-environment';
+    process.env.ADMINIUM_SETUP_TOKEN = 'a-setup-token-of-the-operator';
+    const prepared = await prepareProject({ cwd: root, env: process.env, version: '0.0.0' });
+    expect((globalThis as { __p75SeenAtImport?: unknown }).__p75SeenAtImport).toEqual({ secret: null, ai: null, setup: null });
+    expect(process.env.ADMINIUM_SECRET).toBeUndefined();
+    expect(process.env.ADMINIUM_AI_API_KEY).toBeUndefined();
+    expect(prepared?.env.ADMINIUM_SECRET).toBe(secret);
+    expect(prepared?.env.ADMINIUM_AI_API_KEY).toBe('sk-from-the-environment');
+    expect(prepared?.env.ADMINIUM_SETUP_TOKEN).toBe('a-setup-token-of-the-operator');
   });
 });

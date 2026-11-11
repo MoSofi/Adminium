@@ -242,7 +242,10 @@ describe('createRelocationHost', () => {
     const closeRuntime = vi.fn(async () => {
       order.push('runtime.close');
     });
-    const runtime = { close: closeRuntime, metaStore: {} } as never;
+    // A real store: a restart puts the setup token's proof in the store it lands on.
+    const store = await connectMetaStore({ url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded' });
+    await firstRun(store.meta);
+    const runtime = { close: closeRuntime, metaStore: store } as never;
     const openRuntime = vi.fn(async () => {
       order.push('openRuntime');
       return runtime;
@@ -295,6 +298,7 @@ describe('createRelocationHost', () => {
     // bootstrap file the relocation wrote — that is how it lands on the new
     // store without anyone threading the DSN through.
     expect(openRuntime).toHaveBeenCalledOnce();
+    await store.close();
   });
 });
 

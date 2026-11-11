@@ -50,16 +50,28 @@ At boot Adminium reads `ADMINIUM_SECRET`, `ADMINIUM_SETUP_TOKEN`,
 `ADMINIUM_ARCHIVE_KEY`, every `ADMINIUM_AI_*` variable, `ADMINIUM_FIGMA_TOKEN`,
 the picture sites' keys (`PEXELS_API_KEY`, `UNSPLASH_ACCESS_KEY`,
 `PIXABAY_API_KEY`) and the operator's own keys into the parts of the server
-that use them, then **deletes them from the process environment**. A
-project's hooks and actions run inside the server, and every program it starts
-(an app's tests, an app's own build line, a package install, git, the
-browser) inherits that environment, so none of them can read those values. Each
-of those programs is given a short, named environment instead: where programs
-are, the home and temporary folders, the language, and for package installs
-the `npm_config_*` and proxy settings (never one holding a token or a
-password). A hook or a project config that read `process.env.ADMINIUM_SECRET`,
-or a model key, after the server started now reads nothing. Give such code a
-variable of its own.
+that use them, then **deletes them from `process.env`**, before a project's
+config, hooks or actions are loaded. Every program the server starts (an app's
+tests, an app's own build line, a package install, git, the browser) is given
+a short, named environment instead of a copy of its own: where programs are,
+the home and temporary folders, the language, Windows' own settings, and for
+package installs the `npm_config_*` and proxy settings (never one holding a
+token or a password). So none of those values is in `process.env` or in any of
+those programs' environments. A hook or a project config that read
+`process.env.ADMINIUM_SECRET`, or a model key, after the server started now
+reads nothing. Give such code a variable of its own.
+
+What deleting cannot do: the operating system keeps the environment a process
+**started** with, and shows it to any code running as the same user
+(`/proc/<pid>/environ` on Linux, `ps eww` on macOS). A hook, or a program the
+server started, can still read a secret there if you gave it as a plain
+variable. To close that, give the secrets as files: set
+`ADMINIUM_SECRET_FILE=/run/secrets/adminium_secret` instead of
+`ADMINIUM_SECRET`, and the same `_FILE` ending for every name above. This is
+what Docker and Kubernetes secrets hand you. The value is then never in any
+environment, and the `_FILE` variable is deleted from `process.env` too.
+Plain variables keep working, but stay readable that way.
+([Secrets from files](/self-hosting/env-vars/#secrets-from-files-_file))
 
 ## The setup token
 
@@ -101,8 +113,18 @@ don't matter.
 - **Where it is not asked.** The desktop app, and `adminium dev`, `design` and
   `try` while they listen on this computer only (`127.0.0.1`). `try` on every
   address (its default) asks, but hands the token to the browser it opens, so
-  you only type it from another device. `adminium start` always asks, even on
-  `127.0.0.1`, because behind a reverse proxy that address is public.
+  you only type it from another device. That link reaches the program that
+  opens your browser (`open`, `xdg-open`, `start`) on its command line, where
+  other accounts on the same computer can see it while that program runs;
+  `try` is meant for your own computer, so that is accepted. `adminium start`
+  always asks, even on `127.0.0.1`, because behind a reverse proxy that
+  address is public.
+- **Decided when the server starts, not by what the store holds.** A server
+  that asks keeps asking even if something else serving the same meta store
+  (`adminium dev` on the same folder, say) never asked: with its proof missing,
+  every setup call is refused until the server is restarted, never let
+  through. A restart onto a moved or adopted store puts a token in that store
+  and prints it again.
 - **Kept out of logs.** A link that hands the token over carries it after a
   `#` (`/setup#setup-token=…`), which a browser never sends to a server or a
   proxy; the wizard reads it and removes it from the address bar. The setup
@@ -219,7 +241,7 @@ You do not need to configure these; they are worth knowing:
 | Password hashing | argon2id |
 | Session cookie | httpOnly, signed, `SameSite=Lax`, `Secure` over HTTPS |
 | CORS | **Off** — same-origin by default |
-| Loopback DSN guard | Blocks connecting to `localhost` from a hosted instance, except the database hosts you name in [`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts). Every spelling of the machine counts (`localhost.`, `127.1`, `0.0.0.0`, `::ffff:127.0.0.1`), and a database's host name is looked up before each new connection pool: a name that points at the machine itself or at a cloud metadata address, or does not resolve at all, is refused, and the driver connects only to the addresses that were checked |
+| Loopback DSN guard | Blocks connecting to `localhost` from a hosted instance, except the database hosts you name in [`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts). Every spelling of the machine counts (`localhost.`, `127.1`, `0.0.0.0`, `::ffff:127.0.0.1`), and a database's host name is looked up before each new connection pool and checked again for each new connection (one lookup serves five seconds of them, so a failover is followed without a restart): a name that points at the machine itself or at a cloud metadata address, or does not resolve at all, is refused, and the driver connects only to the addresses that were checked |
 | PII masking | **On by default** for columns classified as personal |
 | Telemetry | **Off** |
 | Input validation | Every external input is schema-validated, fail-fast |

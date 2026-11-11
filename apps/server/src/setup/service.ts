@@ -108,6 +108,14 @@ export interface SetupServiceDeps {
   /** argon2id hasher — injected so this module stays free of the auth tree. */
   hashPassword: (plain: string) => Promise<string>;
   now?: (() => number) | undefined;
+  /**
+   * Whether this server asks for the setup token, as its boot decided
+   * (`setupTokenRequired`, `setup/token.ts`). `true`: a missing row is a
+   * refusal, never an open door; another process on the same store cannot
+   * open it by deleting the row. `false`: no token is asked, whatever row is
+   * there. Unset (tests, an embedder that builds its own server): the row decides.
+   */
+  tokenRequired?: boolean | undefined;
 }
 
 export interface SetupService {
@@ -134,14 +142,19 @@ export function createSetupService(deps: SetupServiceDeps): SetupService {
       required,
       passwordMinLength,
       databaseConnected: required && (await hasConnection()),
-      tokenRequired: required && (await readSetupToken(meta)) !== null,
+      tokenRequired: required && (deps.tokenRequired ?? (await readSetupToken(meta)) !== null),
     };
   }
 
   async function checkToken(token: string | undefined): Promise<void> {
     if (!(await isBootstrapRequired(meta))) throw new SetupClosedError();
+    if (deps.tokenRequired === false) return;
     const stored = await readSetupToken(meta);
-    if (stored !== null && !setupTokenMatches(stored, token)) throw new SetupTokenInvalidError();
+    if (stored === null) {
+      if (deps.tokenRequired === true) throw new SetupTokenInvalidError();
+      return;
+    }
+    if (!setupTokenMatches(stored, token)) throw new SetupTokenInvalidError();
   }
 
   /** Any connection row at all, healthy or not: either way it is not the wizard's to make. */
@@ -194,7 +207,7 @@ export function createSetupService(deps: SetupServiceDeps): SetupService {
             passwordHash: await hashPassword(input.password),
           },
           at,
-          { setupToken: input.setupToken },
+          { setupToken: input.setupToken, required: deps.tokenRequired },
         );
       } catch (error) {
         // The racer that lost the PK claim lands here.

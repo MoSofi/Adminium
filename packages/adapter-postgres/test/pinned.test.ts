@@ -184,6 +184,78 @@ describe('a connection goes to the checked address', () => {
   });
 });
 
+describe('each new connection asks the server’s re-check', () => {
+  /** One fake per address on the same port, so the address dialled is the one that counts. */
+  async function twoAddresses(): Promise<{ port: number; at: Record<string, number> }> {
+    const at: Record<string, number> = { '127.0.0.1': 0, '::1': 0 };
+    const listen = async (host: string, port: number): Promise<number> => {
+      const server = net.createServer((socket) => {
+        at[host] = (at[host] ?? 0) + 1;
+        socket.on('error', () => undefined);
+        socket.once('data', () => {
+          socket.write(POOLER_REFUSAL);
+          socket.end();
+        });
+      });
+      servers.push(server);
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(port, host, resolve);
+      });
+      return (server.address() as net.AddressInfo).port;
+    };
+    const port = await listen('127.0.0.1', 0);
+    await listen('::1', port);
+    return { port, at };
+  }
+
+  it('dials the address the re-check gives now, and fails on its refusal', async () => {
+    const fake = await twoAddresses();
+    let answer: readonly string[] | Error = ['127.0.0.1'];
+    let asked = 0;
+    const resolveAddresses = async (): Promise<readonly string[]> => {
+      asked += 1;
+      if (answer instanceof Error) throw answer;
+      return answer;
+    };
+    const config = pgEndpointConfig(endpoint(fake.port, { resolveAddresses })).config;
+    const dial = async (): Promise<string> =>
+      new Promise((resolve) => {
+        const socket = config.stream?.();
+        if (socket === undefined) throw new Error('no stream');
+        socket.once('connect', () => {
+          resolve(socket.remoteAddress ?? '');
+          socket.destroy();
+        });
+        socket.once('error', (error) => resolve(`error: ${error.message}`));
+        socket.connect(fake.port, NAME);
+      });
+    expect(await dial()).toBe('127.0.0.1');
+    // The name moved (a failover): the next socket follows it.
+    answer = ['::1'];
+    expect(await dial()).toBe('::1');
+    // The name moved somewhere the server refuses: the next socket fails with its reason.
+    answer = Object.assign(new Error('The host db.pinned.invalid now resolves to an address this server does not connect to (169.254.169.254): metadata.'), { code: 'ENOTFOUND' });
+    expect(await dial()).toContain('metadata');
+    expect(asked).toBe(3);
+    expect(fake.at).toEqual({ '127.0.0.1': 1, '::1': 1 });
+  });
+
+  it('keeps asking it across the pooler rebuild', async () => {
+    const fake = await twoAddresses();
+    const answers = [['127.0.0.1'], ['::1']];
+    const adapter = new PostgresAdapter('introspect');
+    await adapter.connect({ role: 'introspect', endpoint: endpoint(fake.port, { resolveAddresses: async () => answers.shift() ?? ['::1'] }) });
+    try {
+      expect((await adapter.test()).ok).toBe(false);
+      // The first pool dialled the first answer, the rebuilt one the second.
+      expect(fake.at).toEqual({ '127.0.0.1': 1, '::1': 1 });
+    } finally {
+      await adapter.close();
+    }
+  });
+});
+
 describe.runIf(psqlAvailable)('against the local Postgres', () => {
   it('serves a query through the pin, the name never looked up', async () => {
     const adapter = new PostgresAdapter('introspect');

@@ -43,14 +43,20 @@ export const OWN_DATA_DIR_FILES: readonly string[] = ['meta.db', 'adminium.json'
 
 /**
  * Folders directly in the data dir that are Adminium's: backups (and their
- * `.staging`), file storage's local root, the upload spool, installed add-ons.
- * Kept in step with `BACKUPS_DIR`, `FILES_DIR`, `TMP_DIR` and `ADD_ONS_DIR` by
- * `sqlite-guard.test.ts`; spelled out here so this module imports none of them.
+ * `.staging`), file storage's local root, the upload spool, installed add-ons,
+ * and the Export everything work folder (which every boot empties).
+ * Kept in step with `BACKUPS_DIR`, `FILES_DIR`, `TMP_DIR`, `ADD_ONS_DIR` and
+ * `EXPORT_EVERYTHING_DIR` by `sqlite-guard.test.ts`; spelled out here so this
+ * module imports none of them.
  */
-export const OWN_DATA_DIR_FOLDERS: readonly string[] = ['backups', 'files', 'tmp', 'add-ons'];
+export const OWN_DATA_DIR_FOLDERS: readonly string[] = ['backups', 'files', 'tmp', 'add-ons', '.export-everything'];
 
-/** `<dataDir>/pre-restore-<ts>/`: what a restore moved aside, an older meta store included. */
-export const OWN_DATA_DIR_FOLDER_PREFIXES: readonly string[] = ['pre-restore-'];
+/**
+ * `<dataDir>/pre-restore-<ts>/`: what a restore moved aside, an older meta
+ * store included. `<dataDir>/.archive-restore-<id>/`: an archive being
+ * restored, unpacked before it replaces anything.
+ */
+export const OWN_DATA_DIR_FOLDER_PREFIXES: readonly string[] = ['pre-restore-', '.archive-restore-'];
 
 /** The files SQLite keeps next to a database while it is open. */
 export const SQLITE_COMPANION_SUFFIXES: readonly string[] = ['-wal', '-shm', '-journal'];

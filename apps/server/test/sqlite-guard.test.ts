@@ -16,7 +16,7 @@
  * refusal is proven to come before the driver opens anything.
  */
 import BetterSqlite3 from 'better-sqlite3';
-import { linkSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, parse, resolve } from 'node:path';
 import {
@@ -60,6 +60,7 @@ import {
   sqliteSourceRefusal,
   type SqliteSourcePolicy,
 } from '../src/connections/sqlite-guard.js';
+import { EXPORT_EVERYTHING_DIR } from '../src/export/everything.js';
 import { FILES_DIR } from '../src/files/drivers/local.js';
 import { TMP_DIR } from '../src/files/spool.js';
 import { syncProjectDatabases } from '../src/project/databases.js';
@@ -125,6 +126,8 @@ function refusedPaths(): { label: string; path: string; reason: string }[] {
     { label: 'a file in the upload spool', path: join(data, 'tmp', 'spool.db'), reason: 'data-folder' },
     { label: 'a file in the add-ons folder', path: join(data, 'add-ons', 'addon.db'), reason: 'data-folder' },
     { label: 'a meta store a restore moved aside', path: join(data, 'pre-restore-2026-11-11', 'meta.db'), reason: 'data-folder' },
+    { label: 'a file in the Export everything work folder', path: join(data, '.export-everything', 'part.db'), reason: 'data-folder' },
+    { label: 'a meta store an archive restore unpacked', path: join(data, '.archive-restore-0a1b2c3d4e5f', 'meta.db'), reason: 'data-folder' },
     { label: 'the bootstrap file', path: join(data, 'adminium.json'), reason: 'data-folder' },
   ];
 }
@@ -138,6 +141,12 @@ describe("Adminium's own files", () => {
     expect(OWN_DATA_DIR_FOLDERS).toEqual(expect.arrayContaining([BACKUPS_DIR, FILES_DIR, TMP_DIR, ADD_ONS_DIR]));
     expect(OWN_DATA_DIR_FILES).toEqual(expect.arrayContaining(['meta.db', BOOTSTRAP_FILENAME, KEPT_SECRET_FILE]));
     expect(OWN_DATA_DIR_FOLDER_PREFIXES).toContain(PRE_RESTORE_PREFIX);
+    // Every boot empties the Export everything folder (`everything.sweep()`).
+    expect(OWN_DATA_DIR_FOLDERS).toContain(EXPORT_EVERYTHING_DIR);
+    // An archive restore unpacks into `<dataDir>/.archive-restore-<id>` (`archive/restore.ts`).
+    const restoreDirs = [...readFileSync(new URL('../src/archive/restore.ts', import.meta.url), 'utf8').matchAll(/join\(dataDir, `([^`$]+)\$\{/g)].map((match) => match[1]);
+    expect(restoreDirs).toEqual(['.archive-restore-']);
+    expect(OWN_DATA_DIR_FOLDER_PREFIXES).toEqual(expect.arrayContaining(restoreDirs));
     // The desktop app's databases live in the data dir and are sources.
     expect(OWN_DATA_DIR_FOLDERS).not.toContain(LOCAL_DATABASE_DIR);
   });

@@ -4,6 +4,7 @@
  * config, and work out the environment the server boots with.
  */
 
+import { holdOperatorSecrets, isOperatorSecretName, SECRET_FILE_SUFFIX, withHeldSecrets } from '../config/operator-secrets.js';
 import {
   configFields,
   configuredDatabases,
@@ -52,6 +53,14 @@ export function variableSources(
 }
 
 /**
+ * Names no folder decides, on any host, a terminal included: markers that say
+ * how this process was started. `ADMINIUM_RUNTIME=desktop` says the desktop
+ * app started it, which turns the setup token off (`setup/token.ts`); a line
+ * in a `.env` deployed with the folder must not.
+ */
+export const NEVER_FROM_A_FOLDER: readonly string[] = ['ADMINIUM_RUNTIME'];
+
+/**
  * The project `cwd` belongs to, prepared for a boot, or null outside a
  * project. `.env` is copied into `env` itself, which is `process.env` in a real
  * run, because the config reads its values from there when it loads.
@@ -66,16 +75,23 @@ export async function prepareProject(opts: {
   /**
    * Names a folder may not decide, whatever its `.env` or its config says: the
    * host (the desktop app) states them itself, or leaves them unset on purpose.
-   * A terminal passes none: there the folder and the person are one.
+   * A terminal passes none: there the folder and the person are one, except
+   * for {@link NEVER_FROM_A_FOLDER}, which is refused everywhere.
    */
   refuse?: readonly string[];
 }): Promise<PreparedProject | null> {
   const project = findProject(opts.cwd, opts.env);
   if (project === null) return null;
-  const refuse = opts.refuse ?? [];
+  // A secret a folder may not set, it may not set as a file either (`<NAME>_FILE`).
+  const named = [...(opts.refuse ?? []), ...NEVER_FROM_A_FOLDER];
+  const refuse = [...new Set([...named, ...named.filter((name) => isOperatorSecretName(name)).map((name) => `${name}${SECRET_FILE_SUFFIX}`)])];
   const inFile = refuse.length === 0 ? null : readDotEnv(project.root);
   const refused = new Set(inFile === null ? [] : refuse.filter((name) => name in inFile));
   const fromDotEnv = refuse.length === 0 ? loadDotEnv(project.root, opts.env) : loadDotEnv(project.root, opts.env, [...KEPT_OUT_OF_THE_ENVIRONMENT, ...refuse]);
+  // The project's config is its own code, and it runs in this process: the operator's secrets (from the
+  // environment and from `.env`, just read) leave `process.env` before it is imported
+  // (`config/operator-secrets.ts`). The boot gets them back below, with the held values.
+  if (opts.env === process.env) holdOperatorSecrets(opts.env);
   const loaded = await loadProjectConfig(project, {
     version: opts.version,
     ...(opts.loadBundler === undefined ? {} : { loadBundler: opts.loadBundler }),
@@ -91,7 +107,7 @@ export async function prepareProject(opts: {
     config: loaded.config,
     from: loaded.from,
     ...(loaded.appsRebuilt === true ? { appsRebuilt: true as const } : {}),
-    env: withDefaults(opts.env, fromConfig),
+    env: withDefaults(withHeldSecrets(opts.env), fromConfig),
     databases: configuredDatabases(loaded.config),
     fromDotEnv,
     sources: variableSources(project, loaded.config, opts.env, fromDotEnv),

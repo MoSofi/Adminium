@@ -31,6 +31,7 @@ import type { SafeFetchOptions } from '../net/safe-fetch.js';
 import { retireSqliteStore, type MetaRelocation, type OnMetaRelocated } from '../meta/relocate.js';
 import type { Env } from '../config/env.js';
 import type { ProjectServerOptions } from '../project/service.js';
+import { prepareSetupToken, setupTokenLines, setupTokenRequired, type SetupTokenMode } from '../setup/token.js';
 import { setShutdownTarget, type CliDeps, type CliRuntime, type StartedServer } from './runtime.js';
 
 export type { MetaRelocation, OnMetaRelocated };
@@ -68,6 +69,13 @@ export interface CreateRelocationHostOptions {
   pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /** A project the desktop app shares on the network (`ComposeServerOptions.shared`). */
   shared?: { port: number; ownerToken?: string } | undefined;
+  /**
+   * How this boot was started, as the setup token sees it (`setup/token.ts`):
+   * every boot here, a restart onto a moved or adopted store included, asks
+   * for the token as the first one did, and a restart puts its proof in the
+   * new store and prints it. Default `server`: asked unless the desktop app.
+   */
+  setupTokenMode?: SetupTokenMode | undefined;
   /** Test seam: defaults to `process.exit`. */
   exit?: (code: number) => void;
   /** Test seam: defaults to running the task on the next tick. */
@@ -94,7 +102,16 @@ export function createRelocationHost(opts: CreateRelocationHostOptions): Relocat
     // file the relocation just wrote — which is what makes it land on the new
     // store without anyone threading the DSN through.
     runtime = existing ?? (await deps.openRuntime(env));
+    const mode = opts.setupTokenMode ?? 'server';
+    // The first boot's caller prepared the token before it got here (and printed it). A restart onto a
+    // moved or adopted store has a store this process never prepared: one with data and no users yet
+    // still needs the token's proof before anyone can claim it.
+    if (existing === undefined) {
+      const prepared = await prepareSetupToken({ meta: runtime.metaStore.meta, env, mode });
+      if (prepared !== null) for (const line of setupTokenLines(prepared)) log(line);
+    }
     server = await deps.startServer(runtime, {
+      setupTokenRequired: setupTokenRequired({ runtime: env.ADMINIUM_RUNTIME, host: env.HOST, mode }),
       onMetaRelocated,
       ...(opts.project === undefined ? {} : { project: opts.project }),
       ...(opts.designer === undefined ? {} : { designer: opts.designer }),
