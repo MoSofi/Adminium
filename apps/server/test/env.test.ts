@@ -38,6 +38,8 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_META_URL: undefined,
       ADMINIUM_DATA_DIR: './data',
       ADMINIUM_LOG_LEVEL: 'info',
+      // On: "Put this online…" shows unless the operator hides it.
+      ADMINIUM_DEPLOY_LINK: true,
       // Off: the Designer on a server people reach is the operator's to allow.
       ADMINIUM_DESIGNER: 'off',
       // UNDEFINED, not `false`. This variable overrides the `telemetry.enabled`

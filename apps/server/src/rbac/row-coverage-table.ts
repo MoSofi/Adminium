@@ -99,6 +99,10 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/apps/save/inventory': noRows('What a database could put in its app: names, column counts and the last schema read’s row estimates, no source row.'),
   'GET /api/v1/apps/saves': noRows('The saves made here: keys, versions and fingerprints, no source row.'),
   'GET /api/v1/apps/save/:id/file': noRows('A saved app file kept in the Files library: no source row is read.'),
+  // Export everything: the file copies each local SQLite source whole. Only a Super Admin, who is held to no rows, may ask.
+  'POST /api/v1/export/zip': rows('all', 'Super Admin only: the file carries local SQLite sources whole, so nobody held to some rows reaches it.'),
+  'GET /api/v1/export/zip': noRows('How far the caller’s own export is: a percent, a file name and a size.'),
+  'GET /api/v1/export/zip/:id': rows('all', 'Super Admin only, the session that asked: the file carries local SQLite sources whole.'),
   'POST /api/v1/apps/upload-workspace': noRows('A workspace file\'s app files staged as uploads: no source row.'),
   'GET /api/v1/apps/workspace-files': noRows('The workspace files staged here and how far each install got: no source row.'),
   'GET /api/v1/apps/workspace/:id/install': noRows('The workspace files staged here and how far each install got: no source row.'),
