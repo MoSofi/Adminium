@@ -226,6 +226,7 @@
     "file": "Fichier",
     "fileNewDatabase": "Nouvelle base de données locale…",
     "fileOpenSqlite": "Ouvrir un fichier SQLite…",
+    "fileOpenProject": "Ouvrir un projet…",
     "fileBackupNow": "Sauvegarder maintenant…",
     "fileRestore": "Restaurer depuis une sauvegarde…",
     "edit": "Édition",
@@ -255,5 +256,31 @@
     "updateErrorTitle": "Impossible de rechercher des mises à jour",
     "updateErrorDetail": "Vérifiez votre connexion Internet et réessayez.",
     "updateDownloadFailedTitle": "La mise à jour n’a pas pu être téléchargée"
+  },
+  "export": {
+    "pick": "Ouvrir un projet",
+    "heading": "Ouvrir un projet",
+    "reading": "Lecture et vérification du fichier…",
+    "missing": "Ce fichier a été déplacé ou supprimé.",
+    "noOwner": "Ce fichier ne nomme aucun super administrateur qui pourrait se connecter. Importez-le sur un serveur avec adminium import-zip.",
+    "another": "Choisir un autre fichier",
+    "holds": "Un fichier « Tout exporter » avec {people, plural, one {# personne} other {# personnes}}, {pages, plural, one {# page} other {# pages}} et {files, plural, one {# fichier téléversé} other {# fichiers téléversés}}. Il devient un nouveau projet sur cet ordinateur.",
+    "owner": "Qui se connecte en premier",
+    "ownerHelp": "Le fichier ne contient aucun mot de passe. Ce super administrateur reçoit celui que vous définissez ici ; les autres réinitialisent le leur pour se connecter.",
+    "password": "Nouveau mot de passe",
+    "passwordLength": "Au moins {count, plural, one {# caractère} other {# caractères}}.",
+    "passwordAgain": "Le même mot de passe, à nouveau",
+    "passwordDiffer": "Les deux mots de passe ne sont pas identiques.",
+    "secrets": "Les chaînes de connexion, les clés de messagerie et d’IA ne sont pas dans le fichier. Une fois le projet ouvert, les connexions qui ont besoin de la leur sont signalées dans Studio.",
+    "opening": "Création du projet…",
+    "open": "Ouvrir le projet",
+    "made": "{name} a été créé. {owner} se connecte avec le nouveau mot de passe.",
+    "madeConnections": "{name} a été créé. {owner} se connecte avec le nouveau mot de passe. {count, plural, one {# connexion a besoin de sa chaîne de connexion} other {# connexions ont besoin de leur chaîne de connexion}} à nouveau.",
+    "refuse": {
+      "fullArchive": "Ceci est l’archive d’un serveur entier, pas un fichier « Tout exporter ». Restaurez-la sur un serveur avec adminium archive restore.",
+      "notAnExport": "Ce fichier n’est pas un fichier « Tout exporter ». Créez-en un dans Studio, sous Paramètres, Tout exporter.",
+      "refused": "Ce fichier n’a pas passé les vérifications ; rien n’a été créé à partir de lui.",
+      "failed": "Ce fichier n’a pas pu être ouvert."
+    }
   }
 }

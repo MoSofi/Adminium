@@ -79,6 +79,7 @@ export const EN_US_MENU_LABELS: Readonly<Record<MenuLabelKey, string>> = Object.
   file: 'File',
   'file.newDatabase': 'New local database…',
   'file.openSqlite': 'Open SQLite file…',
+  'file.openProject': 'Open a project…',
   'file.backupNow': 'Back up now…',
   'file.restore': 'Restore from backup…',
   edit: 'Edit',
@@ -142,6 +143,8 @@ export function menuTranslator(labels?: { readonly [K in MenuLabelKey]?: string 
 export interface MenuHandlers {
   newDatabase?: (() => void) | undefined;
   openSqlite?: (() => void) | undefined;
+  /** "Open a project…": an "Export everything" file, made into a new project from Start. */
+  openProject?: (() => void) | undefined;
   backupNow?: (() => void) | undefined;
   restore?: (() => void) | undefined;
   shortcuts?: (() => void) | undefined;
@@ -271,6 +274,7 @@ export function appMenuTemplate(opts: BuildAppMenuOptions): MenuItemConstructorO
     submenu: [
       command('file.newDatabase', handlers.newDatabase, 'CmdOrCtrl+N'),
       command('file.openSqlite', handlers.openSqlite, 'CmdOrCtrl+O'),
+      command('file.openProject', handlers.openProject, 'CmdOrCtrl+Shift+O'),
       { type: 'separator' },
       // Shift+⌘B rather than ⌘S: there is no "document" here to save, and ⌘S in
       // a data app reads as "commit this row", which is the SPA's to define.

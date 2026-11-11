@@ -2011,6 +2011,68 @@ describe('createDesktopApp opening on Start', () => {
     expect(check).toHaveBeenCalledTimes(2);
   });
 
+  it('File → "Open a project…" takes an export file to Start, and from an open project closes it first; never into it', async () => {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'adminium-boot-export-')));
+    try {
+      const root = join(home, 'shop');
+      mkdirSync(join(root, 'node_modules'), { recursive: true });
+      writeFileSync(join(root, 'adminium.config.ts'), 'export default {};\n');
+      const s = startHarness();
+      const picks: string[] = [];
+      let live: { root: string; mode: 'design' | 'serve' } | null = null;
+      const deps: DesktopBootDeps = {
+        ...s.deps,
+        startScreen: {
+          ...s.deps.startScreen!,
+          folder: { ...realFolderDeps('/opt/Adminium', 'linux'), home },
+          chooseExportFile: (opts) => {
+            picks.push(opts.title);
+            return Promise.resolve(join(home, 'Downloads', 'hollis-bakery.zip'));
+          },
+        },
+        createServerManager: (o) => {
+          const made = s.deps.createServerManager(o);
+          if (o.project === undefined) return made;
+          live = { root: o.project.root, mode: 'design' };
+          return Object.create(made, { project: { get: () => live }, busy: { value: () => Promise.resolve(null) } }) as typeof made;
+        },
+      };
+      void createDesktopApp(deps).start();
+      await settle();
+
+      // On Start: the file is picked, and Start is shown again to open it.
+      const shown = (): number => s.h.calls.filter((call) => call === 'showStart').length;
+      const before = shown();
+      s.h.menuHandlers()?.openProject?.();
+      await settle();
+      expect(picks).toEqual(['Open a project']);
+      expect(shown()).toBe(before + 1);
+      expect(s.h.bridge()?.start?.()?.state().pendingExport).toEqual({ path: join(home, 'Downloads', 'hollis-bakery.zip'), displayPath: '~/Downloads/hollis-bakery.zip' });
+      // Said once: a later look at Start is Start.
+      expect(s.h.bridge()?.start?.()?.state().pendingExport).toBeNull();
+
+      // In a project: it is closed (its server stopped), and Start opens the file as a new project.
+      await s.h.bridge()?.start?.()?.openProject({ path: root, agreed: true });
+      await settle();
+      expect(s.h.bridge()?.project?.info()).not.toBeNull();
+      s.h.menuHandlers()?.openProject?.();
+      await settle();
+      await settle();
+      expect(s.h.stopped()).toBe(1);
+      expect(s.h.bridge()?.project?.info()).toBeNull();
+      expect(s.h.bridge()?.start?.()?.state().pendingExport?.path).toBe(join(home, 'Downloads', 'hollis-bakery.zip'));
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it('File → "Open a project…" is disabled in a build without the picker', async () => {
+    const s = startHarness();
+    void createDesktopApp(s.deps).start();
+    await settle();
+    expect(s.h.menuHandlers()).not.toHaveProperty('openProject');
+  });
+
   it('Start offers no check when updates are switched off', async () => {
     const s = startHarness();
     void createDesktopApp({ ...s.deps, updatesDisabledByEnv: true, aboutDialogs: { about: () => Promise.resolve(), checkForUpdates: () => Promise.resolve() } }).start();

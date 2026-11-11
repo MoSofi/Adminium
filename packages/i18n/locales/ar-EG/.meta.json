@@ -16047,6 +16047,94 @@
     "status": "mt",
     "srcHash": "84c07ca92acc"
   },
+  "desktop.export.another": {
+    "status": "mt",
+    "srcHash": "623523716d17"
+  },
+  "desktop.export.heading": {
+    "status": "mt",
+    "srcHash": "8cf00403edc9"
+  },
+  "desktop.export.holds": {
+    "status": "mt",
+    "srcHash": "93fa2d27125d"
+  },
+  "desktop.export.made": {
+    "status": "mt",
+    "srcHash": "6d620c5883d0"
+  },
+  "desktop.export.madeConnections": {
+    "status": "mt",
+    "srcHash": "3682d1bac1d8"
+  },
+  "desktop.export.missing": {
+    "status": "mt",
+    "srcHash": "fa609337061a"
+  },
+  "desktop.export.noOwner": {
+    "status": "mt",
+    "srcHash": "c310410fb9e8"
+  },
+  "desktop.export.open": {
+    "status": "mt",
+    "srcHash": "fa30d9444bb7"
+  },
+  "desktop.export.opening": {
+    "status": "mt",
+    "srcHash": "5757e1498e25"
+  },
+  "desktop.export.owner": {
+    "status": "mt",
+    "srcHash": "d09f3d32f3ee"
+  },
+  "desktop.export.ownerHelp": {
+    "status": "mt",
+    "srcHash": "7072547d25ce"
+  },
+  "desktop.export.password": {
+    "status": "mt",
+    "srcHash": "d850ee188c7c"
+  },
+  "desktop.export.passwordAgain": {
+    "status": "mt",
+    "srcHash": "e2fefcf49a07"
+  },
+  "desktop.export.passwordDiffer": {
+    "status": "mt",
+    "srcHash": "83838bde4bea"
+  },
+  "desktop.export.passwordLength": {
+    "status": "mt",
+    "srcHash": "858becca8b2c"
+  },
+  "desktop.export.pick": {
+    "status": "mt",
+    "srcHash": "8cf00403edc9"
+  },
+  "desktop.export.reading": {
+    "status": "mt",
+    "srcHash": "d64d0b416784"
+  },
+  "desktop.export.refuse.failed": {
+    "status": "mt",
+    "srcHash": "ca28fe0f5435"
+  },
+  "desktop.export.refuse.fullArchive": {
+    "status": "mt",
+    "srcHash": "e2dcb306f4aa"
+  },
+  "desktop.export.refuse.notAnExport": {
+    "status": "mt",
+    "srcHash": "eb6f3e895200"
+  },
+  "desktop.export.refuse.refused": {
+    "status": "mt",
+    "srcHash": "efd009975be1"
+  },
+  "desktop.export.secrets": {
+    "status": "mt",
+    "srcHash": "d1c62a9f9c95"
+  },
   "desktop.found.data": {
     "status": "mt",
     "srcHash": "cd0b9a72894c"
@@ -16162,6 +16250,10 @@
   "desktop.menu.fileNewDatabase": {
     "srcHash": "682cf2b7e866",
     "status": "mt"
+  },
+  "desktop.menu.fileOpenProject": {
+    "status": "mt",
+    "srcHash": "299d2e4dae57"
   },
   "desktop.menu.fileOpenSqlite": {
     "srcHash": "3cb96fcd94b1",
@@ -28534,6 +28626,10 @@
   "studio.exportEverything.move.desktop": {
     "status": "mt",
     "srcHash": "9d59a229cc18"
+  },
+  "studio.exportEverything.move.desktopItem": {
+    "status": "mt",
+    "srcHash": "8cf00403edc9"
   },
   "studio.exportEverything.move.desktopLine": {
     "status": "mt",

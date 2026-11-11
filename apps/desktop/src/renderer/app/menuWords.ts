@@ -26,6 +26,7 @@ export function menuWords(i18n: Pick<I18nInstance, 't'>): DesktopMenuLabels {
     file: t('desktop:menu.file', 'File'),
     'file.newDatabase': t('desktop:menu.fileNewDatabase', 'New local database…'),
     'file.openSqlite': t('desktop:menu.fileOpenSqlite', 'Open SQLite file…'),
+    'file.openProject': t('desktop:menu.fileOpenProject', 'Open a project…'),
     'file.backupNow': t('desktop:menu.fileBackupNow', 'Back up now…'),
     'file.restore': t('desktop:menu.fileRestore', 'Restore from backup…'),
     edit: t('desktop:menu.edit', 'Edit'),

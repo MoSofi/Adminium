@@ -5882,7 +5882,8 @@
       "title": "迁移到另一台主机",
       "server": "在您自己的服务器上",
       "desktop": "在桌面应用中",
-      "desktopLine": "桌面应用暂时无法打开此文件。请用上面的命令导入，在服务器或这台电脑上均可。"
+      "desktopItem": "打开项目",
+      "desktopLine": "选择{item}，然后选择该文件。"
     },
     "putOnline": {
       "title": "将其上线",

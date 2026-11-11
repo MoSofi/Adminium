@@ -326,6 +326,7 @@ export type DesktopMenuLabelKey =
   | 'file'
   | 'file.newDatabase'
   | 'file.openSqlite'
+  | 'file.openProject'
   | 'file.backupNow'
   | 'file.restore'
   | 'edit'
@@ -456,6 +457,8 @@ export interface DesktopStartState {
   /** The app's saved language (a locale tag), or `null`: the system's. */
   readonly language: string | null;
   readonly theme: DesktopThemeChoice;
+  /** An "Export everything" file picked with File → "Open a project…" before this page loaded: it is opened first. */
+  readonly pendingExport?: { readonly path: string; readonly displayPath: string } | null | undefined;
 }
 
 /** Why a folder cannot hold a new project. */
@@ -580,6 +583,60 @@ export type DesktopGetPackagesResult =
   /** Not a folder the person agreed to open, or its code changed since: `openProject` asks first. */
   | { readonly status: 'trust-needed' };
 
+/** A Super Admin an "Export everything" file brought: one of them is given the first password. */
+export interface DesktopExportOwner {
+  readonly id: string;
+  readonly email: string;
+  readonly name: string;
+}
+
+/** What an "Export everything" file holds, as the engine read and checked it (nothing is written yet). */
+export interface DesktopExportFacts {
+  readonly path: string;
+  readonly displayPath: string;
+  /** The name proposed for the project made from it. */
+  readonly name: string;
+  readonly appVersion: string;
+  /** When the file was made (milliseconds). */
+  readonly createdAt: number;
+  readonly people: number;
+  readonly pages: number;
+  readonly connections: number;
+  readonly files: number;
+  /** Active Super Admins, the earliest made first. */
+  readonly owners: readonly DesktopExportOwner[];
+  readonly passwordMinLength: number;
+}
+
+/**
+ * Why a file is not opened. `full-archive`: a whole-server archive, restored on a server with
+ * `adminium archive restore`; `not-an-export`: not an "Export everything" file at all; `refused`: the
+ * engine's checks refused it (`detail` says which); `failed`: it could not be read.
+ */
+export type DesktopExportRefusal = 'full-archive' | 'not-an-export' | 'refused' | 'failed';
+
+export type DesktopReadExportResult =
+  | { readonly status: 'ready'; readonly facts: DesktopExportFacts }
+  | { readonly status: 'missing' }
+  | { readonly status: 'refused'; readonly refused: DesktopExportRefusal; readonly detail: string };
+
+export interface DesktopImportExportInput extends DesktopNewFolderInput {
+  /** The file `readExport` read. */
+  readonly path: string;
+  /** The Super Admin who signs in first, by address. */
+  readonly owner: string;
+  readonly password: string;
+  /** The person read the folder's warning and chose "Use it anyway". */
+  readonly acceptWarning?: boolean | undefined;
+}
+
+export type DesktopImportExportResult =
+  /** Made: open it with `openProject` (which asks about its code first when the file carried any). */
+  | { readonly status: 'imported'; readonly path: string; readonly owner: string; /** Connections that came without their connection string. */ readonly connections: number }
+  | { readonly status: 'folder-refused'; readonly refused: DesktopFolderRefusal }
+  | { readonly status: 'warned'; readonly warning: DesktopFolderWarning }
+  | { readonly status: 'refused'; readonly refused: DesktopExportRefusal; readonly detail: string };
+
 export type DesktopLocateProjectResult =
   | { readonly status: 'located'; readonly recent: readonly DesktopRecentProject[] }
   | { readonly status: 'cancelled' }
@@ -615,6 +672,12 @@ export interface DesktopStartApi {
   /** The system's folder picker, for "Open a folder". `null` on cancel. */
   chooseFolder(input: { readonly title: string }): Promise<{ readonly path: string; readonly displayPath: string } | null>;
   openProject(input: DesktopOpenProjectInput): Promise<DesktopOpenProjectResult>;
+  /** The system's file picker, for an "Export everything" file. `null` on cancel. */
+  chooseExport(input: { readonly title: string }): Promise<{ readonly path: string; readonly displayPath: string } | null>;
+  /** What the file holds and who may sign in first, read and checked by the engine; nothing is written. */
+  readExport(input: { readonly path: string }): Promise<DesktopReadExportResult>;
+  /** A NEW project from the file, the chosen Super Admin with the password typed here. Never into an open one. */
+  importExport(input: DesktopImportExportInput): Promise<DesktopImportExportResult>;
   /** After `needs-packages` and a yes: fetch what the project is built with, then open it. Takes minutes on a slow line. */
   getPackages(input: { readonly path: string; readonly land?: 'designer' | 'dashboard' | undefined }): Promise<DesktopGetPackagesResult>;
   /** After `key-missing`. `env` opens the system's file picker (`title` is its title). */

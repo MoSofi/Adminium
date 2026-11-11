@@ -9,7 +9,8 @@
  * file's name and size with one "Download". After the download the page is
  * back at "Download everything"; a file left waiting expires and the page says
  * so. Then how to move it: `adminium import-zip <file>` on a server, or the
- * desktop app; and "Put this online", unless the operator switched it off.
+ * desktop app's File → "Open a project…"; and "Put this online", unless the
+ * operator switched it off.
  *
  * On the desktop the project has its own "Export this project…" (the
  * Designer's project menu), and this page points there instead.
@@ -235,13 +236,28 @@ function MoveCard(): ReactNode {
         <Tile icon={<Monitor />} />
         <div className="min-w-0 flex-1">
           <div className="text-[13px] font-bold">{t('studio:exportEverything.move.desktop', 'In the desktop app')}</div>
-          <p className="mt-0.5 text-[12.5px] text-fg-muted">
-            {t('studio:exportEverything.move.desktopLine', 'The desktop app does not open this file yet. Import it with the command above, on a server or on this computer.')}
+          <p className="mt-0.5 text-[12.5px] text-fg-muted" data-testid="export-move-desktop">
+            <DesktopLine />
           </p>
         </div>
       </div>
     </Card>
   );
+}
+
+/** A mark no translation holds: where the menu item's name goes in the sentence around it. */
+const ITEM_MARK = '\u2063';
+
+/** "Choose **Open a project** and pick the file.": the desktop's menu item, in bold, where the sentence puts it. */
+function DesktopLine(): ReactNode {
+  const item = t('studio:exportEverything.move.desktopItem', 'Open a project');
+  const parts = t('studio:exportEverything.move.desktopLine', 'Choose {item} and pick the file.', { item: ITEM_MARK }).split(ITEM_MARK);
+  return parts.map((part, index) => (
+    <span key={index}>
+      {index === 0 ? null : <strong className="text-fg">{item}</strong>}
+      {part}
+    </span>
+  ));
 }
 
 function PutOnlineCard(): ReactNode {

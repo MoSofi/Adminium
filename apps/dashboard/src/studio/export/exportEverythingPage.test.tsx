@@ -123,6 +123,14 @@ describe('Export everything', () => {
     expect(await screen.findByText('Another export waits for its download. Try again in a few minutes.')).toBeTruthy();
   });
 
+  it('says how the desktop app opens the file: Open a project, then the file', async () => {
+    open();
+    const line = await screen.findByTestId('export-move-desktop');
+    expect(line.textContent).toBe('Choose Open a project and pick the file.');
+    expect(line.querySelector('strong')?.textContent).toBe('Open a project');
+    expect(screen.queryByText(/does not open this file yet/)).toBeNull();
+  });
+
   it('copies the import command, and says Copied', async () => {
     const user = userEvent.setup();
     const writeText = vi.fn(async () => undefined);

@@ -42,6 +42,7 @@ const MENU_LABEL_SOURCES: ReadonlyArray<{
   { key: 'file', i18nKey: 'desktop:menu.file', fallback: 'File' },
   { key: 'file.newDatabase', i18nKey: 'desktop:menu.fileNewDatabase', fallback: 'New local database…' },
   { key: 'file.openSqlite', i18nKey: 'desktop:menu.fileOpenSqlite', fallback: 'Open SQLite file…' },
+  { key: 'file.openProject', i18nKey: 'desktop:menu.fileOpenProject', fallback: 'Open a project…' },
   { key: 'file.backupNow', i18nKey: 'desktop:menu.fileBackupNow', fallback: 'Back up now…' },
   { key: 'file.restore', i18nKey: 'desktop:menu.fileRestore', fallback: 'Restore from backup…' },
   { key: 'edit', i18nKey: 'desktop:menu.edit', fallback: 'Edit' },

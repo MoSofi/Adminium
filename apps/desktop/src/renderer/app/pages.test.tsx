@@ -60,6 +60,9 @@ function fakeStart(over: Partial<DesktopStartApi> = {}): DesktopStartApi {
     forgetProject: vi.fn(() => Promise.resolve([recentProject()])),
     locateProject: vi.fn(() => Promise.resolve({ status: 'cancelled' as const })),
     useClassic: vi.fn(() => Promise.resolve()),
+    chooseExport: vi.fn(() => Promise.resolve<{ path: string; displayPath: string } | null>(null)),
+    readExport: vi.fn(() => Promise.resolve({ status: 'missing' as const })),
+    importExport: vi.fn(() => Promise.resolve({ status: 'refused' as const, refused: 'failed' as const, detail: '' })),
     ...over,
   };
 }
@@ -130,6 +133,87 @@ describe('how long ago a project was opened', () => {
   });
   it('never says a project was opened in the future because a clock moved', () => {
     expect(openedWhen(new Date(2026, 9, 12).toISOString(), now, 'en-US')).toBe('today');
+  });
+});
+
+describe('Open a project, with an Export everything file', () => {
+  const FILE = { path: '/Users/sam/Downloads/hollis-bakery-2026-11-10.zip', displayPath: '~/Downloads/hollis-bakery-2026-11-10.zip' };
+  const FACTS = {
+    ...FILE,
+    name: 'Hollis Bakery',
+    appVersion: '0.3.56',
+    createdAt: 1_762_800_000_000,
+    people: 3,
+    pages: 4,
+    connections: 2,
+    files: 1,
+    owners: [
+      { id: 'usr_a', email: 'dana@hollisbakery.com', name: 'Dana Price' },
+      { id: 'usr_b', email: 'sam@hollisbakery.com', name: 'Sam Lee' },
+    ],
+    passwordMinLength: 10,
+  };
+
+  it('opens on the file picked from the menu: what it holds, a name and folder, who signs in first and their new password', async () => {
+    const user = userEvent.setup();
+    const openProject = vi.fn(() => Promise.resolve<DesktopOpenProjectResult>({ status: 'opened' }));
+    const importExport = vi.fn(() => Promise.resolve({ status: 'imported' as const, path: '/Users/sam/Adminium/hollis-bakery', owner: 'sam@hollisbakery.com', connections: 1 }));
+    show(fakeStart({ readExport: vi.fn(() => Promise.resolve({ status: 'ready' as const, facts: FACTS })), importExport, openProject }), { ...STATE, pendingExport: FILE });
+
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Open a project');
+    expect(await screen.findByText('An Export everything file with 3 people, 4 pages and 1 uploaded file. It becomes a new project on this computer.')).toBeTruthy();
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Hollis Bakery');
+    // Two Super Admins: the person picks one; the first made is picked to start with.
+    const sam = screen.getByRole('radio', { name: /sam@hollisbakery\.com/ });
+    expect((screen.getByRole('radio', { name: /dana@hollisbakery\.com/ }) as HTMLInputElement).checked).toBe(true);
+    await user.click(sam);
+
+    const open = screen.getByRole('button', { name: 'Open the project' }) as HTMLButtonElement;
+    await user.type(screen.getByLabelText('New password'), 'short');
+    expect(screen.getByText('At least 10 characters.').className).toContain('text-danger');
+    await user.clear(screen.getByLabelText('New password'));
+    await user.type(screen.getByLabelText('New password'), 'a-long-new-password');
+    await user.type(screen.getByLabelText('The same password again'), 'a-long-new-passwordX');
+    expect(screen.getByText('The two passwords are not the same.')).toBeTruthy();
+    expect(open.disabled).toBe(true);
+    await user.clear(screen.getByLabelText('The same password again'));
+    await user.type(screen.getByLabelText('The same password again'), 'a-long-new-password');
+    await waitFor(() => {
+      expect(open.disabled).toBe(false);
+    });
+    await user.click(open);
+
+    expect(importExport).toHaveBeenCalledWith({ path: FILE.path, parent: STATE.proposedParent, name: 'Hollis Bakery', owner: 'sam@hollisbakery.com', password: 'a-long-new-password' });
+    // Made: opened as any folder, which asks about its code and its packages from here.
+    await waitFor(() => {
+      expect(openProject).toHaveBeenCalledWith({ path: '/Users/sam/Adminium/hollis-bakery' });
+    });
+    expect(await screen.findByText('Hollis Bakery was made. sam@hollisbakery.com signs in with the new password. 1 connection needs its connection string again.')).toBeTruthy();
+  });
+
+  it('says a whole-server archive is restored on a server, and offers another file', async () => {
+    const user = userEvent.setup();
+    const chooseExport = vi.fn(() => Promise.resolve<{ path: string; displayPath: string } | null>(null));
+    show(
+      fakeStart({ readExport: vi.fn(() => Promise.resolve({ status: 'refused' as const, refused: 'full-archive' as const, detail: 'This file is a full archive, not an export.' })), chooseExport }),
+      { ...STATE, pendingExport: FILE },
+    );
+    expect(await screen.findByText('This is a whole-server archive, not an Export everything file. Restore it on a server with adminium archive restore.')).toBeTruthy();
+    expect(screen.queryByLabelText('New password')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Choose another file' }));
+    expect(chooseExport).toHaveBeenCalledWith({ title: 'Open a project' });
+  });
+
+  it('shows the engine’s reason when the file did not pass its checks, and goes back to Start', async () => {
+    const user = userEvent.setup();
+    show(
+      fakeStart({ readExport: vi.fn(() => Promise.resolve({ status: 'refused' as const, refused: 'refused' as const, detail: 'This archive was changed after it was made.' })) }),
+      { ...STATE, pendingExport: FILE },
+    );
+    expect(await screen.findByText('This file did not pass the checks, so nothing was made from it.')).toBeTruthy();
+    expect(screen.getByText('This archive was changed after it was made.')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('What would you like to do?');
   });
 });
 

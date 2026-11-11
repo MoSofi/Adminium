@@ -20,7 +20,7 @@ type T = (key: string, fallback: string, args?: Record<string, unknown>) => stri
 const MAKE_STEPS: readonly DesktopMakeStep[] = ['files', 'packages', 'database', 'opening'];
 
 /** How often main is asked where it is. */
-const PROGRESS_EVERY_MS = 400;
+export const PROGRESS_EVERY_MS = 400;
 
 function stepWords(t: T, step: DesktopMakeStep): string {
   switch (step) {
@@ -46,7 +46,7 @@ export function elapsedWords(ms: number): string {
  * and a clock on it. The packages are a download of minutes on a slow line, and
  * a button that only spins for that long reads as an app that has stopped.
  */
-function MakeSteps({ progress, now }: { progress: DesktopMakeProgress; now: number }): ReactNode {
+export function MakeSteps({ progress, now }: { progress: DesktopMakeProgress; now: number }): ReactNode {
   const t = useT();
   const current = progress.step === null ? 0 : MAKE_STEPS.indexOf(progress.step);
   return (

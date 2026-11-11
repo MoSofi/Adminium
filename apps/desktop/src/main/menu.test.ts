@@ -172,6 +172,7 @@ describe('the File menu', () => {
     for (const key of [
       'file.newDatabase',
       'file.openSqlite',
+      'file.openProject',
       'file.backupNow',
       'file.restore',
     ] as const) {
@@ -200,6 +201,17 @@ describe('the File menu', () => {
 
     const wired = menu(template({ handlers: { newDatabase: () => {} } }), EN_US_MENU_LABELS.file);
     expect(wired.find((i) => i.label === EN_US_MENU_LABELS['file.newDatabase'])?.enabled).toBe(true);
+  });
+
+  it('has "Open a project…", for an Export everything file, wired only when given a handler', () => {
+    const plain = menu(template({ handlers: {} }), EN_US_MENU_LABELS.file);
+    expect(plain.find((i) => i.label === 'Open a project…')?.enabled).toBe(false);
+    let picked = 0;
+    const wired = menu(template({ handlers: { openProject: () => (picked += 1) } }), EN_US_MENU_LABELS.file);
+    const item = wired.find((i) => i.label === 'Open a project…');
+    expect(item?.accelerator).toBe('CmdOrCtrl+Shift+O');
+    (item?.click as unknown as () => void)();
+    expect(picked).toBe(1);
   });
 
   it('routes a wired command to its handler', () => {

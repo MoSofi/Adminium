@@ -122,10 +122,10 @@ describe('the exposed surface', () => {
     expect(Object.keys(build()).sort()).toEqual(SECTION_4_KEYS);
   });
 
-  it('exposes the first screens as exactly their seventeen calls, each over its own channel', async () => {
+  it('exposes the first screens as exactly their twenty calls, each over its own channel', async () => {
     const ipc = new FakeIpc();
     const { start } = createDesktopApi({ ipc, bootstrap: BOOTSTRAP });
-    expect(Object.keys(start).sort()).toEqual(['chooseFolder', 'chooseParent', 'connect', 'createProject', 'forgetGuest', 'forgetProject', 'getPackages', 'guests', 'judgeNewFolder', 'locateProject', 'makeProgress', 'openProject', 'resolveKey', 'state', 'updateApp', 'updateProject', 'useClassic']);
+    expect(Object.keys(start).sort()).toEqual(['chooseExport', 'chooseFolder', 'chooseParent', 'connect', 'createProject', 'forgetGuest', 'forgetProject', 'getPackages', 'guests', 'importExport', 'judgeNewFolder', 'locateProject', 'makeProgress', 'openProject', 'readExport', 'resolveKey', 'state', 'updateApp', 'updateProject', 'useClassic']);
     await start.state();
     await start.judgeNewFolder({ parent: '/p', name: 'n' });
     await start.chooseParent({ from: '/p', title: 't' });
@@ -143,6 +143,9 @@ describe('the exposed surface', () => {
     await start.forgetProject('/p');
     await start.locateProject({ path: '/p', title: 't' });
     await start.useClassic();
+    await start.chooseExport({ title: 't' });
+    await start.readExport({ path: '/f.zip' });
+    await start.importExport({ path: '/f.zip', parent: '/p', name: 'n', owner: 'a@b.c', password: 'pw' });
     expect(ipc.calls.map((call) => call.channel)).toEqual([...START_CHANNELS]);
   });
 

@@ -5882,7 +5882,8 @@
       "title": "搬到另一台主機",
       "server": "在您自己的伺服器上",
       "desktop": "在桌面應用程式中",
-      "desktopLine": "桌面應用程式暫時無法開啟此檔案。請用上面的指令匯入，在伺服器或這台電腦上皆可。"
+      "desktopItem": "開啟專案",
+      "desktopLine": "選擇{item}，然後選擇該檔案。"
     },
     "putOnline": {
       "title": "將其上線",
