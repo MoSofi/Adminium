@@ -238,6 +238,12 @@ first if it has to, then checks the tables again:
 - **The same check, for what is new.** When the new version needs a table the installed one did
   not have, needs a change to an existing table, or finds a name taken, **Update** opens the table
   check before anything runs. A version that needs nothing new applies straight away.
+- **A newer add-on comes along when you say so.** When the new version needs a newer version of an
+  add-on it works with, the check lists it on the **Add-ons** card with **Update it too** ticked:
+  that copy of the add-on is updated with the app. Unticked, **Update** waits. Through the API,
+  send `"addOns": [{ "key": "…", "version": "…", "update": true }]`. When the add-on also runs on
+  another database (another app's copy, on an older version), the check says so instead: every
+  copy runs one version, so update every copy on the Add-ons page first, then the app.
 - **Unique rules as a fresh install has them.** A column the app keeps unique that the table lets
   repeat is given its rule by the update. If rows already repeat a value there, the check names
   the column and nothing runs until they differ.

@@ -17,7 +17,7 @@
 | `references/install/installing-an-app--an-install-that-stops-part-way.md` | Installing an app — An install that stops part way | 999 |
 | `references/install/installing-an-app--a-page-whose-address-is-taken.md` | Installing an app — A page whose address is taken | 612 |
 | `references/install/installing-an-app--the-same-app-on-another-database.md` | Installing an app — The same app on another database | 615 |
-| `references/install/updating.md` | Updating | 3566 |
+| `references/install/updating.md` | Updating | 4831 |
 | `references/install/tables-made-before-prefixes.md` | Tables made before prefixes | 764 |
 | `references/install/sideloading-air-gapped-installs.md` | Sideloading: air-gapped installs | 1256 |
 | `references/install/an-app-you-made-yourself.md` | An app you made yourself | 2638 |

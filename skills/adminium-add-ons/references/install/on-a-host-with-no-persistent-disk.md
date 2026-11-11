@@ -18,8 +18,8 @@ only what the image bundles, at the bundled version:
   catalog feed did not carry, which is every one you uploaded yourself, was left out of the browse
   list entirely. The log was the only place the loss was stated.
 - **A newer Adminium image can bundle a newer version.** Then the version you installed from the
-  old image is lost the same way. The Add-ons page offers **Upgrade** to the version the new image
-  carries, and upgrading brings the add-on back.
+  old image is lost the same way. The Add-ons page offers **Update** to the version the new image
+  carries, and updating brings the add-on back.
 - The cached online catalog is gone too, until **Check for newer** runs again.
 
 To bring a lost add-on back, upload the same package again through the sideload card, with its

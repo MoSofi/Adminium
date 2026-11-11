@@ -30,7 +30,7 @@
 | `references/guides/add-ons-with-tables--the-data-kit--files-in-its-own-columns.md` | The data kit — Files in its own columns | 1902 |
 | `references/guides/add-ons-with-tables--the-data-kit--reading-an-app-s-prices.md` | The data kit — Reading an app's prices | 1845 |
 | `references/guides/add-ons-with-tables--starting-rows.md` | Starting rows | 525 |
-| `references/guides/add-ons-with-tables--updating.md` | Updating | 507 |
+| `references/guides/add-ons-with-tables--updating.md` | Updating | 1145 |
 | `references/guides/add-ons-with-tables--removing.md` | Removing | 691 |
 | `references/guides/add-ons-with-tables--a-ledger-and-code-that-decides.md` | A ledger, and code that decides | 2282 |
 | `references/guides/add-ons-with-tables--checking-a-design.md` | Checking a design | 2313 |
