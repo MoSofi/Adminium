@@ -67,6 +67,7 @@ import {
   type MetaEngine,
   type MetaStoreHandle,
 } from '../../meta/store.js';
+import { guardTypedMetaDsn } from '../../meta/typed-dsn.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   metaPlacementReply,
@@ -176,6 +177,9 @@ export function metaRoutes(deps: MetaRoutesDeps): FastifyPluginAsyncZod {
 
         let result;
         try {
+          // After the audit row, so a refused string still leaves its trace;
+          // before the relocation, so it is never dialled. See meta/typed-dsn.ts.
+          await guardTypedMetaDsn(request.body.dsn, { dataDir: env.ADMINIUM_DATA_DIR });
           result = await relocateMetaStore({
             from: metaStore,
             toUrl: request.body.dsn,
