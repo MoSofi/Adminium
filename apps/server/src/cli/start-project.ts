@@ -110,6 +110,8 @@ export const HOST_DECIDED_ENV: readonly string[] = [
   'ADMINIUM_DESKTOP_PROJECT',
   'ADMINIUM_DESKTOP_PROGRAMS',
   'ADMINIUM_DESKTOP_SINGLE_USER',
+  // Who may create the first account is the host's to decide, never a folder's (`setup/token.ts`).
+  'ADMINIUM_SETUP_TOKEN',
   'NODE_OPTIONS',
   'PATH',
   'ELECTRON_RUN_AS_NODE',
