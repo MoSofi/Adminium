@@ -188,7 +188,9 @@
     },
     "forms": {
       "notVouched": "Balíček je uložen a lze ho nainstalovat, ale Adminium neví, kdo ho vytvořil: jeho formuláře se návštěvníkům neotevřou. Chcete-li je používat, nainstalujte ho z katalogu."
-    }
+    },
+    "copyFailed": "{database}, kopie {n} z {total}: {message}",
+    "copiesDone": "{count, plural, one {Kopie před ní je aktualizovaná.} few {# kopie před ní jsou aktualizované.} many {# kopie před ní je aktualizovaných.} other {# kopií před ní je aktualizovaných.}} Pokračujte kliknutím na Aktualizovat."
   },
   "capability": {
     "importNoLiveHealth": "Bez živého databázového připojení — kontroly stavu a detekce driftu schématu nejsou pro tento zdroj dostupné.",

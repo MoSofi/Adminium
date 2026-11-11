@@ -1088,6 +1088,42 @@ describe('AddOnsPage', () => {
       expect(updates(calls)[1]).toMatchObject({ install: 'ins_kiln', body: { planChecksum: 'sum-ins_kiln' } });
     });
 
+    it('a copy that failed is named, and Update carries on from it once the first copy moved', async () => {
+      const user = userEvent.setup();
+      // Copy 2's update fails: the error names its database, and says copy 1 is updated already.
+      const planner = plans(() => false);
+      const failing: NonNullable<StubOptions['respond']> = (method, url, body) => {
+        const planned = planner(method, url, body);
+        if (planned !== undefined) return planned;
+        if (method === 'POST' && url === '/api/v1/add-ons/stock-kit/update' && (body as { planChecksum?: string }).planChecksum === 'sum-ins_kiln') {
+          return { status: 409, body: { error: { code: 'ADD_ON_UPDATE_INCOMPLETE', message: 'It stopped at the tables stage.', requestId: 'r' } } };
+        }
+        return undefined;
+      };
+      const first = await renderPage({ installed: COPIES, entries: [NEWER], respond: failing });
+      await user.click(await screen.findByRole('button', { name: 'Update' }));
+      expect(await screen.findByText(/Kiln, copy 2 of 2: .*The copy before it is updated\. Press Update to carry on\./)).toBeTruthy();
+      expect(updates(first.calls).map((c) => c.install)).toEqual(['ins_studio', 'ins_kiln']);
+    });
+
+    it('after a half-way stop, Update checks and updates only the copy left behind, naming it', async () => {
+      const user = userEvent.setup();
+      // The first copy is on 1.0.1 already; the row still offers it for the copy behind.
+      const halfway = [{ ...COPIES[0]!, version: '1.0.1' }, COPIES[1]!];
+      let asked = 0;
+      const respond: NonNullable<StubOptions['respond']> = (method, url) => {
+        if (method !== 'POST' || !url.endsWith('/stock-kit/update/plan')) return undefined;
+        asked += 1;
+        return { status: 200, body: { plan: makePlan({ addOnKey: 'stock-kit', version: '1.0.1' }), from: '1.0.0', to: '1.0.1', connectionId: 'conn_kiln', checksum: 'sum-ins_kiln' } };
+      };
+      const { calls } = await renderPage({ installed: halfway, entries: [NEWER], respond });
+      await user.click(await screen.findByRole('button', { name: 'Update' }));
+      await waitFor(() => expect(updates(calls)).toHaveLength(1));
+      expect(asked).toBe(1);
+      expect(checks(calls).map((c) => c.install)).toEqual(['ins_kiln']);
+      expect(updates(calls)[0]).toMatchObject({ install: 'ins_kiln', body: { planChecksum: 'sum-ins_kiln' } });
+    });
+
     it('a version that shows visitors more waits for “Allow it”, and sends it', async () => {
       const user = userEvent.setup();
       const publicWider = [{ ref: 'stock_kit_items', owner: 'stock-kit', columns: ['app'], methods: [], rows: false, reasons: ['an app’s own key would see more of "stock_kit_items": app'] }];

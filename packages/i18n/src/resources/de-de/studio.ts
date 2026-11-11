@@ -198,7 +198,9 @@ export default {
     },
     "forms": {
       "notVouched": "Das Paket ist gespeichert und kann installiert werden, aber Adminium weiß nicht, wer es erstellt hat: Seine Formulare öffnen sich für Besucher nicht. Installieren Sie es aus dem Katalog, um sie zu nutzen."
-    }
+    },
+    "copyFailed": "{database}, Kopie {n} von {total}: {message}",
+    "copiesDone": "{count, plural, one {Die Kopie davor ist aktualisiert.} other {Die # Kopien davor sind aktualisiert.}} Klicken Sie auf „Aktualisieren“, um fortzufahren."
   },
   "capability": {
     "importNoLiveHealth": "Keine Live-Datenbankverbindung — Health-Checks und Schema-Drift-Erkennung sind für diese Quelle nicht verfügbar.",

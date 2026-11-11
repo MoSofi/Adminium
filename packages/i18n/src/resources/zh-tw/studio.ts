@@ -198,7 +198,9 @@ export default {
     },
     "forms": {
       "notVouched": "此套件已儲存，可以安裝，但 Adminium 不知道它的製作者：其表單不會向訪客開放。請從目錄安裝以使用這些表單。"
-    }
+    },
+    "copyFailed": "{database}，第 {n} 個副本（共 {total} 個）：{message}",
+    "copiesDone": "{count, plural, other {它之前的 # 個副本已更新。}}點擊「更新」繼續。"
   },
   "capability": {
     "importNoLiveHealth": "沒有即時資料庫連線——此來源無法進行健康檢查與綱要漂移偵測。",

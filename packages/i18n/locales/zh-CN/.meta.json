@@ -24123,6 +24123,14 @@
     "status": "src",
     "srcHash": "a23b2dcb0423"
   },
+  "studio.addOns.copiesDone": {
+    "status": "mt",
+    "srcHash": "6625e950a103"
+  },
+  "studio.addOns.copyFailed": {
+    "status": "mt",
+    "srcHash": "0cd9abfec9dd"
+  },
   "studio.addOns.error": {
     "status": "src",
     "srcHash": "8d886c0ba6f2"

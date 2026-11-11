@@ -120,6 +120,33 @@ interface UpdateCopy {
   connectionName: string | null;
   n: number;
   total: number;
+  /** The key has a copy on more than one database: every request names this one. */
+  several: boolean;
+}
+
+/**
+ * A request about one copy of several, its failure naming the copy: which
+ * database, which of how many, and that the copies before it are updated
+ * already, so Update carries on from it.
+ */
+async function onCopy<T>(copy: UpdateCopy | undefined, work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (caught) {
+    if (copy === undefined || !copy.several) throw caught;
+    const message = installStoppedWords(caught) ?? (caught instanceof Error ? caught.message : String(caught));
+    const where = t('studio:addOns.copyFailed', '{database}, copy {n} of {total}: {message}', {
+      database: copy.connectionName ?? copy.installId,
+      n: copy.n,
+      total: copy.total,
+      message,
+    });
+    throw new Error(
+      copy.n === 1
+        ? where
+        : `${where} ${t('studio:addOns.copiesDone', '{count, plural, one {The copy before it is updated.} other {The # copies before it are updated.}} Press Update to carry on.', { count: copy.n - 1 })}`,
+    );
+  }
 }
 
 /**
@@ -838,8 +865,9 @@ export function AddOnsPage() {
     }
     const { entry } = queued;
     // One copy: no header, as a server that predates copies expects.
-    const installId = copy.total > 1 ? copy.installId : undefined;
-    const plan = await run(() => fetchUpdatePlan(entry.key, installId));
+    const installId = copy.several && copy.installId !== '' ? copy.installId : undefined;
+    const named = copy.several ? copy : undefined;
+    const plan = await run(() => onCopy(named, () => fetchUpdatePlan(entry.key, installId)));
     if (plan === undefined) {
       updateQueue.current = null;
       return;
@@ -847,21 +875,24 @@ export function AddOnsPage() {
     // Shown first when it changes tables, would open something new to the public (allowed by a tick, never by the click),
     // widens what visitors already see (allowed by a tick), or gives apps' roles more of its tables (allowed by the Update button under the list).
     if (plan.plan.requiresSchemaChange || asksNewPublicAccess(plan.publicAccess) || (plan.roleTables ?? []).length > 0 || (plan.publicWider ?? []).length > 0) {
-      setPending({ kind: 'update', entry, plan, publicAccess: false, publicWider: false, ...(copy.total > 1 ? { copy } : {}) });
+      setPending({ kind: 'update', entry, plan, publicAccess: false, publicWider: false, ...(copy.several ? { copy } : {}) });
       return;
     }
-    const done = await run(() => updateAddOn(entry.key, plan.checksum, undefined, undefined, installId === undefined ? {} : { installId }));
+    const done = await run(() => onCopy(named, () => updateAddOn(entry.key, plan.checksum, undefined, undefined, installId === undefined ? {} : { installId })));
     if (done === undefined) updateQueue.current = null;
     else await updateNext();
   };
   const askUpdate = (entry: CatalogEntry): void => {
-    const copies = installed.filter((addOn) => addOn.key === entry.key);
+    // Only the copies not on the new version yet: an update that stopped half way carries on from the copy left behind.
+    const every = installed.filter((addOn) => addOn.key === entry.key);
+    const behind = every.filter((addOn) => addOn.version !== entry.upgradeTo);
+    const copies = behind.length === 0 ? every : behind;
     updateQueue.current = {
       entry,
       copies:
         copies.length === 0
-          ? [{ installId: '', connectionName: null, n: 1, total: 1 }]
-          : copies.map((addOn, index) => ({ installId: addOn.installId ?? '', connectionName: addOn.connectionName ?? null, n: index + 1, total: copies.length })),
+          ? [{ installId: '', connectionName: null, n: 1, total: 1, several: false }]
+          : copies.map((addOn, index) => ({ installId: addOn.installId ?? '', connectionName: addOn.connectionName ?? null, n: index + 1, total: copies.length, several: every.length > 1 })),
     };
     void updateNext();
   };
@@ -1357,7 +1388,7 @@ export function AddOnsPage() {
                 : pending.kind === 'update'
                   ? (
                       <div className="flex flex-col gap-3">
-                        {pending.copy === undefined ? null : (
+                        {pending.copy === undefined || pending.copy.total < 2 ? null : (
                           <p className="text-[12.5px] text-fg-muted" data-part="update-copy">
                             {t('studio:addOns.confirm.updateCopyOf', 'Copy {n} of {total}. Every copy runs one version, so each is updated in turn.', {
                               n: pending.copy.n,
@@ -1433,10 +1464,12 @@ export function AddOnsPage() {
                       if (current.kind === 'uninstall') return uninstallAddOn(current.addOn.key, drop);
                       // The widened grants were listed above the button: the click is the say.
                       if (current.kind === 'update') {
-                        return updateAddOn(current.entry.key, current.plan.checksum, current.publicAccess, (current.plan.roleTables ?? []).length > 0, {
-                          publicWider: current.publicWider,
-                          ...(current.copy === undefined ? {} : { installId: current.copy.installId }),
-                        });
+                        return onCopy(current.copy, () =>
+                          updateAddOn(current.entry.key, current.plan.checksum, current.publicAccess, (current.plan.roleTables ?? []).length > 0, {
+                            publicWider: current.publicWider,
+                            ...(current.copy === undefined ? {} : { installId: current.copy.installId }),
+                          }),
+                        );
                       }
                       return discardStaged(current.entry.key, current.entry.version);
                     },

@@ -198,7 +198,9 @@ export default {
     },
     "forms": {
       "notVouched": "Pakken er gemt og kan installeres, men Adminium ved ikke, hvem der har lavet den: Dens formularer åbner ikke for besøgende. Installer den fra kataloget for at bruge dem."
-    }
+    },
+    "copyFailed": "{database}, kopi {n} af {total}: {message}",
+    "copiesDone": "{count, plural, one {Kopien før den er opdateret.} other {De # kopier før den er opdateret.}} Klik på Opdater for at fortsætte."
   },
   "capability": {
     "importNoLiveHealth": "Ingen live databaseforbindelse — sundhedstjek og registrering af skemadrift er ikke tilgængelige for denne kilde.",

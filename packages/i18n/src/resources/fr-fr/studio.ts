@@ -198,7 +198,9 @@ export default {
     },
     "forms": {
       "notVouched": "Le paquet est enregistré et peut être installé, mais Adminium ne sait pas qui l’a créé : ses formulaires ne s’ouvriront pas pour les visiteurs. Installez-le depuis le catalogue pour les utiliser."
-    }
+    },
+    "copyFailed": "{database}, copie {n} sur {total} : {message}",
+    "copiesDone": "{count, plural, one {La copie précédente est à jour.} other {Les # copies précédentes sont à jour.}} Cliquez sur Mettre à jour pour continuer."
   },
   "capability": {
     "importNoLiveHealth": "Pas de connexion à une base de données réelle — les contrôles de santé et la détection de dérive du schéma sont indisponibles pour cette source.",

@@ -188,7 +188,9 @@
     },
     "forms": {
       "notVouched": "该软件包已保存，可以安装，但 Adminium 不知道它的制作者：其表单不会向访客开放。请从目录安装以使用这些表单。"
-    }
+    },
+    "copyFailed": "{database}，第 {n} 个副本（共 {total} 个）：{message}",
+    "copiesDone": "{count, plural, other {它之前的 # 个副本已更新。}}点击“更新”继续。"
   },
   "capability": {
     "importNoLiveHealth": "没有实时数据库连接——此来源无法进行健康检查和架构漂移检测。",

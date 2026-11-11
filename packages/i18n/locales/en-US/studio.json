@@ -188,7 +188,9 @@
     },
     "forms": {
       "notVouched": "The package is stored and can be installed, but Adminium does not know who made it: its forms will not open for visitors. Install it from the catalogue to use them."
-    }
+    },
+    "copyFailed": "{database}, copy {n} of {total}: {message}",
+    "copiesDone": "{count, plural, one {The copy before it is updated.} other {The # copies before it are updated.}} Press Update to carry on."
   },
   "capability": {
     "importNoLiveHealth": "No live database connection — health checks and schema-drift detection are unavailable for this source.",
