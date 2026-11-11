@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 import { DESIGNER_DIR, type DesignerSession } from './session-store.js';
-import { scrubbedEnvironment } from './child.js';
+import { childEnvironment } from '../config/child-env.js';
 
 export interface Version {
   n: number;
@@ -98,8 +98,7 @@ export function createVersions(root: string, opts: { git?: string | null | (() =
           cwd: root,
           timeout: GIT_TIMEOUT_MS,
           maxBuffer: 16 * 1024 * 1024,
-          env: {
-            ...scrubbedEnvironment(),
+          env: childEnvironment('program', {
             GIT_DIR: gitDir,
             GIT_WORK_TREE: root,
             GIT_CONFIG_GLOBAL: '/dev/null',
@@ -110,7 +109,7 @@ export function createVersions(root: string, opts: { git?: string | null | (() =
             GIT_COMMITTER_EMAIL: 'designer@adminium.invalid',
             GIT_TERMINAL_PROMPT: '0',
             ...env,
-          },
+          }),
         },
         (error, stdout, stderr) => {
           if (error !== null) reject(new VersionsError(`git ${args[0] ?? ''} failed: ${(stderr || error.message).trim()}`));
@@ -130,7 +129,7 @@ export function createVersions(root: string, opts: { git?: string | null | (() =
     if (existsSync(join(gitDir, 'HEAD'))) return;
     mkdirSync(join(root, DESIGNER_DIR), { recursive: true });
     await new Promise<void>((resolve, reject) => {
-      execFile(gitPath() ?? 'git', ['init', '--bare', '--quiet', gitDir], { timeout: GIT_TIMEOUT_MS, env: { ...scrubbedEnvironment(), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } }, (error) => {
+      execFile(gitPath() ?? 'git', ['init', '--bare', '--quiet', gitDir], { timeout: GIT_TIMEOUT_MS, env: childEnvironment('program', { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' }) }, (error) => {
         if (error !== null) reject(new VersionsError(`git init failed: ${error.message}`));
         else resolve();
       });
@@ -190,7 +189,7 @@ export function createVersions(root: string, opts: { git?: string | null | (() =
         return false;
       }
       const works = await new Promise<boolean>((resolve) => {
-        execFile(path, ['--version'], { timeout: 5000 }, (error) => resolve(error === null));
+        execFile(path, ['--version'], { timeout: 5000, env: childEnvironment('program') }, (error) => resolve(error === null));
       });
       known = { path, works };
       return works;

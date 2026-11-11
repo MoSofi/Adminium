@@ -34,6 +34,7 @@ import type { HostedSurface } from './cli/surfaces-root.js';
 import { hashPassword } from './auth/passwords.js';
 import { SESSION_COOKIE } from './auth/sessions.js';
 import { loadEnv, type Env } from './config/env.js';
+import { holdOperatorSecrets } from './config/operator-secrets.js';
 import { AppError, errorEnvelope } from './errors.js';
 import { hideLedgerFigures } from './ledgers/tell.js';
 import { isWriteConflict, writeConflict } from './crud/db-errors.js';
@@ -334,6 +335,9 @@ export const OPENAPI_SECURITY_SCHEMES = {
  */
 export async function buildServer(opts: BuildServerOptions = {}) {
   const env = opts.env ?? loadEnv();
+  // The secrets are in `env` now, and in the modules it is handed to: out of `process.env` before any project code
+  // loads in this process or any program is started (`config/operator-secrets.ts`).
+  holdOperatorSecrets();
   const exposeInternalErrors = opts.exposeInternalErrors ?? process.env.NODE_ENV !== 'production';
   const loggerInstance: FastifyBaseLogger =
     opts.logger === false

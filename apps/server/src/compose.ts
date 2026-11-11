@@ -72,6 +72,7 @@ import {
 import { buildServer, type AdminiumServer, type BuildServerOptions } from './app.js';
 import type { HostedSurface } from './cli/surfaces-root.js';
 import type { Env } from './config/env.js';
+import { holdOperatorSecrets } from './config/operator-secrets.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
 import { seedStorageDestination } from './config/storage-seed.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
@@ -703,6 +704,8 @@ async function mirrorDesktopSingleUser(meta: MetaStoreHandle['meta'], value: boo
 export async function composeServer(opts: ComposeServerOptions): Promise<ComposedServer> {
   const { env, manager, runService, applyService, allowed } = opts;
   const meta = opts.metaStore.meta;
+  // Read into `env` by whoever booted this; gone from `process.env` before a hook is imported or a child started.
+  holdOperatorSecrets();
 
   /*
    * Installed apps, created BEFORE the server so the surfaces plugin can hold

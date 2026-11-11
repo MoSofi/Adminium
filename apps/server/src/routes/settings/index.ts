@@ -19,6 +19,7 @@ import { settingsRepo, type MetaDb, type SettingValue } from '@adminium/meta';
 
 import { audited } from '../../audit/coverage.js';
 import { BRANDING_UPDATED, readBranding } from '../../branding/service.js';
+import { operatorSecret } from '../../config/operator-secrets.js';
 import { encryptSecret } from '../../config/secrets.js';
 import { assertSmtpHostAllowed, emailSecretKey } from '../../email/config.js';
 import { ValidationFailedError } from '../../errors.js';
@@ -128,10 +129,11 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
   let cachedEmailKey: Uint8Array | null = deps.emailKey ?? null;
   function emailKey(): Uint8Array {
     if (cachedEmailKey === null) {
-      // Same source `loadEnv()` reads, and validated there at boot to be at
+      // Same value `loadEnv()` read, and validated there at boot to be at
       // least 16 characters — this is a fallback for a caller that did not
-      // pass one, not a second configuration channel.
-      const secret = process.env.ADMINIUM_SECRET ?? '';
+      // pass one, not a second configuration channel. Held since the boot
+      // took it out of `process.env` (`config/operator-secrets.ts`).
+      const secret = operatorSecret('ADMINIUM_SECRET') ?? '';
       if (secret.length === 0) {
         throw new Error('ADMINIUM_SECRET is not set — the SMTP password cannot be encrypted.');
       }

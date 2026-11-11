@@ -53,6 +53,7 @@ import { outsidePictureLines, outsidePictures } from '../project/apps/side-pictu
 import { rebuildApps } from '../project/build.js';
 import { findProject } from '../project/locate.js';
 import { runChild } from './child.js';
+import { childEnvironment } from '../config/child-env.js';
 import { csvLines, csvOf, DESIGN_DOC_RULE, DOC_READ_LINES, docLines, docOf, fenceFor, imageTypeOf, isWoff2, KIND_WORDS, missingFiles, textOf, type Attachment, type Attachments } from './attachments.js';
 import { isMinified, minifiedSummary, missingInSite, SITE_WINDOW_CHARS, textWindow } from './site-text.js';
 
@@ -1124,7 +1125,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
           timeoutMs: TESTS_TIMEOUT_MS,
           signal: ctx.signal,
           // The starter's own test calls `adminium app check` through the CLI; check_app is that check, run here.
-          env: { ...process.env, ...node.env, ADMINIUM_SKIP_CLI: '1' },
+          // Named: code the model wrote gets where programs are and nothing of this server's (`config/child-env.ts`).
+          env: childEnvironment('program', { ...node.env, ADMINIUM_SKIP_CLI: '1' }),
         });
         const tail = result.output.split('\n').slice(-200).join('\n');
         if (result.timedOut) return refused(`The tests ran longer than ${String(TESTS_TIMEOUT_MS / 1000)} s and were stopped.\n${tail}`, 'Tests took too long');
