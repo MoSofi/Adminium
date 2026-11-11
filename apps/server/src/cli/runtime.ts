@@ -205,6 +205,7 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     metaDsn: metaStore.source === 'embedded' ? null : metaStore.url,
     ...(opts.blockLoopback === undefined ? {} : { blockLoopback: opts.blockLoopback }),
     databaseHosts: env.ADMINIUM_DATABASE_HOSTS,
+    networkPolicy: env.ADMINIUM_NETWORK_POLICY,
     sqliteSources: sqliteSourcePolicyFor(env, metaStore),
     sourcePoolMax: env.ADMINIUM_SOURCE_POOL_MAX,
   });

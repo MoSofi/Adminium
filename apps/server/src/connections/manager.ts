@@ -35,6 +35,7 @@ import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@
 
 import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { HostLookup } from '../net/address-guard.js';
+import type { NetworkPolicy, OutboundPolicy } from '../net/outbound-check.js';
 import { checkDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase, type DatabaseHost } from './dsn.js';
 import { PRIVILEGES_PROBE_TIMEOUT_MS, PRIVILEGES_TTL_MS } from './privileges.js';
 import { assertSqliteSourceAllowed, type SqliteSourcePolicy } from './sqlite-guard.js';
@@ -117,6 +118,13 @@ export interface ConnectionManagerOptions {
    */
   databaseHosts?: readonly DatabaseHost[] | undefined;
   /**
+   * `ADMINIUM_NETWORK_POLICY`: `strict` also refuses the server's own network
+   * (private ranges) for source hosts not on {@link databaseHosts}. Webhooks
+   * and storage endpoints read {@link ConnectionManager.networkPolicy} and
+   * apply it without the list. Default `open`.
+   */
+  networkPolicy?: NetworkPolicy | undefined;
+  /**
    * Where Adminium's own files are, and `ADMINIUM_SQLITE_DIRS`: a SQLite
    * source is refused on Adminium's own files, and outside those folders when
    * they are set (`sqlite-guard.ts`). Unset: no file is refused.
@@ -146,6 +154,7 @@ export class ConnectionManager {
   readonly #metaDsn: string | null;
   readonly #blockLoopback: boolean;
   readonly #databaseHosts: readonly DatabaseHost[];
+  readonly #networkPolicy: NetworkPolicy;
   readonly #sqliteSources: SqliteSourcePolicy | undefined;
   readonly #pool: { poolMax?: number };
   readonly #lookup: HostLookup | undefined;
@@ -159,6 +168,7 @@ export class ConnectionManager {
     this.#metaDsn = opts.metaDsn ?? null;
     this.#blockLoopback = opts.blockLoopback ?? process.env.NODE_ENV === 'production';
     this.#databaseHosts = opts.databaseHosts ?? [];
+    this.#networkPolicy = opts.networkPolicy ?? 'open';
     this.#sqliteSources = opts.sqliteSources;
     this.#pool = opts.sourcePoolMax === undefined ? {} : { poolMax: opts.sourcePoolMax };
     this.#lookup = opts.lookup;
@@ -171,6 +181,21 @@ export class ConnectionManager {
    */
   get blockLoopback(): boolean {
     return this.#blockLoopback;
+  }
+
+  /** `ADMINIUM_NETWORK_POLICY`: `strict` refuses the server's own network for sources, webhooks and storage. */
+  get networkPolicy(): NetworkPolicy {
+    return this.#networkPolicy;
+  }
+
+  /**
+   * The rule every address this server calls on somebody's word is checked
+   * against: a webhook, a storage endpoint. Loopback as {@link blockLoopback};
+   * private ranges under `strict`. `ADMINIUM_DATABASE_HOSTS` is not part of
+   * it: that list names databases, nothing else.
+   */
+  get outboundPolicy(): OutboundPolicy {
+    return { blockLoopback: this.#blockLoopback, blockPrivate: this.#networkPolicy === 'strict', lookup: this.#lookup };
   }
 
   /** The operator's `ADMINIUM_DATABASE_HOSTS`, as parsed. */
@@ -206,6 +231,7 @@ export class ConnectionManager {
       blockLoopback: this.#blockLoopback,
       engine,
       databaseHosts: this.#databaseHosts,
+      blockPrivate: this.#networkPolicy === 'strict',
       lookup: this.#lookup,
     });
     if (checked.parsed.scheme === 'sqlite' && this.#sqliteSources !== undefined) assertSqliteSourceAllowed(dsn, this.#sqliteSources);

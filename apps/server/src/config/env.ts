@@ -4,6 +4,7 @@ import { isAbsolute, resolve } from 'node:path';
 import { z } from 'zod';
 
 import { parseDatabaseHost, type DatabaseHost } from '../connections/dsn.js';
+import { NETWORK_POLICIES } from '../net/outbound-check.js';
 import { invalidTrustedProxies } from '../security/trust-proxy.js';
 
 /**
@@ -143,6 +144,37 @@ function serverOriginVar(fallback: string, opts: { plainHttp?: boolean }, proble
           return z.NEVER;
         }
         return origin;
+      }),
+  );
+}
+
+/**
+ * A comma-separated list of absolute folders (`ADMINIUM_SQLITE_DIRS`,
+ * `ADMINIUM_STORAGE_DIRS`), resolved; unset or empty is undefined. A relative
+ * one would depend on the folder the server was started from, so it fails.
+ */
+function folderListVar(example: string) {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const dirs = value
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0);
+        if (dirs.length === 0) return undefined;
+        const relative = dirs.filter((dir) => !isAbsolute(dir));
+        if (relative.length > 0) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `${relative.map((dir) => `"${dir}"`).join(', ')} ${relative.length === 1 ? 'is' : 'are'} not an absolute folder path, e.g. ${example}`,
+          });
+          return z.NEVER;
+        }
+        return dirs.map((dir) => resolve(dir));
       }),
   );
 }
@@ -724,28 +756,17 @@ export const envSchema = z.object({
    * paths only: a relative one would depend on the folder the server was
    * started from.
    */
-  ADMINIUM_SQLITE_DIRS: z.preprocess(
-    emptyToUndefined,
-    z
-      .string()
-      .optional()
-      .transform((value, ctx) => {
-        if (value === undefined) return undefined;
-        const dirs = value
-          .split(',')
-          .map((entry) => entry.trim())
-          .filter((entry) => entry.length > 0);
-        if (dirs.length === 0) return undefined;
-        const relative = dirs.filter((dir) => !isAbsolute(dir));
-        if (relative.length > 0) {
-          ctx.addIssue({
-            code: 'custom',
-            message: `${relative.map((dir) => `"${dir}"`).join(', ')} ${relative.length === 1 ? 'is' : 'are'} not an absolute folder path, e.g. /srv/databases`,
-          });
-          return z.NEVER;
-        }
-        return dirs.map((dir) => resolve(dir));
-      }),
+  ADMINIUM_SQLITE_DIRS: folderListVar('/srv/databases'),
+  /**
+   * `open` (default) or `strict`. `strict` also refuses the server's own
+   * network (private ranges: 10/8, 172.16/12, 192.168/16, 100.64/10, IPv6
+   * ULA) for source databases, webhooks and storage endpoints; a source host
+   * in `ADMINIUM_DATABASE_HOSTS` still passes. Cloud metadata is refused
+   * under both, and loopback follows its own rule (refused in production).
+   */
+  ADMINIUM_NETWORK_POLICY: z.preprocess(
+    (value) => (typeof value === 'string' ? emptyToUndefined(value.trim().toLowerCase()) : value),
+    z.enum(NETWORK_POLICIES).optional().transform((value) => value ?? 'open'),
   ),
   /*
    * Where maps come from. A map on a page makes each staff BROWSER fetch map
@@ -856,6 +877,7 @@ const ENV_HINTS: Record<string, string> = {
     'CSV of host[:port] a production server may reach on its own loopback, e.g. localhost:5432 (port defaults to 5432 / 3306; *.suffix for a provider\'s names; never a cloud metadata address)',
   ADMINIUM_SQLITE_DIRS:
     'CSV of absolute folders a SQLite source database must lie in, e.g. /srv/databases (unset: any file except Adminium\'s own)',
+  ADMINIUM_NETWORK_POLICY: `one of ${NETWORK_POLICIES.join(', ')} (default open; strict also refuses private ranges for source databases, webhooks and storage endpoints)`,
   ADMINIUM_MAP_SERVER: `off, or the one origin map pictures come from (default ${DEFAULT_MAP_SERVER})`,
   ADMINIUM_ROUTING_SERVER: `off, or the origin of an OSRM routing server (default ${DEFAULT_ROUTING_SERVER}; asked only when routing is switched on)`,
 };

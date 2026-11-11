@@ -4,9 +4,10 @@
  * allowlist `postgres|mysql|sqlite`, and a query-parameter allowlist per
  * engine so the string names one host only; cloud-metadata addresses are always
  * refused. Loopback blocking is production-only by default — a DB on the
- * same box is the normal self-host case (`ADMINIUM_NETWORK_POLICY=strict`
- * tightens it further at M15). A production server reaches a source on its own
- * loopback only when the operator names that host and port in
+ * same box is the normal self-host case. `ADMINIUM_NETWORK_POLICY=strict`
+ * also refuses the server's own network (private ranges). A production server
+ * reaches a source on its own loopback, and a strict one a source on its own
+ * network, only when the operator names that host and port in
  * `ADMINIUM_DATABASE_HOSTS` ({@link DatabaseHost}).
  */
 
@@ -14,8 +15,8 @@ import { isIP } from 'node:net';
 
 import { databaseEndpointFromDsn, type DatabaseEndpoint } from '@adminium/engine/adapter';
 
-import { AppError, ValidationFailedError } from '../errors.js';
-import { canonicalHost, checkHost, hostSpelling, METADATA_NAME, type HostLookup } from '../net/address-guard.js';
+import { AppError, HostLookupFailedError, ValidationFailedError } from '../errors.js';
+import { addressKind, canonicalHost, checkHost, hostSpelling, METADATA_NAME, type HostLookup } from '../net/address-guard.js';
 
 export { canonicalHost } from '../net/address-guard.js';
 
@@ -171,6 +172,12 @@ export function parseDsn(dsn: string): ParsedDsn {
 export interface DsnGuardOptions {
   /** Default: `NODE_ENV === 'production'` at the call site. */
   blockLoopback?: boolean | undefined;
+  /**
+   * Refuse the server's own network (private ranges) too: what
+   * `ADMINIUM_NETWORK_POLICY=strict` asks. A string can only be judged by an
+   * address written as numbers; a name is judged where it is looked up.
+   */
+  blockPrivate?: boolean | undefined;
 }
 
 /** What the guard knows about a host from how it is written: no lookup. */
@@ -191,6 +198,12 @@ export function assertOutboundHostAllowed(host: string, opts: DsnGuardOptions = 
   }
   if (h.loopback && opts.blockLoopback === true) {
     throw new ValidationFailedError('Loopback hosts are not allowed in production.', { host: h.host });
+  }
+  if (opts.blockPrivate === true && isIP(h.host) !== 0 && addressKind(h.host) === 'private') {
+    throw new ValidationFailedError(`The host ${h.host} is on this server's own network, which ADMINIUM_NETWORK_POLICY=strict does not call.`, {
+      host: h.host,
+      variable: 'ADMINIUM_NETWORK_POLICY',
+    });
   }
 }
 
@@ -376,11 +389,6 @@ export function guardDsn(dsn: string, opts: DsnCheckOptions = {}): ParsedDsn {
 }
 
 export interface DsnResolveOptions extends DsnCheckOptions {
-  /**
-   * Refuse private ranges (the server's own network) too, unless the host is
-   * on `databaseHosts`. Off: nothing sets it yet.
-   */
-  blockPrivate?: boolean | undefined;
   /** Test seam: the lookup ({@link HostLookup}). */
   lookup?: HostLookup | undefined;
 }
@@ -408,20 +416,26 @@ export interface CheckedDsn {
  * into the endpoint, and the driver connects to them and nothing else, so a
  * second lookup cannot swap them (DNS rebinding).
  *
- * Where loopback is allowed (the desktop app, `dev`), nothing is looked up:
+ * Under `ADMINIUM_NETWORK_POLICY=strict` ({@link DsnGuardOptions.blockPrivate})
+ * the same lookup also refuses the server's own network, unless the host and
+ * port are on `databaseHosts`; it runs wherever strict is set, production or
+ * not.
+ *
+ * Where neither is refused (the desktop app, `dev`), nothing is looked up:
  * the checks on the string apply as before, and the driver resolves the name.
- * Throws 422.
+ * Throws 422 for a refusal, 502 `HOST_LOOKUP_FAILED` for a name that could not
+ * be looked up.
  */
 export async function checkDsn(dsn: string, opts: DsnResolveOptions = {}): Promise<CheckedDsn> {
   const parsed = guardDsn(dsn, opts);
   if (parsed.scheme === 'sqlite') return { parsed, endpoint: null };
   const endpoint = databaseEndpointFromDsn(dsn, parsed.scheme === 'postgres' ? 'uri' : 'component');
   if (endpoint === null) throw new ValidationFailedError('Malformed DSN.', {});
-  if (opts.blockLoopback !== true || parsed.host === null) return { parsed, endpoint };
+  if ((opts.blockLoopback !== true && opts.blockPrivate !== true) || parsed.host === null) return { parsed, endpoint };
   const listed = databaseHostListed(opts.databaseHosts, parsed);
   const check = await checkHost(parsed.host, {
-    blockLoopback: true,
-    blockPrivate: opts.blockPrivate,
+    blockLoopback: opts.blockLoopback === true,
+    blockPrivate: opts.blockPrivate === true,
     listed,
     failClosed: true,
     lookup: opts.lookup,
@@ -438,18 +452,15 @@ export async function checkDsn(dsn: string, opts: DsnResolveOptions = {}): Promi
         { host: check.host, address: check.address, port: parsed.port, variable: 'ADMINIUM_DATABASE_HOSTS', entry },
       );
     }
-    case 'private':
-      throw new ValidationFailedError(`The host ${check.host} is on this server's own network${at}, which this server does not connect to.`, {
-        host: check.host,
-        address: check.address,
-        variable: 'ADMINIUM_DATABASE_HOSTS',
-        entry: databaseHostEntry(parsed),
-      });
-    case 'unresolved':
+    case 'private': {
+      const entry = databaseHostEntry(parsed);
       throw new ValidationFailedError(
-        `The host ${check.host} does not resolve, so it cannot be checked. Check the host name, or try again if the name was just created.`,
-        { host: check.host },
+        `The host ${check.host} is on this server's own network${at}, which ADMINIUM_NETWORK_POLICY=strict does not connect to. If this database is meant to be reached, add ${entry} to ADMINIUM_DATABASE_HOSTS.`,
+        { host: check.host, address: check.address, port: parsed.port, variable: 'ADMINIUM_DATABASE_HOSTS', entry, policy: 'strict' },
       );
+    }
+    case 'unresolved':
+      throw new HostLookupFailedError(check.host);
   }
 }
 

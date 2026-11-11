@@ -68,6 +68,8 @@ describe('loadEnv — valid input', () => {
       // Where maps and routes come from. Named, so a map works with no key; `off` is the operator's no.
       ADMINIUM_MAP_SERVER: 'https://tiles.openfreemap.org',
       ADMINIUM_ROUTING_SERVER: 'https://router.project-osrm.org',
+      // The server's own network is called like any other address unless the operator says strict.
+      ADMINIUM_NETWORK_POLICY: 'open',
     });
   });
 

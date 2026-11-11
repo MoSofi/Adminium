@@ -106,12 +106,17 @@ describe('every spelling of this machine is refused in production', () => {
     await expect(production(table({ 'a.example.com': ['::'] })).testDsn('mysql', 'mysql://u@a.example.com/app')).rejects.toThrow('Loopback');
   });
 
-  it('a name that does not resolve, or resolves to nothing', async () => {
+  it('a name that does not resolve, or resolves to nothing: a lookup failure of its own, not a policy refusal', async () => {
     const dialled: Dialled[] = [];
-    await expect(production(table({}), dialled).testDsn('postgres', 'postgres://u@nowhere.example.com/app')).rejects.toThrow(
-      'The host nowhere.example.com does not resolve, so it cannot be checked.',
-    );
-    await expect(production(table({ 'empty.example.com': [] }), dialled).testDsn('postgres', 'postgres://u@empty.example.com/app')).rejects.toThrow('does not resolve');
+    await expect(production(table({}), dialled).testDsn('postgres', 'postgres://u@nowhere.example.com/app')).rejects.toMatchObject({
+      statusCode: 502,
+      code: 'HOST_LOOKUP_FAILED',
+      message: 'Could not look up nowhere.example.com. Check the name, or try again if it was just created.',
+    });
+    await expect(production(table({ 'empty.example.com': [] }), dialled).testDsn('postgres', 'postgres://u@empty.example.com/app')).rejects.toMatchObject({
+      statusCode: 502,
+      code: 'HOST_LOOKUP_FAILED',
+    });
     expect(dialled).toEqual([]);
   });
 });

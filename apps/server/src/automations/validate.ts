@@ -146,6 +146,8 @@ export interface ResolveContext {
   /** Live template keys — an archived one is not offerable. */
   templateKeys: ReadonlySet<string>;
   blockLoopback: boolean;
+  /** `ADMINIUM_NETWORK_POLICY=strict`: a webhook written to an address on the server's own network is refused at the save too. */
+  blockPrivate?: boolean | undefined;
   /** The steps installed add-ons give on the rule's database. Absent: a step of an add-on is judged by its keys alone. */
   steps?: RuleSteps | undefined;
   /** The tables of the rule's database an app declares as people (ids). Absent: a step's person is judged by its spelling alone. */
@@ -467,7 +469,7 @@ function checkAction(
       // A URL carrying a token cannot be resolved until the run; the send-time
       // guard is the one that matters for those.
       if (!url.includes('{{')) {
-        guardOutboundUrl(url, { blockLoopback: ctx.blockLoopback });
+        guardOutboundUrl(url, { blockLoopback: ctx.blockLoopback, blockPrivate: ctx.blockPrivate });
         if (action.bodyKind === 'slack' && !isSlackWebhookUrl(url)) {
           throw new ValidationFailedError(
             `${where}: a Slack message needs a hooks.slack.com webhook URL.`,

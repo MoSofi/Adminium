@@ -36,6 +36,7 @@ half-configured and fail later.
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
 | `ADMINIUM_DATABASE_HOSTS` | No | *(unset)* | CSV of `host[:port]` database hosts a production server may reach on its own loopback, such as `localhost:5432` for a Postgres on the same server. Source databases only. See below. |
 | `ADMINIUM_SQLITE_DIRS` | No | *(unset)* | CSV of absolute folders a SQLite source database must lie in, such as `/srv/databases`. Unset means any file the server can open, except Adminium's own. See below. |
+| `ADMINIUM_NETWORK_POLICY` | No | `open` | `strict` also refuses the server's own network (private ranges) for source databases, webhooks and storage endpoints. A source host in `ADMINIUM_DATABASE_HOSTS` still passes. See below. |
 | `ADMINIUM_MAP_SERVER` | No | `https://tiles.openfreemap.org` | Where maps' pictures come from: one `https://` origin, or `off` for no maps on this install. See below. |
 | `ADMINIUM_ROUTING_SERVER` | No | `https://router.project-osrm.org` | The OSRM server asked for routes along roads, once that is switched on in Settings → Maps; or `off`. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
@@ -329,6 +330,43 @@ The refusal names the folders and what to do:
 ```
 This SQLite file is outside the folders this server allows (ADMINIUM_SQLITE_DIRS: /srv/databases). Move the file into one of them, or ask whoever runs this server to add its folder to ADMINIUM_SQLITE_DIRS.
 ```
+
+## `ADMINIUM_NETWORK_POLICY`
+
+Adminium calls three kinds of address that somebody signed in can type: a
+source database's host, an automation's webhook URL, and an S3 or WebDAV
+storage endpoint. Before each call it looks the name up and checks every
+address the name gives:
+
+| | `open` (default) | `strict` |
+|---|---|---|
+| Cloud metadata (`169.254.169.254`, `metadata.google.internal`, `fd00:ec2::254`, Alibaba's `100.100.100.200`, Oracle's `192.0.0.192`) | Refused | Refused |
+| This machine (`localhost`, `127.0.0.0/8`, `::1`) | Refused in production | Refused in production |
+| The server's own network: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10`, IPv6 `fc00::/7` | Allowed | **Refused** |
+| A source database host in `ADMINIUM_DATABASE_HOSTS` | Allowed | Allowed |
+
+```bash
+ADMINIUM_NETWORK_POLICY=strict
+```
+
+Use `strict` when the people who sign in are not the people who run the
+server, and the server sits on a network with other machines on it: then
+nobody can make Adminium call those machines for them. Keep `open` (or leave
+it unset) when a database or a MinIO bucket on your own network is the point,
+such as a Docker Compose install whose database is the `postgres` service.
+
+- **A database on your own network under `strict`**: name it in
+  `ADMINIUM_DATABASE_HOSTS` (`postgres:5432`). The list lets databases
+  through, never webhooks or storage.
+- **Every request is checked**: a source host before every new pool, a webhook
+  before every send, a storage endpoint before every request a file makes.
+  The request then goes to the address that was checked, so a name that
+  answers differently a second later changes nothing.
+- **A name that does not resolve is never called.** The error says so in its
+  own words, `Could not look up <host>`, with the code `HOST_LOOKUP_FAILED`
+  and status 502, so it is not mistaken for a refusal: check the name, or try
+  again once it resolves.
+- **Not in the desktop app**, which keeps `open`.
 
 ## `ADMINIUM_STATIC_ROOT`
 

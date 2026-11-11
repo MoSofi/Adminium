@@ -346,6 +346,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       view,
       templateKeys: await liveTemplateKeySet(meta),
       blockLoopback: deps.blockLoopback ?? process.env['NODE_ENV'] === 'production',
+      blockPrivate: deps.manager.networkPolicy === 'strict',
       steps: await stepsFor(input.connectionId),
       // A step's person is a row of a table an app declares as people: the record's own, or one link away.
       ...(view === null || input.connectionId === null ? {} : { peopleTables: await peopleTableIds(input.connectionId, view.model) }),

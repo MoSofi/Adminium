@@ -281,6 +281,12 @@ describe('buildServerEnv', () => {
     expect(record).not.toHaveProperty('ADMINIUM_SQLITE_DIRS');
   });
 
+  it('drops ADMINIUM_NETWORK_POLICY: a desktop user reaches machines on their own network on purpose', () => {
+    const built = buildServerEnv(base);
+    const record = toServerEnvRecord(parseDesktopServerEnv(built), { ...built, ADMINIUM_NETWORK_POLICY: 'strict' });
+    expect(record).not.toHaveProperty('ADMINIUM_NETWORK_POLICY');
+  });
+
   it('rejects a relative dataDir', () => {
     expect(() => buildServerEnv({ ...base, dataDir: './data' })).toThrow(/absolute/);
   });
