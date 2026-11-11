@@ -10,8 +10,8 @@
  * which redeems it (a signed-in request, bound to the session that started
  * it), and the address becomes `/studio/connect`.
  *
- * Kept tiny: it is in the entry chunk. Everything else of the feature loads
- * with the connect pages.
+ * Its own chunk: `main.tsx` loads it only on that address, so the entry
+ * chunk carries one `startsWith`.
  */
 
 const RETURN_PATH = /^\/connect\/(supabase)\/return\/?$/;
