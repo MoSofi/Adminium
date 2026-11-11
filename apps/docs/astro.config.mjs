@@ -327,6 +327,7 @@ export default defineConfig({
             { label: 'Telemetry', link: '/self-hosting/telemetry/' },
             { label: 'Export & restore', link: '/self-hosting/export-zip/' },
             { label: 'Back up and move an instance', link: '/self-hosting/archive/' },
+            { label: 'Export everything from Studio', link: '/self-hosting/export-everything/' },
             { label: 'Installing add-ons', link: '/self-hosting/installing-add-ons/' },
             { label: 'Installing apps', link: '/self-hosting/installing-apps/' },
             { label: 'An app on several databases', link: '/self-hosting/apps-per-database/' },

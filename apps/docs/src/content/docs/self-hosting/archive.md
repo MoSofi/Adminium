@@ -90,14 +90,14 @@ own yet: keep a held instance off the public internet.
 
 ```bash
 adminium archive create ./adminium-export.zip --export
-adminium import-zip --in ./adminium-export.zip --project-dir ./my-project
+adminium import-zip ./adminium-export.zip --project-dir ./my-project
 ```
 
 The same contents without password hashes, secrets, API keys and tokens, and
 unsigned: a file to hand to someone, or to move your work to a server you set up
-from scratch. `adminium import-zip` reads it into a fresh instance. People come
-without passwords and sign in through **Forgot password**; connection strings,
-mail and AI keys are entered again.
+from scratch. A Super Admin can also download it from Studio; see
+[Export everything from Studio](/self-hosting/export-everything/), which also
+says how the import gives you a password to sign in with.
 
 Not the same as [`export-zip`](/self-hosting/export-zip/), which carries eight
 configuration resources and none of your people, files or apps.
