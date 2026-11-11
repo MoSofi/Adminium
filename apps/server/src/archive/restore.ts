@@ -12,7 +12,8 @@
  * 3. every member is listed in the manifest with its size and digest, every
  *    listed member is there, and each is checked as it is inflated;
  * 4. every path the archive names is rebuilt from ids, slugs and checked
- *    relative paths (no `..`, nothing absolute), and every place it lands must
+ *    relative paths (no `..`, nothing absolute, nothing the writer leaves out of
+ *    a project folder: `isExcludedProjectPath`), and every place it lands must
  *    not exist yet and must have no symlink between it and its root;
  * 5. the rows go through `sanitizeDump` again (no sessions, tokens, add-on
  *    trust or package copies, whatever the file holds; an export loses every
@@ -79,6 +80,7 @@ import {
   ArchiveFormatError,
   archiveManifestSchema,
   archiveSignatureSchema,
+  isExcludedProjectPath,
   isSafeProjectPath,
   type ArchiveEntry,
   type ArchiveKind,
@@ -311,6 +313,9 @@ function checkMembers(zip: ZipReader, manifest: ArchiveManifest): Map<string, Ar
   for (const db of manifest.databases) expectPath(db.path, `${ARCHIVE_DATABASES_DIR}/${db.slug}.sqlite`);
   for (const rel of manifest.project?.files ?? []) {
     if (!isSafeProjectPath(rel)) throw new ArchiveFormatError(`This archive names a project path that is not allowed: ${rel.slice(0, 120)}`);
+    // What the writer leaves out (secrets, the Designer's history, approvals, packages, git, the data dir) is
+    // the machine's, not the project's: a file that carries it was not made by the writer, and is refused whole.
+    if (isExcludedProjectPath(rel)) throw new ArchiveFormatError(`This archive names a project path an archive never carries: ${rel.slice(0, 120)}`);
     expectPath(`${ARCHIVE_PROJECT_DIR}/${rel}`, `${ARCHIVE_PROJECT_DIR}/${rel}`);
   }
   return entries;
@@ -574,7 +579,12 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       }
       const root = resolve(opts.projectRoot);
       for (const rel of projectFiles) {
-        placements.push({ entry: entries.get(`${ARCHIVE_PROJECT_DIR}/${rel}`) as ArchiveEntry, final: join(root, ...rel.split('/')), root });
+        const final = join(root, ...rel.split('/'));
+        // The data dir inside the project folder under another name than `data/`: its files are the instance's own.
+        if (final === dataDir || inside(final, dataDir)) {
+          throw new ArchiveFormatError(`This archive names a project path inside the data dir: ${rel.slice(0, 120)}`);
+        }
+        placements.push({ entry: entries.get(`${ARCHIVE_PROJECT_DIR}/${rel}`) as ArchiveEntry, final, root });
       }
     }
 

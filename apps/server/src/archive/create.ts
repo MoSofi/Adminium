@@ -14,8 +14,9 @@
  *    the desktop backup's own `snapshotSqliteFile`);
  * 4. the project folder, less what is the machine's and not the project's:
  *    `.env` (plain-text secrets), `.adminium/` (build output, the Designer's live
- *    id, approvals), `node_modules/`, `.git/`, the data dir when it sits inside,
- *    the live-id file, and any symlink (never followed);
+ *    id, approvals), `node_modules/`, `.git/`, `data/` and the data dir when it
+ *    sits inside, the live-id file, and any symlink (never followed). The rules
+ *    are `format.ts`'s `isExcludedProjectPath`, which a restore holds a file to;
  * 5. a manifest naming every member's size and SHA-256, then its MAC.
  *
  * Every member is hashed before the zip is written, so the manifest can be the
@@ -43,7 +44,6 @@ import { Zip, ZipDeflate, ZipPassThrough } from 'fflate';
 
 import { snapshotSqliteFile, discoverSources } from '../backup/snapshot.js';
 import { FILES_DIR } from '../files/drivers/local.js';
-import { LIVE_APPS_ID_FILE } from '../designer/live.js';
 import { APP_VERSION } from '../version.js';
 import {
   ARCHIVE_DATABASES_DIR,
@@ -56,6 +56,7 @@ import {
   ARCHIVE_SIGNATURE,
   ArchiveFormatError,
   archiveManifestSchema,
+  isExcludedProjectPath,
   isSafeProjectPath,
   type ArchiveEntry,
   type ArchiveKind,
@@ -66,16 +67,6 @@ import { readJsonCell, rowsOf, sanitizeDump, type SanitizeReport } from './polic
 
 /** Fixed entry time (the zip epoch, local time), so identical contents make identical members. */
 const ZIP_EPOCH = new Date(1980, 0, 1, 12, 0, 0);
-
-/** Project-folder names that are never archived, at any depth. */
-const SKIPPED_ANYWHERE: ReadonlySet<string> = new Set(['node_modules', '.git']);
-/** Project-folder paths (relative, `/`-separated) that are never archived. */
-const SKIPPED_PROJECT_PATHS: ReadonlySet<string> = new Set(['.adminium', LIVE_APPS_ID_FILE.split(sep).join('/')]);
-
-/** `.env` and its local variants hold plain-text secrets. `.env.example` is documentation. */
-function isDotEnv(name: string): boolean {
-  return name === '.env' || (name.startsWith('.env.') && name !== '.env.example');
-}
 
 export interface CreateArchiveOptions {
   meta: MetaDb;
@@ -125,7 +116,7 @@ async function readMetaVersion(meta: MetaDb): Promise<string> {
   return row.name;
 }
 
-/** Regular files under `root`, relative and `/`-separated, without what {@link SKIPPED_PROJECT_PATHS} names. */
+/** Regular files under `root`, relative and `/`-separated, without what {@link isExcludedProjectPath} names. */
 async function walkProject(
   root: string,
   skip: (relativePath: string) => boolean,
@@ -138,7 +129,7 @@ async function walkProject(
     for (const entry of entries) {
       const full = join(dir, entry.name);
       const rel = relative(root, full).split(sep).join('/');
-      if (SKIPPED_ANYWHERE.has(entry.name) || SKIPPED_PROJECT_PATHS.has(rel) || skip(rel)) continue;
+      if (isExcludedProjectPath(rel) || skip(rel)) continue;
       if (entry.isSymbolicLink()) {
         warnings.push(`Left out ${rel}: it is a symbolic link, and an archive carries none.`);
         continue;
@@ -148,7 +139,6 @@ async function walkProject(
         continue;
       }
       if (!entry.isFile()) continue;
-      if (isDotEnv(entry.name)) continue;
       if (!isSafeProjectPath(rel)) {
         warnings.push(`Left out ${rel}: its name cannot travel in an archive.`);
         continue;
