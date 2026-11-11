@@ -23,6 +23,14 @@ export function docsUrl(path: string): string {
 export const RELEASES_URL = 'https://github.com/MoSofi/Adminium/releases';
 
 /**
+ * "Put this online…": the page on the project's site listing ways to run this
+ * installation at its own public address. Only a link the person opens in their
+ * browser; the app never fetches it. Hidden when the operator sets
+ * `ADMINIUM_DEPLOY_LINK=off` (`deployLink` in `/system/info`).
+ */
+export const PUT_ONLINE_URL = 'https://adminium.dev/deploy';
+
+/**
  * Where "search the docs" goes.
  *
  * The docs site's search is Starlight's **pagefind modal**, not a page: there is

@@ -33,6 +33,7 @@ export function menuWords(i18n: Pick<I18nInstance, 't'>): DesktopMenuLabels {
     window: t('desktop:menu.window', 'Window'),
     help: t('desktop:menu.help', 'Help'),
     'help.docs': t('desktop:menu.helpDocs', 'Adminium Docs'),
+    'help.putOnline': t('desktop:menu.helpPutOnline', 'Put this online…'),
     'help.shortcuts': t('desktop:menu.helpShortcuts', 'Keyboard Shortcuts'),
     'help.logs': t('desktop:menu.helpLogs', 'Show Logs'),
     'help.checkForUpdates': t('desktop:menu.helpCheckForUpdates', 'Check for Updates…'),

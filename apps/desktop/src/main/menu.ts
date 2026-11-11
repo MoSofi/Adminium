@@ -86,6 +86,7 @@ export const EN_US_MENU_LABELS: Readonly<Record<MenuLabelKey, string>> = Object.
   window: 'Window',
   help: 'Help',
   'help.docs': 'Adminium Docs',
+  'help.putOnline': 'Put this online…',
   'help.shortcuts': 'Keyboard Shortcuts',
   'help.logs': 'Show Logs',
   'help.checkForUpdates': 'Check for Updates…',
@@ -172,6 +173,19 @@ export interface MenuHandlers {
  */
 export const DOCS_URL = 'https://docs.adminium.dev';
 
+/**
+ * "Put this online…": ways to run this installation at its own public address
+ * (the dashboard's `kb/docsLinks.ts` `PUT_ONLINE_URL`). A link the system browser
+ * opens; nothing is fetched.
+ */
+export const PUT_ONLINE_URL = 'https://adminium.dev/deploy';
+
+/** `ADMINIUM_DEPLOY_LINK=off` (or false/0) hides "Put this online…", as it does on a server. */
+export function deployLinkShown(env: NodeJS.ProcessEnv): boolean {
+  const value = env['ADMINIUM_DEPLOY_LINK']?.trim().toLowerCase() ?? '';
+  return !['off', 'false', '0'].includes(value);
+}
+
 export interface BuildAppMenuOptions {
   /** `process.platform`. Drives the mac app menu and the mac-only Edit items. */
   platform: NodeJS.Platform;
@@ -182,6 +196,8 @@ export interface BuildAppMenuOptions {
   handlers?: MenuHandlers | undefined;
   /** Injected for the unit suite; defaults to `shell.openExternal`. */
   openExternal?: ((url: string) => void) | undefined;
+  /** Show Help → "Put this online…". Default true; {@link deployLinkShown} reads the operator's switch. */
+  deployLink?: boolean | undefined;
 }
 
 /**
@@ -337,6 +353,17 @@ export function appMenuTemplate(opts: BuildAppMenuOptions): MenuItemConstructorO
           openExternal(DOCS_URL);
         },
       },
+      // Leaves the app for the system browser, like the docs.
+      ...(opts.deployLink === false
+        ? []
+        : ([
+            {
+              label: `${t('help.putOnline')} ↗`,
+              click: () => {
+                openExternal(PUT_ONLINE_URL);
+              },
+            },
+          ] satisfies MenuItemConstructorOptions[])),
       // "opens the in-app Shortcuts Panel" — the SPA's own ⌘/ surface, so no
       // accelerator here; the panel already owns one.
       command('help.shortcuts', handlers.shortcuts),

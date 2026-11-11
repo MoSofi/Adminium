@@ -23,6 +23,7 @@ import {
   Bell,
   CircleHelp,
   Database,
+  Globe,
   LogOut,
   Megaphone,
   Menu,
@@ -53,6 +54,8 @@ import {
 
 import { notificationsApi, unreadCountQuery, type NotificationDto } from '../api/notifications.js';
 import { holdsSystemAction, type BootstrapData } from '../app/bootstrap.js';
+import { showsDeployLink, systemInfoQuery } from '../app/capabilities.js';
+import { PUT_ONLINE_URL } from '../kb/docsLinks.js';
 import { t } from '../i18n/t.js';
 import { PageAssistantButton } from './PageAssistantButton.js';
 import { openHref } from '../app/openHref.js';
@@ -256,6 +259,7 @@ export function Topbar({
   useDocumentPageTitle(publishedDocumentTitle ?? publishedTitle ?? title);
   const { user } = bootstrap;
   const admin = hasStudioAccess(bootstrap.roles);
+  const deployLink = showsDeployLink(useQuery(systemInfoQuery()).data);
 
   return (
     <header
@@ -419,6 +423,18 @@ export function Topbar({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem icon={<Banknote />} onSelect={onOpenPayments} data-testid="topbar-payments">
                   {t('topbar.payments', 'Payments')}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {/* One group after Studio and before Help centre, for everyone
+                signed in: "Put this online…" (unless the operator set
+                ADMINIUM_DEPLOY_LINK=off). Trial mode's Upgrade joins this group,
+                first, when it lands. Opens in the system browser on the desktop. */}
+            {deployLink ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem icon={<Globe />} onSelect={() => window.open(PUT_ONLINE_URL, '_blank', 'noopener')} data-testid="topbar-put-online">
+                  {t('topbar.putOnline', 'Put this online…')}
                 </DropdownMenuItem>
               </>
             ) : null}

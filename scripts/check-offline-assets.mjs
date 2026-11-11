@@ -393,6 +393,13 @@ const ALLOWED_HOSTS = [
   },
   {
     test: /^adminium\.dev$/,
+    onlyPath: /^\/deploy\/?$/,
+    why:
+      '"Put this online…" (the desktop Help menu, the Studio user menu, the Export everything page, About): a page listing ways to run an installation at its own public address. ' +
+      'Opened by the person in their browser (shell.openExternal on the desktop), never fetched by the app; ADMINIUM_DEPLOY_LINK=off hides it',
+  },
+  {
+    test: /^adminium\.dev$/,
     optIn: true,
     why:
       'the add-on catalog feed (apps/server/src/add-ons/catalog.ts). Listed for the day the server is scanned or a main-process surface links it — it is fetched ONLY when the default-off ' +
@@ -550,6 +557,22 @@ function matches(rules, host) {
   return rules.find((rule) => rule.test.test(host));
 }
 
+/**
+ * The allowed entry for one address. A host may have a narrow entry (`onlyPath`)
+ * beside a wide one: the narrow entry answers where its path matches, the wide
+ * one everywhere else, so `adminium.dev/deploy` is a plain link while the rest of
+ * `adminium.dev` stays the opt-in catalog. A host with only narrow entries keeps
+ * the first, whose `onlyPath` then refuses the address.
+ */
+function allowedFor(host, rest) {
+  const forHost = ALLOWED_HOSTS.filter((rule) => rule.test.test(host));
+  return (
+    forHost.find((rule) => rule.onlyPath !== undefined && rule.onlyPath.test(rest)) ??
+    forHost.find((rule) => rule.onlyPath === undefined) ??
+    forHost[0]
+  );
+}
+
 /** Every scannable file under `dir`, recursively. */
 function scannableFiles(dir) {
   const out = [];
@@ -595,7 +618,7 @@ function checkFile(file, kind = 'classic') {
       violations.push({ file: where, url, rule: 'blocked-host', why: blocked.why });
       continue;
     }
-    const allowed = matches(ALLOWED_HOSTS, host);
+    const allowed = allowedFor(host, restOf(url));
     if (allowed !== undefined) {
       // An entry for one string, not for its whole host: see the note above ALLOWED_HOSTS.
       if (allowed.onlyPath === undefined) continue;

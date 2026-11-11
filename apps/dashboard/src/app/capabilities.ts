@@ -90,6 +90,19 @@ export interface SystemInfo {
    * normal, correct configuration there and is not this feature.
    */
   lanShare: boolean;
+  /**
+   * The "Put this online…" link is shown: `ADMINIUM_DEPLOY_LINK` is not `off`.
+   * Absent from a server older than the link, which shows none.
+   */
+  deployLink?: boolean;
+}
+
+/**
+ * Whether to show "Put this online…". Hidden until the answer arrives, so an
+ * operator who switched it off never sees it flash in.
+ */
+export function showsDeployLink(info: Pick<SystemInfo, 'deployLink'> | undefined): boolean {
+  return info?.deployLink === true;
 }
 
 /**

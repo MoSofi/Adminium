@@ -49,6 +49,7 @@ const MENU_LABEL_SOURCES: ReadonlyArray<{
   { key: 'window', i18nKey: 'desktop:menu.window', fallback: 'Window' },
   { key: 'help', i18nKey: 'desktop:menu.help', fallback: 'Help' },
   { key: 'help.docs', i18nKey: 'desktop:menu.helpDocs', fallback: 'Adminium Docs' },
+  { key: 'help.putOnline', i18nKey: 'desktop:menu.helpPutOnline', fallback: 'Put this online…' },
   { key: 'help.shortcuts', i18nKey: 'desktop:menu.helpShortcuts', fallback: 'Keyboard Shortcuts' },
   { key: 'help.logs', i18nKey: 'desktop:menu.helpLogs', fallback: 'Show Logs' },
   { key: 'help.checkForUpdates', i18nKey: 'desktop:menu.helpCheckForUpdates', fallback: 'Check for Updates…' },

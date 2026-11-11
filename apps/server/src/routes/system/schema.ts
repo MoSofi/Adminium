@@ -108,6 +108,8 @@ export const systemInfoReply = z.object({
    * already hold.
    */
   lanShare: z.boolean(),
+  /** The "Put this online" link to adminium.dev/deploy is shown (`ADMINIUM_DEPLOY_LINK`, default on). */
+  deployLink: z.boolean(),
   /**
    * The wizard's demo card: can this build seed the demo database?
    *

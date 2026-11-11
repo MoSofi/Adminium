@@ -13,10 +13,12 @@
  * opted-out instance therefore makes no outbound call from this screen.
  */
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { ArrowUpCircle, CheckCircle2, ExternalLink, RefreshCw, Scale } from 'lucide-react';
+import { ArrowUpCircle, CheckCircle2, ExternalLink, Globe, RefreshCw, Scale } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Alert, Button, Card, CardBody, CardHeader, IconTile, KeyValueList } from '@adminium/ui';
 
+import { showsDeployLink, systemInfoQuery } from '../app/capabilities.js';
+import { PUT_ONLINE_URL } from '../kb/docsLinks.js';
 import { isDesktopRuntime } from '../lib/desktop-runtime.js';
 import { t } from '../i18n/t.js';
 import { useCommonWords } from '../i18n/commonWords.js';
@@ -112,6 +114,7 @@ export function AboutPage(): ReactNode {
   // the two are mutually exclusive, not stacked. `isDesktopRuntime()` is
   // detection contract; the extra data is native-affordance only.
   const desktop = isDesktopRuntime();
+  const deployLink = showsDeployLink(useQuery(systemInfoQuery()).data);
 
   return (
     <PageSurface width="page" className="flex flex-col gap-5">
@@ -188,6 +191,25 @@ export function AboutPage(): ReactNode {
           </Card>
         </>
       )}
+
+      {/* "Put this online": a link, the same on the desktop and on a server, unless the operator switched it off. */}
+      {deployLink ? (
+        <Card padded={false} data-testid="about-put-online">
+          <SectionHeader
+            icon={<Globe />}
+            title={t('about.putOnline.title', 'Put this online')}
+            description={t('about.putOnline.body', 'Run this installation at its own public address.')}
+          />
+          <CardBody>
+            <Button asChild variant="outline" size="md">
+              <a href={PUT_ONLINE_URL} target="_blank" rel="noreferrer noopener">
+                {t('about.putOnline.cta', 'Put this online…')}
+                <ExternalLink className="size-3.5" aria-hidden="true" />
+              </a>
+            </Button>
+          </CardBody>
+        </Card>
+      ) : null}
     </PageSurface>
   );
 }

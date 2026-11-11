@@ -405,6 +405,19 @@ export const envSchema = z.object({
    * Settings → AI. Unset and `off` are the same: its routes do not exist.
    */
   ADMINIUM_DESIGNER: z.preprocess(emptyToUndefined, z.enum(['off', 'live']).optional().transform((value) => value ?? 'off')),
+  /*
+   * "Put this online…": a link to adminium.dev/deploy in the user menu, on
+   * Studio's Export everything page and on About. Default on; `off` hides it
+   * everywhere, for an operator who offers their own hosting or rebrands.
+   * Only a link: nothing is fetched from it.
+   */
+  ADMINIUM_DEPLOY_LINK: z.preprocess(
+    emptyToUndefined,
+    z
+      .enum(BOOLEANISH)
+      .optional()
+      .transform((value) => (value === undefined ? true : TRUTHY.has(value))),
+  ),
   ADMINIUM_NETWORK_FEATURES: z.preprocess(
     emptyToUndefined,
     z
@@ -765,6 +778,7 @@ const ENV_HINTS: Record<string, string> = {
     'absolute path to the desktop shell’s demo-seed.mjs (desktop only; enables the first-run demo card)',
   ADMINIUM_TELEMETRY: `one of ${BOOLEANISH.join(', ')} (default off)`,
   ADMINIUM_DESIGNER: 'off or live (default off; live lets a Super Admin switch Adminium Designer on for this server)',
+  ADMINIUM_DEPLOY_LINK: `one of ${BOOLEANISH.join(', ')} (default on; off hides the "Put this online" link to adminium.dev/deploy)`,
   ADMINIUM_NETWORK_FEATURES: `one of ${BOOLEANISH.join(', ')} (default on; set off on air-gapped installs so the UI stops offering webhooks/OAuth)`,
   ADMINIUM_TRUST_PROXY: `one of ${BOOLEANISH.join(', ')} (default off; enable behind Caddy/TLS)`,
   ADMINIUM_TRUSTED_PROXIES:
