@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { variableSources } from '../src/project/boot.js';
+import { prepareProject, variableSources } from '../src/project/boot.js';
 import { HELPERS_SOURCE } from '../src/project/build.js';
 import {
   configFields,
@@ -190,5 +190,29 @@ describe('package managers', () => {
     expect(runScript('npm', 'start')).toBe('npm start');
     expect(runScript('yarn', 'check')).toBe('yarn run check');
     expect(runScript('pnpm', 'adminium:dev')).toBe('pnpm run adminium:dev');
+  });
+});
+
+describe('what a folder never decides', () => {
+  let root: string;
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'adminium-never-from-a-folder-'));
+    writeFileSync(join(root, 'adminium.config.mjs'), 'export default {};\n');
+    writeFileSync(join(root, 'package.json'), '{"name":"p","private":true,"type":"module"}\n');
+  });
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('a .env cannot say the desktop app started this server (which would turn the setup token off)', async () => {
+    writeFileSync(join(root, '.env'), 'ADMINIUM_RUNTIME=desktop\nHOST=0.0.0.0\nADMINIUM_TRUST_PROXY=true\n');
+    const env: Record<string, string | undefined> = { PATH: process.env.PATH };
+    const prepared = await prepareProject({ cwd: root, env, version: '0.0.0' });
+    expect(env.ADMINIUM_RUNTIME).toBeUndefined();
+    expect(prepared?.env.ADMINIUM_RUNTIME).toBeUndefined();
+    expect(prepared?.refused).toEqual(['ADMINIUM_RUNTIME']);
+    // The rest of the operator's own folder is obeyed on a terminal.
+    expect(env.HOST).toBe('0.0.0.0');
+    expect(env.ADMINIUM_TRUST_PROXY).toBe('true');
   });
 });

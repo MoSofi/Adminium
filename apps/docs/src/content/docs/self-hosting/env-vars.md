@@ -909,7 +909,10 @@ open straight into your data on a machine you already unlocked.
 On a self-host or Docker install the runtime is `self-host`, that route is
 **never registered**, and the password-free door does not exist to be attacked —
 which is a stronger guarantee than a check inside a handler. Setting
-`ADMINIUM_RUNTIME=desktop` on a server would create it. Do not.
+`ADMINIUM_RUNTIME=desktop` on a server would create it, and would also stop the
+server asking for the [setup token](/self-hosting/security/#the-setup-token). Do
+not. A project's `.env` cannot set it at all: `adminium start`, `dev` and
+`design` ignore the line and say so.
 
 The other three are inert without it: the boot token is minted fresh per launch
 and never stored, the single-user flag mirrors a choice made in the desktop app's

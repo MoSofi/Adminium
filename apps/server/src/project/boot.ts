@@ -52,6 +52,14 @@ export function variableSources(
 }
 
 /**
+ * Names no folder decides, on any host, a terminal included: markers that say
+ * how this process was started. `ADMINIUM_RUNTIME=desktop` says the desktop
+ * app started it, which turns the setup token off (`setup/token.ts`); a line
+ * in a `.env` deployed with the folder must not.
+ */
+export const NEVER_FROM_A_FOLDER: readonly string[] = ['ADMINIUM_RUNTIME'];
+
+/**
  * The project `cwd` belongs to, prepared for a boot, or null outside a
  * project. `.env` is copied into `env` itself, which is `process.env` in a real
  * run, because the config reads its values from there when it loads.
@@ -66,13 +74,14 @@ export async function prepareProject(opts: {
   /**
    * Names a folder may not decide, whatever its `.env` or its config says: the
    * host (the desktop app) states them itself, or leaves them unset on purpose.
-   * A terminal passes none: there the folder and the person are one.
+   * A terminal passes none: there the folder and the person are one, except
+   * for {@link NEVER_FROM_A_FOLDER}, which is refused everywhere.
    */
   refuse?: readonly string[];
 }): Promise<PreparedProject | null> {
   const project = findProject(opts.cwd, opts.env);
   if (project === null) return null;
-  const refuse = opts.refuse ?? [];
+  const refuse = [...new Set([...(opts.refuse ?? []), ...NEVER_FROM_A_FOLDER])];
   const inFile = refuse.length === 0 ? null : readDotEnv(project.root);
   const refused = new Set(inFile === null ? [] : refuse.filter((name) => name in inFile));
   const fromDotEnv = refuse.length === 0 ? loadDotEnv(project.root, opts.env) : loadDotEnv(project.root, opts.env, [...KEPT_OUT_OF_THE_ENVIRONMENT, ...refuse]);

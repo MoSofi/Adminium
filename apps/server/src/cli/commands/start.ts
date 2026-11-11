@@ -294,7 +294,8 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
     if (located !== null) refuseIfRunning(located.root);
     const project = await prepareProject({ cwd: deps.cwd, env: deps.env, version: APP_VERSION, dev: projectMode === 'dev', ...(flags.refuse === undefined ? {} : { refuse: flags.refuse }) });
     if (project !== null && project.refused.length > 0) {
-      io.err(`Ignored from this project's .env and config (the app decides these itself): ${project.refused.join(', ')}`);
+      const why = flags.refuse === undefined ? 'how Adminium was started decides these, not the folder' : 'the app decides these itself';
+      io.err(`Ignored from this project's .env and config (${why}): ${project.refused.join(', ')}`);
     }
     if (project !== null) {
       const built = project.from === 'new-build' ? ' (built it first)' : project.appsRebuilt === true ? ` (built its apps' screens again, for ${projectMode === 'dev' ? 'development' : 'a server'})` : '';

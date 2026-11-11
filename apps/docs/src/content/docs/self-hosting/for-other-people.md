@@ -150,7 +150,13 @@ ADMINIUM_DEPLOY_LINK=off              # if you host it yourself
 
 None of these limits what a super admin can do inside Adminium itself: roles,
 pages and data stay theirs. They limit what the server does on your machine and
-your network on their behalf. A project's `.env` cannot change any of these
-limits: a value it sets for one of them is ignored, and the server says so.
+your network on their behalf. They are yours as the operator: set them where
+the server is started (the service file, the container's environment, the
+host's settings). A project's `.env` is read too, after them, and fills in
+whatever they leave unset, so whoever can write that file on your server can
+set these limits as well; keep it yours. The one name a project's `.env` can
+never set is `ADMINIUM_RUNTIME`: the server ignores it there and says so. (The
+desktop app, which opens folders it did not make, ignores every one of these
+names in a folder's `.env`.)
 
 Then work through the [security checklist](/self-hosting/security/#the-checklist).
