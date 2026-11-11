@@ -11,6 +11,8 @@
  * - `/studio/privacy` → privacy notice, a person's data, how long things are kept
  * - `/studio/settings/project`       → the project folder this server runs, its
  *   hooks and actions (super admins). LAZY like its siblings.
+ * - `/studio/settings/export`        → Export everything: one file with the whole
+ *   installation, downloaded once (super admins). LAZY like its siblings.
  * - `/studio/public-api` → API keys & tokens: endpoints, and the keys that may
  *   call them. LAZY like its siblings — see the note below.
  * - `/studio/apps` → hosted app surfaces: placement + domain attachment. LAZY
@@ -114,6 +116,11 @@ const StoragePageLazy = lazy(async () => {
 const ProjectSettingsPageLazy = lazy(async () => {
   const mod = await import('./project/ProjectSettingsPage.js');
   return { default: mod.ProjectSettingsPage };
+});
+
+const ExportEverythingPageLazy = lazy(async () => {
+  const mod = await import('./export/ExportEverythingPage.js');
+  return { default: mod.ExportEverythingPage };
 });
 
 const StudioAiPageLazy = lazy(async () => {
@@ -322,6 +329,7 @@ function SettingsRouteComponent() {
           onOpenDocuments={() => void navigate({ to: '/studio/documents' })}
           onOpenPublicApi={() => void navigate({ to: '/studio/public-api' })}
           onOpenProject={() => void navigate({ to: '/studio/settings/project' })}
+          onOpenExport={() => void navigate({ to: '/studio/settings/export' })}
           onOpenPrivacy={() => void navigate({ to: '/studio/privacy' })}
         />
       </StudioBody>
@@ -376,6 +384,16 @@ function ProjectSettingsRouteComponent() {
     <StudioGuard>
       <StudioBody>
         <ProjectSettingsPageLazy onOpenPages={() => void navigate({ to: '/studio/pages' })} />
+      </StudioBody>
+    </StudioGuard>
+  );
+}
+
+function ExportEverythingRouteComponent() {
+  return (
+    <StudioGuard>
+      <StudioBody>
+        <ExportEverythingPageLazy />
       </StudioBody>
     </StudioGuard>
   );
@@ -567,6 +585,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: ProjectSettingsRouteComponent,
   });
 
+  const exportEverythingRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/settings/export',
+    component: ExportEverythingRouteComponent,
+  });
+
   const reviewRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/llm-runs/$runId/review',
@@ -669,6 +693,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     settingsRoute,
     aiSettingsRoute,
     projectSettingsRoute,
+    exportEverythingRoute,
     mapsSettingsRoute,
     doNotEmailRoute,
     privacyRoute,
