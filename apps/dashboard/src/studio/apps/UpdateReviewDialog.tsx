@@ -27,13 +27,18 @@
  *  new one arrives off and empty while one already here keeps its address.
  */
 import { useId, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
 import { Alert, Button, Modal, ModalBody, ModalFooter, ModalHeader, MonoText, Spinner } from '@adminium/ui';
 import { ArrowRight, ArrowUpCircle, RotateCw } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
+import { addOnCatalogQuery, downloadAddOn, getAddOnJob } from '../add-ons/addOnsApi.js';
+import { AddOnsInstallCard, addOnBlock, addOnChoicesOf, type AddOnPicks } from './AddOnsInstallCard.js';
+import { PublicWiderCard, publicWiderHold } from './PublicWiderCard.js';
 import {
   planApp,
+  type AppAddOnRow,
   type AppInstallPlan,
   type InstallAnswers,
   type PlannedAppTable,
@@ -76,6 +81,53 @@ export const asksGrants = (plan: AppInstallPlan): boolean => {
 /** What a new version's roles hold more of add-ons' tables than the running one's: the update asks before it gives it. */
 export function roleTablesWider(plan: AppInstallPlan): NonNullable<AppInstallPlan['roleTables']> {
   return (plan.roleTables ?? []).filter((entry) => entry.wider !== undefined);
+}
+
+/**
+ * The add-ons an update's check shows: each the new version needs updated
+ * ("Update it too"), installed with it, or cannot have here. One that is
+ * already there as the version needs it is not news, and is not shown.
+ */
+export function updateAddOnRows(plan: AppInstallPlan): AppAddOnRow[] {
+  return (plan.addOns ?? []).filter(
+    (row) => row.action === 'update' || row.state === 'outdated' || (row.need === 'requires' && (row.action === 'install' || row.state === 'unavailable')),
+  );
+}
+
+/** Whether a new version's check has anything to show or ask about its add-ons, or the endpoints it widens. */
+export function asksAddOnsOrWider(plan: AppInstallPlan): boolean {
+  return updateAddOnRows(plan).length > 0 || (plan.publicWider ?? []).length > 0;
+}
+
+/**
+ * An add-on the app needs at a newer version that runs on another database
+ * too: every copy runs one version, so it is updated on the Add-ons page
+ * (each copy in turn) before this app can be.
+ */
+function EveryCopyFirst({ rows }: { rows: readonly AppAddOnRow[] }) {
+  const router = useRouter({ warn: false }) as ReturnType<typeof useRouter> | null;
+  const elsewhere = rows.filter((row) => row.problems.some((problem) => problem.code === 'ONE_VERSION_PER_APP'));
+  if (elsewhere.length === 0) return null;
+  return (
+    <Alert tone="warn" title={t('studio:hostedApps.update.everyCopy.title', 'Update the add-on on every database first')} data-part="update-every-copy">
+      {t(
+        'studio:hostedApps.update.everyCopy.body',
+        '{addOns, plural, one {{names} runs} other {{names} run}} on another database too, and every copy runs one version. Update every copy on the Add-ons page, then update this app.',
+        { addOns: elsewhere.length, names: elsewhere.map((row) => row.name).join(', ') },
+      )}{' '}
+      <a
+        href="/studio/add-ons"
+        className="font-bold text-accent"
+        onClick={(event) => {
+          if (router === null) return;
+          event.preventDefault();
+          void router.navigate({ to: '/studio/add-ons' });
+        }}
+      >
+        {t('studio:hostedApps.update.everyCopy.link', 'Open Add-ons')}
+      </a>
+    </Alert>
+  );
 }
 
 /** Whether a new version's check has anything to show or ask about its tables. */
@@ -237,6 +289,12 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
       initial.publicAccess?.endpoints.some((endpoint) => endpoint.onUpdate === 'held') === true &&
       (initial.publicAccess.opensWithoutStaff ?? []).length === 0,
   );
+  // What visitors already reach that this version would show more of: unticked, and Update waits for the tick.
+  const [allowWider, setAllowWider] = useState(false);
+  // The add-ons this version needs moved: "Update it too" ticked by default, as at install.
+  const [addOnPicks, setAddOnPicks] = useState<AddOnPicks>({ ticked: {}, update: {} });
+  const [downloading, setDownloading] = useState<{ key: string; pct: number } | null>(null);
+  const catalogue = useQuery({ ...addOnCatalogQuery, enabled: updateAddOnRows(initial).some((row) => !row.staged) });
 
   const tables = plan.tables ?? [];
   // A menu another app already has is a question too: its own, or that app's.
@@ -248,8 +306,35 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
   const restore = plan.instanceRestore;
   // Putting the server's look back is a change of its settings: only a settings manager runs this update.
   const restoreLocked = restore !== undefined && !restore.canRestore;
-  const hold = reviewHold({ plan, pages: checked.pages, fingerprint, integrity });
-  const busy = props.busy || recheck.isPending;
+  const addOnRows = updateAddOnRows(plan);
+  const addOnHold = addOnRows.length === 0 ? null : addOnBlock(props.appName, addOnRows, addOnPicks);
+  const wideningRows = plan.publicWider ?? [];
+  const widerHold = publicWiderHold(wideningRows, allowWider);
+  const hold = reviewHold({ plan, pages: checked.pages, fingerprint, integrity }) ?? addOnHold ?? widerHold;
+
+  /**
+   * An add-on the version needs that is in the catalogue but not on this
+   * server: downloaded first, as a job, then the check is made again.
+   */
+  const download = useMutation({
+    mutationFn: async (row: AppAddOnRow) => {
+      if (row.offeredVersion === null) throw new Error('no version');
+      setDownloading({ key: row.key, pct: 0 });
+      const { jobId } = await downloadAddOn(row.key, row.offeredVersion);
+      for (;;) {
+        const job = await getAddOnJob(jobId);
+        setDownloading({ key: row.key, pct: job.progress?.pct ?? 0 });
+        if (job.status === 'succeeded') return;
+        if (job.status === 'failed' || job.status === 'cancelled') {
+          throw new Error(job.lastError ?? t('studio:addOns.job.failed', 'The download did not finish. Nothing was installed.'));
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+    },
+    onSuccess: () => recheck.mutate(checked),
+    onSettled: () => setDownloading(null),
+  });
+  const busy = props.busy || recheck.isPending || download.isPending;
   const stopped = props.stopped ?? null;
 
   /*
@@ -267,6 +352,10 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
     ...(wider.length === 0 ? {} : { roleTables: true }),
     // …and so is it for what the roles are newly given.
     ...(grants.privacy.length === 0 && grants.addOn.length === 0 ? {} : { roleGrants: true }),
+    // The add-ons it moves with it, as the card shows them ("Update it too").
+    ...(addOnRows.length === 0 ? {} : { addOns: addOnChoicesOf(addOnRows, addOnPicks) }),
+    // Ticked on the card: the endpoints it widens show visitors more.
+    ...(wideningRows.length === 0 ? {} : { publicWider: allowWider }),
   });
 
   const answerPage = (page: string, answer: PageAnswer | undefined) => {
@@ -293,7 +382,11 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
             ? t('studio:hostedApps.update.rolesSubtitle', 'Check what this version’s roles may do with add-ons’ tables.')
             : asksGrants(plan)
               ? t('studio:hostedApps.update.grantsSubtitle', 'Check what this version’s roles are newly given.')
-              : t('studio:hostedApps.update.reviewSubtitle', 'Check what this version brings.');
+              : addOnRows.length > 0
+                ? t('studio:hostedApps.update.addOnsSubtitle', 'Check the add-ons this version needs.')
+                : wideningRows.length > 0
+                  ? t('studio:hostedApps.update.widerSubtitle', 'Check what this version shows visitors.')
+                  : t('studio:hostedApps.update.reviewSubtitle', 'Check what this version brings.');
 
   return (
     <Modal
@@ -426,6 +519,27 @@ export function UpdateReviewDialog(props: UpdateReviewProps) {
           <RoleTablesUpdateCard entries={wider} />
           <AppsRoleTablesWiderCard entries={wider} />
           <RoleGrantsAddedCard privacy={grants.privacy} addOn={grants.addOn} />
+          {download.error === null ? null : (
+            <Alert tone="danger" title={t('studio:hostedApps.error', 'Something went wrong')}>
+              {download.error.message}
+            </Alert>
+          )}
+          {addOnRows.length === 0 ? null : (
+            <AddOnsInstallCard
+              appName={props.appName}
+              connectionName={props.connectionName ?? ''}
+              rows={addOnRows}
+              picks={addOnPicks}
+              onTick={(key, next) => setAddOnPicks((picks) => ({ ...picks, ticked: { ...picks.ticked, [key]: next } }))}
+              onUpdate={(key, next) => setAddOnPicks((picks) => ({ ...picks, update: { ...picks.update, [key]: next } }))}
+              catalogueOn={catalogue.data?.onlineEnabled ?? null}
+              downloading={downloading}
+              onDownload={(row) => download.mutate(row)}
+              busy={busy}
+            />
+          )}
+          <EveryCopyFirst rows={addOnRows} />
+          <PublicWiderCard rows={wideningRows} checked={allowWider} onChange={setAllowWider} disabled={busy || plan.publicAccess?.canGrant === false} />
         </div>
       </ModalBody>
       <ModalFooter>

@@ -72,7 +72,10 @@ export default {
       "updateBody": "Diese Version ändert die eigenen Tabellen des Add-ons. Nichts von dem, was Sie haben, wird entfernt; bis die Aktualisierung abgeschlossen ist, tut das Add-on nichts.",
       "update": "Aktualisieren",
       "updatePublicBody": "Diese Version würde mehr vom Add-on öffentlich öffnen. Aktualisieren Sie ohne Häkchen, und nichts Neues wird geöffnet.",
-      "updateRolesBody": "Diese Version erlaubt Rollen von Apps mehr bei den Tabellen des Add-ons. Prüfen Sie vor dem Update, was jede erhält."
+      "updateRolesBody": "Diese Version erlaubt Rollen von Apps mehr bei den Tabellen des Add-ons. Prüfen Sie vor dem Update, was jede erhält.",
+      "updateCopyTitle": "{addOn} auf {database} auf {version} aktualisieren",
+      "updateCopyOf": "Kopie {n} von {total}. Jede Kopie läuft mit derselben Version, daher wird eine nach der anderen aktualisiert.",
+      "updateWiderBody": "Diese Version zeigt Besuchern über Endpunkte, die sie schon nutzen, mehr. Prüfen Sie vor dem Aktualisieren, was jeder zeigt."
     },
     "connect": {
       "apiKey": "API-Schlüssel",
@@ -976,7 +979,14 @@ export default {
         "body": "{count, plural, one {Diese Version bringt das Aussehen und die Sprachen des Servers nicht mehr mit. # Wert, den sie gesetzt hat, wird auf den vorherigen Stand zurückgesetzt: das Aussehen, die Texte und die System-E-Mails.} other {Diese Version bringt das Aussehen und die Sprachen des Servers nicht mehr mit. # Werte, die sie gesetzt hat, werden auf den vorherigen Stand zurückgesetzt: das Aussehen, die Texte und die System-E-Mails.}}",
         "manager": "Nur wer die Einstellungen des Servers ändern darf, kann diese Aktualisierung ausführen.",
         "locked": "Nur wer die Einstellungen des Servers ändern darf, kann diese Aktualisierung ausführen: Bitten Sie jemanden mit dieser Berechtigung."
-      }
+      },
+      "everyCopy": {
+        "title": "Zuerst das Add-on auf jeder Datenbank aktualisieren",
+        "body": "{names} läuft auch auf einer anderen Datenbank, und jede Kopie läuft mit derselben Version. Aktualisieren Sie jede Kopie auf der Seite „Add-ons“ und dann diese App.",
+        "link": "Add-ons öffnen"
+      },
+      "addOnsSubtitle": "Prüfen Sie die Add-ons, die diese Version braucht.",
+      "widerSubtitle": "Prüfen Sie, was diese Version Besuchern zeigt."
     },
     "veto": {
       "title": "Diese Installation kann nicht online suchen",
@@ -5827,5 +5837,16 @@ export default {
     "data": {
       "before": "{count, plural, one {# Tabelle} other {# Tabellen}}. {before} davon waren schon vor der App da."
     }
+  },
+  "publicWider": {
+    "title": "Zeigt Besuchern mehr",
+    "intro": "Diese Version ändert {count, plural, one {einen öffentlichen Endpunkt} other {öffentliche Endpunkte}}, die Besucher schon nutzen, sodass sie mehr sehen oder tun könnten:",
+    "columns": "zeigt {columns}",
+    "methods": "nimmt {methods} an",
+    "rows": "lässt mehr Zeilen durch",
+    "more": "erreicht mehr",
+    "allow": "Erlauben",
+    "hold": "Setzen Sie das Häkchen bei „Erlauben“, damit Besucher mehr sehen, oder behalten Sie die laufende Version.",
+    "notYours": "Nur wer API-Schlüssel verwalten darf, kann das erlauben."
   }
 } as const;

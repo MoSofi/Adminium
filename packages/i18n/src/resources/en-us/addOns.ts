@@ -20,7 +20,7 @@ export default {
   "retry": "Try again",
   "noBundle": {
     "title": "This page could not be loaded",
-    "body": "The add-on declares this page but does not ship the file it points at. Installing it again, or upgrading it, is what fixes this."
+    "body": "The add-on declares this page but does not ship the file it points at. Installing it again, or updating it, is what fixes this."
   },
   "failed": {
     "title": "This page could not be loaded",

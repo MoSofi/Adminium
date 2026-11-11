@@ -32,7 +32,7 @@ export default {
       "title": "Available",
       "toggle": "Browse the online catalogue",
       "upgrade": "v{version} available",
-      "upgradeAction": "Upgrade",
+      "upgradeAction": "Update",
       "getting": "Getting it…",
       "onlineList": "What adminium.dev offers, and what is already on this server. Install fetches an add-on and asks before it adds anything.",
       "offLine": "The list of adminium.dev is off on this server. Showing it asks adminium.dev for the list, which tells it this server’s address, the time and its Adminium version. Installing an add-on names that add-on.",
@@ -72,7 +72,10 @@ export default {
       "updateBody": "This version changes the add-on’s own tables. Nothing you have is removed; until the update finishes, the add-on does nothing.",
       "update": "Update",
       "updatePublicBody": "This version would open more of the add-on to the public. Update without ticking the box and nothing new is opened.",
-      "updateRolesBody": "This version lets apps’ roles do more with the add-on’s tables. Check what each gets before you update."
+      "updateRolesBody": "This version lets apps’ roles do more with the add-on’s tables. Check what each gets before you update.",
+      "updateCopyTitle": "Update {addOn} on {database} to {version}",
+      "updateCopyOf": "Copy {n} of {total}. Every copy runs one version, so each is updated in turn.",
+      "updateWiderBody": "This version shows visitors more through endpoints they already use. Check what each shows before you update."
     },
     "connect": {
       "apiKey": "API key",
@@ -174,7 +177,7 @@ export default {
       "drop": "Also delete its tables and everything in them. This cannot be undone.",
       "type": "Type {key} to delete its tables"
     },
-    "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
+    "upgradeNote": "Updating keeps the hosts an add-on is attached to and the connection it already has.",
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
       "title": "This deployment cannot browse online"
@@ -976,7 +979,14 @@ export default {
         "body": "{count, plural, one {This version no longer carries the server’s look and languages. # value it set goes back to what it was: the look, the words and the system emails.} other {This version no longer carries the server’s look and languages. # values it set go back to what they were: the look, the words and the system emails.}}",
         "manager": "Only someone who may change the server’s settings can run this update.",
         "locked": "Only someone who may change the server’s settings can run this update: ask someone who has that permission."
-      }
+      },
+      "everyCopy": {
+        "title": "Update the add-on on every database first",
+        "body": "{addOns, plural, one {{names} runs} other {{names} run}} on another database too, and every copy runs one version. Update every copy on the Add-ons page, then update this app.",
+        "link": "Open Add-ons"
+      },
+      "addOnsSubtitle": "Check the add-ons this version needs.",
+      "widerSubtitle": "Check what this version shows visitors."
     },
     "veto": {
       "title": "This deployment cannot browse online",
@@ -5827,5 +5837,16 @@ export default {
     "data": {
       "before": "{count, plural, one {# table} other {# tables}}. {before} of them were here before the app."
     }
+  },
+  "publicWider": {
+    "title": "Shows visitors more",
+    "intro": "This version changes {count, plural, one {a public endpoint} other {public endpoints}} that visitors already use, so they would see or do more:",
+    "columns": "shows {columns}",
+    "methods": "takes {methods}",
+    "rows": "lets more rows through",
+    "more": "reaches more",
+    "allow": "Allow it",
+    "hold": "Tick “Allow it” to let visitors see more, or keep the running version.",
+    "notYours": "Only someone who may manage API keys can allow this."
   }
 } as const;

@@ -32,7 +32,7 @@ export default {
       "title": "Available",
       "toggle": "Browse the online catalogue",
       "upgrade": "v{version} available",
-      "upgradeAction": "Upgrade",
+      "upgradeAction": "Aktualizovat",
       "getting": "Stahuji…",
       "onlineList": "Co nabízí adminium.dev a co už na tomto serveru je. Instalace doplněk stáhne a zeptá se, než cokoli přidá.",
       "offLine": "Seznam z adminium.dev je na tomto serveru vypnutý. Jeho zobrazení požádá adminium.dev o seznam, čímž se dozví adresu tohoto serveru, čas a verzi Adminium. Instalace doplňku ten doplněk jmenuje.",
@@ -72,7 +72,10 @@ export default {
       "updateBody": "Tato verze mění vlastní tabulky doplňku. Nic z toho, co máte, se neodebere; dokud aktualizace neskončí, doplněk nic nedělá.",
       "update": "Aktualizovat",
       "updatePublicBody": "Tato verze by veřejnosti otevřela z doplňku víc. Aktualizujte bez zaškrtnutí a nic nového se neotevře.",
-      "updateRolesBody": "Tato verze umožní rolím aplikací víc s tabulkami doplňku. Před aktualizací zkontrolujte, co která získá."
+      "updateRolesBody": "Tato verze umožní rolím aplikací víc s tabulkami doplňku. Před aktualizací zkontrolujte, co která získá.",
+      "updateCopyTitle": "Aktualizovat {addOn} na {database} na {version}",
+      "updateCopyOf": "Kopie {n} z {total}. Každá kopie běží ve stejné verzi, proto se aktualizují jedna po druhé.",
+      "updateWiderBody": "Tato verze ukazuje návštěvníkům víc přes endpointy, které už používají. Před aktualizací zkontrolujte, co každý ukazuje."
     },
     "connect": {
       "apiKey": "API key",
@@ -174,7 +177,7 @@ export default {
       "drop": "Smazat také jeho tabulky a vše, co v nich je. Tuto akci nelze vrátit zpět.",
       "type": "Chcete-li smazat jeho tabulky, zadejte {key}"
     },
-    "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
+    "upgradeNote": "Aktualizace zachová aplikace, ke kterým je doplněk připojen, i jeho stávající připojení.",
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
       "title": "This deployment cannot browse online"
@@ -976,7 +979,14 @@ export default {
         "body": "{count, plural, one {Tato verze už nenese vzhled a jazyky serveru. # hodnota, kterou nastavila, se vrátí na původní stav: vzhled, texty a systémové e-maily.} few {Tato verze už nenese vzhled a jazyky serveru. # hodnoty, které nastavila, se vrátí na původní stav: vzhled, texty a systémové e-maily.} many {Tato verze už nenese vzhled a jazyky serveru. # hodnoty, které nastavila, se vrátí na původní stav: vzhled, texty a systémové e-maily.} other {Tato verze už nenese vzhled a jazyky serveru. # hodnot, které nastavila, se vrátí na původní stav: vzhled, texty a systémové e-maily.}}",
         "manager": "Tuto aktualizaci může spustit jen ten, kdo smí měnit nastavení serveru.",
         "locked": "Tuto aktualizaci může spustit jen ten, kdo smí měnit nastavení serveru: požádejte někoho s tímto oprávněním."
-      }
+      },
+      "everyCopy": {
+        "title": "Nejdřív aktualizujte doplněk na každé databázi",
+        "body": "{names} běží i na jiné databázi a každá kopie běží ve stejné verzi. Aktualizujte každou kopii na stránce Doplňky a pak tuto aplikaci.",
+        "link": "Otevřít doplňky"
+      },
+      "addOnsSubtitle": "Zkontrolujte doplňky, které tato verze potřebuje.",
+      "widerSubtitle": "Zkontrolujte, co tato verze ukazuje návštěvníkům."
     },
     "veto": {
       "title": "Toto nasazení nemůže procházet online",
@@ -5827,5 +5837,16 @@ export default {
     "data": {
       "before": "{count, plural, one {# tabulka} few {# tabulky} many {# tabulky} other {# tabulek}}. {before} z nich tu byly před aplikací."
     }
+  },
+  "publicWider": {
+    "title": "Ukazuje návštěvníkům víc",
+    "intro": "Tato verze mění {count, plural, one {veřejný endpoint} few {veřejné endpointy} many {veřejné endpointy} other {veřejné endpointy}}, které návštěvníci už používají, takže by viděli nebo mohli víc:",
+    "columns": "ukazuje {columns}",
+    "methods": "přijímá {methods}",
+    "rows": "propustí víc řádků",
+    "more": "dosáhne na víc",
+    "allow": "Povolit",
+    "hold": "Zaškrtněte „Povolit“, aby návštěvníci viděli víc, nebo ponechte běžící verzi.",
+    "notYours": "Povolit to může jen ten, kdo smí spravovat klíče API."
   }
 } as const;

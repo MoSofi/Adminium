@@ -236,6 +236,10 @@ export interface UpdateAnswers {
   publicAccess?: boolean;
   roleTables?: boolean;
   roleGrants?: boolean;
+  /** The add-ons the new version needs, updated ("Update it too"), installed or connected with it. */
+  addOns?: AddOnChoice[];
+  /** The check's "Allow it" on the endpoints the version would widen for the visitors already using them. */
+  publicWider?: boolean;
 }
 
 /**
@@ -384,6 +388,21 @@ export interface DocumentsWaiting {
 }
 
 /** What the install body says about one add-on: install or connect it at `version`, and update it when ticked. */
+/** One public endpoint an update would widen for the visitors already using it. Mirrors the server's `publicWider[]`. */
+export interface PublicWideningRow {
+  ref: string;
+  /** Whose entry it is: the app, or an add-on. */
+  owner: string;
+  /** Columns it would newly show. */
+  columns: string[];
+  /** Methods it would newly take. */
+  methods: string[];
+  /** A filter, or a limit on what may be written, loosened. */
+  rows: boolean;
+  /** Each widening in words. */
+  reasons: string[];
+}
+
 export interface AddOnChoice {
   key: string;
   version: string;
@@ -878,6 +897,13 @@ export interface AppInstallPlan {
   shareOffers?: ShareOffer[];
   /** The add-ons the app names, each with its state, source and own plan. Absent for an app that names none. */
   addOns?: AppAddOnRow[];
+  /**
+   * An update's check: the public endpoints (the app's, or an add-on's it
+   * updates or serves) the new version would widen for the visitors already
+   * using them. The update saves them only with `publicWider: true`. Absent
+   * when none would widen, and from an older server.
+   */
+  publicWider?: PublicWideningRow[];
   /**
    * The add-on settings the app's roles would be given (`addOn:<key>:settings`),
    * shown before anyone agrees: those settings are shared by every app the

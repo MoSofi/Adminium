@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3755 entries. */
+/** `namespace:key` — 3759 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1878,6 +1878,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:addOns.confirm.discardTitle',
   'studio:addOns.confirm.disconnectTitle',
   'studio:addOns.confirm.uninstallTitle',
+  'studio:addOns.confirm.updateCopyTitle',
   'studio:addOns.confirm.updateTitle',
   'studio:addOns.connect.apiKey',
   'studio:addOns.consent.close',
@@ -2241,9 +2242,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hostedApps.surfaces.placementLabel',
   'studio:hostedApps.title',
   'studio:hostedApps.update.accessSubtitle',
+  'studio:hostedApps.update.addOnsSubtitle',
   'studio:hostedApps.update.checkSubtitle',
   'studio:hostedApps.update.close',
   'studio:hostedApps.update.copyOf',
+  'studio:hostedApps.update.everyCopy.title',
   'studio:hostedApps.update.grantsSubtitle',
   'studio:hostedApps.update.instanceRestore.title',
   'studio:hostedApps.update.reviewSubtitle',
@@ -2251,6 +2254,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hostedApps.update.subtitle',
   'studio:hostedApps.update.title',
   'studio:hostedApps.update.titleOn',
+  'studio:hostedApps.update.widerSubtitle',
   'studio:hostedApps.veto.title',
   'studio:hub.action.pausedHint',
   'studio:hub.action.reintrospect',

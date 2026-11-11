@@ -23,7 +23,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import { api, ApiError, csrfHeaders, installOptions } from '../../app/api.js';
-import type { PlanRoleTable } from '../apps/appsApi.js';
+import type { PlanRoleTable, PublicWideningRow } from '../apps/appsApi.js';
 
 export const ADD_ONS_QUERY_KEY = ['add-ons'] as const;
 export const ADD_ON_CATALOG_QUERY_KEY = ['add-ons', 'catalog'] as const;
@@ -59,6 +59,8 @@ export interface AddOnDto {
   connectionId?: string | null;
   /** This copy's address slug: `''` for the bare one. */
   slug?: string;
+  /** This copy's database by name; null for a copy kept once per server. Absent from an older server. */
+  connectionName?: string | null;
   connectKind: ConnectKind;
   /** Whether a credential is stored. Never the credential. */
   connected: boolean;
@@ -353,15 +355,21 @@ export interface UpdatePlan {
   publicAccess?: PublicAccessCheck;
   /** What the version gives apps' roles more of the add-on's tables (its `appGrants` widened): each with its app. The update gives it only when allowed. */
   roleTables?: (PlanRoleTable & { app: string; appName: string; wider: { actions: string[]; columns: string[] } })[];
+  /** The public endpoints the version would widen for the keys already using them. The update saves them only when allowed. */
+  publicWider?: PublicWidening[];
 }
+
+/** One public endpoint an update would widen for the keys already using it. */
+export type PublicWidening = PublicWideningRow;
 
 /** Whether a check asks for something the public does not reach yet: a new entry on an app's key. */
 export function asksNewPublicAccess(access: PublicAccessCheck | undefined): boolean {
   return access !== undefined && Object.values(access.byApp).some((app) => app.adds.length > 0);
 }
 
-export async function fetchUpdatePlan(key: string): Promise<UpdatePlan> {
-  return api.post<UpdatePlan>(`/api/v1/add-ons/${key}/update/plan`, {});
+/** What updating one copy of an add-on would change; `installId` names the copy when the key has several (one per database). */
+export async function fetchUpdatePlan(key: string, installId?: string): Promise<UpdatePlan> {
+  return api.post<UpdatePlan>(`/api/v1/add-ons/${key}/update/plan`, {}, installOptions(installId));
 }
 
 /** Update to the newest staged version; `planChecksum` is the identity of the plan that was read. */
@@ -372,8 +380,23 @@ export async function updateAddOn(
   publicAccess?: boolean,
   /** The person saw what the version gives apps' roles more of its tables, and goes ahead. */
   roleTables?: boolean,
+  more: {
+    /** The person ticked that the endpoints the version widens may show more to the visitors already using them. */
+    publicWider?: boolean;
+    /** The copy to update, when the key has several. */
+    installId?: string;
+  } = {},
 ): Promise<{ addOn: AddOnDto; from: string; to: string; pruned: string[] }> {
-  return api.post(`/api/v1/add-ons/${key}/update`, { ...(planChecksum === undefined ? {} : { planChecksum }), ...(publicAccess === true ? { publicAccess: true } : {}), ...(roleTables === true ? { roleTables: true } : {}) });
+  return api.post(
+    `/api/v1/add-ons/${key}/update`,
+    {
+      ...(planChecksum === undefined ? {} : { planChecksum }),
+      ...(publicAccess === true ? { publicAccess: true } : {}),
+      ...(roleTables === true ? { roleTables: true } : {}),
+      ...(more.publicWider === true ? { publicWider: true } : {}),
+    },
+    installOptions(more.installId),
+  );
 }
 
 export async function discardStaged(key: string, version: string): Promise<void> {

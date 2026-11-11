@@ -59,6 +59,7 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { featureWords } from '../apps/addOnWords.js';
 import { SampleDataCard } from '../apps/SampleData.js';
 import { AppsRoleTablesWiderCard } from '../apps/RoleTablesList.js';
+import { PublicWiderCard, publicWiderHold } from '../apps/PublicWiderCard.js';
 import { AddOnNeededDialog, type AddOnNeeded } from './AddOnNeededDialog.js';
 import { AddOnBrowser } from './AddOnBrowser.js';
 import { MakesSummary, PlanSummary, PublicAccessChoice } from './PlanSummary.js';
@@ -105,9 +106,21 @@ import {
 type Pending =
   | { kind: 'disconnect'; addOn: AddOnDto }
   | { kind: 'uninstall'; addOn: AddOnDto }
-  /** An update that adds to the add-on's own tables: what it adds is read before it runs. */
-  | { kind: 'update'; entry: CatalogEntry; plan: UpdatePlan; publicAccess: boolean }
+  /**
+   * An update that adds to the add-on's own tables: what it adds is read
+   * before it runs. `copy` names the copy when the add-on has one per
+   * database: each is updated, and checked, on its own.
+   */
+  | { kind: 'update'; entry: CatalogEntry; plan: UpdatePlan; publicAccess: boolean; publicWider: boolean; copy?: UpdateCopy | undefined }
   | { kind: 'discard'; entry: CatalogEntry };
+
+/** One copy of an add-on being updated: its install, its database's name, and which of how many. */
+interface UpdateCopy {
+  installId: string;
+  connectionName: string | null;
+  n: number;
+  total: number;
+}
 
 /**
  * Who uses an installed add-on, before anyone clicks: "Used by Client Portal
@@ -808,16 +821,49 @@ export function AddOnsPage() {
     }
   };
 
-  /** Update: straight away when no table changes; otherwise what it adds is shown first. */
+  /**
+   * Update: every copy of the add-on, one after another (every copy runs one
+   * version, and an app's update needs each of its add-ons' copies moved
+   * first). Each copy straight away when nothing changes in its tables;
+   * otherwise what it adds is shown first, naming its database, and the rest
+   * wait for that answer. A copy that fails, or a check cancelled, stops the rest.
+   */
+  const updateQueue = useRef<{ entry: CatalogEntry; copies: UpdateCopy[] } | null>(null);
+  const updateNext = async (): Promise<void> => {
+    const queued = updateQueue.current;
+    const copy = queued?.copies.shift();
+    if (queued === null || queued === undefined || copy === undefined) {
+      updateQueue.current = null;
+      return;
+    }
+    const { entry } = queued;
+    // One copy: no header, as a server that predates copies expects.
+    const installId = copy.total > 1 ? copy.installId : undefined;
+    const plan = await run(() => fetchUpdatePlan(entry.key, installId));
+    if (plan === undefined) {
+      updateQueue.current = null;
+      return;
+    }
+    // Shown first when it changes tables, would open something new to the public (allowed by a tick, never by the click),
+    // widens what visitors already see (allowed by a tick), or gives apps' roles more of its tables (allowed by the Update button under the list).
+    if (plan.plan.requiresSchemaChange || asksNewPublicAccess(plan.publicAccess) || (plan.roleTables ?? []).length > 0 || (plan.publicWider ?? []).length > 0) {
+      setPending({ kind: 'update', entry, plan, publicAccess: false, publicWider: false, ...(copy.total > 1 ? { copy } : {}) });
+      return;
+    }
+    const done = await run(() => updateAddOn(entry.key, plan.checksum, undefined, undefined, installId === undefined ? {} : { installId }));
+    if (done === undefined) updateQueue.current = null;
+    else await updateNext();
+  };
   const askUpdate = (entry: CatalogEntry): void => {
-    void (async () => {
-      const plan = await run(() => fetchUpdatePlan(entry.key));
-      if (plan === undefined) return;
-      // Shown first when it changes tables, would open something new to the public (allowed by a tick, never by the click),
-      // or gives apps' roles more of its tables (allowed by the Update button under the list).
-      if (plan.plan.requiresSchemaChange || asksNewPublicAccess(plan.publicAccess) || (plan.roleTables ?? []).length > 0) setPending({ kind: 'update', entry, plan, publicAccess: false });
-      else await run(() => updateAddOn(entry.key, plan.checksum));
-    })();
+    const copies = installed.filter((addOn) => addOn.key === entry.key);
+    updateQueue.current = {
+      entry,
+      copies:
+        copies.length === 0
+          ? [{ installId: '', connectionName: null, n: 1, total: 1 }]
+          : copies.map((addOn, index) => ({ installId: addOn.installId ?? '', connectionName: addOn.connectionName ?? null, n: index + 1, total: copies.length })),
+    };
+    void updateNext();
   };
 
   /** Switching it off for one app: refused when that app requires it, warned when a feature of it stops. */
@@ -1251,7 +1297,10 @@ export function AddOnsPage() {
         <Modal
           open
           onOpenChange={(next) => {
-            if (!next) setPending(null);
+            if (!next) {
+              updateQueue.current = null;
+              setPending(null);
+            }
           }}
         >
           {/*
@@ -1268,7 +1317,13 @@ export function AddOnsPage() {
               : pending.kind === 'uninstall'
                 ? t('studio:addOns.confirm.uninstallTitle', 'Uninstall this add-on')
                 : pending.kind === 'update'
-                  ? t('studio:addOns.confirm.updateTitle', 'Update to {version}', { version: pending.plan.to })
+                  ? pending.copy === undefined
+                    ? t('studio:addOns.confirm.updateTitle', 'Update to {version}', { version: pending.plan.to })
+                    : t('studio:addOns.confirm.updateCopyTitle', 'Update {addOn} on {database} to {version}', {
+                        addOn: pending.entry.name,
+                        database: pending.copy.connectionName ?? pending.copy.installId,
+                        version: pending.plan.to,
+                      })
                   : t('studio:addOns.confirm.discardTitle', 'Discard this download')
             }
           />
@@ -1302,6 +1357,14 @@ export function AddOnsPage() {
                 : pending.kind === 'update'
                   ? (
                       <div className="flex flex-col gap-3">
+                        {pending.copy === undefined ? null : (
+                          <p className="text-[12.5px] text-fg-muted" data-part="update-copy">
+                            {t('studio:addOns.confirm.updateCopyOf', 'Copy {n} of {total}. Every copy runs one version, so each is updated in turn.', {
+                              n: pending.copy.n,
+                              total: pending.copy.total,
+                            })}
+                          </p>
+                        )}
                         <p>
                           {pending.plan.plan.requiresSchemaChange
                             ? t(
@@ -1310,10 +1373,18 @@ export function AddOnsPage() {
                               )
                             : asksNewPublicAccess(pending.plan.publicAccess)
                               ? t('studio:addOns.confirm.updatePublicBody', 'This version would open more of the add-on to the public. Update without ticking the box and nothing new is opened.')
-                              : t('studio:addOns.confirm.updateRolesBody', 'This version lets apps’ roles do more with the add-on’s tables. Check what each gets before you update.')}
+                              : (pending.plan.publicWider ?? []).length > 0
+                                ? t('studio:addOns.confirm.updateWiderBody', 'This version shows visitors more through endpoints they already use. Check what each shows before you update.')
+                                : t('studio:addOns.confirm.updateRolesBody', 'This version lets apps’ roles do more with the add-on’s tables. Check what each gets before you update.')}
                         </p>
                         <PlanSummary plan={pending.plan.plan} />
                         <AppsRoleTablesWiderCard entries={pending.plan.roleTables ?? []} />
+                        <PublicWiderCard
+                          rows={pending.plan.publicWider ?? []}
+                          checked={pending.publicWider}
+                          disabled={busy || pending.plan.publicAccess?.canGrant === false}
+                          onChange={(next) => setPending((current) => (current?.kind === 'update' ? { ...current, publicWider: next } : current))}
+                        />
                         <PublicAccessChoice
                           access={pending.plan.publicAccess}
                           allowed={pending.publicAccess}
@@ -1329,28 +1400,55 @@ export function AddOnsPage() {
             }
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" onClick={() => setPending(null)}>
+            {pending.kind === 'update' && publicWiderHold(pending.plan.publicWider ?? [], pending.publicWider) !== null ? (
+              <span className="me-auto text-[12px] text-fg-muted" data-part="update-hold">
+                {publicWiderHold(pending.plan.publicWider ?? [], pending.publicWider)}
+              </span>
+            ) : null}
+            <Button
+              variant="ghost"
+              onClick={() => {
+                // A check cancelled stops the copies still to come.
+                updateQueue.current = null;
+                setPending(null);
+              }}
+            >
               {t('studio:addOns.confirm.cancel', 'Cancel')}
             </Button>
             <Button
               variant={pending.kind === 'uninstall' ? 'destructive' : pending.kind === 'update' ? 'primary' : 'destructiveSoft'}
-              disabled={busy || (pending.kind === 'uninstall' && !uninstallAllowed(removal.plan, removal.drop, removal.typed)) || (pending.kind === 'update' && !pending.plan.plan.installable)}
+              disabled={
+                busy ||
+                (pending.kind === 'uninstall' && !uninstallAllowed(removal.plan, removal.drop, removal.typed)) ||
+                (pending.kind === 'update' && (!pending.plan.plan.installable || publicWiderHold(pending.plan.publicWider ?? [], pending.publicWider) !== null))
+              }
               onClick={() => {
                 const current = pending;
                 const drop = removal.drop ? { confirmKey: removal.typed } : undefined;
                 setPending(null);
-                void run<unknown>(
-                  () => {
-                    if (current.kind === 'disconnect') return disconnectAddOn(current.addOn.key);
-                    if (current.kind === 'uninstall') return uninstallAddOn(current.addOn.key, drop);
-                    // The widened grants were listed above the button: the click is the say.
-                    if (current.kind === 'update') return updateAddOn(current.entry.key, current.plan.checksum, current.publicAccess, (current.plan.roleTables ?? []).length > 0);
-                    return discardStaged(current.entry.key, current.entry.version);
-                  },
-                  current.kind === 'uninstall'
-                    ? { action: 'uninstall', addOn: { key: current.addOn.key, name: current.addOn.name, version: current.addOn.version } }
-                    : undefined,
-                );
+                void (async () => {
+                  const done = await run<unknown>(
+                    () => {
+                      if (current.kind === 'disconnect') return disconnectAddOn(current.addOn.key);
+                      if (current.kind === 'uninstall') return uninstallAddOn(current.addOn.key, drop);
+                      // The widened grants were listed above the button: the click is the say.
+                      if (current.kind === 'update') {
+                        return updateAddOn(current.entry.key, current.plan.checksum, current.publicAccess, (current.plan.roleTables ?? []).length > 0, {
+                          publicWider: current.publicWider,
+                          ...(current.copy === undefined ? {} : { installId: current.copy.installId }),
+                        });
+                      }
+                      return discardStaged(current.entry.key, current.entry.version);
+                    },
+                    current.kind === 'uninstall'
+                      ? { action: 'uninstall', addOn: { key: current.addOn.key, name: current.addOn.name, version: current.addOn.version } }
+                      : undefined,
+                  );
+                  // The next copy, once this one is done.
+                  if (current.kind !== 'update') return;
+                  if (done === undefined) updateQueue.current = null;
+                  else await updateNext();
+                })();
               }}
             >
               {pending.kind === 'disconnect'
@@ -1374,7 +1472,7 @@ export function AddOnsPage() {
           <TriangleAlert className="size-3" />
           {t(
             'studio:addOns.upgradeNote',
-            'Upgrading keeps the hosts an add-on is attached to and the connection it already has.',
+            'Updating keeps the hosts an add-on is attached to and the connection it already has.',
           )}
         </p>
       )}

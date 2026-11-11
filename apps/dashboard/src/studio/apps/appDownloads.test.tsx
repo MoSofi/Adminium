@@ -1023,6 +1023,107 @@ describe('checking a new version and renaming to the prefix', () => {
     expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({ planChecksum: 's'.repeat(64), roleTables: true });
   });
 
+  /** An add-on the new version needs at 1.0.26, while 1.0.25 is installed. */
+  const outdatedAddOn = (over: Record<string, unknown> = {}) => ({
+    key: 'invoicing',
+    name: 'Invoices',
+    need: 'requires',
+    range: '^1.0.26',
+    reason: { 'en-US': 'Bills each visit.' },
+    checked: true,
+    features: [],
+    state: 'outdated',
+    source: 'catalog',
+    installedVersion: '1.0.25',
+    offeredVersion: '1.0.26',
+    satisfiesRange: false,
+    staged: true,
+    enabled: true,
+    action: 'update',
+    usedBy: [],
+    plan: null,
+    problems: [],
+    ...over,
+  });
+
+  it('shows the add-on a new version needs updated, with “Update it too” ticked, and sends it', async () => {
+    catalog = {
+      apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    };
+    plan = { ...contextPlan({ action: 'reuse', class: 'own-leftover', offers: ['reuse'] }), checksum: 'd'.repeat(64), installable: true, problems: [], addOns: [outdatedAddOn()] };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Check the add-ons this version needs.')).toBeTruthy();
+    const card = within(dialog).getByTestId('install-add-ons');
+    expect(within(card).getByText('Installed v1.0.25 — clinic needs 1.0.26 or later')).toBeTruthy();
+    const tick = within(card).getByRole('checkbox', { name: 'Update it too' });
+    expect(tick.getAttribute('aria-checked') ?? String((tick as HTMLInputElement).checked)).toMatch(/true/);
+    expect(posted('/api/v1/apps/clinic/update')).toHaveLength(0);
+
+    // Unticked, the update waits and says why.
+    await userEvent.click(tick);
+    expect(within(dialog).getByRole('button', { name: 'Update' }).hasAttribute('disabled')).toBe(true);
+    expect(within(dialog).getByText('clinic needs Invoices 1.0.26 or later.')).toBeTruthy();
+    await userEvent.click(tick);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({ planChecksum: 'd'.repeat(64), addOns: [{ key: 'invoicing', version: '1.0.26', update: true }] });
+  });
+
+  it('says to update every copy of an add-on first when it runs on another database too, and sends nothing', async () => {
+    catalog = {
+      apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    };
+    const elsewhere = 'Invoices runs version 1.0.25 on "kiln". Every copy of an add-on on a server runs one version: update every copy to 1.0.26, or install 1.0.25 here.';
+    plan = {
+      ...contextPlan({ action: 'reuse', class: 'own-leftover', offers: ['reuse'] }),
+      checksum: 'e'.repeat(64),
+      installable: false,
+      problems: [{ code: 'ADD_ON_REQUIRED', table: 'invoicing', message: `Invoices can’t be updated with clinic: ${elsewhere}` }],
+      addOns: [outdatedAddOn({ problems: [{ code: 'ONE_VERSION_PER_APP', message: elsewhere }] })],
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Update the add-on on every database first')).toBeTruthy();
+    expect(within(dialog).getByRole('link', { name: 'Open Add-ons' }).getAttribute('href')).toBe('/studio/add-ons');
+    expect(within(dialog).getByRole('button', { name: 'Update' }).hasAttribute('disabled')).toBe(true);
+    expect(posted('/api/v1/apps/clinic/update')).toHaveLength(0);
+  });
+
+  it('lists the endpoints a new version would show visitors more through, and updates only once allowed', async () => {
+    catalog = {
+      apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    };
+    plan = {
+      ...contextPlan({ action: 'reuse', class: 'own-leftover', offers: ['reuse'] }),
+      checksum: 'w'.repeat(64),
+      installable: true,
+      problems: [],
+      publicWider: [{ ref: 'clinic_faqs', owner: 'clinic', columns: ['audience'], methods: [], rows: false, reasons: ['an app’s own key would see more of "clinic_faqs": audience'] }],
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Check what this version shows visitors.')).toBeTruthy();
+    const card = within(dialog).getByTestId('update-public-wider');
+    expect(within(card).getByText('clinic_faqs')).toBeTruthy();
+    expect(within(card).getByText('shows audience')).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Update' }).hasAttribute('disabled')).toBe(true);
+    expect(within(dialog).getByText('Tick “Allow it” to let visitors see more, or keep the running version.')).toBeTruthy();
+    await userEvent.click(within(card).getByRole('checkbox', { name: 'Allow it' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({ planChecksum: 'w'.repeat(64), publicWider: true });
+  });
+
   it('shows what a new version newly gives its roles, and Update sends the yes', async () => {
     catalog = {
       apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],

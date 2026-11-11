@@ -42,6 +42,14 @@
  * "Allow this public access" card, listing only what is new. The answer goes
  * with the update; unticked, the app's key gains nothing.
  *
+ * ── …AND BEFORE IT MOVES AN ADD-ON, OR SHOWS VISITORS MORE ───────────────
+ *
+ * A version that needs a newer add-on shows it on the same check, with
+ * "Update it too" ticked, and sends it; one whose add-on runs on another
+ * database too says to update every copy on the Add-ons page first. A version
+ * that would let visitors see more through an endpoint they already use lists
+ * each, and Update waits for "Allow it".
+ *
  * ── …AND BEFORE ITS ROLES HOLD MORE OF AN ADD-ON'S TABLES ─────────────────
  *
  * A version whose roles would read or change more of an add-on's tables than
@@ -78,6 +86,7 @@ import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
 import { existingTables } from './installReview.js';
 import {
   UpdateReviewDialog,
+  asksAddOnsOrWider,
   asksGrants,
   checkAsks,
   publicAccessAdded,
@@ -283,7 +292,14 @@ export function useAppAcquisition() {
         const asksShare = (plan.shareOffers ?? []).length > 0;
         // A table the copy already took as it was is its own: only a stranger's table here is asked about.
         const asksPages = (plan.pageClashes ?? []).length > 0 || existingTables(plan).some((table) => table.class === 'taken');
-        if ((checkAsks(plan.tables) || asksShare || asksPages || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0 || asksGrants(plan)) && (plan.installable || askable)) {
+        /*
+         * The add-ons the version needs moved ("Update it too") and the
+         * endpoints it would widen are asked on the check too; the check also
+         * says why an add-on holds the update (a copy on another database
+         * still on the old version), so it opens even when the plan refuses.
+         */
+        const asksAddOns = asksAddOnsOrWider(plan);
+        if ((checkAsks(plan.tables) || asksShare || asksPages || publicAccessAdded(plan) !== null || roleTablesWider(plan).length > 0 || asksGrants(plan) || asksAddOns) && (plan.installable || askable || asksAddOns)) {
           setConsent({ key: app.key, to, plan, connectionId: app.connectionId, ...copyNamed(app) });
           return;
         }

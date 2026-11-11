@@ -220,7 +220,7 @@ function AddOnCard({
         )}
         {entry.state === 'installed' && entry.upgradeTo !== null && (
           <Button size="sm" className="flex-1" disabled={busy} onClick={() => onUpgrade(entry)}>
-            {t('studio:addOns.browse.upgradeAction', 'Upgrade')}
+            {t('studio:addOns.browse.upgradeAction', 'Update')}
           </Button>
         )}
         {/* Re-acquiring is the fix, and the catalog is the only place it can

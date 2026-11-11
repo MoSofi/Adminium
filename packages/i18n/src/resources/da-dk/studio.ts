@@ -32,7 +32,7 @@ export default {
       "title": "Available",
       "toggle": "Browse the online catalogue",
       "upgrade": "v{version} available",
-      "upgradeAction": "Upgrade",
+      "upgradeAction": "Opdater",
       "getting": "Henter den…",
       "onlineList": "Hvad adminium.dev tilbyder, og hvad der allerede er på denne server. Installér henter en tilføjelse og spørger, før den tilføjer noget.",
       "offLine": "Listen fra adminium.dev er slået fra på denne server. At vise den beder adminium.dev om listen, hvilket fortæller den serverens adresse, tidspunktet og dens Adminium-version. Installation af en tilføjelse nævner den tilføjelse.",
@@ -72,7 +72,10 @@ export default {
       "updateBody": "Denne version ændrer tilføjelsens egne tabeller. Intet af det, du har, fjernes; indtil opdateringen er færdig, gør tilføjelsen ingenting.",
       "update": "Opdater",
       "updatePublicBody": "Denne version ville åbne mere af tilføjelsen for offentligheden. Opdater uden at sætte flueben, så åbnes intet nyt.",
-      "updateRolesBody": "Denne version lader roller i apps gøre mere med tilføjelsens tabeller. Tjek, hvad hver enkelt får, før du opdaterer."
+      "updateRolesBody": "Denne version lader roller i apps gøre mere med tilføjelsens tabeller. Tjek, hvad hver enkelt får, før du opdaterer.",
+      "updateCopyTitle": "Opdater {addOn} på {database} til {version}",
+      "updateCopyOf": "Kopi {n} af {total}. Hver kopi kører samme version, så de opdateres én ad gangen.",
+      "updateWiderBody": "Denne version viser besøgende mere gennem endpoints, de allerede bruger. Tjek, hvad hvert enkelt viser, før du opdaterer."
     },
     "connect": {
       "apiKey": "API key",
@@ -174,7 +177,7 @@ export default {
       "drop": "Slet også dens tabeller og alt i dem. Det kan ikke fortrydes.",
       "type": "Skriv {key} for at slette dens tabeller"
     },
-    "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
+    "upgradeNote": "En opdatering bevarer de apps, en tilføjelse er knyttet til, og den forbindelse, den allerede har.",
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
       "title": "This deployment cannot browse online"
@@ -976,7 +979,14 @@ export default {
         "body": "{count, plural, one {Denne version indeholder ikke længere serverens udseende og sprog. # værdi, den satte, vender tilbage til, hvad den var: udseendet, ordene og systemmailene.} other {Denne version indeholder ikke længere serverens udseende og sprog. # værdier, den satte, vender tilbage til, hvad de var: udseendet, ordene og systemmailene.}}",
         "manager": "Kun en, der må ændre serverens indstillinger, kan køre denne opdatering.",
         "locked": "Kun en, der må ændre serverens indstillinger, kan køre denne opdatering: bed en med den tilladelse om det."
-      }
+      },
+      "everyCopy": {
+        "title": "Opdater først tilføjelsen på hver database",
+        "body": "{names} kører også på en anden database, og hver kopi kører samme version. Opdater hver kopi på siden Tilføjelser, og opdater så denne app.",
+        "link": "Åbn Tilføjelser"
+      },
+      "addOnsSubtitle": "Tjek de tilføjelser, denne version har brug for.",
+      "widerSubtitle": "Tjek, hvad denne version viser besøgende."
     },
     "veto": {
       "title": "Denne installation kan ikke gennemse online",
@@ -5827,5 +5837,16 @@ export default {
     "data": {
       "before": "{count, plural, one {# tabel} other {# tabeller}}. {before} af dem var her før appen."
     }
+  },
+  "publicWider": {
+    "title": "Viser besøgende mere",
+    "intro": "Denne version ændrer {count, plural, one {et offentligt endpoint} other {offentlige endpoints}}, som besøgende allerede bruger, så de ville kunne se eller gøre mere:",
+    "columns": "viser {columns}",
+    "methods": "tager imod {methods}",
+    "rows": "lukker flere rækker igennem",
+    "more": "når mere",
+    "allow": "Tillad det",
+    "hold": "Sæt flueben ved “Tillad det” for at lade besøgende se mere, eller behold den kørende version.",
+    "notYours": "Kun en, der må administrere API-nøgler, kan tillade dette."
   }
 } as const;

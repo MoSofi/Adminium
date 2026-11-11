@@ -32,7 +32,7 @@ export default {
       "title": "Available",
       "toggle": "Browse the online catalogue",
       "upgrade": "v{version} available",
-      "upgradeAction": "Upgrade",
+      "upgradeAction": "更新",
       "getting": "正在获取…",
       "onlineList": "adminium.dev 提供的内容，以及此服务器上已有的内容。“安装”会获取扩展，并在添加任何内容之前先询问。",
       "offLine": "此服务器上已关闭 adminium.dev 的列表。显示它会向 adminium.dev 请求列表，对方会得知此服务器的地址、时间及其 Adminium 版本。安装扩展会说明是哪个扩展。",
@@ -72,7 +72,10 @@ export default {
       "updateBody": "此版本会更改附加组件自己的表。你现有的内容不会被移除；在更新完成之前，附加组件不会执行任何操作。",
       "update": "更新",
       "updatePublicBody": "此版本会向公众开放该附加组件的更多内容。不勾选直接更新，则不会开放任何新内容。",
-      "updateRolesBody": "此版本让应用的角色可以对该附加组件的表做更多操作。更新前请查看每个角色获得的权限。"
+      "updateRolesBody": "此版本让应用的角色可以对该附加组件的表做更多操作。更新前请查看每个角色获得的权限。",
+      "updateCopyTitle": "将 {database} 上的 {addOn} 更新到 {version}",
+      "updateCopyOf": "第 {n} 个副本，共 {total} 个。每个副本运行同一个版本，因此会依次更新。",
+      "updateWiderBody": "此版本通过访客已在使用的端点向他们显示更多内容。更新前请检查每个端点显示的内容。"
     },
     "connect": {
       "apiKey": "API key",
@@ -174,7 +177,7 @@ export default {
       "drop": "同时删除它的表及其中的所有内容。此操作无法撤销。",
       "type": "输入 {key} 以删除它的表"
     },
-    "upgradeNote": "Upgrading keeps the hosts an add-on is attached to and the connection it already has.",
+    "upgradeNote": "更新会保留附加组件已连接的应用以及它现有的连接。",
     "veto": {
       "body": "The setting is saved, but network features are off for this server and that wins. Downloaded add-ons still work, and you can still upload one yourself.",
       "title": "This deployment cannot browse online"
@@ -976,7 +979,14 @@ export default {
         "body": "{count, plural, other {此版本不再包含服务器的外观和语言。它设置的 # 个值将恢复原样：外观、文字和系统邮件。}}",
         "manager": "只有可以更改服务器设置的人才能运行此更新。",
         "locked": "只有可以更改服务器设置的人才能运行此更新：请让拥有该权限的人来操作。"
-      }
+      },
+      "everyCopy": {
+        "title": "请先在每个数据库上更新该附加组件",
+        "body": "{names} 也在另一个数据库上运行，而每个副本都运行同一个版本。请在“附加组件”页面更新每个副本，然后再更新此应用。",
+        "link": "打开附加组件"
+      },
+      "addOnsSubtitle": "检查此版本需要的附加组件。",
+      "widerSubtitle": "检查此版本向访客显示的内容。"
     },
     "veto": {
       "title": "此部署无法在线浏览",
@@ -5827,5 +5837,16 @@ export default {
     "data": {
       "before": "{count, plural, other {共 # 张表}}，其中 {before} 张在应用之前就已存在。"
     }
+  },
+  "publicWider": {
+    "title": "向访客显示更多",
+    "intro": "此版本会更改访客已经在用的公开端点，他们将能看到或做更多：",
+    "columns": "显示 {columns}",
+    "methods": "接受 {methods}",
+    "rows": "放行更多的行",
+    "more": "可触及更多",
+    "allow": "允许",
+    "hold": "勾选“允许”让访客看到更多，或保留当前运行的版本。",
+    "notYours": "只有可以管理 API 密钥的人才能允许此操作。"
   }
 } as const;

@@ -72,7 +72,10 @@ export default {
       "updateBody": "Cette version modifie les tables du module complémentaire. Rien de ce que vous avez n’est supprimé ; tant que la mise à jour n’est pas terminée, le module ne fait rien.",
       "update": "Mettre à jour",
       "updatePublicBody": "Cette version ouvrirait davantage le module au public. Mettez à jour sans cocher la case et rien de nouveau n’est ouvert.",
-      "updateRolesBody": "Cette version permet à des rôles d’applications d’en faire plus avec les tables du module. Vérifiez ce que chacun obtient avant de mettre à jour."
+      "updateRolesBody": "Cette version permet à des rôles d’applications d’en faire plus avec les tables du module. Vérifiez ce que chacun obtient avant de mettre à jour.",
+      "updateCopyTitle": "Mettre à jour {addOn} sur {database} vers {version}",
+      "updateCopyOf": "Copie {n} sur {total}. Chaque copie tourne avec la même version, elles sont donc mises à jour l’une après l’autre.",
+      "updateWiderBody": "Cette version montre davantage aux visiteurs via des points d’accès qu’ils utilisent déjà. Vérifiez ce que chacun montre avant de mettre à jour."
     },
     "connect": {
       "apiKey": "Clé API",
@@ -976,7 +979,14 @@ export default {
         "body": "{count, plural, one {Cette version n’apporte plus l’apparence ni les langues du serveur. # valeur qu’elle a définie revient à ce qu’elle était : l’apparence, les textes et les e-mails système.} other {Cette version n’apporte plus l’apparence ni les langues du serveur. # valeurs qu’elle a définies reviennent à ce qu’elles étaient : l’apparence, les textes et les e-mails système.}}",
         "manager": "Seule une personne autorisée à modifier les réglages du serveur peut lancer cette mise à jour.",
         "locked": "Seule une personne autorisée à modifier les réglages du serveur peut lancer cette mise à jour : demandez-le à quelqu’un qui a cette permission."
-      }
+      },
+      "everyCopy": {
+        "title": "Mettez d’abord à jour le module sur chaque base de données",
+        "body": "{names} tourne aussi sur une autre base de données, et chaque copie tourne avec la même version. Mettez à jour chaque copie sur la page Modules, puis cette application.",
+        "link": "Ouvrir les modules"
+      },
+      "addOnsSubtitle": "Vérifiez les modules dont cette version a besoin.",
+      "widerSubtitle": "Vérifiez ce que cette version montre aux visiteurs."
     },
     "veto": {
       "title": "Ce déploiement ne peut pas consulter le catalogue en ligne",
@@ -5827,5 +5837,16 @@ export default {
     "data": {
       "before": "{count, plural, one {# table} other {# tables}}. {before} d’entre elles étaient là avant l’app."
     }
+  },
+  "publicWider": {
+    "title": "Montre plus aux visiteurs",
+    "intro": "Cette version modifie {count, plural, one {un point d’accès public} other {des points d’accès publics}} que les visiteurs utilisent déjà : ils pourraient voir ou faire davantage :",
+    "columns": "montre {columns}",
+    "methods": "accepte {methods}",
+    "rows": "laisse passer plus de lignes",
+    "more": "atteint davantage",
+    "allow": "L’autoriser",
+    "hold": "Cochez « L’autoriser » pour que les visiteurs voient davantage, ou gardez la version en cours.",
+    "notYours": "Seule une personne autorisée à gérer les clés d’API peut l’autoriser."
   }
 } as const;

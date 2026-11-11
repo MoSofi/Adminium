@@ -24051,6 +24051,14 @@
     "status": "mt",
     "srcHash": "7213b72e0bb6"
   },
+  "studio.addOns.confirm.updateCopyOf": {
+    "status": "mt",
+    "srcHash": "31b80812fa19"
+  },
+  "studio.addOns.confirm.updateCopyTitle": {
+    "status": "mt",
+    "srcHash": "f0a0863d9382"
+  },
   "studio.addOns.confirm.updatePublicBody": {
     "status": "mt",
     "srcHash": "a6c01ece5c11"
@@ -24062,6 +24070,10 @@
   "studio.addOns.confirm.updateTitle": {
     "status": "mt",
     "srcHash": "ac9d89181b1c"
+  },
+  "studio.addOns.confirm.updateWiderBody": {
+    "status": "mt",
+    "srcHash": "bbbc92df0c27"
   },
   "studio.addOns.connect.apiKey": {
     "status": "mt",
@@ -30091,6 +30103,10 @@
     "status": "mt",
     "srcHash": "dfdc04784a28"
   },
+  "studio.hostedApps.update.addOnsSubtitle": {
+    "status": "mt",
+    "srcHash": "d216ff4cb808"
+  },
   "studio.hostedApps.update.body": {
     "status": "mt",
     "srcHash": "5970be2d1f98"
@@ -30122,6 +30138,18 @@
   "studio.hostedApps.update.done": {
     "status": "mt",
     "srcHash": "da5ceaf8f12b"
+  },
+  "studio.hostedApps.update.everyCopy.body": {
+    "status": "mt",
+    "srcHash": "ebf9c2e5f66f"
+  },
+  "studio.hostedApps.update.everyCopy.link": {
+    "status": "mt",
+    "srcHash": "aa125c2f2c3c"
+  },
+  "studio.hostedApps.update.everyCopy.title": {
+    "status": "mt",
+    "srcHash": "21cd1bacf8ed"
   },
   "studio.hostedApps.update.finish": {
     "status": "mt",
@@ -30206,6 +30234,10 @@
   "studio.hostedApps.update.titleOn": {
     "status": "mt",
     "srcHash": "a4f892c1c973"
+  },
+  "studio.hostedApps.update.widerSubtitle": {
+    "status": "mt",
+    "srcHash": "4009f7c80dfb"
   },
   "studio.hostedApps.veto.body": {
     "status": "mt",
@@ -36974,6 +37006,42 @@
   "studio.publicApi.toggle.label": {
     "status": "mt",
     "srcHash": "54558267971e"
+  },
+  "studio.publicWider.allow": {
+    "status": "mt",
+    "srcHash": "f55038f9fcee"
+  },
+  "studio.publicWider.columns": {
+    "status": "mt",
+    "srcHash": "0d173c8b4673"
+  },
+  "studio.publicWider.hold": {
+    "status": "mt",
+    "srcHash": "c81bf9424753"
+  },
+  "studio.publicWider.intro": {
+    "status": "mt",
+    "srcHash": "77910b2894be"
+  },
+  "studio.publicWider.methods": {
+    "status": "mt",
+    "srcHash": "bc01a541861d"
+  },
+  "studio.publicWider.more": {
+    "status": "mt",
+    "srcHash": "2250bb0c662e"
+  },
+  "studio.publicWider.notYours": {
+    "status": "mt",
+    "srcHash": "68db4b614458"
+  },
+  "studio.publicWider.rows": {
+    "status": "mt",
+    "srcHash": "414b33576a11"
+  },
+  "studio.publicWider.title": {
+    "status": "mt",
+    "srcHash": "d19d46a8d3f9"
   },
   "studio.remap.badge.fk": {
     "status": "src",

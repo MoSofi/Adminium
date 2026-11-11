@@ -107,12 +107,14 @@ interface StubOptions {
 }
 
 function stubFetch(options: StubOptions = {}) {
-  const calls: { method: string; url: string; body?: unknown }[] = [];
+  const calls: { method: string; url: string; body?: unknown; install?: string }[] = [];
   const fetchMock = vi.fn((input: unknown, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
     const sent: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
-    calls.push({ method, url, body: sent });
+    // The copy a request names, when it names one.
+    const install = (init?.headers as Record<string, string> | undefined)?.['x-adminium-install'];
+    calls.push({ method, url, body: sent, ...(install === undefined ? {} : { install }) });
     const own = options.respond?.(method, url, sent);
     if (own !== undefined) return (own.after ?? Promise.resolve()).then(() => jsonResponse(own.status, own.body));
 
@@ -996,7 +998,7 @@ describe('AddOnsPage', () => {
     it('an update that changes no table runs at once, on the route that could have changed one', async () => {
       const user = userEvent.setup();
       const { calls } = await renderPage({ installed: [KIT], entries: [NEWER], respond: updating(false) });
-      await user.click(await screen.findByRole('button', { name: /Upgrade|Update/ }));
+      await user.click(await screen.findByRole('button', { name: 'Update' }));
       await waitFor(() => expect(update(calls)).toBeTruthy());
       expect(update(calls)?.body).toEqual({ planChecksum: 'sum-1' });
       expect(screen.queryByRole('dialog')).toBeNull();
@@ -1005,7 +1007,7 @@ describe('AddOnsPage', () => {
     it('an update that adds to its tables shows what it adds first, and runs only when confirmed', async () => {
       const user = userEvent.setup();
       const { calls } = await renderPage({ installed: [KIT], entries: [NEWER], respond: updating(true) });
-      await user.click(await screen.findByRole('button', { name: /Upgrade|Update/ }));
+      await user.click(await screen.findByRole('button', { name: 'Update' }));
       const dialog = await screen.findByRole('dialog');
       expect(within(dialog).getByText('Update to 1.0.1')).toBeTruthy();
       expect(within(dialog).getByText(/changes the add-on’s own tables/)).toBeTruthy();
@@ -1025,7 +1027,7 @@ describe('AddOnsPage', () => {
       const respond: NonNullable<StubOptions['respond']> = (method, url) =>
         method === 'POST' && url.endsWith('/stock-kit/update/plan') ? { status: 200, body: { ...updatePlan(false).body, roleTables } } : undefined;
       const { calls } = await renderPage({ installed: [KIT], entries: [NEWER], respond });
-      await user.click(await screen.findByRole('button', { name: /Upgrade|Update/ }));
+      await user.click(await screen.findByRole('button', { name: 'Update' }));
       const dialog = await screen.findByRole('dialog');
       expect(within(dialog).getByText(/lets apps’ roles do more with the add-on’s tables/)).toBeTruthy();
       const card = within(dialog).getByTestId('add-on-role-tables-wider');
@@ -1037,6 +1039,71 @@ describe('AddOnsPage', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Update' }));
       await waitFor(() => expect(update(calls)).toBeTruthy());
       expect(update(calls)?.body).toEqual({ planChecksum: 'sum-1', roleTables: true });
+    });
+  });
+
+  describe('an add-on with a copy on each of two databases', () => {
+    const NEWER = makeEntry({ key: 'stock-kit', name: 'Stock kit', version: '1.0.0', state: 'installed', upgradeTo: '1.0.1' });
+    const COPY = (installId: string, connectionId: string, connectionName: string) =>
+      makeAddOn({ key: 'stock-kit', name: 'Stock kit', installId, connectionId, connectionName, connectKind: 'none', networkAllow: [], attachments: [{ attachedTo: 'shop', enabled: true }] });
+    const COPIES = [COPY('ins_studio', 'conn_studio', 'Studio'), COPY('ins_kiln', 'conn_kiln', 'Kiln')];
+    const plans = (requiresSchemaChange: (install: string | undefined) => boolean, extra: Record<string, unknown> = {}): NonNullable<StubOptions['respond']> => {
+      let n = 0;
+      return (method, url) => {
+        if (method !== 'POST' || !url.endsWith('/stock-kit/update/plan')) return undefined;
+        n += 1;
+        const install = n === 1 ? 'ins_studio' : 'ins_kiln';
+        const changes = requiresSchemaChange(install);
+        return {
+          status: 200,
+          body: { plan: makePlan({ addOnKey: 'stock-kit', version: '1.0.1', touchesData: true, requiresSchemaChange: changes, create: changes ? [{ ref: 'counts', columns: [] }] : [] }), from: '1.0.0', to: '1.0.1', connectionId: `conn_${install.slice(4)}`, checksum: `sum-${install}`, ...extra },
+        };
+      };
+    };
+    const updates = (calls: { method: string; url: string; body?: unknown; install?: string }[]) => calls.filter((c) => c.method === 'POST' && c.url === '/api/v1/add-ons/stock-kit/update');
+    const checks = (calls: { method: string; url: string; install?: string }[]) => calls.filter((c) => c.method === 'POST' && c.url === '/api/v1/add-ons/stock-kit/update/plan');
+
+    it('Update updates every copy in turn, each check and update naming its copy', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ installed: COPIES, entries: [NEWER], respond: plans(() => false) });
+      await user.click(await screen.findByRole('button', { name: 'Update' }));
+      await waitFor(() => expect(updates(calls)).toHaveLength(2));
+      expect(checks(calls).map((c) => c.install)).toEqual(['ins_studio', 'ins_kiln']);
+      expect(updates(calls).map((c) => [c.install, c.body])).toEqual([
+        ['ins_studio', { planChecksum: 'sum-ins_studio' }],
+        ['ins_kiln', { planChecksum: 'sum-ins_kiln' }],
+      ]);
+    });
+
+    it('a copy whose check asks is shown by its database, and the next copy waits for the answer', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage({ installed: COPIES, entries: [NEWER], respond: plans((install) => install === 'ins_kiln') });
+      await user.click(await screen.findByRole('button', { name: 'Update' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Update Stock kit on Kiln to 1.0.1')).toBeTruthy();
+      expect(within(dialog).getByText('Copy 2 of 2. Every copy runs one version, so each is updated in turn.')).toBeTruthy();
+      expect(updates(calls).map((c) => c.install)).toEqual(['ins_studio']);
+      await user.click(within(dialog).getByRole('button', { name: 'Update' }));
+      await waitFor(() => expect(updates(calls)).toHaveLength(2));
+      expect(updates(calls)[1]).toMatchObject({ install: 'ins_kiln', body: { planChecksum: 'sum-ins_kiln' } });
+    });
+
+    it('a version that shows visitors more waits for “Allow it”, and sends it', async () => {
+      const user = userEvent.setup();
+      const publicWider = [{ ref: 'stock_kit_items', owner: 'stock-kit', columns: ['app'], methods: [], rows: false, reasons: ['an app’s own key would see more of "stock_kit_items": app'] }];
+      const { calls } = await renderPage({ installed: [COPIES[0]!], entries: [NEWER], respond: plans(() => false, { publicWider }) });
+      await user.click(await screen.findByRole('button', { name: 'Update' }));
+      const dialog = await screen.findByRole('dialog');
+      const card = within(dialog).getByTestId('update-public-wider');
+      expect(within(card).getByText('shows app')).toBeTruthy();
+      const confirm = within(dialog).getByRole('button', { name: 'Update' }) as HTMLButtonElement;
+      expect(confirm.disabled).toBe(true);
+      await user.click(within(card).getByRole('checkbox', { name: 'Allow it' }));
+      expect(confirm.disabled).toBe(false);
+      await user.click(confirm);
+      await waitFor(() => expect(updates(calls)).toHaveLength(1));
+      // One copy: named by no header, as before.
+      expect(updates(calls)[0]).toEqual({ method: 'POST', url: '/api/v1/add-ons/stock-kit/update', body: { planChecksum: 'sum-ins_studio', publicWider: true } });
     });
   });
 
@@ -1132,7 +1199,7 @@ describe('AddOnsPage', () => {
         return undefined;
       };
       const { calls } = await renderPage({ installed: [KIT], entries: [makeEntry({ key: 'stock-kit', name: 'Stock kit', version: '1.0.1', state: 'installed', upgradeTo: '1.0.1' })], respond });
-      await user.click(await screen.findByRole('button', { name: /Upgrade|Update/ }));
+      await user.click(await screen.findByRole('button', { name: 'Update' }));
       const dialog = await screen.findByRole('dialog');
       expect(within(dialog).getByText(/would open more of the add-on to the public/)).toBeTruthy();
       await user.click(within(dialog).getByRole('checkbox'));

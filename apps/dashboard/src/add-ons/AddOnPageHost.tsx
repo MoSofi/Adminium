@@ -169,7 +169,7 @@ function MountedPage({ page }: { page: AddOnNavPage }) {
         title={t('addOns:noBundle.title', 'This page could not be loaded')}
         body={t(
           'addOns:noBundle.body',
-          'The add-on declares this page but does not ship the file it points at. Installing it again, or upgrading it, is what fixes this.',
+          'The add-on declares this page but does not ship the file it points at. Installing it again, or updating it, is what fixes this.',
         )}
       />
     );
