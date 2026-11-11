@@ -429,6 +429,9 @@ export function toServerEnvRecord(
   record.ADMINIUM_META_URL = desktop.metaDsn;
   record.ADMINIUM_SECRET = desktop.secret;
   record.ADMINIUM_LOG_LEVEL = desktop.logLevel;
+  // An operator's setting for a shared server. The desktop app opens the files its user picks;
+  // Adminium's own files stay refused there all the same.
+  delete record.ADMINIUM_SQLITE_DIRS;
   if (desktop.telemetryDisabled) {
     // Tri-state (`config/env.ts`): an explicit `off` vetoes the in-app consent
     // setting, which is exactly what "None unless telemetryOptIn" means.
