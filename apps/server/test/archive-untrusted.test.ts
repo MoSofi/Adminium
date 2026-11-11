@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { destinationsRepo, filesRepo, newId, type MetaDb } from '@adminium/meta';
+import { connectionsRepo, destinationsRepo, filesRepo, newId, type MetaDb } from '@adminium/meta';
 import { strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -281,5 +281,55 @@ describe('a local storage destination in an export', () => {
     expect(restored?.disabled).toBe(true);
     expect(restored?.isDefault).toBe(false);
     expect(result.warnings.join('\n')).toMatch(/“Uploads” is switched off \(an export’s folders are another computer’s/);
+  });
+});
+
+describe('connection strings, checked again as when they are saved', () => {
+  it('looks the host up, applies ADMINIUM_DATABASE_HOSTS and the network policy, and empties what fails', async () => {
+    const meta = await store('sqlite', true);
+    const here = await dirs();
+    await seedInstance(meta, here);
+    const repo = connectionsRepo(meta, CRYPTO);
+    const make = async (name: string, host: string) =>
+      (await repo.create({ name, engine: 'postgres', status: 'connected', introspectDsn: `postgres://app:pw@${host}:5432/shop`, dataDsn: `postgres://app:pw@${host}:5432/shop` })).id;
+    const ids = {
+      // A name, not an address: only a lookup shows it is this server.
+      sneaky: await make('Sneaky', 'db.p75.test'),
+      listed: await make('Listed', 'local-db.p75.test'),
+      lan: await make('Lan', 'lan-db.p75.test'),
+      cloud: await make('Cloud', 'cloud-db.p75.test'),
+    };
+    const archive = join(here.root, 'full.zip');
+    await createArchive({ meta, outPath: archive, dataDir: here.dataDir, projectRoot: null, kind: 'full', secret: SECRET, dsnCrypto: CRYPTO, signing: SIGNING });
+
+    const answers: Record<string, string[]> = {
+      'db.p75.test': ['127.0.0.1'],
+      'local-db.p75.test': ['127.0.0.1'],
+      'lan-db.p75.test': ['10.0.0.7'],
+      'cloud-db.p75.test': ['203.0.113.20'],
+    };
+    const dest = await target();
+    const result = await restoreArchive({
+      ...importOptions(archive, dest),
+      expect: 'full',
+      projectRoot: null,
+      owner: undefined,
+      // Production, `strict`, and the operator's list naming one host.
+      blockLoopback: true,
+      blockPrivate: true,
+      databaseHosts: [{ host: 'local-db.p75.test', port: 5432, wildcard: false }],
+      lookup: async (host) => Promise.resolve(answers[host] ?? []),
+    });
+
+    const restored = connectionsRepo(dest.meta, CRYPTO);
+    const dsn = async (id: string) => (await restored.getDsns(id))?.dataDsn ?? null;
+    expect(await dsn(ids.sneaky)).toBeNull();
+    expect((await restored.findById(ids.sneaky))?.status).toBe('unconfigured');
+    expect(await dsn(ids.lan)).toBeNull();
+    expect(await dsn(ids.listed)).toContain('local-db.p75.test');
+    expect(await dsn(ids.cloud)).toContain('cloud-db.p75.test');
+    const said = result.warnings.join('\n');
+    expect(said).toMatch(/“Sneaky” lost its connection string \(The host db\.p75\.test is on this server/);
+    expect(said).toMatch(/“Lan” lost its connection string \(.*ADMINIUM_NETWORK_POLICY=strict/);
   });
 });

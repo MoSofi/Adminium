@@ -207,6 +207,7 @@ export const archiveRestoreCommand: Command = {
         hold: boolFlag(values.hold),
         blockLoopback: deps.env.NODE_ENV === 'production',
         blockPrivate: env.ADMINIUM_NETWORK_POLICY === 'strict',
+        databaseHosts: env.ADMINIUM_DATABASE_HOSTS,
         storageRoots: storageRootPolicyFor(env, store),
         dryRun: boolFlag(values['dry-run']),
       });
@@ -337,6 +338,7 @@ export async function importExportFile(
       expect: 'export',
       blockLoopback: deps.env.NODE_ENV === 'production',
       blockPrivate: env.ADMINIUM_NETWORK_POLICY === 'strict',
+      databaseHosts: env.ADMINIUM_DATABASE_HOSTS,
       storageRoots: storageRootPolicyFor(env, store),
       dryRun: opts.dryRun,
       owner: askExportOwner(io, { ownerEmail: opts.ownerEmail, passwordStdin: opts.passwordStdin === true, ...(opts.readStdin === undefined ? {} : { readStdin: opts.readStdin }) }),

@@ -18,7 +18,8 @@
  * 5. the rows go through `sanitizeDump` again (no sessions, tokens, add-on
  *    trust or package copies, whatever the file holds; an export loses every
  *    hash and secret), then through the save-time guards: each connection
- *    string through `guardDsn`, each S3/WebDAV address through
+ *    string through `checkDsn` (`ADMINIUM_DATABASE_HOSTS`, the network policy,
+ *    the host looked up where loopback or private ranges are refused), each S3/WebDAV address through
  *    `checkDestinationAddress` (looked up, every answer checked, the network
  *    policy applied), each `local` folder through `storageRootRefusal` (never
  *    Adminium's own files, inside `ADMINIUM_STORAGE_DIRS` when set), each app
@@ -64,7 +65,7 @@ import {
   type MetaTableDump,
 } from '@adminium/meta';
 
-import { guardDsn } from '../connections/dsn.js';
+import { checkDsn, type DatabaseHost } from '../connections/dsn.js';
 import { checkDestinationAddress } from '../files/destinations.js';
 import { FILES_DIR } from '../files/drivers/local.js';
 import { storageRootRefusal, type StorageRootPolicy } from '../files/root-guard.js';
@@ -123,7 +124,13 @@ export interface RestoreArchiveOptions {
   blockPrivate?: boolean | undefined;
   /** Where a `local` destination's folder may be (`storageRootPolicyFor`). Default: off the data dir. */
   storageRoots?: StorageRootPolicy | undefined;
-  /** Test seam: the storage hosts' lookup. Default: the system resolver's. */
+  /**
+   * `ADMINIUM_DATABASE_HOSTS`: a connection to one of these hosts and ports passes the loopback (and,
+   * under `strict`, the private-network) check, as when it is saved. "Allow databases on this server" is
+   * never read from the archive (`policy.ts`), so it is off here.
+   */
+  databaseHosts?: readonly DatabaseHost[] | undefined;
+  /** Test seam: the storage and database hosts' lookup. Default: the system resolver's. */
   lookup?: HostLookup | undefined;
   /** Check everything, write nothing. */
   dryRun?: boolean;
@@ -462,7 +469,17 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
         try {
           const dsn = opts.dsnCrypto.decrypt(token);
           if (row.engine === 'sqlite') refusal = 'its SQLite file did not come with the archive';
-          else guardDsn(dsn, { blockLoopback: opts.blockLoopback, engine: String(row.engine) });
+          else {
+            // The check a connection string gets when it is saved here: the list, the network policy, and
+            // where loopback or private ranges are refused, a lookup of the host with every answer checked.
+            await checkDsn(dsn, {
+              blockLoopback: opts.blockLoopback,
+              engine: String(row.engine),
+              databaseHosts: opts.databaseHosts,
+              blockPrivate: opts.blockPrivate === true,
+              lookup: opts.lookup,
+            });
+          }
         } catch (error) {
           refusal = error instanceof Error ? error.message : 'it does not open';
         }
