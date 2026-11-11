@@ -182,6 +182,22 @@ describe('a new project from the file', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('says the file brought a project whenever it brought any project file, with a config file or without', async () => {
+    // Code without `adminium.config.*`: `new` still makes the folder a project, and the code is still the file's.
+    const { deps, calls } = fakeEngine({
+      restore: (call) => {
+        mkdirSync(join(call.cwd, 'hooks'), { recursive: true });
+        writeFileSync(join(call.cwd, 'hooks', 'on-boot.ts'), 'export default { run() {} };\n');
+        writeFileSync(join(call.cwd, 'package.json'), '{"name":"x"}\n');
+        return { code: 0, output: JSON.stringify({ ...ANSWER, projectFiles: 2 }), timedOut: false };
+      },
+    });
+    const made = await createImportExport(deps)({ file: '/f.zip', root: root(), ownerEmail: 'ava@example.com', password: 'a-long-new-password' });
+    expect(made).toMatchObject({ ok: true, carriedProject: true });
+    expect(calls.map((call) => call.args[1])).toEqual(['import-zip', 'new']);
+    expect(existsSync(join(root(), 'adminium.config.ts'))).toBe(true);
+  });
+
   it('leaves no folder behind when the engine refuses the file, or `new` fails', async () => {
     const refused = fakeEngine({ restore: () => ({ code: 1, output: '{"ok":false,"refused":"refused","message":"This archive was changed after it was made: adminium-archive/meta/adminium_users.json does not match its manifest."}', timedOut: false }) });
     expect(await createImportExport(refused.deps)({ file: '/f.zip', root: root(), ownerEmail: 'ava@example.com', password: 'a-long-new-password' })).toEqual({
@@ -436,6 +452,52 @@ describe('the real engine, on a real export', () => {
     const plain = join(home, 'Downloads', 'notes.zip');
     writeFileSync(plain, zipSync({ 'notes.txt': strToU8('hello') }));
     expect(await createDescribeExport(engine)(plain)).toMatchObject({ ok: false, refused: 'not-an-export' });
+  });
+});
+
+describe('the real engine, on an export that brings code without a config file', () => {
+  it('is remembered as not agreed to, so opening it asks about the code first', { timeout: 180_000 }, async () => {
+    const source = await sourceInstance();
+    // `hooks/` and a `package.json`, and no `adminium.config.*`: the folder is not a project until `new` makes it one.
+    const members = unzipSync(readFileSync(source.exportFile));
+    const manifest = JSON.parse(Buffer.from(members['adminium-archive/manifest.json'] as Uint8Array).toString('utf8')) as {
+      project: { files: string[] } | null;
+      entries: { path: string; bytes: number; sha256: string }[];
+    };
+    manifest.project = { files: [] };
+    for (const [rel, text] of [
+      ['hooks/on-boot.ts', 'export default { run() { throw new Error("ran without being agreed to"); } };\n'],
+      ['package.json', '{"name":"sent","private":true,"type":"module"}\n'],
+    ] as const) {
+      const data = strToU8(text);
+      members[`adminium-archive/project/${rel}`] = data;
+      manifest.project.files.push(rel);
+      manifest.entries.push({ path: `adminium-archive/project/${rel}`, bytes: data.length, sha256: createHash('sha256').update(data).digest('hex') });
+    }
+    members['adminium-archive/manifest.json'] = strToU8(JSON.stringify(manifest));
+    const sent = join(home, 'Downloads', 'sent.zip');
+    writeFileSync(sent, zipSync(members as Zippable));
+
+    let config = createDefaultConfig(join(home, 'data'));
+    const start = createStartService({
+      readConfig: () => config,
+      saveConfig: (next) => {
+        config = next;
+        return Promise.resolve();
+      },
+      folder: { ...realFolderDeps(join(home, 'the-app'), 'darwin'), home },
+      classicUsed: () => false,
+      chooseDirectory: () => Promise.resolve(null),
+      now: () => new Date('2026-11-11T08:00:00.000Z'),
+      onChoice: () => undefined,
+      importExport: createImportExport(realEngine()),
+    });
+    const result = await start.importExport({ path: sent, parent: join(home, 'Adminium'), name: 'Sent', owner: 'ava@example.com', password: PASSWORD });
+    expect(result, JSON.stringify(result)).toMatchObject({ status: 'imported' });
+    const root = join(home, 'Adminium', 'sent');
+    expect(existsSync(join(root, 'hooks', 'on-boot.ts'))).toBe(true);
+    expect(config.projects[0]).toMatchObject({ name: 'Sent', trusted: null });
+    expect(await start.openProject({ path: root })).toMatchObject({ status: 'trust-needed' });
   });
 });
 
