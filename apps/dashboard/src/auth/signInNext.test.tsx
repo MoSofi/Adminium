@@ -50,8 +50,8 @@ afterEach(() => {
   Object.defineProperty(window, 'location', { configurable: true, value: original });
 });
 
-async function signInWith(next: string | undefined) {
-  search = { returnTo: undefined, next };
+async function signInWith(next: string | undefined, returnTo?: string) {
+  search = { returnTo, next };
   render(
     <QueryClientProvider client={createQueryClient()}>
       <ThemeProvider>
@@ -82,5 +82,19 @@ describe('signing in on the dashboard with ?next=', () => {
     await signInWith('/apps/maker/staff/today');
     await waitFor(() => expect(assign).toHaveBeenCalledWith('/apps/maker/staff/today'));
     expect(push).not.toHaveBeenCalled();
+  });
+});
+
+describe('signing in on the dashboard with ?returnTo=', () => {
+  it('opens an app’s screens as a document, never as a dashboard route', async () => {
+    await signInWith(undefined, '/apps/printing/staff/');
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/apps/printing/staff/'));
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('follows a dashboard screen inside the dashboard', async () => {
+    await signInWith(undefined, '/p/orders?view=open');
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/p/orders?view=open'));
+    expect(assign).not.toHaveBeenCalled();
   });
 });

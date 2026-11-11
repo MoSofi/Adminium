@@ -16,6 +16,11 @@
  * (`/apps/<key>/…`), so only that is followed there; on an address mapped to
  * an app's staff side every path is the app's, and any local path is.
  *
+ * A `returnTo` that names an app's screens (`/apps/<key>/…`, or any path on
+ * an app's staff address) is opened as a document too, by the same rule: the
+ * dashboard has no route there, and pushed it would draw its own "page
+ * missing" until a reload.
+ *
  * A `next` on the dashboard's own address that names one of the dashboard's
  * own screens (`/studio/privacy`, `/p/orders`) is not a document to open: it
  * is where the person was going, followed inside the dashboard as `returnTo`

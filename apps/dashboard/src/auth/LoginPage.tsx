@@ -41,7 +41,9 @@ export function LoginPage() {
      * validateSearch already pinned it to a path (never `//host`), and it is
      * followed only into an app's own screens (auth/nextTarget.ts).
      */
-    const target = nextTarget(next, here !== undefined);
+    // A `returnTo` that is an app's screens (not one of the dashboard's own) is opened the same way: pushed, the
+    // dashboard would draw its own "page missing" over it until a reload.
+    const target = nextTarget(next, here !== undefined) ?? nextTarget(to, here !== undefined);
     if (target !== null) {
       setOpening({ userName, appName: here?.appName ?? null });
       window.location.assign(target);

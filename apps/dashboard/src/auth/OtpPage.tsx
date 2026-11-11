@@ -66,7 +66,7 @@ export function OtpPage() {
               router.options.context.queryClient.clear();
               // The surface gate's target needs a DOCUMENT navigation — same
               // rule as LoginPage.finish, same path-only guard.
-              const target = nextTarget(challenge.next, here !== undefined);
+              const target = nextTarget(challenge.next, here !== undefined) ?? nextTarget(challenge.returnTo, here !== undefined);
               if (target !== null) {
                 setOpening({ userName: user.name, appName: here?.appName ?? null });
                 window.location.assign(target);
