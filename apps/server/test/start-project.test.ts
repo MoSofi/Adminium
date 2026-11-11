@@ -296,3 +296,23 @@ describe('versions with no git at all', () => {
     expect(await createVersions(tmpdir(), { git: join(tmpdir(), 'no-such-git') }).available()).toBe(false);
   });
 });
+
+describe('the variables a folder does not decide', () => {
+  // Who may reach what, which secret signs an archive, which links show: the operator's word on a server, never a
+  // project's `.env` (a folder opened from somewhere else would otherwise widen what its server may touch).
+  const OPERATOR_SETTINGS = [
+    'ADMINIUM_SETUP_TOKEN',
+    'ADMINIUM_DATABASE_HOSTS',
+    'ADMINIUM_LOCAL_DATABASES',
+    'ADMINIUM_NETWORK_POLICY',
+    'ADMINIUM_SQLITE_DIRS',
+    'ADMINIUM_STORAGE_DIRS',
+    'ADMINIUM_ARCHIVE_KEY',
+    'ADMINIUM_DEPLOY_LINK',
+  ];
+
+  it('holds each operator setting once', () => {
+    for (const name of OPERATOR_SETTINGS) expect(HOST_DECIDED_ENV.filter((entry) => entry === name), name).toEqual([name]);
+    expect(new Set(HOST_DECIDED_ENV).size).toBe(HOST_DECIDED_ENV.length);
+  });
+});
