@@ -86,7 +86,7 @@ describe('Export everything', () => {
       expect(screen.getByText(item)).toBeTruthy();
     }
     const rows = screen.getByRole('link', { name: 'export the database' });
-    expect(rows.getAttribute('href')).toBe('https://docs.adminium.dev/self-hosting/export-everything/#database-rows');
+    expect(rows.getAttribute('href')).toBe('https://docs.adminium.dev/self-hosting/export-everything#database-rows');
     expect(rows.parentElement?.textContent).toBe('The database rows, unless you export the database');
     expect(screen.getByRole('heading', { name: 'Move to another host' })).toBeTruthy();
     expect(screen.getByText('adminium import-zip <file>')).toBeTruthy();

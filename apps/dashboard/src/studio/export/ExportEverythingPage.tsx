@@ -33,7 +33,7 @@ import { EXPORT_STATE_KEY, IMPORT_COMMAND, exportDownloadHref, exportStateQuery,
 
 const SUPER_ADMIN_ROLE = 'super-admin';
 /** Where "export the database" leads: the docs on dumping a database on another host. */
-export const DATABASE_ROWS_DOCS = docsUrl('self-hosting/export-everything/#database-rows');
+export const DATABASE_ROWS_DOCS = docsUrl('self-hosting/export-everything#database-rows');
 
 function formatBytes(bytes: number): string {
   return getFormatters(getI18nInstance()?.language ?? 'en-US').bytes(bytes);
