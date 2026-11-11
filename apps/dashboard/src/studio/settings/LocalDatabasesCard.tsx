@@ -108,7 +108,7 @@ export function LocalDatabasesCard(): ReactNode {
   );
 
   return (
-    <Card data-testid="local-databases-card">
+    <Card padded={false} data-testid="local-databases-card">
       <CardHeader className="flex items-center justify-start gap-3">
         <IconTile tone="accent" size="md" icon={<Database />} />
         <div className="min-w-0 flex-1">
