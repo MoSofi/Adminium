@@ -126,7 +126,7 @@ describe('StateHero', () => {
     expect(id.className).toContain('select-all');
   });
 
-  it('offers the copy button only where a clipboard exists', () => {
+  it('offers the copy button only where a clipboard exists', async () => {
     // `navigator.clipboard` is undefined outside a secure context, so a
     // self-host on `http://192.168.1.50:4600` has none. There the button took
     // the click, failed silently and never flipped to "Copied" — a dead button
@@ -137,7 +137,8 @@ describe('StateHero', () => {
     try {
       set({ writeText: () => Promise.resolve() });
       const withClipboard = render(<StateHero spec={SYSTEM_STATES.error} requestId="req_1" />);
-      expect(screen.getByRole('button', { name: /Copy reference/ })).toBeDefined();
+      // Loaded with the first error page that shows it, so it arrives a moment after the page.
+      expect(await screen.findByRole('button', { name: /Copy reference/ })).toBeDefined();
       withClipboard.unmount();
 
       set(undefined);

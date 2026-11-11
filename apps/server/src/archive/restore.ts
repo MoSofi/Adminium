@@ -50,6 +50,7 @@ import {
   loadMetaDump,
   probeAdminiumTables,
   relocatableTables,
+  SETTINGS_REGISTRY,
   seedBuiltinRoles,
   seedSystemSettings,
   type DsnCrypto,
@@ -111,7 +112,36 @@ export interface RestoreArchiveOptions {
   blockLoopback: boolean;
   /** Check everything, write nothing. */
   dryRun?: boolean;
+  /**
+   * An export brings people WITHOUT passwords, so on its own nobody could sign
+   * in to the instance it makes, and a server with no mail could not send a
+   * reset. `owner` is asked, once everything else has been checked and before
+   * anything is written, which of the export's Super Admins signs in first and
+   * with what password (its hash). Not asked on a dry run, nor for a full
+   * archive, whose people keep their own passwords.
+   */
+  owner?: ((choice: ExportOwnerChoice) => Promise<ExportOwnerAnswer>) | undefined;
   now?: () => number;
+}
+
+/** A Super Admin an export brought, who could be given the first password. */
+export interface ExportOwnerCandidate {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface ExportOwnerChoice {
+  /** Active Super Admins in the export, the earliest made first. */
+  candidates: readonly ExportOwnerCandidate[];
+  /** The archive's own `auth.passwordMinLength`, or the default. */
+  passwordMinLength: number;
+}
+
+export interface ExportOwnerAnswer {
+  userId: string;
+  /** argon2id, from `auth/passwords.ts`. */
+  passwordHash: string;
 }
 
 export interface RestoreArchiveResult {
@@ -123,6 +153,22 @@ export interface RestoreArchiveResult {
   sanitized: SanitizeReport;
   warnings: string[];
   dryRun: boolean;
+  /** Who was given a password on an export's import; null otherwise. */
+  owner: ExportOwnerCandidate | null;
+}
+
+/** The export's active Super Admins, the earliest made first. */
+function exportOwnerCandidates(tables: Map<string, MetaTableDump>): ExportOwnerCandidate[] {
+  const users = tables.get('adminium_users');
+  const roles = tables.get('adminium_roles');
+  const links = tables.get('adminium_user_roles');
+  if (users === undefined || roles === undefined || links === undefined) return [];
+  const superAdminRoles = new Set(rowsOf(roles).filter((row) => row.slug === 'super-admin').map((row) => String(row.id)));
+  const holders = new Set(rowsOf(links).filter((row) => superAdminRoles.has(String(row.roleId))).map((row) => String(row.userId)));
+  return rowsOf(users)
+    .filter((row) => holders.has(String(row.id)) && row.status === 'active' && (row.deletedAt === null || row.deletedAt === undefined))
+    .sort((a, b) => Number(a.createdAt ?? 0) - Number(b.createdAt ?? 0))
+    .map((row) => ({ id: String(row.id), email: String(row.email), name: String(row.name ?? '') }));
 }
 
 /** A file to inflate, and where it ends up. */
@@ -496,7 +542,9 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       }
     }
 
+    let owner: ExportOwnerCandidate | null = null;
     const result = (tablesLoaded: { table: string; rows: number }[]): RestoreArchiveResult => ({
+      owner,
       manifest,
       tables: tablesLoaded,
       files: placements.filter((p) => p.entry.path.startsWith(`${ARCHIVE_FILES_DIR}/`)).length,
@@ -508,6 +556,25 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
     });
     if (opts.dryRun === true) {
       return result([...tables.values()].map((dump) => ({ table: dump.table, rows: dump.rows.length })));
+    }
+
+    // ── an export's first way in ────────────────────────────────────────────
+    if (manifest.kind === 'export' && opts.owner !== undefined) {
+      const candidates = exportOwnerCandidates(tables);
+      const users = tables.get('adminium_users');
+      if (candidates.length === 0 || users === undefined) {
+        warnings.push('This export holds no active Super Admin, so no password was set; sign in through “Forgot password”.');
+      } else {
+        const minimum = settings.get('auth.passwordMinLength');
+        const passwordMinLength = typeof minimum === 'number' && Number.isInteger(minimum) ? minimum : SETTINGS_REGISTRY['auth.passwordMinLength'].default;
+        const answer = await opts.owner({ candidates, passwordMinLength });
+        const chosen = candidates.find((candidate) => candidate.id === answer.userId);
+        if (chosen === undefined) throw new ArchiveFormatError('That person is not one of this export’s Super Admins.');
+        const rows = rowsOf(users);
+        for (const row of rows) if (String(row.id) === chosen.id) row.passwordHash = answer.passwordHash;
+        commitRows(users, rows);
+        owner = chosen;
+      }
     }
 
     // ── write: stage, load, move ────────────────────────────────────────────

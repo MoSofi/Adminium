@@ -206,6 +206,8 @@ const menuLabelsSchema = z.strictObject({
   window: menuLabelSchema,
   help: menuLabelSchema,
   'help.docs': menuLabelSchema,
+  // Optional: a page from an Adminium older than the item sends none; the shell's en-US fills it.
+  'help.putOnline': menuLabelSchema.optional(),
   'help.shortcuts': menuLabelSchema,
   'help.logs': menuLabelSchema,
   'help.checkForUpdates': menuLabelSchema,
@@ -380,9 +382,16 @@ export type _MenuLabelsMatchSchema = Assert<
 /** What a push may carry: every menu key, and the dialog keys an older page leaves out. */
 export type PushedMenuLabels = z.infer<typeof menuLabelsSchema>;
 
-/** The dialog keys are exactly the optional ones. */
+/**
+ * Menu items added after pages already pushed labels: a page from an older
+ * Adminium sends none of them, so they are optional like the dialog keys, and
+ * the shell's en-US fills them.
+ */
+export type LateMenuLabelKey = 'help.putOnline';
+
+/** The dialog keys and the late menu keys are exactly the optional ones. */
 export type _DialogKeysAreOptional = Assert<
-  Mutual<DesktopDialogLabelKey, { [K in keyof PushedMenuLabels]-?: undefined extends PushedMenuLabels[K] ? K : never }[keyof PushedMenuLabels]>
+  Mutual<DesktopDialogLabelKey | LateMenuLabelKey, { [K in keyof PushedMenuLabels]-?: undefined extends PushedMenuLabels[K] ? K : never }[keyof PushedMenuLabels]>
 >;
 
 // ─── Ports ───────────────────────────────────────────────────────────────────

@@ -168,7 +168,8 @@ export default {
     "changelog": "Novinky",
     "signOut": "Odhlásit se",
     "toggleSidebar": "Přepnout postranní panel",
-    "payments": "Platby"
+    "payments": "Platby",
+    "putOnline": "Zveřejnit na internetu…"
   },
   "palette": {
     "dialog": "Paleta příkazů",
@@ -1100,6 +1101,11 @@ export default {
         "showLogs": "Zobrazit protokoly",
         "dataSize": "Velikost dat: {size}"
       }
+    },
+    "putOnline": {
+      "title": "Zveřejnit na internetu",
+      "body": "Provozujte tuto instalaci na vlastní veřejné adrese.",
+      "cta": "Zveřejnit na internetu…"
     }
   },
   "changelog": {

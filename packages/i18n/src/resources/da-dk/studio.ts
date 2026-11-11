@@ -5850,5 +5850,58 @@ export default {
     "allow": "Tillad det",
     "hold": "Sæt flueben ved “Tillad det” for at lade besøgende se mere, eller behold den kørende version.",
     "notYours": "Kun en, der må administrere API-nøgler, kan tillade dette."
+  },
+  "exportEverything": {
+    "title": "Eksportér alt",
+    "subtitle": "Én fil med alt, hvad du har lavet i denne installation.",
+    "superAdminOnly": "Kun en superadministrator kan eksportere alt.",
+    "hub": {
+      "heading": "Eksportér alt",
+      "body": "Én fil med alt, hvad du har lavet i denne installation, til at gemme eller flytte til en anden vært.",
+      "cta": "Åbn eksport"
+    },
+    "holds": {
+      "title": "Hvad downloaden indeholder",
+      "pages": "Sider",
+      "tables": "Tabellernes indstillinger",
+      "roles": "Roller",
+      "views": "Visninger",
+      "apps": "Appsenes indstillinger",
+      "files": "Uploadede filer"
+    },
+    "inFile": "I filen",
+    "leftOut": "Udeladt",
+    "out": {
+      "passwords": "Folks adgangskoder",
+      "secrets": "Hemmeligheder og nøgler",
+      "rows": "Databasens rækker, medmindre du {link}",
+      "rowsLink": "eksporterer databasen"
+    },
+    "downloadEverything": "Download alt",
+    "startFailed": "Eksporten kunne ikke startes.",
+    "expired": "Filen udløb, før den blev downloadet. Download alt igen.",
+    "failed": "Filen kunne ikke laves.",
+    "preparing": "Gør din fil klar… {percent} %",
+    "progressLabel": "Gør din fil klar",
+    "ready": "Klar · {size}",
+    "download": "Download",
+    "copyLabel": "Kopiér kommandoen",
+    "copied": "Kopieret",
+    "copy": "Kopiér",
+    "move": {
+      "title": "Flyt til en anden vært",
+      "server": "På din egen server",
+      "desktop": "I skrivebordsappen",
+      "desktopLine": "Skrivebordsappen kan endnu ikke åbne denne fil. Importér den med kommandoen ovenfor, på en server eller på denne computer."
+    },
+    "putOnline": {
+      "title": "Læg det online",
+      "line": "Kør denne installation på sin egen offentlige adresse."
+    },
+    "desktop": {
+      "title": "Eksportér dette projekt…",
+      "line": "På denne computer laver projektet sin egen fil: Åbn projektets menu i Designer (dets navn øverst til venstre), og vælg Eksportér dette projekt….",
+      "open": "Åbn Designer"
+    }
   }
 } as const;

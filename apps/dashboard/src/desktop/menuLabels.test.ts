@@ -30,6 +30,7 @@ const MENU_KEYS = [
   'help.docs',
   'help.shortcuts',
   'help.logs',
+  'help.putOnline',
   'help.checkForUpdates',
   'help.about',
   // The native About box and the menu's update check.

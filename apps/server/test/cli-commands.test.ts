@@ -491,10 +491,13 @@ describe('adminium export-zip', () => {
 // ── import-zip ───────────────────────────────────────────────────────────────
 
 describe('adminium import-zip', () => {
-  it('requires --in', async () => {
+  it('requires a file, by --in or on its own, and only one', async () => {
     const io = fakeIo();
     await expect(runCli(['import-zip'], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(1);
-    expect(io.stderr()).toContain('--in <file> is required');
+    expect(io.stderr()).toContain('Name the file to import: adminium import-zip <file>');
+    const two = fakeIo();
+    await expect(runCli(['import-zip', 'a.zip', '--in', 'b.zip'], { io: two, deps: fakeDeps({ env: ENV }) })).resolves.toBe(1);
+    expect(two.stderr()).toContain('Name one file to import.');
   });
 
   it('resolves --in against the cwd and reports the bundle version', async () => {

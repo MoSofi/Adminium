@@ -246,7 +246,8 @@ export default {
     "helpShortcuts": "Keyboard Shortcuts",
     "helpLogs": "Show Logs",
     "helpCheckForUpdates": "Check for Updates…",
-    "helpAbout": "About Adminium"
+    "helpAbout": "About Adminium",
+    "helpPutOnline": "Put this online…"
   },
   "dialog": {
     "ok": "OK",

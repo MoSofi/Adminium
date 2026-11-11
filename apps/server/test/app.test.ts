@@ -67,7 +67,15 @@ describe('GET /api/v1/system/info', () => {
       // the condition (desktop runtime AND a seed script) fail on self-host.
       // Spelled out because this assertion caught it too, which is the point.
       desktopDemo: false,
+      // "Put this online": shown unless the operator sets ADMINIUM_DEPLOY_LINK=off.
+      deployLink: true,
     });
+  });
+
+  it('hides the "Put this online" link when the operator sets ADMINIUM_DEPLOY_LINK=off', async () => {
+    const off = await build({ ADMINIUM_DEPLOY_LINK: 'off' });
+    const res = await off.inject({ method: 'GET', url: '/api/v1/system/info' });
+    expect(res.json<{ deployLink: boolean }>().deployLink).toBe(false);
   });
 
   it('reports desktopDemo:true only when the shell also named a seed script', async () => {

@@ -40,6 +40,7 @@ half-configured and fail later.
 | `ADMINIUM_ROUTING_SERVER` | No | `https://router.project-osrm.org` | The OSRM server asked for routes along roads, once that is switched on in Settings → Maps; or `off`. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI, and the server asks adminium.dev for no list of add-ons or apps. |
+| `ADMINIUM_DEPLOY_LINK` | No | `on` | `off` hides **Put this online…**, a link to [adminium.dev/deploy](https://adminium.dev/deploy) in the user menu, on Studio's Export everything page and on About (and in the desktop app's Help menu). For an operator who offers their own hosting or rebrands. Only a link: nothing is fetched. |
 | `ADMINIUM_DESIGNER` | No | `off` | `live` lets a Super Admin switch [Adminium Designer](/projects/designer/#on-a-server-people-reach) on for this server, in Settings → AI. Anything else, and its routes do not exist. `adminium design` needs no variable. |
 | `ADMINIUM_AI_ANTHROPIC_API_KEY` | No | — | An Anthropic key: a model connection the server has without anything saved in Settings → AI. See [the `ADMINIUM_AI_*` block](#the-adminium_ai_-block). |
 | `ADMINIUM_AI_OPENAI_API_KEY` | No | — | An OpenAI key, the same way. |

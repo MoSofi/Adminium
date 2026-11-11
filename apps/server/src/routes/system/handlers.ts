@@ -106,6 +106,7 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     smtpConfigured: await smtpConfigured(meta),
     networkFeaturesAllowed: env.ADMINIUM_NETWORK_FEATURES,
     lanShare: lanShareActive(env),
+    deployLink: env.ADMINIUM_DEPLOY_LINK,
     // The SAME predicate compose registers the route on — see `demo-seed.ts`.
     desktopDemo: demoSeedAvailable(env),
   };

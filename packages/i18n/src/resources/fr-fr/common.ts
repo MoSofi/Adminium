@@ -168,7 +168,8 @@ export default {
     "changelog": "Nouveautés",
     "signOut": "Se déconnecter",
     "toggleSidebar": "Afficher/masquer la barre latérale",
-    "payments": "Paiements"
+    "payments": "Paiements",
+    "putOnline": "Mettre en ligne…"
   },
   "palette": {
     "dialog": "Palette de commandes",
@@ -1100,6 +1101,11 @@ export default {
         "showLogs": "Afficher les journaux",
         "dataSize": "Taille des données : {size}"
       }
+    },
+    "putOnline": {
+      "title": "Mettre en ligne",
+      "body": "Faites tourner cette installation à sa propre adresse publique.",
+      "cta": "Mettre en ligne…"
     }
   },
   "changelog": {

@@ -246,7 +246,8 @@ export default {
     "helpShortcuts": "Klávesové zkratky",
     "helpLogs": "Zobrazit protokoly",
     "helpCheckForUpdates": "Zkontrolovat aktualizace…",
-    "helpAbout": "O aplikaci Adminium"
+    "helpAbout": "O aplikaci Adminium",
+    "helpPutOnline": "Zveřejnit na internetu…"
   },
   "dialog": {
     "ok": "OK",

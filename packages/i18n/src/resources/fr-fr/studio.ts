@@ -5850,5 +5850,58 @@ export default {
     "allow": "L’autoriser",
     "hold": "Cochez « L’autoriser » pour que les visiteurs voient davantage, ou gardez la version en cours.",
     "notYours": "Seule une personne autorisée à gérer les clés d’API peut l’autoriser."
+  },
+  "exportEverything": {
+    "title": "Tout exporter",
+    "subtitle": "Un seul fichier avec tout ce que vous avez créé dans cette installation.",
+    "superAdminOnly": "Seul un super administrateur peut tout exporter.",
+    "hub": {
+      "heading": "Tout exporter",
+      "body": "Un seul fichier avec tout ce que vous avez créé dans cette installation, à garder ou à déplacer vers un autre hébergeur.",
+      "cta": "Ouvrir l’export"
+    },
+    "holds": {
+      "title": "Ce que contient le téléchargement",
+      "pages": "Pages",
+      "tables": "Réglages des tables",
+      "roles": "Rôles",
+      "views": "Vues",
+      "apps": "Réglages des applications",
+      "files": "Fichiers envoyés"
+    },
+    "inFile": "Dans le fichier",
+    "leftOut": "Exclu",
+    "out": {
+      "passwords": "Les mots de passe des personnes",
+      "secrets": "Secrets et clés",
+      "rows": "Les lignes de la base de données, sauf si vous {link}",
+      "rowsLink": "exportez la base de données"
+    },
+    "downloadEverything": "Tout télécharger",
+    "startFailed": "L’export n’a pas pu démarrer.",
+    "expired": "Ce fichier a expiré avant d’être téléchargé. Téléchargez tout à nouveau.",
+    "failed": "Le fichier n’a pas pu être créé.",
+    "preparing": "Préparation de votre fichier… {percent} %",
+    "progressLabel": "Préparation de votre fichier",
+    "ready": "Prêt · {size}",
+    "download": "Télécharger",
+    "copyLabel": "Copier la commande",
+    "copied": "Copié",
+    "copy": "Copier",
+    "move": {
+      "title": "Déplacer vers un autre hébergeur",
+      "server": "Sur votre propre serveur",
+      "desktop": "Dans l’application de bureau",
+      "desktopLine": "L’application de bureau n’ouvre pas encore ce fichier. Importez-le avec la commande ci-dessus, sur un serveur ou sur cet ordinateur."
+    },
+    "putOnline": {
+      "title": "Mettre en ligne",
+      "line": "Faites tourner cette installation à sa propre adresse publique."
+    },
+    "desktop": {
+      "title": "Exporter ce projet…",
+      "line": "Sur cet ordinateur, le projet crée son propre fichier : dans le Designer, ouvrez le menu du projet (son nom, en haut à gauche) et choisissez Exporter ce projet….",
+      "open": "Ouvrir le Designer"
+    }
   }
 } as const;

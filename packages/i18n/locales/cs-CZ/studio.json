@@ -5840,5 +5840,58 @@
     "allow": "Povolit",
     "hold": "Zaškrtněte „Povolit“, aby návštěvníci viděli víc, nebo ponechte běžící verzi.",
     "notYours": "Povolit to může jen ten, kdo smí spravovat klíče API."
+  },
+  "exportEverything": {
+    "title": "Exportovat vše",
+    "subtitle": "Jeden soubor se vším, co jste v této instalaci vytvořili.",
+    "superAdminOnly": "Exportovat vše může jen superadministrátor.",
+    "hub": {
+      "heading": "Exportovat vše",
+      "body": "Jeden soubor se vším, co jste v této instalaci vytvořili, k uschování nebo k přesunu na jiného hostitele.",
+      "cta": "Otevřít export"
+    },
+    "holds": {
+      "title": "Co stažený soubor obsahuje",
+      "pages": "Stránky",
+      "tables": "Nastavení tabulek",
+      "roles": "Role",
+      "views": "Pohledy",
+      "apps": "Nastavení aplikací",
+      "files": "Nahrané soubory"
+    },
+    "inFile": "V souboru",
+    "leftOut": "Vynecháno",
+    "out": {
+      "passwords": "Hesla lidí",
+      "secrets": "Tajné údaje a klíče",
+      "rows": "Řádky databáze, pokud {link}",
+      "rowsLink": "databázi exportujete"
+    },
+    "downloadEverything": "Stáhnout vše",
+    "startFailed": "Export se nepodařilo spustit.",
+    "expired": "Platnost souboru vypršela dřív, než byl stažen. Stáhněte vše znovu.",
+    "failed": "Soubor se nepodařilo vytvořit.",
+    "preparing": "Připravujeme váš soubor… {percent} %",
+    "progressLabel": "Příprava souboru",
+    "ready": "Připraveno · {size}",
+    "download": "Stáhnout",
+    "copyLabel": "Zkopírovat příkaz",
+    "copied": "Zkopírováno",
+    "copy": "Kopírovat",
+    "move": {
+      "title": "Přesun na jiného hostitele",
+      "server": "Na vlastním serveru",
+      "desktop": "V aplikaci pro počítač",
+      "desktopLine": "Aplikace pro počítač tento soubor zatím neotevře. Importujte ho příkazem výše, na serveru nebo na tomto počítači."
+    },
+    "putOnline": {
+      "title": "Zveřejnit na internetu",
+      "line": "Provozujte tuto instalaci na vlastní veřejné adrese."
+    },
+    "desktop": {
+      "title": "Exportovat tento projekt…",
+      "line": "Na tomto počítači si projekt vytvoří vlastní soubor: v Designeru otevřete nabídku projektu (jeho název vlevo nahoře) a zvolte Exportovat tento projekt….",
+      "open": "Otevřít Designer"
+    }
   }
 }

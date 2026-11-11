@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DOCS_URL,
+  PUT_ONLINE_URL,
   EN_US_MENU_LABELS,
   RESERVED_SPA_ACCELERATORS,
   appMenuTemplate,
@@ -240,6 +241,20 @@ describe('the Help menu', () => {
     expect(docs?.label).toContain('↗');
     (docs?.click as unknown as () => void)();
     expect(opened).toEqual([DOCS_URL]);
+  });
+
+  it('opens "Put this online…" in the system browser, unless the operator hides it', () => {
+    // Pinned as a literal for the reason the docs origin is: nothing else compares it to the page.
+    expect(PUT_ONLINE_URL).toBe('https://adminium.dev/deploy');
+    const opened: string[] = [];
+    const items = menu(template({ openExternal: (url) => opened.push(url) }), EN_US_MENU_LABELS.help);
+    const item = items.find((entry) => entry.label?.startsWith(EN_US_MENU_LABELS['help.putOnline']));
+    expect(item?.label).toBe('Put this online… ↗');
+    (item?.click as unknown as () => void)();
+    expect(opened).toEqual(['https://adminium.dev/deploy']);
+
+    const hidden = menu(template({ deployLink: false }), EN_US_MENU_LABELS.help).map((entry) => entry.label ?? '');
+    expect(hidden.some((label) => label.startsWith(EN_US_MENU_LABELS['help.putOnline']))).toBe(false);
   });
 
   it('carries \'s remaining Help items', () => {

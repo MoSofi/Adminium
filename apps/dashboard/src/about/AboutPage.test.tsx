@@ -41,12 +41,18 @@ function makeAbout(overrides: Partial<AboutData> = {}): AboutData {
   };
 }
 
+/** `deployLink` in `/system/info`. */
+let deployLink: boolean | undefined;
+
 function stubFetch(about: AboutData, update: UpdateCheck) {
   const updateCalls: string[] = [];
   const fetchMock = vi.fn().mockImplementation((input: unknown) => {
     const url = String(input);
     if (url.startsWith('/api/v1/bootstrap')) {
       return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ nav: { groups: [] } }) }));
+    }
+    if (url === '/api/v1/system/info') {
+      return Promise.resolve(jsonResponse(200, { version: '0.5.0', runtime: 'self-host', ...(deployLink === undefined ? {} : { deployLink }) }));
     }
     if (url === '/api/v1/about') {
       return Promise.resolve(jsonResponse(200, { data: about }));
@@ -87,6 +93,7 @@ afterAll(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  deployLink = undefined;
 });
 
 describe('AboutPage', () => {
@@ -116,6 +123,26 @@ describe('AboutPage', () => {
     const source = screen.getByRole('link', { name: /Get the source code/ });
     expect(source.getAttribute('href')).toBe('https://github.com/MoSofi/Adminium');
     expect(source.getAttribute('rel')).toContain('noopener');
+  });
+});
+
+describe('AboutPage — "Put this online"', () => {
+  it('links adminium.dev/deploy in a new tab', async () => {
+    deployLink = true;
+    await renderAbout(makeAbout());
+    const card = await screen.findByTestId('about-put-online');
+    const link = screen.getByRole('link', { name: /Put this online…/ });
+    expect(card.contains(link)).toBe(true);
+    expect(link.getAttribute('href')).toBe('https://adminium.dev/deploy');
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
+
+  it('is hidden when the operator set ADMINIUM_DEPLOY_LINK=off', async () => {
+    deployLink = false;
+    const { fetchMock } = await renderAbout(makeAbout());
+    await screen.findByRole('heading', { name: 'About Adminium' });
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input) === '/api/v1/system/info')).toBe(true));
+    expect(screen.queryByTestId('about-put-online')).toBeNull();
   });
 });
 

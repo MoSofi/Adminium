@@ -5840,5 +5840,58 @@
     "allow": "Allow it",
     "hold": "Tick “Allow it” to let visitors see more, or keep the running version.",
     "notYours": "Only someone who may manage API keys can allow this."
+  },
+  "exportEverything": {
+    "title": "Export everything",
+    "subtitle": "One file with everything you made in this installation.",
+    "superAdminOnly": "Only a super admin can export everything.",
+    "hub": {
+      "heading": "Export everything",
+      "body": "One file with everything you made in this installation, to keep or to move to another host.",
+      "cta": "Open export"
+    },
+    "holds": {
+      "title": "What the download holds",
+      "pages": "Pages",
+      "tables": "Tables’ settings",
+      "roles": "Roles",
+      "views": "Views",
+      "apps": "Apps’ settings",
+      "files": "Uploaded files"
+    },
+    "inFile": "In the file",
+    "leftOut": "Left out",
+    "out": {
+      "passwords": "People’s passwords",
+      "secrets": "Secrets and keys",
+      "rows": "The database rows, unless you {link}",
+      "rowsLink": "export the database"
+    },
+    "downloadEverything": "Download everything",
+    "startFailed": "The export could not be started.",
+    "expired": "That file expired before it was downloaded. Download everything again.",
+    "failed": "The file could not be made.",
+    "preparing": "Preparing your file… {percent}%",
+    "progressLabel": "Preparing your file",
+    "ready": "Ready · {size}",
+    "download": "Download",
+    "copyLabel": "Copy the command",
+    "copied": "Copied",
+    "copy": "Copy",
+    "move": {
+      "title": "Move to another host",
+      "server": "On your own server",
+      "desktop": "In the desktop app",
+      "desktopLine": "The desktop app does not open this file yet. Import it with the command above, on a server or on this computer."
+    },
+    "putOnline": {
+      "title": "Put this online",
+      "line": "Run this installation at its own public address."
+    },
+    "desktop": {
+      "title": "Export this project…",
+      "line": "On this computer the project makes its own file: in the Designer, open the project’s menu (its name, top left) and choose Export this project….",
+      "open": "Open the Designer"
+    }
   }
 }

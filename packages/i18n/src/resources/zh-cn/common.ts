@@ -168,7 +168,8 @@ export default {
     "changelog": "新功能",
     "signOut": "退出登录",
     "toggleSidebar": "切换侧边栏",
-    "payments": "付款"
+    "payments": "付款",
+    "putOnline": "将其上线…"
   },
   "palette": {
     "dialog": "命令面板",
@@ -1100,6 +1101,11 @@ export default {
         "showLogs": "显示日志",
         "dataSize": "数据大小：{size}"
       }
+    },
+    "putOnline": {
+      "title": "将其上线",
+      "body": "让此安装在它自己的公开地址上运行。",
+      "cta": "将其上线…"
     }
   },
   "changelog": {

@@ -5850,5 +5850,58 @@ export default {
     "allow": "允許",
     "hold": "勾選「允許」讓訪客看到更多，或保留目前執行的版本。",
     "notYours": "只有可以管理 API 金鑰的人才能允許此操作。"
+  },
+  "exportEverything": {
+    "title": "匯出全部",
+    "subtitle": "一個檔案，包含您在此安裝中建立的一切。",
+    "superAdminOnly": "只有超級管理員可以匯出全部。",
+    "hub": {
+      "heading": "匯出全部",
+      "body": "一個檔案，包含您在此安裝中建立的一切，可留存，也可搬到另一台主機。",
+      "cta": "開啟匯出"
+    },
+    "holds": {
+      "title": "下載內容",
+      "pages": "頁面",
+      "tables": "資料表設定",
+      "roles": "角色",
+      "views": "檢視",
+      "apps": "應用程式設定",
+      "files": "已上傳的檔案"
+    },
+    "inFile": "包含",
+    "leftOut": "不包含",
+    "out": {
+      "passwords": "使用者的密碼",
+      "secrets": "機密資訊與金鑰",
+      "rows": "資料庫中的資料列，除非您{link}",
+      "rowsLink": "匯出資料庫"
+    },
+    "downloadEverything": "下載全部",
+    "startFailed": "無法開始匯出。",
+    "expired": "該檔案在下載前已過期。請重新下載全部。",
+    "failed": "無法產生該檔案。",
+    "preparing": "正在準備您的檔案… {percent}%",
+    "progressLabel": "正在準備您的檔案",
+    "ready": "已就緒 · {size}",
+    "download": "下載",
+    "copyLabel": "複製指令",
+    "copied": "已複製",
+    "copy": "複製",
+    "move": {
+      "title": "搬到另一台主機",
+      "server": "在您自己的伺服器上",
+      "desktop": "在桌面應用程式中",
+      "desktopLine": "桌面應用程式暫時無法開啟此檔案。請用上面的指令匯入，在伺服器或這台電腦上皆可。"
+    },
+    "putOnline": {
+      "title": "將其上線",
+      "line": "讓此安裝在它自己的公開位址上執行。"
+    },
+    "desktop": {
+      "title": "匯出此專案…",
+      "line": "在這台電腦上，專案會產生自己的檔案：在設計器中開啟專案選單（左上角的專案名稱），然後選擇「匯出此專案…」。",
+      "open": "開啟設計器"
+    }
   }
 } as const;

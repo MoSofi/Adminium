@@ -27,6 +27,7 @@ import {
   Banknote,
   Blocks,
   Building2,
+  Download,
   FileText,
   Files,
   FolderCode,
@@ -1659,6 +1660,8 @@ export interface StudioSettingsPageProps {
   onOpenPublicApi: () => void;
   /** `/studio/settings/project`: the project folder this server runs (super admins). */
   onOpenProject?: (() => void) | undefined;
+  /** `/studio/settings/export`: Export everything (super admins). */
+  onOpenExport?: (() => void) | undefined;
   /** `/studio/privacy`: the privacy notice, a person's data, how long things are kept (`privacy.manage`). */
   onOpenPrivacy?: (() => void) | undefined;
   /** Never set on the hub: see {@link StudioSettingsOrMapsProps}. */
@@ -1711,6 +1714,7 @@ function StudioSettingsHub({
   onOpenPayments,
   onOpenPublicApi,
   onOpenProject,
+  onOpenExport,
   onOpenPrivacy,
 }: StudioSettingsPageProps): ReactNode {
   const navigate = useNavigate();
@@ -1966,6 +1970,18 @@ function StudioSettingsHub({
             )}
             cta={t('studio:settingsHub.projectCard.cta', 'Open project')}
             onOpen={onOpenProject}
+          />
+        ) : null}
+
+        {/* Export everything: one file with the whole installation. Its routes
+            answer a Super Admin only, so the row shows only to one. */}
+        {isSuperAdmin && onOpenExport !== undefined ? (
+          <LinkRow
+            icon={<Download />}
+            heading={t('studio:exportEverything.hub.heading', 'Export everything')}
+            body={t('studio:exportEverything.hub.body', 'One file with everything you made in this installation, to keep or to move to another host.')}
+            cta={t('studio:exportEverything.hub.cta', 'Open export')}
+            onOpen={onOpenExport}
           />
         ) : null}
 

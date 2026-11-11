@@ -86,7 +86,7 @@ import {
   WILDCARD_HOST,
   type ProbeResult,
 } from './lan.js';
-import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } from './menu.js';
+import { buildAppMenu, deployLinkShown, menuTranslator, type MenuHandlers, type MenuTranslate } from './menu.js';
 import { createAboutDialogs, type AboutDialogs } from './about.js';
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot, type ProjectExporting, type ProjectSharing, type PushedMenuLabels } from './ipc.js';
@@ -2713,6 +2713,7 @@ export function electronBootDeps(): DesktopBootDeps {
         // en-US. The boot sequence rebuilds through this same port on every
         // locale change.
         t,
+        deployLink: deployLinkShown(process.env),
       });
     },
     aboutDialogs: createAboutDialogs({

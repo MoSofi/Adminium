@@ -246,7 +246,8 @@ export default {
     "helpShortcuts": "Tastaturgenveje",
     "helpLogs": "Vis logfiler",
     "helpCheckForUpdates": "Søg efter opdateringer…",
-    "helpAbout": "Om Adminium"
+    "helpAbout": "Om Adminium",
+    "helpPutOnline": "Læg det online…"
   },
   "dialog": {
     "ok": "OK",

@@ -27,6 +27,9 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return { ...actual, useRouter: () => ({ history: { push: vi.fn() } }), useNavigate: () => vi.fn() };
 });
 
+/** `deployLink` in `/system/info`: undefined is a server older than the link. */
+let deployLink: boolean | undefined;
+
 function stubFetch() {
   vi.stubGlobal(
     'fetch',
@@ -44,6 +47,7 @@ function stubFetch() {
             runtime: 'self-host',
             smtpConfigured: false,
             networkFeaturesAllowed: true,
+            ...(deployLink === undefined ? {} : { deployLink }),
           }),
         );
       }
@@ -92,6 +96,7 @@ function renderTopbar(roles: string[], systemActions?: string[]) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  deployLink = undefined;
 });
 
 describe('avatar menu Studio section', () => {
@@ -171,6 +176,46 @@ describe('avatar menu Studio section', () => {
     await user.click(screen.getByRole('button', { name: 'Account menu' }));
     await user.click(await screen.findByRole('menuitem', { name: 'What’s new' }));
     expect(onOpenChangelog).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * "Put this online…": one group after Studio and before Help
+ * centre, for every role, opening adminium.dev/deploy outside the app; gone
+ * when the operator sets ADMINIUM_DEPLOY_LINK=off, and on an older server.
+ */
+describe('avatar menu "Put this online…"', () => {
+  it('sits between the Studio group and Help centre, and opens adminium.dev/deploy in a new tab', async () => {
+    const user = userEvent.setup();
+    deployLink = true;
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    renderTopbar(['admin']);
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    const item = await screen.findByRole('menuitem', { name: 'Put this online…' });
+    const items = screen.getAllByRole('menuitem').map((entry) => entry.textContent ?? '');
+    const at = items.findIndex((label) => label.includes('Put this online…'));
+    expect(items[at - 1]).toContain('Server settings');
+    expect(items[at + 1]).toContain('Help centre');
+    await user.click(item);
+    expect(open).toHaveBeenCalledWith('https://adminium.dev/deploy', '_blank', 'noopener');
+  });
+
+  it('shows to a viewer too', async () => {
+    const user = userEvent.setup();
+    deployLink = true;
+    renderTopbar(['viewer']);
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    expect(await screen.findByRole('menuitem', { name: 'Put this online…' })).toBeTruthy();
+  });
+
+  it.each([false, undefined])('is hidden when the server says deployLink: %s', async (value) => {
+    const user = userEvent.setup();
+    deployLink = value;
+    renderTopbar(['admin']);
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    expect(await screen.findByRole('menuitem', { name: 'Help centre' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Put this online…' })).toBeNull();
   });
 });
 

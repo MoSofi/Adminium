@@ -168,7 +168,8 @@ export default {
     "changelog": "Nyheder",
     "signOut": "Log ud",
     "toggleSidebar": "Slå sidepanelet til/fra",
-    "payments": "Betalinger"
+    "payments": "Betalinger",
+    "putOnline": "Læg det online…"
   },
   "palette": {
     "dialog": "Kommandopalet",
@@ -1100,6 +1101,11 @@ export default {
         "showLogs": "Vis logfiler",
         "dataSize": "Datastørrelse: {size}"
       }
+    },
+    "putOnline": {
+      "title": "Læg det online",
+      "body": "Kør denne installation på sin egen offentlige adresse.",
+      "cta": "Læg det online…"
     }
   },
   "changelog": {

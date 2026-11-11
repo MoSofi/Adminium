@@ -122,6 +122,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/email-runs/*` | 7 | Campaign sends — cancel a scheduled or running run |
 | `/api/v1/email-templates/*` | 19 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
 | `/api/v1/events` | 1 | Server-sent events — the fallback when a WebSocket cannot be established |
+| `/api/v1/export/*` | 3 | Export everything: one file with the whole installation, made and downloaded once (Super Admin) |
 | `/api/v1/exports/*` | 7 | Queued exports of a whole result set, and their downloads |
 | `/api/v1/files/*` | 12 | Uploaded files and record attachments — upload, list, download (with Range and ETag), attach to a record, rename, move to trash and restore |
 | `/api/v1/forms/*` | 3 | Whether mail a stranger causes through a form (a sign-up’s confirmation, staff notices by e-mail) goes now, and why not: no public address, or no mail server, for anybody signed in; what a forms builder shows (that answer, whether strangers can reach the pages, the privacy notice, the public address, the listed websites and the roles by name), for staff who read a forms add-on’s forms; and the files strangers sent with a form answer, downloaded by staff who read that add-on’s answers |
@@ -557,6 +558,14 @@ POST /api/v1/email-templates/import
 
 ```http
 GET /api/v1/events
+```
+
+### `/export`
+
+```http
+GET /api/v1/export/zip
+POST /api/v1/export/zip
+GET /api/v1/export/zip/{id}
 ```
 
 ### `/exports`

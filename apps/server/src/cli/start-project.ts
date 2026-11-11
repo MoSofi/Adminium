@@ -107,6 +107,8 @@ export const HOST_DECIDED_ENV: readonly string[] = [
   // Written into every staff browser's content security policy, or called by the server: not a folder's to choose.
   'ADMINIUM_MAP_SERVER',
   'ADMINIUM_ROUTING_SERVER',
+  // The operator's word on the "Put this online" link: a folder does not put it back.
+  'ADMINIUM_DEPLOY_LINK',
   'ADMINIUM_PROJECT_MODE',
   'ADMINIUM_PROJECT_DIR',
   'ADMINIUM_DESKTOP_PROJECT',

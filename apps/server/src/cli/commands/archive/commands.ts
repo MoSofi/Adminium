@@ -6,12 +6,14 @@
  */
 
 import { join, resolve } from 'node:path';
+import { createInterface } from 'node:readline';
 
 import { openMetaStore } from '../../../meta/store.js';
 import { createArchive } from '../../../archive/create.js';
 import { ArchiveFormatError } from '../../../archive/format.js';
 import { archiveSigningKey } from '../../../archive/mac.js';
-import { restoreArchive, type RestoreArchiveResult } from '../../../archive/restore.js';
+import { restoreArchive, type ExportOwnerAnswer, type ExportOwnerChoice, type RestoreArchiveResult } from '../../../archive/restore.js';
+import { hashPassword } from '../../../auth/passwords.js';
 import { dsnCryptoFromSecret } from '../../../connections/crypto.js';
 import { prepareProject } from '../../../project/boot.js';
 import { APP_VERSION } from '../../../version.js';
@@ -215,6 +217,77 @@ export const archiveRestoreCommand: Command = {
   },
 };
 
+/** The first line of standard input: `--password-stdin`. */
+async function firstStdinLine(): Promise<string> {
+  const lines = createInterface({ input: process.stdin });
+  for await (const line of lines) {
+    lines.close();
+    return line;
+  }
+  return '';
+}
+
+/**
+ * THE OWNER'S WAY IN. An export carries nobody's password, and the server it is
+ * imported on may have no mail to send a reset with. So the import itself gives
+ * one of the export's Super Admins a new password, typed by whoever runs the
+ * import on the server, which is as trusted as a person gets here. Nothing is
+ * written until the password is known: a typo, a mismatch or a short password
+ * stops the import with the target as it was.
+ *
+ * Which one: `--owner <email>`, else the only one, else (in a terminal) a
+ * choice, else the earliest made, the instance's first owner. The password:
+ * `--password-stdin` (the first line), else asked twice in a terminal. With
+ * neither the import is refused before it starts writing.
+ */
+export function askExportOwner(
+  io: CliIo,
+  opts: { ownerEmail: string | undefined; passwordStdin: boolean; readStdin?: () => Promise<string> },
+): (choice: ExportOwnerChoice) => Promise<ExportOwnerAnswer> {
+  return async ({ candidates, passwordMinLength }) => {
+    const wanted = opts.ownerEmail?.trim().toLowerCase();
+    let chosen = wanted === undefined ? (candidates.length === 1 ? candidates[0] : undefined) : candidates.find((candidate) => candidate.email.toLowerCase() === wanted);
+    if (wanted !== undefined && chosen === undefined) {
+      throw new CliError(`${opts.ownerEmail ?? ''} is not a Super Admin in this export. Nothing was imported.`, {
+        hint: `Its Super Admins: ${candidates.map((candidate) => candidate.email).join(', ')}`,
+      });
+    }
+    if (chosen === undefined) {
+      if (io.isInteractive) {
+        const index = await io.select(
+          'Who signs in first? They get a new password now; everyone else signs in through “Forgot password”.',
+          candidates.map((candidate) => ({ label: candidate.email, ...(candidate.name === '' ? {} : { hint: candidate.name }) })),
+        );
+        chosen = candidates[index];
+      } else {
+        chosen = candidates[0];
+      }
+    }
+    if (chosen === undefined) throw new CliError('This export holds no Super Admin to sign in as.');
+
+    let password: string;
+    if (opts.passwordStdin) {
+      password = await (opts.readStdin ?? firstStdinLine)();
+    } else if (io.isInteractive) {
+      password = await io.ask(`A new password for ${chosen.email}`, {
+        mask: true,
+        validate: (answer) => (answer.length >= passwordMinLength ? null : `At least ${String(passwordMinLength)} characters.`),
+      });
+      const again = await io.ask('The same password again', { mask: true });
+      if (again !== password) throw new CliError('The two passwords are not the same. Nothing was imported.');
+    } else {
+      throw new CliUsageError(
+        `An export brings people without passwords. Give ${chosen.email} a new one on standard input (--password-stdin), or run the import in a terminal.`,
+        'import-zip',
+      );
+    }
+    if (password.length < passwordMinLength) {
+      throw new CliError(`A password has at least ${String(passwordMinLength)} characters. Nothing was imported.`);
+    }
+    return { userId: chosen.id, passwordHash: await hashPassword(password) };
+  };
+}
+
 /**
  * `adminium import-zip` on an export file: the archive restore with the
  * export's rules. Lives here so import-zip only routes to it.
@@ -222,7 +295,15 @@ export const archiveRestoreCommand: Command = {
 export async function importExportFile(
   { io, deps }: Pick<CommandContext, 'io' | 'deps'>,
   file: string,
-  opts: { dryRun: boolean; dataDir: string | undefined; metaUrl: string | undefined; projectDir: string | undefined },
+  opts: {
+    dryRun: boolean;
+    dataDir: string | undefined;
+    metaUrl: string | undefined;
+    projectDir: string | undefined;
+    ownerEmail?: string | undefined;
+    passwordStdin?: boolean | undefined;
+    readStdin?: (() => Promise<string>) | undefined;
+  },
 ): Promise<ExitCode> {
   const named = opts.projectDir ?? deps.env.ADMINIUM_PROJECT_DIR;
   const projectRoot = named === undefined || named.trim() === '' ? null : resolve(deps.cwd, named);
@@ -241,9 +322,15 @@ export async function importExportFile(
       expect: 'export',
       blockLoopback: deps.env.NODE_ENV === 'production',
       dryRun: opts.dryRun,
+      owner: askExportOwner(io, { ownerEmail: opts.ownerEmail, passwordStdin: opts.passwordStdin === true, ...(opts.readStdin === undefined ? {} : { readStdin: opts.readStdin }) }),
     });
     reportRestore(io, result, { dataDir: env.ADMINIUM_DATA_DIR, projectRoot });
-    io.out('People came without passwords: each signs in through “Forgot password”. Enter connection strings, mail and AI keys again.');
+    if (result.owner !== null) {
+      io.out(`${result.owner.email} signs in with the password just given. Everyone else came without a password and signs in through “Forgot password”.`);
+    } else if (!result.dryRun) {
+      io.out('People came without passwords: each signs in through “Forgot password”.');
+    }
+    io.out('Enter connection strings, mail and AI keys again: an export carries none.');
     io.out(result.dryRun ? 'Dry run — nothing was written.' : 'Import complete.');
     return EXIT_OK;
   } catch (error) {

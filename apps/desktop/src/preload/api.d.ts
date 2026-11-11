@@ -333,6 +333,7 @@ export type DesktopMenuLabelKey =
   | 'window'
   | 'help'
   | 'help.docs'
+  | 'help.putOnline'
   | 'help.shortcuts'
   | 'help.logs'
   | 'help.checkForUpdates'
