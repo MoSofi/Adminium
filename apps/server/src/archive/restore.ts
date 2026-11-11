@@ -22,7 +22,9 @@
  *    `checkDestinationAddress` (looked up, every answer checked, the network
  *    policy applied), each `local` folder through `storageRootRefusal` (never
  *    Adminium's own files, inside `ADMINIUM_STORAGE_DIRS` when set), each app
- *    domain through `hostIssueFor`.
+ *    domain through `hostIssueFor`. An export (unsigned) names no folder at
+ *    all: its `local` destinations are switched off and their files land in
+ *    `<data dir>/files`, re-pointed at this server's own disk.
  *    A row that fails is kept but made inert (a connection without its string,
  *    a destination switched off, a domain left out), and the CLI says so.
  *
@@ -486,12 +488,20 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
     const localRoots = new Map<string | null, string>([[null, join(dataDir, FILES_DIR)]]);
     const roots: StorageRootPolicy = opts.storageRoots ?? { own: { dataDir, metaFile: null } };
     const destinations = tables.get('adminium_storage_destinations');
+    /** An export's `local` destinations: their files are re-pointed at this server's own disk. */
+    const exportLocal = new Set<string>();
     if (destinations !== undefined) {
       const rows = rowsOf(destinations);
       for (const row of rows) {
         const config = readJsonCell(destinations, 'config', row.config) as Record<string, unknown> | null;
         let refusal: string | null = null;
-        if (row.driver === 'local') {
+        if (row.driver === 'local' && manifest.kind === 'export') {
+          // An unsigned file names its folders itself, and a folder named by a file is no folder of this server's:
+          // it would be made and written into before anyone looked. The bytes land on this server's own disk
+          // instead (below), and the destination stays, switched off, for a Super Admin to point at a folder here.
+          refusal = 'an export’s folders are another computer’s; its files are on this server’s disk now';
+          exportLocal.add(String(row.id));
+        } else if (row.driver === 'local') {
           const root = typeof config?.root === 'string' ? config.root : '';
           if (!isAbsolute(root)) refusal = 'its folder is not an absolute path';
           else if (resolve(root) === dataDir || inside(dataDir, resolve(root)) || inside(resolve(root), dataDir)) {
@@ -519,7 +529,19 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       }
       commitRows(destinations, rows);
     }
+    if (exportLocal.size > 0) {
+      const filesDump = tables.get('adminium_files');
+      if (filesDump !== undefined) {
+        const rows = rowsOf(filesDump);
+        for (const row of rows) if (exportLocal.has(String(row.destinationId))) row.destinationId = null;
+        commitRows(filesDump, rows);
+      }
+    }
     for (const file of manifest.files) {
+      if (file.destinationId !== null && exportLocal.has(file.destinationId)) {
+        placements.push({ entry: entries.get(file.path) as ArchiveEntry, final: join(dataDir, FILES_DIR, file.id), root: dataDir });
+        continue;
+      }
       const root = localRoots.get(file.destinationId);
       if (root === undefined) {
         warnings.push(`Skipped the bytes of ${file.id}: its destination is switched off or did not come with the archive.`);

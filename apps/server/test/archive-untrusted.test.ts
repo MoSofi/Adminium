@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { type MetaDb } from '@adminium/meta';
+import { destinationsRepo, filesRepo, newId, type MetaDb } from '@adminium/meta';
 import { strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -18,6 +18,7 @@ import { createArchive } from '../src/archive/create.js';
 import { ARCHIVE_MANIFEST, ArchiveFormatError, isExcludedProjectPath, type ArchiveManifest } from '../src/archive/format.js';
 import { restoreArchive, type RestoreArchiveOptions } from '../src/archive/restore.js';
 import { AVAILABLE, CRYPTO, PASSWORD_HASH, SECRET, SIGNING, makeDirs, makeStore, seedInstance, type Dirs, type EngineName } from './archive.helpers.js';
+import { TEST_STORAGE_CRYPTO } from './helpers/file-store.js';
 
 const ENGINES: EngineName[] = ['sqlite', 'postgres', 'mysql'];
 
@@ -244,5 +245,41 @@ describe('names that would collide on the disk', () => {
     await writeFile(join(dest.dirs.projectRoot, 'apps'), 'mine\n');
     await expectRefused(restoreArchive(importOptions(src.archive, dest)), /is a file/);
     expect(await dest.meta.db.introspection.getTables()).toEqual([]);
+  });
+});
+
+describe('a local storage destination in an export', () => {
+  it('names no folder on this server: the destination is switched off and its files land in the data dir', async () => {
+    // A source whose uploads go to a folder of its own, as `local` destinations do.
+    const meta = await store('sqlite', true);
+    const here = await dirs();
+    await seedInstance(meta, here);
+    const folder = join(here.root, 'uploads');
+    await mkdir(folder, { recursive: true });
+    const destination = await destinationsRepo(meta, TEST_STORAGE_CRYPTO).create({ name: 'Uploads', driver: 'local', config: { root: folder, prefix: 'a' }, createdBy: null, makeDefault: true }, Date.now());
+    const fileId = newId('file');
+    const bytes = Buffer.from('* * * * * root echo pwned\n');
+    await filesRepo(meta).create({ id: fileId, filename: 'notes.txt', mime: 'text/plain', sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), kind: 'upload', destinationId: destination.id });
+    await writeFile(join(folder, fileId), bytes);
+    const archive = join(here.root, 'export.zip');
+    await createArchive({ meta, outPath: archive, dataDir: here.dataDir, projectRoot: here.projectRoot, kind: 'export', secret: SECRET, dsnCrypto: CRYPTO, signing: SIGNING });
+
+    // The file names a folder outside the target's data dir, which the operator even allowed.
+    const dest = await target();
+    const elsewhere = join(dest.dirs.root, 'elsewhere', 'deep', 'folder');
+    const hand = await handMade({ dirs: here, archive }, 'dest', (zip) =>
+      zip.table('adminium_storage_destinations', (rows, dump) => {
+        for (const row of rows) if (row.id === destination.id) row.config = dump.kinds.config === 'json' ? { root: elsewhere, prefix: 'a' } : JSON.stringify({ root: elsewhere, prefix: 'a' });
+      }),
+    );
+    const result = await restoreArchive(importOptions(hand, dest, { storageRoots: { own: { dataDir: dest.dirs.dataDir, metaFile: null }, dirs: [join(dest.dirs.root, 'elsewhere')] } }));
+
+    expect(await tree(join(dest.dirs.root, 'elsewhere'))).toEqual([]);
+    expect(await readFile(join(dest.dirs.dataDir, 'files', fileId))).toEqual(bytes);
+    expect((await filesRepo(dest.meta).findById(fileId))?.destinationId).toBeNull();
+    const restored = await destinationsRepo(dest.meta, TEST_STORAGE_CRYPTO).findById(destination.id);
+    expect(restored?.disabled).toBe(true);
+    expect(restored?.isDefault).toBe(false);
+    expect(result.warnings.join('\n')).toMatch(/“Uploads” is switched off \(an export’s folders are another computer’s/);
   });
 });

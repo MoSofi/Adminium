@@ -60,7 +60,11 @@ Sign in with that address and password. Everyone else signs in through
 **Forgot password**, once mail is set up. Then, in Studio:
 
 - enter connection strings, mail settings and AI keys again;
-- download catalog apps and add-ons again from **Studio → Add-ons**.
+- download catalog apps and add-ons again from **Studio → Add-ons**;
+- point each `local` storage destination at a folder on this server, in
+  **Studio → Settings → Storage**. The file never decides where on the new server files go:
+  those destinations come back switched off, and the files that were in them
+  are in `<data dir>/files`, where Adminium reads them.
 
 ## Open it in the desktop app
 
