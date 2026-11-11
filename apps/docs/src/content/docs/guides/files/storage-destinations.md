@@ -341,9 +341,11 @@ before a connection is opened to it.
 A host name that does not resolve is not called. Saving or testing it answers
 `Could not look up <host>` (code `HOST_LOOKUP_FAILED`, status 502), which is
 not a refusal: check the name, or try again once it resolves.
-`ADMINIUM_STORAGE_URL` with a refused endpoint stops `adminium start`; one
-whose name does not resolve yet is skipped with a warning and tried again on
-the next boot.
+`ADMINIUM_STORAGE_URL` with a refused endpoint stops `adminium start`, and so
+does one whose name does not resolve on a boot where no destination exists yet
+(the log names the host): skipped, every file would land on the server's own
+disk instead. Once a destination exists the seed does nothing, and a lookup
+that fails then does not stop the boot.
 
 ### Set as default
 

@@ -35,7 +35,7 @@
 
 import { destinationsRepo, type MetaDb, type DsnCrypto, type StorageDestination } from '@adminium/meta';
 
-import { AppError } from '../errors.js';
+import { AppError, HostLookupFailedError } from '../errors.js';
 import type { HostLookup } from '../net/address-guard.js';
 import { checkDestinationAddress } from '../files/destinations.js';
 import { assertStorageRootAllowed, type StorageRootPolicy } from '../files/root-guard.js';
@@ -223,11 +223,20 @@ async function checkPlan(plan: SeedPlan, guard: StorageSeedGuard): Promise<void>
  * metadata address, a root in Adminium's own folders or outside
  * `ADMINIUM_STORAGE_DIRS` is the operator's to fix and stays wrong however
  * often the container restarts. A value that does not parse is not reported
- * here (the seed warns about it and the boot goes on, as it always has), nor
- * is anything that is not a rule's refusal: a name that cannot be looked up
- * now may resolve on the next boot.
+ * here (the seed warns about it and the boot goes on, as it always has).
+ *
+ * A name that cannot be looked up stops the boot too, but only where the seed
+ * would run (no destination yet; `meta` unset or its table not there counts as
+ * none): skipped with a warning, it left the instance writing every file to
+ * this server's own disk, which on a host without one is lost on the next
+ * deploy, and nobody would notice until then. Once a destination exists the
+ * seed does nothing, so a lookup that fails then is no reason to stop.
  */
-export async function storageSeedRefusal(env: StorageSeedEnv, guard: StorageSeedGuard): Promise<{ variable: string; message: string } | null> {
+export async function storageSeedRefusal(
+  env: StorageSeedEnv,
+  guard: StorageSeedGuard,
+  opts: { meta?: MetaDb | undefined } = {},
+): Promise<{ variable: string; message: string } | null> {
   const raw = env.ADMINIUM_STORAGE_URL;
   let plan: SeedPlan | null;
   let variable: string;
@@ -248,7 +257,24 @@ export async function storageSeedRefusal(env: StorageSeedEnv, guard: StorageSeed
     return null;
   } catch (error) {
     if (error instanceof AppError && error.statusCode === 422) return { variable, message: error.message };
+    if (error instanceof HostLookupFailedError && (await noDestinationYet(opts.meta))) {
+      return {
+        variable,
+        message: `${error.message} Adminium does not start without the storage this variable names, so that no file is written to this server's own disk instead.`,
+      };
+    }
     return null;
+  }
+}
+
+/** The seed's precondition, read before migrations may have run: a store without the table has no destination. */
+async function noDestinationYet(meta: MetaDb | undefined): Promise<boolean> {
+  if (meta === undefined) return true;
+  try {
+    const row = await meta.db.selectFrom('adminium_storage_destinations').select('id').limit(1).executeTakeFirst();
+    return row === undefined;
+  } catch {
+    return true;
   }
 }
 

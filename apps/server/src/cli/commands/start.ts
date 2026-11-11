@@ -373,13 +373,17 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
 
     // A storage seed this server can never use (an endpoint at a metadata address, or on its own
     // network under ADMINIUM_NETWORK_POLICY=strict; a root in Adminium's own folders or outside
-    // ADMINIUM_STORAGE_DIRS) fails the boot the same way, in the guard's words. A name that cannot
-    // be looked up does not: it may resolve on the next boot, and the seed itself says so.
-    const seedStorage = await storageSeedRefusal(env, {
-      blockLoopback: runtime.manager.blockLoopback,
-      blockPrivate: runtime.manager.networkPolicy === 'strict',
-      roots: storageRootPolicyFor(env, runtime.metaStore),
-    });
+    // ADMINIUM_STORAGE_DIRS) fails the boot the same way, in the guard's words. So does a name that
+    // cannot be looked up while the seed would still run: skipped, files would land on this disk.
+    const seedStorage = await storageSeedRefusal(
+      env,
+      {
+        blockLoopback: runtime.manager.blockLoopback,
+        blockPrivate: runtime.manager.networkPolicy === 'strict',
+        roots: storageRootPolicyFor(env, runtime.metaStore),
+      },
+      { meta: runtime.metaStore.meta },
+    );
     if (seedStorage !== null) {
       await runtime.close().catch(() => undefined);
       throw new CliError('Invalid environment configuration.', {

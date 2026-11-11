@@ -583,8 +583,6 @@ describe('S3 and WebDAV endpoints at every way in', () => {
       expect(seeded.kind, url).toBe('refused');
     }
     await expect(storageSeedRefusal({ AWS_ENDPOINT_URL_S3: 'http://169.254.169.254', BUCKET_NAME: 'b', AWS_ACCESS_KEY_ID: 'a', AWS_SECRET_ACCESS_KEY: 's' }, { lookup })).resolves.toMatchObject({ variable: 'AWS_ENDPOINT_URL_S3' });
-    // A name that cannot be looked up is not a reason to stop the boot: it may resolve next time.
-    await expect(storageSeedRefusal({ ADMINIUM_STORAGE_URL: 's3://files?endpoint=https://nowhere.storage.test&accessKey=AK&secretKey=SK' }, { lookup })).resolves.toBeNull();
     expect(await destinationsRepo(meta, TEST_STORAGE_CRYPTO).isEmpty()).toBe(true);
 
     const io = fakeIo();
@@ -592,6 +590,35 @@ describe('S3 and WebDAV endpoints at every way in', () => {
     await expect(runCli(['start', '--skip-migrate'], { io, deps })).resolves.toBe(78);
     expect(io.stderr()).toContain('ADMINIUM_STORAGE_URL');
     expect(io.stderr()).toContain('blocked address range');
+    expect(deps.startServer).not.toHaveBeenCalled();
+  });
+
+  it('stops the boot on a seed whose host cannot be looked up while no destination exists, naming the host', async () => {
+    const lookup = answers(ENDPOINT_NAMES);
+    const unresolved = 's3://files?endpoint=https://nowhere.storage.test&accessKey=AK&secretKey=SK';
+    for (const env of [{ ADMINIUM_STORAGE_URL: unresolved }, { ADMINIUM_STORAGE_URL: 'webdav://u:p@nowhere.storage.test/dav' }]) {
+      await expect(storageSeedRefusal(env, { lookup }), env.ADMINIUM_STORAGE_URL).resolves.toMatchObject({
+        variable: 'ADMINIUM_STORAGE_URL',
+        message: expect.stringContaining('Could not look up nowhere.storage.test'),
+      });
+      await expect(storageSeedRefusal(env, { lookup }, { meta })).resolves.toMatchObject({ variable: 'ADMINIUM_STORAGE_URL' });
+    }
+    await expect(
+      storageSeedRefusal({ AWS_ENDPOINT_URL_S3: 'https://nowhere.storage.test', BUCKET_NAME: 'b', AWS_ACCESS_KEY_ID: 'a', AWS_SECRET_ACCESS_KEY: 's' }, { lookup }),
+    ).resolves.toMatchObject({ variable: 'AWS_ENDPOINT_URL_S3' });
+    // Once a destination exists the seed does nothing: a lookup that fails then is no reason to stop.
+    await destinationsRepo(meta, TEST_STORAGE_CRYPTO).create({ name: 'Disk', driver: 'local', config: { root: join(tree, 'kept'), prefix: 'a' }, createdBy: null }, Date.now());
+    await expect(storageSeedRefusal({ ADMINIUM_STORAGE_URL: unresolved }, { lookup }, { meta })).resolves.toBeNull();
+
+    // `adminium start`, with a name no resolver answers (RFC 6761 keeps .invalid that way).
+    const io = fakeIo();
+    const deps = fakeDeps({
+      env: { ADMINIUM_SECRET: TEST_SECRET, ADMINIUM_DATA_DIR: data, ADMINIUM_STORAGE_URL: 's3://files?endpoint=https://storage.adminium-seed.invalid&accessKey=AK&secretKey=seed-secret-value' },
+    });
+    await expect(runCli(['start', '--skip-migrate'], { io, deps })).resolves.toBe(78);
+    expect(io.stderr()).toContain('ADMINIUM_STORAGE_URL');
+    expect(io.stderr()).toContain('Could not look up storage.adminium-seed.invalid');
+    expect(io.stderr()).not.toContain('seed-secret-value');
     expect(deps.startServer).not.toHaveBeenCalled();
   });
 });

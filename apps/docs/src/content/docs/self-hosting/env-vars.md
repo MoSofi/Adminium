@@ -225,6 +225,13 @@ and says so in the log. A destination you configured in Studio is never
 overridden, and a value that will not parse is reported as a warning — the boot
 continues, because Studio is where you fix it.
 
+**A storage it cannot use stops the boot.** An endpoint a rule refuses (see
+[`ADMINIUM_NETWORK_POLICY`](#adminium_network_policy)), a folder outside
+[`ADMINIUM_STORAGE_DIRS`](#adminium_storage_dirs), or an endpoint whose host
+cannot be looked up while no destination exists yet: `adminium start` exits
+with the env-problem table naming the host, rather than quietly writing every
+file to this server's disk.
+
 ### Fly.io needs none of this
 
 `fly storage create` provisions a Tigris bucket and writes five variables into
