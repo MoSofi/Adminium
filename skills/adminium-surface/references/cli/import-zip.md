@@ -3,7 +3,7 @@
 # CLI reference: `import-zip`
 
 ```
-adminium import-zip <file> [--dry-run] [--owner <email>] [--password-stdin]
+adminium import-zip <file> [--dry-run] [--owner <email>] [--password-stdin] [--json]
 ```
 
 Restores a bundle produced by [`export-zip`](https://docs.adminium.dev/reference/cli/#export-zip) — the other half of the
@@ -24,6 +24,7 @@ transaction: a bundle that fails halfway leaves no half-restored instance behind
 | `--project-dir <folder>` | `ADMINIUM_PROJECT_DIR` | Where an export file's project folder goes |
 | `--owner <email>` | the only or first Super Admin | Export file: who gets a new password |
 | `--password-stdin` | off | Export file: read that password from the first line of standard input |
+| `--json` | off | Export file: say the outcome, or the refusal, as one line of JSON |
 
 `import-zip` also reads the **Export everything** file (from Studio, or
 `adminium archive create --export`) into a fresh instance. The file carries no
@@ -31,6 +32,13 @@ passwords, so the import gives one Super Admin a new one: asked twice in a
 terminal, or read with `--password-stdin`. Everyone else signs in through a
 password reset; connection strings, mail and AI keys are entered again. See
 [Export everything from Studio](https://docs.adminium.dev/self-hosting/export-everything/).
+
+With `--json` an export file's import prints one line of JSON instead of
+sentences: with `--dry-run`, what the file holds and its Super Admins (so an app
+can ask who signs in first); after an import, who was given the password; on a
+refusal, `{"ok":false,"refused":…}`, where `full-archive` means the file is a
+whole-server archive for [`archive restore`](https://docs.adminium.dev/reference/cli/#archive). The desktop app's
+**File → Open a project…** runs it this way.
 
 Trial a restore before committing to it:
 

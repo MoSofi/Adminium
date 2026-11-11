@@ -155,6 +155,14 @@ export interface RestoreArchiveResult {
   dryRun: boolean;
   /** Who was given a password on an export's import; null otherwise. */
   owner: ExportOwnerCandidate | null;
+  /**
+   * An export's active Super Admins, the earliest made first, and the
+   * password length its settings ask for: what a host shows BEFORE the import
+   * (a dry run) so the person can pick who signs in first. Empty for a full
+   * archive.
+   */
+  owners: ExportOwnerCandidate[];
+  passwordMinLength: number;
 }
 
 /** The export's active Super Admins, the earliest made first. */
@@ -328,6 +336,7 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       throw new ArchiveFormatError(
         manifest.kind === 'export' ? 'This file is an export, not an archive.' : 'This file is a full archive, not an export.',
         manifest.kind === 'export' ? 'Read it with `adminium import-zip --in <file>`.' : 'Restore it with `adminium archive restore <file>`.',
+        manifest.kind === 'export' ? 'export-file' : 'full-archive',
       );
     }
     if (manifest.kind === 'full') verifyManifest(manifestBytes, signature, opts.signing);
@@ -432,6 +441,10 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
           break;
         }
       }
+      // No string left (an export carries none, or the guard took it): the state a connection
+      // without one has everywhere else, so Studio shows it as one to finish, not as connected.
+      const blank = (value: unknown): boolean => value === null || value === undefined || value === '';
+      if (blank(row.introspectDsnEncrypted) && blank(row.dataDsnEncrypted)) row.status = 'unconfigured';
     }
     if (connections !== undefined) commitRows(connections, connectionRows);
 
@@ -542,9 +555,14 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       }
     }
 
+    const owners = manifest.kind === 'export' ? exportOwnerCandidates(tables) : [];
+    const minimum = settings.get('auth.passwordMinLength');
+    const passwordMinLength = typeof minimum === 'number' && Number.isInteger(minimum) ? minimum : SETTINGS_REGISTRY['auth.passwordMinLength'].default;
     let owner: ExportOwnerCandidate | null = null;
     const result = (tablesLoaded: { table: string; rows: number }[]): RestoreArchiveResult => ({
       owner,
+      owners,
+      passwordMinLength,
       manifest,
       tables: tablesLoaded,
       files: placements.filter((p) => p.entry.path.startsWith(`${ARCHIVE_FILES_DIR}/`)).length,
@@ -560,13 +578,11 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
 
     // ── an export's first way in ────────────────────────────────────────────
     if (manifest.kind === 'export' && opts.owner !== undefined) {
-      const candidates = exportOwnerCandidates(tables);
+      const candidates = owners;
       const users = tables.get('adminium_users');
       if (candidates.length === 0 || users === undefined) {
         warnings.push('This export holds no active Super Admin, so no password was set; sign in through “Forgot password”.');
       } else {
-        const minimum = settings.get('auth.passwordMinLength');
-        const passwordMinLength = typeof minimum === 'number' && Number.isInteger(minimum) ? minimum : SETTINGS_REGISTRY['auth.passwordMinLength'].default;
         const answer = await opts.owner({ candidates, passwordMinLength });
         const chosen = candidates.find((candidate) => candidate.id === answer.userId);
         if (chosen === undefined) throw new ArchiveFormatError('That person is not one of this export’s Super Admins.');

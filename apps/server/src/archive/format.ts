@@ -139,11 +139,15 @@ export const archiveSignatureSchema = z.strictObject({
 
 export type ArchiveSignature = z.infer<typeof archiveSignatureSchema>;
 
+/** A refusal a host acts on by kind, not by its words: the file is the other kind of archive. */
+export type ArchiveRefusalCode = 'full-archive' | 'export-file';
+
 export class ArchiveFormatError extends Error {
   override readonly name = 'ArchiveFormatError';
   constructor(
     message: string,
     readonly hint?: string,
+    readonly code?: ArchiveRefusalCode,
   ) {
     super(message);
   }

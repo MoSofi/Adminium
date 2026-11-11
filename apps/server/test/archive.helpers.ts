@@ -201,10 +201,12 @@ export async function seedInstance(meta: MetaDb, dirs: Dirs): Promise<Seeded> {
   db.exec("create table products (id integer primary key, name text); insert into products (name) values ('Teapot');");
   db.close();
   const connections = connectionsRepo(meta, CRYPTO);
-  const local = await connections.create({ name: 'Shop', engine: 'sqlite', introspectDsn: `sqlite:${sqlitePath}`, dataDsn: `sqlite:${sqlitePath}` });
+  // Both were tested and answered, as connections in use have.
+  const local = await connections.create({ name: 'Shop', engine: 'sqlite', introspectDsn: `sqlite:${sqlitePath}`, dataDsn: `sqlite:${sqlitePath}`, status: 'connected' });
   const remote = await connections.create({
     name: 'Warehouse',
     engine: 'postgres',
+    status: 'connected',
     introspectDsn: 'postgres://app:pw@127.0.0.1:5432/warehouse',
     dataDsn: 'postgres://app:pw@127.0.0.1:5432/warehouse',
   });

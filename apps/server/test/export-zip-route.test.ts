@@ -536,3 +536,53 @@ describe('the owner’s way in', () => {
     expect((await usersRepo(meta).findByEmail('dee@example.com'))?.passwordHash).toBe(hash);
   });
 });
+
+describe('`import-zip --json`: what an app that imports the file reads', () => {
+  const run = async (dirs: Dirs, opts: Partial<Parameters<typeof importExportFile>[2]>, file = exported) => {
+    const io = fakeIo({ interactive: false });
+    const deps = fakeDeps({ env: { ADMINIUM_SECRET: SECRET, ADMINIUM_DATA_DIR: dirs.dataDir }, cwd: dirs.root });
+    const code = await importExportFile({ io, deps }, file, { dryRun: false, dataDir: undefined, metaUrl: undefined, projectDir: dirs.projectRoot, json: true, ...opts });
+    const lines = io.stdout().trim().split('\n');
+    // One line, and nothing else on standard output for the app to trip over.
+    expect(lines).toHaveLength(1);
+    return { code, out: JSON.parse(lines[0] ?? '') as Record<string, unknown> };
+  };
+
+  it('a dry run says what the file holds and who may be given the first password, and writes no one in', async () => {
+    const dirs = await freshDirs();
+    const { code, out } = await run(dirs, { dryRun: true });
+    expect(code).toBe(0);
+    expect(out).toMatchObject({ ok: true, dryRun: true, kind: 'export', files: 1, databases: 1, passwordMinLength: 10, owner: null });
+    expect(out.people).toBeGreaterThanOrEqual(2);
+    expect(out.pages).toBeGreaterThanOrEqual(1);
+    expect((out.owners as { email: string }[]).map((owner) => owner.email)).toEqual(['ava@example.com', 'bo@example.com']);
+    // Nothing of the export is in the data dir: no person to sign in as, no file.
+    expect((await readdir(dirs.dataDir)).filter((name) => name !== 'meta.db' && !name.startsWith('meta.db-'))).toEqual([]);
+  });
+
+  it('the import itself names who was given the password', async () => {
+    const dirs = await freshDirs();
+    const { code, out } = await run(dirs, { ownerEmail: 'bo@example.com', passwordStdin: true, readStdin: async () => NEW_PASSWORD });
+    expect(code).toBe(0);
+    expect(out).toMatchObject({ ok: true, dryRun: false, owner: 'bo@example.com' });
+  });
+
+  it('a refusal is JSON too: a short password, and a full archive, which names its own command', async () => {
+    const short = await run(await freshDirs(), { ownerEmail: 'ava@example.com', passwordStdin: true, readStdin: async () => 'short' });
+    expect(short.code).toBe(1);
+    expect(short.out).toMatchObject({ ok: false, refused: 'refused' });
+    expect(short.out.message).toMatch(/at least 10 characters/);
+
+    const source = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(source);
+    cleanups.push(async () => source.db.destroy());
+    await createFirstSuperAdmin(source, { email: 'dee@example.com', name: 'Dee', passwordHash: await hashPassword(ADMIN_PASSWORD) });
+    const dirs = await freshDirs();
+    const archive = join(dirs.root, 'full.zip');
+    await createArchive({ meta: source, outPath: archive, dataDir: dirs.dataDir, projectRoot: null, kind: 'full', secret: SECRET, dsnCrypto: CRYPTO, signing: SIGNING });
+    const full = await run(await freshDirs(), { dryRun: true }, archive);
+    expect(full.code).toBe(1);
+    expect(full.out).toMatchObject({ ok: false, refused: 'full-archive' });
+    expect(full.out.hint).toContain('adminium archive restore');
+  });
+});

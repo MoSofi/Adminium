@@ -19,7 +19,7 @@ import { prepareProject } from '../../../project/boot.js';
 import { APP_VERSION } from '../../../version.js';
 import { boolFlag, parseFlags, stringFlag } from '../../args.js';
 import type { Command, CommandContext } from '../../command.js';
-import { CliError, CliUsageError, EXIT_OK, type ExitCode } from '../../exit.js';
+import { CliError, CliUsageError, EXIT_ERROR, EXIT_OK, type ExitCode } from '../../exit.js';
 import type { CliIo } from '../../io.js';
 import { loadCliEnv } from '../../runtime.js';
 import { formatBytes } from '../export-zip.js';
@@ -303,6 +303,8 @@ export async function importExportFile(
     ownerEmail?: string | undefined;
     passwordStdin?: boolean | undefined;
     readStdin?: (() => Promise<string>) | undefined;
+    /** One line of JSON instead of sentences: the outcome, or the refusal (`exportJson`). */
+    json?: boolean | undefined;
   },
 ): Promise<ExitCode> {
   const named = opts.projectDir ?? deps.env.ADMINIUM_PROJECT_DIR;
@@ -324,6 +326,10 @@ export async function importExportFile(
       dryRun: opts.dryRun,
       owner: askExportOwner(io, { ownerEmail: opts.ownerEmail, passwordStdin: opts.passwordStdin === true, ...(opts.readStdin === undefined ? {} : { readStdin: opts.readStdin }) }),
     });
+    if (opts.json === true) {
+      io.out(JSON.stringify(exportJson(result)));
+      return EXIT_OK;
+    }
     reportRestore(io, result, { dataDir: env.ADMINIUM_DATA_DIR, projectRoot });
     if (result.owner !== null) {
       io.out(`${result.owner.email} signs in with the password just given. Everyone else came without a password and signs in through “Forgot password”.`);
@@ -334,9 +340,42 @@ export async function importExportFile(
     io.out(result.dryRun ? 'Dry run — nothing was written.' : 'Import complete.');
     return EXIT_OK;
   } catch (error) {
+    if (opts.json === true && (error instanceof ArchiveFormatError || error instanceof CliError)) {
+      const refused = error instanceof ArchiveFormatError ? (error.code ?? 'refused') : 'refused';
+      io.out(JSON.stringify({ ok: false, refused, message: error.message, ...(error.hint === undefined ? {} : { hint: error.hint }) }));
+      return EXIT_ERROR;
+    }
     return asCliError(error);
   } finally {
     await store.close();
   }
+}
+
+/**
+ * `import-zip --json` on an export file: what a host shows. With `--dry-run`
+ * it is asked first, for what the file holds and which Super Admin may be
+ * given the first password; after the import, for who was and what to say.
+ */
+export function exportJson(result: RestoreArchiveResult): Record<string, unknown> {
+  const rows = (table: string): number => result.tables.find((entry) => entry.table === table)?.rows ?? 0;
+  return {
+    ok: true,
+    dryRun: result.dryRun,
+    kind: result.manifest.kind,
+    appVersion: result.manifest.appVersion,
+    createdAt: result.manifest.createdAt,
+    people: rows('adminium_users'),
+    pages: rows('adminium_pages'),
+    connections: rows('adminium_connections'),
+    files: result.files,
+    databases: result.databases,
+    projectFiles: result.projectFiles,
+    packages: result.manifest.packages.length,
+    external: result.manifest.external.length,
+    owners: result.owners,
+    passwordMinLength: result.passwordMinLength,
+    owner: result.owner?.email ?? null,
+    warnings: result.warnings,
+  };
 }
 

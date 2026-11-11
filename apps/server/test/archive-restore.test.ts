@@ -461,6 +461,10 @@ describe('the export variant through import-zip', () => {
       expect((await pagesRepo(dest.meta).findById(src.seeded.pageId))?.title).toBe('Orders');
       expect(await readFile(join(dest.dirs.dataDir, 'files', src.seeded.fileId))).toEqual(src.seeded.fileBytes);
       expect((await connectionsRepo(dest.meta, dsnCryptoFromSecret(OTHER_SECRET)).getDsns(src.seeded.sqliteConnectionId))?.dataDsn).toContain('databases/shop.sqlite');
+      // The connection that came without its string reads as one to finish, as a new one without a string does.
+      const remote = await connectionsRepo(dest.meta, dsnCryptoFromSecret(OTHER_SECRET)).findById(src.seeded.remoteConnectionId);
+      expect(remote?.status).toBe('unconfigured');
+      expect((await connectionsRepo(dest.meta, dsnCryptoFromSecret(OTHER_SECRET)).findById(src.seeded.sqliteConnectionId))?.status).not.toBe('unconfigured');
     });
   }
 });
