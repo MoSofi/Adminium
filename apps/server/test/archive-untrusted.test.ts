@@ -238,7 +238,8 @@ describe('names that would collide on the disk', () => {
         const again = await restoreArchive(importOptions(src.archive, dest));
         expect(again.owner?.email, name).toBe('ava@example.com');
       }
-    });
+      // Four refusals and four full restores: about 13 s alone on MySQL, past 30 s beside the whole suite.
+    }, 120_000);
   }
 
   it('a file in the target where the archive needs a folder', async () => {
