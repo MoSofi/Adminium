@@ -411,6 +411,14 @@ describe('the hand-off on a production server', { timeout: 60_000 }, () => {
     expect(JSON.parse(refused.changes)).toMatchObject({ after: { reason: 'validation_failed', host: 'localhost' } });
   });
 
+  it('refuses an existing project on a refused host before anyone types its password', async () => {
+    const s = await server({ answer: { host: 'localhost', port: 5432, database: 'postgres', user: 'postgres' } });
+    const reply = await finish(s, await signIn(s, 'existing'));
+    expect(reply.status).toBe(422);
+    expect(reply.body).not.toHaveProperty('pendingId');
+    expect(await connectionCount(s.meta)).toBe(0);
+  });
+
   describe.skipIf(!pgLoopback)('live, on the local Postgres', () => {
     it('ends in a working, introspected connection, and logs no password or string', async () => {
       const db = await livePostgres();

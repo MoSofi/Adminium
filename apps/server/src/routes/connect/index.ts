@@ -193,6 +193,8 @@ export function connectRoutes(deps: ConnectRoutesDeps): FastifyPluginAsyncZod {
           });
           host = answer.host;
           if (answer.password === undefined) {
+            // The host is held to the database guard now, not after the person has typed a password for it.
+            await manager.checkDsnAllowed(connectionDsn(answer, undefined), 'postgres');
             const pendingId = store.hold(provider.id, owner, answer);
             return { status: 'needs-password' as const, pendingId, project: answer.project ?? null };
           }
