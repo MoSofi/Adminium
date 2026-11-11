@@ -28,6 +28,7 @@ import { envSchema, formatEnvErrorTable, type Env } from '../config/env.js';
 import { ConnectionManager } from '../connections/manager.js';
 import { dsnCryptoFromSecret } from '../connections/crypto.js';
 import { registerAdapters } from '../connections/register-adapters.js';
+import type { SqliteSourcePolicy } from '../connections/sqlite-guard.js';
 import { importZip as defaultImportZip, type ImportZip } from '../export/import-service.js';
 import { exportZip as defaultExportZip, type ExportZip } from '../export/zip-service.js';
 import { runGeneration } from '../generate/run.js';
@@ -38,7 +39,7 @@ import { createRunService, type RunService } from '../llm/run-service.js';
 import { createConnectionStatsCollector } from '../llm/stats-collector.js';
 import type { CollectRunStats } from '../llm/prompt-service.js';
 import type { OnMetaRelocated } from '../meta/relocate.js';
-import { openMetaStore, type MetaStoreHandle } from '../meta/store.js';
+import { openMetaStore, sqlitePathFromUrl, type MetaStoreHandle } from '../meta/store.js';
 import { mayOpenBrowser } from '../project/programs.js';
 import type { ProjectServerOptions } from '../project/service.js';
 import { loadAllowedVocabularies } from './allowlist.js';
@@ -159,6 +160,23 @@ export interface OpenRuntimeOptions {
 }
 
 /**
+ * What a SQLite source is checked against on this server: the data dir and
+ * the meta store's own file (never a source), and `ADMINIUM_SQLITE_DIRS`.
+ */
+export function sqliteSourcePolicyFor(
+  env: Pick<Env, 'ADMINIUM_DATA_DIR' | 'ADMINIUM_SQLITE_DIRS'>,
+  metaStore: Pick<MetaStoreHandle, 'engine' | 'url'>,
+): SqliteSourcePolicy {
+  return {
+    own: {
+      dataDir: env.ADMINIUM_DATA_DIR,
+      metaFile: metaStore.engine === 'sqlite' ? sqlitePathFromUrl(metaStore.url) : null,
+    },
+    dirs: env.ADMINIUM_SQLITE_DIRS,
+  };
+}
+
+/**
  * Open the meta store and compose the services. Does NOT bootstrap — `migrate`
  * owns that explicitly, and `start`/`init` call `firstRun` deliberately.
  *
@@ -187,6 +205,7 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     metaDsn: metaStore.source === 'embedded' ? null : metaStore.url,
     ...(opts.blockLoopback === undefined ? {} : { blockLoopback: opts.blockLoopback }),
     databaseHosts: env.ADMINIUM_DATABASE_HOSTS,
+    sqliteSources: sqliteSourcePolicyFor(env, metaStore),
     sourcePoolMax: env.ADMINIUM_SOURCE_POOL_MAX,
   });
 

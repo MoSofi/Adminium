@@ -35,6 +35,7 @@ import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@
 import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { guardDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase, type DatabaseHost } from './dsn.js';
 import { PRIVILEGES_PROBE_TIMEOUT_MS, PRIVILEGES_TTL_MS } from './privileges.js';
+import { assertSqliteSourceAllowed, type SqliteSourcePolicy } from './sqlite-guard.js';
 
 /** Every meta table is `adminium_`-prefixed. */
 export const META_TABLE_PREFIX = 'adminium_';
@@ -114,6 +115,12 @@ export interface ConnectionManagerOptions {
    */
   databaseHosts?: readonly DatabaseHost[] | undefined;
   /**
+   * Where Adminium's own files are, and `ADMINIUM_SQLITE_DIRS`: a SQLite
+   * source is refused on Adminium's own files, and outside those folders when
+   * they are set (`sqlite-guard.ts`). Unset: no file is refused.
+   */
+  sqliteSources?: SqliteSourcePolicy | undefined;
+  /**
    * The size of every pool opened against a source database (env
    * `ADMINIUM_SOURCE_POOL_MAX`); unset leaves each adapter's own default.
    */
@@ -135,6 +142,7 @@ export class ConnectionManager {
   readonly #metaDsn: string | null;
   readonly #blockLoopback: boolean;
   readonly #databaseHosts: readonly DatabaseHost[];
+  readonly #sqliteSources: SqliteSourcePolicy | undefined;
   readonly #pool: { poolMax?: number };
   readonly connections: ReturnType<typeof connectionsRepo>;
   readonly #dataHandles = new Map<string, Promise<DataHandle>>();
@@ -146,6 +154,7 @@ export class ConnectionManager {
     this.#metaDsn = opts.metaDsn ?? null;
     this.#blockLoopback = opts.blockLoopback ?? process.env.NODE_ENV === 'production';
     this.#databaseHosts = opts.databaseHosts ?? [];
+    this.#sqliteSources = opts.sqliteSources;
     this.#pool = opts.sourcePoolMax === undefined ? {} : { poolMax: opts.sourcePoolMax };
     this.connections = connectionsRepo(opts.meta, opts.crypto);
   }
@@ -177,7 +186,8 @@ export class ConnectionManager {
 
   /** The guard alone, for a DSN stored now and dialled later by `engine`. Throws 422. */
   assertDsnAllowed(dsn: string, engine: string): void {
-    guardDsn(dsn, { blockLoopback: this.#blockLoopback, engine, databaseHosts: this.#databaseHosts });
+    const parsed = guardDsn(dsn, { blockLoopback: this.#blockLoopback, engine, databaseHosts: this.#databaseHosts });
+    if (parsed.scheme === 'sqlite' && this.#sqliteSources !== undefined) assertSqliteSourceAllowed(dsn, this.#sqliteSources);
   }
 
   /** Guard + dial + test + probe one DSN with a short-lived introspect-role instance. */

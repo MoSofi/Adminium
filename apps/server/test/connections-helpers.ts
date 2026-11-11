@@ -36,6 +36,7 @@ import { adapterRegistry, type AdapterProvider, type AdapterRegistry } from '@ad
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
+import type { SqliteSourcePolicy } from '../src/connections/sqlite-guard.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { connectionsRoutes } from '../src/routes/connections/index.js';
@@ -178,6 +179,8 @@ export interface BuildDataTestAppOptions {
   now?: (() => number) | undefined;
   /** Custom adapter registry (fake-adapter suites); default: real postgres. */
   registry?: AdapterRegistry<AdapterProvider> | undefined;
+  /** Adminium's own files and `ADMINIUM_SQLITE_DIRS`, as `openRuntime` hands them over; default: none. */
+  sqliteSources?: SqliteSourcePolicy | undefined;
   /**
    * Extra route plugins registered under `/api/v1` alongside the standard
    * set (additive seam — the M7 data-io suite mounts its exports/imports
@@ -249,6 +252,7 @@ export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Prom
     registry: opts.registry,
     metaDsn: opts.metaDsn ?? null,
     blockLoopback: false,
+    sqliteSources: opts.sqliteSources,
   });
   const undoStore = new UndoStore(opts.now ?? Date.now);
   const widgetCache = new WidgetDataCache(opts.now !== undefined ? { now: opts.now } : {});

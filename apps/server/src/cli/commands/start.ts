@@ -45,6 +45,7 @@ import { ownerOnThisComputer } from '../../auth/local-owner.js';
 import { seedStorageDestination } from '../../config/storage-seed.js';
 import { formatEnvProblems } from '../../config/env.js';
 import { unlistedLoopbackEntry } from '../../connections/dsn.js';
+import { sqliteSourceRefusal } from '../../connections/sqlite-guard.js';
 import { seedSourceConnection } from '../../connections/seed.js';
 import { storageCryptoFromSecret } from '../../files/crypto.js';
 import { embeddedMetaWarning } from '../../meta/store.js';
@@ -63,7 +64,7 @@ import type { Command, CommandContext } from '../command.js';
 import type { CliIo } from '../io.js';
 import { CliError, EXIT_CONFIG, EXIT_OK, type ExitCode } from '../exit.js';
 import { createRelocationHost } from '../relocation-host.js';
-import { loadCliEnv } from '../runtime.js';
+import { loadCliEnv, sqliteSourcePolicyFor } from '../runtime.js';
 
 export const startCommand: Command = {
   name: 'start',
@@ -341,6 +342,20 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
         hint: formatEnvProblems([
           { variable: 'ADMINIUM_SOURCE_URL', problem: `points at loopback; add \`${seedEntry}\` to ADMINIUM_DATABASE_HOSTS` },
         ]),
+      });
+    }
+
+    // A SQLite seed on one of Adminium's own files, or outside ADMINIUM_SQLITE_DIRS, can never be
+    // opened either: the same fail-fast, in the guard's own words.
+    const seedSqlite =
+      project === null && env.ADMINIUM_SOURCE_URL !== undefined && /^(sqlite|file):/i.test(env.ADMINIUM_SOURCE_URL)
+        ? sqliteSourceRefusal(env.ADMINIUM_SOURCE_URL, sqliteSourcePolicyFor(env, runtime.metaStore))
+        : null;
+    if (seedSqlite !== null) {
+      await runtime.close().catch(() => undefined);
+      throw new CliError('Invalid environment configuration.', {
+        code: EXIT_CONFIG,
+        hint: formatEnvProblems([{ variable: 'ADMINIUM_SOURCE_URL', problem: seedSqlite.message }]),
       });
     }
 
