@@ -28,4 +28,4 @@ export class Client {
   refreshCsrf(): Promise<unknown>;
 }
 
-export function signIn(options: { url: string; email: string; password: string; name?: string; sessionFile?: string | null; setup?: boolean }): Promise<Client>;
+export function signIn(options: { url: string; email: string; password: string; name?: string; sessionFile?: string | null; setup?: boolean; setupToken?: string | null }): Promise<Client>;
