@@ -758,6 +758,15 @@ export const envSchema = z.object({
    */
   ADMINIUM_SQLITE_DIRS: folderListVar('/srv/databases'),
   /**
+   * The folders a `local` storage destination's root may lie in:
+   * `/srv/files,/mnt/uploads`. Unset, a root may be any folder apart from
+   * Adminium's own (its meta store, the data dir's own folders, `/` and any
+   * folder holding the data dir, `files/root-guard.ts`), which are refused
+   * either way. Set, the root's real path must be under one of these.
+   * Absolute paths only.
+   */
+  ADMINIUM_STORAGE_DIRS: folderListVar('/srv/files'),
+  /**
    * `open` (default) or `strict`. `strict` also refuses the server's own
    * network (private ranges: 10/8, 172.16/12, 192.168/16, 100.64/10, IPv6
    * ULA) for source databases, webhooks and storage endpoints; a source host
@@ -877,6 +886,8 @@ const ENV_HINTS: Record<string, string> = {
     'CSV of host[:port] a production server may reach on its own loopback, e.g. localhost:5432 (port defaults to 5432 / 3306; *.suffix for a provider\'s names; never a cloud metadata address)',
   ADMINIUM_SQLITE_DIRS:
     'CSV of absolute folders a SQLite source database must lie in, e.g. /srv/databases (unset: any file except Adminium\'s own)',
+  ADMINIUM_STORAGE_DIRS:
+    'CSV of absolute folders a local storage destination must lie in, e.g. /srv/files (unset: any folder except Adminium\'s own)',
   ADMINIUM_NETWORK_POLICY: `one of ${NETWORK_POLICIES.join(', ')} (default open; strict also refuses private ranges for source databases, webhooks and storage endpoints)`,
   ADMINIUM_MAP_SERVER: `off, or the one origin map pictures come from (default ${DEFAULT_MAP_SERVER})`,
   ADMINIUM_ROUTING_SERVER: `off, or the origin of an OSRM routing server (default ${DEFAULT_ROUTING_SERVER}; asked only when routing is switched on)`,

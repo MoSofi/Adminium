@@ -28,6 +28,7 @@ import { createLocalDriver } from './drivers/local.js';
 import { createS3Driver, s3BucketUrl } from './drivers/s3.js';
 import { createWebdavDriver } from './drivers/webdav.js';
 import type { FileDriver } from './drivers/driver.js';
+import { assertStorageRootAllowed, type StorageRootPolicy } from './root-guard.js';
 
 /** The implicit destination's sentinel on the wire (D3). */
 export const LOCAL_DESTINATION_ID = 'local';
@@ -54,8 +55,14 @@ export interface DestinationResolver {
   defaultDestinationId(): Promise<string | null>;
   /** Enabled destinations that publish a public base — the ref parser's input. */
   publicBases(): Promise<{ id: string; publicBaseUrl?: string | null | undefined }[]>;
-  /** Refuse a config whose address this server may not call (422), before it is stored. */
+  /** Refuse a config whose address this server may not call (422), by how it is written. */
   assertAllowed(driver: StorageDestination['driver'], config: StorageDestination['config']): void;
+  /**
+   * The whole check, before a config is stored or tested: the address as
+   * written, and a `local` root against Adminium's own folders and
+   * `ADMINIUM_STORAGE_DIRS`. Throws 422.
+   */
+  checkAllowed(driver: StorageDestination['driver'], config: StorageDestination['config']): Promise<void>;
   /** Drop cached drivers (a secret rotation, a test that re-seeds). */
   clearCache(): void;
 }
@@ -114,14 +121,22 @@ export function assertDestinationAddressAllowed(
   if (address !== null) guardOutboundUrl(address, opts);
 }
 
+/** A `local` config's folder, checked when the policy is known (every composed server passes it). */
+function assertLocalRootAllowed(driver: StorageDestination['driver'], config: StorageDestination['config'], roots: StorageRootPolicy | undefined): void {
+  if (driver === 'local' && roots !== undefined && 'root' in config) assertStorageRootAllowed(config.root, roots);
+}
+
 function buildDriver(
   driver: StorageDestination['driver'],
   config: StorageDestination['config'],
   secret: Record<string, string>,
   localRootFallback: string,
   blockLoopback: boolean,
+  roots: StorageRootPolicy | undefined,
 ): FileDriver {
   assertDestinationAddressAllowed(driver, config, { blockLoopback });
+  // Every time a driver is built, not only at the save: a folder can become a symlink into the data dir later.
+  assertLocalRootAllowed(driver, config, roots);
   switch (driver) {
     case 'local': {
       const root = 'root' in config ? config.root : localRootFallback;
@@ -163,10 +178,16 @@ export interface DestinationResolverOptions {
   localRoot: string;
   /** Refuse this machine's own address as a remote destination; default: in production. */
   blockLoopback?: boolean | undefined;
+  /**
+   * Where Adminium's own files are, and `ADMINIUM_STORAGE_DIRS`: a `local`
+   * destination's root is refused on them (`root-guard.ts`). Unset: no root is
+   * refused (tests that build a resolver by hand).
+   */
+  roots?: StorageRootPolicy | undefined;
 }
 
 export function createDestinationResolver(opts: DestinationResolverOptions): DestinationResolver {
-  const { repo, localRoot } = opts;
+  const { repo, localRoot, roots } = opts;
   const blockLoopback = opts.blockLoopback ?? process.env.NODE_ENV === 'production';
   const local = createLocalDriver({ root: localRoot });
   const cache = new Map<string, { updatedAt: number; driver: FileDriver }>();
@@ -189,17 +210,22 @@ export function createDestinationResolver(opts: DestinationResolverOptions): Des
       if (cached !== undefined && cached.updatedAt === row.updatedAt) return cached.driver;
 
       const secret = parseSecret(row.driver, row.hasSecret ? await repo.getSecret(row.id) : null);
-      const driver = buildDriver(row.driver, row.config, secret, localRoot, blockLoopback);
+      const driver = buildDriver(row.driver, row.config, secret, localRoot, blockLoopback, roots);
       cache.set(row.id, { updatedAt: row.updatedAt, driver });
       return driver;
     },
 
     driverForDraft(draft) {
-      return buildDriver(draft.driver, draft.config, parseSecret(draft.driver, draft.secret ?? null), localRoot, blockLoopback);
+      return buildDriver(draft.driver, draft.config, parseSecret(draft.driver, draft.secret ?? null), localRoot, blockLoopback, roots);
     },
 
     assertAllowed(driver, config) {
       assertDestinationAddressAllowed(driver, config, { blockLoopback });
+    },
+
+    async checkAllowed(driver, config) {
+      assertDestinationAddressAllowed(driver, config, { blockLoopback });
+      assertLocalRootAllowed(driver, config, roots);
     },
 
     async defaultDestinationId() {

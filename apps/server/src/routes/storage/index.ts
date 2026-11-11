@@ -116,7 +116,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
             secret: 'required',
           });
         }
-        resolver.assertAllowed(request.body.driver, request.body.config);
+        await resolver.checkAllowed(request.body.driver, request.body.config);
         const created = await repo.create(
           {
             name: request.body.name,
@@ -146,7 +146,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const before = await load(request.params.id);
-        if (request.body.config !== undefined) resolver.assertAllowed(before.driver, request.body.config);
+        if (request.body.config !== undefined) await resolver.checkAllowed(before.driver, request.body.config);
         const updated = await repo.update(
           before.id,
           {

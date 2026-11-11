@@ -36,6 +36,7 @@ half-configured and fail later.
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
 | `ADMINIUM_DATABASE_HOSTS` | No | *(unset)* | CSV of `host[:port]` database hosts a production server may reach on its own loopback, such as `localhost:5432` for a Postgres on the same server. Source databases only. See below. |
 | `ADMINIUM_SQLITE_DIRS` | No | *(unset)* | CSV of absolute folders a SQLite source database must lie in, such as `/srv/databases`. Unset means any file the server can open, except Adminium's own. See below. |
+| `ADMINIUM_STORAGE_DIRS` | No | *(unset)* | CSV of absolute folders a `local` storage destination must lie in, such as `/srv/files`. Unset means any folder, except Adminium's own. See below. |
 | `ADMINIUM_NETWORK_POLICY` | No | `open` | `strict` also refuses the server's own network (private ranges) for source databases, webhooks and storage endpoints. A source host in `ADMINIUM_DATABASE_HOSTS` still passes. See below. |
 | `ADMINIUM_MAP_SERVER` | No | `https://tiles.openfreemap.org` | Where maps' pictures come from: one `https://` origin, or `off` for no maps on this install. See below. |
 | `ADMINIUM_ROUTING_SERVER` | No | `https://router.project-osrm.org` | The OSRM server asked for routes along roads, once that is switched on in Settings → Maps; or `off`. See below. |
@@ -330,6 +331,30 @@ The refusal names the folders and what to do:
 ```
 This SQLite file is outside the folders this server allows (ADMINIUM_SQLITE_DIRS: /srv/databases). Move the file into one of them, or ask whoever runs this server to add its folder to ADMINIUM_SQLITE_DIRS.
 ```
+
+## `ADMINIUM_STORAGE_DIRS`
+
+A storage destination of the kind *Another folder on this server* (`local`, or
+`ADMINIUM_STORAGE_URL=file:///…`) names a folder, and Adminium writes every
+upload under it. Adminium's own folders are refused whatever this says: the
+meta store file, the data directory itself, its `backups/`, `files/`, `tmp/`,
+`add-ons/` and `pre-restore-…` folders, and any folder that holds the data
+directory, `/` included. Any other folder is allowed, unless you name the
+folders file storage must live in:
+
+```bash
+ADMINIUM_STORAGE_DIRS=/srv/files,/mnt/uploads
+```
+
+- **Absolute folders**, separated by commas. A relative path stops the boot.
+- **Real paths are compared**: a symlink inside one of these folders that
+  points out of them is refused, and so is a symlink that points into
+  Adminium's own folders.
+- **Every way in**: saving or testing a destination in Studio, a destination
+  saved before the rule (it can no longer be read or written), and
+  `ADMINIUM_STORAGE_URL` (a folder Adminium refuses stops the boot).
+- **Not in the desktop app**, which writes wherever its user picks. Its own
+  folders stay refused there too.
 
 ## `ADMINIUM_NETWORK_POLICY`
 

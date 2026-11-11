@@ -42,7 +42,8 @@ import {
   snapshotFailureRefusal,
 } from '../../backup/pre-migration.js';
 import { ownerOnThisComputer } from '../../auth/local-owner.js';
-import { seedStorageDestination } from '../../config/storage-seed.js';
+import { seedStorageDestination, storageSeedRefusal } from '../../config/storage-seed.js';
+import { storageRootPolicyFor } from '../../files/root-guard.js';
 import { formatEnvProblems } from '../../config/env.js';
 import { unlistedLoopbackEntry } from '../../connections/dsn.js';
 import { sqliteSourceRefusal } from '../../connections/sqlite-guard.js';
@@ -359,6 +360,20 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       });
     }
 
+    // A storage seed this server can never use (a metadata address, a root in Adminium's own
+    // folders or outside ADMINIUM_STORAGE_DIRS) fails the boot the same way, in the guard's words.
+    const seedStorage = await storageSeedRefusal(env, {
+      blockLoopback: runtime.manager.blockLoopback,
+      roots: storageRootPolicyFor(env, runtime.metaStore),
+    });
+    if (seedStorage !== null) {
+      await runtime.close().catch(() => undefined);
+      throw new CliError('Invalid environment configuration.', {
+        code: EXIT_CONFIG,
+        hint: formatEnvProblems([{ variable: seedStorage.variable, problem: seedStorage.message }]),
+      });
+    }
+
     // The embedded fallback is legitimate but must announce itself.
     if (runtime.metaStore.source === 'embedded') {
       io.err(embeddedMetaWarning(runtime.metaStore.url));
@@ -425,6 +440,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       crypto: storageCryptoFromSecret(env.ADMINIUM_SECRET),
       env,
       blockLoopback: runtime.manager.blockLoopback,
+      roots: storageRootPolicyFor(env, runtime.metaStore),
       log: (message) => {
         io.out(message);
       },
