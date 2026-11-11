@@ -130,6 +130,7 @@ describe('cloud metadata is refused in every form, listed or not', () => {
     ['Oracle Cloud', '192.0.0.192'],
     ['AWS IPv6', 'fd00:ec2::254'],
     ['NAT64', '64:ff9b::a9fe:a9fe'],
+    ['local-use NAT64', '64:ff9b:1::a9fe:a9fe'],
     ['6to4', '2002:a9fe:a9fe::1'],
     ['IPv4-compatible', '::a9fe:a9fe'],
     ['IPv4-mapped', '::ffff:169.254.169.254'],
@@ -156,6 +157,12 @@ describe('cloud metadata is refused in every form, listed or not', () => {
     expect(addressKind('2001:db8::1')).toBe('public');
     expect(addressKind('not an address')).toBe('public');
     expect(embeddedIpv4('64:ff9b::192.0.0.192')).toBe('192.0.0.192');
+    // RFC 8215 local-use NAT64: the last 32 bits.
+    expect(embeddedIpv4('64:ff9b:1::a9fe:a9fe')).toBe('169.254.169.254');
+    expect(addressKind('64:ff9b:1::a9fe:a9fe')).toBe('metadata');
+    expect(addressKind('64:ff9b:1:abcd::7f00:1')).toBe('loopback');
+    expect(addressKind('64:ff9b:1::a00:1')).toBe('private');
+    expect(addressKind('64:ff9b:1::808:808')).toBe('public');
     expect(embeddedIpv4('::ffff:a9fe:a9fe')).toBe('169.254.169.254');
     expect(embeddedIpv4('2001:db8::1')).toBeNull();
     expect(embeddedIpv4('10.0.0.1')).toBeNull();
