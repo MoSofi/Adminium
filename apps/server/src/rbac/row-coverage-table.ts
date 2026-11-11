@@ -166,6 +166,10 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/bridge/handoff': noRows('A hand-off from the website.'),
   'GET /api/v1/bridge/hello': noRows('A hand-off from the website.'),
   'GET /api/v1/bridge/seed/:ticket': noRows('A hand-off from the website.'),
+  // --- /connect ("Connect Supabase": a connection made, tested and its schema read, as POST /connections and its introspect)
+  'POST /api/v1/connect/start': noRows('A hand-off to the operator\'s connect service: no row of any table.'),
+  'POST /api/v1/connect/return': rows('system', 'The schema of the connection it makes is read under the connections grant, as the system, as POST /connections/:id/introspect reads it; no row of its tables.'),
+  'POST /api/v1/connect/complete': rows('system', 'The schema of the connection it makes is read under the connections grant, as the system, as POST /connections/:id/introspect reads it; no row of its tables.'),
   // --- /connections
   'GET /api/v1/connections': noRows('A connection\'s address, its test, its schema diff and stored rules: no row of its tables.'),
   'POST /api/v1/connections': noRows('A connection\'s address, its test, its schema diff and stored rules: no row of its tables.'),
