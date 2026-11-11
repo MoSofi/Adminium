@@ -18,7 +18,7 @@ One file holds the whole instance, as far as one file can:
 | Local SQLite databases you connected, copied safely while the server runs | Databases on other hosts. Back those up with their own tools (`pg_dump`, `mysqldump`). |
 | The project folder: Designer-built apps, sides and sites, pages, lists | The project's `.env`, its `.adminium/` folder and `node_modules/`. Copy `.env` yourself if you need it. |
 | A list of installed catalog apps and add-ons with their versions | The packages themselves: after a restore they show as **Missing** in Studio until you download them again, and each is checked again when it is. |
-| Secrets (connection strings, mail and AI keys), still encrypted with `ADMINIUM_SECRET` | Sessions, password-reset and invitation links, add-on trust, and the Designer's live switch. |
+| Secrets (connection strings, mail and AI keys), still encrypted with `ADMINIUM_SECRET` | Sessions, password-reset and invitation links, add-on trust, the Designer's live switch, and **Allow databases on this server**. |
 
 The file holds password hashes and encrypted secrets: keep it as safe as the server.
 

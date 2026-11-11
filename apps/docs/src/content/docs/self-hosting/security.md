@@ -23,7 +23,8 @@ often write — your production data. Treat it as production infrastructure.
       set up from adminium.dev, and a production instance has no such moment
 - [ ] Audit log reviewed periodically
 - [ ] People who sign in but do not run the server? `ADMINIUM_NETWORK_POLICY=strict`
-      (see [What Adminium may call](#what-adminium-may-call))
+      (see [What Adminium may call](#what-adminium-may-call)), and the rest of
+      [Run Adminium for other people](/self-hosting/for-other-people/)
 
 ## `ADMINIUM_SECRET`
 
@@ -157,7 +158,10 @@ cannot point somewhere else a moment later.
   always. It is where a cloud server's own credentials live.
 - **This machine** (`localhost`, `127.0.0.1`, `::1`) is refused in production.
   A database on the same server is allowed by name with
-  [`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts).
+  [`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts),
+  or by a super admin's **Allow databases on this server** switch, which
+  [`ADMINIUM_LOCAL_DATABASES=off`](/self-hosting/env-vars/#adminium_local_databases)
+  locks off.
 - **The server's own network** (`10.x`, `172.16–31.x`, `192.168.x`,
   `100.64–127.x`, IPv6 `fc00::/7`) is allowed by default, because a database or
   MinIO next to Adminium is the normal case. Set

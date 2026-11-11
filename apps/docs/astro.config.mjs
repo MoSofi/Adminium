@@ -324,6 +324,7 @@ export default defineConfig({
             { label: 'Payments on your server', link: '/self-hosting/payments/' },
             { label: 'Upgrading', link: '/self-hosting/upgrades/' },
             { label: 'Security hardening', link: '/self-hosting/security/' },
+            { label: 'Run Adminium for other people', link: '/self-hosting/for-other-people/' },
             { label: 'Telemetry', link: '/self-hosting/telemetry/' },
             { label: 'Export & restore', link: '/self-hosting/export-zip/' },
             { label: 'Back up and move an instance', link: '/self-hosting/archive/' },

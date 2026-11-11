@@ -37,7 +37,7 @@ half-configured and fail later.
 | `ADMINIUM_SURFACES_DIR` | No | *(unset)* | Directory of built app surfaces, served at `/apps/<app>/<side>/`. Unset means this instance hosts no apps. See below. |
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
 | `ADMINIUM_DATABASE_HOSTS` | No | *(unset)* | CSV of `host[:port]` database hosts a production server may reach on its own loopback, such as `localhost:5432` for a Postgres on the same server. Source databases only. See below. |
-| `ADMINIUM_LOCAL_DATABASES` | No | `setting` | `setting` lets a super admin switch on *Allow databases on this server* in Studio → Settings, for any database on this server's own loopback; `off` locks that switch off, so only `ADMINIUM_DATABASE_HOSTS` counts. See below. |
+| `ADMINIUM_LOCAL_DATABASES` | No | `setting` | `setting` lets a super admin switch on *Allow databases on this server* in Studio's Server settings, for any database on this server's own loopback; `off` locks that switch off, so only `ADMINIUM_DATABASE_HOSTS` counts. See below. |
 | `ADMINIUM_SQLITE_DIRS` | No | *(unset)* | CSV of absolute folders a SQLite source database must lie in, such as `/srv/databases`. Unset means any file the server can open, except Adminium's own. See below. |
 | `ADMINIUM_STORAGE_DIRS` | No | *(unset)* | CSV of absolute folders a `local` storage destination must lie in, such as `/srv/files`. Unset means any folder, except Adminium's own. See below. |
 | `ADMINIUM_NETWORK_POLICY` | No | `open` | `strict` also refuses the server's own network (private ranges) for source databases, webhooks and storage endpoints. A source host in `ADMINIUM_DATABASE_HOSTS` still passes. See below. |
@@ -341,7 +341,7 @@ anyway: on your own computer a local database is the normal case.
 ## `ADMINIUM_LOCAL_DATABASES`
 
 The list above is the operator's way in. A super admin has a second one: Studio →
-Settings → Connections → **Allow databases on this server**. Switched on, a source
+Server settings → Connections → **Allow databases on this server**. Switched on, a source
 connection may reach **any** database on this server's own loopback, on any port,
 as well as the hosts on `ADMINIUM_DATABASE_HOSTS`. Switching it on asks for the
 super admin's password, and every change, and every refused try, is written to

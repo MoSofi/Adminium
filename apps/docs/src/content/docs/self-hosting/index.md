@@ -82,6 +82,15 @@ set `ADMINIUM_TRUST_PROXY=on` so it reads `X-Forwarded-For` correctly.
 
 → [Behind a reverse proxy](/self-hosting/reverse-proxy/)
 
+### 5. Whether the people who sign in also run the server
+
+If you run Adminium for a client, a class or another team, they sign in as
+super admin but the machine, its network and its secrets stay yours. A few
+settings draw that line: the setup token, which databases and folders on the
+server they may reach, and your network.
+
+→ [Run Adminium for other people](/self-hosting/for-other-people/)
+
 ## Health and readiness
 
 ```
@@ -155,3 +164,4 @@ analytics, no license check, no phone-home.
 - [Upgrading](/self-hosting/upgrades/) — forward-only migrations, and the
   downgrade guard
 - [Security hardening](/self-hosting/security/)
+- [Run Adminium for other people](/self-hosting/for-other-people/)
