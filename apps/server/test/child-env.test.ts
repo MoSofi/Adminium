@@ -186,6 +186,62 @@ describe('after the server boots', () => {
   });
 });
 
+describe('on Windows (a Windows-shaped environment, on every platform)', () => {
+  /** What `process.env` holds on a Windows machine: `Path`, not `PATH`, and Windows' own names. */
+  const WINDOWS_ENV: Record<string, string> = {
+    Path: 'C:\\Windows\\system32;C:\\Program Files\\nodejs\\',
+    PATHEXT: '.COM;.EXE;.BAT;.CMD',
+    SystemRoot: 'C:\\Windows',
+    windir: 'C:\\Windows',
+    SystemDrive: 'C:',
+    ProgramFiles: 'C:\\Program Files',
+    'ProgramFiles(x86)': 'C:\\Program Files (x86)',
+    ProgramData: 'C:\\ProgramData',
+    COMSPEC: 'C:\\Windows\\system32\\cmd.exe',
+    NUMBER_OF_PROCESSORS: '8',
+    PROCESSOR_ARCHITECTURE: 'AMD64',
+    USERPROFILE: 'C:\\Users\\ava',
+    APPDATA: 'C:\\Users\\ava\\AppData\\Roaming',
+    LOCALAPPDATA: 'C:\\Users\\ava\\AppData\\Local',
+    TEMP: 'C:\\Users\\ava\\AppData\\Local\\Temp',
+    HOMEDRIVE: 'C:',
+    HOMEPATH: '\\Users\\ava',
+    // Windows reads names in any case: these are the operator's secrets all the same.
+    Adminium_Secret: SECRET,
+    adminium_ai_anthropic_api_key: 'sk-ant-operator-key',
+    GITHUB_TOKEN: 'ghp_not-for-children',
+    SHOP_ONLY: 'not listed',
+  };
+
+  it("keeps the programs' path and Windows' own names, spelled PATH for the path", () => {
+    for (const profile of ['program', 'build', 'packages', 'browser'] as const) {
+      const env = childEnvironment(profile, {}, WINDOWS_ENV, 'win32');
+      expect(env['PATH'], profile).toBe(WINDOWS_ENV['Path']);
+      expect(env, profile).not.toHaveProperty('Path');
+      for (const name of ['SystemRoot', 'windir', 'SystemDrive', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramData', 'PATHEXT', 'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'TEMP', 'HOMEDRIVE', 'HOMEPATH']) {
+        expect(env[name], `${profile}: ${name}`).toBe(WINDOWS_ENV[name]);
+      }
+      expect(env['ComSpec'], profile).toBe(WINDOWS_ENV['COMSPEC']);
+      expectNoSecret(env, profile);
+      expect(env, profile).not.toHaveProperty('GITHUB_TOKEN');
+      expect(env, profile).not.toHaveProperty('SHOP_ONLY');
+    }
+  });
+
+  it('a caller’s own Path replaces the copied one, and a secret it passes in any case is dropped', () => {
+    const env = childEnvironment('program', { Path: 'C:\\tools', adminium_secret: SECRET, APP_PORT: '4700' }, WINDOWS_ENV, 'win32');
+    expect(Object.keys(env).filter((name) => name.toUpperCase() === 'PATH')).toEqual(['Path']);
+    expect(env['Path']).toBe('C:\\tools');
+    expect(env['APP_PORT']).toBe('4700');
+    expectNoSecret(env, 'add');
+  });
+
+  it('elsewhere, names keep their case: a `Path` is not the path', () => {
+    const env = childEnvironment('program', {}, { Path: '/not/the/path', PATH: '/usr/bin' }, 'linux');
+    expect(env).toEqual({ PATH: '/usr/bin' });
+  });
+});
+
 describe.skipIf(process.platform === 'win32')('a program the server starts', () => {
   let bin: string;
   let dumps: string;
