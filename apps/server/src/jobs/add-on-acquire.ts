@@ -27,7 +27,7 @@
 
 import type { AppCatalog, AppCatalogClient } from '../apps/catalog.js';
 import { bothListsOn, fetchBothLists } from '../marketplace/both-lists.js';
-import { auditRepo, jobsRepo, type Job, type MetaDb } from '@adminium/meta';
+import { auditRepo, jobsRepo, usersRepo, type Job, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import {
@@ -112,11 +112,13 @@ async function audit(
   data: Record<string, unknown>,
   userId?: string,
 ): Promise<void> {
+  // The person by their e-mail, as a request's own audit names them; their id when they are gone.
+  const person = userId === undefined ? null : await usersRepo(deps.meta).findById(userId);
   await auditRepo(deps.meta).append(
     {
       actorKind: userId === undefined ? 'system' : 'user',
       actorId: userId ?? null,
-      actorLabel: userId ?? 'system',
+      actorLabel: userId === undefined ? 'system' : (person?.email ?? userId),
       category: 'add-on',
       action,
       changes: { after: { ...(key === null ? {} : { key }), ...data } },

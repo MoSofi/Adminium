@@ -70,6 +70,7 @@ import {
   settingsRepo,
   snapshotsRepo,
   userPrefsRepo,
+  usersRepo,
   jobsRepo,
   readAppModules,
   automationsRepo,
@@ -1806,23 +1807,30 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         // This app's own lines, newest first. The key is in the row's JSON, so
         // the filter is here; a busy instance's app log is small.
         const entries = await auditRepo(deps.meta).list({ category: 'app', limit: 200 });
-        const activity = entries
+        const lines = entries
           .filter((entry) => {
             const after = (entry.changes as { after?: { key?: unknown; installId?: unknown } } | null)?.after;
             // A line that names its install is this install's only.
             return after?.key === key && (after.installId === undefined || after.installId === row.row.id);
           })
-          .slice(0, 8)
-          .map((entry) => {
-            // What the line is about, where the action alone does not say: the add-on a step set up.
-            const name = (entry.changes as { after?: { name?: unknown } } | null)?.after?.name;
-            return {
-              action: entry.action,
-              at: entry.createdAt,
-              actor: entry.actorLabel,
-              ...(entry.action === 'app.add-on-step' && typeof name === 'string' && name !== '' ? { subject: name } : {}),
-            };
-          });
+          .slice(0, 8);
+        // Each person by their name (else their e-mail), as the rest of the console names people: a line a
+        // background job wrote carries only their id as its label.
+        const people = new Map<string, string>();
+        for (const id of new Set(lines.flatMap((entry) => (entry.actorKind === 'user' && entry.actorId !== null ? [entry.actorId] : [])))) {
+          const person = await usersRepo(deps.meta).findById(id);
+          if (person !== null) people.set(id, person.name.trim() === '' ? person.email : person.name);
+        }
+        const activity = lines.map((entry) => {
+          // What the line is about, where the action alone does not say: the add-on a step set up.
+          const name = (entry.changes as { after?: { name?: unknown } } | null)?.after?.name;
+          return {
+            action: entry.action,
+            at: entry.createdAt,
+            actor: (entry.actorId === null ? undefined : people.get(entry.actorId)) ?? entry.actorLabel,
+            ...(entry.action === 'app.add-on-step' && typeof name === 'string' && name !== '' ? { subject: name } : {}),
+          };
+        });
         return {
           key,
           connection: connection === undefined ? null : connection,

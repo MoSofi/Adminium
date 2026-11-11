@@ -1853,6 +1853,20 @@ describe('one app’s own settings', () => {
     await app.close();
   });
 
+  it('names each person on the activity by their name, else their e-mail, never their id', async () => {
+    const app = await installedApp();
+    const unnamed = await usersRepo(meta).create({ email: 'fitter@test', name: '' });
+    // A line a background job wrote (a catalogue download) carried only the person's id as its label.
+    for (const person of [installer, unnamed]) {
+      await auditRepo(meta).append({ actorKind: 'user', actorId: person.id, actorLabel: person.id, category: 'app', action: 'app.staged', changes: { after: { key: 'sample-desk', version: '0.1.1', source: 'download' } } });
+    }
+    const overview = (await app.inject({ method: 'GET', url: '/apps/sample-desk/overview' })).json();
+    const actors = (overview.activity as { action: string; actor: string }[]).map((line) => line.actor);
+    expect(actors.slice(0, 2)).toEqual(['fitter@test', 'Owner']);
+    expect(actors.every((actor) => !actor.startsWith('usr_'))).toBe(true);
+    await app.close();
+  });
+
   it('keeps an instance a host still opens', async () => {
     const app = await installedApp();
     const put = await app.inject({

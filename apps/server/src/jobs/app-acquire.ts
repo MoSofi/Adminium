@@ -21,7 +21,7 @@
  */
 
 import { LOCAL_PUBLISHER_ID } from '@adminium/manifest';
-import { auditRepo, jobsRepo, type Job, type MetaDb } from '@adminium/meta';
+import { auditRepo, jobsRepo, usersRepo, type Job, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import { AddOnCatalogError, unavailableRefusal } from '../add-ons/catalog.js';
@@ -79,11 +79,13 @@ async function audit(
   data: Record<string, unknown>,
   userId?: string,
 ): Promise<void> {
+  // The person by their e-mail, as a request's own audit names them; their id when they are gone.
+  const person = userId === undefined ? null : await usersRepo(deps.meta).findById(userId);
   await auditRepo(deps.meta).append(
     {
       actorKind: userId === undefined ? 'system' : 'user',
       actorId: userId ?? null,
-      actorLabel: userId ?? 'system',
+      actorLabel: userId === undefined ? 'system' : (person?.email ?? userId),
       category: 'app',
       action,
       changes: { after: { ...(key === null ? {} : { key }), ...data } },
