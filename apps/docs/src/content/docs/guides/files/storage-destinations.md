@@ -323,10 +323,14 @@ upgrade until you do.
 
 #### Where an endpoint may point
 
-Before a destination is saved or tested, and again before **every** request a
-file makes, Adminium looks the S3 or WebDAV host up and checks each address it
-gives. The request then goes to the address that was checked, never to a
-second lookup, with the host name kept for TLS.
+Before a destination is saved or tested, and again before a file's requests,
+Adminium looks the S3 or WebDAV host up and checks each address it gives. The
+requests then go to the addresses that were checked, never to a second
+lookup, with the host name kept for TLS. Connections to those addresses stay
+open between requests, so a page of thumbnails does not pay for a new
+connection per picture; the host is looked up and checked again at least once
+a minute, and after any request that failed, and a changed answer is checked
+before a connection is opened to it.
 
 | | Refused |
 |---|---|

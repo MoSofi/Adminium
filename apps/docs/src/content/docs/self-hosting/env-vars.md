@@ -436,9 +436,10 @@ such as a Docker Compose install whose database is the `postgres` service.
   `ADMINIUM_DATABASE_HOSTS` (`postgres:5432`). The list lets databases
   through, never webhooks or storage.
 - **Every request is checked**: a source host before every new pool, a webhook
-  before every send, a storage endpoint before every request a file makes.
-  The request then goes to the address that was checked, so a name that
-  answers differently a second later changes nothing.
+  before every send, a storage endpoint before a file's requests (looked up
+  again at least once a minute while connections to it stay open). The
+  request then goes to an address that was checked, so a name that answers
+  differently a second later changes nothing.
 - **A name that does not resolve is never called.** The error says so in its
   own words, `Could not look up <host>`, with the code `HOST_LOOKUP_FAILED`
   and status 502, so it is not mistaken for a refusal: check the name, or try

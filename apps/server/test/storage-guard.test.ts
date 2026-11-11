@@ -38,6 +38,7 @@ import { FileDriverError, type FileDriver } from '../src/files/drivers/driver.js
 import { createS3Driver } from '../src/files/drivers/s3.js';
 import { createWebdavDriver } from '../src/files/drivers/webdav.js';
 import { storageRootRefusal, type StorageRootPolicy } from '../src/files/root-guard.js';
+import { OUTBOUND_RECHECK_MS } from '../src/net/outbound-check.js';
 import type { HostLookup } from '../src/net/address-guard.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { storageRoutes } from '../src/routes/storage/index.js';
@@ -445,7 +446,7 @@ describe('S3 and WebDAV endpoints at every way in', () => {
     }
   });
 
-  it('refuses a stored row whose name now answers with metadata, at its test route and at every request', async () => {
+  it('refuses a stored row whose name now answers with metadata, at its test route and at every request once the name is checked again', async () => {
     let target = '127.0.0.1';
     const lookup = answers({ 'bucket.storage.test': () => [target] });
     const { app, admin, resolver } = await harness({ lookup });
@@ -463,12 +464,16 @@ describe('S3 and WebDAV endpoints at every way in', () => {
       const seen = stub.log.length;
 
       target = '169.254.169.254';
+      // Requests reuse the checked addresses for OUTBOUND_RECHECK_MS; past it, the new answer is checked first.
+      const realNow = Date.now.bind(Date);
+      vi.spyOn(Date, 'now').mockImplementation(() => realNow() + OUTBOUND_RECHECK_MS + 1_000);
       await expect(driver.open('upload/2026/11/a.txt')).rejects.toMatchObject({ statusCode: 422, message: expect.stringContaining('blocked address range') });
       await expect(driver.head('upload/2026/11/a.txt')).rejects.toMatchObject({ statusCode: 422 });
       const tested = await app.inject({ method: 'POST', url: `/api/v1/storage/destinations/${id}/test`, headers: admin });
       expect(tested.statusCode).toBe(422);
       expect(stub.log.length).toBe(seen);
     } finally {
+      vi.restoreAllMocks();
       await app.close();
     }
   });

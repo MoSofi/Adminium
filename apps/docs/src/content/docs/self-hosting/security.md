@@ -147,8 +147,9 @@ audit log as whatever it likes. The two settings are a pair.
 
 Three addresses are typed by people who sign in, not by you: a source
 database's host, an automation's webhook URL, and an S3 or WebDAV storage
-endpoint. Each is looked up before every connection, every address it gives is
-checked, and the connection goes to the address that was checked, so a name
+endpoint. Each is looked up before it is connected to (a storage host at least
+once a minute while its connections stay open), every address it gives is
+checked, and the connection goes to an address that was checked, so a name
 cannot point somewhere else a moment later.
 
 - **Cloud metadata** (`169.254.169.254` and its other spellings,

@@ -9,6 +9,7 @@ import type { AddressInfo } from 'node:net';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { checkedFetch, forgetCheckedAddresses, resolveAndCheck } from '../src/llm/outbound.js';
+import { outboundFetch } from '../src/net/outbound-check.js';
 import { pinnedFetch } from '../src/net/pinned-fetch.js';
 
 let server: Server;
@@ -176,5 +177,96 @@ describe('a checked address is the address that is called', () => {
     await resolveAndCheck(first);
     for (let n = 1; n <= 200; n += 1) await resolveAndCheck(`http://localhost:${String(20000 + n)}/v1`);
     await expect((checkedFetch(first) as typeof fetch)(first)).rejects.toThrow('not checked');
+  });
+});
+
+describe('storage requests keep their connections, and check the name again', () => {
+  let keep: Server;
+  let keepPort: number;
+  let connections: number;
+  beforeAll(async () => {
+    keep = createServer((req, res) => {
+      void read(req).then(() => {
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        res.end('ok');
+      });
+    });
+    keep.on('connection', () => {
+      connections += 1;
+    });
+    // Every address, both families: an answer that moves from 127.0.0.1 to ::1 still reaches it.
+    await new Promise<void>((resolve) => keep.listen(0, '::', resolve));
+    keepPort = (keep.address() as AddressInfo).port;
+  });
+  afterAll(async () => {
+    keep.closeAllConnections();
+    await new Promise<void>((resolve) => keep.close(() => resolve()));
+  });
+
+  function rig(answers: string[][]) {
+    let clock = 1_000;
+    const asked: string[] = [];
+    const fetcher = outboundFetch(
+      {
+        blockLoopback: false,
+        lookup: async (host) => {
+          asked.push(host);
+          return Promise.resolve(answers[Math.min(asked.length - 1, answers.length - 1)] ?? []);
+        },
+      },
+      { recheckMs: 60_000, now: () => clock },
+    );
+    return {
+      fetcher,
+      asked,
+      later: (ms: number) => {
+        clock += ms;
+      },
+      url: (path: string) => `http://files.storage.test:${String(keepPort)}${path}`,
+    };
+  }
+
+  it('two requests in a row go over one connection, after one lookup', async () => {
+    connections = 0;
+    const { fetcher, asked, url } = rig([['127.0.0.1']]);
+    expect(await (await fetcher(url('/a'))).text()).toBe('ok');
+    expect(await (await fetcher(url('/b'))).text()).toBe('ok');
+    expect(connections).toBe(1);
+    expect(asked).toEqual(['files.storage.test']);
+  });
+
+  it('thirty at once look the name up once', async () => {
+    const { fetcher, asked, url } = rig([['127.0.0.1']]);
+    const answers = await Promise.all(Array.from({ length: 30 }, async (_, i) => (await fetcher(url(`/t${String(i)}`))).text()));
+    expect(answers.every((text) => text === 'ok')).toBe(true);
+    expect(asked).toHaveLength(1);
+  });
+
+  it('after the interval the name is checked again: the same answer keeps the connection, a new one gets its own', async () => {
+    connections = 0;
+    const { fetcher, asked, later, url } = rig([['127.0.0.1'], ['127.0.0.1'], ['::1']]);
+    await (await fetcher(url('/1'))).text();
+    later(59_000);
+    await (await fetcher(url('/2'))).text();
+    expect(asked).toHaveLength(1);
+    later(2_000);
+    await (await fetcher(url('/3'))).text();
+    expect(asked).toHaveLength(2);
+    expect(connections).toBe(1);
+    later(61_000);
+    await (await fetcher(url('/4'))).text();
+    expect(asked).toHaveLength(3);
+    expect(connections).toBe(2);
+  });
+
+  it('a name that moves to the metadata address is refused before anything is reused', async () => {
+    connections = 0;
+    const { fetcher, later, url } = rig([['127.0.0.1'], ['169.254.169.254']]);
+    await (await fetcher(url('/1'))).text();
+    later(61_000);
+    await expect(fetcher(url('/2'))).rejects.toThrow('blocked address range');
+    // Refused again on the next request, within the interval too: nothing of the old answer is kept.
+    await expect(fetcher(url('/3'))).rejects.toThrow('blocked address range');
+    expect(connections).toBe(1);
   });
 });

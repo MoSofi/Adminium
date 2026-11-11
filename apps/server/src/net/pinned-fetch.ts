@@ -14,8 +14,8 @@
  * the answer as a `Response` whose body streams. A redirect is handed back as
  * it is, never followed. The body is asked for uncompressed.
  */
-import { request as httpRequest } from 'node:http';
-import { request as httpsRequest } from 'node:https';
+import { request as httpRequest, type Agent as HttpAgent } from 'node:http';
+import { request as httpsRequest, type Agent as HttpsAgent } from 'node:https';
 import { isIP } from 'node:net';
 import { Readable } from 'node:stream';
 
@@ -27,12 +27,21 @@ export interface PinnedAddress {
 /** Statuses that carry no body: a `Response` refuses one for them. */
 const NO_BODY = new Set([204, 205, 304]);
 
+export interface PinnedFetchOptions {
+  /**
+   * Keep connections open between requests: an agent made for THESE pins only (the agent pools sockets by host and
+   * port, not by address, so an agent shared between two pin sets could hand one set's socket to the other). Without
+   * one, every request opens its own connection and closes it.
+   */
+  agent?: HttpAgent | HttpsAgent | undefined;
+}
+
 /**
  * `pins`: every address the name gave when it was checked, in the order it gave them. The connection tries them as
  * the platform would have (a name that is both `::1` and `127.0.0.1` reaches a server listening on either), and
  * never anything else.
  */
-export function pinnedFetch(pins: readonly PinnedAddress[]): typeof fetch {
+export function pinnedFetch(pins: readonly PinnedAddress[], opts: PinnedFetchOptions = {}): typeof fetch {
   const [pin] = pins;
   if (pin === undefined) throw new TypeError('A pinned fetch needs an address.');
   return (input, init) =>
@@ -73,7 +82,7 @@ export function pinnedFetch(pins: readonly PinnedAddress[]): typeof fetch {
           method,
           headers,
           ...(init?.signal === undefined || init.signal === null ? {} : { signal: init.signal }),
-          agent: false,
+          agent: opts.agent ?? false,
           // The connection goes to the address that was checked, whatever the name says now.
           lookup: (_name, options, callback) => {
             const done = callback as (error: Error | null, address: string | { address: string; family: number }[], family?: number) => void;
