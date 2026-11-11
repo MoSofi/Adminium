@@ -101,8 +101,12 @@ don't matter.
 - **Where it is not asked.** The desktop app, and `adminium dev`, `design` and
   `try` while they listen on this computer only (`127.0.0.1`). `try` on every
   address (its default) asks, but hands the token to the browser it opens, so
-  you only type it from another device. `adminium start` always asks, even on
-  `127.0.0.1`, because behind a reverse proxy that address is public.
+  you only type it from another device. That link reaches the program that
+  opens your browser (`open`, `xdg-open`, `start`) on its command line, where
+  other accounts on the same computer can see it while that program runs;
+  `try` is meant for your own computer, so that is accepted. `adminium start`
+  always asks, even on `127.0.0.1`, because behind a reverse proxy that
+  address is public.
 - **Decided when the server starts, not by what the store holds.** A server
   that asks keeps asking even if something else serving the same meta store
   (`adminium dev` on the same folder, say) never asked: with its proof missing,
