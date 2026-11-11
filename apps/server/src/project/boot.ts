@@ -4,6 +4,7 @@
  * config, and work out the environment the server boots with.
  */
 
+import { holdOperatorSecrets, withHeldSecrets } from '../config/operator-secrets.js';
 import {
   configFields,
   configuredDatabases,
@@ -85,6 +86,10 @@ export async function prepareProject(opts: {
   const inFile = refuse.length === 0 ? null : readDotEnv(project.root);
   const refused = new Set(inFile === null ? [] : refuse.filter((name) => name in inFile));
   const fromDotEnv = refuse.length === 0 ? loadDotEnv(project.root, opts.env) : loadDotEnv(project.root, opts.env, [...KEPT_OUT_OF_THE_ENVIRONMENT, ...refuse]);
+  // The project's config is its own code, and it runs in this process: the operator's secrets (from the
+  // environment and from `.env`, just read) leave `process.env` before it is imported
+  // (`config/operator-secrets.ts`). The boot gets them back below, with the held values.
+  if (opts.env === process.env) holdOperatorSecrets(opts.env);
   const loaded = await loadProjectConfig(project, {
     version: opts.version,
     ...(opts.loadBundler === undefined ? {} : { loadBundler: opts.loadBundler }),
@@ -100,7 +105,7 @@ export async function prepareProject(opts: {
     config: loaded.config,
     from: loaded.from,
     ...(loaded.appsRebuilt === true ? { appsRebuilt: true as const } : {}),
-    env: withDefaults(opts.env, fromConfig),
+    env: withDefaults(withHeldSecrets(opts.env), fromConfig),
     databases: configuredDatabases(loaded.config),
     fromDotEnv,
     sources: variableSources(project, loaded.config, opts.env, fromDotEnv),
