@@ -147,6 +147,14 @@ on a public IP, not sharing credentials with anything.
 
 The shipped compose file gets this right: `meta-db` uses `expose`, not `ports`.
 
+When you move the meta store from the setup wizard or Studio, the connection
+string you type is checked like a source database's: no query parameter that
+names another host or a socket (`?host=`, `?hostaddr=`, `?socketPath=`), and
+never a cloud metadata address. A database on this server (`localhost`) is
+fine. A SQLite file chosen there must be inside `ADMINIUM_DATA_DIR`, written
+without `..`, and not through a link that leads out of it. To keep the store
+anywhere else, set `ADMINIUM_META_URL`; that value is yours and is not checked.
+
 ## Accounts
 
 - **Passwords** are hashed with argon2id.

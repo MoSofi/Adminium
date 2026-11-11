@@ -24,7 +24,7 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
-import { enrichWizardDsn } from './constants.js';
+import { ENGINE, enrichWizardDsn } from './constants.js';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 const BLOCKING = new Set(['critical', 'serious']);
@@ -106,12 +106,18 @@ test.describe('first run', () => {
     // The setup-only probe, on a database Adminium has never touched:
     // open while setup is, honest about finding nothing, and it writes nothing —
     // the walk below relocates into this same database and would fail if the
-    // probe had migrated it.
+    // probe had migrated it. A SQLite source lives outside the data dir, where
+    // a typed meta-store path may not point, so there the probe refuses it and
+    // the wizard, which treats the probe as advice, walks on regardless.
     const clean = await page.request.post('/api/v1/setup/probe', {
       data: { dsn: enrichWizardDsn() },
     });
-    expect(clean.status(), await clean.text()).toBe(200);
-    expect(((await clean.json()) as { data: { occupied: string[] } }).data.occupied).toEqual([]);
+    if (ENGINE === 'sqlite') {
+      expect(clean.status(), await clean.text()).toBe(422);
+    } else {
+      expect(clean.status(), await clean.text()).toBe(200);
+      expect(((await clean.json()) as { data: { occupied: string[] } }).data.occupied).toEqual([]);
+    }
 
     // ── 1. what will you build first ────────────────────────────────────────
     await page.goto('/');

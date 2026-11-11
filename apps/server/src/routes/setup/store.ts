@@ -17,7 +17,9 @@
  * same window in which an unauthenticated caller can already create the
  * instance's super admin, which is strictly more power than either of these.
  * On a server that prints a setup token, both need it too (`setup/token.ts`),
- * checked before anything is dialled or written.
+ * checked before anything is dialled or written. The DSN itself then goes
+ * through `meta/typed-dsn.ts` (the source-connection parser, the metadata
+ * check, SQLite only inside the data dir) before it is dialled either.
  * They share that route's credential-facing rate-limit bucket, and both are
  * audited: on a set-up instance a call here is somebody probing, and that is
  * worth a row even though the caller is told nothing but 409.
@@ -44,8 +46,9 @@ import { readBootstrap, writeBootstrap } from '../../config/bootstrap.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
 import type { Env } from '../../config/env.js';
 import { AppError, ConflictError } from '../../errors.js';
-import { connectMetaStore, metaEngineFromUrl, MetaUrlError } from '../../meta/store.js';
+import { connectMetaStore, metaEngineFromUrl, MetaUrlError, type MetaEngine } from '../../meta/store.js';
 import { metaUrlCryptoFromSecret } from '../../meta/store.js';
+import { guardTypedMetaDsn } from '../../meta/typed-dsn.js';
 import type { OnMetaRelocated } from '../../meta/relocate.js';
 import { SetupClosedError, SetupTokenInvalidError, type SetupService } from '../../setup/service.js';
 import { setupTokenInvalid } from './index.js';
@@ -76,6 +79,20 @@ async function withTarget<T>(dsn: string, run: (meta: MetaDb) => Promise<T>): Pr
     return await run(target.meta);
   } finally {
     await target.close();
+  }
+}
+
+/**
+ * The typed-DSN guard (`meta/typed-dsn.ts`), with a scheme no meta store
+ * speaks answered as it always was here. Run after the setup gate and before
+ * {@link withTarget}, so a refused string is never dialled.
+ */
+async function guardTarget(dsn: string, env: Env): Promise<MetaEngine> {
+  try {
+    return await guardTypedMetaDsn(dsn, { dataDir: env.ADMINIUM_DATA_DIR });
+  } catch (error) {
+    if (error instanceof MetaUrlError) throw new AppError(400, 'META_DSN_INVALID', error.message);
+    throw error;
   }
 }
 
@@ -165,6 +182,8 @@ export function setupStoreRoutes(deps: SetupStoreRoutesDeps): FastifyPluginAsync
       async (request): Promise<SetupProbeReply> => {
         await requireSetupOpen(request, 'setup_probe_denied', request.body.setupToken);
         const dsn = request.body.dsn.trim();
+        // Outside the try below: a refusal is an answer, not "could not reach it".
+        await guardTarget(dsn, env);
         try {
           return await withTarget(dsn, async (meta) => {
             const { present, occupied } = await probeAdminiumTables(meta);
@@ -212,12 +231,7 @@ export function setupStoreRoutes(deps: SetupStoreRoutesDeps): FastifyPluginAsync
           );
         }
 
-        let engine;
-        try {
-          engine = metaEngineFromUrl(dsn);
-        } catch (error) {
-          throw new AppError(400, 'META_DSN_INVALID', (error as Error).message);
-        }
+        const engine = await guardTarget(dsn, env);
 
         // Adopting an EMPTY database would leave this instance pointed at
         // nothing, with the store it booted on stranded — that is a relocation,
