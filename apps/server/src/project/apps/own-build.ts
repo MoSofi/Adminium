@@ -35,6 +35,7 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
+import { childEnvironment } from '../../config/child-env.js';
 import { buildLinePath, desktopPrograms } from '../programs.js';
 
 import { BUILD_DIR } from '../build-shared.js';
@@ -212,16 +213,6 @@ export function buildCodeStems(root: string, key: string): Set<string> {
 }
 
 /** The environment a build gets: where programs are, and nothing of this server's. */
-function buildEnvironment(env: NodeJS.ProcessEnv): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const name of ['PATH', 'HOME', 'TMPDIR', 'TEMP', 'TMP', 'LANG', 'SystemRoot', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'ComSpec', 'PATHEXT']) {
-    const value = env[name];
-    if (value !== undefined) out[name] = value;
-  }
-  out['CI'] = '1';
-  return out;
-}
-
 export type StepRunner = (line: string, cwd: string, signal?: AbortSignal, env?: Readonly<Record<string, string>>) => Promise<{ ok: boolean; output: string }>;
 
 /**
@@ -333,10 +324,11 @@ export const runLine: StepRunner = (line, cwd, signal, env) =>
     let output = '';
     // Its own process group where there are groups: the shell's children (npm, Vite) end with it.
     const grouped = process.platform !== 'win32';
-    const base = buildEnvironment(process.env);
+    // Named (`config/child-env.ts`, the `build` profile): where programs are and `CI=1`, then the guard's values. No
+    // operator secret reaches a build line, whoever wrote it.
     // In the desktop app `node`, `npm` and `npx` on a build line are the app's own: their folder comes first.
-    const path = buildLinePath(base['PATH']);
-    const child = spawn(line, { cwd, env: { ...base, ...(path === undefined ? {} : { PATH: path }), ...env }, shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: grouped });
+    const path = buildLinePath(process.env['PATH']);
+    const child = spawn(line, { cwd, env: childEnvironment('build', { ...(path === undefined ? {} : { PATH: path }), ...env }), shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: grouped });
     const keep = (chunk: Buffer): void => {
       output = `${output}${chunk.toString('utf8')}`.slice(-MAX_OUTPUT);
     };
@@ -348,7 +340,7 @@ export const runLine: StepRunner = (line, cwd, signal, env) =>
       try {
         if (grouped && child.pid !== undefined) process.kill(-child.pid, 'SIGKILL');
         // Windows has no groups: the shell's whole tree is ended by its own tool.
-        else if (child.pid !== undefined) spawn('taskkill', ['/T', '/F', '/PID', String(child.pid)], { stdio: 'ignore', windowsHide: true }).on('error', () => child.kill('SIGKILL'));
+        else if (child.pid !== undefined) spawn('taskkill', ['/T', '/F', '/PID', String(child.pid)], { stdio: 'ignore', windowsHide: true, env: childEnvironment('program') }).on('error', () => child.kill('SIGKILL'));
         else child.kill('SIGKILL');
       } catch {
         child.kill('SIGKILL');

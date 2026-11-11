@@ -4,13 +4,17 @@
  * approved.
  *
  * It runs as this server's user, so it is given as little of this server as
- * a command can work without. Its environment is this process's minus every
- * secret: the instance secret, the model keys, anything whose name says it
- * is a token, a key or a password, and `NODE_OPTIONS` (which would let a file
- * be loaded into it before it starts). It is stopped when the turn stops, and
- * killed when it runs too long. What it prints is kept, up to a limit.
+ * a command can work without. Its environment is a named one its caller
+ * builds (`config/child-env.ts`; the `program` profile when none is given), and
+ * whatever that holds is filtered once more here: no operator secret, nothing
+ * whose name says it is a token, a key or a password, and no `NODE_OPTIONS`
+ * (which would let a file be loaded into it before it starts). It is stopped
+ * when the turn stops, and killed when it runs too long. What it prints is kept, up to a limit.
  */
 import { spawn } from 'node:child_process';
+
+import { childEnvironment } from '../config/child-env.js';
+import { isOperatorSecretName } from '../config/operator-secrets.js';
 
 /** The most output kept from a command. */
 const MAX_OUTPUT = 200_000;
@@ -19,6 +23,7 @@ const MAX_OUTPUT = 200_000;
 export function isSecretName(name: string): boolean {
   const upper = name.toUpperCase();
   return (
+    isOperatorSecretName(upper) ||
     upper === 'ADMINIUM_SECRET' ||
     upper === 'NODE_OPTIONS' ||
     upper.startsWith('ADMINIUM_AI_') ||
@@ -31,7 +36,8 @@ export function isSecretName(name: string): boolean {
   );
 }
 
-export function scrubbedEnvironment(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+/** `env` without a secret by {@link isSecretName}. It is a filter on a named environment, never a way to build one. */
+export function scrubbedEnvironment(env: Readonly<Record<string, string | undefined>>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [name, value] of Object.entries(env)) {
     if (value !== undefined && !isSecretName(name)) out[name] = value;
@@ -50,7 +56,7 @@ export interface ChildResult {
 export function runChild(
   command: string,
   args: readonly string[],
-  opts: { cwd: string; timeoutMs: number; signal?: AbortSignal; env?: NodeJS.ProcessEnv },
+  opts: { cwd: string; timeoutMs: number; signal?: AbortSignal; /** Named (`childEnvironment`); the `program` profile when left out. */ env?: Readonly<Record<string, string | undefined>> },
 ): Promise<ChildResult> {
   return new Promise((resolve) => {
     let output = '';
@@ -58,7 +64,7 @@ export function runChild(
     let stopped = false;
     const child = spawn(command, [...args], {
       cwd: opts.cwd,
-      env: scrubbedEnvironment(opts.env),
+      env: scrubbedEnvironment(opts.env ?? childEnvironment('program')),
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
       windowsHide: true,
@@ -123,12 +129,12 @@ const KEEPER = [
  * it with (the resolver's), `args` the program and its arguments. Its
  * environment is scrubbed like any command's here.
  */
-export function startLongChild(command: string, args: readonly string[], opts: { cwd: string; env?: NodeJS.ProcessEnv }): LongChild {
+export function startLongChild(command: string, args: readonly string[], opts: { cwd: string; env?: Readonly<Record<string, string | undefined>> }): LongChild {
   let output = '';
   let stopped = false;
   const child = spawn(command, ['-e', KEEPER, '--', command, ...args], {
     cwd: opts.cwd,
-    env: scrubbedEnvironment(opts.env),
+    env: scrubbedEnvironment(opts.env ?? childEnvironment('program')),
     stdio: ['pipe', 'pipe', 'pipe'],
     shell: false,
     windowsHide: true,

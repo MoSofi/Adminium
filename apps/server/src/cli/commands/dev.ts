@@ -195,6 +195,8 @@ export const devCommand: Command = {
         const args = ['start', ...forwarded];
         if (deps.spawnDevServer !== undefined) return deps.spawnDevServer(args, { cwd: project.root, env });
         const node = nodeProgram([CLI_ENTRY, ...args], env);
+        // The whole environment, on purpose: this child IS the server (`adminium start`), and it needs the operator's
+        // secrets. It reads them at boot and takes them out of its own environment before it runs any project code.
         const child = spawn(node.command, node.args, {
           cwd: project.root,
           env: { ...env, ...node.env },

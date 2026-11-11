@@ -23,6 +23,7 @@ import { dirname, resolve } from 'node:path';
 
 import Database from 'better-sqlite3';
 
+import { childEnvironment } from '../../config/child-env.js';
 import { runChild } from '../../designer/child.js';
 import { DESIGNER_REACT_VERSION } from '../../designer/tools.js';
 import { PUBLIC_CLIENT_PACKAGE } from '../../project/apps/scaffold-app.js';
@@ -44,11 +45,11 @@ import { localOwnerStart, runStart } from './start.js';
  * once and quietly: where it does not work (no network), the Designer asks
  * for them on one card when a side is first added.
  */
-async function addScreenPackages(root: string, env: NodeJS.ProcessEnv): Promise<void> {
+export async function addScreenPackages(root: string, env: NodeJS.ProcessEnv): Promise<void> {
   const program = packageManagerProgram(root, env);
   const specs = [`react@${DESIGNER_REACT_VERSION}`, `react-dom@${DESIGNER_REACT_VERSION}`, `${PUBLIC_CLIENT_PACKAGE}@${APP_VERSION}`];
   const launch = program.launch(addPackagesArgs(program.manager, specs));
-  const added = await runChild(launch.command, launch.args, { cwd: root, timeoutMs: 180_000, signal: new AbortController().signal, env: { ...process.env, ...launch.env } }).catch(() => undefined);
+  const added = await runChild(launch.command, launch.args, { cwd: root, timeoutMs: 180_000, signal: new AbortController().signal, env: childEnvironment('packages', launch.env) }).catch(() => undefined);
   if (added?.code === 0) refreshInstallStamp(root, APP_VERSION);
 }
 

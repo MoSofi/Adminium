@@ -24,7 +24,9 @@ import type { AllowedVocabularies } from '@adminium/llm';
 
 import type { AdminiumServer } from '../app.js';
 import { composeServer } from '../compose.js';
+import { childEnvironment } from '../config/child-env.js';
 import { envSchema, formatEnvErrorTable, type Env } from '../config/env.js';
+import { withHeldSecrets } from '../config/operator-secrets.js';
 import { ConnectionManager } from '../connections/manager.js';
 import { dsnCryptoFromSecret } from '../connections/crypto.js';
 import { registerAdapters } from '../connections/register-adapters.js';
@@ -82,7 +84,8 @@ export function loadCliEnv(
   sources: Readonly<Record<string, string>> = {},
 ): Env {
   const merged: Record<string, string | undefined> = {
-    ...env,
+    // A second boot in this process reads `process.env` with the secrets the first one took out of it.
+    ...withHeldSecrets(env),
     ...(overrides.port === undefined ? {} : { PORT: String(overrides.port) }),
     ...(overrides.host === undefined ? {} : { HOST: overrides.host }),
     ...(overrides.dataDir === undefined ? {} : { ADMINIUM_DATA_DIR: overrides.dataDir }),
@@ -547,7 +550,8 @@ export const runProcess: RunProcess = (command, args, opts) => {
     cwd: opts.cwd,
     stdio: opts.inherit === true ? 'inherit' : ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
-    ...(opts.env === undefined ? {} : { env: { ...process.env, ...opts.env } }),
+    // Named, never this process's whole environment: an install and git need where programs and settings are.
+    env: childEnvironment('packages', opts.env),
     // Where a shell is used the arguments are fixed words, never user input.
     shell: needsShell(command),
   });
@@ -622,7 +626,7 @@ export const openBrowser: OpenBrowser = async (url) => {
   try {
     const { spawn } = await import('node:child_process');
     const { command, args } = browserCommand(process.platform);
-    const child = spawn(command, [...args, url], { stdio: 'ignore', detached: true });
+    const child = spawn(command, [...args, url], { stdio: 'ignore', detached: true, env: childEnvironment('browser') });
     return await new Promise<boolean>((resolve) => {
       child.on('error', () => {
         resolve(false);

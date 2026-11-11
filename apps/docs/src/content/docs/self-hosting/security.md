@@ -41,6 +41,21 @@ key at rest, and it signs the session cookie.
 - **Do not rotate it casually.** Rotation invalidates every stored secret; they
   must be re-entered by hand.
 
+### Out of reach once the server has started
+
+At boot Adminium reads `ADMINIUM_SECRET`, `ADMINIUM_SETUP_TOKEN`, every
+`ADMINIUM_AI_*` variable and the operator's own keys into the parts of the
+server that use them, then **deletes them from the process environment**. A
+project's hooks and actions run inside the server, and every program it starts
+(an app's tests, an app's own build line, a package install, git, the
+browser) inherits that environment, so none of them can read those values. Each
+of those programs is given a short, named environment instead: where programs
+are, the home and temporary folders, the language, and for package installs
+the `npm_config_*` and proxy settings (never one holding a token or a
+password). A hook or a project config that read `process.env.ADMINIUM_SECRET`,
+or a model key, after the server started now reads nothing. Give such code a
+variable of its own.
+
 ## The setup token
 
 A fresh instance has no account. Whoever finishes the first-run wizard first

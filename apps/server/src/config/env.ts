@@ -2,6 +2,7 @@
 import { z } from 'zod';
 
 import { invalidTrustedProxies } from '../security/trust-proxy.js';
+import { withHeldSecrets } from './operator-secrets.js';
 
 /**
  * Environment validation. `loadEnv()` is called first in the boot
@@ -830,7 +831,8 @@ export function loadEnv(
   env: Record<string, string | undefined> = process.env,
   stderr: EnvWriter = process.stderr,
 ): Env {
-  const result = envSchema.safeParse(env);
+  // `process.env` after an earlier boot in this process has none of the secrets: the held ones are read back.
+  const result = envSchema.safeParse(withHeldSecrets(env));
   if (!result.success) {
     const table = formatEnvErrorTable(result.error.issues);
     stderr.write(`Adminium failed to start — invalid environment configuration:\n\n${table}\n`);

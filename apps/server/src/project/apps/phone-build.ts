@@ -23,6 +23,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+import { childEnvironment } from '../../config/child-env.js';
 import { runChild, type ChildResult } from '../../designer/child.js';
 import { DESKTOP_PROGRAMS_ENV, nodeProgram, packageManagerProgram, type Launch, NPM_REGISTRY } from '../programs.js';
 import { guardEnvironment } from './own-build.js';
@@ -92,11 +93,7 @@ const tail = (output: string, lines = 14): string =>
 
 /** The environment Expo and npm get: where programs are, and nothing of this server's. */
 export function phoneEnvironment(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const name of ['PATH', 'HOME', 'TMPDIR', 'TEMP', 'TMP', 'LANG', 'SystemRoot', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'ComSpec', 'PATHEXT', DESKTOP_PROGRAMS_ENV]) {
-    const value = env[name];
-    if (value !== undefined) out[name] = value;
-  }
+  const out = childEnvironment('program', { [DESKTOP_PROGRAMS_ENV]: env[DESKTOP_PROGRAMS_ENV] }, env);
   // Expo asks nobody anything and tells nobody anything; it changes no file of the app's; it bundles this folder alone.
   out['EXPO_OFFLINE'] = '1';
   out['EXPO_NO_TELEMETRY'] = '1';

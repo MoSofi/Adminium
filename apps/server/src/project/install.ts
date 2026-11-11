@@ -18,6 +18,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { childEnvironment } from '../config/child-env.js';
 import { runChild } from '../designer/child.js';
 import { APP_VERSION } from '../version.js';
 import { clearInstallStamp, installNeed, writeInstallStamp, type InstallNeed } from './install-stamp.js';
@@ -86,7 +87,7 @@ export async function installProject(
     cwd: root,
     timeoutMs: opts.timeoutMs ?? PROJECT_INSTALL_TIMEOUT_MS,
     ...(opts.signal === undefined ? {} : { signal: opts.signal }),
-    env: { ...env, ...launch.env },
+    env: childEnvironment('packages', launch.env, env),
   });
   const ok = result.code === 0 && !result.stopped && !result.timedOut;
   if (ok) writeInstallStamp(root, APP_VERSION);

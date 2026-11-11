@@ -18,6 +18,7 @@ import { addPackagesArgs, DESKTOP_PROGRAMS_ENV, packageManagerProgram } from '..
 import { APPS_DIR, type AppSide } from '../project/apps/read-app.js';
 import { PUBLIC_CLIENT_PACKAGE } from '../project/apps/scaffold-app.js';
 import { runChild } from './child.js';
+import { childEnvironment } from '../config/child-env.js';
 import { ICONS_PACKAGE, isKnownNeed, needName, planNeeds, TAILWIND_PACKAGE, UI_HELPER_PACKAGES, withoutLine, type NeedItem, type Wanted } from './needs.js';
 import type { CardAnswer } from './cards.js';
 import type { PictureSites, ToolContext } from './tool-types.js';
@@ -70,7 +71,7 @@ export function installer(root: string): NonNullable<NeedsDeps['install']> {
     const manager = program.manager;
     const args = addPackagesArgs(manager, specs.map((spec) => `${spec.name}@${spec.version}`));
     const launch = program.launch(args);
-    const result = await runChild(launch.command, launch.args, { cwd: root, timeoutMs: INSTALL_TIMEOUT_MS, signal, env: { ...process.env, ...launch.env } });
+    const result = await runChild(launch.command, launch.args, { cwd: root, timeoutMs: INSTALL_TIMEOUT_MS, signal, env: childEnvironment('packages', launch.env) });
     // The lockfile changed with what was added: an installed project stays marked as installed.
     if (result.code === 0) refreshInstallStamp(root, APP_VERSION);
     return result.code === 0 ? null : `${manager} ${args.join(' ')} failed:\n${result.output.split('\n').slice(-30).join('\n')}`;
