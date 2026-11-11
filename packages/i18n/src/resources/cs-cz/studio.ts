@@ -982,7 +982,7 @@ export default {
       },
       "everyCopy": {
         "title": "Nejdřív aktualizujte doplněk na každé databázi",
-        "body": "{names} běží i na jiné databázi a každá kopie běží ve stejné verzi. Aktualizujte každou kopii na stránce Doplňky a pak tuto aplikaci.",
+        "body": "{addOns, plural, one {{names} běží} few {{names} běží} many {{names} běží} other {{names} běží}} i na jiné databázi a každá kopie běží ve stejné verzi. Aktualizujte každou kopii na stránce Doplňky a pak tuto aplikaci.",
         "link": "Otevřít doplňky"
       },
       "addOnsSubtitle": "Zkontrolujte doplňky, které tato verze potřebuje.",

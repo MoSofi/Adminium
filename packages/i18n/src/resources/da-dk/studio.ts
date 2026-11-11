@@ -982,7 +982,7 @@ export default {
       },
       "everyCopy": {
         "title": "Opdater først tilføjelsen på hver database",
-        "body": "{names} kører også på en anden database, og hver kopi kører samme version. Opdater hver kopi på siden Tilføjelser, og opdater så denne app.",
+        "body": "{addOns, plural, one {{names} kører} other {{names} kører}} også på en anden database, og hver kopi kører samme version. Opdater hver kopi på siden Tilføjelser, og opdater så denne app.",
         "link": "Åbn Tilføjelser"
       },
       "addOnsSubtitle": "Tjek de tilføjelser, denne version har brug for.",

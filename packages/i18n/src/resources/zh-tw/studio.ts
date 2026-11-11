@@ -982,7 +982,7 @@ export default {
       },
       "everyCopy": {
         "title": "請先在每個資料庫上更新該附加元件",
-        "body": "{names} 也在另一個資料庫上執行，而每個副本都執行同一個版本。請在「附加元件」頁面更新每個副本，然後再更新此應用程式。",
+        "body": "{addOns, plural, other {{names} 也在另一個資料庫上執行，而每個副本都執行同一個版本。請在「附加元件」頁面更新每個副本，然後再更新此應用程式。}}",
         "link": "開啟附加元件"
       },
       "addOnsSubtitle": "檢查此版本需要的附加元件。",
@@ -5840,7 +5840,7 @@ export default {
   },
   "publicWider": {
     "title": "向訪客顯示更多",
-    "intro": "此版本會變更訪客已經在用的公開端點，他們將能看到或做更多：",
+    "intro": "{count, plural, other {此版本會變更訪客已經在用的公開端點，他們將能看到或做更多：}}",
     "columns": "顯示 {columns}",
     "methods": "接受 {methods}",
     "rows": "放行更多的列",

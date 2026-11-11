@@ -972,7 +972,7 @@
       },
       "everyCopy": {
         "title": "Zuerst das Add-on auf jeder Datenbank aktualisieren",
-        "body": "{names} läuft auch auf einer anderen Datenbank, und jede Kopie läuft mit derselben Version. Aktualisieren Sie jede Kopie auf der Seite „Add-ons“ und dann diese App.",
+        "body": "{addOns, plural, one {{names} läuft} other {{names} laufen}} auch auf einer anderen Datenbank, und jede Kopie läuft mit derselben Version. Aktualisieren Sie jede Kopie auf der Seite „Add-ons“ und dann diese App.",
         "link": "Add-ons öffnen"
       },
       "addOnsSubtitle": "Prüfen Sie die Add-ons, die diese Version braucht.",

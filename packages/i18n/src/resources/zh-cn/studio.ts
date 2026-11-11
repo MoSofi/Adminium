@@ -982,7 +982,7 @@ export default {
       },
       "everyCopy": {
         "title": "请先在每个数据库上更新该附加组件",
-        "body": "{names} 也在另一个数据库上运行，而每个副本都运行同一个版本。请在“附加组件”页面更新每个副本，然后再更新此应用。",
+        "body": "{addOns, plural, other {{names} 也在另一个数据库上运行，而每个副本都运行同一个版本。请在“附加组件”页面更新每个副本，然后再更新此应用。}}",
         "link": "打开附加组件"
       },
       "addOnsSubtitle": "检查此版本需要的附加组件。",
@@ -5840,7 +5840,7 @@ export default {
   },
   "publicWider": {
     "title": "向访客显示更多",
-    "intro": "此版本会更改访客已经在用的公开端点，他们将能看到或做更多：",
+    "intro": "{count, plural, other {此版本会更改访客已经在用的公开端点，他们将能看到或做更多：}}",
     "columns": "显示 {columns}",
     "methods": "接受 {methods}",
     "rows": "放行更多的行",

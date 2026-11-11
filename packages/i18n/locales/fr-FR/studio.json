@@ -972,7 +972,7 @@
       },
       "everyCopy": {
         "title": "Mettez d’abord à jour le module sur chaque base de données",
-        "body": "{names} tourne aussi sur une autre base de données, et chaque copie tourne avec la même version. Mettez à jour chaque copie sur la page Modules, puis cette application.",
+        "body": "{addOns, plural, one {{names} tourne} other {{names} tournent}} aussi sur une autre base de données, et chaque copie tourne avec la même version. Mettez à jour chaque copie sur la page Modules, puis cette application.",
         "link": "Ouvrir les modules"
       },
       "addOnsSubtitle": "Vérifiez les modules dont cette version a besoin.",
