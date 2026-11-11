@@ -18,7 +18,10 @@
  *    trust or package copies, whatever the file holds; an export loses every
  *    hash and secret), then through the save-time guards: each connection
  *    string through `guardDsn`, each S3/WebDAV address through
- *    `assertDestinationAddressAllowed`, each app domain through `hostIssueFor`.
+ *    `checkDestinationAddress` (looked up, every answer checked, the network
+ *    policy applied), each `local` folder through `storageRootRefusal` (never
+ *    Adminium's own files, inside `ADMINIUM_STORAGE_DIRS` when set), each app
+ *    domain through `hostIssueFor`.
  *    A row that fails is kept but made inert (a connection without its string,
  *    a destination switched off, a domain left out), and the CLI says so.
  *
@@ -59,8 +62,10 @@ import {
 } from '@adminium/meta';
 
 import { guardDsn } from '../connections/dsn.js';
-import { assertDestinationAddressAllowed } from '../files/destinations.js';
+import { checkDestinationAddress } from '../files/destinations.js';
 import { FILES_DIR } from '../files/drivers/local.js';
+import { storageRootRefusal, type StorageRootPolicy } from '../files/root-guard.js';
+import type { HostLookup } from '../net/address-guard.js';
 import { hostIssueFor } from '../surfaces/validate.js';
 import {
   ARCHIVE_DATABASES_DIR,
@@ -110,6 +115,12 @@ export interface RestoreArchiveOptions {
   hold?: boolean;
   /** The connection and storage guards' loopback rule (production refuses loopback). */
   blockLoopback: boolean;
+  /** `ADMINIUM_NETWORK_POLICY=strict`: an S3/WebDAV address on the server's own network is refused too. */
+  blockPrivate?: boolean | undefined;
+  /** Where a `local` destination's folder may be (`storageRootPolicyFor`). Default: off the data dir. */
+  storageRoots?: StorageRootPolicy | undefined;
+  /** Test seam: the storage hosts' lookup. Default: the system resolver's. */
+  lookup?: HostLookup | undefined;
   /** Check everything, write nothing. */
   dryRun?: boolean;
   /**
@@ -437,6 +448,7 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
 
     // ── storage destinations, again ─────────────────────────────────────────
     const localRoots = new Map<string | null, string>([[null, join(dataDir, FILES_DIR)]]);
+    const roots: StorageRootPolicy = opts.storageRoots ?? { own: { dataDir, metaFile: null } };
     const destinations = tables.get('adminium_storage_destinations');
     if (destinations !== undefined) {
       const rows = rowsOf(destinations);
@@ -448,12 +460,17 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
           if (!isAbsolute(root)) refusal = 'its folder is not an absolute path';
           else if (resolve(root) === dataDir || inside(dataDir, resolve(root)) || inside(resolve(root), dataDir)) {
             refusal = 'its folder is the data dir, inside it, or above it';
-          } else if (row.disabledAt === null || row.disabledAt === undefined) {
-            localRoots.set(String(row.id), resolve(root));
+          } else {
+            refusal = storageRootRefusal(root, roots)?.message ?? null;
+            if (refusal === null && (row.disabledAt === null || row.disabledAt === undefined)) localRoots.set(String(row.id), resolve(root));
           }
         } else {
           try {
-            assertDestinationAddressAllowed(row.driver as 's3' | 'webdav', config as never, { blockLoopback: opts.blockLoopback });
+            await checkDestinationAddress(row.driver as 's3' | 'webdav', config as never, {
+              blockLoopback: opts.blockLoopback,
+              blockPrivate: opts.blockPrivate === true,
+              lookup: opts.lookup,
+            });
           } catch (error) {
             refusal = error instanceof Error ? error.message : 'its address is refused';
           }

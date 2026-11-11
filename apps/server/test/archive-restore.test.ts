@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { connectionsRepo, filesRepo, pagesRepo, sessionsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { connectionsRepo, destinationsRepo, filesRepo, pagesRepo, sessionsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -34,6 +34,7 @@ import {
   type Seeded,
   type Store,
 } from './archive.helpers.js';
+import { TEST_STORAGE_CRYPTO } from './helpers/file-store.js';
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -413,6 +414,57 @@ describe('restore never writes', () => {
     const result = await restoreArchive(restoreOptions({ ...src, archive: out }, dest));
     expect(result.sanitized.droppedSettings).toContain('addOns.deciderTrust');
     expect(await settingsRepo(dest.meta).get('addOns.deciderTrust')).toEqual({});
+  });
+});
+
+describe('restore checks storage destinations again', () => {
+  it('looks every S3/WebDAV host up, applies the network policy and the folder rules, and switches off what fails', async () => {
+    const { meta } = await store('sqlite', true);
+    const here = await dirs();
+    await seedInstance(meta, here);
+    const allowed = join(here.root, 'allowed');
+    const elsewhere = join(here.root, 'elsewhere');
+    await mkdir(allowed, { recursive: true });
+    await mkdir(elsewhere, { recursive: true });
+    const repo = destinationsRepo(meta, TEST_STORAGE_CRYPTO);
+    const make = async (name: string, driver: 'local' | 's3' | 'webdav', config: Record<string, unknown>) =>
+      (await repo.create({ name, driver, config, createdBy: null, ...(driver === 's3' ? { secret: { accessKeyId: 'AK', secretAccessKey: 'SK' } } : {}) }, Date.now())).id;
+    const ids = {
+      trap: await make('Trap', 's3', { endpoint: 'https://bucket-trap.p75.test', region: 'us-east-1', bucket: 'b', prefix: 'a', forcePathStyle: true }),
+      lan: await make('Lan', 'webdav', { url: 'https://nas.p75.test/dav', prefix: 'a' }),
+      gone: await make('Gone', 'webdav', { url: 'https://gone.p75.test/dav', prefix: 'a' }),
+      cloud: await make('Cloud', 's3', { endpoint: 'https://s3.p75.test', region: 'us-east-1', bucket: 'b', prefix: 'a', forcePathStyle: true }),
+      outside: await make('Outside', 'local', { root: elsewhere, prefix: 'a' }),
+      kept: await make('Kept', 'local', { root: join(allowed, 'up'), prefix: 'a' }),
+    };
+    const archive = join(here.root, 'storage.zip');
+    await createArchive({ meta, outPath: archive, dataDir: here.dataDir, projectRoot: here.projectRoot, kind: 'full', secret: SECRET, dsnCrypto: CRYPTO, signing: SIGNING });
+
+    const answers: Record<string, string[]> = {
+      'bucket-trap.p75.test': ['203.0.113.9', '169.254.169.254'],
+      'nas.p75.test': ['192.168.1.20'],
+      's3.p75.test': ['203.0.113.10'],
+    };
+    const dest = await target('sqlite');
+    const result = await restoreArchive({
+      ...restoreOptions({ archive } as Source, dest),
+      blockPrivate: true,
+      lookup: async (host) => Promise.resolve(answers[host] ?? []),
+      storageRoots: { own: { dataDir: dest.dirs.dataDir, metaFile: null }, dirs: [allowed] },
+    });
+
+    const off = async (id: string) => ((await destinationsRepo(dest.meta, TEST_STORAGE_CRYPTO).findById(id))?.disabled ?? false) === true;
+    expect(await off(ids.trap)).toBe(true);
+    expect(await off(ids.lan)).toBe(true);
+    expect(await off(ids.gone)).toBe(true);
+    expect(await off(ids.outside)).toBe(true);
+    expect(await off(ids.cloud)).toBe(false);
+    expect(await off(ids.kept)).toBe(false);
+    const said = result.warnings.join('\n');
+    expect(said).toMatch(/“Trap” is switched off \(.*blocked address/);
+    expect(said).toMatch(/“Lan” is switched off \(.*ADMINIUM_NETWORK_POLICY=strict/);
+    expect(said).toMatch(/“Gone” is switched off \(Could not look up gone\.p75\.test/);
+    expect(said).toMatch(/“Outside” is switched off \(.*ADMINIUM_STORAGE_DIRS/);
   });
 });
 

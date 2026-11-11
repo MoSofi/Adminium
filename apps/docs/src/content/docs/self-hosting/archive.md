@@ -49,7 +49,11 @@ After the restore:
 - API keys are dropped. Pass `--keep-api-keys` to keep them.
 - Connection strings, storage addresses and app domains are checked again, as if
   they were typed in. One that fails (a database on `localhost` in production,
-  say) is switched off and named; enter it again in Studio.
+  say) is switched off and named; enter it again in Studio. S3 and WebDAV
+  addresses are looked up on the new server and follow its
+  [`ADMINIUM_NETWORK_POLICY`](/self-hosting/env-vars/#adminium_network_policy);
+  `local` folders follow its
+  [`ADMINIUM_STORAGE_DIRS`](/self-hosting/env-vars/#adminium_storage_dirs).
 - Local SQLite databases land in `<data dir>/databases/`, and their connections
   point there.
 - Download catalog apps and add-ons again from Studio → Add-ons.

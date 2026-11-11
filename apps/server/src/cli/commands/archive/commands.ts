@@ -15,6 +15,7 @@ import { archiveSigningKey } from '../../../archive/mac.js';
 import { restoreArchive, type ExportOwnerAnswer, type ExportOwnerChoice, type RestoreArchiveResult } from '../../../archive/restore.js';
 import { hashPassword } from '../../../auth/passwords.js';
 import { dsnCryptoFromSecret } from '../../../connections/crypto.js';
+import { storageRootPolicyFor } from '../../../files/root-guard.js';
 import { prepareProject } from '../../../project/boot.js';
 import { APP_VERSION } from '../../../version.js';
 import { boolFlag, parseFlags, stringFlag } from '../../args.js';
@@ -201,6 +202,8 @@ export const archiveRestoreCommand: Command = {
         dropSecrets: boolFlag(values['drop-secrets']),
         hold: boolFlag(values.hold),
         blockLoopback: deps.env.NODE_ENV === 'production',
+        blockPrivate: env.ADMINIUM_NETWORK_POLICY === 'strict',
+        storageRoots: storageRootPolicyFor(env, store),
         dryRun: boolFlag(values['dry-run']),
       });
       reportRestore(io, result, { dataDir: env.ADMINIUM_DATA_DIR, projectRoot });
@@ -321,6 +324,8 @@ export async function importExportFile(
       signing: archiveSigningKey(env),
       expect: 'export',
       blockLoopback: deps.env.NODE_ENV === 'production',
+      blockPrivate: env.ADMINIUM_NETWORK_POLICY === 'strict',
+      storageRoots: storageRootPolicyFor(env, store),
       dryRun: opts.dryRun,
       owner: askExportOwner(io, { ownerEmail: opts.ownerEmail, passwordStdin: opts.passwordStdin === true, ...(opts.readStdin === undefined ? {} : { readStdin: opts.readStdin }) }),
     });
