@@ -626,17 +626,13 @@ export function withLinkNames(config: unknown, facts: ColumnFactsBlock | null): 
   const live = new Map<string, string>();
   // …and whether a column is drawn as personal data: always where the server masks it, never where it was said not to be.
   const personal = new Map<string, boolean>();
-  // …and a file column as its app's rule says (`column.file`): a page made before the rule, or by a generator that
-  // guessed nothing, drew the stored file's id as text where the form uploads a file.
-  const files = new Map<string, unknown>();
   for (const fact of facts.columns) {
     const fk = fact.spec['fk'] as { display?: unknown } | undefined;
     if (typeof fk?.display === 'string') live.set(String(fact.spec['name']), fk.display);
     if (fact.spec['pii'] === true) personal.set(String(fact.spec['name']), true);
-    if (typeof fact.spec['file'] === 'object' && fact.spec['file'] !== null) files.set(String(fact.spec['name']), fact.spec['file']);
   }
   for (const name of facts.notPersonal ?? []) if (!personal.has(name)) personal.set(name, false);
-  if (live.size === 0 && personal.size === 0 && files.size === 0) return config;
+  if (live.size === 0 && personal.size === 0) return config;
   let changed = false;
   const refresh = (block: Record<string, unknown>): Record<string, unknown> => {
     if (!Array.isArray(block['columns'])) return block;
@@ -648,11 +644,6 @@ export function withLinkNames(config: unknown, facts: ColumnFactsBlock | null): 
         changed = true;
         const { pii: _pii, ...rest } = stored;
         stored = masked ? { ...rest, pii: true } : rest;
-      }
-      const file = files.get(String(stored['name']));
-      if (file !== undefined && JSON.stringify(stored['file']) !== JSON.stringify(file)) {
-        changed = true;
-        stored = { ...stored, file };
       }
       const fk = stored['fk'];
       const now = live.get(String(stored['name']));
