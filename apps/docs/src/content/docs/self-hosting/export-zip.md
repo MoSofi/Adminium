@@ -28,6 +28,11 @@ myself": Adminium does not work that way, on purpose. What you get instead is
 portability — the bundle stands the same instance up anywhere Adminium runs.
 :::
 
+:::tip[Moving a whole instance?]
+This bundle carries configuration only: no people, uploads or apps. To back up
+or move everything, use [`adminium archive`](/self-hosting/archive/).
+:::
+
 ## What is in the bundle
 
 | | Contents |
