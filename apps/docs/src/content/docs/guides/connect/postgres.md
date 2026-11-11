@@ -408,6 +408,14 @@ cannot be pointed at services on its own host. The Docker image sets
   `ssh -N -L 172.17.0.1:15432:127.0.0.1:5432 deploy@db.example.com`.
   Never bind it to `0.0.0.0`: that publishes your database to the network.
 
+**A database on the same server.** When Postgres runs next to Adminium (a
+droplet, a VPS, Adminium in Docker with host networking), name it in
+[`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts):
+`ADMINIUM_DATABASE_HOSTS=localhost:5432`. That host and port are then allowed in
+production; every other port on the machine stays refused. This works for the
+tunnel's end too (`127.0.0.1:15432`), when Adminium and the tunnel share a
+network namespace.
+
 ## What Adminium reads
 
 Schema only, never rows: tables, columns and types, primary and foreign keys,
@@ -435,8 +443,9 @@ parameter. Drop it, or use the direct endpoint.
 **`Loopback hosts are not allowed in production`** — Adminium is running with
 `NODE_ENV=production` (the Docker image does) and the DSN names `localhost` or
 `127.0.0.1`, so that a hosted instance cannot be talked into probing its own
-host. See [Through an SSH tunnel](#through-an-ssh-tunnel) for the address to use
-instead.
+host. If the database runs on this server, add the host and port the message
+names to `ADMINIUM_DATABASE_HOSTS`. Otherwise see
+[Through an SSH tunnel](#through-an-ssh-tunnel) for the address to use instead.
 
 **Every record is read-only, or one table is** — the role lacks the grant. The
 probe reports `read-only role` when it can write no table at all; a single

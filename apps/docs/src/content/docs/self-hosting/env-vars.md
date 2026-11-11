@@ -34,6 +34,7 @@ half-configured and fail later.
 | `ADMINIUM_STATIC_ROOT` | No | *(auto-detected)* | Serve the dashboard build from this directory instead of the auto-detected copy. |
 | `ADMINIUM_SURFACES_DIR` | No | *(unset)* | Directory of built app surfaces, served at `/apps/<app>/<side>/`. Unset means this instance hosts no apps. See below. |
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
+| `ADMINIUM_DATABASE_HOSTS` | No | *(unset)* | CSV of `host[:port]` database hosts a production server may reach on its own loopback, such as `localhost:5432` for a Postgres on the same server. Source databases only. See below. |
 | `ADMINIUM_MAP_SERVER` | No | `https://tiles.openfreemap.org` | Where maps' pictures come from: one `https://` origin, or `off` for no maps on this install. See below. |
 | `ADMINIUM_ROUTING_SERVER` | No | `https://router.project-osrm.org` | The OSRM server asked for routes along roads, once that is switched on in Settings → Maps; or `off`. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
@@ -259,6 +260,46 @@ come back with the feature — an unrecognised variable is ignored rather than
 rejected, and a name with that history is worth not reusing. A container still
 setting it gets a line on stderr at boot telling it what to rename.
 :::
+
+## `ADMINIUM_DATABASE_HOSTS`
+
+In production (`NODE_ENV=production`, which the Docker image sets) Adminium
+refuses a source database on a loopback address: `localhost`, `127.0.0.0/8`,
+`::1`. Nobody signed in can then point the server at the other services on its
+own machine. When your database really does run on the same server, name it here,
+by host and port:
+
+```bash
+ADMINIUM_DATABASE_HOSTS=localhost:5432
+```
+
+- **Entries** are separated by commas. Each is a name (`localhost`, `postgres`, a
+  Docker service name), an IPv4 address, an IPv6 address (`[::1]:5432`), or
+  `*.example.com` for every name under a domain (at least two labels after the
+  `*.`).
+- **The port** defaults to the engine's own: 5432 for PostgreSQL, 3306 for MySQL.
+  `localhost` alone lets `localhost:5432` and `localhost:3306` through, not
+  `localhost:6379`.
+- **Only that host and port pass.** Another port on the same host, or another
+  spelling of it (`127.0.0.1` when you listed `localhost`), is still refused, so
+  list each one you use.
+- **Source databases only**: connections made in Studio, `ADMINIUM_SOURCE_URL`,
+  and a project's databases. The meta store's own `ADMINIUM_META_URL` never
+  needed it.
+- **The cloud metadata address** (`169.254.169.254`, `metadata.google.internal`)
+  is never allowed. A list that names it stops the boot.
+
+An `ADMINIUM_SOURCE_URL` on loopback without a matching entry stops the boot with
+the entry to add:
+
+```
+| ADMINIUM_SOURCE_URL | points at loopback; add `localhost:5432` to ADMINIUM_DATABASE_HOSTS | — |
+```
+
+A database on a Docker network under its service name (`postgres:5432`) is on a
+private address, which Adminium allows today without this list. The desktop app,
+`adminium try`, and any server run without `NODE_ENV=production` allow loopback
+anyway: on your own computer a local database is the normal case.
 
 ## `ADMINIUM_STATIC_ROOT`
 

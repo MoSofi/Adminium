@@ -106,7 +106,7 @@ You do not need to configure these; they are worth knowing:
 | Password hashing | argon2id |
 | Session cookie | httpOnly, signed, `SameSite=Lax`, `Secure` over HTTPS |
 | CORS | **Off** — same-origin by default |
-| Loopback DSN guard | Blocks connecting to `localhost` from a hosted instance |
+| Loopback DSN guard | Blocks connecting to `localhost` from a hosted instance, except the database hosts you name in [`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts) |
 | PII masking | **On by default** for columns classified as personal |
 | Telemetry | **Off** |
 | Input validation | Every external input is schema-validated, fail-fast |
