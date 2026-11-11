@@ -45,9 +45,11 @@ key at rest, and it signs the session cookie.
 
 ### Out of reach once the server has started
 
-At boot Adminium reads `ADMINIUM_SECRET`, `ADMINIUM_SETUP_TOKEN`, every
-`ADMINIUM_AI_*` variable and the operator's own keys into the parts of the
-server that use them, then **deletes them from the process environment**. A
+At boot Adminium reads `ADMINIUM_SECRET`, `ADMINIUM_SETUP_TOKEN`,
+`ADMINIUM_ARCHIVE_KEY`, every `ADMINIUM_AI_*` variable, `ADMINIUM_FIGMA_TOKEN`,
+the picture sites' keys (`PEXELS_API_KEY`, `UNSPLASH_ACCESS_KEY`,
+`PIXABAY_API_KEY`) and the operator's own keys into the parts of the server
+that use them, then **deletes them from the process environment**. A
 project's hooks and actions run inside the server, and every program it starts
 (an app's tests, an app's own build line, a package install, git, the
 browser) inherits that environment, so none of them can read those values. Each

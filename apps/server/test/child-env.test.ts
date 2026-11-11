@@ -16,6 +16,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import { createSqliteMetaDb, firstRun } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { archiveSigningKey } from '../src/archive/mac.js';
 import { addScreenPackages } from '../src/cli/commands/design.js';
 import { loadCliEnv, openBrowser, runProcess } from '../src/cli/runtime.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
@@ -51,6 +52,10 @@ const SECRETS: Record<string, string> = {
   ADMINIUM_TRIAL_SMTP_URL: 'smtp://relay-user:relay-pass@relay.example.test:587',
   ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-operator-key',
   ADMINIUM_AI_GOOGLE_API_KEY: 'google-operator-key',
+  ADMINIUM_FIGMA_TOKEN: 'figd_operator-figma-token-0001',
+  PEXELS_API_KEY: 'pexels-operator-key-0001',
+  UNSPLASH_ACCESS_KEY: 'unsplash-operator-key-0001',
+  PIXABAY_API_KEY: 'pixabay-operator-key-0001',
 };
 const SECRET_VALUES = Object.values(SECRETS);
 
@@ -147,6 +152,14 @@ describe('after the server boots', () => {
     expect(operatorSecret('ADMINIUM_OPERATOR_TOKEN')).toBe(SECRETS['ADMINIUM_OPERATOR_TOKEN']);
     expect(operatorSecret('ADMINIUM_ARCHIVE_KEY')).toBe(SECRETS['ADMINIUM_ARCHIVE_KEY']);
     expect(operatorSecret('ADMINIUM_TRIAL_SMTP_URL')).toBe(SECRETS['ADMINIUM_TRIAL_SMTP_URL']);
+    // The archive's signing key, and the keys the Designer reads late (Figma, the picture sites), from the same place.
+    expect(archiveSigningKey({ ADMINIUM_SECRET: SECRET })).toEqual(
+      archiveSigningKey({ ADMINIUM_SECRET: SECRET, ADMINIUM_ARCHIVE_KEY: SECRETS['ADMINIUM_ARCHIVE_KEY'] }),
+    );
+    expect(archiveSigningKey({ ADMINIUM_SECRET: SECRET }).source).toBe('archive-key');
+    for (const name of ['ADMINIUM_FIGMA_TOKEN', 'PEXELS_API_KEY', 'UNSPLASH_ACCESS_KEY', 'PIXABAY_API_KEY']) {
+      expect(operatorSecret(name), name).toBe(SECRETS[name]);
+    }
 
     // A second boot in this process reads the environment as the first one did.
     expect(loadCliEnv(process.env, { dataDir }).ADMINIUM_SECRET).toBe(SECRET);

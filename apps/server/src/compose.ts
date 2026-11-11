@@ -72,7 +72,7 @@ import {
 import { buildServer, type AdminiumServer, type BuildServerOptions } from './app.js';
 import type { HostedSurface } from './cli/surfaces-root.js';
 import type { Env } from './config/env.js';
-import { holdOperatorSecrets } from './config/operator-secrets.js';
+import { holdOperatorSecrets, operatorSecret } from './config/operator-secrets.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
 import { seedStorageDestination } from './config/storage-seed.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
@@ -2854,7 +2854,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const pictureKey = (name: PictureKeyName): string => {
           // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
           const host = hostModels();
-          return (host !== null ? (host.read()[name] ?? '') : (process.env[name] ?? readDotEnv(root)?.[name] ?? '')).trim();
+          return (host !== null ? (host.read()[name] ?? '') : (operatorSecret(name) ?? readDotEnv(root)?.[name] ?? '')).trim();
         };
         const pictureFetch = (url: string, fetchOpts: SafeFetchOptions) => safeFetch(url, { ...fetchOpts, ...(opts.pictureSeams ?? {}) });
         const pictureSources = (): PictureSource[] => {
@@ -2943,7 +2943,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
         const figmaCache = createFigmaCache(root);
         // The project's own token stands in for its owner's under `adminium design` only, read from the process's environment (never the project's .env).
-        const figmaEnvToken = (process.env['ADMINIUM_FIGMA_TOKEN'] ?? '').trim();
+        const figmaEnvToken = (operatorSecret('ADMINIUM_FIGMA_TOKEN') ?? '').trim();
         const figmaTokens = createFigmaTokens({
           meta,
           secret: env.ADMINIUM_SECRET,

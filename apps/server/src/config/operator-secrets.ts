@@ -17,10 +17,9 @@
  */
 
 /**
- * The names taken out of `process.env` at boot. `ADMINIUM_OPERATOR_TOKEN`, `ADMINIUM_TRIAL_SMTP_URL` and
- * `ADMINIUM_ARCHIVE_KEY` are not read by anything on this branch yet: they are named here so that the day they are,
- * they are already out of reach. A new operator credential is added here, and is then gone from `process.env` and
- * from every child with no other change.
+ * The names taken out of `process.env` at boot. `ADMINIUM_OPERATOR_TOKEN` and `ADMINIUM_TRIAL_SMTP_URL` are not read
+ * by anything yet: they are named here so that the day they are, they are already out of reach. A new operator
+ * credential is added here, and is then gone from `process.env` and from every child with no other change.
  */
 export const OPERATOR_SECRET_NAMES: readonly string[] = [
   'ADMINIUM_SECRET',
@@ -29,6 +28,12 @@ export const OPERATOR_SECRET_NAMES: readonly string[] = [
   'ADMINIUM_ARCHIVE_KEY',
   'ADMINIUM_OPERATOR_TOKEN',
   'ADMINIUM_TRIAL_SMTP_URL',
+  // The project owner's Figma token under `adminium design`, read late by the Designer (`compose.ts`).
+  'ADMINIUM_FIGMA_TOKEN',
+  // The picture sites' keys (`llm/host-models.ts` PICTURE_KEY_NAMES), read late by the picture dialog (`compose.ts`).
+  'PEXELS_API_KEY',
+  'UNSPLASH_ACCESS_KEY',
+  'PIXABAY_API_KEY',
 ];
 
 /** Every model key and model address: the operator's, and a provider bills them for each call. */

@@ -30,6 +30,7 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+import { operatorSecret } from '../config/operator-secrets.js';
 import { deriveKey } from '../config/secrets.js';
 import { ArchiveFormatError, type ArchiveSignature } from './format.js';
 
@@ -51,7 +52,8 @@ export interface ArchiveKeyEnv {
 }
 
 export function archiveSigningKey(env: ArchiveKeyEnv): ArchiveSigningKey {
-  const operatorKey = env.ADMINIUM_ARCHIVE_KEY;
+  // The parsed environment's when it carries one; otherwise the one the boot took out of `process.env`.
+  const operatorKey = env.ADMINIUM_ARCHIVE_KEY ?? operatorSecret('ADMINIUM_ARCHIVE_KEY');
   if (operatorKey !== undefined && operatorKey !== '') {
     return { key: deriveKey(operatorKey, ARCHIVE_MAC_SALT, 'adminium:archive-mac'), source: 'archive-key' };
   }
