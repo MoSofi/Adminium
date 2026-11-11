@@ -171,6 +171,7 @@ describe('command registry', () => {
       'apply-llm-response',
       'export-zip',
       'import-zip',
+      'archive',
     ]);
   });
 

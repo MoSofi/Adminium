@@ -50,6 +50,10 @@
  * anything telling a user otherwise — docs, dialog copy, this comment — is
  * making a promise the code does not keep.
  *
+ * The CLI way to move an install is now the instance archive (`src/archive/`,
+ * `adminium archive create/restore`): it dumps any meta store as portable rows
+ * and signs the file. It does not read THIS format, which is unsigned.
+ *
  * The archive (verbatim):
  *
  * ```

@@ -19,6 +19,7 @@ import { buildCommand } from './commands/build.js';
 import { checkCommand } from './commands/check.js';
 import { devCommand } from './commands/dev.js';
 import { ejectCommand } from './commands/eject.js';
+import { archiveCommand } from './commands/archive.js';
 import { exportZipCommand } from './commands/export-zip.js';
 import { generatePromptCommand } from './commands/generate-prompt.js';
 import { homeCommand } from './commands/home.js';
@@ -56,6 +57,7 @@ export const COMMANDS: readonly Command[] = [
   applyLlmResponseCommand,
   exportZipCommand,
   importZipCommand,
+  archiveCommand,
 ];
 
 /** A command by its name or one of its aliases (`init` runs `try`). */
