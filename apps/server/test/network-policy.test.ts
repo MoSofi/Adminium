@@ -14,8 +14,9 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
+import BetterSqlite3 from 'better-sqlite3';
 import { AdapterRegistry, type AdapterProvider, type DatabaseEndpoint } from '@adminium/engine/adapter';
-import type { Automation } from '@adminium/meta';
+import { createSqliteMetaDb, destinationsRepo, firstRun, type Automation } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { runWebhookAction } from '../src/automations/actions/webhook.js';
@@ -26,8 +27,10 @@ import { loadEnv } from '../src/config/env.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { guardOutboundUrl, parseDatabaseHost, type DatabaseHost } from '../src/connections/dsn.js';
 import { ConnectionManager } from '../src/connections/manager.js';
+import { createDestinationResolver } from '../src/files/destinations.js';
 import type { HostLookup } from '../src/net/address-guard.js';
 import type { NetworkPolicy } from '../src/net/outbound-check.js';
+import { TEST_STORAGE_CRYPTO } from './helpers/file-store.js';
 
 const crypto = dsnCryptoFromSecret('network-policy-test-secret');
 const fakeMeta = { db: null, dialect: 'sqlite' } as never;
@@ -265,5 +268,62 @@ describe('webhooks', () => {
     expect(() => resolveRule(trigger, graph, ctx)).not.toThrow();
     expect(() => guardOutboundUrl('http://192.168.1.20/in', { blockPrivate: true })).toThrow('ADMINIUM_NETWORK_POLICY=strict');
     expect(() => guardOutboundUrl('http://192.168.1.20/in', {})).not.toThrow();
+  });
+});
+
+// ── storage endpoints ──────────────────────────────────────────────────────
+
+describe('storage endpoints', () => {
+  /** A resolver wired as `composeServer` wires it: loopback and strict from the connection manager, never its host list. */
+  async function resolverFor(m: ConnectionManager) {
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    const repo = destinationsRepo(meta, TEST_STORAGE_CRYPTO);
+    const resolver = createDestinationResolver({
+      repo,
+      localRoot: '/nonexistent/files',
+      blockLoopback: m.blockLoopback,
+      blockPrivate: m.networkPolicy === 'strict',
+      lookup: m.outboundPolicy.lookup,
+    });
+    return { resolver, repo };
+  }
+
+  const dav = (host: string) => ({ url: `http://${host}:${String(port)}/dav`, prefix: 'adminium' });
+
+  it('open keeps an endpoint on the server\'s own network (MinIO on the LAN)', async () => {
+    const { resolver } = await resolverFor(manager({ blockLoopback: false }));
+    for (const host of ['db.test', 'lan.test', 'ula.test', '10.1.2.3']) await expect(resolver.checkAllowed('webdav', dav(host)), host).resolves.toBeUndefined();
+  });
+
+  it.each(['db.test', 'lan.test', 'ula.test', 'cgnat.test', '10.1.2.3', '[fd00::5]'])('strict refuses %s at save, and at every request of a row saved before', async (host) => {
+    const strict = manager({ policy: 'strict', blockLoopback: false });
+    const { resolver, repo } = await resolverFor(strict);
+    await expect(resolver.checkAllowed('webdav', dav(host))).rejects.toMatchObject({ statusCode: 422, message: expect.stringContaining('ADMINIUM_NETWORK_POLICY=strict') });
+    const row = await repo.create({ name: 'Old', driver: 'webdav', config: dav(host), createdBy: null }, Date.now());
+    const reading = (async () => (await resolver.driverFor(row.id)).head('upload/x'))();
+    await expect(reading).rejects.toThrow('ADMINIUM_NETWORK_POLICY=strict');
+    expect(hits).toEqual([]);
+  });
+
+  it('a host in ADMINIUM_DATABASE_HOSTS does not let a storage endpoint through: the list names databases only', async () => {
+    const strict = manager({ policy: 'strict', blockLoopback: false, hosts: listed(`db.test:${String(port)},db.test:80,db.test:443`) });
+    const { resolver } = await resolverFor(strict);
+    await expect(resolver.checkAllowed('webdav', dav('db.test'))).rejects.toThrow('ADMINIUM_NETWORK_POLICY=strict');
+    await expect(resolver.checkAllowed('s3', { endpoint: `http://db.test:${String(port)}`, region: 'auto', bucket: 'b', prefix: 'a', forcePathStyle: true })).rejects.toThrow('ADMINIUM_NETWORK_POLICY=strict');
+  });
+
+  it.each(['open', 'strict'] as const)('%s refuses cloud metadata', async (policy) => {
+    const { resolver } = await resolverFor(manager({ policy, blockLoopback: false }));
+    await expect(resolver.checkAllowed('webdav', dav('meta.test'))).rejects.toThrow('blocked address range');
+    await expect(resolver.checkAllowed('s3', { endpoint: 'http://169.254.169.254', region: 'auto', bucket: 'b', prefix: 'a', forcePathStyle: true })).rejects.toThrow('blocked address range');
+  });
+
+  it('strict still reaches a public endpoint, and this test server when loopback is allowed', async () => {
+    const { resolver, repo } = await resolverFor(manager({ policy: 'strict', blockLoopback: false }));
+    await expect(resolver.checkAllowed('webdav', dav('public.test'))).resolves.toBeUndefined();
+    const row = await repo.create({ name: 'Here', driver: 'webdav', config: dav('hook.test'), createdBy: null }, Date.now());
+    await expect((await resolver.driverFor(row.id)).head('upload/x')).resolves.not.toBeNull();
+    expect(hits).toEqual([`HEAD hook.test:${String(port)}/dav/upload/x`]);
   });
 });

@@ -37,6 +37,8 @@ beforeEach(async () => {
   warnings = [];
 });
 
+const publicLookup = async (): Promise<string[]> => ['203.0.113.10'];
+
 const seed = (env: StorageSeedEnv, blockLoopback?: boolean) =>
   seedStorageDestination({
     meta,
@@ -45,6 +47,8 @@ const seed = (env: StorageSeedEnv, blockLoopback?: boolean) =>
     log: (m) => logs.push(m),
     warn: (m) => warnings.push(m),
     now: 1_750_000_000_000,
+    // Every endpoint name answers with a public address: no test here asks a real resolver.
+    lookup: publicLookup,
     ...(blockLoopback === undefined ? {} : { blockLoopback }),
   });
 
@@ -312,6 +316,7 @@ describe('composeServer seeds the destination too', () => {
       meta: composedMeta,
       crypto: dsnCryptoFromSecret(TEST_SECRET),
       metaDsn: null,
+      lookup: publicLookup,
       ...(blockLoopback === undefined ? {} : { blockLoopback }),
     });
     const runService = createRunService({ meta: composedMeta });

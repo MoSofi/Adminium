@@ -360,10 +360,13 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       });
     }
 
-    // A storage seed this server can never use (a metadata address, a root in Adminium's own
-    // folders or outside ADMINIUM_STORAGE_DIRS) fails the boot the same way, in the guard's words.
+    // A storage seed this server can never use (an endpoint at a metadata address, or on its own
+    // network under ADMINIUM_NETWORK_POLICY=strict; a root in Adminium's own folders or outside
+    // ADMINIUM_STORAGE_DIRS) fails the boot the same way, in the guard's words. A name that cannot
+    // be looked up does not: it may resolve on the next boot, and the seed itself says so.
     const seedStorage = await storageSeedRefusal(env, {
       blockLoopback: runtime.manager.blockLoopback,
+      blockPrivate: runtime.manager.networkPolicy === 'strict',
       roots: storageRootPolicyFor(env, runtime.metaStore),
     });
     if (seedStorage !== null) {
@@ -440,6 +443,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       crypto: storageCryptoFromSecret(env.ADMINIUM_SECRET),
       env,
       blockLoopback: runtime.manager.blockLoopback,
+      blockPrivate: runtime.manager.networkPolicy === 'strict',
       roots: storageRootPolicyFor(env, runtime.metaStore),
       log: (message) => {
         io.out(message);

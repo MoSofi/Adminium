@@ -36,7 +36,8 @@
 import { destinationsRepo, type MetaDb, type DsnCrypto, type StorageDestination } from '@adminium/meta';
 
 import { AppError } from '../errors.js';
-import { assertDestinationAddressAllowed } from '../files/destinations.js';
+import type { HostLookup } from '../net/address-guard.js';
+import { checkDestinationAddress } from '../files/destinations.js';
 import { assertStorageRootAllowed, type StorageRootPolicy } from '../files/root-guard.js';
 
 export interface StorageSeedEnv {
@@ -57,12 +58,16 @@ export interface SeedStorageDestinationOptions {
   now?: number | undefined;
   /** Refuse an address on this machine, as the destinations do (default: in production). */
   blockLoopback?: boolean | undefined;
+  /** `ADMINIUM_NETWORK_POLICY=strict`: refuse an endpoint on the server's own network, as the destinations do. */
+  blockPrivate?: boolean | undefined;
+  /** Test seam: how an endpoint's host is looked up. */
+  lookup?: HostLookup | undefined;
   /** A `local` root's rules, as the destinations have them (`files/root-guard.ts`). Unset: not checked. */
   roots?: StorageRootPolicy | undefined;
 }
 
 /** What the seed's plan is checked against: the same rules a destination saved in Studio is. */
-export type StorageSeedGuard = Pick<SeedStorageDestinationOptions, 'blockLoopback' | 'roots'>;
+export type StorageSeedGuard = Pick<SeedStorageDestinationOptions, 'blockLoopback' | 'blockPrivate' | 'lookup' | 'roots'>;
 
 export type SeedStorageDestinationResult =
   | { kind: 'skipped'; reason: 'nothing-configured' | 'already-configured' }
@@ -196,14 +201,20 @@ export function parseStorageUrl(raw: string): SeedPlan {
 
 /**
  * The rules a destination saved in Studio is held to, applied to the seed's
- * plan: the address as written (cloud metadata always, this machine in
- * production), a `local` root off Adminium's own folders and inside
- * `ADMINIUM_STORAGE_DIRS`. Throws the destination's own 422.
+ * plan: an endpoint looked up and every address checked (cloud metadata
+ * always, this machine in production, the server's own network under
+ * `strict`), a `local` root off Adminium's own folders and inside
+ * `ADMINIUM_STORAGE_DIRS`. Throws the destination's own 422, or 502 for a
+ * name that could not be looked up.
  */
 async function checkPlan(plan: SeedPlan, guard: StorageSeedGuard): Promise<void> {
   const config = plan.config as StorageDestination['config'];
-  assertDestinationAddressAllowed(plan.driver, config, { blockLoopback: guard.blockLoopback ?? process.env.NODE_ENV === 'production' });
   if (plan.driver === 'local' && guard.roots !== undefined && 'root' in config) assertStorageRootAllowed(config.root, guard.roots);
+  await checkDestinationAddress(plan.driver, config, {
+    blockLoopback: guard.blockLoopback ?? process.env.NODE_ENV === 'production',
+    blockPrivate: guard.blockPrivate === true,
+    lookup: guard.lookup,
+  });
 }
 
 /**

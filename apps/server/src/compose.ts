@@ -915,6 +915,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     localRoot: resolve(env.ADMINIUM_DATA_DIR, FILES_DIR),
     // As the connections do: the desktop app's storage may be on this machine.
     blockLoopback: manager.blockLoopback,
+    // An S3 or WebDAV endpoint on the server's own network is refused under ADMINIUM_NETWORK_POLICY=strict.
+    blockPrivate: manager.networkPolicy === 'strict',
+    lookup: manager.outboundPolicy.lookup,
     // A `local` root stays off Adminium's own files and folders, and inside ADMINIUM_STORAGE_DIRS when set.
     roots: storageRoots,
   });
@@ -955,6 +958,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       crypto: storageCrypto,
       env,
       blockLoopback: manager.blockLoopback,
+      blockPrivate: manager.networkPolicy === 'strict',
+      lookup: manager.outboundPolicy.lookup,
       roots: storageRoots,
       log: (message) => {
         app.log.debug(message);
