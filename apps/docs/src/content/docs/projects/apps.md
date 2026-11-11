@@ -178,7 +178,10 @@ While you work on the folder (`adminium dev`, Adminium Designer on your machine)
 `access.json` takes effect when the app is applied: an entry may show one more column, or be reached
 by a claim instead of by anyone. A server (`adminium start`) keeps what its key was allowed: an
 entry that would show more is left as it was, and the start log says which and why. An update of a
-published app asks first instead, and shows more only when you allow it.
+published app asks first instead, and shows more only when you allow it. One exception, on your own
+machine only: when `adminium dev` updates a published add-on the folder's app needs, that add-on's
+endpoints show what its new version declares without asking, and each widening is written to the
+audit log.
 
 ## The manifest, as parts
 

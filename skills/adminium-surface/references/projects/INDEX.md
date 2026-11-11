@@ -8,7 +8,7 @@
 | `references/projects/apps--start-one.md` | Start one | 647 |
 | `references/projects/apps--run-it-from-the-folder.md` | Run it from the folder | 2687 |
 | `references/projects/apps--run-it-from-the-folder--taking-things-out.md` | Run it from the folder — Taking things out | 2175 |
-| `references/projects/apps--run-it-from-the-folder--on-a-server.md` | Run it from the folder — On a server | 4252 |
+| `references/projects/apps--run-it-from-the-folder--on-a-server.md` | Run it from the folder — On a server | 4486 |
 | `references/projects/apps--the-manifest-as-parts.md` | The manifest, as parts | 1878 |
 | `references/projects/apps--an-app-you-made-yourself.md` | An app you made yourself | 920 |
 | `references/projects/apps--check-it.md` | Check it | 999 |
