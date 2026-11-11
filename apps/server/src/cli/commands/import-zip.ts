@@ -12,11 +12,13 @@
 
 import { resolve } from 'node:path';
 
+import { isInstanceArchive } from '../../archive/zip-read.js';
 import { ImportZipError } from '../../export/import-service.js';
 import { boolFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
 import { CliError, CliUsageError, EXIT_OK } from '../exit.js';
 import { loadCliEnv } from '../runtime.js';
+import { importExportFile } from './archive/commands.js';
 
 export const importZipCommand: Command = {
   name: 'import-zip',
@@ -53,6 +55,12 @@ export const importZipCommand: Command = {
       defaultDescription: 'ADMINIUM_DATA_DIR, else ./data or ~/.adminium',
     },
     'meta-url': { type: 'string', placeholder: '<dsn>', describe: 'Meta store DSN' },
+    'project-dir': {
+      type: 'string',
+      placeholder: '<folder>',
+      describe: 'Where an export file’s project folder goes (new or empty)',
+      defaultDescription: 'ADMINIUM_PROJECT_DIR',
+    },
   },
 
   async run({ io, deps, argv }) {
@@ -64,6 +72,18 @@ export const importZipCommand: Command = {
     const dryRun = boolFlag(values['dry-run']);
     const dataDir = stringFlag(values['data-dir']);
     const metaUrl = stringFlag(values['meta-url']);
+
+    // "Export everything" (`adminium archive create --export`) is an instance
+    // archive, not a config bundle: the archive restore reads it, with the
+    // export's rules (no hashes, secrets or tokens), into a fresh instance.
+    if (await isInstanceArchive(resolve(deps.cwd, input))) {
+      return importExportFile({ io, deps }, resolve(deps.cwd, input), {
+        dryRun,
+        dataDir,
+        metaUrl,
+        projectDir: stringFlag(values['project-dir']),
+      });
+    }
 
     const env = loadCliEnv(deps.env, {
       ...(dataDir === undefined ? {} : { dataDir }),

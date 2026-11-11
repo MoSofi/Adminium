@@ -228,6 +228,12 @@ export const envSchema = z.object({
    */
   ADMINIUM_META_POOL_MAX: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(100).optional()),
   /**
+   * Signs and checks instance archives (`adminium archive`). Unset: a key made
+   * from ADMINIUM_SECRET signs them. Set it, the same on every server, to
+   * restore an archive into an instance with another secret.
+   */
+  ADMINIUM_ARCHIVE_KEY: z.preprocess(emptyToUndefined, z.string().min(32, 'must be at least 32 characters').optional()),
+  /**
    * How many connections each pool opens against a source database. A source keeps
    * one long-lived pool for pages and the API, and opens short-lived ones to read its
    * schema and collect statistics; each is this size. Unset: 10 for the long-lived
@@ -729,6 +735,7 @@ export type Env = z.infer<typeof envSchema>;
 
 const ENV_HINTS: Record<string, string> = {
   ADMINIUM_SECRET: 'set a random string of at least 16 characters, e.g. `openssl rand -hex 32`',
+  ADMINIUM_ARCHIVE_KEY: 'a random string of at least 32 characters, e.g. `openssl rand -hex 32`, the same on every server that restores the archives',
   PORT: 'integer between 1 and 65535 (default 4600)',
   HOST: 'bind address, e.g. 0.0.0.0 or 127.0.0.1',
   ADMINIUM_AI_ANTHROPIC_API_KEY: 'an Anthropic API key',
