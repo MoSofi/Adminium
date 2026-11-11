@@ -67,6 +67,7 @@ import {
 
 import { checkDsn, type DatabaseHost } from '../connections/dsn.js';
 import { PROJECT_KEY_PATTERN } from '../project/config.js';
+import { oneLine } from '../project/dotenv.js';
 import { checkDestinationAddress } from '../files/destinations.js';
 import { FILES_DIR } from '../files/drivers/local.js';
 import { storageRootRefusal, type StorageRootPolicy } from '../files/root-guard.js';
@@ -496,6 +497,8 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       const blank = (value: unknown): boolean => value === null || value === undefined || value === '';
       if (blank(row.introspectDsnEncrypted) && blank(row.dataDsnEncrypted)) row.status = 'unconfigured';
     }
+    // A name is one line: it lands on comment lines in the project's `.env` (`import-zip`, and `new` adopting it).
+    for (const row of connectionRows) if (typeof row.name === 'string') row.name = oneLine(row.name, row.name.length);
     // A project key names an environment variable in the project's `.env` (`envVarFor`) and is written there:
     // the file's word for it is held to the key grammar, or the connection stays, with no project key.
     for (const row of connectionRows) {

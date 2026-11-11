@@ -21,7 +21,7 @@ import { storageRootPolicyFor } from '../../../files/root-guard.js';
 import { envVarFor } from '../../../project/adopt.js';
 import { PROJECT_KEY_PATTERN } from '../../../project/config.js';
 import { prepareProject } from '../../../project/boot.js';
-import { addToDotEnv, type DotEnvEntry } from '../../../project/dotenv.js';
+import { addToDotEnv, oneLine, type DotEnvEntry } from '../../../project/dotenv.js';
 import { APP_VERSION } from '../../../version.js';
 import { boolFlag, parseFlags, stringFlag } from '../../args.js';
 import type { Command, CommandContext } from '../../command.js';
@@ -395,8 +395,7 @@ export function writeProjectEnv(projectRoot: string, result: Pick<RestoreArchive
     const key = envVarFor(database.key);
     if (named.has(key)) continue;
     named.add(key);
-    // eslint-disable-next-line no-control-regex -- control characters are exactly what this takes out.
-    const name = database.name.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').slice(0, 200);
+    const name = oneLine(database.name);
     entries.push(
       database.file === null
         ? { key, value: '', comment: [`"${database.key}" (${name}) came without its connection string: set it here, or in Studio.`] }

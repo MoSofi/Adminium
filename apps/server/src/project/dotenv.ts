@@ -80,6 +80,12 @@ export interface DotEnvEntry {
   comment?: readonly string[];
 }
 
+/** Text for one comment line: control characters and line separators become spaces. */
+export function oneLine(text: string, max = 200): string {
+  // eslint-disable-next-line no-control-regex -- control characters are exactly what this takes out.
+  return text.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').slice(0, max);
+}
+
 /** A variable name `parseEnv` reads as one: what a key written to `.env` must be. */
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
