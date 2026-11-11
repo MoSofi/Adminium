@@ -45,11 +45,11 @@ Connected — 2 ms · 3.45.1 · read-only
 Mount the file `:ro` under Docker, or `chmod` it so the Adminium user cannot
 write. The result is the same read-only app with a banner.
 
-:::caution[A read-only file forces a separate meta store]
-Adminium cannot write its `adminium_*` tables into a file it cannot write.
-Same-database placement is refused with `META_PLACEMENT_INVALID` at connect
-time. Since the default meta store is *also* SQLite, this is easy to miss: they
-are two different files with two different purposes. See
+:::caution[A SQLite source never holds the meta store]
+Adminium never shares one SQLite file between its `adminium_*` tables and your
+data: the meta store's file is refused as a source (see below). Since the
+default meta store is *also* SQLite, this is easy to miss: they are two
+different files with two different purposes. See
 [Read-only sources & the meta database](/guides/connect/read-only-and-meta/).
 :::
 
@@ -120,6 +120,29 @@ unrelated to a SQLite file you connect as a data source. Two files, two jobs:
 |---|---|---|
 | Data connection | wherever your app's database lives | your tables |
 | Embedded meta store | `<data-dir>/…` | Adminium's `adminium_*` tables |
+
+### Files Adminium refuses to open
+
+A SQLite source is refused, with a message saying why, when its file is one of
+Adminium's own:
+
+- the meta store's file (`<data-dir>/meta.db`, or the file `ADMINIUM_META_URL`
+  names) and its `-wal`, `-shm` and `-journal` files;
+- anything in the data directory's own folders: `backups/`, `files/`, `tmp/`,
+  `add-ons/` and the `pre-restore-…` folders a restore leaves behind;
+- the same files reached another way: a symlink, a hard link, a path with
+  `..`, or the name in other letter case on a Mac.
+
+A second writer on the live meta file can damage it, so this holds everywhere,
+the desktop app included. Your own files in the data directory, such as
+`data/app.sqlite` in a project or the desktop app's `databases/` folder, open
+as before. To use a copy of Adminium's data as a source, copy it out of the
+data directory first.
+
+On a server you share, the operator can go further and set
+[`ADMINIUM_SQLITE_DIRS`](/self-hosting/env-vars/#adminium_sqlite_dirs) to the
+folders SQLite sources must live in. A file outside them is refused, and so is
+a symlink that points out of them.
 
 ## Troubleshooting
 

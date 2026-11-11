@@ -35,6 +35,7 @@ half-configured and fail later.
 | `ADMINIUM_SURFACES_DIR` | No | *(unset)* | Directory of built app surfaces, served at `/apps/<app>/<side>/`. Unset means this instance hosts no apps. See below. |
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
 | `ADMINIUM_DATABASE_HOSTS` | No | *(unset)* | CSV of `host[:port]` database hosts a production server may reach on its own loopback, such as `localhost:5432` for a Postgres on the same server. Source databases only. See below. |
+| `ADMINIUM_SQLITE_DIRS` | No | *(unset)* | CSV of absolute folders a SQLite source database must lie in, such as `/srv/databases`. Unset means any file the server can open, except Adminium's own. See below. |
 | `ADMINIUM_MAP_SERVER` | No | `https://tiles.openfreemap.org` | Where maps' pictures come from: one `https://` origin, or `off` for no maps on this install. See below. |
 | `ADMINIUM_ROUTING_SERVER` | No | `https://router.project-osrm.org` | The OSRM server asked for routes along roads, once that is switched on in Settings → Maps; or `off`. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
@@ -300,6 +301,34 @@ A database on a Docker network under its service name (`postgres:5432`) is on a
 private address, which Adminium allows today without this list. The desktop app,
 `adminium try`, and any server run without `NODE_ENV=production` allow loopback
 anyway: on your own computer a local database is the normal case.
+
+## `ADMINIUM_SQLITE_DIRS`
+
+A SQLite source names a file, and Adminium opens it read and write. Adminium's
+own files are refused whatever this says: the meta store and its `-wal`,
+`-shm` and `-journal` files, and the data directory's `backups/`, `files/`,
+`tmp/`, `add-ons/` and `pre-restore-…` folders (see
+[Connect a SQLite database](/guides/connect/sqlite/#files-adminium-refuses-to-open)).
+Any other file the server can open is allowed, unless you name the folders
+SQLite sources must live in:
+
+```bash
+ADMINIUM_SQLITE_DIRS=/srv/databases,/data/apps
+```
+
+- **Absolute folders**, separated by commas. A relative path stops the boot.
+- **Real paths are compared**: a symlink inside one of these folders that
+  points out of them is refused, and so is a path that climbs out with `..`.
+- **Every way in**: connections made in Studio, `ADMINIUM_SOURCE_URL` (a file
+  outside the folders stops the boot) and a project's databases.
+- **Not in the desktop app**, which opens whichever file its user picks. Its
+  own files stay refused there too.
+
+The refusal names the folders and what to do:
+
+```
+This SQLite file is outside the folders this server allows (ADMINIUM_SQLITE_DIRS: /srv/databases). Move the file into one of them, or ask whoever runs this server to add its folder to ADMINIUM_SQLITE_DIRS.
+```
 
 ## `ADMINIUM_STATIC_ROOT`
 
