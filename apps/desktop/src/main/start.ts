@@ -46,6 +46,7 @@ import type {
 } from '../preload/api.js';
 import type { DesktopConfig } from './config.js';
 import { judgeGuestAddress, rememberGuest, type GuestCheck } from './guest.js';
+import type { MakeProjectResult } from './make-project.js';
 import { projectNameFromExport, type ExportOutcome, type ImportExportInput, type ImportExportResult } from './open-export.js';
 import {
   cameWithAccounts,
@@ -146,8 +147,6 @@ export function projectFingerprint(root: string, fs: FingerprintFs = realFingerp
 
 /** What the person chose on the first screens: main boots it. */
 export type StartChoice = { readonly kind: 'classic' } | { readonly kind: 'project'; readonly root: string; /** Asked for from Start: the project's dashboard, not the Designer. */ readonly land?: 'dashboard' };
-
-export type MakeProjectResult = { readonly ok: true } | { readonly ok: false; readonly detail: string };
 
 export interface StartDeps {
   readConfig: () => DesktopConfig;

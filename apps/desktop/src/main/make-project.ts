@@ -18,8 +18,10 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import type { DesktopMakeStep } from '../preload/api.js';
-import type { MakeProjectResult } from './start.js';
 import { parseFolderFacts, type FolderFacts } from './folder-open.js';
+
+/** How making, installing or updating a project went. Defined here, not in `start.ts`, which calls these. */
+export type MakeProjectResult = { readonly ok: true } | { readonly ok: false; readonly detail: string };
 
 /**
  * The database a project made for the Designer starts with: a file of its own,
