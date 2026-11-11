@@ -380,7 +380,9 @@ describe('the data role’s table grants, as a page reads them', () => {
         };
       },
     } as unknown as AdapterProvider);
-    const manager = new ConnectionManager({ meta, crypto, registry });
+    // The name answers from here: a real resolver's slow answer would outlast the waits below.
+    const lookup = async (): Promise<readonly string[]> => Promise.resolve(['203.0.113.10']);
+    const manager = new ConnectionManager({ meta, crypto, registry, lookup });
     const connection = await manager.connections.create({
       name: 'shop',
       engine: 'postgres',
