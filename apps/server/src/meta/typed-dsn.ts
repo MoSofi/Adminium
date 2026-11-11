@@ -13,8 +13,12 @@
  * ── WHAT IT RUNS ────────────────────────────────────────────────────────────
  * The source-connection parser itself (`guardDsn`): the query-parameter
  * allow-list, the scheme that must match the engine, the host read the way
- * the resolver reads it, and the metadata check. A SQLite path must be a file
- * inside the data dir, with no `..` and no link that leads out of it.
+ * the resolver reads it, and the metadata check. Then the host is looked up
+ * the way the driver will (`checkHost`, `net/address-guard.ts`), so a NAME
+ * that answers with a metadata address is refused too, and a name that does
+ * not resolve is a 502 `HOST_LOOKUP_FAILED`, as on the other guards. A SQLite
+ * path must be a file inside the data dir, with no `..` and no link that
+ * leads out of it.
  *
  * ── WHAT IT DOES NOT ────────────────────────────────────────────────────────
  * Loopback and private addresses stay allowed. A meta store on the same server
@@ -31,12 +35,15 @@ import { lstat, realpath } from 'node:fs/promises';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 
 import { guardDsn } from '../connections/dsn.js';
-import { ValidationFailedError } from '../errors.js';
+import { HostLookupFailedError, ValidationFailedError } from '../errors.js';
+import { checkHost, type HostLookup } from '../net/address-guard.js';
 import { metaEngineFromUrl, sqlitePathFromUrl, type MetaEngine } from './store.js';
 
 export interface TypedMetaDsnOptions {
   /** `ADMINIUM_DATA_DIR`, as the server was started with it. */
   dataDir: string;
+  /** Test seam: the host lookup. Default: the one the drivers make. */
+  lookup?: HostLookup | undefined;
 }
 
 const OUTSIDE_DATA_DIR =
@@ -101,7 +108,15 @@ async function assertInsideDataDir(file: string, dataDir: string): Promise<void>
 export async function guardTypedMetaDsn(dsn: string, opts: TypedMetaDsnOptions): Promise<MetaEngine> {
   const engine = metaEngineFromUrl(dsn);
   if (engine !== 'sqlite') {
-    guardDsn(dsn, { engine, blockLoopback: false });
+    const parsed = guardDsn(dsn, { engine, blockLoopback: false });
+    if (parsed.host !== null) {
+      // Loopback and private pass (an operator's own store); metadata never does, however the name answers.
+      const check = await checkHost(parsed.host, { failClosed: true, lookup: opts.lookup });
+      if (!check.ok) {
+        if (check.reason === 'unresolved') throw new HostLookupFailedError(check.host);
+        throw new ValidationFailedError('Host resolves to a blocked address range.', { host: check.host, address: check.address });
+      }
+    }
     return engine;
   }
   const file = sqlitePathFromUrl(dsn);

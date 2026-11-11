@@ -48,6 +48,25 @@ vi.mock('../src/meta/store.js', async (importOriginal) => {
   };
 });
 
+// Names the tests make answer as they need; every other name is looked up for real.
+const ANSWERS: Record<string, string[] | null> = {
+  'meta-trap.p75.test': ['169.254.169.254'],
+  'mixed-trap.p75.test': ['10.0.0.9', 'fd00:ec2::254'],
+  'own-store.p75.test': ['127.0.0.1'],
+  'gone.p75.test': null,
+};
+
+vi.mock('node:dns/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:dns/promises')>();
+  const lookup = (async (host: string, options?: unknown) => {
+    if (!(host in ANSWERS)) return actual.lookup(host, options as never);
+    const answer = ANSWERS[host];
+    if (answer === null || answer === undefined) throw Object.assign(new Error(`getaddrinfo ENOTFOUND ${host}`), { code: 'ENOTFOUND' });
+    return answer.map((address) => ({ address, family: address.includes(':') ? 6 : 4 }));
+  }) as typeof actual.lookup;
+  return { ...actual, default: { ...actual, lookup }, lookup };
+});
+
 const SECRET = 'a-sufficiently-long-test-secret';
 const PG_URL = process.env['TEST_POSTGRES_URL'];
 const MYSQL_URL = process.env['TEST_MYSQL_URL'];
@@ -202,6 +221,26 @@ describe.each(ROUTES)('POST %s with a typed meta-store DSN', (route) => {
   });
 });
 
+describe.each(ROUTES)('POST %s with a meta-store host NAME', (route) => {
+  it.each([
+    ['answers with the metadata address', 'postgres://ava@meta-trap.p75.test:5432/adminium'],
+    ['answers with metadata among other addresses', 'mysql://root@mixed-trap.p75.test:3306/adminium'],
+  ])('refuses a name that %s, before dialling it', async (_what, dsn) => {
+    const res = await send(route, dsn);
+    expect(res.statusCode, res.body).toBe(422);
+    expect(res.json().error?.code).toBe('VALIDATION_FAILED');
+    expect(res.json().error?.message).toMatch(/blocked address/);
+    expect(dials.count).toBe(0);
+  });
+
+  it('answers HOST_LOOKUP_FAILED for a name that does not resolve, and dials nothing', async () => {
+    const res = await send(route, 'postgres://ava@gone.p75.test:5432/adminium');
+    expect(res.statusCode, res.body).toBe(502);
+    expect(res.json().error?.code).toBe('HOST_LOOKUP_FAILED');
+    expect(dials.count).toBe(0);
+  });
+});
+
 describe('a typed meta-store DSN that passes still works', () => {
   it('SQLite inside the data dir: relocate, then probe and adopt the store it made', async () => {
     await mkdir(join(dir, 'stores'));
@@ -238,6 +277,13 @@ describe('a typed meta-store DSN that passes still works', () => {
   it('a host that answers nothing is still dialled and reported, not refused', async () => {
     // Loopback is not refused for the meta store; the probe says "unreachable".
     const probed = await send('probe', 'postgres://ava@127.0.0.1:1/adminium?connect_timeout=2');
+    expect(probed.statusCode, probed.body).toBe(200);
+    expect(probed.json().data).toMatchObject({ reachable: false });
+    expect(dials.count).toBe(1);
+  });
+
+  it('a name that answers with this server is still dialled: the operator\'s own store', async () => {
+    const probed = await send('probe', 'postgres://ava@own-store.p75.test:1/adminium?connect_timeout=2');
     expect(probed.statusCode, probed.body).toBe(200);
     expect(probed.json().data).toMatchObject({ reachable: false });
     expect(dials.count).toBe(1);
