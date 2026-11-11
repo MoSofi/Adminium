@@ -1,6 +1,6 @@
 ---
 title: Export everything from Studio
-description: Download one file with everything made in an installation, then move it to another server with adminium import-zip.
+description: Download one file with everything made in an installation, then move it to another server with adminium import-zip, or open it in the desktop app.
 sidebar:
   order: 11
 ---
@@ -60,6 +60,28 @@ Sign in with that address and password. Everyone else signs in through
 
 - enter connection strings, mail settings and AI keys again;
 - download catalog apps and add-ons again from **Studio → Add-ons**.
+
+## Open it in the desktop app
+
+In the Adminium desktop app, choose **File → Open a project…** and pick the
+file. It becomes a **new** project on this computer; a project that is open is
+closed first and nothing goes into it.
+
+1. The app reads and checks the file (the same checks as `import-zip`). A
+   whole-server archive from `adminium archive create` is not an export: the
+   app says so, and it is restored on a server with
+   [`adminium archive restore`](/self-hosting/archive/).
+2. Give the project a name and a folder, choose the Super Admin who signs in
+   first (if there are several), and type their new password twice. No mail
+   and no terminal are needed.
+3. **Open the project**. The app asks about the code the file brought, as for
+   any folder someone sent you, and fetches what the project is built with.
+4. Sign in with that address and password. Everyone else signs in through
+   **Forgot password**, once mail is set up.
+
+The file carries no connection strings, mail settings or AI keys. Connections
+that came without theirs show as **Draft** in **Studio → Connections**: open
+each and enter its connection string again.
 
 ## Database rows
 
