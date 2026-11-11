@@ -1276,7 +1276,7 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
     reused = applied.reused;
     stage = 'writers';
     written =
-      (await core.writePages(who, where, manifest, installed.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, true, consentOf(input.publicAccess), false, true, undefined, new Set(wider.map((entry) => entry.ref)))) ?? {};
+      (await core.writePages(who, where, manifest, installed.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, true, consentOf(input.publicAccess), false, true, undefined, new Map(wider.map((entry) => [entry.ref, entry.reasons])))) ?? {};
     /*
      * Starting rows only for the tables THIS version brings: a table the
      * version before already had is the owner's by now, empty or not. Read

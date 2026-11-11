@@ -76,6 +76,7 @@ describe.each(LEGS)('an add-on with a copy on each of two databases — %s', (di
     expect(unnamed.json().error.code).toBe('APP_INSTALL_AMBIGUOUS');
 
     // Each copy, named: checked and updated on its own, on its own database.
+    // The first database's copy first (the list's last row): while the other is behind, the list still offers the newer version.
     for (const [install, connectionId] of [
       [studio, h.connectionId],
       [kilnCopy, kiln],
@@ -86,7 +87,11 @@ describe.each(LEGS)('an add-on with a copy on each of two databases — %s', (di
       const moved = await h.inject({ method: 'POST', url: `/add-ons/${CARDS_KIT}/update`, payload: { planChecksum: check.json().checksum }, headers: { 'x-adminium-install': install } });
       expect(moved.statusCode, moved.body).toBe(200);
       expect((await copyOn(connectionId)).version).toBe('1.0.1');
-      if (install === studio) expect((await copyOn(kiln)).version).toBe('1.0.0');
+      if (install === studio) {
+        expect((await copyOn(kiln)).version).toBe('1.0.0');
+        const shelf = (await h.inject({ method: 'GET', url: '/add-ons/catalog' })).json().addOns as { key: string; version: string; upgradeTo: string | null }[];
+        expect(shelf.find((row) => row.key === CARDS_KIT)).toMatchObject({ version: '1.0.0', upgradeTo: '1.0.1' });
+      }
     }
 
     // Every copy moved: each shop updates with no tick, the kit already in range.

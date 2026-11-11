@@ -42,6 +42,10 @@ function wideningWords(entry: PublicWidening): string {
  * (`publicWider: true`) — and only someone who may manage API keys may.
  */
 export function refusePublicWider(what: string, wider: readonly PublicWidening[], allowed: boolean | undefined, mayManageKeys: boolean): void {
+  // The say is only someone's who may manage API keys, whatever it would widen.
+  if (allowed === true && !mayManageKeys) {
+    throw new ForbiddenError(`${what} widens what its public endpoints show, which only someone who may manage API keys can allow.`);
+  }
   if (wider.length === 0) return;
   if (allowed !== true) {
     throw new ValidationFailedError(
@@ -49,8 +53,5 @@ export function refusePublicWider(what: string, wider: readonly PublicWidening[]
         'Check the update and allow it ("publicWider": true), or keep the running version.',
       { reason: 'PUBLIC_WIDER', publicWider: wider.map((entry) => ({ ...entry })) },
     );
-  }
-  if (!mayManageKeys) {
-    throw new ForbiddenError(`${what} widens what its public endpoints show, which only someone who may manage API keys can allow.`);
   }
 }

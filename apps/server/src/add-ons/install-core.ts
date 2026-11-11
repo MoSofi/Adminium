@@ -148,7 +148,7 @@ export interface InstallCore<List extends CoreUninstallList = CoreUninstallList>
     refuse?: boolean,
     pageChoices?: undefined,
     /** The endpoints the operator allowed this update to widen for the keys already using them. */
-    wider?: ReadonlySet<string>,
+    wider?: ReadonlyMap<string, readonly string[]>,
   ): Promise<Readonly<Record<string, unknown>> | undefined>;
   /** What an update would widen for the keys already using its endpoints: asked before anything moves. */
   publicWiderOf(input: { manifest: Manifest; connectionId: string; names: Readonly<Record<string, string>> }): Promise<PublicWidening[]>;

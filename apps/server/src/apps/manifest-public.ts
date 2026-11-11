@@ -844,7 +844,7 @@ export async function installPublicAccess(input: {
    * version defines it. Any other endpoint a key uses that the version would
    * widen is left as it was, and said in `skipped`.
    */
-  wider?: ReadonlySet<string> | undefined;
+  wider?: ReadonlyMap<string, readonly string[]> | undefined;
   /**
    * Told of each change the moment it is written — an endpoint saved, a key
    * made, a live key's grants changed — so it is audited and the resolver
@@ -927,13 +927,21 @@ export async function installPublicAccess(input: {
         ...((input.ownFolder === true && input.grant !== false) || allowedWider ? { operatorAllowed: true } : {}),
       });
       saved.push(entry.ref);
+      // Allowed to widen: said in the audit whatever it gained (a sign-in dropped gains no column), with why it was asked.
       const gains = allowedWider ? result.widened.flatMap((key) => key.gains).filter((gain) => gain.ref === entry.ref) : [];
       await input.onCommitted?.({
         kind: 'endpoint',
         ref: entry.ref,
-        ...(gains.length === 0
-          ? {}
-          : { widened: { columns: [...new Set(gains.flatMap((g) => g.columns))], methods: [...new Set(gains.flatMap((g) => g.methods))], rows: gains.some((g) => g.rows) } }),
+        ...(allowedWider
+          ? {
+              widened: {
+                columns: [...new Set(gains.flatMap((g) => g.columns))],
+                methods: [...new Set(gains.flatMap((g) => g.methods))],
+                rows: gains.some((g) => g.rows),
+                reasons: [...(input.wider?.get(entry.ref) ?? [])],
+              },
+            }
+          : {}),
       });
     } catch (error) {
       // An update may not widen the key the operator allowed at install unless
@@ -1118,7 +1126,7 @@ export async function installPublicAccess(input: {
 /** One change to the app's public access, told as it is written. */
 export type PublicAccessCommit =
   /** `widened`: the operator allowed it to show the keys that use it more, and this is what they gained. */
-  | { kind: 'endpoint'; ref: string; widened?: { columns: string[]; methods: string[]; rows: boolean } }
+  | { kind: 'endpoint'; ref: string; widened?: { columns: string[]; methods: string[]; rows: boolean; reasons: string[] } }
   | { kind: 'key'; purpose: string; keyId: string; access: string[] }
   | { kind: 'grant'; keyId: string; purpose: string; gained: string[]; lost: string[] }
   | { kind: 'withdraw'; keyId: string; purpose: string; lost: string[] }

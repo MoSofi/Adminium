@@ -1966,7 +1966,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     /** The check's answers for the app's page addresses that pages here already have. */
     pageChoices?: Readonly<Record<string, PageChoice>>,
     /** The endpoints the operator allowed this update to widen for the keys already using them (`publicWider`). */
-    wider?: ReadonlySet<string>,
+    wider?: ReadonlyMap<string, readonly string[]>,
   ): Promise<
     | {
         pages: MaterialiseResult;
@@ -3515,16 +3515,22 @@ export function createAppInstallService(deps: AppRoutesDeps) {
        * may change the server's settings.
        */
       const resumed = installed.document as Manifest;
+      // The say on widening is only someone's who may manage API keys: refused first, whatever else would refuse.
+      refusePublicWider(`"${key}" ${installed.row.version}`, [], input.body?.publicWider, await actor.can(PERMISSIONS.apiKeysManage));
       await refuseServedChanges(resumed, installed, await actor.can(PERMISSIONS.apiKeysManage));
       await refuseInstanceRestore(resumed, installed, installed.row.version, actor);
       const resumedInstance = await instanceRefusal(resumed, input.body?.instance, actor.can);
       if (resumedInstance !== null) throw resumedInstance;
+      // …and so is what it would widen for the keys already using its endpoints: asked again, from the version it recorded.
+      const resumedWider = installed.row.connectionId === null ? [] : await publicWiderOf({ manifest: resumed, connectionId: installed.row.connectionId, names: await appTablesRepo(deps.meta).realNames(installed.row.connectionId, key) });
+      refusePublicWider(`"${key}" ${installed.row.version}`, resumedWider, input.body?.publicWider, await actor.can(PERMISSIONS.apiKeysManage));
       if (checkOnly) return null;
       return writeUpdated(actor, host, input, installed, {
         manifest: installed.document as Manifest,
         from: unfinished.fromVersion,
         to: installed.row.version,
         fromTables: unfinished.fromTables,
+        wider: new Map(resumedWider.map((entry) => [entry.ref, entry.reasons])),
       });
     }
     if (unfinished !== null && !checkOnly) await updates.finish(installed.row.id);
@@ -3596,6 +3602,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           'Update it without public access, or ask someone who can.',
       );
     }
+    // The say on widening is only someone's who may manage API keys: refused first, whatever else would refuse.
+    refusePublicWider(`"${key}" ${to}`, [], input.body?.publicWider, canGrantKeys);
     await refuseServedChanges(manifest, installed, canGrantKeys);
     const partsRefused = await savedPartsRefusal(manifest, actor.can);
     if (partsRefused !== null) throw partsRefused;
@@ -3838,7 +3846,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         { stage, from, to, cause: message, ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }) },
       );
     }
-    return writeUpdated(actor, host, input, installed, { manifest, from, to, fromTables: tableRefsOf(installed.document), names, applied, derived, addOnsDone });
+    return writeUpdated(actor, host, input, installed, { manifest, from, to, fromTables: tableRefsOf(installed.document), names, applied, derived, addOnsDone, wider: new Map(publicWider.map((entry) => [entry.ref, entry.reasons])) });
   }
 
   /**
@@ -3864,6 +3872,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
       applied?: { created: string[]; reused: string[] } | undefined;
       derived?: Awaited<ReturnType<typeof fillAddedDerived>> | undefined;
       addOnsDone?: AddOnsDone | undefined;
+      /** The endpoints the check listed as widening, allowed by the operator (`publicWider`): only these show more. */
+      wider?: ReadonlyMap<string, readonly string[]> | undefined;
     },
   ): Promise<UpdateAppReply> {
     const { key } = input;
@@ -3918,10 +3928,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         // Strict: a part of the new version that cannot be written stops the update, to be finished.
         true,
         updateAnswers(input.body).pages,
-        // What the operator allowed it to widen for the keys already using its endpoints, as the check listed it.
-        input.body?.publicWider === true && connectionId !== null
-          ? new Set((await publicWiderOf({ manifest, connectionId, names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, key)) })).map((entry) => entry.ref))
-          : undefined,
+        // What the operator allowed it to widen for the keys already using its endpoints: the list the check refused without the say.
+        done.wider,
       );
 
       /*

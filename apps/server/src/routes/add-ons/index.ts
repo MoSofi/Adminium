@@ -1004,7 +1004,17 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         ]);
         const locale = prefs.locale;
 
-        const installed = new Map(installedList.map((m) => [m.row.manifestKey, m.row.version]));
+        /*
+         * Each key's OLDEST copy: an add-on installed once per database is
+         * updated copy by copy, and while any copy is behind the row still
+         * offers the newer version, so an update that stopped half way can
+         * be taken up again from this page.
+         */
+        const installed = new Map<string, string>();
+        for (const m of installedList) {
+          const seen = installed.get(m.row.manifestKey);
+          if (seen === undefined || compareSemver(m.row.version, seen) < 0) installed.set(m.row.manifestKey, m.row.version);
+        }
         const staged = new Map<string, string>();
         /*
          * Every version on disk per key, not only the newest: an installed row

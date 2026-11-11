@@ -16,13 +16,31 @@
  * too"), on every engine this run can reach.
  */
 import { auditRepo, manifestsRepo, permissionsRepo, publicEndpointsRepo, rolesRepo, usersRepo, type User } from '@adminium/meta';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { parseDefinition } from '../src/public-api/endpoint.js';
 import { addOnHarness, CRYPTO, type Harness } from './app-add-ons.helpers.js';
 import { BALANCE_REF, CARDS_KIT, LINK_REF, cardsKitManifest, shopManifest } from './fixtures/cards-kit/index.js';
 import { LEGS } from './invoicing-install.helpers.js';
 import { servePublic } from './public-lane.helpers.js';
+
+// The mails step fails once when asked to: an update that stops after its version moved, before its endpoints are saved.
+const fault = vi.hoisted(() => ({ armed: false }));
+vi.mock('../src/apps/manifest-outbox.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../src/apps/manifest-outbox.js')>();
+  return {
+    ...real,
+    installOutbox: async (...args: Parameters<typeof real.installOutbox>) => {
+      if (fault.armed) {
+        fault.armed = false;
+        throw new Error('The mail store could not be reached.');
+      }
+      return real.installOutbox(...args);
+    },
+  };
+});
+
+const WIDEN_403 = 'widens what its public endpoints show, which only someone who may manage API keys can allow';
 
 /** The shop at `version`, its products read with `select`; the products table gains `sku` from 1.0.1 on. */
 function shopAt(version: string, select: string[], over: Record<string, unknown> = {}): Record<string, unknown> {
@@ -90,6 +108,7 @@ describe.each(LEGS)('an update that widens a public endpoint a key uses — %s',
     const member = await fitter();
     const notTheirs = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { publicWider: true }, as: member });
     expect(notTheirs.statusCode, notTheirs.body).toBe(403);
+    expect(notTheirs.json().error.message).toContain(WIDEN_403);
     expect(await versionOf('shop')).toBe('1.0.0');
 
     // Allowed: saved as the version defines it, and the key serves the new columns.
@@ -98,7 +117,9 @@ describe.each(LEGS)('an update that widens a public endpoint a key uses — %s',
     expect(await versionOf('shop')).toBe('1.0.1');
     expect(await selectOf('shop_products')).toEqual(['id', 'name', 'price', 'sku']);
     expect(updated.json().app.publicAccess.skipped).toEqual([]);
-    expect(await audited('public-endpoint.widen')).toEqual([{ connectionId: h.connectionId, ref: 'shop_products', app: 'shop', columns: ['price', 'sku'], methods: [], rows: false }]);
+    expect(await audited('public-endpoint.widen')).toEqual([
+      { connectionId: h.connectionId, ref: 'shop_products', app: 'shop', columns: ['price', 'sku'], methods: [], rows: false, reasons: [expect.stringContaining('would see more of "shop_products"')] },
+    ]);
     await h.rows(`INSERT INTO shop_products (id, name, price, sku) VALUES (1, 'Mug', 9.5, 'MUG-1')`);
     const served = await servePublic(h as never, keyId);
     try {
@@ -117,9 +138,59 @@ describe.each(LEGS)('an update that widens a public endpoint a key uses — %s',
     expect(narrowed.statusCode, narrowed.body).toBe(200);
     expect(await selectOf('shop_products')).toEqual(['id', 'name']);
     await h.stageApp(shopAt('1.0.3', ['id', 'name']));
+    // The say is refused from someone who may not manage API keys even when nothing would widen.
+    const saidAnyway = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { publicWider: true }, as: member });
+    expect(saidAnyway.statusCode, saidAnyway.body).toBe(403);
+    expect(saidAnyway.json().error.message).toContain(WIDEN_403);
     const same = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
     expect(same.statusCode, same.body).toBe(200);
     expect(await audited('public-endpoint.widen')).toHaveLength(1);
+  }, 120_000);
+
+  it.skipIf(!available)('a widening that shows no new column (a filter dropped) is asked, and audited with why', async () => {
+    h = await addOnHarness(dialect, { unbuiltWords: {} });
+    const named = { table: 'products', methods: ['GET'], select: ['id', 'name'] };
+    await h.stageApp(shopManifest({ publicAccess: [{ ...named, filters: [{ column: 'name', op: 'neq', value: 'hidden' }] }] }));
+    expect((await h.install('shop', '1.0.0')).statusCode).toBe(200);
+    // 1.0.1 reads the same columns of every row.
+    await h.stageApp(shopManifest({ version: '1.0.1', publicAccess: [named] }));
+    const refused = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
+    expect(refused.statusCode, refused.body).toBe(422);
+    expect(refused.json().error.details).toMatchObject({ reason: 'PUBLIC_WIDER', publicWider: [{ ref: 'shop_products', columns: [], rows: true }] });
+    const updated = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { publicWider: true } });
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect(await audited('public-endpoint.widen')).toEqual([
+      { connectionId: h.connectionId, ref: 'shop_products', app: 'shop', columns: [], methods: [], rows: true, reasons: [expect.stringContaining('would reach more rows of "shop_products"')] },
+    ]);
+  }, 120_000);
+
+  it.skipIf(!available)('an update that stopped after its version moved asks again when it is finished', async () => {
+    h = await addOnHarness(dialect, { unbuiltWords: {} });
+    await h.stageApp(shopAt('1.0.0', ['id', 'name']));
+    expect((await h.install('shop', '1.0.0')).statusCode).toBe(200);
+    await h.stageApp(shopAt('1.0.1', ['id', 'name', 'sku']));
+    fault.armed = true;
+    const stopped = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { publicWider: true } });
+    expect(stopped.statusCode, stopped.body).toBe(409);
+    expect(stopped.json().error.code).toBe('APP_UPDATE_INCOMPLETE');
+    expect(await versionOf('shop')).toBe('1.0.1');
+    expect(await selectOf('shop_products')).toEqual(['id', 'name']);
+
+    // Finished without the say: refused, naming the endpoint, and it stays as it was.
+    const unsaid = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: {} });
+    expect(unsaid.statusCode, unsaid.body).toBe(422);
+    expect(unsaid.json().error.details).toMatchObject({ reason: 'PUBLIC_WIDER', publicWider: [{ ref: 'shop_products', columns: ['sku'] }] });
+    expect(await selectOf('shop_products')).toEqual(['id', 'name']);
+    // …and by someone who may not manage API keys: refused.
+    const member = await fitter();
+    const notTheirs = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { publicWider: true }, as: member });
+    expect(notTheirs.statusCode, notTheirs.body).toBe(403);
+    expect(notTheirs.json().error.message).toContain(WIDEN_403);
+
+    const finished = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { publicWider: true } });
+    expect(finished.statusCode, finished.body).toBe(200);
+    expect(await selectOf('shop_products')).toEqual(['id', 'name', 'sku']);
+    expect((await audited('public-endpoint.widen')).map((after) => after?.['ref'])).toEqual(['shop_products']);
   }, 120_000);
 
   it.skipIf(!available)("an add-on's update: its entry on the app's key and on its own link key", async () => {
@@ -150,6 +221,7 @@ describe.each(LEGS)('an update that widens a public endpoint a key uses — %s',
     const member = await fitter();
     const notTheirs = await h.inject({ method: 'POST', url: `/add-ons/${CARDS_KIT}/update`, payload: { publicWider: true }, as: member });
     expect(notTheirs.statusCode, notTheirs.body).toBe(403);
+    expect(notTheirs.json().error.message).toContain(WIDEN_403);
     expect(await versionOf(CARDS_KIT)).toBe('1.0.0');
 
     const updated = await h.inject({ method: 'POST', url: `/add-ons/${CARDS_KIT}/update`, payload: { publicWider: true } });
@@ -195,6 +267,13 @@ describe.each(LEGS)('an update that widens a public endpoint a key uses — %s',
     const refused = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: tick });
     expect(refused.statusCode, refused.body).toBe(422);
     expect(refused.json().error.details).toMatchObject({ reason: 'PUBLIC_WIDER', publicWider: [{ ref: BALANCE_REF, owner: CARDS_KIT, columns: ['label'] }] });
+    expect(await versionOf('shop')).toBe('1.0.0');
+    expect(await versionOf(CARDS_KIT)).toBe('1.0.0');
+    // Only the kit's entry widens (the shop's own do not): allowed by someone who may not manage API keys, refused all the same.
+    const member = await fitter();
+    const notTheirs = await h.inject({ method: 'POST', url: '/apps/shop/update', payload: { ...tick, publicWider: true }, as: member });
+    expect(notTheirs.statusCode, notTheirs.body).toBe(403);
+    expect(notTheirs.json().error.message).toContain(WIDEN_403);
     expect(await versionOf('shop')).toBe('1.0.0');
     expect(await versionOf(CARDS_KIT)).toBe('1.0.0');
 
