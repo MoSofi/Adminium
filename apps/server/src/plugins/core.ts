@@ -471,6 +471,12 @@ const AUTO_BUCKETS: readonly {
  */
 const STREAM_ROUTES = /^\/ws$|\/events$/;
 
+/** The first-run wizard's page (`/setup`, and anything under it) or one of its API calls. */
+export function isSetupPath(url: string): boolean {
+  const path = (url.split(/[?#]/)[0] ?? url).toLowerCase();
+  return path === '/setup' || path.startsWith('/setup/') || path === '/api/v1/setup' || path.startsWith('/api/v1/setup/');
+}
+
 /**
  * The bucket a route lands in when it declares none. `undefined` = unlimited:
  * everything outside `/api/` (SPA assets, the static wildcard) and the two
@@ -704,6 +710,19 @@ export const corePlugin = fp<CorePluginOptions>(
       if (typeof policy !== 'string') return payload;
       const state = await maps.read().catch(() => MAPS_OFF);
       if (state.server !== null) reply.header('content-security-policy', withMapServer(policy, state.server));
+      return payload;
+    });
+
+    /*
+     * The first-run wizard's pages and calls never say where they came from.
+     * A welcome link can carry the one-time setup token (`#setup-token=…`,
+     * `setup/token.ts`), and a page that links out must not hand its address
+     * to another site. Helmet's default already says `no-referrer` on every
+     * reply; this pins it for setup, last in line, so a later change to that
+     * default cannot loosen it here.
+     */
+    app.addHook('onSend', async (request, reply, payload) => {
+      if (isSetupPath(request.url)) reply.header('referrer-policy', 'no-referrer');
       return payload;
     });
 

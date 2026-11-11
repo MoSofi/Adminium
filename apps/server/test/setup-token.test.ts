@@ -11,12 +11,17 @@
  * The transaction-level race on every dialect is in
  * packages/meta/test/setup-token.test.ts; this file proves the HTTP doors.
  */
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import BetterSqlite3 from 'better-sqlite3';
 import { createSqliteMetaDb, firstRun, readSetupToken, usersRepo, type MetaDb } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { envSchema } from '../src/config/env.js';
+import { isSetupPath } from '../src/plugins/core.js';
 import { setupStoreRoutes } from '../src/routes/setup/store.js';
 import { createSetupService } from '../src/setup/service.js';
 import {
@@ -271,6 +276,41 @@ describe('the setup routes on a server that asks for none', () => {
     } finally {
       await app.close();
       await meta.db.destroy();
+    }
+  });
+});
+
+describe('the setup pages say where they came from to nobody', () => {
+  it('sends Referrer-Policy: no-referrer on the wizard page and every setup call', async () => {
+    const dist = mkdtempSync(join(tmpdir(), 'adminium-setup-referrer-'));
+    writeFileSync(join(dist, 'index.html'), '<!doctype html><div id="root"></div>');
+    const meta = freshMeta();
+    await firstRun(meta);
+    await prepareSetupToken({ meta, env: serverEnv(), mode: 'server' });
+    const app = await buildServer({ env: makeEnv(), metaDb: meta, logger: false, staticRoot: dist });
+    await app.ready();
+    try {
+      const page = await app.inject({ method: 'GET', url: '/setup' });
+      expect(page.statusCode).toBe(200);
+      expect(page.headers['referrer-policy']).toBe('no-referrer');
+      expect((await app.inject({ method: 'GET', url: '/setup/?step=2' })).headers['referrer-policy']).toBe('no-referrer');
+      expect((await app.inject({ method: 'GET', url: '/api/v1/setup/state' })).headers['referrer-policy']).toBe('no-referrer');
+      const refused = await app.inject({ method: 'POST', url: '/api/v1/setup/super-admin', payload: GOOD });
+      expect(refused.statusCode).toBe(403);
+      expect(refused.headers['referrer-policy']).toBe('no-referrer');
+    } finally {
+      await app.close();
+      await meta.db.destroy();
+      rmSync(dist, { recursive: true, force: true });
+    }
+  });
+
+  it('knows a setup path from one that only starts the same way', () => {
+    for (const url of ['/setup', '/setup/', '/setup?x=1', '/SETUP', '/api/v1/setup/state', '/api/v1/setup/super-admin?a=b']) {
+      expect(isSetupPath(url), url).toBe(true);
+    }
+    for (const url of ['/', '/setups', '/settings', '/api/v1/settings/email', '/api/v1/setupx', '/apps/setup']) {
+      expect(isSetupPath(url), url).toBe(false);
     }
   });
 });
