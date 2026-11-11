@@ -285,7 +285,7 @@ export default {
     "opening": "Making the project…",
     "open": "Open the project",
     "made": "{name} was made. {owner} signs in with the new password.",
-    "madeConnections": "{name} was made. {owner} signs in with the new password. {count, plural, one {# connection needs its connection string} other {# connections need their connection strings}} again.",
+    "madeConnections": "{name} was made. {owner} signs in with the new password. Enter the connection string again for: {connections}.",
     "refuse": {
       "fullArchive": "This is a whole-server archive, not an Export everything file. Restore it on a server with adminium archive restore.",
       "notAnExport": "This file is not an Export everything file. Make one in Studio, under Settings, Export everything.",

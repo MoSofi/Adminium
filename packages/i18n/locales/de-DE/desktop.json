@@ -275,7 +275,7 @@
     "opening": "Projekt wird erstellt …",
     "open": "Projekt öffnen",
     "made": "{name} wurde erstellt. {owner} meldet sich mit dem neuen Passwort an.",
-    "madeConnections": "{name} wurde erstellt. {owner} meldet sich mit dem neuen Passwort an. {count, plural, one {# Verbindung braucht ihre Verbindungszeichenfolge} other {# Verbindungen brauchen ihre Verbindungszeichenfolgen}} erneut.",
+    "madeConnections": "{name} wurde erstellt. {owner} meldet sich mit dem neuen Passwort an. Geben Sie die Verbindungszeichenfolge erneut ein für: {connections}.",
     "refuse": {
       "fullArchive": "Dies ist ein Archiv eines ganzen Servers, keine „Alles exportieren“-Datei. Stellen Sie es auf einem Server mit adminium archive restore wieder her.",
       "notAnExport": "Diese Datei ist keine „Alles exportieren“-Datei. Erstellen Sie eine in Studio unter Einstellungen, Alles exportieren.",

@@ -275,7 +275,7 @@
     "opening": "Laver projektet…",
     "open": "Åbn projektet",
     "made": "{name} er lavet. {owner} logger ind med den nye adgangskode.",
-    "madeConnections": "{name} er lavet. {owner} logger ind med den nye adgangskode. {count, plural, one {# forbindelse skal have sin forbindelsesstreng} other {# forbindelser skal have deres forbindelsesstrenge}} igen.",
+    "madeConnections": "{name} er lavet. {owner} logger ind med den nye adgangskode. Angiv forbindelsesstrengen igen for: {connections}.",
     "refuse": {
       "fullArchive": "Dette er et arkiv af en hel server, ikke en “Eksportér alt”-fil. Gendan det på en server med adminium archive restore.",
       "notAnExport": "Denne fil er ikke en “Eksportér alt”-fil. Lav en i Studio under Indstillinger, Eksportér alt.",

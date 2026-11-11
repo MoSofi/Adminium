@@ -411,10 +411,10 @@ export function StartScreen({ initial, onBuild, onConnect, onMakeIn, say }: { in
           say(
             made.connections === 0
               ? t('desktop:export.made', '{name} was made. {owner} signs in with the new password.', { name: made.name, owner: made.owner })
-              : t('desktop:export.madeConnections', '{name} was made. {owner} signs in with the new password. {count, plural, one {# connection needs its connection string} other {# connections need their connection strings}} again.', {
+              : t('desktop:export.madeConnections', '{name} was made. {owner} signs in with the new password. Enter the connection string again for: {connections}.', {
                   name: made.name,
                   owner: made.owner,
-                  count: made.connections,
+                  connections: made.drafts.length === 0 ? String(made.connections) : new Intl.ListFormat(tag, { type: 'conjunction' }).format(made.drafts),
                 }),
             'success',
           );

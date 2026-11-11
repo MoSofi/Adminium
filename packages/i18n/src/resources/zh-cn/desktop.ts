@@ -285,7 +285,7 @@ export default {
     "opening": "正在创建项目…",
     "open": "打开项目",
     "made": "已创建 {name}。{owner} 用新密码登录。",
-    "madeConnections": "已创建 {name}。{owner} 用新密码登录。{count, plural, other {# 个连接}}需要重新填写连接字符串。",
+    "madeConnections": "已创建 {name}。{owner} 用新密码登录。请为以下连接重新填写连接字符串：{connections}。",
     "refuse": {
       "fullArchive": "这是整台服务器的归档，不是“导出全部”文件。请在服务器上用 adminium archive restore 恢复。",
       "notAnExport": "此文件不是“导出全部”文件。请在 Studio 的“设置”→“导出全部”中创建。",

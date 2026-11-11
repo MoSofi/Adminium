@@ -157,7 +157,7 @@ describe('Open a project, with an Export everything file', () => {
   it('opens on the file picked from the menu: what it holds, a name and folder, who signs in first and their new password', async () => {
     const user = userEvent.setup();
     const openProject = vi.fn(() => Promise.resolve<DesktopOpenProjectResult>({ status: 'opened' }));
-    const importExport = vi.fn(() => Promise.resolve({ status: 'imported' as const, path: '/Users/sam/Adminium/hollis-bakery', owner: 'sam@hollisbakery.com', connections: 1 }));
+    const importExport = vi.fn(() => Promise.resolve({ status: 'imported' as const, path: '/Users/sam/Adminium/hollis-bakery', owner: 'sam@hollisbakery.com', connections: 1, drafts: ['Warehouse'] }));
     show(fakeStart({ readExport: vi.fn(() => Promise.resolve({ status: 'ready' as const, facts: FACTS })), importExport, openProject }), { ...STATE, pendingExport: FILE });
 
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Open a project');
@@ -188,7 +188,7 @@ describe('Open a project, with an Export everything file', () => {
     await waitFor(() => {
       expect(openProject).toHaveBeenCalledWith({ path: '/Users/sam/Adminium/hollis-bakery' });
     });
-    expect(await screen.findByText('Hollis Bakery was made. sam@hollisbakery.com signs in with the new password. 1 connection needs its connection string again.')).toBeTruthy();
+    expect(await screen.findByText('Hollis Bakery was made. sam@hollisbakery.com signs in with the new password. Enter the connection string again for: Warehouse.')).toBeTruthy();
   });
 
   it('says a whole-server archive is restored on a server, and offers another file', async () => {

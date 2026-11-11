@@ -632,7 +632,14 @@ export interface DesktopImportExportInput extends DesktopNewFolderInput {
 
 export type DesktopImportExportResult =
   /** Made: open it with `openProject` (which asks about its code first when the file carried any). */
-  | { readonly status: 'imported'; readonly path: string; readonly owner: string; /** Connections that came without their connection string. */ readonly connections: number }
+  | {
+      readonly status: 'imported';
+      readonly path: string;
+      readonly owner: string;
+      /** How many connections came without their connection string, and their names: Draft until it is entered again. */
+      readonly connections: number;
+      readonly drafts: readonly string[];
+    }
   | { readonly status: 'folder-refused'; readonly refused: DesktopFolderRefusal }
   | { readonly status: 'warned'; readonly warning: DesktopFolderWarning }
   | { readonly status: 'refused'; readonly refused: DesktopExportRefusal; readonly detail: string };

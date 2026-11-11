@@ -592,12 +592,14 @@ export function createStartService(deps: StartDeps): StartService {
         await deps.saveConfig(
           rememberProject(deps.readConfig(), { path: root, name: input.name.trim(), state: 'building', trusted: made.carriedProject ? null : fingerprint(root), reviewed: false }, now()),
         );
+        // Every connection but a SQLite file that came inside the export lost its string on the way.
+        const drafts = made.answer.drafts ?? [];
         return {
           status: 'imported',
           path: root,
           owner: made.answer.owner ?? input.owner,
-          // Every connection but a SQLite file that came inside the export lost its string on the way.
-          connections: Math.max(0, made.answer.connections - made.answer.databases),
+          connections: made.answer.drafts === undefined ? Math.max(0, made.answer.connections - made.answer.databases) : drafts.length,
+          drafts,
         };
       } finally {
         making = false;

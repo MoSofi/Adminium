@@ -285,7 +285,7 @@ export default {
     "opening": "Vytváří se projekt…",
     "open": "Otevřít projekt",
     "made": "Projekt {name} je vytvořen. {owner} se přihlásí novým heslem.",
-    "madeConnections": "Projekt {name} je vytvořen. {owner} se přihlásí novým heslem. {count, plural, one {# připojení potřebuje znovu svůj připojovací řetězec} few {# připojení potřebují znovu své připojovací řetězce} many {# připojení potřebuje znovu své připojovací řetězce} other {# připojení potřebuje znovu své připojovací řetězce}}.",
+    "madeConnections": "Projekt {name} je vytvořen. {owner} se přihlásí novým heslem. Znovu zadejte připojovací řetězec pro: {connections}.",
     "refuse": {
       "fullArchive": "Toto je archiv celého serveru, ne soubor „Exportovat vše“. Obnovte ho na serveru příkazem adminium archive restore.",
       "notAnExport": "Tento soubor není soubor „Exportovat vše“. Vytvořte ho ve Studiu v Nastavení, Exportovat vše.",

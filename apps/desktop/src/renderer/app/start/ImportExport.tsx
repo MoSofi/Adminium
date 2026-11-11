@@ -70,7 +70,7 @@ export function ImportExportScreen({
   onBack: () => void;
   onChooseAnother: () => void;
   /** Made: Start opens it, as any folder. */
-  onImported: (made: { path: string; name: string; owner: string; connections: number }) => void;
+  onImported: (made: { path: string; name: string; owner: string; connections: number; drafts: readonly string[] }) => void;
 }): ReactNode {
   const t = useT();
   const nameId = useId();
@@ -217,7 +217,7 @@ export function ImportExportScreen({
       if (result.status === 'imported') {
         setPassword('');
         setAgain('');
-        onImported({ path: result.path, name: name.trim(), owner: result.owner, connections: result.connections });
+        onImported({ path: result.path, name: name.trim(), owner: result.owner, connections: result.connections, drafts: result.drafts });
         return;
       }
       if (result.status === 'refused') setFailure({ title: exportRefusalWords(t, result.refused), detail: result.detail });

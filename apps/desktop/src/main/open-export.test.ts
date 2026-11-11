@@ -17,7 +17,10 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { firstRun, openMetaStore } from '@adminium/server';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
+
+import { firstRun, openMetaStore, startProject, type StartedProject } from '@adminium/server';
 import argon2 from 'argon2';
 import Database from 'better-sqlite3';
 import { strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
@@ -149,7 +152,8 @@ describe('a new project from the file', () => {
     expect(made).toMatchObject({ ok: true, carriedProject: false, answer: { owner: 'bo@example.com' } });
 
     const [restore, project] = calls;
-    expect(restore?.args).toEqual(['/app/server/cli.js', 'import-zip', '/Users/sam/Downloads/shop.zip', '--json', '--data-dir', join(root(), 'data'), '--project-dir', root(), '--owner', 'bo@example.com', '--password-stdin']);
+    // `--local-owner`: the one picked here is this computer's owner; the file never says who that is.
+    expect(restore?.args).toEqual(['/app/server/cli.js', 'import-zip', '/Users/sam/Downloads/shop.zip', '--json', '--data-dir', join(root(), 'data'), '--project-dir', root(), '--owner', 'bo@example.com', '--password-stdin', '--local-owner']);
     expect(restore?.cwd).toBe(root());
     // The key was in place before the file was read: a `.env` inside the export cannot land in its place.
     expect(restore?.envFileThen).toContain(`ADMINIUM_SECRET=${'k'.repeat(64)}`);
@@ -257,7 +261,7 @@ describe('Start, with an export', () => {
     const made = fakeEngine();
     const start = service({ importExport: createImportExport(made.deps) });
     const result = await start.importExport({ path: file, parent: join(home, 'Adminium'), name: 'Shop', owner: 'bo@example.com', password: 'a-long-new-password' });
-    expect(result).toEqual({ status: 'imported', path: join(home, 'Adminium', 'shop'), owner: 'bo@example.com', connections: 1 });
+    expect(result).toEqual({ status: 'imported', path: join(home, 'Adminium', 'shop'), owner: 'bo@example.com', connections: 1, drafts: [] });
     expect(config.projects[0]).toMatchObject({ path: join(home, 'Adminium', 'shop'), name: 'Shop', reviewed: false, trusted: projectFingerprint(join(home, 'Adminium', 'shop')) });
 
     const carried = fakeEngine({
@@ -432,5 +436,134 @@ describe('the real engine, on a real export', () => {
     const plain = join(home, 'Downloads', 'notes.zip');
     writeFileSync(plain, zipSync({ 'notes.txt': strToU8('hello') }));
     expect(await createDescribeExport(engine)(plain)).toMatchObject({ ok: false, refused: 'not-an-export' });
+  });
+});
+
+// ─── A project folder that travels in the export ─────────────────────────────
+
+const freePort = async (): Promise<number> =>
+  new Promise((done) => {
+    const probe = createServer();
+    probe.listen(0, '127.0.0.1', () => {
+      const { port } = probe.address() as { port: number };
+      probe.close(() => done(port));
+    });
+  });
+
+/**
+ * A project's config reads its `.env` through `process.env` (the terminal's start loads it there), so a
+ * server started in this process is given `process.env` itself, cleared of what a start leaves in it.
+ */
+type Conn = { name: string; status: string; dsnMasked: string | null };
+const PROJECT_NAMES = ['ADMINIUM_SECRET', 'ADMINIUM_RUNTIME', 'DATABASE_URL', 'SHOP_API_KEY'];
+async function boot(root: string, opts: Omit<Parameters<typeof startProject>[0], 'root' | 'env'>): Promise<StartedProject> {
+  for (const name of PROJECT_NAMES) delete process.env[name];
+  return startProject({ root, env: process.env, ...opts });
+}
+afterEach(() => {
+  for (const name of PROJECT_NAMES) delete process.env[name];
+});
+
+describe('the real engine, on an export of a desktop project with its own folder', () => {
+  let live: StartedProject | null = null;
+  afterEach(async () => {
+    await live?.close();
+    live = null;
+  });
+
+  it('opens: its .env is written as `new` writes one, the picked Super Admin is this computer’s owner, and it boots and serves its pages', { timeout: 300_000 }, async () => {
+    // A project as the app makes one: a config reading DATABASE_URL, its own SQLite data, a key in .env.
+    const source = join(home, 'shop');
+    mkdirSync(join(source, 'data'), { recursive: true });
+    writeFileSync(join(source, 'adminium.config.mjs'), 'export default { databases: { main: { url: process.env.DATABASE_URL } } };\n');
+    writeFileSync(join(source, 'package.json'), '{"name":"shop","private":true,"type":"module"}\n');
+    writeFileSync(join(source, '.env'), `ADMINIUM_SECRET=${SOURCE_SECRET}\nDATABASE_URL=sqlite:./data/app.sqlite\nSHOP_API_KEY=the-real-key\n`);
+    writeFileSync(join(source, '.env.example'), 'DATABASE_URL=\nSHOP_API_KEY=example\n');
+    const shop = new Database(join(source, 'data', 'app.sqlite'));
+    shop.exec("create table orders (id integer primary key, customer text not null); insert into orders (customer) values ('Ana'), ('Ben');");
+    shop.close();
+    // Built here first: the app's owner is made, the database connected and its pages written.
+    live = await boot(source, { port: await freePort(), mode: 'design' });
+    await live.close();
+    live = null;
+    const meta = new Database(join(source, 'data', 'meta.db'));
+    const original = (meta.prepare("select json_extract(value, '$') as id from adminium_settings where key = 'designer.localOwnerId'").get() as { id: string }).id;
+    expect(original).toMatch(/^usr_/);
+    // A second Super Admin, the one who will be picked on the other computer.
+    const superAdmin = (meta.prepare("select id from adminium_roles where slug = 'super-admin'").get() as { id: string }).id;
+    const bo = id('usr', 'D1');
+    meta.prepare("insert into adminium_users (id, email, name, status, created_at, updated_at) values (?, 'bo@example.com', 'Bo', 'active', 2, 2)").run(bo);
+    meta.prepare('insert into adminium_user_roles (user_id, role_id, created_at) values (?, ?, 2)').run(bo, superAdmin);
+    // Its own database came in as a connection, with pages made for it.
+    expect((meta.prepare("select count(*) as n from adminium_connections where project_key = 'main'").get() as { n: number }).n).toBe(1);
+    meta.close();
+
+    const exported = join(home, 'Downloads', 'shop.zip');
+    mkdirSync(join(home, 'Downloads'), { recursive: true });
+    const made = await cli(['archive', 'create', exported, '--export'], source);
+    expect(made.code, made.output).toBe(0);
+    const members = unzipSync(readFileSync(exported));
+    const settings = Buffer.from(members['adminium-archive/meta/adminium_settings.json'] as Uint8Array).toString('utf8');
+    // The file never says who is signed in without a password, and carries no .env.
+    expect(settings).not.toContain('designer.ownerId');
+    expect(settings).not.toContain('designer.localOwnerId');
+    expect(Object.keys(members)).toContain('adminium-archive/project/adminium.config.mjs');
+    expect(Object.keys(members).some((name) => name.endsWith('/.env'))).toBe(false);
+
+    const root = join(home, 'Adminium', 'shop-copy');
+    const opened = await createImportExport(realEngine())({ file: exported, root, ownerEmail: 'bo@example.com', password: PASSWORD });
+    expect(opened.ok, JSON.stringify(opened)).toBe(true);
+    if (!opened.ok) return;
+    expect(opened.carriedProject).toBe(true);
+    const env = readFileSync(join(root, '.env'), 'utf8');
+    expect(env).toMatch(/^ADMINIUM_SECRET=[0-9a-f]{64}$/m);
+    expect(env).toMatch(/^DATABASE_URL=sqlite:\.\/data\/databases\/[a-z0-9_-]+\.sqlite$/m);
+    expect(env).toMatch(/^SHOP_API_KEY=$/m);
+    expect(env).not.toContain('the-real-key');
+    expect(env).not.toContain(SOURCE_SECRET);
+
+    // The picked Super Admin is this computer's owner, the one the app signs in without a password; the original is not.
+    const restored = new Database(join(root, 'data', 'meta.db'), { readonly: true });
+    const ownerSetting = (key: string): unknown => (restored.prepare("select json_extract(value, '$') as v from adminium_settings where key = ?").get(key) as { v: unknown } | undefined)?.v ?? null;
+    expect(ownerSetting('designer.ownerId')).toBe(bo);
+    expect(ownerSetting('designer.localOwnerId')).toBeNull();
+    restored.close();
+
+    // It boots, as a terminal starts it (its own process: the engine that restored it), and serves its pages.
+    const port = await freePort();
+    const childEnv: Record<string, string> = {};
+    for (const [name, value] of Object.entries(process.env)) if (value !== undefined && !name.startsWith('VITEST') && !PROJECT_NAMES.includes(name)) childEnv[name] = value;
+    const server = spawn(process.execPath, [CLI, 'start', '--port', String(port)], { cwd: root, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
+    let said = '';
+    server.stdout.on('data', (chunk: Buffer) => (said += chunk.toString('utf8')));
+    server.stderr.on('data', (chunk: Buffer) => (said += chunk.toString('utf8')));
+    try {
+      const url = `http://127.0.0.1:${String(port)}`;
+      const deadline = Date.now() + 120_000;
+      let up = false;
+      while (!up && Date.now() < deadline && server.exitCode === null) {
+        up = await fetch(`${url}/api/v1/healthz`).then(
+          (res) => res.ok,
+          () => false,
+        );
+        if (!up) await new Promise((wait) => setTimeout(wait, 500));
+      }
+      expect(up, said).toBe(true);
+      // Bo signs in with the password set in the app.
+      const login = await fetch(`${url}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', origin: url }, body: JSON.stringify({ email: 'bo@example.com', password: PASSWORD }) });
+      expect(login.status, said).toBe(200);
+      const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0] ?? '';
+      const pages = await fetch(`${url}/api/v1/pages`, { headers: { cookie } });
+      expect(pages.status).toBe(200);
+      expect(JSON.stringify(await pages.json())).toContain('orders');
+      // The project's own database is the SQLite file that came in the export, connected.
+      const listed = (await (await fetch(`${url}/api/v1/connections`, { headers: { cookie } })).json()) as { connections?: Conn[]; data?: { connections: Conn[] } };
+      const main = (listed.data?.connections ?? listed.connections ?? []).find((connection) => connection.name === 'main');
+      expect(main).toMatchObject({ status: 'connected' });
+      expect(main?.dsnMasked).toContain(join(root, 'data', 'databases'));
+    } finally {
+      server.kill('SIGTERM');
+      await new Promise((done) => (server.exitCode === null ? server.once('exit', done) : done(undefined)));
+    }
   });
 });

@@ -285,7 +285,7 @@ export default {
     "opening": "正在建立專案…",
     "open": "開啟專案",
     "made": "已建立 {name}。{owner} 用新密碼登入。",
-    "madeConnections": "已建立 {name}。{owner} 用新密碼登入。{count, plural, other {# 個連線}}需要重新填寫連線字串。",
+    "madeConnections": "已建立 {name}。{owner} 用新密碼登入。請為以下連線重新填寫連線字串：{connections}。",
     "refuse": {
       "fullArchive": "這是整台伺服器的封存檔，不是「匯出全部」檔案。請在伺服器上用 adminium archive restore 還原。",
       "notAnExport": "此檔案不是「匯出全部」檔案。請在 Studio 的「設定」→「匯出全部」中建立。",

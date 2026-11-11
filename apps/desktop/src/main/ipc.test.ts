@@ -695,7 +695,7 @@ describe('the first screens’ channels', () => {
     useClassic: vi.fn(),
     chooseExport: vi.fn(() => Promise.resolve({ path: '/home/ava/Downloads/shop.zip', displayPath: '~/Downloads/shop.zip' })),
     readExport: vi.fn(() => Promise.resolve({ status: 'missing' as const })),
-    importExport: vi.fn(() => Promise.resolve({ status: 'imported' as const, path: '/home/ava/Adminium/shop', owner: 'ava@example.com', connections: 0 })),
+    importExport: vi.fn(() => Promise.resolve({ status: 'imported' as const, path: '/home/ava/Adminium/shop', owner: 'ava@example.com', connections: 0, drafts: [] })),
     trustNow: vi.fn(() => Promise.resolve()),
   });
 

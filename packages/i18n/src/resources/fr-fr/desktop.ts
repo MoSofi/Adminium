@@ -285,7 +285,7 @@ export default {
     "opening": "Création du projet…",
     "open": "Ouvrir le projet",
     "made": "{name} a été créé. {owner} se connecte avec le nouveau mot de passe.",
-    "madeConnections": "{name} a été créé. {owner} se connecte avec le nouveau mot de passe. {count, plural, one {# connexion a besoin de sa chaîne de connexion} other {# connexions ont besoin de leur chaîne de connexion}} à nouveau.",
+    "madeConnections": "{name} a été créé. {owner} se connecte avec le nouveau mot de passe. Saisissez à nouveau la chaîne de connexion pour : {connections}.",
     "refuse": {
       "fullArchive": "Ceci est l’archive d’un serveur entier, pas un fichier « Tout exporter ». Restaurez-la sur un serveur avec adminium archive restore.",
       "notAnExport": "Ce fichier n’est pas un fichier « Tout exporter ». Créez-en un dans Studio, sous Paramètres, Tout exporter.",

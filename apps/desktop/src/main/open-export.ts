@@ -19,9 +19,13 @@
  *  2. The new folder, with a `.env` holding a key made now, written FIRST, so
  *     a file of that name inside the export can never land in its place (the
  *     restore never overwrites).
- *  3. `import-zip --json --owner <email> --password-stdin`: the people, pages,
- *     files and project folder come back, and the person's chosen Super Admin
- *     gets the password they typed in the app. The password crosses on
+ *  3. `import-zip --json --owner <email> --password-stdin --local-owner`: the
+ *     people, pages, files and project folder come back, and the person's
+ *     chosen Super Admin gets the password they typed in the app and is this
+ *     computer's owner (signed in by the app without a password, as the owner
+ *     of a project it made is). The file never decides that: an export carries
+ *     no owner. A project folder that came in it gets the `.env` its config
+ *     reads (the engine writes it, as `new` would). The password crosses on
  *     standard input, never on a command line or in a log.
  *  4. An export of a server that ran without a project folder brings none:
  *     the engine's own `new` makes this folder a project around the instance
@@ -67,6 +71,8 @@ const okSchema = z.object({
   owners: z.array(ownerSchema).max(1000),
   passwordMinLength: z.number().int().positive(),
   owner: z.string().nullable(),
+  /** Connections that came without their connection string, by name (an engine older than this list says nothing). */
+  drafts: z.array(z.string()).max(1000).optional(),
   warnings: z.array(z.string()).max(1000),
 });
 
@@ -203,7 +209,7 @@ export function createImportExport(deps: OpenExportDeps): (input: ImportExportIn
     delete env.ADMINIUM_PROJECT_DIR;
     const ran = await deps.run(
       deps.binary,
-      [deps.cliEntry, 'import-zip', file, '--json', '--data-dir', join(root, 'data'), '--project-dir', root, '--owner', ownerEmail, '--password-stdin'],
+      [deps.cliEntry, 'import-zip', file, '--json', '--data-dir', join(root, 'data'), '--project-dir', root, '--owner', ownerEmail, '--password-stdin', '--local-owner'],
       { cwd: root, env, timeoutMs: IMPORT_EXPORT_TIMEOUT_MS, input: `${password}\n` },
     );
     // What it printed holds no password: it went in on standard input, and the engine never says it.
