@@ -5,6 +5,7 @@
  * subtitle, filtered empty state), the Gantt domain-card detail pane, and the
  * loading/error/invalid states. Deterministic data — canned states only.
  */
+import { GANTT_DEMO_TODAY_MS } from '../../families/domain/domain-config.js';
 import { PageMasterDetail } from './PageMasterDetail.js';
 
 const meta = {
@@ -102,6 +103,9 @@ const ganttConfig = {
           progressColumn: 'progress',
           groupColumn: 'phase_id',
           binding,
+          // Today pinned to the demo plan's day, as the Gantt's own stories do: on the wall clock the marker
+          // wanders across the bars from one day to the next, and so does what the accessibility check sees.
+          format: { referenceTime: GANTT_DEMO_TODAY_MS },
         },
       },
     ],
