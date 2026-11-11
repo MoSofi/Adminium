@@ -180,7 +180,7 @@ describe('avatar menu Studio section', () => {
 });
 
 /**
- * "Put this online…" (plan 75 O9 = B): one group after Studio and before Help
+ * "Put this online…": one group after Studio and before Help
  * centre, for every role, opening adminium.dev/deploy outside the app; gone
  * when the operator sets ADMINIUM_DEPLOY_LINK=off, and on an older server.
  */

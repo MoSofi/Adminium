@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Studio → Server settings → Export everything (`/studio/settings/export`), for
- * Super Admins. `designs/plan-75/Trial Mode.dc.html`, view 5 (lines 176-256).
+ * Super Admins.
  *
  * One file with everything made in this installation (the instance archive's
  * export variant, no passwords, secrets or keys), made on the server and
@@ -39,7 +39,7 @@ function formatBytes(bytes: number): string {
   return getFormatters(getI18nInstance()?.language ?? 'en-US').bytes(bytes);
 }
 
-/** A 34 px square holding a 16 px icon (comp 225, 238, 245). */
+/** A 34 px square holding a 16 px icon. */
 function Tile({ icon }: { icon: ReactNode }): ReactNode {
   return (
     <span aria-hidden="true" className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-surface-3 text-fg-muted [&_svg]:size-4">

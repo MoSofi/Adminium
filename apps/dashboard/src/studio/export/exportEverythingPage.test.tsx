@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Studio → Server settings → Export everything (`Trial Mode.dc.html` view 5):
+ * Studio → Server settings → Export everything:
  * idle, preparing with its percent, ready with the file's name and size and one
  * download, back to idle after it, expired, refused; Copy; the desktop's
  * pointer to its own export; and "Put this online", hidden when the operator
