@@ -15,7 +15,7 @@ import { use, useState, type ReactNode } from 'react';
 import { OnboardingPage } from './onboarding/OnboardingPage.js';
 import { onboardingMessagesReady } from './onboarding/onboardingMessages.js';
 import { SetupTokenScreen } from './SetupTokenScreen.js';
-import { SETUP_STATE_QUERY_KEY, setupStateQuery, type SetupState } from './setupApi.js';
+import { SETUP_STATE_QUERY_KEY, setupStateQuery, type SetupState } from './setupState.js';
 
 export function SetupPage(): ReactNode {
   // The wizard's own namespace is deferred. Awaiting it HERE, on the

@@ -39,7 +39,7 @@ import {
   validateWorkflowLogsSearch,
 } from '../automations/search.js';
 import { reportsRoutes } from '../reports/routes.js';
-import { setupStateQuery } from '../setup/setupApi.js';
+import { setupStateQuery } from '../setup/setupState.js';
 import { HomePage } from '../pages/HomePage.js';
 import { PageRenderer } from '../pages/PageRenderer.js';
 import { preloadPageTemplates } from '../pages/templates.js';

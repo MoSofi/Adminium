@@ -11,7 +11,7 @@ import { ResetPasswordForm } from '@adminium/ui';
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
 import { AuthScreenLayout } from './AuthScreenLayout.js';
-import { setupStateQuery } from '../setup/setupApi.js';
+import { setupStateQuery } from '../setup/setupState.js';
 import { resetPassword } from './authApi.js';
 
 /** `auth.passwordMinLength`'s registry floor: what a page that has not heard the policy yet asks for. */
