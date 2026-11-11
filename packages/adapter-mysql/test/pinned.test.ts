@@ -106,6 +106,54 @@ describe('a connection goes to the checked address', () => {
   });
 });
 
+describe('each new connection asks the server’s re-check', () => {
+  it('dials the address the re-check gives now, and fails on its refusal', async () => {
+    const at: Record<string, number> = { '127.0.0.1': 0, '::1': 0 };
+    const listen = async (host: string, port: number): Promise<number> => {
+      const server = net.createServer((socket) => {
+        at[host] = (at[host] ?? 0) + 1;
+        socket.destroy();
+      });
+      servers.push(server);
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(port, host, resolve);
+      });
+      return (server.address() as net.AddressInfo).port;
+    };
+    const port = await listen('127.0.0.1', 0);
+    await listen('::1', port);
+    let answer: readonly string[] | Error = ['127.0.0.1'];
+    const config = mysqlEndpointConfig(
+      endpoint({
+        port,
+        addresses: ['127.0.0.1'],
+        resolveAddresses: async () => {
+          if (answer instanceof Error) throw answer;
+          return answer;
+        },
+      }),
+    );
+    const dial = async (): Promise<string> =>
+      new Promise((resolve) => {
+        const socket = config.stream?.();
+        if (socket === undefined) throw new Error('no stream');
+        socket.once('connect', () => {
+          resolve(socket.remoteAddress ?? '');
+          socket.destroy();
+        });
+        socket.once('error', (error) => resolve(`error: ${error.message}`));
+      });
+    expect(await dial()).toBe('127.0.0.1');
+    answer = ['::1'];
+    expect(await dial()).toBe('::1');
+    answer = Object.assign(new Error('The host db.pinned.invalid now resolves to an address this server does not connect to (127.0.0.1): loopback.'), { code: 'ENOTFOUND' });
+    expect(await dial()).toContain('loopback');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(at).toEqual({ '127.0.0.1': 1, '::1': 1 });
+  });
+});
+
 describe.runIf(TEST_MYSQL_URL !== '')('against the local MySQL', () => {
   it('serves a query through the pin, the name never looked up', async () => {
     const url = new URL(TEST_MYSQL_URL);

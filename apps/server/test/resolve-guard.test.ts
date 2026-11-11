@@ -9,18 +9,20 @@
  * answer anything the next time the driver asks. So in production the host is
  * looked up the way the drivers look it up, every address is checked, a name
  * that does not resolve is refused, and the addresses that passed travel to
- * the adapter in the DSN's fields: the driver never looks the name up again,
- * so a second answer cannot redirect it (DNS rebinding).
+ * the adapter in the DSN's fields: the driver never looks the name up itself,
+ * so a second answer cannot redirect it (DNS rebinding). Each new connection
+ * of a pool runs the same check again, so a name that moves (a failover) is
+ * followed and a name moved somewhere refused is refused.
  *
  * The lookup is injected throughout; nothing here asks a real resolver.
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { AdapterRegistry, type AdapterProvider, type DatabaseEndpoint } from '@adminium/engine/adapter';
 import { createSqliteMetaDb, firstRun } from '@adminium/meta';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
-import { checkDsn, parseDatabaseHost, type DatabaseHost } from '../src/connections/dsn.js';
+import { ADDRESS_RECHECK_MS, checkDsn, parseDatabaseHost, type DatabaseHost } from '../src/connections/dsn.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { resolveAndCheck } from '../src/llm/outbound.js';
 import { addressKind, checkHost, embeddedIpv4, type HostLookup } from '../src/net/address-guard.js';
@@ -184,6 +186,7 @@ describe('the driver dials what was checked', () => {
           password: 'pw',
           params: { sslmode: 'require' },
           addresses: ['203.0.113.10'],
+          resolveAddresses: expect.any(Function),
         },
       },
     ]);
@@ -254,6 +257,68 @@ describe('the driver dials what was checked', () => {
     await production(lookup, dialled).testDsn('mysql', 'mysql://app@203.0.113.10:3306/shop');
     expect(lookup.asked).toEqual([]);
     expect(dialled[0]?.endpoint).toMatchObject({ host: '203.0.113.10', addresses: ['203.0.113.10'] });
+  });
+});
+
+describe('each new connection of a pool checks its host again', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A lookup whose answer the test moves, counting the lookups. */
+  function moving(first: readonly string[]): { lookup: HostLookup; answer: readonly string[]; asked: number } {
+    const state = {
+      answer: first,
+      asked: 0,
+      lookup: async (): Promise<readonly string[]> => {
+        state.asked += 1;
+        return state.answer;
+      },
+    };
+    return state;
+  }
+
+  async function pooled(lookup: HostLookup, opts: { blockLoopback?: boolean } = {}): Promise<() => Promise<readonly string[]>> {
+    const checked = await checkDsn('postgres://app@db.example.com:5432/shop', { blockLoopback: opts.blockLoopback ?? true, lookup });
+    const resolve = checked.endpoint?.resolveAddresses;
+    if (resolve === undefined) throw new Error('no re-check on the endpoint');
+    return resolve;
+  }
+
+  it('dials the new address after the name moves (a failover), without a restart', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const lookup = moving(['203.0.113.10']);
+    const resolve = await pooled(lookup.lookup);
+    // The first sockets reuse the pool's own check.
+    expect(await resolve()).toEqual(['203.0.113.10']);
+    expect(lookup.asked).toBe(1);
+    lookup.answer = ['203.0.113.20'];
+    vi.advanceTimersByTime(ADDRESS_RECHECK_MS + 1);
+    expect(await resolve()).toEqual(['203.0.113.20']);
+    expect(lookup.asked).toBe(2);
+  });
+
+  it('refuses the next socket when the name moves to metadata or this machine', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const lookup = moving(['203.0.113.10']);
+    const resolve = await pooled(lookup.lookup);
+    lookup.answer = ['169.254.169.254'];
+    vi.advanceTimersByTime(ADDRESS_RECHECK_MS + 1);
+    await expect(resolve()).rejects.toMatchObject({ code: 'ENOTFOUND', reason: 'metadata' });
+    lookup.answer = ['203.0.113.10', '127.0.0.1'];
+    await expect(resolve()).rejects.toMatchObject({ reason: 'loopback', message: expect.stringContaining('(127.0.0.1)') });
+  });
+
+  it('a burst of sockets shares one lookup', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const lookup = moving(['203.0.113.10']);
+    const resolve = await pooled(lookup.lookup);
+    vi.advanceTimersByTime(ADDRESS_RECHECK_MS + 1);
+    lookup.answer = ['203.0.113.20'];
+    const burst = await Promise.all(Array.from({ length: 10 }, async () => resolve()));
+    expect(burst.every((addresses) => addresses[0] === '203.0.113.20')).toBe(true);
+    expect(await resolve()).toEqual(['203.0.113.20']);
+    expect(lookup.asked).toBe(2);
   });
 });
 

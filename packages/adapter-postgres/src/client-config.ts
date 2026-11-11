@@ -10,9 +10,12 @@
  * a parameter this file does not map never reaches the driver.
  *
  * When the server checked the host's addresses, every connection is opened to
- * those addresses (in the resolver's order, falling back between them as
- * `net.connect` does) and never looks the name up again, so a name whose
- * answer changes after the check cannot move the connection. The host stays
+ * checked addresses (in the resolver's order, falling back between them as
+ * `net.connect` does) and the driver never looks the name up itself. Where the
+ * server hands its re-check (`resolveAddresses`), each new connection asks it:
+ * a database whose name moved (a failover) is reached at its new address, and
+ * a name moved somewhere refused is refused, while a name whose answer changes
+ * between a check and its dial still cannot move that connection. The host stays
  * the name: `pg` sends it as the TLS server name and checks the certificate
  * against it, and a provider that routes by server name (Neon) sees its own.
  */
@@ -35,10 +38,23 @@ export interface PgEndpointConfig {
   stream?: () => net.Socket;
 }
 
-/** A `lookup` that answers with the checked addresses, whatever the name says now. */
-export function pinnedLookup(addresses: readonly string[]): LookupFunction {
-  const entries = addresses.map((address) => ({ address, family: isIP(address) === 6 ? 6 : 4 }));
-  return (_name, options, callback) => {
+/** Where the checked addresses come from: fixed at the check, or the server's check run again for each connection. */
+export type AddressSource = readonly string[] | (() => Promise<readonly string[]>);
+
+/** The endpoint's address source: the re-check when the server gave one, else the fixed addresses. */
+export function addressSource(endpoint: DatabaseEndpoint): AddressSource | undefined {
+  return endpoint.resolveAddresses ?? endpoint.addresses;
+}
+
+/**
+ * A `lookup` that answers with the checked addresses, whatever the name says
+ * now. Given the server's re-check, it asks it once per connection (the
+ * server shares one answer across a burst) and answers with what passed, or
+ * fails the connection with the refusal.
+ */
+export function pinnedLookup(source: AddressSource): LookupFunction {
+  const answer = (addresses: readonly string[], options: { all?: boolean | undefined }, callback: Parameters<LookupFunction>[2]): void => {
+    const entries = addresses.map((address) => ({ address, family: isIP(address) === 6 ? 6 : 4 }));
     const [first] = entries;
     if (first === undefined) {
       callback(Object.assign(new Error('no checked address to connect to'), { code: 'ENOTFOUND' }), '', 4);
@@ -47,6 +63,13 @@ export function pinnedLookup(addresses: readonly string[]): LookupFunction {
     if (options.all === true) callback(null, entries);
     else callback(null, first.address, first.family);
   };
+  if (typeof source !== 'function') return (_name, options, callback) => answer(source, options, callback);
+  return (_name, options, callback) => {
+    source().then(
+      (addresses) => answer(addresses, options, callback),
+      (error: unknown) => callback(error instanceof Error ? error : new Error(String(error)), '', 4),
+    );
+  };
 }
 
 /**
@@ -54,9 +77,9 @@ export function pinnedLookup(addresses: readonly string[]): LookupFunction {
  * checked addresses. A host written as an address is dialled as it is: it was
  * checked as written, and `net` looks nothing up for it.
  */
-export function pinnedSocket(addresses: readonly string[]): net.Socket {
+export function pinnedSocket(source: AddressSource): net.Socket {
   const socket = new net.Socket();
-  const lookup = pinnedLookup(addresses);
+  const lookup = pinnedLookup(source);
   const connect = socket.connect.bind(socket) as (options: net.TcpSocketConnectOpts) => net.Socket;
   (socket as { connect: (port: number, host: string) => net.Socket }).connect = (port, host) => connect({ port, host, lookup });
   return socket;
@@ -121,7 +144,7 @@ export function pgEndpointConfig(endpoint: DatabaseEndpoint): { config: PgEndpoi
   if (appName !== undefined) config.application_name = appName;
   const fallbackName = params['fallback_application_name'];
   if (fallbackName !== undefined) config.fallback_application_name = fallbackName;
-  const addresses = endpoint.addresses;
-  if (addresses !== undefined) config.stream = () => pinnedSocket(addresses);
+  const source = addressSource(endpoint);
+  if (source !== undefined) config.stream = () => pinnedSocket(source);
   return { config, options: params['options'] ?? null };
 }

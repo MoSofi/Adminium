@@ -30,12 +30,22 @@ export interface DatabaseEndpoint {
   readonly params: Readonly<Record<string, string>>;
   /**
    * The addresses the host was checked at, in the order to try them. When
-   * set, the driver connects to these and never looks the name up again, so an
-   * answer that changes after the check cannot move the connection; the name
+   * set, the driver connects to these and never looks the name up itself, so
+   * an answer that changes after the check cannot move the connection; the name
    * is still the TLS server name and the name the certificate is checked
    * against.
    */
   readonly addresses?: readonly string[];
+  /**
+   * The server's check, run again for each new connection: the name looked up
+   * now and every address held to the same rule as the first check. Resolves
+   * to the addresses to dial; rejects (an error with a `code`) when the name
+   * now points somewhere refused or does not resolve. When set, it outranks
+   * {@link addresses}, so a database whose name moves (a failover) is
+   * reached at its new address without a restart, and a name moved to a
+   * refused address is refused on the next connection.
+   */
+  readonly resolveAddresses?: () => Promise<readonly string[]>;
 }
 
 /**
