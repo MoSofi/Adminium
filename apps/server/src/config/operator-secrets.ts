@@ -48,7 +48,8 @@ const held = new Map<string, string>();
 
 /**
  * Move every operator secret out of `env` (by default `process.env`) into this module. A value found again later (a
- * test that sets one, a host that boots twice) replaces the held one. An empty value is taken out and not held.
+ * test that sets one, a host that boots twice) replaces the held one. An empty value is taken out and forgets the
+ * held one: set to nothing is unset.
  * Returns the names it took out. Safe to call any number of times.
  */
 export function holdOperatorSecrets(env: Record<string, string | undefined> = process.env): string[] {
@@ -56,7 +57,8 @@ export function holdOperatorSecrets(env: Record<string, string | undefined> = pr
   for (const name of Object.keys(env)) {
     if (!isOperatorSecretName(name)) continue;
     const value = env[name];
-    if (value !== undefined && value !== '') held.set(name, value);
+    if (value === '') held.delete(name);
+    else if (value !== undefined) held.set(name, value);
     // `delete` and not `= undefined`: on `process.env` an assignment stores the string "undefined".
     delete env[name];
     moved.push(name);

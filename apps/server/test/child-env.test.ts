@@ -179,6 +179,9 @@ describe('after the server boots', () => {
     expect(holdOperatorSecrets()).toEqual([]);
     expect(process.env['SHOP_DATABASE_URL']).toBe('postgres://shop');
     for (const name of Object.keys(SECRETS)) expect(isOperatorSecretName(name), name).toBe(true);
+    // Set to nothing is unset: the held value is forgotten too.
+    process.env['ADMINIUM_OPERATOR_TOKEN'] = '';
+    expect(operatorSecret('ADMINIUM_OPERATOR_TOKEN')).toBeUndefined();
     expect(isOperatorSecretName('ADMINIUM_DATA_DIR')).toBe(false);
   });
 });

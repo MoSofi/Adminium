@@ -115,11 +115,10 @@ export interface Client {
 }
 
 async function server(opts: { keys?: boolean } = {}): Promise<Client> {
-  if (opts.keys !== false) {
-    vi.stubEnv('PEXELS_API_KEY', 'pexels-key');
-    vi.stubEnv('UNSPLASH_ACCESS_KEY', 'unsplash-key');
-    vi.stubEnv('PIXABAY_API_KEY', 'pixabay-key');
-  }
+  // The server holds these once read (`config/operator-secrets.ts`): set to nothing is how a later server has none.
+  vi.stubEnv('PEXELS_API_KEY', opts.keys === false ? '' : 'pexels-key');
+  vi.stubEnv('UNSPLASH_ACCESS_KEY', opts.keys === false ? '' : 'unsplash-key');
+  vi.stubEnv('PIXABAY_API_KEY', opts.keys === false ? '' : 'pixabay-key');
   install = await makeInstall();
   const root = asProject(install.dir);
   await buildProject({ root, configFile: join(root, 'adminium.config.ts') }, { version: APP_VERSION });
