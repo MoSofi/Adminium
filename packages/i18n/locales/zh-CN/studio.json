@@ -2873,6 +2873,22 @@
       "heading": "付款",
       "body": "让客户支付应付款项：付款链接、付款页面、Stripe 和 PayPal，以及手动付款方式。",
       "cta": "打开付款"
+    },
+    "localDatabases": {
+      "heading": "连接",
+      "subtitle": "此安装读取和写入的数据库。",
+      "label": "允许本服务器上的数据库",
+      "setByOperator": "由运营方设置",
+      "help": "允许连接访问运行在本服务器上的数据库，例如 {example}。仅用于你在这里搭建的数据库。",
+      "alwaysHere": "此服务器本来就能访问本机上的数据库，因此这个开关在这里不起作用。",
+      "lockedHosts": "运营方只允许这些主机：",
+      "lockedNone": "运营方不允许本服务器上的任何数据库。",
+      "turnedOn": "由 {name} 于 {date} 开启",
+      "password": "输入你的密码以开启",
+      "switchOn": "开启",
+      "wrongPassword": "这不是你的密码。",
+      "lockedRefused": "服务器运营方已锁定此项。",
+      "failed": "无法更改此开关，请重试。"
     }
   },
   "source": {

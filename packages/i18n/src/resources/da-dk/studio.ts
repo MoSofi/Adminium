@@ -2883,6 +2883,22 @@ export default {
       "heading": "Betalinger",
       "body": "Lad kunderne betale det, de skylder: betalingslinks, en betalingsside, Stripe og PayPal og manuelle betalingsmåder.",
       "cta": "Åbn betalinger"
+    },
+    "localDatabases": {
+      "heading": "Forbindelser",
+      "subtitle": "Databaser, som denne installation læser og skriver.",
+      "label": "Tillad databaser på denne server",
+      "setByOperator": "Fastsat af operatøren",
+      "help": "Lader forbindelser nå databaser, der kører på denne samme server, f.eks. {example}. Kun til databaser, du selv har sat op her.",
+      "alwaysHere": "Denne server når allerede databaser på denne maskine, så kontakten ændrer intet her.",
+      "lockedHosts": "Operatøren tillader kun disse værter:",
+      "lockedNone": "Operatøren tillader ingen databaser på denne server.",
+      "turnedOn": "Slået til af {name}, {date}",
+      "password": "Din adgangskode, for at slå den til",
+      "switchOn": "Slå den til",
+      "wrongPassword": "Det er ikke din adgangskode.",
+      "lockedRefused": "Serverens operatør har låst dette.",
+      "failed": "Kontakten kunne ikke ændres. Prøv igen."
     }
   },
   "source": {

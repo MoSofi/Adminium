@@ -2883,6 +2883,22 @@ export default {
       "heading": "付款",
       "body": "讓客戶支付應付款項：付款連結、付款頁面、Stripe 和 PayPal，以及手動付款方式。",
       "cta": "開啟付款"
+    },
+    "localDatabases": {
+      "heading": "連線",
+      "subtitle": "此安裝讀取和寫入的資料庫。",
+      "label": "允許本伺服器上的資料庫",
+      "setByOperator": "由營運方設定",
+      "help": "允許連線存取在本伺服器上執行的資料庫，例如 {example}。僅用於你在這裡建立的資料庫。",
+      "alwaysHere": "此伺服器本來就能存取本機上的資料庫，因此這個開關在這裡不起作用。",
+      "lockedHosts": "營運方只允許這些主機：",
+      "lockedNone": "營運方不允許本伺服器上的任何資料庫。",
+      "turnedOn": "由 {name} 於 {date} 開啟",
+      "password": "輸入你的密碼以開啟",
+      "switchOn": "開啟",
+      "wrongPassword": "這不是你的密碼。",
+      "lockedRefused": "伺服器營運方已鎖定此項。",
+      "failed": "無法變更此開關，請重試。"
     }
   },
   "source": {
