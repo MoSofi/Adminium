@@ -235,6 +235,9 @@
                     "lanShare": {
                       "type": "boolean"
                     },
+                    "deployLink": {
+                      "type": "boolean"
+                    },
                     "desktopDemo": {
                       "type": "boolean"
                     }
@@ -248,6 +251,7 @@
                     "smtpConfigured",
                     "networkFeaturesAllowed",
                     "lanShare",
+                    "deployLink",
                     "desktopDemo"
                   ],
                   "additionalProperties": false
@@ -147071,6 +147075,308 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/export/zip": {
+      "post": {
+        "responses": {
+          "202": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "export": {
+                      "anyOf": [
+                        {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "preparing"
+                                  ]
+                                },
+                                "percent": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "state",
+                                "percent"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ready"
+                                  ]
+                                },
+                                "percent": {
+                                  "type": "number",
+                                  "enum": [
+                                    100
+                                  ]
+                                },
+                                "fileName": {
+                                  "type": "string"
+                                },
+                                "bytes": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "expiresAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "state",
+                                "percent",
+                                "fileName",
+                                "bytes",
+                                "expiresAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "failed"
+                                  ]
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "state",
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "expired"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "state"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "export"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "export": {
+                      "anyOf": [
+                        {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "preparing"
+                                  ]
+                                },
+                                "percent": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "state",
+                                "percent"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ready"
+                                  ]
+                                },
+                                "percent": {
+                                  "type": "number",
+                                  "enum": [
+                                    100
+                                  ]
+                                },
+                                "fileName": {
+                                  "type": "string"
+                                },
+                                "bytes": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "expiresAt": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "state",
+                                "percent",
+                                "fileName",
+                                "bytes",
+                                "expiresAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "failed"
+                                  ]
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "state",
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "expired"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "state"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "export"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/export/zip/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }

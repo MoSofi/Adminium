@@ -872,7 +872,7 @@ There is no source in this bundle. See [Export & restore](/self-hosting/export-z
 ## `import-zip`
 
 ```
-adminium import-zip --in <file> [--dry-run]
+adminium import-zip <file> [--dry-run] [--owner <email>] [--password-stdin]
 ```
 
 Restores a bundle produced by [`export-zip`](#export-zip) — the other half of the
@@ -886,20 +886,25 @@ transaction: a bundle that fails halfway leaves no half-restored instance behind
 
 | Flag | Default | |
 |---|---|---|
-| `-i`, `--in <file>` | **required** | Bundle to import |
+| `<file>`, or `-i`, `--in <file>` | **required** | Bundle to import |
 | `--dry-run` | off | Validate and report; write nothing |
 | `--data-dir <path>` | | Data directory |
 | `--meta-url <dsn>` | | Meta store DSN |
 | `--project-dir <folder>` | `ADMINIUM_PROJECT_DIR` | Where an export file's project folder goes |
+| `--owner <email>` | the only or first Super Admin | Export file: who gets a new password |
+| `--password-stdin` | off | Export file: read that password from the first line of standard input |
 
-`import-zip` also reads the **Export everything** file (`adminium archive create
---export`) into a fresh instance: people come without passwords and sign in
-through a password reset; connection strings, mail and AI keys are entered again.
+`import-zip` also reads the **Export everything** file (from Studio, or
+`adminium archive create --export`) into a fresh instance. The file carries no
+passwords, so the import gives one Super Admin a new one: asked twice in a
+terminal, or read with `--password-stdin`. Everyone else signs in through a
+password reset; connection strings, mail and AI keys are entered again. See
+[Export everything from Studio](/self-hosting/export-everything/).
 
 Trial a restore before committing to it:
 
 ```bash
-adminium import-zip --in adminium-export.zip --dry-run
+adminium import-zip adminium-export.zip --dry-run
 ```
 
 That reads the archive, checks the manifest, replays and validates every config

@@ -108,6 +108,7 @@ const DESCRIPTIONS = {
     'Email templates and campaigns — the documents, their language variations, the starters, ' +
     'test sends of the on-screen document, and export/import of a bundle',
   events: 'Server-sent events — the fallback when a WebSocket cannot be established',
+  export: 'Export everything: one file with the whole installation, made and downloaded once (Super Admin)',
   exports: 'Queued exports of a whole result set, and their downloads',
   geo:
     'Places and routes, for anybody signed in. Towns found by name from a list that ships ' +
