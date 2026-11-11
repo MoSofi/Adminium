@@ -694,8 +694,20 @@ export async function runAddOnSteps(
         ...(input.publicAccess === true ? { publicAccess: true } : {}),
       });
       done.installed.push({ key: step.key, name: step.name, version: step.version });
-    } else if (step.action === 'update') {
+    }
+    /*
+     * The copy on the app's own database, named: an add-on installed once per
+     * database has a copy for each app, and only this app's is updated or
+     * connected here (one kept once per server is the one there is).
+     */
+    const copy =
+      step.action === 'install' || input.connectionId === null
+        ? null
+        : await installOnConnection(manifestsRepo(deps.installer.meta, deps.installer.credentialCrypto), step.key, input.connectionId);
+    const named = copy === null ? {} : { installId: copy.row.id, ...(input.connectionId === null ? {} : { connectionId: input.connectionId }) };
+    if (step.action === 'update') {
       await updateAddOn(deps.installer, {
+        ...(copy === null ? {} : { installId: copy.row.id }),
         key: step.key,
         to: step.version,
         actor: input.actor,
@@ -710,10 +722,10 @@ export async function runAddOnSteps(
         roleTables: input.roleTables,
         publicWider: input.publicWider,
       });
-      await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via, settle: 'caller' });
+      await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via, settle: 'caller', ...named });
       done.updated.push({ key: step.key, name: step.name, from: step.from ?? '', to: step.version });
-    } else {
-      await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via, settle: 'caller' });
+    } else if (step.action === 'attach') {
+      await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via, settle: 'caller', ...named });
       done.attached.push({ key: step.key, name: step.name, version: step.version });
     }
     await auditRepo(deps.installer.meta).append({
