@@ -9,8 +9,11 @@
  * Never in any archive, and never written by a restore (security review S15):
  * - sessions, password-reset and invitation tokens, public visitors' sessions,
  *   one-time codes and proofs ({@link NEVER_ARCHIVED_TABLES});
- * - `addOns.deciderTrust` (which add-on code may decide), and the Designer's
- *   live switch and live id ({@link NEVER_ARCHIVED_SETTINGS});
+ * - `addOns.deciderTrust` (which add-on code may decide), the Designer's live
+ *   switch and live id, and "Allow databases on this server"
+ *   (`connections.allowLocalDatabases`: whether this server's own loopback is
+ *   reachable is decided on that server, by its super admin)
+ *   ({@link NEVER_ARCHIVED_SETTINGS});
  * - copies of catalog packages: their file rows are dropped and each install's
  *   `packageFileId`/`packageIntegrity` cleared, so a restored instance shows
  *   them as Missing and fetches and verifies them again from the catalog;
@@ -42,7 +45,7 @@ export const API_KEY_TABLES: readonly string[] = ['adminium_api_keys', 'adminium
 /** Queue state, not anyone's work; an export leaves it out. A full archive keeps it (the same instance coming back). */
 const EXPORT_SKIPPED_TABLES: readonly string[] = ['adminium_jobs'];
 
-export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId'];
+export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases'];
 
 /** This instance's own identity: an export does not clone it onto another server. */
 const EXPORT_SKIPPED_SETTINGS: readonly string[] = ['system.instanceId', 'system.bootstrappedAt'];

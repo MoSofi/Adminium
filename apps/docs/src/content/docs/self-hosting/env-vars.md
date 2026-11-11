@@ -360,8 +360,11 @@ ADMINIUM_LOCAL_DATABASES=off
   project's databases. Storage destinations, webhooks, AI addresses and the meta
   store keep their own rules, and the cloud metadata address is never allowed.
   `ADMINIUM_SOURCE_URL` is checked at boot against the list alone.
+- **Loopback only.** Under `ADMINIUM_NETWORK_POLICY=strict` a database on the
+  server's own network still needs its entry in `ADMINIUM_DATABASE_HOSTS`.
 - **It never travels.** The switch is not in an export (`adminium export-zip`),
-  and an import never sets it.
+  an archive or an **Export everything** file, and an import or a restore never
+  sets it: on the new server it starts off.
 
 ## `ADMINIUM_SQLITE_DIRS`
 

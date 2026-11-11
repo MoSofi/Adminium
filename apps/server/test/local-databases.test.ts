@@ -45,6 +45,7 @@ import { checkDsn, guardDsn, guardOutboundUrl, parseDsn, type DatabaseHost } fro
 import { databaseHostText, localDatabasesMode, readLocalDatabases } from '../src/connections/local-databases.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
+import { sanitizeDump } from '../src/archive/policy.js';
 import { resourcePath } from '../src/export/bundle.js';
 import { importZip } from '../src/export/import-service.js';
 import { exportZip } from '../src/export/zip-service.js';
@@ -364,6 +365,28 @@ describe('the switch on a production server', { timeout: 60_000 }, () => {
 describe('the switch never travels', () => {
   it('is not portable', () => {
     expect(isPortableSettingKey(SETTING)).toBe(false);
+  });
+
+  it('is not in an archive or an Export everything file, and a restore never writes it', () => {
+    for (const kind of ['full', 'export'] as const) {
+      const tables = new Map([
+        [
+          'adminium_settings',
+          {
+            table: 'adminium_settings',
+            kinds: {},
+            columns: ['key', 'value', 'updatedAt'],
+            rows: [
+              [SETTING, 'true', 1],
+              ['branding.appName', '"Hollis Bakery"', 1],
+            ],
+          },
+        ],
+      ]);
+      const report = sanitizeDump(tables, { kind, dialect: 'sqlite' });
+      expect(report.droppedSettings, kind).toContain(SETTING);
+      expect(tables.get('adminium_settings')?.rows.map((row) => row[0]), kind).toEqual(['branding.appName']);
+    }
   });
 
   it('is not in an export bundle, and a bundle carrying it is not imported', async () => {
