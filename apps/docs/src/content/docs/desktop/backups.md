@@ -84,6 +84,10 @@ The app relaunches against the restored data.
 
 ## Also available, but not a substitute
 
+These backups restore on the desktop only. To move this install to a server,
+run [`adminium archive create`](/self-hosting/archive/) against the same data
+directory and restore that archive on the server.
+
 The server's own [`export-zip` and `import-zip`](/self-hosting/export-zip/)
 commands work on a desktop install too, against the same data directory.
 

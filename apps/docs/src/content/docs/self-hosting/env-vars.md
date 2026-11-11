@@ -18,6 +18,7 @@ half-configured and fail later.
 | `HOST` | No | `0.0.0.0` | Bind address. `127.0.0.1` to bind loopback only. |
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
 | `ADMINIUM_META_POOL_MAX` | No | `10` | How many connections a Postgres or MySQL meta store's pool may open. Integer 1–100. See below. |
+| `ADMINIUM_ARCHIVE_KEY` | No | *(a key made from `ADMINIUM_SECRET`)* | Signs and checks instance archives (`adminium archive`). At least 32 characters. Set it, the same on every server, to restore an archive into an instance with another secret. See [Back up and move an instance](/self-hosting/archive/). |
 | `ADMINIUM_SOURCE_POOL_MAX` | No | *(per pool: 10, schema reads 5)* | How many connections each pool opened against a source database may hold. Integer 1–100. See below. |
 | `ADMINIUM_RATE_LIMIT_SCALE` | No | `1` | **Test servers only.** Multiplies every request limit. Integer 1–1000. Ignored when `NODE_ENV` is `production`. See below. |
 | `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
