@@ -210,8 +210,18 @@ export class ConnectionManager {
     return this.#localDatabases;
   }
 
+  /**
+   * Switched off, every open pool is closed: a pool opened while it was on may
+   * hold connections to this machine, and its per-connection re-check keeps
+   * the rule it opened under. All pools, not only those on loopback: whether
+   * a pool reaches this machine is what its name answers, not how it is
+   * written, and a remote pool reopens through the guard on its next request
+   * for the price of one reconnect, on a switch that is rarely thrown.
+   */
   set localDatabases(on: boolean) {
+    const switchedOff = this.#localDatabases && !on;
     this.#localDatabases = on;
+    if (switchedOff) void this.disposeAll();
   }
 
   get meta(): MetaDb {

@@ -35,7 +35,8 @@ import {
   usersRepo,
   type MetaDb,
 } from '@adminium/meta';
-import { afterEach, describe, expect, it } from 'vitest';
+import { SqliteDialect, sql } from 'kysely';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { hashPassword } from '../src/auth/passwords.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
@@ -79,7 +80,8 @@ function recordingProvider(dialled: string[]): AdapterProvider {
         close: async () => undefined,
       };
     },
-    createQueryEngine: () => ({}),
+    // A pool that really answers (SQLite in memory), whatever it was pointed at: what a data handle is built on.
+    createQueryEngine: () => ({ dialect: new SqliteDialect({ database: new BetterSqlite3(':memory:') }), destroy: async () => undefined }),
   } as unknown as AdapterProvider;
 }
 
@@ -301,6 +303,31 @@ describe('the switch on a production server', { timeout: 60_000 }, () => {
     // Off again: refused again.
     await s.call('PUT', '/api/v1/settings/local-databases', { on: false });
     expect((await test(s, 'postgres://u@localhost:6379/x')).status).toBe(422);
+  });
+
+  it('off again: a pool already open to a loopback source is closed, and the next request refused', async () => {
+    const s = await server();
+    expect((await s.call('PUT', '/api/v1/settings/local-databases', { on: true, password: PASSWORD })).status).toBe(200);
+    const row = await s.manager.connections.create({
+      name: 'shop',
+      engine: 'postgres',
+      sourceKind: 'dsn',
+      introspectDsn: 'postgres://app@127.0.0.1:5432/shop',
+      dataDsn: 'postgres://app@127.0.0.1:5432/shop',
+      readOnly: false,
+      settings: {},
+      status: 'connected',
+      createdBy: null,
+    });
+    const handle = await s.manager.data(row);
+    expect((await sql<{ one: number }>`select 1 as one`.execute(handle.db)).rows).toEqual([{ one: 1 }]);
+
+    expect((await s.call('PUT', '/api/v1/settings/local-databases', { on: false })).status).toBe(200);
+    // The open pool no longer answers, and a new one is refused by the guard.
+    await vi.waitFor(async () => {
+      await expect(sql`select 1`.execute(handle.db)).rejects.toThrow();
+    });
+    await expect(s.manager.data(row)).rejects.toThrow('Loopback');
   });
 
   it('is read at boot: a server that starts with it on lets a loopback source through', async () => {
