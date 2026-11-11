@@ -116,7 +116,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
             secret: 'required',
           });
         }
-        resolver.assertAllowed(request.body.driver, request.body.config);
+        await resolver.checkAllowed(request.body.driver, request.body.config);
         const created = await repo.create(
           {
             name: request.body.name,
@@ -146,7 +146,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const before = await load(request.params.id);
-        if (request.body.config !== undefined) resolver.assertAllowed(before.driver, request.body.config);
+        if (request.body.config !== undefined) await resolver.checkAllowed(before.driver, request.body.config);
         const updated = await repo.update(
           before.id,
           {
@@ -221,6 +221,9 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const row = await load(request.params.id);
+        // The address as it resolves NOW, refused with its own status before anything is sent:
+        // a stored row may predate the rule, or its name may answer differently today.
+        await resolver.checkAllowed(row.driver, row.config);
         // Through the resolver, so the probe exercises exactly the driver a real
         // upload would get — including the stored credential, which is the half
         // that is usually wrong.
@@ -250,6 +253,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
         // Testing BEFORE the first save is the path that matters: an operator
         // typing bucket credentials should find out they are wrong without
         // first storing them.
+        await resolver.checkAllowed(request.body.driver, request.body.config);
         const driver = resolver.driverForDraft({
           driver: request.body.driver,
           config: request.body.config,

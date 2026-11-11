@@ -184,6 +184,7 @@ import { createProjectClientHost } from './project/client-host.js';
 import { applyProjectPages } from './project/project-pages.js';
 import { NO_RECORD_HOOKS, createWriteService } from './crud/write-service.js';
 import { createDestinationResolver } from './files/destinations.js';
+import { storageRootPolicyFor } from './files/root-guard.js';
 import { createNamedUploads } from './files/named-uploads.js';
 import { createFileReconciler } from './files/reconcile.js';
 import { FILES_DIR } from './files/drivers/local.js';
@@ -914,11 +915,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // the environment) and every NEW file of every kind follows it (D18), which
   // is what makes a host with no persistent disk viable at all.
   const storageCrypto = storageCryptoFromSecret(env.ADMINIUM_SECRET);
+  const storageRoots = storageRootPolicyFor(env, opts.metaStore);
   const destinationResolver = createDestinationResolver({
     repo: destinationsRepo(meta, storageCrypto),
     localRoot: resolve(env.ADMINIUM_DATA_DIR, FILES_DIR),
     // As the connections do: the desktop app's storage may be on this machine.
     blockLoopback: manager.blockLoopback,
+    // An S3 or WebDAV endpoint on the server's own network is refused under ADMINIUM_NETWORK_POLICY=strict.
+    blockPrivate: manager.networkPolicy === 'strict',
+    lookup: manager.outboundPolicy.lookup,
+    // A `local` root stays off Adminium's own files and folders, and inside ADMINIUM_STORAGE_DIRS when set.
+    roots: storageRoots,
   });
   // The first-boot destination seed, and it has TWO CALL SITES
   // deliberately.
@@ -957,6 +964,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       crypto: storageCrypto,
       env,
       blockLoopback: manager.blockLoopback,
+      blockPrivate: manager.networkPolicy === 'strict',
+      lookup: manager.outboundPolicy.lookup,
+      roots: storageRoots,
       log: (message) => {
         app.log.debug(message);
       },

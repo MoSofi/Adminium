@@ -217,7 +217,13 @@ Path-style addressing **on**: a self-hosted server issues no per-bucket
 hostnames. The region is ignored by the server but still signed, so give it one.
 In production the endpoint may not be this machine's own address (`127.0.0.1`,
 `localhost`, `[::1]`): give the storage server a host name of its own (`minio` in
-Docker Compose, `minio.example.com`). From 0.3.54 such an address is refused.
+Docker Compose, `minio.example.com`). From 0.3.54 such an address is refused,
+and the name is now looked up too, so a name that points at this machine is
+refused the same way. A MinIO on your own network (`10.x`, `192.168.x`, a
+Docker service name) is fine, unless the operator set
+[`ADMINIUM_NETWORK_POLICY=strict`](/self-hosting/env-vars/#adminium_network_policy),
+which refuses the server's own network for storage. `ADMINIUM_DATABASE_HOSTS`
+does not change that: it names databases only.
 
 ### Supabase Storage
 
@@ -265,6 +271,21 @@ ADMINIUM_STORAGE_URL: file:///mnt/storage/adminium
 
 Three slashes. `file://mnt/...` reads `mnt` as a host name and is refused.
 
+The folder may not be one of Adminium's own: the data directory itself, its
+`backups/`, `files/`, `tmp/`, `add-ons/` and `pre-restore-…` folders, the meta
+store's file, or any folder that holds the data directory (`/` included). The
+folder's real path is checked, so a symlink into one of those is refused too.
+A server's operator can also name the only folders allowed, with
+[`ADMINIUM_STORAGE_DIRS`](/self-hosting/env-vars/#adminium_storage_dirs). The
+refusal says which rule it was:
+
+```text
+This folder is one of Adminium's own (backups in its data directory). Choose a folder of its own for files.
+```
+
+An `ADMINIUM_STORAGE_URL` naming such a folder stops `adminium start` with the
+same words.
+
 ### Netlify and Vercel
 
 The Adminium server does not run on either — they run functions, not a
@@ -299,6 +320,26 @@ Set the endpoint, or the WebDAV collection URL, to that final address. A
 destination that worked on an earlier release and sits behind a redirect (an
 `http://` address that moves to `https://`, say) stops working after the
 upgrade until you do.
+
+#### Where an endpoint may point
+
+Before a destination is saved or tested, and again before **every** request a
+file makes, Adminium looks the S3 or WebDAV host up and checks each address it
+gives. The request then goes to the address that was checked, never to a
+second lookup, with the host name kept for TLS.
+
+| | Refused |
+|---|---|
+| A cloud metadata address (`169.254.169.254` in any spelling, `metadata.google.internal`, and the others) | Always |
+| This machine (`localhost`, `127.0.0.1`, `[::1]`, or a name that points there) | In production |
+| The server's own network (`10.x`, `172.16–31.x`, `192.168.x`, `100.64–127.x`, IPv6 `fc00::/7`) | Only with `ADMINIUM_NETWORK_POLICY=strict` |
+
+A host name that does not resolve is not called. Saving or testing it answers
+`Could not look up <host>` (code `HOST_LOOKUP_FAILED`, status 502), which is
+not a refusal: check the name, or try again once it resolves.
+`ADMINIUM_STORAGE_URL` with a refused endpoint stops `adminium start`; one
+whose name does not resolve yet is skipped with a warning and tried again on
+the next boot.
 
 ### Set as default
 

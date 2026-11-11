@@ -395,7 +395,12 @@ A shell, a command, or a forward anywhere else is refused.
 
 Adminium refuses a source on a loopback address — `localhost`, `127.0.0.0/8`,
 `::1` — when it runs with `NODE_ENV=production`, so that a hosted instance
-cannot be pointed at services on its own host. The Docker image sets
+cannot be pointed at services on its own host. This covers every way of
+writing it (`localhost.`, `127.1`, `0.0.0.0`, `::ffff:127.0.0.1`) and any host
+name that resolves to it: before each new connection pool Adminium looks the
+name up, checks every address it gets, and connects to those addresses only,
+so the name cannot point somewhere else a moment later. A name that does not
+resolve is refused too. The Docker image sets
 `NODE_ENV=production`; `npx @adminiumjs/adminium` does not. So:
 
 - **The npm CLI** (`npx @adminiumjs/adminium`, on your own machine) connects to the tunnel
@@ -407,6 +412,14 @@ cannot be pointed at services on its own host. The Docker image sets
   bridge address the container reaches the host on, for example
   `ssh -N -L 172.17.0.1:15432:127.0.0.1:5432 deploy@db.example.com`.
   Never bind it to `0.0.0.0`: that publishes your database to the network.
+
+**A database on the same server.** When Postgres runs next to Adminium (a
+droplet, a VPS, Adminium in Docker with host networking), name it in
+[`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts):
+`ADMINIUM_DATABASE_HOSTS=localhost:5432`. That host and port are then allowed in
+production; every other port on the machine stays refused. This works for the
+tunnel's end too (`127.0.0.1:15432`), when Adminium and the tunnel share a
+network namespace.
 
 ## What Adminium reads
 
@@ -434,9 +447,17 @@ parameter. Drop it, or use the direct endpoint.
 
 **`Loopback hosts are not allowed in production`** — Adminium is running with
 `NODE_ENV=production` (the Docker image does) and the DSN names `localhost` or
-`127.0.0.1`, so that a hosted instance cannot be talked into probing its own
-host. See [Through an SSH tunnel](#through-an-ssh-tunnel) for the address to use
-instead.
+`127.0.0.1`, or a host name that resolves to it, so that a hosted instance
+cannot be talked into probing its own host. If the database runs on this
+server, add the host and port the message names to `ADMINIUM_DATABASE_HOSTS`.
+Otherwise see [Through an SSH tunnel](#through-an-ssh-tunnel) for the address
+to use instead.
+
+**`The host … does not resolve, so it cannot be checked`** — in production
+Adminium looks the host name up before it connects and refuses a name it
+cannot check. Check the spelling, and that the server running Adminium can
+resolve the name (a private DNS zone, a Docker network the container is not
+on); a name created a moment ago may need a minute to appear.
 
 **Every record is read-only, or one table is** — the role lacks the grant. The
 probe reports `read-only role` when it can write no table at all; a single

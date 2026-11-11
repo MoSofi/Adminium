@@ -163,16 +163,16 @@ describe('where an address really points', () => {
 
   it('refuses a public-looking name that resolves to the metadata address', async () => {
     await expect(resolveAndCheck('https://models.example/v1', { resolve: async () => ['93.184.216.34', '169.254.169.254'] })).rejects.toThrow('blocked range');
-    await expect(resolveAndCheck('https://models.example/v1', { resolve: async () => ['93.184.216.34'] })).resolves.toBeUndefined();
+    await expect(resolveAndCheck('https://models.example/v1', { resolve: async () => ['93.184.216.34'] })).resolves.toEqual(['93.184.216.34']);
     // A name that does not resolve: let through where the request will simply fail, refused where private addresses are.
     const unknown = async (): Promise<string[]> => Promise.reject(new Error('ENOTFOUND'));
-    await expect(resolveAndCheck('https://nowhere.example/v1', { resolve: unknown })).resolves.toBeUndefined();
+    await expect(resolveAndCheck('https://nowhere.example/v1', { resolve: unknown })).resolves.toEqual([]);
     await expect(resolveAndCheck('https://nowhere.example/v1', { resolve: unknown, blockPrivate: true })).rejects.toThrow('does not resolve');
   });
 
   it('refuses the server’s own network only where it is asked to', async () => {
     const inside = { resolve: async () => ['10.0.0.5'] };
-    await expect(resolveAndCheck('http://box.internal:8000/v1', inside)).resolves.toBeUndefined();
+    await expect(resolveAndCheck('http://box.internal:8000/v1', inside)).resolves.toEqual(['10.0.0.5']);
     await expect(resolveAndCheck('http://box.internal:8000/v1', { ...inside, blockPrivate: true })).rejects.toThrow('own network');
     await expect(resolveAndCheck('http://127.0.0.1:8000/v1', { blockPrivate: true })).rejects.toThrow('own network');
   });
@@ -184,7 +184,7 @@ describe('where an address really points', () => {
           throw new Error('ENOTFOUND');
         },
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual([]);
   });
 });
 

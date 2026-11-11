@@ -14,47 +14,30 @@
  * checked, so a name whose answer changes between the check and the call
  * gains nothing. Redirects are refused by the request itself.
  */
-import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
 import { ValidationFailedError } from '../errors.js';
+import { checkHost, type HostLookup } from '../net/address-guard.js';
 import { pinnedFetch, type PinnedAddress } from '../net/pinned-fetch.js';
 
+export { addressKind } from '../net/address-guard.js';
+
 export interface ResolveCheckOptions {
-  /** Refuse loopback and private ranges too. */
+  /** Refuse loopback and private ranges too (both: a model connection's rule). */
   blockPrivate?: boolean;
-  /** Test seam. */
-  resolve?: (host: string) => Promise<string[]>;
+  /** Refuse loopback (this machine) without refusing private ranges. */
+  blockLoopback?: boolean;
+  /** The operator named this host as allowed: loopback and private pass. Metadata never does. */
+  listed?: boolean;
+  /**
+   * Refuse a name that does not resolve. Default: where private addresses are
+   * refused. A webhook or storage endpoint asks for it: what fails now may
+   * answer with any address the next time.
+   */
+  failClosed?: boolean;
+  /** Test seam: the lookup, as `dns.lookup(host, { all: true })` answers. */
+  resolve?: HostLookup;
 }
-
-/** An IPv4 address inside an IPv6 one (`::ffff:10.0.0.1`), or the address itself. */
-function unmapped(address: string): string {
-  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(address);
-  if (mapped !== null) return mapped[1] as string;
-  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(address);
-  if (hex === null) return address;
-  const high = Number.parseInt(hex[1] as string, 16);
-  const low = Number.parseInt(hex[2] as string, 16);
-  return `${String(high >> 8)}.${String(high & 255)}.${String(low >> 8)}.${String(low & 255)}`;
-}
-
-/** What kind of place an address is. */
-export function addressKind(raw: string): 'metadata' | 'loopback' | 'private' | 'public' {
-  const address = unmapped(raw.toLowerCase().replace(/^\[|\]$/g, '').replace(/%.*$/, ''));
-  if (isIP(address) === 4) {
-    const [a, b] = address.split('.').map(Number) as [number, number];
-    if (a === 169 && b === 254) return 'metadata';
-    if (a === 127 || a === 0) return 'loopback';
-    if (a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127)) return 'private';
-    return 'public';
-  }
-  if (address === '::1' || address === '::') return 'loopback';
-  if (address === 'fd00:ec2::254' || /^fe[89ab]/.test(address)) return 'metadata';
-  if (/^f[cd]/.test(address)) return 'private';
-  return 'public';
-}
-
-const defaultResolve = async (host: string): Promise<string[]> => (await lookup(host, { all: true })).map((entry) => entry.address);
 
 /**
  * The address each checked name is called at, by `host:port` as the URL writes it. Kept until the name is checked
@@ -102,51 +85,56 @@ export function forgetCheckedAddresses(): void {
 
 /**
  * Resolve a URL's host and refuse it when any address it gives is one this
- * server must not call. A name that does not resolve is let through: the
- * request will fail on its own, with the provider's name in the message.
+ * server must not call ({@link checkHost}). Usable for any http(s) address: a
+ * model, a webhook, a storage endpoint. A name the system resolver answered is
+ * pinned for {@link checkedFetch}; the addresses that passed are returned for
+ * a caller that dials them itself. A name that does not resolve is let
+ * through (no addresses) unless the caller fails closed: the request will
+ * fail on its own, with the provider's name in the message.
  */
-export async function resolveAndCheck(rawUrl: string, opts: ResolveCheckOptions = {}): Promise<void> {
+export async function resolveAndCheck(rawUrl: string, opts: ResolveCheckOptions = {}): Promise<string[]> {
   const url = new URL(rawUrl);
   const host = url.hostname.replace(/^\[|\]$/g, '');
   const key = url.host.toLowerCase();
+  const named = isIP(host) === 0;
+  const system = opts.resolve === undefined;
   // A request already on its way keeps the address it was checked at while this lookup runs: with no pin it would be the platform's to resolve.
-  let addresses: string[];
-  if (isIP(host) !== 0) {
-    addresses = [host];
-  } else {
-    try {
-      addresses = await (opts.resolve ?? defaultResolve)(host);
-    } catch {
-      if (opts.resolve === undefined) close(key);
-      // Where private addresses are refused, a name nobody can check is refused too: it may resolve the next time it is asked.
-      if (opts.blockPrivate === true) throw new ValidationFailedError('That address does not resolve, so it cannot be checked.', { host });
-      return;
-    }
-  }
-  for (const address of addresses) {
-    const kind = addressKind(address);
-    if (kind === 'metadata') {
-      if (isIP(host) === 0 && opts.resolve === undefined) close(key);
-      throw new ValidationFailedError('That address resolves to a blocked range.', { host });
-    }
-    if (opts.blockPrivate === true && kind !== 'public') {
-      if (isIP(host) === 0 && opts.resolve === undefined) close(key);
-      throw new ValidationFailedError('That address is on this server’s own network, which a model connection here may not use.', { host });
+  const check = await checkHost(host, {
+    blockLoopback: opts.blockPrivate === true || opts.blockLoopback === true,
+    blockPrivate: opts.blockPrivate === true,
+    listed: opts.listed,
+    // Where private addresses are refused, a name nobody can check is refused too: it may resolve the next time it is asked.
+    failClosed: opts.failClosed ?? opts.blockPrivate === true,
+    lookup: opts.resolve,
+  });
+  if (!check.ok) {
+    if (named && system) close(key);
+    switch (check.reason) {
+      case 'unresolved':
+        throw new ValidationFailedError('That address does not resolve, so it cannot be checked.', { host });
+      case 'metadata':
+        throw new ValidationFailedError('That address resolves to a blocked range.', { host });
+      case 'loopback':
+        if (opts.blockPrivate !== true) throw new ValidationFailedError('That address is on this server itself, which may not be called from here.', { host });
+        throw new ValidationFailedError('That address is on this server’s own network, which a model connection here may not use.', { host });
+      case 'private':
+        throw new ValidationFailedError('That address is on this server’s own network, which a model connection here may not use.', { host });
     }
   }
   // A name the system's own resolver answered is called at the addresses it gave, all of which passed, and no other.
   // An address written as numbers needs no pin, and a resolver handed in by a test names no machine to call.
-  if (isIP(host) === 0 && opts.resolve === undefined) {
-    if (addresses.length === 0) {
+  if (named && system) {
+    if (check.addresses.length === 0) {
       close(key);
-      return;
+      return [];
     }
     // The oldest gives way, and is closed until it is checked again: never left to the platform's own lookup.
     if (!pins.has(key) && pins.size >= PINS_MAX) close(pins.keys().next().value as string);
     closed.delete(key);
     pins.set(
       key,
-      addresses.map((address) => ({ address, family: isIP(address) === 6 ? 6 : 4 })),
+      check.addresses.map((address) => ({ address, family: isIP(address) === 6 ? 6 : 4 })),
     );
   }
+  return check.addresses;
 }

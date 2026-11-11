@@ -105,14 +105,14 @@ describe('a fetch pinned to one address', () => {
     expect(seen).toHaveLength(1);
   });
 
-  it('ends with the caller’s signal, and refuses what it does not send', async () => {
+  it('ends with the caller’s signal, and refuses a body it does not send (a Blob, a form)', async () => {
     const controller = new AbortController();
     const pending = pinnedFetch([{ address: '127.0.0.1', family: 4 }])(`http://${NAME}:${String(port)}/hang`, { method: 'POST', body: '{}', signal: controller.signal });
     setTimeout(() => controller.abort(), 30);
     await expect(pending).rejects.toThrow();
     expect(controller.signal.aborted).toBe(true);
     await expect(pinnedFetch([{ address: '127.0.0.1', family: 4 }])('ftp://x/y')).rejects.toThrow('Only http and https');
-    await expect(pinnedFetch([{ address: '127.0.0.1', family: 4 }])(`http://${NAME}:${String(port)}/`, { method: 'POST', body: new Uint8Array([1]) })).rejects.toThrow('Only a text body');
+    await expect(pinnedFetch([{ address: '127.0.0.1', family: 4 }])(`http://${NAME}:${String(port)}/`, { method: 'POST', body: new Blob(['x']) })).rejects.toThrow('Only a text, bytes or stream body');
   });
 });
 

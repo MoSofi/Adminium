@@ -323,18 +323,21 @@ describe('source pool size (ADMINIUM_SOURCE_POOL_MAX)', () => {
     return registry;
   }
 
+  /** The adapter gets the DSN as fields, never the string. */
+  const PROD_ENDPOINT = { host: 'db.acme.io', port: 5432, database: 'prod', user: 'app', password: null, params: {} };
+
   it('sizes every pool it opens against a source when set', async () => {
     const seen: unknown[] = [];
     const manager = new ConnectionManager({ meta: fakeMeta, crypto, registry: recordingRegistry(seen), sourcePoolMax: 3 });
     await manager.testDsn('postgres', 'postgres://app@db.acme.io:5432/prod');
-    expect(seen).toEqual([{ role: 'introspect', dsn: 'postgres://app@db.acme.io:5432/prod', poolMax: 3 }]);
+    expect(seen).toEqual([{ role: 'introspect', endpoint: PROD_ENDPOINT, poolMax: 3 }]);
   });
 
   it('leaves each adapter its own default when unset', async () => {
     const seen: unknown[] = [];
     const manager = new ConnectionManager({ meta: fakeMeta, crypto, registry: recordingRegistry(seen) });
     await manager.testDsn('postgres', 'postgres://app@db.acme.io:5432/prod');
-    expect(seen).toEqual([{ role: 'introspect', dsn: 'postgres://app@db.acme.io:5432/prod' }]);
+    expect(seen).toEqual([{ role: 'introspect', endpoint: PROD_ENDPOINT }]);
   });
 });
 

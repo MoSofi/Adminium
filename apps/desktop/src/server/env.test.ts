@@ -275,6 +275,19 @@ describe('buildServerEnv', () => {
     });
   });
 
+  it('drops ADMINIUM_SQLITE_DIRS: the desktop app opens whichever SQLite file its user picks', () => {
+    const built = buildServerEnv(base);
+    const record = toServerEnvRecord(parseDesktopServerEnv(built), { ...built, ADMINIUM_SQLITE_DIRS: '/srv/databases' });
+    expect(record).not.toHaveProperty('ADMINIUM_SQLITE_DIRS');
+  });
+
+  it('drops ADMINIUM_NETWORK_POLICY and ADMINIUM_STORAGE_DIRS: a desktop user reaches their own network and folders on purpose', () => {
+    const built = buildServerEnv(base);
+    const record = toServerEnvRecord(parseDesktopServerEnv(built), { ...built, ADMINIUM_NETWORK_POLICY: 'strict', ADMINIUM_STORAGE_DIRS: '/srv/files' });
+    expect(record).not.toHaveProperty('ADMINIUM_NETWORK_POLICY');
+    expect(record).not.toHaveProperty('ADMINIUM_STORAGE_DIRS');
+  });
+
   it('rejects a relative dataDir', () => {
     expect(() => buildServerEnv({ ...base, dataDir: './data' })).toThrow(/absolute/);
   });

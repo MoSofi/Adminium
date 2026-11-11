@@ -18,6 +18,10 @@
  * again here, immediately before the request. Both, because a hostname that
  * resolved to a public address at save time can resolve to 169.254.169.254 an
  * hour later — DNS rebinding is the whole reason the second check exists.
+ * Before the request the host is looked up and every address checked (cloud
+ * metadata always, this machine in production, the server's own network under
+ * `ADMINIUM_NETWORK_POLICY=strict`), and the request connects to the addresses
+ * that passed (`net/outbound-check.ts`): a second lookup never happens.
  *
  * --- No retries, and a small answer ---------------------------------------
  *
@@ -36,6 +40,9 @@ import type { AutomationAction } from '@adminium/meta';
 
 import { decryptSecret, deriveKey, isEncryptedSecret } from '../../config/secrets.js';
 import { guardOutboundUrl } from '../../connections/dsn.js';
+import { AppError } from '../../errors.js';
+import { checkOutboundUrl, type OutboundPolicy } from '../../net/outbound-check.js';
+import { pinnedFetch } from '../../net/pinned-fetch.js';
 import { substitute } from '../templating.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
@@ -87,13 +94,28 @@ export interface WebhookRequestPlan {
   body: string;
 }
 
+/**
+ * The rule a webhook's address is held to: this machine refused in
+ * production, the server's own network under `ADMINIUM_NETWORK_POLICY=strict`
+ * (the connection manager carries the operator's policy and the lookup).
+ */
+function webhookPolicy(ctx: ActionContext): OutboundPolicy {
+  const outbound = (ctx.manager as Partial<Pick<ActionContext['manager'], 'outboundPolicy'>> | undefined)?.outboundPolicy;
+  return {
+    blockLoopback: process.env['NODE_ENV'] === 'production',
+    blockPrivate: outbound?.blockPrivate === true,
+    lookup: outbound?.lookup,
+  };
+}
+
 /** Everything resolved and checked, one line short of the send (D14). */
 export function planWebhook(action: WebhookAction, ctx: ActionContext): WebhookRequestPlan {
   if (action.url === null || action.url.trim() === '') {
     throw new ActionFailure('This step has no URL.');
   }
   const url = substitute(action.url.trim(), ctx.tokens);
-  guardOutboundUrl(url, { blockLoopback: process.env['NODE_ENV'] === 'production' });
+  const policy = webhookPolicy(ctx);
+  guardOutboundUrl(url, policy);
   if (action.bodyKind === 'slack' && !isSlackWebhookUrl(url)) {
     throw new ActionFailure('A Slack message needs a hooks.slack.com webhook URL.');
   }
@@ -160,7 +182,14 @@ export async function runWebhookAction(
   ctx: ActionContext,
 ): Promise<ActionResult> {
   const plan = planWebhook(action, ctx);
-  const send = ctx.fetch ?? globalThis.fetch;
+  let pins;
+  try {
+    pins = await checkOutboundUrl(plan.url, webhookPolicy(ctx));
+  } catch (error) {
+    if (error instanceof AppError) throw new ActionFailure(`${plan.method} ${pathOf(plan.url)} → ${error.message}`);
+    throw error;
+  }
+  const send = ctx.fetch ?? pinnedFetch(pins);
   const startedAt = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => {

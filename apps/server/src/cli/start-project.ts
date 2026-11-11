@@ -104,6 +104,14 @@ export const HOST_DECIDED_ENV: readonly string[] = [
   'ADMINIUM_DESIGNER',
   // Signs the archives this host restores: the operator's key, never a folder's.
   'ADMINIUM_ARCHIVE_KEY',
+  // Which of this machine's own databases the server may reach: the operator's call, not a folder's.
+  'ADMINIUM_DATABASE_HOSTS',
+  // Which SQLite files the server may open as sources: the operator's call, not a folder's.
+  'ADMINIUM_SQLITE_DIRS',
+  // Which folders a local storage destination may write into: the operator's call, not a folder's.
+  'ADMINIUM_STORAGE_DIRS',
+  // Whether the server's own network may be called (databases, webhooks, storage): the operator's call.
+  'ADMINIUM_NETWORK_POLICY',
   // Written into every staff browser's content security policy, or called by the server: not a folder's to choose.
   'ADMINIUM_MAP_SERVER',
   'ADMINIUM_ROUTING_SERVER',

@@ -66,6 +66,11 @@ services:
       # now says so on stderr at boot, because an unrecognised variable is
       # ignored, not rejected, and silence is the bug being fixed.
       ADMINIUM_SOURCE_URL: ${ADMINIUM_SOURCE_URL:-}
+      # Production refuses a database on this server's own loopback. If yours
+      # runs there (Adminium on the host network, or outside Docker), name its
+      # host and port. Every other port stays refused. A compose service name
+      # such as `db:5432` is a private address and needs no entry.
+      # ADMINIUM_DATABASE_HOSTS: localhost:5432
       # Matches the volume mount below; also the image default.
       ADMINIUM_DATA_DIR: /data
     volumes:

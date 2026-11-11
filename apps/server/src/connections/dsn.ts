@@ -4,14 +4,21 @@
  * allowlist `postgres|mysql|sqlite`, and a query-parameter allowlist per
  * engine so the string names one host only; cloud-metadata addresses are always
  * refused. Loopback blocking is production-only by default — a DB on the
- * same box is the normal self-host case (`ADMINIUM_NETWORK_POLICY=strict`
- * tightens it further at M15).
+ * same box is the normal self-host case. `ADMINIUM_NETWORK_POLICY=strict`
+ * also refuses the server's own network (private ranges). A production server
+ * reaches a source on its own loopback, and a strict one a source on its own
+ * network, only when the operator names that host and port in
+ * `ADMINIUM_DATABASE_HOSTS` ({@link DatabaseHost}).
  */
 
 import { isIP } from 'node:net';
 
-import { AppError, ValidationFailedError } from '../errors.js';
-import { addressKind } from '../llm/outbound.js';
+import { databaseEndpointFromDsn, type DatabaseEndpoint } from '@adminium/engine/adapter';
+
+import { AppError, HostLookupFailedError, ValidationFailedError } from '../errors.js';
+import { addressKind, canonicalHost, checkHost, hostSpelling, METADATA_NAME, type HostLookup } from '../net/address-guard.js';
+
+export { canonicalHost } from '../net/address-guard.js';
 
 export interface ParsedDsn {
   scheme: 'postgres' | 'mysql' | 'sqlite';
@@ -162,28 +169,19 @@ export function parseDsn(dsn: string): ParsedDsn {
   return parsed;
 }
 
-/**
- * The host as the system resolver will read it. `getaddrinfo` takes the old
- * inet_aton spellings (`2852039166`, `0xa9fea9fe`, `127.1`, `0177.0.0.1`) and
- * IPv4 inside IPv6 (`::ffff:169.254.169.254`), and a `postgres:`/`mysql:` URL
- * keeps its host exactly as written. The WHATWG parser for an http URL turns
- * every one of those into the plain address, so the checks below see what the
- * driver will dial. A name that is not an address comes back lower-cased.
- */
-export function canonicalHost(host: string): string {
-  const bare = host.toLowerCase().replace(/^\[|\]$/g, '');
-  try {
-    const wrapped = bare.includes(':') ? `[${bare}]` : bare;
-    return new URL(`http://${wrapped}/`).hostname.replace(/^\[|\]$/g, '');
-  } catch {
-    return bare;
-  }
-}
-
 export interface DsnGuardOptions {
   /** Default: `NODE_ENV === 'production'` at the call site. */
   blockLoopback?: boolean | undefined;
+  /**
+   * Refuse the server's own network (private ranges) too: what
+   * `ADMINIUM_NETWORK_POLICY=strict` asks. A string can only be judged by an
+   * address written as numbers; a name is judged where it is looked up.
+   */
+  blockPrivate?: boolean | undefined;
 }
+
+/** What the guard knows about a host from how it is written: no lookup. */
+const classifyHost = hostSpelling;
 
 /**
  * Shared outbound-host SSRF guard. Cloud-metadata endpoints (169.254.0.0/16,
@@ -194,17 +192,134 @@ export interface DsnGuardOptions {
  * user-configurable outbound URL (e.g. the LLM provider baseUrl). Throws 422.
  */
 export function assertOutboundHostAllowed(host: string, opts: DsnGuardOptions = {}): void {
-  const h = canonicalHost(host);
-  const name = h.replace(/\.$/, '');
-  const kind = isIP(h) === 0 ? null : addressKind(h);
-  const isMetadata = kind === 'metadata' || name === 'metadata.google.internal';
-  if (isMetadata) {
-    throw new ValidationFailedError('Host resolves to a blocked address range.', { host: h });
+  const h = classifyHost(host);
+  if (h.metadata) {
+    throw new ValidationFailedError('Host resolves to a blocked address range.', { host: h.host });
   }
-  const loopback = kind === 'loopback' || name === 'localhost' || name.endsWith('.localhost');
-  if (loopback && opts.blockLoopback === true) {
-    throw new ValidationFailedError('Loopback hosts are not allowed in production.', { host: h });
+  if (h.loopback && opts.blockLoopback === true) {
+    throw new ValidationFailedError('Loopback hosts are not allowed in production.', { host: h.host });
   }
+  if (opts.blockPrivate === true && isIP(h.host) !== 0 && addressKind(h.host) === 'private') {
+    throw new ValidationFailedError(`The host ${h.host} is on this server's own network, which ADMINIUM_NETWORK_POLICY=strict does not call.`, {
+      host: h.host,
+      variable: 'ADMINIUM_NETWORK_POLICY',
+    });
+  }
+}
+
+/**
+ * One `ADMINIUM_DATABASE_HOSTS` entry: a database host a production server may
+ * reach although it is on loopback. Source connections only (data and
+ * introspect DSNs, the `ADMINIUM_SOURCE_URL` seed, a project's databases),
+ * never the meta store, storage, webhooks or AI addresses.
+ *
+ * Host AND port, because loopback on a one-server install is every service on
+ * the box: naming `localhost:5432` lets Postgres through and leaves Redis on
+ * 6379 and the box's own admin ports refused. A cloud-metadata address is never
+ * an entry ({@link parseDatabaseHost} refuses it) and never passes the guard
+ * even if a list holds one.
+ */
+export interface DatabaseHost {
+  /** Lowercase, no trailing dot, no IPv6 brackets, as the resolver reads it. A wildcard's suffix after `*.`. */
+  host: string;
+  /** Null: the engine's own port (5432 / 3306), decided when a DSN is matched. */
+  port: number | null;
+  /** `*.suffix`: any name under the suffix (not the suffix itself, never an address). */
+  wildcard: boolean;
+}
+
+export type DatabaseHostParse = { ok: true; entry: DatabaseHost } | { ok: false; reason: 'invalid' | 'metadata' };
+
+/** A name's label; `_` is allowed because Docker service and container names carry it. */
+const HOST_LABEL = /^[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?$/;
+
+/**
+ * Read one `host[:port]` entry: a name, an IPv4 address, an IPv6 address (in
+ * brackets when it has a port), or `*.suffix` with at least two labels after
+ * the `*.` (the `ADMINIUM_CSP_IMG_HOSTS` rule: `*.com` is not a host).
+ */
+export function parseDatabaseHost(raw: string): DatabaseHostParse {
+  const invalid = { ok: false, reason: 'invalid' } as const;
+  const text = raw.trim().toLowerCase();
+  let host: string;
+  let portText: string | undefined;
+  let wildcard = false;
+  const bracketed = /^\[([0-9a-f:.]+)\](?::(\d{1,5}))?$/.exec(text);
+  if (bracketed !== null) {
+    host = bracketed[1] ?? '';
+    portText = bracketed[2];
+    if (isIP(host) !== 6) return invalid;
+  } else if ((text.match(/:/g) ?? []).length > 1) {
+    // A bare IPv6 address takes no port: `::1:5432` is an address, not `::1` port 5432.
+    host = text;
+    if (isIP(host) !== 6) return invalid;
+  } else {
+    const match = /^(\*\.)?([a-z0-9_.-]+)(?::(\d{1,5}))?$/.exec(text);
+    if (match === null) return invalid;
+    wildcard = match[1] !== undefined;
+    host = (match[2] ?? '').replace(/\.$/, '');
+    portText = match[3];
+    const labels = host.split('.');
+    if (!labels.every((label) => HOST_LABEL.test(label))) return invalid;
+    // `*.0.0.1` would read as every address ending in .0.0.1.
+    if (wildcard && (labels.length < 2 || /^\d+$/.test(labels.at(-1) ?? ''))) return invalid;
+  }
+  const port = portText === undefined ? null : Number(portText);
+  if (port !== null && (port < 1 || port > 65535)) return invalid;
+  if (wildcard) {
+    if (METADATA_NAME.endsWith(`.${host}`)) return { ok: false, reason: 'metadata' };
+    return { ok: true, entry: { host, port, wildcard } };
+  }
+  const h = classifyHost(host);
+  if (h.metadata) return { ok: false, reason: 'metadata' };
+  return { ok: true, entry: { host: h.host.replace(/\.$/, ''), port, wildcard } };
+}
+
+/**
+ * Whether a parsed DSN's host and port are on the list. Read from the parsed
+ * DSN, whose parameters {@link parseDsn} has already held to the allow-list,
+ * so the host matched is the one the driver dials: a `?host=` cannot sit
+ * behind a listed name.
+ */
+export function databaseHostListed(
+  hosts: readonly DatabaseHost[] | undefined,
+  parsed: Pick<ParsedDsn, 'scheme' | 'host' | 'port'>,
+): boolean {
+  if (hosts === undefined || hosts.length === 0 || parsed.host === null || parsed.scheme === 'sqlite') return false;
+  const defaultPort = DEFAULT_PORTS[parsed.scheme];
+  const host = canonicalHost(parsed.host).replace(/\.$/, '');
+  const port = parsed.port ?? defaultPort;
+  const address = isIP(host) !== 0;
+  return hosts.some(
+    (entry) =>
+      (entry.port ?? defaultPort) === port &&
+      (entry.wildcard ? !address && host.endsWith(`.${entry.host}`) : host === entry.host),
+  );
+}
+
+/** `localhost:5432`, `[::1]:5432`: the entry that would list this DSN's host and port. */
+function databaseHostEntry(parsed: ParsedDsn): string {
+  const host = canonicalHost(parsed.host ?? '').replace(/\.$/, '');
+  const port = parsed.port ?? DEFAULT_PORTS[parsed.scheme];
+  return `${host.includes(':') ? `[${host}]` : host}:${String(port)}`;
+}
+
+/**
+ * The `ADMINIUM_DATABASE_HOSTS` entry a DSN on loopback still needs, or null
+ * when it needs none (not loopback, already listed, SQLite, or not a DSN at
+ * all: those are someone else's error). For the boot's fail-fast row.
+ */
+export function unlistedLoopbackEntry(dsn: string, hosts: readonly DatabaseHost[] | undefined): string | null {
+  let parsed: ParsedDsn;
+  try {
+    parsed = parseDsn(dsn);
+  } catch {
+    return null;
+  }
+  if (parsed.scheme === 'sqlite' || parsed.host === null) return null;
+  const h = classifyHost(parsed.host);
+  if (h.metadata || !h.loopback || databaseHostListed(hosts, parsed)) return null;
+  return databaseHostEntry(parsed);
 }
 
 /**
@@ -233,12 +348,18 @@ export interface DsnCheckOptions extends DsnGuardOptions {
    * scheme names a different engine is refused.
    */
   engine?: string | undefined;
+  /**
+   * `ADMINIUM_DATABASE_HOSTS`: a host and port on this list passes the loopback
+   * check. Never the metadata check.
+   */
+  databaseHosts?: readonly DatabaseHost[] | undefined;
 }
 
 /**
  * The SSRF guard, run before any dial. Cloud-metadata is always blocked;
- * loopback per {@link DsnGuardOptions}; a scheme that does not match the
- * engine is refused. Throws 422.
+ * loopback per {@link DsnGuardOptions}, unless the host and port are on
+ * `databaseHosts`; a scheme that does not match the engine is refused.
+ * Throws 422.
  */
 export function guardDsn(dsn: string, opts: DsnCheckOptions = {}): ParsedDsn {
   const parsed = parseDsn(dsn);
@@ -253,8 +374,94 @@ export function guardDsn(dsn: string, opts: DsnCheckOptions = {}): ParsedDsn {
   if (parsed.host === null && opts.blockLoopback === true) {
     throw new ValidationFailedError('The connection string names no host.', {});
   }
-  assertOutboundHostAllowed(parsed.host ?? '', opts);
+  const h = classifyHost(parsed.host ?? '');
+  if (h.metadata) {
+    throw new ValidationFailedError('Host resolves to a blocked address range.', { host: h.host });
+  }
+  if (h.loopback && opts.blockLoopback === true && !databaseHostListed(opts.databaseHosts, parsed)) {
+    const entry = databaseHostEntry(parsed);
+    throw new ValidationFailedError(
+      `Loopback hosts are not allowed in production. If this database runs on this server, add ${entry} to ADMINIUM_DATABASE_HOSTS.`,
+      { host: h.host, port: parsed.port, variable: 'ADMINIUM_DATABASE_HOSTS', entry },
+    );
+  }
   return parsed;
+}
+
+export interface DsnResolveOptions extends DsnCheckOptions {
+  /** Test seam: the lookup ({@link HostLookup}). */
+  lookup?: HostLookup | undefined;
+}
+
+export interface CheckedDsn {
+  parsed: ParsedDsn;
+  /**
+   * What the driver is built from (Postgres, MySQL): the DSN's fields, its
+   * parameters already held to the allow-list, and, where the guard looked the
+   * host up, the addresses that passed. Null for SQLite.
+   */
+  endpoint: DatabaseEndpoint | null;
+}
+
+/**
+ * {@link guardDsn}, then the lookup, for a DSN about to be dialled: run on
+ * every new pool, not only when the connection is saved, because a name can
+ * answer differently tomorrow.
+ *
+ * Where loopback is refused (production), the host is looked up as the
+ * driver would look it up and EVERY address is checked: cloud metadata
+ * always, loopback unless the host and port are on `databaseHosts`. A name
+ * that does not resolve is refused: an answer that fails now may succeed with
+ * any address the next time the driver asks. The addresses that passed go
+ * into the endpoint, and the driver connects to them and nothing else, so a
+ * second lookup cannot swap them (DNS rebinding).
+ *
+ * Under `ADMINIUM_NETWORK_POLICY=strict` ({@link DsnGuardOptions.blockPrivate})
+ * the same lookup also refuses the server's own network, unless the host and
+ * port are on `databaseHosts`; it runs wherever strict is set, production or
+ * not.
+ *
+ * Where neither is refused (the desktop app, `dev`), nothing is looked up:
+ * the checks on the string apply as before, and the driver resolves the name.
+ * Throws 422 for a refusal, 502 `HOST_LOOKUP_FAILED` for a name that could not
+ * be looked up.
+ */
+export async function checkDsn(dsn: string, opts: DsnResolveOptions = {}): Promise<CheckedDsn> {
+  const parsed = guardDsn(dsn, opts);
+  if (parsed.scheme === 'sqlite') return { parsed, endpoint: null };
+  const endpoint = databaseEndpointFromDsn(dsn, parsed.scheme === 'postgres' ? 'uri' : 'component');
+  if (endpoint === null) throw new ValidationFailedError('Malformed DSN.', {});
+  if ((opts.blockLoopback !== true && opts.blockPrivate !== true) || parsed.host === null) return { parsed, endpoint };
+  const listed = databaseHostListed(opts.databaseHosts, parsed);
+  const check = await checkHost(parsed.host, {
+    blockLoopback: opts.blockLoopback === true,
+    blockPrivate: opts.blockPrivate === true,
+    listed,
+    failClosed: true,
+    lookup: opts.lookup,
+  });
+  if (check.ok) return { parsed, endpoint: { ...endpoint, addresses: check.addresses } };
+  const at = check.address === undefined ? '' : ` (${check.address})`;
+  switch (check.reason) {
+    case 'metadata':
+      throw new ValidationFailedError('Host resolves to a blocked address range.', { host: check.host, address: check.address });
+    case 'loopback': {
+      const entry = databaseHostEntry(parsed);
+      throw new ValidationFailedError(
+        `The host ${check.host} is on this server${at}. Loopback hosts are not allowed in production. If this database runs on this server, add ${entry} to ADMINIUM_DATABASE_HOSTS.`,
+        { host: check.host, address: check.address, port: parsed.port, variable: 'ADMINIUM_DATABASE_HOSTS', entry },
+      );
+    }
+    case 'private': {
+      const entry = databaseHostEntry(parsed);
+      throw new ValidationFailedError(
+        `The host ${check.host} is on this server's own network${at}, which ADMINIUM_NETWORK_POLICY=strict does not connect to. If this database is meant to be reached, add ${entry} to ADMINIUM_DATABASE_HOSTS.`,
+        { host: check.host, address: check.address, port: parsed.port, variable: 'ADMINIUM_DATABASE_HOSTS', entry, policy: 'strict' },
+      );
+    }
+    case 'unresolved':
+      throw new HostLookupFailedError(check.host);
+  }
 }
 
 /** `postgres://ava:secret@db.acme.io:5432/prod` → `postgres://ava@db.acme.io:5432/prod`. */

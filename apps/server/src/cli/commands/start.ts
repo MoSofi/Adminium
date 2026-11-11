@@ -42,7 +42,11 @@ import {
   snapshotFailureRefusal,
 } from '../../backup/pre-migration.js';
 import { ownerOnThisComputer } from '../../auth/local-owner.js';
-import { seedStorageDestination } from '../../config/storage-seed.js';
+import { seedStorageDestination, storageSeedRefusal } from '../../config/storage-seed.js';
+import { storageRootPolicyFor } from '../../files/root-guard.js';
+import { formatEnvProblems } from '../../config/env.js';
+import { unlistedLoopbackEntry } from '../../connections/dsn.js';
+import { sqliteSourceRefusal } from '../../connections/sqlite-guard.js';
 import { seedSourceConnection } from '../../connections/seed.js';
 import { storageCryptoFromSecret } from '../../files/crypto.js';
 import { embeddedMetaWarning } from '../../meta/store.js';
@@ -62,7 +66,7 @@ import type { Command, CommandContext } from '../command.js';
 import type { CliIo } from '../io.js';
 import { CliError, EXIT_CONFIG, EXIT_OK, type ExitCode } from '../exit.js';
 import { createRelocationHost } from '../relocation-host.js';
-import { loadCliEnv } from '../runtime.js';
+import { loadCliEnv, sqliteSourcePolicyFor } from '../runtime.js';
 
 export const startCommand: Command = {
   name: 'start',
@@ -335,6 +339,54 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
 
     const runtime = await deps.openRuntime(env);
 
+    // A seed on loopback that production would refuse fails the boot here, with the entry to add,
+    // instead of starting with a connection that can never be dialled. The guard is the runtime's
+    // own (the desktop and `dev` paths open it with loopback allowed, so they never get here).
+    const seedEntry =
+      project === null && env.ADMINIUM_SOURCE_URL !== undefined && runtime.manager.blockLoopback === true
+        ? unlistedLoopbackEntry(env.ADMINIUM_SOURCE_URL, env.ADMINIUM_DATABASE_HOSTS)
+        : null;
+    if (seedEntry !== null) {
+      await runtime.close().catch(() => undefined);
+      throw new CliError('Invalid environment configuration.', {
+        code: EXIT_CONFIG,
+        hint: formatEnvProblems([
+          { variable: 'ADMINIUM_SOURCE_URL', problem: `points at loopback; add \`${seedEntry}\` to ADMINIUM_DATABASE_HOSTS` },
+        ]),
+      });
+    }
+
+    // A SQLite seed on one of Adminium's own files, or outside ADMINIUM_SQLITE_DIRS, can never be
+    // opened either: the same fail-fast, in the guard's own words.
+    const seedSqlite =
+      project === null && env.ADMINIUM_SOURCE_URL !== undefined && /^(sqlite|file):/i.test(env.ADMINIUM_SOURCE_URL)
+        ? sqliteSourceRefusal(env.ADMINIUM_SOURCE_URL, sqliteSourcePolicyFor(env, runtime.metaStore))
+        : null;
+    if (seedSqlite !== null) {
+      await runtime.close().catch(() => undefined);
+      throw new CliError('Invalid environment configuration.', {
+        code: EXIT_CONFIG,
+        hint: formatEnvProblems([{ variable: 'ADMINIUM_SOURCE_URL', problem: seedSqlite.message }]),
+      });
+    }
+
+    // A storage seed this server can never use (an endpoint at a metadata address, or on its own
+    // network under ADMINIUM_NETWORK_POLICY=strict; a root in Adminium's own folders or outside
+    // ADMINIUM_STORAGE_DIRS) fails the boot the same way, in the guard's words. A name that cannot
+    // be looked up does not: it may resolve on the next boot, and the seed itself says so.
+    const seedStorage = await storageSeedRefusal(env, {
+      blockLoopback: runtime.manager.blockLoopback,
+      blockPrivate: runtime.manager.networkPolicy === 'strict',
+      roots: storageRootPolicyFor(env, runtime.metaStore),
+    });
+    if (seedStorage !== null) {
+      await runtime.close().catch(() => undefined);
+      throw new CliError('Invalid environment configuration.', {
+        code: EXIT_CONFIG,
+        hint: formatEnvProblems([{ variable: seedStorage.variable, problem: seedStorage.message }]),
+      });
+    }
+
     // The embedded fallback is legitimate but must announce itself.
     if (runtime.metaStore.source === 'embedded') {
       io.err(embeddedMetaWarning(runtime.metaStore.url));
@@ -401,6 +453,8 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       crypto: storageCryptoFromSecret(env.ADMINIUM_SECRET),
       env,
       blockLoopback: runtime.manager.blockLoopback,
+      blockPrivate: runtime.manager.networkPolicy === 'strict',
+      roots: storageRootPolicyFor(env, runtime.metaStore),
       log: (message) => {
         io.out(message);
       },

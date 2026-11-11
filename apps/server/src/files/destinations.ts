@@ -24,10 +24,12 @@ import type { DestinationsRepo, StorageDestination } from '@adminium/meta';
 
 import { guardOutboundUrl } from '../connections/dsn.js';
 import { ValidationFailedError } from '../errors.js';
+import { checkOutboundUrl, outboundFetch, type OutboundPolicy } from '../net/outbound-check.js';
 import { createLocalDriver } from './drivers/local.js';
 import { createS3Driver, s3BucketUrl } from './drivers/s3.js';
 import { createWebdavDriver } from './drivers/webdav.js';
 import type { FileDriver } from './drivers/driver.js';
+import { assertStorageRootAllowed, type StorageRootPolicy } from './root-guard.js';
 
 /** The implicit destination's sentinel on the wire (D3). */
 export const LOCAL_DESTINATION_ID = 'local';
@@ -54,8 +56,17 @@ export interface DestinationResolver {
   defaultDestinationId(): Promise<string | null>;
   /** Enabled destinations that publish a public base — the ref parser's input. */
   publicBases(): Promise<{ id: string; publicBaseUrl?: string | null | undefined }[]>;
-  /** Refuse a config whose address this server may not call (422), before it is stored. */
+  /** Refuse a config whose address this server may not call (422), by how it is written. */
   assertAllowed(driver: StorageDestination['driver'], config: StorageDestination['config']): void;
+  /**
+   * The whole check, before a config is stored or tested: an S3 or WebDAV
+   * address looked up and every address it gives checked (cloud metadata
+   * always, this machine in production, the server's own network under
+   * `ADMINIUM_NETWORK_POLICY=strict`), and a `local` root against Adminium's
+   * own folders and `ADMINIUM_STORAGE_DIRS`. Throws 422 for a refusal, 502
+   * `HOST_LOOKUP_FAILED` for a name that could not be looked up.
+   */
+  checkAllowed(driver: StorageDestination['driver'], config: StorageDestination['config']): Promise<void>;
   /** Drop cached drivers (a secret rotation, a test that re-seeds). */
   clearCache(): void;
 }
@@ -90,28 +101,55 @@ function parseSecret(driver: string, raw: string | null): Record<string, string>
   return out;
 }
 
+/** The address an S3 or WebDAV destination's requests go to (the S3 bucket host included); null for `local`. */
+function destinationAddress(driver: StorageDestination['driver'], config: StorageDestination['config']): string | null {
+  if (driver === 's3' && 'bucket' in config) {
+    try {
+      return s3BucketUrl(config);
+    } catch {
+      throw new ValidationFailedError('The storage address is not a valid URL.', { config: 'endpoint' });
+    }
+  }
+  if (driver === 'webdav' && 'url' in config) return config.url;
+  return null;
+}
+
 /**
  * The address a remote destination's requests go to must not be the cloud
- * metadata service (always), or this machine (in production): a file read
+ * metadata service (always), or this machine (in production), or, under
+ * `ADMINIUM_NETWORK_POLICY=strict`, the server's own network: a file read
  * would stream back whatever answers there. The S3 address is the one the
- * requests use, bucket host included. Throws 422.
+ * requests use, bucket host included. Judged by how it is WRITTEN, with no
+ * lookup: {@link checkDestinationAddress} adds that, and every request the
+ * drivers make does it again. Throws 422.
  */
 export function assertDestinationAddressAllowed(
   driver: StorageDestination['driver'],
   config: StorageDestination['config'],
-  opts: { blockLoopback: boolean },
+  opts: { blockLoopback: boolean; blockPrivate?: boolean | undefined },
 ): void {
-  let address: string | null = null;
-  if (driver === 's3' && 'bucket' in config) {
-    try {
-      address = s3BucketUrl(config);
-    } catch {
-      throw new ValidationFailedError('The storage address is not a valid URL.', { config: 'endpoint' });
-    }
-  } else if (driver === 'webdav' && 'url' in config) {
-    address = config.url;
-  }
+  const address = destinationAddress(driver, config);
   if (address !== null) guardOutboundUrl(address, opts);
+}
+
+/**
+ * {@link assertDestinationAddressAllowed}, then the name looked up and every
+ * address it gives checked under `policy`. For a config about to be stored,
+ * tested or seeded. Throws 422, or 502 `HOST_LOOKUP_FAILED`.
+ */
+export async function checkDestinationAddress(
+  driver: StorageDestination['driver'],
+  config: StorageDestination['config'],
+  policy: OutboundPolicy,
+): Promise<void> {
+  assertDestinationAddressAllowed(driver, config, policy);
+  const address = destinationAddress(driver, config);
+  if (address !== null) await checkOutboundUrl(address, policy);
+}
+
+/** A `local` config's folder, checked when the policy is known (every composed server passes it). */
+function assertLocalRootAllowed(driver: StorageDestination['driver'], config: StorageDestination['config'], roots: StorageRootPolicy | undefined): void {
+  if (driver === 'local' && roots !== undefined && 'root' in config) assertStorageRootAllowed(config.root, roots);
 }
 
 function buildDriver(
@@ -119,9 +157,14 @@ function buildDriver(
   config: StorageDestination['config'],
   secret: Record<string, string>,
   localRootFallback: string,
-  blockLoopback: boolean,
+  outbound: OutboundPolicy,
+  roots: StorageRootPolicy | undefined,
 ): FileDriver {
-  assertDestinationAddressAllowed(driver, config, { blockLoopback });
+  assertDestinationAddressAllowed(driver, config, outbound);
+  // Every request the driver makes looks the host up again, checks it, and connects to what passed.
+  const fetchImpl = outboundFetch(outbound);
+  // Every time a driver is built, not only at the save: a folder can become a symlink into the data dir later.
+  assertLocalRootAllowed(driver, config, roots);
   switch (driver) {
     case 'local': {
       const root = 'root' in config ? config.root : localRootFallback;
@@ -136,6 +179,7 @@ function buildDriver(
       }
       return createS3Driver({
         config,
+        fetchImpl,
         credentials: {
           accessKeyId,
           secretAccessKey,
@@ -149,6 +193,7 @@ function buildDriver(
       const password = secret['password'];
       return createWebdavDriver({
         config,
+        fetchImpl,
         // Anonymous WebDAV is legal (a share behind a VPN, a read-only mirror),
         // so missing credentials are a valid configuration rather than an error.
         ...(username === undefined || password === undefined ? {} : { credentials: { username, password } }),
@@ -163,11 +208,22 @@ export interface DestinationResolverOptions {
   localRoot: string;
   /** Refuse this machine's own address as a remote destination; default: in production. */
   blockLoopback?: boolean | undefined;
+  /** `ADMINIUM_NETWORK_POLICY=strict`: refuse the server's own network too. Default: no. */
+  blockPrivate?: boolean | undefined;
+  /** Test seam: how an endpoint's host is looked up. Default the system resolver's. */
+  lookup?: OutboundPolicy['lookup'];
+  /**
+   * Where Adminium's own files are, and `ADMINIUM_STORAGE_DIRS`: a `local`
+   * destination's root is refused on them (`root-guard.ts`). Unset: no root is
+   * refused (tests that build a resolver by hand).
+   */
+  roots?: StorageRootPolicy | undefined;
 }
 
 export function createDestinationResolver(opts: DestinationResolverOptions): DestinationResolver {
-  const { repo, localRoot } = opts;
+  const { repo, localRoot, roots } = opts;
   const blockLoopback = opts.blockLoopback ?? process.env.NODE_ENV === 'production';
+  const outbound: OutboundPolicy = { blockLoopback, blockPrivate: opts.blockPrivate === true, lookup: opts.lookup };
   const local = createLocalDriver({ root: localRoot });
   const cache = new Map<string, { updatedAt: number; driver: FileDriver }>();
 
@@ -189,17 +245,22 @@ export function createDestinationResolver(opts: DestinationResolverOptions): Des
       if (cached !== undefined && cached.updatedAt === row.updatedAt) return cached.driver;
 
       const secret = parseSecret(row.driver, row.hasSecret ? await repo.getSecret(row.id) : null);
-      const driver = buildDriver(row.driver, row.config, secret, localRoot, blockLoopback);
+      const driver = buildDriver(row.driver, row.config, secret, localRoot, outbound, roots);
       cache.set(row.id, { updatedAt: row.updatedAt, driver });
       return driver;
     },
 
     driverForDraft(draft) {
-      return buildDriver(draft.driver, draft.config, parseSecret(draft.driver, draft.secret ?? null), localRoot, blockLoopback);
+      return buildDriver(draft.driver, draft.config, parseSecret(draft.driver, draft.secret ?? null), localRoot, outbound, roots);
     },
 
     assertAllowed(driver, config) {
-      assertDestinationAddressAllowed(driver, config, { blockLoopback });
+      assertDestinationAddressAllowed(driver, config, outbound);
+    },
+
+    async checkAllowed(driver, config) {
+      assertLocalRootAllowed(driver, config, roots);
+      await checkDestinationAddress(driver, config, outbound);
     },
 
     async defaultDestinationId() {

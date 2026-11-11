@@ -33,6 +33,13 @@ export type ErrorCode =
   | 'RATE_LIMITED'
   | 'SOURCE_DB_UNREACHABLE'
   /**
+   * A host this server was about to call (a source database, a webhook, a
+   * storage endpoint) could not be looked up, so it could not be checked and
+   * is not called. 502, not 422: nothing the caller typed was refused by a
+   * rule, and the same request can pass once the name resolves.
+   */
+  | 'HOST_LOOKUP_FAILED'
+  /**
    * The operator PAUSED this connection (meta wave 0019). 503 and not 403: the
    * caller did nothing wrong and nothing about them needs to change — the
    * source is administratively unavailable and will answer again when somebody
@@ -110,6 +117,20 @@ export class ValidationFailedError extends AppError {
 
   constructor(message = 'Request validation failed.', details?: unknown) {
     super(422, 'VALIDATION_FAILED', message, details);
+  }
+}
+
+/**
+ * 502 — the host could not be looked up, so the guard could not check where
+ * it points and nothing was called (`HOST_LOOKUP_FAILED`). Kept apart from the
+ * 422 a policy refusal is: a name that does not resolve now may resolve in a
+ * minute, and nothing about the request has to change.
+ */
+export class HostLookupFailedError extends AppError {
+  override readonly name = 'HostLookupFailedError';
+
+  constructor(host: string) {
+    super(502, 'HOST_LOOKUP_FAILED', `Could not look up ${host}. Check the name, or try again if it was just created.`, { host });
   }
 }
 

@@ -10,39 +10,32 @@
 import { MysqlDialect, type MysqlDialectConfig } from 'kysely';
 import mysql from 'mysql2';
 
-import {
-  AdapterError,
-  type DataConnectionConfig,
-  type QueryEngine,
-} from '@adminium/engine/adapter';
+import { type DataConnectionConfig, type QueryEngine } from '@adminium/engine/adapter';
 
 import {
   MYSQL_MAX_IDENTIFIER_LENGTH,
   mysqlSerializers,
   quoteIdentifier,
 } from './serialization.js';
+import { endpointOf, mysqlEndpointConfig } from './client-config.js';
 import { readTimestampsAsUtc, UTC_SESSION_SQL } from './session.js';
 
 const DEFAULT_DATA_POOL_MAX = 10;
 
 /**
  * Build the CRUD query port for a data-role connection. Accepts a DSN string
- * or the role-branded config (which must carry a `dsn`). Kysely's
+ * or the role-branded config (its `endpoint`, or a `dsn`). Kysely's
  * `MysqlDialect` consumes the callback-flavored mysql2 pool; connections are
  * only opened on first query, and `destroy()` tears the pool down
  * idempotently. Every connection's session runs in UTC and a `TIMESTAMP`
  * reads back as UTC (`session.ts`).
  */
 export function createQueryEngine(config: DataConnectionConfig | string): QueryEngine {
-  const dsn = typeof config === 'string' ? config : config.dsn;
-  if (dsn === undefined || dsn.length === 0) {
-    throw new AdapterError('UNKNOWN', 'mysql query engine requires a DSN', {
-      hint: 'pass a mysql:// connection string (TLS options honored from the ssl params)',
-    });
-  }
+  const endpoint = mysqlEndpointConfig(endpointOf(typeof config === 'string' ? { dsn: config } : config, 'mysql query engine requires'));
   const poolMax = typeof config === 'string' ? undefined : config.poolMax;
   const pool = mysql.createPool({
-    uri: dsn,
+    // Fields, never the string: no query parameter reaches the driver unmapped.
+    ...endpoint,
     connectionLimit: poolMax ?? DEFAULT_DATA_POOL_MAX,
     typeCast: readTimestampsAsUtc,
   });

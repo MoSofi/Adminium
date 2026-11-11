@@ -57,6 +57,7 @@ import {
   type ProbeResult,
 } from './introspect.js';
 import { createQueryEngine } from './query-engine.js';
+import { endpointOf, mysqlEndpointConfig } from './client-config.js';
 import { readTimestampsAsUtc, UTC_SESSION_SQL } from './session.js';
 import { collectMysqlStats } from './stats.js';
 
@@ -87,16 +88,13 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
         { hint: 'the three logical connections are never interchangeable' },
       );
     }
-    if (config.dsn === undefined || config.dsn.length === 0) {
-      throw new AdapterError('UNKNOWN', 'mysql connections require a DSN', {
-        hint: 'pass a mysql:// connection string naming the database to introspect',
-      });
-    }
+    const endpoint = mysqlEndpointConfig(endpointOf(config, 'mysql connections require'));
     const statementTimeoutMs = Math.floor(
       config.statementTimeoutMs ?? DEFAULT_STATEMENT_TIMEOUT_MS,
     );
     const pool = createPool({
-      uri: config.dsn,
+      // Fields, never the string: no query parameter reaches the driver unmapped.
+      ...endpoint,
       connectionLimit:
         config.poolMax ?? (this.role === 'introspect' ? INTROSPECT_POOL_MAX : DATA_POOL_MAX),
       // The same clock as the query engine's pool (`session.ts`): a column's

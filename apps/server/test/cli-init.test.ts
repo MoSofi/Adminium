@@ -461,6 +461,16 @@ describe('adminium init — the terminal path', () => {
     expect(source?.labels.join(' ')).not.toContain('The same database');
   });
 
+  it('does not offer a SQLite meta store back: its file is never a source', async () => {
+    const { io } = await runTerminal({
+      selections: ['In a PostgreSQL or MySQL database I already run', 'Full admin panel'],
+      answers: ['sqlite:/srv/adminium/meta.db'],
+    });
+    const source = io.menus().find((menu) => menu.title === 'How do you want to connect to it?');
+    expect(source?.labels).toHaveLength(3);
+    expect(source?.labels.join(' ')).not.toContain('The same database');
+  });
+
   it('reaches the connection test with the DSN it was given', async () => {
     const { runtime, code } = await runTerminal({
       // Full run order: meta placement → intent → source mode. Meta is picked by

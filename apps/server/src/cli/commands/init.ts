@@ -699,13 +699,15 @@ async function askForDsn(io: CliIo, metaUrl: string | null): Promise<string> {
   // COULD be the same — so the honest reading was that they must differ.
   // Placement still adjudicates: `enforceMetaPlacement` refuses the pairing below if
   // the role cannot write and run DDL, with a message saying so.
+  // Not for a SQLite meta store: its file is never a source (`connections/sqlite-guard.ts`).
+  const offered = metaUrl !== null && !/^(sqlite3?|file):/i.test(metaUrl) ? metaUrl : null;
   const reuse: SelectChoice[] =
-    metaUrl === null
+    offered === null
       ? []
       : [
           {
             label: 'The same database I just gave Adminium for its own storage',
-            hint: maskDsn(metaUrl) ?? 'the connection string you just entered',
+            hint: maskDsn(offered) ?? 'the connection string you just entered',
           },
         ];
   const modes: SelectChoice[] = [
@@ -715,7 +717,7 @@ async function askForDsn(io: CliIo, metaUrl: string | null): Promise<string> {
     { label: 'Point at a SQLite file', hint: 'A path to a .db / .sqlite file.' },
   ];
   const picked = await io.select('How do you want to connect to it?', modes);
-  if (metaUrl !== null && picked === 0) return metaUrl;
+  if (offered !== null && picked === 0) return offered;
   const mode = picked - reuse.length;
 
   if (mode === 0) {

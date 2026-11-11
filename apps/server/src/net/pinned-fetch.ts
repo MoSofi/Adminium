@@ -8,10 +8,11 @@
  * go to the address that was checked. The name is kept for the Host header
  * and for the certificate, so the far end sees nothing different.
  *
- * It does what the model requests need and no more: a method, headers, a
- * text body, a signal; the answer as a `Response` whose body streams. A
- * redirect is handed back as it is, never followed. The body is asked for
- * uncompressed.
+ * It does what the model, webhook and storage requests need and no more: a
+ * method (WebDAV's own included), headers, a body (text, bytes or a stream:
+ * a storage upload streams a file with its exact length declared), a signal;
+ * the answer as a `Response` whose body streams. A redirect is handed back as
+ * it is, never followed. The body is asked for uncompressed.
  */
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
@@ -52,12 +53,13 @@ export function pinnedFetch(pins: readonly PinnedAddress[]): typeof fetch {
         headers[name] = value;
       });
       headers['accept-encoding'] = 'identity';
-      const body = typeof init?.body === 'string' ? init.body : null;
-      if (init?.body !== undefined && init.body !== null && body === null) {
-        reject(new TypeError('Only a text body is sent.'));
+      const body = requestBody(init?.body);
+      if (body === undefined) {
+        reject(new TypeError('Only a text, bytes or stream body is sent.'));
         return;
       }
-      if (body !== null) headers['content-length'] = String(Buffer.byteLength(body));
+      // A stream's length is the caller's to declare (a storage PUT always does); bytes are counted here.
+      if ((typeof body === 'string' || Buffer.isBuffer(body)) && headers['content-length'] === undefined) headers['content-length'] = String(Buffer.byteLength(body));
       const host = url.hostname.replace(/^\[|\]$/g, '');
       const secure = url.protocol === 'https:';
       const method = (init?.method ?? 'GET').toUpperCase();
@@ -99,6 +101,22 @@ export function pinnedFetch(pins: readonly PinnedAddress[]): typeof fetch {
         },
       );
       req.on('error', reject);
-      req.end(body ?? undefined);
+      if (body instanceof Readable) {
+        body.on('error', (error) => req.destroy(error));
+        body.pipe(req);
+      } else {
+        req.end(body ?? undefined);
+      }
     });
+}
+
+/** The body as `http.request` sends it; null for none, undefined for one this does not send. */
+function requestBody(body: RequestInit['body'] | undefined): string | Buffer | Readable | null | undefined {
+  if (body === undefined || body === null) return null;
+  if (typeof body === 'string') return body;
+  if (body instanceof Uint8Array) return Buffer.from(body.buffer, body.byteOffset, body.byteLength);
+  if (body instanceof ArrayBuffer) return Buffer.from(body);
+  if (body instanceof ReadableStream) return Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0]);
+  if ((body as unknown) instanceof Readable) return body as unknown as Readable;
+  return undefined;
 }

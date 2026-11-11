@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { isAbsolute, resolve } from 'node:path';
+
 import { z } from 'zod';
 
+import { parseDatabaseHost, type DatabaseHost } from '../connections/dsn.js';
+import { NETWORK_POLICIES } from '../net/outbound-check.js';
 import { invalidTrustedProxies } from '../security/trust-proxy.js';
 import { withHeldSecrets } from './operator-secrets.js';
 
@@ -141,6 +145,37 @@ function serverOriginVar(fallback: string, opts: { plainHttp?: boolean }, proble
           return z.NEVER;
         }
         return origin;
+      }),
+  );
+}
+
+/**
+ * A comma-separated list of absolute folders (`ADMINIUM_SQLITE_DIRS`,
+ * `ADMINIUM_STORAGE_DIRS`), resolved; unset or empty is undefined. A relative
+ * one would depend on the folder the server was started from, so it fails.
+ */
+function folderListVar(example: string) {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const dirs = value
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0);
+        if (dirs.length === 0) return undefined;
+        const relative = dirs.filter((dir) => !isAbsolute(dir));
+        if (relative.length > 0) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `${relative.map((dir) => `"${dir}"`).join(', ')} ${relative.length === 1 ? 'is' : 'are'} not an absolute folder path, e.g. ${example}`,
+          });
+          return z.NEVER;
+        }
+        return dirs.map((dir) => resolve(dir));
       }),
   );
 }
@@ -700,6 +735,83 @@ export const envSchema = z.object({
         return hosts;
       }),
   ),
+  /**
+   * The database hosts a production server may reach on its own loopback:
+   * `localhost:5432,postgres:5432,*.pooler.supabase.com:6543`. Production
+   * refuses a source database on loopback (`connections/dsn.ts`), because with
+   * host networking loopback is every service on the box; a one-server install
+   * names the one database it runs there, by host AND port, and the rest stays
+   * refused. A port left out is the engine's own (5432 / 3306).
+   *
+   * Source connections only, never the meta store's own URL. A cloud-metadata
+   * address is refused here as well as at every dial: no list may name it.
+   */
+  ADMINIUM_DATABASE_HOSTS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const entries = value
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0);
+        if (entries.length === 0) return undefined;
+        const hosts: DatabaseHost[] = [];
+        const refused: string[] = [];
+        const metadata: string[] = [];
+        for (const entry of entries) {
+          const parsed = parseDatabaseHost(entry);
+          if (parsed.ok) hosts.push(parsed.entry);
+          else (parsed.reason === 'metadata' ? metadata : refused).push(entry);
+        }
+        const quoted = (list: string[]): string => list.map((entry) => `"${entry}"`).join(', ');
+        if (metadata.length > 0) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `${quoted(metadata)} names a cloud metadata address, which Adminium never connects to. Remove it.`,
+          });
+        }
+        if (refused.length > 0) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `${quoted(refused)} ${refused.length === 1 ? 'is' : 'are'} not a host[:port], e.g. localhost:5432`,
+          });
+        }
+        return metadata.length > 0 || refused.length > 0 ? z.NEVER : hosts;
+      }),
+  ),
+  /**
+   * The folders a SQLite source database may lie in: `/srv/databases,/data/apps`.
+   * Unset, a SQLite source may be any file the server can open, apart from
+   * Adminium's own files (its meta store and the data dir's own folders,
+   * `connections/sqlite-guard.ts`), which are refused either way. Set, the
+   * file's real path (symlinks followed) must be under one of these. Absolute
+   * paths only: a relative one would depend on the folder the server was
+   * started from.
+   */
+  ADMINIUM_SQLITE_DIRS: folderListVar('/srv/databases'),
+  /**
+   * The folders a `local` storage destination's root may lie in:
+   * `/srv/files,/mnt/uploads`. Unset, a root may be any folder apart from
+   * Adminium's own (its meta store, the data dir's own folders, `/` and any
+   * folder holding the data dir, `files/root-guard.ts`), which are refused
+   * either way. Set, the root's real path must be under one of these.
+   * Absolute paths only.
+   */
+  ADMINIUM_STORAGE_DIRS: folderListVar('/srv/files'),
+  /**
+   * `open` (default) or `strict`. `strict` also refuses the server's own
+   * network (private ranges: 10/8, 172.16/12, 192.168/16, 100.64/10, IPv6
+   * ULA) for source databases, webhooks and storage endpoints; a source host
+   * in `ADMINIUM_DATABASE_HOSTS` still passes. Cloud metadata is refused
+   * under both, and loopback follows its own rule (refused in production).
+   */
+  ADMINIUM_NETWORK_POLICY: z.preprocess(
+    (value) => (typeof value === 'string' ? emptyToUndefined(value.trim().toLowerCase()) : value),
+    z.enum(NETWORK_POLICIES).optional().transform((value) => value ?? 'open'),
+  ),
   /*
    * Where maps come from. A map on a page makes each staff BROWSER fetch map
    * pictures from this server, so its origin is written into the content
@@ -809,6 +921,13 @@ const ENV_HINTS: Record<string, string> = {
     'CSV of exact origins allowed to reach /api/v1/public, plus the literal `self` for surfaces this instance hosts itself — unset means the public API is not registered at all; must be disjoint from ADMINIUM_CORS_ORIGINS',
   ADMINIUM_CSP_IMG_HOSTS:
     'CSV of image origins the dashboard and hosted app surfaces may load pictures from, e.g. https://images.example.com — a leading *. covers subdomains; no bare *, scheme alone or path',
+  ADMINIUM_DATABASE_HOSTS:
+    'CSV of host[:port] a production server may reach on its own loopback, e.g. localhost:5432 (port defaults to 5432 / 3306; *.suffix for a provider\'s names; never a cloud metadata address)',
+  ADMINIUM_SQLITE_DIRS:
+    'CSV of absolute folders a SQLite source database must lie in, e.g. /srv/databases (unset: any file except Adminium\'s own)',
+  ADMINIUM_STORAGE_DIRS:
+    'CSV of absolute folders a local storage destination must lie in, e.g. /srv/files (unset: any folder except Adminium\'s own)',
+  ADMINIUM_NETWORK_POLICY: `one of ${NETWORK_POLICIES.join(', ')} (default open; strict also refuses private ranges for source databases, webhooks and storage endpoints)`,
   ADMINIUM_MAP_SERVER: `off, or the one origin map pictures come from (default ${DEFAULT_MAP_SERVER})`,
   ADMINIUM_ROUTING_SERVER: `off, or the origin of an OSRM routing server (default ${DEFAULT_ROUTING_SERVER}; asked only when routing is switched on)`,
 };
@@ -827,11 +946,18 @@ export class EnvValidationError extends Error {
 
 /** Renders the fail-fast `variable | problem | hint` table. */
 export function formatEnvErrorTable(issues: readonly z.core.$ZodIssue[]): string {
+  return formatEnvProblems(
+    issues.map((issue) => ({
+      variable: issue.path.length > 0 ? issue.path.map(String).join('.') : '(env)',
+      problem: issue.message,
+    })),
+  );
+}
+
+/** The same table for a problem found after parsing, by a check that needs more than the environment. */
+export function formatEnvProblems(problems: readonly { variable: string; problem: string }[]): string {
   const header = ['variable', 'problem', 'hint'];
-  const rows = issues.map((issue) => {
-    const variable = issue.path.length > 0 ? issue.path.map(String).join('.') : '(env)';
-    return [variable, issue.message, ENV_HINTS[variable] ?? '—'];
-  });
+  const rows = problems.map(({ variable, problem }) => [variable, problem, ENV_HINTS[variable] ?? '—']);
   const all = [header, ...rows];
   const widths = header.map((_, col) => Math.max(...all.map((row) => (row[col] ?? '').length)));
   const line = (row: string[]): string =>
