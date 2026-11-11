@@ -167,6 +167,9 @@ export async function seedInstance(meta: MetaDb, dirs: Dirs): Promise<Seeded> {
   await settings.set('addOns.deciderTrust', { 'stamps@1.0.0': `sha512-${'A'.repeat(86)}==` });
   await settings.set('designer.live', true);
   await settings.set('designer.liveId', 'live-1234');
+  // A project the desktop app made: who it signs in without a password on its own computer.
+  await settings.set('designer.ownerId', admin.id);
+  await settings.set('designer.localOwnerId', admin.id);
   await settings.set('publicApi.enabled', true);
   await settings.set('email.smtp', {
     host: 'smtp.example.com',

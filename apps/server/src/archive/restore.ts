@@ -121,6 +121,12 @@ export interface RestoreArchiveOptions {
    * archive, whose people keep their own passwords.
    */
   owner?: ((choice: ExportOwnerChoice) => Promise<ExportOwnerAnswer>) | undefined;
+  /**
+   * An export opened in the desktop app: the person `owner` picked is also this computer's owner
+   * (`designer.ownerId`), whom the app signs in without a password, as it does the owner of a project
+   * it made. Never read from the file: an export carries no owner setting (`policy.ts`).
+   */
+  localOwner?: boolean | undefined;
   now?: () => number;
 }
 
@@ -163,6 +169,13 @@ export interface RestoreArchiveResult {
    */
   owners: ExportOwnerCandidate[];
   passwordMinLength: number;
+  /** Connections left without a connection string (an export carries none): Draft until it is entered again. */
+  drafts: string[];
+  /**
+   * The project's databases (connections with a project key): where a restored SQLite file now is, or
+   * null when its string must be entered again. What `import-zip` writes into the project's `.env`.
+   */
+  projectDatabases: { key: string; name: string; file: string | null }[];
 }
 
 /** The export's active Super Admins, the earliest made first. */
@@ -404,7 +417,7 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
     const placements: Placement[] = [];
     const connections = tables.get('adminium_connections');
     const connectionRows = connections === undefined ? [] : rowsOf(connections);
-    const restoredDatabases = new Set<string>();
+    const restoredDatabases = new Map<string, string>();
     const databasesRoot = join(dataDir, RESTORED_DATABASES_DIR);
     for (const db of manifest.databases) {
       const row = connectionRows.find((candidate) => candidate.id === db.connectionId);
@@ -417,7 +430,7 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       const dsn = opts.dsnCrypto.encrypt(`sqlite:${final}`);
       row.introspectDsnEncrypted = dsn;
       row.dataDsnEncrypted = dsn;
-      restoredDatabases.add(db.connectionId);
+      restoredDatabases.set(db.connectionId, final);
     }
 
     // ── the connection guard, again ─────────────────────────────────────────
@@ -447,6 +460,10 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       if (blank(row.introspectDsnEncrypted) && blank(row.dataDsnEncrypted)) row.status = 'unconfigured';
     }
     if (connections !== undefined) commitRows(connections, connectionRows);
+    const drafts = connectionRows.filter((row) => row.status === 'unconfigured' && !restoredDatabases.has(String(row.id))).map((row) => String(row.name));
+    const projectDatabases = connectionRows
+      .filter((row) => typeof row.projectKey === 'string' && row.projectKey !== '')
+      .map((row) => ({ key: String(row.projectKey), name: String(row.name), file: restoredDatabases.get(String(row.id)) ?? null }));
 
     // ── storage destinations, again ─────────────────────────────────────────
     const localRoots = new Map<string | null, string>([[null, join(dataDir, FILES_DIR)]]);
@@ -563,6 +580,8 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       owner,
       owners,
       passwordMinLength,
+      drafts,
+      projectDatabases,
       manifest,
       tables: tablesLoaded,
       files: placements.filter((p) => p.entry.path.startsWith(`${ARCHIVE_FILES_DIR}/`)).length,
@@ -590,6 +609,10 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
         for (const row of rows) if (String(row.id) === chosen.id) row.passwordHash = answer.passwordHash;
         commitRows(users, rows);
         owner = chosen;
+        if (opts.localOwner === true) {
+          settings.set('designer.ownerId', chosen.id, at);
+          settings.commit();
+        }
       }
     }
 

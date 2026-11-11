@@ -23,7 +23,7 @@ import { importExportFile } from './archive/commands.js';
 export const importZipCommand: Command = {
   name: 'import-zip',
   summary: 'Import an instance configuration bundle',
-  usage: 'adminium import-zip <file> [--dry-run] [--owner <email>] [--password-stdin] [--json]',
+  usage: 'adminium import-zip <file> [--dry-run] [--owner <email>] [--password-stdin] [--local-owner] [--json]',
   describe:
     'Restores configuration produced by `adminium export-zip` — connections,\n' +
     'snapshots, overrides, pages and dashboards, views, settings, roles.\n' +
@@ -80,6 +80,11 @@ export const importZipCommand: Command = {
       describe: 'Export file: read that password from standard input',
       defaultDescription: 'off',
     },
+    'local-owner': {
+      type: 'boolean',
+      describe: 'Export file: --owner is also this computer’s owner, signed in by the desktop app without a password',
+      defaultDescription: 'off',
+    },
     json: {
       type: 'boolean',
       describe: 'Export file: say the outcome, or the refusal, as one line of JSON',
@@ -113,6 +118,7 @@ export const importZipCommand: Command = {
         projectDir: stringFlag(values['project-dir']),
         ownerEmail: stringFlag(values.owner),
         passwordStdin: boolFlag(values['password-stdin']),
+        localOwner: boolFlag(values['local-owner']),
         json,
       });
     }

@@ -27,7 +27,7 @@ import { createArchive, type CreateArchiveOptions, type CreateArchiveResult } fr
 import { ARCHIVE_MANIFEST, ARCHIVE_SIGNATURE, type ArchiveManifest } from '../src/archive/format.js';
 import { restoreArchive } from '../src/archive/restore.js';
 import { hashPassword } from '../src/auth/passwords.js';
-import { askExportOwner, importExportFile } from '../src/cli/commands/archive/commands.js';
+import { askExportOwner, importExportFile, writeProjectEnv } from '../src/cli/commands/archive/commands.js';
 import { CliUsageError } from '../src/cli/exit.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import { ConnectionManager } from '../src/connections/manager.js';
@@ -560,11 +560,34 @@ describe('`import-zip --json`: what an app that imports the file reads', () => {
     expect((await readdir(dirs.dataDir)).filter((name) => name !== 'meta.db' && !name.startsWith('meta.db-'))).toEqual([]);
   });
 
+  it('a project folder that came in the file gets the .env its config reads, as `new` writes one, and none of the file’s', async () => {
+    const dirs = await freshDirs();
+    await mkdir(dirs.projectRoot, { recursive: true });
+    await writeFile(join(dirs.projectRoot, '.env.example'), 'ADMINIUM_SECRET=\nDATABASE_URL=\nSTRIPE_KEY=sk_test_example\n');
+    await writeFile(join(dirs.projectRoot, '.env'), 'ADMINIUM_SECRET=kept\n');
+    const written = writeProjectEnv(dirs.projectRoot, {
+      projectDatabases: [
+        { key: 'main', name: 'Shop', file: join(dirs.projectRoot, 'data', 'databases', 'shop.sqlite') },
+        { key: 'warehouse', name: 'Warehouse', file: null },
+      ],
+    });
+    expect(written).toEqual(['DATABASE_URL', 'WAREHOUSE_DATABASE_URL', 'STRIPE_KEY']);
+    const env = await readFile(join(dirs.projectRoot, '.env'), 'utf8');
+    expect(env).toMatch(/^ADMINIUM_SECRET=kept$/m);
+    expect(env).toMatch(/^DATABASE_URL=sqlite:\.\/data\/databases\/shop\.sqlite$/m);
+    expect(env).toMatch(/^WAREHOUSE_DATABASE_URL=$/m);
+    // A name from .env.example, never its value.
+    expect(env).toMatch(/^STRIPE_KEY=$/m);
+    expect(env).not.toContain('sk_test_example');
+  });
+
   it('the import itself names who was given the password', async () => {
     const dirs = await freshDirs();
     const { code, out } = await run(dirs, { ownerEmail: 'bo@example.com', passwordStdin: true, readStdin: async () => NEW_PASSWORD });
     expect(code).toBe(0);
     expect(out).toMatchObject({ ok: true, dryRun: false, owner: 'bo@example.com' });
+    // The connection that came without its string, by name: the app says which to finish.
+    expect(out.drafts).toContain('Warehouse');
   });
 
   it('a refusal is JSON too: a short password, and a full archive, which names its own command', async () => {

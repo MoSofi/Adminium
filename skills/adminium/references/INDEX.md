@@ -98,5 +98,5 @@ file. Every file is 8 KB or less.
 | `references/cli/generate-prompt.md` | `generate-prompt` | 1432 |
 | `references/cli/apply-llm-response.md` | `apply-llm-response` | 1251 |
 | `references/cli/export-zip.md` | `export-zip` | 1077 |
-| `references/cli/import-zip.md` | `import-zip` | 3309 |
+| `references/cli/import-zip.md` | `import-zip` | 3927 |
 | `references/cli/archive.md` | `archive` | 1439 |

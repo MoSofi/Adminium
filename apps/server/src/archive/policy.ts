@@ -44,8 +44,12 @@ const EXPORT_SKIPPED_TABLES: readonly string[] = ['adminium_jobs'];
 
 export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId'];
 
-/** This instance's own identity: an export does not clone it onto another server. */
-const EXPORT_SKIPPED_SETTINGS: readonly string[] = ['system.instanceId', 'system.bootstrappedAt'];
+/**
+ * This instance's own identity: an export does not clone it onto another server. Nor does it say who a
+ * desktop app signs in WITHOUT a password (`designer.ownerId`, `designer.localOwnerId`): the file is
+ * untrusted, so the computer it is opened on decides that (`import-zip --local-owner`), never the file.
+ */
+const EXPORT_SKIPPED_SETTINGS: readonly string[] = ['system.instanceId', 'system.bootstrappedAt', 'designer.ownerId', 'designer.localOwnerId'];
 
 /**
  * Consent records keep their rows when secrets are dropped: their values no
