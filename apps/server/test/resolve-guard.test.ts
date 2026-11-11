@@ -323,17 +323,36 @@ describe('each new connection of a pool checks its host again', () => {
 });
 
 describe('where loopback is allowed (the desktop app, dev)', () => {
-  it('looks nothing up and dials as before, but still hands the adapter fields', async () => {
-    const lookup = table({});
+  it('looks the name up and refuses metadata only; a name that does not resolve is left to the driver', async () => {
+    const lookup = table({ localhost: ['127.0.0.1'], 'db.example.com': ['192.168.1.20'], 'evil.example.com': ['169.254.169.254'] });
     const dialled: Dialled[] = [];
     const desktop = new ConnectionManager({ meta: fakeMeta, crypto, registry: recordingRegistry(dialled), blockLoopback: false, lookup });
     expect((await desktop.testDsn('postgres', 'postgres://app@localhost:5432/shop')).ok).toBe(true);
+    expect((await desktop.testDsn('postgres', 'postgres://app@db.example.com:5432/shop')).ok).toBe(true);
+    // Offline, or a name not created yet: no lookup failure of ours; the driver reports its own.
     expect((await desktop.testDsn('postgres', 'postgres://app@nowhere.example.com/shop')).ok).toBe(true);
-    expect(lookup.asked).toEqual([]);
-    expect(dialled.map((config) => config.endpoint?.host)).toEqual(['localhost', 'nowhere.example.com']);
-    expect(dialled.every((config) => config.dsn === undefined && config.endpoint?.addresses === undefined)).toBe(true);
-    // The metadata address stays refused by its spelling.
+    expect(lookup.asked).toEqual(['localhost', 'db.example.com', 'nowhere.example.com']);
+    expect(dialled.map((config) => config.endpoint?.addresses)).toEqual([['127.0.0.1'], ['192.168.1.20'], []]);
+    expect(dialled.every((config) => config.dsn === undefined)).toBe(true);
+    // The unresolved name's connection asks again, and fails as the driver would.
+    await expect(dialled[2]?.endpoint?.resolveAddresses?.()).rejects.toMatchObject({ code: 'ENOTFOUND', message: 'getaddrinfo ENOTFOUND nowhere.example.com' });
+    // A name that resolves to the metadata address is refused here too, as is the address itself.
+    await expect(desktop.testDsn('postgres', 'postgres://app@evil.example.com/shop')).rejects.toThrow('blocked address range');
     await expect(desktop.testDsn('postgres', 'postgres://app@169.254.169.254/shop')).rejects.toThrow('blocked address range');
+    expect(dialled).toHaveLength(3);
+  });
+
+  it('a name moved to metadata later is refused on the next connection', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      let answer: readonly string[] = ['192.168.1.20'];
+      const checked = await checkDsn('postgres://app@db.example.com/shop', { blockLoopback: false, lookup: async () => answer });
+      answer = ['169.254.169.254'];
+      vi.advanceTimersByTime(ADDRESS_RECHECK_MS + 1);
+      await expect(checked.endpoint?.resolveAddresses?.()).rejects.toMatchObject({ reason: 'metadata' });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('a SQLite source keeps its path', async () => {

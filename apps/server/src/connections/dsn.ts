@@ -496,7 +496,7 @@ export async function checkDsn(dsn: string, opts: DsnResolveOptions = {}): Promi
   if (parsed.scheme === 'sqlite') return { parsed, endpoint: null };
   const endpoint = databaseEndpointFromDsn(dsn, parsed.scheme === 'postgres' ? 'uri' : 'component');
   if (endpoint === null) throw new ValidationFailedError('Malformed DSN.', {});
-  if ((opts.blockLoopback !== true && opts.blockPrivate !== true) || parsed.host === null) return { parsed, endpoint };
+  if (parsed.host === null) return { parsed, endpoint };
   const policy: HostPolicy = {
     // "Allow databases on this server" lets any loopback address through; private and metadata are still checked.
     blockLoopback: opts.blockLoopback === true && opts.localDatabases !== true,
