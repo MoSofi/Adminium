@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
+    "@types/node": "22.15.3",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

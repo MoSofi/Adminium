@@ -145,7 +145,8 @@ describe('createQueryEngine pool error contract', () => {
     it('appends ours after an `options=` in the DSN, and strips it from the string', () => {
       const dsn = `${DSN}?options=${encodeURIComponent('-c search_path=reporting')}`;
       createQueryEngine({ role: 'data', dsn } as never);
-      expect(pools.at(0)!.options.connectionString).toBe(DSN);
+      expect(pools.at(0)!.options.connectionString).toBeUndefined();
+      expect(pools.at(0)!.options).toMatchObject({ host: '127.0.0.1', database: 'db' });
       expect(pools.at(0)!.options.options).toBe(
         ours('-c search_path=reporting -c statement_timeout=15000'),
       );

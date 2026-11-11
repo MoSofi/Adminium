@@ -48,7 +48,7 @@ class FakePool {
     },
   };
 
-  constructor(readonly options: { uri?: string; connectionLimit?: number }) {
+  constructor(readonly options: { uri?: string; connectionLimit?: number; [key: string]: unknown }) {
     pools.push(this);
   }
 
@@ -146,7 +146,9 @@ describe('connect()', () => {
     const adapter = new mod.MysqlAdapter<'data'>('data');
     await adapter.connect({ role: 'data', dsn: DSN, poolMax: 3 } as never);
     expect(pools[2]!.options.connectionLimit).toBe(3);
-    expect(pools[2]!.options.uri).toBe(DSN);
+    // Fields, never the string: no query parameter reaches mysql2 unmapped.
+    expect(pools[2]!.options.uri).toBeUndefined();
+    expect(pools[2]!.options).toMatchObject({ host: '127.0.0.1', port: 3306, database: 'shop', user: 'user', password: 'pw' });
   });
 });
 

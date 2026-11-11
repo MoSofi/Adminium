@@ -18,7 +18,10 @@
  */
 import { AdapterRegistry } from './adapter-registry.js';
 import type { AdapterError } from './adapter-registry.js';
+import type { DatabaseEndpoint } from './database-endpoint.js';
 import type { AdapterCapabilities, DatabaseModel, Dialect, LogicalType } from './schema-model.js';
+
+export { databaseEndpointFromDsn, type DatabaseEndpoint } from './database-endpoint.js';
 
 // ---------------------------------------------------------------------------
 // Connection configs (role-branded)
@@ -43,6 +46,13 @@ export interface ConnectionConfig<Role extends ConnectionRole = ConnectionRole> 
    * `sqlite:///abs/path.db`, `file:abs/path.db`, or a plain path via `file`.
    */
   readonly dsn?: string;
+  /**
+   * A network database's address as fields (`postgres`, `mysql`). Preferred
+   * over {@link dsn}: the server sends this, read through its parameter
+   * allow-list and carrying the address it checked, and the driver is built
+   * from it alone.
+   */
+  readonly endpoint?: DatabaseEndpoint;
   /** SQLite: absolute database file path (or ':memory:' for demo/test). */
   readonly file?: string;
   /** SQLite open mode; introspect instances always open readonly. */

@@ -142,9 +142,9 @@ describe('connect()', () => {
       const adapter = new mod.PostgresAdapter('introspect');
       await adapter.connect({ role: 'introspect', dsn: WITH_OPTIONS } as never);
 
-      // The DSN handed to pg no longer carries it — nothing left to collide.
-      expect(String(pools[0]!.options['connectionString'])).toBe(DSN);
-      expect(String(pools[0]!.options['connectionString'])).not.toContain('options=');
+      // pg gets fields, never the string: nothing left to collide.
+      expect(pools[0]!.options['connectionString']).toBeUndefined();
+      expect(pools[0]!.options).toMatchObject({ host: '127.0.0.1', port: 5432, database: 'shop', user: 'user', password: 'pw' });
     });
 
     it('is preserved, with our settings appended after it', async () => {
@@ -193,9 +193,10 @@ describe('connect()', () => {
       expect(pools[1]!.queries[0]).toContain("SET LOCAL statement_timeout = '15000';");
     });
 
-    it('leaves a DSN without one byte-for-byte', async () => {
+    it('reads a DSN without one into the same fields', async () => {
       await connected('introspect');
-      expect(pools[0]!.options['connectionString']).toBe(DSN);
+      expect(pools[0]!.options['connectionString']).toBeUndefined();
+      expect(pools[0]!.options).toMatchObject({ host: '127.0.0.1', port: 5432, database: 'shop', user: 'user', password: 'pw' });
     });
   });
 

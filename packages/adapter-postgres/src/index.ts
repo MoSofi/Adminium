@@ -40,7 +40,8 @@ import {
 } from '@adminium/engine/adapter';
 
 import { toAdapterError } from './errors.js';
-import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection, splitDsnOptions } from './session.js';
+import { endpointOf, pgEndpointConfig, type PgEndpointConfig } from './client-config.js';
+import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection } from './session.js';
 import {
   COLUMN_PRIVILEGES_SQL,
   interpretProbe,
@@ -68,13 +69,17 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
 
   #pool: pg.Pool | null = null;
   #closed = false;
-  /** Rebuild inputs for the pooler fallback — see {@link PostgresAdapter.connect}. */
-  #poolConfig: { connectionString: string; max: number } | null = null;
+  /**
+   * Rebuild inputs for the pooler fallback — see {@link PostgresAdapter.connect}.
+   * Fields, never a connection string, and the checked address when the server
+   * gave one: the rebuilt pool dials the same address as the first.
+   */
+  #poolConfig: (PgEndpointConfig & { max: number }) | null = null;
   /** The `-c …` string sent in the startup packet, or null once we stop trying. */
   #startupOptions: string | null = null;
   /**
    * An `options=` the operator put in the DSN themselves, lifted out of it by
-   * {@link splitDsnOptions}. Kept across the pooler downgrade — deliberately.
+   * {@link pgEndpointConfig}. Kept across the pooler downgrade — deliberately.
    * A pooler refuses these exactly as it refuses ours, so leaving them in place
    * means such a DSN still fails, with a hint naming `options=` as the thing to
    * remove, rather than us quietly discarding a setting the operator asked for.
@@ -96,11 +101,7 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
         { hint: 'the three logical connections are never interchangeable' },
       );
     }
-    if (config.dsn === undefined || config.dsn.length === 0) {
-      throw new AdapterError('UNKNOWN', 'postgres connections require a DSN', {
-        hint: 'pass a postgres:// connection string; TLS is honored from sslmode',
-      });
-    }
+    const endpoint = pgEndpointConfig(endpointOf(config, 'postgres connections require'));
     const statementTimeoutMs = Math.floor(
       config.statementTimeoutMs ?? DEFAULT_STATEMENT_TIMEOUT_MS,
     );
@@ -114,10 +115,9 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
     // transaction-pooling pgbouncer rejects startup options (the previous
     // per-connection SET was equally broken there).
     //
-    // An `options=` already in the DSN does NOT lose to the one we pass — `pg`
-    // lets the parsed connection string win, so ours were the settings being
-    // dropped. {@link splitDsnOptions} lifts theirs out of the string and
-    // {@link PostgresAdapter.#buildPool} re-joins the two in our order.
+    // An `options=` in the DSN is the operator's: {@link pgEndpointConfig}
+    // hands it back apart and {@link PostgresAdapter.#buildPool} joins the two
+    // in our order, so neither silently drops the other.
     //
     // …EXCEPT ON A CONNECTION POOLER, which refuses the startup packet outright
     // (see POOLER_REJECTS_STARTUP_OPTIONS). That is not an edge case: it is the
@@ -126,12 +126,11 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
     // the first rejection — rebuilding the pool without `options` and moving the
     // same settings into a `SET LOCAL` prelude (see {@link buildSessionSettings}).
     const settings = buildSessionSettings(statementTimeoutMs, this.role === 'introspect');
-    const split = splitDsnOptions(config.dsn);
     this.#poolConfig = {
-      connectionString: split.dsn,
+      ...endpoint.config,
       max: config.poolMax ?? (this.role === 'introspect' ? INTROSPECT_POOL_MAX : DATA_POOL_MAX),
     };
-    this.#dsnOptions = split.options;
+    this.#dsnOptions = endpoint.options;
     this.#startupOptions = settings.startupOptions;
     this.#sessionPrelude = settings.prelude;
     this.#pool = this.#buildPool();

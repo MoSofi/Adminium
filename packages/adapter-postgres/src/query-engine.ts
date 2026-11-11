@@ -10,35 +10,27 @@
 import { PostgresDialect, type PostgresDialectConfig } from 'kysely';
 import pg from 'pg';
 
-import {
-  AdapterError,
-  type DataConnectionConfig,
-  type QueryEngine,
-} from '@adminium/engine/adapter';
+import { type DataConnectionConfig, type QueryEngine } from '@adminium/engine/adapter';
 
 import {
   PG_MAX_IDENTIFIER_LENGTH,
   postgresSerializers,
   quoteIdentifier,
 } from './serialization.js';
-import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection, isTimeZoneRefusal, optionsNameTimeZone, processTimeZone, splitDsnOptions } from './session.js';
+import { endpointOf, pgEndpointConfig, type PgEndpointConfig } from './client-config.js';
+import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection, isTimeZoneRefusal, optionsNameTimeZone, processTimeZone } from './session.js';
 
 const DEFAULT_DATA_POOL_MAX = 10;
 const DEFAULT_STATEMENT_TIMEOUT_MS = 15_000;
 
 /**
  * Build the CRUD query port for a data-role connection. Accepts a DSN string
- * or the role-branded config (which must carry a `dsn`). The pool is lazy —
+ * or the role-branded config (its `endpoint`, or a `dsn`). The pool is lazy —
  * no connection is opened until the first query — and `destroy()` tears it
  * down idempotently.
  */
 export function createQueryEngine(config: DataConnectionConfig | string): QueryEngine {
-  const dsn = typeof config === 'string' ? config : config.dsn;
-  if (dsn === undefined || dsn.length === 0) {
-    throw new AdapterError('UNKNOWN', 'postgres query engine requires a DSN', {
-      hint: 'pass a postgres:// connection string (TLS options honored from sslmode)',
-    });
-  }
+  const endpoint = pgEndpointConfig(endpointOf(typeof config === 'string' ? { dsn: config } : config, 'postgres query engine requires'));
   const poolMax = typeof config === 'string' ? undefined : config.poolMax;
 
   // The statement budget, on the pool that reads ROWS — the one place it was
@@ -65,15 +57,17 @@ export function createQueryEngine(config: DataConnectionConfig | string): QueryE
     (typeof config === 'string' ? undefined : config.statementTimeoutMs) ??
       DEFAULT_STATEMENT_TIMEOUT_MS,
   );
-  const split = splitDsnOptions(dsn);
-  const base = { connectionString: split.dsn, max: poolMax ?? DEFAULT_DATA_POOL_MAX };
+  // Fields, never a connection string: every pool this engine builds (the
+  // first, and each downgrade below) dials the same checked address.
+  const base = { ...endpoint.config, max: poolMax ?? DEFAULT_DATA_POOL_MAX };
+  const dsnOptions = endpoint.options;
   /** Ours last, so a `-c statement_timeout` in the DSN loses to the budget. */
   const compose = (ours: string): string =>
-    [split.options, ours === '' ? null : ours].filter((part) => part !== null).join(' ');
+    [dsnOptions, ours === '' ? null : ours].filter((part) => part !== null).join(' ');
 
   // The session keeps this process's clock (`processTimeZone`): what a column's own `now` default fills, and how a zone-less time is read.
   // A zone the DSN's own options name is the operator's word, and stands.
-  let zone = optionsNameTimeZone(split.options) ? null : processTimeZone();
+  let zone = optionsNameTimeZone(dsnOptions) ? null : processTimeZone();
   let ourOptions = buildSessionSettings(statementTimeoutMs, false, zone).startupOptions;
   let pool = buildDataPool(base, compose(ourOptions));
 
@@ -185,7 +179,7 @@ export function createQueryEngine(config: DataConnectionConfig | string): QueryE
  * error is reported.
  */
 function buildDataPool(
-  base: { connectionString: string; max: number },
+  base: PgEndpointConfig & { max: number },
   options: string,
 ): pg.Pool {
   const pool = new pg.Pool({ ...base, types: DATES_AS_TEXT, ...(options === '' ? {} : { options }) });

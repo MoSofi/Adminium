@@ -36,7 +36,7 @@ class FakePool {
   endError: Error | null = null;
   readonly listeners = new Map<string, (connection: FakeConnection) => void>();
 
-  constructor(readonly options: { uri?: string; connectionLimit?: number; typeCast?: unknown }) {
+  constructor(readonly options: { uri?: string; connectionLimit?: number; typeCast?: unknown; [key: string]: unknown }) {
     pools.push(this);
   }
 
@@ -99,10 +99,11 @@ describe('createQueryEngine — DSN guard', () => {
 });
 
 describe('createQueryEngine — pool construction', () => {
-  it('passes the DSN through as the pool URI', () => {
+  it('hands the pool the DSN as fields, never as a URI', () => {
     createQueryEngine(DSN);
     expect(pools).toHaveLength(1);
-    expect(pools[0]!.options.uri).toBe(DSN);
+    expect(pools[0]!.options.uri).toBeUndefined();
+    expect(pools[0]!.options).toMatchObject({ host: '127.0.0.1', port: 3306, database: 'shop', user: 'user', password: 'pw' });
   });
 
   it('defaults the connection limit to 10', () => {
