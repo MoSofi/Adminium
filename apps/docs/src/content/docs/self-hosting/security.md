@@ -83,6 +83,11 @@ don't matter.
   address (its default) asks, but hands the token to the browser it opens, so
   you only type it from another device. `adminium start` always asks, even on
   `127.0.0.1`, because behind a reverse proxy that address is public.
+- **Kept out of logs.** A link that hands the token over carries it after a
+  `#` (`/setup#setup-token=…`), which a browser never sends to a server or a
+  proxy; the wizard reads it and removes it from the address bar. The setup
+  pages and calls answer with `Referrer-Policy: no-referrer`, so they never
+  tell another site where you came from.
 
 ## The database role is the real boundary
 
