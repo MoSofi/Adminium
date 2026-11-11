@@ -69,6 +69,8 @@ describe('GET /api/v1/system/info', () => {
       desktopDemo: false,
       // "Put this online": shown unless the operator sets ADMINIUM_DEPLOY_LINK=off.
       deployLink: true,
+      // "Connect Supabase": no operator connect address set, so no provider.
+      connect: [],
     });
   });
 

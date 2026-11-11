@@ -291,6 +291,7 @@ import { createFigmaTokens } from './designer/figma/tokens.js';
 import { safeFetch, type SafeFetchOptions } from './net/safe-fetch.js';
 import { figmaRoutes } from './routes/designer/figma.js';
 import { hashPassword } from './auth/passwords.js';
+import { connectRoutes } from './routes/connect/index.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
 import { emailTemplatesRoutes } from './routes/email-templates/index.js';
@@ -615,6 +616,11 @@ export interface ComposeServerOptions {
   pictureSeams?: Pick<SafeFetchOptions, 'resolve' | 'connect'> | undefined;
   /** A test's own picture makers: given what the real one would be built with. */
   pictureMakerSeam?: import('./llm/connections.js').AiConnectionsDeps['createPictureMaker'] | undefined;
+  /**
+   * For tests only: the certificate authority the operator's connect service is checked against (a fake one
+   * serves a certificate of its own), and a shorter redeem timeout. There is no setting for this.
+   */
+  connectSeam?: { redeemCa?: string | undefined; redeemTimeoutMs?: number | undefined; now?: (() => number) | undefined } | undefined;
   /**
    * For tests only: marketing mail's DNS answers, the sender's postal address and the per-table "existing
    * customers" switch, given in place of the real ones (`email/marketing.ts`). There is no setting for this.
@@ -2132,6 +2138,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             publicResolver.invalidate();
             apiCatalogue.invalidate();
           },
+        }),
+      );
+      // "Connect Supabase": the operator hand-off. Registered always; a provider whose variable is unset answers 404.
+      await api.register(
+        connectRoutes({
+          env,
+          manager,
+          meta,
+          redeemCa: opts.connectSeam?.redeemCa,
+          redeemTimeoutMs: opts.connectSeam?.redeemTimeoutMs,
+          now: opts.connectSeam?.now,
         }),
       );
       await api.register(schemaRoutes({ manager, meta }));

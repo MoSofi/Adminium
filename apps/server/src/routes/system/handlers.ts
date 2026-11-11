@@ -4,6 +4,7 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql } from 'kysely';
 
 import type { Env } from '../../config/env.js';
+import { connectProviders } from '../../connect/providers.js';
 import { demoSeedAvailable } from '../../desktop/demo-seed.js';
 import { lanShareActive } from '../../desktop/lan-share.js';
 import { APP_VERSION } from '../../version.js';
@@ -109,6 +110,7 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     deployLink: env.ADMINIUM_DEPLOY_LINK,
     // The SAME predicate compose registers the route on — see `demo-seed.ts`.
     desktopDemo: demoSeedAvailable(env),
+    connect: connectProviders(env).map((provider) => ({ provider: provider.id })),
   };
 }
 

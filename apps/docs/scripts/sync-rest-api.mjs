@@ -90,6 +90,8 @@ const DESCRIPTIONS = {
   branding: 'Instance name, colours and logo (read is public; writes are admin)',
   consent:
     'Consent and the do-not-email list — the list itself (search, add, remove), and a record\'s consent: its standing per purpose, its history, recording a yes, "Replied" and "They said no"',
+  connect:
+    'Connect Supabase: the one-time hand-off from an operator\'s connect service (ADMINIUM_SUPABASE_CONNECT_URL). Start, the return with its one-time code, and the password for an existing project',
   connections: 'Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation',
   data: 'Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references',
   designer:

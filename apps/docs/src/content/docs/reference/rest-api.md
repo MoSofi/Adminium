@@ -111,6 +111,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/automations/*` | 9 | Automation rules — the trigger, the steps and the branches between them; the tables, columns, templates and roles a rule can name; the 30-day counters the cards show; and a dry run that walks the flow without executing anything |
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
+| `/api/v1/connect/*` | 3 | Connect Supabase: the one-time hand-off from an operator's connect service (ADMINIUM_SUPABASE_CONNECT_URL). Start, the return with its one-time code, and the password for an existing project |
 | `/api/v1/connections/*` | 30 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/consent/*` | 7 | Consent and the do-not-email list — the list itself (search, add, remove), and a record's consent: its standing per purpose, its history, recording a yes, "Replied" and "They said no" |
 | `/api/v1/data/*` | 25 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
@@ -378,6 +379,14 @@ GET /api/v1/branding
 GET /api/v1/branding/logo
 POST /api/v1/branding/logo
 DELETE /api/v1/branding/logo
+```
+
+### `/connect`
+
+```http
+POST /api/v1/connect/start
+POST /api/v1/connect/return
+POST /api/v1/connect/complete
 ```
 
 ### `/connections`
