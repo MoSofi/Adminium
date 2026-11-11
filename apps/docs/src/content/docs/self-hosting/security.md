@@ -106,7 +106,7 @@ You do not need to configure these; they are worth knowing:
 | Password hashing | argon2id |
 | Session cookie | httpOnly, signed, `SameSite=Lax`, `Secure` over HTTPS |
 | CORS | **Off** — same-origin by default |
-| Loopback DSN guard | Blocks connecting to `localhost` from a hosted instance, except the database hosts you name in [`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts) |
+| Loopback DSN guard | Blocks connecting to `localhost` from a hosted instance, except the database hosts you name in [`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts). Every spelling of the machine counts (`localhost.`, `127.1`, `0.0.0.0`, `::ffff:127.0.0.1`), and a database's host name is looked up before each new connection pool: a name that points at the machine itself or at a cloud metadata address, or does not resolve at all, is refused, and the driver connects only to the addresses that were checked |
 | PII masking | **On by default** for columns classified as personal |
 | Telemetry | **Off** |
 | Input validation | Every external input is schema-validated, fail-fast |
