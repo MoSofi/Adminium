@@ -39,6 +39,7 @@ import {
   type DsnEngine,
 } from '@adminium/widgets';
 
+import { ProviderConnect } from '../../../connect/ProviderConnect.js';
 import { t } from '../../../i18n/t.js';
 import { hasPendingBridgeTicket } from '../../../studio/connect/bridgeSeed.js';
 import { ONBOARDING_ENGINES, type ExistingStore } from '../heldAnswers.js';
@@ -97,6 +98,10 @@ export interface ConnectStepProps {
   adopting: 'writing' | 'restarting' | null;
   /** Test seam; defaults to the real per-tab ticket check. */
   bridgePending?: boolean | undefined;
+  /** "Connect Supabase" is picked (shown only when the operator offers it). */
+  provider?: 'supabase' | null | undefined;
+  /** Pick it: the wizard goes on to the account, and Studio starts the sign-in once that exists. */
+  onPickProvider?: (() => void) | undefined;
 }
 
 export function ConnectStep({
@@ -110,6 +115,8 @@ export function ConnectStep({
   onAdopt,
   adopting,
   bridgePending,
+  provider = null,
+  onPickProvider,
 }: ConnectStepProps) {
   const bridge = bridgePending ?? hasPendingBridgeTicket();
   if (bridge) {
@@ -132,6 +139,7 @@ export function ConnectStep({
 
   return (
     <div className="flex flex-col gap-4">
+      {onPickProvider === undefined ? null : <ProviderConnect mode="pick" picked={provider === 'supabase'} onPick={onPickProvider} disabled={adopting !== null} />}
       <RadioGroup
         aria-label={t('onboarding:connect.engineLabel', 'Database engine')}
         value={engine}

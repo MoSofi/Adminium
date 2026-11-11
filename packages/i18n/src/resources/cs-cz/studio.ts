@@ -3129,7 +3129,8 @@ export default {
       "readingFile": "Načítání nahraného souboru schématu…",
       "readingSchema": "Čtení schématu: public",
       "ready": "Připraveno",
-      "relations": "Zjišťování vztahů…"
+      "relations": "Zjišťování vztahů…",
+      "handoff": "Připojeno přes Supabase · schéma se jen čte"
     },
     "logLabel": "Protokol introspekce",
     "retry": "Zkusit znovu",

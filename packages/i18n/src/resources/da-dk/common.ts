@@ -700,6 +700,29 @@ export default {
         "connectRefused": "Databasen afviste forbindelsen.",
         "readFailed": "Adminium kunne ikke læse databasens tabeller."
       }
+    },
+    "connectProvider": {
+      "or": "eller",
+      "supabase": {
+        "title": "Forbind Supabase",
+        "body": "Log ind på Supabase, og vælg et projekt.",
+        "action": "Forbind Supabase",
+        "again": "Forbind Supabase igen",
+        "expired": "Supabase-forbindelsen er udløbet.",
+        "failed": "Supabase kunne ikke forbindes.",
+        "connecting": "Forbinder dit Supabase-projekt…",
+        "picked": "Valgt. Du logger ind på Supabase, når din konto findes."
+      },
+      "existing": {
+        "title": "Brug et eksisterende projekt",
+        "change": "Skift",
+        "label": "Indtast databaseadgangskoden til projektet {project}",
+        "labelNoName": "Indtast databaseadgangskoden til dette projekt",
+        "help": "Operatøren ser den aldrig: den går direkte til denne installation.",
+        "connect": "Forbind",
+        "back": "Tilbage",
+        "failed": "Den adgangskode gav ingen forbindelse. Tjek den, og prøv igen."
+      }
     }
   },
   "views": {

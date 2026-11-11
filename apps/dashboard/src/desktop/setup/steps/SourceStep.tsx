@@ -29,6 +29,7 @@ import {
   Switch,
 } from '@adminium/ui';
 
+import { ProviderConnect } from '../../../connect/ProviderConnect.js';
 import { t } from '../../../i18n/t.js';
 import { engineLabel, dsnPlaceholder } from '../../../studio/connect/wizardState.js';
 import type { ConnectionEngine } from '../../../studio/api.js';
@@ -51,6 +52,12 @@ export interface SourceStepProps {
   /** Card 4 is dead without the seed script — see {@link SourceStepProps.demoAvailable}. */
   demoAvailable: boolean;
   busy: boolean;
+  /**
+   * "Connect Supabase", above the four cards when the operator offers it. No
+   * account exists yet, so picking it goes on to the account; once that
+   * exists, Studio's connect wizard starts the sign-in.
+   */
+  onPickProvider?: (() => void) | undefined;
 }
 
 function cardTitle(id: SourceCardId): string {
@@ -63,6 +70,8 @@ function cardTitle(id: SourceCardId): string {
       return t('onboarding.desktopSetup.source.remote.title', 'Connect to a server database');
     case 'demo':
       return t('onboarding.desktopSetup.source.demo.title', 'Explore the demo database');
+    case 'supabase':
+      return t('onboarding.connectProvider.supabase.title', 'Connect Supabase');
   }
 }
 
@@ -88,6 +97,8 @@ function cardDescription(id: SourceCardId): string {
         'onboarding.desktopSetup.source.demo.description',
         'A ready-made team-operations database, so you can see what Adminium builds before pointing it at your own data. Delete it whenever you like.',
       );
+    case 'supabase':
+      return t('onboarding.connectProvider.supabase.body', 'Sign in to Supabase and pick a project.');
   }
 }
 
@@ -101,6 +112,8 @@ function cardIcon(id: SourceCardId): ReactNode {
       return <Server aria-hidden />;
     case 'demo':
       return <Sparkles aria-hidden />;
+    case 'supabase':
+      return <Database aria-hidden />;
   }
 }
 
@@ -112,6 +125,7 @@ export function SourceStep({
   onPickSchemaFile,
   demoAvailable,
   busy,
+  onPickProvider,
 }: SourceStepProps): ReactNode {
   const slug = slugPreview(state.localName);
 
@@ -128,6 +142,8 @@ export function SourceStep({
           )}
         </p>
       </div>
+
+      {onPickProvider === undefined ? null : <ProviderConnect mode="pick" picked={state.source === 'supabase'} onPick={onPickProvider} disabled={busy} />}
 
       <RadioGroup
         className="flex flex-col gap-3"

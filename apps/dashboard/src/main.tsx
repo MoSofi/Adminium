@@ -13,6 +13,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { exchangeBootToken } from './desktop/bootToken.js';
+import { captureConnectReturn } from './connect/connectReturn.js';
 import { captureBridgeTicket } from './studio/connect/bridgeSeed.js';
 import { LiveI18nProvider } from './i18n/LiveI18nProvider.js';
 import { initDashboardI18n } from './i18n/setup.js';
@@ -36,6 +37,8 @@ async function start(): Promise<void> {
   // `Referer` can carry it, and on a fresh install the first route to render is
   // `/setup`, not the `/studio/connect` the site redirected to.
   captureBridgeTicket();
+  // The way back from an operator's connect service ("Connect Supabase"), for the same reasons.
+  captureConnectReturn();
 
   await initDashboardI18n();
 

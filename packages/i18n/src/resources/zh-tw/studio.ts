@@ -3129,7 +3129,8 @@ export default {
       "readingFile": "正在讀取上傳的結構描述檔案…",
       "readingSchema": "正在讀取結構描述：public",
       "ready": "就緒",
-      "relations": "正在偵測關聯…"
+      "relations": "正在偵測關聯…",
+      "handoff": "已透過 Supabase 連線 · 只讀取結構描述"
     },
     "logLabel": "內省記錄",
     "retry": "重試",

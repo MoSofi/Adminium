@@ -690,6 +690,29 @@
         "connectRefused": "数据库拒绝了连接。",
         "readFailed": "Adminium 无法读取该数据库的表。"
       }
+    },
+    "connectProvider": {
+      "or": "或",
+      "supabase": {
+        "title": "连接 Supabase",
+        "body": "登录 Supabase 并选择一个项目。",
+        "action": "连接 Supabase",
+        "again": "重新连接 Supabase",
+        "expired": "Supabase 连接已过期。",
+        "failed": "无法连接 Supabase。",
+        "connecting": "正在连接你的 Supabase 项目…",
+        "picked": "已选择。账户创建后，你将登录 Supabase。"
+      },
+      "existing": {
+        "title": "使用现有项目",
+        "change": "更改",
+        "label": "输入项目 {project} 的数据库密码",
+        "labelNoName": "输入此项目的数据库密码",
+        "help": "运营方永远看不到它：它直接发送到此安装。",
+        "connect": "连接",
+        "back": "返回",
+        "failed": "此密码未能连接。请检查后重试。"
+      }
     }
   },
   "views": {

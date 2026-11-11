@@ -700,6 +700,29 @@ export default {
         "connectRefused": "رفضت قاعدة البيانات الاتصال.",
         "readFailed": "تعذّر على Adminium قراءة جداول قاعدة البيانات هذه."
       }
+    },
+    "connectProvider": {
+      "or": "أو",
+      "supabase": {
+        "title": "ربط Supabase",
+        "body": "سجّل الدخول إلى Supabase واختر مشروعًا.",
+        "action": "ربط Supabase",
+        "again": "ربط Supabase مرة أخرى",
+        "expired": "انتهت صلاحية اتصال Supabase.",
+        "failed": "تعذّر ربط Supabase.",
+        "connecting": "جارٍ ربط مشروع Supabase الخاص بك…",
+        "picked": "تم الاختيار. ستسجّل الدخول إلى Supabase بعد إنشاء حسابك."
+      },
+      "existing": {
+        "title": "استخدام مشروع موجود",
+        "change": "تغيير",
+        "label": "أدخل كلمة مرور قاعدة البيانات للمشروع {project}",
+        "labelNoName": "أدخل كلمة مرور قاعدة البيانات لهذا المشروع",
+        "help": "لا يراها المشغّل أبدًا: تذهب مباشرة إلى هذا التثبيت.",
+        "connect": "ربط",
+        "back": "رجوع",
+        "failed": "لم يتم الاتصال بكلمة المرور هذه. تحقّق منها وحاول مرة أخرى."
+      }
     }
   },
   "views": {

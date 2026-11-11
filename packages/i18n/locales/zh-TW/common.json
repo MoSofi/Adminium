@@ -690,6 +690,29 @@
         "connectRefused": "資料庫拒絕了連線。",
         "readFailed": "Adminium 無法讀取該資料庫的資料表。"
       }
+    },
+    "connectProvider": {
+      "or": "或",
+      "supabase": {
+        "title": "連接 Supabase",
+        "body": "登入 Supabase 並選擇一個專案。",
+        "action": "連接 Supabase",
+        "again": "重新連接 Supabase",
+        "expired": "Supabase 連線已過期。",
+        "failed": "無法連接 Supabase。",
+        "connecting": "正在連接你的 Supabase 專案…",
+        "picked": "已選擇。帳戶建立後，你將登入 Supabase。"
+      },
+      "existing": {
+        "title": "使用現有專案",
+        "change": "變更",
+        "label": "輸入專案 {project} 的資料庫密碼",
+        "labelNoName": "輸入此專案的資料庫密碼",
+        "help": "營運方永遠看不到它：它直接傳送到此安裝。",
+        "connect": "連接",
+        "back": "返回",
+        "failed": "此密碼未能連線。請檢查後再試一次。"
+      }
     }
   },
   "views": {

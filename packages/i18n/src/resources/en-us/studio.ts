@@ -3129,7 +3129,8 @@ export default {
       "readingFile": "Reading uploaded schema file…",
       "readingSchema": "Reading schema: public",
       "ready": "Ready",
-      "relations": "Detecting relations…"
+      "relations": "Detecting relations…",
+      "handoff": "Connected through Supabase · read-only introspection"
     },
     "logLabel": "Introspection log",
     "retry": "Retry",

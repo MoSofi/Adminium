@@ -45,7 +45,7 @@ import { AuthScreenLayout } from '../../auth/AuthScreenLayout.js';
 import { validateAccount, type AccountErrors } from '../../setup/accountValidation.js';
 import { createSuperAdmin, setupStateQuery } from '../../setup/setupApi.js';
 import { studioApi, type ConnectionTestResult } from '../../studio/api.js';
-import { supabasePoolerHint } from '../../studio/connect/wizardState.js';
+import { INITIAL_WIZARD_STATE, saveWizardState, supabasePoolerHint } from '../../studio/connect/wizardState.js';
 import { chooseDataDir, commitDataDir, readDataDir } from './dataDirBridge.js';
 import {
   DESKTOP_SETUP_STEP_IDS,
@@ -326,6 +326,10 @@ export function DesktopSetupHost(): ReactNode {
     // exists, this returns straight to `ready`, and the button that renders
     // there mutates too. See {@link primeCsrfToken}.
     await primeCsrfToken();
+    if (state.source === 'supabase') {
+      handOffToStudio();
+      return;
+    }
     if (state.connectionId !== null && state.introspected) {
       setPhase('ready');
       return;
@@ -406,6 +410,8 @@ export function DesktopSetupHost(): ReactNode {
         const result = await createDemoDatabase();
         return result.connectionId;
       }
+      // Never reached: `prepare` hands a Supabase pick to Studio before it creates anything.
+      case 'supabase':
       case null:
         throw new Error('no source chosen');
     }
@@ -441,6 +447,18 @@ export function DesktopSetupHost(): ReactNode {
    * that file is either already correct (the dataDir, committed in step
    * 1) or a default the About screen owns.
    */
+  /**
+   * "Connect Supabase" was picked before the account existed: the account is
+   * there now, so Studio's connect wizard opens on its source step and starts
+   * the sign-in. Nothing was created here to generate from.
+   */
+  const handOffToStudio = (): void => {
+    saveWizardState({ ...INITIAL_WIZARD_STATE, step: 'source', intent: state.intent, metaAsked: true, providerStart: 'supabase' });
+    clearDesktopSetupState();
+    router.options.context.queryClient.clear();
+    router.history.push('/studio/connect');
+  };
+
   const finish = (): void => {
     clearDesktopSetupState();
     router.options.context.queryClient.clear();
@@ -541,6 +559,10 @@ export function DesktopSetupHost(): ReactNode {
             // "there is no demo". Until the probe answers, the card explains
             // itself rather than offering a button that would 404.
             demoAvailable={capabilities.resolved && capabilities.flags.desktopDemo}
+            onPickProvider={() => {
+              // The pick is the answer; the account comes next, then Studio starts the Supabase sign-in.
+              patch({ source: 'supabase', step: state.accountCreated ? 'generate' : 'account' });
+            }}
           />
         ) : null}
 

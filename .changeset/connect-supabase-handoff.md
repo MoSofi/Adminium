@@ -1,0 +1,7 @@
+---
+'@adminium/server': patch
+'@adminium/dashboard': patch
+'@adminium/i18n': patch
+---
+
+An operator who runs Adminium for other people can now hand an instance its database connection once, from their own service: set `ADMINIUM_SUPABASE_CONNECT_URL` to that service's `https://` address (an `http://` address stops the server from starting). The connect wizards then show a "Connect Supabase" card above the connection-string form, in Studio and on the first-run screens (which hand on to Studio once the account exists). The person signs in at the operator's page and comes back with a one-time code, which the instance redeems from its own server: the code works once, for ten minutes, and only for the signed-in person who started it, with the PKCE verifier kept on the instance. The answer is checked field by field (Postgres only, a plain host name, `sslmode` `require` or `verify-full`, no `?`, `/` or `@` in the database or user), no redirect is followed, and the call gives up after 10 seconds or 64 KB. The connection is then guarded, tested and read like a typed one. For an existing project the instance asks for the database password itself, so the operator never sees it. Every start, success and refusal is in the audit log, never with a connection string or password. Unset, nothing changes, and the Supabase quick-fill chip stays for everyone. `scripts/dev/fake-connect-operator.mjs` plays the operator for tests and local trials.

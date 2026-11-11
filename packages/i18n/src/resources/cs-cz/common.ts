@@ -700,6 +700,29 @@ export default {
         "connectRefused": "Databáze připojení odmítla.",
         "readFailed": "Adminium nemohlo přečíst tabulky této databáze."
       }
+    },
+    "connectProvider": {
+      "or": "nebo",
+      "supabase": {
+        "title": "Připojit Supabase",
+        "body": "Přihlaste se do Supabase a vyberte projekt.",
+        "action": "Připojit Supabase",
+        "again": "Připojit Supabase znovu",
+        "expired": "Připojení k Supabase vypršelo.",
+        "failed": "Supabase se nepodařilo připojit.",
+        "connecting": "Připojuje se váš projekt Supabase…",
+        "picked": "Vybráno. Do Supabase se přihlásíte, jakmile bude váš účet existovat."
+      },
+      "existing": {
+        "title": "Použít existující projekt",
+        "change": "Změnit",
+        "label": "Zadejte heslo k databázi projektu {project}",
+        "labelNoName": "Zadejte heslo k databázi tohoto projektu",
+        "help": "Provozovatel ho nikdy neuvidí: jde přímo do této instalace.",
+        "connect": "Připojit",
+        "back": "Zpět",
+        "failed": "S tímto heslem se připojit nepodařilo. Zkontrolujte ho a zkuste to znovu."
+      }
     }
   },
   "views": {

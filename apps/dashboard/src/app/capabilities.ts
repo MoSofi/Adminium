@@ -95,6 +95,13 @@ export interface SystemInfo {
    * Absent from a server older than the link, which shows none.
    */
   deployLink?: boolean;
+  /**
+   * The operators this instance takes a connection from ("Connect Supabase"):
+   * one entry per provider whose connect address the operator set. Empty or
+   * absent (a server older than the hand-off): the connect wizards show only
+   * today's form.
+   */
+  connect?: { provider: 'supabase' }[];
 }
 
 /**

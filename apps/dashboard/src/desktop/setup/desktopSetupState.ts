@@ -80,7 +80,7 @@ export function desktopSetupStepLabel(id: DesktopSetupStepId): string {
 
 // ─── Source cards ────────────────────────────────────────────────────────────
 
-export const SOURCE_CARD_IDS = ['local', 'open-sqlite', 'remote', 'demo'] as const;
+export const SOURCE_CARD_IDS = ['local', 'open-sqlite', 'remote', 'demo', 'supabase'] as const;
 export type SourceCardId = (typeof SOURCE_CARD_IDS)[number];
 
 /** The first card's sub-choice. */
@@ -244,6 +244,9 @@ export function sourceCardValid(state: DesktopSetupState): boolean {
     case 'remote':
       return state.remoteName.trim().length > 0 && state.remoteDsn.trim().length > 0;
     case 'demo':
+      return true;
+    // "Connect Supabase", offered only when the operator set a connect address: Studio starts the sign-in.
+    case 'supabase':
       return true;
   }
 }

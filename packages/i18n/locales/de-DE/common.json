@@ -690,6 +690,29 @@
         "connectRefused": "Die Datenbank hat die Verbindung abgelehnt.",
         "readFailed": "Adminium konnte die Tabellen dieser Datenbank nicht lesen."
       }
+    },
+    "connectProvider": {
+      "or": "oder",
+      "supabase": {
+        "title": "Supabase verbinden",
+        "body": "Bei Supabase anmelden und ein Projekt wählen.",
+        "action": "Supabase verbinden",
+        "again": "Supabase erneut verbinden",
+        "expired": "Die Supabase-Verbindung ist abgelaufen.",
+        "failed": "Supabase konnte nicht verbunden werden.",
+        "connecting": "Ihr Supabase-Projekt wird verbunden…",
+        "picked": "Ausgewählt. Sie melden sich bei Supabase an, sobald Ihr Konto besteht."
+      },
+      "existing": {
+        "title": "Ein vorhandenes Projekt verwenden",
+        "change": "Ändern",
+        "label": "Datenbankpasswort für das Projekt {project} eingeben",
+        "labelNoName": "Datenbankpasswort für dieses Projekt eingeben",
+        "help": "Der Betreiber sieht es nie: Es geht direkt an diese Installation.",
+        "connect": "Verbinden",
+        "back": "Zurück",
+        "failed": "Mit diesem Passwort klappte die Verbindung nicht. Prüfen Sie es und versuchen Sie es erneut."
+      }
     }
   },
   "views": {
