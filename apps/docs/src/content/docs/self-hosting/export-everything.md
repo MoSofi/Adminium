@@ -76,12 +76,18 @@ closed first and nothing goes into it.
    and no terminal are needed.
 3. **Open the project**. The app asks about the code the file brought, as for
    any folder someone sent you, and fetches what the project is built with.
-4. Sign in with that address and password. Everyone else signs in through
-   **Forgot password**, once mail is set up.
+4. On this computer the app signs that Super Admin in by itself, as it does
+   the owner of a project it made; on other devices they sign in with the
+   address and password. Everyone else signs in through **Forgot password**,
+   once mail is set up.
 
-The file carries no connection strings, mail settings or AI keys. Connections
-that came without theirs show as **Draft** in **Studio → Connections**: open
-each and enter its connection string again.
+The file never says who the app signs in without a password: the person
+opening it chooses. A project folder that came in the file gets a new `.env`
+(a new key, each database's variable pointed at the SQLite file that came with
+it), never the original one. The file carries no connection strings, mail
+settings or AI keys. Connections that came without theirs show as **Draft** in
+**Studio → Connections**, and the app names them: open each and enter its
+connection string again.
 
 ## Database rows
 
