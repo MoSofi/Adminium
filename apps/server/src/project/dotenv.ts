@@ -80,14 +80,27 @@ export interface DotEnvEntry {
   comment?: readonly string[];
 }
 
+/** A variable name `parseEnv` reads as one: what a key written to `.env` must be. */
+const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 /**
  * Create `<root>/.env` with `entries`, or append the ones it does not have yet.
  * Returns the keys written and the keys that were already there.
+ *
+ * A key that is not a variable name, and a value or comment line with a line
+ * break or a NUL in it, are refused before anything is written, as
+ * {@link setDotEnv} refuses them: a second line would be a second variable of
+ * the writer's choosing (an `ADMINIUM_SECRET`, a `NODE_OPTIONS`).
  */
 export function addToDotEnv(
   root: string,
   entries: readonly DotEnvEntry[],
 ): { written: string[]; kept: string[] } {
+  for (const entry of entries) {
+    if (!ENV_NAME.test(entry.key)) throw new Error(`${JSON.stringify(entry.key.slice(0, 80))} is not a variable name that may be written to .env.`);
+    if (/[\r\n\0]/.test(entry.value)) throw new Error(`The value for ${entry.key} has a line break or a NUL in it.`);
+    if ((entry.comment ?? []).some((line) => /[\r\n\0]/.test(line))) throw new Error(`A comment for ${entry.key} has a line break or a NUL in it.`);
+  }
   const file = join(root, DOTENV_FILE);
   const existing = readDotEnv(root);
   const kept = entries.filter((entry) => existing !== null && entry.key in existing).map((entry) => entry.key);

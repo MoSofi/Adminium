@@ -9,6 +9,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parseEnv } from 'node:util';
 
 import { connectionsRepo, destinationsRepo, filesRepo, newId, type MetaDb } from '@adminium/meta';
 import { strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
@@ -17,6 +18,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createArchive } from '../src/archive/create.js';
 import { ARCHIVE_MANIFEST, ArchiveFormatError, isExcludedProjectPath, type ArchiveManifest } from '../src/archive/format.js';
 import { restoreArchive, type RestoreArchiveOptions } from '../src/archive/restore.js';
+import { writeProjectEnv } from '../src/cli/commands/archive/commands.js';
+import { addToDotEnv } from '../src/project/dotenv.js';
 import { AVAILABLE, CRYPTO, PASSWORD_HASH, SECRET, SIGNING, makeDirs, makeStore, seedInstance, type Dirs, type EngineName } from './archive.helpers.js';
 import { TEST_STORAGE_CRYPTO } from './helpers/file-store.js';
 
@@ -331,5 +334,56 @@ describe('connection strings, checked again as when they are saved', () => {
     const said = result.warnings.join('\n');
     expect(said).toMatch(/“Sneaky” lost its connection string \(The host db\.p75\.test is on this server/);
     expect(said).toMatch(/“Lan” lost its connection string \(.*ADMINIUM_NETWORK_POLICY=strict/);
+  });
+});
+
+describe('the project’s .env, written from an export', () => {
+  it('takes no line of the file’s choosing: a key outside the grammar is dropped, a name stays on its comment line', async () => {
+    const src = await exported();
+    const archive = await handMade(src, 'envinject', (zip) =>
+      zip.table('adminium_connections', (rows) => {
+        for (const row of rows) {
+          if (row.name === 'Warehouse') {
+            row.name = 'Shop\nADMINIUM_META_URL=postgres://evil.example/x\nNODE_OPTIONS=--require /tmp/x.js';
+            row.projectKey = 'main';
+          } else {
+            row.projectKey = 'shop\nADMINIUM_SECRET=attacker-known-0123456789';
+          }
+        }
+      }),
+    );
+    const dest = await target();
+    await mkdir(dest.dirs.projectRoot, { recursive: true });
+    await writeFile(join(dest.dirs.projectRoot, '.env'), 'ADMINIUM_SECRET=the-real-one\n');
+    const result = await restoreArchive(importOptions(archive, dest));
+    expect(result.projectDatabases.map((database) => database.key)).toEqual(['main']);
+    expect(result.warnings.join('\n')).toMatch(/“Shop” lost its project key/);
+
+    expect(writeProjectEnv(dest.dirs.projectRoot, result)).toEqual(['DATABASE_URL']);
+    const text = await readFile(join(dest.dirs.projectRoot, '.env'), 'utf8');
+    expect(parseEnv(text)).toEqual({ ADMINIUM_SECRET: 'the-real-one', DATABASE_URL: '' });
+    expect(text).toContain('# "main" (Shop ADMINIUM_META_URL=postgres://evil.example/x NODE_OPTIONS=--require /tmp/x.js) came without');
+  });
+
+  it('refuses a key that is not a name, and a value or comment with a line break or a NUL, writing nothing', async () => {
+    const here = await dirs();
+    await mkdir(here.projectRoot, { recursive: true });
+    const file = join(here.projectRoot, '.env');
+    await writeFile(file, 'ADMINIUM_SECRET=the-real-one\n');
+    const bad = [
+      { key: 'X\nADMINIUM_SECRET', value: 'a' },
+      { key: 'X=1 Y', value: 'a' },
+      { key: '', value: 'a' },
+      { key: 'X', value: 'a\nADMINIUM_META_URL=postgres://evil.example/x' },
+      { key: 'X', value: 'a\rNODE_OPTIONS=--require /tmp/x.js' },
+      { key: 'X', value: 'a\u0000b' },
+      { key: 'X', value: 'a', comment: ['fine', 'not\nNODE_OPTIONS=--require /tmp/x.js'] },
+      { key: 'X', value: 'a', comment: ['not\r'] },
+    ];
+    for (const entry of bad) {
+      expect(() => addToDotEnv(here.projectRoot, [{ key: 'GOOD', value: 'first' }, entry]), JSON.stringify(entry)).toThrow(/variable name|line break or a NUL/);
+      expect(await readFile(file, 'utf8')).toBe('ADMINIUM_SECRET=the-real-one\n');
+    }
+    expect(addToDotEnv(here.projectRoot, [{ key: 'GOOD', value: 'sqlite:./data/x.sqlite', comment: ['one line'] }]).written).toEqual(['GOOD']);
   });
 });

@@ -66,6 +66,7 @@ import {
 } from '@adminium/meta';
 
 import { checkDsn, type DatabaseHost } from '../connections/dsn.js';
+import { PROJECT_KEY_PATTERN } from '../project/config.js';
 import { checkDestinationAddress } from '../files/destinations.js';
 import { FILES_DIR } from '../files/drivers/local.js';
 import { storageRootRefusal, type StorageRootPolicy } from '../files/root-guard.js';
@@ -494,6 +495,15 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       // without one has everywhere else, so Studio shows it as one to finish, not as connected.
       const blank = (value: unknown): boolean => value === null || value === undefined || value === '';
       if (blank(row.introspectDsnEncrypted) && blank(row.dataDsnEncrypted)) row.status = 'unconfigured';
+    }
+    // A project key names an environment variable in the project's `.env` (`envVarFor`) and is written there:
+    // the file's word for it is held to the key grammar, or the connection stays, with no project key.
+    for (const row of connectionRows) {
+      const key = row.projectKey;
+      if (key === null || key === undefined) continue;
+      if (typeof key === 'string' && PROJECT_KEY_PATTERN.test(key)) continue;
+      row.projectKey = null;
+      warnings.push(`Connection “${String(row.name)}” lost its project key, which is not a database key.`);
     }
     if (connections !== undefined) commitRows(connections, connectionRows);
     const drafts = connectionRows.filter((row) => row.status === 'unconfigured' && !restoredDatabases.has(String(row.id))).map((row) => String(row.name));
