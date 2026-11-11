@@ -534,6 +534,12 @@ export interface ComposeServerOptions {
    */
   catalogBootRefresh?: boolean | undefined;
   env: Env;
+  /**
+   * Whether this server asks for the setup token, as its boot decided
+   * (`setupTokenRequired`, `setup/token.ts`). Every CLI boot sets it; unset
+   * (a test, an embedder) leaves the stored row to decide.
+   */
+  setupTokenRequired?: boolean | undefined;
   /** The opened meta store — `meta` for the services, `url` for checks. */
   metaStore: MetaStoreHandle;
   /** The shared source-database connection pool/registry. */
@@ -773,6 +779,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const app = await buildServer({
     env,
     metaDb: meta,
+    ...(opts.setupTokenRequired === undefined ? {} : { setupTokenRequired: opts.setupTokenRequired }),
     installedApps,
     // Under `adminium dev` an open screen of a folder app asks whether it was rebuilt.
     ...(opts.project?.mode === 'dev' && projectRoot !== null ? { appDevBuild: (key: string) => projectApps?.buildOf(key) ?? null } : {}),
@@ -2100,7 +2107,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // here. They gate on the same once-only setup window — see routes/setup/store.ts.
       await api.register(
         setupStoreRoutes({
-          service: createSetupService({ meta, hashPassword }),
+          service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired }),
           env,
           ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
         }),

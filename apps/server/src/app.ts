@@ -232,6 +232,11 @@ function mapValidationIssues(validation: readonly unknown[]): ValidationIssue[] 
 export interface BuildServerOptions {
   /** Pre-validated environment; defaults to `loadEnv()` on `process.env`. */
   env?: Env | undefined;
+  /**
+   * Whether this server asks for the setup token, as its boot decided
+   * (`SetupServiceDeps.tokenRequired`). Unset: the stored row decides.
+   */
+  setupTokenRequired?: boolean | undefined;
   /** `false` silences logging (tests); a pino instance overrides `buildLogger`. */
   logger?: boolean | Logger | undefined;
   /**
@@ -675,7 +680,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
       // themselves, exactly as the LLM/settings resources are wired.
       const meta = opts.metaDb;
       if (meta !== undefined && meta !== null) {
-        await api.register(setupRoutes({ service: createSetupService({ meta, hashPassword }) }));
+        await api.register(setupRoutes({ service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired }) }));
         await api.register(
           aboutRoutes({ meta, updates: createUpdateCheckService({ meta, version: APP_VERSION }) }),
         );

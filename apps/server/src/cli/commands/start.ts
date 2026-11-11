@@ -60,7 +60,7 @@ import { syncProjectDatabases } from '../../project/databases.js';
 import { diskFileStore } from '../../project/file-store.js';
 import { databasesWithPageFiles } from '../../project/project-files.js';
 import { createProjectService, type ProjectServerOptions } from '../../project/service.js';
-import { prepareSetupToken, setupTokenLines, type PreparedSetupToken } from '../../setup/token.js';
+import { prepareSetupToken, setupTokenLines, type PreparedSetupToken, type SetupTokenMode } from '../../setup/token.js';
 import { APP_VERSION } from '../../version.js';
 import { numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command, CommandContext } from '../command.js';
@@ -556,13 +556,10 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
     }
     // The setup token, before the server answers anyone and before design mode
     // makes its owner (which closes setup, and so drops the row again).
+    const tokenMode: SetupTokenMode = design !== undefined ? 'design' : projectMode === 'dev' ? 'dev' : 'server';
     let setupToken: PreparedSetupToken | null;
     try {
-      setupToken = await prepareSetupToken({
-        meta: runtime.metaStore.meta,
-        env,
-        mode: design !== undefined ? 'design' : projectMode === 'dev' ? 'dev' : 'server',
-      });
+      setupToken = await prepareSetupToken({ meta: runtime.metaStore.meta, env, mode: tokenMode });
     } catch (error) {
       await runtime.close().catch(() => undefined);
       throw new CliError(`Could not prepare the first-run setup token: ${error instanceof Error ? error.message : String(error)}`, {
@@ -576,6 +573,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
     const relocationHost = createRelocationHost({
       env,
       deps,
+      setupTokenMode: tokenMode,
       ...(projectServer === undefined ? {} : { project: projectServer }),
       ...(design !== undefined || flags.shared === undefined ? {} : { shared: { port: env.PORT, ...(flags.shared.ownerToken === undefined ? {} : { ownerToken: flags.shared.ownerToken }) } }),
       ...(prepared === null ? {} : { designer: { mode: 'local' as const, token: prepared.token, port: env.PORT, ...(prepared.thisComputer === true ? { thisComputer: true } : {}), ...(project === null || project.refused.length === 0 ? {} : { ignoredEnv: project.refused }) } }),

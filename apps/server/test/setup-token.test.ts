@@ -16,14 +16,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
-import { createSqliteMetaDb, firstRun, readSetupToken, usersRepo, type MetaDb } from '@adminium/meta';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { SETUP_TOKEN_KEY, createSqliteMetaDb, firstRun, readSetupToken, settingsRepo, setupTokenMatches, usersRepo, type MetaDb } from '@adminium/meta';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { envSchema } from '../src/config/env.js';
 import { isSetupPath } from '../src/plugins/core.js';
 import { setupStoreRoutes } from '../src/routes/setup/store.js';
-import { createSetupService } from '../src/setup/service.js';
+import { createSetupService, SetupTokenInvalidError } from '../src/setup/service.js';
 import {
   deriveSetupToken,
   isLoopbackBindHost,
@@ -128,16 +128,24 @@ describe('the boot step', () => {
     expect(parsed.success).toBe(false);
   });
 
-  it('asks nothing on the desktop, or from dev on this computer, and drops a row a server left', async () => {
+  it('asks nothing on the desktop, or from dev on this computer, and leaves a row a server left alone', async () => {
     await prepareSetupToken({ meta, env: serverEnv(), mode: 'server' });
-    expect(await readSetupToken(meta)).not.toBeNull();
+    const stored = await readSetupToken(meta);
+    expect(stored).not.toBeNull();
 
+    // Another process may serve the same store with the gate on: its row is its door.
     expect(await prepareSetupToken({ meta, env: serverEnv({ HOST: '127.0.0.1' }), mode: 'dev' })).toBeNull();
-    expect(await readSetupToken(meta)).toBeNull();
-
-    await prepareSetupToken({ meta, env: serverEnv(), mode: 'server' });
+    expect(await readSetupToken(meta)).toEqual(stored);
     expect(await prepareSetupToken({ meta, env: serverEnv({ ADMINIUM_RUNTIME: 'desktop' }), mode: 'server' })).toBeNull();
-    expect(await readSetupToken(meta)).toBeNull();
+    expect(await readSetupToken(meta)).toEqual(stored);
+  });
+
+  it('a dev boot on this computer between two public boots never opens the public one', async () => {
+    const first = await prepareSetupToken({ meta, env: serverEnv(), mode: 'server' });
+    await prepareSetupToken({ meta, env: serverEnv({ HOST: '127.0.0.1' }), mode: 'dev' });
+    const service = createSetupService({ meta, hashPassword, tokenRequired: true });
+    await expect(service.createSuperAdmin(GOOD)).rejects.toThrow(SetupTokenInvalidError);
+    expect((await service.createSuperAdmin({ ...GOOD, setupToken: first?.token })).email).toBe(GOOD.email);
   });
 
   it('prints nothing once the first account exists', async () => {
@@ -258,6 +266,105 @@ describe('the setup routes on a server that asks for a token', () => {
     const probed = await post('/setup/probe', { dsn: 'sqlite::memory:', setupToken: token });
     expect(probed.statusCode, probed.body).toBe(200);
     expect(await readSetupToken(meta)).not.toBeNull();
+  });
+});
+
+describe('the boot decides whether the token is asked, never the row', () => {
+  let meta: MetaDb;
+  let app: AdminiumServer;
+  let ip = 0;
+
+  async function serve(tokenRequired: boolean | undefined): Promise<void> {
+    app = await buildServer({ env: makeEnv(), metaDb: meta, logger: false, ...(tokenRequired === undefined ? {} : { setupTokenRequired: tokenRequired }) });
+    await app.register(setupStoreRoutes({ service: createSetupService({ meta, hashPassword, tokenRequired }), env: makeEnv(), onMetaRelocated: () => undefined }), { prefix: '/api/v1' });
+    await app.ready();
+  }
+  const post = (url: string, payload: InjectPayload) =>
+    app.inject({ method: 'POST', url: `/api/v1${url}`, payload, remoteAddress: `10.78.0.${String(++ip % 250)}` });
+
+  beforeEach(async () => {
+    meta = freshMeta();
+    await firstRun(meta);
+  });
+  afterEach(async () => {
+    await app.close();
+    await meta.db.destroy();
+  });
+
+  it('a server that asks, with its row gone, refuses every door and says it asks', async () => {
+    // A boot minted the row; something else on the same store removed it.
+    await prepareSetupToken({ meta, env: serverEnv(), mode: 'server' });
+    await settingsRepo(meta).unset(SETUP_TOKEN_KEY);
+    await serve(true);
+    expect((await app.inject({ method: 'GET', url: '/api/v1/setup/state' })).json()).toMatchObject({ data: { required: true, tokenRequired: true } });
+    for (const setupToken of [undefined, 'AAAA-BBBB-CCCC-DDDD']) {
+      const body = setupToken === undefined ? {} : { setupToken };
+      expect((await post('/setup/super-admin', { ...GOOD, ...body })).statusCode).toBe(403);
+      expect((await post('/setup/token', { setupToken: setupToken ?? 'x' })).statusCode).toBe(403);
+      expect((await post('/setup/probe', { dsn: 'sqlite::memory:', ...body })).statusCode).toBe(403);
+      expect((await post('/setup/adopt', { dsn: 'sqlite::memory:', ...body })).statusCode).toBe(403);
+    }
+    expect(await usersRepo(meta).count()).toBe(0);
+  });
+
+  it('a server that asks none takes the first account, whatever row another boot left', async () => {
+    await prepareSetupToken({ meta, env: serverEnv(), mode: 'server' });
+    await serve(false);
+    expect((await app.inject({ method: 'GET', url: '/api/v1/setup/state' })).json()).toMatchObject({ data: { tokenRequired: false } });
+    const created = await post('/setup/super-admin', GOOD);
+    expect(created.statusCode, created.body).toBe(201);
+    expect(await readSetupToken(meta)).toBeNull();
+  });
+});
+
+describe('a restart onto a moved or adopted store', () => {
+  it('puts the token in the new store, prints it, and asks for it', async () => {
+    const { createRelocationHost } = await import('../src/cli/relocation-host.js');
+    const first = freshMeta();
+    await firstRun(first);
+    // The adopted store: data, but no account yet.
+    const adopted = freshMeta();
+    await firstRun(adopted);
+    const runtimes = [
+      { close: async () => undefined, metaStore: { meta: first } },
+      { close: async () => undefined, metaStore: { meta: adopted } },
+    ];
+    let opened = 0;
+    const started: unknown[] = [];
+    const lines: string[] = [];
+    const host = createRelocationHost({
+      env: serverEnv({ HOST: '127.0.0.1' }),
+      deps: {
+        openRuntime: async () => runtimes[++opened] as never,
+        startServer: async (_runtime: unknown, opts: unknown) => {
+          started.push(opts);
+          return { url: 'http://127.0.0.1:4600', bridgePairingCode: null, app: { log: { info: () => undefined } }, close: async () => undefined } as never;
+        },
+      } as never,
+      setupTokenMode: 'server',
+      log: (line) => lines.push(line),
+      exit: (code) => {
+        throw new Error(`exit ${String(code)}`);
+      },
+      schedule: (task) => {
+        task();
+      },
+    });
+    await host.start(runtimes[0] as never);
+    host.onMetaRelocated({ url: 'sqlite:adopted.db', engine: 'sqlite', retiredSqlitePath: null });
+    await vi.waitFor(() => {
+      expect(started).toHaveLength(2);
+    });
+    // `start` on 127.0.0.1 asks: a proxy makes it public.
+    expect(started.every((opts) => (opts as { setupTokenRequired?: boolean }).setupTokenRequired === true)).toBe(true);
+    const stored = await readSetupToken(adopted);
+    expect(stored).not.toBeNull();
+    const printed = lines.find((line) => line.startsWith('Setup token: '))?.slice('Setup token: '.length);
+    expect(printed).toMatch(TOKEN_FORMAT);
+    expect(setupTokenMatches(stored!, printed)).toBe(true);
+    await host.close();
+    await first.db.destroy();
+    await adopted.db.destroy();
   });
 });
 

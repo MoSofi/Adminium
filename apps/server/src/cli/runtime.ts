@@ -44,6 +44,7 @@ import type { OnMetaRelocated } from '../meta/relocate.js';
 import { openMetaStore, sqlitePathFromUrl, type MetaStoreHandle } from '../meta/store.js';
 import { mayOpenBrowser } from '../project/programs.js';
 import type { ProjectServerOptions } from '../project/service.js';
+import { setupTokenRequired } from '../setup/token.js';
 import { loadAllowedVocabularies } from './allowlist.js';
 import { CliError } from './exit.js';
 import { defaultDataDir } from './data-dir.js';
@@ -294,6 +295,12 @@ export interface StartedServer {
 
 export interface StartServerOptions {
   /**
+   * Whether this server asks for the setup token (`setupTokenRequired`,
+   * `setup/token.ts`). Unset: asked as `adminium start` asks, which only the
+   * desktop app does not; a boot that asks less says so.
+   */
+  setupTokenRequired?: boolean | undefined;
+  /**
    * Fired after a meta relocation commits, so the host can rebuild against the
    * new store (`cli/relocation-host.ts`). Omitted ⇒ the relocation route is not
    * registered at all: a topology with no way to restart itself must not offer
@@ -349,6 +356,8 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
     // A server started for people asks adminium.dev for its lists at start, where a list is on (0.3.16).
     catalogBootRefresh: true,
     env,
+    // Fails closed: a boot that forgets to say is asked as `start` is.
+    setupTokenRequired: opts.setupTokenRequired ?? setupTokenRequired({ runtime: env.ADMINIUM_RUNTIME, host: env.HOST, mode: 'server' }),
     metaStore: runtime.metaStore,
     manager: runtime.manager,
     runService: runtime.runService,

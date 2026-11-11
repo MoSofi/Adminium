@@ -90,9 +90,12 @@ export interface PreparedSetupToken {
 
 /**
  * The boot step. Returns the token to print, or `null` when nobody will be
- * asked (gate off, or setup already done). Removes a row a gate-off boot finds,
- * so a folder last served by `start` and now by `dev` on this computer is not
- * left asking for a token nobody printed.
+ * asked (gate off, or setup already done). A gate-off boot leaves the row
+ * alone: another process may serve the same store with the gate on, and its
+ * row is its door. Whether THIS server asks is the boot's decision, handed to
+ * the setup service (`tokenRequired`), never read from the row, so a folder
+ * last served by `start` and now by `dev` on this computer asks nothing, and a
+ * row deleted behind a `start` server's back opens nothing.
  *
  * Throws when the gate is on and the row cannot be written: a server that
  * meant to ask and silently could not must not boot open.
@@ -107,11 +110,7 @@ export async function prepareSetupToken(opts: {
   const at = opts.now ?? Date.now();
   const required = setupTokenRequired({ runtime: env.ADMINIUM_RUNTIME, host: env.HOST, mode: opts.mode });
 
-  if (!required) {
-    // Best effort: a store this boot cannot read is not this gate's to report.
-    await clearSetupToken(meta).catch(() => false);
-    return null;
-  }
+  if (!required) return null;
   if (!(await isBootstrapRequired(meta))) {
     await clearSetupToken(meta);
     return null;

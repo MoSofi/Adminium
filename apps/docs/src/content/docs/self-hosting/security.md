@@ -103,6 +103,12 @@ don't matter.
   address (its default) asks, but hands the token to the browser it opens, so
   you only type it from another device. `adminium start` always asks, even on
   `127.0.0.1`, because behind a reverse proxy that address is public.
+- **Decided when the server starts, not by what the store holds.** A server
+  that asks keeps asking even if something else serving the same meta store
+  (`adminium dev` on the same folder, say) never asked: with its proof missing,
+  every setup call is refused until the server is restarted, never let
+  through. A restart onto a moved or adopted store puts a token in that store
+  and prints it again.
 - **Kept out of logs.** A link that hands the token over carries it after a
   `#` (`/setup#setup-token=…`), which a browser never sends to a server or a
   proxy; the wizard reads it and removes it from the address bar. The setup

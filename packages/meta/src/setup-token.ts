@@ -84,19 +84,30 @@ export async function clearSetupToken(meta: MetaDb): Promise<boolean> {
  * in-process caller that already holds this machine's files (the CLI's own
  * wizards), which the gate exists to tell apart from a stranger on the network.
  * Passing neither while a row exists is a refusal: the gate fails closed.
+ *
+ * `required`: what the server's boot decided. `true`: this server asks for the
+ * token, so a MISSING row is a refusal too (another process on the same store
+ * may have removed it; that must never open the door). `false`: this server
+ * asks for none (the desktop app, `dev` on this computer), and a row another
+ * boot left is consumed unasked. Unset: the row alone decides.
  */
 export interface SetupTokenProof {
   setupToken?: string | undefined;
   local?: boolean | undefined;
+  required?: boolean | undefined;
 }
 
 /**
  * Inside the claiming transaction: check the candidate, then consume the row.
- * Throws {@link SetupTokenError} before anything is written when it does not match.
+ * Throws {@link SetupTokenError} before anything is written when it does not
+ * match, or when the token is required and there is no row to match.
  */
 export async function consumeSetupToken(trxMeta: MetaDb, proof: SetupTokenProof): Promise<void> {
   const stored = await readSetupToken(trxMeta);
-  if (stored === null) return;
-  if (proof.local !== true && !setupTokenMatches(stored, proof.setupToken)) throw new SetupTokenError();
+  if (stored === null) {
+    if (proof.required === true && proof.local !== true) throw new SetupTokenError();
+    return;
+  }
+  if (proof.local !== true && proof.required !== false && !setupTokenMatches(stored, proof.setupToken)) throw new SetupTokenError();
   await clearSetupToken(trxMeta);
 }
