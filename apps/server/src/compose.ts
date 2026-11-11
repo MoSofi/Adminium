@@ -370,6 +370,9 @@ import { createSaveService } from './apps/save/service.js';
 import { createWorkspaceSaveService } from './apps/save/workspace.js';
 import type { SaveDialect } from './apps/save/types.js';
 import { appSaveRoutes } from './routes/apps/save.js';
+import { exportEverythingRoutes } from './routes/export/everything.js';
+import { createExportEverything } from './export/everything.js';
+import { archiveSigningKey } from './archive/mac.js';
 import { ownSurfaceRoutes } from './routes/apps/own-surfaces.js';
 import { publicApiRegistrationBlocked, publicRoutes } from './routes/public/index.js';
 import type { PublicRateLimiter } from './public-api/limiter.js';
@@ -2508,6 +2511,24 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         },
       };
       await api.register(appRoutes(appDeps));
+      // Export everything (Studio): the archive's export variant, made here and downloaded once.
+      // Whatever an earlier process left in its folder goes first.
+      const everything = createExportEverything({
+        meta,
+        dataDir: env.ADMINIUM_DATA_DIR,
+        projectRoot,
+        secret: env.ADMINIUM_SECRET,
+        dsnCrypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
+        signing: archiveSigningKey(env),
+        appName: async () => settingsRepo(meta).get('branding.appName'),
+        log: (message, error) => app.log.warn({ err: error }, message),
+      });
+      await everything.sweep();
+      // A file still being made is not waited for: the next boot's sweep removes what it left.
+      app.addHook('onClose', async () => {
+        everything.close();
+      });
+      await api.register(exportEverythingRoutes({ exports: everything }));
       // Save as app: a database's configuration made into an app file, kept here and downloaded.
       const saveDialectOf = async (connectionId: string): Promise<SaveDialect | null> => {
         const row = await meta.db.selectFrom('adminium_connections').select('engine').where('id', '=', connectionId).executeTakeFirst();

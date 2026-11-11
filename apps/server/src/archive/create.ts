@@ -91,6 +91,10 @@ export interface CreateArchiveOptions {
   /** Signs a full archive. An export is not signed. */
   signing: ArchiveSigningKey;
   now?: () => number;
+  /** Where the writer's scratch folder goes (default: the data dir). Studio's export keeps it beside its own file. */
+  scratchRoot?: string;
+  /** How far along the file is, 0 to 1: called as members are read and written, at most once per percent. */
+  onProgress?: (fraction: number) => void;
 }
 
 export interface CreateArchiveResult {
@@ -164,6 +168,7 @@ export async function createArchive(opts: CreateArchiveOptions): Promise<CreateA
   const dataDir = resolve(opts.dataDir);
   const warnings: string[] = [];
   const exporting = opts.kind === 'export';
+  const progress = progressReporter(opts.onProgress);
   if (await stat(outPath).then(() => true, () => false)) {
     throw new ArchiveFormatError(`${outPath} already exists.`, 'Name a new file; an archive never overwrites one.');
   }
@@ -228,7 +233,8 @@ export async function createArchive(opts: CreateArchiveOptions): Promise<CreateA
   }
 
   // ── 3. local SQLite sources ───────────────────────────────────────────────
-  const scratch = join(dataDir, `.archive-tmp-${randomBytes(6).toString('hex')}`);
+  progress.at(0.02);
+  const scratch = join(opts.scratchRoot === undefined ? dataDir : resolve(opts.scratchRoot), `.archive-tmp-${randomBytes(6).toString('hex')}`);
   await mkdir(scratch, { recursive: true, mode: 0o700 });
   try {
     const sources = await discoverSources(opts.meta, opts.dsnCrypto);
@@ -267,12 +273,15 @@ export async function createArchive(opts: CreateArchiveOptions): Promise<CreateA
     // ── 5. manifest, signature, zip ─────────────────────────────────────────
     const entries: ArchiveEntry[] = [];
     let total = 0;
+    // Every member is read twice (hashed, then written): the share of the work each pass is, by bytes.
+    const work = await plannedBytes(members);
     for (const member of members) {
       const digest =
         'data' in member
           ? { bytes: member.data.length, sha256: createHash('sha256').update(member.data).digest('hex') }
           : await hashFile(member.file);
       total += digest.bytes;
+      progress.work(digest.bytes, work);
       entries.push({ path: member.path, ...digest });
     }
     if (total > ARCHIVE_LIMITS.totalBytes || members.length + 2 > ARCHIVE_LIMITS.entries) {
@@ -328,16 +337,45 @@ export async function createArchive(opts: CreateArchiveOptions): Promise<CreateA
 
     await mkdir(dirname(outPath), { recursive: true });
     const partPath = `${outPath}.part`;
-    const bytes = await writeZip(partPath, [...head, ...members]);
+    const bytes = await writeZip(partPath, [...head, ...members], (read) => progress.work(read, work));
     await rename(partPath, outPath);
+    progress.at(1);
     return { path: outPath, bytes, manifest, sanitized, warnings };
   } finally {
     await rm(scratch, { recursive: true, force: true });
   }
 }
 
-/** Stream every member into a zip at `path`; returns the zip's size. */
-async function writeZip(path: string, members: readonly Member[]): Promise<number> {
+/** The progress callback, turned into steps: the first 2% is the meta store, then both passes over the members by bytes. */
+function progressReporter(report: ((fraction: number) => void) | undefined): { at: (fraction: number) => void; work: (bytes: number, of: number) => void } {
+  let done = 0;
+  let last = -1;
+  const at = (fraction: number): void => {
+    if (report === undefined) return;
+    const percent = Math.floor(Math.min(1, Math.max(0, fraction)) * 100);
+    if (percent <= last) return;
+    last = percent;
+    report(percent / 100);
+  };
+  return {
+    at,
+    // `of` is one pass; two passes make the whole. Never reports 100% before the file is renamed into place.
+    work: (bytes, of) => {
+      done += bytes;
+      at(0.02 + 0.97 * (of === 0 ? 1 : Math.min(1, done / (2 * of))));
+    },
+  };
+}
+
+/** The bytes one pass over the members reads. */
+async function plannedBytes(members: readonly Member[]): Promise<number> {
+  let bytes = 0;
+  for (const member of members) bytes += 'data' in member ? member.data.length : ((await stat(member.file).catch(() => null))?.size ?? 0);
+  return bytes;
+}
+
+/** Stream every member into a zip at `path`; returns the zip's size. `onRead` hears each chunk read. */
+async function writeZip(path: string, members: readonly Member[], onRead: (bytes: number) => void = () => undefined): Promise<number> {
   const fd = openSync(path, 'wx', 0o600);
   let written = 0;
   let failure: Error | null = null;
@@ -356,12 +394,14 @@ async function writeZip(path: string, members: readonly Member[]): Promise<numbe
       zip.add(entry);
       if ('data' in member) {
         entry.push(member.data, true);
+        onRead(member.data.length);
         continue;
       }
       let last: Buffer | null = null;
       for await (const chunk of createReadStream(member.file)) {
         if (last !== null) entry.push(last, false);
         last = chunk as Buffer;
+        onRead(last.length);
       }
       entry.push(last ?? new Uint8Array(0), true);
       if (failure !== null) throw failure;
