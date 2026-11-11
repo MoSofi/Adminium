@@ -1,5 +1,21 @@
 # @adminium/dashboard
 
+## 0.3.55
+
+### Patch Changes
+
+- 9608f49: The Add-ons page says **Update** for a newer version, as the apps do (it said **Upgrade**). An app's Activity names the person who downloaded a version from the catalogue by name, or by e-mail, instead of by their user id.
+- 9608f49: Signing in from a link back to an app's staff screens (`/login?returnTo=/apps/<app>/staff/`) opens those screens, instead of the dashboard's "This page went missing" until a reload.
+- 9608f49: Updating an app that needs a newer add-on works from the dashboard again. The update's check shows the add-on on an **Add-ons** card with **Update it too** ticked and sends it (before, the update was refused asking for a tick that was never shown). On a server with an add-on copy on each of two databases, **Update** on the Add-ons page now updates every copy in turn, each check naming its database, instead of failing with "installed on 2 databases"; an app's update whose add-on still runs an older version on another database says to update every copy first; and an app's "Update it too" moves the copy on its own database instead of stopping part way.
+- 9608f49: An app or add-on update that would let visitors see more through a public endpoint they already use (a column a shop page now reads, say) now asks first. The update's check lists each such endpoint on a **Shows visitors more** card, and **Update** waits until you tick **Allow it**; through the API the update is refused with `PUBLIC_WIDER` unless it sends `"publicWider": true`, and only someone who may manage API keys may allow it. Each widening is written to the audit log. Before, the update went through and quietly left the old endpoint in place, so a release's new public columns never reached an updated server.
+- @adminium/add-on-contracts@0.3.55
+  - @adminium/charts@0.3.55
+  - @adminium/engine@0.3.55
+  - @adminium/i18n@0.3.55
+  - @adminium/tokens@0.3.55
+  - @adminium/ui@0.3.55
+  - @adminium/widgets@0.3.55
+
 ## 0.3.54
 
 ### Patch Changes
