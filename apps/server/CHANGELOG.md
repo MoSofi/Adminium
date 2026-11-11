@@ -1,5 +1,21 @@
 # @adminium/server
 
+## 0.3.56
+
+### Patch Changes
+
+- a800a04: A column set to Picture (or another kind of file) in Studio keeps that choice again, and Studio offers the hint for a column whose name says it holds pictures. 0.3.54 and 0.3.55 replaced the page's own choice with the engine's guess on every read; that change is undone, so a page made before an app said a column holds a file draws the stored file's id until the page is edited.
+- @adminium/adapter-mysql@0.3.56
+  - @adminium/adapter-postgres@0.3.56
+  - @adminium/adapter-sqlite@0.3.56
+  - @adminium/add-on-contracts@0.3.56
+  - @adminium/engine@0.3.56
+  - @adminium/i18n@0.3.56
+  - @adminium/llm@0.3.56
+  - @adminium/manifest@0.3.56
+  - @adminium/meta@0.3.56
+  - @adminium/schema-import@0.3.56
+
 ## 0.3.55
 
 ### Patch Changes

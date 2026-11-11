@@ -126,7 +126,7 @@ downgrade, restore the pre-upgrade backup — which is why step 1 is step 1.
 ## Pin your version
 
 ```bash title=".env"
-ADMINIUM_VERSION=0.3.55
+ADMINIUM_VERSION=0.3.56
 ```
 
 ```bash
@@ -152,7 +152,7 @@ compares them — and read
 
 A release sometimes refuses a setting an earlier one took, when the setting
 could send Adminium somewhere it should not go. The setting is kept, but what
-depends on it stops working until you change it. After an upgrade to 0.3.55,
+depends on it stops working until you change it. After an upgrade to 0.3.56,
 check two things:
 
 - **Database connection strings.** A string that carries a parameter the
