@@ -49,7 +49,8 @@ adminium start
 The file carries no passwords, so the import gives one Super Admin a new one.
 It asks which Super Admin (if there are several) and the password, twice. On a
 server without a terminal, name the person and pass the password on standard
-input:
+input; with more than one Super Admin in the file and no `--owner`, the import
+refuses and writes nothing rather than choose for you:
 
 ```bash
 printf '%s\n' "$NEW_PASSWORD" | adminium import-zip ./export.zip --owner you@example.com --password-stdin

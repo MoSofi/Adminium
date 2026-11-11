@@ -408,9 +408,8 @@ describe.each(ENGINES)('adminium import-zip on a fresh %s instance', (engine) =>
       signing: SIGNING,
       expect: 'export',
       blockLoopback: false,
-      owner: askExportOwner(io, { ownerEmail: undefined, passwordStdin: true, readStdin: async () => NEW_PASSWORD }),
+      owner: askExportOwner(io, { ownerEmail: 'ava@example.com', passwordStdin: true, readStdin: async () => NEW_PASSWORD }),
     });
-    // Two Super Admins came: with no --owner, the first made is given the password.
     expect(result.owner?.email).toBe('ava@example.com');
     expect(result.files).toBe(1);
     expect(result.databases).toBe(1);
@@ -469,9 +468,22 @@ describe('the owner’s way in', () => {
 
   it('writes nothing when there is no password to give, a wrong person or a short password', async () => {
     const { meta, dirs } = await freshTarget();
-    await expect(restore(meta, dirs, { ownerEmail: undefined, passwordStdin: false })).rejects.toBeInstanceOf(CliUsageError);
+    await expect(restore(meta, dirs, { ownerEmail: 'ava@example.com', passwordStdin: false })).rejects.toThrow(/on standard input \(--password-stdin\)/);
     await expect(restore(meta, dirs, { ownerEmail: 'cy@example.com', passwordStdin: true, readStdin: async () => NEW_PASSWORD })).rejects.toThrow(/not a Super Admin in this export/);
-    await expect(restore(meta, dirs, { ownerEmail: undefined, passwordStdin: true, readStdin: async () => 'short' })).rejects.toThrow(/at least 10 characters/);
+    await expect(restore(meta, dirs, { ownerEmail: 'ava@example.com', passwordStdin: true, readStdin: async () => 'short' })).rejects.toThrow(/at least 10 characters/);
+    // Two Super Admins, no --owner and no terminal: refused, rather than one picked for the operator.
+    let read = false;
+    const unnamed = restore(meta, dirs, {
+      ownerEmail: undefined,
+      passwordStdin: true,
+      readStdin: async () => {
+        read = true;
+        return NEW_PASSWORD;
+      },
+    });
+    await expect(unnamed).rejects.toBeInstanceOf(CliUsageError);
+    await expect(unnamed).rejects.toThrow(/2 Super Admins \(ava@example\.com, bo@example\.com\)\. Name the one who gets the new password with --owner/);
+    expect(read).toBe(false);
     const mismatch = fakeIo({ interactive: true, selections: [0], answers: [NEW_PASSWORD, 'something-else-entirely'] });
     await expect(restore(meta, dirs, { ownerEmail: undefined, passwordStdin: false }, mismatch)).rejects.toThrow(/not the same/);
     expect((await probeAdminiumTables(meta)).present).toEqual([]);
@@ -487,6 +499,7 @@ describe('the owner’s way in', () => {
       dataDir: undefined,
       metaUrl: undefined,
       projectDir: dirs.projectRoot,
+      ownerEmail: 'ava@example.com',
       passwordStdin: true,
       readStdin: async () => NEW_PASSWORD,
     });
@@ -503,6 +516,30 @@ describe('the owner’s way in', () => {
     } finally {
       await store.close();
     }
+  });
+
+  it('gives the only Super Admin the password with no --owner and no terminal', async () => {
+    const source = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(source);
+    cleanups.push(async () => source.db.destroy());
+    await createFirstSuperAdmin(source, { email: 'dee@example.com', name: 'Dee', passwordHash: await hashPassword(ADMIN_PASSWORD) });
+    const dirs = await freshDirs();
+    const single = join(dirs.root, 'single-export.zip');
+    await createArchive({ meta: source, outPath: single, dataDir: dirs.dataDir, projectRoot: null, kind: 'export', secret: SECRET, dsnCrypto: CRYPTO, signing: SIGNING });
+    const { meta, dirs: there } = await freshTarget();
+    const result = await restoreArchive({
+      inPath: single,
+      meta,
+      dataDir: there.dataDir,
+      projectRoot: null,
+      secret: SECRET,
+      dsnCrypto: CRYPTO,
+      signing: SIGNING,
+      expect: 'export',
+      blockLoopback: false,
+      owner: askExportOwner(fakeIo({ interactive: false }), { ownerEmail: undefined, passwordStdin: true, readStdin: async () => NEW_PASSWORD }),
+    });
+    expect(result.owner?.email).toBe('dee@example.com');
   });
 
   it('is never asked for a full archive, whose people keep their passwords', async () => {

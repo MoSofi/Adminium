@@ -22,7 +22,7 @@ transaction: a bundle that fails halfway leaves no half-restored instance behind
 | `--data-dir <path>` | | Data directory |
 | `--meta-url <dsn>` | | Meta store DSN |
 | `--project-dir <folder>` | `ADMINIUM_PROJECT_DIR` | Where an export file's project folder goes |
-| `--owner <email>` | the only or first Super Admin | Export file: who gets a new password |
+| `--owner <email>` | the only Super Admin | Export file: who gets a new password. Required without a terminal when the file holds more than one |
 | `--password-stdin` | off | Export file: read that password from the first line of standard input |
 
 `import-zip` also reads the **Export everything** file (from Studio, or

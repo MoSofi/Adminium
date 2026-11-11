@@ -239,7 +239,8 @@ async function firstStdinLine(): Promise<string> {
  * stops the import with the target as it was.
  *
  * Which one: `--owner <email>`, else the only one, else (in a terminal) a
- * choice, else the earliest made, the instance's first owner. The password:
+ * choice. With several and neither, the import is refused: picking one for the
+ * operator would hand the instance to a person they did not name. The password:
  * `--password-stdin` (the first line), else asked twice in a terminal. With
  * neither the import is refused before it starts writing.
  */
@@ -262,8 +263,11 @@ export function askExportOwner(
           candidates.map((candidate) => ({ label: candidate.email, ...(candidate.name === '' ? {} : { hint: candidate.name }) })),
         );
         chosen = candidates[index];
-      } else {
-        chosen = candidates[0];
+      } else if (candidates.length > 1) {
+        throw new CliUsageError(
+          `This export holds ${String(candidates.length)} Super Admins (${candidates.map((candidate) => candidate.email).join(', ')}). Name the one who gets the new password with --owner <email>. Nothing was imported.`,
+          'import-zip',
+        );
       }
     }
     if (chosen === undefined) throw new CliError('This export holds no Super Admin to sign in as.');

@@ -40,8 +40,9 @@ export const importZipCommand: Command = {
     'An "Export everything" file (from Studio, or `adminium archive create --export`)\n' +
     'is restored whole into a FRESH instance: pages, people, uploads, the project\n' +
     'folder. It carries no passwords, so the import gives one of its Super Admins a\n' +
-    'new password: --owner picks who (default: the first), the password is asked\n' +
-    'twice, or read from the first line of standard input with --password-stdin.',
+    'new password: --owner picks who (needed without a terminal when it holds more\n' +
+    'than one), the password is asked twice, or read from the first line of\n' +
+    'standard input with --password-stdin.',
   flags: {
     in: {
       type: 'string',
