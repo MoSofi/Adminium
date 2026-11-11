@@ -8,11 +8,12 @@
  * Renders full-bleed (`fullPage`) for app-wide failures and inline inside the
  * content outlet for page-scoped ones (shell + nav stay usable).
  */
+import { lazy, Suspense, type ComponentType } from 'react';
 import { Button, MonoText, cn } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
 import { BrandMark } from '../shell/BrandMark.js';
-import { CopyButton } from '../studio/connect/CopyButton.js';
+import type { CopyButtonProps } from '../studio/connect/CopyButton.js';
 import type { StateTone, SystemStateSpec } from './stateMap.js';
 
 /**
@@ -20,6 +21,20 @@ import type { StateTone, SystemStateSpec } from './stateMap.js';
  * undefined outside a secure context, so `http://192.168.1.50:4600` — an
  * entirely ordinary way to reach a self-hosted instance — has none.
  */
+/**
+ * "Copy reference", fetched with the first error page that shows one: the
+ * button and its clipboard helpers are not in everybody's first load. A fetch
+ * that fails (the server is the thing that is down) shows no button rather
+ * than breaking the page that explains the failure; the reference stays
+ * selectable beside it.
+ */
+const CopyButtonLazy = lazy(async (): Promise<{ default: ComponentType<CopyButtonProps> }> =>
+  import('../studio/connect/CopyButton.js').then(
+    (mod) => ({ default: mod.CopyButton }),
+    () => ({ default: () => null }),
+  ),
+);
+
 function canCopy(): boolean {
   return typeof navigator !== 'undefined' && navigator.clipboard !== undefined;
 }
@@ -151,12 +166,14 @@ export function StateHero({ spec, onPrimary, onSecondary, requestId, fullPage = 
               built to explain a failure.
             */}
             {canCopy() ? (
-              <CopyButton
-                value={requestId}
-                variant="ghost"
-                label={t('states.reference.copy', 'Copy reference')}
-                copiedLabel={t('states.reference.copied', 'Copied')}
-              />
+              <Suspense fallback={null}>
+                <CopyButtonLazy
+                  value={requestId}
+                  variant="ghost"
+                  label={t('states.reference.copy', 'Copy reference')}
+                  copiedLabel={t('states.reference.copied', 'Copied')}
+                />
+              </Suspense>
             ) : null}
             <p className="m-0 max-w-[320px] text-[11px] text-fg-subtle">
               {t(
