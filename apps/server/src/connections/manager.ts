@@ -37,6 +37,7 @@ import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError
 import type { HostLookup } from '../net/address-guard.js';
 import { checkDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase, type DatabaseHost } from './dsn.js';
 import { PRIVILEGES_PROBE_TIMEOUT_MS, PRIVILEGES_TTL_MS } from './privileges.js';
+import { assertSqliteSourceAllowed, type SqliteSourcePolicy } from './sqlite-guard.js';
 
 /** Every meta table is `adminium_`-prefixed. */
 export const META_TABLE_PREFIX = 'adminium_';
@@ -116,6 +117,12 @@ export interface ConnectionManagerOptions {
    */
   databaseHosts?: readonly DatabaseHost[] | undefined;
   /**
+   * Where Adminium's own files are, and `ADMINIUM_SQLITE_DIRS`: a SQLite
+   * source is refused on Adminium's own files, and outside those folders when
+   * they are set (`sqlite-guard.ts`). Unset: no file is refused.
+   */
+  sqliteSources?: SqliteSourcePolicy | undefined;
+  /**
    * The size of every pool opened against a source database (env
    * `ADMINIUM_SOURCE_POOL_MAX`); unset leaves each adapter's own default.
    */
@@ -139,6 +146,7 @@ export class ConnectionManager {
   readonly #metaDsn: string | null;
   readonly #blockLoopback: boolean;
   readonly #databaseHosts: readonly DatabaseHost[];
+  readonly #sqliteSources: SqliteSourcePolicy | undefined;
   readonly #pool: { poolMax?: number };
   readonly #lookup: HostLookup | undefined;
   readonly connections: ReturnType<typeof connectionsRepo>;
@@ -151,6 +159,7 @@ export class ConnectionManager {
     this.#metaDsn = opts.metaDsn ?? null;
     this.#blockLoopback = opts.blockLoopback ?? process.env.NODE_ENV === 'production';
     this.#databaseHosts = opts.databaseHosts ?? [];
+    this.#sqliteSources = opts.sqliteSources;
     this.#pool = opts.sourcePoolMax === undefined ? {} : { poolMax: opts.sourcePoolMax };
     this.#lookup = opts.lookup;
     this.connections = connectionsRepo(opts.meta, opts.crypto);
@@ -199,6 +208,7 @@ export class ConnectionManager {
       databaseHosts: this.#databaseHosts,
       lookup: this.#lookup,
     });
+    if (checked.parsed.scheme === 'sqlite' && this.#sqliteSources !== undefined) assertSqliteSourceAllowed(dsn, this.#sqliteSources);
     return checked.endpoint === null ? { dsn } : { endpoint: checked.endpoint };
   }
 

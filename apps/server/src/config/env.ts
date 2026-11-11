@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { isAbsolute, resolve } from 'node:path';
+
 import { z } from 'zod';
 
 import { parseDatabaseHost, type DatabaseHost } from '../connections/dsn.js';
@@ -713,6 +715,38 @@ export const envSchema = z.object({
         return metadata.length > 0 || refused.length > 0 ? z.NEVER : hosts;
       }),
   ),
+  /**
+   * The folders a SQLite source database may lie in: `/srv/databases,/data/apps`.
+   * Unset, a SQLite source may be any file the server can open, apart from
+   * Adminium's own files (its meta store and the data dir's own folders,
+   * `connections/sqlite-guard.ts`), which are refused either way. Set, the
+   * file's real path (symlinks followed) must be under one of these. Absolute
+   * paths only: a relative one would depend on the folder the server was
+   * started from.
+   */
+  ADMINIUM_SQLITE_DIRS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const dirs = value
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0);
+        if (dirs.length === 0) return undefined;
+        const relative = dirs.filter((dir) => !isAbsolute(dir));
+        if (relative.length > 0) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `${relative.map((dir) => `"${dir}"`).join(', ')} ${relative.length === 1 ? 'is' : 'are'} not an absolute folder path, e.g. /srv/databases`,
+          });
+          return z.NEVER;
+        }
+        return dirs.map((dir) => resolve(dir));
+      }),
+  ),
   /*
    * Where maps come from. A map on a page makes each staff BROWSER fetch map
    * pictures from this server, so its origin is written into the content
@@ -820,6 +854,8 @@ const ENV_HINTS: Record<string, string> = {
     'CSV of image origins the dashboard and hosted app surfaces may load pictures from, e.g. https://images.example.com — a leading *. covers subdomains; no bare *, scheme alone or path',
   ADMINIUM_DATABASE_HOSTS:
     'CSV of host[:port] a production server may reach on its own loopback, e.g. localhost:5432 (port defaults to 5432 / 3306; *.suffix for a provider\'s names; never a cloud metadata address)',
+  ADMINIUM_SQLITE_DIRS:
+    'CSV of absolute folders a SQLite source database must lie in, e.g. /srv/databases (unset: any file except Adminium\'s own)',
   ADMINIUM_MAP_SERVER: `off, or the one origin map pictures come from (default ${DEFAULT_MAP_SERVER})`,
   ADMINIUM_ROUTING_SERVER: `off, or the origin of an OSRM routing server (default ${DEFAULT_ROUTING_SERVER}; asked only when routing is switched on)`,
 };

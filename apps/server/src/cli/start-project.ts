@@ -104,6 +104,8 @@ export const HOST_DECIDED_ENV: readonly string[] = [
   'ADMINIUM_DESIGNER',
   // Which of this machine's own databases the server may reach: the operator's call, not a folder's.
   'ADMINIUM_DATABASE_HOSTS',
+  // Which SQLite files the server may open as sources: the operator's call, not a folder's.
+  'ADMINIUM_SQLITE_DIRS',
   // Written into every staff browser's content security policy, or called by the server: not a folder's to choose.
   'ADMINIUM_MAP_SERVER',
   'ADMINIUM_ROUTING_SERVER',
