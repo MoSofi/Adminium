@@ -23,7 +23,7 @@ import { importExportFile } from './archive/commands.js';
 export const importZipCommand: Command = {
   name: 'import-zip',
   summary: 'Import an instance configuration bundle',
-  usage: 'adminium import-zip --in <file> [--dry-run]',
+  usage: 'adminium import-zip <file> [--dry-run] [--owner <email>] [--password-stdin]',
   describe:
     'Restores configuration produced by `adminium export-zip` — connections,\n' +
     'snapshots, overrides, pages and dashboards, views, settings, roles.\n' +
@@ -35,13 +35,19 @@ export const importZipCommand: Command = {
     '\n' +
     'Bundles carry configuration, not source code and not your database contents.\n' +
     'Unless the bundle was exported with --include-secrets it has no credentials,\n' +
-    'and connections need their connection string re-entered afterwards.',
+    'and connections need their connection string re-entered afterwards.\n' +
+    '\n' +
+    'An "Export everything" file (from Studio, or `adminium archive create --export`)\n' +
+    'is restored whole into a FRESH instance: pages, people, uploads, the project\n' +
+    'folder. It carries no passwords, so the import gives one of its Super Admins a\n' +
+    'new password: --owner picks who (default: the first), the password is asked\n' +
+    'twice, or read from the first line of standard input with --password-stdin.',
   flags: {
     in: {
       type: 'string',
       short: 'i',
       placeholder: '<file>',
-      describe: 'Bundle to import',
+      describe: 'Bundle to import (or name it on its own)',
     },
     'dry-run': {
       type: 'boolean',
@@ -61,13 +67,28 @@ export const importZipCommand: Command = {
       describe: 'Where an export file’s project folder goes (new or empty)',
       defaultDescription: 'ADMINIUM_PROJECT_DIR',
     },
+    owner: {
+      type: 'string',
+      placeholder: '<email>',
+      describe: 'Export file: the Super Admin who gets a new password',
+      defaultDescription: 'the only or first Super Admin',
+    },
+    'password-stdin': {
+      type: 'boolean',
+      describe: 'Export file: read that password from standard input',
+      defaultDescription: 'off',
+    },
   },
 
   async run({ io, deps, argv }) {
-    const { values } = parseFlags(argv, importZipCommand.flags, importZipCommand.name);
-    const input = stringFlag(values.in);
+    const { values, positionals } = parseFlags(argv, importZipCommand.flags, importZipCommand.name);
+    const named = stringFlag(values.in);
+    if (positionals.length > 1 || (named !== undefined && positionals.length > 0)) {
+      throw new CliUsageError('Name one file to import.', importZipCommand.name);
+    }
+    const input = named ?? positionals[0];
     if (input === undefined) {
-      throw new CliUsageError('--in <file> is required.', importZipCommand.name);
+      throw new CliUsageError('Name the file to import: adminium import-zip <file>', importZipCommand.name);
     }
     const dryRun = boolFlag(values['dry-run']);
     const dataDir = stringFlag(values['data-dir']);
@@ -82,6 +103,8 @@ export const importZipCommand: Command = {
         dataDir,
         metaUrl,
         projectDir: stringFlag(values['project-dir']),
+        ownerEmail: stringFlag(values.owner),
+        passwordStdin: boolFlag(values['password-stdin']),
       });
     }
 
