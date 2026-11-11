@@ -2873,6 +2873,22 @@
       "heading": "Platby",
       "body": "Nechte zákazníky zaplatit, co dluží: platební odkazy, platební stránka, Stripe a PayPal a ruční způsoby platby.",
       "cta": "Otevřít platby"
+    },
+    "localDatabases": {
+      "heading": "Připojení",
+      "subtitle": "Databáze, které tato instalace čte a zapisuje.",
+      "label": "Povolit databáze na tomto serveru",
+      "setByOperator": "Nastaveno provozovatelem",
+      "help": "Umožní připojením dosáhnout databází, které běží na tomto serveru, například {example}. Jen pro databáze, které jste zde sami nastavili.",
+      "alwaysHere": "Tento server už databáze na tomto počítači dosáhne, takže tento přepínač zde nic nemění.",
+      "lockedHosts": "Provozovatel povoluje jen tyto hostitele:",
+      "lockedNone": "Provozovatel nepovoluje na tomto serveru žádné databáze.",
+      "turnedOn": "Zapnul(a) {name}, {date}",
+      "password": "Vaše heslo, abyste ho zapnuli",
+      "switchOn": "Zapnout",
+      "wrongPassword": "To není vaše heslo.",
+      "lockedRefused": "Provozovatel serveru toto zamkl.",
+      "failed": "Přepínač se nepodařilo změnit. Zkuste to znovu."
     }
   },
   "source": {

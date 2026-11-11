@@ -155,6 +155,8 @@ export class ConnectionManager {
   readonly #blockLoopback: boolean;
   readonly #databaseHosts: readonly DatabaseHost[];
   readonly #networkPolicy: NetworkPolicy;
+  /** "Allow databases on this server", as its switch last said (`local-databases.ts`); off until then. */
+  #localDatabases = false;
   readonly #sqliteSources: SqliteSourcePolicy | undefined;
   readonly #pool: { poolMax?: number };
   readonly #lookup: HostLookup | undefined;
@@ -201,6 +203,15 @@ export class ConnectionManager {
   /** The operator's `ADMINIUM_DATABASE_HOSTS`, as parsed. */
   get databaseHosts(): readonly DatabaseHost[] {
     return this.#databaseHosts;
+  }
+
+  /** Whether "Allow databases on this server" lets any loopback source through. Set by its switch only. */
+  get localDatabases(): boolean {
+    return this.#localDatabases;
+  }
+
+  set localDatabases(on: boolean) {
+    this.#localDatabases = on;
   }
 
   get meta(): MetaDb {

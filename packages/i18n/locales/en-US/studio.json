@@ -2873,6 +2873,22 @@
       "heading": "Payments",
       "body": "Let customers pay what they owe: pay links, a pay page, Stripe and PayPal, and ways to pay by hand.",
       "cta": "Open payments"
+    },
+    "localDatabases": {
+      "heading": "Connections",
+      "subtitle": "Databases this installation reads and writes.",
+      "label": "Allow databases on this server",
+      "setByOperator": "Set by the operator",
+      "help": "Lets connections reach databases running on this same server, like {example}. Only for databases you set up here.",
+      "alwaysHere": "This server already reaches databases on this machine, so this switch changes nothing here.",
+      "lockedHosts": "The operator allows only these hosts:",
+      "lockedNone": "The operator allows no databases on this server.",
+      "turnedOn": "Turned on by {name}, {date}",
+      "password": "Your password, to switch it on",
+      "switchOn": "Switch it on",
+      "wrongPassword": "That is not your password.",
+      "lockedRefused": "The server’s operator has locked this off.",
+      "failed": "The switch could not be changed. Try again."
     }
   },
   "source": {

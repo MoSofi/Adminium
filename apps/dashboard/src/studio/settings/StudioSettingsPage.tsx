@@ -101,6 +101,7 @@ import {
   type SecuritySettings,
   type WorkspaceSettingsData,
 } from './workspaceApi.js';
+import { LocalDatabasesCard } from './LocalDatabasesCard.js';
 import { BounceCard } from '../marketing/BounceCard.js';
 import { SenderMarketingBlock } from '../marketing/SenderMarketingBlock.js';
 import {
@@ -1758,6 +1759,10 @@ function StudioSettingsHub({
           )}
         />
       )}
+
+      {/* Connections: "Allow databases on this server". A Super Admin's switch (its routes refuse
+          anyone else), after General and Email as the comp's settings order has it. */}
+      {isSuperAdmin ? <LocalDatabasesCard /> : null}
 
       {holds('api-keys.manage') ? <PublicApiCard /> : null}
 

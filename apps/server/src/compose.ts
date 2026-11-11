@@ -79,6 +79,7 @@ import { dsnCryptoFromSecret } from './connections/crypto.js';
 import { openPublishableKey, storedPhoneKey } from './public-api/keys.js';
 import { createBridgeStore, createPairingCode } from './bridge/store.js';
 import { registerIntrospectJob } from './connections/introspect.js';
+import { createLocalDatabases, localDatabasesMode } from './connections/local-databases.js';
 import type { ConnectionManager } from './connections/manager.js';
 import { privilegesOf } from './connections/privileges.js';
 import { UndoStore } from './crud/undo.js';
@@ -361,6 +362,7 @@ import { testPaymentsRoutes } from './routes/payments/test-payments.js';
 import { storageRoutes } from './routes/storage/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
+import { localDatabasesRoutes } from './routes/settings/local-databases.js';
 import { usersRoutes } from './routes/users/index.js';
 import { viewsRoutes } from './routes/views/index.js';
 import { widgetDataRoutes } from './routes/widget-data/index.js';
@@ -2233,6 +2235,21 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // CLI wrappers that build their own Env.
         settingsRoutes({ meta, emailKey: emailSecretKey(env.ADMINIUM_SECRET) }),
       );
+      // "Allow databases on this server": a Super Admin's switch the operator can lock off. Read
+      // now, so the guard counts it from the first request; a store not migrated yet holds nothing on.
+      const localDatabases = createLocalDatabases({
+        meta,
+        mode: localDatabasesMode(env),
+        hosts: env.ADMINIUM_DATABASE_HOSTS,
+        loopbackRefused: manager.blockLoopback,
+        apply: (on) => {
+          manager.localDatabases = on;
+        },
+      });
+      await localDatabases.load().catch((error: unknown) => {
+        app.log.warn({ err: error }, 'the “Allow databases on this server” switch could not be read at boot');
+      });
+      await api.register(localDatabasesRoutes({ meta, localDatabases }));
       // Branding rides with settings but owns the bytes half (logo storage)
       // and the two PUBLIC reads the sign-in screen paints itself with.
       await api.register(brandingRoutes({ meta, storage }));

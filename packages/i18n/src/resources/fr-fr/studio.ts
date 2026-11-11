@@ -2883,6 +2883,22 @@ export default {
       "heading": "Paiements",
       "body": "Laissez vos clients régler ce qu’ils doivent : liens de paiement, page de paiement, Stripe et PayPal, et moyens de paiement manuels.",
       "cta": "Ouvrir les paiements"
+    },
+    "localDatabases": {
+      "heading": "Connexions",
+      "subtitle": "Les bases de données que cette installation lit et écrit.",
+      "label": "Autoriser les bases de données sur ce serveur",
+      "setByOperator": "Défini par l’opérateur",
+      "help": "Permet aux connexions d’atteindre des bases de données qui tournent sur ce même serveur, comme {example}. Uniquement pour les bases de données que vous avez installées ici.",
+      "alwaysHere": "Ce serveur atteint déjà les bases de données de cette machine : cet interrupteur ne change donc rien ici.",
+      "lockedHosts": "L’opérateur n’autorise que ces hôtes :",
+      "lockedNone": "L’opérateur n’autorise aucune base de données sur ce serveur.",
+      "turnedOn": "Activé par {name}, le {date}",
+      "password": "Votre mot de passe, pour l’activer",
+      "switchOn": "L’activer",
+      "wrongPassword": "Ce n’est pas votre mot de passe.",
+      "lockedRefused": "L’opérateur du serveur a verrouillé ce réglage.",
+      "failed": "L’interrupteur n’a pas pu être modifié. Réessayez."
     }
   },
   "source": {

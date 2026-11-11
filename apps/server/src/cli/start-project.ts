@@ -106,6 +106,8 @@ export const HOST_DECIDED_ENV: readonly string[] = [
   'ADMINIUM_ARCHIVE_KEY',
   // Which of this machine's own databases the server may reach: the operator's call, not a folder's.
   'ADMINIUM_DATABASE_HOSTS',
+  // Whether a Super Admin may allow this machine's own databases at all: the operator's lock.
+  'ADMINIUM_LOCAL_DATABASES',
   // Which SQLite files the server may open as sources: the operator's call, not a folder's.
   'ADMINIUM_SQLITE_DIRS',
   // Which folders a local storage destination may write into: the operator's call, not a folder's.

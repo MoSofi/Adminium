@@ -782,6 +782,15 @@ export const envSchema = z.object({
         return metadata.length > 0 || refused.length > 0 ? z.NEVER : hosts;
       }),
   ),
+  /*
+   * Whether a Super Admin may switch on "Allow databases on this server"
+   * (`connections.allowLocalDatabases`): any database on this server's own
+   * loopback, for source connections. `setting` (the default) lets the switch
+   * decide; `off` locks it off, and only ADMINIUM_DATABASE_HOSTS counts. Kept
+   * undefined when unset, so a later check can tell an explicit `setting` from
+   * the default (`connections/local-databases.ts`, `localDatabasesMode`).
+   */
+  ADMINIUM_LOCAL_DATABASES: z.preprocess(emptyToUndefined, z.enum(['setting', 'off']).optional()),
   /**
    * The folders a SQLite source database may lie in: `/srv/databases,/data/apps`.
    * Unset, a SQLite source may be any file the server can open, apart from
@@ -839,6 +848,10 @@ export const envSchema = z.object({
   ),
 })
   .superRefine((env, ctx) => {
+    // SEAM (trial mode, hosted profile): when ADMINIUM_TRIAL_MODE or ADMINIUM_HOSTED_MODE
+    // exists, an explicit ADMINIUM_LOCAL_DATABASES=setting with either one on fails here
+    // (there the Super Admin is a stranger, and loopback reaches the operator's own
+    // services), and `localDatabasesMode` returns `off` under either.
     if (env.ADMINIUM_TRUSTED_PROXIES !== undefined && !env.ADMINIUM_TRUST_PROXY) {
       ctx.addIssue({
         code: 'custom',
@@ -928,6 +941,8 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_STORAGE_DIRS:
     'CSV of absolute folders a local storage destination must lie in, e.g. /srv/files (unset: any folder except Adminium\'s own)',
   ADMINIUM_NETWORK_POLICY: `one of ${NETWORK_POLICIES.join(', ')} (default open; strict also refuses private ranges for source databases, webhooks and storage endpoints)`,
+  ADMINIUM_LOCAL_DATABASES:
+    'setting (default: a Super Admin may allow databases on this server in Studio) or off (only ADMINIUM_DATABASE_HOSTS counts)',
   ADMINIUM_MAP_SERVER: `off, or the one origin map pictures come from (default ${DEFAULT_MAP_SERVER})`,
   ADMINIUM_ROUTING_SERVER: `off, or the origin of an OSRM routing server (default ${DEFAULT_ROUTING_SERVER}; asked only when routing is switched on)`,
 };

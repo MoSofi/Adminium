@@ -40675,6 +40675,62 @@
     "status": "mt",
     "srcHash": "57c9502a7d7d"
   },
+  "studio.settingsHub.localDatabases.alwaysHere": {
+    "status": "mt",
+    "srcHash": "03717eedf140"
+  },
+  "studio.settingsHub.localDatabases.failed": {
+    "status": "mt",
+    "srcHash": "d3aeabf68104"
+  },
+  "studio.settingsHub.localDatabases.heading": {
+    "status": "mt",
+    "srcHash": "8f3509b64e0e"
+  },
+  "studio.settingsHub.localDatabases.help": {
+    "status": "mt",
+    "srcHash": "c3707bd29c20"
+  },
+  "studio.settingsHub.localDatabases.label": {
+    "status": "mt",
+    "srcHash": "a99efb03a3aa"
+  },
+  "studio.settingsHub.localDatabases.lockedHosts": {
+    "status": "mt",
+    "srcHash": "e09e661361c2"
+  },
+  "studio.settingsHub.localDatabases.lockedNone": {
+    "status": "mt",
+    "srcHash": "bc653b861a72"
+  },
+  "studio.settingsHub.localDatabases.lockedRefused": {
+    "status": "mt",
+    "srcHash": "8d1fe9faf0ac"
+  },
+  "studio.settingsHub.localDatabases.password": {
+    "status": "mt",
+    "srcHash": "965e473b374a"
+  },
+  "studio.settingsHub.localDatabases.setByOperator": {
+    "status": "mt",
+    "srcHash": "16432bf8fd50"
+  },
+  "studio.settingsHub.localDatabases.subtitle": {
+    "status": "mt",
+    "srcHash": "2015d6c9df7b"
+  },
+  "studio.settingsHub.localDatabases.switchOn": {
+    "status": "mt",
+    "srcHash": "6c28cea20638"
+  },
+  "studio.settingsHub.localDatabases.turnedOn": {
+    "status": "mt",
+    "srcHash": "784b49fc063b"
+  },
+  "studio.settingsHub.localDatabases.wrongPassword": {
+    "status": "mt",
+    "srcHash": "986dcb0b63e3"
+  },
   "studio.settingsHub.mapsCard.body": {
     "status": "mt",
     "srcHash": "dec0ec4d2618"

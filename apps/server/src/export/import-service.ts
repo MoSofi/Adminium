@@ -36,7 +36,7 @@ import {
   runConfigMigrations,
   type ConfigMigration,
 } from '@adminium/engine/config';
-import { firstRun, newId, settingsRepo, writeBool, type MetaDb } from '@adminium/meta';
+import { firstRun, isPortableSettingKey, isSettingKey, newId, settingsRepo, writeBool, type MetaDb } from '@adminium/meta';
 import { strFromU8, unzipSync } from 'fflate';
 
 import {
@@ -347,6 +347,14 @@ export const importZip: ImportZip = async (opts) => {
     // Unknown or invalid keys are skipped rather than aborting the whole import:
     // a stale key in an old bundle should not make the bundle unimportable.
     for (const row of bundle.settings) {
+      // Only what an export may carry: a key that names this machine or something that already
+      // happened here (an instance id, a switch such as "Allow databases on this server") is never
+      // taken from a bundle, however the bundle came to hold it.
+      if (isSettingKey(row.key) && !isPortableSettingKey(row.key)) {
+        warnings.push(`Skipped setting "${row.key}": it belongs to the server it was set on.`);
+        counts.settings = (counts.settings ?? 1) - 1;
+        continue;
+      }
       try {
         await settings.set(row.key as never, row.value as never, { at });
       } catch {

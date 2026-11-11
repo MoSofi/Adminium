@@ -46,6 +46,7 @@ import { seedStorageDestination, storageSeedRefusal } from '../../config/storage
 import { storageRootPolicyFor } from '../../files/root-guard.js';
 import { formatEnvProblems } from '../../config/env.js';
 import { unlistedLoopbackEntry } from '../../connections/dsn.js';
+import { localDatabasesMode, readLocalDatabases } from '../../connections/local-databases.js';
 import { sqliteSourceRefusal } from '../../connections/sqlite-guard.js';
 import { seedSourceConnection } from '../../connections/seed.js';
 import { storageCryptoFromSecret } from '../../files/crypto.js';
@@ -462,6 +463,10 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
         io.err(message);
       },
     });
+
+    // "Allow databases on this server" before a project's databases are connected: they are
+    // sources, which it lets through. The ADMINIUM_SOURCE_URL seed was held to the list alone above.
+    runtime.manager.localDatabases = await readLocalDatabases(runtime.metaStore.meta, localDatabasesMode(env)).catch(() => false);
 
     let projectServer: ProjectServerOptions | undefined;
     if (project !== null) {

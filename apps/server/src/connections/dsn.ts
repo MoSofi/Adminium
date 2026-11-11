@@ -353,12 +353,18 @@ export interface DsnCheckOptions extends DsnGuardOptions {
    * check. Never the metadata check.
    */
   databaseHosts?: readonly DatabaseHost[] | undefined;
+  /**
+   * "Allow databases on this server" is on (`connections.allowLocalDatabases`,
+   * `local-databases.ts`): any loopback host and port passes, as the list's
+   * entries do. Never the metadata check.
+   */
+  localDatabases?: boolean | undefined;
 }
 
 /**
  * The SSRF guard, run before any dial. Cloud-metadata is always blocked;
  * loopback per {@link DsnGuardOptions}, unless the host and port are on
- * `databaseHosts`; a scheme that does not match the engine is refused.
+ * `databaseHosts` or `localDatabases` is on; a scheme that does not match the engine is refused.
  * Throws 422.
  */
 export function guardDsn(dsn: string, opts: DsnCheckOptions = {}): ParsedDsn {
@@ -378,7 +384,7 @@ export function guardDsn(dsn: string, opts: DsnCheckOptions = {}): ParsedDsn {
   if (h.metadata) {
     throw new ValidationFailedError('Host resolves to a blocked address range.', { host: h.host });
   }
-  if (h.loopback && opts.blockLoopback === true && !databaseHostListed(opts.databaseHosts, parsed)) {
+  if (h.loopback && opts.blockLoopback === true && opts.localDatabases !== true && !databaseHostListed(opts.databaseHosts, parsed)) {
     const entry = databaseHostEntry(parsed);
     throw new ValidationFailedError(
       `Loopback hosts are not allowed in production. If this database runs on this server, add ${entry} to ADMINIUM_DATABASE_HOSTS.`,
