@@ -19,8 +19,8 @@ section elsewhere in these docs; this page says which ones to set and why.
 A fresh server asks for a one-time **setup token** before it creates the first
 account, and prints the token in its log. Nobody who only finds the address can
 take the instance. Either create the first account yourself and invite your
-client, or hand them the token (or a link carrying it after `#setup-token=`) by
-a channel you trust.
+client, or hand them the token (or a link to
+`https://<your address>/setup#setup-token=<token>`) by a channel you trust.
 
 Set your own token with `ADMINIUM_SETUP_TOKEN` when your deploy tool can
 generate one, so you never have to read the log.

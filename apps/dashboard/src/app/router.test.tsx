@@ -103,6 +103,33 @@ describe('route guards', () => {
   });
 });
 
+describe('a welcome link that carries the setup token', () => {
+  it.each(['/', '/login'])('opened at %s, lands on /setup with the token still in the fragment', async (path) => {
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: unknown) => {
+        const url = String(input);
+        if (url.startsWith('/api/v1/setup/state')) {
+          return Promise.resolve(jsonResponse(200, { data: { required: true, passwordMinLength: 10, databaseConnected: false, tokenRequired: true } }));
+        }
+        return Promise.resolve(jsonResponse(401, { error: { code: 'UNAUTHENTICATED', message: 'no session', requestId: 'req_s' } }));
+      }),
+    );
+    const queryClient = createQueryClient();
+    const router = createAppRouter(queryClient, { history: createMemoryHistory({ initialEntries: [`${path}#setup-token=K7QD-9MXR-2FTB-WH4N`] }) });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/setup');
+    });
+    expect(router.state.location.hash).toBe('setup-token=K7QD-9MXR-2FTB-WH4N');
+  });
+});
+
 describe('someone who opens only an app’s own screens', () => {
   it('is sent to those screens instead of the dashboard', async () => {
     const assign = vi.fn();

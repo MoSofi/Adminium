@@ -269,14 +269,16 @@ function redirectIfAuthed(queryClient: QueryClient): void {
  * fall through to the normal screen rather than trapping the user on a wizard
  * we cannot confirm they need.
  */
-async function redirectIfSetupRequired(queryClient: QueryClient): Promise<void> {
+async function redirectIfSetupRequired(queryClient: QueryClient, hash: string): Promise<void> {
   let required: boolean;
   try {
     required = (await queryClient.ensureQueryData(setupStateQuery())).required;
   } catch {
     return;
   }
-  if (required) throw redirect({ to: '/setup' });
+  // A welcome link opened on another path (`/#setup-token=…`, `/login#setup-token=…`) keeps the token
+  // it carries: the wizard reads it from the fragment (`takeFragmentSetupToken`). Nothing else is carried.
+  if (required) throw redirect({ to: '/setup', ...(/(?:^|&)setup-token=/.test(hash) ? { hash } : {}) });
 }
 
 const loginRoute = createRoute({
@@ -298,9 +300,9 @@ const loginRoute = createRoute({
     // Set by the reset/invite page once a password is saved: the screen says so, not "Welcome back".
     ...(search.passwordSet === '1' || search.passwordSet === 1 ? { passwordSet: '1' as const } : {}),
   }),
-  beforeLoad: async ({ context }) => {
+  beforeLoad: async ({ context, location }) => {
     redirectIfAuthed(context.queryClient);
-    await redirectIfSetupRequired(context.queryClient);
+    await redirectIfSetupRequired(context.queryClient, location.hash);
   },
   component: LoginPage,
 });
@@ -485,7 +487,7 @@ const appRoute = createRoute({
       if (error instanceof ApiError && error.status === 401) {
         // ...unless nobody has bootstrapped this instance yet, in which case
         // there is no account to return to — send them to the wizard.
-        await redirectIfSetupRequired(context.queryClient);
+        await redirectIfSetupRequired(context.queryClient, location.hash);
         throw redirect({ to: '/login', search: { returnTo: location.href } });
       }
       // Someone who opens only an app's own screens goes there, not to a
