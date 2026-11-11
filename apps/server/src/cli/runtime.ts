@@ -186,6 +186,7 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     // The embedded fallback has no DSN to collide with.
     metaDsn: metaStore.source === 'embedded' ? null : metaStore.url,
     ...(opts.blockLoopback === undefined ? {} : { blockLoopback: opts.blockLoopback }),
+    databaseHosts: env.ADMINIUM_DATABASE_HOSTS,
     sourcePoolMax: env.ADMINIUM_SOURCE_POOL_MAX,
   });
 

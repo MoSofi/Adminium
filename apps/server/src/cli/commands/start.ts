@@ -43,6 +43,8 @@ import {
 } from '../../backup/pre-migration.js';
 import { ownerOnThisComputer } from '../../auth/local-owner.js';
 import { seedStorageDestination } from '../../config/storage-seed.js';
+import { formatEnvProblems } from '../../config/env.js';
+import { unlistedLoopbackEntry } from '../../connections/dsn.js';
 import { seedSourceConnection } from '../../connections/seed.js';
 import { storageCryptoFromSecret } from '../../files/crypto.js';
 import { embeddedMetaWarning } from '../../meta/store.js';
@@ -324,6 +326,23 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
     }
 
     const runtime = await deps.openRuntime(env);
+
+    // A seed on loopback that production would refuse fails the boot here, with the entry to add,
+    // instead of starting with a connection that can never be dialled. The guard is the runtime's
+    // own (the desktop and `dev` paths open it with loopback allowed, so they never get here).
+    const seedEntry =
+      project === null && env.ADMINIUM_SOURCE_URL !== undefined && runtime.manager.blockLoopback === true
+        ? unlistedLoopbackEntry(env.ADMINIUM_SOURCE_URL, env.ADMINIUM_DATABASE_HOSTS)
+        : null;
+    if (seedEntry !== null) {
+      await runtime.close().catch(() => undefined);
+      throw new CliError('Invalid environment configuration.', {
+        code: EXIT_CONFIG,
+        hint: formatEnvProblems([
+          { variable: 'ADMINIUM_SOURCE_URL', problem: `points at loopback; add \`${seedEntry}\` to ADMINIUM_DATABASE_HOSTS` },
+        ]),
+      });
+    }
 
     // The embedded fallback is legitimate but must announce itself.
     if (runtime.metaStore.source === 'embedded') {

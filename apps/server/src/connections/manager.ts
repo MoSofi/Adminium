@@ -33,7 +33,7 @@ import type { Dialect } from '@adminium/engine';
 import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@adminium/meta';
 
 import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
-import { guardDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase } from './dsn.js';
+import { guardDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase, type DatabaseHost } from './dsn.js';
 import { PRIVILEGES_PROBE_TIMEOUT_MS, PRIVILEGES_TTL_MS } from './privileges.js';
 
 /** Every meta table is `adminium_`-prefixed. */
@@ -107,6 +107,13 @@ export interface ConnectionManagerOptions {
   /** SSRF guard tuning; default blocks loopback only in production. */
   blockLoopback?: boolean | undefined;
   /**
+   * `ADMINIUM_DATABASE_HOSTS`: the source hosts and ports that pass the
+   * loopback check although {@link blockLoopback} is on. Source connections
+   * only: storage destinations read {@link ConnectionManager.blockLoopback} and
+   * never this list.
+   */
+  databaseHosts?: readonly DatabaseHost[] | undefined;
+  /**
    * The size of every pool opened against a source database (env
    * `ADMINIUM_SOURCE_POOL_MAX`); unset leaves each adapter's own default.
    */
@@ -127,6 +134,7 @@ export class ConnectionManager {
   readonly #registry: AdapterRegistry<AdapterProvider>;
   readonly #metaDsn: string | null;
   readonly #blockLoopback: boolean;
+  readonly #databaseHosts: readonly DatabaseHost[];
   readonly #pool: { poolMax?: number };
   readonly connections: ReturnType<typeof connectionsRepo>;
   readonly #dataHandles = new Map<string, Promise<DataHandle>>();
@@ -137,6 +145,7 @@ export class ConnectionManager {
     this.#registry = opts.registry ?? adapterRegistry;
     this.#metaDsn = opts.metaDsn ?? null;
     this.#blockLoopback = opts.blockLoopback ?? process.env.NODE_ENV === 'production';
+    this.#databaseHosts = opts.databaseHosts ?? [];
     this.#pool = opts.sourcePoolMax === undefined ? {} : { poolMax: opts.sourcePoolMax };
     this.connections = connectionsRepo(opts.meta, opts.crypto);
   }
@@ -147,6 +156,11 @@ export class ConnectionManager {
    */
   get blockLoopback(): boolean {
     return this.#blockLoopback;
+  }
+
+  /** The operator's `ADMINIUM_DATABASE_HOSTS`, as parsed. */
+  get databaseHosts(): readonly DatabaseHost[] {
+    return this.#databaseHosts;
   }
 
   get meta(): MetaDb {
@@ -163,12 +177,12 @@ export class ConnectionManager {
 
   /** The guard alone, for a DSN stored now and dialled later by `engine`. Throws 422. */
   assertDsnAllowed(dsn: string, engine: string): void {
-    guardDsn(dsn, { blockLoopback: this.#blockLoopback, engine });
+    guardDsn(dsn, { blockLoopback: this.#blockLoopback, engine, databaseHosts: this.#databaseHosts });
   }
 
   /** Guard + dial + test + probe one DSN with a short-lived introspect-role instance. */
   async testDsn(engine: string, dsn: string): Promise<ConnectionTestSummary> {
-    guardDsn(dsn, { blockLoopback: this.#blockLoopback, engine });
+    this.assertDsnAllowed(dsn, engine);
     const provider = this.provider(engine);
     let adapter: DatabaseAdapter<'introspect'> | null = null;
     try {
@@ -350,7 +364,7 @@ export class ConnectionManager {
     if (dsns?.introspectDsn == null) {
       throw new ValidationFailedError('Connection has no introspect DSN.', { connectionId });
     }
-    guardDsn(dsns.introspectDsn, { blockLoopback: this.#blockLoopback, engine: connection.engine });
+    this.assertDsnAllowed(dsns.introspectDsn, connection.engine);
     const provider = this.provider(connection.engine);
     return provider.create({ role: 'introspect', dsn: dsns.introspectDsn, ...this.#pool });
   }
@@ -378,7 +392,7 @@ export class ConnectionManager {
     if (dsns?.dataDsn == null) {
       throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
     }
-    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback, engine: connection.engine });
+    this.assertDsnAllowed(dsns.dataDsn, connection.engine);
     const provider = this.provider(connection.engine);
     return provider.create({ role: 'data', dsn: dsns.dataDsn, ...this.#pool });
   }
@@ -389,7 +403,7 @@ export class ConnectionManager {
     if (dsns?.dataDsn == null) throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
     const connection = await this.mustFind(connectionId);
     this.assertEnabled(connection);
-    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback, engine: connection.engine });
+    this.assertDsnAllowed(dsns.dataDsn, connection.engine);
     return this.provider(connection.engine).create({ role: 'data', dsn: dsns.dataDsn, poolMax: 1 });
   }
 
@@ -427,7 +441,7 @@ export class ConnectionManager {
     if (dsns?.dataDsn == null) {
       throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
     }
-    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback, engine: connection.engine });
+    this.assertDsnAllowed(dsns.dataDsn, connection.engine);
     const provider = this.provider(connection.engine);
     const engine = await provider.createQueryEngine({ role: 'data', dsn: dsns.dataDsn, ...this.#pool });
     // The engine package types the dialect opaquely; the server (which owns
