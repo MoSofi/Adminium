@@ -41,7 +41,7 @@ import { hashPassword } from '../src/auth/passwords.js';
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import { loadEnv } from '../src/config/env.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
-import { guardDsn, guardOutboundUrl, parseDsn, type DatabaseHost } from '../src/connections/dsn.js';
+import { checkDsn, guardDsn, guardOutboundUrl, parseDsn, type DatabaseHost } from '../src/connections/dsn.js';
 import { databaseHostText, localDatabasesMode, readLocalDatabases } from '../src/connections/local-databases.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
@@ -103,6 +103,21 @@ describe('the guard with the switch', () => {
   it('is the list, or the switch: either lets the listed host through', () => {
     expect(guardDsn('postgres://u@localhost:5432/x', { ...PROD, databaseHosts: hosts('localhost:5432') }).host).toBe('localhost');
     expect(guardDsn('postgres://u@localhost:5432/x', { ...PROD, localDatabases: true }).host).toBe('localhost');
+  });
+
+  it('holds on the resolved address too: a name on loopback passes on, a metadata or (strict) private answer never', async () => {
+    const answers: Record<string, string[]> = {
+      'db.internal': ['127.0.0.1'],
+      'meta.internal': ['169.254.169.254'],
+      'lan.internal': ['10.0.0.7'],
+    };
+    const lookup = async (host: string) => Promise.resolve(answers[host] ?? []);
+    const on = { ...PROD, localDatabases: true, lookup };
+    await expect(checkDsn('postgres://u@db.internal:6379/x', { ...PROD, lookup })).rejects.toThrow('Loopback hosts are not allowed');
+    const passed = await checkDsn('postgres://u@db.internal:6379/x', on);
+    expect(passed.endpoint?.addresses).toEqual(['127.0.0.1']);
+    await expect(checkDsn('postgres://u@meta.internal:5432/x', on)).rejects.toThrow('blocked address range');
+    await expect(checkDsn('postgres://u@lan.internal:5432/x', { ...on, blockPrivate: true })).rejects.toThrow('ADMINIUM_NETWORK_POLICY=strict');
   });
 
   it('never reaches a webhook, storage or AI address: those guards take no switch', () => {

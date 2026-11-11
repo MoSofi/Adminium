@@ -440,7 +440,8 @@ export async function checkDsn(dsn: string, opts: DsnResolveOptions = {}): Promi
   if ((opts.blockLoopback !== true && opts.blockPrivate !== true) || parsed.host === null) return { parsed, endpoint };
   const listed = databaseHostListed(opts.databaseHosts, parsed);
   const check = await checkHost(parsed.host, {
-    blockLoopback: opts.blockLoopback === true,
+    // "Allow databases on this server" lets any loopback address through; private and metadata are still checked.
+    blockLoopback: opts.blockLoopback === true && opts.localDatabases !== true,
     blockPrivate: opts.blockPrivate === true,
     listed,
     failClosed: true,

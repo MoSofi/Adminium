@@ -242,6 +242,7 @@ export class ConnectionManager {
       blockLoopback: this.#blockLoopback,
       engine,
       databaseHosts: this.#databaseHosts,
+      localDatabases: this.#localDatabases,
       blockPrivate: this.#networkPolicy === 'strict',
       lookup: this.#lookup,
     });
