@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { parseDatabaseHost, type DatabaseHost } from '../connections/dsn.js';
 import { NETWORK_POLICIES } from '../net/outbound-check.js';
 import { invalidTrustedProxies } from '../security/trust-proxy.js';
-import { withHeldSecrets } from './operator-secrets.js';
+import { readSecretFiles, SECRET_FILE_SUFFIX, withHeldSecrets, type SecretFileProblem } from './operator-secrets.js';
 
 /**
  * Environment validation. `loadEnv()` is called first in the boot
@@ -994,11 +994,26 @@ export function loadEnv(
   stderr: EnvWriter = process.stderr,
 ): Env {
   // `process.env` after an earlier boot in this process has none of the secrets: the held ones are read back.
-  const result = envSchema.safeParse(withHeldSecrets(env));
-  if (!result.success) {
-    const table = formatEnvErrorTable(result.error.issues);
+  // A secret given as a file (`<NAME>_FILE`) is read as if it had been set in `<NAME>`.
+  const files = readSecretFiles(withHeldSecrets(env));
+  const result = envSchema.safeParse(files.env);
+  const issues = secretFileIssues(files.problems, result.success ? [] : result.error.issues);
+  if (!result.success || issues.length > 0) {
+    const table = formatEnvErrorTable(issues);
     stderr.write(`Adminium failed to start — invalid environment configuration:\n\n${table}\n`);
-    throw new EnvValidationError(result.error.issues, table);
+    throw new EnvValidationError(issues, table);
   }
   return result.data;
+}
+
+/**
+ * The problems with `<NAME>_FILE` variables as rows of the boot's table, first, then the schema's own, less a
+ * second row for a secret whose file is the problem (it reads as missing because its file could not be used).
+ */
+export function secretFileIssues(problems: readonly SecretFileProblem[], issues: readonly z.core.$ZodIssue[]): z.core.$ZodIssue[] {
+  const fromFiles = problems.map(
+    (problem) => ({ code: 'custom', path: [problem.variable], message: problem.problem, input: undefined }) as z.core.$ZodIssue,
+  );
+  const covered = new Set(problems.map((problem) => problem.variable.slice(0, -SECRET_FILE_SUFFIX.length)));
+  return [...fromFiles, ...issues.filter((issue) => !covered.has(String(issue.path[0])))];
 }

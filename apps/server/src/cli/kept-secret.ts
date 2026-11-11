@@ -63,6 +63,8 @@ export function keepNewSecret(dataDir: string): string {
  */
 export function prepareTrySecret(env: Record<string, string | undefined>, dataDir: string): { madeIn: string | null } {
   if ((env.ADMINIUM_SECRET ?? '').trim() !== '') return { madeIn: null };
+  // Given as a file (`ADMINIUM_SECRET_FILE`): the boot reads it, and refuses it there if it cannot.
+  if ((env.ADMINIUM_SECRET_FILE ?? '').trim() !== '') return { madeIn: null };
   if (readKeptSecret(dataDir) !== null) return { madeIn: null };
   if (holdsInstance(dataDir)) {
     throw new CliError(`${dataDir} holds an Adminium instance, and no ADMINIUM_SECRET was given for it.`, {

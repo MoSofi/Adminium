@@ -4,7 +4,7 @@
  * config, and work out the environment the server boots with.
  */
 
-import { holdOperatorSecrets, withHeldSecrets } from '../config/operator-secrets.js';
+import { holdOperatorSecrets, isOperatorSecretName, SECRET_FILE_SUFFIX, withHeldSecrets } from '../config/operator-secrets.js';
 import {
   configFields,
   configuredDatabases,
@@ -82,7 +82,9 @@ export async function prepareProject(opts: {
 }): Promise<PreparedProject | null> {
   const project = findProject(opts.cwd, opts.env);
   if (project === null) return null;
-  const refuse = [...new Set([...(opts.refuse ?? []), ...NEVER_FROM_A_FOLDER])];
+  // A secret a folder may not set, it may not set as a file either (`<NAME>_FILE`).
+  const named = [...(opts.refuse ?? []), ...NEVER_FROM_A_FOLDER];
+  const refuse = [...new Set([...named, ...named.filter((name) => isOperatorSecretName(name)).map((name) => `${name}${SECRET_FILE_SUFFIX}`)])];
   const inFile = refuse.length === 0 ? null : readDotEnv(project.root);
   const refused = new Set(inFile === null ? [] : refuse.filter((name) => name in inFile));
   const fromDotEnv = refuse.length === 0 ? loadDotEnv(project.root, opts.env) : loadDotEnv(project.root, opts.env, [...KEPT_OUT_OF_THE_ENVIRONMENT, ...refuse]);

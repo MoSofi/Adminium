@@ -25,8 +25,8 @@ import type { AllowedVocabularies } from '@adminium/llm';
 import type { AdminiumServer } from '../app.js';
 import { composeServer } from '../compose.js';
 import { childEnvironment } from '../config/child-env.js';
-import { envSchema, formatEnvErrorTable, type Env } from '../config/env.js';
-import { withHeldSecrets } from '../config/operator-secrets.js';
+import { envSchema, formatEnvErrorTable, secretFileIssues, type Env } from '../config/env.js';
+import { readSecretFiles, withHeldSecrets } from '../config/operator-secrets.js';
 import { ConnectionManager } from '../connections/manager.js';
 import { dsnCryptoFromSecret } from '../connections/crypto.js';
 import { registerAdapters } from '../connections/register-adapters.js';
@@ -85,9 +85,11 @@ export function loadCliEnv(
   overrides: EnvOverrides = {},
   sources: Readonly<Record<string, string>> = {},
 ): Env {
+  // A secret given as a file (`<NAME>_FILE`) is read as if it had been set in `<NAME>`.
+  const files = readSecretFiles(withHeldSecrets(env));
   const merged: Record<string, string | undefined> = {
     // A second boot in this process reads `process.env` with the secrets the first one took out of it.
-    ...withHeldSecrets(env),
+    ...files.env,
     ...(overrides.port === undefined ? {} : { PORT: String(overrides.port) }),
     ...(overrides.host === undefined ? {} : { HOST: overrides.host }),
     ...(overrides.dataDir === undefined ? {} : { ADMINIUM_DATA_DIR: overrides.dataDir }),
@@ -119,14 +121,15 @@ export function loadCliEnv(
   }
 
   const result = envSchema.safeParse(merged);
-  if (result.success) return result.data;
+  const issues = secretFileIssues(files.problems, result.success ? [] : result.error.issues);
+  if (result.success && issues.length === 0) return result.data;
 
-  const secretIssue = result.error.issues.some((issue) => issue.path[0] === 'ADMINIUM_SECRET');
+  const secretIssue = issues.some((issue) => issue.path[0] === 'ADMINIUM_SECRET');
   // A flag replaced the value, so the project is not where it came from.
-  const origins = [...new Set(result.error.issues.map((issue) => String(issue.path[0])))]
+  const origins = [...new Set(issues.map((issue) => String(issue.path[0])))]
     .filter((name) => sources[name] !== undefined && merged[name] === env[name])
     .map((name) => `${name} came from ${sources[name] ?? ''}.`);
-  const table = [formatEnvErrorTable(result.error.issues), ...(origins.length > 0 ? ['', ...origins] : [])].join('\n');
+  const table = [formatEnvErrorTable(issues), ...(origins.length > 0 ? ['', ...origins] : [])].join('\n');
   throw new CliError(
     secretIssue
       ? 'ADMINIUM_SECRET is required — it derives the key that encrypts every stored DSN and API key.'

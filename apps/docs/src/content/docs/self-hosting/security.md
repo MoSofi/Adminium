@@ -50,16 +50,28 @@ At boot Adminium reads `ADMINIUM_SECRET`, `ADMINIUM_SETUP_TOKEN`,
 `ADMINIUM_ARCHIVE_KEY`, every `ADMINIUM_AI_*` variable, `ADMINIUM_FIGMA_TOKEN`,
 the picture sites' keys (`PEXELS_API_KEY`, `UNSPLASH_ACCESS_KEY`,
 `PIXABAY_API_KEY`) and the operator's own keys into the parts of the server
-that use them, then **deletes them from the process environment**. A
-project's hooks and actions run inside the server, and every program it starts
-(an app's tests, an app's own build line, a package install, git, the
-browser) inherits that environment, so none of them can read those values. Each
-of those programs is given a short, named environment instead: where programs
-are, the home and temporary folders, the language, and for package installs
-the `npm_config_*` and proxy settings (never one holding a token or a
-password). A hook or a project config that read `process.env.ADMINIUM_SECRET`,
-or a model key, after the server started now reads nothing. Give such code a
-variable of its own.
+that use them, then **deletes them from `process.env`**, before a project's
+config, hooks or actions are loaded. Every program the server starts (an app's
+tests, an app's own build line, a package install, git, the browser) is given
+a short, named environment instead of a copy of its own: where programs are,
+the home and temporary folders, the language, Windows' own settings, and for
+package installs the `npm_config_*` and proxy settings (never one holding a
+token or a password). So none of those values is in `process.env` or in any of
+those programs' environments. A hook or a project config that read
+`process.env.ADMINIUM_SECRET`, or a model key, after the server started now
+reads nothing. Give such code a variable of its own.
+
+What deleting cannot do: the operating system keeps the environment a process
+**started** with, and shows it to any code running as the same user
+(`/proc/<pid>/environ` on Linux, `ps eww` on macOS). A hook, or a program the
+server started, can still read a secret there if you gave it as a plain
+variable. To close that, give the secrets as files: set
+`ADMINIUM_SECRET_FILE=/run/secrets/adminium_secret` instead of
+`ADMINIUM_SECRET`, and the same `_FILE` ending for every name above. This is
+what Docker and Kubernetes secrets hand you. The value is then never in any
+environment, and the `_FILE` variable is deleted from `process.env` too.
+Plain variables keep working, but stay readable that way.
+([Secrets from files](/self-hosting/env-vars/#secrets-from-files-_file))
 
 ## The setup token
 

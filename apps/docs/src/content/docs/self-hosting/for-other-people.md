@@ -88,13 +88,22 @@ ADMINIUM_STORAGE_DIRS=/srv/client/files
 A project's hooks and actions run inside the server, and the Designer can start
 programs: an app's tests, a build, a package install. Once the server has
 started, `ADMINIUM_SECRET`, the setup token, the archive key, your AI keys and
-the other keys you set are no longer in the process environment, and every
-program the server starts gets a short, named environment without them.
+the other keys you set are no longer in `process.env`, and every program the
+server starts gets a short, named environment without them.
+
+That is not the whole way. The operating system still shows the environment
+the server **started** with to code running as the same user, and a hook or a
+program the server started runs as that user. So give each secret as a file
+(`ADMINIUM_SECRET_FILE=/run/secrets/adminium_secret`, the same `_FILE` ending
+for the others), as Docker and Kubernetes secrets do: then the value is never
+in any environment. A secret given as a plain variable keeps working, but
+stays readable that way.
 
 Give each instance its own random `ADMINIUM_SECRET`. Two instances that share
 one accept each other's signed values.
 
 → [Out of reach once the server has started](/self-hosting/security/#out-of-reach-once-the-server-has-started) ·
+[Secrets from files](/self-hosting/env-vars/#secrets-from-files-_file) ·
 [`ADMINIUM_SECRET`](/self-hosting/env-vars/#adminium_secret)
 
 ## 6. Moving the instance, or handing it over
@@ -138,8 +147,8 @@ ADMINIUM_DEPLOY_LINK=off
 
 ```bash
 NODE_ENV=production
-ADMINIUM_SECRET=…                     # its own, per instance
-ADMINIUM_SETUP_TOKEN=…                # or read the one the log prints
+ADMINIUM_SECRET_FILE=/run/secrets/adminium_secret   # its own, per instance; or ADMINIUM_SECRET=…
+ADMINIUM_SETUP_TOKEN_FILE=/run/secrets/setup_token  # or read the one the log prints
 ADMINIUM_DATABASE_HOSTS=localhost:5432
 ADMINIUM_LOCAL_DATABASES=off
 ADMINIUM_NETWORK_POLICY=strict

@@ -43,6 +43,19 @@ services:
       # a bare command substitution here would need escaping as `$$(...)`.
       # Either one breaks `compose config`.
       ADMINIUM_SECRET: '${ADMINIUM_SECRET:?required - generate one with openssl rand -hex 32}'
+      # Or give it as a Docker secret, so the value is never in the container's
+      # environment (which the OS shows to code running as the same user, a
+      # project's hooks included). Replace the line above with
+      #   ADMINIUM_SECRET_FILE: /run/secrets/adminium_secret
+      # and add to this service:
+      #   secrets:
+      #     - adminium_secret
+      # and at the top level of this file:
+      #   secrets:
+      #     adminium_secret:
+      #       file: ./adminium_secret.txt   # made once: openssl rand -hex 32 > adminium_secret.txt
+      # Every other secret takes the same `_FILE` ending (ADMINIUM_SETUP_TOKEN_FILE,
+      # ADMINIUM_AI_ANTHROPIC_API_KEY_FILE, ...): docs, self-hosting/env-vars.
       # Meta-store DSN: postgres:// | mysql:// | sqlite:<path>. Unset → embedded
       # SQLite in ADMINIUM_DATA_DIR. With --profile with-meta, use:
       #   ADMINIUM_META_URL=postgres://adminium:adminium@meta-db:5432/adminium

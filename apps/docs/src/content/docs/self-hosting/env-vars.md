@@ -121,6 +121,45 @@ Adminium failed to start — invalid environment configuration:
 | ADMINIUM_SECRET | must be at least 16 characters | set a random string of at least 16 characters, e.g. `openssl rand -hex 32` |
 ```
 
+## Secrets from files (`_FILE`)
+
+Every secret the server takes out of its environment at boot can be given as a
+file instead: add `_FILE` to its name and set the path. The server reads the
+file at boot and uses its contents exactly as if they had been set in the
+variable itself; one trailing newline is taken off, nothing else.
+
+```bash
+ADMINIUM_SECRET_FILE=/run/secrets/adminium_secret
+```
+
+The names that take it: `ADMINIUM_SECRET_FILE`, `ADMINIUM_SETUP_TOKEN_FILE`,
+`ADMINIUM_ARCHIVE_KEY_FILE`, `ADMINIUM_OPERATOR_TOKEN_FILE`,
+`ADMINIUM_TRIAL_SMTP_URL_FILE`, `ADMINIUM_FIGMA_TOKEN_FILE`,
+`PEXELS_API_KEY_FILE`, `UNSPLASH_ACCESS_KEY_FILE`, `PIXABAY_API_KEY_FILE`, and
+every `ADMINIUM_AI_*` variable with `_FILE` added
+(`ADMINIUM_AI_ANTHROPIC_API_KEY_FILE`, …).
+
+Why: Adminium deletes these secrets from `process.env` once it has read them,
+but the operating system keeps the environment a process started with, and
+shows it to code running as the same user (`/proc/<pid>/environ` on Linux,
+`ps eww` on macOS). A project's hooks, and the programs the server starts, run
+as that user. A secret read from a file was never in that environment. The
+`_FILE` variable itself is deleted from `process.env` too; its path is not a
+secret, and nothing the server starts needs it. This is the form Docker
+(`secrets:` in a Compose file, mounted under `/run/secrets/`) and Kubernetes
+(a Secret mounted as a volume) hand secrets in.
+
+Adminium refuses to start, with the variable named in its table, when:
+
+- both the variable and its `_FILE` are set;
+- the file does not exist, cannot be read, or is not a file;
+- the file is empty (or holds only a newline);
+- the file is larger than 64 KiB.
+
+```
+| ADMINIUM_SECRET_FILE | /run/secrets/adminium_secret does not exist | — |
+```
+
 ## `ADMINIUM_META_URL`
 
 Where Adminium's own `adminium_*` tables live.
