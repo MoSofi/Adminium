@@ -12,16 +12,20 @@
  * 3. every member is listed in the manifest with its size and digest, every
  *    listed member is there, and each is checked as it is inflated;
  * 4. every path the archive names is rebuilt from ids, slugs and checked
- *    relative paths (no `..`, nothing absolute), and every place it lands must
+ *    relative paths (no `..`, nothing absolute, nothing the writer leaves out of
+ *    a project folder: `isExcludedProjectPath`), and every place it lands must
  *    not exist yet and must have no symlink between it and its root;
  * 5. the rows go through `sanitizeDump` again (no sessions, tokens, add-on
  *    trust or package copies, whatever the file holds; an export loses every
  *    hash and secret), then through the save-time guards: each connection
- *    string through `guardDsn`, each S3/WebDAV address through
+ *    string through `checkDsn` (`ADMINIUM_DATABASE_HOSTS`, the network policy,
+ *    the host looked up where loopback or private ranges are refused), each S3/WebDAV address through
  *    `checkDestinationAddress` (looked up, every answer checked, the network
  *    policy applied), each `local` folder through `storageRootRefusal` (never
  *    Adminium's own files, inside `ADMINIUM_STORAGE_DIRS` when set), each app
- *    domain through `hostIssueFor`.
+ *    domain through `hostIssueFor`. An export (unsigned) names no folder at
+ *    all: its `local` destinations are switched off and their files land in
+ *    `<data dir>/files`, re-pointed at this server's own disk.
  *    A row that fails is kept but made inert (a connection without its string,
  *    a destination switched off, a domain left out), and the CLI says so.
  *
@@ -61,7 +65,9 @@ import {
   type MetaTableDump,
 } from '@adminium/meta';
 
-import { guardDsn } from '../connections/dsn.js';
+import { checkDsn, type DatabaseHost } from '../connections/dsn.js';
+import { PROJECT_KEY_PATTERN } from '../project/config.js';
+import { oneLine } from '../project/dotenv.js';
 import { checkDestinationAddress } from '../files/destinations.js';
 import { FILES_DIR } from '../files/drivers/local.js';
 import { storageRootRefusal, type StorageRootPolicy } from '../files/root-guard.js';
@@ -79,6 +85,7 @@ import {
   ArchiveFormatError,
   archiveManifestSchema,
   archiveSignatureSchema,
+  isExcludedProjectPath,
   isSafeProjectPath,
   type ArchiveEntry,
   type ArchiveKind,
@@ -119,7 +126,13 @@ export interface RestoreArchiveOptions {
   blockPrivate?: boolean | undefined;
   /** Where a `local` destination's folder may be (`storageRootPolicyFor`). Default: off the data dir. */
   storageRoots?: StorageRootPolicy | undefined;
-  /** Test seam: the storage hosts' lookup. Default: the system resolver's. */
+  /**
+   * `ADMINIUM_DATABASE_HOSTS`: a connection to one of these hosts and ports passes the loopback (and,
+   * under `strict`, the private-network) check, as when it is saved. "Allow databases on this server" is
+   * never read from the archive (`policy.ts`), so it is off here.
+   */
+  databaseHosts?: readonly DatabaseHost[] | undefined;
+  /** Test seam: the storage and database hosts' lookup. Default: the system resolver's. */
   lookup?: HostLookup | undefined;
   /** Check everything, write nothing. */
   dryRun?: boolean;
@@ -220,7 +233,7 @@ async function exists(path: string): Promise<boolean> {
   );
 }
 
-/** Refuse when any existing folder between `root` and `path` is a symlink, or `path` leaves `root`. */
+/** Refuse when anything between `root` and `path` is a symlink or not a folder, or `path` leaves `root`. */
 async function assertPlainPath(root: string, path: string): Promise<void> {
   if (!inside(path, root)) throw new ArchiveFormatError(`The archive names a path outside ${root}.`);
   let dir = dirname(path);
@@ -229,6 +242,7 @@ async function assertPlainPath(root: string, path: string): Promise<void> {
     if (info?.isSymbolicLink() === true) {
       throw new ArchiveFormatError(`${dir} is a symbolic link; a restore does not write through one.`);
     }
+    if (info !== null && !info.isDirectory()) throw new ArchiveFormatError(`${dir} is a file, and the archive puts files inside it.`);
     dir = dirname(dir);
   }
 }
@@ -311,6 +325,9 @@ function checkMembers(zip: ZipReader, manifest: ArchiveManifest): Map<string, Ar
   for (const db of manifest.databases) expectPath(db.path, `${ARCHIVE_DATABASES_DIR}/${db.slug}.sqlite`);
   for (const rel of manifest.project?.files ?? []) {
     if (!isSafeProjectPath(rel)) throw new ArchiveFormatError(`This archive names a project path that is not allowed: ${rel.slice(0, 120)}`);
+    // What the writer leaves out (secrets, the Designer's history, approvals, packages, git, the data dir) is
+    // the machine's, not the project's: a file that carries it was not made by the writer, and is refused whole.
+    if (isExcludedProjectPath(rel)) throw new ArchiveFormatError(`This archive names a project path an archive never carries: ${rel.slice(0, 120)}`);
     expectPath(`${ARCHIVE_PROJECT_DIR}/${rel}`, `${ARCHIVE_PROJECT_DIR}/${rel}`);
   }
   return entries;
@@ -454,7 +471,17 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
         try {
           const dsn = opts.dsnCrypto.decrypt(token);
           if (row.engine === 'sqlite') refusal = 'its SQLite file did not come with the archive';
-          else guardDsn(dsn, { blockLoopback: opts.blockLoopback, engine: String(row.engine) });
+          else {
+            // The check a connection string gets when it is saved here: the list, the network policy, and
+            // where loopback or private ranges are refused, a lookup of the host with every answer checked.
+            await checkDsn(dsn, {
+              blockLoopback: opts.blockLoopback,
+              engine: String(row.engine),
+              databaseHosts: opts.databaseHosts,
+              blockPrivate: opts.blockPrivate === true,
+              lookup: opts.lookup,
+            });
+          }
         } catch (error) {
           refusal = error instanceof Error ? error.message : 'it does not open';
         }
@@ -470,6 +497,17 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       const blank = (value: unknown): boolean => value === null || value === undefined || value === '';
       if (blank(row.introspectDsnEncrypted) && blank(row.dataDsnEncrypted)) row.status = 'unconfigured';
     }
+    // A name is one line: it lands on comment lines in the project's `.env` (`import-zip`, and `new` adopting it).
+    for (const row of connectionRows) if (typeof row.name === 'string') row.name = oneLine(row.name, row.name.length);
+    // A project key names an environment variable in the project's `.env` (`envVarFor`) and is written there:
+    // the file's word for it is held to the key grammar, or the connection stays, with no project key.
+    for (const row of connectionRows) {
+      const key = row.projectKey;
+      if (key === null || key === undefined) continue;
+      if (typeof key === 'string' && PROJECT_KEY_PATTERN.test(key)) continue;
+      row.projectKey = null;
+      warnings.push(`Connection “${String(row.name)}” lost its project key, which is not a database key.`);
+    }
     if (connections !== undefined) commitRows(connections, connectionRows);
     const drafts = connectionRows.filter((row) => row.status === 'unconfigured' && !restoredDatabases.has(String(row.id))).map((row) => String(row.name));
     const projectDatabases = connectionRows
@@ -480,12 +518,20 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
     const localRoots = new Map<string | null, string>([[null, join(dataDir, FILES_DIR)]]);
     const roots: StorageRootPolicy = opts.storageRoots ?? { own: { dataDir, metaFile: null } };
     const destinations = tables.get('adminium_storage_destinations');
+    /** An export's `local` destinations: their files are re-pointed at this server's own disk. */
+    const exportLocal = new Set<string>();
     if (destinations !== undefined) {
       const rows = rowsOf(destinations);
       for (const row of rows) {
         const config = readJsonCell(destinations, 'config', row.config) as Record<string, unknown> | null;
         let refusal: string | null = null;
-        if (row.driver === 'local') {
+        if (row.driver === 'local' && manifest.kind === 'export') {
+          // An unsigned file names its folders itself, and a folder named by a file is no folder of this server's:
+          // it would be made and written into before anyone looked. The bytes land on this server's own disk
+          // instead (below), and the destination stays, switched off, for a Super Admin to point at a folder here.
+          refusal = 'an export’s folders are another computer’s; its files are on this server’s disk now';
+          exportLocal.add(String(row.id));
+        } else if (row.driver === 'local') {
           const root = typeof config?.root === 'string' ? config.root : '';
           if (!isAbsolute(root)) refusal = 'its folder is not an absolute path';
           else if (resolve(root) === dataDir || inside(dataDir, resolve(root)) || inside(resolve(root), dataDir)) {
@@ -513,7 +559,19 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       }
       commitRows(destinations, rows);
     }
+    if (exportLocal.size > 0) {
+      const filesDump = tables.get('adminium_files');
+      if (filesDump !== undefined) {
+        const rows = rowsOf(filesDump);
+        for (const row of rows) if (exportLocal.has(String(row.destinationId))) row.destinationId = null;
+        commitRows(filesDump, rows);
+      }
+    }
     for (const file of manifest.files) {
+      if (file.destinationId !== null && exportLocal.has(file.destinationId)) {
+        placements.push({ entry: entries.get(file.path) as ArchiveEntry, final: join(dataDir, FILES_DIR, file.id), root: dataDir });
+        continue;
+      }
       const root = localRoots.get(file.destinationId);
       if (root === undefined) {
         warnings.push(`Skipped the bytes of ${file.id}: its destination is switched off or did not come with the archive.`);
@@ -574,16 +632,31 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       }
       const root = resolve(opts.projectRoot);
       for (const rel of projectFiles) {
-        placements.push({ entry: entries.get(`${ARCHIVE_PROJECT_DIR}/${rel}`) as ArchiveEntry, final: join(root, ...rel.split('/')), root });
+        const final = join(root, ...rel.split('/'));
+        // The data dir inside the project folder under another name than `data/`: its files are the instance's own.
+        if (final === dataDir || inside(final, dataDir)) {
+          throw new ArchiveFormatError(`This archive names a project path inside the data dir: ${rel.slice(0, 120)}`);
+        }
+        placements.push({ entry: entries.get(`${ARCHIVE_PROJECT_DIR}/${rel}`) as ArchiveEntry, final, root });
       }
     }
 
-    // Every place must be new, and reached without a symlink.
+    // Every place must be new, and reached without a symlink. Compared as the file systems a restore usually
+    // writes to compare names (APFS and NTFS ignore case, APFS how a letter is composed), and no place may be
+    // the folder of another: either would fail only in the move, after the meta store was loaded.
     const finals = new Set<string>();
+    const folded = (path: string): string => path.normalize('NFC').toLowerCase();
     for (const placement of placements) {
       await assertPlainPath(placement.root, placement.final);
-      if (finals.has(placement.final)) throw new ArchiveFormatError(`This archive writes ${placement.final} twice.`);
-      finals.add(placement.final);
+      if (finals.has(folded(placement.final))) throw new ArchiveFormatError(`This archive writes ${placement.final} twice (names that differ only in case are one file).`);
+      finals.add(folded(placement.final));
+    }
+    for (const placement of placements) {
+      for (let dir = dirname(placement.final); dir !== placement.root && inside(dir, placement.root); dir = dirname(dir)) {
+        if (finals.has(folded(dir))) throw new ArchiveFormatError(`This archive writes ${dir} as a file and as a folder.`);
+      }
+    }
+    for (const placement of placements) {
       if (await exists(placement.final)) {
         throw new ArchiveFormatError(`${placement.final} already exists; a restore never overwrites a file.`, 'Restore into a fresh instance (a new data dir and project folder).');
       }

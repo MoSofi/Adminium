@@ -19,8 +19,9 @@ import { hashPassword } from '../../../auth/passwords.js';
 import { dsnCryptoFromSecret } from '../../../connections/crypto.js';
 import { storageRootPolicyFor } from '../../../files/root-guard.js';
 import { envVarFor } from '../../../project/adopt.js';
+import { PROJECT_KEY_PATTERN } from '../../../project/config.js';
 import { prepareProject } from '../../../project/boot.js';
-import { addToDotEnv, type DotEnvEntry } from '../../../project/dotenv.js';
+import { addToDotEnv, oneLine, type DotEnvEntry } from '../../../project/dotenv.js';
 import { APP_VERSION } from '../../../version.js';
 import { boolFlag, parseFlags, stringFlag } from '../../args.js';
 import type { Command, CommandContext } from '../../command.js';
@@ -207,6 +208,7 @@ export const archiveRestoreCommand: Command = {
         hold: boolFlag(values.hold),
         blockLoopback: deps.env.NODE_ENV === 'production',
         blockPrivate: env.ADMINIUM_NETWORK_POLICY === 'strict',
+        databaseHosts: env.ADMINIUM_DATABASE_HOSTS,
         storageRoots: storageRootPolicyFor(env, store),
         dryRun: boolFlag(values['dry-run']),
       });
@@ -337,6 +339,7 @@ export async function importExportFile(
       expect: 'export',
       blockLoopback: deps.env.NODE_ENV === 'production',
       blockPrivate: env.ADMINIUM_NETWORK_POLICY === 'strict',
+      databaseHosts: env.ADMINIUM_DATABASE_HOSTS,
       storageRoots: storageRootPolicyFor(env, store),
       dryRun: opts.dryRun,
       owner: askExportOwner(io, { ownerEmail: opts.ownerEmail, passwordStdin: opts.passwordStdin === true, ...(opts.readStdin === undefined ? {} : { readStdin: opts.readStdin }) }),
@@ -387,13 +390,16 @@ export function writeProjectEnv(projectRoot: string, result: Pick<RestoreArchive
   const entries: DotEnvEntry[] = [];
   const named = new Set<string>();
   for (const database of result.projectDatabases) {
+    // The restore holds keys to the grammar already; a name is the file's own words, one line here.
+    if (!PROJECT_KEY_PATTERN.test(database.key)) continue;
     const key = envVarFor(database.key);
     if (named.has(key)) continue;
     named.add(key);
+    const name = oneLine(database.name);
     entries.push(
       database.file === null
-        ? { key, value: '', comment: [`"${database.key}" (${database.name}) came without its connection string: set it here, or in Studio.`] }
-        : { key, value: sqliteUrlFor(projectRoot, database.file), comment: [`"${database.key}" (${database.name}): the SQLite file that came in the export.`] },
+        ? { key, value: '', comment: [`"${database.key}" (${name}) came without its connection string: set it here, or in Studio.`] }
+        : { key, value: sqliteUrlFor(projectRoot, database.file), comment: [`"${database.key}" (${name}): the SQLite file that came in the export.`] },
     );
   }
   const example = join(projectRoot, '.env.example');

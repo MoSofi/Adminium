@@ -16,7 +16,7 @@ One file holds the whole instance, as far as one file can:
 | The meta store: people (with their password hashes), roles, pages, settings, apps' rows of configuration, audit log. From SQLite, Postgres or MySQL; it restores into any of the three. | Adminium itself. Install the same or a newer version on the new server. |
 | Uploads kept on this server's disk (`<data dir>/files` and every `local` storage destination) | Uploads in S3 or WebDAV: they stay where they are, and the restored instance reads them there. |
 | Local SQLite databases you connected, copied safely while the server runs | Databases on other hosts. Back those up with their own tools (`pg_dump`, `mysqldump`). |
-| The project folder: Designer-built apps, sides and sites, pages, lists | The project's `.env`, its `.adminium/` folder and `node_modules/`. Copy `.env` yourself if you need it. |
+| The project folder: Designer-built apps, sides and sites, pages, lists | The project's `.env` files, its `.adminium/` folder, `data/`, `node_modules/` and `.git/`. Copy `.env` yourself if you need it. A file that holds any of them was not made by Adminium, and a restore refuses it. |
 | A list of installed catalog apps and add-ons with their versions | The packages themselves: after a restore they show as **Missing** in Studio until you download them again, and each is checked again when it is. |
 | Secrets (connection strings, mail and AI keys), still encrypted with `ADMINIUM_SECRET` | Sessions, password-reset and invitation links, add-on trust, the Designer's live switch, and **Allow databases on this server**. |
 
@@ -41,7 +41,9 @@ migrates the rest of the way, so an archive from an older Adminium restores
 into a newer one. An archive from a newer Adminium is refused.
 
 Try it first with `--dry-run`: it checks the signature, every file and every
-row, and writes nothing.
+row, and writes nothing. A file whose names would land on one file on a disk
+that ignores case (`Readme.txt` and `README.txt`), or that names one path as a
+file and as a folder, is refused before anything is written.
 
 After the restore:
 
@@ -49,9 +51,12 @@ After the restore:
 - API keys are dropped. Pass `--keep-api-keys` to keep them.
 - Connection strings, storage addresses and app domains are checked again, as if
   they were typed in. One that fails (a database on `localhost` in production,
-  say) is switched off and named; enter it again in Studio. S3 and WebDAV
-  addresses are looked up on the new server and follow its
+  say) is switched off and named; enter it again in Studio. Database, S3 and
+  WebDAV hosts are looked up on the new server and follow its
   [`ADMINIUM_NETWORK_POLICY`](/self-hosting/env-vars/#adminium_network_policy);
+  a database host also passes when the new server's
+  [`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts)
+  names it;
   `local` folders follow its
   [`ADMINIUM_STORAGE_DIRS`](/self-hosting/env-vars/#adminium_storage_dirs).
 - Local SQLite databases land in `<data dir>/databases/`, and their connections

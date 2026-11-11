@@ -30,6 +30,8 @@
 import { isId } from '@adminium/meta';
 import { z } from 'zod';
 
+import { LIVE_APPS_ID_FILE } from '../designer/live.js';
+
 export const ARCHIVE_FORMAT_VERSION = 1;
 
 export const ARCHIVE_ROOT = 'adminium-archive';
@@ -171,4 +173,36 @@ export function isSafeArchivePath(path: string): boolean {
 /** A path under `project/`, relative to the project folder, checked the same way. */
 export function isSafeProjectPath(path: string): boolean {
   return isSafeArchivePath(path) && !path.split('/').some((segment) => segment.length > 255);
+}
+
+/** Project-folder names that never travel, at any depth. */
+export const SKIPPED_ANYWHERE: ReadonlySet<string> = new Set(['node_modules', '.git']);
+
+/**
+ * Project-folder paths (relative, `/`-separated) that never travel: `.adminium/` (build output, the
+ * Designer's version history, approvals), the Designer's live-id file, and `data/`, where a project
+ * keeps its instance (`adminium new`), whatever this instance's data dir is.
+ */
+export const SKIPPED_PROJECT_PATHS: ReadonlySet<string> = new Set(['.adminium', LIVE_APPS_ID_FILE.split(/[\\/]/).join('/'), 'data']);
+
+/** `.env` and its local variants hold plain-text secrets. `.env.example` is documentation. */
+export function isDotEnv(name: string): boolean {
+  const folded = name.toLowerCase();
+  return folded === '.env' || (folded.startsWith('.env.') && folded !== '.env.example');
+}
+
+/**
+ * Whether a project path is one an archive never carries: the writer leaves it out, and a restore
+ * refuses an archive that names it (the file is untrusted: a planted `.adminium/designer/versions.git/config`
+ * runs code on the Designer's next commit, a planted `data/…` lands in the instance's own data dir).
+ * Compared case-folded, as the file systems a project usually sits on (APFS, NTFS) compare names: `.GIT`
+ * is `.git` there.
+ */
+export function isExcludedProjectPath(path: string): boolean {
+  const segments = path.normalize('NFC').toLowerCase().split('/');
+  if (segments.some((segment) => SKIPPED_ANYWHERE.has(segment))) return true;
+  for (let length = 1; length <= segments.length; length += 1) {
+    if (SKIPPED_PROJECT_PATHS.has(segments.slice(0, length).join('/'))) return true;
+  }
+  return isDotEnv(segments[segments.length - 1] ?? '');
 }

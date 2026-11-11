@@ -33,6 +33,9 @@
  *     pages its files) and fetches its packages, exactly as "Create" does. A
  *     project folder the file brought is left as it came: the opening that
  *     follows asks about its code and fetches its packages, as for any folder.
+ *     ANY project file the engine restored counts as one brought (`projectFiles`),
+ *     with a config file or without: `new` then makes a project around them, and
+ *     the opening still asks about their code.
  *
  * ELECTRON-FREE: the runner, the file system's few calls and the clock come in.
  */
@@ -219,8 +222,10 @@ export function createImportExport(deps: OpenExportDeps): (input: ImportExportIn
     if (!outcome.ok) return undo(outcome.refused, outcome.detail);
     if (ran.code !== 0) return undo('failed', lastLines(ran.output));
 
-    const carriedProject = isProjectFolder(root);
-    if (!carriedProject) {
+    // The engine's count, not the config file: an export that brings `hooks/` or `actions/` without an
+    // `adminium.config.*` still brought code, and code a file brought is asked about before it runs.
+    const carriedProject = outcome.answer.projectFiles > 0 || isProjectFolder(root);
+    if (!isProjectFolder(root)) {
       // The engine's own `new`, in the folder: it keeps the instance in data/ and the key in .env, turns the
       // instance's connections and pages into the project's files, and (in the app) lists what the Designer's
       // screens need and installs what this release was tried with, as "Create" does.

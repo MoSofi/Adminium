@@ -25,7 +25,7 @@ import { basename, join, parse as parsePath, relative, resolve, sep } from 'node
 import { parseDsn } from '../../connections/dsn.js';
 import { copyTemplateInto, pageAtTop, SITE_TEMPLATES_DIR, snapshotTemplate, templateNameOf, writeTemplateNote } from '../../designer/site/folder.js';
 import { adoptConnections, expandFolder, holdsInstance, importInstance, writeConfig } from '../../project/adopt.js';
-import { addToDotEnv, readDotEnv } from '../../project/dotenv.js';
+import { addToDotEnv, oneLine, readDotEnv } from '../../project/dotenv.js';
 import { diskFileStore } from '../../project/file-store.js';
 import { configFileIn } from '../../project/locate.js';
 import { pullProject } from '../../project/reconcile.js';
@@ -154,7 +154,7 @@ async function adoptInstance(root: string, secret: string, deps: CliDeps, io: Cl
         adopted.map((database) => ({
           key: database.envVar,
           value: '',
-          comment: [`"${database.key}" (${database.name}) is stored in data/ already; set this to replace its URL.`],
+          comment: [`"${database.key}" (${oneLine(database.name)}) is stored in data/ already; set this to replace its URL.`],
         })),
       );
       io.out(`The project's databases: ${adopted.map((database) => `${database.key} (${database.name})`).join(', ')}.`);
