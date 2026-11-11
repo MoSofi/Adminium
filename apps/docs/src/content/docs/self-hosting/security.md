@@ -20,6 +20,8 @@ often write — your production data. Treat it as production infrastructure.
 - [ ] `ADMINIUM_BRIDGE_ORIGINS` unset on a server — it exists for a laptop being
       set up from adminium.dev, and a production instance has no such moment
 - [ ] Audit log reviewed periodically
+- [ ] People who sign in but do not run the server? `ADMINIUM_NETWORK_POLICY=strict`
+      (see [What Adminium may call](#what-adminium-may-call))
 
 ## `ADMINIUM_SECRET`
 
@@ -73,6 +75,36 @@ leaving it off — it lets any client forge `X-Forwarded-For` and appear in your
 audit log as whatever it likes. The two settings are a pair.
 
 → [Behind a reverse proxy](/self-hosting/reverse-proxy/)
+
+## What Adminium may call
+
+Three addresses are typed by people who sign in, not by you: a source
+database's host, an automation's webhook URL, and an S3 or WebDAV storage
+endpoint. Each is looked up before every connection, every address it gives is
+checked, and the connection goes to the address that was checked, so a name
+cannot point somewhere else a moment later.
+
+- **Cloud metadata** (`169.254.169.254` and its other spellings,
+  `metadata.google.internal`, Alibaba's and Oracle's addresses) is refused
+  always. It is where a cloud server's own credentials live.
+- **This machine** (`localhost`, `127.0.0.1`, `::1`) is refused in production.
+  A database on the same server is allowed by name with
+  [`ADMINIUM_DATABASE_HOSTS`](/self-hosting/env-vars/#adminium_database_hosts).
+- **The server's own network** (`10.x`, `172.16–31.x`, `192.168.x`,
+  `100.64–127.x`, IPv6 `fc00::/7`) is allowed by default, because a database or
+  MinIO next to Adminium is the normal case. Set
+  [`ADMINIUM_NETWORK_POLICY=strict`](/self-hosting/env-vars/#adminium_network_policy)
+  when the people who sign in should not reach the other machines on that
+  network. Under `strict`, `ADMINIUM_DATABASE_HOSTS` still lets the databases
+  you name through; webhooks and storage get no exceptions.
+- **A name that does not resolve** is never called; the error says
+  `Could not look up <host>` (status 502), apart from a refusal (422).
+
+A `local` storage destination names a folder on the server; Adminium's own
+folders (its data directory, backups, the meta store) are refused, and
+[`ADMINIUM_STORAGE_DIRS`](/self-hosting/env-vars/#adminium_storage_dirs) pins
+the folders allowed. SQLite sources follow the same rule with
+[`ADMINIUM_SQLITE_DIRS`](/self-hosting/env-vars/#adminium_sqlite_dirs).
 
 ## The meta store
 
