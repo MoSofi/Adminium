@@ -176,7 +176,7 @@ const tree = realpathSync.native(mkdtempSync(join(tmpdir(), 'storage-roots-')));
 const data = join(tree, 'data');
 const elsewhere = join(tree, 'elsewhere');
 const allowed = join(tree, 'allowed');
-for (const folder of [elsewhere, allowed, ...['backups', 'files', 'tmp', 'add-ons', 'pre-restore-2026-11-11', 'databases'].map((d) => join(data, d))]) {
+for (const folder of [elsewhere, allowed, ...['backups', 'files', 'tmp', 'add-ons', 'pre-restore-2026-11-11', '.export-everything', '.archive-restore-0a1b2c3d4e5f', 'databases'].map((d) => join(data, d))]) {
   mkdirSync(folder, { recursive: true });
 }
 const metaFile = join(data, 'meta.db');
@@ -198,6 +198,9 @@ const refusedRoots = () => [
   { label: 'the upload spool', root: join(data, 'tmp'), reason: 'data-folder' },
   { label: 'the add-ons folder', root: join(data, 'add-ons'), reason: 'data-folder' },
   { label: 'a folder a restore moved aside', root: join(data, 'pre-restore-2026-11-11'), reason: 'data-folder' },
+  // Every boot empties it (`everything.sweep()`), files a destination rooted there held included.
+  { label: 'the Export everything work folder', root: join(data, '.export-everything'), reason: 'data-folder' },
+  { label: 'a folder an archive restore unpacks into', root: join(data, '.archive-restore-0a1b2c3d4e5f'), reason: 'data-folder' },
   { label: 'the data dir itself', root: data, reason: 'contains-data' },
   { label: 'a folder holding the data dir', root: tree, reason: 'contains-data' },
   { label: '/', root: parse(tree).root, reason: 'contains-data' },
