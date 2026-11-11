@@ -324,7 +324,7 @@ export const runLine: StepRunner = (line, cwd, signal, env) =>
     let output = '';
     // Its own process group where there are groups: the shell's children (npm, Vite) end with it.
     const grouped = process.platform !== 'win32';
-    // Named (`config/child-env.ts`, the `build` kind): where programs are and `CI=1`, then the guard's values. No
+    // Named (`config/child-env.ts`, the `build` profile): where programs are and `CI=1`, then the guard's values. No
     // operator secret reaches a build line, whoever wrote it.
     // In the desktop app `node`, `npm` and `npx` on a build line are the app's own: their folder comes first.
     const path = buildLinePath(process.env['PATH']);

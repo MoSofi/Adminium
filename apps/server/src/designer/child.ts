@@ -5,7 +5,7 @@
  *
  * It runs as this server's user, so it is given as little of this server as
  * a command can work without. Its environment is a named one its caller
- * builds (`config/child-env.ts`; the `program` kind when none is given), and
+ * builds (`config/child-env.ts`; the `program` profile when none is given), and
  * whatever that holds is filtered once more here: no operator secret, nothing
  * whose name says it is a token, a key or a password, and no `NODE_OPTIONS`
  * (which would let a file be loaded into it before it starts). It is stopped
@@ -56,7 +56,7 @@ export interface ChildResult {
 export function runChild(
   command: string,
   args: readonly string[],
-  opts: { cwd: string; timeoutMs: number; signal?: AbortSignal; /** Named (`childEnvironment`); the `program` kind when left out. */ env?: Readonly<Record<string, string | undefined>> },
+  opts: { cwd: string; timeoutMs: number; signal?: AbortSignal; /** Named (`childEnvironment`); the `program` profile when left out. */ env?: Readonly<Record<string, string | undefined>> },
 ): Promise<ChildResult> {
   return new Promise((resolve) => {
     let output = '';

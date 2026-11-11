@@ -240,7 +240,7 @@ describe.skipIf(process.platform === 'win32')('a program the server starts', () 
     expect(seen['NODE_OPTIONS']).toBe('--require "/guard.cjs"');
   });
 
-  it('a Designer command (runChild, startLongChild): the program kind when none is named', async () => {
+  it('a Designer command (runChild, startLongChild): the program profile when none is named', async () => {
     const dump = "process.stdout.write(JSON.stringify(process.env))";
     const result = await runChild(process.execPath, ['-e', dump], { cwd: root, timeoutMs: 10_000 });
     const seen = JSON.parse(result.output) as Record<string, string>;
@@ -301,7 +301,7 @@ describe.skipIf(process.platform === 'win32')('a program the server starts', () 
     expect(seen?.['PATH']).toBe(process.env['PATH']);
   });
 
-  it('every kind is a named list: an unnamed variable is not passed, an operator secret never is', () => {
+  it('every profile is a named list: an unnamed variable is not passed, an operator secret never is', () => {
     const from = { PATH: '/bin', HOME: '/h', SOMETHING_ELSE: 'x', ...SECRETS, npm_config_cache: '/c', DISPLAY: ':0' };
     expect(childEnvironment('program', {}, from)).toEqual({ PATH: '/bin', HOME: '/h' });
     expect(childEnvironment('build', {}, from)).toEqual({ PATH: '/bin', HOME: '/h', CI: '1' });
