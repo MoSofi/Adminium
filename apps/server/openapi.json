@@ -134808,6 +134808,9 @@
                             "roleTables": {
                               "type": "boolean"
                             },
+                            "publicWider": {
+                              "type": "boolean"
+                            },
                             "modules": {
                               "type": "object",
                               "propertyNames": {
@@ -135248,6 +135251,9 @@
                                 },
                                 "roleGrants": {
                                   "type": "boolean"
+                                },
+                                "publicWider": {
+                                  "type": "boolean"
                                 }
                               }
                             },
@@ -135494,6 +135500,9 @@
                                     "type": "boolean"
                                   },
                                   "roleGrants": {
+                                    "type": "boolean"
+                                  },
+                                  "publicWider": {
                                     "type": "boolean"
                                   }
                                 }
@@ -138943,6 +138952,50 @@
                             "additionalProperties": false
                           }
                         },
+                        "publicWider": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "owner": {
+                                "type": "string"
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "methods": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "rows": {
+                                "type": "boolean"
+                              },
+                              "reasons": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "owner",
+                              "columns",
+                              "methods",
+                              "rows",
+                              "reasons"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "publicAccess": {
                           "type": "object",
                           "properties": {
@@ -139664,6 +139717,9 @@
                     }
                   },
                   "roleTables": {
+                    "type": "boolean"
+                  },
+                  "publicWider": {
                     "type": "boolean"
                   },
                   "modules": {
@@ -141964,6 +142020,9 @@
                         "type": "boolean"
                       },
                       "roleGrants": {
+                        "type": "boolean"
+                      },
+                      "publicWider": {
                         "type": "boolean"
                       }
                     }
@@ -150058,6 +150117,12 @@
                         "slug": {
                           "type": "string"
                         },
+                        "connectionName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -150758,6 +150823,50 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "publicWider": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "owner": {
+                            "type": "string"
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "methods": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "rows": {
+                            "type": "boolean"
+                          },
+                          "reasons": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "owner",
+                          "columns",
+                          "methods",
+                          "rows",
+                          "reasons"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -150803,6 +150912,9 @@
                     "type": "boolean"
                   },
                   "roleTables": {
+                    "type": "boolean"
+                  },
+                  "publicWider": {
                     "type": "boolean"
                   }
                 }
@@ -150853,6 +150965,12 @@
                         },
                         "slug": {
                           "type": "string"
+                        },
+                        "connectionName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "connectKind": {
                           "type": "string",
@@ -151281,6 +151399,12 @@
                           "slug": {
                             "type": "string"
                           },
+                          "connectionName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "connectKind": {
                             "type": "string",
                             "enum": [
@@ -151697,6 +151821,12 @@
                         },
                         "slug": {
                           "type": "string"
+                        },
+                        "connectionName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "connectKind": {
                           "type": "string",
@@ -153018,6 +153148,12 @@
                         "slug": {
                           "type": "string"
                         },
+                        "connectionName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -153654,6 +153790,12 @@
                         "slug": {
                           "type": "string"
                         },
+                        "connectionName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -154178,6 +154320,12 @@
                         "slug": {
                           "type": "string"
                         },
+                        "connectionName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "connectKind": {
                           "type": "string",
                           "enum": [
@@ -154586,6 +154734,12 @@
                         },
                         "slug": {
                           "type": "string"
+                        },
+                        "connectionName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "connectKind": {
                           "type": "string",
