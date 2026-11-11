@@ -35,6 +35,7 @@ half-configured and fail later.
 | `ADMINIUM_SURFACES_DIR` | No | *(unset)* | Directory of built app surfaces, served at `/apps/<app>/<side>/`. Unset means this instance hosts no apps. See below. |
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
 | `ADMINIUM_DATABASE_HOSTS` | No | *(unset)* | CSV of `host[:port]` database hosts a production server may reach on its own loopback, such as `localhost:5432` for a Postgres on the same server. Source databases only. See below. |
+| `ADMINIUM_LOCAL_DATABASES` | No | `setting` | `setting` lets a super admin switch on *Allow databases on this server* in Studio → Settings, for any database on this server's own loopback; `off` locks that switch off, so only `ADMINIUM_DATABASE_HOSTS` counts. See below. |
 | `ADMINIUM_SQLITE_DIRS` | No | *(unset)* | CSV of absolute folders a SQLite source database must lie in, such as `/srv/databases`. Unset means any file the server can open, except Adminium's own. See below. |
 | `ADMINIUM_MAP_SERVER` | No | `https://tiles.openfreemap.org` | Where maps' pictures come from: one `https://` origin, or `off` for no maps on this install. See below. |
 | `ADMINIUM_ROUTING_SERVER` | No | `https://router.project-osrm.org` | The OSRM server asked for routes along roads, once that is switched on in Settings → Maps; or `off`. See below. |
@@ -301,6 +302,31 @@ A database on a Docker network under its service name (`postgres:5432`) is on a
 private address, which Adminium allows today without this list. The desktop app,
 `adminium try`, and any server run without `NODE_ENV=production` allow loopback
 anyway: on your own computer a local database is the normal case.
+
+## `ADMINIUM_LOCAL_DATABASES`
+
+The list above is the operator's way in. A super admin has a second one: Studio →
+Settings → Connections → **Allow databases on this server**. Switched on, a source
+connection may reach **any** database on this server's own loopback, on any port,
+as well as the hosts on `ADMINIUM_DATABASE_HOSTS`. Switching it on asks for the
+super admin's password, and every change, and every refused try, is written to
+the audit log. It is off by default.
+
+```bash
+ADMINIUM_LOCAL_DATABASES=off
+```
+
+- **`setting`** (the default) lets the switch decide.
+- **`off`** locks it off, whatever it was set to. Studio shows the switch off and
+  disabled, marked *Set by the operator*, with the hosts you allow on
+  `ADMINIUM_DATABASE_HOSTS`. Use it on a server whose super admin you do not
+  run the box for: with host networking, loopback is every service on it.
+- **Source databases only**, like the list: connections made in Studio and a
+  project's databases. Storage destinations, webhooks, AI addresses and the meta
+  store keep their own rules, and the cloud metadata address is never allowed.
+  `ADMINIUM_SOURCE_URL` is checked at boot against the list alone.
+- **It never travels.** The switch is not in an export (`adminium export-zip`),
+  and an import never sets it.
 
 ## `ADMINIUM_SQLITE_DIRS`
 

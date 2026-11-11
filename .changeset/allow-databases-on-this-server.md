@@ -1,0 +1,6 @@
+---
+'@adminium/server': patch
+'@adminium/dashboard': patch
+---
+
+A super admin can now let a production server connect to databases that run on the same machine. Studio → Settings has a new Connections card with the switch "Allow databases on this server": switched on, a source connection may reach any database on this server's own addresses (such as `localhost:5432`), on any port, as well as the hosts in `ADMINIUM_DATABASE_HOSTS`. Switching it on asks for your password, and every change and every refused try is written to the audit log. It is off by default, applies to source databases only (storage, webhooks, AI and the meta store keep their own rules), never lets the cloud metadata address through, and never travels in an export or an import. A server's operator can lock it off with the new `ADMINIUM_LOCAL_DATABASES=off`: the card then shows the switch off and disabled, marked "Set by the operator", with the hosts the operator allows. An import now also skips any other setting that belongs to the server it was set on.
