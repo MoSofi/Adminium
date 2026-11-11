@@ -323,19 +323,33 @@ describe('source pool size (ADMINIUM_SOURCE_POOL_MAX)', () => {
     return registry;
   }
 
-  /** The adapter gets the DSN as fields, never the string. */
-  const PROD_ENDPOINT = { host: 'db.acme.io', port: 5432, database: 'prod', user: 'app', password: null, params: {} };
+  /** The name answers from here, never from a real resolver. */
+  const lookup = async (): Promise<readonly string[]> => Promise.resolve(['203.0.113.10']);
+  /**
+   * The adapter gets the DSN as fields, never the string: the addresses the
+   * host was checked at, and the check each new connection runs again.
+   */
+  const PROD_ENDPOINT = {
+    host: 'db.acme.io',
+    port: 5432,
+    database: 'prod',
+    user: 'app',
+    password: null,
+    params: {},
+    addresses: ['203.0.113.10'],
+    resolveAddresses: expect.any(Function),
+  };
 
   it('sizes every pool it opens against a source when set', async () => {
     const seen: unknown[] = [];
-    const manager = new ConnectionManager({ meta: fakeMeta, crypto, registry: recordingRegistry(seen), sourcePoolMax: 3 });
+    const manager = new ConnectionManager({ meta: fakeMeta, crypto, registry: recordingRegistry(seen), sourcePoolMax: 3, lookup });
     await manager.testDsn('postgres', 'postgres://app@db.acme.io:5432/prod');
     expect(seen).toEqual([{ role: 'introspect', endpoint: PROD_ENDPOINT, poolMax: 3 }]);
   });
 
   it('leaves each adapter its own default when unset', async () => {
     const seen: unknown[] = [];
-    const manager = new ConnectionManager({ meta: fakeMeta, crypto, registry: recordingRegistry(seen) });
+    const manager = new ConnectionManager({ meta: fakeMeta, crypto, registry: recordingRegistry(seen), lookup });
     await manager.testDsn('postgres', 'postgres://app@db.acme.io:5432/prod');
     expect(seen).toEqual([{ role: 'introspect', endpoint: PROD_ENDPOINT }]);
   });
