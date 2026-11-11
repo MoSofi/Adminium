@@ -20,5 +20,6 @@ export * from './migrations/index.js';
 export * from './migrate-lock.js';
 export * from './migrator.js';
 export * from './relocate.js';
+export * from './dump.js';
 export * from './repos/index.js';
 export * from './bootstrap.js';

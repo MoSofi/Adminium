@@ -72,7 +72,7 @@ const MAX_BOUND_PARAMETERS = 20_000;
  * old. An instance with a year of `adminium_audit_log` behind it is a different
  * problem, and it deserves an error that says so rather than an OOM.
  */
-const MAX_ROWS_PER_TABLE = 500_000;
+export const MAX_ROWS_PER_TABLE = 500_000;
 
 /**
  * `name` is typed `string`, not narrowed to the literal, precisely so the
@@ -126,7 +126,7 @@ export function snakeToCamel(name: string): string {
 type Coercion = 'jsonEncode' | 'boolean' | 'passthrough';
 
 /** What a physical column IS, before either side's needs are considered. */
-type ColumnKind = 'json' | 'boolean' | 'other';
+export type MetaColumnKind = 'json' | 'boolean' | 'other';
 
 /**
  * Classify one physical column. Matched on the data type introspection reports
@@ -135,11 +135,11 @@ type ColumnKind = 'json' | 'boolean' | 'other';
  *
  * SQLite is invisible here by design: `columns.ts` stores its `bool` as
  * `integer` and its `json` as `text`, neither of which is distinguishable from
- * a genuine int or a genuine string. That is exactly why {@link planColumns}
+ * a genuine int or a genuine string. That is exactly why {@link planMetaColumns}
  * merges BOTH sides — sqlite's shape is recovered from whatever the other end
  * declares.
  */
-function kindOf(dataType: string): ColumnKind {
+function kindOf(dataType: string): MetaColumnKind {
   const type = dataType.toLowerCase();
   if (type === 'json' || type === 'jsonb') return 'json';
   // postgres `bool`/`boolean`; mysql `tinyint`/`tinyint(1)`.
@@ -209,14 +209,15 @@ function isBinary(value: object): boolean {
 }
 
 /** camelCase column name → the coercion that column needs. */
-type ColumnPlan = ReadonlyMap<string, Coercion>;
+export type MetaColumnPlan = ReadonlyMap<string, Coercion>;
 
-async function introspectKinds(meta: MetaDb): Promise<Map<string, Map<string, ColumnKind>>> {
+/** Every `adminium_` table's columns (camelCase) and what each physically is. Also read by the archive dump. */
+export async function introspectMetaColumnKinds(meta: MetaDb): Promise<Map<string, Map<string, MetaColumnKind>>> {
   const tables = await meta.db.introspection.getTables();
-  const kinds = new Map<string, Map<string, ColumnKind>>();
+  const kinds = new Map<string, Map<string, MetaColumnKind>>();
   for (const table of tables) {
     if (!table.name.startsWith('adminium_')) continue;
-    const columns = new Map<string, ColumnKind>();
+    const columns = new Map<string, MetaColumnKind>();
     for (const column of table.columns) {
       columns.set(snakeToCamel(column.name), kindOf(column.dataType));
     }
@@ -236,13 +237,13 @@ async function introspectKinds(meta: MetaDb): Promise<Map<string, Map<string, Co
  * it JSON, which is what stops a decoded payload being re-encoded as SQL.
  *
  * The target's column set is authoritative: a column the target does not have
- * is absent from the plan, and {@link writeTable} drops it.
+ * is absent from the plan, and {@link writeMetaTableRows} drops it.
  */
-function planColumns(
-  source: Map<string, Map<string, ColumnKind>>,
-  target: Map<string, Map<string, ColumnKind>>,
-): Map<string, ColumnPlan> {
-  const plan = new Map<string, ColumnPlan>();
+export function planMetaColumns(
+  source: Map<string, Map<string, MetaColumnKind>>,
+  target: Map<string, Map<string, MetaColumnKind>>,
+): Map<string, MetaColumnPlan> {
+  const plan = new Map<string, MetaColumnPlan>();
   for (const [table, targetColumns] of target) {
     const sourceColumns = source.get(table);
     const columns = new Map<string, Coercion>();
@@ -268,7 +269,7 @@ function planColumns(
 }
 
 /** `count(*)` for one table, as a number on every dialect. */
-async function countRows(db: Kysely<MetaDB>, table: string): Promise<number> {
+export async function countMetaTableRows(db: Kysely<MetaDB>, table: string): Promise<number> {
   assertMetaTable(table);
   const row = await db
     .selectFrom(table as keyof MetaDB)
@@ -284,7 +285,7 @@ async function countRows(db: Kysely<MetaDB>, table: string): Promise<number> {
 export async function countMetaRows(meta: MetaDb): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
   for (const table of relocatableTables()) {
-    counts.set(table, await countRows(meta.db, table));
+    counts.set(table, await countMetaTableRows(meta.db, table));
   }
   return counts;
 }
@@ -296,7 +297,7 @@ export async function countMetaRows(meta: MetaDb): Promise<Map<string, number>> 
  * early: it counts rows in tables it assumes exist, which is true only after
  * `applyMigrations` has run against the target — and running migrations is
  * itself a write, on a database the operator has not yet chosen. This reads the
- * catalogue instead (`introspection.getTables()`, the same call `introspectKinds`
+ * catalogue instead (`introspection.getTables()`, the same call `introspectMetaColumnKinds`
  * makes), so it is safe to ask of any database at any time, including one the
  * answer will be "leave it alone" for.
  *
@@ -320,7 +321,7 @@ export async function probeAdminiumTables(
     // happily. Counting it would report every abandoned attempt as occupied.
     if (RELOCATE_SKIP_TABLES.includes(table)) continue;
     // Only tables the catalogue just named, so this can never hit a missing one.
-    if ((await countRows(meta.db, table)) > 0) occupied.push(table);
+    if ((await countMetaTableRows(meta.db, table)) > 0) occupied.push(table);
   }
   return { present, occupied };
 }
@@ -469,7 +470,7 @@ export async function copyMetaStore(opts: CopyMetaStoreOptions): Promise<CopyMet
     }
   }
 
-  const plan = planColumns(await introspectKinds(from), await introspectKinds(to));
+  const plan = planMetaColumns(await introspectMetaColumnKinds(from), await introspectMetaColumnKinds(to));
   const tables: { table: string; rows: number }[] = [];
 
   await to.db.transaction().execute(async (trx) => {
@@ -480,8 +481,8 @@ export async function copyMetaStore(opts: CopyMetaStoreOptions): Promise<CopyMet
         opts.onProgress?.(table, 0);
         continue;
       }
-      const rows = await readTable(from, table);
-      const written = await writeTable(trx, to, table, rows, plan.get(table));
+      const rows = await readMetaTableRows(from, table);
+      const written = await writeMetaTableRows(trx, to, table, rows, plan.get(table));
       if (written !== expected) throw new MetaCopyVerificationError(table, expected, written);
       tables.push({ table, rows: written });
       opts.onProgress?.(table, written);
@@ -492,14 +493,14 @@ export async function copyMetaStore(opts: CopyMetaStoreOptions): Promise<CopyMet
   // inside it would be reading back this transaction's own uncommitted writes,
   // which proves nothing about what survived the commit.
   for (const { table, rows } of tables) {
-    const actual = await countRows(to.db, table);
+    const actual = await countMetaTableRows(to.db, table);
     if (actual !== rows) throw new MetaCopyVerificationError(table, rows, actual);
   }
 
   return { tables, totalRows: tables.reduce((sum, entry) => sum + entry.rows, 0) };
 }
 
-async function readTable(from: MetaDb, table: string): Promise<Record<string, unknown>[]> {
+export async function readMetaTableRows(from: MetaDb, table: string): Promise<Record<string, unknown>[]> {
   assertMetaTable(table);
   const rows = await from.db
     .selectFrom(table as keyof MetaDB)
@@ -514,12 +515,12 @@ async function readTable(from: MetaDb, table: string): Promise<Record<string, un
  * dropped rather than sent — a source one migration ahead of the target would
  * otherwise fail on an unknown column instead of copying what does line up.
  */
-async function writeTable(
+export async function writeMetaTableRows(
   trx: Transaction<MetaDB>,
   to: MetaDb,
   table: string,
   rows: readonly Record<string, unknown>[],
-  columnPlan: ColumnPlan | undefined,
+  columnPlan: MetaColumnPlan | undefined,
 ): Promise<number> {
   assertMetaTable(table);
   if (rows.length === 0) return 0;
