@@ -222,7 +222,7 @@ async function exists(path: string): Promise<boolean> {
   );
 }
 
-/** Refuse when any existing folder between `root` and `path` is a symlink, or `path` leaves `root`. */
+/** Refuse when anything between `root` and `path` is a symlink or not a folder, or `path` leaves `root`. */
 async function assertPlainPath(root: string, path: string): Promise<void> {
   if (!inside(path, root)) throw new ArchiveFormatError(`The archive names a path outside ${root}.`);
   let dir = dirname(path);
@@ -231,6 +231,7 @@ async function assertPlainPath(root: string, path: string): Promise<void> {
     if (info?.isSymbolicLink() === true) {
       throw new ArchiveFormatError(`${dir} is a symbolic link; a restore does not write through one.`);
     }
+    if (info !== null && !info.isDirectory()) throw new ArchiveFormatError(`${dir} is a file, and the archive puts files inside it.`);
     dir = dirname(dir);
   }
 }
@@ -588,12 +589,22 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       }
     }
 
-    // Every place must be new, and reached without a symlink.
+    // Every place must be new, and reached without a symlink. Compared as the file systems a restore usually
+    // writes to compare names (APFS and NTFS ignore case, APFS how a letter is composed), and no place may be
+    // the folder of another: either would fail only in the move, after the meta store was loaded.
     const finals = new Set<string>();
+    const folded = (path: string): string => path.normalize('NFC').toLowerCase();
     for (const placement of placements) {
       await assertPlainPath(placement.root, placement.final);
-      if (finals.has(placement.final)) throw new ArchiveFormatError(`This archive writes ${placement.final} twice.`);
-      finals.add(placement.final);
+      if (finals.has(folded(placement.final))) throw new ArchiveFormatError(`This archive writes ${placement.final} twice (names that differ only in case are one file).`);
+      finals.add(folded(placement.final));
+    }
+    for (const placement of placements) {
+      for (let dir = dirname(placement.final); dir !== placement.root && inside(dir, placement.root); dir = dirname(dir)) {
+        if (finals.has(folded(dir))) throw new ArchiveFormatError(`This archive writes ${dir} as a file and as a folder.`);
+      }
+    }
+    for (const placement of placements) {
       if (await exists(placement.final)) {
         throw new ArchiveFormatError(`${placement.final} already exists; a restore never overwrites a file.`, 'Restore into a fresh instance (a new data dir and project folder).');
       }

@@ -17,7 +17,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createArchive } from '../src/archive/create.js';
 import { ARCHIVE_MANIFEST, ArchiveFormatError, isExcludedProjectPath, type ArchiveManifest } from '../src/archive/format.js';
 import { restoreArchive, type RestoreArchiveOptions } from '../src/archive/restore.js';
-import { CRYPTO, PASSWORD_HASH, SECRET, SIGNING, makeDirs, makeStore, seedInstance, type Dirs, type EngineName } from './archive.helpers.js';
+import { AVAILABLE, CRYPTO, PASSWORD_HASH, SECRET, SIGNING, makeDirs, makeStore, seedInstance, type Dirs, type EngineName } from './archive.helpers.js';
+
+const ENGINES: EngineName[] = ['sqlite', 'postgres', 'mysql'];
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -197,6 +199,50 @@ describe('a project path the writer never carries', () => {
     const archive = await handMade(src, 'instance', (zip) => zip.addProject('instance/files/x', 'planted\n'));
     const dest = await target();
     await expectRefused(restoreArchive(importOptions(archive, dest, { dataDir: join(dest.dirs.projectRoot, 'instance') })), /inside the data dir/);
+    expect(await dest.meta.db.introspection.getTables()).toEqual([]);
+  });
+});
+
+describe('names that would collide on the disk', () => {
+  for (const engine of ENGINES) {
+    it.skipIf(!AVAILABLE[engine])(`${engine}: are refused before anything is loaded, so the import can be tried again`, async () => {
+      const src = await exported();
+      const cases: [string, (zip: HandMade) => void, RegExp][] = [
+        ['case', (zip) => (zip.addProject('apps/Readme.txt', 'one'), zip.addProject('apps/README.txt', 'two')), /twice/],
+        // NFC and NFD spellings of one name: one file on APFS.
+        ['composed', (zip) => (zip.addProject('apps/caf\u00e9.txt', 'one'), zip.addProject('apps/cafe\u0301.txt', 'two')), /twice/],
+        ['prefix', (zip) => (zip.addProject('apps/z', 'file'), zip.addProject('apps/z/inner.txt', 'nested')), /as a file and as a folder/],
+        ['prefix-case', (zip) => (zip.addProject('apps/Z', 'file'), zip.addProject('apps/z/inner.txt', 'nested')), /as a file and as a folder/],
+      ];
+      for (const [name, edit, message] of cases) {
+        const archive = await handMade(src, name, edit);
+        const dest = await target(engine);
+        let asked = false;
+        const refused = restoreArchive(
+          importOptions(archive, dest, {
+            owner: async ({ candidates }) => {
+              asked = true;
+              return Promise.resolve({ userId: candidates[0]?.id ?? '', passwordHash: PASSWORD_HASH });
+            },
+          }),
+        );
+        await expectRefused(refused, message);
+        expect(asked, name).toBe(false);
+        expect(await dest.meta.db.introspection.getTables(), name).toEqual([]);
+        expect(await tree(dest.dirs.projectRoot), name).toEqual([]);
+        // The same target takes the honest file afterwards.
+        const again = await restoreArchive(importOptions(src.archive, dest));
+        expect(again.owner?.email, name).toBe('ava@example.com');
+      }
+    });
+  }
+
+  it('a file in the target where the archive needs a folder', async () => {
+    const src = await exported();
+    const dest = await target();
+    await mkdir(dest.dirs.projectRoot, { recursive: true });
+    await writeFile(join(dest.dirs.projectRoot, 'apps'), 'mine\n');
+    await expectRefused(restoreArchive(importOptions(src.archive, dest)), /is a file/);
     expect(await dest.meta.db.introspection.getTables()).toEqual([]);
   });
 });
