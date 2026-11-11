@@ -627,6 +627,19 @@ export const SETTINGS_REGISTRY = {
   // hand a fresh install a "setup already done" flag it can never clear. See
   // `SettingDef.portable`.
   /**
+   * "Allow databases on this server" (Studio → Settings → Connections): a
+   * source connection may reach any database on this server's own loopback,
+   * as well as the hosts the operator names in `ADMINIUM_DATABASE_HOSTS`. A
+   * Super Admin switches it on with their password; the operator can lock it
+   * off (`ADMINIUM_LOCAL_DATABASES=off`), and then this value is ignored.
+   *
+   * NEVER portable: loopback is a question about THIS machine (with host
+   * networking it is every service on the box), so a bundle, an archive or a
+   * config import must never switch it on somewhere else. Its row's
+   * `updatedBy` / `updatedAt` are who switched it, and when.
+   */
+  'connections.allowLocalDatabases': def(z.boolean(), false, 'Source connections may reach databases on this server’s own loopback'),
+  /**
    * The desktop shell's answer, mirrored out of `<userData>/config.json`
    * (`singleUser`) at every boot by the composition root. `POST
    * /api/v1/auth/desktop-session` reads THIS — the route refuses while it is

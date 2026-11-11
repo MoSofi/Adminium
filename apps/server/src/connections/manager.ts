@@ -142,6 +142,8 @@ export class ConnectionManager {
   readonly #metaDsn: string | null;
   readonly #blockLoopback: boolean;
   readonly #databaseHosts: readonly DatabaseHost[];
+  /** "Allow databases on this server", as its switch last said (`local-databases.ts`); off until then. */
+  #localDatabases = false;
   readonly #sqliteSources: SqliteSourcePolicy | undefined;
   readonly #pool: { poolMax?: number };
   readonly connections: ReturnType<typeof connectionsRepo>;
@@ -172,6 +174,15 @@ export class ConnectionManager {
     return this.#databaseHosts;
   }
 
+  /** Whether "Allow databases on this server" lets any loopback source through. Set by its switch only. */
+  get localDatabases(): boolean {
+    return this.#localDatabases;
+  }
+
+  set localDatabases(on: boolean) {
+    this.#localDatabases = on;
+  }
+
   get meta(): MetaDb {
     return this.#meta;
   }
@@ -186,7 +197,7 @@ export class ConnectionManager {
 
   /** The guard alone, for a DSN stored now and dialled later by `engine`. Throws 422. */
   assertDsnAllowed(dsn: string, engine: string): void {
-    const parsed = guardDsn(dsn, { blockLoopback: this.#blockLoopback, engine, databaseHosts: this.#databaseHosts });
+    const parsed = guardDsn(dsn, { blockLoopback: this.#blockLoopback, engine, databaseHosts: this.#databaseHosts, localDatabases: this.#localDatabases });
     if (parsed.scheme === 'sqlite' && this.#sqliteSources !== undefined) assertSqliteSourceAllowed(dsn, this.#sqliteSources);
   }
 
