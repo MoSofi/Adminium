@@ -246,7 +246,8 @@ export default {
     "helpShortcuts": "鍵盤快速鍵",
     "helpLogs": "顯示日誌",
     "helpCheckForUpdates": "檢查更新…",
-    "helpAbout": "關於 Adminium"
+    "helpAbout": "關於 Adminium",
+    "helpPutOnline": "將其上線…"
   },
   "dialog": {
     "ok": "好",

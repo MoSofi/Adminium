@@ -168,7 +168,8 @@ export default {
     "changelog": "ما الجديد",
     "signOut": "تسجيل الخروج",
     "toggleSidebar": "إظهار/إخفاء الشريط الجانبي",
-    "payments": "المدفوعات"
+    "payments": "المدفوعات",
+    "putOnline": "انشر هذا على الإنترنت…"
   },
   "palette": {
     "dialog": "لوحة الأوامر",
@@ -1100,6 +1101,11 @@ export default {
         "showLogs": "عرض السجلات",
         "dataSize": "حجم البيانات: {size}"
       }
+    },
+    "putOnline": {
+      "title": "انشر هذا على الإنترنت",
+      "body": "شغّل هذا التثبيت على عنوان عام خاص به.",
+      "cta": "انشر هذا على الإنترنت…"
     }
   },
   "changelog": {

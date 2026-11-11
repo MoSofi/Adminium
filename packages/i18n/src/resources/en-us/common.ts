@@ -168,7 +168,8 @@ export default {
     "changelog": "What’s new",
     "signOut": "Sign out",
     "toggleSidebar": "Toggle sidebar",
-    "payments": "Payments"
+    "payments": "Payments",
+    "putOnline": "Put this online…"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",

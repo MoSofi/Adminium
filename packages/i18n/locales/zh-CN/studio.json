@@ -5840,5 +5840,58 @@
     "allow": "允许",
     "hold": "勾选“允许”让访客看到更多，或保留当前运行的版本。",
     "notYours": "只有可以管理 API 密钥的人才能允许此操作。"
+  },
+  "exportEverything": {
+    "title": "导出全部",
+    "subtitle": "一个文件，包含您在此安装中创建的一切。",
+    "superAdminOnly": "只有超级管理员可以导出全部。",
+    "hub": {
+      "heading": "导出全部",
+      "body": "一个文件，包含您在此安装中创建的一切，可留存，也可迁移到另一台主机。",
+      "cta": "打开导出"
+    },
+    "holds": {
+      "title": "下载内容",
+      "pages": "页面",
+      "tables": "表格设置",
+      "roles": "角色",
+      "views": "视图",
+      "apps": "应用设置",
+      "files": "已上传的文件"
+    },
+    "inFile": "包含",
+    "leftOut": "不包含",
+    "out": {
+      "passwords": "用户的密码",
+      "secrets": "机密信息和密钥",
+      "rows": "数据库中的行，除非您{link}",
+      "rowsLink": "导出数据库"
+    },
+    "downloadEverything": "下载全部",
+    "startFailed": "无法开始导出。",
+    "expired": "该文件在下载前已过期。请重新下载全部。",
+    "failed": "无法生成该文件。",
+    "preparing": "正在准备您的文件… {percent}%",
+    "progressLabel": "正在准备您的文件",
+    "ready": "已就绪 · {size}",
+    "download": "下载",
+    "copyLabel": "复制命令",
+    "copied": "已复制",
+    "copy": "复制",
+    "move": {
+      "title": "迁移到另一台主机",
+      "server": "在您自己的服务器上",
+      "desktop": "在桌面应用中",
+      "desktopLine": "桌面应用暂时无法打开此文件。请用上面的命令导入，在服务器或这台电脑上均可。"
+    },
+    "putOnline": {
+      "title": "将其上线",
+      "line": "让此安装在它自己的公开地址上运行。"
+    },
+    "desktop": {
+      "title": "导出此项目…",
+      "line": "在这台电脑上，项目会生成自己的文件：在设计器中打开项目菜单（左上角的项目名称），然后选择“导出此项目…”。",
+      "open": "打开设计器"
+    }
   }
 }

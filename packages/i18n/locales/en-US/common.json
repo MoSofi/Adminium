@@ -158,7 +158,8 @@
     "changelog": "What’s new",
     "signOut": "Sign out",
     "toggleSidebar": "Toggle sidebar",
-    "payments": "Payments"
+    "payments": "Payments",
+    "putOnline": "Put this online…"
   },
   "palette": {
     "dialog": "Command palette",
@@ -1090,6 +1091,11 @@
         "showLogs": "Show logs",
         "dataSize": "Data size: {size}"
       }
+    },
+    "putOnline": {
+      "title": "Put this online",
+      "body": "Run this installation at its own public address.",
+      "cta": "Put this online…"
     }
   },
   "changelog": {

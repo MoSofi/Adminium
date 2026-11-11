@@ -236,7 +236,8 @@
     "helpShortcuts": "键盘快捷键",
     "helpLogs": "显示日志",
     "helpCheckForUpdates": "检查更新…",
-    "helpAbout": "关于 Adminium"
+    "helpAbout": "关于 Adminium",
+    "helpPutOnline": "将其上线…"
   },
   "dialog": {
     "ok": "好",

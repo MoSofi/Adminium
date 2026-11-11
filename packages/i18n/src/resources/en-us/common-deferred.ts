@@ -470,6 +470,11 @@ export default {
         "showLogs": "Show logs",
         "dataSize": "Data size: {size}"
       }
+    },
+    "putOnline": {
+      "title": "Put this online",
+      "body": "Run this installation at its own public address.",
+      "cta": "Put this online…"
     }
   },
   "team": {

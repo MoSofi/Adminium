@@ -5840,5 +5840,58 @@
     "allow": "Erlauben",
     "hold": "Setzen Sie das Häkchen bei „Erlauben“, damit Besucher mehr sehen, oder behalten Sie die laufende Version.",
     "notYours": "Nur wer API-Schlüssel verwalten darf, kann das erlauben."
+  },
+  "exportEverything": {
+    "title": "Alles exportieren",
+    "subtitle": "Eine Datei mit allem, was Sie in dieser Installation erstellt haben.",
+    "superAdminOnly": "Nur ein Super-Admin kann alles exportieren.",
+    "hub": {
+      "heading": "Alles exportieren",
+      "body": "Eine Datei mit allem, was Sie in dieser Installation erstellt haben, zum Aufbewahren oder zum Umzug zu einem anderen Host.",
+      "cta": "Export öffnen"
+    },
+    "holds": {
+      "title": "Was der Download enthält",
+      "pages": "Seiten",
+      "tables": "Einstellungen der Tabellen",
+      "roles": "Rollen",
+      "views": "Ansichten",
+      "apps": "Einstellungen der Apps",
+      "files": "Hochgeladene Dateien"
+    },
+    "inFile": "In der Datei",
+    "leftOut": "Nicht enthalten",
+    "out": {
+      "passwords": "Passwörter der Personen",
+      "secrets": "Geheimnisse und Schlüssel",
+      "rows": "Die Zeilen der Datenbank, außer Sie {link}",
+      "rowsLink": "exportieren die Datenbank"
+    },
+    "downloadEverything": "Alles herunterladen",
+    "startFailed": "Der Export konnte nicht gestartet werden.",
+    "expired": "Die Datei ist abgelaufen, bevor sie heruntergeladen wurde. Laden Sie alles erneut herunter.",
+    "failed": "Die Datei konnte nicht erstellt werden.",
+    "preparing": "Ihre Datei wird vorbereitet … {percent} %",
+    "progressLabel": "Ihre Datei wird vorbereitet",
+    "ready": "Bereit · {size}",
+    "download": "Herunterladen",
+    "copyLabel": "Befehl kopieren",
+    "copied": "Kopiert",
+    "copy": "Kopieren",
+    "move": {
+      "title": "Zu einem anderen Host umziehen",
+      "server": "Auf Ihrem eigenen Server",
+      "desktop": "In der Desktop-App",
+      "desktopLine": "Die Desktop-App öffnet diese Datei noch nicht. Importieren Sie sie mit dem Befehl oben, auf einem Server oder auf diesem Computer."
+    },
+    "putOnline": {
+      "title": "Online stellen",
+      "line": "Diese Installation unter einer eigenen öffentlichen Adresse betreiben."
+    },
+    "desktop": {
+      "title": "Dieses Projekt exportieren …",
+      "line": "Auf diesem Computer erstellt das Projekt seine eigene Datei: Öffnen Sie im Designer das Projektmenü (sein Name oben links) und wählen Sie „Dieses Projekt exportieren …“.",
+      "open": "Designer öffnen"
+    }
   }
 }

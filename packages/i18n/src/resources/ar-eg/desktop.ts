@@ -246,7 +246,8 @@ export default {
     "helpShortcuts": "اختصارات لوحة المفاتيح",
     "helpLogs": "عرض السجلات",
     "helpCheckForUpdates": "التحقق من وجود تحديثات…",
-    "helpAbout": "حول Adminium"
+    "helpAbout": "حول Adminium",
+    "helpPutOnline": "انشر هذا على الإنترنت…"
   },
   "dialog": {
     "ok": "حسنًا",

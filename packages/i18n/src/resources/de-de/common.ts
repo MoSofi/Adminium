@@ -168,7 +168,8 @@ export default {
     "changelog": "Neuerungen",
     "signOut": "Abmelden",
     "toggleSidebar": "Seitenleiste umschalten",
-    "payments": "Zahlungen"
+    "payments": "Zahlungen",
+    "putOnline": "Online stellen…"
   },
   "palette": {
     "dialog": "Befehlspalette",
@@ -1100,6 +1101,11 @@ export default {
         "showLogs": "Protokolle anzeigen",
         "dataSize": "Datengröße: {size}"
       }
+    },
+    "putOnline": {
+      "title": "Online stellen",
+      "body": "Diese Installation unter einer eigenen öffentlichen Adresse betreiben.",
+      "cta": "Online stellen…"
     }
   },
   "changelog": {

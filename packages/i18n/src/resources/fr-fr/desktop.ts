@@ -246,7 +246,8 @@ export default {
     "helpShortcuts": "Raccourcis clavier",
     "helpLogs": "Afficher les journaux",
     "helpCheckForUpdates": "Rechercher des mises à jour…",
-    "helpAbout": "À propos d’Adminium"
+    "helpAbout": "À propos d’Adminium",
+    "helpPutOnline": "Mettre en ligne…"
   },
   "dialog": {
     "ok": "OK",
