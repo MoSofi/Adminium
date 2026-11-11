@@ -47,6 +47,8 @@ export type ErrorCode =
   // `connections.test.ts`, so the canonical table here was simply out of date.
   | 'META_PLACEMENT_INVALID'
   | 'META_PREFIX_COLLISION'
+  /** 403: the first-run wizard's one-time setup token is missing or wrong (`setup/token.ts`). */
+  | 'SETUP_TOKEN_INVALID'
   | 'INTERNAL';
 
 /** The wire shape of every non-2xx response. */

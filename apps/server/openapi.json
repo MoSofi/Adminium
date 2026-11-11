@@ -3850,12 +3850,16 @@
                         },
                         "databaseConnected": {
                           "type": "boolean"
+                        },
+                        "tokenRequired": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "required",
                         "passwordMinLength",
-                        "databaseConnected"
+                        "databaseConnected",
+                        "tokenRequired"
                       ],
                       "additionalProperties": false
                     }
@@ -3867,6 +3871,36 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/token": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "setupToken": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "setupToken"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }
@@ -3912,6 +3946,11 @@
                       "updateCheck"
                     ],
                     "additionalProperties": false
+                  },
+                  "setupToken": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 },
                 "required": [
@@ -5002,6 +5041,11 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 2000
+                  },
+                  "setupToken": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 },
                 "required": [
@@ -5085,6 +5129,11 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 2000
+                  },
+                  "setupToken": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 },
                 "required": [

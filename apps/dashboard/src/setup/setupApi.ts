@@ -19,6 +19,12 @@ export interface SetupState {
    * server one release behind, that leaves it out reads as "not connected".
    */
   databaseConnected?: boolean;
+  /**
+   * The server printed a one-time setup token at boot and asks for it before
+   * anything else (`server/src/setup/token.ts`). Optional for the same reason
+   * as `databaseConnected`: absent reads as "not asked".
+   */
+  tokenRequired?: boolean;
 }
 
 /** The two outbound-call consents. Both default OFF (v0.5 exit criterion). */
@@ -38,6 +44,52 @@ export interface SetupUser {
   id: string;
   email: string;
   name: string;
+}
+
+/**
+ * The setup token the wizard's first screen accepted, for this tab only.
+ *
+ * In memory and nowhere else, by the rule `onboarding/heldAnswers.ts` sets for
+ * everything collected before the account exists: a reload asks again. It rides
+ * on the three calls a stranger must not make (probe, adopt, super-admin) and
+ * is dropped once the account exists, when it is spent anyway.
+ */
+let heldSetupToken: string | null = null;
+
+export function setSetupToken(token: string | null): void {
+  heldSetupToken = token;
+}
+
+function withSetupToken<T extends object>(body: T): T & { setupToken?: string } {
+  return heldSetupToken === null ? body : { ...body, setupToken: heldSetupToken };
+}
+
+/**
+ * `POST /setup/token` — does this token open setup? Resolves when it does, and
+ * holds it for the calls after. Rejects with the server's 403
+ * (`SETUP_TOKEN_INVALID`) or 409 (setup already done).
+ */
+export async function checkSetupToken(token: string): Promise<void> {
+  await api.post<null>('/api/v1/setup/token', { setupToken: token });
+  heldSetupToken = token;
+}
+
+/**
+ * A token handed over in the URL fragment by `adminium try`, which opens this
+ * browser itself (`#setup-token=…`). Read once and wiped from the address bar,
+ * so it is neither bookmarked nor left on screen. The fragment never reaches
+ * the server.
+ */
+export function takeFragmentSetupToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  const match = /(?:^#|&)setup-token=([^&]+)/.exec(window.location.hash);
+  if (match?.[1] === undefined) return null;
+  window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
 }
 
 export const SETUP_STATE_QUERY_KEY = ['setup', 'state'] as const;
@@ -77,13 +129,14 @@ export function setupStateQuery() {
 export async function createSuperAdmin(input: SetupSuperAdminInput): Promise<SetupUser> {
   const body = await api.post<{ data: { user: SetupUser; csrfToken?: string } }>(
     '/api/v1/setup/super-admin',
-    {
+    withSetupToken({
       email: input.email,
       password: input.password,
       ...(input.name === undefined || input.name.length === 0 ? {} : { name: input.name }),
       consent: input.consent,
-    },
+    }),
   );
+  heldSetupToken = null;
   // Optional on the wire only so fixtures predating the field keep typechecking
   // (the server's Zod reply schema makes it required), exactly as
   // `app/bootstrap.ts` treats its own copy.
@@ -111,7 +164,7 @@ export interface SetupProbe {
 }
 
 export async function probeStore(dsn: string): Promise<SetupProbe> {
-  return (await api.post<{ data: SetupProbe }>('/api/v1/setup/probe', { dsn })).data;
+  return (await api.post<{ data: SetupProbe }>('/api/v1/setup/probe', withSetupToken({ dsn }))).data;
 }
 
 /**
@@ -129,5 +182,5 @@ export interface SetupAdopted {
 }
 
 export async function adoptStore(dsn: string): Promise<SetupAdopted> {
-  return (await api.post<{ data: SetupAdopted }>('/api/v1/setup/adopt', { dsn })).data;
+  return (await api.post<{ data: SetupAdopted }>('/api/v1/setup/adopt', withSetupToken({ dsn }))).data;
 }

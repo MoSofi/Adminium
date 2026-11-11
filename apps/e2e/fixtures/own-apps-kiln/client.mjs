@@ -71,8 +71,13 @@ export class Client {
  * Order: a saved session that still works → the first-run setup (when the
  * server has no account yet and `setup` is asked for, which lands signed in
  * without spending a login) → one sign-in.
+ *
+ * `setupToken`: the one-time token a server started with `adminium start`
+ * prints and asks for before the first account (`setup/token.ts`). A server
+ * this script composes itself (`smoke.mjs`) or one run by `dev` on this
+ * computer asks for none, and `/setup/state` says which.
  */
-export async function signIn({ url, email, password, name = 'Ines Calder', sessionFile = null, setup = false }) {
+export async function signIn({ url, email, password, name = 'Ines Calder', sessionFile = null, setup = false, setupToken = null }) {
   const c = new Client(url);
   if (sessionFile !== null && existsSync(sessionFile)) {
     try {
@@ -88,7 +93,16 @@ export async function signIn({ url, email, password, name = 'Ines Calder', sessi
   const state = await c.get('/setup/state');
   if (state.data.required) {
     if (!setup) throw new Error('this server has no account yet: pass --setup to create the first super admin');
-    await c.post('/setup/super-admin', { email, password, name, consent: { telemetry: false, updateCheck: false } });
+    if (state.data.tokenRequired === true && setupToken === null) {
+      throw new Error('this server asks for its setup token first: pass --setup-token with the token from its log');
+    }
+    await c.post('/setup/super-admin', {
+      email,
+      password,
+      name,
+      consent: { telemetry: false, updateCheck: false },
+      ...(setupToken === null ? {} : { setupToken }),
+    });
   } else {
     await c.post('/auth/login', { email, password });
   }

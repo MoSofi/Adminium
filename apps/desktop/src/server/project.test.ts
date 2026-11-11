@@ -152,6 +152,7 @@ const started = (over: Record<string, unknown> = {}) => ({
   port: 4700,
   token: TOKEN,
   bridgePairingCode: null,
+  setupToken: null,
   refused: [],
   close: vi.fn(async () => undefined),
   busy: vi.fn(() => null as { kind: string; sessionId: string | null } | null),

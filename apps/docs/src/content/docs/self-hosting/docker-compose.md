@@ -14,7 +14,14 @@ a PostgreSQL 16 meta store. This page documents that file as it is.
 ADMINIUM_SECRET=$(openssl rand -hex 32) docker compose up
 ```
 
-→ `http://localhost:4600` → the first-run wizard.
+→ `http://localhost:4600` → the first-run wizard. It asks first for the setup
+token the container printed when it started:
+
+```bash
+docker compose logs adminium | grep 'Setup token'
+```
+
+([Why](/self-hosting/security/#the-setup-token).)
 
 That gets you Adminium with an **embedded SQLite meta store** in the
 `adminium-data` volume. It announces itself at boot. Fine to try; see

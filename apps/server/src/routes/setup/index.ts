@@ -26,6 +26,13 @@
  *  /setup/super-admin` is not a mistake — it is somebody probing for an
  *  un-set-up panel, and that is worth a row even though the client is told
  *  nothing beyond the invariant 409.
+ * - The ONE-TIME SETUP TOKEN (`setup/token.ts`) is asked for on a server that
+ *  prints one. `createFirstSuperAdmin` checks and consumes it inside the claim's
+ *  transaction; a wrong or missing one is a 403 `SETUP_TOKEN_INVALID`, audited,
+ *  that creates and claims nothing. A set-up instance still answers 409 first,
+ *  whatever token is sent, so the 403 says nothing about a live panel.
+ *  `POST /setup/token` lets the wizard's first screen check a token before it
+ *  asks for anything else; it never consumes it.
  * - The 201 carries the new session's CSRF token. This route MINTS a session,
  *  and a client that keeps mutating on the same screen afterwards has nowhere
  *  else to learn the token from — see `setupSuperAdminReply`.
@@ -37,26 +44,38 @@
  * also no principal to attribute the write to: the actor IS the account being
  * created.
  */
+import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { usersRepo } from '@adminium/meta';
 
-import { audited } from '../../audit/coverage.js';
+import { audited, auditExempt } from '../../audit/coverage.js';
 import { AppError, ConflictError, ValidationFailedError } from '../../errors.js';
 import { auditAuth } from '../../auth/audit.js';
 import { createSession, setSessionCookie } from '../../auth/sessions.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
 import { capturePublicOriginQuietly } from '../../security/public-origin.js';
-import { SetupClosedError, WeakPasswordError, type SetupService } from '../../setup/service.js';
+import {
+  SetupClosedError,
+  SetupTokenInvalidError,
+  WeakPasswordError,
+  type SetupService,
+} from '../../setup/service.js';
 import { toUserView } from '../auth/handlers.js';
 import { RATE_LIMIT_BUCKETS } from '../auth/index.js';
 import {
   setupStateReply,
   setupSuperAdminBody,
   setupSuperAdminReply,
+  setupTokenBody,
   type SetupStateReply,
   type SetupSuperAdminReply,
 } from './schema.js';
+
+/** 403 `SETUP_TOKEN_INVALID`: shared with the store routes so all three refuse alike. */
+export function setupTokenInvalid(error: SetupTokenInvalidError = new SetupTokenInvalidError()): AppError {
+  return new AppError(403, 'SETUP_TOKEN_INVALID', error.message);
+}
 
 export interface SetupRoutesDeps {
   /** Built over the same meta store the rest of the app uses. */
@@ -75,6 +94,17 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
       return app.authContext;
     };
 
+    /** A token refusal or a closed setup, audited and turned into its HTTP answer. */
+    const refusal = async (error: unknown, request: FastifyRequest, label = 'anonymous'): Promise<unknown> => {
+      if (!(error instanceof SetupClosedError) && !(error instanceof SetupTokenInvalidError)) return error;
+      await auditAuth(ctx().meta, request, { action: 'setup_token_denied', actorId: null, actorLabel: label }).catch(
+        () => undefined,
+      );
+      return error instanceof SetupClosedError
+        ? new ConflictError('Setup has already been completed. Sign in instead.', 'CONFLICT')
+        : setupTokenInvalid(error);
+    };
+
     app.get(
       '/setup/state',
       {
@@ -88,8 +118,31 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
             required: state.required,
             passwordMinLength: state.passwordMinLength,
             databaseConnected: state.databaseConnected,
+            tokenRequired: state.tokenRequired,
           },
         };
+      },
+    );
+
+    app.post(
+      '/setup/token',
+      {
+        preHandler: [app.requireMeta],
+        config: {
+          rateLimitBucket: RATE_LIMIT_BUCKETS.login,
+          // Writes nothing. Both refusals are audited by hand below, as the
+          // super-admin route's are: a wrong token is somebody guessing.
+          audit: auditExempt('Checks the setup token; writes nothing. Refusals are audited by hand.'),
+        },
+        schema: { body: setupTokenBody },
+      },
+      async (request, reply): Promise<void> => {
+        try {
+          await service.checkToken(request.body.setupToken);
+        } catch (error) {
+          throw await refusal(error, request);
+        }
+        void reply.status(204);
       },
     );
 
@@ -110,8 +163,10 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
             password: body.password,
             name: body.name,
             consent: body.consent,
+            setupToken: body.setupToken,
           });
         } catch (error) {
+          if (error instanceof SetupTokenInvalidError) throw await refusal(error, request, body.email);
           if (error instanceof SetupClosedError) {
             // 409 — the terminal state. Identical for a second submit, a lost
             // race, and a probe against a long-running instance.

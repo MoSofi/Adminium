@@ -31,6 +31,12 @@ export const setupStateReply = z.object({
      * account, which shows them everything this would.
      */
     databaseConnected: z.boolean(),
+    /**
+     * The wizard must ask for the one-time setup token the server printed at
+     * boot (`setup/token.ts`). Says only that a gate exists, never anything
+     * about the token; `false` once setup is closed.
+     */
+    tokenRequired: z.boolean(),
   }),
 });
 export type SetupStateReply = z.infer<typeof setupStateReply>;
@@ -44,6 +50,18 @@ export const setupConsentBody = z
   .strict();
 export type SetupConsentBody = z.infer<typeof setupConsentBody>;
 
+/**
+ * The one-time setup token, as typed: case, spaces and dashes are forgiven by
+ * the comparison, so the schema only bounds the size. Optional on every body
+ * because a server that asks for none (desktop, `dev` on this computer) must
+ * keep accepting the bodies it always has.
+ */
+const setupTokenField = z.string().trim().min(1).max(200).optional();
+
+/** `POST /setup/token` — does this token open setup? Checks; never consumes. */
+export const setupTokenBody = z.object({ setupToken: z.string().trim().min(1).max(200) }).strict();
+export type SetupTokenBody = z.infer<typeof setupTokenBody>;
+
 export const setupSuperAdminBody = z
   .object({
     email: z.string().trim().min(3).max(320).email('must be a valid email address'),
@@ -52,6 +70,7 @@ export const setupSuperAdminBody = z
     name: z.string().trim().min(1).max(120).optional(),
     /** Omitted ⇒ registry defaults stand (telemetry + update check both off). */
     consent: setupConsentBody.optional(),
+    setupToken: setupTokenField,
   })
   .strict();
 export type SetupSuperAdminBody = z.infer<typeof setupSuperAdminBody>;
@@ -94,6 +113,7 @@ export type SetupSuperAdminReply = z.infer<typeof setupSuperAdminReply>;
 export const setupProbeBody = z
   .object({
     dsn: z.string().trim().min(1).max(2000),
+    setupToken: setupTokenField,
   })
   .strict();
 export type SetupProbeBody = z.infer<typeof setupProbeBody>;

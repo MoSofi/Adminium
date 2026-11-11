@@ -24,6 +24,7 @@ import { rolesRepo, type Role } from './repos/roles.js';
 import { settingsRepo } from './repos/settings.js';
 import { usersRepo, type User } from './repos/users.js';
 import { isDuplicateKeyError, packJson } from './repos/util.js';
+import { consumeSetupToken, type SetupTokenProof } from './setup-token.js';
 
 export interface BuiltinRoleDef {
   slug: string;
@@ -307,13 +308,22 @@ const SUPER_ADMIN_CLAIM_KEY = 'system.superAdminCreatedAt';
  * created, on every dialect and across processes/replicas; a plain
  * `count() === 0` read could not promise that (two racers both read zero).
  *
+ * THE SETUP TOKEN rides in the same transaction. While `system.setupToken`
+ * exists (a server that asks for one, `setup-token.ts`), `proof` must match it
+ * or {@link SetupTokenError} is thrown before the claim row is written; on a
+ * match the row is deleted alongside the claim, so the token opens one account
+ * and is gone. No row ⇒ no question asked (the desktop app, `try` and `dev` on
+ * this computer, and every store made before the token existed).
+ *
  * Throws {@link FirstUserExistsError} when the claim is already taken or any
- * user already exists.
+ * user already exists — checked FIRST, so a set-up instance answers the same
+ * way whatever token is sent.
  */
 export async function createFirstSuperAdmin(
   meta: MetaDb,
   input: CreateFirstSuperAdminInput,
   at: number = Date.now(),
+  proof: SetupTokenProof = {},
 ): Promise<User> {
   return meta.db.transaction().execute(async (trx) => {
     const tmeta: MetaDb = { db: trx, dialect: meta.dialect };
@@ -328,6 +338,9 @@ export async function createFirstSuperAdmin(
       .executeTakeFirst();
     if (claimed !== undefined) throw new FirstUserExistsError();
     if ((await users.count()) > 0) throw new FirstUserExistsError();
+
+    // Before the claim: a wrong token rolls back having written nothing.
+    await consumeSetupToken(tmeta, proof);
 
     const superAdmin = await roles.findBySlug('super-admin');
     if (!superAdmin) {
@@ -374,7 +387,8 @@ export const LOCAL_OWNER_EMAIL = 'owner@adminium.localhost';
  * next start — and nobody else.
  */
 export async function createLocalOwner(meta: MetaDb, at: number = Date.now()): Promise<User> {
-  const user = await createFirstSuperAdmin(meta, { email: LOCAL_OWNER_EMAIL, name: 'Owner', passwordHash: null }, at);
+  // `local`: `design` runs on this computer, the one place the setup token never guards.
+  const user = await createFirstSuperAdmin(meta, { email: LOCAL_OWNER_EMAIL, name: 'Owner', passwordHash: null }, at, { local: true });
   await settingsRepo(meta).set('designer.localOwnerId', user.id, { updatedBy: null, at });
   await settingsRepo(meta).set('designer.ownerId', user.id, { updatedBy: null, at });
   return user;

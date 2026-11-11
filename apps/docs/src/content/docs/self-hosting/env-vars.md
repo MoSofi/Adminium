@@ -21,6 +21,7 @@ half-configured and fail later.
 | `ADMINIUM_SOURCE_POOL_MAX` | No | *(per pool: 10, schema reads 5)* | How many connections each pool opened against a source database may hold. Integer 1–100. See below. |
 | `ADMINIUM_RATE_LIMIT_SCALE` | No | `1` | **Test servers only.** Multiplies every request limit. Integer 1–1000. Ignored when `NODE_ENV` is `production`. See below. |
 | `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
+| `ADMINIUM_SETUP_TOKEN` | No | *(derived from `ADMINIUM_SECRET`, printed at boot)* | The one-time token the first-run wizard asks for before it creates the first account. **Minimum 16 characters**, not counting spaces and dashes. See below. |
 | `ADMINIUM_DATA_DIR` | No | `./data`, or `~/.adminium` | Writable directory for files, exports, backups, installed apps and add-ons, and the embedded meta store. Put it on a persistent disk: a host that empties it on every deploy loses installed apps and add-ons, whatever else is configured. Docker and the desktop app set it for you. A CLI run that does not: `./data` when the working directory is a project (it holds a `package.json`, a `.git`, a `Dockerfile`, a `go.mod`…) or already holds an Adminium instance, and `~/.adminium` otherwise — so `npx @adminiumjs/adminium try` from a home directory leaves nothing behind in it. A service should always set it, since its working directory decides the default. |
 | `ADMINIUM_STORAGE_URL` | No | *(this server's disk)* | Where uploaded and generated files live. Seeded once, on a boot with no storage destination configured. See below. |
 | `AWS_ENDPOINT_URL_S3` | No | *(unset)* | S3-compatible endpoint. Read **only** by the first-boot storage seed, and only when `ADMINIUM_STORAGE_URL` is unset. See below. |
@@ -226,6 +227,29 @@ fallback when `ADMINIUM_STORAGE_URL` is unset, so a Fly deploy is zero-config.
 
 The storage seed is the only code in Adminium that reads an `AWS_*` variable.
 Nothing else picks up ambient AWS credentials.
+
+## `ADMINIUM_SETUP_TOKEN`
+
+Until the first account exists, a server asks for a one-time setup token before
+it lets anyone create it ([Security](/self-hosting/security/#the-setup-token)).
+Unset, Adminium derives one from `ADMINIUM_SECRET` and prints it at every boot
+while setup is open:
+
+```
+Setup token: K7QD-9MXR-2FTB-WH4N
+```
+
+Set it when the log is awkward to reach, or when a deploy template can generate
+one for you (a Railway `${{secret(32)}}`, a Render `generateValue: true`, a
+Droplet's first boot). The log then says the token is this variable's value
+instead of printing it.
+
+```bash
+ADMINIUM_SETUP_TOKEN=$(openssl rand -hex 16)
+```
+
+It is spent by the account it creates. Leaving the variable set afterwards
+does nothing.
 
 ## `ADMINIUM_SOURCE_URL`
 

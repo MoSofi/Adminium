@@ -24,6 +24,8 @@ export function buildKiln(options: {
   password: string;
   sessionFile?: string | null;
   setup?: boolean;
+  /** The one-time token the server printed, when it asks for one before the first account. */
+  setupToken?: string | null;
   replace?: boolean;
   db?: string;
   dsn?: string | null;

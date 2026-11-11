@@ -103,7 +103,8 @@ export default {
     "connectionFailed": "Votre compte a été créé et vous êtes connecté — mais cette base est injoignable : {detail}",
     "connectionUnknown": "la base n’a pas répondu",
     "failed": "La configuration a échoué. Vérifiez votre connexion et réessayez.",
-    "rejected": "Le serveur a refusé ces informations. Vérifiez l’e-mail et le mot de passe, puis réessayez."
+    "rejected": "Le serveur a refusé ces informations. Vérifiez l’e-mail et le mot de passe, puis réessayez.",
+    "setupToken": "Le serveur n’accepte plus le jeton de configuration saisi. Rechargez cette page et saisissez celui de son journal le plus récent."
   },
   "finish": "Aller au tableau de bord",
   "kicker": "Étape {n} sur {total}",
@@ -196,5 +197,16 @@ export default {
     "placeholder": "collegue@entreprise.com",
     "sub": "Ajouter des personnes",
     "title": "Faites venir votre équipe"
+  },
+  "token": {
+    "body": "Au démarrage, Adminium a écrit un jeton de configuration à usage unique dans son journal. Il prouve que vous gérez ce serveur avant de créer son premier compte.",
+    "empty": "Collez d’abord le jeton de configuration.",
+    "failed": "Impossible de vérifier le jeton. Vérifiez votre connexion et réessayez.",
+    "helper": "Cherchez la ligne qui commence par « Setup token: » dans le journal du serveur ou du conteneur.",
+    "label": "Jeton de configuration",
+    "rateLimited": "Trop de tentatives. Attendez une minute, puis réessayez.",
+    "submit": "Continuer",
+    "title": "Saisissez votre jeton de configuration",
+    "wrong": "Ce n’est pas le jeton de configuration de ce serveur. Copiez-le à nouveau depuis le journal."
   }
 } as const;

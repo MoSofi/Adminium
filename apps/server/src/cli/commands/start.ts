@@ -55,6 +55,7 @@ import { syncProjectDatabases } from '../../project/databases.js';
 import { diskFileStore } from '../../project/file-store.js';
 import { databasesWithPageFiles } from '../../project/project-files.js';
 import { createProjectService, type ProjectServerOptions } from '../../project/service.js';
+import { prepareSetupToken, setupTokenLines, type PreparedSetupToken } from '../../setup/token.js';
 import { APP_VERSION } from '../../version.js';
 import { numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command, CommandContext } from '../command.js';
@@ -162,6 +163,13 @@ export async function runStart({ io, deps, argv }: CommandContext, design?: Desi
   }
   io.out(`Adminium is running at ${started.url}`);
 
+  // The first-run wizard's one-time token (`setup/token.ts`), on every boot
+  // while setup is open: this log is the only place it is ever written down.
+  if (started.setupToken !== null) {
+    io.out('');
+    for (const line of setupTokenLines(started.setupToken)) io.out(line);
+  }
+
   // The local bridge's consent token (`routes/bridge`). Printed HERE as well
   // as in the wizard because the published Docker image's CMD is `start`, not
   // `init` — a container started with ADMINIUM_BRIDGE_ORIGINS set would
@@ -233,6 +241,8 @@ export interface StartedUp {
   /** Design mode's one-use token, when one was minted. */
   token: string | null;
   bridgePairingCode: string | null;
+  /** The first-run wizard's one-time token, while setup is open on a server that asks for one. */
+  setupToken: PreparedSetupToken | null;
   /** Names from the project's `.env` or config that were ignored (`StartFlags.refuse`). */
   refused: string[];
   /** Ends the server, then the stores, and resolves when both are gone. */
@@ -481,6 +491,23 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
         io.err('This project has no owner password yet (it was made with `adminium design`). Set one first:  npx @adminiumjs/adminium owner set');
       }
     }
+    // The setup token, before the server answers anyone and before design mode
+    // makes its owner (which closes setup, and so drops the row again).
+    let setupToken: PreparedSetupToken | null;
+    try {
+      setupToken = await prepareSetupToken({
+        meta: runtime.metaStore.meta,
+        env,
+        mode: design !== undefined ? 'design' : projectMode === 'dev' ? 'dev' : 'server',
+      });
+    } catch (error) {
+      await runtime.close().catch(() => undefined);
+      throw new CliError(`Could not prepare the first-run setup token: ${error instanceof Error ? error.message : String(error)}`, {
+        code: EXIT_CONFIG,
+        hint: 'Adminium will not open its first-run wizard to the network without one. Check that the meta store is migrated and writable.',
+      });
+    }
+
     // The owner and the one-use link, for design mode: after the store is migrated, before the server answers anyone.
     const prepared = design === undefined ? null : await design.prepare(runtime.metaStore.meta);
     const relocationHost = createRelocationHost({
@@ -502,6 +529,7 @@ export async function startUp({ io, deps }: Pick<CommandContext, 'io' | 'deps'>,
       port: env.PORT,
       token: prepared?.token ?? null,
       bridgePairingCode: server.bridgePairingCode,
+      setupToken,
       refused: project?.refused ?? [],
       async close() {
         try {

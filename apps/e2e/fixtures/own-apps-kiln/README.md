@@ -68,6 +68,10 @@ node apps/e2e/fixtures/own-apps-kiln/build.mjs --url http://127.0.0.1:4790 \
   next run does not sign in again.
 - `KILN_EMAIL` and `KILN_PASSWORD` can be used instead of `--email` and
   `--password`.
+- A server started with `adminium start` asks for the one-time setup token it
+  printed in its log before the first account: pass it with `--setup-token`
+  (or `KILN_SETUP_TOKEN`). `smoke.mjs` composes its own server, which asks for
+  none.
 
 When it finishes it prints the connection id, the table ids, the row ids and
 the ids of the profiles it made.

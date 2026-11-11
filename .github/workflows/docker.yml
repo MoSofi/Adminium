@@ -180,6 +180,31 @@ jobs:
           docker exec adminium-smoke test -f /data/meta.db
           echo "meta store survived the restart"
 
+      # A fresh server must not make its first visitor the super admin: the
+      # wizard needs the one-time token the container printed (setup/token.ts).
+      # After the restart above, so this also proves the token is the same on
+      # both boots, which is what lets an operator read it from any log line.
+      - name: The setup token guards the first account
+        run: |
+          set -euo pipefail
+          api=http://127.0.0.1:4600/api/v1
+          post() { curl -s -o /dev/null -w '%{http_code}' -H 'content-type: application/json' -d "$1" "$api/setup/super-admin"; }
+
+          curl -fsS "$api/setup/state" | grep -q '"tokenRequired":true'
+          code="$(post '{"email":"owner@example.com","password":"smoke-test-password"}')"
+          if [ "$code" != "403" ]; then echo "::error::setup without the token answered $code, not 403"; exit 1; fi
+          curl -fsS "$api/setup/state" | grep -q '"required":true'
+          echo "refused without the token"
+
+          tokens="$(docker logs adminium-smoke 2>&1 | sed -n 's/^Setup token: \([0-9A-Z-]*\)$/\1/p' | sort -u)"
+          if [ "$(printf '%s\n' "$tokens" | grep -c .)" != "1" ]; then
+            echo "::error::expected one setup token across both boots, got: $tokens"; exit 1
+          fi
+          code="$(post "{\"email\":\"owner@example.com\",\"password\":\"smoke-test-password\",\"setupToken\":\"$tokens\"}")"
+          if [ "$code" != "201" ]; then echo "::error::setup with the logged token answered $code, not 201"; exit 1; fi
+          curl -fsS "$api/setup/state" | grep -q '"required":false'
+          echo "accepted with the token from the log"
+
       - name: Container logs (on failure)
         if: failure()
         run: docker logs adminium-smoke || true

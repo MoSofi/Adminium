@@ -26,12 +26,20 @@ vi.mock('@adminium/meta', async (importOriginal) => ({
   firstRun: vi.fn(async () => Promise.resolve({ appliedMigrations: [] })),
 }));
 
+// The setup token's boot step reads and writes the meta store, which the fake
+// runtime does not have. Its behaviour is setup-token.test.ts's; what belongs
+// here is what `try` does with the answer.
+vi.mock('../src/setup/token.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/setup/token.js')>()),
+  prepareSetupToken: vi.fn(async () => Promise.resolve(null)),
+}));
 vi.mock('../src/connections/introspect.js', () => ({ runIntrospection: vi.fn() }));
 vi.mock('../src/generate/run.js', () => ({ runGeneration: vi.fn() }));
 
 const { runIntrospection } = await import('../src/connections/introspect.js');
 const { runGeneration } = await import('../src/generate/run.js');
 const { runCli } = await import('../src/cli/run.js');
+const { prepareSetupToken } = await import('../src/setup/token.js');
 const { fakeDeps, fakeIo, fakeRuntime, TEST_SECRET } = await import('./cli-helpers.js');
 
 let ENV: Record<string, string>;
@@ -287,6 +295,17 @@ describe('adminium init — browser vs terminal', () => {
     await runCli(['try'], { io, deps });
     expect(deps.openBrowser).toHaveBeenCalledWith('http://localhost:4600');
     expect(io.stdout()).toContain('Opening it in your browser');
+  });
+
+  it('off this computer, asks for a setup token, and hands it to the browser it opens', async () => {
+    vi.mocked(prepareSetupToken).mockResolvedValueOnce({ token: 'K7QD-9MXR-2FTB-WH4N', fromEnv: false });
+    const deps = fakeDeps({ env: ENV });
+    const io = fakeIo({ selections: ['In your browser'] });
+    await runCli(['try'], { io, deps });
+    expect(vi.mocked(prepareSetupToken).mock.calls.at(-1)?.[0]).toMatchObject({ mode: 'try' });
+    // In the fragment: never sent to the server, so never in a request log.
+    expect(deps.openBrowser).toHaveBeenCalledWith('http://localhost:4600/setup#setup-token=K7QD-9MXR-2FTB-WH4N');
+    expect(io.stdout()).toContain('Setup token: K7QD-9MXR-2FTB-WH4N');
   });
 
   it('--no-open prints the URL without launching anything', async () => {

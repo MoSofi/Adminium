@@ -93,7 +93,8 @@
     "connectionFailed": "Váš účet byl vytvořen a jste přihlášeni — ale tato databáze nebyla dostupná: {detail}",
     "connectionUnknown": "databáze neodpověděla",
     "failed": "Nastavení selhalo. Zkontrolujte připojení a zkuste to znovu.",
-    "rejected": "Server tyto údaje odmítl. Zkontrolujte e-mail a heslo a zkuste to znovu."
+    "rejected": "Server tyto údaje odmítl. Zkontrolujte e-mail a heslo a zkuste to znovu.",
+    "setupToken": "Server už zadaný instalační token nepřijímá. Načtěte stránku znovu a zadejte token z jeho nejnovějšího logu."
   },
   "finish": "Přejít na dashboard",
   "kicker": "Krok {n} z {total}",
@@ -186,5 +187,16 @@
     "placeholder": "kolega@firma.cz",
     "sub": "Přidat lidi",
     "title": "Přiveďte svůj tým"
+  },
+  "token": {
+    "body": "Adminium při spuštění vypsal do svého logu jednorázový instalační token. Prokazuje, že tento server spravujete vy, ještě než vytvoříte jeho první účet.",
+    "empty": "Nejprve vložte instalační token.",
+    "failed": "Token se nepodařilo ověřit. Zkontrolujte připojení a zkuste to znovu.",
+    "helper": "V logu serveru nebo kontejneru hledejte řádek začínající „Setup token:“.",
+    "label": "Instalační token",
+    "rateLimited": "Příliš mnoho pokusů. Počkejte minutu a zkuste to znovu.",
+    "submit": "Pokračovat",
+    "title": "Zadejte instalační token",
+    "wrong": "To není instalační token tohoto serveru. Zkopírujte ho z logu znovu."
   }
 }

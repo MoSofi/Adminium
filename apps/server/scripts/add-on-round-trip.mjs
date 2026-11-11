@@ -327,6 +327,7 @@ async function main() {
   );
   ok('host tables: jobs, products, order_lines');
 
+  const SETUP_TOKEN = 'round-trip-setup-token';
   step('spawning the REAL server binary (acceptance #8 is about compose.ts)');
   const port = KEEP ? 4808 : 4700 + (Number(process.pid) % 200);
   child = spawn(
@@ -340,6 +341,8 @@ async function main() {
         ADMINIUM_SECRET: 'a'.repeat(64),
         ADMINIUM_META_URL: `sqlite:${join(dataDir, 'meta.db')}`,
         ADMINIUM_SOURCE_URL: sourceUrl.toString(),
+        // `start` asks for a setup token even on 127.0.0.1; this script is the owner.
+        ADMINIUM_SETUP_TOKEN: SETUP_TOKEN,
         ADMINIUM_LOG_LEVEL: 'warn',
         ...(AIR_GAPPED ? { ADMINIUM_NETWORK_FEATURES: 'off' } : {}),
       },
@@ -359,7 +362,7 @@ async function main() {
 
   step('first run: an owner, and a session');
   const setup = await api('POST', '/api/v1/setup/super-admin', {
-    body: { email: EMAIL, password: PASSWORD, name: 'Round Trip' },
+    body: { email: EMAIL, password: PASSWORD, name: 'Round Trip', setupToken: SETUP_TOKEN },
   });
   if (!check(setup.status === 201, `super admin created (${String(setup.status)})`)) {
     info(JSON.stringify(setup.json).slice(0, 400));

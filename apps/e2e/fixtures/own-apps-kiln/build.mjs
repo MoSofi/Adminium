@@ -5,7 +5,7 @@
  * running Adminium server. See README.md for what it makes and why.
  *
  *   node build.mjs --url http://127.0.0.1:4790 --email owner@kilnstreet.test --password <pw> \
- *     [--setup] [--session <file>] [--db <file.db> | --dsn <url>] [--replace]
+ *     [--setup [--setup-token <token>]] [--session <file>] [--db <file.db> | --dsn <url>] [--replace]
  *
  * Also importable: `buildKiln(options)` returns what it made (ids and refs).
  */
@@ -65,9 +65,9 @@ async function insertRows(c, connId, tableId, rows) {
 }
 
 export async function buildKiln(options) {
-  const { url, email, password, sessionFile = null, setup = false, replace = false, addOn = true } = options;
+  const { url, email, password, sessionFile = null, setup = false, setupToken = null, replace = false, addOn = true } = options;
   const business = options.name ?? K.BUSINESS;
-  const c = await signIn({ url, email, password, sessionFile, setup });
+  const c = await signIn({ url, email, password, sessionFile, setup, setupToken });
   say(`signed in at ${url}`);
 
   // ── 1. the database and its connection ────────────────────────────────────
@@ -237,6 +237,7 @@ if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(
       email: { type: 'string' },
       password: { type: 'string' },
       setup: { type: 'boolean', default: false },
+      'setup-token': { type: 'string' },
       session: { type: 'string' },
       db: { type: 'string' },
       dsn: { type: 'string' },
@@ -246,12 +247,13 @@ if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(
   const email = values.email ?? process.env.KILN_EMAIL;
   const password = values.password ?? process.env.KILN_PASSWORD;
   if (values.url === undefined || email === undefined || password === undefined) {
-    process.stderr.write('usage: node build.mjs --url <server> --email <admin> --password <pw> [--setup] [--session <file>] [--db <file> | --dsn <url>] [--replace]\n');
+    process.stderr.write('usage: node build.mjs --url <server> --email <admin> --password <pw> [--setup [--setup-token <token>]] [--session <file>] [--db <file> | --dsn <url>] [--replace]\n');
     process.exit(2);
   }
   try {
     const made = await buildKiln({
       url: values.url, email, password, setup: values.setup, sessionFile: values.session ?? null,
+      setupToken: values['setup-token'] ?? process.env.KILN_SETUP_TOKEN ?? null,
       db: values.db, dsn: values.dsn ?? null, replace: values.replace,
     });
     delete made.client;

@@ -16,6 +16,8 @@
  * this pair lives in a window that closes permanently and never re-opens — the
  * same window in which an unauthenticated caller can already create the
  * instance's super admin, which is strictly more power than either of these.
+ * On a server that prints a setup token, both need it too (`setup/token.ts`),
+ * checked before anything is dialled or written.
  * They share that route's credential-facing rate-limit bucket, and both are
  * audited: on a set-up instance a call here is somebody probing, and that is
  * worth a row even though the caller is told nothing but 409.
@@ -45,7 +47,8 @@ import { AppError, ConflictError } from '../../errors.js';
 import { connectMetaStore, metaEngineFromUrl, MetaUrlError } from '../../meta/store.js';
 import { metaUrlCryptoFromSecret } from '../../meta/store.js';
 import type { OnMetaRelocated } from '../../meta/relocate.js';
-import { SetupClosedError, type SetupService } from '../../setup/service.js';
+import { SetupClosedError, SetupTokenInvalidError, type SetupService } from '../../setup/service.js';
+import { setupTokenInvalid } from './index.js';
 import { RATE_LIMIT_BUCKETS } from '../auth/index.js';
 import { HEALTH_PATH } from '../meta/index.js';
 import {
@@ -114,8 +117,27 @@ export function setupStoreRoutes(deps: SetupStoreRoutesDeps): FastifyPluginAsync
       return app.authContext.meta;
     };
 
-    const requireSetupOpen = async (request: Parameters<typeof auditAuth>[1], action: string): Promise<void> => {
-      if ((await service.state()).required) return;
+    /**
+     * Open AND, on a server that asks for one, opened with the setup token:
+     * adopting re-points this instance at a store the caller chose, and the
+     * probe dials a database the caller named. Both are a stranger's to use
+     * only if creating the first account would be.
+     */
+    const requireSetupOpen = async (
+      request: Parameters<typeof auditAuth>[1],
+      action: string,
+      setupToken: string | undefined,
+    ): Promise<void> => {
+      try {
+        await service.checkToken(setupToken);
+        return;
+      } catch (error) {
+        if (error instanceof SetupTokenInvalidError) {
+          await auditAuth(meta(), request, { action: 'setup_token_denied', actorId: null, actorLabel: 'anonymous' }).catch(() => undefined);
+          throw setupTokenInvalid(error);
+        }
+        if (!(error instanceof SetupClosedError)) throw error;
+      }
       await auditAuth(meta(), request, {
         action,
         actorId: null,
@@ -141,7 +163,7 @@ export function setupStoreRoutes(deps: SetupStoreRoutesDeps): FastifyPluginAsync
         schema: { body: setupProbeBody, response: { 200: setupProbeReply } },
       },
       async (request): Promise<SetupProbeReply> => {
-        await requireSetupOpen(request, 'setup_probe_denied');
+        await requireSetupOpen(request, 'setup_probe_denied', request.body.setupToken);
         const dsn = request.body.dsn.trim();
         try {
           return await withTarget(dsn, async (meta) => {
@@ -178,7 +200,7 @@ export function setupStoreRoutes(deps: SetupStoreRoutesDeps): FastifyPluginAsync
         schema: { body: setupAdoptBody, response: { 200: setupAdoptReply } },
       },
       async (request): Promise<SetupAdoptReply> => {
-        await requireSetupOpen(request, 'setup_adopt_denied');
+        await requireSetupOpen(request, 'setup_adopt_denied', request.body.setupToken);
         const dsn = request.body.dsn.trim();
 
         // Pinned by the environment ⇒ the bootstrap file would be ignored, and
