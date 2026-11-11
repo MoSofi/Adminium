@@ -21,6 +21,11 @@ transaction: a bundle that fails halfway leaves no half-restored instance behind
 | `--dry-run` | off | Validate and report; write nothing |
 | `--data-dir <path>` | | Data directory |
 | `--meta-url <dsn>` | | Meta store DSN |
+| `--project-dir <folder>` | `ADMINIUM_PROJECT_DIR` | Where an export file's project folder goes |
+
+`import-zip` also reads the **Export everything** file (`adminium archive create
+--export`) into a fresh instance: people come without passwords and sign in
+through a password reset; connection strings, mail and AI keys are entered again.
 
 Trial a restore before committing to it:
 
@@ -43,3 +48,5 @@ credentials they have — a no-secrets bundle has nothing to replace them with, 
 it does not try.
 
 → [Export & restore](https://docs.adminium.dev/self-hosting/export-zip/)
+
+---
