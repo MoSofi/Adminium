@@ -93,6 +93,7 @@ import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot, type
 import { fetchGit, findGit, gitDownloadFor, removeUnfinishedGit, runProgram } from './git.js';
 import { createDesktopLogging } from './logging.js';
 import { createFolderFacts, createInstallPackages, createMakeProject, createUpdateProject, runToEnd, type MakeProjectDeps } from './make-project.js';
+import { createDescribeExport, createImportExport } from './open-export.js';
 import { carriedNpmDir, provideDesktopPrograms } from './programs.js';
 import { firstFreePort, projectPortRange, seamGit, seamProject, sessionCookieNames, stopBusyWords } from './project.js';
 import { realFolderDeps, rememberProject, type FolderDeps } from './projects.js';
@@ -613,6 +614,10 @@ export interface DesktopBootDeps {
         readonly folderFacts?: StartDeps['folderFacts'];
         readonly updateProject?: StartDeps['updateProject'];
         readonly chooseFile?: StartDeps['chooseFile'];
+        /** File → "Open a project…": the picker for an "Export everything" file, and the engine's reading and import of one. */
+        readonly chooseExportFile?: StartDeps['chooseExportFile'];
+        readonly describeExport?: StartDeps['describeExport'];
+        readonly importExport?: StartDeps['importExport'];
         readonly checkGuest?: StartDeps['checkGuest'];
         /** Whether the classic server was ever set up in this data folder. */
         readonly classicUsed: (config: DesktopConfig) => boolean;
@@ -756,6 +761,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
   let startOpen = false;
   /** Set by `start()`; `null` before it and in a boot that cannot return to Start. */
   let closeProject: (() => Promise<boolean>) | null = null;
+  /** An export picked with File → "Open a project…", for Start to open as it is shown (`StartService.state`). */
+  let pendingExport: string | null = null;
   /** The quit and close questions in the page's language: the last ones a project's page handed over. */
   let stopWords: DesktopStopWords | null = null;
   /** The offer to keep versions, of the project that is open. */
@@ -826,11 +833,38 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
     void deps.aboutDialogs.checkForUpdates({ t: menuTranslator(menuLabels), manager });
   };
   /** `base` plus About and Check for Updates, each only when there is one: an absent handler is a disabled item. */
+  const withOpenExport = (): Pick<MenuHandlers, 'openProject'> => {
+    const item = openExportItem();
+    return item === undefined ? {} : { openProject: item };
+  };
   const withHandlers = (base: MenuHandlers, about: (() => void) | undefined, check: (() => void) | undefined): MenuHandlers => ({
     ...base,
     ...(about === undefined ? {} : { about }),
     ...(check === undefined ? {} : { checkForUpdates: check }),
   });
+  /**
+   * File → "Open a project…": the system's picker for an "Export everything" file, then Start, which opens it as a
+   * NEW project. From an open project, the project is closed first (with the same question a busy one asks); the
+   * export never goes into it. `undefined` (a disabled item) in a build without the picker.
+   */
+  const openExportItem = (): (() => void) | undefined => {
+    const pick = deps.startScreen?.chooseExportFile;
+    if (pick === undefined || windows.showStart === undefined) return undefined;
+    return () => {
+      void (async () => {
+        const file = await pick({ title: menuTranslator(menuLabels)('file.openProject').replace(/…$/, '') });
+        if (file === null) return;
+        pendingExport = file;
+        if (startOpen) {
+          // Start is shown: shown again, it reads the file as it loads.
+          await windows.showStart?.();
+          return;
+        }
+        const closed = closeProject === null ? false : await closeProject().catch(() => false);
+        if (!closed) pendingExport = null;
+      })();
+    };
+  };
   /** The native About box, with its "Check for Updates…" button when `check` is given. `undefined` (a disabled item) without the port. */
   const aboutBox = (check: (() => void) | undefined): (() => void) | undefined => {
     const dialogs = deps.aboutDialogs;
@@ -1320,7 +1354,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
             : (): void => {
                 if (updateManager !== null) checkFromMenu(updateManager);
               };
-        menuHandlers = withHandlers({ showLogs: () => void deps.showLogs() }, aboutBox(projectCheck), projectCheck);
+        menuHandlers = withHandlers({ showLogs: () => void deps.showLogs(), ...withOpenExport() }, aboutBox(projectCheck), projectCheck);
         rebuildMenu();
 
         const show = (ready: { host: string; port: number }): Promise<void> => {
@@ -1557,6 +1591,14 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                 ...(screen.folderFacts === undefined ? {} : { folderFacts: screen.folderFacts }),
                 ...(screen.updateProject === undefined ? {} : { updateProject: screen.updateProject }),
                 ...(screen.chooseFile === undefined ? {} : { chooseFile: screen.chooseFile }),
+                ...(screen.chooseExportFile === undefined ? {} : { chooseExportFile: screen.chooseExportFile }),
+                ...(screen.describeExport === undefined ? {} : { describeExport: screen.describeExport }),
+                ...(screen.importExport === undefined ? {} : { importExport: screen.importExport }),
+                takePendingExport: () => {
+                  const file = pendingExport;
+                  pendingExport = null;
+                  return file;
+                },
                 ...(screen.checkGuest === undefined ? {} : { checkGuest: screen.checkGuest }),
                 ...(windows.openGuest === undefined ? {} : { openGuest: (guest) => windows.openGuest?.(guest) ?? Promise.resolve() }),
                 ...(windows.clearGuest === undefined ? {} : { clearGuest: (origin) => windows.clearGuest?.(origin) ?? Promise.resolve() }),
@@ -1581,7 +1623,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                       updateManager ??= makeUpdateManager((config ?? loaded.config).updates.mode);
                       if (updateManager !== null) checkFromMenu(updateManager);
                     };
-              menuHandlers = withHandlers({ showLogs: () => void deps.showLogs() }, aboutBox(startCheck), startCheck);
+              menuHandlers = withHandlers({ showLogs: () => void deps.showLogs(), ...withOpenExport() }, aboutBox(startCheck), startCheck);
               rebuildMenu();
               void windows.showStart?.();
             });
@@ -2763,6 +2805,19 @@ export function electronBootDeps(): DesktopBootDeps {
         return result.canceled ? null : (result.filePaths[0] ?? null);
       },
       classicUsed: (loaded) => existsSync(join(loaded.dataDir, 'meta.db')),
+      chooseExportFile: async (opts) => {
+        const options: Electron.OpenDialogOptions = {
+          title: opts.title,
+          ...(opts.defaultPath === undefined ? {} : { defaultPath: opts.defaultPath }),
+          properties: ['openFile'],
+          filters: [{ name: 'ZIP', extensions: ['zip'] }],
+        };
+        const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
+        const result = parent === null ? await dialog.showOpenDialog(options) : await dialog.showOpenDialog(parent, options);
+        return result.canceled ? null : (result.filePaths[0] ?? null);
+      },
+      describeExport: createDescribeExport(engineCli),
+      importExport: createImportExport(engineCli),
     },
     projectEnv: process.env,
     exporting: {

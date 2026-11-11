@@ -236,6 +236,7 @@ export default {
     "file": "Datei",
     "fileNewDatabase": "Neue lokale Datenbank…",
     "fileOpenSqlite": "SQLite-Datei öffnen…",
+    "fileOpenProject": "Projekt öffnen …",
     "fileBackupNow": "Jetzt sichern…",
     "fileRestore": "Aus Sicherung wiederherstellen…",
     "edit": "Bearbeiten",
@@ -265,5 +266,31 @@ export default {
     "updateErrorTitle": "Updates konnten nicht geprüft werden",
     "updateErrorDetail": "Prüfe die Internetverbindung und versuche es erneut.",
     "updateDownloadFailedTitle": "Das Update konnte nicht geladen werden"
+  },
+  "export": {
+    "pick": "Projekt öffnen",
+    "heading": "Projekt öffnen",
+    "reading": "Datei wird gelesen und geprüft …",
+    "missing": "Diese Datei wurde verschoben oder gelöscht.",
+    "noOwner": "Diese Datei nennt keinen Super-Administrator, der sich anmelden könnte. Importieren Sie sie auf einem Server mit adminium import-zip.",
+    "another": "Andere Datei wählen",
+    "holds": "Eine „Alles exportieren“-Datei mit {people, plural, one {# Person} other {# Personen}}, {pages, plural, one {# Seite} other {# Seiten}} und {files, plural, one {# hochgeladenen Datei} other {# hochgeladenen Dateien}}. Daraus wird ein neues Projekt auf diesem Computer.",
+    "owner": "Wer sich zuerst anmeldet",
+    "ownerHelp": "Die Datei enthält keine Passwörter. Dieser Super-Administrator erhält das Passwort, das Sie hier festlegen; alle anderen setzen ihres zurück, um sich anzumelden.",
+    "password": "Neues Passwort",
+    "passwordLength": "Mindestens {count, plural, one {# Zeichen} other {# Zeichen}}.",
+    "passwordAgain": "Dasselbe Passwort noch einmal",
+    "passwordDiffer": "Die beiden Passwörter stimmen nicht überein.",
+    "secrets": "Verbindungszeichenfolgen, E-Mail- und KI-Schlüssel sind nicht in der Datei. Nach dem Öffnen sind die Verbindungen, die ihre brauchen, in Studio markiert.",
+    "opening": "Projekt wird erstellt …",
+    "open": "Projekt öffnen",
+    "made": "{name} wurde erstellt. {owner} meldet sich mit dem neuen Passwort an.",
+    "madeConnections": "{name} wurde erstellt. {owner} meldet sich mit dem neuen Passwort an. Geben Sie die Verbindungszeichenfolge erneut ein für: {connections}.",
+    "refuse": {
+      "fullArchive": "Dies ist ein Archiv eines ganzen Servers, keine „Alles exportieren“-Datei. Stellen Sie es auf einem Server mit adminium archive restore wieder her.",
+      "notAnExport": "Diese Datei ist keine „Alles exportieren“-Datei. Erstellen Sie eine in Studio unter Einstellungen, Alles exportieren.",
+      "refused": "Diese Datei hat die Prüfungen nicht bestanden, daher wurde nichts daraus erstellt.",
+      "failed": "Diese Datei konnte nicht geöffnet werden."
+    }
   }
 } as const;

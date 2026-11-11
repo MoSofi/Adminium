@@ -5908,7 +5908,8 @@ export default {
       "title": "Flyt til en anden vært",
       "server": "På din egen server",
       "desktop": "I skrivebordsappen",
-      "desktopLine": "Skrivebordsappen kan endnu ikke åbne denne fil. Importér den med kommandoen ovenfor, på en server eller på denne computer."
+      "desktopItem": "Åbn et projekt",
+      "desktopLine": "Vælg {item}, og vælg filen."
     },
     "putOnline": {
       "title": "Læg det online",

@@ -236,6 +236,7 @@ export default {
     "file": "檔案",
     "fileNewDatabase": "新增本機資料庫…",
     "fileOpenSqlite": "開啟 SQLite 檔案…",
+    "fileOpenProject": "開啟專案…",
     "fileBackupNow": "立即備份…",
     "fileRestore": "從備份還原…",
     "edit": "編輯",
@@ -265,5 +266,31 @@ export default {
     "updateErrorTitle": "無法檢查更新",
     "updateErrorDetail": "請檢查網路連線後再試一次。",
     "updateDownloadFailedTitle": "無法下載更新"
+  },
+  "export": {
+    "pick": "開啟專案",
+    "heading": "開啟專案",
+    "reading": "正在讀取並檢查檔案…",
+    "missing": "此檔案已被移動或刪除。",
+    "noOwner": "此檔案沒有可以登入的超級管理員。請在伺服器上用 adminium import-zip 匯入。",
+    "another": "選擇其他檔案",
+    "holds": "一個「匯出全部」檔案，包含 {people, plural, other {# 人}}、{pages, plural, other {# 個頁面}}和{files, plural, other {# 個上傳的檔案}}。它會成為這台電腦上的一個新專案。",
+    "owner": "誰先登入",
+    "ownerHelp": "檔案中不含任何人的密碼。這位超級管理員會取得你在這裡設定的密碼；其他人需重設自己的密碼才能登入。",
+    "password": "新密碼",
+    "passwordLength": "至少 {count, plural, other {# 個字元}}。",
+    "passwordAgain": "再次輸入同一密碼",
+    "passwordDiffer": "兩次輸入的密碼不一致。",
+    "secrets": "連線字串、郵件和 AI 金鑰不在檔案中。開啟後，需要重新填寫的連線會在 Studio 中標出。",
+    "opening": "正在建立專案…",
+    "open": "開啟專案",
+    "made": "已建立 {name}。{owner} 用新密碼登入。",
+    "madeConnections": "已建立 {name}。{owner} 用新密碼登入。請為以下連線重新填寫連線字串：{connections}。",
+    "refuse": {
+      "fullArchive": "這是整台伺服器的封存檔，不是「匯出全部」檔案。請在伺服器上用 adminium archive restore 還原。",
+      "notAnExport": "此檔案不是「匯出全部」檔案。請在 Studio 的「設定」→「匯出全部」中建立。",
+      "refused": "此檔案未通過檢查，因此沒有用它建立任何內容。",
+      "failed": "無法開啟此檔案。"
+    }
   }
 } as const;

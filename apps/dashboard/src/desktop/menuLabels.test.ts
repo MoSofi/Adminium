@@ -20,6 +20,7 @@ import { pushDesktopMenuLabels, pushDesktopStopWords, resolveMenuLabels, resolve
 const MENU_KEYS = [
   'file',
   'file.newDatabase',
+  'file.openProject',
   'file.openSqlite',
   'file.backupNow',
   'file.restore',

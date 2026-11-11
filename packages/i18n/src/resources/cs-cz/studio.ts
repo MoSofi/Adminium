@@ -5908,7 +5908,8 @@ export default {
       "title": "Přesun na jiného hostitele",
       "server": "Na vlastním serveru",
       "desktop": "V aplikaci pro počítač",
-      "desktopLine": "Aplikace pro počítač tento soubor zatím neotevře. Importujte ho příkazem výše, na serveru nebo na tomto počítači."
+      "desktopItem": "Otevřít projekt",
+      "desktopLine": "Zvolte {item} a vyberte soubor."
     },
     "putOnline": {
       "title": "Zveřejnit na internetu",

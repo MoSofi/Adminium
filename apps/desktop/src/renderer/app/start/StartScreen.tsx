@@ -10,6 +10,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import type { DesktopOpenStep, DesktopRecentProject, DesktopStartState } from '../../../preload/api.js';
 import { desktopApi, startApi } from '../bridge.js';
+import { ImportExportScreen } from './ImportExport.js';
 import { OpeningScreen, type OpeningActions, type OpeningStep } from './Opening.js';
 import { PackagesDialog, type PackagesQuestion } from './PackagesDialog.js';
 import { TrustDialog, type TrustQuestion } from './TrustDialog.js';
@@ -202,6 +203,8 @@ export function StartScreen({ initial, onBuild, onConnect, onMakeIn, say }: { in
   const [recent, setRecent] = useState<readonly DesktopRecentProject[]>(initial.recent);
   const [question, setQuestion] = useState<TrustQuestion | null>(null);
   const [opening, setOpening] = useState(false);
+  // An "Export everything" file to make a new project from: picked with File → "Open a project…".
+  const [exportFile, setExportFile] = useState<{ readonly path: string; readonly displayPath: string } | null>(initial.pendingExport ?? null);
   const now = new Date();
 
   // Where the project asked about is to land, kept across the question about its code.
@@ -383,6 +386,43 @@ export function StartScreen({ initial, onBuild, onConnect, onMakeIn, say }: { in
     connect: [t('desktop:start.choice.connect.title', 'Connect to another Adminium'), t('desktop:start.choice.connect.line', 'Use an Adminium that runs on another computer.')],
     db: [t('desktop:start.choice.db.title', 'Use my own database'), t('desktop:start.choice.db.line', 'Make screens for a database you already have.')],
   };
+
+  const chooseExport = async (): Promise<void> => {
+    const picked = await startApi().chooseExport({ title: t('desktop:export.pick', 'Open a project') });
+    if (picked !== null) setExportFile(picked);
+  };
+
+  // An export, before anything of it is made: its own screen, then the opening of the project made from it.
+  if (exportFile !== null && step === null) {
+    return (
+      <ImportExportScreen
+        key={exportFile.path}
+        file={exportFile}
+        proposedParent={initial.proposedParent}
+        proposedParentDisplay={initial.proposedParentDisplay}
+        onBack={() => {
+          setExportFile(null);
+        }}
+        onChooseAnother={() => {
+          void chooseExport();
+        }}
+        onImported={(made) => {
+          setExportFile(null);
+          say(
+            made.connections === 0
+              ? t('desktop:export.made', '{name} was made. {owner} signs in with the new password.', { name: made.name, owner: made.owner })
+              : t('desktop:export.madeConnections', '{name} was made. {owner} signs in with the new password. Enter the connection string again for: {connections}.', {
+                  name: made.name,
+                  owner: made.owner,
+                  connections: made.drafts.length === 0 ? String(made.connections) : new Intl.ListFormat(tag, { type: 'conjunction' }).format(made.drafts),
+                }),
+            'success',
+          );
+          void open(made.path, false);
+        }}
+      />
+    );
+  }
 
   // One screen at a time: a step on the way into a folder stands in Start's place, with the questions still over it.
   if (step !== null) {

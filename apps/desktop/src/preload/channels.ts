@@ -72,6 +72,9 @@ export const IPC_CHANNELS = {
   startForgetProject: 'adminium-desktop:start-forget-project',
   startLocateProject: 'adminium-desktop:start-locate-project',
   startUseClassic: 'adminium-desktop:start-use-classic',
+  startChooseExport: 'adminium-desktop:start-choose-export',
+  startReadExport: 'adminium-desktop:start-read-export',
+  startImportExport: 'adminium-desktop:start-import-export',
   projectInfo: 'adminium-desktop:project-info',
   projectShowInFolder: 'adminium-desktop:project-show-in-folder',
   projectClose: 'adminium-desktop:project-close',
@@ -118,6 +121,9 @@ export const START_CHANNELS = [
   IPC_CHANNELS.startForgetProject,
   IPC_CHANNELS.startLocateProject,
   IPC_CHANNELS.startUseClassic,
+  IPC_CHANNELS.startChooseExport,
+  IPC_CHANNELS.startReadExport,
+  IPC_CHANNELS.startImportExport,
 ] as const;
 
 /** Build and Share: answered for the project's own page and for the app's own (the sharing details), each naming nothing. */

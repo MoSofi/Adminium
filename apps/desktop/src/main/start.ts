@@ -29,6 +29,8 @@ import type {
   DesktopGuest,
   DesktopFoundRow,
   DesktopGetPackagesResult,
+  DesktopImportExportInput,
+  DesktopImportExportResult,
   DesktopLocateProjectResult,
   DesktopMakeProgress,
   DesktopMakeStep,
@@ -36,6 +38,7 @@ import type {
   DesktopNewFolderJudgement,
   DesktopOpenProjectInput,
   DesktopOpenProjectResult,
+  DesktopReadExportResult,
   DesktopRecentProject,
   DesktopResolveKeyResult,
   DesktopUpdateProjectResult,
@@ -43,6 +46,7 @@ import type {
 } from '../preload/api.js';
 import type { DesktopConfig } from './config.js';
 import { judgeGuestAddress, rememberGuest, type GuestCheck } from './guest.js';
+import { projectNameFromExport, type ExportOutcome, type ImportExportInput, type ImportExportResult } from './open-export.js';
 import {
   cameWithAccounts,
   cleanVersionStore,
@@ -182,6 +186,14 @@ export interface StartDeps {
   openGuest?: ((guest: { origin: string; encrypted: boolean }) => Promise<void>) | undefined;
   /** Delete a guest's cookies. */
   clearGuest?: ((origin: string) => Promise<void>) | undefined;
+  /** The system's file picker for an "Export everything" file (`.zip`). `null` on cancel. */
+  chooseExportFile?: ((opts: { title: string; defaultPath?: string | undefined }) => Promise<string | null>) | undefined;
+  /** What an export holds, read and checked by the engine (`open-export.ts`); absent in a build that cannot. */
+  describeExport?: ((file: string) => Promise<ExportOutcome>) | undefined;
+  /** A new project from an export (`open-export.ts`); absent in a build that cannot. */
+  importExport?: ((input: ImportExportInput) => Promise<ImportExportResult>) | undefined;
+  /** An export picked with File → "Open a project…" before Start was shown: said once, by `state()`. */
+  takePendingExport?: (() => string | null) | undefined;
   /** The three writes below, for tests. */
   prepareNewData?: typeof prepareNewData | undefined;
   resolveMissingKey?: typeof resolveMissingKey | undefined;
@@ -209,6 +221,9 @@ export interface StartService {
   forgetGuest(address: string): Promise<DesktopGuest[]>;
   forgetProject(path: string): Promise<DesktopRecentProject[]>;
   locateProject(input: { path: string; title: string }): Promise<DesktopLocateProjectResult>;
+  chooseExport(input: { title: string }): Promise<{ path: string; displayPath: string } | null>;
+  readExport(input: { path: string }): Promise<DesktopReadExportResult>;
+  importExport(input: DesktopImportExportInput): Promise<DesktopImportExportResult>;
   useClassic(): void;
   /** Take the fingerprint of a project the app is letting go of, so its own changes are not asked about. */
   trustNow(root: string): Promise<void>;
@@ -284,6 +299,7 @@ export function createStartService(deps: StartDeps): StartService {
     state: () => {
       const config = deps.readConfig();
       const list = recent();
+      const pending = deps.takePendingExport?.() ?? null;
       return {
         firstLaunch: list.length === 0 && !deps.classicUsed(),
         recent: list,
@@ -291,6 +307,7 @@ export function createStartService(deps: StartDeps): StartService {
         proposedParentDisplay: shown(proposedParent(deps.folder.home)),
         language: config.language,
         theme: config.theme,
+        pendingExport: pending === null ? null : { path: pending, displayPath: shown(pending) },
       };
     },
 
@@ -522,6 +539,72 @@ export function createStartService(deps: StartDeps): StartService {
       if (!moved.ok) return { status: moved.reason === 'already-listed' ? 'already-listed' : 'not-a-project' };
       await deps.saveConfig(moved.config);
       return { status: 'located', recent: recent() };
+    },
+
+    async chooseExport(input) {
+      if (deps.chooseExportFile === undefined) return null;
+      const picked = await deps.chooseExportFile({ title: input.title, defaultPath: deps.folder.home });
+      return picked === null ? null : { path: picked, displayPath: shown(picked) };
+    },
+
+    async readExport(input) {
+      if (!deps.folder.exists(input.path)) return { status: 'missing' };
+      if (deps.describeExport === undefined) return { status: 'refused', refused: 'failed', detail: CANNOT_MAKE_PROJECT };
+      const outcome = await deps.describeExport(input.path);
+      if (!outcome.ok) return { status: 'refused', refused: outcome.refused, detail: outcome.detail };
+      const { answer } = outcome;
+      return {
+        status: 'ready',
+        facts: {
+          path: input.path,
+          displayPath: shown(input.path),
+          name: projectNameFromExport(input.path),
+          appVersion: answer.appVersion,
+          createdAt: answer.createdAt,
+          people: answer.people,
+          pages: answer.pages,
+          connections: answer.connections,
+          files: answer.files,
+          owners: answer.owners,
+          passwordMinLength: answer.passwordMinLength,
+        },
+      };
+    },
+
+    async importExport(input) {
+      // Judged here, again, as "Create" is: the page's own judgement is a courtesy. A NEW folder, always: an export
+      // never goes into a project that is there, open or not.
+      const judged = judgeNewProjectFolder(input.parent, input.name, deps.folder);
+      if (!judged.ok) return { status: 'folder-refused', refused: judged.refused };
+      if (judged.warning !== null && input.acceptWarning !== true) return { status: 'warned', warning: judged.warning };
+      if (!deps.folder.exists(input.path)) return { status: 'refused', refused: 'failed', detail: 'The file was moved or deleted.' };
+      if (deps.importExport === undefined) return { status: 'refused', refused: 'failed', detail: CANNOT_MAKE_PROJECT };
+      if (making) return { status: 'refused', refused: 'failed', detail: 'A project is already being made.' };
+      making = true;
+      try {
+        const made = await deps.importExport({ file: input.path, root: judged.path, ownerEmail: input.owner, password: input.password, onStep: at });
+        if (!made.ok) return { status: 'refused', refused: made.refused, detail: made.detail };
+        const root = real(judged.path);
+        // Made here a moment ago, but not all of it by the app: a file that carried its own project folder carried
+        // code (hooks, actions, apps), and that is asked about before it runs, as for any folder someone sent. A
+        // folder the engine's `new` made around the restored data runs only what the app laid down: agreed to by
+        // making it, as "Create" is.
+        await deps.saveConfig(
+          rememberProject(deps.readConfig(), { path: root, name: input.name.trim(), state: 'building', trusted: made.carriedProject ? null : fingerprint(root), reviewed: false }, now()),
+        );
+        // Every connection but a SQLite file that came inside the export lost its string on the way.
+        const drafts = made.answer.drafts ?? [];
+        return {
+          status: 'imported',
+          path: root,
+          owner: made.answer.owner ?? input.owner,
+          connections: made.answer.drafts === undefined ? Math.max(0, made.answer.connections - made.answer.databases) : drafts.length,
+          drafts,
+        };
+      } finally {
+        making = false;
+        at(null);
+      }
     },
 
     useClassic: () => {

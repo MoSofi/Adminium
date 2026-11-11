@@ -5,7 +5,9 @@
  * restore); this is flags and reporting.
  */
 
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { parseEnv } from 'node:util';
 import { createInterface } from 'node:readline';
 
 import { openMetaStore } from '../../../meta/store.js';
@@ -16,11 +18,13 @@ import { restoreArchive, type ExportOwnerAnswer, type ExportOwnerChoice, type Re
 import { hashPassword } from '../../../auth/passwords.js';
 import { dsnCryptoFromSecret } from '../../../connections/crypto.js';
 import { storageRootPolicyFor } from '../../../files/root-guard.js';
+import { envVarFor } from '../../../project/adopt.js';
 import { prepareProject } from '../../../project/boot.js';
+import { addToDotEnv, type DotEnvEntry } from '../../../project/dotenv.js';
 import { APP_VERSION } from '../../../version.js';
 import { boolFlag, parseFlags, stringFlag } from '../../args.js';
 import type { Command, CommandContext } from '../../command.js';
-import { CliError, CliUsageError, EXIT_OK, type ExitCode } from '../../exit.js';
+import { CliError, CliUsageError, EXIT_ERROR, EXIT_OK, type ExitCode } from '../../exit.js';
 import type { CliIo } from '../../io.js';
 import { loadCliEnv } from '../../runtime.js';
 import { formatBytes } from '../export-zip.js';
@@ -310,6 +314,10 @@ export async function importExportFile(
     ownerEmail?: string | undefined;
     passwordStdin?: boolean | undefined;
     readStdin?: (() => Promise<string>) | undefined;
+    /** One line of JSON instead of sentences: the outcome, or the refusal (`exportJson`). */
+    json?: boolean | undefined;
+    /** `--local-owner`: the person given the password is also this computer's owner (the desktop app). */
+    localOwner?: boolean | undefined;
   },
 ): Promise<ExitCode> {
   const named = opts.projectDir ?? deps.env.ADMINIUM_PROJECT_DIR;
@@ -332,8 +340,15 @@ export async function importExportFile(
       storageRoots: storageRootPolicyFor(env, store),
       dryRun: opts.dryRun,
       owner: askExportOwner(io, { ownerEmail: opts.ownerEmail, passwordStdin: opts.passwordStdin === true, ...(opts.readStdin === undefined ? {} : { readStdin: opts.readStdin }) }),
+      localOwner: opts.localOwner === true,
     });
+    const envWritten = !result.dryRun && projectRoot !== null && result.projectFiles > 0 ? writeProjectEnv(projectRoot, result) : [];
+    if (opts.json === true) {
+      io.out(JSON.stringify({ ...exportJson(result), env: envWritten }));
+      return EXIT_OK;
+    }
     reportRestore(io, result, { dataDir: env.ADMINIUM_DATA_DIR, projectRoot });
+    if (envWritten.length > 0) io.out(`Wrote ${envWritten.join(', ')} into the project’s .env.`);
     if (result.owner !== null) {
       io.out(`${result.owner.email} signs in with the password just given. Everyone else came without a password and signs in through “Forgot password”.`);
     } else if (!result.dryRun) {
@@ -343,9 +358,88 @@ export async function importExportFile(
     io.out(result.dryRun ? 'Dry run — nothing was written.' : 'Import complete.');
     return EXIT_OK;
   } catch (error) {
+    if (opts.json === true && (error instanceof ArchiveFormatError || error instanceof CliError)) {
+      const refused = error instanceof ArchiveFormatError ? (error.code ?? 'refused') : 'refused';
+      io.out(JSON.stringify({ ok: false, refused, message: error.message, ...(error.hint === undefined ? {} : { hint: error.hint }) }));
+      return EXIT_ERROR;
+    }
     return asCliError(error);
   } finally {
     await store.close();
   }
+}
+
+/** A SQLite file as a project's `.env` names it: relative to the project when it is inside it, as `new` writes one. */
+function sqliteUrlFor(projectRoot: string, file: string): string {
+  const rel = relative(projectRoot, file);
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel) ? `sqlite:./${rel.split(sep).join('/')}` : `sqlite:${file}`;
+}
+
+/**
+ * The `.env` a project folder that came in an export needs. The export never carries one (it holds the
+ * secrets), so its config's `env('DATABASE_URL')` would read nothing. Written as `new` writes them: each
+ * project database by its variable (`envVarFor`), set to the SQLite file the restore put in the data dir,
+ * or left empty when its string must be entered again (the connection stays Draft and keeps what it has),
+ * and the names `.env.example` lists, empty. Nothing of the file's `.env` is read: it is not in it. A name
+ * already in `.env` is kept. Returns the names written.
+ */
+export function writeProjectEnv(projectRoot: string, result: Pick<RestoreArchiveResult, 'projectDatabases'>): string[] {
+  const entries: DotEnvEntry[] = [];
+  const named = new Set<string>();
+  for (const database of result.projectDatabases) {
+    const key = envVarFor(database.key);
+    if (named.has(key)) continue;
+    named.add(key);
+    entries.push(
+      database.file === null
+        ? { key, value: '', comment: [`"${database.key}" (${database.name}) came without its connection string: set it here, or in Studio.`] }
+        : { key, value: sqliteUrlFor(projectRoot, database.file), comment: [`"${database.key}" (${database.name}): the SQLite file that came in the export.`] },
+    );
+  }
+  const example = join(projectRoot, '.env.example');
+  if (existsSync(example)) {
+    let names: string[] = [];
+    try {
+      names = Object.keys(parseEnv(readFileSync(example, 'utf8')));
+    } catch {
+      names = [];
+    }
+    // The host's own names (the secret first) are never the folder's to set, and an empty one would hide the real one.
+    for (const key of names) {
+      if (named.has(key) || key.startsWith('ADMINIUM_') || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+      named.add(key);
+      entries.push({ key, value: '', comment: ['Named in .env.example; the export carries no value for it.'] });
+    }
+  }
+  return entries.length === 0 ? [] : addToDotEnv(projectRoot, entries).written;
+}
+
+/**
+ * `import-zip --json` on an export file: what a host shows. With `--dry-run`
+ * it is asked first, for what the file holds and which Super Admin may be
+ * given the first password; after the import, for who was and what to say.
+ */
+export function exportJson(result: RestoreArchiveResult): Record<string, unknown> {
+  const rows = (table: string): number => result.tables.find((entry) => entry.table === table)?.rows ?? 0;
+  return {
+    ok: true,
+    dryRun: result.dryRun,
+    kind: result.manifest.kind,
+    appVersion: result.manifest.appVersion,
+    createdAt: result.manifest.createdAt,
+    people: rows('adminium_users'),
+    pages: rows('adminium_pages'),
+    connections: rows('adminium_connections'),
+    files: result.files,
+    databases: result.databases,
+    projectFiles: result.projectFiles,
+    packages: result.manifest.packages.length,
+    external: result.manifest.external.length,
+    owners: result.owners,
+    passwordMinLength: result.passwordMinLength,
+    owner: result.owner?.email ?? null,
+    drafts: result.drafts,
+    warnings: result.warnings,
+  };
 }
 

@@ -16,14 +16,14 @@ import { isInstanceArchive } from '../../archive/zip-read.js';
 import { ImportZipError } from '../../export/import-service.js';
 import { boolFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
-import { CliError, CliUsageError, EXIT_OK } from '../exit.js';
+import { CliError, CliUsageError, EXIT_ERROR, EXIT_OK } from '../exit.js';
 import { loadCliEnv } from '../runtime.js';
 import { importExportFile } from './archive/commands.js';
 
 export const importZipCommand: Command = {
   name: 'import-zip',
   summary: 'Import an instance configuration bundle',
-  usage: 'adminium import-zip <file> [--dry-run] [--owner <email>] [--password-stdin]',
+  usage: 'adminium import-zip <file> [--dry-run] [--owner <email>] [--password-stdin] [--local-owner] [--json]',
   describe:
     'Restores configuration produced by `adminium export-zip` — connections,\n' +
     'snapshots, overrides, pages and dashboards, views, settings, roles.\n' +
@@ -42,7 +42,9 @@ export const importZipCommand: Command = {
     'folder. It carries no passwords, so the import gives one of its Super Admins a\n' +
     'new password: --owner picks who (needed without a terminal when it holds more\n' +
     'than one), the password is asked twice, or read from the first line of\n' +
-    'standard input with --password-stdin.',
+    'standard input with --password-stdin.\n' +
+    'With --json the outcome (with --dry-run: what the file holds and its Super\n' +
+    'Admins) or the refusal is one line of JSON, for an app that imports it.',
   flags: {
     in: {
       type: 'string',
@@ -72,11 +74,21 @@ export const importZipCommand: Command = {
       type: 'string',
       placeholder: '<email>',
       describe: 'Export file: the Super Admin who gets a new password',
-      defaultDescription: 'the only or first Super Admin',
+      defaultDescription: 'the only Super Admin',
     },
     'password-stdin': {
       type: 'boolean',
       describe: 'Export file: read that password from standard input',
+      defaultDescription: 'off',
+    },
+    'local-owner': {
+      type: 'boolean',
+      describe: 'Export file: --owner is also this computer’s owner, signed in by the desktop app without a password',
+      defaultDescription: 'off',
+    },
+    json: {
+      type: 'boolean',
+      describe: 'Export file: say the outcome, or the refusal, as one line of JSON',
       defaultDescription: 'off',
     },
   },
@@ -95,6 +107,7 @@ export const importZipCommand: Command = {
     const dataDir = stringFlag(values['data-dir']);
     const metaUrl = stringFlag(values['meta-url']);
 
+    const json = boolFlag(values.json);
     // "Export everything" (`adminium archive create --export`) is an instance
     // archive, not a config bundle: the archive restore reads it, with the
     // export's rules (no hashes, secrets or tokens), into a fresh instance.
@@ -106,7 +119,14 @@ export const importZipCommand: Command = {
         projectDir: stringFlag(values['project-dir']),
         ownerEmail: stringFlag(values.owner),
         passwordStdin: boolFlag(values['password-stdin']),
+        localOwner: boolFlag(values['local-owner']),
+        json,
       });
+    }
+    if (json) {
+      // --json speaks for an export file only; a host asked whether this is one, and it is not.
+      io.out(JSON.stringify({ ok: false, refused: 'not-an-export', message: 'This file is not an Export everything file.' }));
+      return EXIT_ERROR;
     }
 
     const env = loadCliEnv(deps.env, {

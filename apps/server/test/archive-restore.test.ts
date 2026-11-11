@@ -228,6 +228,8 @@ describe('what an archive holds', () => {
     expect(settings).not.toContain('deciderTrust');
     expect(settings).not.toContain('live-1234');
     expect(settings).toContain('enc:v1:'); // the SMTP password, still sealed
+    // The same instance coming back: who its desktop app signs in stays as it was.
+    expect(settings).toContain('designer.ownerId');
     expect(Buffer.concat(Object.values(files).map((data) => Buffer.from(data))).toString('latin1')).not.toContain('sk-not-for-archives');
     expect(src.manifest.secrets.policy).toBe('encrypted');
     expect(src.manifest.external).toEqual([{ connectionId: src.seeded.remoteConnectionId, engine: 'postgres' }]);
@@ -241,6 +243,10 @@ describe('what an archive holds', () => {
     expect(all).not.toContain('enc:v1:');
     expect(all).not.toContain('$argon2id$');
     expect(Object.keys(files)).not.toContain('adminium-archive/meta/adminium_api_keys.json');
+    // Nor who a desktop app signs in without a password: the computer that opens it decides that.
+    const settings = Buffer.from(files['adminium-archive/meta/adminium_settings.json'] as Uint8Array).toString('utf8');
+    expect(settings).not.toContain('designer.ownerId');
+    expect(settings).not.toContain('designer.localOwnerId');
     expect(src.manifest.secrets).toEqual({ policy: 'omitted', check: null });
     expect(await isInstanceArchive(src.archive)).toBe(true);
   });
@@ -513,8 +519,56 @@ describe('the export variant through import-zip', () => {
       expect((await pagesRepo(dest.meta).findById(src.seeded.pageId))?.title).toBe('Orders');
       expect(await readFile(join(dest.dirs.dataDir, 'files', src.seeded.fileId))).toEqual(src.seeded.fileBytes);
       expect((await connectionsRepo(dest.meta, dsnCryptoFromSecret(OTHER_SECRET)).getDsns(src.seeded.sqliteConnectionId))?.dataDsn).toContain('databases/shop.sqlite');
+      // The connection that came without its string reads as one to finish, as a new one without a string does.
+      const remote = await connectionsRepo(dest.meta, dsnCryptoFromSecret(OTHER_SECRET)).findById(src.seeded.remoteConnectionId);
+      expect(remote?.status).toBe('unconfigured');
+      expect((await connectionsRepo(dest.meta, dsnCryptoFromSecret(OTHER_SECRET)).findById(src.seeded.sqliteConnectionId))?.status).not.toBe('unconfigured');
     });
   }
+});
+
+describe('who the desktop app signs in, after an export', () => {
+  const restoreExport = async (src: Source, extra: Partial<RestoreArchiveOptions> = {}) => {
+    const dest = await target('sqlite');
+    const result = await restoreArchive(
+      restoreOptions(src, dest, { expect: 'export', owner: async ({ candidates }) => ({ userId: candidates[0]?.id ?? '', passwordHash: PASSWORD_HASH }), ...extra }),
+    );
+    return { dest, result };
+  };
+
+  it('is never read from the file: a hand-made export naming an owner is restored without one', async () => {
+    const src = await source('sqlite', 'export');
+    const out = join(src.dirs.root, 'hand-made.zip');
+    const path = 'adminium-archive/meta/adminium_settings.json';
+    await rewrite(src.archive, out, (files) => {
+      const dump = JSON.parse(Buffer.from(files[path] as Uint8Array).toString('utf8')) as { columns: string[]; kinds: Record<string, string>; rows: unknown[][] };
+      const key = dump.columns.indexOf('key');
+      const value = dump.columns.indexOf('value');
+      for (const name of ['designer.ownerId', 'designer.localOwnerId']) {
+        const row = [...(dump.rows[0] as unknown[])];
+        row[key] = name;
+        row[value] = dump.kinds.value === 'json' ? src.seeded.admin.id : JSON.stringify(src.seeded.admin.id);
+        dump.rows.push(row);
+      }
+      const data = strToU8(JSON.stringify(dump));
+      files[path] = data;
+      editManifest(files, (manifest) => {
+        manifest.entries = manifest.entries.map((entry) => (entry.path === path ? entryFor(path, data) : entry));
+      });
+    });
+    const { dest } = await restoreExport({ ...src, archive: out });
+    expect(await settingsRepo(dest.meta).get('designer.ownerId')).toBeNull();
+    expect(await settingsRepo(dest.meta).get('designer.localOwnerId')).toBeNull();
+  });
+
+  it('is the Super Admin given the password, when the import asks for it (the desktop app)', async () => {
+    const src = await source('sqlite', 'export');
+    const { dest, result } = await restoreExport(src, { localOwner: true });
+    expect(result.owner?.id).toBe(src.seeded.admin.id);
+    expect(await settingsRepo(dest.meta).get('designer.ownerId')).toBe(src.seeded.admin.id);
+    const plain = await restoreExport(src);
+    expect(await settingsRepo(plain.dest.meta).get('designer.ownerId')).toBeNull();
+  });
 });
 
 describe('archive → fresh instance, over HTTP', () => {

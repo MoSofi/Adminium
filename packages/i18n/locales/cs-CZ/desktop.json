@@ -226,6 +226,7 @@
     "file": "Soubor",
     "fileNewDatabase": "Nová místní databáze…",
     "fileOpenSqlite": "Otevřít soubor SQLite…",
+    "fileOpenProject": "Otevřít projekt…",
     "fileBackupNow": "Zálohovat nyní…",
     "fileRestore": "Obnovit ze zálohy…",
     "edit": "Úpravy",
@@ -255,5 +256,31 @@
     "updateErrorTitle": "Aktualizace se nepodařilo zkontrolovat",
     "updateErrorDetail": "Zkontrolujte připojení k internetu a zkuste to znovu.",
     "updateDownloadFailedTitle": "Aktualizaci se nepodařilo stáhnout"
+  },
+  "export": {
+    "pick": "Otevřít projekt",
+    "heading": "Otevřít projekt",
+    "reading": "Soubor se čte a kontroluje…",
+    "missing": "Tento soubor byl přesunut nebo smazán.",
+    "noOwner": "Tento soubor neuvádí žádného super administrátora, který by se mohl přihlásit. Importujte ho na serveru příkazem adminium import-zip.",
+    "another": "Vybrat jiný soubor",
+    "holds": "Soubor „Exportovat vše“ s {people, plural, one {# osobou} few {# osobami} many {# osoby} other {# osobami}}, {pages, plural, one {# stránkou} few {# stránkami} many {# stránky} other {# stránkami}} a {files, plural, one {# nahraným souborem} few {# nahranými soubory} many {# nahraného souboru} other {# nahranými soubory}}. Stane se z něj nový projekt na tomto počítači.",
+    "owner": "Kdo se přihlásí první",
+    "ownerHelp": "Soubor neobsahuje žádná hesla. Tento super administrátor dostane heslo, které zde nastavíte; ostatní si pro přihlášení své heslo obnoví.",
+    "password": "Nové heslo",
+    "passwordLength": "Alespoň {count, plural, one {# znak} few {# znaky} many {# znaku} other {# znaků}}.",
+    "passwordAgain": "Totéž heslo znovu",
+    "passwordDiffer": "Hesla nejsou stejná.",
+    "secrets": "Připojovací řetězce, klíče k poště a AI v souboru nejsou. Po otevření jsou připojení, která je potřebují, ve Studiu označena.",
+    "opening": "Vytváří se projekt…",
+    "open": "Otevřít projekt",
+    "made": "Projekt {name} je vytvořen. {owner} se přihlásí novým heslem.",
+    "madeConnections": "Projekt {name} je vytvořen. {owner} se přihlásí novým heslem. Znovu zadejte připojovací řetězec pro: {connections}.",
+    "refuse": {
+      "fullArchive": "Toto je archiv celého serveru, ne soubor „Exportovat vše“. Obnovte ho na serveru příkazem adminium archive restore.",
+      "notAnExport": "Tento soubor není soubor „Exportovat vše“. Vytvořte ho ve Studiu v Nastavení, Exportovat vše.",
+      "refused": "Tento soubor neprošel kontrolami, a tak z něj nic nevzniklo.",
+      "failed": "Tento soubor se nepodařilo otevřít."
+    }
   }
 }

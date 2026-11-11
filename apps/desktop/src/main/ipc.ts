@@ -199,6 +199,8 @@ const menuLabelsSchema = z.strictObject({
   file: menuLabelSchema,
   'file.newDatabase': menuLabelSchema,
   'file.openSqlite': menuLabelSchema,
+  // Optional: a page from an Adminium older than the item sends none; the shell's en-US fills it.
+  'file.openProject': menuLabelSchema.optional(),
   'file.backupNow': menuLabelSchema,
   'file.restore': menuLabelSchema,
   edit: menuLabelSchema,
@@ -276,6 +278,15 @@ const startOpenProjectSchema = z.strictObject({
 const startResolveKeySchema = z.strictObject({ path: absolutePathSchema, answer: z.enum(['env', 'fresh', 'new']), title: dialogTitleSchema.optional() });
 const startGetPackagesSchema = z.strictObject({ path: absolutePathSchema, land: z.enum(['designer', 'dashboard']).optional() });
 const startLocateProjectSchema = z.strictObject({ path: absolutePathSchema, title: dialogTitleSchema });
+// A password typed on Start for the export's Super Admin: bounded as the engine bounds one, and never logged.
+const startImportExportSchema = z.strictObject({
+  path: absolutePathSchema,
+  parent: absolutePathSchema,
+  name: projectNameSchema,
+  owner: z.string().min(3).max(320),
+  password: z.string().min(1).max(1024),
+  acceptWarning: z.boolean().optional(),
+});
 
 const capabilityInvokeSchema = z.strictObject({
   capabilityId: z.string().min(1).max(120),
@@ -387,7 +398,7 @@ export type PushedMenuLabels = z.infer<typeof menuLabelsSchema>;
  * Adminium sends none of them, so they are optional like the dialog keys, and
  * the shell's en-US fills them.
  */
-export type LateMenuLabelKey = 'help.putOnline';
+export type LateMenuLabelKey = 'help.putOnline' | 'file.openProject';
 
 /** The dialog keys and the late menu keys are exactly the optional ones. */
 export type _DialogKeysAreOptional = Assert<
@@ -955,6 +966,22 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
   register(IPC_CHANNELS.startForgetGuest, guestAddressSchema, (address) => start().forgetGuest(address), ownPage);
   register(IPC_CHANNELS.startForgetProject, absolutePathSchema, (path) => start().forgetProject(path), ownPage);
   register(IPC_CHANNELS.startLocateProject, startLocateProjectSchema, (input) => start().locateProject(input), ownPage);
+  register(IPC_CHANNELS.startChooseExport, startChooseFolderSchema, (input) => start().chooseExport(input), ownPage);
+  register(IPC_CHANNELS.startReadExport, z.strictObject({ path: absolutePathSchema }), (input) => start().readExport(input), ownPage);
+  register(
+    IPC_CHANNELS.startImportExport,
+    startImportExportSchema,
+    (input) =>
+      start().importExport({
+        path: input.path,
+        parent: input.parent,
+        name: input.name,
+        owner: input.owner,
+        password: input.password,
+        ...(input.acceptWarning === undefined ? {} : { acceptWarning: input.acceptWarning }),
+      }),
+    ownPage,
+  );
   // ─── the project this window holds ─────────────────────────────────────────
 
   // Answered for the project's own page (the ordinary sender rule). None of the three takes a path: a page

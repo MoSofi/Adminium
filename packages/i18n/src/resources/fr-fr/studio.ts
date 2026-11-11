@@ -5908,7 +5908,8 @@ export default {
       "title": "Déplacer vers un autre hébergeur",
       "server": "Sur votre propre serveur",
       "desktop": "Dans l’application de bureau",
-      "desktopLine": "L’application de bureau n’ouvre pas encore ce fichier. Importez-le avec la commande ci-dessus, sur un serveur ou sur cet ordinateur."
+      "desktopItem": "Ouvrir un projet",
+      "desktopLine": "Choisissez {item}, puis le fichier."
     },
     "putOnline": {
       "title": "Mettre en ligne",

@@ -226,6 +226,7 @@
     "file": "Fil",
     "fileNewDatabase": "Ny lokal database…",
     "fileOpenSqlite": "Åbn SQLite-fil…",
+    "fileOpenProject": "Åbn et projekt…",
     "fileBackupNow": "Sikkerhedskopiér nu…",
     "fileRestore": "Gendan fra sikkerhedskopi…",
     "edit": "Rediger",
@@ -255,5 +256,31 @@
     "updateErrorTitle": "Der kunne ikke søges efter opdateringer",
     "updateErrorDetail": "Tjek din internetforbindelse, og prøv igen.",
     "updateDownloadFailedTitle": "Opdateringen kunne ikke hentes"
+  },
+  "export": {
+    "pick": "Åbn et projekt",
+    "heading": "Åbn et projekt",
+    "reading": "Læser og kontrollerer filen…",
+    "missing": "Denne fil er flyttet eller slettet.",
+    "noOwner": "Denne fil nævner ingen superadministrator, der kan logge ind. Importér den på en server med adminium import-zip.",
+    "another": "Vælg en anden fil",
+    "holds": "En “Eksportér alt”-fil med {people, plural, one {# person} other {# personer}}, {pages, plural, one {# side} other {# sider}} og {files, plural, one {# uploadet fil} other {# uploadede filer}}. Den bliver et nyt projekt på denne computer.",
+    "owner": "Hvem logger ind først",
+    "ownerHelp": "Filen indeholder ingen adgangskoder. Denne superadministrator får den, du angiver her; alle andre nulstiller deres for at logge ind.",
+    "password": "Ny adgangskode",
+    "passwordLength": "Mindst {count, plural, one {# tegn} other {# tegn}}.",
+    "passwordAgain": "Den samme adgangskode igen",
+    "passwordDiffer": "De to adgangskoder er ikke ens.",
+    "secrets": "Forbindelsesstrenge, mail- og AI-nøgler er ikke i filen. Når projektet er åbnet, er de forbindelser, der mangler deres, markeret i Studio.",
+    "opening": "Laver projektet…",
+    "open": "Åbn projektet",
+    "made": "{name} er lavet. {owner} logger ind med den nye adgangskode.",
+    "madeConnections": "{name} er lavet. {owner} logger ind med den nye adgangskode. Angiv forbindelsesstrengen igen for: {connections}.",
+    "refuse": {
+      "fullArchive": "Dette er et arkiv af en hel server, ikke en “Eksportér alt”-fil. Gendan det på en server med adminium archive restore.",
+      "notAnExport": "Denne fil er ikke en “Eksportér alt”-fil. Lav en i Studio under Indstillinger, Eksportér alt.",
+      "refused": "Denne fil bestod ikke kontrollerne, så der blev ikke lavet noget ud fra den.",
+      "failed": "Denne fil kunne ikke åbnes."
+    }
   }
 }

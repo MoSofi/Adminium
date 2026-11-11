@@ -5908,7 +5908,8 @@ export default {
       "title": "Move to another host",
       "server": "On your own server",
       "desktop": "In the desktop app",
-      "desktopLine": "The desktop app does not open this file yet. Import it with the command above, on a server or on this computer."
+      "desktopItem": "Open a project",
+      "desktopLine": "Choose {item} and pick the file."
     },
     "putOnline": {
       "title": "Put this online",

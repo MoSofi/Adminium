@@ -54,6 +54,8 @@ import type {
   DesktopMakeProgress,
   DesktopDiagnostics,
   DesktopErrorCode,
+  DesktopImportExportInput,
+  DesktopImportExportResult,
   DesktopLocateProjectResult,
   DesktopMenuLabels,
   DesktopNewFolderInput,
@@ -61,6 +63,7 @@ import type {
   DesktopOpenProjectInput,
   DesktopOpenProjectResult,
   DesktopProjectInfo,
+  DesktopReadExportResult,
   DesktopRecentProject,
   DesktopResolveKeyResult,
   DesktopShareInfo,
@@ -314,6 +317,10 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
       locateProject: (input: { readonly path: string; readonly title: string }): Promise<DesktopLocateProjectResult> =>
         unwrap(ipc.invoke(IPC_CHANNELS.startLocateProject, input)),
       useClassic: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.startUseClassic)),
+      chooseExport: (input: { readonly title: string }): Promise<{ readonly path: string; readonly displayPath: string } | null> =>
+        unwrap(ipc.invoke(IPC_CHANNELS.startChooseExport, input)),
+      readExport: (input: { readonly path: string }): Promise<DesktopReadExportResult> => unwrap(ipc.invoke(IPC_CHANNELS.startReadExport, input)),
+      importExport: (input: DesktopImportExportInput): Promise<DesktopImportExportResult> => unwrap(ipc.invoke(IPC_CHANNELS.startImportExport, input)),
     },
 
     project: {

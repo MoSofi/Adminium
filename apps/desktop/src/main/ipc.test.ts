@@ -693,6 +693,9 @@ describe('the first screens’ channels', () => {
     forgetProject: vi.fn(() => Promise.resolve([])),
     locateProject: vi.fn(() => Promise.resolve({ status: 'cancelled' as const })),
     useClassic: vi.fn(),
+    chooseExport: vi.fn(() => Promise.resolve({ path: '/home/ava/Downloads/shop.zip', displayPath: '~/Downloads/shop.zip' })),
+    readExport: vi.fn(() => Promise.resolve({ status: 'missing' as const })),
+    importExport: vi.fn(() => Promise.resolve({ status: 'imported' as const, path: '/home/ava/Adminium/shop', owner: 'ava@example.com', connections: 0, drafts: [] })),
     trustNow: vi.fn(() => Promise.resolve()),
   });
 
@@ -714,6 +717,9 @@ describe('the first screens’ channels', () => {
     [IPC_CHANNELS.startForgetProject]: '/home/ava/Adminium/shop',
     [IPC_CHANNELS.startLocateProject]: { path: '/home/ava/Adminium/shop', title: 'Where is Shop now?' },
     [IPC_CHANNELS.startUseClassic]: undefined,
+    [IPC_CHANNELS.startChooseExport]: { title: 'Open a project' },
+    [IPC_CHANNELS.startReadExport]: { path: '/home/ava/Downloads/shop.zip' },
+    [IPC_CHANNELS.startImportExport]: { path: '/home/ava/Downloads/shop.zip', parent: '/home/ava/Adminium', name: 'Shop', owner: 'ava@example.com', password: 'a-long-new-password' },
   };
 
   it('are answered for the app’s own pages, each by its own call', async () => {
@@ -734,6 +740,19 @@ describe('the first screens’ channels', () => {
     expect(start.locateProject).toHaveBeenCalledWith({ path: '/home/ava/Adminium/shop', title: 'Where is Shop now?' });
     expect(start.useClassic).toHaveBeenCalledTimes(1);
     expect(start.state).toHaveBeenCalledTimes(1);
+    expect(start.chooseExport).toHaveBeenCalledWith({ title: 'Open a project' });
+    expect(start.readExport).toHaveBeenCalledWith({ path: '/home/ava/Downloads/shop.zip' });
+    expect(start.importExport).toHaveBeenCalledWith({ path: '/home/ava/Downloads/shop.zip', parent: '/home/ava/Adminium', name: 'Shop', owner: 'ava@example.com', password: 'a-long-new-password' });
+  });
+
+  it('take an export only from an absolute path, with a password a page cannot make endless', async () => {
+    const start = service();
+    const h = harness({ start: () => start });
+    const good = { path: '/home/ava/Downloads/shop.zip', parent: '/home/ava/Adminium', name: 'Shop', owner: 'ava@example.com', password: 'a-long-new-password' };
+    for (const bad of [{ ...good, path: 'shop.zip' }, { ...good, password: '' }, { ...good, password: 'x'.repeat(1025) }, { ...good, owner: '' }, { ...good, extra: true }]) {
+      expect(expectFail(await h.ipc.invoke(IPC_CHANNELS.startImportExport, bad, OWN_PAGE)).code).toBe('INVALID_PAYLOAD');
+    }
+    expect(start.importExport).not.toHaveBeenCalled();
   });
 
   it('leaves out what the page did not say rather than passing undefined', async () => {

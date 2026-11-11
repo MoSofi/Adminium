@@ -50,7 +50,7 @@ export interface MakeProjectDeps {
   run: (
     command: string,
     args: readonly string[],
-    opts: { cwd: string; env: Record<string, string>; timeoutMs: number; onOutput?: (text: string) => void },
+    opts: { cwd: string; env: Record<string, string>; timeoutMs: number; onOutput?: (text: string) => void; /** Written to its standard input, then closed: a password never goes on its command line. */ input?: string },
   ) => Promise<RanProgram>;
   log?: ((line: string) => void) | undefined;
 }
@@ -160,7 +160,7 @@ export function createInstallPackages(deps: MakeProjectDeps): (input: { root: st
 }
 
 /** The environment the engine's command line is started with for a folder: the app's own program as Node, its programs, no secret of the app's. */
-async function engineEnv(deps: MakeProjectDeps): Promise<Record<string, string>> {
+export async function engineEnv(deps: MakeProjectDeps): Promise<Record<string, string>> {
   const programs = await deps.programs();
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(deps.env)) if (value !== undefined) env[key] = value;
@@ -202,7 +202,7 @@ export function createUpdateProject(deps: MakeProjectDeps): (input: { root: stri
 export async function runToEnd(
   command: string,
   args: readonly string[],
-  opts: { cwd: string; env: Record<string, string>; timeoutMs: number; onOutput?: (text: string) => void },
+  opts: { cwd: string; env: Record<string, string>; timeoutMs: number; onOutput?: (text: string) => void; input?: string },
 ): Promise<RanProgram> {
   const { spawn, spawnSync } = await import('node:child_process');
   return new Promise((done) => {
@@ -218,7 +218,7 @@ export async function runToEnd(
     try {
       // A group of its own: the command starts npm, npm starts more, and stopping the first alone leaves the rest
       // writing into the folder.
-      child = spawn(command, [...args], { cwd: opts.cwd, env: opts.env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
+      child = spawn(command, [...args], { cwd: opts.cwd, env: opts.env, windowsHide: true, stdio: [opts.input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
     } catch (error) {
       done({ code: null, output: error instanceof Error ? error.message : String(error), timedOut: false });
       return;
@@ -242,6 +242,11 @@ export async function runToEnd(
     }, opts.timeoutMs);
     child.stdout?.on('data', keep);
     child.stderr?.on('data', keep);
+    if (opts.input !== undefined && child.stdin !== null) {
+      // A program that ends before it reads is not a failure of this write.
+      child.stdin.on('error', () => undefined);
+      child.stdin.end(opts.input);
+    }
     child.once('error', (error) => {
       clearTimeout(timer);
       process.removeListener('exit', stopAll);

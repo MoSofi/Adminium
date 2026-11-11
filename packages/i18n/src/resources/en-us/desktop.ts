@@ -236,6 +236,7 @@ export default {
     "file": "File",
     "fileNewDatabase": "New local database…",
     "fileOpenSqlite": "Open SQLite file…",
+    "fileOpenProject": "Open a project…",
     "fileBackupNow": "Back up now…",
     "fileRestore": "Restore from backup…",
     "edit": "Edit",
@@ -265,5 +266,31 @@ export default {
     "updateErrorTitle": "Couldn’t check for updates",
     "updateErrorDetail": "Check your internet connection and try again.",
     "updateDownloadFailedTitle": "The update couldn’t be downloaded"
+  },
+  "export": {
+    "pick": "Open a project",
+    "heading": "Open a project",
+    "reading": "Reading and checking the file…",
+    "missing": "This file was moved or deleted.",
+    "noOwner": "This file names no Super Admin who could sign in. Import it on a server with adminium import-zip.",
+    "another": "Choose another file",
+    "holds": "An Export everything file with {people, plural, one {# person} other {# people}}, {pages, plural, one {# page} other {# pages}} and {files, plural, one {# uploaded file} other {# uploaded files}}. It becomes a new project on this computer.",
+    "owner": "Who signs in first",
+    "ownerHelp": "The file carries nobody’s password. This Super Admin gets the one you set here; everyone else resets theirs to sign in.",
+    "password": "New password",
+    "passwordLength": "At least {count, plural, one {# character} other {# characters}}.",
+    "passwordAgain": "The same password again",
+    "passwordDiffer": "The two passwords are not the same.",
+    "secrets": "Connection strings, mail and AI keys are not in the file. After it opens, the connections that need theirs are marked in Studio.",
+    "opening": "Making the project…",
+    "open": "Open the project",
+    "made": "{name} was made. {owner} signs in with the new password.",
+    "madeConnections": "{name} was made. {owner} signs in with the new password. Enter the connection string again for: {connections}.",
+    "refuse": {
+      "fullArchive": "This is a whole-server archive, not an Export everything file. Restore it on a server with adminium archive restore.",
+      "notAnExport": "This file is not an Export everything file. Make one in Studio, under Settings, Export everything.",
+      "refused": "This file did not pass the checks, so nothing was made from it.",
+      "failed": "This file could not be opened."
+    }
   }
 } as const;

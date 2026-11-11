@@ -236,6 +236,7 @@ export default {
     "file": "文件",
     "fileNewDatabase": "新建本地数据库…",
     "fileOpenSqlite": "打开 SQLite 文件…",
+    "fileOpenProject": "打开项目…",
     "fileBackupNow": "立即备份…",
     "fileRestore": "从备份恢复…",
     "edit": "编辑",
@@ -265,5 +266,31 @@ export default {
     "updateErrorTitle": "无法检查更新",
     "updateErrorDetail": "请检查网络连接后重试。",
     "updateDownloadFailedTitle": "无法下载更新"
+  },
+  "export": {
+    "pick": "打开项目",
+    "heading": "打开项目",
+    "reading": "正在读取并检查文件…",
+    "missing": "此文件已被移动或删除。",
+    "noOwner": "此文件没有可以登录的超级管理员。请在服务器上用 adminium import-zip 导入。",
+    "another": "选择其他文件",
+    "holds": "一个“导出全部”文件，包含 {people, plural, other {# 人}}、{pages, plural, other {# 个页面}}和{files, plural, other {# 个上传的文件}}。它会成为这台电脑上的一个新项目。",
+    "owner": "谁先登录",
+    "ownerHelp": "文件中不含任何人的密码。这位超级管理员会获得你在这里设置的密码；其他人需重置自己的密码才能登录。",
+    "password": "新密码",
+    "passwordLength": "至少 {count, plural, other {# 个字符}}。",
+    "passwordAgain": "再次输入同一密码",
+    "passwordDiffer": "两次输入的密码不一致。",
+    "secrets": "连接字符串、邮件和 AI 密钥不在文件中。打开后，需要重新填写的连接会在 Studio 中标出。",
+    "opening": "正在创建项目…",
+    "open": "打开项目",
+    "made": "已创建 {name}。{owner} 用新密码登录。",
+    "madeConnections": "已创建 {name}。{owner} 用新密码登录。请为以下连接重新填写连接字符串：{connections}。",
+    "refuse": {
+      "fullArchive": "这是整台服务器的归档，不是“导出全部”文件。请在服务器上用 adminium archive restore 恢复。",
+      "notAnExport": "此文件不是“导出全部”文件。请在 Studio 的“设置”→“导出全部”中创建。",
+      "refused": "此文件未通过检查，因此没有用它创建任何内容。",
+      "failed": "无法打开此文件。"
+    }
   }
 } as const;
