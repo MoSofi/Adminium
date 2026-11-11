@@ -154,10 +154,12 @@ import {
   plannedPublicEndpointsFor,
   keepsMoney,
   publicAccessWarnings,
+  publicWideningsOf,
   signsInByLink,
   takeBackPublicAccess,
   type PublicAccessCommit,
 } from './manifest-public.js';
+import { refusePublicWider, type PublicWidening } from '../add-ons/public-wider.js';
 import { installOutbox, libraryFiles, mailCarries, plannedAfterInstallOfSenders, templateProblems, type OutboxResult } from './manifest-outbox.js';
 import { installAutomations, plannedAfterInstallOfRules, sampleTablesOf } from './manifest-automations.js';
 import { recordAfterInstall, type AfterInstallItem } from './after-install.js';
@@ -1650,6 +1652,45 @@ export function createAppInstallService(deps: AppRoutesDeps) {
   }
 
   /** What the app's guests could do, for the check step: its endpoints, what would stop them, who may allow them. */
+  /**
+   * WHAT AN UPDATE WOULD WIDEN FOR THE KEYS ALREADY USING ITS ENDPOINTS: each
+   * endpoint stored here as the app's (or an add-on's) whose new definition
+   * shows such a key more columns, takes another method, or lets more rows
+   * through. Asked on the update's check and saved only when the operator
+   * allows it (`publicWider: true`); never an update's side effect, and never
+   * left as it was without a word.
+   *
+   * For an app: its own entries and those of the add-ons here for it, as the
+   * versions it brings (`bringing`) define them, and each add-on it updates
+   * with all of its own entries. For an add-on: its own entries.
+   */
+  async function publicWiderOf(input: {
+    manifest: Manifest;
+    connectionId: string;
+    names: Readonly<Record<string, string>>;
+    bringing?: readonly AppAddOnRow[] | undefined;
+  }): Promise<PublicWidening[]> {
+    const { manifest, connectionId, names } = input;
+    const access = deps.publicAccess;
+    if (access === undefined) return [];
+    const view = await access.viewFor(connectionId);
+    if (view === null) return [];
+    if (manifest.kind !== 'app') {
+      return (manifest.publicAccess ?? []).length === 0 ? [] : publicWideningsOf(access.service, deps.meta, connectionId, planPublicEndpoints(manifest, names, view, { tablesMadeLater: true }));
+    }
+    const bringing = input.bringing ?? [];
+    const brought = await broughtAddOns(bringing, connectionId);
+    const here = await liveAddOnsFor(deps.meta, manifest, connectionId);
+    const planned =
+      (manifest.publicAccess ?? []).length === 0
+        ? []
+        : plannedPublicEndpointsFor(manifest, names, view, { tablesMadeLater: true }, [...here.filter((addOn) => !brought.some((other) => other.key === addOn.key)), ...brought]);
+    // An add-on this update moves saves every entry of its own, its link key's too.
+    const updated = brought.filter((addOn) => bringing.some((row) => row.key === addOn.key && row.action === 'update'));
+    const theirs = updated.flatMap((addOn) => planPublicEndpoints(addOn.manifest, addOn.names, view, { tablesMadeLater: true }));
+    return publicWideningsOf(access.service, deps.meta, connectionId, [...planned, ...theirs]);
+  }
+
   async function publicAccessOf(
     manifest: Manifest,
     connectionId: string,
@@ -1851,6 +1892,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     return async (change: PublicAccessCommit): Promise<void> => {
       if (change.kind === 'endpoint') {
         await audit('public-endpoint.save', { after: { connectionId, ref: change.ref, app } });
+        // Allowed by the operator on the update's check: what the keys using it now see and do more, said on its own.
+        if (change.widened !== undefined) await audit('public-endpoint.widen', { after: { connectionId, ref: change.ref, app, ...change.widened } });
         return;
       }
       deps.publicAccess?.invalidateKey?.(change.keyId);
@@ -1922,6 +1965,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     refuse = strict,
     /** The check's answers for the app's page addresses that pages here already have. */
     pageChoices?: Readonly<Record<string, PageChoice>>,
+    /** The endpoints the operator allowed this update to widen for the keys already using them (`publicWider`). */
+    wider?: ReadonlySet<string>,
   ): Promise<
     | {
         pages: MaterialiseResult;
@@ -2157,6 +2202,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               grant: grant === true,
               ...(grant === true ? {} : { refusal: grant.refusal }),
               ...(ownFolder && grant === true ? { ownFolder: true } : {}),
+              ...(wider === undefined || wider.size === 0 ? {} : { wider }),
               onCommitted: record,
               // The add-ons that are here for the app: their entries go on its key under the same say.
               ...(manifest.kind === 'app' ? { addOns: await liveAddOnsFor(deps.meta, manifest, connectionId) } : {}),
@@ -2653,6 +2699,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         publicAccess: input.publicAccess === true && (await actor.can(PERMISSIONS.apiKeysManage)),
         // The developer applying their own folder: what an add-on it updates gives roles is theirs to see in the folder, as the app's own roles are.
         roleTables: true,
+        // …and so is what it widens publicly, as the app's own endpoints change with the folder.
+        publicWider: true,
       });
       addOnsDone = {
         installed: [...(addOnsDone?.installed ?? []), ...done.installed],
@@ -3091,6 +3139,14 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         { reason: 'ROLE_TABLES_WIDER', roleTables: othersWider.map((entry) => ({ app: entry.app, appName: entry.appName, role: entry.role, roleName: entry.roleName, addOn: entry.addOn, table: entry.table, wider: entry.wider! })) },
       );
     }
+    /*
+     * …and may widen what its endpoints show the keys already using them
+     * (another app's guests): asked as an update of it would ask.
+     */
+    if (updatingAddOns.size > 0 && connectionId !== undefined) {
+      const publicWider = await publicWiderOf({ manifest, connectionId, names: {}, bringing: addOnRows.filter((row) => updatingAddOns.has(row.key)) });
+      refusePublicWider(`Installing "${key}"`, publicWider, input.publicWider, await actor.can(PERMISSIONS.apiKeysManage));
+    }
     const strangers = unknownPicks(manifest, input.modules);
     if (strangers.length > 0) {
       throw new ValidationFailedError(`"${key}" has no part to switch called ${strangers.map((id) => `"${id}"`).join(', ')}.`, { reason: 'NO_SUCH_PART', modules: strangers });
@@ -3199,6 +3255,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           manifestRowId: rowId,
           publicAccess: grantsPublicAccess,
           roleTables: input.roleTables === true,
+          publicWider: input.publicWider === true,
         });
         // Their tables exist now: the app's plan is read again from the
         // database, so a foreign key into one is made with its real type.
@@ -3606,6 +3663,24 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     }
 
     /*
+     * WHAT THE NEW VERSION WOULD LET THE KEYS ALREADY USING ITS ENDPOINTS SEE
+     * OR DO MORE OF (a column a shop page now reads, say) is said on the check
+     * and saved only when the operator allows it (`publicWider: true`), and
+     * only by someone who may manage API keys. Refused before anything moves.
+     */
+    const wideningIn = installed.row.connectionId;
+    const publicWider =
+      wideningIn === null
+        ? []
+        : await publicWiderOf({
+            manifest,
+            connectionId: wideningIn,
+            names: await appTablesRepo(deps.meta).realNames(wideningIn, key),
+            bringing: addOnRows.filter((row) => addOnSteps.some((step) => step.key === row.key)),
+          });
+    refusePublicWider(`"${key}" ${to}`, publicWider, input.body?.publicWider, canGrantKeys);
+
+    /*
      * Tables against the connection the installed row ALREADY has, never a
      * new one: switching databases is an uninstall and an install, where
      * the operator is asked. New tables are created; a table missing columns
@@ -3672,6 +3747,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         manifestRowId: installed.row.id,
         publicAccess: input.body?.publicAccess === true && (await actor.can(PERMISSIONS.apiKeysManage)),
         roleTables: input.body?.roleTables === true,
+        // Asked on the check above and refused there unless allowed.
+        publicWider: input.body?.publicWider === true,
       });
       addOnsDone = {
         installed: [...(addOnsDone?.installed ?? []), ...done.installed],
@@ -3841,6 +3918,10 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         // Strict: a part of the new version that cannot be written stops the update, to be finished.
         true,
         updateAnswers(input.body).pages,
+        // What the operator allowed it to widen for the keys already using its endpoints, as the check listed it.
+        input.body?.publicWider === true && connectionId !== null
+          ? new Set((await publicWiderOf({ manifest, connectionId, names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, key)) })).map((entry) => entry.ref))
+          : undefined,
       );
 
       /*
@@ -4393,6 +4474,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     },
     createTables: (key, manifest, connectionId, verb, opts, expectedChecksum) => createTables(key, manifest, connectionId, verb, opts, expectedChecksum),
     writePages,
+    publicWiderOf: (input) => publicWiderOf(input),
     publicAccessOf: (manifest, connectionId, names, actor, installed) => publicAccessOf(manifest, connectionId, names, actor, installed),
     writeSeeds,
     makeDocuments: async (manifest, connectionId, userId) =>
@@ -4436,6 +4518,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     installedAppNames,
     otherVersionElsewhere,
     publicAccessOf,
+    publicWiderOf,
     publicAccessRecorder,
     writePages,
     createTables,

@@ -1237,6 +1237,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           // What the add-ons it brings would serve through its key is part of what is being allowed.
           addOns,
         );
+        // An update's check: what it would widen for the keys already using its endpoints (and its add-ons').
+        const publicWider = await service.publicWiderOf({ manifest, connectionId, names: dto.names ?? {}, bringing: addOns });
         // What the add-ons refuse whatever the install says, so `installable` is the install's answer too.
         const addOnProblems = addOnPlanProblems(manifest.name, addOns);
         // An update to a version without the server-wide part puts back what the copy here wrote over the server.
@@ -1250,6 +1252,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             ...(restored.length === 0 ? {} : { instanceRestore: { needs: PERMISSIONS.settingsManage, canRestore: await canOf(request)(PERMISSIONS.settingsManage), values: restored } }),
             ...(addOnProblems.length === 0 ? {} : { installable: false, problems: [...dto.problems, ...addOnProblems] }),
             ...(publicAccess === undefined ? {} : { publicAccess }),
+            ...(publicWider.length === 0 ? {} : { publicWider }),
             ...(addOns.length === 0 ? {} : { addOns }),
             ...(declared.kind !== 'app' || declared.modules === undefined ? {} : { modules: planModulesOf(declared, leftOut, installed === undefined ? null : readAppModules(installed.row.modules)), whole: planWholeOf(declared) }),
           },

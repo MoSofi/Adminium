@@ -672,6 +672,8 @@ export async function runAddOnSteps(
     publicAccess?: boolean | undefined;
     /** The app's install or update allowed what an add-on it updates gives apps' roles more of its tables (`ROLE_TABLES_WIDER`). */
     roleTables?: boolean | undefined;
+    /** …and what an add-on it updates widens for the keys already using its endpoints (`PUBLIC_WIDER`). */
+    publicWider?: boolean | undefined;
   },
 ): Promise<AddOnsDone> {
   const done: AddOnsDone = { installed: [], updated: [], attached: [] };
@@ -706,6 +708,7 @@ export async function runAddOnSteps(
         prune: false,
         settle: 'caller',
         roleTables: input.roleTables,
+        publicWider: input.publicWider,
       });
       await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via, settle: 'caller' });
       done.updated.push({ key: step.key, name: step.name, from: step.from ?? '', to: step.version });

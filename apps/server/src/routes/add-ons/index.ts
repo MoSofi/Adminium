@@ -723,11 +723,14 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     // decrypt anything.
     const credential = await manifests.credentialStatus(installed.row.id);
     const copy = { installId: installed.row.id, connectionId: installed.row.scopeKey === SERVER_SCOPE ? null : installed.row.scopeKey, slug: installed.row.instanceSlug };
+    const connectionName =
+      copy.connectionId === null ? null : ((await deps.meta.db.selectFrom('adminium_connections').select('name').where('id', '=', copy.connectionId).executeTakeFirst())?.name ?? null);
     return {
       key: manifest.key,
       name: manifest.name,
       version: installed.row.version,
       ...copy,
+      connectionName,
       connectKind: block.connect.kind,
       connected: credential !== null,
       // The one disk read in this DTO. Without it the list is a pure meta read
@@ -1551,10 +1554,19 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const install = await addOnInstallOf(request, request.params.key);
-        const { plan, from, to, connectionId, checksum, manifest, roleTables } = await planAddOnUpdate(installer, { key: request.params.key, to: request.body.to, installId: install.row.id });
+        const { plan, from, to, connectionId, checksum, manifest, roleTables, publicWider } = await planAddOnUpdate(installer, { key: request.params.key, to: request.body.to, installId: install.row.id });
         const attached = install.attachments.map((attachment) => attachment.attachedTo);
         const publicAccess = connectionId === null ? undefined : await publicPlanOf(request, manifest, connectionId, attached);
-        return { plan, from, to, connectionId, ...(checksum === undefined ? {} : { checksum }), ...(publicAccess === undefined ? {} : { publicAccess }), ...(roleTables.length === 0 ? {} : { roleTables }) };
+        return {
+          plan,
+          from,
+          to,
+          connectionId,
+          ...(checksum === undefined ? {} : { checksum }),
+          ...(publicAccess === undefined ? {} : { publicAccess }),
+          ...(roleTables.length === 0 ? {} : { roleTables }),
+          ...(publicWider.length === 0 ? {} : { publicWider }),
+        };
       },
     );
 
@@ -1582,6 +1594,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           connectionId: request.body.connectionId,
           publicAccess: request.body.publicAccess,
           roleTables: request.body.roleTables,
+          publicWider: request.body.publicWider,
           actor: actorOf(request),
           host: {
             log: request.log,

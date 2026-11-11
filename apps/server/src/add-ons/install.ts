@@ -43,6 +43,7 @@ import {
 import { SERVER_SCOPE, appTablesRepo, auditRepo, inIdOrder, manifestsRepo, readJson, type AttachTarget, type InstalledManifest, type MetaDb } from '@adminium/meta';
 
 import { addOnGrantsWider, widerWords, type AddOnGrantWider } from './grants-wider.js';
+import { refusePublicWider, type PublicWidening } from './public-wider.js';
 import { refuseUnbuiltManifest } from '../crud/unbuilt-rules.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { addOnIsServerWide, MAX_INSTALLS_PER_KEY, resolveInstall, slugForInstall } from '../installs/resolve.js';
@@ -989,6 +990,13 @@ export interface UpdateAddOnInput {
    * it such an update is refused (422 `ROLE_TABLES_WIDER`) before anything moves.
    */
   roleTables?: boolean | undefined;
+  /**
+   * The operator's say on what the version would widen for the keys already
+   * using its public endpoints (a column an app's guests now see): only
+   * `true` allows it; without it such an update is refused (422
+   * `PUBLIC_WIDER`) before anything moves.
+   */
+  publicWider?: boolean | undefined;
 }
 
 export interface UpdateAddOnResult {
@@ -1094,7 +1102,17 @@ const widerEntry = (entry: AddOnGrantWider) => ({ app: entry.app, appName: entry
 export async function planAddOnUpdate(
   deps: AddOnInstallerDeps,
   input: Pick<UpdateAddOnInput, 'key' | 'to' | 'hosts' | 'except' | 'installId' | 'connectionId'>,
-): Promise<{ plan: InstallPlanDto; from: string; to: string; connectionId: string | null; checksum?: string | undefined; manifest: AddOnManifest; roleTables: ReturnType<typeof widerEntry>[] }> {
+): Promise<{
+  plan: InstallPlanDto;
+  from: string;
+  to: string;
+  connectionId: string | null;
+  checksum?: string | undefined;
+  manifest: AddOnManifest;
+  roleTables: ReturnType<typeof widerEntry>[];
+  /** What the version would widen for the keys already using its endpoints: the update gives it only when allowed. */
+  publicWider: PublicWidening[];
+}> {
   const target = await updateTarget(deps, input);
   const { manifest, attachedTo, hosts, installed } = target;
   // What the version gives apps' roles more of its tables: shown on the check, given only when allowed.
@@ -1107,6 +1125,8 @@ export async function planAddOnUpdate(
       connectionId: installed.row.connectionId,
       manifest,
       roleTables,
+      // A version that keeps no tables has no public side.
+      publicWider: [],
     };
   }
   const connectionId = installed.row.connectionId ?? (await deps.schemaTarget?.resolve?.({ ownsTables: true, attachTo: attachedTo })) ?? null;
@@ -1114,7 +1134,10 @@ export async function planAddOnUpdate(
     throw new ValidationFailedError(`"${input.key}" needs tables, and this instance has no database connection to create them in. Connect a data source first.`, { code: 'ADD_ON_NO_CONNECTION' });
   }
   const planned = await planAddOn(deps, manifest, { attachTo: attachedTo, hosts, connectionId, warnings: [], updating: installed.row.id });
-  return { plan: planned.dto, from: target.from, to: target.to, connectionId, checksum: planned.checksum, manifest, roleTables };
+  const core = deps.core?.() ?? null;
+  const names = { ...(planned.dto.names ?? {}), ...(await appTablesRepo(deps.meta).realNames(connectionId, input.key)) };
+  const publicWider = core === null ? [] : await core.publicWiderOf({ manifest, connectionId, names });
+  return { plan: planned.dto, from: target.from, to: target.to, connectionId, checksum: planned.checksum, manifest, roleTables, publicWider };
 }
 
 /**
@@ -1194,6 +1217,13 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
     throw new AppError(409, 'SCHEMA_DRIFT', `The database changed since "${key}" was checked. Check again, then update.`, { addOn: key, connectionId });
   }
   await refuseUnlessMayOpen(input.actor, input.publicAccess, key);
+  /*
+   * WHAT THE VERSION WOULD WIDEN FOR THE KEYS ALREADY USING ITS ENDPOINTS is
+   * the operator's call too: refused before anything moves unless allowed.
+   */
+  const names = { ...(planned.dto.names ?? {}), ...(await appTablesRepo(deps.meta).realNames(connectionId, key)) };
+  const wider = await core.publicWiderOf({ manifest, connectionId, names });
+  refusePublicWider(`"${key}" ${to}`, wider, input.publicWider, (await input.actor.can?.(PERMISSIONS.apiKeysManage)) === true);
 
   const records = appTablesRepo(deps.meta);
   const who: InstallActor = {
@@ -1245,7 +1275,8 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
     );
     reused = applied.reused;
     stage = 'writers';
-    written = (await core.writePages(who, where, manifest, installed.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, true, consentOf(input.publicAccess))) ?? {};
+    written =
+      (await core.writePages(who, where, manifest, installed.row.id, connectionId, input.actor.id, true, checked.plan.names ?? {}, true, consentOf(input.publicAccess), false, true, undefined, new Set(wider.map((entry) => entry.ref)))) ?? {};
     /*
      * Starting rows only for the tables THIS version brings: a table the
      * version before already had is the owner's by now, empty or not. Read
@@ -1334,8 +1365,8 @@ export async function updateAddOn(deps: AddOnInstallerDeps, input: UpdateAddOnIn
   const hadPublic = ((installed.document as { publicAccess?: unknown[] } | null)?.publicAccess ?? []).length > 0;
   const hasPublic = (manifest.publicAccess ?? []).length > 0 || hadPublic;
   if (hasPublic || saysSomething(settled)) written = { ...written, publicAccessByApp: settled };
-  const names = await records.realNames(connectionId, key);
-  const removed = await core.settleAddOnPublic({ manifest, connectionId, names, actor: settler(input.actor) });
+  const realNames = await records.realNames(connectionId, key);
+  const removed = await core.settleAddOnPublic({ manifest, connectionId, names: realNames, actor: settler(input.actor) });
   if (hasPublic || removed.removed.length + removed.kept.length > 0) written = { ...written, publicAccessRemoved: removed };
   return { installed: (await manifests.findById(installed.row.id))!, from, to, pruned, connectionId, created, reused, written };
 }

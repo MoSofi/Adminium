@@ -3985,7 +3985,7 @@ for (const [dialect, available] of legs) {
       expect((await keysOf()).every((k) => k.revokedAt !== null)).toBe(true);
     }, 60_000);
 
-    it('holds the app’s own key to the safe list, and an update may not widen it', async () => {
+    it('holds the app’s own key to the safe list, and an update widens it only when allowed', async () => {
       const h = (open = await harness(dialect));
       const withAccess = (version: string, select: string[]) => ({
         ...MANIFEST,
@@ -4066,13 +4066,16 @@ for (const [dialect, available] of legs) {
         ['pos_menu_items', 'kept'],
         ['pos_payments_claimed', 'granted'],
       ]);
-      // Allowed, even: a widening is not the operator's to allow here.
-      const updated = await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: true } });
-      expect(updated.statusCode, updated.body).toBe(200);
-      const access = updated.json().app.publicAccess;
-      expect(access.skipped.map((s: { ref: string }) => s.ref)).toEqual(['pos_menu_items']);
-      expect(access.skipped[0].reason).toContain('would see more of');
+      // The widening is the operator's own say, asked apart from new public access: without it the update is refused before anything moves.
+      const refused = await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: true } });
+      expect(refused.statusCode, refused.body).toBe(422);
+      expect(refused.json().message).toContain('"pos_menu_items" would show name, price');
       expect((await stored('pos_menu_items')).select).toEqual(['id']);
+      // Allowed: the endpoint shows what the version says, and nothing is left out.
+      const updated = await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: true, publicWider: true } });
+      expect(updated.statusCode, updated.body).toBe(200);
+      expect(updated.json().app.publicAccess.skipped).toEqual([]);
+      expect((await stored('pos_menu_items')).select).toEqual(['id', 'name', 'price']);
       expect((await publicKeysRepo(h.meta).findById(keyId))!.revokedAt).toBeNull();
       // …and the key still holds both, as it did.
       expect([...(await service.heldByKey(h.connectionId, keyId)).keys()].sort()).toEqual(['pos_menu_items', 'pos_payments_claimed']);

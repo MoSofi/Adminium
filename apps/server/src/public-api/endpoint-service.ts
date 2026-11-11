@@ -242,6 +242,21 @@ export interface SaveEndpointInput {
   operatorAllowed?: boolean;
 }
 
+/**
+ * What saving a definition over a stored endpoint would widen for an app's
+ * own key that holds it: the edits a save refuses unless the operator
+ * allows them (`operatorAllowed`). `columns` and `methods` are what the
+ * endpoint itself would newly show and take; `rows` says a filter or a limit
+ * on writes was loosened; `reasons` says each in words.
+ */
+export interface ManagedWidening {
+  ref: string;
+  columns: string[];
+  methods: string[];
+  rows: boolean;
+  reasons: string[];
+}
+
 export interface SaveCheck {
   /** Everything that refuses the save: the definition's own issues, then what it would break. */
   issues: ScopeIssue[];
@@ -510,6 +525,44 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       widened,
     };
     return { check, at, revision, existing, writes };
+  }
+
+  /**
+   * What saving `definition` over the stored endpoint `ref` would widen for
+   * an app's own key that holds it, or null when it widens nothing (or the
+   * endpoint is not stored yet, or no app's key holds it). Worked out from
+   * the definitions alone and never checked against the live tables, so an
+   * update can ask before it adds the columns its endpoints will show.
+   */
+  async function managedWidening(input: { connectionId: string; ref: string; definition: PublicEndpointDefinition }): Promise<ManagedWidening | null> {
+    const stored = await endpoints.listByConnection(input.connectionId);
+    const existing = stored.find((e) => e.ref === input.ref);
+    if (existing === undefined) return null;
+    const view = await deps.viewFor(input.connectionId);
+    const after = endpointMap(stored);
+    after.set(existing.id, { id: existing.id, ref: input.ref, definition: input.definition });
+    const prior = parseDefinition(existing.definition);
+    const before = prior.ok ? prior.definition : null;
+    const reasons: ScopeIssue[] = [];
+    const columns = new Set<string>();
+    const methods = new Set<string>(before === null ? [] : input.definition.methods.filter((m) => !before.methods.includes(m)));
+    let rows = false;
+    for (const key of await affectedKeys(input.connectionId, existing.id, input.ref, now())) {
+      if (key.managedBy === null || !hasOwn(key.access, existing.id)) continue;
+      const next = deriveScopeDocument({ kind: key.kind, access: key.access, app: key.app }, after, view);
+      // Against the document the key serves now, as a save compares them.
+      const gains = hasVisitorReach(key.kind) ? wideningOf(key.storedDocument, next.document) : [];
+      const issues = managedEditIssues(input.ref, before, input.definition, gains);
+      if (issues.length === 0) continue;
+      reasons.push(...issues);
+      for (const gain of gains.filter((g) => g.ref === input.ref)) {
+        for (const column of gain.columns) columns.add(column);
+        for (const method of gain.methods) methods.add(method);
+        rows = rows || gain.rows;
+      }
+    }
+    if (reasons.length === 0) return null;
+    return { ref: input.ref, columns: [...columns], methods: [...methods].filter((m) => before === null || !before.methods.includes(m as PublicMethod)), rows, reasons: [...new Set(dedupeIssues(reasons).map((issue) => issue.message))] };
   }
 
   /** The builder's Apply and Save: what a save would refuse, break and widen (the `/check` route). */
@@ -984,7 +1037,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     return out;
   }
 
-  return { checkEndpoint, saveEndpoint, removeEndpoint, renameEndpoint, createKey, scopeLinkIssues, setManagedAccess, narrowManagedAccess, dropEndpointGrants, heldByKey };
+  return { checkEndpoint, managedWidening, saveEndpoint, removeEndpoint, renameEndpoint, createKey, scopeLinkIssues, setManagedAccess, narrowManagedAccess, dropEndpointGrants, heldByKey };
 }
 
 export type EndpointService = ReturnType<typeof createEndpointService>;

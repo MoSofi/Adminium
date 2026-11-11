@@ -253,7 +253,15 @@ first if it has to, then checks the tables again:
   shows it on the **Allow this public access** card, and it is given only if you tick it. Through
   the API, send `"publicAccess": true` with the update; without it nothing new is given. What the
   version no longer declares is taken back from the app's keys on every update, and a key it no
-  longer declares is revoked. An endpoint the new version would widen is left as it was.
+  longer declares is revoked.
+- **Endpoints that would show visitors more are shown first.** When the new version changes a
+  public endpoint the app's key already uses so that visitors would see or do more (a new column,
+  a new method, a filter loosened), the check lists each one on the **Shows visitors more** card,
+  the app's own and those of an add-on it updates or serves, and **Update** waits until you tick
+  **Allow it**. Only someone who may manage API keys can allow it. Through the API, send
+  `"publicWider": true` with the update; without it the update is refused with `PUBLIC_WIDER` and
+  nothing runs. Each widening is written to the audit log (`public-endpoint.widen`). An endpoint
+  the new version narrows, or does not change, is saved without a question.
 - **Roles that get more of an add-on's tables are shown first.** When the new version's roles
   would read or change more of an add-on's tables than the running version's (a new action, a new
   column, or every column where before it was some), the check lists what is new, and pressing

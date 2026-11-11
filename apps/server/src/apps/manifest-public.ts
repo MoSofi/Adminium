@@ -41,6 +41,7 @@ import {
 } from '@adminium/meta';
 
 import { SELF_ORIGIN_SENTINEL } from '../config/env.js';
+import type { PublicWidening } from '../add-ons/public-wider.js';
 import { isEmailConfigured } from '../email/send.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { copyPlainText } from '../public-api/anonymous-caps.js';
@@ -678,6 +679,29 @@ export function plannedPublicEndpointsFor(
   return out;
 }
 
+/**
+ * Of the endpoints a version plans, each one stored here as its owner's whose
+ * new definition would let a key that already uses it see or do more: an
+ * update asks the operator before it saves any of them (`publicWider`). An
+ * endpoint not made yet is no widening: a new entry is asked about as public
+ * access is.
+ */
+export async function publicWideningsOf(
+  service: Pick<EndpointService, 'managedWidening'>,
+  meta: MetaDb,
+  connectionId: string,
+  planned: readonly PlannedPublicEndpoint[],
+): Promise<PublicWidening[]> {
+  const owners = new Map((await publicEndpointsRepo(meta).listByConnection(connectionId)).map((endpoint) => [endpoint.ref, endpoint.managedBy]));
+  const out: PublicWidening[] = [];
+  for (const entry of planned) {
+    if (entry.pending || entry.definition === null || owners.get(entry.ref) !== entry.owner || out.some((other) => other.ref === entry.ref)) continue;
+    const found = await service.managedWidening({ connectionId, ref: entry.ref, definition: entry.definition });
+    if (found !== null) out.push({ ...found, owner: entry.owner });
+  }
+  return out;
+}
+
 /** Whether an app signs its people in by an emailed link. */
 export function signsInByLink(manifest: Manifest): boolean {
   return manifest.kind === 'app' && (manifest.publicAccess ?? []).some((entry) => entry.claim !== undefined && 'verify' in entry.claim && entry.claim.verify === 'email-link');
@@ -815,6 +839,13 @@ export async function installPublicAccess(input: {
    */
   ownFolder?: boolean | undefined;
   /**
+   * The endpoints the operator allowed this update to widen for the keys
+   * that already use them (`publicWider`), by ref: each is saved as the
+   * version defines it. Any other endpoint a key uses that the version would
+   * widen is left as it was, and said in `skipped`.
+   */
+  wider?: ReadonlySet<string> | undefined;
+  /**
    * Told of each change the moment it is written — an endpoint saved, a key
    * made, a live key's grants changed — so it is audited and the resolver
    * forgets the key even when a later step of this call throws.
@@ -881,8 +912,10 @@ export async function installPublicAccess(input: {
     throw new Error(`The public access this app asks for has the name of an endpoint here that is not the app's (${takenHere.map((ref) => `"${ref}"`).join(', ')}). It is never written over: rename or remove that endpoint first.`);
   }
   for (const entry of planned) {
+    // The operator allowed this one to show more to the keys that use it (an update's `publicWider`).
+    const allowedWider = input.wider?.has(entry.ref) === true;
     try {
-      await input.service.saveEndpoint({
+      const result = await input.service.saveEndpoint({
         connectionId: input.connectionId,
         ref: entry.ref,
         definition: entry.definition!,
@@ -891,13 +924,20 @@ export async function installPublicAccess(input: {
         managedBy: entry.owner,
         ...(entry.owner === input.manifest.key ? { installId: input.install.id } : {}),
         // The operator's own folder, being edited: the endpoint changes with the manifest.
-        ...(input.ownFolder === true && input.grant !== false ? { operatorAllowed: true } : {}),
+        ...((input.ownFolder === true && input.grant !== false) || allowedWider ? { operatorAllowed: true } : {}),
       });
       saved.push(entry.ref);
-      await input.onCommitted?.({ kind: 'endpoint', ref: entry.ref });
+      const gains = allowedWider ? result.widened.flatMap((key) => key.gains).filter((gain) => gain.ref === entry.ref) : [];
+      await input.onCommitted?.({
+        kind: 'endpoint',
+        ref: entry.ref,
+        ...(gains.length === 0
+          ? {}
+          : { widened: { columns: [...new Set(gains.flatMap((g) => g.columns))], methods: [...new Set(gains.flatMap((g) => g.methods))], rows: gains.some((g) => g.rows) } }),
+      });
     } catch (error) {
-      // An update may not widen the key the operator allowed at install:
-      // the endpoint stays as it was, and the reply says why.
+      // An update may not widen the key the operator allowed at install unless
+      // they allowed it on the check (`wider`): the endpoint stays as it was, and the reply says why.
       if (!(error instanceof EndpointSaveRefused)) throw error;
       if (!guest(entry) && !input.livePurposes.has(entry.key)) throw refusedInPlainWords(error.issues);
       skipped.push({ ref: entry.ref, reason: error.issues.map((issue) => issue.message).join('; ') });
@@ -1077,7 +1117,8 @@ export async function installPublicAccess(input: {
 
 /** One change to the app's public access, told as it is written. */
 export type PublicAccessCommit =
-  | { kind: 'endpoint'; ref: string }
+  /** `widened`: the operator allowed it to show the keys that use it more, and this is what they gained. */
+  | { kind: 'endpoint'; ref: string; widened?: { columns: string[]; methods: string[]; rows: boolean } }
   | { kind: 'key'; purpose: string; keyId: string; access: string[] }
   | { kind: 'grant'; keyId: string; purpose: string; gained: string[]; lost: string[] }
   | { kind: 'withdraw'; keyId: string; purpose: string; lost: string[] }

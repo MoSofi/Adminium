@@ -15,6 +15,7 @@ import type { AddOnManifest, InstallPlan, Manifest } from '@adminium/manifest';
 import type { InstalledManifest } from '@adminium/meta';
 
 import type { ExistingTable } from './install-ddl.js';
+import type { PublicWidening } from './public-wider.js';
 import type { RoleTableResult } from '@adminium/manifest';
 
 /** Who an install or update is done by. */
@@ -144,7 +145,13 @@ export interface InstallCore<List extends CoreUninstallList = CoreUninstallList>
     publicAccess?: boolean,
     grant?: true | { refusal: string },
     ownFolder?: boolean,
+    refuse?: boolean,
+    pageChoices?: undefined,
+    /** The endpoints the operator allowed this update to widen for the keys already using them. */
+    wider?: ReadonlySet<string>,
   ): Promise<Readonly<Record<string, unknown>> | undefined>;
+  /** What an update would widen for the keys already using its endpoints: asked before anything moves. */
+  publicWiderOf(input: { manifest: Manifest; connectionId: string; names: Readonly<Record<string, string>> }): Promise<PublicWidening[]>;
   publicAccessOf(manifest: Manifest, connectionId: string, names: Readonly<Record<string, string>>, actor: InstallActor, installed?: boolean): Promise<unknown>;
   /**
    * The rows a manifest's tables start with, and its one settings row: written

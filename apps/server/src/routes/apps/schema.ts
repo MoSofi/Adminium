@@ -627,6 +627,29 @@ export const appInstallPlanDto = z.object({
     )
     .optional(),
   /**
+   * An update's check: each public endpoint stored here (the app's own, or an
+   * add-on's it updates or that serves through its key) whose new definition
+   * would let a key that already uses it see or do more. The update saves
+   * them only with `"publicWider": true`. Absent when none would widen.
+   */
+  publicWider: z
+    .array(
+      z.object({
+        ref: z.string(),
+        /** Whose entry it is: the app, or an add-on. */
+        owner: z.string(),
+        /** Columns it would newly show. */
+        columns: z.array(z.string()),
+        /** Methods it would newly take. */
+        methods: z.array(z.string()),
+        /** A filter, or a limit on what may be written, loosened. */
+        rows: z.boolean(),
+        /** Each widening in words. */
+        reasons: z.array(z.string()),
+      }),
+    )
+    .optional(),
+  /**
    * What the app's guests could do through the public API, as it asks, for
    * the check step to show and the installer to allow or not. Absent for an
    * app asking for none.
@@ -746,6 +769,14 @@ export const installAppBody = z.object({
    * `ROLE_TABLES_WIDER`) before anything is written.
    */
   roleTables: z.boolean().optional(),
+  /**
+   * The check's say on what an add-on this install updates would widen for
+   * the keys already using its public endpoints (`publicWider[]`). Only
+   * `true` allows it, and only from someone who may manage API keys;
+   * without it such an install is refused (422 `PUBLIC_WIDER`) before
+   * anything is written.
+   */
+  publicWider: z.boolean().optional(),
   /**
    * The parts of the app to start with, by id: `true` on, `false` off. A part
    * left out starts as its manifest says. A part that is `always` on, or one
@@ -1216,6 +1247,15 @@ export const updateAppBody = z
      * update is refused (422 `ROLE_GRANTS_ADDED`) before anything moves.
      */
     roleGrants: z.boolean().optional(),
+    /**
+     * The check's say on the public endpoints the new version would widen for
+     * the keys that already use them (`publicWider[]`): a column a visitor now
+     * sees, a method they now have, a filter loosened — the app's own and its
+     * add-ons'. Only `true` allows it, and only from someone who may manage
+     * API keys (otherwise 403); without it such an update is refused (422
+     * `PUBLIC_WIDER`) before anything moves.
+     */
+    publicWider: z.boolean().optional(),
   })
   // A POST with no body at all arrives as null.
   .nullish();

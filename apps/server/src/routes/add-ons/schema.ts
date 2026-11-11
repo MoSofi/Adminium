@@ -116,6 +116,8 @@ export const addOnDto = z.object({
   connectionId: z.string().nullable().optional(),
   /** This copy's address slug: `''` for the bare one. */
   slug: z.string().optional(),
+  /** This copy's database by the name it was given, so two copies are told apart; null for a copy kept once per server. */
+  connectionName: z.string().nullable().optional(),
   /** `none` | `api-key` | `oauth2` — what connecting this add-on requires. */
   connectKind: z.enum(['none', 'api-key', 'oauth2']),
   /** Whether a credential is stored. Never the credential itself. */
@@ -709,6 +711,21 @@ const roleTablesConsent = z.boolean().optional();
 /** The old upgrade door takes one say, and no body at all as before. */
 export const upgradeAddOnBody = z.object({ roleTables: roleTablesConsent }).nullish();
 
+/** One public endpoint a new version would widen for the keys that already use it. */
+export const publicWidening = z.object({
+  ref: z.string(),
+  /** Whose entry it is: the app, or an add-on. */
+  owner: z.string(),
+  /** Columns it would newly show. */
+  columns: z.array(z.string()),
+  /** Methods it would newly take. */
+  methods: z.array(z.string()),
+  /** A filter, or a limit on what may be written, loosened. */
+  rows: z.boolean(),
+  /** Each widening in words. */
+  reasons: z.array(z.string()),
+});
+
 /** One role of an attached app that the new version lets do more with one of the add-on's tables. */
 const widerRoleTable = z.object({
   /** The app whose role it is. */
@@ -747,6 +764,13 @@ export const updateAddOnBody = z
     connectionId: z.string().min(1).max(64).optional(),
     publicAccess: publicConsent,
     roleTables: roleTablesConsent,
+    /**
+     * The say on what the version would widen for the keys already using its
+     * public endpoints (the check lists each as `publicWider`). Only `true`
+     * allows it, and only from someone who may manage API keys; without it
+     * such an update is refused (422 `PUBLIC_WIDER`) before anything moves.
+     */
+    publicWider: z.boolean().optional(),
   })
   .default({});
 
@@ -760,6 +784,8 @@ export const updateAddOnPlanReply = z.object({
   publicAccess: addOnPublicPlan.optional(),
   /** What the version gives apps' roles more of the add-on's tables: the update gives it only with `"roleTables": true`. Absent when nothing widens. */
   roleTables: z.array(widerRoleTable).optional(),
+  /** What the version would widen for the keys already using its public endpoints: the update gives it only with `"publicWider": true`. Absent when nothing widens. */
+  publicWider: z.array(publicWidening).optional(),
 });
 
 /** An update's reply: the upgrade's, and — for an add-on that keeps tables of its own — what the update made and wrote. */
