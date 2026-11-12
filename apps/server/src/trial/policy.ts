@@ -104,6 +104,8 @@ const QUESTIONS = {
   unlimitedConnectionTests: profiles(false, false),
   /** `/meta/relocate`, `/setup/probe`, `/setup/adopt`: the meta store is fixed by env (S4, G8). */
   metaStoreRoutes: profiles(false, false),
+  /** A source host that is not on `ADMINIUM_DATABASE_HOSTS`: otherwise the list is the only hosts allowed. */
+  unlistedDatabaseHosts: profiles(false, false),
   // ── A1b storage (T11) ─────────────────────────────────────────────────────
   /** Creating or testing storage destinations; only the default `local` one under the data dir. */
   storageDestinations: profiles(false, false),

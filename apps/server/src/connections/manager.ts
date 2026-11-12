@@ -36,7 +36,9 @@ import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@
 import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { HostLookup } from '../net/address-guard.js';
 import type { NetworkPolicy, OutboundPolicy } from '../net/outbound-check.js';
-import { checkDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase, type DatabaseHost } from './dsn.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../trial/policy.js';
+import { assertTrialSourceAllowed, operatorLoginOf, type TrialSourceRules } from '../trial/sources.js';
+import { checkDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, parseDsn, sameDatabase, type DatabaseHost } from './dsn.js';
 import { PRIVILEGES_PROBE_TIMEOUT_MS, PRIVILEGES_TTL_MS } from './privileges.js';
 import { assertSqliteSourceAllowed, type SqliteSourcePolicy } from './sqlite-guard.js';
 
@@ -137,6 +139,14 @@ export interface ConnectionManagerOptions {
   sourcePoolMax?: number | undefined;
   /** Test seam: how a source host is looked up before each new pool. */
   lookup?: HostLookup | undefined;
+  /**
+   * Trial mode and the hosted profile (`trial/policy.ts`): no SQLite source,
+   * only listed hosts, and on an operator host only {@link operatorLogin}
+   * (`trial/sources.ts`). Default: an ordinary server's, none of that.
+   */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
+  /** `ADMINIUM_SOURCE_URL`: the one login allowed on an operator host when the policy binds logins. */
+  operatorSourceUrl?: string | undefined;
 }
 
 /** 502-ish mapping for adapter failures surfaced through API routes. */
@@ -160,6 +170,7 @@ export class ConnectionManager {
   readonly #sqliteSources: SqliteSourcePolicy | undefined;
   readonly #pool: { poolMax?: number };
   readonly #lookup: HostLookup | undefined;
+  readonly #trialRules: TrialSourceRules;
   readonly connections: ReturnType<typeof connectionsRepo>;
   readonly #dataHandles = new Map<string, Promise<DataHandle>>();
   readonly #privileges = new Map<string, { at: number; rights: Promise<TablePrivilegeMap | null> }>();
@@ -174,6 +185,7 @@ export class ConnectionManager {
     this.#sqliteSources = opts.sqliteSources;
     this.#pool = opts.sourcePoolMax === undefined ? {} : { poolMax: opts.sourcePoolMax };
     this.#lookup = opts.lookup;
+    this.#trialRules = { policy: opts.policy ?? ORDINARY_POLICY, hosts: this.#databaseHosts, operatorLogin: operatorLoginOf(opts.operatorSourceUrl) };
     this.connections = connectionsRepo(opts.meta, opts.crypto);
   }
 
@@ -248,6 +260,8 @@ export class ConnectionManager {
    * addresses, never the string. SQLite keeps its DSN: a path, not a host.
    */
   async #dialConfig(dsn: string, engine: string): Promise<{ dsn: string } | { endpoint: DatabaseEndpoint }> {
+    // What the operator allows this installation, before any lookup: a refused host is never even looked up.
+    assertTrialSourceAllowed(parseDsn(dsn), this.#trialRules);
     const checked = await checkDsn(dsn, {
       blockLoopback: this.#blockLoopback,
       engine,
