@@ -73,6 +73,9 @@ import { buildServer, type AdminiumServer, type BuildServerOptions } from './app
 import type { HostedSurface } from './cli/surfaces-root.js';
 import type { Env } from './config/env.js';
 import { holdOperatorSecrets, operatorSecret } from './config/operator-secrets.js';
+import { buildOperatorEndpoint, hiddenPageLogoReader, operatorListener } from './operator/endpoint.js';
+import { buildPublicContent } from './operator/public-content.js';
+import { operatorStatus } from './operator/status.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
 import { seedStorageDestination } from './config/storage-seed.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
@@ -4102,6 +4105,27 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // lifetime once it is listening (the CLI hands it over at `startServer`).
   app.addHook('onClose', async () => {
     await manager.disposeAll();
+  });
+
+  // The page a hidden public page answers with shows the instance's logo, read from wherever files are kept.
+  app.operatorHolds.readLogoWith(hiddenPageLogoReader(meta, storage));
+  // The operator endpoint, on a listener of its own and only with the operator's token (`operator/endpoint.ts`).
+  const operatorToken = env.ADMINIUM_OPERATOR_TOKEN ?? operatorSecret('ADMINIUM_OPERATOR_TOKEN');
+  const operatorListen = env.ADMINIUM_OPERATOR_LISTEN;
+  const operatorEndpoint =
+    operatorToken === undefined || operatorListen === undefined
+      ? null
+      : await buildOperatorEndpoint({
+          meta,
+          token: operatorToken,
+          holds: app.operatorHolds,
+          status: () => operatorStatus({ meta, dataDir: env.ADMINIUM_DATA_DIR, projectRoot, publicPages: () => app.operatorHolds.publicPages() }),
+          publicContent: () => buildPublicContent({ surfaces: () => app.surfaces, forms: formsCatalog }),
+          logger: app.log.child({ listener: 'operator' }),
+        });
+  app.decorate('operatorEndpoint', operatorEndpoint === null || operatorListen === undefined ? null : operatorListener(operatorEndpoint, operatorListen));
+  app.addHook('onClose', async () => {
+    await operatorEndpoint?.close();
   });
 
   return {
