@@ -2195,5 +2195,15 @@ export default {
     "aiAddress": "Provozovatel v této instalaci nepovoluje vlastní adresu AI.",
     "payments": "Provozovatel pro tuto instalaci vypnul platební služby.",
     "askOperator": "Změnit to může jen ten, kdo tuto instalaci provozuje."
+  },
+  "trial": {
+    "testEnvironment": "Toto je testovací prostředí. Nezadávejte sem prosím skutečná data zákazníků.",
+    "daysLeft": "{count, plural, one {Zbývá # den} few {Zbývají # dny} many {Zbývá # dne} other {Zbývá # dní}}",
+    "exportEverything": "Exportovat vše",
+    "upgrade": "Upgradovat",
+    "ended": "Tato zkušební verze skončila.",
+    "readOnly": "Jen pro čtení: tato zkušební verze skončila",
+    "readOnlyChip": "Jen pro čtení",
+    "upgradeLine": "Ponechat tuto instalaci: vše zůstane tak, jak je."
   }
 } as const;

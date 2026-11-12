@@ -273,9 +273,10 @@ export const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'] as const;
  * read by the grouped rail and those screens, each a chunk of its own. And
  * `operatorLock`: "Set by the operator" on a setting the server's environment
  * decides (plan 75), drawn only by settings screens and the first-run consent,
- * each lazy.
+ * each lazy. And `trial`: the trial's strips, its Upgrade and its read-only
+ * state, drawn by a chunk the shell asks for only on a trial.
  */
-export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette', 'account', 'templates', 'consent', 'shownIn', 'workspaces', 'appFiles', 'appCopies', 'operatorLock', 'operatorSwitches'] as const;
+export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette', 'account', 'templates', 'consent', 'shownIn', 'workspaces', 'appFiles', 'appCopies', 'operatorLock', 'operatorSwitches', 'trial'] as const;
 
 /** The namespaces en-US delivers in two parts, and the groups of each that come later. */
 export const DEFERRED_GROUPS = { ui: UI_DEFERRED_GROUPS, common: COMMON_DEFERRED_GROUPS } as const;

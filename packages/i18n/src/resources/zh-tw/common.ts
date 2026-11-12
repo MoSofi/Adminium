@@ -2195,5 +2195,15 @@ export default {
     "aiAddress": "營運方不允許在此安裝上使用你自己的 AI 位址。",
     "payments": "營運方已為此安裝關閉付款服務。",
     "askOperator": "只有營運此安裝的人才能變更此項。"
+  },
+  "trial": {
+    "testEnvironment": "這是一個測試環境。請不要輸入真實的客戶資料。",
+    "daysLeft": "{count, plural, other {還剩 # 天}}",
+    "exportEverything": "匯出全部",
+    "upgrade": "升級",
+    "ended": "此試用已結束。",
+    "readOnly": "唯讀：此試用已結束",
+    "readOnlyChip": "唯讀",
+    "upgradeLine": "保留此安裝：一切維持原樣。"
   }
 } as const;

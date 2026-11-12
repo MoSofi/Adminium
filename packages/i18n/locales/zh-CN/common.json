@@ -2185,5 +2185,15 @@
     "aiAddress": "运营方不允许在此安装上使用你自己的 AI 地址。",
     "payments": "运营方已为此安装关闭支付服务。",
     "askOperator": "只有运营此安装的人才能更改此项。"
+  },
+  "trial": {
+    "testEnvironment": "这是一个测试环境。请不要输入真实的客户数据。",
+    "daysLeft": "{count, plural, other {还剩 # 天}}",
+    "exportEverything": "导出全部",
+    "upgrade": "升级",
+    "ended": "此试用已结束。",
+    "readOnly": "只读：此试用已结束",
+    "readOnlyChip": "只读",
+    "upgradeLine": "保留此安装：一切保持原样。"
   }
 }

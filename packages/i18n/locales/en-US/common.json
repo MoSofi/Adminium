@@ -2185,5 +2185,15 @@
     "aiAddress": "The operator does not allow an AI address of your own on this installation.",
     "payments": "The operator has switched payment services off for this installation.",
     "askOperator": "Only whoever runs this installation can change this."
+  },
+  "trial": {
+    "testEnvironment": "This is a test environment. Please don’t put real customer data in.",
+    "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+    "exportEverything": "Export everything",
+    "upgrade": "Upgrade",
+    "ended": "This trial has ended.",
+    "readOnly": "Read-only: this trial has ended",
+    "readOnlyChip": "Read-only",
+    "upgradeLine": "Keep this installation: everything stays as it is."
   }
 }

@@ -2185,5 +2185,15 @@
     "aiAddress": "Operatøren tillader ikke en egen AI-adresse på denne installation.",
     "payments": "Operatøren har slået betalingstjenester fra for denne installation.",
     "askOperator": "Kun den, der driver denne installation, kan ændre det."
+  },
+  "trial": {
+    "testEnvironment": "Dette er et testmiljø. Indtast venligst ikke rigtige kundedata.",
+    "daysLeft": "{count, plural, one {# dag tilbage} other {# dage tilbage}}",
+    "exportEverything": "Eksportér alt",
+    "upgrade": "Opgrader",
+    "ended": "Denne prøveperiode er slut.",
+    "readOnly": "Skrivebeskyttet: denne prøveperiode er slut",
+    "readOnlyChip": "Skrivebeskyttet",
+    "upgradeLine": "Behold denne installation: alt forbliver, som det er."
   }
 }

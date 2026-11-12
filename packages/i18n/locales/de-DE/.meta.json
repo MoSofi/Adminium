@@ -9727,6 +9727,38 @@
     "srcHash": "28af3cc7375d",
     "status": "mt"
   },
+  "common.trial.daysLeft": {
+    "status": "mt",
+    "srcHash": "0043f05aefbf"
+  },
+  "common.trial.ended": {
+    "status": "mt",
+    "srcHash": "fe261e23837e"
+  },
+  "common.trial.exportEverything": {
+    "status": "mt",
+    "srcHash": "7089c1cc58f6"
+  },
+  "common.trial.readOnly": {
+    "status": "mt",
+    "srcHash": "39a50bfca268"
+  },
+  "common.trial.readOnlyChip": {
+    "status": "mt",
+    "srcHash": "9b19a5a212de"
+  },
+  "common.trial.testEnvironment": {
+    "status": "mt",
+    "srcHash": "67039b6a90b6"
+  },
+  "common.trial.upgrade": {
+    "status": "src",
+    "srcHash": "a6f47e00e036"
+  },
+  "common.trial.upgradeLine": {
+    "status": "mt",
+    "srcHash": "c3620b3fc02f"
+  },
   "common.undo.done": {
     "srcHash": "8550e349a5d6",
     "status": "mt"

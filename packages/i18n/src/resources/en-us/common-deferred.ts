@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces, appFiles, appCopies, operatorLock, operatorSwitches groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces, appFiles, appCopies, operatorLock, operatorSwitches, trial groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -1469,5 +1469,15 @@ export default {
     "aiAddress": "The operator does not allow an AI address of your own on this installation.",
     "payments": "The operator has switched payment services off for this installation.",
     "askOperator": "Only whoever runs this installation can change this."
+  },
+  "trial": {
+    "testEnvironment": "This is a test environment. Please don’t put real customer data in.",
+    "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+    "exportEverything": "Export everything",
+    "upgrade": "Upgrade",
+    "ended": "This trial has ended.",
+    "readOnly": "Read-only: this trial has ended",
+    "readOnlyChip": "Read-only",
+    "upgradeLine": "Keep this installation: everything stays as it is."
   }
 } as const;
