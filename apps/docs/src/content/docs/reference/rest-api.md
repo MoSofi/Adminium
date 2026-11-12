@@ -166,7 +166,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/setup/*` | 5 | First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same window — checking a database for an Adminium store already in it and adopting that store |
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
-| `/api/v1/system` | 1 | Version and instance information |
+| `/api/v1/system/*` | 2 | Version and instance information |
 | `/api/v1/teams/*` | 6 | Teams and who leads them: a lead reaches the rows of the people in the team |
 | `/api/v1/users/*` | 11 | People on the server — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
@@ -1066,6 +1066,7 @@ PUT /api/v1/surfaces/domains
 
 ```http
 GET /api/v1/system/info
+GET /api/v1/system/size-caps
 ```
 
 ### `/teams`

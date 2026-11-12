@@ -1,0 +1,7 @@
+---
+'@adminium/server': patch
+'@adminium/dashboard': patch
+'@adminium/i18n': patch
+---
+
+Trial mode now has size caps. Each database on the operator's hosts is measured at boot, every 10 minutes, before each import and soon after anything is written to it, counting the data its rows hold now rather than the database's files, so a delete shows within seconds. Past `ADMINIUM_TRIAL_DATA_MAX_MB` the database is held: inserts, updates and anything that adds a table, column or index are refused, while deletes, `TRUNCATE` and `DROP` still run, and the hold lets go below 90% of the limit. A connection test leaves the hold in place. Every page of a held database says it is over the trial's limit and read-only, with how full it is, and leaves out its create and edit buttons. Each uploaded file, and each file brought in to import, is capped by `ADMINIUM_TRIAL_UPLOAD_MAX_MB`; past `ADMINIUM_TRIAL_STORAGE_MAX_MB` in the data folder, uploads, the Designer's writes and exports are refused. A trial connects at most 3 databases, its pools default to 3 connections, and `ADMINIUM_SOURCE_POOL_MAX` above 3 fails its boot. `GET /api/v1/system/size-caps` answers the last readings. An ordinary server and the hosted profile have none of these caps.

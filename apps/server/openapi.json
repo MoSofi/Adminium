@@ -345,6 +345,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
@@ -376,6 +377,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
@@ -407,6 +409,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
@@ -438,6 +441,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
@@ -481,6 +485,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
@@ -512,6 +517,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
@@ -543,6 +549,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
@@ -581,6 +588,102 @@
                     "connect",
                     "trial",
                     "ownCode"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/size-caps": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "usedBytes": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "limitBytes": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "measuredAt": {
+                            "type": "string"
+                          },
+                          "held": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "connectionId",
+                          "usedBytes",
+                          "limitBytes",
+                          "measuredAt",
+                          "held"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "storage": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "usedBytes": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "limitBytes": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "measuredAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "over": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "usedBytes",
+                            "limitBytes",
+                            "measuredAt",
+                            "over"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "storage"
                   ],
                   "additionalProperties": false
                 }
@@ -107931,6 +108034,7 @@
                                         "trial-ended",
                                         "operator-ai-only",
                                         "operator-ai-scope",
+                                        "size-cap",
                                         "not-allowed"
                                       ]
                                     },
@@ -107962,6 +108066,7 @@
                                         "trial-ended",
                                         "operator-ai-only",
                                         "operator-ai-scope",
+                                        "size-cap",
                                         "not-allowed"
                                       ]
                                     },
@@ -108062,6 +108167,7 @@
                                         "trial-ended",
                                         "operator-ai-only",
                                         "operator-ai-scope",
+                                        "size-cap",
                                         "not-allowed"
                                       ]
                                     },
@@ -108093,6 +108199,7 @@
                                         "trial-ended",
                                         "operator-ai-only",
                                         "operator-ai-scope",
+                                        "size-cap",
                                         "not-allowed"
                                       ]
                                     },
@@ -108392,6 +108499,7 @@
                                         "trial-ended",
                                         "operator-ai-only",
                                         "operator-ai-scope",
+                                        "size-cap",
                                         "not-allowed"
                                       ]
                                     },
@@ -108637,6 +108745,7 @@
                                         "trial-ended",
                                         "operator-ai-only",
                                         "operator-ai-scope",
+                                        "size-cap",
                                         "not-allowed"
                                       ]
                                     },
@@ -108711,6 +108820,7 @@
                             "trial-ended",
                             "operator-ai-only",
                             "operator-ai-scope",
+                            "size-cap",
                             "not-allowed"
                           ]
                         },
@@ -108814,6 +108924,7 @@
                             "trial-ended",
                             "operator-ai-only",
                             "operator-ai-scope",
+                            "size-cap",
                             "not-allowed"
                           ]
                         },
@@ -167039,6 +167150,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
@@ -167070,6 +167182,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
@@ -167353,6 +167466,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
@@ -167384,6 +167498,7 @@
                                     "trial-ended",
                                     "operator-ai-only",
                                     "operator-ai-scope",
+                                    "size-cap",
                                     "not-allowed"
                                   ]
                                 },
