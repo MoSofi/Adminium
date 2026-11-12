@@ -72,6 +72,15 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_ROUTING_SERVER: 'https://router.project-osrm.org',
       // The server's own network is called like any other address unless the operator says strict.
       ADMINIUM_NETWORK_POLICY: 'open',
+      // Trial mode and the hosted profile are the operator's to switch on (plan 75 §5); the caps keep their
+      // defaults so a trial reads them without a fallback of its own.
+      ADMINIUM_TRIAL_MODE: false,
+      ADMINIUM_HOSTED_MODE: false,
+      ADMINIUM_TRIAL_DATA_MAX_MB: 500,
+      ADMINIUM_TRIAL_UPLOAD_MAX_MB: 10,
+      ADMINIUM_TRIAL_STORAGE_MAX_MB: 1000,
+      ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY: 50,
+      ADMINIUM_AI_OPERATOR_ONLY: false,
     });
   });
 
