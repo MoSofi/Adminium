@@ -15,7 +15,7 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { auditRepo, operatorHoldsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { auditRepo, operatorHoldsRepo, operatorTalliesRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { createArchive } from '../src/archive/create.js';
@@ -29,6 +29,7 @@ import { ConnectionManager } from '../src/connections/manager.js';
 import { exportZip } from '../src/export/zip-service.js';
 import { importZip } from '../src/export/import-service.js';
 import { createApplyService } from '../src/llm/apply-service.js';
+import { AI_TOKENS_TALLY } from '../src/llm/operator-ai.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { FAILURES_ALLOWED, OPERATOR_ACTOR_LABEL, tokenMatches } from '../src/operator/endpoint.js';
 import { PUBLIC_PAGES_HOLD } from '../src/operator/holds.js';
@@ -256,6 +257,27 @@ for (const engine of ['sqlite', 'postgres', 'mysql'] as const) {
       expect(status.operatorAiTokens).toBeNull();
       expect(status.publicPages).toEqual({ hidden: false, reason: null, changedAt: null });
       for (const word of ['Dana', 'Price', 'dana@hollis.test', 'Sam', 'sam@hollis.test']) expect(res.body).not.toContain(word);
+    });
+
+    it('says the relay’s mail and the operator’s AI as numbers where this instance counts them', async () => {
+      const meta = await store(engine);
+      const served = await serve(meta, engine, {
+        ...OPERATOR(),
+        ADMINIUM_TRIAL_MODE: 'on',
+        ADMINIUM_TRIAL_ENDS_AT: '2099-12-01T00:00:00Z',
+        ADMINIUM_PUBLIC_ORIGIN: `https://${ORIGIN_HOST}`,
+        ADMINIUM_DATABASE_HOSTS: 'pg-trials:5432',
+        ADMINIUM_SETUP_TOKEN: 'a-long-enough-setup-token',
+        ADMINIUM_TRIAL_SMTP_URL: 'smtp://127.0.0.1:2525',
+        ADMINIUM_TRIAL_MAIL_FROM: 'i-7f3a9c@relay.example.com',
+        ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: '5000',
+      });
+      const before = (await ask(served, 'GET', '/api/v1/operator/status')).json().data;
+      expect(before.emails).toEqual({ today: 0, thisHour: 0 });
+      expect(before.operatorAiTokens).toBe(0);
+      // The AI client adds to the same tally the status reads.
+      await operatorTalliesRepo(meta).add(AI_TOKENS_TALLY, 120);
+      expect((await ask(served, 'GET', '/api/v1/operator/status')).json().data.operatorAiTokens).toBe(120);
     });
 
     it('hides the public pages with a reason, audited, and they stay hidden after a restart', async () => {
