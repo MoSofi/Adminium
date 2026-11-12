@@ -107670,11 +107670,84 @@
                         },
                         "updateCheck": {
                           "type": "boolean"
+                        },
+                        "locks": {
+                          "type": "object",
+                          "properties": {
+                            "telemetry": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "updateCheck": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "telemetry",
+                            "updateCheck"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
                         "telemetry",
-                        "updateCheck"
+                        "updateCheck",
+                        "locks"
                       ],
                       "additionalProperties": false
                     }
@@ -107728,11 +107801,84 @@
                         },
                         "updateCheck": {
                           "type": "boolean"
+                        },
+                        "locks": {
+                          "type": "object",
+                          "properties": {
+                            "telemetry": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "updateCheck": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "telemetry",
+                            "updateCheck"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
                         "telemetry",
-                        "updateCheck"
+                        "updateCheck",
+                        "locks"
                       ],
                       "additionalProperties": false
                     }
@@ -108237,6 +108383,11 @@
                         {
                           "type": "string",
                           "enum": [
+                            "trial-mode",
+                            "hosted-mode",
+                            "trial-ended",
+                            "operator-ai-only",
+                            "operator-ai-scope",
                             "not-allowed"
                           ]
                         },
@@ -108335,6 +108486,11 @@
                         {
                           "type": "string",
                           "enum": [
+                            "trial-mode",
+                            "hosted-mode",
+                            "trial-ended",
+                            "operator-ai-only",
+                            "operator-ai-scope",
                             "not-allowed"
                           ]
                         },
