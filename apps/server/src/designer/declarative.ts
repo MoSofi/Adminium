@@ -21,8 +21,7 @@
  */
 import { ownCodeAllows, OWN_CODE_MESSAGES, type OwnCodeQuestion } from '../trial/own-code.js';
 import type { PolicyReason } from '../trial/policy.js';
-import type { DesignerTool, ToolOutcome } from './tool-types.js';
-import type { DESIGNER_TOOL_NAMES } from './tools.js';
+import type { DESIGNER_TOOL_NAMES, DesignerTool, ToolOutcome } from './tool-types.js';
 
 /**
  * What a tool may do:

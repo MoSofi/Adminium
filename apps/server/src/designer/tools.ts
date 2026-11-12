@@ -2519,37 +2519,5 @@ function addPictureColumn(file: string): string | null {
   }
 }
 
-/** The names of the tools, in the order the model is told them. */
-export const DESIGNER_TOOL_NAMES = [
-  'list_files',
-  'read_file',
-  'write_file',
-  'edit_file',
-  'delete_file',
-  'check_app',
-  'build_sides',
-  'apply_app',
-  'run_tests',
-  'read_reference',
-  'list_add_ons',
-  'get_add_on',
-  'name_app',
-  'add_side',
-  'add_ui_part',
-  'set_style',
-  'use_font',
-  'list_styles',
-  'build_on_shape',
-  'post_to_ledger',
-  'read_attachment',
-  'load_rows',
-  'add_spots',
-  'fill_spot',
-  'use_pictures',
-  'ask_person',
-  'request_package',
-  'make_pictures',
-  'read_figma',
-  'use_site',
-  'allow_picture_site',
-] as const;
+/** The names of the tools, in the order the model is told them (kept beside the tool types, which `designer/declarative.ts` reads too). */
+export { DESIGNER_TOOL_NAMES } from './tool-types.js';
