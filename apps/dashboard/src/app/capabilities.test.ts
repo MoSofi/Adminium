@@ -9,7 +9,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { emailSendGate, isHostedPlanSurface, llmAffordances, trialState } from './capabilities.js';
+import { emailSendGate, isHostedPlanSurface, llmAffordances } from './capabilities.js';
+import { trialState } from '../trial/TrialStrips.js';
 
 describe('emailSendGate — email row', () => {
   it('enables sends only when SMTP is configured', () => {

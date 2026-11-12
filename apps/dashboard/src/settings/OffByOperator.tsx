@@ -51,6 +51,8 @@ export function offByOperatorWords(question: string): string {
       return t('operatorSwitches.aiAddress', 'The operator does not allow an AI address of your own on this installation.');
     case 'paymentProviders':
       return t('operatorSwitches.payments', 'The operator has switched payment services off for this installation.');
+    case 'writes':
+      return t('trial.readOnly', 'Read-only: this trial has ended');
     default:
       return t('operatorLock.lockedOff', 'The operator has switched this off for this installation.');
   }

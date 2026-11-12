@@ -105,7 +105,7 @@ export interface SystemInfo {
   /**
    * Trial mode: the banners' words and the Upgrade button.
    * Absent from a server older than trial mode, which is never one. Read the
-   * state with {@link trialState}: the end is a state of `endsAt`, never a
+   * state with `trialState` (`trial/TrialStrips.tsx`, loaded on a trial only): the end is a state of `endsAt`, never a
    * `daysLeft` of 0 (`daysLeft` is null once it has ended).
    */
   trial?: TrialInfo;
@@ -137,17 +137,6 @@ export interface TrialInfo {
   daysLeft: number | null;
   /** The operator's Upgrade page, `?instance=` added; null: no button. Opened in the same tab. */
   upgradeUrl: string | null;
-}
-
-/**
- * Where the trial stands at `now`: `off` (no trial, or an older server),
- * `running`, or `ended` (at or past `endsAt`). Read from the end date, so a
- * reply the page has held for hours still ends on time.
- */
-export function trialState(trial: TrialInfo | undefined, now: number = Date.now()): 'off' | 'running' | 'ended' {
-  if (trial === undefined || !trial.on) return 'off';
-  const end = trial.endsAt === null ? Number.NaN : Date.parse(trial.endsAt);
-  return Number.isFinite(end) && now >= end ? 'ended' : 'running';
 }
 
 /**

@@ -68,6 +68,7 @@ import {
   usePageSubtitle,
   usePageTitle,
 } from './PageActionsProvider.js';
+import { TrialMount } from '../trial/TrialMount.js';
 import { useDocumentPageTitle } from './documentTitle.js';
 import { RuntimeChipHost } from './RuntimeChipHost.js';
 import { useChordPending } from './ShortcutsProvider.js';
@@ -427,16 +428,16 @@ export function Topbar({
               </>
             ) : null}
             {/* One group after Studio and before Help centre, for everyone
-                signed in: "Put this online…" (unless the operator set
-                ADMINIUM_DEPLOY_LINK=off). Trial mode's Upgrade joins this group,
-                first, when it lands. Opens in the system browser on the desktop. */}
+                signed in: trial mode's Upgrade (same tab, with the operator's
+                address set; `TrialMount`), then "Put this online…" (unless
+                the operator set ADMINIUM_DEPLOY_LINK=off; the system browser
+                on the desktop). */}
+            {deployLink ? <DropdownMenuSeparator /> : null}
+            <TrialMount menu />
             {deployLink ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem icon={<Globe />} onSelect={() => window.open(PUT_ONLINE_URL, '_blank', 'noopener')} data-testid="topbar-put-online">
-                  {t('topbar.putOnline', 'Put this online…')}
-                </DropdownMenuItem>
-              </>
+              <DropdownMenuItem icon={<Globe />} onSelect={() => window.open(PUT_ONLINE_URL, '_blank', 'noopener')} data-testid="topbar-put-online">
+                {t('topbar.putOnline', 'Put this online…')}
+              </DropdownMenuItem>
             ) : null}
             {/* Product comms, below Studio because they are read occasionally
                 and not gated: a viewer sees Profile/Preferences/theme, then
