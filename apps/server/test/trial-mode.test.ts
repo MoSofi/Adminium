@@ -143,6 +143,8 @@ describe('A1 connections', { timeout: 60_000 }, () => {
       const refused = await test(s, 'sqlite', 'sqlite:/tmp/p75-t11-anything.db');
       expect(refused.status).toBe(403);
       expect(refused.body).toMatchObject(offBy('sqliteSources', reason));
+      // Said before anyone signs in, so the connect wizards draw the choice disabled with the reason.
+      expect((await s.call('GET', '/api/v1/system/info')).body).toMatchObject({ offByOperator: { sqliteSources: { allowed: false, reason }, metaStore: { allowed: false, reason } } });
       // The other front door, saving one, is the same guard.
       expect((await s.call('POST', '/api/v1/connections', { name: 'Local', engine: 'sqlite', dsn: 'sqlite:/tmp/p75-t11-anything.db' })).body).toMatchObject(offBy('sqliteSources', reason));
       await composed?.app.close();
