@@ -57,9 +57,13 @@ const NOTHING_RESOLVES: HostLookup = async () => Promise.reject(new Error('ENOTF
 
 let composed: ComposedServer | undefined;
 let meta: MetaDb | undefined;
-afterEach(async () => {
+/** Close the server a case made, before it makes the next one. */
+async function closeServer(): Promise<void> {
   await composed?.app.close();
   composed = undefined;
+}
+afterEach(async () => {
+  await closeServer();
   await meta?.db.destroy();
   meta = undefined;
 });
@@ -147,8 +151,7 @@ describe('A1 connections', { timeout: 60_000 }, () => {
       expect((await s.call('GET', '/api/v1/system/info')).body).toMatchObject({ offByOperator: { sqliteSources: { allowed: false, reason }, metaStore: { allowed: false, reason } } });
       // The other front door, saving one, is the same guard.
       expect((await s.call('POST', '/api/v1/connections', { name: 'Local', engine: 'sqlite', dsn: 'sqlite:/tmp/p75-t11-anything.db' })).body).toMatchObject(offBy('sqliteSources', reason));
-      await composed?.app.close();
-      composed = undefined;
+      await closeServer();
     }
     const open = await test(await server(OFF), 'sqlite', 'sqlite:/tmp/p75-t11-missing.db');
     expect(code(open)).not.toBe('OFF_BY_OPERATOR');
@@ -159,8 +162,7 @@ describe('A1 connections', { timeout: 60_000 }, () => {
     expect((await test(trial, 'postgres', 'postgres://me:pw@db.elsewhere.example:5432/shop')).body).toMatchObject(offBy('unlistedDatabaseHosts'));
     // MySQL passes only through a listed entry that takes MySQL: this list names Postgres's port.
     expect((await test(trial, 'mysql', 'mysql://trial_hollis:pw@pg-trials:3306/trial_hollis')).body).toMatchObject(offBy('unlistedDatabaseHosts'));
-    await composed?.app.close();
-    composed = undefined;
+    await closeServer();
 
     const open = await test(await server(OFF), 'postgres', 'postgres://me:pw@db.elsewhere.example:5432/shop');
     expect(open.status).toBe(502);
@@ -180,8 +182,7 @@ describe('A1 connections', { timeout: 60_000 }, () => {
     expect(code(await test(trial, 'postgres', 'postgres://trial_hollis:typed@pg-trials:5432/trial_hollis'))).toBe('HOST_LOOKUP_FAILED');
     // A Supabase pooler on the list is the person's own project: any login of theirs.
     expect(code(await test(trial, 'postgres', 'postgres://postgres.abcd:pw@aws-0-eu.pooler.supabase.com:6543/postgres'))).toBe('HOST_LOOKUP_FAILED');
-    await composed?.app.close();
-    composed = undefined;
+    await closeServer();
 
     const open = await server(OFF);
     expect(code(await test(open, 'postgres', 'postgres://trial_other:pw@pg-trials:5432/trial_other'))).toBe('HOST_LOOKUP_FAILED');
@@ -193,8 +194,7 @@ describe('A1 connections', { timeout: 60_000 }, () => {
     const limited = await test(trial, 'postgres', 'postgres://trial_hollis:pw@pg-trials:5432/trial_hollis');
     expect(limited.status).toBe(429);
     expect(limited.body).toMatchObject({ error: { code: 'RATE_LIMITED', details: { scope: 'instance', limit: 10 } } });
-    await composed?.app.close();
-    composed = undefined;
+    await closeServer();
 
     const open = await server(OFF);
     for (let i = 0; i < 11; i += 1) expect((await test(open, 'postgres', 'postgres://trial_hollis:pw@pg-trials:5432/trial_hollis')).status).toBe(502);
@@ -206,19 +206,16 @@ describe('A1 connections', { timeout: 60_000 }, () => {
     const dsn = 'postgres://u:p@pg-trials:5432/other';
     expect(await fresh.call('POST', '/api/v1/setup/probe', { dsn, setupToken: SETUP_TOKEN })).toMatchObject({ status: 403, body: offBy('metaStoreRoutes') });
     expect(await fresh.call('POST', '/api/v1/setup/adopt', { dsn, setupToken: SETUP_TOKEN })).toMatchObject({ status: 403, body: offBy('metaStoreRoutes') });
-    await composed?.app.close();
-    composed = undefined;
+    await closeServer();
 
     const trial = await server(TRIAL);
     expect(await trial.call('POST', '/api/v1/meta/relocate', { dsn })).toMatchObject({ status: 403, body: offBy('metaStoreRoutes') });
     expect((await trial.call('GET', '/api/v1/meta/placement')).body).toMatchObject({ data: { canRelocate: false, reason: expect.stringContaining('operator') } });
-    await composed?.app.close();
-    composed = undefined;
+    await closeServer();
 
     const hosted = await server(HOSTED, { account: false });
     expect(await hosted.call('POST', '/api/v1/setup/probe', { dsn, setupToken: SETUP_TOKEN })).toMatchObject({ status: 403, body: offBy('metaStoreRoutes', 'hosted-mode') });
-    await composed?.app.close();
-    composed = undefined;
+    await closeServer();
 
     // An ordinary server: the probe answers (the host does not resolve, so it says it could not reach it).
     const open = await server(OFF, { account: false });
@@ -284,8 +281,7 @@ describe('A1b storage', { timeout: 60_000 }, () => {
       expect(await s.call('POST', '/api/v1/storage/destinations/dst_any/default')).toMatchObject({ status: 403, body: offBy('storageDestinations', reason) });
       // The default local destination is still listed.
       expect((await s.call('GET', '/api/v1/storage/destinations')).status).toBe(200);
-      await composed?.app.close();
-      composed = undefined;
+      await closeServer();
     }
   });
 
@@ -382,8 +378,7 @@ describe('A2 payment services, maps, the update check and telemetry', { timeout:
       expect((await s.call('GET', '/api/v1/payments/setup')).body).not.toMatchObject({ data: { reachability: { state: 'operator-off' } } });
       expect(code(await s.call('PUT', '/api/v1/payments/services/payments-stripe/modes/test/fields/secret_key', { value: 'rk_test_abc' }))).not.toBe('OFF_BY_OPERATOR');
       expect((await s.call('GET', '/api/v1/settings/maps')).body).toMatchObject({ data: { mapServerOff: false } });
-      await composed?.app.close();
-      composed = undefined;
+      await closeServer();
     }
   });
 });
