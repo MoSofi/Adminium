@@ -20,6 +20,7 @@ import { BarChart3, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Label, Switch } from '@adminium/ui';
 
+import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 import { SetByOperatorChip } from '../settings/SetByOperator.js';
 import type { SetupConsent } from './setupApi.js';
@@ -126,6 +127,8 @@ export interface TelemetryConsentProps {
 }
 
 export function TelemetryConsent({ value, onChange, locked }: TelemetryConsentProps): ReactNode {
+  // The locked line's words (`operatorLock`) are a deferred group of `common`.
+  useCommonWords();
   return (
     <div className="flex flex-col gap-4">
       <ConsentOption

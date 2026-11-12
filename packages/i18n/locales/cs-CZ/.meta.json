@@ -20123,10 +20123,6 @@
     "srcHash": "c5f8ff4aa02b",
     "status": "mt"
   },
-  "errors.SET_BY_OPERATOR": {
-    "status": "mt",
-    "srcHash": "adb6c70ab25c"
-  },
   "errors.UNAUTHENTICATED": {
     "srcHash": "ff95adf874b0",
     "status": "mt"

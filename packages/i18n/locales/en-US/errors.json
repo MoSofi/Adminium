@@ -5,7 +5,6 @@
   "PAGE_FORBIDDEN": "You don’t have permission to edit this page.",
   "NOT_FOUND": "That resource doesn’t exist or was removed.",
   "CONFLICT": "That change conflicts with the current state. Refresh and try again.",
-  "SET_BY_OPERATOR": "The operator has set this, so it can’t be changed here.",
   "UNIQUE_VIOLATION": "That value is already in use.",
   "VALIDATION_FAILED": "Some fields need attention before this can be saved.",
   "RATE_LIMITED": "Too many requests — wait a moment and try again.",

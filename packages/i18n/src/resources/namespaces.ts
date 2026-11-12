@@ -270,9 +270,12 @@ export const UI_DEFERRED_GROUPS = ['widgets', 'templates', 'pages'] as const;
  * report layout or an invoice layout is listed, read by those lazy screens,
  * the rule builder's template select and a workspace's delete confirm. And
  * `workspaces`: the menu grouped by workspace and the lists that follow it,
- * read by the grouped rail and those screens, each a chunk of its own.
+ * read by the grouped rail and those screens, each a chunk of its own. And
+ * `operatorLock`: "Set by the operator" on a setting the server's environment
+ * decides (plan 75), drawn only by settings screens and the first-run consent,
+ * each lazy.
  */
-export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette', 'account', 'templates', 'consent', 'shownIn', 'workspaces', 'appFiles', 'appCopies'] as const;
+export const COMMON_DEFERRED_GROUPS = ['builder', 'kb', 'about', 'team', 'quietHours', 'security', 'reports', 'changelog', 'onboarding', 'audit', 'capabilities', 'palette', 'account', 'templates', 'consent', 'shownIn', 'workspaces', 'appFiles', 'appCopies', 'operatorLock'] as const;
 
 /** The namespaces en-US delivers in two parts, and the groups of each that come later. */
 export const DEFERRED_GROUPS = { ui: UI_DEFERRED_GROUPS, common: COMMON_DEFERRED_GROUPS } as const;

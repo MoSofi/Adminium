@@ -15,7 +15,6 @@ export default {
   "PAGE_FORBIDDEN": "你没有编辑此页面的权限。",
   "NOT_FOUND": "该资源不存在或已被移除。",
   "CONFLICT": "该更改与当前状态冲突。请刷新后重试。",
-  "SET_BY_OPERATOR": "此项由运营方设置，无法在此更改。",
   "UNIQUE_VIOLATION": "该值已被使用。",
   "VALIDATION_FAILED": "部分字段需要修改后才能保存。",
   "RATE_LIMITED": "请求过多——请稍等片刻再试。",

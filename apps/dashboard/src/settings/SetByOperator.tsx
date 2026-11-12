@@ -21,6 +21,7 @@ import { Lock } from 'lucide-react';
 import type { HTMLAttributes, ReactNode } from 'react';
 
 import { ApiError } from '../app/api.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 
 /** A lock as the server sends it beside a setting. `reason` is a code: the chip says the same whatever it is. */
@@ -40,6 +41,8 @@ export function isSetByOperator(error: unknown): boolean {
 }
 
 export function SetByOperatorChip({ className, ...rest }: HTMLAttributes<HTMLSpanElement>): ReactNode {
+  // Its words are a deferred group of `common` (`operatorLock`): out of every first load, in before it paints.
+  useCommonWords();
   return (
     <span
       {...rest}

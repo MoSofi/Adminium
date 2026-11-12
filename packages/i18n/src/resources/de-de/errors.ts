@@ -15,7 +15,6 @@ export default {
   "PAGE_FORBIDDEN": "Sie haben keine Berechtigung, diese Seite zu bearbeiten.",
   "NOT_FOUND": "Diese Ressource existiert nicht oder wurde entfernt.",
   "CONFLICT": "Diese Änderung steht im Konflikt mit dem aktuellen Stand. Aktualisieren Sie die Ansicht und versuchen Sie es erneut.",
-  "SET_BY_OPERATOR": "Das hat der Betreiber festgelegt, daher lässt es sich hier nicht ändern.",
   "UNIQUE_VIOLATION": "Dieser Wert wird bereits verwendet.",
   "VALIDATION_FAILED": "Einige Felder benötigen noch Korrekturen, bevor gespeichert werden kann.",
   "RATE_LIMITED": "Zu viele Anfragen — warten Sie einen Moment und versuchen Sie es erneut.",

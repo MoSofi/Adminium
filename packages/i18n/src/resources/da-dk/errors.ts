@@ -15,7 +15,6 @@ export default {
   "PAGE_FORBIDDEN": "Du har ikke tilladelse til at redigere denne side.",
   "NOT_FOUND": "Ressourcen findes ikke eller er blevet fjernet.",
   "CONFLICT": "Ændringen er i konflikt med den aktuelle tilstand. Genindlæs, og prøv igen.",
-  "SET_BY_OPERATOR": "Operatøren har fastsat dette, så det kan ikke ændres her.",
   "UNIQUE_VIOLATION": "Værdien er allerede i brug.",
   "VALIDATION_FAILED": "Nogle felter kræver opmærksomhed, før dette kan gemmes.",
   "RATE_LIMITED": "For mange anmodninger — vent et øjeblik, og prøv igen.",

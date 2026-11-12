@@ -15,7 +15,6 @@ export default {
   "PAGE_FORBIDDEN": "K úpravě této stránky nemáte oprávnění.",
   "NOT_FOUND": "Tento zdroj neexistuje nebo byl odstraněn.",
   "CONFLICT": "Tato změna je v konfliktu s aktuálním stavem. Obnovte stránku a zkuste to znovu.",
-  "SET_BY_OPERATOR": "Toto nastavil provozovatel, takže to zde nelze změnit.",
   "UNIQUE_VIOLATION": "Tato hodnota se již používá.",
   "VALIDATION_FAILED": "Některá pole vyžadují úpravu, než bude možné uložit.",
   "RATE_LIMITED": "Příliš mnoho požadavků — chvíli počkejte a zkuste to znovu.",

@@ -734,9 +734,5 @@ export default {
       "unread": "1 unread answer",
       "proposal": "A change is waiting for you"
     }
-  },
-  "operatorLock": {
-    "chip": "Set by the operator",
-    "lockedOff": "The operator has switched this off for this installation."
   }
 } as const;

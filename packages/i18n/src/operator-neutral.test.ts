@@ -62,7 +62,6 @@ describe('operator-neutral strings', () => {
   it('finds the operator strings it is meant to guard', () => {
     // A selection that found nothing would pass every locale and guard nothing.
     expect(picked.get('common.json')).toEqual(expect.arrayContaining(['operatorLock.chip', 'operatorLock.lockedOff', 'onboarding.connectProvider.existing.help']));
-    expect(picked.get('errors.json')).toContain('SET_BY_OPERATOR');
     expect(picked.get('studio.json')).toContain('settingsHub.localDatabases.lockedHosts');
   });
 

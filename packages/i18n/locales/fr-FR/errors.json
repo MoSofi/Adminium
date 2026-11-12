@@ -5,7 +5,6 @@
   "PAGE_FORBIDDEN": "Vous n’avez pas la permission de modifier cette page.",
   "NOT_FOUND": "Cette ressource n’existe pas ou a été supprimée.",
   "CONFLICT": "Cette modification entre en conflit avec l’état actuel. Actualisez et réessayez.",
-  "SET_BY_OPERATOR": "L’opérateur a défini ce réglage : il ne peut pas être modifié ici.",
   "UNIQUE_VIOLATION": "Cette valeur est déjà utilisée.",
   "VALIDATION_FAILED": "Certains champs demandent votre attention avant l’enregistrement.",
   "RATE_LIMITED": "Trop de requêtes — patientez un instant et réessayez.",
