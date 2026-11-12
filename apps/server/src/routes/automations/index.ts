@@ -86,6 +86,7 @@ import {
   type RuleView,
 } from './schema.js';
 import { dayBoundsFor, DAY_MS } from './time.js';
+import type { TrialPolicy } from '../../trial/policy.js';
 
 export interface AutomationsRoutesDeps {
   meta: MetaDb;
@@ -96,6 +97,8 @@ export interface AutomationsRoutesDeps {
   onRulesChanged?: (() => Promise<void> | void) | undefined;
   now?: (() => number) | undefined;
   blockLoopback?: boolean | undefined;
+  /** Trial mode and the hosted profile (`trial/policy.ts`): a webhook step is refused at the save in trial mode. Default: allowed. */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
   /** Test seam for the dry run's transport and outbound HTTP. */
   runner?: Partial<RunnerDeps> | undefined;
   /** What is installed where, read fresh: the steps add-ons give to a rule. Absent: none is offered or judged. */
@@ -348,6 +351,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       blockLoopback: deps.blockLoopback ?? process.env['NODE_ENV'] === 'production',
       blockPrivate: deps.manager.networkPolicy === 'strict',
       steps: await stepsFor(input.connectionId),
+      // Trial mode: a webhook step is refused at the save.
+      policy: deps.policy,
       // A step's person is a row of a table an app declares as people: the record's own, or one link away.
       ...(view === null || input.connectionId === null ? {} : { peopleTables: await peopleTableIds(input.connectionId, view.model) }),
     });

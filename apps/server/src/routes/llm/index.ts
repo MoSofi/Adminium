@@ -102,6 +102,7 @@ import {
   llmConnectionsReply,
   type LlmConfigReply,
 } from './schema.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
 
 /** Every `/api/v1/llm/*` route requires this grant — Admin + Super-Admin only.
  * */
@@ -116,6 +117,8 @@ export type { CollectRunStats, CollectRunStatsInput } from '../../llm/prompt-ser
 
 export interface LlmRoutesDeps {
   meta: MetaDb;
+  /** Trial mode and the hosted profile (`trial/policy.ts`): what of Settings → AI the operator locks. Default: nothing. */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
   /** T07 — run lifecycle (create/receive/status machine). */
   runService: RunService;
   /** T10b — transactional apply executor + diff/plan builder. */
@@ -232,10 +235,11 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
         }),
   });
   const connections = deps.connections;
+  const policy = deps.policy ?? ORDINARY_POLICY;
 
   /** The safe view of the saved setting, with what the environment adds beside it. */
   async function configView(): Promise<LlmConfigReply> {
-    const saved = await readLlmConfig(settings, keyCrypto);
+    const saved = await readLlmConfig(settings, keyCrypto, policy);
     if (connections === undefined) return saved;
     const environment = (await connections.list()).filter((connection) => connection.source === 'environment');
     const chosen = await connections.default();
@@ -347,11 +351,12 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       '/llm/config',
       { preHandler: guard, schema: { body: llmConfigPutBody, response: { 200: llmConfigReply } } },
       async (request) => {
-        const before = await readLlmConfig(settings, keyCrypto);
+        const before = await readLlmConfig(settings, keyCrypto, policy);
         const at = app.rbac.now();
         await writeLlmConfig(settings, keyCrypto, request.body, {
           updatedBy: actorIdOf(request),
           at,
+          policy,
         });
         const after = await configView();
         // Audit carries provider/model/baseUrl/key-presence only — never the key.
@@ -384,7 +389,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       { preHandler: guard, schema: { response: { 200: llmConfigTestReply } } },
       async () => {
         try {
-          const resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient);
+          const resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient, policy);
           const ping = await resolved.client.test();
           return { ok: true as const, model: ping.model, latencyMs: ping.latencyMs, error: null };
         } catch (error) {
@@ -413,7 +418,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
         // nothing of the request chooses where the key is sent.
         let resolved: Awaited<ReturnType<typeof resolveProviderClient>>;
         try {
-          resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient);
+          resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient, policy);
         } catch (error) {
           if (error instanceof ProviderNotConfiguredError) throw new ConflictError(error.message, 'CONFLICT');
           if (error instanceof ProviderError) {
@@ -439,7 +444,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       { preHandler: guard, schema: { response: { 200: llmModelsReply } } },
       async () => {
         try {
-          const resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient);
+          const resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient, policy);
           const models = await resolved.client.listModels();
           return { models, source: 'live' as const };
         } catch (error) {

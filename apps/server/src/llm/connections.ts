@@ -43,6 +43,9 @@ import { createHash } from 'node:crypto';
 
 import { guardOutboundUrl } from '../connections/dsn.js';
 import { ValidationFailedError } from '../errors.js';
+import { savedConnectionRefusal, TYPED_ADDRESS_OFF } from '../trial/ai.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../trial/policy.js';
+import { OffByOperatorError } from '../trial/refuse.js';
 import type { AiEnv, AiEnvName, AiEnvValues } from './ai-env.js';
 import { checkedFetch, resolveAndCheck, type ResolveCheckOptions } from './outbound.js';
 
@@ -173,6 +176,13 @@ export interface AiConnectionsDeps {
   /** A test's own picture makers (a fake): given what the real one would be built with. */
   createPictureMaker?: (kind: PictureMakerKind, opts: { apiKey?: string | undefined; baseUrl?: string | undefined }) => PictureMaker;
   resolve?: ResolveCheckOptions['resolve'];
+  /**
+   * Trial mode (`trial/policy.ts`): the saved connection may not be a provider
+   * reached at an address of the person's own, nor carry one, and a test may
+   * not try a typed address. The environment's connections are the
+   * operator's, and stay. Default: an ordinary server's.
+   */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
 }
 
 const KEY_NAME: Record<EnvProvider, AiEnvName | null> = {
@@ -230,6 +240,10 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
   const { settings, aiEnv } = deps;
   const makeClient = deps.createClient ?? createProviderClient;
   const makeRunner = deps.createRunner ?? createProviderRunner;
+  const policy = deps.policy ?? ORDINARY_POLICY;
+  /** A draft names an address of its own, where the operator allows none. */
+  const typedAddressRefused = (draft: ConnectionDraft): boolean =>
+    draft.baseUrl !== undefined && draft.baseUrl !== '' && !policy.allows('aiBaseUrl').allowed;
   const verdicts = new Map<string, CanBuild>();
   const pictures = new Map<string, boolean>();
   /** When a model could not be asked whether it reads pictures, or its server refused the picture, and what that said. */
@@ -281,6 +295,11 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
         code: 'config',
         message: `${provider}: outside network use is switched off on this server (ADMINIUM_NETWORK_FEATURES), so only a local model can be called`,
       });
+    }
+    // The saved connection is the person's: the operator's word on it first (an environment one is the operator's own).
+    if (source === 'database') {
+      const refused = savedConnectionRefusal(policy, provider, baseUrl);
+      if (refused !== null) throw refused;
     }
     if (baseUrl === null) return;
     // The operator named an environment address themselves; the database's can come from a form or an import.
@@ -399,6 +418,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       }
     },
     async test(draft, opts = {}) {
+      if (typedAddressRefused(draft)) return { ok: false, models: [], canBuild: null, error: { code: 'config', message: TYPED_ADDRESS_OFF } };
       const { config, baseUrl } = draftConfig(draft);
       try {
         await guard(draft.provider, baseUrl, 'environment');
@@ -416,6 +436,10 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       }
     },
     async save(draft) {
+      if (typedAddressRefused(draft)) {
+        const answer = policy.allows('aiBaseUrl');
+        throw new OffByOperatorError('aiBaseUrl', answer.reason ?? 'trial-mode', TYPED_ADDRESS_OFF);
+      }
       const keyName = KEY_NAME[draft.provider];
       const urlName = URL_NAME[draft.provider];
       const touched = [keyName, urlName, 'ADMINIUM_AI_MODEL' as const].filter((name): name is AiEnvName => name !== null);

@@ -41,6 +41,7 @@
 
 import { auditRepo, type MetaDb } from '@adminium/meta';
 
+import { ORDINARY_POLICY, type TrialPolicy } from '../trial/policy.js';
 import { hostnameAllowed, type EgressRefusal } from './egress-policy.js';
 
 export type { EgressRefusal };
@@ -92,6 +93,12 @@ export interface AddOnHttpClientOptions {
   timeoutMs?: number | undefined;
   /** Cap on a response body, enforced while streaming. */
   maxResponseBytes?: number | undefined;
+  /**
+   * Trial mode and the hosted profile (`trial/policy.ts`): when it answers no
+   * to `addOnHttp`, every call is refused, declared host or not, with the
+   * operator's reason. Asked on every call. Default: an ordinary server's.
+   */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
 }
 
 export const DEFAULT_EGRESS_TIMEOUT_MS = 30_000;
@@ -122,6 +129,24 @@ export function createAddOnHttpClient(opts: AddOnHttpClientOptions): AddOnHttpCl
 
   return async (input, init) => {
     const raw = typeof input === 'string' ? input : input.href;
+
+    // The operator's word before the add-on's: in trial mode no add-on calls out, whatever its manifest declares.
+    const operator = (opts.policy ?? ORDINARY_POLICY).allows('addOnHttp');
+    if (!operator.allowed) {
+      let target = raw;
+      try {
+        const url = new URL(raw);
+        // As below: no credentials in an audit row.
+        target = `${url.protocol}//${url.host}${url.pathname}`;
+      } catch {
+        // Not a URL: recorded as written, as a malformed one is.
+      }
+      return refuse(
+        'OFF_BY_OPERATOR',
+        target,
+        `"${opts.key}" cannot make network requests: the operator has switched add-on network access off for this installation (${operator.reason ?? 'trial-mode'}).`,
+      );
+    }
 
     // No capability ⇒ nothing is reachable, and the message says why rather
     // than reading as a network error the add-on might retry.
@@ -243,7 +268,7 @@ export function addOnHttpClientFor(
     capabilities?: readonly string[] | undefined;
     addOn: { network?: { allow: readonly string[] } | undefined };
   },
-  overrides: Pick<AddOnHttpClientOptions, 'fetchImpl' | 'timeoutMs' | 'maxResponseBytes'> = {},
+  overrides: Pick<AddOnHttpClientOptions, 'fetchImpl' | 'timeoutMs' | 'maxResponseBytes' | 'policy'> = {},
 ): AddOnHttpClient {
   return createAddOnHttpClient({
     key: manifest.key,

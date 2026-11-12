@@ -148,6 +148,7 @@ import {
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { attachAppDocuments, suggestedDocuments } from '../../documents/app-documents.js';
 import { ForbiddenError, AddOnUntrustedError, AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { policyOf } from '../../trial/refuse.js';
 import { settingValueIssues } from '../../apps/settings-values.js';
 import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -2141,7 +2142,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const result = await exchangeAuthorizationCode({
           // The SAME guarded client an add-on's own calls use, so the token
           // endpoint is held to one allow-list enforced in one place.
-          http: addOnHttpClientFor(deps.meta, manifest),
+          http: addOnHttpClientFor(deps.meta, manifest, { policy: policyOf(app) }),
           connect: connectOf(manifest),
           allow: manifest.addOn.network?.allow ?? [],
           addOnKey: key,

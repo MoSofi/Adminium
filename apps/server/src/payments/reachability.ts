@@ -27,6 +27,8 @@ import { addressKind } from '../llm/outbound.js';
 import { isLoopbackHost, normalizePublicOrigin } from '../security/public-origin.js';
 
 export const REACHABILITY_STATES = [
+  /** Trial mode: the operator has switched payment services off for this installation. */
+  'operator-off',
   'network-off',
   'desktop',
   'not-set',
@@ -40,6 +42,8 @@ export const REACHABILITY_STATES = [
 export type ReachabilityState = (typeof REACHABILITY_STATES)[number];
 
 export interface ReachabilityFacts {
+  /** Trial mode switches payment services off (`trial/policy.ts` `paymentProviders`). Absent: allowed. */
+  operatorOff?: boolean | undefined;
   /** `ADMINIUM_NETWORK_FEATURES`. */
   networkFeatures: boolean;
   /** `ADMINIUM_RUNTIME === 'desktop'`. */
@@ -78,6 +82,7 @@ export function reachability(facts: ReachabilityFacts): Reachability {
   const url = origin === null ? null : new URL(origin);
   const notPort443 = url !== null && url.port !== '' && url.port !== '443';
   const answer = (state: ReachabilityState): Reachability => ({ state, origin, notPort443 });
+  if (facts.operatorOff === true) return answer('operator-off');
   if (!facts.networkFeatures) return answer('network-off');
   if (facts.desktop) return answer('desktop');
   if (url === null) return answer('not-set');

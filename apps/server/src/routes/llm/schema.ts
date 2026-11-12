@@ -10,6 +10,7 @@
  */
 
 import { z } from 'zod';
+import { settingLockSchema } from '../../trial/operator-lock.js';
 
 // ─── Shared vocabularies (mirror `@adminium/llm` constants) ──────────────────
 
@@ -70,6 +71,12 @@ export const llmConfigReply = z.object({
   assistantName: z.string(),
   /** Whether its tools may read masked rows from a connection at all. */
   assistantRowData: z.boolean(),
+  /**
+   * What the operator has set (`trial/operator-lock.ts`): a typed address, and
+   * the providers reached at one (`openai-compatible`, Ollama). Locked, the
+   * page shows them read-only with "Set by the operator".
+   */
+  locks: z.object({ baseUrl: settingLockSchema, customProviders: settingLockSchema }).optional(),
   /**
    * What the server's environment names (`ADMINIUM_AI_*`), so the page can
    * say a model is in use that was never saved here. Never a key, nor any

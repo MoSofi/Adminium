@@ -155,6 +155,7 @@ import { createPictureDialog, type PictureKeys } from './designer/picture-dialog
 import { createPictureJobs } from './designer/picture-jobs.js';
 import { personLog } from './designer/events.js';
 import { createPictureSearch, type PictureSearch } from './designer/picture-search.js';
+import { designerCallsOut } from './trial/refuse.js';
 import { createPictureShelf, downloadPicture, openverse, pexels, pixabay, unsplash, type PictureSource } from './designer/pictures.js';
 import { readDotEnv } from './project/dotenv.js';
 import { createDesigner, type Designer } from './designer/service.js';
@@ -895,6 +896,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // On a live server a signed-in person names the model's address: loopback and private ranges are refused (M22).
     ...(liveAllowed ? { blockPrivate: true } : {}),
     ...(opts.pictureMakerSeam === undefined ? {} : { createPictureMaker: opts.pictureMakerSeam }),
+    // Trial mode: no AI address of the person's own, saved or typed into a test.
+    policy: app.trialPolicy,
   });
   if (!app.hasDecorator('aiConnections')) app.decorate('aiConnections', aiConnections);
 
@@ -1765,7 +1768,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   });
   const paymentProviderLookup = async (key: string, mode: PaymentMode) => {
     return paymentProviderFor(
-      { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest), demo: paymentDemo, log: (message, fields) => app.log.warn(fields, message) },
+      { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }), demo: paymentDemo, log: (message, fields) => app.log.warn(fields, message) },
       key,
       mode,
     );
@@ -2190,6 +2193,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           manager,
           secret: env.ADMINIUM_SECRET,
+          policy: app.trialPolicy,
           enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
           onRulesChanged: () => automations.matcher.onRulesChanged(),
           runner: { storage, hub: jobs.hub, writes: recordWrites },
@@ -2354,6 +2358,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
           desktop: env.ADMINIUM_RUNTIME === 'desktop',
           trustProxy: env.ADMINIUM_TRUST_PROXY,
+          policy: app.trialPolicy,
         }),
       );
       // Where a payment service calls back: no session, the signature is the gate.
@@ -2435,7 +2440,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           lookup: opts.marketingSeams?.lookup,
         }),
       );
-      await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));
+      await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime, policy: app.trialPolicy }));
       await api.register(
         paymentLinksRoutes({
           meta,
@@ -2877,6 +2882,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           ...(pictureSites === undefined ? {} : { pictureSites }),
           designPictures: (sessionId, userId) => designPicturesIn?.(sessionId, userId) ?? 0,
         });
+        // Picture search and Figma call outside services: off where this server calls nothing outside, and in trial mode.
+        const designerOutside = (): boolean => designerCallsOut(addOnCatalog.networkFeaturesAllowed(), app.trialPolicy);
         // Free pictures for an app's pages, in the picture dialog: Openverse, and Pexels, Unsplash and Pixabay with the project's own keys; none where this server calls nothing outside.
         const pictureKey = (name: PictureKeyName): string => {
           // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
@@ -2885,7 +2892,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         };
         const pictureFetch = (url: string, fetchOpts: SafeFetchOptions) => safeFetch(url, { ...fetchOpts, ...(opts.pictureSeams ?? {}) });
         const pictureSources = (): PictureSource[] => {
-          if (!addOnCatalog.networkFeaturesAllowed()) return [];
+          if (!designerOutside()) return [];
           const pexelsKey = pictureKey('PEXELS_API_KEY');
           const unsplashKey = pictureKey('UNSPLASH_ACCESS_KEY');
           const pixabayKey = pictureKey('PIXABAY_API_KEY');
@@ -2904,7 +2911,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const pictureKeys: PictureKeys = {
           state: () => {
             const host = hostModels();
-            if (host === null || !addOnCatalog.networkFeaturesAllowed()) return null;
+            if (host === null || !designerOutside()) return null;
             return { Pexels: pictureKey('PEXELS_API_KEY') !== '', Unsplash: pictureKey('UNSPLASH_ACCESS_KEY') !== '', keeping: host.keeping };
           },
           keep: (source, key) => hostModels()?.keep({ [source === 'Pexels' ? 'PEXELS_API_KEY' : 'UNSPLASH_ACCESS_KEY']: key }),
@@ -2967,7 +2974,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         });
 
         // Figma: each person's own token, what was read with it, and frames imported but not sent yet.
-        const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
+        const figmaClient = createFigmaClient({ allowed: designerOutside, ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
         const figmaCache = createFigmaCache(root);
         // The project's own token stands in for its owner's under `adminium design` only, read from the process's environment (never the project's .env).
         const figmaEnvToken = (operatorSecret('ADMINIUM_FIGMA_TOKEN') ?? '').trim();
@@ -3180,7 +3187,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             client: figmaClient,
             reader: figmaReader,
             imports: figmaImports,
-            network: () => addOnCatalog.networkFeaturesAllowed(),
+            network: designerOutside,
             lasting: cacheOutlivesDeploys(figmaCache.dir, machineFacts),
             ...(live === null ? {} : { live }),
           }),
@@ -3291,6 +3298,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         await api.register(
           llmRoutes({
             meta,
+            policy: app.trialPolicy,
             runService,
             applyService,
             keyCrypto: llm.keyCrypto,
@@ -3636,7 +3644,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           event: declared.on,
           module,
           // Built from the MANIFEST, so no caller can widen the allow-list.
-          http: addOnHttpClientFor(meta, manifest),
+          http: addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }),
           credential: async (installId: string | undefined) => {
             const install = await installOfRecord(repo, manifest.key, installId);
             return install === null ? null : ((await repo.getCredential(install.row.id))?.secret ?? null);

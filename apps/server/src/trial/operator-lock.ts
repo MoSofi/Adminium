@@ -58,6 +58,8 @@ export const LOCKED_SETTINGS = {
   'telemetry.enabled': { question: 'telemetry', value: false },
   'updates.checkEnabled': { question: 'updateCheck', value: false },
   'connections.allowLocalDatabases': { question: 'localDatabases', value: false },
+  // A1, A2 (connections, outgoing traffic): a user-typed AI address.
+  'llm.baseUrl': { question: 'aiBaseUrl', value: null },
 } as const satisfies Record<string, { question: PolicyQuestion; value: unknown }>;
 
 export type LockableSetting = keyof typeof LOCKED_SETTINGS;
