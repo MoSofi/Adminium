@@ -20,8 +20,11 @@ import { t } from '../../i18n/t.js';
 import { designerApi, designerKeys, type DesignerFile, type DesignerFileGroup, type DesignerFiles, type FolderHold } from '../api.js';
 import { findFile, firstFile } from './fileTree.js';
 
-/** What keeps the files from being changed here: the Designer working or waiting for an answer, or something done from a page. */
-export type CodeLock = null | 'turn' | 'waiting' | FolderHold;
+/**
+ * What keeps the files from being changed here: the Designer working or waiting for an answer, something done from a
+ * page, or the server's operator, who keeps hand edits off (`app/ownCode.tsx`).
+ */
+export type CodeLock = null | 'turn' | 'waiting' | 'operator' | FolderHold;
 
 /** What a save came to, when it did not simply apply. Shown above the editor until it is put right. */
 export type CodeProblem =
@@ -217,8 +220,8 @@ export function useCodeFiles(
     if (open !== null && st.contents[open] === undefined) void read(open, false);
   }, [open, read, st]);
 
-  // Whatever held the folder has let go: what it changed is read.
-  const held = opts.lock !== null;
+  // Whatever held the folder has let go: what it changed is read. The operator's lock holds nothing: it never lets go.
+  const held = opts.lock !== null && opts.lock !== 'operator';
   useEffect(() => {
     if (!held && st.active) void queryClient.invalidateQueries({ queryKey: designerKeys.files(sessionId) });
   }, [held, queryClient, sessionId, st]);

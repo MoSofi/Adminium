@@ -16,6 +16,7 @@ import { Check, ChevronDown, CircleAlert, CircleCheck, LoaderCircle, Palette, Pl
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, Modal, ModalBody, ModalFooter, ModalHeader } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
+import { OFF_LOOK, OperatorOffTip, useOwnCodeOff } from '../../app/ownCode.js';
 import { t } from '../../i18n/t.js';
 import { designerApi, designerKeys, type DesignerStyle } from '../api.js';
 import { StyleSwatch } from './look.js';
@@ -32,6 +33,8 @@ export function AddStyleDialog({ open, onClose, onAdded }: { open: boolean; onCl
   const queryClient = useQueryClient();
   const input = useRef<HTMLInputElement>(null);
   const [name, setName] = useState('');
+  // The operator keeps uploads to the Designer off: the dialog says so, and takes no file.
+  const off = useOwnCodeOff('designerUploads');
   const add = useMutation({
     mutationFn: (file: File) => designerApi.addStyle(file),
     onSuccess: (added) => {
@@ -40,7 +43,7 @@ export function AddStyleDialog({ open, onClose, onAdded }: { open: boolean; onCl
     },
   });
   const take = (file: File | undefined): void => {
-    if (file === undefined) return;
+    if (off || file === undefined) return;
     setName(file.name);
     add.mutate(file);
   };
@@ -66,18 +69,29 @@ export function AddStyleDialog({ open, onClose, onAdded }: { open: boolean; onCl
         >
           <Upload aria-hidden="true" className="size-5 text-fg-subtle" />
           <p className="m-0 text-[13px] font-semibold text-fg">{t('designer:style.addDrop', 'Drop a .zip of the folder or a single SKILL.md here')}</p>
+          {off ? (
+            <p id="style-add-off" className="m-0 text-[12.5px] leading-normal text-fg-muted">
+              {t('designer:ownCode.stylesOff', 'Styles of your own are turned off on this server by its operator.')}
+            </p>
+          ) : null}
           <input ref={input} type="file" accept=".zip,.md,application/zip,text/markdown" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(event) => take(event.target.files?.[0])} />
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={add.isPending}
-            onClick={() => {
-              if (input.current !== null) input.current.value = '';
-              input.current?.click();
-            }}
-          >
-            {add.isError ? t('designer:style.addAgain', 'Choose another file') : t('designer:style.addChoose', 'Choose a file')}
-          </Button>
+          <OperatorOffTip off={off} why={t('designer:ownCode.stylesOff', 'Styles of your own are turned off on this server by its operator.')}>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!off && add.isPending}
+              aria-disabled={off || undefined}
+              aria-describedby={off ? 'style-add-off' : undefined}
+              className={OFF_LOOK}
+              onClick={() => {
+                if (off) return;
+                if (input.current !== null) input.current.value = '';
+                input.current?.click();
+              }}
+            >
+              {add.isError ? t('designer:style.addAgain', 'Choose another file') : t('designer:style.addChoose', 'Choose a file')}
+            </Button>
+          </OperatorOffTip>
         </div>
         {add.isPending ? (
           <p role="status" className="m-0 flex items-center gap-2 text-[13px] text-fg-muted">

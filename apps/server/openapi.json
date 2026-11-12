@@ -326,10 +326,10 @@
                       ],
                       "additionalProperties": false
                     },
-                    "offByOperator": {
+                    "ownCode": {
                       "type": "object",
                       "properties": {
-                        "sqliteSources": {
+                        "packageUploads": {
                           "type": "object",
                           "properties": {
                             "allowed": {
@@ -360,7 +360,7 @@
                           ],
                           "additionalProperties": false
                         },
-                        "storageDestinations": {
+                        "designerUploads": {
                           "type": "object",
                           "properties": {
                             "allowed": {
@@ -391,38 +391,7 @@
                           ],
                           "additionalProperties": false
                         },
-                        "webhooks": {
-                          "type": "object",
-                          "properties": {
-                            "allowed": {
-                              "type": "boolean"
-                            },
-                            "reason": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "enum": [
-                                    "trial-mode",
-                                    "hosted-mode",
-                                    "trial-ended",
-                                    "operator-ai-only",
-                                    "operator-ai-scope",
-                                    "not-allowed"
-                                  ]
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "allowed",
-                            "reason"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "metaStore": {
+                        "ownBuilds": {
                           "type": "object",
                           "properties": {
                             "allowed": {
@@ -455,10 +424,9 @@
                         }
                       },
                       "required": [
-                        "sqliteSources",
-                        "storageDestinations",
-                        "webhooks",
-                        "metaStore"
+                        "packageUploads",
+                        "designerUploads",
+                        "ownBuilds"
                       ],
                       "additionalProperties": false
                     }
@@ -475,7 +443,8 @@
                     "deployLink",
                     "desktopDemo",
                     "connect",
-                    "trial"
+                    "trial",
+                    "ownCode"
                   ],
                   "additionalProperties": false
                 }
@@ -108267,46 +108236,6 @@
                             "string",
                             "null"
                           ]
-                        },
-                        "locks": {
-                          "type": "object",
-                          "properties": {
-                            "publicOrigin": {
-                              "type": "object",
-                              "properties": {
-                                "allowed": {
-                                  "type": "boolean"
-                                },
-                                "reason": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                      "enum": [
-                                        "trial-mode",
-                                        "hosted-mode",
-                                        "trial-ended",
-                                        "operator-ai-only",
-                                        "operator-ai-scope",
-                                        "not-allowed"
-                                      ]
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                }
-                              },
-                              "required": [
-                                "allowed",
-                                "reason"
-                              ],
-                              "additionalProperties": false
-                            }
-                          },
-                          "required": [
-                            "publicOrigin"
-                          ],
-                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -108318,8 +108247,7 @@
                         "secure",
                         "senders",
                         "maxAttachmentBytes",
-                        "publicOrigin",
-                        "locks"
+                        "publicOrigin"
                       ],
                       "additionalProperties": false
                     }
@@ -108512,46 +108440,6 @@
                             "string",
                             "null"
                           ]
-                        },
-                        "locks": {
-                          "type": "object",
-                          "properties": {
-                            "publicOrigin": {
-                              "type": "object",
-                              "properties": {
-                                "allowed": {
-                                  "type": "boolean"
-                                },
-                                "reason": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                      "enum": [
-                                        "trial-mode",
-                                        "hosted-mode",
-                                        "trial-ended",
-                                        "operator-ai-only",
-                                        "operator-ai-scope",
-                                        "not-allowed"
-                                      ]
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                }
-                              },
-                              "required": [
-                                "allowed",
-                                "reason"
-                              ],
-                              "additionalProperties": false
-                            }
-                          },
-                          "required": [
-                            "publicOrigin"
-                          ],
-                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -108563,8 +108451,7 @@
                         "secure",
                         "senders",
                         "maxAttachmentBytes",
-                        "publicOrigin",
-                        "locks"
+                        "publicOrigin"
                       ],
                       "additionalProperties": false
                     }
@@ -114763,7 +114650,6 @@
                             "state": {
                               "type": "string",
                               "enum": [
-                                "operator-off",
                                 "network-off",
                                 "desktop",
                                 "not-set",
@@ -124629,7 +124515,6 @@
                         "state": {
                           "type": "string",
                           "enum": [
-                            "operator-off",
                             "network-off",
                             "desktop",
                             "not-set",
@@ -126158,7 +126043,6 @@
                             "state": {
                               "type": "string",
                               "enum": [
-                                "operator-off",
                                 "network-off",
                                 "desktop",
                                 "not-set",
@@ -166915,78 +166799,6 @@
                     "assistantRowData": {
                       "type": "boolean"
                     },
-                    "locks": {
-                      "type": "object",
-                      "properties": {
-                        "baseUrl": {
-                          "type": "object",
-                          "properties": {
-                            "allowed": {
-                              "type": "boolean"
-                            },
-                            "reason": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "enum": [
-                                    "trial-mode",
-                                    "hosted-mode",
-                                    "trial-ended",
-                                    "operator-ai-only",
-                                    "operator-ai-scope",
-                                    "not-allowed"
-                                  ]
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "allowed",
-                            "reason"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "customProviders": {
-                          "type": "object",
-                          "properties": {
-                            "allowed": {
-                              "type": "boolean"
-                            },
-                            "reason": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "enum": [
-                                    "trial-mode",
-                                    "hosted-mode",
-                                    "trial-ended",
-                                    "operator-ai-only",
-                                    "operator-ai-scope",
-                                    "not-allowed"
-                                  ]
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "allowed",
-                            "reason"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "required": [
-                        "baseUrl",
-                        "customProviders"
-                      ],
-                      "additionalProperties": false
-                    },
                     "environment": {
                       "type": "object",
                       "properties": {
@@ -167228,78 +167040,6 @@
                     },
                     "assistantRowData": {
                       "type": "boolean"
-                    },
-                    "locks": {
-                      "type": "object",
-                      "properties": {
-                        "baseUrl": {
-                          "type": "object",
-                          "properties": {
-                            "allowed": {
-                              "type": "boolean"
-                            },
-                            "reason": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "enum": [
-                                    "trial-mode",
-                                    "hosted-mode",
-                                    "trial-ended",
-                                    "operator-ai-only",
-                                    "operator-ai-scope",
-                                    "not-allowed"
-                                  ]
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "allowed",
-                            "reason"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "customProviders": {
-                          "type": "object",
-                          "properties": {
-                            "allowed": {
-                              "type": "boolean"
-                            },
-                            "reason": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "enum": [
-                                    "trial-mode",
-                                    "hosted-mode",
-                                    "trial-ended",
-                                    "operator-ai-only",
-                                    "operator-ai-scope",
-                                    "not-allowed"
-                                  ]
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "allowed",
-                            "reason"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "required": [
-                        "baseUrl",
-                        "customProviders"
-                      ],
-                      "additionalProperties": false
                     },
                     "environment": {
                       "type": "object",

@@ -111,7 +111,8 @@ describe('Start with an app', () => {
     answer = { state: 'ok', apps: [app(1, 'Hotels')] };
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await screen.findByRole('article', { name: 'App 1' });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // The list was asked for twice (the server's own word on copies is asked for beside it).
+    expect(fetchMock.mock.calls.filter((call: unknown[]) => String(call[0]).includes('/designer/apps')).length).toBe(2);
   });
 
   it('says the list is switched off, with nothing to try', async () => {

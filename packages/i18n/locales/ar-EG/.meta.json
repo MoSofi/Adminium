@@ -12975,6 +12975,30 @@
     "status": "mt",
     "srcHash": "8b6f147aacf1"
   },
+  "designer.ownCode.codeOff": {
+    "status": "mt",
+    "srcHash": "9aee9990023f"
+  },
+  "designer.ownCode.codeReadOnly": {
+    "status": "mt",
+    "srcHash": "895cf7a307ee"
+  },
+  "designer.ownCode.siteOff": {
+    "status": "mt",
+    "srcHash": "7299191b7377"
+  },
+  "designer.ownCode.startOff": {
+    "status": "mt",
+    "srcHash": "2252509dd61b"
+  },
+  "designer.ownCode.step": {
+    "status": "mt",
+    "srcHash": "55c77e476d39"
+  },
+  "designer.ownCode.stylesOff": {
+    "status": "mt",
+    "srcHash": "783fa755fa65"
+  },
   "designer.phone.add": {
     "status": "mt",
     "srcHash": "7b7fba6b0207"
@@ -32350,6 +32374,14 @@
   "studio.meta.willMove.title": {
     "status": "mt",
     "srcHash": "0bfc5490c9b4"
+  },
+  "studio.ownCode.addOnsOff": {
+    "status": "mt",
+    "srcHash": "6b2fd27431e2"
+  },
+  "studio.ownCode.appsOff": {
+    "status": "mt",
+    "srcHash": "55f68071f9b1"
   },
   "studio.pages.action.delete": {
     "status": "mt",

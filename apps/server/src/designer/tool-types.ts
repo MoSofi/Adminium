@@ -8,6 +8,7 @@
 import type { CardAnswer, CardRequest } from './cards.js';
 import type { EventLog } from './events.js';
 import type { DesignerSession } from './session-store.js';
+import type { PolicyReason } from '../trial/policy.js';
 
 /** The person behind a turn. */
 export interface Actor {
@@ -36,7 +37,7 @@ export interface ToolOutcome {
   /** More for the page, never for the model: a check's findings, the first error. */
   detail?: string;
   /** What the page words the line from, in its own language. `until`/`dated`: reads of an outside source are paused until then (Figma's limit). */
-  facts?: { count?: number; outcome?: 'added' | 'declined' | 'refused' | 'failed'; look?: string; until?: number; dated?: boolean };
+  facts?: { count?: number; outcome?: 'added' | 'declined' | 'refused' | 'failed'; look?: string; until?: number; dated?: boolean; /** The server's operator turned this off (`designer/declarative.ts`): the page says so in fixed words. */ operator?: PolicyReason };
   /** What the step is about, when the tool knows better than its input says (a Figma node's name, where the input names its id). */
   subject?: string;
   /** A picture the step read, joined to the turn after the results, named in words first (a part of a Figma frame). */

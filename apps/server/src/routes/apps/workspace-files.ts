@@ -31,6 +31,7 @@ import { createWorkspaceInstaller, documentOf, isFinishedCopy, type AppCopy } fr
 import { audited } from '../../audit/coverage.js';
 import { AppError, ValidationFailedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { refuseOwnCodeHook } from '../../trial/own-code.js';
 import { WORKSPACES_CHANGED } from '../workspaces/index.js';
 import { installAppBody, stagedAppReply, updateAppBody, uploadAppQuery } from './schema.js';
 
@@ -231,7 +232,8 @@ export function workspaceFileRoutes(w: WorkspaceFileRoutesDeps): FastifyPluginAs
       '/apps/upload-workspace',
       {
         // As the app upload: the cheap guard before up to 128 MB is buffered, then the grant.
-        onRequest: app.requireAuth,
+        // Then the operator's word, still before the body (`trial/own-code.ts`).
+        onRequest: [app.requireAuth, refuseOwnCodeHook('packageUploads')],
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         config: { audit: audited('rbac') },
         bodyLimit: WORKSPACE_UPLOAD_BODY_LIMIT,

@@ -50,6 +50,7 @@ import type { DesignerTool } from './tool-types.js';
 import type { Versions } from './versions.js';
 import { anthropicEfforts, type RunEffort } from '@adminium/llm';
 import { DESIGNER_MAX_OUTPUT_TOKENS, MENTIONS_WEB, WANTS_OWN_PICTURES, asksOnlyForPhoneApp } from './prompt.js';
+import { refuseOwnCode } from '../trial/own-code.js';
 
 export interface DesignerHost {
   /** The project folder. */
@@ -1055,6 +1056,8 @@ export function createDesigner(host: DesignerHost): Designer {
       return { files, more };
     },
     async saveFiles(sessionId, files, by) {
+      // A hand save is an upload of files: not while the operator keeps uploads to the Designer off (`trial/own-code.ts`).
+      refuseOwnCode('designerUploads');
       const session = store.read(sessionId);
       const key = session.appKey;
       if (files.length === 0 || files.length > FILES_SAVED_MAX) throw new ValidationFailedError(`A save holds 1 to ${String(FILES_SAVED_MAX)} files.`, { reason: 'FILES' });

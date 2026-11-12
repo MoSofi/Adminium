@@ -46,7 +46,7 @@ export const GoingUp = {
   tags: ['vrt'],
   render: () => {
     const site = control({ current: item({ phase: 'uploading', percent: 64 }), uploading: true });
-    const attach = { files: [], refused: null, add: () => undefined, addFigma: () => undefined, remove: () => undefined, clear: () => undefined, upload: async () => [], hasImage: false, site };
+    const attach = { files: [], refused: null, add: () => undefined, addFigma: () => undefined, remove: () => undefined, clear: () => undefined, upload: async () => [], hasImage: false, site, siteOff: false };
     // The composer's attach menu reads the project's templates when it opens, and its Figma dialog says things in toasts:
     // a client and a toast host of its own, asked nothing here.
     return (

@@ -27,6 +27,7 @@ import {
 
 import { ApiError } from '../../app/api.js';
 import { systemInfoQuery } from '../../app/capabilities.js';
+import { useOwnCodeOff } from '../../app/ownCode.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { t } from '../../i18n/t.js';
 import { designerApi, yourAppsQuery, type DesignerTarget, type CatalogApp } from '../api.js';
@@ -77,7 +78,9 @@ export function DesignerHome(): ReactNode {
   /** "Turn versions on" was pressed after an earlier "Not now": the card is back for this visit. */
   const [versionsReopened, setVersionsReopened] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
-  const attach = useAttach({ notify: (title) => toasts.push({ variant: 'info', title }) });
+  // A site template is an upload: refused here, and said why, while the operator keeps those off.
+  const siteOff = useOwnCodeOff('designerUploads');
+  const attach = useAttach({ notify: (title) => toasts.push({ variant: 'info', title }), siteOff });
   /** The project's template the person started from: in the box now. */
   const [startedTemplate, setStartedTemplate] = useState<string | null>(null);
   /** The session a first message with files made, kept until that message is sent. */

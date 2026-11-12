@@ -5921,5 +5921,9 @@ export default {
       "line": "On this computer the project makes its own file: in the Designer, open the project’s menu (its name, top left) and choose Export this project….",
       "open": "Open the Designer"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "Uploads are turned off on this server by its operator. Install add-ons from the catalog.",
+    "appsOff": "Uploads are turned off on this server by its operator. Install apps from the catalog."
   }
 } as const;

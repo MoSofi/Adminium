@@ -5911,5 +5911,9 @@
       "line": "Sur cet ordinateur, le projet crée son propre fichier : dans le Designer, ouvrez le menu du projet (son nom, en haut à gauche) et choisissez Exporter ce projet….",
       "open": "Ouvrir le Designer"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "Les envois de fichiers sont désactivés sur ce serveur par son opérateur. Installez les modules depuis le catalogue.",
+    "appsOff": "Les envois de fichiers sont désactivés sur ce serveur par son opérateur. Installez les applications depuis le catalogue."
   }
 }

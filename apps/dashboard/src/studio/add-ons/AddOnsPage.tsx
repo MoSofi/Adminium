@@ -54,6 +54,7 @@ import {
 } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
+import { OFF_LOOK, OperatorOffTip, useOwnCodeOff } from '../../app/ownCode.js';
 import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { featureWords } from '../apps/addOnWords.js';
@@ -617,9 +618,12 @@ function ConnectForm({
  */
 function SideloadCard({
   busy,
+  off = false,
   onUpload,
 }: {
   busy: boolean;
+  /** The server's operator keeps uploads off: the card stays, read-only, and says why (`app/ownCode.tsx`). */
+  off?: boolean;
   /** Resolves to what the server staged, or `undefined` when it was refused. */
   onUpload: (file: File, input: { expectedSha512: string }) => Promise<StagedPackage | undefined>;
 }) {
@@ -649,6 +653,11 @@ function SideloadCard({
         </span>
       </CardHeader>
       <CardBody className="flex flex-col gap-3">
+        {off ? (
+          <p id="sideload-off" className="m-0 text-sm text-fg-muted">
+            {t('studio:ownCode.addOnsOff', 'Uploads are turned off on this server by its operator. Install add-ons from the catalog.')}
+          </p>
+        ) : null}
         {uploaded === null ? null : (
           <Alert
             tone="pos"
@@ -666,7 +675,7 @@ function SideloadCard({
             key={picker}
             type="file"
             accept=".tgz,application/gzip"
-            disabled={busy}
+            disabled={busy || off}
             aria-label={t('studio:addOns.sideload.file', 'Package file (.tgz)')}
             onChange={(event) => {
               setFile(event.currentTarget.files?.[0] ?? null);
@@ -683,7 +692,7 @@ function SideloadCard({
         >
           <Input
             value={sha}
-            disabled={busy}
+            disabled={busy || off}
             placeholder="sha512-…"
             onChange={(event) => {
               setSha(event.currentTarget.value.trim());
@@ -691,10 +700,14 @@ function SideloadCard({
           />
         </FormField>
         <span>
+          <OperatorOffTip off={off} why={t('studio:ownCode.addOnsOff', 'Uploads are turned off on this server by its operator. Install add-ons from the catalog.')}>
           <Button
-            disabled={busy || !ready}
+            disabled={!off && (busy || !ready)}
+            aria-disabled={off || undefined}
+            aria-describedby={off ? 'sideload-off' : undefined}
+            className={OFF_LOOK}
             onClick={() => {
-              if (file === null) return;
+              if (off || file === null) return;
               void onUpload(file, { expectedSha512: sha }).then((staged) => {
                 if (staged === undefined) return;
                 setUploaded(staged);
@@ -707,6 +720,7 @@ function SideloadCard({
           >
             {t('studio:addOns.sideload.submit', 'Upload')}
           </Button>
+          </OperatorOffTip>
         </span>
       </CardBody>
     </Card>
@@ -745,6 +759,8 @@ export function AddOnsPage() {
   // Payments opens for either payments key; the button is offered to who it opens for.
   const { data: bootstrap } = useQuery(bootstrapQuery());
   const mayOpenPayments = bootstrap !== undefined && (holdsSystemAction(bootstrap, 'payments.manage') || holdsSystemAction(bootstrap, 'payments.view'));
+  // The operator keeps uploads off: the upload card stays, and says so.
+  const uploadsOff = useOwnCodeOff('packageUploads');
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1106,7 +1122,7 @@ export function AddOnsPage() {
         onUpgrade={askUpdate}
       />
 
-      <SideloadCard busy={busy} onUpload={(file, input) => run(() => uploadAddOn(file, input))} />
+      <SideloadCard busy={busy} off={uploadsOff} onUpload={(file, input) => run(() => uploadAddOn(file, input))} />
 
       <Card>
         <CardHeader className="flex items-center gap-3">

@@ -1406,5 +1406,13 @@
     "changesPlaceholder": "Write what you want different.",
     "buildThis": "Build this",
     "sendChanges": "Send my changes"
+  },
+  "ownCode": {
+    "step": "Turned off on this server by its operator",
+    "codeOff": "Hand edits are turned off on this server by its operator. Ask the Designer for the change.",
+    "codeReadOnly": "{file}, read only: hand edits are turned off on this server by its operator",
+    "startOff": "Turned off on this server by its operator: a copy runs the app’s own build.",
+    "stylesOff": "Styles of your own are turned off on this server by its operator.",
+    "siteOff": "Site templates are turned off on this server by its operator."
   }
 }

@@ -5921,5 +5921,9 @@ export default {
       "line": "Na tomto počítači si projekt vytvoří vlastní soubor: v Designeru otevřete nabídku projektu (jeho název vlevo nahoře) a zvolte Exportovat tento projekt….",
       "open": "Otevřít Designer"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "Nahrávání je na tomto serveru vypnuto jeho provozovatelem. Doplňky instalujte z katalogu.",
+    "appsOff": "Nahrávání je na tomto serveru vypnuto jeho provozovatelem. Aplikace instalujte z katalogu."
   }
 } as const;

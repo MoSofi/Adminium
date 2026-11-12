@@ -122,6 +122,7 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     connect: connectProviders(env).map((provider) => ({ provider: provider.id })),
     trial: trialInfo(env, deps.now?.() ?? Date.now()),
     offByOperator: offByOperator(env),
+    ownCode: ownCodeInfo(env),
   };
 }
 
@@ -133,6 +134,12 @@ function offByOperator(env: Env): NonNullable<SystemInfoReply['offByOperator']> 
     return { allowed: answer.allowed, reason: answer.reason };
   };
   return { sqliteSources: lock('sqliteSources'), storageDestinations: lock('storageDestinations'), webhooks: lock('webhooks'), metaStore: lock('metaStoreRoutes') };
+}
+
+/** The own code this server takes, as the dashboard's upload and "Start with an app" buttons read it. */
+function ownCodeInfo(env: Env): SystemInfoReply['ownCode'] {
+  const policy = trialPolicy(env);
+  return { packageUploads: policy.allows('packageUploads'), designerUploads: policy.allows('designerUploads'), ownBuilds: policy.allows('ownBuilds') };
 }
 
 /** The trial's clock and the Upgrade address, as the banners read them. */

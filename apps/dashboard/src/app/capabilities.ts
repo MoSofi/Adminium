@@ -115,6 +115,12 @@ export interface SystemInfo {
    * reason, never hidden. Absent from a server older than trial mode.
    */
   offByOperator?: { sqliteSources: OperatorSwitch; storageDestinations: OperatorSwitch; webhooks: OperatorSwitch; metaStore: OperatorSwitch };
+  /**
+   * The own code this server takes, each `{ allowed, reason }` (`apps/server/src/trial/own-code.ts`): uploads of
+   * add-ons and apps, uploads and hand edits in the Designer, builds of an app's own ("Start with an app"). Read
+   * with `ownCodeOff` (`app/ownCode.tsx`). Absent from a server older than the switch: everything is taken.
+   */
+  ownCode?: Record<'packageUploads' | 'designerUploads' | 'ownBuilds', { allowed: boolean; reason: string | null }>;
 }
 
 /** One switch the operator may have turned off; `reason` is a code (`trial-mode`, `hosted-mode`). */

@@ -32,6 +32,7 @@ import { APPS_DIR } from '../project/apps/read-app.js';
 import { starterParts } from '../project/apps/scaffold-app.js';
 import type { DesignerSession } from './session-store.js';
 import type { Skills } from './skills.js';
+import { ownCodeAllows } from '../trial/own-code.js';
 
 /**
  * The output a turn's step may use. A step writes a file or two, not a book: but one of those files is a whole
@@ -88,6 +89,9 @@ End every turn the same way: check_app, fix every error it names, apply_app, the
 export const ADDRESSES = `A side with more than one page gives each page its own address: import { Link, usePath, pathParams, go } from '@adminiumjs/adminium/side'; const path = usePath() where the page is chosen (path === '/' is the first; pathParams('/menu/:slug', path) gives { slug } or null); move with <Link to="/menu"> or go('/menu'), never a state or an href that starts with "/"; any other path draws "This page does not exist".`;
 
 /** How the verbs of the skills map to the tools here. */
+/** Said first while the operator keeps own code off (`trial/own-code.ts`): what the tools will refuse, so a turn does not try. */
+export const DECLARATIVE_ONLY = `On this server you build with the manifest, pages and screens only. Its operator has turned off code the server would run: nothing is written in hooks/ or actions/, run_tests and request_package are refused, and there is no phone app. Do what is asked with tables, rules, automations, pages and screens; when something needs server code, say in one sentence that this server does not allow it. Never ask the person to allow it: it is the server's setting, not theirs.`;
+
 const VERBS = `In these skills, the verbs map to your tools: **check** → check_app; **build** → build_sides; **run** (the app on the server, as \`adminium dev\` does) → apply_app; reading a reference → read_reference with the file's name as an INDEX.md lists it (e.g. "adminium-app/references/manifest/overview.md"). **new**, **try** and **pack** are not yours: the app already exists, and the person's server runs it.`;
 
 export interface PromptDeps {
@@ -541,7 +545,7 @@ export function createPrompt(deps: PromptDeps) {
     const design = designs ? designSection(deps.root, session.appKey, deps.skills, stylesDir) : '';
     // A design document outlives the message it came with: named in every request, since that message is folded away in a long session.
     const designDocs = designs && deps.attachments !== undefined ? designDocsLine(deps.attachments, session.id) : '';
-    const system = `${PREAMBLE.replace('{{addresses}}', names.includes('adminium-surface/SKILL.md') ? '' : ` ${ADDRESSES}`)}\n\n${VERBS}\n\n${target}${names.map((name) => skill(deps.skills, name)).join('')}${design === '' ? '' : `\n\n${design}`}${designDocs === '' ? '' : `\n\n${designDocs}`}${ownRow === '' ? '' : `\n\nThis request is about a person seeing their own row. Do it exactly as this page says, and no other way:${ownRow}`}\n\n${taskGuides(deps.skills)}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
+    const system = `${PREAMBLE.replace('{{addresses}}', names.includes('adminium-surface/SKILL.md') ? '' : ` ${ADDRESSES}`)}\n\n${VERBS}\n\n${ownCodeAllows('designerCode').allowed ? '' : `${DECLARATIVE_ONLY}\n\n`}${target}${names.map((name) => skill(deps.skills, name)).join('')}${design === '' ? '' : `\n\n${design}`}${designDocs === '' ? '' : `\n\n${designDocs}`}${ownRow === '' ? '' : `\n\nThis request is about a person seeing their own row. Do it exactly as this page says, and no other way:${ownRow}`}\n\n${taskGuides(deps.skills)}\n\n===== The app now =====\n${app.text}${app.empty ? `\n\n${partExamples(session.appKey, deps.version)}` : ''}`;
 
     // The limit is what a request may carry; the reply has its own room beyond it. The tools go with every request.
     const limit = ASSISTANT_INPUT_TOKEN_LIMIT[provider];

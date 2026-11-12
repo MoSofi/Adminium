@@ -21,6 +21,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, ChevronRight, CloudOff, ExternalLink, IdCard, LayoutGrid, RotateCw, UserRound } from 'lucide-react';
 import { Skeleton } from '@adminium/ui';
 
+import { OperatorOffTip, useOwnCodeOff } from '../../app/ownCode.js';
 import { t } from '../../i18n/t.js';
 import { catalogPictureUrl, catalogQuery, type CatalogApp } from '../api.js';
 
@@ -50,7 +51,7 @@ function AppIcon({ app }: { app: CatalogApp }): ReactNode {
   return <LayoutGrid aria-hidden="true" className="size-[26px]" />;
 }
 
-export function AppCard({ app, onStart }: { app: CatalogApp; onStart: (app: CatalogApp) => void }): ReactNode {
+export function AppCard({ app, onStart, off = false }: { app: CatalogApp; onStart: (app: CatalogApp) => void; /** The operator keeps builds of an app's own off: the button stays, off, and says why. */ off?: boolean }): ReactNode {
   const [pictureFailed, setPictureFailed] = useState(false);
   const picture = app.picture !== null && !pictureFailed;
   return (
@@ -70,15 +71,19 @@ export function AppCard({ app, onStart }: { app: CatalogApp; onStart: (app: Cata
             <AppIcon app={app} />
           </span>
         )}
-        <button
-          type="button"
-          onClick={() => onStart(app)}
-          aria-label={t('designer:start.startApp', 'Start with this: {name}', { name: app.name })}
-          className="absolute bottom-3 end-3 inline-flex items-center gap-1.5 rounded-[10px] bg-accent px-[13px] py-2 text-[12.5px] font-bold text-accent-fg opacity-0 shadow-sm transition-opacity focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100"
-        >
-          {t('designer:start.startThis', 'Start with this')}
-          <ArrowRight aria-hidden="true" className="size-3.5 rtl:-scale-x-100" />
-        </button>
+        <OperatorOffTip off={off} why={t('designer:ownCode.startOff', 'Turned off on this server by its operator: a copy runs the app’s own build.')}>
+          <button
+            type="button"
+            onClick={off ? undefined : () => onStart(app)}
+            aria-disabled={off || undefined}
+            aria-describedby={off ? 'designer-start-off' : undefined}
+            aria-label={t('designer:start.startApp', 'Start with this: {name}', { name: app.name })}
+            className="absolute bottom-3 end-3 inline-flex items-center gap-1.5 rounded-[10px] bg-accent px-[13px] py-2 text-[12.5px] font-bold text-accent-fg opacity-0 shadow-sm transition-opacity focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100 aria-disabled:cursor-not-allowed aria-disabled:bg-surface-3 aria-disabled:text-fg-muted"
+          >
+            {t('designer:start.startThis', 'Start with this')}
+            <ArrowRight aria-hidden="true" className="size-3.5 rtl:-scale-x-100" />
+          </button>
+        </OperatorOffTip>
       </div>
       <div className="flex flex-1 flex-col gap-1.5 px-[18px] pb-[18px] pt-4 max-sm:px-[15px] max-sm:pb-[15px] max-sm:pt-[13px]">
         <div className="flex items-baseline justify-between gap-3">
@@ -132,6 +137,8 @@ export function StartWithAnApp({ onStart = () => undefined }: { onStart?: (app: 
   const shown = filter === null || !showFilters ? apps : apps.filter((app) => app.category === filter);
   const failed = catalog.isError || catalog.data?.state === 'unreachable';
   const off = catalog.data?.state === 'off';
+  // The operator keeps builds of an app's own off: the cards stay, to look at, and say why they do not copy.
+  const startsOff = useOwnCodeOff('ownBuilds');
 
   return (
     <section aria-labelledby="designer-start" className="mt-[clamp(56px,6.5vw,96px)] w-full">
@@ -161,6 +168,11 @@ export function StartWithAnApp({ onStart = () => undefined }: { onStart?: (app: 
           </>
         ) : null}
       </div>
+      {startsOff ? (
+        <p id="designer-start-off" className="-mt-2 mb-[18px] text-[13px] leading-normal text-fg-muted">
+          {t('designer:ownCode.startOff', 'Turned off on this server by its operator: a copy runs the app’s own build.')}
+        </p>
+      ) : null}
 
       {catalog.isPending ? (
         // A status, so its name is allowed: a bare div may not carry one (seen by axe once a new install showed this list at first paint).
@@ -201,7 +213,7 @@ export function StartWithAnApp({ onStart = () => undefined }: { onStart?: (app: 
       ) : (
         <div className={GRID}>
           {shown.map((app) => (
-            <AppCard key={app.key} app={app} onStart={onStart} />
+            <AppCard key={app.key} app={app} onStart={onStart} off={startsOff} />
           ))}
         </div>
       )}

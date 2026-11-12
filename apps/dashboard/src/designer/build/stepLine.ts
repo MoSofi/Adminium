@@ -15,6 +15,8 @@ const S = { subject: SUBJECT };
 export function stepLine(row: StepRow): string {
   const running = row.state === 'running';
   if (row.state === 'failed' && row.ended === 'stopped') return t('designer:step.stopped', 'Stopped');
+  // Refused by the server's own setting, whatever the tool: the same plain words, never the model's.
+  if (row.operator !== undefined) return t('designer:ownCode.step', 'Turned off on this server by its operator');
   if (row.tool === 'read_figma') {
     // The reads it cost are said after the line, in its own weight (`stepCost`).
     if (row.state === 'failed' || row.state === 'missed') return t('designer:step.figmaNot', 'Did not read Figma');

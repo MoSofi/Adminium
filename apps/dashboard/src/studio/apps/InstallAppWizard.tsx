@@ -109,6 +109,7 @@ import {
 
 import { ApiError } from '../../app/api.js';
 import { bootstrapQuery, type BootstrapData } from '../../app/bootstrap.js';
+import { useOwnCodeOff } from '../../app/ownCode.js';
 import { t } from '../../i18n/t.js';
 import { DocsLink } from '../../kb/DocsLink.js';
 import { docsUrl } from '../../kb/docsLinks.js';
@@ -276,6 +277,8 @@ export interface InstallAppWizardProps {
 }
 
 export function InstallAppWizard({ onClose, preselected, quick = false, onMoreChoices, onBusy, onWorkspaceFile }: InstallAppWizardProps) {
+  // The operator keeps uploads off: the upload step says so, and takes no file.
+  const uploadsOff = useOwnCodeOff('packageUploads');
   const queryClient = useQueryClient();
   const { data: connections } = useSuspenseQuery(connectionsQuery());
 
@@ -955,6 +958,11 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
             <p className="mt-1 text-sm text-fg-muted">
               {t('studio:hostedApps.install.bundle.fileOnly', 'The app’s file (.tgz).')}
             </p>
+            {uploadsOff ? (
+              <p id="bundle-off" className="mt-1 text-sm text-fg-muted">
+                {t('studio:ownCode.appsOff', 'Uploads are turned off on this server by its operator. Install apps from the catalog.')}
+              </p>
+            ) : null}
           </div>
 
           <Card>
@@ -969,6 +977,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
                 <Input
                   type="file"
                   accept=".tgz,.tar.gz,application/gzip"
+                  disabled={uploadsOff}
+                  aria-describedby={uploadsOff ? 'bundle-off' : undefined}
                   aria-label={t('studio:hostedApps.install.bundle.file', 'Bundle file (.tgz)')}
                   onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
                 />

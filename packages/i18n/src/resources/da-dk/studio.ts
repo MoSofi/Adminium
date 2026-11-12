@@ -5921,5 +5921,9 @@ export default {
       "line": "På denne computer laver projektet sin egen fil: Åbn projektets menu i Designer (dets navn øverst til venstre), og vælg Eksportér dette projekt….",
       "open": "Åbn Designer"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "Upload er slået fra på denne server af dens operatør. Installér tilføjelser fra kataloget.",
+    "appsOff": "Upload er slået fra på denne server af dens operatør. Installér apps fra kataloget."
   }
 } as const;

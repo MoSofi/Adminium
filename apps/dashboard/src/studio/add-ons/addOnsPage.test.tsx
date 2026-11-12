@@ -575,6 +575,23 @@ describe('AddOnsPage', () => {
       );
     });
 
+    it('keeps sideload in view, off and explained, while the operator keeps uploads off', async () => {
+      const user = userEvent.setup();
+      const off = { allowed: false, reason: 'trial-mode' };
+      const { calls } = await renderPage({
+        respond: (method, url) =>
+          method === 'GET' && url === '/api/v1/system/info' ? { status: 200, body: { ownCode: { packageUploads: off, designerUploads: off, ownBuilds: off } } } : undefined,
+      });
+      const upload = await screen.findByRole('button', { name: 'Upload' });
+      await waitFor(() => expect(upload.getAttribute('aria-disabled')).toBe('true'));
+      // In the tab order still, and described by the operator's line.
+      expect((upload as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.getByText('Uploads are turned off on this server by its operator. Install add-ons from the catalog.').id).toBe(upload.getAttribute('aria-describedby'));
+      expect((screen.getByLabelText('Package file (.tgz)') as HTMLInputElement).disabled).toBe(true);
+      await user.click(upload);
+      expect(calls.some((c) => c.url.startsWith('/api/v1/add-ons/upload'))).toBe(false);
+    });
+
     it('sends only the bytes and their hash, and names the add-on the server read', async () => {
       const user = userEvent.setup();
       const { calls } = await renderPage();
