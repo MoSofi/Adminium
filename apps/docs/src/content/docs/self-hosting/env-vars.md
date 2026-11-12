@@ -961,8 +961,8 @@ For an operator who runs Adminium for other people: a trial for a stranger
 (`ADMINIUM_TRIAL_MODE=on`), or a paid installation on the same server
 (`ADMINIUM_HOSTED_MODE=on`). Both are set by the environment only: no setting
 switches them off, and a project's `.env` cannot set any of these variables. In
-trial mode the project's `.env` is not read at all. Pass them through the Docker
-API's `Env` array, never an env file built from user input.
+trial mode and the hosted profile the project's `.env` is not read at all. Pass
+them through the Docker API's `Env` array, never an env file built from user input.
 
 A trial boot fails without `ADMINIUM_TRIAL_ENDS_AT`, `ADMINIUM_SETUP_TOKEN`,
 `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`; a hosted boot without
@@ -1083,6 +1083,56 @@ With `ADMINIUM_PUBLIC_ORIGIN` or `ADMINIUM_OPERATOR_DOMAINS` set, on any server:
   A mapping saved before is not answered.
   Under trial mode and the hosted profile, the websites that may show a form in
   a frame must be listed domains too.
+
+### The hosted profile
+
+`ADMINIUM_HOSTED_MODE=on` is for an installation someone pays you for on your
+server, typically a trial after its Upgrade. Its Super Admin is still somebody
+else on your machine and your network, so the profile keeps what would let
+their code or their connections reach you, and drops what only limits a free
+trial.
+
+| | Hosted profile |
+|---|---|
+| The host list, the login of `ADMINIUM_SOURCE_URL` on your hosts, no SQLite source, one budget of connection tests, `strict`, databases on this server off, the meta store fixed | Kept |
+| Files only in the data folder, no other storage destination | Kept |
+| No add-on or app uploads; the Designer builds with the manifest, pages and screens only, never hooks, actions, build code or packages; the project's `.env` not read | Kept |
+| Answering only on its own addresses (421), the address in email links, mapped domains from your list | Kept |
+| The [operator endpoint](/self-hosting/operator-endpoint/) and hiding the public pages | Kept, when you set its two variables |
+| The boot refusals in the table at the top of this section | Kept, except telemetry, maps and routing, which are yours to switch on |
+| The end date, the banners, the Upgrade button, read-only after the end | Dropped |
+| The size caps and the pools of 3 | Dropped: your own quotas on the database server and the volume stay yours to set |
+| `noindex` and the disallowing `robots.txt` | Dropped |
+| Mail only through your relay | Dropped: the Super Admin sets their own mail server in **Studio → Settings → Email** |
+| Webhooks, add-on network calls, payment services and pay pages, the Designer's picture search and Figma, telemetry and the update check | Back on. Webhooks and storage still refuse your private network (`strict`) |
+| AI only on your connection | Dropped: an AI address of their own comes back. Set `ADMINIUM_AI_OPERATOR_ONLY=on` to keep the rule: the `ADMINIUM_AI_OPERATOR_*` variables work here as on any server |
+
+**What you set.** `ADMINIUM_HOSTED_MODE=on`, `ADMINIUM_PUBLIC_ORIGIN` and
+`ADMINIUM_DATABASE_HOSTS` (the boot fails without them), `ADMINIUM_SOURCE_URL`
+for the one login on your database hosts, and the instance's own random
+`ADMINIUM_SECRET`. As you need them: `ADMINIUM_OPERATOR_DOMAINS` for the
+domains you verified, `ADMINIUM_OPERATOR_TOKEN` with `ADMINIUM_OPERATOR_LISTEN`
+for the operator endpoint, and `ADMINIUM_DEPLOY_LINK=off` if you offer the
+hosting yourself (the profile does not hide that link for you). No end date and
+no setup token are needed.
+
+**What changes at the Upgrade.** Recreate the container on the same meta store,
+the same data folder and the same `ADMINIUM_SECRET`, with
+`ADMINIUM_HOSTED_MODE=on` in place of `ADMINIUM_TRIAL_MODE=on`:
+
+- remove every `ADMINIUM_TRIAL_*` variable, `ADMINIUM_TRIAL_SMTP_URL` included.
+  A hosted boot with one left fails and names it, so no old end date or relay
+  carries over;
+- keep `ADMINIUM_PUBLIC_ORIGIN`, `ADMINIUM_DATABASE_HOSTS`, `ADMINIUM_SOURCE_URL`,
+  `ADMINIUM_OPERATOR_DOMAINS`, the operator endpoint's variables and
+  `ADMINIUM_DEPLOY_LINK`. Raise `ADMINIUM_SOURCE_POOL_MAX` past 3 if you like;
+- everything in the meta store comes along: people, pages, connections,
+  settings, mapped domains. The end date and the size caps were never stored,
+  so the installation takes writes again from its first request;
+- a hide you set on the public pages through the operator endpoint stays until
+  you lift it;
+- telemetry and the update check stay off until the Super Admin switches them
+  on, and no mail goes out until they set their own mail server.
 
 ## The desktop block
 
