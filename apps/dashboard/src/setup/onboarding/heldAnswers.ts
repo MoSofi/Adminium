@@ -75,6 +75,13 @@ export interface HeldAnswers {
    * also put Adminium's own data in that same database.
    */
   park: boolean;
+  /**
+   * "Connect Supabase" was picked (`connect/ProviderConnect.tsx`). Nothing is
+   * started here: there is no account yet, and the hand-off needs a session.
+   * The wizard ends in Studio's connect wizard, which starts the sign-in.
+   * Typing a connection string un-picks it.
+   */
+  provider: 'supabase' | null;
 }
 
 export const DEFAULT_HELD_ANSWERS: HeldAnswers = {
@@ -84,6 +91,7 @@ export const DEFAULT_HELD_ANSWERS: HeldAnswers = {
   existing: null,
   probedDsn: null,
   park: false,
+  provider: null,
 };
 
 /** Nothing was typed — the connect step may be passed without an answer. */

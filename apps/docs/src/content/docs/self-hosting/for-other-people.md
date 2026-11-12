@@ -143,6 +143,73 @@ ADMINIUM_DEPLOY_LINK=off
 
 → [Environment variables](/self-hosting/env-vars/#the-complete-list)
 
+## 8. Connect Supabase
+
+If you run a service that signs people in to Supabase and lets them pick or
+create a project, Adminium can take the connection from it, once. Set the
+service's address:
+
+```bash
+ADMINIUM_SUPABASE_CONNECT_URL=https://connect.example.com/supabase
+```
+
+The connect wizards then show **Connect Supabase** above the connection-string
+form, which stays for everyone. Adminium never talks to Supabase itself: the
+sign-in, its client secret, the token and the project list stay with your
+service. It must be `https://`, or the server does not start.
+
+**What your service must do.**
+
+1. **The page.** The browser arrives at your address with `instance` (the
+   instance's origin), `state` and `challenge` (`base64url(SHA-256(verifier))`,
+   no padding, as in PKCE's S256). After the sign-in, send the browser to
+   `<origin>/connect/supabase/return?state=<state>&code=<code>`, where
+   `<origin>` is **the origin you registered for that instance**. Never send it
+   to the `instance` parameter as given: that would make your page an open
+   redirect. Make `code` random, single use, short-lived (a minute is plenty),
+   and keep the `challenge` with it.
+2. **The redeem.** The instance calls `POST <address>/redeem` with
+   `{"code": "…", "verifier": "…"}`. Refuse a code that is unknown, spent or
+   expired with `410`, and one whose `SHA-256(verifier)` is not its challenge
+   with `400`. Answer within 10 seconds, with at most 64 KB of JSON, and no
+   redirect: the instance follows none and refuses the answer.
+3. **The answer.**
+
+   | Field | What it must be |
+   |---|---|
+   | `engine` | `"postgres"` |
+   | `host` | A plain host name, such as `aws-0-eu-central-1.pooler.supabase.com`. No address, port or path. |
+   | `port` | An integer. |
+   | `database`, `user` | Letters, digits, `_`, `.` and `-` only. |
+   | `sslmode` | `"require"` (encrypted) or `"verify-full"` (encrypted, the certificate checked against the system's). |
+   | `password` | For a project you just created. **Leave it out for an existing project**: the instance asks the person for it on its own page, and it never reaches you. |
+   | `project` | Optional: the project's name, shown to the person and used to name the connection. |
+
+   Any other field is ignored. An answer that breaks a rule is refused, and the
+   person sees *Supabase connection expired.* with a button to start again.
+
+The host must still pass this server's own rules for databases. Under
+`ADMINIUM_NETWORK_POLICY=strict` or behind your own firewall, Supabase's hosts
+are public addresses and pass; list your own database hosts in
+`ADMINIUM_DATABASE_HOSTS` as for any other connection.
+
+The audit log records each start, success and refusal (with the host and the
+reason), never a connection string or a password.
+
+**Trying it on your computer.** The repository has a fake service that plays
+both sides and answers each of the cases above:
+
+```bash
+node scripts/dev/fake-connect-operator.mjs --database postgres://you@localhost:5432/shop --instance http://localhost:4600
+```
+
+It prints the two variables to start Adminium with
+(`ADMINIUM_SUPABASE_CONNECT_URL` and `NODE_EXTRA_CA_CERTS`, since it serves
+https with a certificate of its own). It also puts TLS in front of your local
+Postgres, which usually has none, because the answer asks for it.
+
+→ [Environment variables](/self-hosting/env-vars/#the-complete-list)
+
 ## All together
 
 ```bash
@@ -155,6 +222,7 @@ ADMINIUM_NETWORK_POLICY=strict
 ADMINIUM_SQLITE_DIRS=/srv/client/databases
 ADMINIUM_STORAGE_DIRS=/srv/client/files
 ADMINIUM_DEPLOY_LINK=off              # if you host it yourself
+ADMINIUM_SUPABASE_CONNECT_URL=https://connect.example.com/supabase   # if you run a connect service
 ```
 
 None of these limits what a super admin can do inside Adminium itself: roles,

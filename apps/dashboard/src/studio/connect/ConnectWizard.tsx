@@ -15,10 +15,13 @@ import { RotateCcw } from 'lucide-react';
 import { Alert, Button, Stepper, type Step } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
+import type { ConnectedConnection } from '../../connect/connectApi.js';
+import { hasConnectReturn } from '../../connect/connectReturn.js';
 import { t } from '../../i18n/t.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, waitForRestart, type MetaStoreLocation, type SchemaTable } from '../api.js';
+import { workspacesApi } from '../hub/workspacesApi.js';
 import { redeemBridgeSeed } from './bridgeSeed.js';
 import { wizardCapabilitySource } from './capabilityNotes.js';
 import { enrichableTableCount } from './enrichState.js';
@@ -79,7 +82,11 @@ export function ConnectWizard({
   lineDelayMs,
   pollIntervalMs,
 }: ConnectWizardProps) {
-  const [state, setState] = useState<WizardState>(() => loadWizardState());
+  // Back from an operator's connect service: the source step, where the card that started it redeems what came back.
+  const [state, setState] = useState<WizardState>(() => {
+    const loaded = loadWizardState();
+    return hasConnectReturn() ? { ...loaded, step: 'source' } : loaded;
+  });
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
   /** Parsed schema-file tables — memory only (the model is too big for sessionStorage). */
   const [fileTables, setFileTables] = useState<SchemaTable[] | null>(null);
@@ -205,6 +212,32 @@ export function ConnectWizard({
    */
   const patchSource = (partial: Partial<WizardState>) =>
     setState((current) => applySourcePatch(current, partial));
+
+  /**
+   * "Connect Supabase" made, tested and read the connection on the server. The
+   * wizard goes on to the analyze step with it, as it would after creating one
+   * from a typed string.
+   */
+  const providerConnected = (connection: ConnectedConnection) => {
+    setTestStatus('idle');
+    setFileTables(null);
+    setState((current) => ({
+      ...current,
+      step: 'test',
+      mode: 'dsn',
+      dsn: '',
+      engine: connection.engine,
+      name: connection.name,
+      connectionId: connection.id,
+      readOnly: connection.readOnly,
+      privileges: null,
+      includedTables: null,
+      handoffProvider: 'supabase',
+      providerStart: null,
+    }));
+    // The workspaces ticked on the source step, as the analyze step does for a typed string.
+    if ((state.workspaceIds ?? []).length > 0) void workspacesApi.setForConnection(connection.id, state.workspaceIds ?? []).catch(() => undefined);
+  };
 
   const stepIndex = WIZARD_STEP_IDS.indexOf(state.step);
   const steps: Step[] = useMemo(
@@ -418,7 +451,7 @@ export function ConnectWizard({
           <IntentStep value={state.intent} onChange={(intent) => patch({ intent })} />
         ) : null}
         {state.step === 'source' ? (
-          <SourceStep state={state} onPatch={patchSource} onFileTablesCapture={setFileTables} />
+          <SourceStep state={state} onPatch={patchSource} onFileTablesCapture={setFileTables} onProviderConnected={providerConnected} />
         ) : null}
         {state.step === 'test' ? (
           <TestStep

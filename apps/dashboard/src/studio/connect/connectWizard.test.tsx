@@ -1029,3 +1029,51 @@ describe('meta step — skipped when the first-run wizard already asked', () => 
     });
   });
 });
+
+// --- "Connect Supabase" ---------------------------------------------------------
+
+describe('"Connect Supabase" in the wizard', () => {
+  const offered = () =>
+    jsonResponse(200, { version: '0.3.57', node: 'v22', dialect: 'sqlite', runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, connect: [{ provider: 'supabase' }] });
+
+  afterEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  it('opens on the source step when the browser is back, and goes on to analyze without probing a string', async () => {
+    saveWizardState({ ...INITIAL_WIZARD_STATE, step: 'intent', intent: 'read-only-analytics' });
+    window.sessionStorage.setItem('adminium-connect-return', JSON.stringify({ provider: 'supabase', state: 's', code: 'c' }));
+    const { calls } = scriptFetch({
+      'GET /api/v1/system/info': offered,
+      'POST /api/v1/connect/return': () =>
+        jsonResponse(200, { status: 'connected', connection: { id: 'conn_1', name: 'hollis-orders', engine: 'postgres', readOnly: true, introspected: true } }),
+    });
+    renderWizard();
+    // The analyze step, with the connection the hand-off made.
+    expect(await screen.findByText(/Connected through Supabase/)).toBeDefined();
+    await waitFor(() => expect(screen.getByText(/Found 3 tables/)).toBeDefined());
+    const keys = calls.map((call) => `${call.method} ${call.url}`);
+    expect(keys).toContain('POST /api/v1/connect/return');
+    expect(keys).toContain('POST /api/v1/connections/conn_1/introspect');
+    // Nothing typed, so nothing probed and nothing created from a string.
+    expect(keys).not.toContain('POST /api/v1/connections/test');
+    expect(keys).not.toContain('POST /api/v1/connections');
+    expect(continueButton()).toBeDefined();
+  });
+
+  it('starts the sign-in at once when a first-run wizard handed the choice on', async () => {
+    saveWizardState({ ...INITIAL_WIZARD_STATE, step: 'source', metaAsked: true, providerStart: 'supabase' });
+    const assign = vi.fn();
+    const { leaveFor } = await import('../../connect/connectApi.js');
+    const spy = vi.spyOn(leaveFor, 'go').mockImplementation(assign);
+    scriptFetch({
+      'GET /api/v1/system/info': offered,
+      'POST /api/v1/connect/start': () => jsonResponse(200, { redirectUrl: 'https://connect.example.com/supabase?state=s' }),
+    });
+    renderWizard();
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://connect.example.com/supabase?state=s'));
+    // Used once: a reload of this page does not start it again.
+    expect(JSON.parse(window.sessionStorage.getItem('adminium-studio-connect') ?? '{}').providerStart).toBeNull();
+    spy.mockRestore();
+  });
+});

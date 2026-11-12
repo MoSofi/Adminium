@@ -66,6 +66,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
     'desktop/setup/steps/GenerateStep.tsx',
     'desktop/setup/steps/SourceStep.tsx',
   ],
+  // "Connect Supabase" (`onboarding.connectProvider`): the card waits for its words itself, in each of the three connect front doors.
+  'connect/ProviderConnect.tsx': [],
   'pages/builders/PageBuilderBinding.tsx': [],
   // Three page templates' words (`templates`): each binding is fetched with its page.
   'pages/PageDirectoryBinding.tsx': [],

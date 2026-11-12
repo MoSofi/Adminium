@@ -3,6 +3,7 @@ import { isAbsolute, resolve } from 'node:path';
 
 import { z } from 'zod';
 
+import { parseConnectUrl } from '../connect/providers.js';
 import { parseDatabaseHost, type DatabaseHost } from '../connections/dsn.js';
 import { NETWORK_POLICIES } from '../net/outbound-check.js';
 import { invalidTrustedProxies } from '../security/trust-proxy.js';
@@ -469,6 +470,28 @@ export const envSchema = z.object({
       .optional()
       .transform((value) => (value === undefined ? true : TRUTHY.has(value))),
   ),
+  /*
+   * "Connect Supabase": the address of the operator's connect service. Set,
+   * the connect wizards offer the card and the instance redeems a one-time
+   * code at `<url>/redeem` (connect/handoff.ts). https only, else the boot
+   * fails: the answer can carry a database password. Unset, nothing changes.
+   */
+  ADMINIUM_SUPABASE_CONNECT_URL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(2000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const url = parseConnectUrl(value);
+        if (url === null) {
+          ctx.addIssue({ code: 'custom', message: 'must be one https:// address with no name, password, query or fragment, e.g. https://connect.example.com/supabase' });
+          return z.NEVER;
+        }
+        return url;
+      }),
+  ),
   ADMINIUM_NETWORK_FEATURES: z.preprocess(
     emptyToUndefined,
     z
@@ -922,6 +945,8 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_TELEMETRY: `one of ${BOOLEANISH.join(', ')} (default off)`,
   ADMINIUM_DESIGNER: 'off or live (default off; live lets a Super Admin switch Adminium Designer on for this server)',
   ADMINIUM_DEPLOY_LINK: `one of ${BOOLEANISH.join(', ')} (default on; off hides the "Put this online" link to adminium.dev/deploy)`,
+  ADMINIUM_SUPABASE_CONNECT_URL:
+    'the https:// address of the operator\'s connect service, e.g. https://connect.example.com/supabase (unset: no "Connect Supabase" card)',
   ADMINIUM_NETWORK_FEATURES: `one of ${BOOLEANISH.join(', ')} (default on; set off on air-gapped installs so the UI stops offering webhooks/OAuth)`,
   ADMINIUM_TRUST_PROXY: `one of ${BOOLEANISH.join(', ')} (default off; enable behind Caddy/TLS)`,
   ADMINIUM_TRUSTED_PROXIES:

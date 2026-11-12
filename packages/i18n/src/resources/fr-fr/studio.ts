@@ -3129,7 +3129,8 @@ export default {
       "readingFile": "Lecture du fichier de schéma téléversé…",
       "readingSchema": "Lecture du schéma : public",
       "ready": "Prêt",
-      "relations": "Détection des relations…"
+      "relations": "Détection des relations…",
+      "handoff": "Connecté via Supabase · lecture seule du schéma"
     },
     "logLabel": "Journal d’introspection",
     "retry": "Réessayer",

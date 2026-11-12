@@ -6,6 +6,7 @@
 import { z } from 'zod';
 
 import { RUNTIMES } from '../../config/env.js';
+import { CONNECT_PROVIDER_IDS } from '../../connect/providers.js';
 
 /** Meta-store dialects; `null` until meta wiring (wave 2). */
 export const metaDialect = z.enum(['postgres', 'mysql', 'sqlite']);
@@ -127,5 +128,13 @@ export const systemInfoReply = z.object({
    * called compose can see it, and the SPA is not that process.
    */
   desktopDemo: z.boolean(),
+  /**
+   * The operators this instance can take a connection from ("Connect
+   * Supabase"): one entry per provider whose connect address the operator set
+   * (`ADMINIUM_SUPABASE_CONNECT_URL`). Empty: the connect wizards show only
+   * today's form. The address itself is not sent: the browser is given it by
+   * `POST /connect/start`, signed in.
+   */
+  connect: z.array(z.object({ provider: z.enum(CONNECT_PROVIDER_IDS) })),
 });
 export type SystemInfoReply = z.infer<typeof systemInfoReply>;

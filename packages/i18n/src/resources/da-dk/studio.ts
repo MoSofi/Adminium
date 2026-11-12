@@ -3129,7 +3129,8 @@ export default {
       "readingFile": "Læser den uploadede skemafil…",
       "readingSchema": "Læser skema: public",
       "ready": "Klar",
-      "relations": "Registrerer relationer…"
+      "relations": "Registrerer relationer…",
+      "handoff": "Forbundet via Supabase · skemaet læses kun"
     },
     "logLabel": "Introspektionslog",
     "retry": "Prøv igen",

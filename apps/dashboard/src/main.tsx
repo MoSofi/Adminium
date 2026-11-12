@@ -36,6 +36,9 @@ async function start(): Promise<void> {
   // `Referer` can carry it, and on a fresh install the first route to render is
   // `/setup`, not the `/studio/connect` the site redirected to.
   captureBridgeTicket();
+  // The way back from an operator's connect service ("Connect Supabase"), for the same reasons. Only a page
+  // opened at that address downloads the code that reads it.
+  if (window.location.pathname.startsWith('/connect/')) (await import('./connect/connectReturn.js')).captureConnectReturn();
 
   await initDashboardI18n();
 

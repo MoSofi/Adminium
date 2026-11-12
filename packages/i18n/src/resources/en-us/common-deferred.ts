@@ -961,6 +961,29 @@ export default {
         "connectRefused": "The database refused the connection.",
         "readFailed": "Adminium could not read that database’s tables."
       }
+    },
+    "connectProvider": {
+      "or": "or",
+      "supabase": {
+        "title": "Connect Supabase",
+        "body": "Sign in to Supabase and pick a project.",
+        "action": "Connect Supabase",
+        "again": "Connect Supabase again",
+        "expired": "Supabase connection expired.",
+        "failed": "Supabase could not be connected.",
+        "connecting": "Connecting your Supabase project…",
+        "picked": "Picked. You sign in to Supabase once your account exists."
+      },
+      "existing": {
+        "title": "Use an existing project",
+        "change": "Change",
+        "label": "Enter the database password for project {project}",
+        "labelNoName": "Enter the database password for this project",
+        "help": "The operator never sees it: it goes straight to this installation.",
+        "connect": "Connect",
+        "back": "Back",
+        "failed": "That password did not connect. Check it and try again."
+      }
     }
   },
   "audit": {

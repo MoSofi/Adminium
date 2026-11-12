@@ -6591,6 +6591,74 @@
     "srcHash": "5d26b21da40a",
     "status": "mt"
   },
+  "common.onboarding.connectProvider.existing.back": {
+    "status": "mt",
+    "srcHash": "b52b36b7269f"
+  },
+  "common.onboarding.connectProvider.existing.change": {
+    "status": "mt",
+    "srcHash": "64fbd995d3b6"
+  },
+  "common.onboarding.connectProvider.existing.connect": {
+    "status": "mt",
+    "srcHash": "b65463cb6a42"
+  },
+  "common.onboarding.connectProvider.existing.failed": {
+    "status": "mt",
+    "srcHash": "d6ec60e93071"
+  },
+  "common.onboarding.connectProvider.existing.help": {
+    "status": "mt",
+    "srcHash": "918c697e4f5e"
+  },
+  "common.onboarding.connectProvider.existing.label": {
+    "status": "mt",
+    "srcHash": "28eceb174d68"
+  },
+  "common.onboarding.connectProvider.existing.labelNoName": {
+    "status": "mt",
+    "srcHash": "eef198f7cdf0"
+  },
+  "common.onboarding.connectProvider.existing.title": {
+    "status": "mt",
+    "srcHash": "ad28da0b8b95"
+  },
+  "common.onboarding.connectProvider.or": {
+    "status": "mt",
+    "srcHash": "1758356db217"
+  },
+  "common.onboarding.connectProvider.supabase.action": {
+    "status": "mt",
+    "srcHash": "08e07d2cf387"
+  },
+  "common.onboarding.connectProvider.supabase.again": {
+    "status": "mt",
+    "srcHash": "1ed74a6be911"
+  },
+  "common.onboarding.connectProvider.supabase.body": {
+    "status": "mt",
+    "srcHash": "38b8b65f9752"
+  },
+  "common.onboarding.connectProvider.supabase.connecting": {
+    "status": "mt",
+    "srcHash": "2e32a8272ea2"
+  },
+  "common.onboarding.connectProvider.supabase.expired": {
+    "status": "mt",
+    "srcHash": "95408d1275a9"
+  },
+  "common.onboarding.connectProvider.supabase.failed": {
+    "status": "mt",
+    "srcHash": "a3c73f20dc13"
+  },
+  "common.onboarding.connectProvider.supabase.picked": {
+    "status": "mt",
+    "srcHash": "9a2751cc3f09"
+  },
+  "common.onboarding.connectProvider.supabase.title": {
+    "status": "mt",
+    "srcHash": "08e07d2cf387"
+  },
   "common.onboarding.desktopSetup.account.alreadyExists": {
     "srcHash": "dc4ac8af82db",
     "status": "mt"
@@ -41850,6 +41918,10 @@
   "studio.test.log.found": {
     "srcHash": "2f917c0e100d",
     "status": "mt"
+  },
+  "studio.test.log.handoff": {
+    "status": "mt",
+    "srcHash": "41541ab642ef"
   },
   "studio.test.log.jobFailed": {
     "srcHash": "7e9bbd255a65",

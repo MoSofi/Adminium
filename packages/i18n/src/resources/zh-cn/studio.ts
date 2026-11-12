@@ -3129,7 +3129,8 @@ export default {
       "readingFile": "正在读取上传的架构文件…",
       "readingSchema": "正在读取架构：public",
       "ready": "就绪",
-      "relations": "正在检测关系…"
+      "relations": "正在检测关系…",
+      "handoff": "已通过 Supabase 连接 · 只读取架构"
     },
     "logLabel": "自省日志",
     "retry": "重试",

@@ -119,6 +119,8 @@ export const HOST_DECIDED_ENV: readonly string[] = [
   'ADMINIUM_ROUTING_SERVER',
   // The operator's word on the "Put this online" link: a folder does not put it back.
   'ADMINIUM_DEPLOY_LINK',
+  // The operator's connect service: where a database password may come from is not a folder's to choose.
+  'ADMINIUM_SUPABASE_CONNECT_URL',
   'ADMINIUM_PROJECT_MODE',
   'ADMINIUM_PROJECT_DIR',
   'ADMINIUM_DESKTOP_PROJECT',

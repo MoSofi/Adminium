@@ -700,6 +700,29 @@ export default {
         "connectRefused": "La base de données a refusé la connexion.",
         "readFailed": "Adminium n’a pas pu lire les tables de cette base de données."
       }
+    },
+    "connectProvider": {
+      "or": "ou",
+      "supabase": {
+        "title": "Connecter Supabase",
+        "body": "Connectez-vous à Supabase et choisissez un projet.",
+        "action": "Connecter Supabase",
+        "again": "Reconnecter Supabase",
+        "expired": "La connexion Supabase a expiré.",
+        "failed": "Impossible de connecter Supabase.",
+        "connecting": "Connexion de votre projet Supabase…",
+        "picked": "Choisi. Vous vous connecterez à Supabase une fois votre compte créé."
+      },
+      "existing": {
+        "title": "Utiliser un projet existant",
+        "change": "Modifier",
+        "label": "Saisissez le mot de passe de la base de données du projet {project}",
+        "labelNoName": "Saisissez le mot de passe de la base de données de ce projet",
+        "help": "L’opérateur ne le voit jamais : il va directement à cette installation.",
+        "connect": "Connecter",
+        "back": "Retour",
+        "failed": "Ce mot de passe n’a pas permis la connexion. Vérifiez-le et réessayez."
+      }
     }
   },
   "views": {

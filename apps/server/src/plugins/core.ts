@@ -378,6 +378,9 @@ export const RATE_BUCKETS = {
   // checks a few times an hour; these stop a script hammering DNS or the CPU.
   'mail-dns': { max: 240, timeWindowMs: 3_600_000, keyBy: 'principal' },
   'mail-settings': { max: 120, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  // "Connect Supabase": each return calls the operator once and may dial a database. A person connects a project
+  // or two; 60 an hour per person stops a script spending the operator's codes or this server's connections.
+  'connect-handoff': { max: 60, timeWindowMs: 3_600_000, keyBy: 'principal' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

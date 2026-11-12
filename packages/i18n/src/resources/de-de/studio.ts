@@ -3129,7 +3129,8 @@ export default {
       "readingFile": "Hochgeladene Schemadatei wird gelesen…",
       "readingSchema": "Schema wird gelesen: public",
       "ready": "Bereit",
-      "relations": "Beziehungen werden erkannt…"
+      "relations": "Beziehungen werden erkannt…",
+      "handoff": "Über Supabase verbunden · Schema wird nur gelesen"
     },
     "logLabel": "Introspektionsprotokoll",
     "retry": "Erneut versuchen",

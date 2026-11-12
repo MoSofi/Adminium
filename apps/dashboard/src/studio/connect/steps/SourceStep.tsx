@@ -37,6 +37,8 @@ import {
 } from '@adminium/ui';
 
 import { ApiError } from '../../../app/api.js';
+import type { ConnectedConnection } from '../../../connect/connectApi.js';
+import { ProviderConnect } from '../../../connect/ProviderConnect.js';
 import { t } from '../../../i18n/t.js';
 import { studioApi, type ConnectionEngine, type SchemaTable } from '../../api.js';
 import { Dropzone } from '../Dropzone.js';
@@ -65,6 +67,11 @@ export interface SourceStepProps {
   onPatch: (patch: Partial<WizardState>) => void;
   /** Hands the parsed schema-file tables to the wizard (memory-only). */
   onFileTablesCapture?: ((tables: SchemaTable[] | null) => void) | undefined;
+  /**
+   * "Connect Supabase" landed a connection (`connect/ProviderConnect.tsx`): the
+   * wizard goes on with it. The card shows only when the operator offers it.
+   */
+  onProviderConnected?: ((connection: ConnectedConnection) => void) | undefined;
 }
 
 const SSL_MODES: readonly SslMode[] = ['disable', 'require', 'verify-ca', 'verify-full'];
@@ -72,7 +79,7 @@ const SSL_MODES: readonly SslMode[] = ['disable', 'require', 'verify-ca', 'verif
 /** Everything the 8 parsers read — plus.txt for pasted dumps. */
 const FILE_ACCEPT = '.sql,.prisma,.ts,.js,.mjs,.cjs,.rb,.py,.json,.txt';
 
-export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepProps) {
+export function SourceStep({ state, onPatch, onFileTablesCapture, onProviderConnected }: SourceStepProps) {
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   /** Last uploaded file, kept in memory so a format override can re-parse. */
@@ -145,6 +152,15 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
           {t('studio:source.subtitle', "Point Adminium at a database and we'll generate an admin dashboard from its schema.")}
         </p>
       </div>
+
+      {onProviderConnected === undefined ? null : (
+        <ProviderConnect
+          mode="connect"
+          onConnected={onProviderConnected}
+          autoStart={state.providerStart === 'supabase'}
+          onAutoStarted={() => onPatch({ providerStart: null })}
+        />
+      )}
 
       <FormField label={t('studio:source.name', 'Connection name')} required>
         <Input

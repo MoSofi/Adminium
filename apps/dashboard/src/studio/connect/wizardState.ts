@@ -498,6 +498,16 @@ export interface WizardState {
    * empty puts it in "Other databases".
    */
   workspaceIds?: string[];
+  /**
+   * The connection came from an operator's hand-off ("Connect Supabase"): made,
+   * tested and read on the server, so the analyze step has no string to probe.
+   */
+  handoffProvider?: 'supabase' | null;
+  /**
+   * Start that hand-off as soon as the source step opens: the person chose it
+   * in a first-run wizard, before there was an account to start it with.
+   */
+  providerStart?: 'supabase' | null;
 }
 
 export const INITIAL_WIZARD_STATE: WizardState = {
@@ -637,7 +647,7 @@ export function effectiveEngine(state: WizardState): ConnectionEngine | null {
  * exists should not strand that row and mint a second one for the same database.
  */
 export function sourceIdentity(state: WizardState): string {
-  return `${state.mode}|${effectiveEngine(state) ?? ''}|${effectiveDsn(state)}`;
+  return `${state.mode}|${effectiveEngine(state) ?? ''}|${effectiveDsn(state)}|${state.handoffProvider ?? ''}`;
 }
 
 /**
@@ -653,7 +663,7 @@ export function sourceIdentity(state: WizardState): string {
 export function applySourcePatch(state: WizardState, patch: Partial<WizardState>): WizardState {
   const next = { ...state, ...patch };
   if (state.connectionId === null || sourceIdentity(next) === sourceIdentity(state)) return next;
-  return { ...next, connectionId: null, readOnly: false, privileges: null, includedTables: null };
+  return { ...next, connectionId: null, readOnly: false, privileges: null, includedTables: null, handoffProvider: null };
 }
 
 /**
@@ -674,9 +684,16 @@ export function wizardHasProgress(state: WizardState): boolean {
   );
 }
 
+/** The wizard's connection came from an operator's hand-off ("Connect Supabase"), not from a typed string. */
+export function isHandedOff(state: WizardState): boolean {
+  return state.handoffProvider !== undefined && state.handoffProvider !== null && state.connectionId !== null;
+}
+
 /** Whether Continue is enabled on the `source` step. */
 export function sourceStepValid(state: WizardState): boolean {
   if (state.name.trim().length === 0) return false;
+  // Back on this step after "Connect Supabase": the connection it made is still the source, until something is typed.
+  if (isHandedOff(state) && state.mode === 'dsn' && state.dsn.trim() === '') return true;
   if (state.mode === 'dsn') {
     return state.dsn.trim().length > 0 && dsnValidationError(state.dsn) === null;
   }

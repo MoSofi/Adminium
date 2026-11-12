@@ -347,6 +347,17 @@ export function OnboardingPage({
    */
   function handOffPath(): string {
     if (hasPendingBridgeTicket()) return '/studio/connect';
+    // "Connect Supabase" was picked before the account existed: Studio's wizard starts the sign-in now.
+    if (held.provider === 'supabase' && held.dsn.trim() === '') {
+      saveWizardState({
+        ...INITIAL_WIZARD_STATE,
+        step: 'source',
+        intent: held.start,
+        metaAsked: true,
+        providerStart: 'supabase',
+      });
+      return '/studio/connect';
+    }
     if (connection === null || held.start === 'blank') return '/';
     saveWizardState({
       ...INITIAL_WIZARD_STATE,
@@ -472,12 +483,20 @@ export function OnboardingPage({
           onChange={(patch) =>
             // Any edit to the string invalidates what the probe said about the
             // old one — and un-parks, because the choice was about that database.
+            // Typing one also un-picks "Connect Supabase": the string is the answer now.
             setHeld({
               ...held,
               ...patch,
-              ...(patch.dsn === undefined ? {} : { existing: null, probedDsn: null, park: false }),
+              ...(patch.dsn === undefined ? {} : { existing: null, probedDsn: null, park: false, ...(patch.dsn.trim() === '' ? {} : { provider: null }) }),
             })
           }
+          provider={held.provider}
+          onPickProvider={() => {
+            // The pick is the answer: no string, so the account is made without a connection, and the
+            // wizard ends in Studio's connect wizard, which starts the Supabase sign-in (`handOffPath`).
+            setHeld({ ...held, dsn: '', existing: null, probedDsn: null, park: false, provider: 'supabase' });
+            goto(stepAfter('connect', steps));
+          }}
         />
       ) : null}
       {step === 'account' ? (
