@@ -42,6 +42,7 @@ import type { LiveForm } from '../../forms/catalog.js';
 import { FORM_FILE_MB, FORM_UPLOAD_KIND, formUploadKey } from '../../forms/files.js';
 import { checkProof } from '../../public-api/proof.js';
 import type { PublicUploads, UploadRefusal } from '../../public-uploads/store.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** The most a file question allows (`maxMb` ≤ 10), plus room for nothing else: the spool's own cap is the question's. */
 export const FORM_FILE_BODY_LIMIT = 10 * FORM_FILE_MB + 64 * 1024;
@@ -69,6 +70,8 @@ export function formsFileRoutes(deps: FormsFileRoutesDeps): FastifyPluginAsyncZo
   const proofs = publicProofsRepo(deps.meta);
 
   return async (app) => {
+    // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
+    tagRoutes(app, 'public');
     // The body is the file: every type is handed over as the stream it is, inside this plugin only.
     app.removeAllContentTypeParsers();
     app.addContentTypeParser('*', (_request, payload, done) => done(null, payload));

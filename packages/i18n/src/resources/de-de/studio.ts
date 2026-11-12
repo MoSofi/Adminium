@@ -3492,6 +3492,9 @@ export default {
       "signInLink": "Anmelden",
       "noCopy": "Diese Adresse ist zu einer Kopie umgezogen, die dieses Konto nicht öffnen kann.",
       "guest": "Diese Adresse ist umgezogen."
+    },
+    "hidden": {
+      "title": "Diese Seite ist nicht verfügbar."
     }
   },
   "appSettings": {
@@ -5925,5 +5928,11 @@ export default {
   "ownCode": {
     "addOnsOff": "Hochladen ist auf diesem Server vom Betreiber abgeschaltet. Installiere Add-ons aus dem Katalog.",
     "appsOff": "Hochladen ist auf diesem Server vom Betreiber abgeschaltet. Installiere Apps aus dem Katalog."
+  },
+  "operatorHidden": {
+    "title": "Ihre öffentlichen Seiten wurden vom Betreiber ausgeblendet.",
+    "reason": "Grund: {reason}",
+    "reply": "Antworten Sie auf die E-Mail des Betreibers, falls es sich um einen Irrtum handelt.",
+    "chip": "Ausgeblendet"
   }
 } as const;

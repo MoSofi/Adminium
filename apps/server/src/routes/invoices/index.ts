@@ -59,6 +59,7 @@ import {
   type InvoiceDetailView,
   type InvoiceSummaryView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface InvoicesRoutesDeps {
   meta: MetaDb;
@@ -166,6 +167,8 @@ export function invoicesRoutes(deps: InvoicesRoutesDeps): FastifyPluginAsyncZod 
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     // A "Shown in" names only the workspaces this person sees.
     app.addHook('preSerialization', shownInSeenOnly(meta));
     async function requireSettingsManage(request: FastifyRequest, what: string): Promise<void> {

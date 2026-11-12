@@ -47,6 +47,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { loadOverrideMap } from '../../i18n/server-i18n.js';
 import { businessName } from '../../privacy/business.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PayRoutesDeps {
   meta: MetaDb;
@@ -382,6 +383,8 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
   const { meta, now, counters, attempts, proofs, key, shop, reachable, mayOpen, stateOfAttempt, shownOf, receiptSentFor, page, mayPreview } = createPayPageReader(deps);
 
   return async (app) => {
+    // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
+    tagRoutes(app, 'public');
     // The pay page's own words as the shop reworded them in Translations: this one namespace only, the
     // words every customer already reads on the page, so anyone may ask. Nothing else is served here.
     app.get(

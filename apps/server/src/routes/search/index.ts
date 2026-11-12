@@ -59,6 +59,7 @@ import {
   type SearchRecordGroup,
   type SearchRecordHit,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export const SEARCH_PER_TABLE_TIMEOUT_MS = 2_000;
 export const SEARCH_TOTAL_BUDGET_MS = 5_000;
@@ -154,6 +155,8 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
   const pages = pagesRepo(meta);
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /** `page:<id>:view` / `table:...:read`, tolerant of rbac-less harnesses. */
     function can(request: FastifyRequest, permission: string): Promise<boolean> {
       if (typeof request.can !== 'function') return Promise.resolve(true);

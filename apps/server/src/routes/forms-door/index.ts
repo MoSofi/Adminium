@@ -84,6 +84,7 @@ import { negotiateLocale, X_PREFIX } from '../../plugins/surfaces.js';
 import { issueChallenge, PROOF_DIFFICULTY, proofKey } from '../../public-api/proof.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { formsFileRoutes } from './files.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface FormsDoorDeps {
   meta: MetaDb;
@@ -223,6 +224,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
+    tagRoutes(app, 'public');
     async function xRoot(): Promise<string | null> {
       const spa = (app as unknown as { spaRoot: string | null }).spaRoot;
       if (spa === null || spa === undefined) return null;

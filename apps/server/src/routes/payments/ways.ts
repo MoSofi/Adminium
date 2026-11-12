@@ -49,6 +49,7 @@ import { businessName } from '../../privacy/business.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { sniffLogo } from '../branding/index.js';
 import { LOGO_BODY_LIMIT } from '../branding/schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PaymentWaysDeps {
   meta: MetaDb;
@@ -176,6 +177,8 @@ export function paymentWaysRoutes(deps: PaymentWaysDeps): FastifyPluginAsyncZod 
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.get('/payments/ways', { schema: { response: { 200: waysReply } } }, async (request) => {
       if (!(await canRead(request))) throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');
       return { data: { ways: (await ways.list()).map(toView), manualMethods: [...MANUAL_METHODS] } };

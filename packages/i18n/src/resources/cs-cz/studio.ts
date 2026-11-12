@@ -3492,6 +3492,9 @@ export default {
       "signInLink": "Přihlásit se",
       "noCopy": "Tato adresa se přesunula ke kopii, kterou tento účet nemůže otevřít.",
       "guest": "Tato adresa se přesunula."
+    },
+    "hidden": {
+      "title": "Tato stránka není dostupná."
     }
   },
   "appSettings": {
@@ -5925,5 +5928,11 @@ export default {
   "ownCode": {
     "addOnsOff": "Nahrávání je na tomto serveru vypnuto jeho provozovatelem. Doplňky instalujte z katalogu.",
     "appsOff": "Nahrávání je na tomto serveru vypnuto jeho provozovatelem. Aplikace instalujte z katalogu."
+  },
+  "operatorHidden": {
+    "title": "Vaše veřejné stránky skryl provozovatel.",
+    "reason": "Důvod: {reason}",
+    "reply": "Pokud jde o omyl, odpovězte na e-mail provozovatele.",
+    "chip": "Skryto"
   }
 } as const;

@@ -89,6 +89,7 @@ import {
   type KeyRowView,
   type LocaleManifestEntry,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** Realtime event type carried on the `config-changed` channel. */
 export const I18N_CHANGED = 'i18n.changed';
@@ -289,6 +290,8 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     async function announce(at: number): Promise<number> {
       const version = await readI18nVersion(meta.db);
       app.realtime.publish('config-changed', I18N_CHANGED, { version }, at);

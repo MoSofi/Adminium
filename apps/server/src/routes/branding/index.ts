@@ -44,6 +44,7 @@ import {
   brandingReply,
   type LogoMime,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface BrandingRoutesDeps {
   meta: MetaDb;
@@ -80,6 +81,8 @@ export function brandingRoutes(deps: BrandingRoutesDeps): FastifyPluginAsyncZod 
   const settings = settingsRepo(meta);
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     // Raw image bodies, this plugin's scope only (same encapsulation as the
     // CSV parser in routes/imports).
     for (const mime of LOGO_UPLOAD_CONTENT_TYPES) {

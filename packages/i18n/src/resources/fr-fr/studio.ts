@@ -3492,6 +3492,9 @@ export default {
       "signInLink": "Se connecter",
       "noCopy": "Cette adresse mène désormais à une copie que ce compte ne peut pas ouvrir.",
       "guest": "Cette adresse a changé."
+    },
+    "hidden": {
+      "title": "Cette page n’est pas disponible."
     }
   },
   "appSettings": {
@@ -5925,5 +5928,11 @@ export default {
   "ownCode": {
     "addOnsOff": "Les envois de fichiers sont désactivés sur ce serveur par son opérateur. Installez les modules depuis le catalogue.",
     "appsOff": "Les envois de fichiers sont désactivés sur ce serveur par son opérateur. Installez les applications depuis le catalogue."
+  },
+  "operatorHidden": {
+    "title": "Vos pages publiques sont masquées par l’opérateur.",
+    "reason": "Motif : {reason}",
+    "reply": "Répondez à l’e-mail de l’opérateur s’il s’agit d’une erreur.",
+    "chip": "Masquée"
   }
 } as const;

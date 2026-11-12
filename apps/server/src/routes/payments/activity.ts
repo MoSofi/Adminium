@@ -51,6 +51,7 @@ import { audited } from '../../audit/coverage.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
 import { refundableOf, refundRefusalOf } from '../../payments/refunds.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PaymentActivityDeps {
   meta: MetaDb;
@@ -386,6 +387,8 @@ export function paymentActivityRoutes(deps: PaymentActivityDeps): FastifyPluginA
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.get('/payments/activity', { schema: { querystring: query, response: { 200: listReply } } }, async (request) => {
       await mayRead(request);
       return { data: await rows(request.query, PAGE, app.rbac.now()) };

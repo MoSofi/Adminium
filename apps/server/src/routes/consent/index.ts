@@ -78,6 +78,7 @@ import {
   stopRemoveReply,
   type EventView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface ConsentRoutesDeps {
   meta: MetaDb;
@@ -179,6 +180,8 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     const superAdmin = async (request: FastifyRequest) => (await app.rbac.resolve(request)).superAdmin && request.apiKeyPrincipal == null;
     const withRemove = (entry: StopEntryView, may: boolean) => ({ ...entry, mayRemove: may && entry.erasedAt === null });
 

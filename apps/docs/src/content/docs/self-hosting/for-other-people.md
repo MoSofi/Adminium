@@ -210,6 +210,18 @@ Postgres, which usually has none, because the answer asks for it.
 
 → [Environment variables](/self-hosting/env-vars/#the-complete-list)
 
+## 9. Read its totals, and hide its public pages when you must
+
+The [operator endpoint](/self-hosting/operator-endpoint/) is a second listener on
+your own network, behind a token only you hold: how much disk the instance uses,
+when its Super Admins last signed in and from where, what it serves to the
+public, and one call that hides every public page at once while you sort
+something out with its owner. Staff pages keep working, and Studio tells the
+owner why.
+
+→ [The operator endpoint](/self-hosting/operator-endpoint/) ·
+[Refuse the operator paths at the proxy](/self-hosting/reverse-proxy/#refuse-the-operator-paths)
+
 ## All together
 
 ```bash
@@ -223,6 +235,8 @@ ADMINIUM_SQLITE_DIRS=/srv/client/databases
 ADMINIUM_STORAGE_DIRS=/srv/client/files
 ADMINIUM_DEPLOY_LINK=off              # if you host it yourself
 ADMINIUM_SUPABASE_CONNECT_URL=https://connect.example.com/supabase   # if you run a connect service
+ADMINIUM_OPERATOR_TOKEN_FILE=/run/secrets/operator_token   # with the next line: the operator endpoint
+ADMINIUM_OPERATOR_LISTEN=10.0.0.2:4601
 ```
 
 None of these limits what a super admin can do inside Adminium itself: roles,

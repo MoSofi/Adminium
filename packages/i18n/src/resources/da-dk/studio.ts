@@ -3492,6 +3492,9 @@ export default {
       "signInLink": "Log ind",
       "noCopy": "Denne adresse er flyttet til en kopi, som denne konto ikke kan åbne.",
       "guest": "Denne adresse er flyttet."
+    },
+    "hidden": {
+      "title": "Denne side er ikke tilgængelig."
     }
   },
   "appSettings": {
@@ -5925,5 +5928,11 @@ export default {
   "ownCode": {
     "addOnsOff": "Upload er slået fra på denne server af dens operatør. Installér tilføjelser fra kataloget.",
     "appsOff": "Upload er slået fra på denne server af dens operatør. Installér apps fra kataloget."
+  },
+  "operatorHidden": {
+    "title": "Dine offentlige sider er skjult af operatøren.",
+    "reason": "Årsag: {reason}",
+    "reply": "Svar på operatørens e-mail, hvis det er en fejl.",
+    "chip": "Skjult"
   }
 } as const;

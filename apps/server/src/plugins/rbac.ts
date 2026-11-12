@@ -34,6 +34,7 @@ import {
   parseBearerApiKey,
 } from '../rbac/api-keys.js';
 import { parsePermission } from '../rbac/permissions.js';
+import { signedInGuard } from '../security/route-audience.js';
 import { getPrincipal, type ApiKeyPrincipal } from '../rbac/principal.js';
 import {
   permissionSetAllows,
@@ -136,7 +137,7 @@ export const rbacPlugin = fp<RbacPluginOptions>(
         // outside the grammar is a programming error, not a client 403.
         throw new Error(`rbac.require(): invalid permission ${JSON.stringify(permission)}`);
       }
-      return async (request: FastifyRequest): Promise<void> => {
+      return signedInGuard(async (request: FastifyRequest): Promise<void> => {
         const set = await resolve(request); // throws 401 when unauthenticated
         if (permissionSetAllows(set, permission)) return;
         await auditFromRequest(request, {
@@ -147,7 +148,7 @@ export const rbacPlugin = fp<RbacPluginOptions>(
         throw new ForbiddenError('You do not have the required permission.', 'FORBIDDEN', {
           permission,
         });
-      };
+      });
     }
 
     app.decorate('rbac', { meta, require, resolve, audit: auditFromRequest, now });

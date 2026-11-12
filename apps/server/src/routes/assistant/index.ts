@@ -105,6 +105,7 @@ import {
   assistantTurnView,
   type AssistantTurnView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface AssistantRoutesDeps {
   meta: MetaDb;
@@ -276,6 +277,8 @@ export function assistantRoutes(deps: AssistantRoutesDeps): FastifyPluginAsyncZo
   const settings = settingsRepo(meta);
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     const guard = app.rbac.require(USE_PERMISSION);
 
     /*

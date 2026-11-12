@@ -34,6 +34,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
 import { normalizePublicOrigin } from '../../security/public-origin.js';
 import type { DomainMapping } from '../../surfaces/settings.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PaymentLinksDeps {
   meta: MetaDb;
@@ -160,6 +161,8 @@ export function paymentLinksRoutes(deps: PaymentLinksDeps): FastifyPluginAsyncZo
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.get('/payments/pay-address', { schema: { response: { 200: addressReply } } }, async (request) => {
       if (!((await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView)))) throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');
       return { data: { origin: await payAddress(meta), choices: await choices(), staffOrigin: await staffOrigin() } };

@@ -220,6 +220,7 @@ import {
   findPersonBody,
   findPersonReply,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 type TableAction = 'read' | 'create' | 'update' | 'delete';
 
@@ -473,6 +474,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
   /** The caller's context of a request whose reads are limited: its refusals leave out what they may not read. */
   const readersOf = new WeakMap<FastifyRequest, DataContext>();
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /** The outbox links that let go of a table's rows as they are removed: a message never stops its row from going (`outbox/release.ts`). */
     const releasedFor = async (connectionId: string, tableId: string): Promise<readonly ReleasedLink[]> =>
       app.hasDecorator('outbox') ? ((await app.outbox.releasing?.(connectionId, tableId)) ?? []) : [];

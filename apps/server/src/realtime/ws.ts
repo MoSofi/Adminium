@@ -92,6 +92,8 @@ export function registerWsRoute(app: FastifyInstance, deps: RealtimeGatewayDeps)
     '/ws',
     {
       websocket: true,
+      // The signed-in person's own socket: it answers nobody else (`security/route-audience.ts`).
+      config: { audience: 'staff' },
       // Runs before the upgrade completes — a thrown 401/403 rejects the
       // handshake with the standard error envelope.
       preValidation: async (request) => {

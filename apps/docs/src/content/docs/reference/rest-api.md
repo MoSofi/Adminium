@@ -1128,6 +1128,24 @@ DELETE /api/v1/workspaces/{id}/sender
 
 <!-- END GENERATED: operations -->
 
+## The operator endpoint
+
+Three routes are not served under the public address at all, and so are in
+neither the list above nor the OpenAPI document. They answer only on the
+operator's own listener (`ADMINIUM_OPERATOR_LISTEN`), and only
+`Authorization: Bearer <ADMINIUM_OPERATOR_TOKEN>`; the public listener answers
+`404` for them:
+
+| | |
+|---|---|
+| `GET /api/v1/operator/status` | Disk used, mail and AI spent, the Super Admins' last 20 sign-ins (time and address), the last sign-in, and whether the public pages are hidden |
+| `POST /api/v1/operator/public-pages` | `{ "hidden": true, "reason": "…" }` hides every public page at once (404 on every host); `{ "hidden": false }` shows them again |
+| `GET /api/v1/operator/public-content` | What the instance serves to anybody: every customer side's files, with their text, and every live form's fields |
+
+They are for whoever runs the server, not for the people who use it, and a
+client generated from the published spec could never reach them, so they are
+documented by hand: [The operator endpoint](/self-hosting/operator-endpoint/).
+
 ## Records with their rows, quotes and retries
 
 The staff side of the API, under `/api/v1/data/{connectionId}/{table}`, answers a session cookie

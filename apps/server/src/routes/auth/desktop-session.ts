@@ -52,6 +52,7 @@ import { createSession, setSessionCookie } from '../../auth/sessions.js';
 import { toUserView } from './handlers.js';
 import { RATE_LIMIT_BUCKETS } from './index.js';
 import { authDesktopSessionBody, authLoginReply, type AuthLoginReply } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface DesktopSessionRoutesDeps {
   meta: MetaDb;
@@ -112,6 +113,8 @@ export function desktopSessionRoutes(deps: DesktopSessionRoutesDeps): FastifyPlu
   const settings = settingsRepo(meta);
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.post(
       '/auth/desktop-session',
       {

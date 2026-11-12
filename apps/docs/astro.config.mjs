@@ -325,6 +325,7 @@ export default defineConfig({
             { label: 'Upgrading', link: '/self-hosting/upgrades/' },
             { label: 'Security hardening', link: '/self-hosting/security/' },
             { label: 'Run Adminium for other people', link: '/self-hosting/for-other-people/' },
+            { label: 'The operator endpoint', link: '/self-hosting/operator-endpoint/' },
             { label: 'Telemetry', link: '/self-hosting/telemetry/' },
             { label: 'Export & restore', link: '/self-hosting/export-zip/' },
             { label: 'Back up and move an instance', link: '/self-hosting/archive/' },

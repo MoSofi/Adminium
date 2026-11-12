@@ -57,6 +57,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
 import { refundView, refundViewOf } from './refunds.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PaymentPanelDeps {
   meta: MetaDb;
@@ -482,6 +483,8 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.post(
       '/payments/panel',
       { config: { audit: auditExempt('reading how a record stands changes nothing') }, schema: { body: panelBody, response: { 200: panelReply } } },

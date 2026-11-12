@@ -3492,6 +3492,9 @@ export default {
       "signInLink": "Sign in",
       "noCopy": "This address moved to a copy this account can’t open.",
       "guest": "This address has moved."
+    },
+    "hidden": {
+      "title": "This page is unavailable."
     }
   },
   "appSettings": {
@@ -5925,5 +5928,11 @@ export default {
   "ownCode": {
     "addOnsOff": "Uploads are turned off on this server by its operator. Install add-ons from the catalog.",
     "appsOff": "Uploads are turned off on this server by its operator. Install apps from the catalog."
+  },
+  "operatorHidden": {
+    "title": "Your public pages are hidden by the operator.",
+    "reason": "Reason: {reason}",
+    "reply": "Reply to the operator’s email if this is a mistake.",
+    "chip": "Hidden"
   }
 } as const;

@@ -15,6 +15,7 @@ import { RecordDetail, withFactChoices, type ColumnFacts, type GridColumnSpec } 
 
 import type { BoundCrudApi } from '../../api/crud.js';
 import { t } from '../../i18n/t.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 
 /** `public.customers` → `customer` (PageCrud's entity framing). */
 function entityFromTable(table: string): string {
@@ -58,6 +59,8 @@ export interface PlanningRecordDrawerProps {
 }
 
 export function PlanningRecordDrawer({ crud, recordId, onClose, facts }: PlanningRecordDrawerProps) {
+  // Its words are a deferred group of `common`, fetched with the template: in before it paints.
+  useCommonWords();
   const record = useQuery({
     queryKey: ['data', crud.connectionId, crud.table, 'planning-record', recordId] as const,
     staleTime: 0,

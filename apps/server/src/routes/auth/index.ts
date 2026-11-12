@@ -44,6 +44,7 @@ import {
   authSessionRevokeParams,
   okReply,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /**
  * Rate-limit bucket markers (5/min login+verify+reset, 3/hour forgot —
@@ -78,6 +79,8 @@ declare module 'fastify' {
 }
 
 export const authRoutes: FastifyPluginAsyncZod = async (app) => {
+  // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+  tagRoutes(app, 'staff');
   /** Non-null under requireMeta — the preHandler 503s before handlers run. */
   const ctx = (): AuthContext => {
     if (app.authContext === null) {

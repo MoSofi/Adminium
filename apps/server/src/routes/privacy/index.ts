@@ -98,6 +98,7 @@ import {
   websitesReply,
   whatStaysReply,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PrivacyRoutesDeps {
   meta: MetaDb;
@@ -205,6 +206,8 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     const privacy = app.rbac.require(PERMISSIONS.privacyManage);
     /*
      * A PERSON'S DATA: find, download, erase. `privacy.people` opens these and
@@ -238,7 +241,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     );
 
     // What a page a stranger sees links to: no sign-in, as the sign-in page's branding is read.
-    app.get('/privacy/notice/public', { schema: { response: { 200: publicNoticeReply } } }, async () => {
+    app.get('/privacy/notice/public', { schema: { response: { 200: publicNoticeReply } }, config: { audience: 'public' } }, async () => {
       const notice = await privacyNoticeOf(meta);
       return { data: { businessName: await businessName(meta), noticeUrl: notice.noticeUrl } };
     });

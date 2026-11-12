@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The page an app's address answers with while the app, or that side of it,
- * is switched off.
+ * is switched off; and the one every public page answers with while the
+ * server's operator has hidden them all ({@link renderHiddenPage}).
  *
  * ── NO SCRIPT, NO STORE, NO INDEX ──────────────────────────────────────────
  * Rendered here, in one pass, as a whole document: no script of any kind, no
@@ -178,6 +179,58 @@ ${signOut}
 </head>
 <body>
 ${body}
+</body>
+</html>
+`;
+}
+
+export interface HiddenPageInput {
+  /** The workspace's own name, or null while it still carries the default. */
+  venueName: string | null;
+  /** The workspace's own logo as a `data:` address, or null without one. */
+  logo: string | null;
+  /** BCP-47 tag for `lang`; Arabic turns the page right to left. */
+  lang: string;
+  t: (key: string, fallback: string, args?: Record<string, unknown>) => string;
+}
+
+const HIDDEN_STYLE = `
+*{box-sizing:border-box}
+body{margin:0;min-block-size:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px 16px;background:#fff;color:#191920;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Noto Sans Arabic","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.5;text-align:center}
+.venue{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800;line-height:normal}
+.mark{inline-size:40px;block-size:40px;border-radius:50%;background:#52525b;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo{block-size:40px;inline-size:auto;max-inline-size:160px;object-fit:contain}
+p{margin:0;font-size:20px;font-weight:600;color:#3a3a44}
+`;
+
+/**
+ * What every public page answers while the server's operator has hidden them
+ * (`trial/public-pages.ts`): one sentence, and the instance's logo and name
+ * when it has its own. No reason (that is for the owner, in Studio), nothing
+ * that names the platform, no script, `noindex`.
+ */
+export function renderHiddenPage(input: HiddenPageInput): string {
+  const { t } = input;
+  const dir = input.lang.toLowerCase().startsWith('ar') ? 'rtl' : 'ltr';
+  const title = t('studio:surfacePages.hidden.title', 'This page is unavailable.');
+  const mark =
+    input.logo !== null
+      ? `<img class="logo" src="${escapeHtml(input.logo)}" alt="">`
+      : input.venueName === null
+        ? ''
+        : `<span class="mark" aria-hidden="true">${escapeHtml(initialOf(input.venueName))}</span>`;
+  const venue = mark === '' ? '' : `<div class="venue">${mark}${input.venueName === null ? '' : `<span>${escapeHtml(input.venueName)}</span>`}</div>\n`;
+  return `<!doctype html>
+<html lang="${escapeHtml(input.lang)}" dir="${dir}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>${escapeHtml(title)}</title>
+<style>${HIDDEN_STYLE}</style>
+</head>
+<body>
+${venue}<p>${escapeHtml(title)}</p>
 </body>
 </html>
 `;

@@ -68,6 +68,7 @@ import {
   type BridgeHelloReply,
   type BridgeSeedReply,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface BridgeRoutesDeps {
   /** Exact origins allowed to reach the cross-origin half. Never empty. */
@@ -134,6 +135,8 @@ export function bridgeRoutes(deps: BridgeRoutesDeps): FastifyPluginAsyncZod {
   };
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.options('/bridge/hello', { schema: { hide: true } }, preflight);
     app.options('/bridge/handoff', { schema: { hide: true } }, preflight);
 

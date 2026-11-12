@@ -471,6 +471,8 @@ export function setShutdownTarget(app: AdminiumServer): void {
 interface Listenable {
   listen(opts: { port: number; host: string }): Promise<unknown>;
   close(): Promise<unknown>;
+  /** The operator endpoint's own listener, started once the server listens (`operator/endpoint.ts`). */
+  operatorEndpoint?: { host: string; port: number; listen(): Promise<void> } | null;
 }
 
 /**
@@ -499,11 +501,26 @@ export async function listenOrClose(app: Listenable, env: Pick<Env, 'PORT' | 'HO
     await app.close().catch(() => undefined);
     throw listenError(cause, env);
   }
+  // The operator endpoint listens beside it, on the operator's network, or the server does not run at all.
+  const operator = app.operatorEndpoint ?? null;
+  if (operator === null) return;
+  try {
+    await operator.listen();
+  } catch (cause) {
+    await app.close().catch(() => undefined);
+    throw listenError(cause, { PORT: operator.port, HOST: operator.host }, 'ADMINIUM_OPERATOR_LISTEN');
+  }
 }
 
 /** A bind failure an operator can act on, rather than a raw errno stack. */
-function listenError(cause: unknown, env: Pick<Env, 'PORT' | 'HOST'>): unknown {
+function listenError(cause: unknown, env: Pick<Env, 'PORT' | 'HOST'>, variable?: 'ADMINIUM_OPERATOR_LISTEN'): unknown {
   const code = typeof cause === 'object' && cause !== null ? (cause as { code?: unknown }).code : undefined;
+  // The operator's listener: its address is the operator's to fix, never a `--port`.
+  if (variable !== undefined && typeof code === 'string') {
+    return new CliError(`The operator listener cannot open ${env.HOST}:${String(env.PORT)} (${code}).`, {
+      hint: `${variable} must name an address of this machine on the operator network, and a port nothing else holds.`,
+    });
+  }
   if (code === 'EADDRINUSE') {
     return new CliError(`Port ${String(env.PORT)} is already in use.`, {
       hint:
