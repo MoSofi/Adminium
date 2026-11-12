@@ -2173,5 +2173,17 @@
   "operatorLock": {
     "chip": "Fastsat af operatøren",
     "lockedOff": "Operatøren har slået dette fra for denne installation."
+  },
+  "operatorSwitches": {
+    "sqlite": "Denne installation åbner ikke SQLite-filer: Operatøren tillader kun databaseservere.",
+    "unlistedHost": "Denne installation forbinder kun til de databaseværter, som operatøren tillader.",
+    "otherLogin": "På denne databasevært virker kun det login og den database, som operatøren har givet denne installation.",
+    "metaFixed": "Operatøren bestemmer, hvor denne installation gemmer sine egne data.",
+    "storage": "Operatøren gemmer denne installations filer på sin egen disk, så ingen anden destination kan tilføjes eller testes.",
+    "webhooks": "Operatøren har slået webhook-trin fra for denne installation.",
+    "aiProvider": "Operatøren tillader kun din egen nøgle til Anthropic, OpenAI eller Google på denne installation.",
+    "aiAddress": "Operatøren tillader ikke en egen AI-adresse på denne installation.",
+    "payments": "Operatøren har slået betalingstjenester fra for denne installation.",
+    "askOperator": "Kun den, der driver denne installation, kan ændre det."
   }
 }

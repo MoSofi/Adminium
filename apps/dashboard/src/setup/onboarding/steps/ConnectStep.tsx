@@ -41,6 +41,7 @@ import {
 
 import { ProviderConnect } from '../../../connect/ProviderConnect.js';
 import { t } from '../../../i18n/t.js';
+import { OffByOperatorNote, OffByOperatorTip, useOperatorSwitch } from '../../../settings/OffByOperator.js';
 import { hasPendingBridgeTicket } from '../../../studio/connect/bridgeSeed.js';
 import { ONBOARDING_ENGINES, type ExistingStore } from '../heldAnswers.js';
 
@@ -135,7 +136,10 @@ export function ConnectStep({
     );
   }
 
-  const error = connectDsnError(dsn);
+  // Trial mode: the SQLite choice is shown, disabled, with the operator's reason (never hidden).
+  const sqlite = useOperatorSwitch('sqliteSources');
+  const sqliteTyped = sqlite.off && dsn.trim() !== '' && engineForDsn(dsn, ONBOARDING_ENGINES) === 'sqlite';
+  const error = connectDsnError(dsn) ?? (sqliteTyped ? sqlite.reason : null);
 
   return (
     <div className="flex flex-col gap-4">
@@ -145,6 +149,7 @@ export function ConnectStep({
         value={engine}
         onValueChange={(next) => {
           const picked = next as DsnEngine;
+          if (picked === 'sqlite' && sqlite.off) return;
           // Rewriting the scheme in the SAME change is what keeps the card and
           // the string from disagreeing. `dsnWithEngine` clears the field where
           // no rewrite is meaningful — a SQLite path is not a URL, and neither
@@ -153,17 +158,23 @@ export function ConnectStep({
         }}
         className="grid gap-3 sm:grid-cols-3"
       >
-        {ONBOARDING_ENGINES.map((option) => (
-          <RadioCard
-            key={option}
-            layout="stack"
-            hideIndicator
-            value={option}
-            title={engineLabel(option)}
-            icon={engineIcon(option)}
-          />
-        ))}
+        {ONBOARDING_ENGINES.map((option) => {
+          const off = option === 'sqlite' && sqlite.off;
+          return (
+            <OffByOperatorTip key={option} off={off} reason={sqlite.reason}>
+              <RadioCard
+                layout="stack"
+                hideIndicator
+                value={option}
+                title={engineLabel(option)}
+                icon={engineIcon(option)}
+                {...(off ? { 'aria-disabled': true, 'aria-describedby': 'onboarding-sqlite-off', className: 'cursor-not-allowed opacity-50 hover:border-border-strong' } : {})}
+              />
+            </OffByOperatorTip>
+          );
+        })}
       </RadioGroup>
+      {sqlite.off ? <OffByOperatorNote id="onboarding-sqlite-off" reason={sqlite.reason} /> : null}
 
       {existing === null || existing.occupied.length === 0 ? null : (
         <ExistingStorePanel
@@ -216,7 +227,8 @@ export function ConnectStep({
             // The Studio's source step resolves it the same way round
             // (`pickerEngine = inferredEngine ?? state.engine`).
             const inferred = engineForDsn(next, ONBOARDING_ENGINES);
-            onChange(inferred === null ? { dsn: next } : { dsn: next, engine: inferred });
+            // A switched-off engine is never picked by what was typed either: the field says why instead.
+            onChange(inferred === null || (inferred === 'sqlite' && sqlite.off) ? { dsn: next } : { dsn: next, engine: inferred });
           }}
         />
       </FormField>

@@ -17,6 +17,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { engineForDsn } from '@adminium/widgets';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
@@ -27,6 +28,7 @@ import {
   saveWizardState,
 } from '../../studio/connect/wizardState.js';
 import { setTelemetry } from '../../about/desktopAbout.js';
+import { offByOperatorText, useOperatorSwitch } from '../../settings/OffByOperator.js';
 import { adoptStore, probeStore } from '../setupApi.js';
 import {
   EMPTY_ACCOUNT,
@@ -43,7 +45,7 @@ import { StorageStep, separateDsnError, type StorageChoice } from './steps/Stora
 import { TeamStep, type InvitedPerson } from './steps/TeamStep.js';
 import { DoneStep } from './steps/DoneStep.js';
 import { connectionNameFromDsn } from './submitHeldAnswers.js';
-import { DEFAULT_HELD_ANSWERS, type HeldAnswers } from './heldAnswers.js';
+import { DEFAULT_HELD_ANSWERS, ONBOARDING_ENGINES, type HeldAnswers } from './heldAnswers.js';
 import { submitHeldAnswers, type LandedConnection } from './submitHeldAnswers.js';
 import type { ConnectedDatabase } from './steps/DoneStep.js';
 import {
@@ -108,9 +110,12 @@ export function OnboardingPage({
    * re-ask and every edit invalidates the previous answer.
    */
   const inFlight = useRef<string | null>(null);
+  // Trial mode: the operator fixes the meta store, so there is no store to find and adopt here (the server refuses the probe).
+  const metaFixed = useOperatorSwitch('metaStore');
+  const sqlite = useOperatorSwitch('sqliteSources');
   useEffect(() => {
     const dsn = held.dsn.trim();
-    if (step !== 'connect' || dsn === '' || connectDsnError(dsn) !== null) return;
+    if (metaFixed.off || step !== 'connect' || dsn === '' || connectDsnError(dsn) !== null) return;
     if (held.probedDsn === dsn || inFlight.current === dsn) return;
     const timer = window.setTimeout(() => {
       inFlight.current = dsn;
@@ -144,7 +149,7 @@ export function OnboardingPage({
         });
     }, PROBE_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [step, held.dsn, held.probedDsn]);
+  }, [step, held.dsn, held.probedDsn, metaFixed.off]);
 
   /**
    * A DSN worth asking about, whose answer has not arrived. Covers the debounce
@@ -153,6 +158,7 @@ export function OnboardingPage({
    */
   const dsnTrimmed = held.dsn.trim();
   const probing =
+    !metaFixed.off &&
     step === 'connect' &&
     dsnTrimmed !== '' &&
     connectDsnError(dsnTrimmed) === null &&
@@ -306,9 +312,8 @@ export function OnboardingPage({
       })
       .catch((cause: unknown) => {
         setError(
-          cause instanceof Error
-            ? cause.message
-            : t('onboarding:meta.moving.failed', 'Could not move Adminium’s data — retry.'),
+          offByOperatorText(cause) ??
+            (cause instanceof Error ? cause.message : t('onboarding:meta.moving.failed', 'Could not move Adminium’s data — retry.')),
         );
       })
       .finally(() => {
@@ -437,7 +442,8 @@ export function OnboardingPage({
     goto(stepAfter(step, steps));
   }
 
-  const dsnError = connectDsnError(held.dsn);
+  // A SQLite string where the operator allows none: the step says why, and Continue waits.
+  const dsnError = connectDsnError(held.dsn) ?? (sqlite.off && engineForDsn(held.dsn, ONBOARDING_ENGINES) === 'sqlite' ? sqlite.reason : null);
 
   return (
     <OnboardingWizard
@@ -576,11 +582,12 @@ function accountErrorCopy(cause: unknown): string {
  */
 function connectionErrorCopy(cause: unknown): string {
   const detail =
-    cause instanceof ApiError
+    offByOperatorText(cause) ??
+    (cause instanceof ApiError
       ? cause.message
       : typeof cause === 'object' && cause !== null && 'message' in cause
         ? String((cause as { message: unknown }).message)
-        : t('onboarding:error.connectionUnknown', 'the database did not answer');
+        : t('onboarding:error.connectionUnknown', 'the database did not answer'));
   return t(
     'onboarding:error.connectionFailed',
     'Your account was created and you are signed in — but that database could not be reached: {detail}',

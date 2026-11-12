@@ -18,6 +18,7 @@ import { ApiError } from '../../app/api.js';
 import type { ConnectedConnection } from '../../connect/connectApi.js';
 import { hasConnectReturn } from '../../connect/connectReturn.js';
 import { t } from '../../i18n/t.js';
+import { useOperatorSwitch } from '../../settings/OffByOperator.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, waitForRestart, type MetaStoreLocation, type SchemaTable } from '../api.js';
@@ -45,6 +46,7 @@ import {
   intentSettings,
   sameDbDisabledReason,
   sourceStepValid,
+  effectiveEngine,
   summarizeTables,
   wizardHasProgress,
   wizardStepLabel,
@@ -264,12 +266,14 @@ export function ConnectWizard({
       ? null
       : enrichableTableCount(summarizeTables(enrichSchema.data.model.tables), state.includedTables);
 
+  const sqliteOff = useOperatorSwitch('sqliteSources').off;
   const continueEnabled = (() => {
     switch (state.step) {
       case 'intent':
         return true;
       case 'source':
-        return sourceStepValid(state);
+        // A SQLite source where the operator allows none: the step says why, and Continue waits.
+        return sourceStepValid(state) && !(sqliteOff && effectiveEngine(state) === 'sqlite');
       case 'test':
         return testStatus === 'done';
       case 'tables':

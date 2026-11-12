@@ -109,6 +109,18 @@ export interface SystemInfo {
    * `daysLeft` of 0 (`daysLeft` is null once it has ended).
    */
   trial?: TrialInfo;
+  /**
+   * What the operator switched off for this installation (trial mode, the
+   * hosted profile), each `{ allowed, reason }`: shown disabled with the
+   * reason, never hidden. Absent from a server older than trial mode.
+   */
+  offByOperator?: { sqliteSources: OperatorSwitch; storageDestinations: OperatorSwitch; webhooks: OperatorSwitch; metaStore: OperatorSwitch };
+}
+
+/** One switch the operator may have turned off; `reason` is a code (`trial-mode`, `hosted-mode`). */
+export interface OperatorSwitch {
+  allowed: boolean;
+  reason: string | null;
 }
 
 export interface TrialInfo {

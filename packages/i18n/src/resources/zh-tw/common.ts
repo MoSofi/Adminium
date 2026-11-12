@@ -2183,5 +2183,17 @@ export default {
   "operatorLock": {
     "chip": "由營運方設定",
     "lockedOff": "營運方已為此安裝關閉此項。"
+  },
+  "operatorSwitches": {
+    "sqlite": "此安裝不開啟 SQLite 檔案：營運方只允許資料庫伺服器。",
+    "unlistedHost": "此安裝只連線至營運方允許的資料庫主機。",
+    "otherLogin": "在此資料庫主機上，只有營運方分配給此安裝的登入名稱和資料庫可用。",
+    "metaFixed": "營運方決定此安裝在哪裡保存自身資料。",
+    "storage": "營運方將此安裝的檔案保存在自己的磁碟上，因此無法新增或測試其他儲存位置。",
+    "webhooks": "營運方已為此安裝關閉 Webhook 步驟。",
+    "aiProvider": "營運方在此安裝上只允許使用你自己的 Anthropic、OpenAI 或 Google 金鑰。",
+    "aiAddress": "營運方不允許在此安裝上使用你自己的 AI 位址。",
+    "payments": "營運方已為此安裝關閉付款服務。",
+    "askOperator": "只有營運此安裝的人才能變更此項。"
   }
 } as const;

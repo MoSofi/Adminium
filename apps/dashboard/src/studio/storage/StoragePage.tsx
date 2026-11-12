@@ -74,6 +74,7 @@ import { ApiError } from '../../app/api.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { t } from '../../i18n/t.js';
+import { OffByOperatorNote, OffByOperatorTip, offByOperatorText, useOperatorSwitch } from '../../settings/OffByOperator.js';
 import {
   DESTINATIONS_QUERY_KEY,
   LOCAL_DESTINATION_VALUE,
@@ -217,6 +218,8 @@ export function StoragePage() {
   const usage = useQuery(storageUsageQuery());
 
   const [draft, setDraft] = useState<DestinationDraft | null>(null);
+  // Trial mode and the hosted profile: only the local destination; adding and testing shown disabled with the reason.
+  const storageOff = useOperatorSwitch('storageDestinations');
   const [deleting, setDeleting] = useState<DestinationView | null>(null);
   const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -244,7 +247,7 @@ export function StoragePage() {
       setError(null);
       await refresh();
     },
-    onError: (raised: unknown) => setError(messageFromError(raised)),
+    onError: (raised: unknown) => setError(offByOperatorText(raised) ?? messageFromError(raised)),
   });
 
   const remove = useMutation({
@@ -261,7 +264,7 @@ export function StoragePage() {
       // A 409 is not a failure to report as one: it is the server saying the
       // destination still holds files, and the count is the whole instruction.
       if (fileCount !== null) setDeleteBlocked({ name: destination.name, fileCount });
-      else setError(messageFromError(raised));
+      else setError(offByOperatorText(raised) ?? messageFromError(raised));
     },
   });
 
@@ -271,7 +274,7 @@ export function StoragePage() {
       setError(null);
       await refresh();
     },
-    onError: (raised: unknown) => setError(messageFromError(raised)),
+    onError: (raised: unknown) => setError(offByOperatorText(raised) ?? messageFromError(raised)),
   });
 
   const toggleDisabled = useMutation({
@@ -281,7 +284,7 @@ export function StoragePage() {
       setError(null);
       await refresh();
     },
-    onError: (raised: unknown) => setError(messageFromError(raised)),
+    onError: (raised: unknown) => setError(offByOperatorText(raised) ?? messageFromError(raised)),
   });
 
   const probe = useMutation({
@@ -292,7 +295,7 @@ export function StoragePage() {
       // stale the moment it returns.
       await client.invalidateQueries({ queryKey: DESTINATIONS_QUERY_KEY });
     },
-    onError: (raised: unknown) => setError(messageFromError(raised)),
+    onError: (raised: unknown) => setError(offByOperatorText(raised) ?? messageFromError(raised)),
   });
 
   const move = useMutation({
@@ -302,7 +305,7 @@ export function StoragePage() {
       setMoving(false);
       setError(null);
     },
-    onError: (raised: unknown) => setError(messageFromError(raised)),
+    onError: (raised: unknown) => setError(offByOperatorText(raised) ?? messageFromError(raised)),
   });
 
   const rows = destinations.data ?? [];
@@ -340,15 +343,22 @@ export function StoragePage() {
         >
           {t('studio:storage.move.open', 'Move files…')}
         </Button>
-        <Button
-          iconLeft={<Plus className="size-4" />}
-          disabled={busy}
-          onClick={() => setDraft(emptyDraft())}
-          data-testid="studio-storage-add"
-        >
-          {t('studio:storage.add', 'Add a destination')}
-        </Button>
+        <OffByOperatorTip off={storageOff.off} reason={storageOff.reason}>
+          <Button
+            iconLeft={<Plus className="size-4" />}
+            disabled={busy}
+            {...(storageOff.off ? { 'aria-disabled': true, 'aria-describedby': 'studio-storage-off' } : {})}
+            onClick={() => {
+              if (!storageOff.off) setDraft(emptyDraft());
+            }}
+            data-testid="studio-storage-add"
+          >
+            {t('studio:storage.add', 'Add a destination')}
+          </Button>
+        </OffByOperatorTip>
       </PageActions>
+
+      {storageOff.off ? <OffByOperatorNote id="studio-storage-off" reason={storageOff.reason} /> : null}
 
       {destinations.isError ? (
         <Alert
@@ -498,7 +508,10 @@ export function StoragePage() {
                     setError(null);
                     setDraft(draftFromDestination(destination));
                   }}
-                  onTest={() => probe.mutate(destination)}
+                  testOff={storageOff}
+                  onTest={() => {
+                    if (!storageOff.off) probe.mutate(destination);
+                  }}
                   onDefault={() => makeDefault.mutate(destination)}
                   onToggleDisabled={() => toggleDisabled.mutate(destination)}
                   onDelete={() => {
@@ -583,7 +596,10 @@ function DestinationRow({
   onDefault,
   onToggleDisabled,
   onDelete,
+  testOff,
 }: {
+  /** Trial mode: testing is shown, disabled, with the operator's reason. */
+  testOff: { off: boolean; reason: string };
   destination: DestinationView;
   usage: StorageUsageEntry | undefined;
   probe: DestinationTestResult | undefined;
@@ -674,14 +690,17 @@ function DestinationRow({
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="ghost"
-          disabled={busy}
-          onClick={onTest}
-          data-testid={`studio-storage-test-${destination.id}`}
-        >
-          {t('studio:storage.test.button', 'Test')}
-        </Button>
+        <OffByOperatorTip off={testOff.off} reason={testOff.reason}>
+          <Button
+            variant="ghost"
+            disabled={busy}
+            {...(testOff.off ? { 'aria-disabled': true, 'aria-describedby': 'studio-storage-off' } : {})}
+            onClick={onTest}
+            data-testid={`studio-storage-test-${destination.id}`}
+          >
+            {t('studio:storage.test.button', 'Test')}
+          </Button>
+        </OffByOperatorTip>
         {/*
           "Set as default" is not offered on a disabled destination, because
           the server 409s it — an affordance that cannot succeed is a trap, so

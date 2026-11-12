@@ -66,6 +66,11 @@ export interface LlmConfig {
   assistantName: string;
   /** Whether its tools may read masked rows from a connection at all. */
   assistantRowData: boolean;
+  /**
+   * What the operator has set (trial mode): a typed address, and the providers
+   * reached at one. Locked, the form shows them read-only. Absent from an older server.
+   */
+  locks?: { baseUrl: { allowed: boolean; reason: string | null }; customProviders: { allowed: boolean; reason: string | null } };
 }
 
 /**

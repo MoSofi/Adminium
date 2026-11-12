@@ -31,6 +31,7 @@ import {
 
 import { ProviderConnect } from '../../../connect/ProviderConnect.js';
 import { t } from '../../../i18n/t.js';
+import { OffByOperatorNote, OffByOperatorTip, useOperatorSwitch } from '../../../settings/OffByOperator.js';
 import { engineLabel, dsnPlaceholder } from '../../../studio/connect/wizardState.js';
 import type { ConnectionEngine } from '../../../studio/api.js';
 import {
@@ -128,6 +129,13 @@ export function SourceStep({
   onPickProvider,
 }: SourceStepProps): ReactNode {
   const slug = slugPreview(state.localName);
+  // Trial mode: the two SQLite cards (a new local database, from blank or a schema file, and an existing file) shown disabled with the reason.
+  const sqlite = useOperatorSwitch('sqliteSources');
+  const sqliteOffProps = {
+    'aria-disabled': true,
+    'aria-describedby': 'desktop-setup-sqlite-off',
+    className: 'cursor-not-allowed opacity-50 hover:border-border-strong',
+  } as const;
 
   return (
     <div className="flex flex-col gap-5">
@@ -148,16 +156,23 @@ export function SourceStep({
       <RadioGroup
         className="flex flex-col gap-3"
         value={state.source ?? ''}
-        onValueChange={(value) => onPatch({ source: value as SourceCardId })}
+        onValueChange={(value) => {
+          // A SQLite file, new or existing, where the operator allows none: shown, never picked.
+          if (sqlite.off && (value === 'local' || value === 'open-sqlite')) return;
+          onPatch({ source: value as SourceCardId });
+        }}
         aria-label={t('onboarding.desktopSetup.source.groupLabel', 'Database source')}
       >
-        <RadioCard
-          value="local"
-          disabled={busy}
-          icon={cardIcon('local')}
-          title={cardTitle('local')}
-          description={cardDescription('local')}
-        />
+        <OffByOperatorTip off={sqlite.off} reason={sqlite.reason}>
+          <RadioCard
+            value="local"
+            disabled={busy}
+            icon={cardIcon('local')}
+            title={cardTitle('local')}
+            description={cardDescription('local')}
+            {...(sqlite.off ? sqliteOffProps : {})}
+          />
+        </OffByOperatorTip>
         {state.source === 'local' ? (
           <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface-2 p-4">
             <FormField
@@ -249,13 +264,17 @@ export function SourceStep({
           </div>
         ) : null}
 
-        <RadioCard
-          value="open-sqlite"
-          disabled={busy}
-          icon={cardIcon('open-sqlite')}
-          title={cardTitle('open-sqlite')}
-          description={cardDescription('open-sqlite')}
-        />
+        <OffByOperatorTip off={sqlite.off} reason={sqlite.reason}>
+          <RadioCard
+            value="open-sqlite"
+            disabled={busy}
+            icon={cardIcon('open-sqlite')}
+            title={cardTitle('open-sqlite')}
+            description={cardDescription('open-sqlite')}
+            {...(sqlite.off ? sqliteOffProps : {})}
+          />
+        </OffByOperatorTip>
+        {sqlite.off ? <OffByOperatorNote id="desktop-setup-sqlite-off" reason={sqlite.reason} /> : null}
         {state.source === 'open-sqlite' ? (
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-2 p-4">
             <button

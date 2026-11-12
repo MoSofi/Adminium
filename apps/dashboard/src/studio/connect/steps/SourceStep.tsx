@@ -40,6 +40,7 @@ import { ApiError } from '../../../app/api.js';
 import type { ConnectedConnection } from '../../../connect/connectApi.js';
 import { ProviderConnect } from '../../../connect/ProviderConnect.js';
 import { t } from '../../../i18n/t.js';
+import { OffByOperatorNote, useOperatorSwitch } from '../../../settings/OffByOperator.js';
 import { studioApi, type ConnectionEngine, type SchemaTable } from '../../api.js';
 import { Dropzone } from '../Dropzone.js';
 import { WorkspacesField } from './WorkspacesField.js';
@@ -87,6 +88,9 @@ export function SourceStep({ state, onPatch, onFileTablesCapture, onProviderConn
 
   const inferredEngine = engineForDsn(state.dsn);
   const pickerEngine: ConnectionEngine = state.mode === 'dsn' ? (inferredEngine ?? state.engine) : state.engine;
+  // Trial mode: SQLite is shown, disabled, with the operator's reason under the picker (never hidden).
+  const sqlite = useOperatorSwitch('sqliteSources');
+  const sqliteChosen = sqlite.off && pickerEngine === 'sqlite';
 
   const parseContent = (name: string, content: string, format: FileFormatChoice) => {
     setParsing(true);
@@ -190,11 +194,19 @@ export function SourceStep({ state, onPatch, onFileTablesCapture, onProviderConn
         <FormField label={t('studio:source.engine.label', 'Database engine')}>
           <SegmentedControl
             aria-label={t('studio:source.engine.label', 'Database engine')}
+            {...(sqlite.off ? { 'aria-describedby': 'studio-source-sqlite-off' } : {})}
             value={pickerEngine}
-            onValueChange={(engine) => onPatch(enginePickPatch(state, engine as ConnectionEngine))}
-            options={SOURCE_ENGINES.map((engine) => ({ value: engine, label: engineLabel(engine) }))}
+            onValueChange={(engine) => {
+              if (engine === 'sqlite' && sqlite.off) return;
+              onPatch(enginePickPatch(state, engine as ConnectionEngine));
+            }}
+            options={SOURCE_ENGINES.map((engine) => ({ value: engine, label: engineLabel(engine), disabled: engine === 'sqlite' && sqlite.off }))}
           />
         </FormField>
+      ) : null}
+      {state.mode !== 'file' && sqlite.off ? <OffByOperatorNote id="studio-source-sqlite-off" reason={sqlite.reason} /> : null}
+      {sqliteChosen ? (
+        <Alert tone="warn" role="alert" title={t('operatorLock.chip', 'Set by the operator')} body={sqlite.reason} />
       ) : null}
 
       {state.mode === 'dsn' ? (

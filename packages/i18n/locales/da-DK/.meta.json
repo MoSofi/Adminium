@@ -7143,6 +7143,46 @@
     "status": "mt",
     "srcHash": "eb5e2066562d"
   },
+  "common.operatorSwitches.aiAddress": {
+    "status": "mt",
+    "srcHash": "7dd7499826d0"
+  },
+  "common.operatorSwitches.aiProvider": {
+    "status": "mt",
+    "srcHash": "3d1b9a8db50b"
+  },
+  "common.operatorSwitches.askOperator": {
+    "status": "mt",
+    "srcHash": "16f1e8cfae3e"
+  },
+  "common.operatorSwitches.metaFixed": {
+    "status": "mt",
+    "srcHash": "4b8aadd6bbc4"
+  },
+  "common.operatorSwitches.otherLogin": {
+    "status": "mt",
+    "srcHash": "87dc347cce89"
+  },
+  "common.operatorSwitches.payments": {
+    "status": "mt",
+    "srcHash": "83c594e4c14a"
+  },
+  "common.operatorSwitches.sqlite": {
+    "status": "mt",
+    "srcHash": "24ec4991288d"
+  },
+  "common.operatorSwitches.storage": {
+    "status": "mt",
+    "srcHash": "affb6c8d864e"
+  },
+  "common.operatorSwitches.unlistedHost": {
+    "status": "mt",
+    "srcHash": "509340360f9d"
+  },
+  "common.operatorSwitches.webhooks": {
+    "status": "mt",
+    "srcHash": "b994a3ddd659"
+  },
   "common.page.emptyLayout.action": {
     "status": "mt",
     "srcHash": "b71ddd31f441"

@@ -43,6 +43,7 @@ import { Combobox, Input, Modal, ModalBody, ModalFooter, ModalHeader, Select, Sw
 import { useId, useState, type ReactNode } from 'react';
 
 import { t } from '../../i18n/t.js';
+import { useOperatorSwitch } from '../../settings/OffByOperator.js';
 import { automationIcon } from '../icons.js';
 import { watchesFor } from '../api.js';
 import type { Sources } from '../api.js';
@@ -121,6 +122,7 @@ function buildTrigger(kind: TriggerKind, tableValue: string, sources: Sources | 
 export function NewRuleModal({ open, sources, onClose, onCreate, onDone }: NewRuleModalProps): ReactNode {
   const fieldId = useId();
   const tableId = `${fieldId}-table`;
+  const webhooks = useOperatorSwitch('webhooks');
   const [name, setName] = useState('');
   const [kind, setKind] = useState<TriggerKind | ''>('');
   // Kept across a change of event: created → updated is the same table.
@@ -287,14 +289,16 @@ export function NewRuleModal({ open, sources, onClose, onCreate, onDone }: NewRu
                 }}
                 data-testid="new-rule-action"
               >
-                {ACTION_STEPS.map((step) => (
-                  <option key={step.key} value={step.key}>
-                    {t(
-                      (ACTION_LABEL[step.key] ?? EMAIL_LABEL).key,
-                      (ACTION_LABEL[step.key] ?? EMAIL_LABEL).fallback,
-                    )}
-                  </option>
-                ))}
+                {ACTION_STEPS.map((step) => {
+                  // Trial mode: shown, not offered, and named so (a native option takes no tooltip; the step picker explains).
+                  const off = webhooks.off && step.action?.kind === 'webhook';
+                  const label = t((ACTION_LABEL[step.key] ?? EMAIL_LABEL).key, (ACTION_LABEL[step.key] ?? EMAIL_LABEL).fallback);
+                  return (
+                    <option key={step.key} value={step.key} disabled={off}>
+                      {off ? `${label} · ${t('operatorLock.chip', 'Set by the operator')}` : label}
+                    </option>
+                  );
+                })}
               </Select>
             </label>
 

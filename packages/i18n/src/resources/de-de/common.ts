@@ -2183,5 +2183,17 @@ export default {
   "operatorLock": {
     "chip": "Vom Betreiber festgelegt",
     "lockedOff": "Der Betreiber hat dies für diese Installation ausgeschaltet."
+  },
+  "operatorSwitches": {
+    "sqlite": "Diese Installation öffnet keine SQLite-Dateien: Der Betreiber erlaubt nur Datenbankserver.",
+    "unlistedHost": "Diese Installation verbindet sich nur mit den Datenbank-Hosts, die ihr Betreiber erlaubt.",
+    "otherLogin": "Auf diesem Datenbank-Host funktionieren nur die Anmeldung und die Datenbank, die der Betreiber dieser Installation gegeben hat.",
+    "metaFixed": "Der Betreiber legt fest, wo diese Installation ihre eigenen Daten speichert.",
+    "storage": "Der Betreiber speichert die Dateien dieser Installation auf seinem eigenen Datenträger, daher kann kein anderes Ziel hinzugefügt oder getestet werden.",
+    "webhooks": "Der Betreiber hat Webhook-Schritte für diese Installation ausgeschaltet.",
+    "aiProvider": "Der Betreiber erlaubt in dieser Installation nur deinen eigenen Schlüssel für Anthropic, OpenAI oder Google.",
+    "aiAddress": "Der Betreiber erlaubt in dieser Installation keine eigene KI-Adresse.",
+    "payments": "Der Betreiber hat Zahlungsdienste für diese Installation ausgeschaltet.",
+    "askOperator": "Nur wer diese Installation betreibt, kann das ändern."
   }
 } as const;

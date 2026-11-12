@@ -59,6 +59,8 @@ import { formatRelativeTime } from '@adminium/widgets';
 import { ApiError } from '../../app/api.js';
 import { ReachCard, reachToneOf } from '../reach/ReachCard.js';
 import { t } from '../../i18n/t.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
+import { offByOperatorText, offByOperatorWords } from '../../settings/OffByOperator.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { ActivityTab } from './ActivityTab.js';
@@ -118,6 +120,8 @@ function connectsTo(provider: KnownProvider): string | null {
 
 function reachBadge(state: ReachabilityState): string {
   switch (state) {
+    case 'operator-off':
+      return t('operatorLock.chip', 'Set by the operator');
     case 'network-off':
       return t('studio:payments.reach.badge.networkOff', 'Works offline');
     case 'desktop':
@@ -139,6 +143,8 @@ function reachBadge(state: ReachabilityState): string {
 
 function reachProblem(state: ReachabilityState): string {
   switch (state) {
+    case 'operator-off':
+      return offByOperatorWords('paymentProviders');
     case 'network-off':
       return t('studio:payments.reach.problem.networkOff', 'This server is set to work without the internet, so it cannot take online payments.');
     case 'desktop':
@@ -160,6 +166,8 @@ function reachProblem(state: ReachabilityState): string {
 
 function reachFix(state: ReachabilityState): string {
   switch (state) {
+    case 'operator-off':
+      return t('operatorSwitches.askOperator', 'Only whoever runs this installation can change this.');
     case 'network-off':
       return t('studio:payments.reach.fix.networkOff', 'Set ADMINIUM_NETWORK_FEATURES=on on the server, restart it, then check again.');
     case 'desktop':
@@ -272,6 +280,8 @@ function refusalSentence(reason: SaveRefusal): string {
 }
 
 function errorText(error: unknown): string {
+  const operator = offByOperatorText(error);
+  if (operator !== null) return operator;
   const reason = saveRefusalOf(error);
   if (reason !== null) return refusalSentence(reason);
   if (error instanceof ApiError) return error.message;
@@ -331,12 +341,14 @@ function ReachabilityCard({ reach, onOpenSettings, onCheckAgain, checking }: { r
           <p className="font-semibold" data-testid="payments-reach-problem">
             {reachProblem(reach.state)}
           </p>
-          <p className="text-fg-muted">
-            {t('studio:payments.reach.current', 'Current value')}:{' '}
-            <span dir="ltr" className="font-mono">
-              {reach.state === 'network-off' ? 'ADMINIUM_NETWORK_FEATURES=off' : (reach.origin ?? t('studio:payments.reach.notSetValue', 'not set'))}
-            </span>
-          </p>
+          {reach.state === 'operator-off' ? null : (
+            <p className="text-fg-muted">
+              {t('studio:payments.reach.current', 'Current value')}:{' '}
+              <span dir="ltr" className="font-mono">
+                {reach.state === 'network-off' ? 'ADMINIUM_NETWORK_FEATURES=off' : (reach.origin ?? t('studio:payments.reach.notSetValue', 'not set'))}
+              </span>
+            </p>
+          )}
           <p>
             <span className="font-semibold">{t('studio:payments.reach.fixLabel', 'Fix:')}</span> {reachFix(reach.state)}
           </p>
@@ -1245,7 +1257,7 @@ function ClockWarning({ service }: { service: ServiceView }) {
   );
 }
 
-function ServiceCard({ service, canManage, reachable, paypalConnected, onOpenWays }: { service: ServiceView; canManage: boolean; reachable: boolean; paypalConnected: boolean; onOpenWays: () => void }) {
+function ServiceCard({ service, canManage, reachable, operatorOff = false, paypalConnected, onOpenWays }: { service: ServiceView; canManage: boolean; reachable: boolean; operatorOff?: boolean; paypalConnected: boolean; onOpenWays: () => void }) {
   const provider = knownProvider(service.key);
   const progress = checklistProgress(service);
   const connects = connectsTo(provider);
@@ -1267,7 +1279,7 @@ function ServiceCard({ service, canManage, reachable, paypalConnected, onOpenWay
       <CardBody className="flex flex-col gap-5">
         {/* Unreachable: the card stays whole, so its checklist and keys can be read and set ahead; one line says what comes first. */}
         {!reachable ? (
-          <Alert tone="warn" icon={<Globe />} data-testid={`payments-service-${service.key}-first`} title={t('studio:payments.service.fixAddressFirst', 'Fix the address above first: online payments stay off until then.')} />
+          <Alert tone="warn" icon={<Globe />} data-testid={`payments-service-${service.key}-first`} title={operatorOff ? offByOperatorWords('paymentProviders') : t('studio:payments.service.fixAddressFirst', 'Fix the address above first: online payments stay off until then.')} />
         ) : null}
         {!service.loaded ? (
           <Alert
@@ -1362,6 +1374,8 @@ function AlarmsCard({ alarms, services }: { alarms: MoneyAlarm[]; services: Serv
 // ─── The page ───────────────────────────────────────────────────────────────
 
 export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
+  // The operator's words (a deferred group) may be needed by the reach card and a refusal: in before this paints.
+  useCommonWords();
   const setup = useQuery(paymentsSetupQuery());
   const data = setup.data;
   const reachable = data?.reachability.state === 'reachable';
@@ -1438,7 +1452,7 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
                 </Card>
               ) : (
                 data.services.map((service) => (
-                  <ServiceCard key={service.key} service={service} canManage={data.canManage} reachable={reachable} paypalConnected={paypalConnected} onOpenWays={() => setTab('ways')} />
+                  <ServiceCard key={service.key} service={service} canManage={data.canManage} reachable={reachable} operatorOff={data.reachability.state === 'operator-off'} paypalConnected={paypalConnected} onOpenWays={() => setTab('ways')} />
                 ))
               )}
             </>
