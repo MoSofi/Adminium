@@ -60,6 +60,7 @@ import { displayValueOf, gridColumnSpecSchema, rowIdOf } from '../../families/ta
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import type { WidgetEvent } from '../../registry/types.js';
 import { describeDataError } from '../../lib/data-error.js';
+import { useWriteLock, WriteControl } from '../../lib/write-lock.js';
 
 /**
  * `page-crud` — the per-table resource template (annex): toolbar (search +
@@ -356,6 +357,8 @@ export function PageCrud({
   onRemoveLinkFilter,
   onClearLinkFilters,
 }: PageCrudProps) {
+  // The host's write lock (an ended trial): the bulk delete is off with the rest of the writes.
+  const writeLock = useWriteLock();
   const entity = entityName ?? entityFromTable(source.table);
   const tableName = tableLabel ?? plainTableName(source.table);
   // A link's filter narrows the list as much as the toolbar's own do.
@@ -1165,7 +1168,7 @@ export function PageCrud({
                   ...(action.disabled === undefined ? {} : { disabled: action.disabled }),
                 })),
                 ...(canDelete
-                  ? [{ key: 'delete', label: labels?.deleteAction ?? t('ui:action.delete', 'Delete'), danger: true }]
+                  ? [{ key: 'delete', label: labels?.deleteAction ?? t('ui:action.delete', 'Delete'), danger: true, ...(writeLock === null ? {} : { disabled: true }) }]
                   : []),
               ]}
               onAction={(key, ids) => {
@@ -1186,9 +1189,11 @@ export function PageCrud({
                  700 weight and asymmetric inset that keeps the leading `+` from
                  drifting off its label. The default `md` rendered it a weight
                  lighter and evenly padded. */
-              <Button size="topbar" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-                {labels?.newRow ?? t('ui:templates.crud.newRow', 'New row')}
-              </Button>
+              <WriteControl>
+                <Button size="topbar" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+                  {labels?.newRow ?? t('ui:templates.crud.newRow', 'New row')}
+                </Button>
+              </WriteControl>
             )
           )}
         </div>
@@ -1255,9 +1260,11 @@ export function PageCrud({
               {...(canCreate
                 ? {
                     actions: (
-                      <Button size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-                        {labels?.newRow ?? t('ui:templates.crud.newRow', 'New row')}
-                      </Button>
+                      <WriteControl>
+                        <Button size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+                          {labels?.newRow ?? t('ui:templates.crud.newRow', 'New row')}
+                        </Button>
+                      </WriteControl>
                     ),
                   }
                 : {})}

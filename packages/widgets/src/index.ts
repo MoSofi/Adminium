@@ -295,3 +295,6 @@ export {
   isHighVolume,
   type InclusionTable,
 } from './families/forms/forms-tables.js';
+
+/** The page-wide write lock a host holds while writes are off (an ended trial). */
+export { setWriteLock, useWriteLock, WriteControl, WRITE_LOCKED_LOOK } from './lib/write-lock.js';
