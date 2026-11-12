@@ -119,7 +119,7 @@ describe('the trial block parses', () => {
   });
 
   it('takes an https upgrade address and an smtp relay', () => {
-    const env = booted({ ...TRIAL, ADMINIUM_TRIAL_UPGRADE_URL: 'https://example.com/upgrade', ADMINIUM_TRIAL_SMTP_URL: 'smtp://i-123:pw@relay.example.com:587' });
+    const env = booted({ ...TRIAL, ADMINIUM_TRIAL_UPGRADE_URL: 'https://example.com/upgrade', ADMINIUM_TRIAL_SMTP_URL: 'smtp://i-123:pw@relay.example.com:587', ADMINIUM_TRIAL_MAIL_FROM: 'i-123@relay.example.com' });
     expect(env.ADMINIUM_TRIAL_UPGRADE_URL).toBe('https://example.com/upgrade');
     expect(env.ADMINIUM_TRIAL_SMTP_URL).toBe('smtp://i-123:pw@relay.example.com:587');
     for (const bad of ['http://example.com/upgrade', 'https://user:pw@example.com/up', 'https://example.com/up#x', 'javascript:alert(1)']) {
