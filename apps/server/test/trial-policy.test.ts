@@ -63,6 +63,10 @@ const EXPECTED: Record<PolicyQuestion, [true | PolicyReason, true | PolicyReason
   writes: [true, true, true],
   publicPages: [true, true, true],
   userMail: [true, true, true],
+  // A6: the size caps are a trial's only, asked once a cap is passed
+  dataOverCap: [true, 'size-cap', true],
+  storageOverCap: [true, 'size-cap', true],
+  extraSourceConnections: [true, 'size-cap', true],
   // Operator AI: only with its own variable
   customerScreensOnOperatorAi: [true, true, true],
 };
