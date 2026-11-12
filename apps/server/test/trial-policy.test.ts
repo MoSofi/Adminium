@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { POLICY_QUESTIONS, POLICY_REASONS, profileOf, trialPolicy, type PolicyQuestion, type PolicyReason } from '../src/trial/policy.js';
+import { allowsIn, POLICY_QUESTIONS, POLICY_REASONS, profileOf, rawProfile, trialPolicy, type PolicyQuestion, type PolicyReason } from '../src/trial/policy.js';
 import { makeEnv } from './helpers.js';
 
 const TRIAL = {
@@ -174,5 +174,21 @@ describe('operator AI (§15.4) answers to its own variables, in any profile', ()
   it('ADMINIUM_AI_OPERATOR_SCOPE=dashboard keeps operator AI off customer screens', () => {
     expect(trialPolicy(makeEnv({ ADMINIUM_AI_OPERATOR_SCOPE: 'dashboard' })).allows('customerScreensOnOperatorAi')).toEqual({ allowed: false, reason: 'operator-ai-scope' });
     expect(trialPolicy(makeEnv({ ...TRIAL, ADMINIUM_AI_OPERATOR_SCOPE: 'dashboard' })).allows('customerScreensOnOperatorAi').reason).toBe('operator-ai-scope');
+  });
+});
+
+describe('before the environment is parsed', () => {
+  it('reads the profile off the raw variables, as the schema reads on', () => {
+    expect(rawProfile({})).toBe('off');
+    expect(rawProfile({ ADMINIUM_TRIAL_MODE: 'on' })).toBe('trial');
+    expect(rawProfile({ ADMINIUM_TRIAL_MODE: 'true', ADMINIUM_HOSTED_MODE: '1' })).toBe('trial');
+    expect(rawProfile({ ADMINIUM_HOSTED_MODE: '1' })).toBe('hosted');
+    expect(rawProfile({ ADMINIUM_TRIAL_MODE: 'off', ADMINIUM_HOSTED_MODE: 'ON' })).toBe('off');
+  });
+
+  it('answers a profile-only question as the full policy does', () => {
+    for (const [profile, env] of [['off', makeEnv()], ['trial', makeEnv(TRIAL)], ['hosted', makeEnv(HOSTED)]] as const) {
+      expect(allowsIn(profile, 'projectDotEnv')).toEqual(trialPolicy(env, () => BEFORE_END).allows('projectDotEnv'));
+    }
   });
 });

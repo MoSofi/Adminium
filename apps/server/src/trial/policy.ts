@@ -231,6 +231,21 @@ export function profileOf(env: Pick<Env, 'ADMINIUM_TRIAL_MODE' | 'ADMINIUM_HOSTE
   return 'off';
 }
 
+/**
+ * The profile a RAW environment asks for, before it is parsed: for the project boot, which decides whether to read
+ * the folder's `.env` before anything validates the environment that file would fill. On as the schema reads it.
+ */
+export function rawProfile(raw: Readonly<Record<string, string | undefined>>): Profile {
+  const on = (name: string): boolean => ['on', 'true', '1'].includes(raw[name] ?? '');
+  return profileOf({ ADMINIUM_TRIAL_MODE: on('ADMINIUM_TRIAL_MODE'), ADMINIUM_HOSTED_MODE: on('ADMINIUM_HOSTED_MODE') });
+}
+
+/** One question that depends on the profile alone (not the clock or an AI variable), for code that runs before the environment is parsed. */
+export function allowsIn(profile: Profile, question: PolicyQuestion): PolicyAnswer {
+  const reason = QUESTIONS[question]({ profile, ended: false, aiOperatorOnly: false, aiOperatorScope: null });
+  return { allowed: reason === null, reason };
+}
+
 /** The Upgrade address as the button opens it: the operator's page, told which instance as a hint. */
 function upgradeUrlOf(env: PolicyEnv): string | null {
   if (!env.ADMINIUM_TRIAL_MODE || env.ADMINIUM_TRIAL_UPGRADE_URL === undefined) return null;

@@ -246,6 +246,7 @@ import { sweepAssistantSessions } from './assistant/retention.js';
 import { INTERRUPTED_ERROR } from './jobs/assistant-turn.js';
 import type { AssistantAddOn } from './assistant/types.js';
 import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
+import { trialPolicy } from './trial/policy.js';
 import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
 import { assistantRoutes } from './routes/assistant/index.js';
@@ -881,7 +882,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const llmKeyCrypto = llmKeyCryptoFromSecret(env.ADMINIUM_SECRET, { deriveKey, encryptSecret, decryptSecret });
   const aiEnv = createAiEnv({
-    root: projectRoot,
+    // In trial and hosted mode the project's `.env` is not read (plan 75 §5.1): a key lives in Settings → AI.
+    root: trialPolicy(env).allows('projectDotEnv').allowed ? projectRoot : null,
     fromEnvironment: Object.fromEntries(AI_ENV_NAMES.map((name) => [name, env[name]])),
   });
   const aiConnections = createAiConnections({
