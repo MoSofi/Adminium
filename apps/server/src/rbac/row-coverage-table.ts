@@ -615,6 +615,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'PUT /api/v1/surfaces/instances': noRows('Where an app\'s screens are served.'),
   // --- /system
   'GET /api/v1/system/info': noRows('The server\'s own facts.'),
+  'GET /api/v1/system/size-caps': noRows('How large a trial\'s databases and files are, not what they hold.'),
   // --- /teams
   'GET /api/v1/teams': noRows('Teams and who leads them: people, not rows.'),
   'POST /api/v1/teams': noRows('Teams and who leads them: people, not rows.'),

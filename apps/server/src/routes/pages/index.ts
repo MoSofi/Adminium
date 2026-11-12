@@ -634,13 +634,17 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         // write gets from the data routes.
         const rights =
           source !== null && deps.tablePrivileges !== undefined ? await deps.tablePrivileges(source.connectionId) : null;
+        // A trial database over its size cap takes no new row and no change; deletes stay.
+        const heldBySizeCap = source !== null && (request.server.sizeCap?.held(source.connectionId) ?? null) !== null;
         const tableCapabilities =
           source !== null && typeof request.can === 'function'
             ? {
                 canCreate:
+                  !heldBySizeCap &&
                   (await request.can(`table:${source.connectionId}:${source.table}:create`)) &&
                   !writeRefused(rights, source.table, 'create'),
                 canUpdate:
+                  !heldBySizeCap &&
                   (await request.can(`table:${source.connectionId}:${source.table}:update`)) &&
                   !writeRefused(rights, source.table, 'update'),
                 canDelete:

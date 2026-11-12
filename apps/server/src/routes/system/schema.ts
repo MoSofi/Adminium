@@ -190,3 +190,33 @@ export const systemInfoReply = z.object({
   ownCode: z.object({ packageUploads: settingLockSchema, designerUploads: settingLockSchema, ownBuilds: settingLockSchema }),
 });
 export type SystemInfoReply = z.infer<typeof systemInfoReply>;
+
+/**
+ * A trial's size caps as last measured (`trial/size-cap.ts`): each database
+ * on the operator's host, and the data folder. For the notice on the pages of
+ * a held database. Outside trial mode: no databases, no folder.
+ */
+export const systemSizeCapsReply = z.object({
+  data: z.array(
+    z.object({
+      connectionId: z.string(),
+      /** Live data, in bytes. */
+      usedBytes: z.number().int().nonnegative(),
+      limitBytes: z.number().int().positive(),
+      /** ISO 8601, when it was measured. */
+      measuredAt: z.string(),
+      /** Held by the size cap: nothing that adds runs until it is back under 90% of the limit. */
+      held: z.boolean(),
+    }),
+  ),
+  storage: z
+    .object({
+      usedBytes: z.number().int().nonnegative(),
+      limitBytes: z.number().int().positive(),
+      measuredAt: z.string().nullable(),
+      /** Past the limit: uploads, Designer writes and exports are refused. */
+      over: z.boolean(),
+    })
+    .nullable(),
+});
+export type SystemSizeCapsReply = z.infer<typeof systemSizeCapsReply>;

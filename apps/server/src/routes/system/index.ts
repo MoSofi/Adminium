@@ -23,8 +23,9 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import type { Env } from '../../config/env.js';
+import { UnauthorizedError } from '../../errors.js';
 import { healthz, readyz, systemInfo } from './handlers.js';
-import { systemHealthzReply, systemInfoReply, systemReadyzQuery, systemReadyzReply } from './schema.js';
+import { systemHealthzReply, systemInfoReply, systemReadyzQuery, systemReadyzReply, systemSizeCapsReply } from './schema.js';
 
 export interface SystemRoutesDeps {
   /**
@@ -70,5 +71,23 @@ export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod =
         designer: app.hasDecorator('designerMode') ? (app as unknown as { designerMode: 'local' | 'live' | 'off' }).designerMode : 'off',
         designerLink: app.hasDecorator('designerLink') && (app as unknown as { designerLink: boolean }).designerLink,
       }),
+  );
+
+  // A trial's size caps as last measured, for whoever is signed in: the notice on a held database's pages.
+  app.get(
+    '/system/size-caps',
+    {
+      // Signed in: the sizes are the instance's, not for a visitor.
+      preHandler: async (request) => {
+        if (request.user == null) throw new UnauthorizedError();
+      },
+      schema: { response: { 200: systemSizeCapsReply } },
+    },
+    async () => {
+      const caps = app.sizeCap ?? null;
+      if (caps === null) return { data: [], storage: null };
+      const storage = caps.storage();
+      return { data: caps.readings(), storage: { usedBytes: storage.usedBytes, limitBytes: storage.limitBytes, measuredAt: storage.measuredAt, over: storage.over } };
+    },
   );
 };
