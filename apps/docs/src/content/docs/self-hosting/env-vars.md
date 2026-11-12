@@ -49,7 +49,7 @@ half-configured and fail later.
 | `ADMINIUM_SUPABASE_CONNECT_URL` | No | *(unset)* | The `https://` address of an operator's connect service. Set, the connect wizards show **Connect Supabase** above the connection-string form, and the instance redeems a one-time code at `<address>/redeem`. **https only**, or the boot fails. Unset, nothing changes. See [Running Adminium for other people](/self-hosting/for-other-people/#8-connect-supabase). |
 | `ADMINIUM_TRIAL_MODE` | No | `off` | `on` runs a trial for someone else on your server: connections only to your host list, no own code, no outgoing calls but your mail relay, banners and size caps. Needs the four variables below, or the boot fails. See [Trial mode and the hosted profile](#trial-mode-and-the-hosted-profile). |
 | `ADMINIUM_TRIAL_ENDS_AT` | In trial mode | — | When the trial ends: a date and time **with its zone**, `2026-12-01T00:00:00Z`. |
-| `ADMINIUM_PUBLIC_ORIGIN` | In trial and hosted mode | *(unset)* | Your address for this instance, `https://shop.example.com`. One origin; `http://` only for this machine. |
+| `ADMINIUM_PUBLIC_ORIGIN` | In trial and hosted mode | *(unset)* | Your address for this instance, `https://shop.example.com`. One origin; `http://` only for this machine. Set on any server, the instance answers only on this host and `ADMINIUM_OPERATOR_DOMAINS` (any other `Host` gets 421), and links in email point here. See [Your addresses for the instance](#your-addresses-for-the-instance). |
 | `ADMINIUM_TRIAL_DATA_MAX_MB` | No | `500` | Trial mode: megabytes of live data per database on one of your hosts. |
 | `ADMINIUM_TRIAL_UPLOAD_MAX_MB` | No | `10` | Trial mode: megabytes per uploaded file. |
 | `ADMINIUM_TRIAL_STORAGE_MAX_MB` | No | `1000` | Trial mode: megabytes for the whole data folder. |
@@ -57,7 +57,7 @@ half-configured and fail later.
 | `ADMINIUM_TRIAL_SMTP_URL` | No | *(unset)* | Trial mode: your mail relay for this instance, `smtp://user:password@relay:587`. A secret: takes `_FILE`. |
 | `ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY` | No | `50` | Trial mode: user emails a day through the relay (and 20 an hour). |
 | `ADMINIUM_HOSTED_MODE` | No | `off` | `on` runs a paid installation on your server: the trial's host list, network policy, own-code and address rules stay; the clock, banners and caps go. Needs `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`. |
-| `ADMINIUM_OPERATOR_DOMAINS` | No | *(unset)* | CSV of the user's own verified domains: plain lower-case host names, `shop.example.com`. No wildcard, address, port or path. |
+| `ADMINIUM_OPERATOR_DOMAINS` | No | *(unset)* | CSV of the user's own verified domains: plain lower-case host names, `shop.example.com`. No wildcard, address, port or path. Honoured with or without trial mode: the instance answers on these and `ADMINIUM_PUBLIC_ORIGIN`'s host, links in email point at `https://` and the first one, and only these can be mapped to an app's side or the add-on pages. |
 | `ADMINIUM_OPERATOR_TOKEN` | No | *(unset)* | The operator endpoint's bearer token: 32 random bytes or more (`openssl rand -hex 32`), one per instance. Needs `ADMINIUM_OPERATOR_LISTEN`. A secret: takes `_FILE`. |
 | `ADMINIUM_OPERATOR_LISTEN` | No | *(unset)* | `address:port` the operator endpoint listens on, on your own network: `10.0.0.2:4601`. Never `0.0.0.0`, a name, or `PORT`. Needs `ADMINIUM_OPERATOR_TOKEN`. |
 | `ADMINIUM_OPERATOR_EVENTS_URL` | No | *(unset)* | Where signed instance events go: `https://…`, or `http://` to a private address. Needs `ADMINIUM_OPERATOR_TOKEN`. |
@@ -982,6 +982,38 @@ read-only, marked **Set by the operator**.
 
 `GET /api/v1/readyz?deep=1` also waits until installed add-ons are loaded:
 point a waker at it before it sends the first request.
+
+### Public pages in trial mode
+
+A trial's public pages (customer sides, forms, the mail door, the public API)
+answer everyone, but no search engine may index them: every response carries
+`X-Robots-Tag: noindex, nofollow`, every HTML page a
+`<meta name="robots" content="noindex, nofollow">`, and `/robots.txt` on every
+host disallows everything, over any robots.txt an app ships. Pay pages
+(`/pay…`) and inbound payment webhooks answer 403, as a trial has no payment
+provider. A hosted installation keeps neither rule.
+
+### Your addresses for the instance
+
+With `ADMINIUM_PUBLIC_ORIGIN` or `ADMINIUM_OPERATOR_DOMAINS` set, on any server:
+
+- the instance answers only on `ADMINIUM_PUBLIC_ORIGIN`'s host and the listed
+  domains. Any other `Host` gets **421** before a route is reached. Behind a
+  trusted proxy (`ADMINIUM_TRUST_PROXY`) the name compared is the one the proxy
+  forwards (`X-Forwarded-Host`), so a proxy that passes any name through, or
+  writes its upstream into `Host`, changes nothing;
+- `GET /api/v1/healthz` and `GET /api/v1/readyz` answer on every host, so a
+  container's health check can dial it by its address. They say only whether
+  the server is alive and ready;
+- the address in email links (`system.publicOrigin`) is `https://` and the first
+  listed domain, else `ADMINIUM_PUBLIC_ORIGIN`. It is written at every boot,
+  Studio shows it read-only, a change through `PUT /api/v1/settings/email` is
+  refused (409 `SET_BY_OPERATOR`), and the server never learns another from a
+  browser;
+- a domain mapped to an app's side or to the add-on pages must be one of the
+  listed domains (403 otherwise). A mapping saved before is not answered.
+  Under trial mode and the hosted profile, the websites that may show a form in
+  a frame must be listed domains too.
 
 ## The desktop block
 
