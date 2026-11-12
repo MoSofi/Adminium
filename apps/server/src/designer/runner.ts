@@ -785,8 +785,9 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         log.emit(turn, { kind: 'limit', which: limit.which, value: limit.value });
         outcome = 'limit';
       }
-      // A turn that ends on the card before it changed anything has nothing for the engine to check.
-      if (outcome !== 'failed' && !(card !== null && !acted)) {
+      // A turn that ends on the card before any step changed anything has nothing for the engine to check.
+      const changed = [...doneTools].some((name) => ACTING.has(name));
+      if (outcome !== 'failed' && !(card !== null && !changed)) {
         // The engine has the last word, also on a limit: what was made so far is kept as a version.
         const verdict = await deps.pipeline(session, handle);
         // Stop during the last build ends that build: said as a stop, not as a build that failed.

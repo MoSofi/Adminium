@@ -129,7 +129,7 @@ describe.each((['sqlite', 'postgres', 'mysql'] as EngineName[]).filter((engine) 
       aiEnv: createAiEnv({ root: null, fromEnvironment: OPERATOR_ENV }),
       networkFeatures: true,
       production: false,
-      resolve: async () => [{ address: '93.184.216.34', family: 4 }],
+      resolve: async () => ['93.184.216.34'],
       operatorAi: meter,
       createClient: (config: ProviderConfig) => ({
         id: config.provider,
