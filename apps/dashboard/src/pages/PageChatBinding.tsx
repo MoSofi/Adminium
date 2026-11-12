@@ -48,8 +48,11 @@ import { appStreamTransport } from './lmc/stream.js';
 import { findItemDescriptor, recordRowsOf, usePageWidgetStates } from './lmc/widgetStates.js';
 import type { PageTemplateProps } from './template-types.js';
 import { useAppToasts } from './toasts.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 
 export function PageChatBinding({ page, adapters }: PageTemplateProps) {
+  // Its words are a deferred group of `common`, fetched with the template: in before it paints.
+  useCommonWords();
   const { states } = usePageWidgetStates(page);
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const toasts = useAppToasts();
