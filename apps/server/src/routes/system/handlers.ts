@@ -121,7 +121,14 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     desktopDemo: demoSeedAvailable(env),
     connect: connectProviders(env).map((provider) => ({ provider: provider.id })),
     trial: trialInfo(env, deps.now?.() ?? Date.now()),
+    ownCode: ownCodeInfo(env),
   };
+}
+
+/** The own code this server takes, as the dashboard's upload and "Start with an app" buttons read it. */
+function ownCodeInfo(env: Env): SystemInfoReply['ownCode'] {
+  const policy = trialPolicy(env);
+  return { packageUploads: policy.allows('packageUploads'), designerUploads: policy.allows('designerUploads'), ownBuilds: policy.allows('ownBuilds') };
 }
 
 /** The trial's clock and the Upgrade address, as the banners read them. */

@@ -73,6 +73,8 @@ describe('GET /api/v1/system/info', () => {
       connect: [],
       // Trial mode: off unless the operator switches it on.
       trial: { on: false, endsAt: null, daysLeft: null, upgradeUrl: null },
+      // Own code: uploads, the Designer's uploads and builds of an app's own are taken, unless the operator keeps them off.
+      ownCode: { packageUploads: { allowed: true, reason: null }, designerUploads: { allowed: true, reason: null }, ownBuilds: { allowed: true, reason: null } },
     });
   });
 

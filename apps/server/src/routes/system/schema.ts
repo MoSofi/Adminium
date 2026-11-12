@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { RUNTIMES } from '../../config/env.js';
 import { CONNECT_PROVIDER_IDS } from '../../connect/providers.js';
+import { settingLockSchema } from '../../trial/operator-lock.js';
 
 /** Meta-store dialects; `null` until meta wiring (wave 2). */
 export const metaDialect = z.enum(['postgres', 'mysql', 'sqlite']);
@@ -163,5 +164,11 @@ export const systemInfoReply = z.object({
     /** The operator's Upgrade page with `?instance=` added; null when unset (no button) or outside trial mode. */
     upgradeUrl: z.string().nullable(),
   }),
+  /**
+   * What own code this server takes (`trial/own-code.ts`), each `{ allowed, reason }`: uploads of add-ons and
+   * apps, uploads and hand edits in the Designer, and builds of an app's own ("Start with an app"). The
+   * dashboard shows the buttons that lead there disabled with the reason, never hidden.
+   */
+  ownCode: z.object({ packageUploads: settingLockSchema, designerUploads: settingLockSchema, ownBuilds: settingLockSchema }),
 });
 export type SystemInfoReply = z.infer<typeof systemInfoReply>;
