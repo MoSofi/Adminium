@@ -102,7 +102,8 @@ async function server(env: Record<string, string>): Promise<Call> {
     onMetaRelocated: () => undefined,
   });
   await composed.app.ready();
-  return signedIn(composed.app);
+  // The operator's address: a server with ADMINIUM_PUBLIC_ORIGIN answers no other name.
+  return signedIn(composed.app, env['ADMINIUM_PUBLIC_ORIGIN'] === undefined ? undefined : new URL(env['ADMINIUM_PUBLIC_ORIGIN']).host);
 }
 
 const OCTET = { 'content-type': 'application/octet-stream' };
