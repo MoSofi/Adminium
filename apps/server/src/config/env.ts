@@ -195,6 +195,11 @@ function booleanVar(fallback: boolean) {
   );
 }
 
+/** A trial's pools (A6): each pool against a source at most this size, and its default. */
+export const TRIAL_SOURCE_POOL_MAX = 3;
+/** A trial's meta store pool, unless the operator sets another size. */
+export const TRIAL_META_POOL_MAX = 3;
+
 /** A whole number of megabytes, with its default when unset. */
 function megabytesVar(fallback: number) {
   return z.preprocess(
@@ -1317,6 +1322,11 @@ export const envSchema = z.object({
       need(true, 'ADMINIUM_HOSTED_MODE', 'is on as well as ADMINIUM_TRIAL_MODE: a server is a trial or a paid installation, not both. Switch one off.');
     }
     if (env.ADMINIUM_TRIAL_MODE) {
+      need(
+        env.ADMINIUM_SOURCE_POOL_MAX !== undefined && env.ADMINIUM_SOURCE_POOL_MAX > TRIAL_SOURCE_POOL_MAX,
+        'ADMINIUM_SOURCE_POOL_MAX',
+        `is above ${String(TRIAL_SOURCE_POOL_MAX)}: a trial opens at most ${String(TRIAL_SOURCE_POOL_MAX)} connections in each pool on the shared database server. Remove it, or set ${String(TRIAL_SOURCE_POOL_MAX)} or less.`,
+      );
       need(env.ADMINIUM_TRIAL_ENDS_AT === undefined, 'ADMINIUM_TRIAL_ENDS_AT', 'is required in trial mode: when the trial ends, e.g. 2026-12-01T00:00:00Z');
       need(env.ADMINIUM_SETUP_TOKEN === undefined, 'ADMINIUM_SETUP_TOKEN', 'is required in trial mode: the welcome link carries it, so the trial user never reads a log');
     }
@@ -1471,12 +1481,16 @@ export function profileIssues(raw: Readonly<Record<string, string | undefined>>)
  * what an unset variable reads as.
  *
  *  - both profiles: `ADMINIUM_NETWORK_POLICY=strict`, `ADMINIUM_LOCAL_DATABASES=off` (A1);
- *  - trial mode: `ADMINIUM_TELEMETRY=off` and no map or routing server (A2).
+ *  - trial mode: `ADMINIUM_TELEMETRY=off` and no map or routing server (A2);
+ *    pools of 3 against a source and the meta store unless set lower (A6).
  */
 export function enforceProfile(env: Env): Env {
   if (!env.ADMINIUM_TRIAL_MODE && !env.ADMINIUM_HOSTED_MODE) return env;
   const enforced: Env = { ...env, ADMINIUM_NETWORK_POLICY: 'strict', ADMINIUM_LOCAL_DATABASES: 'off' };
   if (env.ADMINIUM_TRIAL_MODE) {
+    // Small pools on the operator's shared servers (A6): what an unset variable reads as; the operator may set less.
+    enforced.ADMINIUM_SOURCE_POOL_MAX = env.ADMINIUM_SOURCE_POOL_MAX ?? TRIAL_SOURCE_POOL_MAX;
+    enforced.ADMINIUM_META_POOL_MAX = env.ADMINIUM_META_POOL_MAX ?? TRIAL_META_POOL_MAX;
     enforced.ADMINIUM_TELEMETRY = false;
     enforced.ADMINIUM_MAP_SERVER = MAP_SERVER_OFF;
     enforced.ADMINIUM_ROUTING_SERVER = MAP_SERVER_OFF;
