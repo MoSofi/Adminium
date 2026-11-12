@@ -54,6 +54,7 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 import { dirForLocale, isLocaleId } from '@adminium/i18n';
+import { createServerI18n } from '@adminium/i18n/server';
 import { namesAPlaceholder } from '@adminium/manifest';
 
 import { deriveKey, encryptSecret } from '../config/secrets.js';
@@ -77,6 +78,7 @@ import type { MarketingCarry } from './marketing-carry.js';
 import { PLAIN_DOTTED, PLAIN_RECIPIENT } from './plain-address.js';
 import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
 import { resolveMailSender, SERVER_SENDER, type MailSender, type SendAbout } from './workspace-sender.js';
+import { queueThroughRelay, shownName, trialMailOn } from './trial-relay.js';
 
 /** The `adminium_jobs.kind` of a queued outbound email. */
 export const EMAIL_SEND_JOB_KIND = 'email.send';
@@ -502,6 +504,8 @@ export interface PreparedEmail {
 /** What a caller knows of whose mail it is: an app's (see `EnqueueEmailInput.brandName`). */
 export interface PrepareEmailOptions {
   brandName?: string | undefined;
+  /** The workspace's name as the banner says it, in place of the stored one (a trial's account mail: filtered). */
+  appName?: string | undefined;
   /** Mail about a record: whose sender it goes as. Absent, the server's. */
   about?: SendAbout | undefined;
   /** The sender as the caller already resolved it; wins over `about`. */
@@ -567,7 +571,7 @@ export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource, options
   return {
     render: {
       document: { subject: doc.subject, preheader: doc.preheader, blocks: doc.blocks, footer: doc.footer },
-      brand: effectiveBrand(doc.brand, { appName: business === '' ? appName : business, accent }),
+      brand: effectiveBrand(doc.brand, { appName: business === '' ? (options.appName ?? appName) : business, accent }),
       mark,
       imageFiles,
     },
@@ -693,8 +697,33 @@ export async function enqueueRenderedEmail(
     deps.logger?.warn({ templateKey: input.templateKey, cid: unfit.cid }, 'an email was not queued: its QR code holds more text than a QR code here carries');
     return null;
   }
+  // On a trial every message goes through the operator's relay, shaped and counted there (`trial-relay.ts`).
+  if (trialMailOn()) {
+    return await queueThroughRelay(
+      deps.meta,
+      {
+        templateKey: input.templateKey,
+        to,
+        locale: input.locale,
+        marketing: input.mailClass === 'marketing',
+        replyTo: replyToOf(input.replyTo) ?? undefined,
+        runAt: deps.runAt,
+        html: input.rendered.html,
+        text: input.rendered.text,
+      },
+      async (shaped) =>
+        await queueEnvelope(deps, secret, { ...input, to, from: shaped.from, replyTo: shaped.replyTo, rendered: { ...input.rendered, html: shaped.html, text: shaped.text } }, shaped.runAt),
+      deps.logger,
+    );
+  }
+  return await queueEnvelope(deps, secret, { ...input, to }, deps.runAt);
+}
+
+/** Seal one message and put it on the queue, due at `runAt` (absent: now). */
+async function queueEnvelope(deps: EnqueueEmailDeps, secret: string, input: EnqueueRenderedEmailInput, runAt: number | undefined): Promise<Job | null> {
+  const qr = qrRefs(input.rendered);
   const envelope: EmailEnvelope = {
-    to,
+    to: input.to,
     subject: input.rendered.subject,
     html: input.rendered.html,
     text: input.rendered.text,
@@ -724,7 +753,7 @@ export async function enqueueRenderedEmail(
     kind: EMAIL_SEND_JOB_KIND,
     payload: payload as unknown as Record<string, unknown>,
     maxAttempts: EMAIL_SEND_MAX_ATTEMPTS,
-    ...(deps.runAt === undefined ? {} : { runAt: deps.runAt }),
+    ...(runAt === undefined ? {} : { runAt }),
     ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
   });
 }
@@ -767,19 +796,23 @@ export async function enqueueEmail(
   }
 
   const locale = input.locale ?? (await recipientLocale(meta, null));
-  const found = input.template ?? (await resolveTemplate(meta, input, locale, deps.logger));
+  // On a trial, account mail says the shipped words, whatever was edited or translated here, with its names filtered.
+  const fixed = trialMailOn() && SYSTEM_MAIL_TEMPLATE_KEYS.has(input.templateKey);
+  const found = fixed ? await shippedTemplate(input.templateKey, locale) : (input.template ?? (await resolveTemplate(meta, input, locale, deps.logger)));
   if (found === null) return null;
-  const row = withOverride(found, input.override);
+  const row = fixed ? found : withOverride(found, input.override);
   // A stored row says its own language (US English, when the recipient's had none); the rest are written in `locale`.
   const own = (found as { locale?: unknown }).locale;
   const written = typeof own === 'string' ? own : locale;
+  const given = fixed ? namesShown(input.vars) : input.vars;
   const vars =
     input.counts === undefined
-      ? input.vars
-      : { ...input.vars, ...Object.fromEntries(Object.entries(input.counts).map(([name, value]) => [name, proseNumber(value, written)])) };
+      ? given
+      : { ...given, ...Object.fromEntries(Object.entries(input.counts).map(([name, value]) => [name, proseNumber(value, written)])) };
 
   const prepared = await prepareEmail(meta, row, {
     brandName: input.brandName,
+    ...(fixed ? { appName: shownName(await settingsRepo(meta).get('branding.appName')) } : {}),
     ...(input.sender !== undefined ? { sender: input.sender } : input.about === undefined ? {} : { about: { connectionId: input.about.connectionId, templateKey: input.templateKey } }),
   });
   // Where a reply goes: the mail's own address, else its sender's.
@@ -894,6 +927,22 @@ async function resolveTemplate(
     'no enabled email template for this key — nothing sent',
   );
   return null;
+}
+
+/** A built-in template's shipped words in `locale`, with no translation an admin wrote; null for a key that is not built in. */
+async function shippedTemplate(key: string, locale: string): Promise<EmailRenderSource | null> {
+  const def = builtinEmailTemplates((await createServerI18n({ locale })).t).find((d) => d.key === key);
+  if (def === undefined) return null;
+  return { subject: def.subject, preheader: def.preheader ?? '', blocks: def.blocks, footer: def.footer, brand: null, attachments: [] };
+}
+
+/** The names an account mail says (the workspace's, the person's, who invited them), as a trial's mail may carry them. */
+function namesShown(vars: Record<string, string>): Record<string, string> {
+  const out = { ...vars };
+  for (const name of ['appName', 'name', 'inviterName']) {
+    if (typeof out[name] === 'string') out[name] = shownName(out[name]);
+  }
+  return out;
 }
 
 async function templateExists(meta: MetaDb, key: string, locale: string): Promise<boolean> {

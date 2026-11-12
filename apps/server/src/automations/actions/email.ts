@@ -53,6 +53,7 @@
  * relay puts the address on the do-not-email list.
  */
 
+import { dirForLocale, isLocaleId } from '@adminium/i18n';
 import {
   automationRunsRepo,
   connectionTenantConfig,
@@ -77,7 +78,8 @@ import {
 } from '../../email/marketing.js';
 import { pkLabel } from '../../crud/records.js';
 import { renderEmail } from '../../email/render.js';
-import { inlineRefs, prepareEmail } from '../../email/send.js';
+import { enqueueRenderedEmail, inlineRefs, prepareEmail } from '../../email/send.js';
+import { trialMailOn } from '../../email/trial-relay.js';
 import { resolveMailSender, type SendAbout } from '../../email/workspace-sender.js';
 import { formatTag } from '../../i18n/bcp47.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
@@ -328,6 +330,43 @@ async function mailPerson(action: EmailAction, ctx: ActionContext, user: User, r
   return said.join(' · ');
 }
 
+/** Why a step's mail was not queued on a trial: the relay's caps, its end, or marketing mail being off. */
+const NOT_QUEUED_ON_TRIAL = 'Not queued: this trial’s email rules leave it out';
+
+/**
+ * The step on a trial: each recipient's mail queued through the operator's relay
+ * (`email/trial-relay.ts`), where it is capped, held and given the trial's From,
+ * Reply-To and footer. The log line says queued, not the relay's reply.
+ */
+async function queueThroughTrialRelay(action: EmailAction, ctx: ActionContext, template: Awaited<ReturnType<typeof resolve>>['template'], recipients: readonly string[]): Promise<ActionResult> {
+  const sender = await resolveMailSender(ctx.meta, aboutOf(ctx, template.key));
+  const prepared = await prepareEmail(ctx.meta, template, { sender });
+  const vars = await varsFor(action, ctx, template.locale);
+  const replyTo = (await staffReplyTo(ctx.meta, ctx, action.replyTo?.staff)) ?? sender.replyTo;
+  const mailClass = action.to?.kind === 'field' ? (action.class ?? 'service') : undefined;
+  const replies: string[] = [];
+  for (const to of recipients) {
+    const rendered = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: isLocaleId(template.locale) ? dirForLocale(template.locale) : 'ltr' });
+    const job = await enqueueRenderedEmail(
+      { meta: ctx.meta, secret: ctx.secret },
+      {
+        to,
+        templateKey: template.key,
+        locale: template.locale,
+        rendered,
+        from: prepared.from,
+        ...(replyTo === null ? {} : { replyTo }),
+        attachments: prepared.attachments,
+        ...(mailClass === undefined ? {} : { mailClass }),
+      },
+    );
+    replies.push(job === null ? ctx.text.emailSkipped(NOT_QUEUED_ON_TRIAL, to) : ctx.text.emailQueued(to));
+  }
+  const unfilled = unfilledIn(template, vars);
+  if (unfilled.length > 0) replies.push(ctx.text.emailUnfilled(listed(unfilled)));
+  return { log: replies.join(' · ') };
+}
+
 export async function runEmailAction(
   action: EmailAction,
   ctx: ActionContext,
@@ -335,6 +374,8 @@ export async function runEmailAction(
   if (action.to?.kind === 'staff') return runStaffEmail(action as EmailAction & { to: { kind: 'staff'; column: string } }, ctx, false);
   if (action.to?.kind === 'listed') return runListedEmail(action as EmailAction & { to: { kind: 'listed'; table: string } }, ctx, false);
   const { template, recipients } = await resolve(action, ctx);
+  // On a trial every message goes through the operator's relay, counted and capped there: queued, never handed over here.
+  if (trialMailOn()) return await queueThroughTrialRelay(action, ctx, template, recipients);
 
   const config = await resolveSmtpConfig(ctx.meta, emailSecretKey(ctx.secret));
   if (config === null) throw new ActionFailure(ctx.text.emailNoSmtp());
