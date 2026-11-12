@@ -38,6 +38,7 @@ import { parseProjectConfig, type ProjectConfig } from './config.js';
 import { listAppKeys } from './apps/read-app.js';
 import { configFileName, type ProjectLocation } from './locate.js';
 import { toProjectPath } from './paths.js';
+import { publicFilesMayHaveChanged } from '../operator/public-signal.js';
 
 const BUILT_CONFIG = 'config.mjs';
 const MANIFEST = 'manifest.json';
@@ -401,6 +402,8 @@ export async function rebuildApps(
   const bundler = await (opts.loadBundler ?? loadProjectBundler)(project.root);
   const apps = await buildProjectApps(project.root, { version: opts.version, bundler, dev: opts.dev === true, ...(opts.signal === undefined ? {} : { signal: opts.signal }) });
   writeAtomically(join(buildDir(project), MANIFEST), `${JSON.stringify({ ...manifest, apps }, null, 2)}\n`);
+  // The apps' served files were rewritten in place: a customer side strangers see may have changed.
+  publicFilesMayHaveChanged();
   return apps;
 }
 
