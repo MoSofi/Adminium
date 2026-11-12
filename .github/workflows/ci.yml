@@ -220,7 +220,7 @@ jobs:
       # check-offline-assets and generate-notices can fail at all.
       # scripts/check-cross-package-tests.mjs lists each with what it reads.
       #
-      # This step runs the five files that touch no workspace dist, not even to
+      # This step runs the six files that touch no workspace dist, not even to
       # probe for one — traced, and run green in a fresh clone with nothing
       # built — so it needs no build; the other six run after Test. About 5 s
       # on a dev box.
@@ -314,7 +314,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # The other six cross-package tests (see the step before the S3 server). These
+      # The other ten cross-package tests (see the step before the S3 server). These
       # need built workspace packages, so they run once the build has. Among
       # them: the Docker distribution contract, which pins the ROOT Dockerfile,
       # compose file and workflows, and the desktop demo's acceptance test,
