@@ -99,6 +99,13 @@ RUN node apps/server/scripts/bundle-allowlists.mjs \
 # single `COPY --from=build` below sufficient.
 RUN pnpm deploy --filter=@adminium/server --prod --legacy /app
 
+# The comments come out of Adminium's own built JavaScript in the image (the npm
+# package keeps them). V8 holds every loaded module's source for the life of the
+# process, so they cost every container about 18 MB of heap for nothing at run time.
+# The meta migrations are left as they are: the migrator checks them by their
+# source text. See the script's header.
+RUN node scripts/release/strip-image-comments.mjs /app
+
 # The bundled add-on set: the six first-party add-on tarballs plus their
 # `.integrity` sidecars, fetched from downloads.adminium.dev and verified against
 # the exact sha512 pins in scripts/release/add-ons-bundle.json before a byte lands.
