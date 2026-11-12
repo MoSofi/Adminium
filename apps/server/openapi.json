@@ -325,6 +325,110 @@
                         "upgradeUrl"
                       ],
                       "additionalProperties": false
+                    },
+                    "ownCode": {
+                      "type": "object",
+                      "properties": {
+                        "packageUploads": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "designerUploads": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "ownBuilds": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "packageUploads",
+                        "designerUploads",
+                        "ownBuilds"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -339,7 +443,8 @@
                     "deployLink",
                     "desktopDemo",
                     "connect",
-                    "trial"
+                    "trial",
+                    "ownCode"
                   ],
                   "additionalProperties": false
                 }
