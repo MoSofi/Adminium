@@ -9,7 +9,7 @@
  *
  *  - From is fixed: `"<instance name> via <operator name>" <address>`, the
  *    address the relay pins for this instance (`ADMINIUM_TRIAL_MAIL_FROM`).
- *    The instance name is the workspace's name, filtered ({@link safeSenderName}):
+ *    The instance name is the Application name (`branding.appName`), filtered ({@link safeSenderName}):
  *    no `@`, no brand or account-safety words, no look-alike spelling of one.
  *    A name the filter refuses gives way to the instance's host name.
  *  - Reply-To, on user mail, is a staff member's own sign-in address: the one
@@ -349,7 +349,7 @@ export function shownName(raw: string | null | undefined): string {
   return safeSenderName(raw) ?? hostOf(state?.setup.relay?.origin ?? null) ?? '';
 }
 
-/** `"<instance> via <operator>" <address>` with the workspace's name as it stands. */
+/** `"<instance> via <operator>" <address>` with the Application name as it stands. */
 async function fromHeader(meta: MetaDb, relay: TrialRelay): Promise<string> {
   const instance = safeSenderName(await settingsRepo(meta).get('branding.appName')) ?? hostOf(relay.origin);
   const name = instance === null ? relay.operatorName : `${instance} via ${relay.operatorName}`;

@@ -505,7 +505,7 @@ export interface PreparedEmail {
 /** What a caller knows of whose mail it is: an app's (see `EnqueueEmailInput.brandName`). */
 export interface PrepareEmailOptions {
   brandName?: string | undefined;
-  /** The workspace's name as the banner says it, in place of the stored one (a trial's account mail: filtered). */
+  /** The Application name as the banner says it, in place of the stored one (a trial's account mail: filtered). */
   appName?: string | undefined;
   /** Mail about a record: whose sender it goes as. Absent, the server's. */
   about?: SendAbout | undefined;
@@ -937,7 +937,7 @@ async function shippedTemplate(key: string, locale: string): Promise<EmailRender
   return { subject: def.subject, preheader: def.preheader ?? '', blocks: def.blocks, footer: def.footer, brand: null, attachments: [] };
 }
 
-/** The names an account mail says (the workspace's, the person's, who invited them), as a trial's mail may carry them. */
+/** The names an account mail says (the Application name, the person's, who invited them), as a trial's mail may carry them. */
 function namesShown(vars: Record<string, string>): Record<string, string> {
   const out = { ...vars };
   for (const name of ['appName', 'name', 'inviterName']) {

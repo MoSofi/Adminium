@@ -1073,7 +1073,7 @@ read-only, marked **Set by the operator**, and a change to it through
 set, a trial sends no email at all.
 
 - **From** is always `"<instance name> via <ADMINIUM_OPERATOR_NAME>" <ADMINIUM_TRIAL_MAIL_FROM>`.
-  The instance name is the workspace's name with everything a header or an
+  The instance name is the **Application name** (Studio's Server identity) with everything a header or an
   address is made of taken out, and is dropped for the instance's host name
   when it holds a brand or an account-safety word (`PayPal`, `Microsoft`,
   `login`, `password`…) in any spelling, look-alike letters and digits
