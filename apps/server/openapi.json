@@ -65,6 +65,20 @@
     },
     "/api/v1/readyz": {
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "deep",
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -95,6 +109,13 @@
                           "enum": [
                             "ok",
                             "seeding"
+                          ]
+                        },
+                        "addOns": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "loading"
                           ]
                         }
                       },
@@ -144,6 +165,13 @@
                           "enum": [
                             "ok",
                             "seeding"
+                          ]
+                        },
+                        "addOns": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "loading"
                           ]
                         }
                       },
@@ -258,6 +286,45 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "trial": {
+                      "type": "object",
+                      "properties": {
+                        "on": {
+                          "type": "boolean"
+                        },
+                        "endsAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "daysLeft": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "upgradeUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "on",
+                        "endsAt",
+                        "daysLeft",
+                        "upgradeUrl"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -271,7 +338,8 @@
                     "lanShare",
                     "deployLink",
                     "desktopDemo",
-                    "connect"
+                    "connect",
+                    "trial"
                   ],
                   "additionalProperties": false
                 }
@@ -107602,11 +107670,84 @@
                         },
                         "updateCheck": {
                           "type": "boolean"
+                        },
+                        "locks": {
+                          "type": "object",
+                          "properties": {
+                            "telemetry": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "updateCheck": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "telemetry",
+                            "updateCheck"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
                         "telemetry",
-                        "updateCheck"
+                        "updateCheck",
+                        "locks"
                       ],
                       "additionalProperties": false
                     }
@@ -107660,11 +107801,84 @@
                         },
                         "updateCheck": {
                           "type": "boolean"
+                        },
+                        "locks": {
+                          "type": "object",
+                          "properties": {
+                            "telemetry": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "updateCheck": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "telemetry",
+                            "updateCheck"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
                         "telemetry",
-                        "updateCheck"
+                        "updateCheck",
+                        "locks"
                       ],
                       "additionalProperties": false
                     }
@@ -108169,6 +108383,11 @@
                         {
                           "type": "string",
                           "enum": [
+                            "trial-mode",
+                            "hosted-mode",
+                            "trial-ended",
+                            "operator-ai-only",
+                            "operator-ai-scope",
                             "not-allowed"
                           ]
                         },
@@ -108267,6 +108486,11 @@
                         {
                           "type": "string",
                           "enum": [
+                            "trial-mode",
+                            "hosted-mode",
+                            "trial-ended",
+                            "operator-ai-only",
+                            "operator-ai-scope",
                             "not-allowed"
                           ]
                         },

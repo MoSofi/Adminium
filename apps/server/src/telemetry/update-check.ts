@@ -26,6 +26,9 @@
  */
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
+import { lockedValue, settingLock } from '../trial/operator-lock.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../trial/policy.js';
+
 /**
  * The public release feed for the AGPL repo.
  *
@@ -91,6 +94,8 @@ export interface UpdateCheckDeps {
   fetchImpl?: typeof globalThis.fetch | undefined;
   now?: (() => number) | undefined;
   cacheTtlMs?: number | undefined;
+  /** Trial mode locks the check off whatever the setting holds (`trial/operator-lock.ts`). Default: nothing locked. */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
 }
 
 export interface UpdateCheckService {
@@ -110,6 +115,8 @@ export function createUpdateCheckService(deps: UpdateCheckDeps): UpdateCheckServ
   let cache: { at: number; result: UpdateCheckResult } | null = null;
 
   async function isEnabled(): Promise<boolean> {
+    const lock = settingLock(deps.policy ?? ORDINARY_POLICY, 'updates.checkEnabled');
+    if (!lock.allowed) return lockedValue('updates.checkEnabled');
     return settings.get('updates.checkEnabled');
   }
 

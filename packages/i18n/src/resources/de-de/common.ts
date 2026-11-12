@@ -2179,5 +2179,9 @@ export default {
       "docsLink": "So unterscheiden sich die beiden Ansichten"
     },
     "switched": "Zu {name} gewechselt"
+  },
+  "operatorLock": {
+    "chip": "Vom Betreiber festgelegt",
+    "lockedOff": "Der Betreiber hat dies für diese Installation ausgeschaltet."
   }
 } as const;

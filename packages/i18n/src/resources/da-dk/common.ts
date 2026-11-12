@@ -2179,5 +2179,9 @@ export default {
       "docsLink": "Sådan adskiller de to visninger sig"
     },
     "switched": "Skiftet til {name}"
+  },
+  "operatorLock": {
+    "chip": "Fastsat af operatøren",
+    "lockedOff": "Operatøren har slået dette fra for denne installation."
   }
 } as const;

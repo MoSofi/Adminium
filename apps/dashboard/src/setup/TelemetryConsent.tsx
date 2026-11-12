@@ -11,12 +11,18 @@
  *
  * Presentational: state lives in the wizard, so this same component can be
  * reused by the post-setup settings surface.
+ *
+ * In trial mode the operator has set both off (`locked`): each is drawn off
+ * and read-only with "Set by the operator" (`settings/SetByOperator.tsx`), and
+ * the server records off whatever is sent.
  */
 import { BarChart3, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Label, Switch } from '@adminium/ui';
 
+import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
+import { SetByOperatorChip } from '../settings/SetByOperator.js';
 import type { SetupConsent } from './setupApi.js';
 
 function ConsentOption(props: {
@@ -26,9 +32,13 @@ function ConsentOption(props: {
   description: string;
   checked: boolean;
   onChange: (next: boolean) => void;
+  /** Set by the operator (trial mode): drawn off and read-only, with the chip and the reason. */
+  locked?: boolean | undefined;
   children?: ReactNode;
 }): ReactNode {
   const descriptionId = `${props.id}-description`;
+  const lockedId = `${props.id}-locked`;
+  const locked = props.locked === true;
   return (
     <div className="flex flex-col gap-3 rounded-[14px] border border-border p-4">
       <div className="flex items-start gap-3">
@@ -36,19 +46,31 @@ function ConsentOption(props: {
           {props.icon}
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <Label htmlFor={props.id} className="text-body font-semibold text-fg">
-            {props.title}
-          </Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Label htmlFor={props.id} className="text-body font-semibold text-fg">
+              {props.title}
+            </Label>
+            {locked ? <SetByOperatorChip /> : null}
+          </div>
           <p id={descriptionId} className="text-body-sm text-fg-muted">
             {props.description}
           </p>
+          {locked ? (
+            <p id={lockedId} className="text-body-sm text-fg-muted">
+              {t('operatorLock.lockedOff', 'The operator has switched this off for this installation.')}
+            </p>
+          ) : null}
         </div>
         <Switch
           id={props.id}
-          checked={props.checked}
-          onCheckedChange={props.onChange}
-          aria-describedby={descriptionId}
-          className="mt-0.5 shrink-0"
+          checked={locked ? false : props.checked}
+          onCheckedChange={(next) => {
+            if (!locked) props.onChange(next);
+          }}
+          aria-describedby={locked ? `${descriptionId} ${lockedId}` : descriptionId}
+          // Read-only the way a keyboard still reaches: the reason is the line it points at.
+          {...(locked ? { 'aria-disabled': true } : {})}
+          className="mt-0.5 shrink-0 aria-disabled:cursor-not-allowed aria-disabled:opacity-45"
         />
       </div>
       {props.children}
@@ -100,9 +122,13 @@ function PayloadDisclosure(): ReactNode {
 export interface TelemetryConsentProps {
   value: SetupConsent;
   onChange: (next: SetupConsent) => void;
+  /** Which of the two the operator has set (`GET /settings/telemetry`'s `locks`): read-only, off. */
+  locked?: { telemetry: boolean; updateCheck: boolean } | undefined;
 }
 
-export function TelemetryConsent({ value, onChange }: TelemetryConsentProps): ReactNode {
+export function TelemetryConsent({ value, onChange, locked }: TelemetryConsentProps): ReactNode {
+  // The locked line's words (`operatorLock`) are a deferred group of `common`.
+  useCommonWords();
   return (
     <div className="flex flex-col gap-4">
       <ConsentOption
@@ -115,6 +141,7 @@ export function TelemetryConsent({ value, onChange }: TelemetryConsentProps): Re
         )}
         checked={value.telemetry}
         onChange={(telemetry) => onChange({ ...value, telemetry })}
+        locked={locked?.telemetry}
       >
         <PayloadDisclosure />
       </ConsentOption>
@@ -129,11 +156,14 @@ export function TelemetryConsent({ value, onChange }: TelemetryConsentProps): Re
         )}
         checked={value.updateCheck}
         onChange={(updateCheck) => onChange({ ...value, updateCheck })}
+        locked={locked?.updateCheck}
       />
 
-      <p className="text-body-sm text-fg-muted">
-        {t('setup.consent.reversible', 'Both are off by default and you can change either one later in Settings.')}
-      </p>
+      {locked?.telemetry === true && locked.updateCheck ? null : (
+        <p className="text-body-sm text-fg-muted">
+          {t('setup.consent.reversible', 'Both are off by default and you can change either one later in Settings.')}
+        </p>
+      )}
     </div>
   );
 }

@@ -25,7 +25,7 @@ import type { AllowedVocabularies } from '@adminium/llm';
 import type { AdminiumServer } from '../app.js';
 import { composeServer } from '../compose.js';
 import { childEnvironment } from '../config/child-env.js';
-import { envSchema, formatEnvErrorTable, secretFileIssues, type Env } from '../config/env.js';
+import { enforceProfile, envSchema, formatEnvErrorTable, problemIssues, profileIssues, secretFileIssues, type Env } from '../config/env.js';
 import { readSecretFiles, withHeldSecrets } from '../config/operator-secrets.js';
 import { ConnectionManager } from '../connections/manager.js';
 import { dsnCryptoFromSecret } from '../connections/crypto.js';
@@ -121,8 +121,8 @@ export function loadCliEnv(
   }
 
   const result = envSchema.safeParse(merged);
-  const issues = secretFileIssues(files.problems, result.success ? [] : result.error.issues);
-  if (result.success && issues.length === 0) return result.data;
+  const issues = [...secretFileIssues(files.problems, result.success ? [] : result.error.issues), ...problemIssues(profileIssues(merged))];
+  if (result.success && issues.length === 0) return enforceProfile(result.data);
 
   const secretIssue = issues.some((issue) => issue.path[0] === 'ADMINIUM_SECRET');
   // A flag replaced the value, so the project is not where it came from.

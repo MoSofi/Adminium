@@ -14,8 +14,9 @@
  * Three states, as the comp draws them:
  *   off     the switch, the help line.
  *   on      the switch on, and "Turned on by {name}, {date}" with `history`.
- *   locked  the operator set `ADMINIUM_LOCAL_DATABASES=off`: the chip "Set by
- *           the operator", the switch OFF and disabled (never drawn on: the
+ *   locked  the operator set `ADMINIUM_LOCAL_DATABASES=off`, or runs a trial or a
+ *           hosted installation: the chip "Set by the operator"
+ *           (`settings/SetByOperator.tsx`), the switch OFF and disabled (never drawn on: the
  *           plan's ruling over the comp's drawing, H1-D12a), and the hosts the
  *           operator allows. Never hidden, always explained: the switch stays
  *           in the tab order with `aria-disabled` and points at that line.
@@ -23,17 +24,19 @@
  * Someone who is not a Super Admin gets a 403 and no card.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Database, History, Lock } from 'lucide-react';
+import { Database, History } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { Button, Card, CardBody, CardHeader, FormField, IconTile, Input, Switch } from '@adminium/ui';
 
 import { api, ApiError } from '../../app/api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
+import { isSetByOperator, SetByOperatorChip } from '../../settings/SetByOperator.js';
 
 export interface LocalDatabases {
   allowed: boolean;
   on: boolean;
-  reason: 'not-allowed' | null;
+  /** Set by the operator: `not-allowed` (`ADMINIUM_LOCAL_DATABASES=off`), `trial-mode` or `hosted-mode`. */
+  reason: string | null;
   hosts: string[];
   turnedOn: { by: string; at: number } | null;
   loopbackAllowed: boolean;
@@ -45,7 +48,7 @@ const PATH = '/api/v1/settings/local-databases';
 function refusal(error: unknown): string {
   const reason = error instanceof ApiError ? (error.details as { reason?: unknown } | undefined)?.reason : undefined;
   if (reason === 'PASSWORD') return t('studio:settingsHub.localDatabases.wrongPassword', 'That is not your password.');
-  if (reason === 'not-allowed') return t('studio:settingsHub.localDatabases.lockedRefused', 'The server’s operator has locked this off.');
+  if (isSetByOperator(error) || reason === 'not-allowed') return t('studio:settingsHub.localDatabases.lockedRefused', 'The server’s operator has locked this off.');
   return t('studio:settingsHub.localDatabases.failed', 'The switch could not be changed. Try again.');
 }
 
@@ -123,12 +126,7 @@ export function LocalDatabasesCard(): ReactNode {
               <span id={labelId} className="text-[13.5px] font-bold text-fg">
                 {t('studio:settingsHub.localDatabases.label', 'Allow databases on this server')}
               </span>
-              {locked ? (
-                <span className="inline-flex items-center gap-[5px] rounded-full bg-surface-3 px-[9px] py-0.5 text-[11.5px] font-bold text-fg-muted" data-testid="local-databases-locked">
-                  <Lock aria-hidden="true" className="size-3" />
-                  {t('studio:settingsHub.localDatabases.setByOperator', 'Set by the operator')}
-                </span>
-              ) : null}
+              {locked ? <SetByOperatorChip data-testid="local-databases-locked" /> : null}
             </div>
             {help}
             {current.loopbackAllowed ? (

@@ -2179,5 +2179,9 @@ export default {
       "docsLink": "Différences entre les deux affichages"
     },
     "switched": "Passage à {name}"
+  },
+  "operatorLock": {
+    "chip": "Défini par l’opérateur",
+    "lockedOff": "L’opérateur a désactivé ce réglage pour cette installation."
   }
 } as const;

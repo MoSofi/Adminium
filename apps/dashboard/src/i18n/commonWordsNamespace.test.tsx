@@ -76,6 +76,9 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   // A people table's e-mail consent on the record page: the panel, its words and the dashboard's dialogs for it.
   'consent/RecordConsentPanel.tsx': ['consent/ConsentPanel.tsx', 'consent/consentDialogs.tsx', 'consent/consentWords.ts'],
   // "Shown in" (`shownIn`): each piece waits for its words wherever a lazy screen draws it (email, reports, rules, a workspace's delete).
+  // "Set by the operator" (`operatorLock`, plan 75): the chip and the first-run consent each wait for their words.
+  'settings/SetByOperator.tsx': [],
+  'setup/TelemetryConsent.tsx': [],
   'shown-in/ShownIn.tsx': [],
   'shown-in/ShownInField.tsx': [],
   // Workspaces (`workspaces`): the grouped rail and its menu, the link rule, the lists that follow them, Data connections and the defaults row.

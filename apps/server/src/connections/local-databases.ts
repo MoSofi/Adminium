@@ -25,10 +25,17 @@
  */
 import { settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
+import { settingLock, type LockReason } from '../trial/operator-lock.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../trial/policy.js';
 import type { DatabaseHost } from './dsn.js';
 
 export type LocalDatabasesMode = 'setting' | 'off';
-export type LocalDatabasesReason = 'not-allowed';
+/**
+ * Why it cannot be switched on: the operator's lock ("Set by the operator",
+ * `trial/operator-lock.ts`). `not-allowed` is `ADMINIUM_LOCAL_DATABASES=off`;
+ * `trial-mode` / `hosted-mode` is the profile, which locks it whatever that says.
+ */
+export type LocalDatabasesReason = LockReason;
 
 export interface LocalDatabasesState {
   /** The operator lets the switch exist (`ADMINIUM_LOCAL_DATABASES` is not `off`). */
@@ -46,10 +53,9 @@ export interface LocalDatabasesState {
 }
 
 /**
- * What the operator decided. THE SEAM for trial mode and the hosted profile:
- * when `ADMINIUM_TRIAL_MODE` / `ADMINIUM_HOSTED_MODE` exist, this returns `off`
- * under either, and the env schema refuses an explicit `setting` with either
- * (`config/env.ts`, the superRefine), so the boot fails instead.
+ * What the operator decided. Under trial mode or the hosted profile the parsed
+ * environment already holds `off` (`enforceProfile`, `config/env.ts`), and an
+ * explicit `setting` with either fails the boot (`profileIssues`).
  */
 export function localDatabasesMode(env: { ADMINIUM_LOCAL_DATABASES?: LocalDatabasesMode | undefined }): LocalDatabasesMode {
   return env.ADMINIUM_LOCAL_DATABASES ?? 'setting';
@@ -72,6 +78,8 @@ export async function readLocalDatabases(meta: MetaDb, mode: LocalDatabasesMode)
 export interface LocalDatabasesDeps {
   meta: MetaDb;
   mode: LocalDatabasesMode;
+  /** The profile's lock, which comes first (`trial/policy.ts`). Default: an ordinary server's. */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
   hosts: readonly DatabaseHost[] | undefined;
   /** Whether this server refuses loopback at all (production, not the desktop app). */
   loopbackRefused: boolean;
@@ -88,7 +96,10 @@ export interface LocalDatabases {
 }
 
 export function createLocalDatabases(deps: LocalDatabasesDeps): LocalDatabases {
-  const allowed = deps.mode !== 'off';
+  const lock = settingLock(deps.policy ?? ORDINARY_POLICY, 'connections.allowLocalDatabases', { envLocked: deps.mode === 'off' });
+  const allowed = lock.allowed;
+  // A profile locks it without the mode: read as off all the same.
+  const mode: LocalDatabasesMode = allowed ? deps.mode : 'off';
   const hosts = (deps.hosts ?? []).map(databaseHostText);
 
   const row = async (): Promise<{ on: boolean; by: string | null; at: number } | null> => {
@@ -102,7 +113,7 @@ export function createLocalDatabases(deps: LocalDatabasesDeps): LocalDatabases {
   };
 
   const load = async (): Promise<boolean> => {
-    const on = await readLocalDatabases(deps.meta, deps.mode);
+    const on = await readLocalDatabases(deps.meta, mode);
     deps.apply(on);
     return on;
   };
@@ -118,11 +129,11 @@ export function createLocalDatabases(deps: LocalDatabasesDeps): LocalDatabases {
           turnedOn = { by: user === null ? stored.by : user.name.trim() === '' ? user.email : user.name, at: stored.at };
         }
       }
-      return { allowed, on, reason: allowed ? null : 'not-allowed', hosts, turnedOn, loopbackAllowed: !deps.loopbackRefused };
+      return { allowed, on, reason: lock.reason, hosts, turnedOn, loopbackAllowed: !deps.loopbackRefused };
     },
     load,
     async set(on, userId) {
-      if (on && !allowed) return 'not-allowed';
+      if (on && !allowed) return lock.reason ?? 'not-allowed';
       await settingsRepo(deps.meta).set('connections.allowLocalDatabases', on, { updatedBy: userId });
       deps.apply(allowed && on);
       return null;

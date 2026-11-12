@@ -47,6 +47,25 @@ half-configured and fail later.
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI, and the server asks adminium.dev for no list of add-ons or apps. |
 | `ADMINIUM_DEPLOY_LINK` | No | `on` | `off` hides **Put this online…**, a link to [adminium.dev/deploy](https://adminium.dev/deploy) in the user menu, on Studio's Export everything page and on About (and in the desktop app's Help menu). For an operator who offers their own hosting or rebrands. Only a link: nothing is fetched. |
 | `ADMINIUM_SUPABASE_CONNECT_URL` | No | *(unset)* | The `https://` address of an operator's connect service. Set, the connect wizards show **Connect Supabase** above the connection-string form, and the instance redeems a one-time code at `<address>/redeem`. **https only**, or the boot fails. Unset, nothing changes. See [Running Adminium for other people](/self-hosting/for-other-people/#8-connect-supabase). |
+| `ADMINIUM_TRIAL_MODE` | No | `off` | `on` runs a trial for someone else on your server: connections only to your host list, no own code, no outgoing calls but your mail relay, banners and size caps. Needs the four variables below, or the boot fails. See [Trial mode and the hosted profile](#trial-mode-and-the-hosted-profile). |
+| `ADMINIUM_TRIAL_ENDS_AT` | In trial mode | — | When the trial ends: a date and time **with its zone**, `2026-12-01T00:00:00Z`. |
+| `ADMINIUM_PUBLIC_ORIGIN` | In trial and hosted mode | *(unset)* | Your address for this instance, `https://shop.example.com`. One origin; `http://` only for this machine. |
+| `ADMINIUM_TRIAL_DATA_MAX_MB` | No | `500` | Trial mode: megabytes of live data per database on one of your hosts. |
+| `ADMINIUM_TRIAL_UPLOAD_MAX_MB` | No | `10` | Trial mode: megabytes per uploaded file. |
+| `ADMINIUM_TRIAL_STORAGE_MAX_MB` | No | `1000` | Trial mode: megabytes for the whole data folder. |
+| `ADMINIUM_TRIAL_UPGRADE_URL` | No | *(unset)* | Trial mode: the `https://` address of your Upgrade page; `?instance=` is added. Unset, no Upgrade button. |
+| `ADMINIUM_TRIAL_SMTP_URL` | No | *(unset)* | Trial mode: your mail relay for this instance, `smtp://user:password@relay:587`. A secret: takes `_FILE`. |
+| `ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY` | No | `50` | Trial mode: user emails a day through the relay (and 20 an hour). |
+| `ADMINIUM_HOSTED_MODE` | No | `off` | `on` runs a paid installation on your server: the trial's host list, network policy, own-code and address rules stay; the clock, banners and caps go. Needs `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`. |
+| `ADMINIUM_OPERATOR_DOMAINS` | No | *(unset)* | CSV of the user's own verified domains: plain lower-case host names, `shop.example.com`. No wildcard, address, port or path. |
+| `ADMINIUM_OPERATOR_TOKEN` | No | *(unset)* | The operator endpoint's bearer token: 32 random bytes or more (`openssl rand -hex 32`), one per instance. Needs `ADMINIUM_OPERATOR_LISTEN`. A secret: takes `_FILE`. |
+| `ADMINIUM_OPERATOR_LISTEN` | No | *(unset)* | `address:port` the operator endpoint listens on, on your own network: `10.0.0.2:4601`. Never `0.0.0.0`, a name, or `PORT`. Needs `ADMINIUM_OPERATOR_TOKEN`. |
+| `ADMINIUM_OPERATOR_EVENTS_URL` | No | *(unset)* | Where signed instance events go: `https://…`, or `http://` to a private address. Needs `ADMINIUM_OPERATOR_TOKEN`. |
+| `ADMINIUM_AI_OPERATOR_ONLY` | No | `off` | `on`: AI runs on your connection unless the user adds their own key to Anthropic, OpenAI or Google. |
+| `ADMINIUM_AI_OPERATOR_SCOPE` | No | *(unset)* | `dashboard`: AI on your connection builds dashboards only. |
+| `ADMINIUM_AI_OPERATOR_BUDGET_TOKENS` | No | *(unset)* | Tokens AI on your connection may spend over the instance's life. |
+| `ADMINIUM_DESIGNER_START_PROMPT_B64` | No | *(unset)* | The Designer's first prompt after setup, as base64; at most 2,000 characters decoded. |
+| `ADMINIUM_DESIGNER_START_PROMPT_FILE` | No | *(unset)* | The same prompt from a read-only file: an absolute path. Not both. |
 | `ADMINIUM_DESIGNER` | No | `off` | `live` lets a Super Admin switch [Adminium Designer](/projects/designer/#on-a-server-people-reach) on for this server, in Settings → AI. Anything else, and its routes do not exist. `adminium design` needs no variable. |
 | `ADMINIUM_AI_ANTHROPIC_API_KEY` | No | — | An Anthropic key: a model connection the server has without anything saved in Settings → AI. See [the `ADMINIUM_AI_*` block](#the-adminium_ai_-block). |
 | `ADMINIUM_AI_OPENAI_API_KEY` | No | — | An OpenAI key, the same way. |
@@ -932,6 +951,37 @@ any name that is set in both with different values.
 `ADMINIUM_NETWORK_FEATURES=off` still applies: only an Ollama model is called then, whatever is set.
 The address of an OpenAI-compatible server or of Ollama is checked before it is called: a cloud
 metadata address is always refused.
+
+## Trial mode and the hosted profile
+
+For an operator who runs Adminium for other people: a trial for a stranger
+(`ADMINIUM_TRIAL_MODE=on`), or a paid installation on the same server
+(`ADMINIUM_HOSTED_MODE=on`). Both are set by the environment only: no setting
+switches them off, and a project's `.env` cannot set any of these variables. In
+trial mode the project's `.env` is not read at all. Pass them through the Docker
+API's `Env` array, never an env file built from user input.
+
+A trial boot fails without `ADMINIUM_TRIAL_ENDS_AT`, `ADMINIUM_SETUP_TOKEN`,
+`ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`; a hosted boot without
+the last two. Either fails on a value that contradicts it:
+
+| Variable | Why |
+|---|---|
+| `ADMINIUM_NETWORK_POLICY=open` | Both run `strict`. |
+| `ADMINIUM_LOCAL_DATABASES=setting` | Both keep databases on this server off; only the host list counts. |
+| `ADMINIUM_RATE_LIMIT_SCALE`, `ADMINIUM_ADD_ON_DEV_TRUST`, `NODE_OPTIONS` | They widen limits, trust add-on code or change what the server loads. |
+| `ADMINIUM_BRIDGE_ORIGINS`, `ADMINIUM_DEMO_SEED_SCRIPT`, `ADMINIUM_RUNTIME=desktop` | Not for a server other people use. |
+| `ADMINIUM_STORAGE_URL`, `AWS_ENDPOINT_URL_S3` | Files stay in the data folder. |
+| `ADMINIUM_TELEMETRY=on`, `ADMINIUM_MAP_SERVER`, `ADMINIUM_ROUTING_SERVER` (not `off`) | Trial mode only: a trial calls nothing but yours. |
+
+A control character in any of these variables fails the boot too, and a
+trial variable (`ADMINIUM_TRIAL_*`) set without trial mode does. Saying what a
+profile implies is fine: `ADMINIUM_NETWORK_POLICY=strict` passes. What a profile
+implies is enforced whatever the variable holds, so Studio shows those settings
+read-only, marked **Set by the operator**.
+
+`GET /api/v1/readyz?deep=1` also waits until installed add-ons are loaded:
+point a waker at it before it sends the first request.
 
 ## The desktop block
 

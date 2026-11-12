@@ -2179,5 +2179,9 @@ export default {
       "docsLink": "الفرق بين طريقتي العرض"
     },
     "switched": "تم الانتقال إلى {name}"
+  },
+  "operatorLock": {
+    "chip": "يحدّده المشغّل",
+    "lockedOff": "أوقف المشغّل هذا الخيار لهذا التثبيت."
   }
 } as const;

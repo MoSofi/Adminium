@@ -71,6 +71,8 @@ describe('GET /api/v1/system/info', () => {
       deployLink: true,
       // "Connect Supabase": no operator connect address set, so no provider.
       connect: [],
+      // Trial mode: off unless the operator switches it on.
+      trial: { on: false, endsAt: null, daysLeft: null, upgradeUrl: null },
     });
   });
 

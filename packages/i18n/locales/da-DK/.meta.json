@@ -7135,6 +7135,14 @@
     "srcHash": "0e6146e1b603",
     "status": "mt"
   },
+  "common.operatorLock.chip": {
+    "status": "mt",
+    "srcHash": "16432bf8fd50"
+  },
+  "common.operatorLock.lockedOff": {
+    "status": "mt",
+    "srcHash": "eb5e2066562d"
+  },
   "common.page.emptyLayout.action": {
     "status": "mt",
     "srcHash": "b71ddd31f441"
@@ -40874,10 +40882,6 @@
   "studio.settingsHub.localDatabases.password": {
     "status": "mt",
     "srcHash": "965e473b374a"
-  },
-  "studio.settingsHub.localDatabases.setByOperator": {
-    "status": "mt",
-    "srcHash": "16432bf8fd50"
   },
   "studio.settingsHub.localDatabases.subtitle": {
     "status": "mt",

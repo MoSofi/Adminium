@@ -38,7 +38,16 @@ export const systemReadyzChecks = z.object({
    * carries in its store; an install checked now would see one as missing.
    */
   packages: z.enum(['ok', 'seeding']),
+  /**
+   * `?deep=1` only. `loading` = the boot is still loading the installed
+   * add-ons' code, which it does in the background after the server answers;
+   * a request now could reach an add-on that is not there yet.
+   */
+  addOns: z.enum(['ok', 'loading']).optional(),
 });
+
+/** `?deep=1`: also wait for the add-on runtime, the target for a waker. */
+export const systemReadyzQuery = z.object({ deep: z.enum(['0', '1']).optional() });
 
 export const systemReadyzReply = z.object({
   /** `false` ⇒ the route answers 503; take this instance out of rotation. */
@@ -136,5 +145,23 @@ export const systemInfoReply = z.object({
    * `POST /connect/start`, signed in.
    */
   connect: z.array(z.object({ provider: z.enum(CONNECT_PROVIDER_IDS) })),
+  /**
+   * Trial mode (`trial/policy.ts`): the banners' words and the
+   * Upgrade button. Signed out too: the sign-in and setup pages show the
+   * banners. Nothing here is a secret: the end date is the instance's own, and
+   * the Upgrade address is the operator's public page.
+   *
+   * The end is a STATE read from `endsAt` (at or past it, the trial has ended),
+   * never a count of 0: `daysLeft` counts a part day as one, so the last day
+   * reads 1, and is null once the trial has ended.
+   */
+  trial: z.object({
+    on: z.boolean(),
+    /** ISO 8601, UTC. Null outside trial mode. */
+    endsAt: z.string().nullable(),
+    daysLeft: z.number().int().positive().nullable(),
+    /** The operator's Upgrade page with `?instance=` added; null when unset (no button) or outside trial mode. */
+    upgradeUrl: z.string().nullable(),
+  }),
 });
 export type SystemInfoReply = z.infer<typeof systemInfoReply>;

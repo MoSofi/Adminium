@@ -36,6 +36,9 @@ import {
   type User,
 } from '@adminium/meta';
 
+import { effectiveValue, settingLock } from '../trial/operator-lock.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../trial/policy.js';
+
 /** The consent answers the wizard collects (both default OFF — see below). */
 export interface SetupConsent {
   /** `telemetry.enabled` — anonymous telemetry. Exit criterion: off by default. */
@@ -116,6 +119,12 @@ export interface SetupServiceDeps {
    * there. Unset (tests, an embedder that builds its own server): the row decides.
    */
   tokenRequired?: boolean | undefined;
+  /**
+   * Trial mode locks both consents off (`trial/operator-lock.ts`): the wizard
+   * shows them so, and an answer of yes is recorded as the locked value, not
+   * refused, so the first account is still made. Default: nothing locked.
+   */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
 }
 
 export interface SetupService {
@@ -220,8 +229,11 @@ export function createSetupService(deps: SetupServiceDeps): SetupService {
       // never rewrite the winner's telemetry answer. Absent ⇒ registry
       // defaults (both false) stand: telemetry is opt-in, never opt-out.
       if (input.consent !== undefined) {
-        await settings.set('telemetry.enabled', input.consent.telemetry, { updatedBy: user.id, at });
-        await settings.set('updates.checkEnabled', input.consent.updateCheck, {
+        const policy = deps.policy ?? ORDINARY_POLICY;
+        const telemetry = effectiveValue('telemetry.enabled', settingLock(policy, 'telemetry.enabled'), input.consent.telemetry);
+        const updateCheck = effectiveValue('updates.checkEnabled', settingLock(policy, 'updates.checkEnabled'), input.consent.updateCheck);
+        await settings.set('telemetry.enabled', telemetry, { updatedBy: user.id, at });
+        await settings.set('updates.checkEnabled', updateCheck, {
           updatedBy: user.id,
           at,
         });

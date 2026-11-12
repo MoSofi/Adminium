@@ -2179,5 +2179,9 @@ export default {
       "docsLink": "Jak se obě zobrazení liší"
     },
     "switched": "Přepnuto na {name}"
+  },
+  "operatorLock": {
+    "chip": "Nastaveno provozovatelem",
+    "lockedOff": "Provozovatel toto pro tuto instalaci vypnul."
   }
 } as const;

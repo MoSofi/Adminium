@@ -117,6 +117,7 @@ export interface TelemetrySettings {
 }
 
 interface TelemetryEnvelope {
+  /** The reply also carries `locks` ("Set by the operator", trial mode only): the desktop app never runs one. */
   data: TelemetrySettings;
 }
 

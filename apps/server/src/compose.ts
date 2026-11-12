@@ -246,6 +246,7 @@ import { sweepAssistantSessions } from './assistant/retention.js';
 import { INTERRUPTED_ERROR } from './jobs/assistant-turn.js';
 import type { AssistantAddOn } from './assistant/types.js';
 import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
+import { trialPolicy } from './trial/policy.js';
 import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
 import { assistantRoutes } from './routes/assistant/index.js';
@@ -881,7 +882,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const llmKeyCrypto = llmKeyCryptoFromSecret(env.ADMINIUM_SECRET, { deriveKey, encryptSecret, decryptSecret });
   const aiEnv = createAiEnv({
-    root: projectRoot,
+    // In trial and hosted mode the project's `.env` is not read: a key lives in Settings → AI.
+    root: trialPolicy(env).allows('projectDotEnv').allowed ? projectRoot : null,
     fromEnvironment: Object.fromEntries(AI_ENV_NAMES.map((name) => [name, env[name]])),
   });
   const aiConnections = createAiConnections({
@@ -2113,7 +2115,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // here. They gate on the same once-only setup window — see routes/setup/store.ts.
       await api.register(
         setupStoreRoutes({
-          service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired }),
+          service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired, policy: app.trialPolicy }),
           env,
           ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
         }),
@@ -2257,13 +2259,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // from `process.env`: the composition root already holds the parsed env,
         // and a route reading process.env directly is invisible to the desktop and
         // CLI wrappers that build their own Env.
-        settingsRoutes({ meta, emailKey: emailSecretKey(env.ADMINIUM_SECRET) }),
+        settingsRoutes({ meta, emailKey: emailSecretKey(env.ADMINIUM_SECRET), policy: app.trialPolicy }),
       );
       // "Allow databases on this server": a Super Admin's switch the operator can lock off. Read
       // now, so the guard counts it from the first request; a store not migrated yet holds nothing on.
       const localDatabases = createLocalDatabases({
         meta,
         mode: localDatabasesMode(env),
+        policy: app.trialPolicy,
         hosts: env.ADMINIUM_DATABASE_HOSTS,
         loopbackRefused: manager.blockLoopback,
         apply: (on) => {
@@ -3746,6 +3749,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     .catch((err: unknown) => {
       app.log.error({ err }, 'the add-on runtime could not be built');
     });
+  // `/readyz?deep=1` answers 503 until it has settled (`routes/system`): what a waker waits on (plan 75 A8).
+  let addOnsLoading = true;
+  void addOnsLoaded.finally(() => {
+    addOnsLoading = false;
+  });
+  if (!app.hasDecorator('addOnsLoading')) app.decorate('addOnsLoading', () => addOnsLoading);
 
   /*
    * NAME WHAT DID NOT COME BACK. The meta store remembers every install; the

@@ -57,6 +57,7 @@ import {
 } from './security/trust-proxy.js';
 import { createSetupService } from './setup/service.js';
 import { createUpdateCheckService } from './telemetry/update-check.js';
+import { trialPolicy } from './trial/policy.js';
 import { API_PREFIX, registerRoutes } from './routes/index.js';
 import { aboutRoutes } from './routes/about/index.js';
 import { authRoutes } from './routes/auth/index.js';
@@ -454,6 +455,9 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   // reaches every route in the tree, exactly as the schema check below does.
   const auditCoverage = createAuditCoverageRegistry();
   app.decorate('auditCoverage', auditCoverage);
+  // Trial mode and the hosted profile: every "is this allowed?" (`trial/policy.ts`), for the routes that ask.
+  const policy = trialPolicy(env);
+  app.decorate('trialPolicy', policy);
   // The same for row limits: every route says how it treats a person held to some rows (`rbac/row-coverage.ts`).
   const rowCoverage = createRowCoverageRegistry(ROW_COVERAGE);
   app.decorate('rowCoverage', rowCoverage);
@@ -680,9 +684,9 @@ export async function buildServer(opts: BuildServerOptions = {}) {
       // themselves, exactly as the LLM/settings resources are wired.
       const meta = opts.metaDb;
       if (meta !== undefined && meta !== null) {
-        await api.register(setupRoutes({ service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired }) }));
+        await api.register(setupRoutes({ service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired, policy }) }));
         await api.register(
-          aboutRoutes({ meta, updates: createUpdateCheckService({ meta, version: APP_VERSION }) }),
+          aboutRoutes({ meta, policy, updates: createUpdateCheckService({ meta, version: APP_VERSION, policy }) }),
         );
       }
     },

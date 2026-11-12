@@ -24,6 +24,8 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { APP_VERSION } from '../../version.js';
 import type { UpdateCheckService } from '../../telemetry/update-check.js';
 import { aboutReply, aboutUpdateCheckReply, type AboutReply, type AboutUpdateCheckReply } from './schema.js';
+import { effectiveValue, settingLock } from '../../trial/operator-lock.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
 
 /** AGPL-3.0-only — matches every workspace package.json `license` field. */
 export const LICENSE_SPDX = 'AGPL-3.0-only';
@@ -40,6 +42,8 @@ export interface AboutRoutesDeps {
   meta: MetaDb;
   updates: UpdateCheckService;
   version?: string | undefined;
+  /** Trial mode locks both consents off: About says what is in force (`trial/operator-lock.ts`). Default: nothing locked. */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
 }
 
 /**
@@ -80,11 +84,12 @@ export function aboutRoutes(deps: AboutRoutesDeps): FastifyPluginAsyncZod {
         schema: { response: { 200: aboutReply } },
       },
       async (): Promise<AboutReply> => {
-        const [telemetryEnabled, updateCheckEnabled, metaMigrationVersion] = await Promise.all([
+        const [storedTelemetry, updateCheckEnabled, metaMigrationVersion] = await Promise.all([
           settings.get('telemetry.enabled'),
-          settings.get('updates.checkEnabled'),
+          updates.isEnabled(),
           latestMetaMigration(meta),
         ]);
+        const telemetryEnabled = effectiveValue('telemetry.enabled', settingLock(deps.policy ?? ORDINARY_POLICY, 'telemetry.enabled'), storedTelemetry);
         return {
           data: {
             version,

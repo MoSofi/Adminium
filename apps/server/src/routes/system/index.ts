@@ -24,7 +24,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import type { Env } from '../../config/env.js';
 import { healthz, readyz, systemInfo } from './handlers.js';
-import { systemHealthzReply, systemInfoReply, systemReadyzReply } from './schema.js';
+import { systemHealthzReply, systemInfoReply, systemReadyzQuery, systemReadyzReply } from './schema.js';
 
 export interface SystemRoutesDeps {
   /**
@@ -43,13 +43,15 @@ export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod =
 
   app.get(
     '/readyz',
-    { schema: { response: { 200: systemReadyzReply, 503: systemReadyzReply } } },
-    async (_request, reply) => {
+    { schema: { querystring: systemReadyzQuery, response: { 200: systemReadyzReply, 503: systemReadyzReply } } },
+    async (request, reply) => {
       // The meta handle rides on `authContext`, null when the server booted
       // without a meta store — which `readyz` reports as not-ready too.
-      // `packagesSeeding` is the composed server's: a bare one has no seed to wait for.
+      // `packagesSeeding` and `addOnsLoading` are the composed server's: a bare one has nothing to wait for.
       const seeding = app.hasDecorator('packagesSeeding') && (app as unknown as { packagesSeeding: () => boolean }).packagesSeeding();
-      const result = await readyz(app.authContext?.meta ?? null, seeding);
+      const loading =
+        request.query.deep === '1' ? app.hasDecorator('addOnsLoading') && (app as unknown as { addOnsLoading: () => boolean }).addOnsLoading() : null;
+      const result = await readyz(app.authContext?.meta ?? null, seeding, loading);
       void reply.status(result.ok ? 200 : 503);
       return result;
     },

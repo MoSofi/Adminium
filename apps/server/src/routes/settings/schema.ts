@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { accentSchema, densitySchema, localeSchema, themeSchema } from '@adminium/meta';
 
 import { PUBLIC_ORIGIN_MAX_LENGTH, normalizePublicOrigin } from '../../security/public-origin.js';
+import { settingLockSchema } from '../../trial/operator-lock.js';
 
 /** PUT body — a full-object write, never a partial patch. */
 /** How the menu shows workspaces, for everyone: one at a time, or all in one menu. */
@@ -124,8 +125,11 @@ export type SettingsTelemetryPutBody = z.infer<typeof settingsTelemetryPutBody>;
 
 export const settingsTelemetryReply = z.object({
   data: z.object({
+    /** What is in force: the value a lock holds while it holds (`trial/operator-lock.ts`). */
     telemetry: z.boolean(),
     updateCheck: z.boolean(),
+    /** "Set by the operator": whether each can be changed here, and why not (trial mode locks both off). */
+    locks: z.object({ telemetry: settingLockSchema, updateCheck: settingLockSchema }),
   }),
 });
 export type SettingsTelemetryReply = z.infer<typeof settingsTelemetryReply>;
