@@ -173,6 +173,7 @@ import type { JudgedRow, LockNameRow, PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
 import type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
 import { setsListing } from './row-writes.js';
+import { refuseHeldWrite } from '../connections/write-hold.js';
 import { NO_NEW_FILES, type FileColumnJudge } from '../files/column-judge.js';
 
 // The write's own vocabulary lives in a leaf, because `column-rules.ts` reads
@@ -3653,6 +3654,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   }): Promise<PreparedCreate> {
     const { target, context, clock, mapError } = input;
     refuseUnbuiltTable(target);
+    refuseHeldWrite(target.db, 'create');
     await refuseOwnRecords(target, context);
     refuseEarly(target, 'create', input.values, mapError);
     const hooks = current();
@@ -4175,6 +4177,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async check(action, target, context, rows, checkOpts) {
       if (action !== 'delete') refuseUnbuiltTable(target);
+      refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
       if (action !== 'delete') await freshCodes(target);
       const rules = rulesOf(target);
@@ -4497,6 +4500,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         await at(rootRow.node, () => Promise.reject(new ValidationFailedError(`A create carries ${String(most)} rows below it at most.`, { child: levels[1]![0]!.node.name, reason: 'too-many' })));
       }
       // A table only Adminium writes takes no row of a person's tree, at its root or below.
+      for (const row of everyRow) refuseHeldWrite(row.target.db, 'create');
       for (const row of everyRow) await refuseOwnRecords(row.target, context);
       // A child table a before hook runs for cannot take rows here: a hook may write through its own connection, which waits on this transaction.
       for (const row of everyRow.slice(1)) {
@@ -4957,6 +4961,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const { context, pk } = input;
       const target = freshReads(await withRights(input.target));
       refuseUnbuiltTable(target);
+      refuseHeldWrite(target.db, 'update');
       await refuseOwnRecords(target, context);
       refuseEarly(target, 'update', input.values, input.mapError);
       await freshCodes(target);
@@ -5508,6 +5513,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     async beforeEach(action, givenTarget, context, rows, beforeOpts) {
       const target = action === 'delete' ? givenTarget : await withRights(givenTarget);
       if (action !== 'delete') refuseUnbuiltTable(target);
+      refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
       if (action !== 'delete') await freshCodes(target);
       const hooks = current();
