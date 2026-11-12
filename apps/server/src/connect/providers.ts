@@ -13,9 +13,11 @@
  *
  * A list with one entry, so a second provider is a row here and a variable
  * beside `ADMINIUM_SUPABASE_CONNECT_URL`, not a rewrite.
+ *
+ * It takes the parsed environment by shape, not by `Env`: `config/env.ts`
+ * reads {@link parseConnectUrl} from here, and the two must not import each
+ * other.
  */
-import type { Env } from '../config/env.js';
-
 export const CONNECT_PROVIDERS = [{ id: 'supabase', variable: 'ADMINIUM_SUPABASE_CONNECT_URL' }] as const;
 
 export type ConnectProviderId = (typeof CONNECT_PROVIDERS)[number]['id'];
@@ -51,7 +53,7 @@ export function parseConnectUrl(value: string): string | null {
 }
 
 /** The providers this instance offers, in the list's order: those whose variable is set. */
-export function connectProviders(env: Pick<Env, 'ADMINIUM_SUPABASE_CONNECT_URL'>): ConnectProvider[] {
+export function connectProviders(env: { readonly ADMINIUM_SUPABASE_CONNECT_URL?: string | undefined }): ConnectProvider[] {
   return CONNECT_PROVIDERS.flatMap((provider) => {
     const url = env[provider.variable];
     return url === undefined ? [] : [{ id: provider.id, url }];
