@@ -29,6 +29,7 @@ import { imageTypeOf } from './picture-type.js';
 import { DESIGNER_DIR } from './session-store.js';
 import { ATTACHMENT_MAX_CSS_BYTES, ATTACHMENT_MAX_HTML_BYTES, countWords, isCssName, isHtmlName, isMinified, lastPart, missingInSite, namedFiles, siteCountWords, SITE_WINDOW_CHARS, startsAsPage } from './site-text.js';
 import { dataWindow, fenceFor, quoted } from './untrusted.js';
+import { refuseDesignerWrite } from '../trial/size-cap.js';
 
 export const ATTACHMENT_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const ATTACHMENT_MAX_CSV_BYTES = 10 * 1024 * 1024;
@@ -324,6 +325,7 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
       }
       if (input.by !== undefined) refuseOverPerson(input.by, judged.bytes);
       const id = `att_${randomBytes(10).toString('hex')}`;
+      refuseDesignerWrite();
       const dir = dirOf(sessionId);
       mkdirSync(dir, { recursive: true, mode: 0o700 });
       // Staged beside where it goes, so the rename never crosses a file system; all of it or none.
@@ -497,6 +499,7 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
         sha256: createHash('sha256').update(bytes).digest('hex'),
         at: now(),
       };
+      refuseDesignerWrite();
       const dir = dirOf(sessionId);
       mkdirSync(dir, { recursive: true, mode: 0o700 });
       writeFileSync(join(dir, `${made.id}.${EXT[made.mediaType]}`), bytes, { mode: 0o600 });

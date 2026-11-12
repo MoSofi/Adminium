@@ -34,6 +34,8 @@ import { Readable } from 'node:stream';
 import type { FileKind, FilesRepo, RecordRef, StoredFile } from '@adminium/meta';
 import { newId } from '@adminium/meta';
 
+import { AppError } from '../errors.js';
+
 import type { DestinationResolver } from './destinations.js';
 import type { ByteRange, FileDriver, OpenedBytes } from './drivers/driver.js';
 import { cleanPicture, isPictureMime, PictureRefused } from '../public-api/picture.js';
@@ -191,10 +193,30 @@ export interface FileStoreOptions {
   spool: Spool;
   destinations: DestinationResolver;
   files: FilesRepo;
+  /** What a trial's size caps allow (`trial/size-cap.ts`); none on an ordinary server. */
+  guard?: StoreGuard | undefined;
 }
 
+/**
+ * A limit on what the store takes, whoever writes: a trial's caps. Every
+ * write asks it first, and tells it what was stored.
+ */
+export interface StoreGuard {
+  /** Throws while nothing more may be stored (the data folder past its limit). */
+  refuse(): void;
+  /** Told of the bytes of each file just stored. */
+  stored(bytes: number): void;
+  /** The largest file a person may upload (an upload, a file brought in, a logo); null for no limit here. */
+  uploadMaxBytes: number | null;
+}
+
+/** The kinds of file a person hands over, which the upload limit holds; the rest are made by Adminium. */
+const UPLOADED_KINDS: ReadonlySet<string> = new Set(['upload', 'import', 'branding', 'stranger']);
+
 export function createFileStore(opts: FileStoreOptions): FileStore {
-  const { spool, destinations, files } = opts;
+  const { spool, destinations, files, guard } = opts;
+  /** An upload's limit, no larger than the guard's. */
+  const uploadMax = (maxBytes: number): number => (guard?.uploadMaxBytes == null ? maxBytes : Math.min(maxBytes, guard.uploadMaxBytes));
 
   /** A spooled picture, read again without its camera notes into a spool of its own; the first is let go. */
   async function cleaned(spooled: SpooledFile, mime: string, maxBytes: number): Promise<SpooledFile> {
@@ -257,6 +279,7 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
       // idempotent, so this needs no branch.
       await spooled.release();
     }
+    guard?.stored(spooled.sizeBytes);
     return {
       storageKey,
       sizeBytes: spooled.sizeBytes,
@@ -271,6 +294,12 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
     driverFor: (destinationId) => destinations.driverFor(destinationId),
 
     async write(input) {
+      guard?.refuse();
+      const size = typeof input.bytes === 'string' ? Buffer.byteLength(input.bytes) : input.bytes.length;
+      if (UPLOADED_KINDS.has(input.kind) && size > uploadMax(size)) {
+        const limit = uploadMax(size);
+        throw new AppError(413, 'FILE_TOO_LARGE', `That file is larger than the ${String(limit)}-byte limit.`, { maxBytes: limit });
+      }
       const destinationId = await chooseDestination(input.destinationId);
       const writer = await spool.openWriter();
       let spooled: SpooledFile;
@@ -285,6 +314,7 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
     },
 
     async openWriter(input) {
+      guard?.refuse();
       const destinationId = await chooseDestination(input.destinationId);
       const writer = await spool.openWriter();
       const createdAt = Date.now();
@@ -315,7 +345,9 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
       await driver.remove(file.storageKey);
     },
 
-    async putUpload(input) {
+    async putUpload(given) {
+      guard?.refuse();
+      const input = { ...given, maxBytes: uploadMax(given.maxBytes) };
       const at = input.at ?? Date.now();
       const destinationId = await chooseDestination(input.destinationId);
       // The id is minted BEFORE the bytes land, because it is part of the key
