@@ -6,6 +6,7 @@
 import { z } from 'zod';
 
 import { RUNTIMES } from '../../config/env.js';
+import { settingLockSchema } from '../../trial/operator-lock.js';
 import { CONNECT_PROVIDER_IDS } from '../../connect/providers.js';
 
 /** Meta-store dialects; `null` until meta wiring (wave 2). */
@@ -163,5 +164,23 @@ export const systemInfoReply = z.object({
     /** The operator's Upgrade page with `?instance=` added; null when unset (no button) or outside trial mode. */
     upgradeUrl: z.string().nullable(),
   }),
+  /**
+   * What the operator has switched off for this installation (trial mode, the
+   * hosted profile), for the screens that offer it before anyone signs in or
+   * without a reply of their own: each `{ allowed, reason }`, drawn disabled
+   * with the reason, never hidden. Absent from a server older than trial mode.
+   */
+  offByOperator: z
+    .object({
+      /** A SQLite file as a source, and making one: the connect wizards' SQLite choice. */
+      sqliteSources: settingLockSchema,
+      /** Storage destinations other than the default local one. */
+      storageDestinations: settingLockSchema,
+      /** The automation webhook step (and Slack message, which is one). */
+      webhooks: settingLockSchema,
+      /** Moving or adopting the meta store: the setup wizard's and Studio's placement choices. */
+      metaStore: settingLockSchema,
+    })
+    .optional(),
 });
 export type SystemInfoReply = z.infer<typeof systemInfoReply>;
