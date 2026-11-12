@@ -222,6 +222,25 @@ owner why.
 → [The operator endpoint](/self-hosting/operator-endpoint/) ·
 [Refuse the operator paths at the proxy](/self-hosting/reverse-proxy/#refuse-the-operator-paths)
 
+## 10. A paid installation on your server: the hosted profile
+
+If you run trials for strangers (`ADMINIUM_TRIAL_MODE=on`) and one of them
+pays, recreate their container with `ADMINIUM_HOSTED_MODE=on` instead. The
+person is still somebody else on your server, so the hosted profile keeps every
+rule that guards your machine and your network: only your database hosts and
+the login you gave them, `strict`, files in the data folder, no add-on or app
+uploads, a Designer that builds with the manifest and never writes code, your
+addresses and your domains only, the operator endpoint. It drops what only
+limits a free trial: the end date, the banners, the size caps, `noindex`, and
+mail through your relay (they set their own mail server). Their project's `.env`
+is not read, under either profile.
+
+Keep the same meta store, data folder and `ADMINIUM_SECRET`, and remove every
+`ADMINIUM_TRIAL_*` variable: a hosted boot with one left fails and names it.
+
+→ [The hosted profile](/self-hosting/env-vars/#the-hosted-profile) ·
+[Trial mode and the hosted profile](/self-hosting/env-vars/#trial-mode-and-the-hosted-profile)
+
 ## All together
 
 ```bash
