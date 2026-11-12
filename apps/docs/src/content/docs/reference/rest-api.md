@@ -1024,6 +1024,7 @@ GET /api/v1/settings/maps
 PUT /api/v1/settings/maps
 GET /api/v1/settings/email
 PUT /api/v1/settings/email
+GET /api/v1/settings/email/waiting
 GET /api/v1/settings/local-databases
 PUT /api/v1/settings/local-databases
 ```
