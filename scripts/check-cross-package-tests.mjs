@@ -29,9 +29,9 @@
  *
  * ─── Why two phases ────────────────────────────────────────────────────────
  *
- * Eight of these files need a built workspace package (engine, widgets, meta,
+ * Ten of these files need a built workspace package (engine, widgets, meta,
  * i18n, the adapters), so they can only run once `turbo run build` has. The
- * other five touch no workspace `dist/` at all: traced, including existence
+ * other six touch no workspace `dist/` at all: traced, including existence
  * probes, and run green in a fresh clone with no build. generate-notices.test.ts
  * imports no dist either, yet its verdict changes without one (see its row), so
  * it runs after the build.
@@ -123,7 +123,9 @@ const TESTS = [
       'apps/dashboard/src/kb',
       'apps/dashboard/src/changelog/ChangelogPage.tsx',
     ],
-    phase: 'source',
+    // It loads the server's env parsing, which imports @adminium/engine/adapter
+    // from engine's dist, so it runs after the build.
+    phase: 'dist',
   },
   {
     // The fixtures that prove the offline-asset gate can FAIL. CI's own run of
