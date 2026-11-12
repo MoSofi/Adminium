@@ -78,7 +78,7 @@ import type { MarketingCarry } from './marketing-carry.js';
 import { PLAIN_DOTTED, PLAIN_RECIPIENT } from './plain-address.js';
 import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
 import { resolveMailSender, SERVER_SENDER, type MailSender, type SendAbout } from './workspace-sender.js';
-import { queueThroughRelay, shownName, trialMailOn } from './trial-relay.js';
+import { configureTrialMail, queueThroughRelay, shownName, trialMailOn } from './trial-relay.js';
 
 /** The `adminium_jobs.kind` of a queued outbound email. */
 export const EMAIL_SEND_JOB_KIND = 'email.send';
@@ -412,11 +412,12 @@ export function emailRuntimeSecret(): string | null {
   return runtimeSecret;
 }
 
-/** Test seam: forget the runtime secret and the once-only log latch. */
+/** Test seam: forget the runtime secret, the once-only log latch and a trial's mail rules. */
 export function resetEmailRuntime(): void {
   runtimeSecret = null;
   unconfiguredLogged = false;
   userMailOpen = () => true;
+  configureTrialMail(null);
 }
 
 // --- payload ------------------------------------------------------------------------

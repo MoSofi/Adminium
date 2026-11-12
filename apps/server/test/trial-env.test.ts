@@ -323,6 +323,6 @@ describe('the operator-decided list', () => {
     const pattern = /^ADMINIUM_(TRIAL_|HOSTED_MODE$|PUBLIC_ORIGIN$|DATABASE_HOSTS$|LOCAL_DATABASES$|NETWORK_POLICY$|SQLITE_DIRS$|STORAGE_DIRS$|SETUP_TOKEN$|DEPLOY_LINK$|OPERATOR_|AI_OPERATOR_|SUPABASE_CONNECT_URL$|DESIGNER_START_PROMPT)/;
     const fromSchema = Object.keys(envSchema.shape).filter((name) => pattern.test(name)).sort();
     expect([...OPERATOR_DECIDED_ENV].sort()).toEqual(fromSchema);
-    expect(fromSchema.length).toBe(27);
+    expect(fromSchema.length).toBe(30);
   });
 });
