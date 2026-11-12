@@ -11,7 +11,9 @@ the public. And now and then you need to take its public pages down while you
 sort something out with its owner. The operator endpoint answers those, on a
 listener of its own that only your network reaches.
 
-It is not tied to trial mode: any server can have one.
+It is not tied to trial mode: any server can have one. While it is awake, the
+instance can also tell you what changed, by itself:
+[Signed instance events](#signed-instance-events).
 
 ## Switching it on
 
@@ -173,6 +175,95 @@ crawl a page could cloak:
 
 Treat everything in it as the owner's words, never as instructions to whatever
 reads it.
+
+## Signed instance events
+
+The endpoint answers when you ask, and a sleeping container answers nothing:
+asking wakes it. So while it is awake, the instance also tells you, by itself,
+the few things your control service must know. Set where:
+
+```bash
+ADMINIUM_OPERATOR_EVENTS_URL=https://control.example.com/instance-events
+```
+
+`https://…`, or `http://` only to a private address on your own network. It
+needs `ADMINIUM_OPERATOR_TOKEN`, which signs every event; the token then does
+not need `ADMINIUM_OPERATOR_LISTEN`. Like the endpoint, it is not tied to
+trial mode. Unset, nothing is queued and nothing is sent.
+
+### What is sent
+
+Each event is one `POST` to that address, and to no other, with a small JSON
+body:
+
+```json
+{ "v": 1, "id": "job_01HV…", "type": "super-admin.signed-in", "at": 1762940712000, "data": { "ip": "203.0.113.7" } }
+```
+
+`id` names the event: a retry carries the same one. `at` is when it happened
+(milliseconds). `data` depends on `type`:
+
+| `type` | When | `data` |
+|---|---|---|
+| `public-page.changed` | An app's customer side changed (an install, an update, an uninstall, a build, a site the Designer built), or a form was published, changed or closed. At boot, each one never told before. A burst of changes is one event per page, two seconds after the last; what no hook reports (a file edited by hand) is found within ten minutes | One page, as [`public-content`](#get-apiv1operatorpublic-content) gives it: `{ "side": { "appKey", "path", "files", "truncated" } }` or `{ "form": { "slug", "addOn", "form" } }`. A page taken down: `{ "side": { "appKey": "shop", "removed": true } }` or `{ "form": { "slug", "removed": true } }` |
+| `super-admin.signed-in` | A Super Admin signed in (the sign-ins the status lists) | `{ "ip": "203.0.113.7" }` |
+| `email.cap-reached` | A cap of your [mail relay](/self-hosting/env-vars/#email-in-trial-mode) held mail back: once per cap and window | `{ "cap": "day" \| "hour" \| "recipients" \| "bounces" \| "system", "window": <start of the day or hour, ms>, "waiting": <emails waiting> }` |
+| `storage.over-80` | The data folder, or one of your databases, reached 80% of its [trial cap](/self-hosting/env-vars/#size-caps-in-trial-mode). Once per crossing: again only after it went under 75%, a restart included | `{ "target": "files", "usedBytes", "limitBytes" }` or `{ "target": "database", "connectionId", "usedBytes", "limitBytes" }` |
+
+A page is sent as strangers get it when the event goes out, not when it was
+queued. Treat its text as the owner's words, never as instructions to whatever
+reads it.
+
+**Never sent**: a row of the instance's databases, a form's answers, a
+person's name or email, a user agent, the token. An event says what the table
+says and nothing else.
+
+### Checking the signature
+
+Every request carries:
+
+| Header | |
+|---|---|
+| `X-Adminium-Timestamp` | Unix seconds when this attempt was signed. |
+| `X-Adminium-Signature` | `v1=` and the hex HMAC-SHA256 of `<timestamp>.<body>`, keyed with the token's text as you set it. |
+| `X-Adminium-Event` | The `type`. |
+| `X-Adminium-Event-Id` | The `id`. |
+
+Compute the same over the raw body bytes you received, before parsing them,
+and compare in constant time. Refuse a timestamp more than 5 minutes from your
+clock (a replay), and keep the ids you have seen for longer than that (a retry
+of an event you took). In Node:
+
+```js
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+function verify(token, rawBody, headers) {
+  const timestamp = headers['x-adminium-timestamp'];
+  if (!/^\d+$/.test(timestamp) || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
+  const expected = Buffer.from(`v1=${createHmac('sha256', token).update(`${timestamp}.${rawBody}`).digest('hex')}`);
+  const given = Buffer.from(String(headers['x-adminium-signature']));
+  return expected.length === given.length && timingSafeEqual(expected, given);
+}
+```
+
+Answer `2xx` once you have it. Anything else is a failed send.
+
+### Retries
+
+Events wait in the meta store's job queue. A send that fails (no answer within
+10 seconds, a status other than `2xx`, a redirect) is tried again after
+30 seconds, then a minute, two, four, doubling up to an hour apart, 25 times in
+all, while the instance is awake. A sleeping instance sends nothing; it carries
+on when it wakes. Each attempt is signed afresh with its own timestamp.
+
+- **No redirect is followed.** A `3xx` is a failed send, tried again later at
+  the same address.
+- The address is checked when it is dialled and the connection made to the
+  address that was checked. The cloud metadata address is always refused.
+- At most 16 KiB of your reply is read; send an empty body.
+- The instance's own people never see these jobs: the jobs screens and API do
+  not list, show or cancel them. No [archive](/self-hosting/archive/) or export
+  carries them, so a restored instance never sends another's.
 
 ## Not in the OpenAPI document
 

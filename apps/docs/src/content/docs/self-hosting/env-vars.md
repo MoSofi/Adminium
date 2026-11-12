@@ -61,9 +61,9 @@ half-configured and fail later.
 | `ADMINIUM_OPERATOR_NAME` | No | the From address's domain | Your name as mail from the relay says it: `"<instance> via <your name>"`. At most 60 characters, no `@ < > " \ , ; : ( ) [ ]`. |
 | `ADMINIUM_HOSTED_MODE` | No | `off` | `on` runs a paid installation on your server: the trial's host list, network policy, own-code and address rules stay; the clock, banners and caps go. Needs `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`. |
 | `ADMINIUM_OPERATOR_DOMAINS` | No | *(unset)* | CSV of the user's own verified domains: plain lower-case host names, `shop.example.com`. No wildcard, address, port or path. Honoured with or without trial mode: the instance answers on these and `ADMINIUM_PUBLIC_ORIGIN`'s host, links in email point at `https://` and the first one, and only these can be mapped to an app's side or the add-on pages. |
-| `ADMINIUM_OPERATOR_TOKEN` | No | *(unset)* | The [operator endpoint](/self-hosting/operator-endpoint/)'s bearer token: 32 random bytes or more (`openssl rand -hex 32`), one per instance. Needs `ADMINIUM_OPERATOR_LISTEN`. A secret: takes `_FILE`. |
+| `ADMINIUM_OPERATOR_TOKEN` | No | *(unset)* | The [operator endpoint](/self-hosting/operator-endpoint/)'s bearer token, and the key [instance events](#adminium_operator_events_url) are signed with: 32 random bytes or more (`openssl rand -hex 32`), one per instance. Needs `ADMINIUM_OPERATOR_LISTEN`, `ADMINIUM_OPERATOR_EVENTS_URL` or both. A secret: takes `_FILE`. |
 | `ADMINIUM_OPERATOR_LISTEN` | No | *(unset)* | `address:port` the [operator endpoint](/self-hosting/operator-endpoint/) listens on, on your own network: `10.0.0.2:4601`. Never `0.0.0.0`, a name, or `PORT`. Needs `ADMINIUM_OPERATOR_TOKEN`. The public listener never serves `/api/v1/operator/*`. |
-| `ADMINIUM_OPERATOR_EVENTS_URL` | No | *(unset)* | Where signed instance events go: `https://…`, or `http://` to a private address. Needs `ADMINIUM_OPERATOR_TOKEN`. |
+| `ADMINIUM_OPERATOR_EVENTS_URL` | No | *(unset)* | Where [signed instance events](#adminium_operator_events_url) go: `https://…`, or `http://` to a private address. Needs `ADMINIUM_OPERATOR_TOKEN`. |
 | `ADMINIUM_AI_OPERATOR_ONLY` | No | `off` | `on`: AI runs on your connection unless the user adds their own key to Anthropic, OpenAI or Google. |
 | `ADMINIUM_AI_OPERATOR_SCOPE` | No | *(unset)* | `dashboard`: AI on your connection builds dashboards only. |
 | `ADMINIUM_AI_OPERATOR_BUDGET_TOKENS` | No | *(unset)* | Tokens AI on your connection may spend over the instance's life. |
@@ -957,6 +957,41 @@ any name that is set in both with different values.
 `ADMINIUM_NETWORK_FEATURES=off` still applies: only an Ollama model is called then, whatever is set.
 The address of an OpenAI-compatible server or of Ollama is checked before it is called: a cloud
 metadata address is always refused.
+
+## `ADMINIUM_OPERATOR_EVENTS_URL`
+
+Where an instance you run for somebody else tells your control service, by
+itself, what you must know while it is awake. The
+[operator endpoint](/self-hosting/operator-endpoint/) only answers when asked,
+and a sleeping container answers nothing; these come to you.
+
+```bash
+ADMINIUM_OPERATOR_TOKEN=$(openssl rand -hex 32)
+ADMINIUM_OPERATOR_EVENTS_URL=https://control.example.com/instance-events
+```
+
+- `https://…`, or `http://` only to a private address on your own network
+  (`http://10.0.0.5:8080/events`). No name or password in it. The cloud
+  metadata address is refused when it is dialled, whatever the name resolves to.
+- Needs `ADMINIUM_OPERATOR_TOKEN`: every event is signed with it, and the URL
+  without it stops the boot. The token does not need `ADMINIUM_OPERATOR_LISTEN`
+  when this is set.
+- Any server sends them, with or without trial mode. Unset, nothing is queued
+  and nothing is sent.
+
+| Event | When | `data` |
+|---|---|---|
+| `public-page.changed` | A customer side or a live form changed, was published or was taken down; each one at boot the first time | `{ "side": … }` or `{ "form": … }`, as [`public-content`](/self-hosting/operator-endpoint/#get-apiv1operatorpublic-content) gives it, or `{ "side": { "appKey", "removed": true } }` |
+| `super-admin.signed-in` | A Super Admin signed in | `{ "ip": "203.0.113.7" }` |
+| `email.cap-reached` | A cap of [your mail relay](#email-in-trial-mode) held mail back, once per cap and window | `{ "cap": "hour", "window": <ms>, "waiting": 1 }` |
+| `storage.over-80` | The data folder, or a database, reached 80% of [its cap](#size-caps-in-trial-mode); once per crossing | `{ "target": "files", "usedBytes", "limitBytes" }` |
+
+Each is a `POST` with `X-Adminium-Timestamp` and
+`X-Adminium-Signature: v1=<HMAC-SHA256 of "<timestamp>.<body>">`, retried with
+backoff until your service answers `2xx`. No row of the instance's data, no
+name, no email is ever sent. The body of each event, the check your service
+makes and the retries:
+[Signed instance events](/self-hosting/operator-endpoint/#signed-instance-events).
 
 ## Trial mode and the hosted profile
 

@@ -1,0 +1,5 @@
+---
+'@adminium/server': patch
+---
+
+An instance you run for somebody else now tells you, by itself, what you must know while it is awake. Set `ADMINIUM_OPERATOR_EVENTS_URL` (https, or http to a private address) with `ADMINIUM_OPERATOR_TOKEN` and the server sends four events there and nowhere else: a customer side or a live form published, changed or taken down (the one page, with its text and form fields, a burst of changes as one event), a Super Admin's sign-in (time and address), a cap of the mail relay holding mail back, and the data folder or a database reaching 80% of its cap (once per crossing). Each `POST` is signed with the token (`X-Adminium-Signature: v1=` HMAC-SHA256 over the timestamp and the body, `X-Adminium-Timestamp` to refuse replays), queued in the meta store and retried with backoff until it is taken, never following a redirect. No row of the instance's data, no name and no email is ever sent. The queued events are hidden from the jobs screens and API and left out of every archive and export. The token no longer needs `ADMINIUM_OPERATOR_LISTEN` when the events address is set.
