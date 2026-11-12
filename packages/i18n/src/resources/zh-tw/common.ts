@@ -2179,5 +2179,9 @@ export default {
       "docsLink": "兩種顯示方式有何不同"
     },
     "switched": "已切換到 {name}"
+  },
+  "operatorLock": {
+    "chip": "由營運方設定",
+    "lockedOff": "營運方已為此安裝關閉此項。"
   }
 } as const;

@@ -15,6 +15,7 @@ export default {
   "PAGE_FORBIDDEN": "你沒有編輯此頁面的權限。",
   "NOT_FOUND": "該資源不存在或已被移除。",
   "CONFLICT": "該變更與目前狀態衝突。請重新整理後再試一次。",
+  "SET_BY_OPERATOR": "此項由營運方設定，無法在此變更。",
   "UNIQUE_VIOLATION": "該值已被使用。",
   "VALIDATION_FAILED": "部分欄位需要修正後才能儲存。",
   "RATE_LIMITED": "要求次數過多——請稍候片刻再試。",

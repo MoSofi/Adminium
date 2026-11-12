@@ -2878,7 +2878,6 @@
       "heading": "Connexions",
       "subtitle": "Les bases de données que cette installation lit et écrit.",
       "label": "Autoriser les bases de données sur ce serveur",
-      "setByOperator": "Défini par l’opérateur",
       "help": "Permet aux connexions d’atteindre des bases de données qui tournent sur ce même serveur, comme {example}. Uniquement pour les bases de données que vous avez installées ici.",
       "alwaysHere": "Ce serveur atteint déjà les bases de données de cette machine : cet interrupteur ne change donc rien ici.",
       "lockedHosts": "L’opérateur n’autorise que ces hôtes :",

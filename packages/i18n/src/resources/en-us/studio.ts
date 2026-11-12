@@ -2888,7 +2888,6 @@ export default {
       "heading": "Connections",
       "subtitle": "Databases this installation reads and writes.",
       "label": "Allow databases on this server",
-      "setByOperator": "Set by the operator",
       "help": "Lets connections reach databases running on this same server, like {example}. Only for databases you set up here.",
       "alwaysHere": "This server already reaches databases on this machine, so this switch changes nothing here.",
       "lockedHosts": "The operator allows only these hosts:",

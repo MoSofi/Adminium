@@ -2878,7 +2878,6 @@
       "heading": "Připojení",
       "subtitle": "Databáze, které tato instalace čte a zapisuje.",
       "label": "Povolit databáze na tomto serveru",
-      "setByOperator": "Nastaveno provozovatelem",
       "help": "Umožní připojením dosáhnout databází, které běží na tomto serveru, například {example}. Jen pro databáze, které jste zde sami nastavili.",
       "alwaysHere": "Tento server už databáze na tomto počítači dosáhne, takže tento přepínač zde nic nemění.",
       "lockedHosts": "Provozovatel povoluje jen tyto hostitele:",

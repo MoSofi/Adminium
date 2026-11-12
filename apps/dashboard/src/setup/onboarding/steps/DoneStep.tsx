@@ -20,11 +20,14 @@
  * dropping them because a mock has no box for them would quietly remove a
  * question this product asks on purpose.
  */
+import { useQuery } from '@tanstack/react-query';
 import { PartyPopper } from 'lucide-react';
 import { CheckCircle2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { api } from '../../../app/api.js';
 import { t } from '../../../i18n/t.js';
+import { isLocked, type SettingLock } from '../../../settings/SetByOperator.js';
 import { TelemetryConsent } from '../../TelemetryConsent.js';
 import type { SetupConsent } from '../../setupApi.js';
 import type { LandedConnection } from '../submitHeldAnswers.js';
@@ -106,6 +109,11 @@ function databaseLines(database: ConnectedDatabase): string[] {
   return lines;
 }
 
+/** `GET /settings/telemetry`'s locks: which consents the operator has set (trial mode sets both off). */
+interface TelemetryLocks {
+  data?: { locks?: { telemetry?: SettingLock; updateCheck?: SettingLock } };
+}
+
 export function DoneStep({
   connection,
   connectedDatabases,
@@ -116,6 +124,15 @@ export function DoneStep({
   onConsentChange,
 }: DoneStepProps): ReactNode {
   const lines: string[] = [];
+  // Signed in by now (the account step made the session). Not answered (an older server): nothing is locked.
+  const telemetry = useQuery({
+    queryKey: ['settings', 'telemetry'],
+    queryFn: () => api.get<TelemetryLocks>('/api/v1/settings/telemetry'),
+    retry: false,
+    staleTime: 60_000,
+  });
+  const locks = telemetry.data?.data?.locks;
+  const locked = { telemetry: isLocked(locks?.telemetry), updateCheck: isLocked(locks?.updateCheck) };
 
   if (connection !== null) {
     lines.push(
@@ -194,7 +211,7 @@ export function DoneStep({
         ))}
       </ul>
 
-      <TelemetryConsent value={consent} onChange={onConsentChange} />
+      <TelemetryConsent value={consent} onChange={onConsentChange} locked={locked} />
     </div>
   );
 }

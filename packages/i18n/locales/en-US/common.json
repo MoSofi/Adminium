@@ -2169,5 +2169,9 @@
       "docsLink": "How the two views differ"
     },
     "switched": "Switched to {name}"
+  },
+  "operatorLock": {
+    "chip": "Set by the operator",
+    "lockedOff": "The operator has switched this off for this installation."
   }
 }

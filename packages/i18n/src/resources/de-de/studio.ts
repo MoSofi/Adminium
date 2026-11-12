@@ -2888,7 +2888,6 @@ export default {
       "heading": "Verbindungen",
       "subtitle": "Datenbanken, die diese Installation liest und schreibt.",
       "label": "Datenbanken auf diesem Server erlauben",
-      "setByOperator": "Vom Betreiber festgelegt",
       "help": "Erlaubt Verbindungen zu Datenbanken, die auf diesem Server selbst laufen, etwa {example}. Nur für Datenbanken, die Sie hier eingerichtet haben.",
       "alwaysHere": "Dieser Server erreicht Datenbanken auf diesem Rechner bereits, daher ändert dieser Schalter hier nichts.",
       "lockedHosts": "Der Betreiber erlaubt nur diese Hosts:",
