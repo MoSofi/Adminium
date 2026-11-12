@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Set by the operator" (plan 75 §5.1): a setting the server's environment
+ * "Set by the operator": a setting the server's environment
  * decides. The server sends `{ allowed, reason }` beside such a setting and
  * refuses a save that would change it (`SET_BY_OPERATOR`,
  * `apps/server/src/trial/operator-lock.ts`); a page draws it READ-ONLY, never

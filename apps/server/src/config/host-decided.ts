@@ -39,7 +39,7 @@ export const HOST_DECIDED_ENV: readonly string[] = [
   'ADMINIUM_DESKTOP_PROGRAMS',
   'ADMINIUM_DESKTOP_SINGLE_USER',
   /*
-   * Every trial and operator variable (plan 75 §5.1, S8): who may reach what, which databases, folders and
+   * Every trial and operator variable: who may reach what, which databases, folders and
    * network, the setup token, the links shown, the operator endpoint and AI. In trial and hosted mode the
    * folder's `.env` is not read at all and its config cannot set these (`project/boot.ts`).
    */

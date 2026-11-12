@@ -72,7 +72,7 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_ROUTING_SERVER: 'https://router.project-osrm.org',
       // The server's own network is called like any other address unless the operator says strict.
       ADMINIUM_NETWORK_POLICY: 'open',
-      // Trial mode and the hosted profile are the operator's to switch on (plan 75 §5); the caps keep their
+      // Trial mode and the hosted profile are the operator's to switch on; the caps keep their
       // defaults so a trial reads them without a fallback of its own.
       ADMINIUM_TRIAL_MODE: false,
       ADMINIUM_HOSTED_MODE: false,

@@ -882,7 +882,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const llmKeyCrypto = llmKeyCryptoFromSecret(env.ADMINIUM_SECRET, { deriveKey, encryptSecret, decryptSecret });
   const aiEnv = createAiEnv({
-    // In trial and hosted mode the project's `.env` is not read (plan 75 §5.1): a key lives in Settings → AI.
+    // In trial and hosted mode the project's `.env` is not read: a key lives in Settings → AI.
     root: trialPolicy(env).allows('projectDotEnv').allowed ? projectRoot : null,
     fromEnvironment: Object.fromEntries(AI_ENV_NAMES.map((name) => [name, env[name]])),
   });

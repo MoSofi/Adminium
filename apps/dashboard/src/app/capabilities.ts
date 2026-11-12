@@ -103,7 +103,7 @@ export interface SystemInfo {
    */
   connect?: { provider: 'supabase' }[];
   /**
-   * Trial mode (plan 75 §5.1): the banners' words and the Upgrade button.
+   * Trial mode: the banners' words and the Upgrade button.
    * Absent from a server older than trial mode, which is never one. Read the
    * state with {@link trialState}: the end is a state of `endsAt`, never a
    * `daysLeft` of 0 (`daysLeft` is null once it has ended).

@@ -100,7 +100,7 @@ describe('isHostedPlanSurface — hosted-plan row', () => {
  *  - `studio/ai/studioAiLocalMode.test.tsx` — the panel order on each runtime.
  */
 
-describe('trialState — the banners read the end date, never a count (plan 75 §5.2 A5)', () => {
+describe('trialState — the banners read the end date, never a count', () => {
   const endsAt = '2026-12-01T00:00:00.000Z';
   const end = Date.parse(endsAt);
 

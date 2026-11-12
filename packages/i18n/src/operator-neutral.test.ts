@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Every trial and operator string is operator-neutral (plan 17 §2 rule 1, plan
- * 75 §5.1): the engine runs for whoever operates it, so none of its words, in
+ * Every trial and operator string is operator-neutral: the engine runs for whoever operates it, so none of its words, in
  * any of the 8 locales, names adminium.app, a company or a domain, or quotes a
  * price. The banners say "This is a test environment"; the Upgrade link is the
  * operator's.

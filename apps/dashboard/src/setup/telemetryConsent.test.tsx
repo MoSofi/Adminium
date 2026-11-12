@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The first-run consent step under an operator's lock (plan 75 §5.2 A2): in
+ * The first-run consent step under an operator's lock: in
  * trial mode both outbound calls are set off by the operator, so the two
  * switches are drawn off and read-only with the chip, never hidden, and a
  * click changes nothing.

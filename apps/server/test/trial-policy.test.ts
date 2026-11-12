@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `trialPolicy`: every question of plan 75 §5.2 A1–A6, §15.3–15.4 and the
- * §5.0 hosted column, answered for an ordinary server, a trial and a hosted
+ * `trialPolicy`: every question a trial and a hosted installation answer, answered for an ordinary server, a trial and a hosted
  * installation. The table below IS the plan's: a change to an answer is a
  * change to this table, made on purpose.
  */
@@ -33,7 +32,7 @@ const EXPECTED: Record<PolicyQuestion, [true | PolicyReason, true | PolicyReason
   metaStoreRoutes: [true, 'trial-mode', 'hosted-mode'],
   // A1b
   storageDestinations: [true, 'trial-mode', 'hosted-mode'],
-  // A2: off in a trial, allowed again once paid (§5.0)
+  // A2: off in a trial, allowed again once paid
   webhooks: [true, 'trial-mode', true],
   addOnHttp: [true, 'trial-mode', true],
   paymentProviders: [true, 'trial-mode', true],
@@ -63,7 +62,7 @@ const EXPECTED: Record<PolicyQuestion, [true | PolicyReason, true | PolicyReason
   writes: [true, true, true],
   publicPages: [true, true, true],
   userMail: [true, true, true],
-  // §15.4: only with its own variable
+  // Operator AI: only with its own variable
   customerScreensOnOperatorAi: [true, true, true],
 };
 
@@ -162,7 +161,7 @@ describe('the Upgrade address and the caps', () => {
   });
 });
 
-describe('operator AI (§15.4) answers to its own variables, in any profile', () => {
+describe('operator AI answers to its own variables, in any profile', () => {
   it('ADMINIUM_AI_OPERATOR_ONLY refuses a typed base URL and custom providers', () => {
     const policy = trialPolicy(makeEnv({ ADMINIUM_AI_OPERATOR_ONLY: 'on' }));
     expect(policy.allows('aiBaseUrl')).toEqual({ allowed: false, reason: 'operator-ai-only' });

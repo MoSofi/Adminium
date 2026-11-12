@@ -84,7 +84,7 @@ export async function prepareProject(opts: {
 }): Promise<PreparedProject | null> {
   const project = findProject(opts.cwd, opts.env);
   if (project === null) return null;
-  // Trial and hosted mode (plan 75 §5.1, S8): the Super Admin is a stranger who can write the folder, so its `.env`
+  // Trial and hosted mode: the Super Admin is a stranger who can write the folder, so its `.env`
   // is not read at all (their own AI key lives in Settings → AI), and its config decides nothing the host does.
   const dotEnv = allowsIn(rawProfile(opts.env), 'projectDotEnv').allowed;
   // A secret a folder may not set, it may not set as a file either (`<NAME>_FILE`).

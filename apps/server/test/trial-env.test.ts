@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The trial and hosted environment (plan 75 §5.0, §5.1, §15.3–15.4): every
+ * The trial and hosted environment: every
  * variable parsed in one block, the boots that fail, and the implied values
  * that are enforced rather than defaulted.
  *
@@ -21,7 +21,7 @@ import { TEST_SECRET } from './helpers.js';
 /** 32 random bytes, hex: what an operator token is made of. */
 const TOKEN = 'a3f1c2e4b5d6978899aabbccddeeff00112233445566778899aabbccddeeff01';
 
-/** The least a trial boot needs (§5.1). */
+/** The least a trial boot needs. */
 const TRIAL: Record<string, string> = {
   ADMINIUM_SECRET: TEST_SECRET,
   ADMINIUM_TRIAL_MODE: 'on',
@@ -31,7 +31,7 @@ const TRIAL: Record<string, string> = {
   ADMINIUM_SETUP_TOKEN: 'a-long-enough-setup-token',
 };
 
-/** The least a hosted boot needs (§5.0: the host list and the origin lock are kept). */
+/** The least a hosted boot needs (the host list and the origin lock are kept). */
 const HOSTED: Record<string, string> = {
   ADMINIUM_SECRET: TEST_SECRET,
   ADMINIUM_HOSTED_MODE: 'on',
@@ -212,7 +212,7 @@ describe('the operator variables parse', () => {
   });
 });
 
-describe('a trial boot fails without what it needs (§5.1)', () => {
+describe('a trial boot fails without what it needs', () => {
   for (const name of ['ADMINIUM_TRIAL_ENDS_AT', 'ADMINIUM_SETUP_TOKEN', 'ADMINIUM_PUBLIC_ORIGIN', 'ADMINIUM_DATABASE_HOSTS']) {
     it(`without ${name}`, () => {
       const raw = { ...TRIAL };

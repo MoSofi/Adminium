@@ -46,7 +46,7 @@ export const systemReadyzChecks = z.object({
   addOns: z.enum(['ok', 'loading']).optional(),
 });
 
-/** `?deep=1`: also wait for the add-on runtime (plan 75 §5.2 A8), the target for a waker. */
+/** `?deep=1`: also wait for the add-on runtime, the target for a waker. */
 export const systemReadyzQuery = z.object({ deep: z.enum(['0', '1']).optional() });
 
 export const systemReadyzReply = z.object({
@@ -146,7 +146,7 @@ export const systemInfoReply = z.object({
    */
   connect: z.array(z.object({ provider: z.enum(CONNECT_PROVIDER_IDS) })),
   /**
-   * Trial mode (plan 75 §5.1, `trial/policy.ts`): the banners' words and the
+   * Trial mode (`trial/policy.ts`): the banners' words and the
    * Upgrade button. Signed out too: the sign-in and setup pages show the
    * banners. Nothing here is a secret: the end date is the instance's own, and
    * the Upgrade address is the operator's public page.

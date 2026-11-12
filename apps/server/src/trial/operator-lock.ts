@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * "Set by the operator": a setting the environment decides, shown read-only
- * and refused on save (plan 75 §5.1, F38; the `designer.live` pattern).
+ * and refused on save (the `designer.live` pattern).
  *
  * Never hidden, always explained (F45): a locked setting stays in its reply
  * and on its page, with `{ allowed: false, reason }` beside it, and the

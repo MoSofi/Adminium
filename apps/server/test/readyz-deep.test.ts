@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `GET /api/v1/readyz?deep=1` (plan 75 §5.2 A8): what plain `readyz` waits for
+ * `GET /api/v1/readyz?deep=1`: what plain `readyz` waits for
  * (the meta store, the bundled packages staged), and also the add-on runtime
  * load, which the boot does in the background after the server answers. A
  * waker that sends the first request after a deep yes reaches a dashboard

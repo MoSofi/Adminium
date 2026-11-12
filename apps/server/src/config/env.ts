@@ -270,7 +270,7 @@ export function isPlainDomain(value: string): boolean {
   return !/^\d+$/.test(labels[labels.length - 1] ?? '');
 }
 
-/** The operator token's floor: 32 random bytes (§15.3). */
+/** The operator token's floor: 32 random bytes. */
 export const OPERATOR_TOKEN_MIN_BYTES = 32;
 
 /**
@@ -297,7 +297,7 @@ function parseListenAddress(value: string): { host: string; port: number } | nul
   return { host, port };
 }
 
-/** The start prompt's limit (§15.4). */
+/** The start prompt's limit. */
 export const START_PROMPT_MAX_CHARS = 2000;
 
 /** A start prompt's text, or what is wrong with it: no control character but a line break or a tab, 2,000 characters at most. */
@@ -340,7 +340,7 @@ function readStartPromptFile(path: string): string | { problem: string } {
 }
 
 /**
- * The trial and operator variables (plan 75 §5.1): the operator's word, never a
+ * The trial and operator variables: the operator's word, never a
  * project's. Every one is on `HOST_DECIDED_ENV` (`cli/start-project.ts`), so a
  * folder's `.env` or config cannot set it, and holding a control character
  * fails the boot under a profile ({@link profileIssues}).
@@ -1073,7 +1073,7 @@ export const envSchema = z.object({
   ),
 
   /*
-   * ─── Trial mode, the hosted profile and the operator (plan 75 §5, §15) ───
+   * ─── Trial mode, the hosted profile and the operator ───
    *
    * One block, parsed here and nowhere else; what each one allows is answered
    * by `trial/policy.ts`. The boot refusals that need more than one variable
@@ -1085,7 +1085,7 @@ export const envSchema = z.object({
 
   /*
    * A trial instance for a stranger, on the operator's server: the switches of
-   * §5.2 (connections only to the host list, no own code, no outgoing traffic
+   * trial (connections only to the host list, no own code, no outgoing traffic
    * but the operator's mail relay, public pages hidden from search engines,
    * banners, size caps). Needs an end date, a setup token, the public origin
    * and a host list, or the boot fails.
@@ -1176,7 +1176,7 @@ export const envSchema = z.object({
     z.coerce.number({ error: 'must be a whole number' }).int('must be a whole number').min(1).max(100_000).optional().transform((value) => value ?? 50),
   ),
   /*
-   * A paid installation on the operator's server (O12 = A, §5.0): the trial's
+   * A paid installation on the operator's server (the hosted profile): the trial's
    * host list, network policy, own-code and origin rules stay; the clock,
    * banners, caps and the relay-only mail go.
    */
@@ -1210,7 +1210,7 @@ export const envSchema = z.object({
         return [...new Set(entries)];
       }),
   ),
-  /* The operator endpoint's bearer token (§15.3): 32 random bytes or more, per instance. A secret. */
+  /* The operator endpoint's bearer token: 32 random bytes or more, per instance. A secret. */
   ADMINIUM_OPERATOR_TOKEN: z.preprocess(
     emptyToUndefined,
     z
@@ -1220,7 +1220,7 @@ export const envSchema = z.object({
       .refine((value) => value === undefined || tokenBytes(value) >= OPERATOR_TOKEN_MIN_BYTES, `must be at least ${String(OPERATOR_TOKEN_MIN_BYTES)} random bytes, as hex or base64, e.g. \`openssl rand -hex 32\``),
   ),
   /*
-   * The operator listener (§15.3, S12): `<address>:<port>` on the operator's
+   * The operator listener: `<address>:<port>` on the operator's
    * network. An address, never a name or every address (`0.0.0.0`, `::`):
    * the operator endpoint is never on the public listener.
    */
@@ -1240,7 +1240,7 @@ export const envSchema = z.object({
         return listen;
       }),
   ),
-  /* Signed instance events (§15.3b): https, or plain http to an address on the operator network. */
+  /* Signed instance events: https, or plain http to an address on the operator network. */
   ADMINIUM_OPERATOR_EVENTS_URL: z.preprocess(
     emptyToUndefined,
     z
@@ -1257,17 +1257,17 @@ export const envSchema = z.object({
         return url;
       }),
   ),
-  /* §15.4: AI connections saved in Settings → AI only as the user's own key to a fixed public provider; otherwise the operator's. */
+  /* Operator AI: AI connections saved in Settings → AI only as the user's own key to a fixed public provider; otherwise the operator's. */
   ADMINIUM_AI_OPERATOR_ONLY: booleanVar(false),
-  /* §15.4: what operator AI may build. `dashboard` is the only scope: no customer screens on the operator's connection. */
+  /* What operator AI may build. `dashboard` is the only scope: no customer screens on the operator's connection. */
   ADMINIUM_AI_OPERATOR_SCOPE: z.preprocess(emptyToUndefined, z.enum(['dashboard']).optional()),
-  /* §15.4: tokens operator AI may spend over the instance's life, counted for every feature. */
+  /* Tokens operator AI may spend over the instance's life, counted for every feature. */
   ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: z.preprocess(
     emptyToUndefined,
     z.coerce.number({ error: 'must be a whole number' }).int('must be a whole number').min(1).max(1_000_000_000_000).optional(),
   ),
   /*
-   * §15.4 (S8): the Designer's first user turn after setup, as base64 (never a
+   * The Designer's first user turn after setup, as base64 (never a
    * raw value built from a visitor's text). Held decoded: 2,000 characters at
    * most, no control character but a line break or a tab.
    */
@@ -1306,7 +1306,7 @@ export const envSchema = z.object({
   ),
 })
   .superRefine((env, ctx) => {
-    // ─── Trial mode, the hosted profile, the operator (plan 75 §5.1) ─────────
+    // ─── Trial mode, the hosted profile, the operator ─────────
     // What one variable needs of another. The rest of the profile's refusals
     // read the raw environment (`profileIssues`): an explicit value that a
     // default here would hide.
@@ -1399,8 +1399,8 @@ const CONTROL_CHARACTER = /[\u0000-\u001f\u007f-\u009f]/;
 const isSet = (value: string | undefined): value is string => value !== undefined && value !== '';
 
 /**
- * The boot refusals of a trial or hosted server that read the RAW environment
- * (plan 75 §5.1, S8): an explicit value the parsed one would hide behind its
+ * The boot refusals of a trial or hosted server that read the RAW environment:
+ * an explicit value the parsed one would hide behind its
  * default, a variable the schema does not parse, a control character before
  * any trimming. The parsed half is the schema's superRefine.
  *
@@ -1464,7 +1464,7 @@ export function profileIssues(raw: Readonly<Record<string, string | undefined>>)
 }
 
 /**
- * `env` with what its profile implies ENFORCED (plan 75 §5.1, S8): set as the
+ * `env` with what its profile implies ENFORCED: set as the
  * profile says whatever the variable held, so nothing that fills an unset
  * variable later (a project's `.env`, a default) can change it. The explicit
  * contradictions have already failed the boot ({@link profileIssues}); this is

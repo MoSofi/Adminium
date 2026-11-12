@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The last step's consent answers read the operator's locks from
- * `GET /settings/telemetry` (plan 75 §5.1): in trial mode both are drawn off
+ * `GET /settings/telemetry`: in trial mode both are drawn off
  * and read-only with "Set by the operator"; elsewhere both answer as before.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

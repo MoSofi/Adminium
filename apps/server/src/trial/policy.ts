@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Trial mode and the hosted profile: every "is this allowed?" in one place
- * (plan 75 §5.0, §5.2 A1–A6, §15.3–15.4).
+ * Trial mode and the hosted profile: every "is this allowed?" in one place.
  *
  * Three profiles, each from the environment alone (`config/env.ts`; no
  * setting switches one, no route writes one):
@@ -18,11 +17,11 @@
  * the dashboard translates ("Set by the operator", "Read-only: this trial has
  * ended"), null when allowed. A hook is one call, so grep finds every one:
  *
- *   const answer = trialPolicy(env).allows('webhooks');
- *   if (!answer.allowed) throw refusedByOperator(answer);
+ *   const answer = app.trialPolicy.allows('webhooks');
+ *   if (!answer.allowed) throw new AppError(403, 'FORBIDDEN', '…', { reason: answer.reason });
  *
- * T10 defines the questions; each switch's task wires its hook and its test
- * (§12, §15.5). The question set is the plan's, so a later task adds a hook,
+ * T10 defines the questions; each switch's task wires its hook and its test.
+ * The question set is the plan's, so a later task adds a hook,
  * not a question; a question added later is a row in {@link QUESTIONS} and a
  * row in `trial-policy.test.ts`.
  *
@@ -84,7 +83,7 @@ const profiles =
 /** Allowed until a trial ends (A5); a hosted or ordinary server has no end. */
 const untilTrialEnds: Rule = (ctx) => (ctx.ended ? 'trial-ended' : null);
 
-/** Off in trial mode and under `ADMINIUM_AI_OPERATOR_ONLY` (S9); the hosted profile drops §15.4. */
+/** Off in trial mode and under `ADMINIUM_AI_OPERATOR_ONLY` (S9); the hosted profile drops operator AI. */
 const unlessOperatorAi: Rule = (ctx) => profiles(false, true)(ctx) ?? (ctx.aiOperatorOnly ? 'operator-ai-only' : null);
 
 /**
@@ -93,7 +92,7 @@ const unlessOperatorAi: Rule = (ctx) => profiles(false, true)(ctx) ?? (ctx.aiOpe
  */
 const QUESTIONS = {
   // ── A1 connections (T11) ──────────────────────────────────────────────────
-  /** "Allow databases on this server" (`connections.allowLocalDatabases`): §3.2, O1. Also locked by `ADMINIUM_LOCAL_DATABASES=off`. */
+  /** "Allow databases on this server" (`connections.allowLocalDatabases`). Also locked by `ADMINIUM_LOCAL_DATABASES=off`. */
   localDatabases: profiles(false, false),
   /** A SQLite file as a source, on every front door (the wizards show it disabled with the reason). */
   sqliteSources: profiles(false, false),
@@ -129,7 +128,7 @@ const QUESTIONS = {
   marketingCampaigns: profiles(false, true),
   /** A user-typed `llm.baseUrl`, for every provider (S9). */
   aiBaseUrl: unlessOperatorAi,
-  /** AI connections other than the user's own key to a fixed public provider (`openai-compatible`, Ollama): S9, §15.4. */
+  /** AI connections other than the user's own key to a fixed public provider (`openai-compatible`, Ollama). */
   customAiProviders: unlessOperatorAi,
   // ── A3 own code (T12) ─────────────────────────────────────────────────────
   /** `POST /add-ons/upload` and `POST /apps/upload`: installs only from the catalogue or the image's bundle. */
@@ -164,7 +163,7 @@ const QUESTIONS = {
   publicPages: untilTrialEnds,
   /** User-authored mail (system mail keeps its own quota). */
   userMail: untilTrialEnds,
-  // ── §15.4 operator AI (T28) ───────────────────────────────────────────────
+  // ── operator AI (T28) ───────────────────────────────────────────────────
   /** Customer screens built on the operator's AI connection. */
   customerScreensOnOperatorAi: (ctx) => (ctx.aiOperatorScope === 'dashboard' ? 'operator-ai-scope' : null),
 } satisfies Record<string, Rule>;
@@ -172,7 +171,7 @@ const QUESTIONS = {
 export type PolicyQuestion = keyof typeof QUESTIONS;
 export const POLICY_QUESTIONS = Object.keys(QUESTIONS) as PolicyQuestion[];
 
-/** A6's caps, in bytes and counts; null outside trial mode (the hosted profile drops them, §5.0). */
+/** A6's caps, in bytes and counts; null outside trial mode (the hosted profile drops them). */
 export interface TrialLimits {
   dataMaxBytes: number;
   uploadMaxBytes: number;

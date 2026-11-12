@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Set by the operator" (plan 75 §5.1, F38): a setting the environment decides
+ * "Set by the operator": a setting the environment decides
  * travels in its reply with `{ allowed: false, reason }`, reads as the value
  * it is locked to, and a save that would change it is refused with
  * `SET_BY_OPERATOR`. Proved on a whole composed server for the settings the

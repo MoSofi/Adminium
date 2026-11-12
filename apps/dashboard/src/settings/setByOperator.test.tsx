@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Set by the operator" (plan 75 §5.1): the chip a locked setting carries
+ * "Set by the operator": the chip a locked setting carries
  * (Trial Mode comp, lines 272 and 307), and how a page tells a lock from the
  * reply or from a refused save.
  */

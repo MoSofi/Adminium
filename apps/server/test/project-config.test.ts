@@ -217,7 +217,7 @@ describe('what a folder never decides', () => {
   });
 });
 
-describe('a trial or hosted server and the project folder (plan 75 §5.1, S8)', () => {
+describe('a trial or hosted server and the project folder', () => {
   let root: string;
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'adminium-trial-dotenv-'));

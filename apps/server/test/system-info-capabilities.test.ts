@@ -146,7 +146,7 @@ describe('GET /api/v1/system/info — capability flags', () => {
   });
 });
 
-describe('GET /api/v1/system/info — the trial (plan 75 §5.1)', () => {
+describe('GET /api/v1/system/info — the trial', () => {
   const TRIAL = {
     ADMINIUM_TRIAL_MODE: 'on',
     ADMINIUM_PUBLIC_ORIGIN: 'https://hollis.try.example.com',
