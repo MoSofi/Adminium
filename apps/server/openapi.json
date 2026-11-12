@@ -4119,6 +4119,21 @@
                             "client"
                           ],
                           "additionalProperties": false
+                        },
+                        "publicPagesHidden": {
+                          "type": "object",
+                          "properties": {
+                            "reason": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
