@@ -51,6 +51,9 @@ import type { Versions } from './versions.js';
 import { anthropicEfforts, type RunEffort } from '@adminium/llm';
 import { DESIGNER_MAX_OUTPUT_TOKENS, MENTIONS_WEB, WANTS_OWN_PICTURES, asksOnlyForPhoneApp } from './prompt.js';
 import { refuseOwnCode } from '../trial/own-code.js';
+import { isOperatorAiUsedUp } from '../llm/operator-ai.js';
+import { enterScope, reachRefusal, SCOPE_LABEL } from './operator-scope.js';
+import { needsOwnKeyTool } from './scope-gate.js';
 
 export interface DesignerHost {
   /** The project folder. */
@@ -94,6 +97,11 @@ export interface DesignerHost {
   reseedSample?: (appKey: string) => Promise<void>;
   /** The picture dialog's searches and picks. Absent where the Designer looks for no pictures. */
   pictureDialog?: PictureDialog;
+  /**
+   * `ADMINIUM_AI_OPERATOR_SCOPE=dashboard`: a turn on the operator's AI connection builds dashboards only, held where
+   * things take effect (`operator-scope.ts`). A turn on the person's own key is not held.
+   */
+  operatorScope?: boolean;
 }
 
 /** What the picture dialog draws: the app's spots and rows, where pictures may come from, and the mode. */
@@ -448,6 +456,13 @@ export function createDesigner(host: DesignerHost): Designer {
     events.emit(turn, { kind: 'check', ok: errors.length === 0, findings });
     if (errors.length > 0) return { ok: false, version: null };
 
+    // A turn on the operator's AI that builds dashboards only: an app that now reaches more of the public than when the
+    // turn began is neither built nor applied, whichever tool wrote it (the turn then ends with the card).
+    if (reachRefusal(host.root, key) !== null) {
+      events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'operator', message: SCOPE_LABEL });
+      return { ok: false, version: null };
+    }
+
     // In a turn: a picture the person placed is never taken off its screen without their word.
     if (opts.askRemovals !== false) {
       const kept = await keptSpots(session, handle);
@@ -742,6 +757,13 @@ export function createDesigner(host: DesignerHost): Designer {
       unloadedCsv(session).files.map(
         (entry) => `"${entry.label}" was not loaded: its rows are in no table yet. Ask for it again in a message of its own ("load ${entry.label} into …"), or use Import on the table's page in the dashboard.`,
       ),
+    // On the operator's AI, under its dashboard scope: the turn is held to dashboards, and the person's request for anything
+    // customer-facing is answered with the fixed card. The target is forced, whatever the session was made with.
+    operatorScope: async (session) => {
+      if (host.operatorScope !== true || !host.connections.isOperator(session.connectionId)) return null;
+      if (session.target !== 'dashboard') store.update(session.id, { target: 'dashboard' });
+      return { ...enterScope(host.root, session.appKey), tool: needsOwnKeyTool(host.root) };
+    },
     limits: () => host.limits(),
     publish: (event) => {
       host.publish(event);
@@ -967,8 +989,12 @@ export function createDesigner(host: DesignerHost): Designer {
       const connection = await host.connections.find(input.connectionId);
       if (connection === null) throw new NotFoundError('There is no such model connection.', { connectionId: input.connectionId });
       if (input.model.trim() === '') throw new ValidationFailedError('Choose a model.', { reason: 'MODEL' });
-      // A model that cannot call tools cannot build (Q15): said before anything is made.
-      const verdict = await host.connections.canBuildWith(connection.id, input.model);
+      // A model that cannot call tools cannot build (Q15): said before anything is made. The operator's AI used up is
+      // said by the first turn, with its card: the session is made all the same.
+      const verdict = await host.connections.canBuildWith(connection.id, input.model).catch((error: unknown) => {
+        if (isOperatorAiUsedUp(error)) return { canBuild: true as const, reportsUsage: false };
+        throw error;
+      });
       if (!verdict.canBuild && verdict.reason === 'error') {
         throw new ConflictError(`The model could not be asked: ${verdict.message}`, 'CONFLICT', { reason: 'MODEL_UNREACHABLE', code: verdict.code });
       }
@@ -997,7 +1023,8 @@ export function createDesigner(host: DesignerHost): Designer {
         title: input.name?.trim() || input.title?.trim() || nameFromKey(appKey),
         // A name the person gave is the app's name: the Designer is not asked for another.
         ...(createdApp && (input.name ?? '').trim() === '' ? {} : { named: true }),
-        target: input.target,
+        // The operator's AI under its dashboard scope builds dashboards: so says the session, whatever was asked.
+        target: host.operatorScope === true && host.connections.isOperator(connection.id) ? 'dashboard' : input.target,
         connectionId: connection.id,
         model: input.model,
         ...(input.effort === undefined ? {} : { effort: input.effort }),

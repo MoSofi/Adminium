@@ -182,3 +182,24 @@ export function answerFor(card: DesignerCard, value: unknown): CardAnswer | null
   if (card.type === 'template-plan') return planAnswerFor(card, value);
   return typeof given['accept'] === 'boolean' ? { type: card.type, accept: given['accept'] } : null;
 }
+
+/**
+ * "No" to a card, as a run nobody watches gives it (the start prompt's): every yes left unsaid. Null for a card that
+ * waits for no answer.
+ */
+export function noAnswer(card: DesignerCard): CardAnswer | null {
+  switch (card.type) {
+    case 'question':
+      return { type: 'question', text: 'No.' };
+    case 'needs':
+      return card.pictures === undefined ? { type: 'needs', accept: [] } : { type: 'needs', accept: [], pictures: 'placeholders' };
+    case 'pictures':
+      return { type: 'pictures', accept: [] };
+    case 'spots':
+      return null;
+    case 'template-plan':
+      return planAnswerFor(card, {});
+    default:
+      return { type: card.type, accept: false };
+  }
+}

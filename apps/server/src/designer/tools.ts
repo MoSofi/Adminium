@@ -74,6 +74,7 @@ import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
 import { createJail, isCodeWrite, JailError, OwnCodeJailError, type Jail } from './jail.js';
 import { gateTools, ownCodeRefusal } from './declarative.js';
+import { scopeTools } from './scope-gate.js';
 import { ownCodeAllows } from '../trial/own-code.js';
 import { PICTURE_SHAPES } from './pictures.js';
 import { EXT_OF, legacyPictures, prepareFills, writeFills, type Prepared } from './pictures-apply.js';
@@ -2441,7 +2442,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
     },
   ];
   // Each tool as its line in `TOOL_REACH` says: one the operator turned off answers the fixed refusal before it runs.
-  return gateTools(tools);
+  // And as its line in `SCOPE_REACH` says, in a turn on the operator's AI that builds dashboards only.
+  return gateTools(scopeTools(deps.root, appKey, tools));
 }
 
 /**

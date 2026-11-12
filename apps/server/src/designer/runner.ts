@@ -48,7 +48,8 @@ import {
 } from '@adminium/llm';
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../errors.js';
-import { answerFor, type CardAnswer, type DesignerCard } from './cards.js';
+import { answerFor, noAnswer, type CardAnswer, type DesignerCard } from './cards.js';
+import { isOperatorAiUsedUp } from '../llm/operator-ai.js';
 import type { DesignerEvent, DesignerEventBody, EventLog, HoldKind, LimitKind, SpendMark, TurnOutcome } from './events.js';
 import { createEventLog } from './events.js';
 import type { DesignerSession, SessionStore } from './session-store.js';
@@ -141,6 +142,12 @@ export interface RunnerDeps {
    */
   beforeLaterTurn?(session: DesignerSession): Promise<void>;
   log?: (message: string, error?: unknown) => void;
+  /**
+   * A turn on the operator's AI that builds dashboards only (`operator-scope.ts`), or null for any other turn. Asked as
+   * each turn begins; `end` is called as it ends, however it ends. `tool` is offered to the model beside its own: the
+   * way it asks for the card. Once anything was refused (`tripped`), the turn ends with the card.
+   */
+  operatorScope?(session: DesignerSession): Promise<{ tripped(): boolean; end(): void; tool: DesignerTool } | null>;
   now?: () => number;
   /** How long a hold may last before its work is told to stop; `HOLD_CAP_MS` when left out. */
   holdCapMs?: number;
@@ -173,7 +180,7 @@ export interface DesignerRunner {
   /** Start a turn. 409 while another turn runs in this folder (reason `TURN_RUNNING`) or something else has it (`DESIGNER_BUSY`). */
   start(
     sessionId: string,
-    input: { text: string; by: Actor; attachments?: readonly string[]; /** The page that sent this shows the preview, and will say what it sees after a build. */ sees?: boolean; /** The element of the preview the person pointed at, as the page sent it. */ picked?: unknown; /** The folder, kept for this turn beforehand. */ claim?: TurnClaim },
+    input: { text: string; by: Actor; attachments?: readonly string[]; /** Every card the turn shows is answered no at once, by nobody (the start prompt's run). */ defaultNo?: boolean; /** The page that sent this shows the preview, and will say what it sees after a build. */ sees?: boolean; /** The element of the preview the person pointed at, as the page sent it. */ picked?: unknown; /** The folder, kept for this turn beforehand. */ claim?: TurnClaim },
   ): Promise<{ turn: number }>;
   /**
    * Take the folder for something a person does from the page, at once or not
@@ -262,6 +269,8 @@ interface Running {
   done: Promise<void>;
   /** Whether the page that started the turn will say what it sees of a build. */
   sees: boolean;
+  /** Every card is answered no at once. */
+  defaultNo: boolean;
 }
 
 /** The first line of a refusal, short enough for a step's line on the page. */
@@ -395,6 +404,13 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         cardSeq += 1;
         // Not guessable: a page that is not the Designer's cannot name the card it would answer.
         const full = { ...card, id: `card_${String(turn)}_${String(cardSeq)}_${randomBytes(8).toString('hex')}` } as DesignerCard;
+        // A run nobody watches (the start prompt's): every question is answered no, at once, and shown answered.
+        const no = run.defaultNo ? noAnswer(full) : null;
+        if (no !== null) {
+          log.emit(turn, { kind: 'card', card: full });
+          log.emit(turn, { kind: 'card-answered', id: full.id, value: no });
+          return Promise.resolve(no);
+        }
         return new Promise<CardAnswer>((resolve, reject) => {
           // Stop answers the card at once: the tool waiting on it must not hold the turn open.
           const onStop = (): void => {
@@ -446,12 +462,18 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
 
     /** The request just refused carried pictures, and the next one goes without them: its outcome says whether they were the reason. */
     let triedWithout = false;
+    /** On the operator's AI under its dashboard scope; null on any other turn. */
+    let scope: Awaited<ReturnType<NonNullable<RunnerDeps['operatorScope']>>> = null;
+    /** The fixed card the turn ends with: a request beyond the operator's scope, or the operator's AI used up. */
+    let card: 'scope' | 'used-up' | null = null;
 
     try {
       const { runner, maxTokens, effort } = await deps.runnerFor(session);
+      scope = (await deps.operatorScope?.(session)) ?? null;
+      const toolsOf = (of: DesignerSession): DesignerTool[] => (scope === null ? deps.tools(of) : [...deps.tools(of), scope.tool]);
       /** What one reply may use. */
       let room = maxTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
-      let tools = deps.tools(session);
+      let tools = toolsOf(session);
       await deps.opening?.(session, handle);
       for (;;) {
         if (signal.aborted) throw new TurnStoppedError();
@@ -476,10 +498,12 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           pictures: !blind.has(session.id),
           tools: sent,
           ...(opening?.type === 'text' ? { said: opening.text } : {}),
+          ...(scope === null ? {} : { operatorScope: true }),
         });
         const carriesPictures = request.messages.some((message) => message.content.some((block) => block.type === 'image' && block.data.length > 0));
         let result: RunResult | undefined;
         let retryWithout = false;
+        let usedUp = false;
         for (let attempt = 0; ; attempt += 1) {
           let said = false;
           try {
@@ -500,6 +524,11 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             break;
           } catch (error) {
             if (error instanceof ProviderError && error.code === 'aborted') throw new TurnStoppedError();
+            // The operator's AI is used up: the turn ends with its card, and what was made so far is kept.
+            if (isOperatorAiUsedUp(error)) {
+              usedUp = true;
+              break;
+            }
             // A request refused while it carried pictures: asked again without them, and no picture is sent in this session again.
             // (A picture a provider cannot take would otherwise go with every later message, and the session could never run.)
             if (error instanceof ProviderError && error.code === 'http' && carriesPictures && !said) {
@@ -518,6 +547,10 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             await pause(wait, signal);
             if (signal.aborted) throw new TurnStoppedError();
           }
+        }
+        if (usedUp) {
+          card = 'used-up';
+          break;
         }
         if (retryWithout || result === undefined) continue;
         // Answered: if this was the try without pictures, they were the reason, and the session stays without them.
@@ -708,7 +741,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
             if (stored.appKey !== session.appKey) {
               session = stored;
               context.session = stored;
-              tools = deps.tools(stored);
+              tools = toolsOf(stored);
             }
           } catch (error) {
             if (error instanceof TurnStoppedError || signal.aborted) {
@@ -733,6 +766,11 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
           });
         }
         if (signal.aborted) throw new TurnStoppedError();
+        // Something customer-facing was refused on the operator's AI: the card answers the person, not the model.
+        if (scope?.tripped() === true) {
+          card = 'scope';
+          break;
+        }
 
         // A model that sends only calls that cannot be read is not going to start making sense.
         unreadable = malformed.size > 0 && malformed.size === calls.length ? unreadable + 1 : 0;
@@ -747,7 +785,8 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         log.emit(turn, { kind: 'limit', which: limit.which, value: limit.value });
         outcome = 'limit';
       }
-      if (outcome !== 'failed') {
+      // A turn that ends on the card before it changed anything has nothing for the engine to check.
+      if (outcome !== 'failed' && !(card !== null && !acted)) {
         // The engine has the last word, also on a limit: what was made so far is kept as a version.
         const verdict = await deps.pipeline(session, handle);
         // Stop during the last build ends that build: said as a stop, not as a build that failed.
@@ -755,6 +794,9 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         if (!verdict.ok && outcome === 'done') outcome = 'not-applied';
         if (verdict.ok) for (const body of deps.afterApplied?.(deps.store.read(session.id), { turn, tools: doneTools }) ?? []) log.emit(turn, body);
       }
+      // The engine's own check refused what the turn made customer-facing: the same card.
+      if (card === null && scope?.tripped() === true) card = 'scope';
+      if (card !== null) log.emit(turn, { kind: 'operator-ai', card });
     } catch (error) {
       if (error instanceof TurnStoppedError || signal.aborted) {
         outcome = 'stopped';
@@ -771,6 +813,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
         if (!(error instanceof ProviderError)) deps.log?.('a Designer turn failed', error);
       }
     } finally {
+      scope?.end();
       // Every waiting card is answered "stopped": nothing may wait on a turn that is over.
       for (const waiting of run.cards.values()) waiting.reject(new TurnStoppedError());
       run.cards.clear();
@@ -814,7 +857,7 @@ export function createDesignerRunner(deps: RunnerDeps): DesignerRunner {
       if (input.picked !== undefined && picked === null) throw new ValidationFailedError('The element you picked could not be read. Pick it again.', { reason: 'TURN_PICKED' });
       const turn = session.turns + 1;
       // Claimed before anything is awaited, so two starts cannot both pass the check above.
-      const claim: Running = { sessionId, turn, controller: new AbortController(), by: input.by, cards: new Map(), done: Promise.resolve(), sees: input.sees === true };
+      const claim: Running = { sessionId, turn, controller: new AbortController(), by: input.by, cards: new Map(), done: Promise.resolve(), sees: input.sees === true, defaultNo: input.defaultNo === true };
       running = claim;
       // The folder was kept for this turn: it has it now.
       input.claim?.release();
