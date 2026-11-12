@@ -40679,6 +40679,10 @@
     "status": "mt",
     "srcHash": "f36f122b25c0"
   },
+  "studio.settingsHub.email.linkOrigin.operator": {
+    "status": "mt",
+    "srcHash": "eb2273522b2a"
+  },
   "studio.settingsHub.email.pass.error": {
     "status": "mt",
     "srcHash": "7fa056e148c4"

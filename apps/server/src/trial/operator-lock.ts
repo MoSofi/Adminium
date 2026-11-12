@@ -58,6 +58,10 @@ export const LOCKED_SETTINGS = {
   'telemetry.enabled': { question: 'telemetry', value: false },
   'updates.checkEnabled': { question: 'updateCheck', value: false },
   'connections.allowLocalDatabases': { question: 'localDatabases', value: false },
+  // The address in email links. Its locked value is the operator's origin, which the environment decides
+  // (`trial/operator-hosts.ts`), so `value` is only a placeholder here: the route compares with
+  // `heldOperatorOrigin` and the boot writes the row (`security/public-origin.ts`).
+  'system.publicOrigin': { question: 'publicOriginSetting', value: null },
 } as const satisfies Record<string, { question: PolicyQuestion; value: unknown }>;
 
 export type LockableSetting = keyof typeof LOCKED_SETTINGS;

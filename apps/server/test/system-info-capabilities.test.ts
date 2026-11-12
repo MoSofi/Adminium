@@ -153,6 +153,8 @@ describe('GET /api/v1/system/info — the trial', () => {
     ADMINIUM_DATABASE_HOSTS: 'pg-trials:5432',
     ADMINIUM_SETUP_TOKEN: 'a-long-enough-setup-token',
   };
+  /** The operator's address: the only name a trial or hosted server answers to. */
+  const OWN_HOST = { host: 'hollis.try.example.com' };
   const DAY = 86_400_000;
   /** An end `ms` from now, on the minute, so a test a second late reads the same day count. */
   const endIn = (ms: number): string => new Date(Math.floor((Date.now() + ms) / 60_000) * 60_000).toISOString();
@@ -160,7 +162,7 @@ describe('GET /api/v1/system/info — the trial', () => {
   it('answers the clock and the Upgrade address, signed out (the sign-in page shows the banners)', async () => {
     const endsAt = endIn(10 * DAY + 3_600_000);
     const { server } = await build({ ...TRIAL, ADMINIUM_TRIAL_ENDS_AT: endsAt, ADMINIUM_TRIAL_UPGRADE_URL: 'https://example.com/upgrade' });
-    const res = await server.inject({ method: 'GET', url: '/api/v1/system/info' });
+    const res = await server.inject({ method: 'GET', url: '/api/v1/system/info', headers: OWN_HOST });
     expect(res.statusCode).toBe(200);
     expect(res.json<{ trial: unknown }>().trial).toEqual({
       on: true,
@@ -173,11 +175,11 @@ describe('GET /api/v1/system/info — the trial', () => {
   it('past the end date: no count at all, the end date says it ended', async () => {
     const endsAt = endIn(-DAY);
     const { server } = await build({ ...TRIAL, ADMINIUM_TRIAL_ENDS_AT: endsAt });
-    expect((await server.inject({ method: 'GET', url: '/api/v1/system/info' })).json<{ trial: unknown }>().trial).toEqual({ on: true, endsAt, daysLeft: null, upgradeUrl: null });
+    expect((await server.inject({ method: 'GET', url: '/api/v1/system/info', headers: OWN_HOST })).json<{ trial: unknown }>().trial).toEqual({ on: true, endsAt, daysLeft: null, upgradeUrl: null });
   });
 
   it('a hosted installation has no trial', async () => {
-    const { server } = await build({ ADMINIUM_HOSTED_MODE: 'on', ADMINIUM_PUBLIC_ORIGIN: 'https://hollis.example.com', ADMINIUM_DATABASE_HOSTS: 'pg-trials:5432' });
-    expect((await server.inject({ method: 'GET', url: '/api/v1/system/info' })).json<{ trial: unknown }>().trial).toEqual({ on: false, endsAt: null, daysLeft: null, upgradeUrl: null });
+    const { server } = await build({ ADMINIUM_HOSTED_MODE: 'on', ADMINIUM_PUBLIC_ORIGIN: 'https://hollis.try.example.com', ADMINIUM_DATABASE_HOSTS: 'pg-trials:5432' });
+    expect((await server.inject({ method: 'GET', url: '/api/v1/system/info', headers: OWN_HOST })).json<{ trial: unknown }>().trial).toEqual({ on: false, endsAt: null, daysLeft: null, upgradeUrl: null });
   });
 });

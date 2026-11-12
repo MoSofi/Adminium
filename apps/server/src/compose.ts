@@ -111,6 +111,7 @@ import { createColumnUploads } from './public-uploads/columns.js';
 import { tellUploadsRefused } from './public-uploads/notices.js';
 import { formsFilesRoutes } from './routes/forms-files/index.js';
 import { listedWebsitesOf } from './forms/websites.js';
+import { framingWebsites } from './trial/operator-hosts.js';
 import { formsDoorRoutes } from './routes/forms-door/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
@@ -3367,7 +3368,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const formsData = async (connectionId: string) => manager.data(connectionId);
   const formsViews = (connectionId: string) => publicViews.viewFor(connectionId);
   const formsScopes = createFormsScopes({ meta, modelOf: async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as LooseTableIdModel | undefined) ?? null });
-  const formsWebsites = listedWebsitesOf(meta);
+  const formsWebsites = framingWebsites(app, listedWebsitesOf(meta));
   const formsConfirm = createFormsConfirm({ meta, secret: env.ADMINIUM_SECRET, consent, installs: () => addOnInstalls.fresh(), data: formsData, viewFor: formsViews });
   // A named survey's invitations: found by the token their links carry, spent by the answer.
   const surveyInvitations = createSurveyInvitations({ installs: () => addOnInstalls.fresh(), viewFor: formsViews, data: formsData, scopes: formsScopes });

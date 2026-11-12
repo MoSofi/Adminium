@@ -65,6 +65,7 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedErr
 import type { FileStore } from '../../files/store.js';
 import { formsReach, type FormsReachFacts } from '../../forms/reach.js';
 import { addWebsites, readWebsites, removeWebsite, type ListedWebsite } from '../../forms/websites.js';
+import { refuseUnlistedWebsites } from '../../trial/operator-hosts.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
 import { erasePerson, previewErasure } from '../../privacy/erase.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
@@ -257,6 +258,8 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
       { preHandler: privacy, config: { audit: audited('rbac') }, schema: { body: websitesAddBody, response: { 200: websitesReply } } },
       async (request) => {
         const userId = personOf(request);
+        // Where the operator decides the addresses, only its listed domains (`trial/operator-hosts.ts`).
+        refuseUnlistedWebsites(app, request.body.lines);
         const result = await addWebsites(meta, request.body.lines, { userId, at: app.rbac.now() });
         if (!result.ok) {
           // Each line's code, in order; nothing was added. The page words them.

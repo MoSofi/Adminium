@@ -70,9 +70,12 @@ async function server(env: Record<string, string>, consent = { telemetry: true, 
   });
   const { app } = composed;
   await app.ready();
+  // The operator's address, the only name a trial or hosted server answers to.
+  const host = env['ADMINIUM_PUBLIC_ORIGIN'] === undefined ? 'localhost' : new URL(env['ADMINIUM_PUBLIC_ORIGIN']).host;
   const setup = await app.inject({
     method: 'POST',
     url: '/api/v1/setup/super-admin',
+    headers: { host },
     payload: { email: 'owner@example.test', password: PASSWORD, name: 'Dana Price', consent, setupToken: TRIAL.ADMINIUM_SETUP_TOKEN },
   });
   expect(setup.statusCode, setup.body).toBe(201);
@@ -80,7 +83,7 @@ async function server(env: Record<string, string>, consent = { telemetry: true, 
   return {
     meta: store,
     call: async (method, url, payload) => {
-      const res = await app.inject({ method, url, headers: { cookie }, ...(payload === undefined ? {} : { payload: payload as object }) });
+      const res = await app.inject({ method, url, headers: { host, cookie }, ...(payload === undefined ? {} : { payload: payload as object }) });
       return { status: res.statusCode, body: res.json() as Record<string, unknown> };
     },
   };

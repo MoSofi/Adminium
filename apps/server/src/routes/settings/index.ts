@@ -26,10 +26,11 @@ import { ValidationFailedError } from '../../errors.js';
 import { raiseMoneyRedirect } from '../../payments/alarms.js';
 import { payAddressMovedWith } from '../../payments/links.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
-import { effectiveValue, refuseLockedChange, settingLock } from '../../trial/operator-lock.js';
+import { effectiveValue, refuseLockedChange, SetByOperatorError, settingLock, type SettingLock } from '../../trial/operator-lock.js';
 import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
 import {
   PUBLIC_ORIGIN_SETTING,
+  heldOperatorOrigin,
   normalizePublicOrigin,
   notePublicOrigin,
 } from '../../security/public-origin.js';
@@ -107,7 +108,7 @@ function sameSmtp(a: StoredSmtp, b: StoredSmtp): boolean {
 }
 
 /** Everything on the email section that is not the transport. */
-type EmailExtras = Pick<SettingsEmailView, 'senders' | 'maxAttachmentBytes' | 'publicOrigin'>;
+type EmailExtras = Pick<SettingsEmailView, 'senders' | 'maxAttachmentBytes' | 'publicOrigin' | 'locks'>;
 
 /** The password-free projection used by both the reply and the audit row. */
 function viewOf(stored: StoredSmtp, extra: EmailExtras): SettingsEmailView {
@@ -190,7 +191,12 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
       settings.get('email.maxAttachmentBytes'),
       settings.get(PUBLIC_ORIGIN_SETTING),
     ]);
-    return { senders, maxAttachmentBytes, publicOrigin };
+    return { senders, maxAttachmentBytes, publicOrigin, locks: { publicOrigin: publicOriginLock() } };
+  }
+
+  /** The address in email links is the operator's while the environment names one (`trial/operator-hosts.ts`). */
+  function publicOriginLock(): SettingLock {
+    return settingLock(policy, 'system.publicOrigin', { envLocked: heldOperatorOrigin(meta) !== null });
   }
 
   async function emailReply(): Promise<SettingsEmailReply> {
@@ -596,6 +602,12 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         schema: { body: settingsEmailPutBody, response: { 200: settingsEmailReply } },
       },
       async (request) => {
+        // Refused before anything of the body is written: the operator's origin is not this page's to change.
+        if (request.body.publicOrigin !== undefined) {
+          const lock = publicOriginLock();
+          const next = request.body.publicOrigin === null ? null : normalizePublicOrigin(request.body.publicOrigin);
+          if (!lock.allowed && next !== heldOperatorOrigin(meta)) throw new SetByOperatorError('system.publicOrigin', lock.reason ?? 'not-allowed');
+        }
         const stored = await settings.get('email.smtp');
         const extrasBefore = await emailExtras();
         const before = viewOf(stored, extrasBefore);

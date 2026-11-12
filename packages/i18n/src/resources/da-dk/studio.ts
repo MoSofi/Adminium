@@ -2738,7 +2738,8 @@ export default {
       "linkOrigin": {
         "error": "Angiv en adresse som https://admin.example.com uden sti.",
         "helper": "Links til nulstilling af adgangskode og invitationer åbner denne adresse. Hvis den er tom, udfylder Adminium den fra den næste administrator, der logger ind eller gemmer en ændring, medmindre vedkommende bruger localhost.",
-        "label": "Adresse i e-maillinks"
+        "label": "Adresse i e-maillinks",
+        "operator": "Serverens operatør har angivet denne adresse. Links til nulstilling af adgangskode og invitationer åbner altid den."
       },
       "pass": {
         "error": "Dette brugernavn kræver en adgangskode.",

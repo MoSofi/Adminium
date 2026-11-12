@@ -2738,7 +2738,8 @@ export default {
       "linkOrigin": {
         "error": "Zadejte adresu jako https://admin.example.com bez cesty.",
         "helper": "Odkazy pro obnovení hesla a z pozvánek otevírají tuto adresu. Pokud je prázdná, Adminium ji převezme od dalšího správce, který se přihlásí nebo uloží změnu, pokud nepracuje přes localhost.",
-        "label": "Adresa v odkazech v e-mailech"
+        "label": "Adresa v odkazech v e-mailech",
+        "operator": "Tuto adresu nastavil provozovatel serveru. Odkazy pro obnovení hesla a z pozvánek vždy otevírají ji."
       },
       "pass": {
         "error": "K tomuto uživatelskému jménu patří heslo.",

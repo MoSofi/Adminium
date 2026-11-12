@@ -2738,7 +2738,8 @@ export default {
       "linkOrigin": {
         "error": "請輸入類似 https://admin.example.com 的位址，不要包含路徑。",
         "helper": "密碼重設與邀請連結會開啟此位址。若留空，Adminium 會從下一位登入或儲存變更的管理員自動填入，但使用 localhost 時除外。",
-        "label": "電子郵件連結中的位址"
+        "label": "電子郵件連結中的位址",
+        "operator": "此位址由伺服器營運方設定。密碼重設與邀請連結一律開啟此位址。"
       },
       "pass": {
         "error": "此使用者名稱需要密碼。",

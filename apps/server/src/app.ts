@@ -58,6 +58,9 @@ import {
 import { createSetupService } from './setup/service.js';
 import { createUpdateCheckService } from './telemetry/update-check.js';
 import { trialPolicy } from './trial/policy.js';
+import { operatorHostsOf, registerOperatorHosts } from './trial/operator-hosts.js';
+import { registerPublicPages } from './trial/public-pages.js';
+import { holdOperatorOrigin } from './security/public-origin.js';
 import { API_PREFIX, registerRoutes } from './routes/index.js';
 import { aboutRoutes } from './routes/about/index.js';
 import { authRoutes } from './routes/auth/index.js';
@@ -570,6 +573,15 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     registerDesignMode(app, opts.design);
   }
   if (opts.sharedHosts !== undefined) registerSharedHosts(app, opts.sharedHosts);
+  // The operator's addresses: the only names this server answers to, and where links in email point (`trial/operator-hosts.ts`).
+  const operatorHosts = operatorHostsOf(env);
+  app.decorate('operatorHosts', operatorHosts);
+  if (operatorHosts !== null) {
+    registerOperatorHosts(app, operatorHosts);
+    if (opts.metaDb !== undefined && opts.metaDb !== null) await holdOperatorOrigin(opts.metaDb, operatorHosts.origin);
+  }
+  // Pages strangers reach: hidden from search engines and without pay pages where the policy says so (`trial/public-pages.ts`).
+  registerPublicPages(app, policy);
   // `staticRoot` rides along so core can hash the served index.html's inline
   // scripts into the CSP allowance (plugins/core.ts).
   await app.register(corePlugin, { env, staticRoot: opts.staticRoot });

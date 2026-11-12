@@ -2728,7 +2728,8 @@
       "linkOrigin": {
         "error": "Saisissez une adresse comme https://admin.example.com, sans chemin.",
         "helper": "Les liens de réinitialisation du mot de passe et d’invitation ouvrent cette adresse. Si elle est vide, Adminium la reprend du prochain administrateur qui se connecte ou enregistre une modification, sauf s’il passe par localhost.",
-        "label": "Adresse des liens dans les e-mails"
+        "label": "Adresse des liens dans les e-mails",
+        "operator": "L’opérateur du serveur a fixé cette adresse. Les liens de réinitialisation du mot de passe et d’invitation l’ouvrent toujours."
       },
       "pass": {
         "error": "Ce nom d’utilisateur exige un mot de passe.",

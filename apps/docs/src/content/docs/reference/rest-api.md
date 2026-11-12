@@ -67,6 +67,12 @@ GET /api/v1/system/info
 
 Version and instance information.
 
+The two health routes answer on every host. When the operator gives the
+instance its addresses (`ADMINIUM_PUBLIC_ORIGIN`, `ADMINIUM_OPERATOR_DOMAINS`),
+every other request to another `Host` is answered `421` before any route, so
+probe a container by its address only at `/api/v1/healthz` or
+`/api/v1/readyz` ([Your addresses for the instance](/self-hosting/env-vars/#your-addresses-for-the-instance)).
+
 ## Dates in rows
 
 A `date` column is a calendar day, and every reply spells it as its text, `"2026-08-14"`, on

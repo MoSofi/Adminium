@@ -63,6 +63,8 @@ import {
 
 import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { MapsSettingsPage } from './MapsSettingsPage.js';
+import { LinkOriginLocked } from './LinkOriginLocked.js';
+import { isLocked } from '../../settings/SetByOperator.js';
 import { DoNotEmailPage } from '../marketing/DoNotEmailPage.js';
 import {
   BRANDING_QUERY_KEY,
@@ -585,7 +587,9 @@ function WorkspaceForm({
   const linkOriginText = values.publicOrigin.trim();
   const linkOrigin = linkOriginText === '' ? null : linkOriginOf(linkOriginText);
   const linkOriginInvalid = linkOriginText !== '' && linkOrigin === null;
-  const linkOriginDirty = (linkOrigin ?? linkOriginText) !== before.publicOrigin;
+  // Set by the server's operator: shown read-only, never sent.
+  const originLocked = isLocked(initialEmail.locks?.publicOrigin);
+  const linkOriginDirty = !originLocked && (linkOrigin ?? linkOriginText) !== before.publicOrigin;
 
   // --- marketing mail: the postal address and the reply address --------------
   const postalText = values.postalAddress.trim();
@@ -1311,29 +1315,33 @@ function WorkspaceForm({
               shapes the message rather than the relay and saves without one.
               The row pattern is the cap's own. */}
           <div id="email-link-origin" className="mt-4 border-t border-border pt-4 sm:max-w-md">
-            <FormField
-              label={t('studio:settingsHub.email.linkOrigin.label', 'Address in email links')}
-              helper={t(
-                'studio:settingsHub.email.linkOrigin.helper',
-                'Password-reset and invitation links open this address. If it is empty, Adminium fills it in from the next admin who signs in or saves a change, unless they are on localhost.',
-              )}
-              {...(linkOriginInvalid
-                ? {
-                    error: t(
-                      'studio:settingsHub.email.linkOrigin.error',
-                      'Enter an address such as https://admin.example.com, with no path.',
-                    ),
-                  }
-                : {})}
-            >
-              <Input
-                inputMode="url"
-                autoComplete="off"
-                spellCheck={false}
-                value={values.publicOrigin}
-                onChange={(event) => set('publicOrigin', event.target.value)}
-              />
-            </FormField>
+            {originLocked ? (
+              <LinkOriginLocked origin={initialEmail.publicOrigin} />
+            ) : (
+              <FormField
+                label={t('studio:settingsHub.email.linkOrigin.label', 'Address in email links')}
+                helper={t(
+                  'studio:settingsHub.email.linkOrigin.helper',
+                  'Password-reset and invitation links open this address. If it is empty, Adminium fills it in from the next admin who signs in or saves a change, unless they are on localhost.',
+                )}
+                {...(linkOriginInvalid
+                  ? {
+                      error: t(
+                        'studio:settingsHub.email.linkOrigin.error',
+                        'Enter an address such as https://admin.example.com, with no path.',
+                      ),
+                    }
+                  : {})}
+              >
+                <Input
+                  inputMode="url"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={values.publicOrigin}
+                  onChange={(event) => set('publicOrigin', event.target.value)}
+                />
+              </FormField>
+            )}
           </div>
 
           <div className="mt-4 border-t border-border pt-4 sm:max-w-xs">
