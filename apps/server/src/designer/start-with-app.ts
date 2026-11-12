@@ -25,6 +25,7 @@ import { approveBuild, buildFingerprint, readAppBuild, type AppBuildFile } from 
 import { APPS_DIR } from '../project/apps/read-app.js';
 import { appKeyProblem } from '../project/apps/scaffold-app.js';
 import { SourceArchiveError, fetchSourceArchive, readSource, sourceArchiveUrl } from '../project/apps/source-archive.js';
+import { refuseOwnCode } from '../trial/own-code.js';
 
 export type StartStepId = 'get' | 'make' | 'build';
 export interface StartStep {
@@ -275,6 +276,8 @@ export function createStarter(host: StarterHost): Starter {
     keyProblem,
     buildFor,
     async start(input) {
+      // A copy fetches a repository and runs its build: not while the operator keeps own code off (`trial/own-code.ts`).
+      refuseOwnCode('ownBuilds');
       if (busy) throw new ConflictError('Another app is being copied. Wait for it to finish.', 'CONFLICT', { reason: 'COPY_RUNNING' });
       busy = true;
       try {

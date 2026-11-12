@@ -14,6 +14,7 @@
  */
 import type { DesignerCard } from './cards.js';
 import type { Picked } from './picked.js';
+import type { PolicyReason } from '../trial/policy.js';
 
 export type TurnOutcome = 'done' | 'stopped' | 'limit' | 'failed' | 'not-applied';
 /** `turn-tokens` and `session-tokens` end no turn since D92; a session written before it may still hold them. */
@@ -46,6 +47,8 @@ export type DesignerEventBody =
       /** A read of Figma that did not happen: the person's reads are paused until then (epoch ms), dated when Figma said when. */
       until?: number;
       dated?: boolean;
+      /** The server's operator turned this tool or this file off: why, as `trial/policy.ts` names it. */
+      operator?: PolicyReason;
     }
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
   | { kind: 'spend'; which: SpendMark; mark: number; used: number }

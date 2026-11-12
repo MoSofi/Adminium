@@ -33,6 +33,7 @@ import type { z } from 'zod';
 import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/read-app.js';
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { refuseOwnCodeHook } from '../../trial/own-code.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, labelOf, withSessionLock, type Attachment, type Attachments } from '../../designer/attachments.js';
 import { clearTemplateNote, listSiteTemplates, readTemplateNote, SITE_TEMPLATES_DIR, walkFolder } from '../../designer/site/folder.js';
@@ -558,7 +559,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
     app.post(
       '/designer/sessions/:id/attachments/site',
       {
-        onRequest: app.requireAuth,
+        // A site's zip is an upload: refused before its bytes are read while the operator keeps them off (`trial/own-code.ts`).
+        onRequest: [app.requireAuth, refuseOwnCodeHook('designerUploads')],
         preHandler: guard,
         bodyLimit: SITE_BODY_LIMIT,
         config: { rateLimitBucket: 'designer-files', audit: auditExempt('a site template attached to a Designer session changes nothing by itself; the turn that builds from it is audited') },
@@ -931,7 +933,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       '/designer/styles',
       {
         preHandler: guard,
-        onRequest: app.requireAuth,
+        // A style of one's own is an upload too (`trial/own-code.ts`).
+        onRequest: [app.requireAuth, refuseOwnCodeHook('designerUploads')],
         bodyLimit: SKILL_UPLOAD_MAX_BYTES + 64 * 1024,
         config: { rateLimitBucket: 'designer-files' as const, audit: auditExempt('the Designer audits a style added to the project itself, with its name') },
         schema: { querystring: designerStyleUploadQuery, response: { 201: designerStyleAddedReply } },
@@ -1027,6 +1030,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
     app.put(
       '/designer/sessions/:id/files',
       {
+        // The Code tab's hand save: off with the Designer's uploads (`trial/own-code.ts`), said before the body is judged.
+        preValidation: [app.requireAuth, refuseOwnCodeHook('designerUploads')],
         preHandler: guard,
         bodyLimit: FILES_SAVE_BODY_BYTES,
         config: { ...RATE, audit: auditExempt('the Designer audits a hand save itself, with the files and the version it made') },
@@ -1187,6 +1192,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
     app.post(
       '/designer/start',
       {
+        // A copy fetches a repository and runs its build (`trial/own-code.ts`), said before the body is judged.
+        preValidation: [app.requireAuth, refuseOwnCodeHook('ownBuilds')],
         preHandler: guard,
         config: { ...RATE, audit: auditExempt('a copy is audited by the Designer itself, once it is applied') },
         schema: { body: designerStartBody, response: { 202: designerStartJob } },
