@@ -23,21 +23,24 @@ import { z } from 'zod';
 import { auditExempt } from '../../audit/coverage.js';
 import { verifyPassword } from '../../auth/passwords.js';
 import type { LocalDatabases } from '../../connections/local-databases.js';
-import { AppError, ConflictError } from '../../errors.js';
+import { AppError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { SetByOperatorError, settingLockSchema } from '../../trial/operator-lock.js';
 import { RATE_LIMIT_BUCKETS } from '../auth/index.js';
 
 export const localDatabasesReply = z.object({
   allowed: z.boolean(),
   on: z.boolean(),
-  reason: z.enum(['not-allowed']).nullable(),
+  /** Set by the operator: `not-allowed` (`ADMINIUM_LOCAL_DATABASES=off`), or the profile's reason (`trial/operator-lock.ts`). */
+  reason: settingLockSchema.shape.reason,
   hosts: z.array(z.string()),
   turnedOn: z.object({ by: z.string(), at: z.number() }).nullable(),
   loopbackAllowed: z.boolean(),
 });
 const localDatabasesBody = z.object({ on: z.boolean(), password: z.string().max(1000).optional() });
 
-const AUDIT = 'connections.allowLocalDatabases';
+const SETTING = 'connections.allowLocalDatabases';
+const AUDIT = SETTING;
 
 export interface LocalDatabasesRoutesDeps {
   meta: MetaDb;
@@ -85,13 +88,11 @@ export function localDatabasesRoutes(deps: LocalDatabasesRoutesDeps): FastifyPlu
           });
         if (request.body.on) {
           // The operator's word first: no password is asked for a switch that cannot move.
-          if (!(await deps.localDatabases.state()).allowed) {
-            await audit('refused', { reason: 'not-allowed' });
-            throw new ConflictError(
-              'The server’s operator has locked this off (ADMINIUM_LOCAL_DATABASES=off): only the hosts in ADMINIUM_DATABASE_HOSTS are allowed.',
-              'CONFLICT',
-              { reason: 'not-allowed' },
-            );
+          const state = await deps.localDatabases.state();
+          if (!state.allowed) {
+            const reason = state.reason ?? 'not-allowed';
+            await audit('refused', { reason });
+            throw new SetByOperatorError(SETTING, reason);
           }
           const stored = await usersRepo(deps.meta).findById(user.id);
           const given = request.body.password ?? '';
@@ -103,7 +104,7 @@ export function localDatabasesRoutes(deps: LocalDatabasesRoutesDeps): FastifyPlu
         const refused = await deps.localDatabases.set(request.body.on, user.id);
         if (refused !== null) {
           await audit('refused', { reason: refused });
-          throw new ConflictError('The server’s operator has locked this off.', 'CONFLICT', { reason: refused });
+          throw new SetByOperatorError(SETTING, refused);
         }
         await audit(request.body.on ? 'on' : 'off', { on: request.body.on });
         return deps.localDatabases.state();

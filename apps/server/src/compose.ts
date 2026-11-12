@@ -2115,7 +2115,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // here. They gate on the same once-only setup window — see routes/setup/store.ts.
       await api.register(
         setupStoreRoutes({
-          service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired }),
+          service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired, policy: app.trialPolicy }),
           env,
           ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
         }),
@@ -2259,13 +2259,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // from `process.env`: the composition root already holds the parsed env,
         // and a route reading process.env directly is invisible to the desktop and
         // CLI wrappers that build their own Env.
-        settingsRoutes({ meta, emailKey: emailSecretKey(env.ADMINIUM_SECRET) }),
+        settingsRoutes({ meta, emailKey: emailSecretKey(env.ADMINIUM_SECRET), policy: app.trialPolicy }),
       );
       // "Allow databases on this server": a Super Admin's switch the operator can lock off. Read
       // now, so the guard counts it from the first request; a store not migrated yet holds nothing on.
       const localDatabases = createLocalDatabases({
         meta,
         mode: localDatabasesMode(env),
+        policy: app.trialPolicy,
         hosts: env.ADMINIUM_DATABASE_HOSTS,
         loopbackRefused: manager.blockLoopback,
         apply: (on) => {

@@ -26,6 +26,8 @@ import { ValidationFailedError } from '../../errors.js';
 import { raiseMoneyRedirect } from '../../payments/alarms.js';
 import { payAddressMovedWith } from '../../payments/links.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { effectiveValue, refuseLockedChange, settingLock } from '../../trial/operator-lock.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
 import {
   PUBLIC_ORIGIN_SETTING,
   normalizePublicOrigin,
@@ -69,6 +71,12 @@ export interface SettingsRoutesDeps {
    * derivation this module can do for itself.
    */
   emailKey?: Uint8Array;
+  /**
+   * Trial mode and the hosted profile (`trial/policy.ts`): which settings the
+   * operator has set, shown read-only and refused on save
+   * (`trial/operator-lock.ts`). Default: an ordinary server's, nothing locked.
+   */
+  policy?: Pick<TrialPolicy, 'allows'>;
 }
 
 /** The stored shape of the `email.smtp` registry key. */
@@ -248,13 +256,26 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
     return { data: { sessionTtlHours, require2fa, passwordMinLength } };
   }
 
-  /** The two outbound-call consents. */
+  const policy = deps.policy ?? ORDINARY_POLICY;
+  const telemetryLocks = () => ({
+    telemetry: settingLock(policy, 'telemetry.enabled'),
+    updateCheck: settingLock(policy, 'updates.checkEnabled'),
+  });
+
+  /** The two outbound-call consents, as they are in force: a locked one reads as the value it is locked to. */
   async function telemetryReply(): Promise<SettingsTelemetryReply> {
     const [telemetry, updateCheck] = await Promise.all([
       settings.get('telemetry.enabled'),
       settings.get('updates.checkEnabled'),
     ]);
-    return { data: { telemetry, updateCheck } };
+    const locks = telemetryLocks();
+    return {
+      data: {
+        telemetry: effectiveValue('telemetry.enabled', locks.telemetry, telemetry),
+        updateCheck: effectiveValue('updates.checkEnabled', locks.updateCheck, updateCheck),
+        locks,
+      },
+    };
   }
 
   return async (app) => {
@@ -444,6 +465,9 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         schema: { body: settingsTelemetryPutBody, response: { 200: settingsTelemetryReply } },
       },
       async (request) => {
+        // The operator's word first: a change to a locked one is refused, and nothing is written.
+        refuseLockedChange(policy, 'telemetry.enabled', request.body.telemetry);
+        refuseLockedChange(policy, 'updates.checkEnabled', request.body.updateCheck);
         const before = (await telemetryReply()).data;
         const next = request.body;
         const at = app.rbac.now();
@@ -465,7 +489,7 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'settings.telemetry.update',
-          changes: { before: { ...before }, after: { ...next } },
+          changes: { before: { telemetry: before.telemetry, updateCheck: before.updateCheck }, after: { ...next } },
         });
 
         return telemetryReply();

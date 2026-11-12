@@ -34,6 +34,13 @@
  */
 import type { Env } from '../config/env.js';
 
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** This server's policy, built once from its environment (`app.ts`). */
+    trialPolicy: TrialPolicy;
+  }
+}
+
 export type Profile = 'off' | 'trial' | 'hosted';
 
 /** Why something is not allowed. Stable: the dashboard and the API's error details carry it. */
@@ -292,3 +299,18 @@ export function trialPolicy(env: PolicyEnv, clock: () => number = Date.now): Tri
         : null,
   };
 }
+
+/** An ordinary server's policy: everything allowed. The default of a route or service a harness builds without one. */
+export const ORDINARY_POLICY: TrialPolicy = trialPolicy({
+  ADMINIUM_TRIAL_MODE: false,
+  ADMINIUM_HOSTED_MODE: false,
+  ADMINIUM_TRIAL_ENDS_AT: undefined,
+  ADMINIUM_TRIAL_UPGRADE_URL: undefined,
+  ADMINIUM_PUBLIC_ORIGIN: undefined,
+  ADMINIUM_TRIAL_DATA_MAX_MB: 500,
+  ADMINIUM_TRIAL_UPLOAD_MAX_MB: 10,
+  ADMINIUM_TRIAL_STORAGE_MAX_MB: 1000,
+  ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY: 50,
+  ADMINIUM_AI_OPERATOR_ONLY: false,
+  ADMINIUM_AI_OPERATOR_SCOPE: undefined,
+});
