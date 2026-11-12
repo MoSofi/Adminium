@@ -2185,5 +2185,13 @@
     "aiAddress": "The operator does not allow an AI address of your own on this installation.",
     "payments": "The operator has switched payment services off for this installation.",
     "askOperator": "Only whoever runs this installation can change this."
+  },
+  "sizeCap": {
+    "notice": "This database is over the trial’s {limit} MB limit, so it is read-only. Delete some rows to continue.",
+    "usage": "{used} / {limit} MB",
+    "limitMark": "{limit} MB limit",
+    "dataOver": "This database is over the trial’s size limit, so it is read-only. Delete some rows to continue.",
+    "storageOver": "This installation’s files are over the trial’s limit, so nothing more can be stored. Delete some files to continue.",
+    "extraSources": "A trial connects at most 3 databases. Remove one to connect another."
   }
 }

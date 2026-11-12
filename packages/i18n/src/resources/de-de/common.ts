@@ -2195,5 +2195,13 @@ export default {
     "aiAddress": "Der Betreiber erlaubt in dieser Installation keine eigene KI-Adresse.",
     "payments": "Der Betreiber hat Zahlungsdienste für diese Installation ausgeschaltet.",
     "askOperator": "Nur wer diese Installation betreibt, kann das ändern."
+  },
+  "sizeCap": {
+    "notice": "Diese Datenbank liegt über dem Limit des Tests von {limit} MB und ist daher schreibgeschützt. Löschen Sie einige Zeilen, um weiterzumachen.",
+    "usage": "{used} / {limit} MB",
+    "limitMark": "Limit {limit} MB",
+    "dataOver": "Diese Datenbank liegt über dem Größenlimit des Tests und ist daher schreibgeschützt. Löschen Sie einige Zeilen, um weiterzumachen.",
+    "storageOver": "Die Dateien dieser Installation liegen über dem Limit des Tests, daher kann nichts mehr gespeichert werden. Löschen Sie einige Dateien, um weiterzumachen.",
+    "extraSources": "Ein Test verbindet höchstens 3 Datenbanken. Entfernen Sie eine, um eine andere zu verbinden."
   }
 } as const;

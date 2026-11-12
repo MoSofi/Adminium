@@ -2185,5 +2185,13 @@
     "aiAddress": "Provozovatel v této instalaci nepovoluje vlastní adresu AI.",
     "payments": "Provozovatel pro tuto instalaci vypnul platební služby.",
     "askOperator": "Změnit to může jen ten, kdo tuto instalaci provozuje."
+  },
+  "sizeCap": {
+    "notice": "Tato databáze překročila limit zkušební verze {limit} MB, a je proto jen pro čtení. Pokračujte smazáním několika řádků.",
+    "usage": "{used} / {limit} MB",
+    "limitMark": "Limit {limit} MB",
+    "dataOver": "Tato databáze překročila limit velikosti zkušební verze, a je proto jen pro čtení. Pokračujte smazáním několika řádků.",
+    "storageOver": "Soubory této instalace překročily limit zkušební verze, a nic dalšího proto nelze uložit. Pokračujte smazáním několika souborů.",
+    "extraSources": "Zkušební verze připojí nejvýše 3 databáze. Chcete-li připojit jinou, jednu odeberte."
   }
 }

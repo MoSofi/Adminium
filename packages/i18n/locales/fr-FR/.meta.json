@@ -8559,6 +8559,30 @@
     "status": "mt",
     "srcHash": "a0a206cabf7e"
   },
+  "common.sizeCap.dataOver": {
+    "status": "mt",
+    "srcHash": "ae967bb7701f"
+  },
+  "common.sizeCap.extraSources": {
+    "status": "mt",
+    "srcHash": "7ebc8820080a"
+  },
+  "common.sizeCap.limitMark": {
+    "status": "mt",
+    "srcHash": "8d77db40881f"
+  },
+  "common.sizeCap.notice": {
+    "status": "mt",
+    "srcHash": "9307e123fc57"
+  },
+  "common.sizeCap.storageOver": {
+    "status": "mt",
+    "srcHash": "a3813557e53b"
+  },
+  "common.sizeCap.usage": {
+    "status": "mt",
+    "srcHash": "8f61a9b558b3"
+  },
   "common.states.appDisabled.body": {
     "status": "mt",
     "srcHash": "0f2554674eec"

@@ -92,6 +92,8 @@ interface Fixture {
   systemActions?: string[];
   /** Whether that app's sample data is loaded. */
   sampleLoaded?: boolean;
+  /** Trial mode, and what its size caps last measured. */
+  trial?: { readings: { connectionId: string; usedBytes: number; limitBytes: number; measuredAt: string; held: boolean }[] };
 }
 
 function stubFetch(fixture: Fixture = {}) {
@@ -161,6 +163,12 @@ function stubFetch(fixture: Fixture = {}) {
           activity: [],
         }),
       );
+    }
+    if (url === '/api/v1/system/info' && fixture.trial !== undefined) {
+      return Promise.resolve(jsonResponse(200, { trial: { on: true, endsAt: '2099-12-01T00:00:00Z', daysLeft: 9, upgradeUrl: null } }));
+    }
+    if (url === '/api/v1/system/size-caps') {
+      return Promise.resolve(jsonResponse(200, { data: fixture.trial?.readings ?? [], storage: null }));
     }
     if (url.startsWith('/api/v1/pages/page_overview')) {
       return Promise.resolve(fixture.dashboardReply?.() ?? jsonResponse(200, { data: makeDashboardEnvelope() }));
@@ -540,5 +548,37 @@ describe('an add-on’s generated page with its sample data loaded', () => {
     expect(await screen.findByText('Northwind')).toBeDefined();
     expect(screen.queryByTestId('app-sample-banner')).toBeNull();
     expect(asked(fetchMock)).toEqual([]);
+  });
+});
+
+// The trial's size cap: the notice on every page of a held database.
+describe('a page of a trial database over its size cap', () => {
+  const MB = 1024 * 1024;
+  const reading = (connectionId: string, held: boolean) => ({ connectionId, usedBytes: 512 * MB, limitBytes: 500 * MB, measuredAt: '2026-11-12T10:00:00Z', held });
+  const sizeCalls = (fetchMock: ReturnType<typeof vi.fn>) => fetchMock.mock.calls.filter((call) => String(call[0]).includes('/size-caps'));
+
+  it('says the database is over the limit and read-only, with how full it is', async () => {
+    await renderAt('/p/customers', { trial: { readings: [reading('conn_1', true)] } });
+    const notice = await screen.findByTestId('size-cap-notice');
+    expect(notice.getAttribute('role')).toBe('status');
+    expect(notice.textContent).toContain('This database is over the trial’s 500 MB limit, so it is read-only. Delete some rows to continue.');
+    expect(notice.textContent).toContain('512 / 500 MB');
+    expect(within(notice).getByTitle('500 MB limit')).toBeDefined();
+    // The page itself still renders below it.
+    expect(await screen.findByText('Northwind')).toBeDefined();
+  });
+
+  it('shows nothing for a database that is not held, or another database', async () => {
+    const { fetchMock } = await renderAt('/p/customers', { trial: { readings: [reading('conn_1', false), reading('conn_2', true)] } });
+    expect(await screen.findByText('Northwind')).toBeDefined();
+    await waitFor(() => expect(sizeCalls(fetchMock).length).toBeGreaterThan(0));
+    expect(screen.queryByTestId('size-cap-notice')).toBeNull();
+  });
+
+  it('asks nothing outside trial mode', async () => {
+    const { fetchMock } = await renderAt('/p/customers');
+    expect(await screen.findByText('Northwind')).toBeDefined();
+    expect(sizeCalls(fetchMock)).toHaveLength(0);
+    expect(screen.queryByTestId('size-cap-notice')).toBeNull();
   });
 });
