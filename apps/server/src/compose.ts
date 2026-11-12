@@ -3535,8 +3535,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * never a wait: a firewall that drops instead of refusing must not hold the
    * start. Asked for only by a command that starts a server for people
    * (`start`, `dev`, `design`, the desktop), never by composing one in a test.
+   * Not in trial mode: a trial sleeps and wakes many times a day, and each wake
+   * should cost a start and nothing more. Its daily tick and the Add-ons page
+   * still ask.
    */
-  if (opts.catalogBootRefresh === true) {
+  if (opts.catalogBootRefresh === true && app.trialPolicy.profile !== 'trial') {
     app.addHook('onReady', async () => {
       try {
         const stale = async (store: { readCatalogCache(): Promise<{ fetchedAt: number } | null> }): Promise<boolean> => {
