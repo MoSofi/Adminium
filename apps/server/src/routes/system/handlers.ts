@@ -7,6 +7,7 @@ import type { Env } from '../../config/env.js';
 import { connectProviders } from '../../connect/providers.js';
 import { demoSeedAvailable } from '../../desktop/demo-seed.js';
 import { lanShareActive } from '../../desktop/lan-share.js';
+import { trialPolicy } from '../../trial/policy.js';
 import { APP_VERSION } from '../../version.js';
 import type { SystemHealthzReply, SystemInfoReply, SystemReadyzReply } from './schema.js';
 
@@ -69,6 +70,8 @@ export interface SystemInfoDeps {
   designer?: 'local' | 'live' | 'off' | undefined;
   /** Whether `adminium design` signs its owner in with a one-use link. */
   designerLink?: boolean | undefined;
+  /** The clock the trial's days are counted on. Default `Date.now`. */
+  now?: (() => number) | undefined;
 }
 
 /**
@@ -111,7 +114,15 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     // The SAME predicate compose registers the route on — see `demo-seed.ts`.
     desktopDemo: demoSeedAvailable(env),
     connect: connectProviders(env).map((provider) => ({ provider: provider.id })),
+    trial: trialInfo(env, deps.now?.() ?? Date.now()),
   };
+}
+
+/** The trial's clock and the Upgrade address, as the banners read them. */
+function trialInfo(env: Env, now: number): SystemInfoReply['trial'] {
+  const policy = trialPolicy(env);
+  const state = policy.trial(now);
+  return { on: state.on, endsAt: state.endsAt, daysLeft: state.daysLeft, upgradeUrl: policy.upgradeUrl };
 }
 
 /**

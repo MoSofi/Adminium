@@ -258,6 +258,45 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "trial": {
+                      "type": "object",
+                      "properties": {
+                        "on": {
+                          "type": "boolean"
+                        },
+                        "endsAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "daysLeft": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "upgradeUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "on",
+                        "endsAt",
+                        "daysLeft",
+                        "upgradeUrl"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -271,7 +310,8 @@
                     "lanShare",
                     "deployLink",
                     "desktopDemo",
-                    "connect"
+                    "connect",
+                    "trial"
                   ],
                   "additionalProperties": false
                 }

@@ -136,5 +136,23 @@ export const systemInfoReply = z.object({
    * `POST /connect/start`, signed in.
    */
   connect: z.array(z.object({ provider: z.enum(CONNECT_PROVIDER_IDS) })),
+  /**
+   * Trial mode (plan 75 §5.1, `trial/policy.ts`): the banners' words and the
+   * Upgrade button. Signed out too: the sign-in and setup pages show the
+   * banners. Nothing here is a secret: the end date is the instance's own, and
+   * the Upgrade address is the operator's public page.
+   *
+   * The end is a STATE read from `endsAt` (at or past it, the trial has ended),
+   * never a count of 0: `daysLeft` counts a part day as one, so the last day
+   * reads 1, and is null once the trial has ended.
+   */
+  trial: z.object({
+    on: z.boolean(),
+    /** ISO 8601, UTC. Null outside trial mode. */
+    endsAt: z.string().nullable(),
+    daysLeft: z.number().int().positive().nullable(),
+    /** The operator's Upgrade page with `?instance=` added; null when unset (no button) or outside trial mode. */
+    upgradeUrl: z.string().nullable(),
+  }),
 });
 export type SystemInfoReply = z.infer<typeof systemInfoReply>;
