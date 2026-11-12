@@ -58,6 +58,10 @@ export type ErrorCode =
   | 'SETUP_TOKEN_INVALID'
   /** 409: the server's operator set this in the environment, so it cannot be changed here (`trial/operator-lock.ts`). */
   | 'SET_BY_OPERATOR'
+  // 403: the operator turned own code off (`trial/own-code.ts`): uploads of packages, uploads and hand edits in the Designer, code the server would run.
+  | 'PACKAGE_UPLOADS_OFF'
+  | 'DESIGNER_UPLOADS_OFF'
+  | 'OWN_CODE_OFF'
   | 'INTERNAL';
 
 /** The wire shape of every non-2xx response. */
