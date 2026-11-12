@@ -86,6 +86,14 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'studio/payments/PaymentsPage.tsx': [],
   // A trial's size cap (`operatorSwitches`): the notice on a held database's pages waits for its words.
   'pages/sizeCapNotice.tsx': [],
+  // Five page templates' words (`board`, `calendar`, `scheduler`, `chat`, `planning`): each binding is fetched with its page.
+  'pages/PageBoardBinding.tsx': [],
+  'pages/PageCalendarBinding.tsx': [],
+  'pages/PageChatBinding.tsx': [],
+  'pages/PageSchedulerBinding.tsx': [],
+  'pages/planning/PlanningRecordDrawer.tsx': [],
+  // A trial's strips, its Upgrade and its read-only state (`trial`): fetched on a trial only, each strip waits.
+  'trial/TrialStrips.tsx': [],
   'shown-in/ShownIn.tsx': [],
   'shown-in/ShownInField.tsx': [],
   // Workspaces (`workspaces`): the grouped rail and its menu, the link rule, the lists that follow them, Data connections and the defaults row.
