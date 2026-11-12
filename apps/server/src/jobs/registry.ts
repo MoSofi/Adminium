@@ -51,6 +51,11 @@ export interface RegisteredJobHandler {
    * PII-capability capture on those routes.
    */
   internal: boolean;
+  /**
+   * Hidden kinds are the server operator's, not the instance's: the jobs
+   * routes never list, show or cancel them (`operator/events.ts`).
+   */
+  hidden: boolean;
   /** Run the handler with an already-`schema`-parsed payload. */
   run(parsedPayload: unknown, ctx: JobHandlerContext): Promise<unknown>;
 }
@@ -58,6 +63,8 @@ export interface RegisteredJobHandler {
 export interface RegisterJobHandlerOptions {
   /** Mark a kind enqueueable only internally — refused by `POST /jobs`. */
   internal?: boolean;
+  /** Keep a kind out of the jobs routes altogether (implies nothing about `internal`). */
+  hidden?: boolean;
 }
 
 /** Creates an isolated registry (one per server; fresh per test). */
@@ -83,6 +90,7 @@ export function createJobRegistry() {
         schema,
         handler: handler as JobHandler<never>,
         internal: opts.internal ?? false,
+        hidden: opts.hidden ?? false,
         run: async (parsedPayload, ctx) => await handler(parsedPayload as T, ctx),
       });
     },
@@ -97,6 +105,11 @@ export function createJobRegistry() {
 
     kinds(): string[] {
       return [...handlers.keys()];
+    },
+
+    /** The kinds the jobs routes never show ({@link RegisterJobHandlerOptions.hidden}). */
+    hiddenKinds(): string[] {
+      return [...handlers.values()].filter((entry) => entry.hidden).map((entry) => entry.kind);
     },
   };
 }

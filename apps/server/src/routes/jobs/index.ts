@@ -109,6 +109,12 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
     finishedAt: number | null;
   }
 
+  /** A job these routes may show: a hidden kind (the server operator's) is as if it did not exist. */
+  const findShown = async (id: string): Promise<Job | null> => {
+    const job = await jobs.findById(id);
+    return job === null || registry.get(job.kind)?.hidden === true ? null : job;
+  };
+
   const toView = (job: JobViewSource): JobView => {
     const progress =
       worker.getProgress(job.id) ?? (job.status === 'succeeded' ? { pct: 100 } : null);
@@ -224,7 +230,7 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
       { schema: { params: jobsGetParams, response: { 200: jobsGetReply } } },
       async (request) => {
         const user = await requireUser(request);
-        const job = await jobs.findById(request.params.id);
+        const job = await findShown(request.params.id);
         if (job === null) throw new NotFoundError(`Job ${request.params.id} not found.`);
         if (!(await canAccessJob(user, job, JOBS_READ_PERMISSION))) {
           throw new ForbiddenError('You do not have access to this job.');
@@ -246,6 +252,8 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
         // Ids sorted, rows fetched after: a job's payload can outgrow MySQL's sort buffer (`inIdOrder`).
         let query = meta.db.selectFrom('adminium_jobs').select('id');
         if (kind !== undefined) query = query.where('kind', '=', kind);
+        const hidden = registry.hiddenKinds();
+        if (hidden.length > 0) query = query.where('kind', 'not in', hidden);
         if (status !== undefined) query = query.where('status', '=', status);
         if (cursor !== undefined) {
           const after = decodeCursor(cursor);
@@ -280,7 +288,7 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
       { schema: { params: jobsGetParams, response: { 200: jobsCancelReply } } },
       async (request) => {
         const user = await requireUser(request);
-        const job = await jobs.findById(request.params.id);
+        const job = await findShown(request.params.id);
         if (job === null) throw new NotFoundError(`Job ${request.params.id} not found.`);
         if (!(await canAccessJob(user, job, JOBS_MANAGE_PERMISSION))) {
           throw new ForbiddenError('You cannot cancel this job.');
