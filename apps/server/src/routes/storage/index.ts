@@ -36,6 +36,7 @@ import { audited } from '../../audit/coverage.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { LOCAL_DESTINATION_ID, type DestinationResolver } from '../../files/destinations.js';
 import { FILES_MIGRATE_KIND } from '../../jobs/files-migrate.js';
+import { policyOf, refuseUnlessAllowed } from '../../trial/refuse.js';
 import {
   destinationCreateBody,
   destinationIdParams,
@@ -95,6 +96,18 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
   return async (app) => {
     app.addHook('preHandler', app.rbac.require(STORAGE_MANAGE_PERMISSION));
 
+    /**
+     * Trial mode and the hosted profile keep every file under the data dir: the
+     * default `local` destination only. Making, testing, changing or picking
+     * another one would make this server call an address a stranger chose.
+     */
+    const localOnly = (): void =>
+      refuseUnlessAllowed(
+        policyOf(app),
+        'storageDestinations',
+        'The operator keeps this installation\'s files on its own disk, so storage destinations cannot be added, tested or changed here.',
+      );
+
     app.get(
       '/storage/destinations',
       { schema: { response: { 200: destinationsListReply } } },
@@ -108,6 +121,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
         schema: { body: destinationCreateBody, response: { 201: destinationReply } },
       },
       async (request, reply) => {
+        localOnly();
         // A remote driver with no credential is almost always a mistake, and it
         // fails later as an opaque 403 from the provider. WebDAV is the
         // exception: an anonymous share behind a VPN is a real configuration.
@@ -145,6 +159,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: destinationIdParams, body: destinationPatchBody, response: { 200: destinationReply } },
       },
       async (request) => {
+        if (request.body.config !== undefined || request.body.secret !== undefined) localOnly();
         const before = await load(request.params.id);
         if (request.body.config !== undefined) await resolver.checkAllowed(before.driver, request.body.config);
         const updated = await repo.update(
@@ -220,6 +235,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: destinationIdParams, response: { 200: destinationTestReply } },
       },
       async (request) => {
+        localOnly();
         const row = await load(request.params.id);
         // The address as it resolves NOW, refused with its own status before anything is sent:
         // a stored row may predate the rule, or its name may answer differently today.
@@ -253,6 +269,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
         // Testing BEFORE the first save is the path that matters: an operator
         // typing bucket credentials should find out they are wrong without
         // first storing them.
+        localOnly();
         await resolver.checkAllowed(request.body.driver, request.body.config);
         const driver = resolver.driverForDraft({
           driver: request.body.driver,
@@ -276,6 +293,7 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
         schema: { params: destinationIdParams, response: { 200: destinationReply } },
       },
       async (request) => {
+        localOnly();
         const row = await load(request.params.id);
         if (row.disabled) {
           throw new ConflictError(
@@ -306,6 +324,8 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
         if (from === to) {
           throw new ValidationFailedError('The source and target destinations are the same.', { to: 'same-as-from' });
         }
+        // Files may still come HOME to the data dir (a destination carried in from before); never leave it.
+        if (to !== null) localOnly();
         // Both ends must exist BEFORE a job starts moving bytes; discovering a
         // bad id inside the worker means a half-migrated store and a failure
         // the operator sees minutes later.
