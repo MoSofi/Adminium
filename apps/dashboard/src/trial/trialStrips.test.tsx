@@ -193,6 +193,28 @@ describe('the strips’ own mounts outside the shell', () => {
     expect(screen.queryByTestId('trial-read-only')).toBeNull();
   });
 
+  it('keeps a field typed into as the strips arrive', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(200, { data: { appName: 'Adminium', logoUrl: null, showVersion: false } })));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    // The sign-in page paints before `/system/info` answers.
+    client.setQueryData(['system', 'info'], {});
+    render(
+      <QueryClientProvider client={client}>
+        <ThemeProvider>
+          <AuthScreenLayout documentTitle="Sign in">
+            <input aria-label="Email" />
+          </AuthScreenLayout>
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+    const field = screen.getByRole('textbox', { name: 'Email' });
+    await userEvent.setup().type(field, 'dana@');
+    act(() => client.setQueryData(['system', 'info'], { trial: trialEnding(9 * DAY) }));
+    expect(await screen.findByTestId('trial-test-environment')).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Email' })).toBe(field);
+    expect((field as HTMLInputElement).value).toBe('dana@');
+  });
+
   it('on the sign-in page of a server with no trial: the layout alone', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(200, { data: { appName: 'Adminium', logoUrl: null, showVersion: false } })));
     render(withInfo(undefined, <AuthScreenLayout documentTitle="Sign in"><form aria-label="Sign in" /></AuthScreenLayout>));

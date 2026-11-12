@@ -22,7 +22,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { CircleArrowUp, FlaskConical, Hourglass, Lock } from 'lucide-react';
-import { cloneElement, useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, Card, DropdownMenuItem, DropdownMenuSeparator } from '@adminium/ui';
 import { setWriteLock } from '@adminium/widgets';
@@ -207,16 +207,9 @@ export interface TrialPartProps {
   frame?: ReactElement<{ className?: string }>;
 }
 
-/** What `TrialMount` draws: the menu's Upgrade, the shell's strips, or the strips above a page that then shares the window with them. */
-export function TrialPart({ shell, menu, frame }: TrialPartProps): ReactNode {
-  if (menu === true) return <UpgradeMenuItem />;
-  if (frame === undefined) return <TrialStrips shell={shell === true} />;
-  return (
-    <div className="flex min-h-dvh flex-col">
-      <TrialStrips />
-      {cloneElement(frame, { className: 'min-h-0 flex-1' })}
-    </div>
-  );
+/** What `TrialMount` draws: the menu's Upgrade, or the strips (the shell's lock the page's writes once ended). */
+export function TrialPart({ shell, menu }: Omit<TrialPartProps, 'frame'>): ReactNode {
+  return menu === true ? <UpgradeMenuItem /> : <TrialStrips shell={shell === true} />;
 }
 
 /** The Export page's Upgrade card: keep this installation as it is. Shown on a trial with the operator's address set. */
