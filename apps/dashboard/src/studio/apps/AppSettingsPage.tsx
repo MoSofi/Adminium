@@ -68,6 +68,7 @@ import {
 import { getFormatters } from '@adminium/i18n';
 
 import { appSectionsOf, bootstrapQuery } from '../../app/bootstrap.js';
+import { OFF_LOOK, OperatorOffTip, useOwnCodeOff } from '../../app/ownCode.js';
 import { DEFAULT_BRANDING, brandingQuery } from '../../app/branding.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
@@ -197,6 +198,7 @@ function Loaded({ app, copies }: { app: InstalledApp; copies: readonly Installed
   const { data: overview } = useSuspenseQuery(appOverviewQuery(app.key, install));
   const acquisition = useAppAcquisition();
   const [error, setError] = useState<string | null>(null);
+  const uploadsOff = useOwnCodeOff('packageUploads');
   // What a finished action says (the comp's toasts), read out once.
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -331,11 +333,17 @@ function Loaded({ app, copies }: { app: InstalledApp; copies: readonly Installed
             </Button>
           )}
           {fromFolder ? null : own ? (
-            // An app someone made has no catalogue: a newer version comes as a file.
-            <Button className={HEADER_BUTTON} onClick={() => void navigate({ to: '/studio/apps', search: { upload: true } })}>
-              <Upload aria-hidden className="size-[15px]" />
-              {t('studio:apps.page.uploadNewer', 'Upload a newer version')}
-            </Button>
+            // An app someone made has no catalogue: a newer version comes as a file. Off, and said why, while the operator keeps uploads off.
+            <OperatorOffTip off={uploadsOff} why={t('studio:ownCode.appsOff', 'Uploads are turned off on this server by its operator. Install apps from the catalog.')}>
+              <Button
+                className={`${HEADER_BUTTON} ${OFF_LOOK}`}
+                aria-disabled={uploadsOff || undefined}
+                onClick={uploadsOff ? undefined : () => void navigate({ to: '/studio/apps', search: { upload: true } })}
+              >
+                <Upload aria-hidden className="size-[15px]" />
+                {t('studio:apps.page.uploadNewer', 'Upload a newer version')}
+              </Button>
+            </OperatorOffTip>
           ) : (
             <Button
               className={HEADER_BUTTON}

@@ -109,6 +109,12 @@ export interface SystemInfo {
    * `daysLeft` of 0 (`daysLeft` is null once it has ended).
    */
   trial?: TrialInfo;
+  /**
+   * The own code this server takes, each `{ allowed, reason }` (`apps/server/src/trial/own-code.ts`): uploads of
+   * add-ons and apps, uploads and hand edits in the Designer, builds of an app's own ("Start with an app"). Read
+   * with `ownCodeOff` (`app/ownCode.tsx`). Absent from a server older than the switch: everything is taken.
+   */
+  ownCode?: Record<'packageUploads' | 'designerUploads' | 'ownBuilds', { allowed: boolean; reason: string | null }>;
 }
 
 export interface TrialInfo {

@@ -12,6 +12,7 @@ import type { ReactNode } from 'react';
 import { ChevronRight, Ellipsis, LoaderCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Tooltip } from '@adminium/ui';
 
+import { OperatorOffTip } from '../../app/ownCode.js';
 import { t } from '../../i18n/t.js';
 import { crumbsOf, findFile, nameOf } from './fileTree.js';
 import { MENU_PANEL, MENU_ROW, TOOL_ICON } from './MoreMenu.js';
@@ -31,6 +32,7 @@ export function CodeBarEnd({ code }: { code: CodeFiles }): ReactNode {
   const file = found === null ? '' : nameOf(found.file.label);
   const unsaved = code.marks.size > 0;
   const discardLabel = t('designer:code.discardFile', 'Discard changes to {file}', { file });
+  const operatorOff = code.lock === 'operator';
   const saveLabel = code.count > 1 ? t('designer:code.saveCount', 'Save {count} files', { count: code.count }) : t('designer:code.save', 'Save');
 
   return (
@@ -66,14 +68,24 @@ export function CodeBarEnd({ code }: { code: CodeFiles }): ReactNode {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <button type="button" onClick={() => void code.save()} disabled={!code.canSave} aria-keyshortcuts="Control+S Meta+S" className={`${SMALL} bg-accent text-accent-fg shadow-glow hover:brightness-105 disabled:shadow-none`}>
-          {code.saving ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
-          {saveLabel}
-          {/* A darker patch of the button, not a lighter one: the cap's letters are small, and on a lightened accent they fall under 4.5:1. */}
-          <kbd dir="ltr" aria-hidden="true" className="rounded-[5px] bg-black/15 px-[5px] py-px font-mono text-[10.5px] font-semibold">
-            {saveKeyCap()}
-          </kbd>
-        </button>
+        {/* The operator keeps hand edits off: Save stays in its place, off, and says why on hover and focus. */}
+        <OperatorOffTip off={operatorOff} why={t('designer:ownCode.codeOff', 'Hand edits are turned off on this server by its operator. Ask the Designer for the change.')}>
+          <button
+            type="button"
+            onClick={operatorOff ? undefined : () => void code.save()}
+            disabled={!operatorOff && !code.canSave}
+            aria-disabled={operatorOff || undefined}
+            aria-keyshortcuts="Control+S Meta+S"
+            className={`${SMALL} bg-accent text-accent-fg shadow-glow hover:brightness-105 disabled:shadow-none aria-disabled:cursor-not-allowed aria-disabled:opacity-45 aria-disabled:shadow-none`}
+          >
+            {code.saving ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
+            {saveLabel}
+            {/* A darker patch of the button, not a lighter one: the cap's letters are small, and on a lightened accent they fall under 4.5:1. */}
+            <kbd dir="ltr" aria-hidden="true" className="rounded-[5px] bg-black/15 px-[5px] py-px font-mono text-[10.5px] font-semibold">
+              {saveKeyCap()}
+            </kbd>
+          </button>
+        </OperatorOffTip>
       </div>
     </div>
   );

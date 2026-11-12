@@ -30,6 +30,9 @@ const MAX_STYLESHEET_BYTES = 1024 * 1024;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const ACCEPT = [...IMAGE_TYPES, '.csv', 'text/csv', '.woff2', 'font/woff2', '.md', '.markdown', 'text/markdown', '.html', '.htm', 'text/html', '.css', 'text/css', '.zip', 'application/zip', 'application/x-zip-compressed'].join(',');
 
+/** Why a site template's zip or folder is not taken: the operator keeps uploads to the Designer off. */
+const siteOffWords = (): string => t('designer:ownCode.siteOff', 'Site templates are turned off on this server by its operator.');
+
 /** What a file with a message is; a site template (a zip) waits apart from the others. */
 export type AttachKind = 'image' | 'csv' | 'font' | 'doc' | 'html' | 'css' | 'site';
 
@@ -96,6 +99,8 @@ export interface AttachState {
   hasImage: boolean;
   /** A site template with the message: sent at drop where there is a session, at send where there is none. */
   site: SiteControl;
+  /** The operator keeps uploads to the Designer off: a site template's zip or folder is refused here, and said why. */
+  siteOff: boolean;
 }
 
 /**
@@ -213,12 +218,26 @@ export async function partsOf(file: Blob): Promise<Blob[]> {
   }
 }
 
-export function useAttach(opts: { sessionId?: string | undefined; notify?: ((title: string) => void) | undefined } = {}): AttachState {
-  const site = useSite(opts);
+export function useAttach(
+  opts: {
+    sessionId?: string | undefined;
+    notify?: ((title: string) => void) | undefined;
+    /** The operator keeps uploads to the Designer off (`useOwnCodeOff('designerUploads')`, read by the page). */
+    siteOff?: boolean | undefined;
+  } = {},
+): AttachState {
+  const given = useSite(opts);
+  const siteOff = opts.siteOff === true;
+  const [refused, setRefused] = useState<string | null>(null);
+  // A site's zip or folder is an upload: while the operator keeps those off, each way in says so instead. A template of the project's own still comes in.
+  const site = useMemo<SiteControl>(() => {
+    if (!siteOff) return given;
+    const say = (): void => setRefused(siteOffWords());
+    return { ...given, addZip: say, addFolder: say, addFiles: say };
+  }, [given, siteOff]);
   const siteHeld = useRef(site.current);
   siteHeld.current = site.current;
   const [files, setFiles] = useState<PendingFile[]>([]);
-  const [refused, setRefused] = useState<string | null>(null);
   const seq = useRef(0);
   const held = useRef<PendingFile[]>([]);
   held.current = files;
@@ -237,7 +256,8 @@ export function useAttach(opts: { sessionId?: string | undefined; notify?: ((tit
     for (const file of list) {
       const kind = kindOf(file);
       if (kind === 'site') {
-        site.addZip(file);
+        if (siteOff) why = siteOffWords();
+        else site.addZip(file);
         continue;
       }
       if (kind === null) {
@@ -264,7 +284,7 @@ export function useAttach(opts: { sessionId?: string | undefined; notify?: ((tit
     held.current = next;
     setFiles(next);
     setRefused(why);
-  }, [site.addZip]);
+  }, [site.addZip, siteOff]);
 
   const addFigma = useCallback((done: Pick<FigmaImport, 'importId' | 'pictureName' | 'outlineName'>) => {
     const next = [...held.current];
@@ -330,7 +350,7 @@ export function useAttach(opts: { sessionId?: string | undefined; notify?: ((tit
     return ids;
   }, [site.send]);
 
-  return useMemo(() => ({ files, refused, add, addFigma, remove, clear, upload, hasImage: files.some((entry) => entry.kind === 'image'), site }), [files, refused, add, addFigma, remove, clear, upload, site]);
+  return useMemo(() => ({ files, refused, add, addFigma, remove, clear, upload, hasImage: files.some((entry) => entry.kind === 'image'), site, siteOff }), [files, refused, add, addFigma, remove, clear, upload, site, siteOff]);
 }
 
 /** Whether the picked model reads pictures: asked the first time a picture is attached, and kept. */
@@ -463,10 +483,13 @@ export function AttachMenu({
               </span>
             </span>
           </DropdownMenuItem>
-          <DropdownMenuItem className={item} icon={<FolderUp />} onSelect={() => folderInput.current?.click()} data-part="attach-folder">
+          {/* A site template's folder is an upload: kept in the menu, unavailable, and saying why, as Figma does with network features off. */}
+          <DropdownMenuItem className={`${item} data-[disabled]:[&_svg]:text-fg-subtle`} icon={<FolderUp />} disabled={state.siteOff} onSelect={() => folderInput.current?.click()} data-part="attach-folder">
             <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[13px] font-bold leading-[1.45] text-fg">{t('designer:attach.folder', 'A folder…')}</span>
-              <span className="whitespace-normal text-[11.5px] font-medium leading-[1.45] text-fg-muted">{t('designer:attach.folderHelp', 'A site template, as a folder')}</span>
+              <span className={`text-[13px] font-bold leading-[1.45] ${state.siteOff ? 'text-fg-subtle' : 'text-fg'}`}>{t('designer:attach.folder', 'A folder…')}</span>
+              <span className="whitespace-normal text-[11.5px] font-medium leading-[1.45] text-fg-muted">
+                {state.siteOff ? siteOffWords() : t('designer:attach.folderHelp', 'A site template, as a folder')}
+              </span>
             </span>
           </DropdownMenuItem>
           <DropdownMenuItem className={`${item} data-[disabled]:[&_svg]:text-fg-subtle`} icon={<Frame />} disabled={figmaOff} onSelect={onFigma} data-part="attach-figma">

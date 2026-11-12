@@ -208,6 +208,7 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
           ...(event.ended === undefined ? {} : { ended: event.ended }),
           ...(event.until === undefined ? {} : { until: event.until }),
           ...(event.dated === undefined ? {} : { dated: event.dated }),
+          ...(event.operator === undefined ? {} : { operator: event.operator }),
         };
         if (at === -1) list.push(row);
         else list[at] = row;

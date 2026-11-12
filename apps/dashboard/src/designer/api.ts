@@ -507,6 +507,8 @@ export type StepFacts = {
   /** A Figma read that did not happen: the person's reads are paused until then (epoch ms), dated when Figma said when. */
   until?: number;
   dated?: boolean;
+  /** The server's operator turned this off (trial mode, the hosted profile): the line says so in fixed words. */
+  operator?: string;
 };
 
 /** One element of the previewed page, as the person pointed at it: what the screen said of it. */
