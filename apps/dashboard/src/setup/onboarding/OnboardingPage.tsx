@@ -21,7 +21,7 @@ import { engineForDsn } from '@adminium/widgets';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
-import { hasPendingBridgeTicket } from '../../studio/connect/bridgeSeed.js';
+import { hasPendingBridgeTicket } from '../../studio/connect/bridgeTicket.js';
 import { studioApi, waitForRestart } from '../../studio/api.js';
 import {
   INITIAL_WIZARD_STATE,

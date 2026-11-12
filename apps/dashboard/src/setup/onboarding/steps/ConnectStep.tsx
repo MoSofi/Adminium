@@ -42,7 +42,7 @@ import {
 import { ProviderConnect } from '../../../connect/ProviderConnect.js';
 import { t } from '../../../i18n/t.js';
 import { OffByOperatorNote, OffByOperatorTip, useOperatorSwitch } from '../../../settings/OffByOperator.js';
-import { hasPendingBridgeTicket } from '../../../studio/connect/bridgeSeed.js';
+import { hasPendingBridgeTicket } from '../../../studio/connect/bridgeTicket.js';
 import { ONBOARDING_ENGINES, type ExistingStore } from '../heldAnswers.js';
 
 /** `null` when the string is empty or well-formed; translated copy otherwise. */
