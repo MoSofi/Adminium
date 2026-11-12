@@ -108529,12 +108529,156 @@
                                 "reason"
                               ],
                               "additionalProperties": false
+                            },
+                            "smtp": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "size-cap",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
-                            "publicOrigin"
+                            "publicOrigin",
+                            "smtp"
                           ],
                           "additionalProperties": false
+                        },
+                        "relay": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "from": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "replyTo": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "caps": {
+                                  "type": "object",
+                                  "properties": {
+                                    "perDay": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "perHour": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "recipientsPerDay": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "perDay",
+                                    "perHour",
+                                    "recipientsPerDay"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "today": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "thisHour": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "people": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "waiting": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "limit": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "day",
+                                        "hour",
+                                        "recipients",
+                                        "bounces",
+                                        "system"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "nextAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "from",
+                                "replyTo",
+                                "caps",
+                                "today",
+                                "thisHour",
+                                "people",
+                                "waiting",
+                                "limit",
+                                "nextAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -108547,7 +108691,8 @@
                         "senders",
                         "maxAttachmentBytes",
                         "publicOrigin",
-                        "locks"
+                        "locks",
+                        "relay"
                       ],
                       "additionalProperties": false
                     }
@@ -108775,12 +108920,156 @@
                                 "reason"
                               ],
                               "additionalProperties": false
+                            },
+                            "smtp": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "size-cap",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "required": [
-                            "publicOrigin"
+                            "publicOrigin",
+                            "smtp"
                           ],
                           "additionalProperties": false
+                        },
+                        "relay": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "from": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "replyTo": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "caps": {
+                                  "type": "object",
+                                  "properties": {
+                                    "perDay": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "perHour": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "recipientsPerDay": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "perDay",
+                                    "perHour",
+                                    "recipientsPerDay"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "today": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "thisHour": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "people": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "waiting": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "limit": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "day",
+                                        "hour",
+                                        "recipients",
+                                        "bounces",
+                                        "system"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "nextAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "from",
+                                "replyTo",
+                                "caps",
+                                "today",
+                                "thisHour",
+                                "people",
+                                "waiting",
+                                "limit",
+                                "nextAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -108793,9 +109082,67 @@
                         "senders",
                         "maxAttachmentBytes",
                         "publicOrigin",
-                        "locks"
+                        "locks",
+                        "relay"
                       ],
                       "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/email/waiting": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "queuedAt": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "goesOutAt": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "to",
+                          "subject",
+                          "queuedAt",
+                          "goesOutAt"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
