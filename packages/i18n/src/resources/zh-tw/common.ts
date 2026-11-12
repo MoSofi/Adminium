@@ -2201,5 +2201,15 @@ export default {
     "sizeCapNotice": "此資料庫已超過試用版 {limit} MB 的上限，因此為唯讀。請刪除一些列以繼續。",
     "sizeCapUsage": "{used} / {limit} MB",
     "sizeCapLimit": "上限 {limit} MB"
+  },
+  "trial": {
+    "testEnvironment": "這是一個測試環境。請不要輸入真實的客戶資料。",
+    "daysLeft": "{count, plural, other {還剩 # 天}}",
+    "exportEverything": "匯出全部",
+    "upgrade": "升級",
+    "ended": "此試用已結束。",
+    "readOnly": "唯讀：此試用已結束",
+    "readOnlyChip": "唯讀",
+    "upgradeLine": "保留此安裝：一切維持原樣。"
   }
 } as const;

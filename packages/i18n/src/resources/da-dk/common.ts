@@ -2201,5 +2201,15 @@ export default {
     "sizeCapNotice": "Denne database er over prøvens grænse på {limit} MB, så den er skrivebeskyttet. Slet nogle rækker for at fortsætte.",
     "sizeCapUsage": "{used} / {limit} MB",
     "sizeCapLimit": "Grænse på {limit} MB"
+  },
+  "trial": {
+    "testEnvironment": "Dette er et testmiljø. Indtast venligst ikke rigtige kundedata.",
+    "daysLeft": "{count, plural, one {# dag tilbage} other {# dage tilbage}}",
+    "exportEverything": "Eksportér alt",
+    "upgrade": "Opgrader",
+    "ended": "Denne prøveperiode er slut.",
+    "readOnly": "Skrivebeskyttet: denne prøveperiode er slut",
+    "readOnlyChip": "Skrivebeskyttet",
+    "upgradeLine": "Behold denne installation: alt forbliver, som det er."
   }
 } as const;

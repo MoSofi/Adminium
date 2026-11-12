@@ -2201,5 +2201,15 @@ export default {
     "sizeCapNotice": "Tato databáze překročila limit zkušební verze {limit} MB, a je proto jen pro čtení. Pokračujte smazáním několika řádků.",
     "sizeCapUsage": "{used} / {limit} MB",
     "sizeCapLimit": "Limit {limit} MB"
+  },
+  "trial": {
+    "testEnvironment": "Toto je testovací prostředí. Nezadávejte sem prosím skutečná data zákazníků.",
+    "daysLeft": "{count, plural, one {Zbývá # den} few {Zbývají # dny} many {Zbývá # dne} other {Zbývá # dní}}",
+    "exportEverything": "Exportovat vše",
+    "upgrade": "Upgradovat",
+    "ended": "Tato zkušební verze skončila.",
+    "readOnly": "Jen pro čtení: tato zkušební verze skončila",
+    "readOnlyChip": "Jen pro čtení",
+    "upgradeLine": "Ponechat tuto instalaci: vše zůstane tak, jak je."
   }
 } as const;
