@@ -7,6 +7,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import { api } from '../../app/api.js';
+import type { SettingLock } from '../../settings/SetByOperator.js';
 
 /** The fields an admin TYPES — exactly what `PUT /settings/branding` takes. */
 export interface WorkspaceBrandingInput {
@@ -99,6 +100,11 @@ export interface EmailSettings {
    * the server has not learned it (apps/server/src/security/public-origin.ts).
    */
   publicOrigin: string | null;
+  /**
+   * What the server's operator set on this section: `publicOrigin` read-only
+   * while the environment decides it. Absent from a server older than the lock.
+   */
+  locks?: { publicOrigin: SettingLock };
 }
 
 export interface EmailSender {

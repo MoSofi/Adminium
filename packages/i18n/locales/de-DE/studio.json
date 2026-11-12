@@ -2728,7 +2728,8 @@
       "linkOrigin": {
         "error": "Geben Sie eine Adresse wie https://admin.example.com ohne Pfad ein.",
         "helper": "Links zum Zurücksetzen des Passworts und aus Einladungen öffnen diese Adresse. Ist sie leer, übernimmt Adminium sie vom nächsten Admin, der sich anmeldet oder eine Änderung speichert, außer er arbeitet über localhost.",
-        "label": "Adresse in E-Mail-Links"
+        "label": "Adresse in E-Mail-Links",
+        "operator": "Der Betreiber des Servers hat diese Adresse festgelegt. Links zum Zurücksetzen des Passworts und aus Einladungen öffnen immer sie."
       },
       "pass": {
         "error": "Zu diesem Benutzernamen gehört ein Passwort.",

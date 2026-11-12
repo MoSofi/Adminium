@@ -2728,7 +2728,8 @@
       "linkOrigin": {
         "error": "请输入类似 https://admin.example.com 的地址，不要包含路径。",
         "helper": "密码重置和邀请链接会打开此地址。如果留空，Adminium 会从下一位登录或保存更改的管理员处自动填写，但使用 localhost 时除外。",
-        "label": "邮件链接中的地址"
+        "label": "邮件链接中的地址",
+        "operator": "此地址由服务器运营方设置。密码重置和邀请链接始终打开此地址。"
       },
       "pass": {
         "error": "该用户名需要密码。",

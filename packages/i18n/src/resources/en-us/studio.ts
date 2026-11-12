@@ -2738,7 +2738,8 @@ export default {
       "linkOrigin": {
         "error": "Enter an address such as https://admin.example.com, with no path.",
         "helper": "Password-reset and invitation links open this address. If it is empty, Adminium fills it in from the next admin who signs in or saves a change, unless they are on localhost.",
-        "label": "Address in email links"
+        "label": "Address in email links",
+        "operator": "The server’s operator set this address. Password-reset and invitation links always open it."
       },
       "pass": {
         "error": "This username needs a password.",
