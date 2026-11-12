@@ -19,7 +19,7 @@ import { useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { engineForDsn } from '@adminium/widgets';
 
-import { ApiError } from '../../app/api.js';
+import { api, ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { hasPendingBridgeTicket } from '../../studio/connect/bridgeTicket.js';
 import { studioApi, waitForRestart } from '../../studio/api.js';
@@ -332,13 +332,28 @@ export function OnboardingPage({
    */
   function finish(): void {
     setBusy(true);
-    const leave = (): void => {
+    const leave = (to: string): void => {
       setBusy(false);
-      router.history.push(handOffPath());
+      router.history.push(to);
     };
     void setTelemetry({ telemetry: consent.telemetry, updateCheck: consent.updateCheck })
-      .then(leave)
-      .catch(leave);
+      .catch(() => undefined)
+      .then(startPrompt)
+      .then(leave);
+  }
+
+  /**
+   * The operator's start prompt (`ADMINIUM_DESIGNER_START_PROMPT_B64`), where the server has one that has not run:
+   * the Designer opens on the dashboard it starts building. Anywhere else (no prompt, it ran, no model, no Designer)
+   * the server says no, and the wizard lets go as it always does.
+   */
+  async function startPrompt(): Promise<string> {
+    try {
+      const started = await api.post<{ sessionId: string }>('/api/v1/designer/start-prompt', {});
+      return `/design/${encodeURIComponent(started.sessionId)}`;
+    } catch {
+      return handOffPath();
+    }
   }
 
   /**

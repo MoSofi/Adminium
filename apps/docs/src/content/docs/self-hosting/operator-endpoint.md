@@ -89,7 +89,7 @@ curl -H "Authorization: Bearer $ADMINIUM_OPERATOR_TOKEN" http://10.0.0.2:4601/ap
 | `emails` | Emails sent through your mail relay today and this hour (UTC); `null` where this instance does not count them. |
 | `superAdminSignIns` | The last 20 sign-ins of the instance's Super Admins, newest first: when, and from which address. Nobody else's. |
 | `lastSignInAt` | When anybody last signed in; `null` when nobody has. |
-| `operatorAiTokens` | Tokens spent on your AI connection; `null` where this instance does not count them. |
+| `operatorAiTokens` | Tokens spent on your AI connection over the instance's life, every feature together; `null` where this instance does not count them (none of `ADMINIUM_AI_OPERATOR_ONLY`, `_SCOPE` or `_BUDGET_TOKENS` is set). |
 | `publicPages` | Whether you hid the public pages, why, and when. |
 
 It carries no row of anybody's data, and of a person no more than an audit row

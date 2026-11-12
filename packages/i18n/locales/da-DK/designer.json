@@ -1414,5 +1414,15 @@
     "startOff": "Slået fra på denne server af dens operatør: en kopi kører appens eget build.",
     "stylesOff": "Egne stilarter er slået fra på denne server af dens operatør.",
     "siteOff": "Webstedsskabeloner er slået fra på denne server af dens operatør."
+  },
+  "operatorAi": {
+    "label": "AI-nøgle påkrævet",
+    "scope": "At bygge skærme til kunder kræver din egen AI-nøgle.",
+    "usedUp": "Den AI, der følger med denne prøveperiode, er brugt op.",
+    "keyOrUpgrade": "Tilføj din egen AI-nøgle for at fortsætte, eller opgrader.",
+    "key": "Tilføj din egen AI-nøgle for at fortsætte.",
+    "addKey": "Tilføj en AI-nøgle",
+    "upgrade": "Opgrader",
+    "step": "Kræver din egen AI-nøgle"
   }
 }

@@ -1424,5 +1424,15 @@ export default {
     "startOff": "Auf diesem Server vom Betreiber abgeschaltet: Eine Kopie führt den eigenen Build der App aus.",
     "stylesOff": "Eigene Stile sind auf diesem Server vom Betreiber abgeschaltet.",
     "siteOff": "Website-Vorlagen sind auf diesem Server vom Betreiber abgeschaltet."
+  },
+  "operatorAi": {
+    "label": "KI-Schlüssel nötig",
+    "scope": "Für Bildschirme, die Kunden sehen, brauchen Sie Ihren eigenen KI-Schlüssel.",
+    "usedUp": "Die in dieser Testversion enthaltene KI ist aufgebraucht.",
+    "keyOrUpgrade": "Fügen Sie Ihren eigenen KI-Schlüssel hinzu, um weiterzumachen, oder führen Sie ein Upgrade durch.",
+    "key": "Fügen Sie Ihren eigenen KI-Schlüssel hinzu, um weiterzumachen.",
+    "addKey": "KI-Schlüssel hinzufügen",
+    "upgrade": "Upgrade",
+    "step": "Braucht Ihren eigenen KI-Schlüssel"
   }
 } as const;

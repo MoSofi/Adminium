@@ -51,6 +51,8 @@ let restoreI18n: () => void;
 const realFetch = globalThis.fetch;
 /** Whether `/system/info` lists "Connect Supabase" (the operator set a connect address). */
 let offerSupabase = false;
+/** The session the operator's start prompt runs in, where the server has one waiting. */
+let startPromptSession: string | null = null;
 beforeAll(() => {
   restoreI18n = installTestI18n();
   // Hermetic: once the account exists the page asks where the meta store is,
@@ -64,6 +66,9 @@ beforeAll(() => {
     }
     if (url.includes('/api/v1/system/info')) {
       return jsonResponse(200, { version: '0.3.57', node: 'v22', dialect: 'sqlite', runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, connect: offerSupabase ? [{ provider: 'supabase' }] : [] });
+    }
+    if (url.includes('/api/v1/designer/start-prompt') && startPromptSession !== null) {
+      return jsonResponse(201, { sessionId: startPromptSession, turn: 1 });
     }
     if (url.includes('/api/v1/setup/probe')) {
       return jsonResponse(200, {
@@ -84,6 +89,7 @@ afterEach(() => {
   savedWizardState.mockReset();
   pushed.length = 0;
   offerSupabase = false;
+  startPromptSession = null;
 });
 
 function renderPage(): void {
@@ -334,6 +340,14 @@ describe('finishing', () => {
     await userEvent.click(screen.getByRole('button', { name: /Go to dashboard/ }));
     await waitFor(() => expect(pushed).toContain('/'));
     expect(savedWizardState).not.toHaveBeenCalled();
+  });
+
+  it('opens the Designer on the operator’s start prompt, where the server has one waiting', async () => {
+    startPromptSession = 'ds_0123456789abcdef01234567';
+    await walkToDone(null);
+    await userEvent.click(screen.getByRole('button', { name: /Go to dashboard/ }));
+    await waitFor(() => expect(pushed).toContain('/design/ds_0123456789abcdef01234567'));
+    expect(vi.mocked(globalThis.fetch).mock.calls.some(([input, init]) => String(input).includes('/api/v1/designer/start-prompt') && init?.method === 'POST')).toBe(true);
   });
 
   it('hands "Connect Supabase" to the Studio wizard, which starts the sign-in once the account exists', async () => {

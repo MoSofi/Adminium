@@ -13,7 +13,7 @@
  * become views with a switch between them; the one out of sight is kept at
  * its size, so the preview's frame lives on and can still be looked at.
  */
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink } from 'lucide-react';
@@ -77,6 +77,9 @@ import { VIEW_IDS, ViewSwitch, type BuildView } from './ViewSwitch.js';
 import { WorkArea } from './WorkArea.js';
 
 export { CHAT_WIDTH } from './barLevel.js';
+
+/** The operator's fixed card ("needs your own AI key"): loaded the first time a turn ends with it. */
+const OperatorAiCard = lazy(async () => ({ default: (await import('../parts/OperatorAiCard.js')).OperatorAiCard }));
 
 /** The window's width, kept current. */
 function useWindowWidth(): number {
@@ -562,7 +565,13 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               />
             );
           })}
-          {turn.outcome === 'not-applied' && turn.notApplied !== null ? <NotAppliedNote message={turn.notApplied} /> : null}
+          {/* The operator's card stands in for the engine's own word on what it refused. */}
+          {turn.outcome === 'not-applied' && turn.notApplied !== null && turn.operatorAi === null ? <NotAppliedNote message={turn.notApplied} /> : null}
+          {turn.operatorAi === null ? null : (
+            <Suspense fallback={null}>
+              <OperatorAiCard which={turn.operatorAi} />
+            </Suspense>
+          )}
           {turn.outcome === 'stopped' ? (
             <StoppedNote
               busy={busy}

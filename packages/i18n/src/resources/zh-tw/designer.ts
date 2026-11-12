@@ -1424,5 +1424,15 @@ export default {
     "startOff": "此伺服器的營運方已關閉此功能：副本會執行應用程式自己的建置。",
     "stylesOff": "此伺服器的營運方已關閉自訂樣式。",
     "siteOff": "此伺服器的營運方已關閉網站範本。"
+  },
+  "operatorAi": {
+    "label": "需要 AI 金鑰",
+    "scope": "建構面向客戶的畫面需要您自己的 AI 金鑰。",
+    "usedUp": "此試用版包含的 AI 額度已用完。",
+    "keyOrUpgrade": "新增您自己的 AI 金鑰以繼續，或升級。",
+    "key": "新增您自己的 AI 金鑰以繼續。",
+    "addKey": "新增 AI 金鑰",
+    "upgrade": "升級",
+    "step": "需要您自己的 AI 金鑰"
   }
 } as const;
