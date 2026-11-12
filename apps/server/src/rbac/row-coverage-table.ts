@@ -685,4 +685,5 @@ export const JOB_ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'app-catalog-refresh': noRows('Refreshes the app catalogue.'),
   'app-sample-add': rows('system', 'Adds an app\'s sample rows as the system, under the manifests grant.'),
   'privacy.export': rows('system', 'Writes a person\'s data for the person who asked, read as the privacy search reads it, only while they still hold the privacy action.'),
+  'operator.event': rows('system', 'Tells the server\'s operator what strangers are served: a live form\'s published definition is read as the forms door serves it, as the system; no other row is read or sent.'),
 };
