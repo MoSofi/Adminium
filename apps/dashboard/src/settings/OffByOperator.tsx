@@ -53,11 +53,11 @@ export function offByOperatorWords(question: string): string {
       return t('operatorSwitches.payments', 'The operator has switched payment services off for this installation.');
     // A trial's size caps: a limit passed, not a switch.
     case 'dataOverCap':
-      return t('sizeCap.dataOver', 'This database is over the trial’s size limit, so it is read-only. Delete some rows to continue.');
+      return t('operatorSwitches.dataOverCap', 'This database is over the trial’s size limit, so it is read-only. Delete some rows to continue.');
     case 'storageOverCap':
-      return t('sizeCap.storageOver', 'This installation’s files are over the trial’s limit, so nothing more can be stored. Delete some files to continue.');
+      return t('operatorSwitches.storageOverCap', 'This installation’s files are over the trial’s limit, so nothing more can be stored. Delete some files to continue.');
     case 'extraSourceConnections':
-      return t('sizeCap.extraSources', 'A trial connects at most 3 databases. Remove one to connect another.');
+      return t('operatorSwitches.extraSources', 'A trial connects at most 3 databases. Remove one to connect another.');
     default:
       return t('operatorLock.lockedOff', 'The operator has switched this off for this installation.');
   }

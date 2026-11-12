@@ -2184,14 +2184,12 @@
     "aiProvider": "Operatøren tillader kun din egen nøgle til Anthropic, OpenAI eller Google på denne installation.",
     "aiAddress": "Operatøren tillader ikke en egen AI-adresse på denne installation.",
     "payments": "Operatøren har slået betalingstjenester fra for denne installation.",
-    "askOperator": "Kun den, der driver denne installation, kan ændre det."
-  },
-  "sizeCap": {
-    "notice": "Denne database er over prøvens grænse på {limit} MB, så den er skrivebeskyttet. Slet nogle rækker for at fortsætte.",
-    "usage": "{used} / {limit} MB",
-    "limitMark": "Grænse på {limit} MB",
-    "dataOver": "Denne database er over prøvens størrelsesgrænse, så den er skrivebeskyttet. Slet nogle rækker for at fortsætte.",
-    "storageOver": "Denne installations filer er over prøvens grænse, så der kan ikke gemmes mere. Slet nogle filer for at fortsætte.",
-    "extraSources": "En prøve forbinder højst 3 databaser. Fjern en for at forbinde en anden."
+    "askOperator": "Kun den, der driver denne installation, kan ændre det.",
+    "dataOverCap": "Denne database er over prøvens størrelsesgrænse, så den er skrivebeskyttet. Slet nogle rækker for at fortsætte.",
+    "storageOverCap": "Denne installations filer er over prøvens grænse, så der kan ikke gemmes mere. Slet nogle filer for at fortsætte.",
+    "extraSources": "En prøve forbinder højst 3 databaser. Fjern en for at forbinde en anden.",
+    "sizeCapNotice": "Denne database er over prøvens grænse på {limit} MB, så den er skrivebeskyttet. Slet nogle rækker for at fortsætte.",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "Grænse på {limit} MB"
   }
 }

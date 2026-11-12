@@ -7155,6 +7155,14 @@
     "status": "mt",
     "srcHash": "16f1e8cfae3e"
   },
+  "common.operatorSwitches.dataOverCap": {
+    "status": "mt",
+    "srcHash": "ae967bb7701f"
+  },
+  "common.operatorSwitches.extraSources": {
+    "status": "mt",
+    "srcHash": "7ebc8820080a"
+  },
   "common.operatorSwitches.metaFixed": {
     "status": "mt",
     "srcHash": "4b8aadd6bbc4"
@@ -7167,6 +7175,18 @@
     "status": "mt",
     "srcHash": "83c594e4c14a"
   },
+  "common.operatorSwitches.sizeCapLimit": {
+    "status": "mt",
+    "srcHash": "8d77db40881f"
+  },
+  "common.operatorSwitches.sizeCapNotice": {
+    "status": "mt",
+    "srcHash": "9307e123fc57"
+  },
+  "common.operatorSwitches.sizeCapUsage": {
+    "status": "mt",
+    "srcHash": "8f61a9b558b3"
+  },
   "common.operatorSwitches.sqlite": {
     "status": "mt",
     "srcHash": "24ec4991288d"
@@ -7174,6 +7194,10 @@
   "common.operatorSwitches.storage": {
     "status": "mt",
     "srcHash": "affb6c8d864e"
+  },
+  "common.operatorSwitches.storageOverCap": {
+    "status": "mt",
+    "srcHash": "a3813557e53b"
   },
   "common.operatorSwitches.unlistedHost": {
     "status": "mt",
@@ -8558,30 +8582,6 @@
   "common.shownIn.unseenChip": {
     "status": "mt",
     "srcHash": "a0a206cabf7e"
-  },
-  "common.sizeCap.dataOver": {
-    "status": "mt",
-    "srcHash": "ae967bb7701f"
-  },
-  "common.sizeCap.extraSources": {
-    "status": "mt",
-    "srcHash": "7ebc8820080a"
-  },
-  "common.sizeCap.limitMark": {
-    "status": "mt",
-    "srcHash": "8d77db40881f"
-  },
-  "common.sizeCap.notice": {
-    "status": "mt",
-    "srcHash": "9307e123fc57"
-  },
-  "common.sizeCap.storageOver": {
-    "status": "mt",
-    "srcHash": "a3813557e53b"
-  },
-  "common.sizeCap.usage": {
-    "status": "mt",
-    "srcHash": "8f61a9b558b3"
   },
   "common.states.appDisabled.body": {
     "status": "mt",

@@ -1,22 +1,49 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * What a page says above its template: that an app's sample data is loaded,
- * that a trial's database is over its size limit (`pageNotices.tsx`).
+ * What an installed app's own page — or an add-on's generated page — says
+ * above its template: that its sample data is loaded — to whoever manages apps, with a way to
+ * remove it. And in trial mode, on any page of a database over its size cap, that it is
+ * (`sizeCapNotice.tsx`).
  *
- * Wrapped around the built-in templates in `templateLoaders.ts`. Which notice
- * a page shows, and the notices themselves, are one chunk away: most pages
- * show none, so the entry carries only this wrapper.
+ * Wrapped around the built-in templates in `templateLoaders.ts`, so it rides
+ * the template chunks and never the entry: most pages belong to no app, and
+ * most people cannot manage one. The banner itself is one more chunk away.
  */
 import { Suspense, lazy } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from '@tanstack/react-router';
 
+import { bootstrapQuery, findPageBySlug, holdsSystemAction } from '../app/bootstrap.js';
+import { SizeCapPageNotice } from './sizeCapNotice.js';
 import type { PageTemplateComponent, PageTemplateProps } from './template-types.js';
 
-const PageNotices = lazy(() => import('./pageNotices.js'));
+// Through the app's settings page, already its own chunk: a chunk of the
+// banner's own would cost the entry a line in its preload table.
+const SampleDataBanner = lazy(() =>
+  import('../studio/apps/AppSettingsPage.js').then((module) => ({ default: module.SampleDataBanner })),
+);
+
+function AppPageNotice() {
+  const params = useParams({ strict: false });
+  const slug = typeof params.slug === 'string' ? params.slug : '';
+  const { data: bootstrap } = useQuery(bootstrapQuery());
+  const item = bootstrap === undefined ? null : findPageBySlug(bootstrap, slug);
+  // Whose page it is: an add-on's generated page names its add-on (and no app); an app's page names its app.
+  const owner = item?.addOnKey != null ? ({ kind: 'add-on', key: item.addOnKey } as const) : item?.appKey != null ? ({ kind: 'app', key: item.appKey } as const) : null;
+  if (bootstrap === undefined || owner === null || !holdsSystemAction(bootstrap, 'manifests.manage')) {
+    return null;
+  }
+  return (
+    <Suspense fallback={null}>
+      <SampleDataBanner appKey={owner.key} kind={owner.kind} />
+    </Suspense>
+  );
+}
 
 const wrapped = new WeakMap<PageTemplateComponent, PageTemplateComponent>();
 
 /**
- * The template, with the page's notices above it. One wrapper per template, as
+ * The template, with the app's notice above it. One wrapper per template, as
  * `withProjectScope` does it: a new component each time would remount the page.
  */
 export function withAppPageNotice(Template: PageTemplateComponent): PageTemplateComponent {
@@ -25,8 +52,9 @@ export function withAppPageNotice(Template: PageTemplateComponent): PageTemplate
   function WithAppPageNotice(props: PageTemplateProps) {
     return (
       <>
+        <AppPageNotice />
         <Suspense fallback={null}>
-          <PageNotices page={props.page} />
+          <SizeCapPageNotice page={props.page} />
         </Suspense>
         <Template {...props} />
       </>

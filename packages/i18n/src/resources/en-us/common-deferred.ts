@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces, appFiles, appCopies, operatorLock, operatorSwitches, sizeCap groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces, appFiles, appCopies, operatorLock, operatorSwitches groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -1468,14 +1468,12 @@ export default {
     "aiProvider": "The operator allows only your own key to Anthropic, OpenAI or Google on this installation.",
     "aiAddress": "The operator does not allow an AI address of your own on this installation.",
     "payments": "The operator has switched payment services off for this installation.",
-    "askOperator": "Only whoever runs this installation can change this."
-  },
-  "sizeCap": {
-    "notice": "This database is over the trial’s {limit} MB limit, so it is read-only. Delete some rows to continue.",
-    "usage": "{used} / {limit} MB",
-    "limitMark": "{limit} MB limit",
-    "dataOver": "This database is over the trial’s size limit, so it is read-only. Delete some rows to continue.",
-    "storageOver": "This installation’s files are over the trial’s limit, so nothing more can be stored. Delete some files to continue.",
-    "extraSources": "A trial connects at most 3 databases. Remove one to connect another."
+    "askOperator": "Only whoever runs this installation can change this.",
+    "dataOverCap": "This database is over the trial’s size limit, so it is read-only. Delete some rows to continue.",
+    "storageOverCap": "This installation’s files are over the trial’s limit, so nothing more can be stored. Delete some files to continue.",
+    "extraSources": "A trial connects at most 3 databases. Remove one to connect another.",
+    "sizeCapNotice": "This database is over the trial’s {limit} MB limit, so it is read-only. Delete some rows to continue.",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "{limit} MB limit"
   }
 } as const;
