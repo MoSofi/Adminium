@@ -994,5 +994,9 @@ export default {
     },
     "failed": "Nepodařilo se to uložit. Zkuste to znovu.",
     "docsLink": "Jak Odeslat jako vybírá odesílatele"
+  },
+  "trialRelay": {
+    "footer": "Odesláno z instalace na adrese {address} přes poštovní službu jejího provozovatele.",
+    "report": "Nahlásit tento e-mail"
   }
 } as const;

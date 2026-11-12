@@ -19,6 +19,7 @@ import { enforceProfile } from '../src/config/env.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { configureEmailRuntime, enqueueRenderedEmail, resetEmailRuntime, PASSWORD_RESET_TEMPLATE_KEY, NOTIFICATION_EMAIL_TEMPLATE_KEY } from '../src/email/send.js';
+import { configureTrialMail } from '../src/email/trial-relay.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
@@ -269,6 +270,8 @@ describe('a trial past its end date stops user mail', () => {
       queued.push(String(job.payload['templateKey']));
       return { id: String(queued.length) } as never;
     });
+    // The mail layer of an ordinary server whose policy says user mail is stopped: no trial relay rules.
+    configureTrialMail(null);
     configureEmailRuntime({ secret: TEST_SECRET, userMail: () => false });
     const deps = { meta: undefined as never, enqueue };
     expect(await enqueueRenderedEmail(deps, { to: 'dana@example.test', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', rendered })).not.toBeNull();
@@ -294,9 +297,10 @@ describe('a trial past its end date stops user mail', () => {
   });
 
   it('wires the policy’s answer into the mail layer on a composed server', async () => {
-    await serve(ENDED);
-    const enqueue = vi.fn(async () => ({ id: '1' }) as never);
-    expect(await enqueueRenderedEmail({ meta: undefined as never, enqueue }, { to: 'a@example.test', templateKey: NOTIFICATION_EMAIL_TEMPLATE_KEY, locale: 'en_US', rendered })).toBeNull();
-    expect(await enqueueRenderedEmail({ meta: undefined as never, enqueue }, { to: 'a@example.test', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', rendered })).not.toBeNull();
+    // A trial sends only through its relay (`email/trial-relay.ts`): one is set, so account mail has a way out.
+    await serve({ ...ENDED, ADMINIUM_TRIAL_SMTP_URL: 'smtp://127.0.0.1:2525', ADMINIUM_TRIAL_MAIL_FROM: 'i-1@relay.example.com' });
+    const enqueue = vi.fn(async () => ({ id: '1', runAt: 0 }) as never);
+    expect(await enqueueRenderedEmail({ meta: meta!, enqueue }, { to: 'a@example.test', templateKey: NOTIFICATION_EMAIL_TEMPLATE_KEY, locale: 'en_US', rendered })).toBeNull();
+    expect(await enqueueRenderedEmail({ meta: meta!, enqueue }, { to: 'a@example.test', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', rendered })).not.toBeNull();
   });
 });

@@ -89,6 +89,8 @@ import { UndoStore } from './crud/undo.js';
 import { seedBuiltinEmailTemplates } from './email/builtins.js';
 import { emailSecretKey } from './email/config.js';
 import { configureEmailRuntime } from './email/send.js';
+import { trialMailSetupOf } from './email/trial-mail-setup.js';
+import { configureTrialMail } from './email/trial-relay.js';
 import { CATALOG_ENABLED_SETTING, createCatalogClient } from './add-ons/catalog.js';
 import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js';
 import { addOnHttpClientFor } from './add-ons/egress.js';
@@ -872,6 +874,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // migrated relocation target, say) must still serve CRUD. Email degrades; the
   // product does not fail to boot over it.
   configureEmailRuntime({ secret: env.ADMINIUM_SECRET, userMail: () => app.trialPolicy.allows('userMail').allowed });
+  // A trial's mail: only through the operator's relay, shaped and capped (`email/trial-relay.ts`); off elsewhere.
+  configureTrialMail(trialMailSetupOf(env, app.trialPolicy));
   try {
     await seedBuiltinEmailTemplates(meta, Date.now());
   } catch (error) {

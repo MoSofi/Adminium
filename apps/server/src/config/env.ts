@@ -254,6 +254,20 @@ export function parseOperatorUrl(value: string, opts: { plainHttp: 'loopback' | 
   return url.toString();
 }
 
+/** One plain mail address with a dotted domain and no name, as the relay pins it. */
+const PLAIN_MAIL_ADDRESS = /^[^\s@,;:<>"()[\]\\]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/;
+
+/** A report link: one https:// address with no name or password, or `mailto:` one plain address. */
+function parseReportUrl(value: string): string | null {
+  const text = value.trim();
+  if (text.toLowerCase().startsWith('mailto:')) {
+    const address = text.slice('mailto:'.length).toLowerCase();
+    return PLAIN_MAIL_ADDRESS.test(address) ? `mailto:${address}` : null;
+  }
+  const url = parseOperatorUrl(text, { plainHttp: 'loopback' });
+  return url !== null && url.startsWith('https:') ? url : null;
+}
+
 /** `smtp://` or `smtps://` with a host. */
 function isSmtpUrl(value: string): boolean {
   if (/[\s\\]/.test(value)) return false;
@@ -359,6 +373,9 @@ export const OPERATOR_DECIDED_ENV = [
   'ADMINIUM_TRIAL_UPGRADE_URL',
   'ADMINIUM_TRIAL_SMTP_URL',
   'ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY',
+  'ADMINIUM_TRIAL_MAIL_FROM',
+  'ADMINIUM_TRIAL_MAIL_REPORT_URL',
+  'ADMINIUM_OPERATOR_NAME',
   'ADMINIUM_HOSTED_MODE',
   'ADMINIUM_PUBLIC_ORIGIN',
   'ADMINIUM_DATABASE_HOSTS',
@@ -1181,6 +1198,61 @@ export const envSchema = z.object({
     z.coerce.number({ error: 'must be a whole number' }).int('must be a whole number').min(1).max(100_000).optional().transform((value) => value ?? 50),
   ),
   /*
+   * The address the relay pins for this instance, `i-<instance id>@<relay
+   * domain>`: every mail through the relay goes From it, as
+   * `"<instance name> via <operator name>" <address>`. One plain address.
+   */
+  ADMINIUM_TRIAL_MAIL_FROM: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(254)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const address = value.trim().toLowerCase();
+        if (!PLAIN_MAIL_ADDRESS.test(address)) {
+          ctx.addIssue({ code: 'custom', message: 'must be one plain address with no name, e.g. i-7f3a9c@relay.example.com' });
+          return z.NEVER;
+        }
+        return address;
+      }),
+  ),
+  /* Where a recipient reports a mail from this instance: https:// or mailto:. Unset: mailto:abuse@ the From address's domain. */
+  ADMINIUM_TRIAL_MAIL_REPORT_URL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(2000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const url = parseReportUrl(value);
+        if (url === null) {
+          ctx.addIssue({ code: 'custom', message: 'must be one https:// address, or mailto: with one address, e.g. https://example.com/report or mailto:abuse@example.com' });
+          return z.NEVER;
+        }
+        return url;
+      }),
+  ),
+  /* The operator's name, as mail from the relay says it: "<instance name> via <operator name>". Unset: the From address's domain. */
+  ADMINIUM_OPERATOR_NAME: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(60)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const name = value.trim().replace(/\s+/g, ' ');
+        if (name === '' || /[@<>"\\,;:()[\]]/.test(name)) {
+          ctx.addIssue({ code: 'custom', message: 'must be a plain name of at most 60 characters with no @ < > " \\ , ; : ( ) [ ], e.g. Example Hosting' });
+          return z.NEVER;
+        }
+        return name;
+      }),
+  ),
+  /*
    * A paid installation on the operator's server (the hosted profile): the trial's
    * host list, network policy, own-code and origin rules stay; the clock,
    * banners, caps and the relay-only mail go.
@@ -1329,6 +1401,11 @@ export const envSchema = z.object({
       );
       need(env.ADMINIUM_TRIAL_ENDS_AT === undefined, 'ADMINIUM_TRIAL_ENDS_AT', 'is required in trial mode: when the trial ends, e.g. 2026-12-01T00:00:00Z');
       need(env.ADMINIUM_SETUP_TOKEN === undefined, 'ADMINIUM_SETUP_TOKEN', 'is required in trial mode: the welcome link carries it, so the trial user never reads a log');
+      need(
+        env.ADMINIUM_TRIAL_SMTP_URL !== undefined && env.ADMINIUM_TRIAL_MAIL_FROM === undefined,
+        'ADMINIUM_TRIAL_MAIL_FROM',
+        'is required with ADMINIUM_TRIAL_SMTP_URL: the address the relay pins for this instance, e.g. i-7f3a9c@relay.example.com',
+      );
     }
     if (env.ADMINIUM_TRIAL_MODE || env.ADMINIUM_HOSTED_MODE) {
       const which = env.ADMINIUM_TRIAL_MODE ? 'trial mode' : 'hosted mode';
@@ -1570,6 +1647,9 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_TRIAL_UPGRADE_URL: 'the https:// address of the operator\'s Upgrade page (unset: no Upgrade button; trial mode only)',
   ADMINIUM_TRIAL_SMTP_URL: 'the operator\'s mail relay for this instance, smtp://user:password@relay:587 (trial mode only)',
   ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY: 'user emails a day through the relay (default 50; trial mode only)',
+  ADMINIUM_TRIAL_MAIL_FROM: 'the address the relay pins for this instance, e.g. i-7f3a9c@relay.example.com (needed with ADMINIUM_TRIAL_SMTP_URL; trial mode only)',
+  ADMINIUM_TRIAL_MAIL_REPORT_URL: 'where a recipient reports a mail: https://… or mailto:… (default mailto:abuse@ the From address\'s domain; trial mode only)',
+  ADMINIUM_OPERATOR_NAME: 'the operator\'s name in the From of relay mail, "<instance> via <name>", at most 60 characters (default: the From address\'s domain)',
   ADMINIUM_HOSTED_MODE: `one of ${BOOLEANISH.join(', ')} (default off; on runs a paid installation on the operator's server: needs ADMINIUM_PUBLIC_ORIGIN and ADMINIUM_DATABASE_HOSTS)`,
   ADMINIUM_OPERATOR_DOMAINS: 'CSV of the user\'s own verified domains: plain lower-case host names, e.g. shop.example.com',
   ADMINIUM_OPERATOR_TOKEN: 'the operator endpoint\'s bearer token, 32 random bytes or more, e.g. `openssl rand -hex 32` (needs ADMINIUM_OPERATOR_LISTEN)',

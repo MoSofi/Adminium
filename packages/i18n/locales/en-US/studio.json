@@ -2764,6 +2764,32 @@
       "user": {
         "helper": "Leave empty for a relay that does not authenticate.",
         "label": "Username"
+      },
+      "relay": {
+        "title": "Email is sent through the operator’s mail service",
+        "from": "From address",
+        "fromLine": "{from}, replies go to {replyTo}",
+        "noRelay": "The operator has not set up a mail service for this installation, so no email is sent.",
+        "use": "Today’s use",
+        "useLine": "{today, number} of {perDay, number} emails today · {hour, number} of {perHour, number} this hour",
+        "people": "{people, number} of {max, number} people written to today",
+        "dayBar": "Emails today",
+        "hourBar": "Emails this hour",
+        "limitDay": "Daily email limit reached. {count, plural, one {# email is waiting and goes out tomorrow.} other {# emails are waiting and go out tomorrow.}}",
+        "limitHour": "Hourly email limit reached. {count, plural, one {# email is waiting and goes out at {time}.} other {# emails are waiting and go out from {time}.}}",
+        "limitPeople": "Today’s limit of {max, number} people is reached. Emails to someone new wait for tomorrow.",
+        "limitBounces": "Email is paused until tomorrow: too many emails bounced or were reported as spam today.",
+        "waiting": "{count, plural, one {# email is waiting and goes out at {time}.} other {# emails are waiting; the first goes out at {time}.}}",
+        "open": "Open the outbox",
+        "outboxTitle": "Waiting emails",
+        "outboxHelp": "They go out by themselves when the email limits allow. Nothing here can be changed.",
+        "to": "To",
+        "subject": "Subject",
+        "queued": "Queued",
+        "goesOut": "Goes out",
+        "empty": "No emails are waiting.",
+        "failed": "The waiting emails could not be loaded.",
+        "close": "Close"
       }
     },
     "identity": {

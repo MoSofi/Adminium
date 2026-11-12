@@ -137,6 +137,17 @@ export function stopListRepo(meta: MetaDb) {
       return Number(row?.n ?? 0);
     },
 
+    /** How many addresses were put on the list for `reason` at or after `since`. */
+    async countSince(reason: StopReason, since: number): Promise<number> {
+      const row = await db
+        .selectFrom('adminium_stop_list')
+        .select((eb) => eb.fn.countAll<number | string>().as('n'))
+        .where('reason', '=', reason)
+        .where('addedAt', '>=', since)
+        .executeTakeFirst();
+      return Number(row?.n ?? 0);
+    },
+
     /** Take an address off the list; false when the row was not there. */
     async remove(id: string): Promise<boolean> {
       const res = await db.deleteFrom('adminium_stop_list').where('id', '=', id).executeTakeFirst();

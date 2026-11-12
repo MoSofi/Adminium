@@ -63,6 +63,7 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { decryptSecret, deriveKey, isEncryptedSecret } from '../config/secrets.js';
 import { assertOutboundHostAllowed } from '../connections/dsn.js';
 import { ValidationFailedError } from '../errors.js';
+import { trialRelaySmtp } from './trial-relay.js';
 import type { EmailSendResult, EmailTransport, OutboundEmail, SmtpConfig } from './types.js';
 
 /** HKDF salt scoping the SMTP-password encryption key. */
@@ -133,6 +134,9 @@ export function assertSmtpHostAllowed(host: string): void {
  * what `smtpConfigured` on `/system/info` already reports.
  */
 export async function resolveSmtpConfig(meta: MetaDb, key: Uint8Array): Promise<SmtpConfig | null> {
+  // On a trial the operator's relay is the only transport, and the setting is not read (`trial-relay.ts`).
+  const relay = trialRelaySmtp();
+  if (relay !== undefined) return relay;
   const stored = await settingsRepo(meta).get('email.smtp');
   if (stored === null) return null;
 

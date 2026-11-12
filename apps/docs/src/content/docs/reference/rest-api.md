@@ -162,7 +162,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/scheduled-reports/*` | 4 | Recurring exports delivered on a schedule |
 | `/api/v1/schema-import` | 1 | Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR |
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
-| `/api/v1/settings/*` | 14 | Instance settings — defaults, branding, email, security, telemetry |
+| `/api/v1/settings/*` | 15 | Instance settings — defaults, branding, email, security, telemetry |
 | `/api/v1/setup/*` | 5 | First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same window — checking a database for an Adminium store already in it and adopting that store |
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
@@ -1024,6 +1024,7 @@ GET /api/v1/settings/maps
 PUT /api/v1/settings/maps
 GET /api/v1/settings/email
 PUT /api/v1/settings/email
+GET /api/v1/settings/email/waiting
 GET /api/v1/settings/local-databases
 PUT /api/v1/settings/local-databases
 ```

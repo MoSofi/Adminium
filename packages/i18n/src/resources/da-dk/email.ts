@@ -994,5 +994,9 @@ export default {
     },
     "failed": "Dette kunne ikke gemmes. Prøv igen.",
     "docsLink": "Sådan vælger Send som en afsender"
+  },
+  "trialRelay": {
+    "footer": "Sendt fra installationen på {address} via operatørens mailtjeneste.",
+    "report": "Anmeld denne e-mail"
   }
 } as const;
