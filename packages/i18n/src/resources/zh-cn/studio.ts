@@ -2774,6 +2774,32 @@ export default {
       "user": {
         "helper": "若中继无需认证，请留空。",
         "label": "用户名"
+      },
+      "relay": {
+        "title": "邮件通过运营方的邮件服务发送",
+        "from": "发件地址",
+        "fromLine": "{from}，回复将发送至 {replyTo}",
+        "noRelay": "运营方尚未为此安装设置邮件服务，因此不会发送任何邮件。",
+        "use": "今日用量",
+        "useLine": "今日 {today, number} / {perDay, number} 封邮件 · 本小时 {hour, number} / {perHour, number} 封",
+        "people": "今日已联系 {people, number} / {max, number} 人",
+        "dayBar": "今日邮件",
+        "hourBar": "本小时邮件",
+        "limitDay": "已达到每日邮件上限。{count, plural, other {有 # 封邮件在等待，将于明天发出。}}",
+        "limitHour": "已达到每小时邮件上限。{count, plural, other {有 # 封邮件在等待，将从 {time} 起发出。}}",
+        "limitPeople": "已达到今日 {max, number} 人的上限。发给新收件人的邮件将等到明天。",
+        "limitBounces": "邮件发送已暂停至明天：今天有太多邮件被退回或被举报为垃圾邮件。",
+        "waiting": "{count, plural, other {有 # 封邮件在等待，第一封将于 {time} 发出。}}",
+        "open": "打开发件箱",
+        "outboxTitle": "等待中的邮件",
+        "outboxHelp": "在邮件上限允许时会自动发出。此处无法更改任何内容。",
+        "to": "收件人",
+        "subject": "主题",
+        "queued": "加入队列",
+        "goesOut": "发出时间",
+        "empty": "没有等待中的邮件。",
+        "failed": "无法加载等待中的邮件。",
+        "close": "关闭"
       }
     },
     "identity": {

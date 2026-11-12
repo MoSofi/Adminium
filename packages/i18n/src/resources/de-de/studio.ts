@@ -2774,6 +2774,32 @@ export default {
       "user": {
         "helper": "Leer lassen, wenn das Relay keine Anmeldung verlangt.",
         "label": "Benutzername"
+      },
+      "relay": {
+        "title": "E-Mails werden über den Maildienst des Betreibers gesendet",
+        "from": "Absenderadresse",
+        "fromLine": "{from}, Antworten gehen an {replyTo}",
+        "noRelay": "Der Betreiber hat für diese Installation keinen Maildienst eingerichtet, daher werden keine E-Mails gesendet.",
+        "use": "Heutige Nutzung",
+        "useLine": "{today, number} von {perDay, number} E-Mails heute · {hour, number} von {perHour, number} in dieser Stunde",
+        "people": "{people, number} von {max, number} Personen heute angeschrieben",
+        "dayBar": "E-Mails heute",
+        "hourBar": "E-Mails in dieser Stunde",
+        "limitDay": "Tageslimit für E-Mails erreicht. {count, plural, one {# E-Mail wartet und wird morgen gesendet.} other {# E-Mails warten und werden morgen gesendet.}}",
+        "limitHour": "Stundenlimit für E-Mails erreicht. {count, plural, one {# E-Mail wartet und wird um {time} gesendet.} other {# E-Mails warten und werden ab {time} gesendet.}}",
+        "limitPeople": "Das heutige Limit von {max, number} Personen ist erreicht. E-Mails an neue Empfänger warten bis morgen.",
+        "limitBounces": "E-Mails sind bis morgen pausiert: Heute sind zu viele E-Mails unzustellbar zurückgekommen oder als Spam gemeldet worden.",
+        "waiting": "{count, plural, one {# E-Mail wartet und wird um {time} gesendet.} other {# E-Mails warten; die erste wird um {time} gesendet.}}",
+        "open": "Postausgang öffnen",
+        "outboxTitle": "Wartende E-Mails",
+        "outboxHelp": "Sie werden automatisch gesendet, sobald die E-Mail-Limits es erlauben. Hier lässt sich nichts ändern.",
+        "to": "An",
+        "subject": "Betreff",
+        "queued": "Eingereiht",
+        "goesOut": "Wird gesendet",
+        "empty": "Es warten keine E-Mails.",
+        "failed": "Die wartenden E-Mails konnten nicht geladen werden.",
+        "close": "Schließen"
       }
     },
     "identity": {

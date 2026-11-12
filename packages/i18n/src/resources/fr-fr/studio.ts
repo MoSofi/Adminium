@@ -2774,6 +2774,32 @@ export default {
       "user": {
         "helper": "Laissez vide si le relais ne demande pas d’authentification.",
         "label": "Nom d’utilisateur"
+      },
+      "relay": {
+        "title": "Les e-mails sont envoyés par le service de messagerie de l’opérateur",
+        "from": "Adresse d’expédition",
+        "fromLine": "{from}, les réponses vont à {replyTo}",
+        "noRelay": "L’opérateur n’a pas configuré de service de messagerie pour cette installation : aucun e-mail n’est envoyé.",
+        "use": "Utilisation du jour",
+        "useLine": "{today, number} e-mails sur {perDay, number} aujourd’hui · {hour, number} sur {perHour, number} cette heure-ci",
+        "people": "{people, number} personnes sur {max, number} contactées aujourd’hui",
+        "dayBar": "E-mails aujourd’hui",
+        "hourBar": "E-mails cette heure-ci",
+        "limitDay": "Limite quotidienne d’e-mails atteinte. {count, plural, one {# e-mail attend et part demain.} other {# e-mails attendent et partent demain.}}",
+        "limitHour": "Limite horaire d’e-mails atteinte. {count, plural, one {# e-mail attend et part à {time}.} other {# e-mails attendent et partent à partir de {time}.}}",
+        "limitPeople": "La limite du jour de {max, number} personnes est atteinte. Les e-mails à une nouvelle personne attendent demain.",
+        "limitBounces": "L’envoi est suspendu jusqu’à demain : trop d’e-mails ont été rejetés ou signalés comme spam aujourd’hui.",
+        "waiting": "{count, plural, one {# e-mail attend et part à {time}.} other {# e-mails attendent ; le premier part à {time}.}}",
+        "open": "Ouvrir la boîte d’envoi",
+        "outboxTitle": "E-mails en attente",
+        "outboxHelp": "Ils partent d’eux-mêmes dès que les limites d’e-mails le permettent. Rien ne peut être modifié ici.",
+        "to": "À",
+        "subject": "Objet",
+        "queued": "Mis en file",
+        "goesOut": "Part le",
+        "empty": "Aucun e-mail en attente.",
+        "failed": "Impossible de charger les e-mails en attente.",
+        "close": "Fermer"
       }
     },
     "identity": {
