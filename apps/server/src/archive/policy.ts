@@ -8,7 +8,8 @@
  *
  * Never in any archive, and never written by a restore (security review S15):
  * - sessions, password-reset and invitation tokens, public visitors' sessions,
- *   one-time codes and proofs ({@link NEVER_ARCHIVED_TABLES});
+ *   one-time codes and proofs, and what the server's operator holds back
+ *   ({@link NEVER_ARCHIVED_TABLES});
  * - `addOns.deciderTrust` (which add-on code may decide), the Designer's live
  *   switch and live id, and "Allow databases on this server"
  *   (`connections.allowLocalDatabases`: whether this server's own loopback is
@@ -37,6 +38,8 @@ export const NEVER_ARCHIVED_TABLES: readonly string[] = [
   'adminium_public_sessions',
   'adminium_public_challenges',
   'adminium_public_proofs',
+  // What the server's operator holds back (public pages hidden) is that server's operator's word, never a file's.
+  'adminium_operator_holds',
 ];
 
 /** Staff API keys and the public API's keys. */

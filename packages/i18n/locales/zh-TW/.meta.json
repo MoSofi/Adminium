@@ -32375,6 +32375,22 @@
     "status": "mt",
     "srcHash": "0bfc5490c9b4"
   },
+  "studio.operatorHidden.chip": {
+    "status": "mt",
+    "srcHash": "d4c2792a7245"
+  },
+  "studio.operatorHidden.reason": {
+    "status": "mt",
+    "srcHash": "f147508d2864"
+  },
+  "studio.operatorHidden.reply": {
+    "status": "mt",
+    "srcHash": "363d8814a5ed"
+  },
+  "studio.operatorHidden.title": {
+    "status": "mt",
+    "srcHash": "2394ae2e3d18"
+  },
   "studio.ownCode.addOnsOff": {
     "status": "mt",
     "srcHash": "6b2fd27431e2"
@@ -41818,6 +41834,10 @@
   "studio.surfacePages.guest.title": {
     "status": "mt",
     "srcHash": "35ea33e0547d"
+  },
+  "studio.surfacePages.hidden.title": {
+    "status": "mt",
+    "srcHash": "54089b3094fe"
   },
   "studio.surfacePages.moved.body": {
     "status": "mt",

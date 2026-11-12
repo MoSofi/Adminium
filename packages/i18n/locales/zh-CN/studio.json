@@ -3482,6 +3482,9 @@
       "signInLink": "登录",
       "noCopy": "此地址已迁移到此账户无法打开的副本。",
       "guest": "此地址已迁移。"
+    },
+    "hidden": {
+      "title": "此页面不可用。"
     }
   },
   "appSettings": {
@@ -5915,5 +5918,11 @@
   "ownCode": {
     "addOnsOff": "此服务器的运营方已关闭上传。请从目录安装插件。",
     "appsOff": "此服务器的运营方已关闭上传。请从目录安装应用。"
+  },
+  "operatorHidden": {
+    "title": "运营方已隐藏你的公开页面。",
+    "reason": "原因：{reason}",
+    "reply": "如有误，请回复运营方的邮件。",
+    "chip": "已隐藏"
   }
 }
