@@ -38,8 +38,11 @@ declare module 'fastify' {
 export interface OperatorHolds {
   /** The public pages' hold, as last read or set. */
   publicPages(): PublicPagesHold;
-  /** Read the holds from the meta store; the boot calls it before the server answers anything. */
-  load(): Promise<void>;
+  /**
+   * Read the holds from the meta store; the boot calls it before the server answers anything. A store
+   * it cannot read (one never migrated, one already closed) leaves the last state and answers why.
+   */
+  load(): Promise<Error | null>;
   /** Hide or show every public page, kept in the meta store before it takes effect. */
   setPublicPages(input: { hidden: boolean; reason: string | null }, at?: number): Promise<PublicPagesHold>;
   /** The instance's logo for the hidden page, when the server can read stored files. */
@@ -56,9 +59,14 @@ export function createOperatorHolds(meta: MetaDb | null): OperatorHolds {
   return {
     publicPages: () => publicPages,
     async load() {
-      if (meta === null) return;
-      const row = await operatorHoldsRepo(meta).get(PUBLIC_PAGES_HOLD);
-      publicPages = row === null ? SHOWN : { hidden: row.held, reason: row.held ? row.reason : null, changedAt: row.changedAt };
+      if (meta === null) return null;
+      try {
+        const row = await operatorHoldsRepo(meta).get(PUBLIC_PAGES_HOLD);
+        publicPages = row === null ? SHOWN : { hidden: row.held, reason: row.held ? row.reason : null, changedAt: row.changedAt };
+        return null;
+      } catch (error) {
+        return error instanceof Error ? error : new Error(String(error));
+      }
     },
     async setPublicPages(input, at = Date.now()) {
       if (meta === null) throw new Error('There is no meta store to keep the hold in.');

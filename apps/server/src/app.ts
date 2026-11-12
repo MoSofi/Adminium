@@ -594,7 +594,10 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   // What the server's operator holds back (every public page hidden), read before the server answers anything (`operator/holds.ts`).
   const operatorHolds = createOperatorHolds(opts.metaDb ?? null);
   app.decorate('operatorHolds', operatorHolds);
-  app.addHook('onReady', async () => operatorHolds.load());
+  app.addHook('onReady', async () => {
+    const failed = await operatorHolds.load();
+    if (failed !== null) app.log.warn({ err: failed }, 'the operator holds could not be read; the public pages stay as they were');
+  });
   // Pages strangers reach: hidden from search engines and without pay pages where the policy says so,
   // and hidden altogether while the operator holds them back (`trial/public-pages.ts`).
   registerPublicPages(app, policy, { holds: operatorHolds, meta: opts.metaDb ?? null });
