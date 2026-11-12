@@ -6,7 +6,9 @@
  * that counts it says otherwise; the endpoint reports what these return and
  * nothing else.
  */
-import type { MetaDb } from '@adminium/meta';
+import { operatorTalliesRepo, type MetaDb } from '@adminium/meta';
+
+import { AI_TOKENS_TALLY } from '../llm/operator-ai.js';
 
 import { relayCounts } from '../email/trial-relay.js';
 
@@ -26,8 +28,11 @@ export async function relayMailSent(meta: MetaDb, at: number): Promise<RelayMail
   return await relayCounts(meta, at);
 }
 
-/** Tokens the Designer and the other AI features have spent on the operator's AI connection; null where this instance does not count them. */
+/**
+ * Tokens the Designer and the other AI features have spent on the operator's AI connection; null where this
+ * instance does not count them. The same tally the AI client counts in and the budget is held against
+ * (`llm/operator-ai.ts`): an instance that counts opens it at boot, so it reads 0 before the first call.
+ */
 export async function operatorAiTokensUsed(meta: MetaDb): Promise<number | null> {
-  void meta;
-  return Promise.resolve(null);
+  return (await operatorTalliesRepo(meta).get(AI_TOKENS_TALLY))?.amount ?? null;
 }

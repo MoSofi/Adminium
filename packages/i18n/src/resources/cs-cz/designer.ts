@@ -1424,5 +1424,15 @@ export default {
     "startOff": "Na tomto serveru vypnuto jeho provozovatelem: kopie spouští vlastní sestavení aplikace.",
     "stylesOff": "Vlastní styly jsou na tomto serveru vypnuty jeho provozovatelem.",
     "siteOff": "Šablony webu jsou na tomto serveru vypnuty jeho provozovatelem."
+  },
+  "operatorAi": {
+    "label": "Je potřeba klíč AI",
+    "scope": "Tvorba obrazovek pro zákazníky vyžaduje váš vlastní klíč AI.",
+    "usedUp": "AI zahrnutá v této zkušební verzi je vyčerpána.",
+    "keyOrUpgrade": "Pokračujte přidáním vlastního klíče AI, nebo upgradujte.",
+    "key": "Pokračujte přidáním vlastního klíče AI.",
+    "addKey": "Přidat klíč AI",
+    "upgrade": "Upgradovat",
+    "step": "Vyžaduje váš vlastní klíč AI"
   }
 } as const;

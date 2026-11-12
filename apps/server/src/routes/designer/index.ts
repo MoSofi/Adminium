@@ -20,7 +20,10 @@ import type { Starter } from '../../designer/start-with-app.js';
 import type { PhoneService } from '../../designer/phone-service.js';
 import { sourceArchiveUrl } from '../../project/apps/source-archive.js';
 import type { Actor } from '../../designer/runner.js';
+import type { MetaDb } from '@adminium/meta';
+
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { runStartPrompt } from '../../designer/start-prompt.js';
 import { LocalOwnerError } from '../../auth/local-owner.js';
 import type { Live } from '../../designer/live.js';
 import type { Versions } from '../../designer/versions.js';
@@ -132,11 +135,14 @@ import {
   designerFilesSaveReply,
   designerPhoneOpenBody,
   designerPhoneReply,
+  designerStartPromptReply,
 } from './schema.js';
 import { FILES_SAVE_BODY_BYTES } from '../../designer/files.js';
 
 export interface DesignerRoutesDeps {
   designer: Designer;
+  /** The operator's start prompt, decoded, and the store that says whether it ran (`designer/start-prompt.ts`). Absent: none. */
+  startPrompt?: { meta: MetaDb; prompt: string | null } | undefined;
   /** The phone side's service: only where an app is designed on this computer (`adminium design`, the desktop app). */
   phone?: PhoneService;
   versions: Versions | null;
@@ -351,6 +357,22 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         } finally {
           claim?.release();
         }
+      },
+    );
+
+    // The operator's start prompt: run once, after the first-run account step, as a new session's first message.
+    app.post(
+      '/designer/start-prompt',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('the session and its first turn are audited by the Designer itself') },
+        schema: { response: { 201: designerStartPromptReply } },
+      },
+      async (request, reply) => {
+        const start = deps.startPrompt;
+        if (start === undefined) throw new NotFoundError('This server has no start prompt.', { reason: 'NO_START_PROMPT' });
+        const started = await runStartPrompt({ ...start, designer, connections }, actorOf(request));
+        return reply.code(201).send(started);
       },
     );
 

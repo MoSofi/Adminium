@@ -1424,5 +1424,15 @@ export default {
     "startOff": "Turned off on this server by its operator: a copy runs the app’s own build.",
     "stylesOff": "Styles of your own are turned off on this server by its operator.",
     "siteOff": "Site templates are turned off on this server by its operator."
+  },
+  "operatorAi": {
+    "label": "AI key needed",
+    "scope": "Building customer-facing screens needs your own AI key.",
+    "usedUp": "The AI included with this trial is used up.",
+    "keyOrUpgrade": "Add your own AI key to continue, or Upgrade.",
+    "key": "Add your own AI key to continue.",
+    "addKey": "Add an AI key",
+    "upgrade": "Upgrade",
+    "step": "Needs your own AI key"
   }
 } as const;

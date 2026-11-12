@@ -13031,6 +13031,38 @@
     "status": "mt",
     "srcHash": "8b6f147aacf1"
   },
+  "designer.operatorAi.addKey": {
+    "status": "mt",
+    "srcHash": "379c494a0c85"
+  },
+  "designer.operatorAi.key": {
+    "status": "mt",
+    "srcHash": "43a33dce5f9e"
+  },
+  "designer.operatorAi.keyOrUpgrade": {
+    "status": "mt",
+    "srcHash": "12bbd521f9ff"
+  },
+  "designer.operatorAi.label": {
+    "status": "mt",
+    "srcHash": "fce0ba64fd3a"
+  },
+  "designer.operatorAi.scope": {
+    "status": "mt",
+    "srcHash": "8dbea1b6743f"
+  },
+  "designer.operatorAi.step": {
+    "status": "mt",
+    "srcHash": "fe31d6ba702e"
+  },
+  "designer.operatorAi.upgrade": {
+    "status": "src",
+    "srcHash": "a6f47e00e036"
+  },
+  "designer.operatorAi.usedUp": {
+    "status": "mt",
+    "srcHash": "6d352738537c"
+  },
   "designer.ownCode.codeOff": {
     "status": "mt",
     "srcHash": "9aee9990023f"

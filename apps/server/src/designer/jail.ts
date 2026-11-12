@@ -17,7 +17,9 @@
  * it writes harmless: hooks and actions are code this server runs. So while
  * the operator keeps own code off (`trial/own-code.ts`), the jail itself
  * writes and deletes no code: nothing in hooks/ or actions/, and none of the
- * files a build of the app's own runs, whoever asks it to.
+ * files a build of the app's own runs, whoever asks it to. And while a turn
+ * runs on the operator's AI under its dashboard scope, it writes nothing a
+ * customer sees (`operator-scope.ts`).
  */
 import { existsSync, lstatSync, mkdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
@@ -25,6 +27,7 @@ import { dirname, join, sep } from 'node:path';
 import { APP_KEY_PATTERN } from '../project/apps/read-app.js';
 import { ownCodeAllows, OWN_CODE_MESSAGES } from '../trial/own-code.js';
 import { noCardRefusal } from './write-guard.js';
+import { scopedNow, scopedPathRefusal } from './operator-scope.js';
 import { refuseDesignerWrite } from '../trial/size-cap.js';
 
 export class JailError extends Error {
@@ -135,9 +138,14 @@ export function createJail(root: string, appKey: string): Jail {
     return file;
   }
 
-  /** While own code is off: a path, or a content, that is code this server or a build would run is not written. */
+  /**
+   * While own code is off, or a turn runs on the operator's AI under its dashboard scope: a path, or a content, that
+   * is code this server or a build would run is not written. In such a turn, nothing customer-facing either.
+   */
   function refuseCode(path: string, content: string | null): void {
-    if (ownCodeAllows('designerCode').allowed) return;
+    const scoped = scopedPathRefusal(root, segmentsOf(path).join('/'));
+    if (scoped !== null) throw new OperatorScopeJailError(scoped);
+    if (ownCodeAllows('designerCode').allowed && !scopedNow(root)) return;
     if (isCodeWrite(root, appKey, segmentsOf(path).join('/'), content)) throw new OwnCodeJailError();
   }
 
@@ -175,6 +183,9 @@ export class OwnCodeJailError extends JailError {
     super(OWN_CODE_MESSAGES.designerCode);
   }
 }
+
+/** A write the jail refuses in a turn on the operator's AI that builds dashboards only (`operator-scope.ts`). */
+export class OperatorScopeJailError extends JailError {}
 
 /**
  * Whether writing `normal` (the jail's spelling of a path) with `content` (null: a delete, or the path alone) is

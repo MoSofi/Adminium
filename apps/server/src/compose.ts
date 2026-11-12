@@ -256,6 +256,7 @@ import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
 import { trialPolicy } from './trial/policy.js';
 import { createSizeCap, useStorageHold } from './trial/size-cap.js';
 import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
+import { createOperatorAiMeter, operatorAiRules } from './llm/operator-ai.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
 import { assistantRoutes } from './routes/assistant/index.js';
 import type { RunService } from './llm/run-service.js';
@@ -911,6 +912,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     root: trialPolicy(env).allows('projectDotEnv').allowed ? projectRoot : null,
     fromEnvironment: Object.fromEntries(AI_ENV_NAMES.map((name) => [name, env[name]])),
   });
+  // The operator's own AI, counted at the one place every call passes (`llm/operator-ai.ts`).
+  const operatorAi = createOperatorAiMeter(meta, operatorAiRules(env));
+  await operatorAi.open();
   const aiConnections = createAiConnections({
     settings: settingsRepo(meta),
     keyCrypto: llmKeyCrypto,
@@ -922,6 +926,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...(opts.pictureMakerSeam === undefined ? {} : { createPictureMaker: opts.pictureMakerSeam }),
     // Trial mode: no AI address of the person's own, saved or typed into a test.
     policy: app.trialPolicy,
+    operatorAi,
   });
   if (!app.hasDecorator('aiConnections')) app.decorate('aiConnections', aiConnections);
 
@@ -3036,6 +3041,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           },
           ...(pictureSites === undefined ? {} : { pictureSites }),
           connections: aiConnections,
+          // The operator's AI builds dashboards only, where the operator says so (`designer/operator-scope.ts`).
+          ...(env.ADMINIUM_AI_OPERATOR_SCOPE === 'dashboard' ? { operatorScope: true } : {}),
           projectApps: () => projectApps,
           service: designerService,
           installHost: {
@@ -3127,6 +3134,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             designer,
             versions: designerVersions,
             connections: aiConnections,
+            // The operator's first request, run once after the first-run account step (`designer/start-prompt.ts`).
+            startPrompt: { meta, prompt: env.ADMINIUM_DESIGNER_START_PROMPT_B64 ?? env.ADMINIUM_DESIGNER_START_PROMPT_FILE ?? null },
             mode: designerOpts.mode,
             ignoredEnv: [...(opts.designer?.ignoredEnv ?? []), ...figmaIgnored],
             attachments: designerAttachments,

@@ -47,6 +47,7 @@ import { savedConnectionRefusal, TYPED_ADDRESS_OFF } from '../trial/ai.js';
 import { ORDINARY_POLICY, type TrialPolicy } from '../trial/policy.js';
 import { OffByOperatorError } from '../trial/refuse.js';
 import type { AiEnv, AiEnvName, AiEnvValues } from './ai-env.js';
+import type { OperatorAiMeter } from './operator-ai.js';
 import { checkedFetch, resolveAndCheck, type ResolveCheckOptions } from './outbound.js';
 
 /** The providers the environment can name. */
@@ -160,6 +161,12 @@ export interface AiConnections {
   keptBy(): 'key-store' | 'plain' | null;
   /** With a host: names the project's `.env` sets that are not used. */
   ignoredEnv(): string[];
+  /**
+   * Whether calls on this connection (or picture maker) are the operator's: an environment connection whose key or
+   * address the server's own environment sets. Those are counted against `ADMINIUM_AI_OPERATOR_BUDGET_TOKENS`, and a
+   * Designer turn on one is held to `ADMINIUM_AI_OPERATOR_SCOPE`.
+   */
+  isOperator(id: string): boolean;
 }
 
 export interface AiConnectionsDeps {
@@ -183,6 +190,11 @@ export interface AiConnectionsDeps {
    * operator's, and stay. Default: an ordinary server's.
    */
   policy?: Pick<TrialPolicy, 'allows'> | undefined;
+  /**
+   * The operator's AI, counted (`llm/operator-ai.ts`): every client, runner and picture maker of a connection the
+   * operator set is handed out through it. Absent: nothing is counted.
+   */
+  operatorAi?: OperatorAiMeter | undefined;
 }
 
 const KEY_NAME: Record<EnvProvider, AiEnvName | null> = {
@@ -229,6 +241,11 @@ function envHas(values: AiEnvValues, provider: EnvProvider): boolean {
   return values.ADMINIUM_AI_OLLAMA_BASE_URL !== undefined;
 }
 
+/** The names that make an environment connection: its key and its address. */
+function namesOf(provider: EnvProvider): AiEnvName[] {
+  return [KEY_NAME[provider], URL_NAME[provider]].filter((name): name is AiEnvName => name !== null);
+}
+
 function decrypt(stored: string | null, keyCrypto: LlmKeyCrypto): string | null {
   if (stored === null || stored.length === 0) return null;
   return stored.startsWith('enc:') ? keyCrypto.decrypt(stored) : stored;
@@ -241,6 +258,21 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
   const makeClient = deps.createClient ?? createProviderClient;
   const makeRunner = deps.createRunner ?? createProviderRunner;
   const policy = deps.policy ?? ORDINARY_POLICY;
+  const meter = deps.operatorAi;
+  /** A connection whose key or address the operator's own environment sets. */
+  const isOperator = (id: string): boolean => {
+    const operator = aiEnv.fromOperator();
+    if (id === 'google') return operator.includes('ADMINIUM_AI_GOOGLE_API_KEY');
+    if (!id.startsWith('env:')) return false;
+    const provider = id.slice(4);
+    return isEnvProvider(provider) && namesOf(provider).some((name) => operator.includes(name));
+  };
+  /** What a connection's calls go through: counted when they are the operator's. */
+  const metered = {
+    client: (id: string, client: ProviderClient): ProviderClient => (meter !== undefined && isOperator(id) ? meter.client(client) : client),
+    runner: (id: string, runner: ProviderRunner): ProviderRunner => (meter !== undefined && isOperator(id) ? meter.runner(runner) : runner),
+    maker: (id: string, maker: PictureMaker): PictureMaker => (meter !== undefined && isOperator(id) ? meter.maker(maker) : maker),
+  };
   /** A draft names an address of its own, where the operator allows none. */
   const typedAddressRefused = (draft: ConnectionDraft): boolean =>
     draft.baseUrl !== undefined && draft.baseUrl !== '' && !policy.allows('aiBaseUrl').allowed;
@@ -354,7 +386,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
 
   async function client(id: ConnectionId, model?: string | null): Promise<ResolvedClient> {
     const { config, connection, maxOutputTokens } = await configFor(id, model);
-    return { client: makeClient(config), provider: connection.provider, model: config.model ?? '', baseUrl: connection.baseUrl, maxOutputTokens };
+    return { client: metered.client(id, makeClient(config)), provider: connection.provider, model: config.model ?? '', baseUrl: connection.baseUrl, maxOutputTokens };
   }
 
   /** The draft as a provider configuration, with what was left out taken from what is saved. */
@@ -387,7 +419,9 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
     },
     async default() {
       const database = await databaseConnection();
-      if (database !== null) return { connection: database, model: database.model };
+      // A saved connection the operator refuses (one saved before the lock, or carried in) gives way to the operator's.
+      const refused = database !== null && savedConnectionRefusal(policy, database.provider, database.baseUrl) !== null;
+      if (database !== null && !refused) return { connection: database, model: database.model };
       const values = aiEnv.read();
       const selected = parseSelected(values.ADMINIUM_AI_MODEL);
       if (selected === null || !envHas(values, selected.provider)) return null;
@@ -406,7 +440,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
     },
     async runner(id, model) {
       const { config, connection } = await configFor(id, model);
-      return { runner: makeRunner(config), provider: connection.provider, model, connectionId: connection.id };
+      return { runner: metered.runner(id, makeRunner(config)), provider: connection.provider, model, connectionId: connection.id };
     },
     async models(id) {
       const resolved = await client(id);
@@ -424,7 +458,10 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
         await guard(draft.provider, baseUrl, 'environment');
         const models = await makeClient(config).listModels();
         if (draft.model === undefined || draft.model === '') return { ok: true, models, canBuild: null, error: null };
-        const verdict = await canBuild(makeRunner(config), draft.model, opts.signal === undefined ? {} : { signal: opts.signal });
+        // A draft with no key typed is tried with the saved one: the operator's, when the operator set it.
+        const typed = draft.apiKey !== undefined && draft.apiKey !== '';
+        const tried = typed ? makeRunner(config) : metered.runner(`env:${draft.provider}`, makeRunner(config));
+        const verdict = await canBuild(tried, draft.model, opts.signal === undefined ? {} : { signal: opts.signal });
         // The model could not be asked (a refused key shows here: the list above falls back to a built-in one): the test failed.
         if (!verdict.canBuild && verdict.reason === 'error') return { ok: false, models: [], canBuild: null, error: testError(verdict.code, verdict.message) };
         verdicts.set(`env:${draft.provider}\u0000${draft.model}`, verdict);
@@ -473,7 +510,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       const known = verdicts.get(`${id}\u0000${model}`);
       if (known !== undefined) return known;
       const { config } = await configFor(id, model);
-      const verdict = await canBuild(makeRunner(config), model);
+      const verdict = await canBuild(metered.runner(id, makeRunner(config)), model);
       // An error is not kept: the next try may reach the server.
       if (verdict.canBuild || verdict.reason !== 'error') verdicts.set(`${id}\u0000${model}`, verdict);
       return verdict;
@@ -498,7 +535,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
         unasked.delete(key);
         return listed;
       }
-      const probe = await readsImagesProbe(makeRunner(config), model);
+      const probe = await readsImagesProbe(metered.runner(id, makeRunner(config)), model);
       // A refusal is a no for now, but not kept: a passing fault on the server looks the same.
       if (probe === null || probe.from === 'refusal') {
         const verdict = probe === null ? null : probe.reads;
@@ -528,7 +565,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
         if (!deps.networkFeatures) throw new PictureError('config', 'outside network use is switched off on this server, so Gemini cannot be called');
         const apiKey = aiEnv.read().ADMINIUM_AI_GOOGLE_API_KEY;
         if (apiKey === undefined) throw new PictureError('config', 'no Gemini key is set (ADMINIUM_AI_GOOGLE_API_KEY)');
-        return { maker: build('google', { apiKey }), info: { id, kind: 'google', label: PICTURE_LABEL['google'] as string, local: false }, keyHash: pictureKeyHash('google', undefined, apiKey) };
+        return { maker: metered.maker(id, build('google', { apiKey })), info: { id, kind: 'google', label: PICTURE_LABEL['google'] as string, local: false }, keyHash: pictureKeyHash('google', undefined, apiKey) };
       }
       let resolved: Awaited<ReturnType<typeof configFor>>;
       try {
@@ -545,7 +582,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       const baseUrl = connection.provider === 'ollama' ? `${(config.baseUrl ?? 'http://localhost:11434').replace(/\/+$/, '')}/v1` : config.baseUrl;
       const local = connection.provider === 'ollama' && !(model ?? '').endsWith(':cloud');
       return {
-        maker: build(kind, { apiKey: config.apiKey, baseUrl }),
+        maker: metered.maker(id, build(kind, { apiKey: config.apiKey, baseUrl })),
         info: { id, kind, label: PICTURE_LABEL[connection.provider] ?? connection.provider, local },
         keyHash: pictureKeyHash(connection.provider, baseUrl ?? undefined, config.apiKey),
       };
@@ -569,6 +606,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
     },
     keptBy: () => aiEnv.keptBy(),
     ignoredEnv: () => aiEnv.ignored(),
+    isOperator,
   };
 }
 

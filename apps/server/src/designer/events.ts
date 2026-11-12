@@ -81,7 +81,13 @@ export type DesignerEventBody =
    */
   | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number }
   /** A make of pictures with AI, as it goes: the job's whole state, each line's, and what is left today. */
-  | { kind: 'picture-make'; job: import('./picture-job-view.js').JobView };
+  | { kind: 'picture-make'; job: import('./picture-job-view.js').JobView }
+  /**
+   * The fixed card a turn on the operator's AI ends with, never the model's words: `scope`, the request needs
+   * customer-facing screens, which that connection does not build; `used-up`, the AI included with the instance is
+   * spent. The page words it, with "Add an AI key" and (where the operator set one) "Upgrade".
+   */
+  | { kind: 'operator-ai'; card: 'scope' | 'used-up' };
 
 /** What writes the app's folder outside a turn: a hand save, a style change, going back, a copy of a published app, pictures from the dialog. */
 export type HoldKind = 'save' | 'style' | 'restore' | 'start' | 'pictures';

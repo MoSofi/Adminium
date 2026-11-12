@@ -16,6 +16,8 @@ export function stepLine(row: StepRow): string {
   const running = row.state === 'running';
   if (row.state === 'failed' && row.ended === 'stopped') return t('designer:step.stopped', 'Stopped');
   // Refused by the server's own setting, whatever the tool: the same plain words, never the model's.
+  // Customer-facing work asked of the operator's AI: the card below the steps says what to do.
+  if (row.operator === 'operator-ai-scope' && row.state !== 'running') return t('designer:operatorAi.step', 'Needs your own AI key');
   if (row.operator !== undefined) return t('designer:ownCode.step', 'Turned off on this server by its operator');
   if (row.tool === 'read_figma') {
     // The reads it cost are said after the line, in its own weight (`stepCost`).
