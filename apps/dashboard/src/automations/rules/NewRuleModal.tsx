@@ -43,6 +43,7 @@ import { Combobox, Input, Modal, ModalBody, ModalFooter, ModalHeader, Select, Sw
 import { useId, useState, type ReactNode } from 'react';
 
 import { t } from '../../i18n/t.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import { useOperatorSwitch } from '../../settings/OffByOperator.js';
 import { automationIcon } from '../icons.js';
 import { watchesFor } from '../api.js';
@@ -122,6 +123,8 @@ function buildTrigger(kind: TriggerKind, tableValue: string, sources: Sources | 
 export function NewRuleModal({ open, sources, onClose, onCreate, onDone }: NewRuleModalProps): ReactNode {
   const fieldId = useId();
   const tableId = `${fieldId}-table`;
+  // "Set by the operator" beside a switched-off step is a deferred word: in before this paints.
+  useCommonWords();
   const webhooks = useOperatorSwitch('webhooks');
   const [name, setName] = useState('');
   const [kind, setKind] = useState<TriggerKind | ''>('');

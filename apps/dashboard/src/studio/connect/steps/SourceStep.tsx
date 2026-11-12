@@ -40,6 +40,7 @@ import { ApiError } from '../../../app/api.js';
 import type { ConnectedConnection } from '../../../connect/connectApi.js';
 import { ProviderConnect } from '../../../connect/ProviderConnect.js';
 import { t } from '../../../i18n/t.js';
+import { useCommonWords } from '../../../i18n/commonWords.js';
 import { OffByOperatorNote, useOperatorSwitch } from '../../../settings/OffByOperator.js';
 import { studioApi, type ConnectionEngine, type SchemaTable } from '../../api.js';
 import { Dropzone } from '../Dropzone.js';
@@ -89,6 +90,7 @@ export function SourceStep({ state, onPatch, onFileTablesCapture, onProviderConn
   const inferredEngine = engineForDsn(state.dsn);
   const pickerEngine: ConnectionEngine = state.mode === 'dsn' ? (inferredEngine ?? state.engine) : state.engine;
   // Trial mode: SQLite is shown, disabled, with the operator's reason under the picker (never hidden).
+  useCommonWords();
   const sqlite = useOperatorSwitch('sqliteSources');
   const sqliteChosen = sqlite.off && pickerEngine === 'sqlite';
 

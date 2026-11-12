@@ -79,6 +79,11 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   // "Set by the operator" (`operatorLock`, plan 75): the chip and the first-run consent each wait for their words.
   'settings/SetByOperator.tsx': [],
   'setup/TelemetryConsent.tsx': [],
+  // "The operator switched this off" (`operatorSwitches`): its hook waits; so do the screens that name a key of it themselves.
+  'settings/OffByOperator.tsx': [],
+  'automations/rules/NewRuleModal.tsx': [],
+  'studio/connect/steps/SourceStep.tsx': [],
+  'studio/payments/PaymentsPage.tsx': [],
   'shown-in/ShownIn.tsx': [],
   'shown-in/ShownInField.tsx': [],
   // Workspaces (`workspaces`): the grouped rail and its menu, the link rule, the lists that follow them, Data connections and the defaults row.
