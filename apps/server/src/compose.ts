@@ -86,7 +86,7 @@ import { createLocalDatabases, localDatabasesMode } from './connections/local-da
 import type { ConnectionManager } from './connections/manager.js';
 import { privilegesOf } from './connections/privileges.js';
 import { UndoStore } from './crud/undo.js';
-import { seedBuiltinEmailTemplates } from './email/builtins.js';
+import { seedBuiltinEmailTemplatesIfChanged } from './email/builtins.js';
 import { emailSecretKey } from './email/config.js';
 import { configureEmailRuntime } from './email/send.js';
 import { CATALOG_ENABLED_SETTING, createCatalogClient } from './add-ons/catalog.js';
@@ -873,7 +873,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // product does not fail to boot over it.
   configureEmailRuntime({ secret: env.ADMINIUM_SECRET, userMail: () => app.trialPolicy.allows('userMail').allowed });
   try {
-    await seedBuiltinEmailTemplates(meta, Date.now());
+    // Once per release and translation change, not on every start (see the function).
+    await seedBuiltinEmailTemplatesIfChanged(meta, process.env['NODE_ENV'] === 'production' ? APP_VERSION : null, Date.now());
   } catch (error) {
     app.log.warn(
       { err: error },
