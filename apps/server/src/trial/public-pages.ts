@@ -19,15 +19,29 @@
  *    the policy's reason) where the policy switches them off: a trial has no
  *    payment provider to pay through or to call back.
  *
- * The request hook is where a later switch over every public page belongs
- * too (the operator hiding them): one more question asked in the same place.
+ * The request hook is where a switch over every public page belongs too:
+ * past a trial's end date they are hidden ({@link hiddenAtTrialEnd}, 404 on
+ * every host), and the operator's own hide switch is one more question asked
+ * in the same place.
  */
 import { Readable } from 'node:stream';
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-import { AppError } from '../errors.js';
-import { PAY_PREFIX, PAYMENT_WEBHOOK_PREFIX } from '../plugins/surfaces.js';
+import type { MetaDb } from '@adminium/meta';
+
+import { AppError, NotFoundError } from '../errors.js';
+import {
+  MAIL_DOOR_PREFIX,
+  parseInstancePath,
+  parseSurfacePath,
+  PAY_PREFIX,
+  PAYMENT_WEBHOOK_PREFIX,
+  sendNotFoundPage,
+  X_PREFIX,
+} from '../plugins/surfaces.js';
+import { normalizeHost } from '../security/csrf.js';
+import { domainMappingFor, pagesMappingFor } from '../surfaces/settings.js';
 import type { PolicyQuestion, TrialPolicy } from './policy.js';
 
 /** Said on every response, and in the meta tag, while indexing is off. */
@@ -75,11 +89,48 @@ function closedBy(path: string): PolicyQuestion | null {
   return null;
 }
 
-export function registerPublicPages(app: FastifyInstance, policy: Pick<TrialPolicy, 'allows'>): void {
+/** Past a trial's end date the pages strangers reach are hidden (the policy's `publicPages`). */
+export function hiddenAtTrialEnd(policy: Pick<TrialPolicy, 'allows'>): boolean {
+  return !policy.allows('publicPages').allowed;
+}
+
+/** Paths that are a page or door for strangers on any host: forms and their files, the mail door, pay pages, the public API and its docs, an app's customer side. */
+export function isPublicPath(path: string): boolean {
+  const under = (prefix: string): boolean => path === prefix || path.startsWith(`${prefix}/`);
+  if (under(X_PREFIX) || under(MAIL_DOOR_PREFIX) || under(PAY_PREFIX)) return true;
+  if (under('/api/v1/public') || under('/api/v1/api-docs')) return true;
+  return parseSurfacePath(path)?.side === 'customer' || parseInstancePath(path)?.side === 'customer';
+}
+
+/** A request for a stranger's page: by its path, or on a host mapped to an app's customer side or to the add-on pages. */
+async function isPublicRequest(app: FastifyInstance, request: FastifyRequest, path: string): Promise<boolean> {
+  if (isPublicPath(path)) return true;
+  const settings = await (app as { surfaceSettings?: { read: () => Promise<Parameters<typeof domainMappingFor>[0]> } | null }).surfaceSettings?.read();
+  if (settings === undefined) return false;
+  if (pagesMappingFor(settings, request.host, normalizeHost) !== null) return true;
+  return domainMappingFor(settings, request.host, normalizeHost)?.side === 'customer';
+}
+
+/** A browser's page load, as against a script's call. */
+function isPageLoad(request: FastifyRequest): boolean {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return false;
+  const mode = request.headers['sec-fetch-mode'];
+  return typeof mode === 'string' ? mode === 'navigate' : String(request.headers.accept ?? '').includes('text/html');
+}
+
+export function registerPublicPages(app: FastifyInstance, policy: Pick<TrialPolicy, 'allows'>, meta: MetaDb | null = null): void {
   const indexing = policy.allows('searchIndexing').allowed;
 
   app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     const path = pathOf(request.url);
+    if (hiddenAtTrialEnd(policy) && (await isPublicRequest(app, request, path))) {
+      // The plain "address not found" page for a browser, the coded 404 for anything else: nothing says why.
+      if (meta !== null && isPageLoad(request)) {
+        await sendNotFoundPage(meta, request, reply);
+        return reply;
+      }
+      throw new NotFoundError('This page is unavailable.');
+    }
     const question = closedBy(path);
     if (question !== null) {
       const answer = policy.allows(question);

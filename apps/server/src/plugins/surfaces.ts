@@ -367,7 +367,7 @@ function isDocumentNavigation(request: FastifyRequest): boolean {
 }
 
 /** Row 15, "Address not found": the reader's language, else the workspace's. */
-async function sendNotFoundPage(meta: MetaDb, request: FastifyRequest, reply: FastifyReply): Promise<void> {
+export async function sendNotFoundPage(meta: MetaDb, request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const locale: LocaleId =
     negotiateLocale(request.headers['accept-language']) ?? ((await recipientLocale(meta, null)) as LocaleId);
   const i18n = await createServerI18n({ locale, overrides: await loadOverrideMap(meta, locale) });

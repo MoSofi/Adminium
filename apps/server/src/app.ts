@@ -61,6 +61,7 @@ import { useOwnCodePolicy } from './trial/own-code.js';
 import { trialPolicy } from './trial/policy.js';
 import { operatorHostsOf, registerOperatorHosts } from './trial/operator-hosts.js';
 import { registerPublicPages } from './trial/public-pages.js';
+import { registerTrialReadOnly } from './trial/read-only.js';
 import { holdOperatorOrigin } from './security/public-origin.js';
 import { API_PREFIX, registerRoutes } from './routes/index.js';
 import { aboutRoutes } from './routes/about/index.js';
@@ -584,7 +585,9 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     if (opts.metaDb !== undefined && opts.metaDb !== null) await holdOperatorOrigin(opts.metaDb, operatorHosts.origin);
   }
   // Pages strangers reach: hidden from search engines and without pay pages where the policy says so (`trial/public-pages.ts`).
-  registerPublicPages(app, policy);
+  registerPublicPages(app, policy, opts.metaDb ?? null);
+  // Past a trial's end date: every write refused but a short list (`trial/read-only.ts`).
+  registerTrialReadOnly(app, policy);
   // `staticRoot` rides along so core can hash the served index.html's inline
   // scripts into the CSP allowance (plugins/core.ts).
   await app.register(corePlugin, { env, staticRoot: opts.staticRoot });
