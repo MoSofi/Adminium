@@ -342,3 +342,26 @@ describe('public content', () => {
     expect(content.forms).toEqual([]);
   });
 });
+
+describe('a trial past its end date', () => {
+  const ENDED = {
+    ADMINIUM_TRIAL_MODE: 'on',
+    ADMINIUM_TRIAL_ENDS_AT: '2020-01-01T00:00:00Z',
+    ADMINIUM_PUBLIC_ORIGIN: `https://${ORIGIN_HOST}`,
+    ADMINIUM_DATABASE_HOSTS: 'pg-trials:5432',
+    ADMINIUM_SETUP_TOKEN: 'a-long-enough-setup-token',
+  };
+
+  it('is read-only on the public listener, never on the operator’s', async () => {
+    const served = await serve(await store('sqlite'), 'sqlite', { ...ENDED, ...OPERATOR() });
+    // The public listener refuses a write, a delete included.
+    const write = await served.composed.app.inject({ method: 'DELETE', url: '/api/v1/connections/00000000-0000-0000-0000-000000000000', headers: { host: ORIGIN_HOST } });
+    expect(write.statusCode, write.body).toBe(403);
+    expect(write.json().error).toMatchObject({ code: 'OFF_BY_OPERATOR', details: { question: 'writes' } });
+    // The operator still hides and shows the public pages.
+    const hide = await ask(served, 'POST', '/api/v1/operator/public-pages', { payload: { hidden: true, reason: REASON } });
+    expect(hide.statusCode, hide.body).toBe(200);
+    const show = await ask(served, 'POST', '/api/v1/operator/public-pages', { payload: { hidden: false } });
+    expect(show.statusCode, show.body).toBe(200);
+  });
+});
