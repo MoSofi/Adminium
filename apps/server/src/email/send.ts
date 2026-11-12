@@ -213,6 +213,18 @@ export const PAYMENT_RECEIPT_TEMPLATE_KEY = 'payment-receipt';
 export const SIGN_UP_CONFIRM_TEMPLATE_KEY = 'sign-up-confirm';
 
 /**
+ * The server's own mail to its staff: getting in and keeping an account safe.
+ * Everything else is user mail, which stops once a trial has ended
+ * ({@link configureEmailRuntime}'s `userMail`); these go on.
+ */
+export const SYSTEM_MAIL_TEMPLATE_KEYS: ReadonlySet<string> = new Set([
+  PASSWORD_RESET_TEMPLATE_KEY,
+  USER_INVITE_TEMPLATE_KEY,
+  SIGN_IN_CODE_TEMPLATE_KEY,
+  EMAIL_CHANGED_TEMPLATE_KEY,
+]);
+
+/**
  * Inline last resort for the `notification` key, used ONLY when no row exists
  * in any locale — an instance whose boot seed has not run yet, or a test
  * harness that mounts `notify` without one. `email/builtins.ts` seeds a proper
@@ -376,6 +388,8 @@ export function withOverride<T extends { subject: string; blocks: readonly Recor
 
 let runtimeSecret: string | null = null;
 let unconfiguredLogged = false;
+/** Whether user mail goes out now; system mail always does. Asked at each queueing. */
+let userMailOpen: () => boolean = () => true;
 
 /**
  * Hands the master secret to the email layer once, from `compose.ts`.
@@ -385,9 +399,10 @@ let unconfiguredLogged = false;
  * have no reason to know about `Env` — threading a credential through every one
  * of them to serve one optional side effect would be the worse trade.
  */
-export function configureEmailRuntime(opts: { secret: string }): void {
+export function configureEmailRuntime(opts: { secret: string; userMail?: (() => boolean) | undefined }): void {
   runtimeSecret = opts.secret;
   unconfiguredLogged = false;
+  userMailOpen = opts.userMail ?? (() => true);
 }
 
 /** The configured master secret, or null before/without a composition root. */
@@ -399,6 +414,7 @@ export function emailRuntimeSecret(): string | null {
 export function resetEmailRuntime(): void {
   runtimeSecret = null;
   unconfiguredLogged = false;
+  userMailOpen = () => true;
 }
 
 // --- payload ------------------------------------------------------------------------
@@ -660,6 +676,11 @@ export async function enqueueRenderedEmail(
   }
   const to = input.to.trim();
   if (to.length === 0) return null;
+  // Past a trial's end date only the server's own mail goes out: every other kind stops here, where all mail is queued.
+  if (!SYSTEM_MAIL_TEMPLATE_KEYS.has(input.templateKey) && !userMailOpen()) {
+    deps.logger?.info({ templateKey: input.templateKey }, 'an email was not queued: this trial has ended, so only sign-in and account mail goes out');
+    return null;
+  }
   if (input.mailClass === 'marketing' && !PLAIN_RECIPIENT.test(to)) {
     deps.logger?.warn({ templateKey: input.templateKey }, 'a marketing mail was not queued: its recipient is not one plain e-mail address');
     return null;

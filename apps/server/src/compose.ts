@@ -852,7 +852,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // Seeding is best-effort: a meta store that cannot take the seed (a partially
   // migrated relocation target, say) must still serve CRUD. Email degrades; the
   // product does not fail to boot over it.
-  configureEmailRuntime({ secret: env.ADMINIUM_SECRET });
+  configureEmailRuntime({ secret: env.ADMINIUM_SECRET, userMail: () => app.trialPolicy.allows('userMail').allowed });
   try {
     await seedBuiltinEmailTemplates(meta, Date.now());
   } catch (error) {
@@ -1326,6 +1326,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const outboxSender = createOutboxSender({
     meta,
     manager,
+    userMail: () => app.trialPolicy.allows('userMail').allowed,
     marketing: marketingMail,
     viewFor: (connectionId) => publicViews.viewFor(connectionId),
     writes: recordWrites,
