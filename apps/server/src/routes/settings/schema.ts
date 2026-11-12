@@ -313,6 +313,12 @@ export const settingsEmailView = z.object({
    * then use the address each request arrived on.
    */
   publicOrigin: z.string().nullable(),
+  /**
+   * What the operator has set on this section: `publicOrigin` is locked while
+   * `ADMINIUM_PUBLIC_ORIGIN` or `ADMINIUM_OPERATOR_DOMAINS` decides it
+   * (`trial/operator-hosts.ts`), and then a save that changes it is refused.
+   */
+  locks: z.object({ publicOrigin: settingLockSchema }),
 });
 export type SettingsEmailView = z.infer<typeof settingsEmailView>;
 

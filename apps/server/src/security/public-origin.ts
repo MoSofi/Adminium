@@ -54,6 +54,14 @@
  *
  * Setup is unauthenticated, and capturing there is still sound: whoever
  * completes setup owns the instance.
+ *
+ * ─── When the operator decides it ────────────────────────────────────────────
+ *
+ * With `ADMINIUM_PUBLIC_ORIGIN` or `ADMINIUM_OPERATOR_DOMAINS` set
+ * (`trial/operator-hosts.ts`), the operator's origin is written at boot and
+ * held ({@link holdOperatorOrigin}): {@link linkOrigin} answers it whatever
+ * the row says, nothing captures another, and Studio refuses a change
+ * (`SET_BY_OPERATOR`, `trial/operator-lock.ts`).
  */
 import { auditRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 
@@ -134,6 +142,8 @@ export interface LinkOriginRequest {
  * module header for the order, and why `Origin` is not in it.
  */
 export async function linkOrigin(meta: MetaDb, request: LinkOriginRequest): Promise<string> {
+  const operator = held.get(meta);
+  if (operator !== undefined) return operator;
   const stored = await settingsRepo(meta).get(PUBLIC_ORIGIN_SETTING);
   return stored ?? requestHostOrigin(request);
 }
@@ -162,6 +172,26 @@ export function requestHostOrigin(request: LinkOriginRequest): string {
  * re-capture until this process restarts.
  */
 const known = new WeakMap<MetaDb, true>();
+
+/** The operator's origin per meta store, from the boot on. */
+const held = new WeakMap<MetaDb, string>();
+
+/**
+ * Write the operator's origin as `system.publicOrigin` and hold it: every
+ * reader of the row sees it, links follow it whatever is written later, and
+ * nothing is captured over it. Called once at boot.
+ */
+export async function holdOperatorOrigin(meta: MetaDb, origin: string): Promise<void> {
+  const settings = settingsRepo(meta);
+  if ((await settings.get(PUBLIC_ORIGIN_SETTING)) !== origin) await settings.set(PUBLIC_ORIGIN_SETTING, origin, { updatedBy: null });
+  held.set(meta, origin);
+  known.set(meta, true);
+}
+
+/** The origin the operator holds for this meta store, or null when the Super Admin chooses it. */
+export function heldOperatorOrigin(meta: MetaDb): string | null {
+  return held.get(meta) ?? null;
+}
 
 /** Tell the capture what Studio just stored (`null` = cleared). */
 export function notePublicOrigin(meta: MetaDb, value: string | null): void {
@@ -213,7 +243,7 @@ export async function capturePublicOrigin(
   const origin = normalizePublicOrigin(raw);
   if (origin === null || isLoopbackHost(new URL(origin).hostname)) return null;
   if (classifyOrigin(request, ctx.allowedOrigins) !== 'trusted') return null;
-  if (known.has(ctx.meta)) return null;
+  if (known.has(ctx.meta) || held.has(ctx.meta)) return null;
 
   const settings = settingsRepo(ctx.meta);
   if ((await settings.get(PUBLIC_ORIGIN_SETTING)) !== null) {

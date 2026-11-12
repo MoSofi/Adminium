@@ -108131,6 +108131,46 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "locks": {
+                          "type": "object",
+                          "properties": {
+                            "publicOrigin": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "publicOrigin"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -108142,7 +108182,8 @@
                         "secure",
                         "senders",
                         "maxAttachmentBytes",
-                        "publicOrigin"
+                        "publicOrigin",
+                        "locks"
                       ],
                       "additionalProperties": false
                     }
@@ -108335,6 +108376,46 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "locks": {
+                          "type": "object",
+                          "properties": {
+                            "publicOrigin": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "publicOrigin"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -108346,7 +108427,8 @@
                         "secure",
                         "senders",
                         "maxAttachmentBytes",
-                        "publicOrigin"
+                        "publicOrigin",
+                        "locks"
                       ],
                       "additionalProperties": false
                     }
