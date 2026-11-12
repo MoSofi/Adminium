@@ -27,9 +27,12 @@
  * (`ADMINIUM_META_URL`) is operator configuration and never comes through
  * here: it is also the way to keep a store outside the data dir.
  *
- * Trial mode closes all three routes outright (they answer 403 there). That
- * check belongs at the top of {@link guardTypedMetaDsn}, the one place every
- * one of them passes before it dials.
+ * Trial mode and the hosted profile close all three routes outright: each
+ * answers 403 `OFF_BY_OPERATOR` first thing, before the setup token is even
+ * read, because on a trial the stranger holds that token ({@link META_FIXED}).
+ *
+ * The URL the server boots on (`ADMINIUM_META_URL`, or the bootstrap file a
+ * relocation or adoption wrote) is checked at boot by {@link guardBootMetaUrl}.
  */
 import { lstat, realpath } from 'node:fs/promises';
 import { basename, dirname, join, resolve, sep } from 'node:path';
@@ -45,6 +48,9 @@ export interface TypedMetaDsnOptions {
   /** Test seam: the host lookup. Default: the one the drivers make. */
   lookup?: HostLookup | undefined;
 }
+
+/** Why the meta store cannot move under trial mode and the hosted profile: the operator's environment fixes it. */
+export const META_FIXED = 'The operator fixes where this installation keeps its own data, so it cannot be moved or adopted here.';
 
 const OUTSIDE_DATA_DIR =
   'A SQLite meta store chosen here must be a file inside the data folder (ADMINIUM_DATA_DIR). Pick a path inside it, or set ADMINIUM_META_URL to keep the store somewhere else.';
