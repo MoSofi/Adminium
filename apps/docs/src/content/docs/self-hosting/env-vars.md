@@ -1011,7 +1011,8 @@ With `ADMINIUM_PUBLIC_ORIGIN` or `ADMINIUM_OPERATOR_DOMAINS` set, on any server:
   refused (409 `SET_BY_OPERATOR`), and the server never learns another from a
   browser;
 - a domain mapped to an app's side or to the add-on pages must be one of the
-  listed domains (403 otherwise). A mapping saved before is not answered.
+  listed domains, and not the first, where email links point (403 otherwise).
+  A mapping saved before is not answered.
   Under trial mode and the hosted profile, the websites that may show a form in
   a frame must be listed domains too.
 

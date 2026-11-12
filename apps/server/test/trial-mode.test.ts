@@ -341,6 +341,8 @@ describe('A4 mapped domains come from the operator’s list only', { timeout: 60
       const refused = await map(s, 'evil.example');
       expect(refused.status, refused.body).toBe(403);
       expect(refused.json()['error']).toMatchObject({ code: 'FORBIDDEN', details: { reason, hosts: ['evil.example'] } });
+      // The first listed domain is where links in email point: Studio and the reset page stay there.
+      expect((await map(s, OWN)).status).toBe(403);
       expect((await map(s, OWN_TOO)).status).toBe(200);
       expect((await s.call('GET', '/', { host: 'old.hollis.example', anonymous: true })).status).toBe(421);
     });

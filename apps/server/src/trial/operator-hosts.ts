@@ -29,7 +29,7 @@
  *    Studio shows it read-only, "Set by the operator";
  *  - a domain mapped to an app's side or to the add-on pages
  *    (`surfaces.domains`, `surfaces.pageHosts`) must be one of the listed
- *    domains ({@link mayMapHost}).
+ *    domains, and not the one links point at ({@link mayMapHost}).
  *
  * Without either, nothing here runs and the server answers every name, as it
  * always has.
@@ -79,9 +79,15 @@ export function hostNameOf(host: string | undefined): string {
   return name.endsWith('.') ? name.slice(0, -1) : name;
 }
 
-/** Whether a host may be mapped to an app's side or to the add-on pages here. */
+/**
+ * Whether a host may be mapped to an app's side or to the add-on pages here:
+ * a listed domain, but never the one links in email point at, where Studio
+ * and the password-reset and invitation pages must stay.
+ */
 export function mayMapHost(hosts: OperatorHosts | null, host: string): boolean {
-  return hosts === null || hosts.domains.includes(hostNameOf(host));
+  if (hosts === null) return true;
+  const name = hostNameOf(host);
+  return hosts.domains.includes(name) && name !== new URL(hosts.origin).hostname;
 }
 
 /**
