@@ -5,9 +5,26 @@
  * the 0.3.32 test server that stopped with "heap out of memory" (plan 70 A8)
  * had 243 MB in use of a 259 MB heap from the minute it started.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 
-import { HEAP_FIRST_LOOK_MS, HEAP_LOG_EVERY_MS, HEAP_LOOK_EVERY_MS, heapIsTight, nextHeapMb, readHeap, watchHeap, type HeapReading } from '../src/heap-watch.js';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
+
+import {
+  containerHeadroomMb,
+  containerIsTight,
+  HEAP_FIRST_LOOK_MS,
+  HEAP_LOG_EVERY_MS,
+  HEAP_LOOK_EVERY_MS,
+  heapIsTight,
+  nextContainerMb,
+  nextHeapMb,
+  readContainerLimitMb,
+  readHeap,
+  watchHeap,
+  type HeapReading,
+} from '../src/heap-watch.js';
 
 function harness(readings: HeapReading[]) {
   let clock = 0;
@@ -121,5 +138,81 @@ describe('the heap it suggests next', () => {
     expect(nextHeapMb(304)).toBe(512);
     expect(nextHeapMb(524)).toBe(1024);
     expect(nextHeapMb(1060)).toBe(2048);
+  });
+});
+
+describe('the container limit', () => {
+  const roots: string[] = [];
+  afterAll(() => {
+    for (const root of roots) rmSync(root, { recursive: true, force: true });
+  });
+  /** A fake `/sys/fs/cgroup` and `/proc/self/cgroup`: answers the two paths the reader takes. */
+  function fixture(files: Record<string, string>, self = '0::/\n'): [string, string] {
+    const root = mkdtempSync(join(tmpdir(), 'cgroup-'));
+    roots.push(root);
+    for (const [path, body] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), body);
+    }
+    writeFileSync(join(root, 'self-cgroup'), self);
+    return [root, join(root, 'self-cgroup')];
+  }
+
+  it('reads cgroup v2 at the root, as a Docker container sees it', () => {
+    expect(readContainerLimitMb(...fixture({ 'memory.max': '805306368\n' }))).toBe(768);
+  });
+
+  it('reads the process\'s own v2 group first, as a systemd MemoryMax service has it', () => {
+    const [root, self] = fixture({ 'memory.max': 'max\n', 'system.slice/adminium.service/memory.max': '536870912\n' }, '0::/system.slice/adminium.service\n');
+    expect(readContainerLimitMb(root, self)).toBe(512);
+  });
+
+  it('answers none for an unlimited v2 group', () => {
+    expect(readContainerLimitMb(...fixture({ 'memory.max': 'max\n' }))).toBeNull();
+  });
+
+  it('reads cgroup v1, and takes its huge number for none', () => {
+    expect(readContainerLimitMb(...fixture({ 'memory/memory.limit_in_bytes': '1073741824\n' }, '4:memory:/\n'))).toBe(1024);
+    expect(readContainerLimitMb(...fixture({ 'memory/memory.limit_in_bytes': '9223372036854771712\n' }, '4:memory:/\n'))).toBeNull();
+    const [root, self] = fixture({ 'memory/docker/abc/memory.limit_in_bytes': '402653184\n' }, '12:cpu,cpuacct:/docker/abc\n4:memory:/docker/abc\n');
+    expect(readContainerLimitMb(root, self)).toBe(384);
+  });
+
+  it('answers none where there are no cgroups, as on macOS', () => {
+    expect(readContainerLimitMb(join(tmpdir(), 'no-such-cgroup-root'), join(tmpdir(), 'no-such-self'))).toBeNull();
+  });
+
+  it('calls a process within an eighth of its container\'s limit tight, 64 MB at least', () => {
+    expect(containerHeadroomMb(768)).toBe(96);
+    expect(containerHeadroomMb(384)).toBe(64);
+    expect(containerHeadroomMb(2048)).toBe(256);
+    expect(containerIsTight({ usedMb: 200, limitMb: 560, rssMb: 680, containerLimitMb: 768 })).toBe(true);
+    expect(containerIsTight({ usedMb: 200, limitMb: 560, rssMb: 660, containerLimitMb: 768 })).toBe(false);
+    expect(containerIsTight({ usedMb: 200, limitMb: 560, rssMb: 680, containerLimitMb: null })).toBe(false);
+    expect(nextContainerMb(768)).toBe(1024);
+    expect(nextContainerMb(1000)).toBe(1280);
+  });
+
+  it('warns, naming the container\'s memory, when the process nears the container limit with heap to spare', () => {
+    const h = harness([{ usedMb: 300, limitMb: 560, rssMb: 700, containerLimitMb: 768 }]);
+    stops.push(h.stop);
+    h.tick(HEAP_FIRST_LOOK_MS);
+    h.tick(HEAP_LOOK_EVERY_MS);
+    const warns = h.lines.filter((line) => line.level === 'warn');
+    expect(warns).toHaveLength(1);
+    expect(warns[0]!.message).toContain('700 MB of the 768 MB its container may use');
+    expect(warns[0]!.message).toContain('at least 1024 MB');
+    expect(warns[0]!.fields).toEqual({ heapUsedMb: 300, heapLimitMb: 560, rssMb: 700, containerLimitMb: 768 });
+    expect(h.lines.find((line) => line.message === 'memory')!.fields).toEqual({ heapUsedMb: 300, heapLimitMb: 560, rssMb: 700, containerLimitMb: 768 });
+  });
+
+  it('asks for a container no smaller than the one it has when the heap is the one running out', () => {
+    const h = harness([{ usedMb: 470, limitMb: 560, rssMb: 600, containerLimitMb: 2048 }]);
+    stops.push(h.stop);
+    h.tick(HEAP_FIRST_LOOK_MS);
+    h.tick(HEAP_LOOK_EVERY_MS);
+    const warn = h.lines.find((line) => line.level === 'warn')!;
+    expect(warn.message).toContain('NODE_OPTIONS=--max-old-space-size=1024');
+    expect(warn.message).toContain('at least 2048 MB');
   });
 });
