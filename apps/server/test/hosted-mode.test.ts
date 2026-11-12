@@ -316,7 +316,7 @@ describe('A4 the operator’s domains and the origin lock: kept; noindex: droppe
       }
       // Pay pages and payment webhooks: off with a trial's payments, back with the hosted profile's.
       const pay = await s.call('GET', '/pay/not-a-real-token', { anonymous: true });
-      expect(pay.status === 403 && JSON.stringify(pay.json()).includes(reason)).toBe(profile === 'trial');
+      expect(pay.status === 403 && reason !== null && JSON.stringify(pay.json()).includes(reason)).toBe(profile === 'trial');
     });
   }
 
