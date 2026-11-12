@@ -4,6 +4,7 @@
  * `apps/server/src/routes/settings/schema.ts` (copied-mirror convention from
  * app/bootstrap.ts: change both together).
  */
+import type { TrialRelayView } from './TrialEmailPanel.js';
 import { queryOptions } from '@tanstack/react-query';
 
 import { api } from '../../app/api.js';
@@ -104,7 +105,12 @@ export interface EmailSettings {
    * What the server's operator set on this section: `publicOrigin` read-only
    * while the environment decides it. Absent from a server older than the lock.
    */
-  locks?: { publicOrigin: SettingLock };
+  locks?: { publicOrigin: SettingLock; smtp?: SettingLock };
+  /**
+   * On a trial: the operator's mail service, shown read-only in place of the
+   * mail server fields (`TrialEmailPanel`). Null or absent on any other server.
+   */
+  relay?: TrialRelayView | null;
 }
 
 export interface EmailSender {
