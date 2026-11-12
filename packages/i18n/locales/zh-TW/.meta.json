@@ -19859,6 +19859,14 @@
     "status": "mt",
     "srcHash": "d7361f353559"
   },
+  "email.trialRelay.footer": {
+    "status": "mt",
+    "srcHash": "d3fe28c6915b"
+  },
+  "email.trialRelay.report": {
+    "status": "mt",
+    "srcHash": "81d5f7967389"
+  },
   "email.untitled.campaign": {
     "status": "mt",
     "srcHash": "7f3340e49229"
@@ -40846,6 +40854,102 @@
   "studio.settingsHub.email.port.label": {
     "status": "mt",
     "srcHash": "fe035157cda2"
+  },
+  "studio.settingsHub.email.relay.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "studio.settingsHub.email.relay.dayBar": {
+    "status": "mt",
+    "srcHash": "79aba897340c"
+  },
+  "studio.settingsHub.email.relay.empty": {
+    "status": "mt",
+    "srcHash": "12e6acd189a1"
+  },
+  "studio.settingsHub.email.relay.failed": {
+    "status": "mt",
+    "srcHash": "06047a8bc62f"
+  },
+  "studio.settingsHub.email.relay.from": {
+    "status": "mt",
+    "srcHash": "19683459156b"
+  },
+  "studio.settingsHub.email.relay.fromLine": {
+    "status": "mt",
+    "srcHash": "1d52b919d730"
+  },
+  "studio.settingsHub.email.relay.goesOut": {
+    "status": "mt",
+    "srcHash": "115b811366aa"
+  },
+  "studio.settingsHub.email.relay.hourBar": {
+    "status": "mt",
+    "srcHash": "2cd946632939"
+  },
+  "studio.settingsHub.email.relay.limitBounces": {
+    "status": "mt",
+    "srcHash": "5780fb7c6fac"
+  },
+  "studio.settingsHub.email.relay.limitDay": {
+    "status": "mt",
+    "srcHash": "20028a9b0694"
+  },
+  "studio.settingsHub.email.relay.limitHour": {
+    "status": "mt",
+    "srcHash": "29dabc48e846"
+  },
+  "studio.settingsHub.email.relay.limitPeople": {
+    "status": "mt",
+    "srcHash": "df1de0244407"
+  },
+  "studio.settingsHub.email.relay.noRelay": {
+    "status": "mt",
+    "srcHash": "f2a474ac82a7"
+  },
+  "studio.settingsHub.email.relay.open": {
+    "status": "mt",
+    "srcHash": "0f42f5dc76fd"
+  },
+  "studio.settingsHub.email.relay.outboxHelp": {
+    "status": "mt",
+    "srcHash": "f6392ca7643c"
+  },
+  "studio.settingsHub.email.relay.outboxTitle": {
+    "status": "mt",
+    "srcHash": "6253b3ec0395"
+  },
+  "studio.settingsHub.email.relay.people": {
+    "status": "mt",
+    "srcHash": "76aad19ad315"
+  },
+  "studio.settingsHub.email.relay.queued": {
+    "status": "mt",
+    "srcHash": "6a599877d753"
+  },
+  "studio.settingsHub.email.relay.subject": {
+    "status": "mt",
+    "srcHash": "8d183dbdcea3"
+  },
+  "studio.settingsHub.email.relay.title": {
+    "status": "mt",
+    "srcHash": "fa8396fd67c4"
+  },
+  "studio.settingsHub.email.relay.to": {
+    "status": "mt",
+    "srcHash": "ae79ea1e9c63"
+  },
+  "studio.settingsHub.email.relay.use": {
+    "status": "mt",
+    "srcHash": "c929b7ff03fe"
+  },
+  "studio.settingsHub.email.relay.useLine": {
+    "status": "mt",
+    "srcHash": "108dbbbeb6b0"
+  },
+  "studio.settingsHub.email.relay.waiting": {
+    "status": "mt",
+    "srcHash": "9afd25f3d886"
   },
   "studio.settingsHub.email.remove": {
     "status": "mt",

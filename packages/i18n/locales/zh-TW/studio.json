@@ -2764,6 +2764,32 @@
       "user": {
         "helper": "若中繼不需驗證，請留空。",
         "label": "使用者名稱"
+      },
+      "relay": {
+        "title": "郵件透過營運方的郵件服務寄出",
+        "from": "寄件地址",
+        "fromLine": "{from}，回覆將寄至 {replyTo}",
+        "noRelay": "營運方尚未為此安裝設定郵件服務，因此不會寄出任何郵件。",
+        "use": "今日用量",
+        "useLine": "今日 {today, number} / {perDay, number} 封郵件 · 本小時 {hour, number} / {perHour, number} 封",
+        "people": "今日已聯絡 {people, number} / {max, number} 人",
+        "dayBar": "今日郵件",
+        "hourBar": "本小時郵件",
+        "limitDay": "已達每日郵件上限。{count, plural, other {有 # 封郵件在等待，將於明天寄出。}}",
+        "limitHour": "已達每小時郵件上限。{count, plural, other {有 # 封郵件在等待，將從 {time} 起寄出。}}",
+        "limitPeople": "已達今日 {max, number} 人的上限。寄給新收件人的郵件將等到明天。",
+        "limitBounces": "郵件寄送已暫停至明天：今天有太多郵件被退回或被檢舉為垃圾郵件。",
+        "waiting": "{count, plural, other {有 # 封郵件在等待，第一封將於 {time} 寄出。}}",
+        "open": "開啟寄件匣",
+        "outboxTitle": "等待中的郵件",
+        "outboxHelp": "在郵件上限允許時會自動寄出。此處無法變更任何內容。",
+        "to": "收件人",
+        "subject": "主旨",
+        "queued": "加入佇列",
+        "goesOut": "寄出時間",
+        "empty": "沒有等待中的郵件。",
+        "failed": "無法載入等待中的郵件。",
+        "close": "關閉"
       }
     },
     "identity": {

@@ -2764,6 +2764,32 @@
       "user": {
         "helper": "Lad feltet stå tomt, hvis relayet ikke kræver login.",
         "label": "Brugernavn"
+      },
+      "relay": {
+        "title": "E-mails sendes via operatørens mailtjeneste",
+        "from": "Afsenderadresse",
+        "fromLine": "{from}, svar går til {replyTo}",
+        "noRelay": "Operatøren har ikke sat en mailtjeneste op til denne installation, så der sendes ingen e-mails.",
+        "use": "Brug i dag",
+        "useLine": "{today, number} af {perDay, number} e-mails i dag · {hour, number} af {perHour, number} denne time",
+        "people": "{people, number} af {max, number} personer skrevet til i dag",
+        "dayBar": "E-mails i dag",
+        "hourBar": "E-mails denne time",
+        "limitDay": "Den daglige e-mailgrænse er nået. {count, plural, one {# e-mail venter og sendes i morgen.} other {# e-mails venter og sendes i morgen.}}",
+        "limitHour": "Timegrænsen for e-mails er nået. {count, plural, one {# e-mail venter og sendes kl. {time}.} other {# e-mails venter og sendes fra kl. {time}.}}",
+        "limitPeople": "Dagens grænse på {max, number} personer er nået. E-mails til nye personer venter til i morgen.",
+        "limitBounces": "E-mail er sat på pause til i morgen: for mange e-mails kom retur eller blev meldt som spam i dag.",
+        "waiting": "{count, plural, one {# e-mail venter og sendes kl. {time}.} other {# e-mails venter; den første sendes kl. {time}.}}",
+        "open": "Åbn udbakken",
+        "outboxTitle": "Ventende e-mails",
+        "outboxHelp": "De sendes af sig selv, når e-mailgrænserne tillader det. Intet her kan ændres.",
+        "to": "Til",
+        "subject": "Emne",
+        "queued": "Sat i kø",
+        "goesOut": "Sendes",
+        "empty": "Ingen e-mails venter.",
+        "failed": "De ventende e-mails kunne ikke indlæses.",
+        "close": "Luk"
       }
     },
     "identity": {

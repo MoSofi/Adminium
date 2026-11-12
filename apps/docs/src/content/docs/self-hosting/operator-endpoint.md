@@ -86,7 +86,7 @@ curl -H "Authorization: Bearer $ADMINIUM_OPERATOR_TOKEN" http://10.0.0.2:4601/ap
 | `storage.dataDir` | Bytes on disk under `ADMINIUM_DATA_DIR`; `null` when it cannot be measured. |
 | `storage.files` | Bytes of the stored files, wherever they are kept. |
 | `storage.projectFolder` | Bytes on disk under the project folder; `null` without one. |
-| `emails` | Emails sent through your mail relay today and this hour (UTC); `null` where this instance does not count them. |
+| `emails` | Emails the person wrote that went out through your mail relay today and this hour (UTC), the ones the [trial's caps](/self-hosting/env-vars/#email-in-trial-mode) count; `null` where this instance does not count them (not a trial, or no relay). Account email is not counted here. |
 | `superAdminSignIns` | The last 20 sign-ins of the instance's Super Admins, newest first: when, and from which address. Nobody else's. |
 | `lastSignInAt` | When anybody last signed in; `null` when nobody has. |
 | `operatorAiTokens` | Tokens spent on your AI connection; `null` where this instance does not count them. |

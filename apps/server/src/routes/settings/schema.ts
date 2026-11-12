@@ -318,9 +318,47 @@ export const settingsEmailView = z.object({
    * `ADMINIUM_PUBLIC_ORIGIN` or `ADMINIUM_OPERATOR_DOMAINS` decides it
    * (`trial/operator-hosts.ts`), and then a save that changes it is refused.
    */
-  locks: z.object({ publicOrigin: settingLockSchema }),
+  locks: z.object({ publicOrigin: settingLockSchema, smtp: settingLockSchema }),
+  /**
+   * On a trial: the operator's mail relay as this card shows it in place of
+   * the mail server fields (`email/trial-relay.ts`). Null on any other server.
+   */
+  relay: z
+    .object({
+      /** The From header a mail queued now carries; null when the operator set no relay. */
+      from: z.string().nullable(),
+      /** Where replies go by default: the first Super Admin's address. */
+      replyTo: z.string().nullable(),
+      caps: z.object({ perDay: z.number().int(), perHour: z.number().int(), recipientsPerDay: z.number().int() }),
+      /** User mail taking today's (UTC) and this hour's room. */
+      today: z.number().int(),
+      thisHour: z.number().int(),
+      /** Different people written to today. */
+      people: z.number().int(),
+      /** User mail waiting for a later hour or day. */
+      waiting: z.number().int(),
+      /** The cap a new user mail would wait for now; null when it would go at once. */
+      limit: z.enum(['day', 'hour', 'recipients', 'bounces', 'system']).nullable(),
+      /** When the first waiting mail goes out (ms). */
+      nextAt: z.number().int().nullable(),
+    })
+    .nullable(),
 });
 export type SettingsEmailView = z.infer<typeof settingsEmailView>;
+
+/** `GET /settings/email/waiting`: user mail a trial's caps hold for later, soonest first (empty on any other server). */
+export const settingsEmailWaitingReply = z.object({
+  data: z.array(
+    z.object({
+      id: z.string(),
+      to: z.string(),
+      subject: z.string(),
+      queuedAt: z.number().int(),
+      goesOutAt: z.number().int(),
+    }),
+  ),
+});
+export type SettingsEmailWaitingReply = z.infer<typeof settingsEmailWaitingReply>;
 
 export const settingsEmailReply = z.object({ data: settingsEmailView });
 export type SettingsEmailReply = z.infer<typeof settingsEmailReply>;

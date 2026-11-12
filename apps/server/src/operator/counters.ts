@@ -8,6 +8,8 @@
  */
 import type { MetaDb } from '@adminium/meta';
 
+import { relayCounts } from '../email/trial-relay.js';
+
 export interface RelayMailCount {
   /** Since midnight UTC. */
   today: number | null;
@@ -15,11 +17,13 @@ export interface RelayMailCount {
   thisHour: number | null;
 }
 
-/** Emails sent through the operator's mail relay today and this hour; null where this instance does not count them. */
+/**
+ * User emails sent through the operator's mail relay today and this hour, the
+ * ones its caps count (`email/trial-relay.ts`); null where this instance does
+ * not count them (no trial, or no relay).
+ */
 export async function relayMailSent(meta: MetaDb, at: number): Promise<RelayMailCount> {
-  void meta;
-  void at;
-  return Promise.resolve({ today: null, thisHour: null });
+  return await relayCounts(meta, at);
 }
 
 /** Tokens the Designer and the other AI features have spent on the operator's AI connection; null where this instance does not count them. */

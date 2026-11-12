@@ -89,6 +89,7 @@ import {
 } from '../../email/send.js';
 import { isEmailStarterKey, renderStarter, starterCards, starterSampleVars } from '../../email/starters.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { policyOf, refuseUnlessAllowed } from '../../trial/refuse.js';
 import type { FileStore } from '../../files/store.js';
 import { translatorFor } from '../../i18n/server-i18n.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -1263,6 +1264,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       async (request, reply) => {
         const userId = requireUserId(request);
         await requireSettingsManage(request, 'send campaigns');
+        refuseUnlessAllowed(policyOf(app), 'marketingCampaigns', 'Marketing campaigns are switched off on this installation by its operator.');
         const row = await mustFind(request.params.id);
         if (row.kind !== 'campaign') {
           throw new ConflictError('Only a campaign can be sent to an audience.', 'CONFLICT', { kind: row.kind });
@@ -1451,6 +1453,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       async (request) => {
         requireUserId(request);
         await requireSettingsManage(request, 'resume campaign sends');
+        refuseUnlessAllowed(policyOf(app), 'marketingCampaigns', 'Marketing campaigns are switched off on this installation by its operator.');
         const run = await mustFindRun(request.params.id);
         const at = app.rbac.now();
         if (!(await runs.moveState(run.id, ['paused'], 'running', { statuses: ['scheduled', 'running'] }, at))) {

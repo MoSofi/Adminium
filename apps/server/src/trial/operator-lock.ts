@@ -64,6 +64,8 @@ export const LOCKED_SETTINGS = {
   'system.publicOrigin': { question: 'publicOriginSetting', value: null },
   // A1, A2 (connections, outgoing traffic): a user-typed AI address.
   'llm.baseUrl': { question: 'aiBaseUrl', value: null },
+  // A2: the user's own mail server. On a trial all mail goes through the operator's relay (`email/trial-relay.ts`).
+  'email.smtp': { question: 'ownSmtp', value: null },
 } as const satisfies Record<string, { question: PolicyQuestion; value: unknown }>;
 
 export type LockableSetting = keyof typeof LOCKED_SETTINGS;

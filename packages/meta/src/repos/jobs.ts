@@ -285,6 +285,23 @@ export function jobsRepo(meta: MetaDb) {
     },
 
     /**
+     * The jobs of a kind that are still to run, running, or that succeeded,
+     * due or finished at or after `since`: what a day's mail through a relay
+     * counts against its caps. Oldest first.
+     */
+    async ofKindSince(kind: string, since: number): Promise<Job[]> {
+      const rows = await db
+        .selectFrom('adminium_jobs')
+        .selectAll()
+        .where('kind', '=', kind)
+        .where('status', 'in', ['pending', 'running', 'succeeded'])
+        .where((eb) => eb.or([eb('runAt', '>=', since), eb('finishedAt', '>=', since)]))
+        .orderBy('runAt', 'asc')
+        .execute();
+      return rows.map(mapJob);
+    },
+
+    /**
      * Retention `jobs` policy: succeeded/cancelled past `retentionDays`,
      * failed kept twice as long.
      */

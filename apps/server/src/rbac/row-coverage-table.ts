@@ -578,6 +578,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'PUT /api/v1/settings/defaults': noRows('Server settings.'),
   'GET /api/v1/settings/email': noRows('Server settings.'),
   'PUT /api/v1/settings/email': noRows('Server settings.'),
+  'GET /api/v1/settings/email/waiting': noRows('A trial\'s queued mail: who it goes to and its subject, from the mail queue; no source row.'),
   'GET /api/v1/settings/local-databases': noRows('A server setting: which source hosts the guard lets through, no row read.'),
   'PUT /api/v1/settings/local-databases': noRows('A server setting: which source hosts the guard lets through, no row read.'),
   'GET /api/v1/settings/security': noRows('Server settings.'),

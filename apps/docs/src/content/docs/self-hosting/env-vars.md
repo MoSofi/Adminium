@@ -56,6 +56,9 @@ half-configured and fail later.
 | `ADMINIUM_TRIAL_UPGRADE_URL` | No | *(unset)* | Trial mode: the `https://` address of your Upgrade page; `?instance=` is added. Unset, no Upgrade button. |
 | `ADMINIUM_TRIAL_SMTP_URL` | No | *(unset)* | Trial mode: your mail relay for this instance, `smtp://user:password@relay:587`. A secret: takes `_FILE`. |
 | `ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY` | No | `50` | Trial mode: user emails a day through the relay (and 20 an hour). |
+| `ADMINIUM_TRIAL_MAIL_FROM` | With `ADMINIUM_TRIAL_SMTP_URL` | — | Trial mode: the address your relay pins for this instance, `i-7f3a9c@relay.example.com`. Every mail goes from it. See [Email in trial mode](#email-in-trial-mode). |
+| `ADMINIUM_TRIAL_MAIL_REPORT_URL` | No | `mailto:abuse@` the From address's domain | Trial mode: where a recipient reports a mail, `https://…` or `mailto:…`; linked in the footer of every user-written mail. |
+| `ADMINIUM_OPERATOR_NAME` | No | the From address's domain | Your name as mail from the relay says it: `"<instance> via <your name>"`. At most 60 characters, no `@ < > " \ , ; : ( ) [ ]`. |
 | `ADMINIUM_HOSTED_MODE` | No | `off` | `on` runs a paid installation on your server: the trial's host list, network policy, own-code and address rules stay; the clock, banners and caps go. Needs `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`. |
 | `ADMINIUM_OPERATOR_DOMAINS` | No | *(unset)* | CSV of the user's own verified domains: plain lower-case host names, `shop.example.com`. No wildcard, address, port or path. Honoured with or without trial mode: the instance answers on these and `ADMINIUM_PUBLIC_ORIGIN`'s host, links in email point at `https://` and the first one, and only these can be mapped to an app's side or the add-on pages. |
 | `ADMINIUM_OPERATOR_TOKEN` | No | *(unset)* | The [operator endpoint](/self-hosting/operator-endpoint/)'s bearer token: 32 random bytes or more (`openssl rand -hex 32`), one per instance. Needs `ADMINIUM_OPERATOR_LISTEN`. A secret: takes `_FILE`. |
@@ -1060,6 +1063,45 @@ answer everyone, but no search engine may index them: every response carries
 host disallows everything, over any robots.txt an app ships. Pay pages
 (`/pay…`) and inbound payment webhooks answer 403, as a trial has no payment
 provider. A hosted installation keeps neither rule.
+
+### Email in trial mode
+
+All of a trial's email is on, and all of it goes through your relay
+(`ADMINIUM_TRIAL_SMTP_URL`): the person's own mail server setting is shown
+read-only, marked **Set by the operator**, and a change to it through
+`PUT /api/v1/settings/email` is refused (409 `SET_BY_OPERATOR`). With no relay
+set, a trial sends no email at all.
+
+- **From** is always `"<instance name> via <ADMINIUM_OPERATOR_NAME>" <ADMINIUM_TRIAL_MAIL_FROM>`.
+  The instance name is the **Application name** (Studio's Server identity) with everything a header or an
+  address is made of taken out, and is dropped for the instance's host name
+  when it holds a brand or an account-safety word (`PayPal`, `Microsoft`,
+  `login`, `password`…) in any spelling, look-alike letters and digits
+  included. Have your relay pin the same address for the instance's credential.
+- **Reply-To**, on mail the person wrote, is a staff member's own sign-in
+  address: the one the mail asked for when it is one, else the first Super
+  Admin's.
+- **A footer** on mail the person wrote names the instance's address
+  (`ADMINIUM_PUBLIC_ORIGIN`) and links to `ADMINIUM_TRIAL_MAIL_REPORT_URL`.
+- **Account email** (password reset, invitation, sign-in code, address changed)
+  says Adminium's own words, whatever was edited or translated on the
+  instance, and has its own quota of 50 a day and 20 an hour that mail the
+  person wrote never uses up. Past it, account email is not sent.
+- **Mail the person wrote** is capped at `ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY` a
+  day (default 50), 20 an hour and 20 different people a day (UTC). Past a
+  cap it waits in the outbox and goes out in the first hour the caps leave
+  room in; Studio's Email settings say how many wait and list them. Five
+  bounced addresses or one spam report in a day (what the do-not-email list
+  learns from your relay's refusals and the mail services' notices) hold it
+  until the next day. Nothing is queued to go after the trial's end, and what
+  waits does not go then.
+- **Marketing mail** is off: campaigns cannot be sent (403 `OFF_BY_OPERATOR`,
+  `question: marketingCampaigns`), and mail classed as marketing is not queued.
+
+Your relay should cap each instance too: these limits are a courtesy, its own
+are the limit, so allow at least the user cap plus 50 account emails a day.
+The [operator endpoint](/self-hosting/operator-endpoint/) reports the user
+emails sent today and this hour.
 
 ### Your addresses for the instance
 

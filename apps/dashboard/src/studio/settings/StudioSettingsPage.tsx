@@ -589,6 +589,8 @@ function WorkspaceForm({
   const linkOriginInvalid = linkOriginText !== '' && linkOrigin === null;
   // Set by the server's operator: shown read-only, never sent.
   const originLocked = isLocked(initialEmail.locks?.publicOrigin);
+  // On a trial the operator's relay sends all mail: its panel stands where the mail server fields are.
+  const trialRelay = initialEmail.relay ?? null;
   const linkOriginDirty = !originLocked && (linkOrigin ?? linkOriginText) !== before.publicOrigin;
 
   // --- marketing mail: the postal address and the reply address --------------
@@ -1062,7 +1064,13 @@ function WorkspaceForm({
           </h3>
         </CardHeader>
         <CardBody>
-          {initialEmail.configured ? null : (
+          {trialRelay !== null ? (
+            // A trial: the operator's mail service in place of the mail server fields, nothing to change.
+            <Suspense fallback={null}>
+              <TrialEmailPanelLazy relay={trialRelay} />
+            </Suspense>
+          ) : null}
+          {trialRelay !== null || initialEmail.configured ? null : (
             <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-surface-2 p-3">
               <TriangleAlert aria-hidden className="mt-px size-4 shrink-0 text-warn" />
               <p className="text-caption text-fg-muted">
@@ -1076,6 +1084,7 @@ function WorkspaceForm({
 
           {/* Staged removal, like the logo's: nothing is cleared until Save, and
               the review modal names it. */}
+          {trialRelay !== null ? null : (
           <fieldset disabled={values.smtpRemove} className="contents">
             <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
               <FormField
@@ -1197,8 +1206,9 @@ function WorkspaceForm({
               />
             </div>
           </fieldset>
+          )}
 
-          {initialEmail.configured ? (
+          {trialRelay === null && initialEmail.configured ? (
             <div className="mt-4 flex items-center justify-end border-t border-border pt-4">
               {values.smtpRemove ? (
                 <Button variant="ghost" size="sm" onClick={() => set('smtpRemove', false)}>
@@ -1680,6 +1690,9 @@ export interface StudioSettingsPageProps {
 }
 
 /** The privacy page: a chunk of its own, loaded from this one's only when it is opened. */
+/** The trial's mail panel: its own chunk, fetched only on a trial. */
+const TrialEmailPanelLazy = lazy(async () => await import('./TrialEmailPanel.js'));
+
 const PrivacyPageLazy = lazy(async () => {
   const mod = await import('../privacy/PrivacyPage.js');
   return { default: mod.PrivacyPage };

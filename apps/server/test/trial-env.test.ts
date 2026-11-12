@@ -119,7 +119,7 @@ describe('the trial block parses', () => {
   });
 
   it('takes an https upgrade address and an smtp relay', () => {
-    const env = booted({ ...TRIAL, ADMINIUM_TRIAL_UPGRADE_URL: 'https://example.com/upgrade', ADMINIUM_TRIAL_SMTP_URL: 'smtp://i-123:pw@relay.example.com:587' });
+    const env = booted({ ...TRIAL, ADMINIUM_TRIAL_UPGRADE_URL: 'https://example.com/upgrade', ADMINIUM_TRIAL_SMTP_URL: 'smtp://i-123:pw@relay.example.com:587', ADMINIUM_TRIAL_MAIL_FROM: 'i-123@relay.example.com' });
     expect(env.ADMINIUM_TRIAL_UPGRADE_URL).toBe('https://example.com/upgrade');
     expect(env.ADMINIUM_TRIAL_SMTP_URL).toBe('smtp://i-123:pw@relay.example.com:587');
     for (const bad of ['http://example.com/upgrade', 'https://user:pw@example.com/up', 'https://example.com/up#x', 'javascript:alert(1)']) {
@@ -323,6 +323,6 @@ describe('the operator-decided list', () => {
     const pattern = /^ADMINIUM_(TRIAL_|HOSTED_MODE$|PUBLIC_ORIGIN$|DATABASE_HOSTS$|LOCAL_DATABASES$|NETWORK_POLICY$|SQLITE_DIRS$|STORAGE_DIRS$|SETUP_TOKEN$|DEPLOY_LINK$|OPERATOR_|AI_OPERATOR_|SUPABASE_CONNECT_URL$|DESIGNER_START_PROMPT)/;
     const fromSchema = Object.keys(envSchema.shape).filter((name) => pattern.test(name)).sort();
     expect([...OPERATOR_DECIDED_ENV].sort()).toEqual(fromSchema);
-    expect(fromSchema.length).toBe(27);
+    expect(fromSchema.length).toBe(30);
   });
 });

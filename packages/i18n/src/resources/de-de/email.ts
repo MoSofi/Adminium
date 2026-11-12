@@ -994,5 +994,9 @@ export default {
     },
     "failed": "Das konnte nicht gespeichert werden. Versuchen Sie es erneut.",
     "docsLink": "So wählt „Senden als“ einen Absender"
+  },
+  "trialRelay": {
+    "footer": "Gesendet von der Installation unter {address}, über den Maildienst ihres Betreibers.",
+    "report": "Diese E-Mail melden"
   }
 } as const;
