@@ -980,6 +980,35 @@ profile implies is fine: `ADMINIUM_NETWORK_POLICY=strict` passes. What a profile
 implies is enforced whatever the variable holds, so Studio shows those settings
 read-only, marked **Set by the operator**.
 
+### What the two profiles switch off
+
+Each refusal is a `403` with the code `OFF_BY_OPERATOR` and
+`details: { question, reason }` (`reason` is `trial-mode` or `hosted-mode`), so
+the dashboard says what is off in the person's language. Every screen that
+offers one of these shows it disabled with that reason, never hidden.
+
+| What | Trial | Hosted |
+|---|---|---|
+| A source database not on `ADMINIUM_DATABASE_HOSTS` (a MySQL source passes only through an entry that takes MySQL's port) | Off | Off |
+| A SQLite file as a source, on every way in, the desktop's "Create a new local database" included | Off | Off |
+| On a listed host that is not a Supabase project (`*.supabase.com`, `*.supabase.co`), any login but the user and database of `ADMINIUM_SOURCE_URL`. Set it even when the installation runs as a project: it is the one login allowed there. Unset, no login on your hosts is | Off | Off |
+| More than 10 database connection tests a minute, counted for the whole installation (`429 RATE_LIMITED`) | Off | Off |
+| `POST /meta/relocate`, `/setup/probe`, `/setup/adopt` (the setup token does not open them) | Off | Off |
+| Storage destinations other than the default local one: adding, testing, changing, making default, moving files out | Off | Off |
+| The automation webhook step and Slack message, at the save and at the run | Off | On |
+| Network calls of every add-on, declared hosts included | Off | On |
+| Payment services | Off | On |
+| The Designer's picture search and Figma | Off | On |
+| An AI address of the person's own (`llm.baseUrl`, shown read-only), and the OpenAI-compatible and Ollama providers; their own key to Anthropic, OpenAI or Google stays | Off | On |
+| Maps, routing, telemetry and the update check (see the table above) | Off | On |
+
+The meta store's own address is checked at every boot: on every install, a
+host in `ADMINIUM_META_URL` (or in the address a move wrote to `adminium.json`)
+that is, or resolves to, a cloud metadata address stops the boot. Under both
+profiles it must also pass the check a typed meta-store address does: only the
+query parameters a source connection may carry, and a name that resolves.
+Loopback stays allowed.
+
 `GET /api/v1/readyz?deep=1` also waits until installed add-ons are loaded:
 point a waker at it before it sends the first request.
 
