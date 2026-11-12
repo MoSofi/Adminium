@@ -5920,5 +5920,9 @@ export default {
       "line": "Auf diesem Computer erstellt das Projekt seine eigene Datei: Öffnen Sie im Designer das Projektmenü (sein Name oben links) und wählen Sie „Dieses Projekt exportieren …“.",
       "open": "Designer öffnen"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "Hochladen ist auf diesem Server vom Betreiber abgeschaltet. Installiere Add-ons aus dem Katalog.",
+    "appsOff": "Hochladen ist auf diesem Server vom Betreiber abgeschaltet. Installiere Apps aus dem Katalog."
   }
 } as const;

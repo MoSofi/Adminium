@@ -1406,5 +1406,13 @@
     "changesPlaceholder": "Schreib, was anders sein soll.",
     "buildThis": "So bauen",
     "sendChanges": "Meine Änderungen senden"
+  },
+  "ownCode": {
+    "step": "Auf diesem Server vom Betreiber abgeschaltet",
+    "codeOff": "Änderungen von Hand sind auf diesem Server vom Betreiber abgeschaltet. Bitte den Designer um die Änderung.",
+    "codeReadOnly": "{file}, nur lesbar: Änderungen von Hand sind auf diesem Server vom Betreiber abgeschaltet",
+    "startOff": "Auf diesem Server vom Betreiber abgeschaltet: Eine Kopie führt den eigenen Build der App aus.",
+    "stylesOff": "Eigene Stile sind auf diesem Server vom Betreiber abgeschaltet.",
+    "siteOff": "Website-Vorlagen sind auf diesem Server vom Betreiber abgeschaltet."
   }
 }

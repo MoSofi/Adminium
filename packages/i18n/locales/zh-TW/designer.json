@@ -1406,5 +1406,13 @@
     "changesPlaceholder": "寫下你希望有哪些不同。",
     "buildThis": "就這樣建置",
     "sendChanges": "送出我的修改"
+  },
+  "ownCode": {
+    "step": "此伺服器的營運方已關閉此功能",
+    "codeOff": "此伺服器的營運方已關閉手動編輯。請讓 Designer 進行修改。",
+    "codeReadOnly": "{file}，唯讀：此伺服器的營運方已關閉手動編輯",
+    "startOff": "此伺服器的營運方已關閉此功能：副本會執行應用程式自己的建置。",
+    "stylesOff": "此伺服器的營運方已關閉自訂樣式。",
+    "siteOff": "此伺服器的營運方已關閉網站範本。"
   }
 }

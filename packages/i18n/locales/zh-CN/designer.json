@@ -1406,5 +1406,13 @@
     "changesPlaceholder": "写下你希望有哪些不同。",
     "buildThis": "就这样构建",
     "sendChanges": "发送我的修改"
+  },
+  "ownCode": {
+    "step": "此服务器的运营方已关闭此功能",
+    "codeOff": "此服务器的运营方已关闭手动编辑。请让 Designer 进行修改。",
+    "codeReadOnly": "{file}，只读：此服务器的运营方已关闭手动编辑",
+    "startOff": "此服务器的运营方已关闭此功能：副本会运行应用自己的构建。",
+    "stylesOff": "此服务器的运营方已关闭自定义样式。",
+    "siteOff": "此服务器的运营方已关闭网站模板。"
   }
 }

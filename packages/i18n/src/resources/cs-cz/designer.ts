@@ -1416,5 +1416,13 @@ export default {
     "changesPlaceholder": "Napište, co chcete jinak.",
     "buildThis": "Postavit to",
     "sendChanges": "Odeslat moje změny"
+  },
+  "ownCode": {
+    "step": "Na tomto serveru vypnuto jeho provozovatelem",
+    "codeOff": "Ruční úpravy jsou na tomto serveru vypnuty jeho provozovatelem. Požádejte o změnu Designer.",
+    "codeReadOnly": "{file}, jen pro čtení: ruční úpravy jsou na tomto serveru vypnuty jeho provozovatelem",
+    "startOff": "Na tomto serveru vypnuto jeho provozovatelem: kopie spouští vlastní sestavení aplikace.",
+    "stylesOff": "Vlastní styly jsou na tomto serveru vypnuty jeho provozovatelem.",
+    "siteOff": "Šablony webu jsou na tomto serveru vypnuty jeho provozovatelem."
   }
 } as const;

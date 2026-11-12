@@ -1406,5 +1406,13 @@
     "changesPlaceholder": "Écrivez ce que vous voulez différent.",
     "buildThis": "Construire ceci",
     "sendChanges": "Envoyer mes modifications"
+  },
+  "ownCode": {
+    "step": "Désactivé sur ce serveur par son opérateur",
+    "codeOff": "Les modifications à la main sont désactivées sur ce serveur par son opérateur. Demandez la modification au Designer.",
+    "codeReadOnly": "{file}, en lecture seule : les modifications à la main sont désactivées sur ce serveur par son opérateur",
+    "startOff": "Désactivé sur ce serveur par son opérateur : une copie exécute la compilation propre à l’application.",
+    "stylesOff": "Les styles personnels sont désactivés sur ce serveur par son opérateur.",
+    "siteOff": "Les modèles de site sont désactivés sur ce serveur par son opérateur."
   }
 }
