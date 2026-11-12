@@ -41,11 +41,13 @@ import { createRunService, type RunService } from '../llm/run-service.js';
 import { createConnectionStatsCollector } from '../llm/stats-collector.js';
 import type { CollectRunStats } from '../llm/prompt-service.js';
 import type { OnMetaRelocated } from '../meta/relocate.js';
-import { openMetaStore, sqlitePathFromUrl, type MetaStoreHandle } from '../meta/store.js';
+import { MetaUrlError, openMetaStore, sqlitePathFromUrl, type MetaStoreHandle, type ResolvedMetaUrl } from '../meta/store.js';
+import { guardTypedMetaDsn } from '../meta/typed-dsn.js';
 import { mayOpenBrowser } from '../project/programs.js';
 import type { ProjectServerOptions } from '../project/service.js';
 import { setupTokenRequired } from '../setup/token.js';
 import { loadAllowedVocabularies } from './allowlist.js';
+import { trialPolicy } from '../trial/policy.js';
 import { CliError } from './exit.js';
 import { defaultDataDir } from './data-dir.js';
 import { readKeptSecret } from './kept-secret.js';
@@ -184,6 +186,25 @@ export function sqliteSourcePolicyFor(
 }
 
 /**
+ * The typed meta DSN's guard (`meta/typed-dsn.ts`) on the address the server
+ * boots on: the source parameter allow-list, and a host that must resolve and
+ * never to cloud metadata. Loopback stays allowed, as for every meta store. A
+ * SQLite file named by the environment may lie outside the data dir: that is
+ * the way an operator keeps one elsewhere.
+ */
+function strictBootMetaGuard(dataDir: string): (resolved: ResolvedMetaUrl) => Promise<void> {
+  return async (resolved) => {
+    if (resolved.engine === 'sqlite') return;
+    try {
+      await guardTypedMetaDsn(resolved.url, { dataDir });
+    } catch (error) {
+      const variable = resolved.source === 'env' ? 'ADMINIUM_META_URL' : 'The meta store address in adminium.json (in ADMINIUM_DATA_DIR)';
+      throw new MetaUrlError(`${variable} is refused: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+}
+
+/**
  * Open the meta store and compose the services. Does NOT bootstrap — `migrate`
  * owns that explicitly, and `start`/`init` call `firstRun` deliberately.
  *
@@ -196,11 +217,15 @@ export function sqliteSourcePolicyFor(
  * thrown: the LLM subcommands surface it, `start` degrades to no `/llm` routes.
  */
 export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Promise<CliRuntime> {
+  const policy = trialPolicy(env);
   const metaStore = await openMetaStore({
     metaUrl: env.ADMINIUM_META_URL,
     dataDir: env.ADMINIUM_DATA_DIR,
     secret: env.ADMINIUM_SECRET,
     poolSize: env.ADMINIUM_META_POOL_MAX,
+    // Every install refuses a meta store on a cloud metadata address (`guardBootMetaUrl`). Trial mode and the
+    // hosted profile, where the meta store is fixed by the operator, hold it to the typed meta DSN's whole guard.
+    ...(policy.allows('metaStoreRoutes').allowed ? {} : { guard: strictBootMetaGuard(env.ADMINIUM_DATA_DIR) }),
   });
 
   await registerAdapters(adapterRegistry);
@@ -215,6 +240,9 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     networkPolicy: env.ADMINIUM_NETWORK_POLICY,
     sqliteSources: sqliteSourcePolicyFor(env, metaStore),
     sourcePoolMax: env.ADMINIUM_SOURCE_POOL_MAX,
+    // Trial mode and the hosted profile: no SQLite source, only listed hosts, the operator's one login on its hosts.
+    policy: trialPolicy(env),
+    operatorSourceUrl: env.ADMINIUM_SOURCE_URL,
   });
 
   // The placement pre-flight, and it has to be HERE — before `start`/`init` call

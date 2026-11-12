@@ -30,6 +30,7 @@ const EXPECTED: Record<PolicyQuestion, [true | PolicyReason, true | PolicyReason
   anyDatabaseLogin: [true, 'trial-mode', 'hosted-mode'],
   unlimitedConnectionTests: [true, 'trial-mode', 'hosted-mode'],
   metaStoreRoutes: [true, 'trial-mode', 'hosted-mode'],
+  unlistedDatabaseHosts: [true, 'trial-mode', 'hosted-mode'],
   // A1b
   storageDestinations: [true, 'trial-mode', 'hosted-mode'],
   // A2: off in a trial, allowed again once paid

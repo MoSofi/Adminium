@@ -52,6 +52,9 @@ import { bootstrapQuery } from '../../app/bootstrap.js';
 import { providerFailureOf } from '../../assistant/api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
+import { OffByOperatorNote, OffByOperatorTip, offByOperatorText, offByOperatorWords } from '../../settings/OffByOperator.js';
+import { isLocked, SetByOperatorChip } from '../../settings/SetByOperator.js';
+import { useCommonWords } from '../../i18n/commonWords.js';
 import {
   aiApi,
   type LlmConfig,
@@ -218,18 +221,27 @@ export function ProviderConfigForm({
       setDraft((prev) => (prev === null ? prev : { ...prev, keyDraft: '', replacingKey: false }));
       toasts.push({ variant: 'success', title: t('studio:settingsAi.saved', 'AI provider saved') });
     },
-    onError: () => {
+    onError: (cause: unknown) => {
       toasts.push({
         variant: 'error',
-        title: t('studio:settingsAi.saveFailed', 'Could not save the AI provider. Try again.'),
+        title: offByOperatorText(cause) ?? t('studio:settingsAi.saveFailed', 'Could not save the AI provider. Try again.'),
       });
     },
   });
+
+  // Trial mode: a provider reached at an address of one's own, and the address itself, are the operator's to allow.
+  // The words below are the deferred `operatorSwitches` group: in before this paints.
+  useCommonWords();
+  const customOff = isLocked(config.locks?.customProviders);
+  const baseUrlOff = isLocked(config.locks?.baseUrl);
+  const offByOperator = (provider: string): boolean => customOff && (provider === 'openai-compatible' || provider === 'ollama');
+  const customReason = offByOperatorWords('customAiProviders');
 
   const testMutation = useMutation({ mutationFn: () => aiApi.testConfig() });
   const assistantTest = useMutation({ mutationFn: () => aiApi.testAssistant() });
 
   function selectProvider(provider: ConfigurableProvider): void {
+    if (offByOperator(provider)) return;
     setDraft(initialDraft(provider, config));
     testMutation.reset();
     assistantTest.reset();
@@ -309,24 +321,30 @@ export function ProviderConfigForm({
           const providerEntry = providerCatalogEntry(id);
           const Icon = providerEntry.icon;
           const isActive = config.provider === id;
+          const off = offByOperator(id);
           return (
-            <RadioCard
-              key={id}
-              value={id}
-              title={providerLabel(id)}
-              description={providerDescription(id)}
-              icon={<Icon />}
-              {...(isActive
-                ? {
-                    trailing: (
-                      <Badge tone="pos">{t('studio:settingsAi.provider.active', 'Active')}</Badge>
-                    ),
-                  }
-                : {})}
-            />
+            <OffByOperatorTip key={id} off={off} reason={customReason}>
+              <RadioCard
+                value={id}
+                title={providerLabel(id)}
+                description={providerDescription(id)}
+                icon={<Icon />}
+                {...(off ? { 'aria-disabled': true, 'aria-describedby': 'settings-ai-custom-off', className: 'cursor-not-allowed opacity-50 hover:border-border-strong' } : {})}
+                {...(isActive
+                  ? {
+                      trailing: (
+                        <Badge tone="pos">{t('studio:settingsAi.provider.active', 'Active')}</Badge>
+                      ),
+                    }
+                  : off
+                    ? { trailing: <SetByOperatorChip /> }
+                    : {})}
+              />
+            </OffByOperatorTip>
           );
         })}
       </RadioGroup>
+      {customOff ? <OffByOperatorNote id="settings-ai-custom-off" reason={customReason} /> : null}
 
       {draft !== null && entry !== null ? (
         <Card>
@@ -357,13 +375,18 @@ export function ProviderConfigForm({
                 <Input
                   mono
                   value={draft.baseUrl}
-                  onChange={(event) => patch({ baseUrl: event.currentTarget.value })}
+                  readOnly={baseUrlOff}
+                  {...(baseUrlOff ? { 'aria-disabled': true, 'aria-describedby': 'settings-ai-address-off' } : {})}
+                  onChange={(event) => {
+                    if (!baseUrlOff) patch({ baseUrl: event.currentTarget.value });
+                  }}
                   placeholder={entry.baseUrlPlaceholder ?? ''}
                   autoComplete="off"
                   spellCheck={false}
                 />
               </FormField>
             ) : null}
+            {entry.baseUrl !== 'none' && baseUrlOff ? <OffByOperatorNote id="settings-ai-address-off" reason={offByOperatorWords('aiBaseUrl')} /> : null}
 
             <ModelField
               draft={draft}

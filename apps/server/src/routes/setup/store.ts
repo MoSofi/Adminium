@@ -48,8 +48,9 @@ import type { Env } from '../../config/env.js';
 import { AppError, ConflictError } from '../../errors.js';
 import { connectMetaStore, metaEngineFromUrl, MetaUrlError, type MetaEngine } from '../../meta/store.js';
 import { metaUrlCryptoFromSecret } from '../../meta/store.js';
-import { guardTypedMetaDsn } from '../../meta/typed-dsn.js';
+import { guardTypedMetaDsn, META_FIXED } from '../../meta/typed-dsn.js';
 import type { OnMetaRelocated } from '../../meta/relocate.js';
+import { policyOf, refuseUnlessAllowed } from '../../trial/refuse.js';
 import { SetupClosedError, SetupTokenInvalidError, type SetupService } from '../../setup/service.js';
 import { setupTokenInvalid } from './index.js';
 import { RATE_LIMIT_BUCKETS } from '../auth/index.js';
@@ -180,6 +181,8 @@ export function setupStoreRoutes(deps: SetupStoreRoutesDeps): FastifyPluginAsync
         schema: { body: setupProbeBody, response: { 200: setupProbeReply } },
       },
       async (request): Promise<SetupProbeReply> => {
+        // Before the token: on a trial the stranger holds the token, so it opens nothing here.
+        refuseUnlessAllowed(policyOf(app), 'metaStoreRoutes', META_FIXED);
         await requireSetupOpen(request, 'setup_probe_denied', request.body.setupToken);
         const dsn = request.body.dsn.trim();
         // Outside the try below: a refusal is an answer, not "could not reach it".
@@ -219,6 +222,7 @@ export function setupStoreRoutes(deps: SetupStoreRoutesDeps): FastifyPluginAsync
         schema: { body: setupAdoptBody, response: { 200: setupAdoptReply } },
       },
       async (request): Promise<SetupAdoptReply> => {
+        refuseUnlessAllowed(policyOf(app), 'metaStoreRoutes', META_FIXED);
         await requireSetupOpen(request, 'setup_adopt_denied', request.body.setupToken);
         const dsn = request.body.dsn.trim();
 

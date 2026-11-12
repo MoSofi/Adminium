@@ -13,6 +13,8 @@ import { api, ApiError, csrfHeaders } from '../../app/api.js';
 export type PaymentMode = 'test' | 'live';
 
 export const REACHABILITY_STATES = [
+  /** Trial mode: the operator has switched payment services off for this installation. */
+  'operator-off',
   'network-off',
   'desktop',
   'not-set',

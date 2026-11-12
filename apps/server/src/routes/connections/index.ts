@@ -24,6 +24,8 @@ import {
 import { ConflictError, ValidationFailedError } from '../../errors.js';
 import { DsnSecretMismatchError } from '../../connections/crypto.js';
 import { maskDsn } from '../../connections/dsn.js';
+import { policyOf } from '../../trial/refuse.js';
+import { connectionTestBudget } from '../../trial/test-budget.js';
 import {
   INTROSPECT_JOB_KIND,
   runIntrospection,
@@ -90,6 +92,8 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
   const publicKeys = publicKeysRepo(meta);
 
   return async (app) => {
+    // Trial mode and the hosted profile: one budget of database tests for the whole installation.
+    const tests = connectionTestBudget(policyOf(app));
     async function toDto(
       connection: Connection,
       pageCounts?: Readonly<Record<string, number>>,
@@ -185,6 +189,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           throw new ValidationFailedError('Provide `dsn` or `roles.data`.', {});
         }
 
+        tests.spend();
         // The introspect role is stored here and dialled later, so it is
         // guarded now; the data role is guarded by its test.
         if (introspectDsn !== dataDsn) await manager.checkDsnAllowed(introspectDsn, body.engine);
@@ -235,6 +240,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       },
       async (request) => {
         // Capability probes only — never persists.
+        tests.spend();
         const summary = await manager.testDsn(request.body.engine, request.body.dsn);
         return testReply(summary);
       },
@@ -429,6 +435,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         if (dsns?.dataDsn == null) {
           throw new ValidationFailedError('Connection has no DSN to test.', { connectionId: connection.id });
         }
+        tests.spend();
         const summary = await manager.testDsn(connection.engine, dsns.dataDsn);
         await manager.connections.recordTestResult(connection.id, testOutcome(summary));
         return testReply(summary);

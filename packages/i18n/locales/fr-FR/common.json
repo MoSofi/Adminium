@@ -2173,5 +2173,17 @@
   "operatorLock": {
     "chip": "Défini par l’opérateur",
     "lockedOff": "L’opérateur a désactivé ce réglage pour cette installation."
+  },
+  "operatorSwitches": {
+    "sqlite": "Cette installation n’ouvre pas de fichiers SQLite : l’opérateur n’autorise que des serveurs de base de données.",
+    "unlistedHost": "Cette installation ne se connecte qu’aux hôtes de base de données autorisés par son opérateur.",
+    "otherLogin": "Sur cet hôte de base de données, seuls l’identifiant et la base que l’opérateur a donnés à cette installation fonctionnent.",
+    "metaFixed": "L’opérateur décide où cette installation garde ses propres données.",
+    "storage": "L’opérateur garde les fichiers de cette installation sur son propre disque : aucune autre destination ne peut être ajoutée ni testée.",
+    "webhooks": "L’opérateur a désactivé les étapes webhook pour cette installation.",
+    "aiProvider": "L’opérateur n’autorise sur cette installation que votre propre clé Anthropic, OpenAI ou Google.",
+    "aiAddress": "L’opérateur n’autorise pas d’adresse d’IA personnelle sur cette installation.",
+    "payments": "L’opérateur a désactivé les services de paiement pour cette installation.",
+    "askOperator": "Seul celui qui gère cette installation peut changer cela."
   }
 }

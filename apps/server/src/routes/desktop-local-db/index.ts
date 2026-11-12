@@ -27,6 +27,7 @@ import type { ConnectionManager } from '../../connections/manager.js';
 import { maskDsn } from '../../connections/dsn.js';
 import { CONNECTIONS_MANAGE } from '../connections/index.js';
 import { parseSchemaFileContent } from '../schema-import/index.js';
+import { policyOf, refuseUnlessAllowed } from '../../trial/refuse.js';
 import { createLocalDatabaseHandler, localDsn, type LocalDatabaseDeps } from './handlers.js';
 import { desktopLocalDbBody, desktopLocalDbReply, type DesktopLocalDbReply } from './schema.js';
 
@@ -52,6 +53,8 @@ export function desktopLocalDbRoutes(deps: DesktopLocalDbRoutesDeps): FastifyPlu
         schema: { body: desktopLocalDbBody, response: { 201: desktopLocalDbReply } },
       },
       async (request, reply): Promise<DesktopLocalDbReply> => {
+        // A SQLite file is a source the profile refuses on every front door; refused before the file is made.
+        refuseUnlessAllowed(policyOf(app), 'sqliteSources', 'This installation does not open SQLite files. Connect a database on one of the hosts the operator allows.');
         const actorId =
           request.apiKeyPrincipal === null
             ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)

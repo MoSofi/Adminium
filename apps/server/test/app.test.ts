@@ -73,6 +73,13 @@ describe('GET /api/v1/system/info', () => {
       connect: [],
       // Trial mode: off unless the operator switches it on.
       trial: { on: false, endsAt: null, daysLeft: null, upgradeUrl: null },
+      // Nothing switched off by an operator on an ordinary server.
+      offByOperator: {
+        sqliteSources: { allowed: true, reason: null },
+        storageDestinations: { allowed: true, reason: null },
+        webhooks: { allowed: true, reason: null },
+        metaStore: { allowed: true, reason: null },
+      },
     });
   });
 

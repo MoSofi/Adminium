@@ -2183,5 +2183,17 @@ export default {
   "operatorLock": {
     "chip": "由运营方设置",
     "lockedOff": "运营方已为此安装关闭此项。"
+  },
+  "operatorSwitches": {
+    "sqlite": "此安装不打开 SQLite 文件：运营方只允许数据库服务器。",
+    "unlistedHost": "此安装只连接运营方允许的数据库主机。",
+    "otherLogin": "在此数据库主机上，只有运营方分配给此安装的登录名和数据库可用。",
+    "metaFixed": "运营方决定此安装在哪里保存自身数据。",
+    "storage": "运营方将此安装的文件保存在自己的磁盘上，因此无法添加或测试其他存储位置。",
+    "webhooks": "运营方已为此安装关闭 Webhook 步骤。",
+    "aiProvider": "运营方在此安装上只允许使用你自己的 Anthropic、OpenAI 或 Google 密钥。",
+    "aiAddress": "运营方不允许在此安装上使用你自己的 AI 地址。",
+    "payments": "运营方已为此安装关闭支付服务。",
+    "askOperator": "只有运营此安装的人才能更改此项。"
   }
 } as const;

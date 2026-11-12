@@ -37,9 +37,11 @@ import { ValidationFailedError } from '../errors.js';
 import { assertNotPrivate } from '../crud/row-limit.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { guardOutboundUrl } from '../connections/dsn.js';
+import type { TrialPolicy } from '../trial/policy.js';
+import { refuseUnlessAllowed } from '../trial/refuse.js';
 import { isConditionComplete } from './conditions.js';
 import { isDateColumn } from './relative-time.js';
-import { isSlackWebhookUrl } from './actions/webhook.js';
+import { isSlackWebhookUrl, WEBHOOKS_OFF } from './actions/webhook.js';
 import { linkTargetOf, personSource, personalInputs, type StepAnswer } from './add-on-steps.js';
 import { isAddressColumn, parseRelated, relatedTarget, relatedUses, type RelatedRef } from './related.js';
 
@@ -152,6 +154,8 @@ export interface ResolveContext {
   steps?: RuleSteps | undefined;
   /** The tables of the rule's database an app declares as people (ids). Absent: a step's person is judged by its spelling alone. */
   peopleTables?: ReadonlySet<string> | undefined;
+  /** Trial mode switches the webhook step off (`trial/policy.ts`): a rule holding one is refused at the save. Absent: allowed. */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
 }
 
 /**
@@ -464,6 +468,8 @@ function checkAction(
       return;
     }
     case 'webhook': {
+      // Before anything else, an unfinished step too: it could only ever be finished into a call this server does not make.
+      if (ctx.policy !== undefined) refuseUnlessAllowed(ctx.policy, 'webhooks', WEBHOOKS_OFF);
       if (action.url === null || action.url.trim() === '') return;
       const url = action.url.trim();
       // A URL carrying a token cannot be resolved until the run; the send-time

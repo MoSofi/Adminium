@@ -34,6 +34,7 @@ import {
 } from '@adminium/meta';
 
 import { bootstrapPath, readBootstrap } from '../config/bootstrap.js';
+import { checkHost, type HostLookup } from '../net/address-guard.js';
 import { decryptSecret, deriveKey, encryptSecret } from '../config/secrets.js';
 
 /**
@@ -462,10 +463,75 @@ export async function connectMetaStore(
   };
 }
 
-/** Resolve + connect in one step — what every front door actually calls. */
-export async function openMetaStore(
-  opts: ResolveMetaUrlOptions & ConnectMetaStoreOptions,
-): Promise<MetaStoreHandle> {
+/** Where a resolved meta URL came from, as the person who set it would name it. */
+function metaUrlOrigin(resolved: ResolvedMetaUrl): string {
+  return resolved.source === 'env' ? 'ADMINIUM_META_URL' : 'The meta store address in adminium.json (in ADMINIUM_DATA_DIR)';
+}
+
+/**
+ * The hosts a network meta DSN can make its driver dial: the URL's own, and a
+ * `host` or `hostaddr` parameter (`pg` dials those in its place). A socket
+ * path (`/…`) is not a network address.
+ */
+function metaHostsOf(url: string): string[] {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    // Not a URL the guard can read: the driver refuses it with its own words.
+    return [];
+  }
+  const hosts = parsed.hostname === '' ? [] : [parsed.hostname];
+  for (const name of ['host', 'hostaddr']) {
+    for (const value of parsed.searchParams.getAll(name)) {
+      for (const one of value.split(',')) if (one !== '' && !one.startsWith('/')) hosts.push(one.trim());
+    }
+  }
+  return hosts;
+}
+
+export interface BootMetaGuardOptions {
+  /** Test seam: the host lookup. Default: the one the drivers make. */
+  lookup?: HostLookup | undefined;
+}
+
+/**
+ * The check every install runs on the meta store's address before it dials it
+ * at boot: no host it names may be, or resolve to, a cloud metadata address.
+ * The meta store's address is operator configuration (`ADMINIUM_META_URL`), or
+ * the bootstrap file a relocation or adoption wrote after checking the string
+ * then; a name can answer differently by the next boot, so it is looked up
+ * again here. Loopback and private addresses stay allowed (a database beside
+ * Adminium is the ordinary setup), and a name that does not resolve is left to
+ * the driver to report, so a database container that starts a moment later is
+ * not a refused boot. The embedded store and SQLite files have no host.
+ */
+export async function guardBootMetaUrl(resolved: ResolvedMetaUrl, opts: BootMetaGuardOptions = {}): Promise<void> {
+  if (resolved.engine === 'sqlite') return;
+  for (const host of metaHostsOf(resolved.url)) {
+    const check = await checkHost(host, { failClosed: false, lookup: opts.lookup });
+    if (!check.ok) {
+      const at = check.address === undefined || check.address === check.host ? '' : ` (${check.address})`;
+      throw new MetaUrlError(
+        `${metaUrlOrigin(resolved)} names the host ${check.host}${at}, a cloud metadata address. Adminium does not connect there: point the meta store at your database's own address.`,
+      );
+    }
+  }
+}
+
+export interface OpenMetaStoreOptions extends ResolveMetaUrlOptions, ConnectMetaStoreOptions, BootMetaGuardOptions {
+  /**
+   * A further check on the resolved address before it is dialled, after
+   * {@link guardBootMetaUrl}: trial mode and the hosted profile hold it to the
+   * guard a typed meta DSN meets (`meta/typed-dsn.ts`).
+   */
+  guard?: ((resolved: ResolvedMetaUrl) => Promise<void>) | undefined;
+}
+
+/** Resolve + check + connect in one step — what every front door actually calls. */
+export async function openMetaStore(opts: OpenMetaStoreOptions): Promise<MetaStoreHandle> {
   const resolved = await resolveMetaUrl(opts);
+  await guardBootMetaUrl(resolved, { lookup: opts.lookup });
+  await opts.guard?.(resolved);
   return connectMetaStore(resolved, { poolSize: opts.poolSize });
 }

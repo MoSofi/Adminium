@@ -121,7 +121,18 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     desktopDemo: demoSeedAvailable(env),
     connect: connectProviders(env).map((provider) => ({ provider: provider.id })),
     trial: trialInfo(env, deps.now?.() ?? Date.now()),
+    offByOperator: offByOperator(env),
   };
+}
+
+/** The switches the dashboard explains before anyone signs in (the connect wizards' SQLite choice) or without a reply of its own. */
+function offByOperator(env: Env): NonNullable<SystemInfoReply['offByOperator']> {
+  const policy = trialPolicy(env);
+  const lock = (question: 'sqliteSources' | 'storageDestinations' | 'webhooks' | 'metaStoreRoutes') => {
+    const answer = policy.allows(question);
+    return { allowed: answer.allowed, reason: answer.reason };
+  };
+  return { sqliteSources: lock('sqliteSources'), storageDestinations: lock('storageDestinations'), webhooks: lock('webhooks'), metaStore: lock('metaStoreRoutes') };
 }
 
 /** The trial's clock and the Upgrade address, as the banners read them. */

@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Button } from '@adminium/ui';
 
 import { ApiError } from '../../../app/api.js';
+import { offByOperatorText } from '../../../settings/OffByOperator.js';
 import { t } from '../../../i18n/t.js';
 import { studioApi, type IntrospectResult, type SchemaTable } from '../../api.js';
 import { workspacesApi } from '../../hub/workspacesApi.js';
@@ -260,7 +261,8 @@ export function TestStep({
       await finishFromSchema(connectionId, result.proposedMasks);
     } catch (cause) {
       if (cause instanceof ApiError) {
-        fail(cause.message, cause.code);
+        // A switch the operator turned off is said in the person's language, not the server's English.
+        fail(offByOperatorText(cause) ?? cause.message, cause.code);
         return;
       }
       fail(t('studio:test.log.networkFailed', 'Request failed — check your connection and retry.'), null);

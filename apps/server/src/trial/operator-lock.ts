@@ -62,6 +62,8 @@ export const LOCKED_SETTINGS = {
   // (`trial/operator-hosts.ts`), so `value` is only a placeholder here: the route compares with
   // `heldOperatorOrigin` and the boot writes the row (`security/public-origin.ts`).
   'system.publicOrigin': { question: 'publicOriginSetting', value: null },
+  // A1, A2 (connections, outgoing traffic): a user-typed AI address.
+  'llm.baseUrl': { question: 'aiBaseUrl', value: null },
 } as const satisfies Record<string, { question: PolicyQuestion; value: unknown }>;
 
 export type LockableSetting = keyof typeof LOCKED_SETTINGS;

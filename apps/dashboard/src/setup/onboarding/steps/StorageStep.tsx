@@ -24,6 +24,7 @@ import { Alert, Button, FormField, Input, RadioCard, RadioGroup } from '@adminiu
 import { dsnValidationCode } from '@adminium/widgets';
 
 import { t } from '../../../i18n/t.js';
+import { OffByOperatorNote, useOperatorSwitch } from '../../../settings/OffByOperator.js';
 import { studioApi, type ConnectionEngine, type MetaStoreLocation } from '../../../studio/api.js';
 import { sameDbDisabledCode } from '../../../studio/connect/metaPlacementRule.js';
 import { ONBOARDING_ENGINES } from '../heldAnswers.js';
@@ -142,23 +143,28 @@ export function StorageStep({
 }: StorageStepProps) {
   const [testing, setTesting] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
+  // Trial mode: where the meta store lives is the operator's choice, labelled so.
+  const metaFixed = useOperatorSwitch('metaStore');
 
   // An instance whose store is pinned by ADMINIUM_META_URL or an existing
   // bootstrap file has nothing to choose — and saying so beats offering three
   // cards that would all be refused.
   if (placement !== null && (!placement.embedded || !placement.canRelocate)) {
     return (
-      <Alert
-        tone="info"
-        title={t(
-          'onboarding:meta.pinned.title',
-          'Adminium’s data already has a home',
-        )}
-        body={t(
-          'onboarding:meta.pinned.body',
-          'This instance was started with its meta store configured, so there is nothing to move.',
-        )}
-      />
+      <div className="flex flex-col gap-2">
+        <Alert
+          tone="info"
+          title={t(
+            'onboarding:meta.pinned.title',
+            'Adminium’s data already has a home',
+          )}
+          body={t(
+            'onboarding:meta.pinned.body',
+            'This instance was started with its meta store configured, so there is nothing to move.',
+          )}
+        />
+        {metaFixed.off ? <OffByOperatorNote id="onboarding-meta-fixed" reason={metaFixed.reason} /> : null}
+      </div>
     );
   }
 

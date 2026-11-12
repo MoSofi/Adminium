@@ -2173,5 +2173,17 @@
   "operatorLock": {
     "chip": "Nastaveno provozovatelem",
     "lockedOff": "Provozovatel toto pro tuto instalaci vypnul."
+  },
+  "operatorSwitches": {
+    "sqlite": "Tato instalace neotevírá soubory SQLite: provozovatel povoluje jen databázové servery.",
+    "unlistedHost": "Tato instalace se připojuje jen k databázovým hostitelům, které provozovatel povoluje.",
+    "otherLogin": "Na tomto databázovém hostiteli fungují jen přihlášení a databáze, které provozovatel této instalaci přidělil.",
+    "metaFixed": "Provozovatel určuje, kde tato instalace uchovává svá vlastní data.",
+    "storage": "Provozovatel uchovává soubory této instalace na vlastním disku, takže nelze přidat ani otestovat jiné úložiště.",
+    "webhooks": "Provozovatel pro tuto instalaci vypnul kroky webhooku.",
+    "aiProvider": "Provozovatel v této instalaci povoluje jen váš vlastní klíč k Anthropic, OpenAI nebo Google.",
+    "aiAddress": "Provozovatel v této instalaci nepovoluje vlastní adresu AI.",
+    "payments": "Provozovatel pro tuto instalaci vypnul platební služby.",
+    "askOperator": "Změnit to může jen ten, kdo tuto instalaci provozuje."
   }
 }

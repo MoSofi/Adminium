@@ -24,6 +24,8 @@ import { Modal, ModalBody, ModalHeader } from '@adminium/ui';
 import type { ReactNode } from 'react';
 
 import { t } from '../../i18n/t.js';
+import { OffByOperatorNote, OffByOperatorTip, useOperatorSwitch } from '../../settings/OffByOperator.js';
+import { SetByOperatorChip } from '../../settings/SetByOperator.js';
 import { automationIcon } from '../icons.js';
 import type { InsertTarget, StepDefinition } from '../model/ops.js';
 import { ACTION_STEPS, KIND_META, LOGIC_STEPS } from '../model/vocabulary.js';
@@ -90,6 +92,8 @@ export function StepPicker({ target, contextLine, onPick, onClose, addOnSteps }:
   if (target === null) return null;
   const inBranch = target.branchId !== undefined;
   const logic = inBranch ? LOGIC_STEPS.filter((step) => step.key !== 'branch') : LOGIC_STEPS;
+  // Trial mode: the webhook steps (and Slack, which is one) shown, disabled, with the operator's reason.
+  const webhooks = useOperatorSwitch('webhooks');
 
   return (
     <Modal
@@ -109,6 +113,7 @@ export function StepPicker({ target, contextLine, onPick, onClose, addOnSteps }:
           <Group
             label={t('automations:picker.actions', 'Actions')}
             steps={ACTION_STEPS}
+            webhooksOff={webhooks}
             onPick={onPick}
           />
           <Group label={t('automations:picker.logic', 'Logic')} steps={logic} onPick={onPick} />
@@ -126,9 +131,12 @@ function Group({
   steps,
   onPick,
   wide,
+  webhooksOff,
 }: {
   label: string;
   steps: readonly StepDefinition[];
+  /** Trial mode: the webhook steps are switched off by the operator. */
+  webhooksOff?: { off: boolean; reason: string } | undefined;
   onPick: (definition: StepDefinition) => void;
   /** One tile a row: an add-on's step is named with its add-on, which is long. */
   wide?: boolean;
@@ -144,15 +152,17 @@ function Group({
           // A step from an add-on wears the accent, not an action's green: it is somebody else's (comp 5b).
           const meta = step.addOnName === undefined ? KIND_META[step.kind] : { ...KIND_META[step.kind], soft: 'bg-accent-soft', text: 'text-accent' };
           const Icon = automationIcon(step.icon);
+          const off = webhooksOff?.off === true && step.action?.kind === 'webhook';
           return (
+            <OffByOperatorTip key={step.key} off={off} reason={webhooksOff?.reason ?? ''}>
             <button
-              key={step.key}
               type="button"
               data-testid={`step-pick-${step.key}`}
+              {...(off ? { 'aria-disabled': true, 'aria-describedby': 'step-pick-webhooks-off' } : {})}
               onClick={() => {
-                onPick(step);
+                if (!off) onPick(step);
               }}
-              className="flex items-start gap-2.5 rounded-xl border border-border bg-surface px-3 py-[11px] text-start hover:border-accent hover:bg-surface-2"
+              className={`flex items-start gap-2.5 rounded-xl border border-border bg-surface px-3 py-[11px] text-start ${off ? 'cursor-not-allowed opacity-50' : 'hover:border-accent hover:bg-surface-2'}`}
             >
               <span
                 className={`flex size-[30px] shrink-0 items-center justify-center rounded-[9px] ${meta.soft} ${meta.text}`}
@@ -166,11 +176,18 @@ function Group({
                 <span className="mt-0.5 block text-[11px] text-fg-subtle">
                   {text === undefined ? step.desc : t(text.desc[0], text.desc[1])}
                 </span>
+                {off ? <SetByOperatorChip className="mt-1" /> : null}
               </span>
             </button>
+            </OffByOperatorTip>
           );
         })}
       </div>
+      {webhooksOff?.off === true ? (
+        <div className="mt-2">
+          <OffByOperatorNote id="step-pick-webhooks-off" reason={webhooksOff.reason} />
+        </div>
+      ) : null}
     </div>
   );
 }
