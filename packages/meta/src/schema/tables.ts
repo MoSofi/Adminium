@@ -1969,6 +1969,15 @@ export interface AdminiumAppAfterInstallHiddenTable {
   hiddenAt: Ts;
 }
 
+/** Wave 0088 — what the server's operator holds back on this instance, by name (`public-pages`). */
+export interface AdminiumOperatorHoldsTable {
+  name: string;
+  held: BoolColumn;
+  /** The operator's reason, shown to the instance's owner; null without one. */
+  reason: string | null;
+  changedAt: Ts;
+}
+
 /** Wave 0079 — a value an app's deployment-wide part wrote, and what was there before it. */
 export interface AdminiumAppInstanceUndoTable {
   id: Id;
@@ -2250,6 +2259,7 @@ export interface MetaDB {
   adminium_app_updates: AdminiumAppUpdatesTable;
   adminium_app_instance_undo: AdminiumAppInstanceUndoTable;
   adminium_app_after_install_hidden: AdminiumAppAfterInstallHiddenTable;
+  adminium_operator_holds: AdminiumOperatorHoldsTable;
 }
 
 /**
@@ -2357,4 +2367,5 @@ export const META_TABLE_NAMES = [
   'adminium_app_updates',
   'adminium_app_instance_undo',
   'adminium_app_after_install_hidden',
+  'adminium_operator_holds',
 ] as const satisfies readonly (keyof MetaDB)[];
