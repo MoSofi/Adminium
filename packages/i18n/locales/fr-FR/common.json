@@ -2191,5 +2191,15 @@
     "sizeCapNotice": "Cette base de données dépasse la limite de {limit} Mo de l’essai : elle est en lecture seule. Supprimez des lignes pour continuer.",
     "sizeCapUsage": "{used} / {limit} Mo",
     "sizeCapLimit": "Limite de {limit} Mo"
+  },
+  "trial": {
+    "testEnvironment": "Ceci est un environnement de test. Merci de ne pas y saisir de vraies données clients.",
+    "daysLeft": "{count, plural, one {# jour restant} other {# jours restants}}",
+    "exportEverything": "Tout exporter",
+    "upgrade": "Mettre à niveau",
+    "ended": "Cet essai est terminé.",
+    "readOnly": "Lecture seule : cet essai est terminé",
+    "readOnlyChip": "Lecture seule",
+    "upgradeLine": "Garder cette installation : tout reste tel quel."
   }
 }

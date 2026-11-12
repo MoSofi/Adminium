@@ -2191,5 +2191,15 @@
     "sizeCapNotice": "Diese Datenbank liegt über dem Limit des Tests von {limit} MB und ist daher schreibgeschützt. Löschen Sie einige Zeilen, um weiterzumachen.",
     "sizeCapUsage": "{used} / {limit} MB",
     "sizeCapLimit": "Limit {limit} MB"
+  },
+  "trial": {
+    "testEnvironment": "Dies ist eine Testumgebung. Bitte geben Sie keine echten Kundendaten ein.",
+    "daysLeft": "{count, plural, one {Noch # Tag} other {Noch # Tage}}",
+    "exportEverything": "Alles exportieren",
+    "upgrade": "Upgrade",
+    "ended": "Dieser Testzeitraum ist beendet.",
+    "readOnly": "Nur lesen: Dieser Testzeitraum ist beendet",
+    "readOnlyChip": "Nur lesen",
+    "upgradeLine": "Diese Installation behalten: Alles bleibt, wie es ist."
   }
 }

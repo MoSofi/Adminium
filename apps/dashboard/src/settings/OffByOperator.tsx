@@ -58,6 +58,8 @@ export function offByOperatorWords(question: string): string {
       return t('operatorSwitches.storageOverCap', 'This installation’s files are over the trial’s limit, so nothing more can be stored. Delete some files to continue.');
     case 'extraSourceConnections':
       return t('operatorSwitches.extraSources', 'A trial connects at most 3 databases. Remove one to connect another.');
+    case 'writes':
+      return t('trial.readOnly', 'Read-only: this trial has ended');
     default:
       return t('operatorLock.lockedOff', 'The operator has switched this off for this installation.');
   }

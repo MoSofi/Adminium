@@ -2191,5 +2191,15 @@
     "sizeCapNotice": "此数据库已超过试用版 {limit} MB 的上限，因此为只读。请删除一些行以继续。",
     "sizeCapUsage": "{used} / {limit} MB",
     "sizeCapLimit": "上限 {limit} MB"
+  },
+  "trial": {
+    "testEnvironment": "这是一个测试环境。请不要输入真实的客户数据。",
+    "daysLeft": "{count, plural, other {还剩 # 天}}",
+    "exportEverything": "导出全部",
+    "upgrade": "升级",
+    "ended": "此试用已结束。",
+    "readOnly": "只读：此试用已结束",
+    "readOnlyChip": "只读",
+    "upgradeLine": "保留此安装：一切保持原样。"
   }
 }

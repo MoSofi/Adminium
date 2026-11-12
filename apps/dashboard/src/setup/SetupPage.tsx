@@ -14,6 +14,7 @@ import { use, useState, type ReactNode } from 'react';
 
 import { OnboardingPage } from './onboarding/OnboardingPage.js';
 import { onboardingMessagesReady } from './onboarding/onboardingMessages.js';
+import { TrialMount } from '../trial/TrialMount.js';
 import { SetupTokenScreen } from './SetupTokenScreen.js';
 import { SETUP_STATE_QUERY_KEY, setupStateQuery, type SetupState } from './setupState.js';
 
@@ -42,9 +43,13 @@ export function SetupPage(): ReactNode {
     );
   }
   return (
-    <OnboardingPage
-      passwordMinLength={data.passwordMinLength}
-      databaseConnected={data.databaseConnected === true}
-    />
+    <>
+      {/* A trial's strips, above the wizard (the token screen has them through its layout). */}
+      <TrialMount />
+      <OnboardingPage
+        passwordMinLength={data.passwordMinLength}
+        databaseConnected={data.databaseConnected === true}
+      />
+    </>
   );
 }

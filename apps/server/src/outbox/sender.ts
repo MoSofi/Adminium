@@ -272,6 +272,8 @@ export interface OutboxSenderDeps {
    * link and the locked footer. Made from `meta` and the secret when absent.
    */
   marketing?: MarketingMail | undefined;
+  /** Whether user mail goes out now (false once a trial has ended): while not, queued rows stay queued. */
+  userMail?: (() => boolean) | undefined;
 }
 
 export interface OutboxSender {
@@ -2107,11 +2109,13 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   }
 
   async function sendApp(appKey: string, now: number = Date.now()): Promise<number> {
+    if (deps.userMail?.() === false) return 0;
     const box = (await deps.live()).find((candidate) => candidate.appKey === appKey);
     return box === undefined ? 0 : sendBox(box, now);
   }
 
   async function sweep(now: number = Date.now()): Promise<number> {
+    if (deps.userMail?.() === false) return 0;
     let total = 0;
     for (const box of await deps.live()) {
       try {

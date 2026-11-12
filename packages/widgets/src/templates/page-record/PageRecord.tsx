@@ -53,6 +53,7 @@ import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import { TimelineVertical } from '../../families/feeds/TimelineVertical.js';
 import type { TimelineEntry } from '../../families/feeds/feeds-types.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { WriteControl } from '../../lib/write-lock.js';
 
 /**
  * `page-record` — the record detail page (Customer 360 comp): the template
@@ -1442,14 +1443,18 @@ export function PageRecord({
               </span>
             ))}
             {showEdit && (
-              <Button size="sm" variant="secondary" iconLeft={<Pencil />} onClick={() => setEditOpen(true)}>
-                {labels?.edit ?? t('ui:action.edit', 'Edit')}
-              </Button>
+              <WriteControl>
+                <Button size="sm" variant="secondary" iconLeft={<Pencil />} onClick={() => setEditOpen(true)}>
+                  {labels?.edit ?? t('ui:action.edit', 'Edit')}
+                </Button>
+              </WriteControl>
             )}
             {showDelete && (
-              <Button size="sm" variant="destructive" iconLeft={<Trash2 />} onClick={openDelete}>
-                {labels?.delete ?? t('ui:action.delete', 'Delete')}
-              </Button>
+              <WriteControl>
+                <Button size="sm" variant="destructive" iconLeft={<Trash2 />} onClick={openDelete}>
+                  {labels?.delete ?? t('ui:action.delete', 'Delete')}
+                </Button>
+              </WriteControl>
             )}
           </div>
         )}

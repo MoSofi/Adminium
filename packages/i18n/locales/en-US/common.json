@@ -2191,5 +2191,15 @@
     "sizeCapNotice": "This database is over the trial’s {limit} MB limit, so it is read-only. Delete some rows to continue.",
     "sizeCapUsage": "{used} / {limit} MB",
     "sizeCapLimit": "{limit} MB limit"
+  },
+  "trial": {
+    "testEnvironment": "This is a test environment. Please don’t put real customer data in.",
+    "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+    "exportEverything": "Export everything",
+    "upgrade": "Upgrade",
+    "ended": "This trial has ended.",
+    "readOnly": "Read-only: this trial has ended",
+    "readOnlyChip": "Read-only",
+    "upgradeLine": "Keep this installation: everything stays as it is."
   }
 }

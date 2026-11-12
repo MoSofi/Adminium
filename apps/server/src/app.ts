@@ -63,6 +63,7 @@ import { operatorHostsOf, registerOperatorHosts } from './trial/operator-hosts.j
 import { registerPublicPages } from './trial/public-pages.js';
 import { createRouteAudienceRegistry } from './security/route-audience.js';
 import { createOperatorHolds } from './operator/holds.js';
+import { registerTrialReadOnly } from './trial/read-only.js';
 import { holdOperatorOrigin } from './security/public-origin.js';
 import { API_PREFIX, registerRoutes } from './routes/index.js';
 import { aboutRoutes } from './routes/about/index.js';
@@ -599,8 +600,10 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     if (failed !== null) app.log.warn({ err: failed }, 'the operator holds could not be read; the public pages stay as they were');
   });
   // Pages strangers reach: hidden from search engines and without pay pages where the policy says so,
-  // and hidden altogether while the operator holds them back (`trial/public-pages.ts`).
+  // and hidden altogether while the operator holds them back or once a trial has ended (`trial/public-pages.ts`).
   registerPublicPages(app, policy, { holds: operatorHolds, meta: opts.metaDb ?? null });
+  // Past a trial's end date: every write refused but a short list (`trial/read-only.ts`).
+  registerTrialReadOnly(app, policy);
   // `staticRoot` rides along so core can hash the served index.html's inline
   // scripts into the CSP allowance (plugins/core.ts).
   await app.register(corePlugin, { env, staticRoot: opts.staticRoot });

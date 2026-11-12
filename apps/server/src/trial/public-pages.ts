@@ -19,15 +19,15 @@
  *    the policy's reason) where the policy switches them off: a trial has no
  *    payment provider to pay through or to call back.
  *
- * The request hook is also where every public page is hidden at once, while
- * the server's operator holds them back (`operator/holds.ts`): every request
- * for a public door ({@link isPublicDoor}) answers 404 with the bare
- * "unavailable" page, on every host, the user's own domains included. Which
- * door is public is not a list kept here: each route carries its audience
- * from registration (`security/route-audience.ts`), an untagged one counting
- * as public; the doors served by hooks rather than routes (an app's customer
- * side, a host mapped to one or to the add-on pages) are known by their
- * address.
+ * The request hook is also where every public page is hidden at once: while
+ * the server's operator holds them back (`operator/holds.ts`), and past a
+ * trial's end date ({@link hiddenAtTrialEnd}). Every request for a public
+ * door ({@link isPublicDoor}) then answers 404 with the bare "unavailable"
+ * page, on every host, the user's own domains included. Which door is public
+ * is not a list kept here: each route carries its audience from registration
+ * (`security/route-audience.ts`), an untagged one counting as public; the
+ * doors served by hooks rather than routes (an app's customer side, a host
+ * mapped to one or to the add-on pages) are known by their address.
  */
 import { Readable } from 'node:stream';
 
@@ -118,8 +118,13 @@ export async function isPublicDoor(app: FastifyInstance, request: FastifyRequest
   return audienceOf(request.routeOptions.config) !== 'staff';
 }
 
+/** Past a trial's end date the pages strangers reach are hidden (the policy's `publicPages`). */
+export function hiddenAtTrialEnd(policy: Pick<TrialPolicy, 'allows'>): boolean {
+  return !policy.allows('publicPages').allowed;
+}
+
 /** What a hidden public page answers: the bare page to a browser, the 404 envelope to anything else. */
-async function sendHiddenPage(meta: MetaDb | null, holds: OperatorHolds, request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+async function sendHiddenPage(meta: MetaDb | null, holds: OperatorHolds | null, request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
   void reply.code(404).header('cache-control', 'no-store').header('x-robots-tag', NOINDEX);
   const path = pathOf(request.url);
   const page = (request.method === 'GET' || request.method === 'HEAD') && !path.startsWith('/api/') && wantsPage(request);
@@ -127,7 +132,7 @@ async function sendHiddenPage(meta: MetaDb | null, holds: OperatorHolds, request
   const locale = (negotiateLocale(request.headers['accept-language']) ?? ((await recipientLocale(meta, null)) as LocaleId));
   const i18n = await createServerI18n({ locale, overrides: await loadOverrideMap(meta, locale) });
   const workspace = await settingsRepo(meta).get('branding.appName');
-  const logo = await holds.logo().catch(() => null);
+  const logo = holds === null ? null : await holds.logo().catch(() => null);
   const html = renderHiddenPage({
     venueName: typeof workspace === 'string' && workspace.trim() !== '' && workspace !== DEFAULT_WORKSPACE_NAME ? workspace : null,
     logo: logo === null ? null : `data:${logo.mime};base64,${logo.bytes.toString('base64')}`,
@@ -147,7 +152,7 @@ function wantsPage(request: FastifyRequest): boolean {
 
 /** What hiding the public pages needs: the operator's holds, and the meta store the page's words come from. */
 export interface PublicPagesHide {
-  holds: OperatorHolds;
+  holds: OperatorHolds | null;
   meta: MetaDb | null;
 }
 
@@ -155,9 +160,11 @@ export function registerPublicPages(app: FastifyInstance, policy: Pick<TrialPoli
   const indexing = policy.allows('searchIndexing').allowed;
 
   app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Hidden by the server's operator: every public door, on every host.
-    if (hide !== undefined && hide.holds.publicPages().hidden && (await isPublicDoor(app, request))) {
-      return sendHiddenPage(hide.meta, hide.holds, request, reply);
+    // Hidden by the server's operator, or past a trial's end date: every public door, on every host.
+    // The page says nothing of why.
+    const holds = hide?.holds ?? null;
+    if ((holds?.publicPages().hidden === true || hiddenAtTrialEnd(policy)) && (await isPublicDoor(app, request))) {
+      return sendHiddenPage(hide?.meta ?? null, holds, request, reply);
     }
     const path = pathOf(request.url);
     const question = closedBy(path);

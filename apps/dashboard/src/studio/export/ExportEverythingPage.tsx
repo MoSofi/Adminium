@@ -30,6 +30,7 @@ import { docsUrl, PUT_ONLINE_URL } from '../../kb/docsLinks.js';
 import { getDesktopApi, isDesktopRuntime } from '../../lib/desktop-runtime.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
+import { UpgradeCard } from '../../trial/TrialStrips.js';
 import { EXPORT_STATE_KEY, IMPORT_COMMAND, exportDownloadHref, exportStateQuery, startExport, type ExportView } from './exportApi.js';
 
 const SUPER_ADMIN_ROLE = 'super-admin';
@@ -307,7 +308,10 @@ function DesktopPointer(): ReactNode {
 
 export function ExportEverythingPage(): ReactNode {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
-  const deployLink = showsDeployLink(useQuery(systemInfoQuery()).data);
+  const info = useQuery(systemInfoQuery()).data;
+  const deployLink = showsDeployLink(info);
+  // Trial mode's Upgrade, when the operator set where it goes.
+  const upgradeUrl = info?.trial?.on === true ? info.trial.upgradeUrl : null;
   const holdsHeading = useId();
   const superAdmin = bootstrap.roles.includes(SUPER_ADMIN_ROLE);
   const desktop = isDesktopRuntime();
@@ -348,6 +352,7 @@ export function ExportEverythingPage(): ReactNode {
       />
       {body}
       {superAdmin && deployLink ? <PutOnlineCard /> : null}
+      {upgradeUrl === null ? null : <UpgradeCard url={upgradeUrl} />}
     </PageSurface>
   );
 }
