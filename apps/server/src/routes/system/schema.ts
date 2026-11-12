@@ -38,7 +38,16 @@ export const systemReadyzChecks = z.object({
    * carries in its store; an install checked now would see one as missing.
    */
   packages: z.enum(['ok', 'seeding']),
+  /**
+   * `?deep=1` only. `loading` = the boot is still loading the installed
+   * add-ons' code, which it does in the background after the server answers;
+   * a request now could reach an add-on that is not there yet.
+   */
+  addOns: z.enum(['ok', 'loading']).optional(),
 });
+
+/** `?deep=1`: also wait for the add-on runtime (plan 75 §5.2 A8), the target for a waker. */
+export const systemReadyzQuery = z.object({ deep: z.enum(['0', '1']).optional() });
 
 export const systemReadyzReply = z.object({
   /** `false` ⇒ the route answers 503; take this instance out of rotation. */
