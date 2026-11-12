@@ -189,6 +189,8 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           throw new ValidationFailedError('Provide `dsn` or `roles.data`.', {});
         }
 
+        // A trial connects a few databases at most.
+        await manager.assertRoomForSource();
         tests.spend();
         // The introspect role is stored here and dialled later, so it is
         // guarded now; the data role is guarded by its test.

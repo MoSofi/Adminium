@@ -83,6 +83,7 @@ import { DESIGNER_REACT_VERSION, fixedVersion, ICONS_PACKAGE, listedPackages, TA
 import type { Designer } from './service.js';
 import type { Skills } from './skills.js';
 import type { DesignerTool, PictureSites, ToolContext, ToolOutcome } from './tool-types.js';
+import { OffByOperatorError } from '../trial/refuse.js';
 
 /** The most a read returns; the rest is said to be there. */
 export const MAX_READ_BYTES = 65_536;
@@ -351,6 +352,8 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
       // Code the operator keeps off, met at the jail itself: the fixed answer, as at the tool's own door.
       if (error instanceof OwnCodeJailError) return ownCodeRefusal('designerCode') ?? refused(error.message, label);
       if (error instanceof JailError) return { ...refused(error.message, label), ...(error.message.endsWith(' does not exist.') ? { miss: true } : {}) };
+      // A trial's data folder past its limit: said, so the model stops writing.
+      if (error instanceof OffByOperatorError) return refused(error.message, label);
       throw error;
     }
   };

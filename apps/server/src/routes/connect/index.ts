@@ -97,6 +97,8 @@ export function connectRoutes(deps: ConnectRoutesDeps): FastifyPluginAsyncZod {
      */
     async function land(request: FastifyRequest, provider: ConnectProviderId, answer: RedeemedConnection, password: string | undefined): Promise<ConnectResultReply> {
       const dsn = connectionDsn(answer, password);
+      // A trial connects a few databases at most.
+      await manager.assertRoomForSource();
       // The guard runs here: ADMINIUM_DATABASE_HOSTS, the network policy, the host's lookup.
       const summary = await manager.testDsn('postgres', dsn);
       if (!summary.ok) {

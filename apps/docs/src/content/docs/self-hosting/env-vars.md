@@ -17,9 +17,9 @@ half-configured and fail later.
 | `PORT` | No | `4600` | Listen port. Integer 1–65535. |
 | `HOST` | No | `0.0.0.0` | Bind address. `127.0.0.1` to bind loopback only. |
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
-| `ADMINIUM_META_POOL_MAX` | No | `10` | How many connections a Postgres or MySQL meta store's pool may open. Integer 1–100. See below. |
+| `ADMINIUM_META_POOL_MAX` | No | `10` (trial mode: `3`) | How many connections a Postgres or MySQL meta store's pool may open. Integer 1–100. See below. |
 | `ADMINIUM_ARCHIVE_KEY` | No | *(a key made from `ADMINIUM_SECRET`)* | Signs and checks instance archives (`adminium archive`). At least 32 characters. Set it, the same on every server, to restore an archive into an instance with another secret. See [Back up and move an instance](/self-hosting/archive/). |
-| `ADMINIUM_SOURCE_POOL_MAX` | No | *(per pool: 10, schema reads 5)* | How many connections each pool opened against a source database may hold. Integer 1–100. See below. |
+| `ADMINIUM_SOURCE_POOL_MAX` | No | *(per pool: 10, schema reads 5; trial mode: 3)* | How many connections each pool opened against a source database may hold. Integer 1–100; at most 3 in trial mode. See below. |
 | `ADMINIUM_RATE_LIMIT_SCALE` | No | `1` | **Test servers only.** Multiplies every request limit. Integer 1–1000. Ignored when `NODE_ENV` is `production`. See below. |
 | `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
 | `ADMINIUM_SETUP_TOKEN` | No | *(derived from `ADMINIUM_SECRET`, printed at boot)* | The one-time token the first-run wizard asks for before it creates the first account. **Minimum 16 characters**, not counting spaces and dashes. See below. |
@@ -222,6 +222,9 @@ can be open together; `ADMINIUM_META_POOL_MAX` below the meta role's.
 ADMINIUM_META_POOL_MAX=4
 ADMINIUM_SOURCE_POOL_MAX=2
 ```
+
+In trial mode both default to 3, and `ADMINIUM_SOURCE_POOL_MAX` above 3 fails the boot
+([Size caps in trial mode](#size-caps-in-trial-mode)).
 
 ## `ADMINIUM_RATE_LIMIT_SCALE`
 
@@ -1011,6 +1014,42 @@ Loopback stays allowed.
 
 `GET /api/v1/readyz?deep=1` also waits until installed add-ons are loaded:
 point a waker at it before it sends the first request.
+
+### Size caps in trial mode
+
+A trial has limits a hosted installation drops (your own quotas on the database
+server and the volume stay yours to set):
+
+- **Live data per database**, `ADMINIUM_TRIAL_DATA_MAX_MB` (default 500). Every
+  source on one of your hosts (not the person's own Supabase project) is
+  measured at boot, every 10 minutes, before each import, and again soon after
+  anything is written to it: within seconds of a delete. What counts is the
+  data the rows hold now, not the files on your server's disk, which do not
+  shrink after a delete until a `VACUUM FULL`. On Postgres that is each table's
+  live rows (`pg_stat_user_tables`) times the size of one row read from a
+  sample, plus its indexes in the share of rows that are live; on MySQL, each
+  table's row count times the length of one row from a sample, plus its
+  indexes in the share its pages are still filled. Adminium's own `adminium_*`
+  tables do not count. Past the limit the database is **held by the size
+  cap**: inserts, updates and anything that adds a table, column or index are
+  refused (`403 OFF_BY_OPERATOR`, `question: dataOverCap`, `reason: size-cap`),
+  while deletes, `TRUNCATE` and `DROP` still run. The hold lets go once the
+  database is under 90% of the limit. Every data page of a held database says
+  so. A connection test leaves the hold as it is.
+- **Each uploaded file**, `ADMINIUM_TRIAL_UPLOAD_MAX_MB` (default 10): staff
+  uploads, files strangers send through forms and the public API, and files
+  brought in to import (`413 FILE_TOO_LARGE`). The installation's own limits
+  (`files.maxBytes`, the public-upload quotas) can be lower, never higher.
+- **The data folder**, `ADMINIUM_TRIAL_STORAGE_MAX_MB` (default 1,000): every
+  file under `ADMINIUM_DATA_DIR`, walked at boot and every 10 minutes. Past it,
+  uploads, the Designer's writes and exports (Export everything included) are
+  refused (`question: storageOverCap`) until files are deleted.
+- **At most 3 source connections**, a fourth refused
+  (`question: extraSourceConnections`), each with pools of at most 3
+  (`ADMINIUM_SOURCE_POOL_MAX`, default 3), and a meta store pool of 3 unless
+  `ADMINIUM_META_POOL_MAX` says otherwise.
+
+`GET /api/v1/system/size-caps` (signed in) answers the last readings.
 
 ### Public pages in trial mode
 

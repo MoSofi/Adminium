@@ -2184,6 +2184,12 @@
     "aiProvider": "The operator allows only your own key to Anthropic, OpenAI or Google on this installation.",
     "aiAddress": "The operator does not allow an AI address of your own on this installation.",
     "payments": "The operator has switched payment services off for this installation.",
-    "askOperator": "Only whoever runs this installation can change this."
+    "askOperator": "Only whoever runs this installation can change this.",
+    "dataOverCap": "This database is over the trial’s size limit, so it is read-only. Delete some rows to continue.",
+    "storageOverCap": "This installation’s files are over the trial’s limit, so nothing more can be stored. Delete some files to continue.",
+    "extraSources": "A trial connects at most 3 databases. Remove one to connect another.",
+    "sizeCapNotice": "This database is over the trial’s {limit} MB limit, so it is read-only. Delete some rows to continue.",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "{limit} MB limit"
   }
 }

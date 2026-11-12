@@ -252,6 +252,7 @@ import { INTERRUPTED_ERROR } from './jobs/assistant-turn.js';
 import type { AssistantAddOn } from './assistant/types.js';
 import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
 import { trialPolicy } from './trial/policy.js';
+import { createSizeCap, useStorageHold } from './trial/size-cap.js';
 import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
 import { assistantRoutes } from './routes/assistant/index.js';
@@ -804,6 +805,21 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...(opts.designer === undefined ? {} : { design: { port: opts.designer.port } }),
     ...(opts.shared === undefined ? {} : { sharedHosts: { port: opts.shared.port } }),
   });
+  // A trial's size caps: each operator database's live data and the data folder, measured and held (`trial/size-cap.ts`).
+  const caps = app.trialPolicy.limits;
+  const sizeCap = caps === null ? null : createSizeCap({ limits: caps, sources: manager, dataDir: env.ADMINIUM_DATA_DIR, log: app.log });
+  app.decorate('sizeCap', sizeCap);
+  // The Designer's own files and attachments ask the data folder's hold too, wherever they are written.
+  useStorageHold(sizeCap);
+  if (sizeCap !== null) {
+    manager.watchWrites(sizeCap);
+    app.addHook('onReady', async () => {
+      sizeCap.start();
+    });
+    app.addHook('onClose', async () => {
+      sizeCap.stop();
+    });
+  }
   // A phone side's preview: a route of its own, in a project being designed or developed, and nowhere else.
   if (opts.project?.mode === 'dev' && projectRoot !== null) {
     registerPhonePreview(app, { root: projectRoot, appBuild: (key) => projectApps?.buildOf(key) ?? null });
@@ -1045,6 +1061,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     spool: createSpool({ dataDir: env.ADMINIUM_DATA_DIR }),
     destinations: destinationResolver,
     files: filesRepo(meta),
+    // A trial's caps: no file past the data folder's limit, no upload larger than the trial's per-file limit.
+    ...(sizeCap === null || caps === null ? {} : { guard: { refuse: () => sizeCap.refuseStorage(), stored: (bytes: number) => sizeCap.stored(bytes), uploadMaxBytes: caps.uploadMaxBytes } }),
   });
   // Which columns hold files, and the hook that keeps `adminium_files` in step
   // with what those columns say. One reader, shared by the upload
@@ -2296,6 +2314,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           storage,
           storageCrypto,
+          uploadMaxBytes: caps?.uploadMaxBytes ?? null,
           // A file held only in a column the reader's role does not read is not theirs.
           hiddenFile: hiddenFileCheck(meta, manager),
           // …and a file of a record its reader's role does not reach is not theirs either.

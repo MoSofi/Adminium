@@ -73,6 +73,8 @@ export function exportEverythingRoutes(deps: ExportEverythingRoutesDeps): Fastif
       },
       async (request, reply) => {
         const binding = await superAdminSession(request);
+        // A trial's data folder past its limit makes no more files, this one included (it is written there first).
+        app.sizeCap?.refuseStorage();
         try {
           const started = await deps.exports.start(binding);
           await app.rbac.audit(request, { category: 'export', action: 'export.everything.start', changes: { after: { id: started.id } } });

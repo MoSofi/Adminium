@@ -2194,6 +2194,12 @@ export default {
     "aiProvider": "运营方在此安装上只允许使用你自己的 Anthropic、OpenAI 或 Google 密钥。",
     "aiAddress": "运营方不允许在此安装上使用你自己的 AI 地址。",
     "payments": "运营方已为此安装关闭支付服务。",
-    "askOperator": "只有运营此安装的人才能更改此项。"
+    "askOperator": "只有运营此安装的人才能更改此项。",
+    "dataOverCap": "此数据库已超过试用版的大小上限，因此为只读。请删除一些行以继续。",
+    "storageOverCap": "此安装的文件已超过试用版的上限，无法再存储任何内容。请删除一些文件以继续。",
+    "extraSources": "试用版最多连接 3 个数据库。请移除一个后再连接其他数据库。",
+    "sizeCapNotice": "此数据库已超过试用版 {limit} MB 的上限，因此为只读。请删除一些行以继续。",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "上限 {limit} MB"
   }
 } as const;

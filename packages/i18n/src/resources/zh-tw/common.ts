@@ -2194,6 +2194,12 @@ export default {
     "aiProvider": "營運方在此安裝上只允許使用你自己的 Anthropic、OpenAI 或 Google 金鑰。",
     "aiAddress": "營運方不允許在此安裝上使用你自己的 AI 位址。",
     "payments": "營運方已為此安裝關閉付款服務。",
-    "askOperator": "只有營運此安裝的人才能變更此項。"
+    "askOperator": "只有營運此安裝的人才能變更此項。",
+    "dataOverCap": "此資料庫已超過試用版的大小上限，因此為唯讀。請刪除一些列以繼續。",
+    "storageOverCap": "此安裝的檔案已超過試用版的上限，無法再儲存任何內容。請刪除一些檔案以繼續。",
+    "extraSources": "試用版最多連接 3 個資料庫。請移除一個後再連接其他資料庫。",
+    "sizeCapNotice": "此資料庫已超過試用版 {limit} MB 的上限，因此為唯讀。請刪除一些列以繼續。",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "上限 {limit} MB"
   }
 } as const;

@@ -2194,6 +2194,12 @@ export default {
     "aiProvider": "L’opérateur n’autorise sur cette installation que votre propre clé Anthropic, OpenAI ou Google.",
     "aiAddress": "L’opérateur n’autorise pas d’adresse d’IA personnelle sur cette installation.",
     "payments": "L’opérateur a désactivé les services de paiement pour cette installation.",
-    "askOperator": "Seul celui qui gère cette installation peut changer cela."
+    "askOperator": "Seul celui qui gère cette installation peut changer cela.",
+    "dataOverCap": "Cette base de données dépasse la limite de taille de l’essai : elle est en lecture seule. Supprimez des lignes pour continuer.",
+    "storageOverCap": "Les fichiers de cette installation dépassent la limite de l’essai : plus rien ne peut être enregistré. Supprimez des fichiers pour continuer.",
+    "extraSources": "Un essai connecte au plus 3 bases de données. Retirez-en une pour en connecter une autre.",
+    "sizeCapNotice": "Cette base de données dépasse la limite de {limit} Mo de l’essai : elle est en lecture seule. Supprimez des lignes pour continuer.",
+    "sizeCapUsage": "{used} / {limit} Mo",
+    "sizeCapLimit": "Limite de {limit} Mo"
   }
 } as const;

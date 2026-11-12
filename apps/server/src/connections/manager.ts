@@ -36,11 +36,13 @@ import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@
 import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { HostLookup } from '../net/address-guard.js';
 import type { NetworkPolicy, OutboundPolicy } from '../net/outbound-check.js';
-import { ORDINARY_POLICY, type TrialPolicy } from '../trial/policy.js';
+import { ORDINARY_POLICY, TRIAL_SOURCE_CONNECTIONS, type TrialPolicy } from '../trial/policy.js';
+import { OffByOperatorError } from '../trial/refuse.js';
 import { assertTrialSourceAllowed, operatorLoginOf, type TrialSourceRules } from '../trial/sources.js';
 import { checkDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, parseDsn, sameDatabase, type DatabaseHost } from './dsn.js';
 import { PRIVILEGES_PROBE_TIMEOUT_MS, PRIVILEGES_TTL_MS } from './privileges.js';
 import { assertSqliteSourceAllowed, type SqliteSourcePolicy } from './sqlite-guard.js';
+import { holdingDialect, registerWriteHold, type WriteWatch } from './write-hold.js';
 
 /** Every meta table is `adminium_`-prefixed. */
 export const META_TABLE_PREFIX = 'adminium_';
@@ -171,6 +173,8 @@ export class ConnectionManager {
   readonly #pool: { poolMax?: number };
   readonly #lookup: HostLookup | undefined;
   readonly #trialRules: TrialSourceRules;
+  /** Trial mode's size cap (`trial/size-cap.ts`): what holds a source's growth, and hears of every write. */
+  #watch: WriteWatch | null = null;
   readonly connections: ReturnType<typeof connectionsRepo>;
   readonly #dataHandles = new Map<string, Promise<DataHandle>>();
   readonly #privileges = new Map<string, { at: number; rights: Promise<TablePrivilegeMap | null> }>();
@@ -238,6 +242,40 @@ export class ConnectionManager {
 
   get meta(): MetaDb {
     return this.#meta;
+  }
+
+  /**
+   * Hold sources' growth by `watch` (`connections/write-hold.ts`): every data
+   * handle opened from now on reads each statement before it leaves. Set once,
+   * as the server is composed; any handle already open is closed, so none
+   * escapes it.
+   */
+  watchWrites(watch: WriteWatch): void {
+    this.#watch = watch;
+    void this.disposeAll();
+  }
+
+  /**
+   * Before a source connection is added: a trial keeps at most
+   * {@link TRIAL_SOURCE_CONNECTIONS} (each holds pools of its own on the
+   * operator's database server). Throws 403 `OFF_BY_OPERATOR`; nothing on an
+   * ordinary server or the hosted profile.
+   */
+  async assertRoomForSource(): Promise<void> {
+    const answer = this.#trialRules.policy.allows('extraSourceConnections');
+    if (answer.allowed) return;
+    const sources = (await this.connections.list()).filter((connection) => connection.sourceKind === 'dsn');
+    if (sources.length < TRIAL_SOURCE_CONNECTIONS) return;
+    throw new OffByOperatorError(
+      'extraSourceConnections',
+      answer.reason ?? 'size-cap',
+      `A trial connects at most ${String(TRIAL_SOURCE_CONNECTIONS)} databases. Remove one to connect another.`,
+    );
+  }
+
+  /** Before an import writes to `connectionId`: its size measured now, and refused while it is held. Nothing without a watch. */
+  async beforeImport(connectionId: string): Promise<void> {
+    await this.#watch?.beforeImport(connectionId);
   }
 
   provider(engine: string): AdapterProvider {
@@ -540,7 +578,10 @@ export class ConnectionManager {
     const engine = await provider.createQueryEngine({ role: 'data', ...target, ...this.#pool });
     // The engine package types the dialect opaquely; the server (which owns
     // the kysely dependency) casts at this composition boundary.
-    const db = new Kysely<SourceDatabase>({ dialect: engine.dialect as KyselyDialect });
+    const watch = this.#watch;
+    const dialect = engine.dialect as KyselyDialect;
+    const db = new Kysely<SourceDatabase>({ dialect: watch === null ? dialect : holdingDialect(dialect, connectionId, watch) });
+    if (watch !== null) registerWriteHold(db, () => watch.held(connectionId));
     // `connection.engine` is validated against DIALECTS at connection create.
     return { db, engine, dialect: connection.engine as Dialect };
   }

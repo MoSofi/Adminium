@@ -53,9 +53,11 @@ export type PolicyReason =
   /** `ADMINIUM_AI_OPERATOR_ONLY`: AI runs on the operator's connection unless it is the user's own key to a fixed provider. */
   | 'operator-ai-only'
   /** `ADMINIUM_AI_OPERATOR_SCOPE=dashboard`: the operator's AI builds dashboards only. */
-  | 'operator-ai-scope';
+  | 'operator-ai-scope'
+  /** A trial's size caps (A6): a database or the data folder past its limit. */
+  | 'size-cap';
 
-export const POLICY_REASONS: readonly PolicyReason[] = ['trial-mode', 'hosted-mode', 'trial-ended', 'operator-ai-only', 'operator-ai-scope'];
+export const POLICY_REASONS: readonly PolicyReason[] = ['trial-mode', 'hosted-mode', 'trial-ended', 'operator-ai-only', 'operator-ai-scope', 'size-cap'];
 
 export interface PolicyAnswer {
   allowed: boolean;
@@ -79,6 +81,9 @@ const profiles =
   (trial: boolean, hosted: boolean): Rule =>
   (ctx) =>
     ctx.profile === 'trial' && !trial ? 'trial-mode' : ctx.profile === 'hosted' && !hosted ? 'hosted-mode' : null;
+
+/** Not past a trial's size caps (A6); a hosted or ordinary server has none. */
+const uncappedOutsideTrial: Rule = (ctx) => (ctx.profile === 'trial' ? 'size-cap' : null);
 
 /** Allowed until a trial ends (A5); a hosted or ordinary server has no end. */
 const untilTrialEnds: Rule = (ctx) => (ctx.ended ? 'trial-ended' : null);
@@ -165,6 +170,13 @@ const QUESTIONS = {
   publicPages: untilTrialEnds,
   /** User-authored mail (system mail keeps its own quota). */
   userMail: untilTrialEnds,
+  // ── A6 size caps: asked only once a cap is passed ───────────────────────
+  /** Adding to a source database past `ADMINIUM_TRIAL_DATA_MAX_MB` of live data: INSERT, UPDATE, DDL that adds. */
+  dataOverCap: uncappedOutsideTrial,
+  /** Uploads, Designer writes and exports past `ADMINIUM_TRIAL_STORAGE_MAX_MB` in the data folder. */
+  storageOverCap: uncappedOutsideTrial,
+  /** More source connections than a trial's {@link TRIAL_SOURCE_CONNECTIONS}. */
+  extraSourceConnections: uncappedOutsideTrial,
   // ── operator AI (T28) ───────────────────────────────────────────────────
   /** Customer screens built on the operator's AI connection. */
   customerScreensOnOperatorAi: (ctx) => (ctx.aiOperatorScope === 'dashboard' ? 'operator-ai-scope' : null),

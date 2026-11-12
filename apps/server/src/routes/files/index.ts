@@ -114,6 +114,8 @@ const INLINE_SAFE: ReadonlySet<string> = new Set([
 ]);
 
 export interface FilesRoutesDeps {
+  /** A trial's per-file upload limit (`ADMINIUM_TRIAL_UPLOAD_MAX_MB`): no upload is larger, whatever the settings say. */
+  uploadMaxBytes?: number | null | undefined;
   meta: MetaDb;
   /**
    * Whether a file attached to a record sits only in columns the reader's role
@@ -400,7 +402,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
         ? null
         : await deps.pageAttachments({ connectionId, table });
     const limits = block ?? sidecar;
-    const maxBytes = Math.min(await settings.get('files.maxBytes'), limits?.maxBytes ?? Number.POSITIVE_INFINITY);
+    const maxBytes = Math.min(await settings.get('files.maxBytes'), limits?.maxBytes ?? Number.POSITIVE_INFINITY, deps.uploadMaxBytes ?? Number.POSITIVE_INFINITY);
     // A picture every visitor sees: no larger than the public route serves, whatever the column's own rule says.
     // (Said as the reason only where it is the limit that holds: a workspace that takes less says its own.)
     const publicPicture =

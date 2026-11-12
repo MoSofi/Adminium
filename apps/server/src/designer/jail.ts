@@ -25,6 +25,7 @@ import { dirname, join, sep } from 'node:path';
 import { APP_KEY_PATTERN } from '../project/apps/read-app.js';
 import { ownCodeAllows, OWN_CODE_MESSAGES } from '../trial/own-code.js';
 import { noCardRefusal } from './write-guard.js';
+import { refuseDesignerWrite } from '../trial/size-cap.js';
 
 export class JailError extends Error {
   override readonly name = 'JailError';
@@ -150,6 +151,8 @@ export function createJail(root: string, appKey: string): Jail {
       if (Buffer.byteLength(content, 'utf8') > MAX_WRITE_BYTES) throw new JailError(`A file is at most ${String(MAX_WRITE_BYTES / 1024)} KB.`);
       const file = resolve(path, 'write');
       refuseCode(path, content);
+      // A trial's data folder past its limit takes no more of the Designer's files.
+      refuseDesignerWrite();
       const segments = segmentsOf(path);
       checkParents(segments, true);
       const temp = join(dirname(file), `.designer-${String(process.pid)}.tmp`);

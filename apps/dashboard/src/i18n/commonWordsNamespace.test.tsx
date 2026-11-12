@@ -84,6 +84,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'automations/rules/NewRuleModal.tsx': [],
   'studio/connect/steps/SourceStep.tsx': [],
   'studio/payments/PaymentsPage.tsx': [],
+  // A trial's size cap (`operatorSwitches`): the notice on a held database's pages waits for its words.
+  'pages/sizeCapNotice.tsx': [],
   'shown-in/ShownIn.tsx': [],
   'shown-in/ShownInField.tsx': [],
   // Workspaces (`workspaces`): the grouped rail and its menu, the link rule, the lists that follow them, Data connections and the defaults row.

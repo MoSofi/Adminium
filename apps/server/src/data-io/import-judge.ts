@@ -256,6 +256,8 @@ export async function openImportJudge(deps: ImportJudgeDeps, row: DataImport, ac
   const table = view.table(row.tableName);
   if (table.readOnly) throw new Error(`Table ${table.id} is read-only.`);
   assertNotPrivate(table, 'no file is brought in to it');
+  // A trial database over its size cap takes no import; measured first, so a delete a moment ago counts.
+  await deps.manager.beforeImport(row.connectionId);
 
   const data = await deps.manager.data(row.connectionId);
   const db = data.db as Db;

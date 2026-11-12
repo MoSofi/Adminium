@@ -2194,6 +2194,12 @@ export default {
     "aiProvider": "Provozovatel v této instalaci povoluje jen váš vlastní klíč k Anthropic, OpenAI nebo Google.",
     "aiAddress": "Provozovatel v této instalaci nepovoluje vlastní adresu AI.",
     "payments": "Provozovatel pro tuto instalaci vypnul platební služby.",
-    "askOperator": "Změnit to může jen ten, kdo tuto instalaci provozuje."
+    "askOperator": "Změnit to může jen ten, kdo tuto instalaci provozuje.",
+    "dataOverCap": "Tato databáze překročila limit velikosti zkušební verze, a je proto jen pro čtení. Pokračujte smazáním několika řádků.",
+    "storageOverCap": "Soubory této instalace překročily limit zkušební verze, a nic dalšího proto nelze uložit. Pokračujte smazáním několika souborů.",
+    "extraSources": "Zkušební verze připojí nejvýše 3 databáze. Chcete-li připojit jinou, jednu odeberte.",
+    "sizeCapNotice": "Tato databáze překročila limit zkušební verze {limit} MB, a je proto jen pro čtení. Pokračujte smazáním několika řádků.",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "Limit {limit} MB"
   }
 } as const;
