@@ -35,6 +35,7 @@ import { readLimitOf } from '../../rbac/read-limits.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
 import { createLimitOf, updateLimitOf } from '../../rbac/update-limits.js';
 import { workspaceIdQuery, workspaceScope } from '../../workspaces/list-filter.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PaymentPayablesDeps {
   meta: MetaDb;
@@ -188,6 +189,8 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.get('/payments/payables', { schema: { querystring: z.object({ workspaceId: workspaceIdQuery }), response: { 200: listReply } } }, async (request) => {
       if (!((await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView)))) {
         throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');

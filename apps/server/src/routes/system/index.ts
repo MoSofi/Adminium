@@ -25,6 +25,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { Env } from '../../config/env.js';
 import { healthz, readyz, systemInfo } from './handlers.js';
 import { systemHealthzReply, systemInfoReply, systemReadyzQuery, systemReadyzReply } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface SystemRoutesDeps {
   /**
@@ -39,6 +40,8 @@ export interface SystemRoutesDeps {
 }
 
 export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod => async (app) => {
+  // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+  tagRoutes(app, 'staff');
   app.get('/healthz', { schema: { response: { 200: systemHealthzReply } } }, async () => healthz());
 
   app.get(

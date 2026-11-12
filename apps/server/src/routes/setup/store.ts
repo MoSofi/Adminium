@@ -64,6 +64,7 @@ import {
   type SetupProbeReply,
 } from './schema.js';
 import type { MetaDb } from '@adminium/meta';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface SetupStoreRoutesDeps {
   service: SetupService;
@@ -126,6 +127,8 @@ export function setupStoreRoutes(deps: SetupStoreRoutesDeps): FastifyPluginAsync
   const { service, env, onMetaRelocated } = deps;
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /** The once-only gate, shared with `/setup/super-admin`. */
     /** Non-null under `requireMeta` — the preHandler 503s before a handler runs. */
     const meta = (): MetaDb => {

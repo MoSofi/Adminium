@@ -49,6 +49,7 @@ import {
   jobStatus,
   type JobView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface JobsRoutesDeps {
   meta: MetaDb;
@@ -138,6 +139,8 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
   };
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.post(
       '/jobs',
       { schema: { body: jobsCreateBody, response: { 202: jobsCreateReply } } },

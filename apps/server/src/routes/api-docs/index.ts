@@ -21,6 +21,7 @@ import { NotFoundError } from '../../errors.js';
 import type { ApiCatalogue } from '../../public-api/catalogue.js';
 import { linkOrigin } from '../../security/public-origin.js';
 import { apiDocsReply } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface ApiDocsRoutesDeps {
   meta: MetaDb;
@@ -37,6 +38,8 @@ export interface ApiDocsRoutesDeps {
 
 export function apiDocsRoutes(deps: ApiDocsRoutesDeps): FastifyPluginAsyncZod {
   return async (app) => {
+    // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
+    tagRoutes(app, 'public');
     app.get(
       '/api-docs',
       {

@@ -62,6 +62,7 @@ import {
   planReply,
   schemaEditBody,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** D6 — the grant this feature landed with its enforcement point. */
 export const SCHEMA_DDL = 'system:schema:ddl';
@@ -84,6 +85,8 @@ export function schemaDdlRoutes(deps: SchemaDdlRoutesDeps): FastifyPluginAsyncZo
   const ledger = schemaChangesRepo(meta);
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /**
      * D5's refusals, in one place so every route shares them and no route can
      * forget one. The connection-level half is `unauthorableReason`, which the

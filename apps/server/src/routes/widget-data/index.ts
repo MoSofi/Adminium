@@ -57,6 +57,7 @@ import {
   widgetQueryBody,
   widgetQueryReply,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface WidgetDataRoutesDeps {
   manager: ConnectionManager;
@@ -132,6 +133,8 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
   const namesPeople = (request: FastifyRequest): boolean => request.user?.id !== undefined && (request.apiKeyPrincipal === null || request.apiKeyPrincipal === undefined);
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     async function runDescriptor(
       request: FastifyRequest,
       descriptor: QueryDescriptor,

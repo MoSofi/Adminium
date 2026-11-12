@@ -25,6 +25,7 @@ import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError
 import { linkSealFromSecret, mintLink, payUrl } from '../../payments/links.js';
 import { createTestPayable, oneUnit, readTestPayable, TEST_PAYABLE_PREFIX } from '../../payments/test-payables.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface TestPaymentsDeps {
   meta: MetaDb;
@@ -92,6 +93,8 @@ export function testPaymentsRoutes(deps: TestPaymentsDeps): FastifyPluginAsyncZo
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.post(
       '/payments/test-payments',
       { preHandler: app.rbac.require(PERMISSIONS.paymentsManage), config: { audit: audited('rbac') }, schema: { body: startBody, response: { 200: startReply } } },

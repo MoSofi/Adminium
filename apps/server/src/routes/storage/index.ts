@@ -49,6 +49,7 @@ import {
   storageMigrateReply,
   type DestinationView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export const STORAGE_MANAGE_PERMISSION = 'system:storage:manage';
 
@@ -94,6 +95,8 @@ export function storageRoutes(deps: StorageRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.addHook('preHandler', app.rbac.require(STORAGE_MANAGE_PERMISSION));
 
     /**

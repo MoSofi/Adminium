@@ -78,6 +78,7 @@ import {
   filesUsageReply,
   type FileView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** See-everyone's-files. Not what authorises an upload — see the header. */
 export const FILES_MANAGE_PERMISSION = 'system:files:manage';
@@ -450,6 +451,8 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /**
      * D27's producer half for the SIDECAR routes. An attach, detach, trash or
      * restore has to reach an open record page in another tab the same way the

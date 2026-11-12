@@ -50,6 +50,7 @@ import { audited } from '../../audit/coverage.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { translatorFor } from '../../i18n/server-i18n.js';
 import { SCHEMA_REMAP } from '../schema/index.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface OptionListsRoutesDeps {
   meta: MetaDb;
@@ -101,6 +102,8 @@ export function optionListsRoutes(deps: OptionListsRoutesDeps): FastifyPluginAsy
   const overrides = overridesRepo(meta);
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     async function requireSession(request: FastifyRequest): Promise<void> {
       await app.rbac.resolve(request);
     }

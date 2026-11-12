@@ -31,6 +31,7 @@ import { digestStepsFor, sendDigest } from '../../automations/digest.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { NotFoundError, RateLimitedError, UnauthorizedError } from '../../errors.js';
 import { offeredRoles, rulePartOff } from '../../rbac/app-parts.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** How many of one rule's summaries a person may ask for in {@link MINE_WINDOW_MS}. */
 export const MINE_MAX = 3;
@@ -91,6 +92,8 @@ export function summariesRoutes(deps: SummariesRoutesDeps): FastifyPluginAsyncZo
   };
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.get('/me/summaries', { schema: { response: { 200: summariesReply } } }, async (request) => {
       const userId = requireUserId(request);
       return { data: (await mine(userId)).map(({ rule }) => ({ id: rule.id, name: rule.name, enabled: rule.enabled })) };

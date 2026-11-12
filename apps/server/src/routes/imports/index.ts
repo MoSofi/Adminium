@@ -85,6 +85,7 @@ import {
   type ValidationIssueView,
   type ValidationReport,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** Companion to exports' manage grant — see the handoff note there. */
 export const IMPORTS_MANAGE_PERMISSION = 'system:imports:manage';
@@ -260,6 +261,8 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     // Raw CSV bodies, this plugin's scope only.
     app.addContentTypeParser('text/csv', { parseAs: 'buffer' }, (_request, body, done) => {
       done(null, body);

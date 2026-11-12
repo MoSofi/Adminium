@@ -54,7 +54,8 @@ export function registerSseRoute(
 
   app.get<{ Querystring: EventsQuery }>(
     '/events',
-    { schema: { querystring: eventsQuery } },
+    // The signed-in person's own stream: it answers nobody else (`security/route-audience.ts`).
+    { schema: { querystring: eventsQuery }, config: { audience: 'staff' } },
     async (request, reply) => {
       const user = await deps.resolveUser(request);
       if (user === null) throw new UnauthorizedError();

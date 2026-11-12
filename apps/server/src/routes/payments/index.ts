@@ -81,6 +81,7 @@ import {
   stoppedBody,
   type ServiceView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PaymentsRoutesDeps {
   meta: MetaDb;
@@ -282,6 +283,8 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     async function canRead(request: FastifyRequest): Promise<boolean> {
       return (await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView));
     }

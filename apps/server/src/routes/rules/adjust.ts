@@ -50,6 +50,7 @@ import { applyServerEdit, planServerEdit } from '../../schema-ddl/programmatic.j
 import { SCHEMA_DDL } from '../schema-ddl/index.js';
 import { SCHEMA_REMAP } from '../schema/index.js';
 import { FILLS, NUMBERS, planMake, type Made } from './adjust-make.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface AdjustRuleDeps {
   manager: ConnectionManager;
@@ -128,6 +129,8 @@ export function adjustRuleRoutes(deps: AdjustRuleDeps): FastifyPluginAsyncZod {
   const { manager, meta, ledgers } = deps;
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /** A connection's tables as they stand now, with what is installed read again. */
     async function viewOf(connectionId: string): Promise<SnapshotView> {
       await manager.mustFind(connectionId);

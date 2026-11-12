@@ -198,6 +198,7 @@ import {
   updateAppReply,
   uploadAppQuery,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /**
  * 32 MB, the add-on upload's limit.
@@ -531,6 +532,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /*
      * Raw tarball bodies, this plugin's scope only — the idiom
      * `routes/add-ons` established and `routes/imports` before it. There is no

@@ -22,6 +22,7 @@ import { z } from 'zod';
 import { audited } from '../../audit/coverage.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../../errors.js';
 import { ExportBusyError, type ExportBinding, type ExportEverything } from '../../export/everything.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 const exportView = z.discriminatedUnion('state', [
   z.object({ id: z.string(), state: z.literal('preparing'), percent: z.number().int().min(0).max(100) }),
@@ -49,6 +50,8 @@ export interface ExportEverythingRoutesDeps {
 
 export function exportEverythingRoutes(deps: ExportEverythingRoutesDeps): FastifyPluginAsyncZod {
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /** The caller, if they are a Super Admin signed in with a session; refused otherwise. */
     const superAdminSession = async (request: FastifyRequest): Promise<ExportBinding> => {
       const set = await app.rbac.resolve(request); // 401 when nobody is signed in

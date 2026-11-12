@@ -138,6 +138,7 @@ import {
   type EmailRunView,
   type EmailSendLogRowView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** "Send as" a workspace the reader does not see, as their replies say it. Saved again, it keeps that workspace. */
 export const SEND_AS_UNSEEN = 'unseen';
@@ -526,6 +527,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     // A "Shown in" names only the workspaces this person sees.
     app.addHook('preSerialization', shownInSeenOnly(meta));
     // So does "Send as": a workspace they do not see is said as one, never by its id.

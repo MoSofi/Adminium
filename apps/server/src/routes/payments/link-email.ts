@@ -23,6 +23,7 @@ import { ForbiddenError, NotFoundError, RateLimitedError, UnauthorizedError, Val
 import { sendPayLinkEmail } from '../../payments/emails.js';
 import { linkOpens, linkSealFromSecret, payAddress, payReachable, payUrl } from '../../payments/links.js';
 import type { PayableSources } from '../../payments/payables.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PaymentLinkEmailDeps {
   meta: MetaDb;
@@ -64,6 +65,8 @@ export function paymentLinkEmailRoutes(deps: PaymentLinkEmailDeps): FastifyPlugi
   const counters = paymentCountersRepo(meta);
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.post(
       '/payments/links/:id/email',
       { config: { audit: audited('rbac') }, schema: { params: idParams, response: { 200: reply } } },

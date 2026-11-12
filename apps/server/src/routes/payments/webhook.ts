@@ -14,6 +14,7 @@ import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
 import { receiveWebhook, type WebhookDeps } from '../../payments/webhook.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** The largest delivery accepted. Stripe's and PayPal's events are a few kilobytes. */
 export const WEBHOOK_BODY_LIMIT = 256 * 1024;
@@ -22,6 +23,8 @@ const webhookParams = z.object({ provider: z.string().max(80), mode: z.string().
 
 export function paymentWebhookRoutes(deps: WebhookDeps): FastifyPluginAsync {
   return async (app) => {
+    // A payment service calling back: the instance's own business with a service it signed up with, kept while public pages are hidden.
+    tagRoutes(app, 'staff');
     // Every content type, kept as text: the signature is over these bytes.
     app.removeAllContentTypeParsers();
     app.addContentTypeParser('*', { parseAs: 'string', bodyLimit: WEBHOOK_BODY_LIMIT }, (_request, body, done) => {

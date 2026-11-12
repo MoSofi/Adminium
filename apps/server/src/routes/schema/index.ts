@@ -54,6 +54,7 @@ import {
   snapshotListReply,
   snapshotParams,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export const SCHEMA_REMAP = 'system:schema:remap';
 
@@ -68,6 +69,8 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
   const overrides = overridesRepo(meta);
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /** 401 without a principal; no grant needed beyond a session (see header note). */
     async function requireSession(request: FastifyRequest): Promise<void> {
       await app.rbac.resolve(request);

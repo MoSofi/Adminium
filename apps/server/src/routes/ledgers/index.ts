@@ -63,6 +63,7 @@ import {
   switchBody,
   switchReply,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 
 /**
@@ -97,6 +98,8 @@ export function ledgerRoutes(deps: LedgerRoutesDeps): FastifyPluginAsyncZod {
   const { manager, meta, ledgers, writes } = deps;
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     async function requireSession(request: FastifyRequest): Promise<void> {
       await app.rbac.resolve(request);
     }
