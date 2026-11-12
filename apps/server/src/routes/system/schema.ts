@@ -6,7 +6,6 @@
 import { z } from 'zod';
 
 import { RUNTIMES } from '../../config/env.js';
-import { settingLockSchema } from '../../trial/operator-lock.js';
 import { CONNECT_PROVIDER_IDS } from '../../connect/providers.js';
 import { settingLockSchema } from '../../trial/operator-lock.js';
 
