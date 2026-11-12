@@ -110,7 +110,8 @@ afterAll(async () => {
 const OPERATOR_ENV = { ADMINIUM_AI_OPENAI_API_KEY: 'sk-operator-test', ADMINIUM_AI_GOOGLE_API_KEY: 'g-operator-test', ADMINIUM_AI_MODEL: 'openai/gpt-test' };
 const PLAIN_KEYS = { encrypt: (value: string) => value, decrypt: (value: string) => value };
 
-describe.each((['sqlite', 'postgres', 'mysql'] as EngineName[]).filter((engine) => AVAILABLE[engine]))('the operator’s AI budget [%s]', (engine) => {
+// A migrated MySQL store takes most of half a minute to make.
+describe.each((['sqlite', 'postgres', 'mysql'] as EngineName[]).filter((engine) => AVAILABLE[engine]))('the operator’s AI budget [%s]', { timeout: 120_000 }, (engine) => {
   let meta: MetaDb;
   let destroy: () => Promise<void> = async () => undefined;
   afterEach(async () => {
