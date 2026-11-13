@@ -101,6 +101,11 @@ export const RESTORED_DATABASES_DIR = 'databases';
 
 /** Tables a first start fills; a store holding rows only here still counts as fresh. */
 const SEEDED_TABLES: ReadonlySet<string> = new Set(['adminium_settings', 'adminium_roles', 'adminium_role_permissions']);
+/**
+ * The operator's own rows on this server (what its AI spent, whether its start prompt ran, what it holds back): no
+ * archive carries them, a target that has them is still fresh, and a restore leaves them as they are.
+ */
+const OPERATOR_KEPT_TABLES: ReadonlySet<string> = new Set(['adminium_operator_tallies', 'adminium_operator_holds']);
 
 export interface RestoreArchiveOptions {
   inPath: string;
@@ -405,7 +410,7 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
     const empty = probe.present.length === 0;
     if (!empty) {
       const users = probe.occupied.includes('adminium_users');
-      const extra = probe.occupied.filter((table) => !SEEDED_TABLES.has(table));
+      const extra = probe.occupied.filter((table) => !SEEDED_TABLES.has(table) && !OPERATOR_KEPT_TABLES.has(table));
       if (users || extra.length > 0) {
         throw new ArchiveFormatError(
           users ? 'This instance already has people in it; a restore goes into a fresh instance only.' : `This instance is not fresh (${extra.slice(0, 5).join(', ')} hold rows); a restore goes into a fresh instance only.`,
@@ -722,7 +727,7 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       if (empty) {
         await applyMigrations(opts.meta.db, { dialect: opts.meta.dialect, migrations: ALL_MIGRATIONS.slice(0, level + 1) });
       }
-      const loaded = await loadMetaDump(opts.meta, [...tables.values()], { wipe: relocatableTables() });
+      const loaded = await loadMetaDump(opts.meta, [...tables.values()], { wipe: relocatableTables().filter((table) => !OPERATOR_KEPT_TABLES.has(table)) });
       await applyMigrations(opts.meta.db, { dialect: opts.meta.dialect });
       await seedBuiltinRoles(opts.meta, at);
       await seedSystemSettings(opts.meta, at);
