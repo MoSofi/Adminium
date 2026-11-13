@@ -145,7 +145,7 @@ To check that a copy starts before you delete the original (a data folder
 copied to another server, say), start the copy once with
 `ADMINIUM_SCHEDULER=off`, wait for `GET /api/v1/readyz`, then stop it. With the
 switch off, no schedule ticks and no queued job runs: the reports,
-automations, mail and [events](#9-read-its-totals-and-hide-its-public-pages)
+automations, mail and [events](#9-read-its-totals-and-hide-its-public-pages-when-you-must)
 that are due wait in the copy's queue, so none runs on the copy and again on
 the original. Never leave it off on an instance people use.
 
