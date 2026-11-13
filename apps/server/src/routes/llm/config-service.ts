@@ -24,7 +24,7 @@ import type { SettingsRepo } from '@adminium/meta';
 import { guardOutboundUrl, type DsnGuardOptions } from '../../connections/dsn.js';
 import { effectiveValue, refuseLockedChange, settingLock, type SettingLock } from '../../trial/operator-lock.js';
 import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
-import { ADDRESS_PROVIDERS, CUSTOM_PROVIDER_OFF, savedConnectionRefusal } from '../../trial/ai.js';
+import { providerOffMessage, savedConnectionRefusal } from '../../trial/ai.js';
 import { OffByOperatorError } from '../../trial/refuse.js';
 import type { LlmConfigPutBody, LlmConfigReply } from './schema.js';
 
@@ -140,9 +140,10 @@ export async function writeLlmConfig(
   const opts = { updatedBy: ctx.updatedBy, at: ctx.at };
   // The operator's word first, before anything is written.
   const policy = ctx.policy ?? ORDINARY_POLICY;
-  if (body.provider !== null && ADDRESS_PROVIDERS.has(body.provider)) {
+  const off = body.provider === null ? null : providerOffMessage(body.provider);
+  if (off !== null) {
     const custom = policy.allows('customAiProviders');
-    if (!custom.allowed) throw new OffByOperatorError('customAiProviders', custom.reason ?? 'trial-mode', CUSTOM_PROVIDER_OFF);
+    if (!custom.allowed) throw new OffByOperatorError('customAiProviders', custom.reason ?? 'trial-mode', off);
   }
   if (body.baseUrl !== undefined) refuseLockedChange(policy, 'llm.baseUrl', body.baseUrl === '' ? null : body.baseUrl);
   // SSRF: reject a metadata/loopback baseUrl BEFORE the first write, so a
