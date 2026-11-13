@@ -442,6 +442,13 @@ export const SETTINGS_REGISTRY = {
   // refusing; the floor keeps a PDF possible and the ceiling stays under the
   // 50 MiB the strictest common providers accept.
   'email.maxAttachmentBytes': def(z.number().int().min(262_144).max(52_428_800), 10_485_760, 'Largest total attachment payload per message, in bytes', P),
+  /**
+   * The build and translation stamp the built-in templates were last seeded
+   * from. A boot that finds the same stamp skips the seed, which would
+   * otherwise load every locale's words into memory on each start. Instance
+   * state, so not portable.
+   */
+  'email.builtinsSeededFor': def<string | null>(z.string().max(200).nullable(), null, 'What the built-in email templates were last seeded from'),
   'llm.provider': def<z.infer<typeof llmProviderSchema>>(llmProviderSchema, null, 'LLM provider', P),
   'llm.apiKey': def<string | null>(z.string().nullable(), null, 'LLM provider API key', { secret: true, portable: true }),
   'llm.model': def<string | null>(z.string().nullable(), null, 'LLM model override (null = provider default)', P),

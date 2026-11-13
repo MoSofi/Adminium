@@ -60,6 +60,8 @@ import { BUILTIN_LOCALE_IDS, type BuiltinLocaleId } from '@adminium/i18n';
 import { createServerI18n, type I18nInstance } from '@adminium/i18n/server';
 import {
   emailTemplatesRepo,
+  readI18nVersion,
+  settingsRepo,
   type EmailAttachment,
   type EmailCategory,
   type EmailTemplate,
@@ -933,6 +935,47 @@ export async function seedBuiltinEmailTemplates(meta: MetaDb, at: number = Date.
       );
     }
   }
+}
+
+/**
+ * The seed, skipped when nothing it reads has changed since it last ran.
+ *
+ * The seed builds a translator for every compiled locale, and the words it
+ * loads stay in memory for the life of the process: about 20 MB and half a
+ * second on every start, for rows that are already there. So a seed that ran
+ * to the end records what it ran from: `build` (the release) and the
+ * translation stamp, which every change to an override or a locale moves. A
+ * start with the same stamp and every built-in row present seeds nothing.
+ *
+ * `build` null seeds every time: a checkout's words change without a new
+ * version.
+ *
+ * Returns whether it seeded.
+ */
+export async function seedBuiltinEmailTemplatesIfChanged(meta: MetaDb, build: string | null, at: number = Date.now()): Promise<boolean> {
+  if (build === null) {
+    await seedBuiltinEmailTemplates(meta, at);
+    return true;
+  }
+  const settings = settingsRepo(meta);
+  const stamp = `${build}+${String(await readI18nVersion(meta.db))}`;
+  if ((await settings.get('email.builtinsSeededFor')) === stamp && (await builtinRowCount(meta)) === BUILTIN_EMAIL_TEMPLATE_KEYS.length * BUILTIN_LOCALE_IDS.length) {
+    return false;
+  }
+  await seedBuiltinEmailTemplates(meta, at);
+  await settings.set('email.builtinsSeededFor', stamp, { at });
+  return true;
+}
+
+/** How many `(built-in key, compiled locale)` rows exist, archived or edited ones included. */
+async function builtinRowCount(meta: MetaDb): Promise<number> {
+  const row = await meta.db
+    .selectFrom('adminium_email_templates')
+    .select((eb) => eb.fn.countAll<number>().as('n'))
+    .where('key', 'in', [...BUILTIN_EMAIL_TEMPLATE_KEYS])
+    .where('locale', 'in', [...BUILTIN_LOCALE_IDS])
+    .executeTakeFirst();
+  return Number(row?.n ?? 0);
 }
 
 /**

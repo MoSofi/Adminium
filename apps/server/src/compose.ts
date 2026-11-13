@@ -87,7 +87,7 @@ import { createLocalDatabases, localDatabasesMode } from './connections/local-da
 import type { ConnectionManager } from './connections/manager.js';
 import { privilegesOf } from './connections/privileges.js';
 import { UndoStore } from './crud/undo.js';
-import { seedBuiltinEmailTemplates } from './email/builtins.js';
+import { seedBuiltinEmailTemplatesIfChanged } from './email/builtins.js';
 import { emailSecretKey } from './email/config.js';
 import { configureEmailRuntime } from './email/send.js';
 import { trialMailSetupOf } from './email/trial-mail-setup.js';
@@ -882,7 +882,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // A trial's mail: only through the operator's relay, shaped and capped (`email/trial-relay.ts`); off elsewhere.
   configureTrialMail(trialMailSetupOf(env, app.trialPolicy));
   try {
-    await seedBuiltinEmailTemplates(meta, Date.now());
+    // Once per release and translation change, not on every start (see the function).
+    await seedBuiltinEmailTemplatesIfChanged(meta, process.env['NODE_ENV'] === 'production' ? APP_VERSION : null, Date.now());
   } catch (error) {
     app.log.warn(
       { err: error },
@@ -3552,8 +3553,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * never a wait: a firewall that drops instead of refusing must not hold the
    * start. Asked for only by a command that starts a server for people
    * (`start`, `dev`, `design`, the desktop), never by composing one in a test.
+   * Not in trial mode: a trial sleeps and wakes many times a day, and each wake
+   * should cost a start and nothing more. Its daily tick and the Add-ons page
+   * still ask.
    */
-  if (opts.catalogBootRefresh === true) {
+  if (opts.catalogBootRefresh === true && app.trialPolicy.profile !== 'trial') {
     app.addHook('onReady', async () => {
       try {
         const stale = async (store: { readCatalogCache(): Promise<{ fetchedAt: number } | null> }): Promise<boolean> => {
