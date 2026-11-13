@@ -510,6 +510,16 @@ describe.skipIf(!canBuildSides)('a Designer turn on the operator’s AI', { time
     expect(asked[0]!.tools).not.toContain('needs_own_ai_key');
   });
 
+  it('without the variable, a turn on the operator’s connection writes a customer side as any turn does', async () => {
+    const client = await server({});
+    const write = { name: 'write_file', arguments: { path: 'apps/repair-desk/customer/src/App.tsx', content: 'export default function App() { return null; }' } };
+    const { session, events } = await turn(client, 'env:ollama', [() => ({ calls: [write] })], 'now make the customer ordering site');
+    expect(session.target).toBe('web');
+    expect(existsSync(join(root!, 'apps', 'repair-desk', 'customer', 'src', 'App.tsx'))).toBe(true);
+    expect(cardOf(events)).toBeNull();
+    expect(asked[0]!.tools).not.toContain('needs_own_ai_key');
+  });
+
   it('add_side for customers or the phone is refused at its door; the card’s own tool ends the turn', async () => {
     const client = await server(SCOPED);
     for (const call of [{ name: 'add_side', arguments: { side: 'customer' } }, { name: 'add_side', arguments: { side: 'mobile' } }, { name: 'needs_own_ai_key', arguments: {} }]) {
