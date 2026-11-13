@@ -17,7 +17,7 @@ import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
 import { Kysely, MysqlDialect, sql } from 'kysely';
-import { connectionsRepo, createSqliteMetaDb, firstRun, newId, type MetaDb } from '@adminium/meta';
+import { connectionsRepo, createSqliteMetaDb, firstRun, newId, operatorTalliesRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
@@ -32,7 +32,7 @@ import type { MetaStoreHandle } from '../src/meta/store.js';
 import type { HostLookup } from '../src/net/address-guard.js';
 import { trialPolicy } from '../src/trial/policy.js';
 import { OffByOperatorError } from '../src/trial/refuse.js';
-import { createSizeCap, measureMysql, measurePostgres, refuseDesignerWrite, useStorageHold, type SizeCap, type SizeCapSources } from '../src/trial/size-cap.js';
+import { createSizeCap, measureMysql, measurePostgres, refuseDesignerWrite, tallyPeaks, useStorageHold, type MeasureOptions, type SizeCap, type SizeCapSources } from '../src/trial/size-cap.js';
 import { createJail } from '../src/designer/jail.js';
 import { createTestFileStore } from './helpers/file-store.js';
 import { asUser, buildDataTestApp, createConnectionViaApi, createNorthwindDb, introspectViaApi, PG_HOST, PG_PORT, pgAvailable, psql, type DataTestContext, type TestPg } from './connections-helpers.js';
@@ -278,6 +278,90 @@ describe('a database held by the size cap', () => {
     stop();
     await cap.measureAll();
     expect(heard).toEqual(['data', 'storage']);
+  });
+});
+
+// ─── A MySQL table's peak rows, kept beyond a restart ─────────────────────────
+
+describe('a MySQL table’s peak rows, kept beyond a restart', () => {
+  it('are kept in the operator tallies, per database, at their highest, and a table gone lets its peak go', async () => {
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    try {
+      const tallies = operatorTalliesRepo(meta);
+      const shop = tallyPeaks(tallies, 'c1\u0000mysql-trials\u00003306\u0000shop');
+      const other = tallyPeaks(tallies, 'c1\u0000mysql-trials\u00003306\u0000other');
+      await shop.raise('orders', 900);
+      await shop.raise('orders', 400);
+      await shop.raise('order_lines', 50);
+      await other.raise('orders', 7);
+      expect(await shop.read(['orders', 'order_lines', 'notes'])).toEqual(new Map([['orders', 900], ['order_lines', 50]]));
+      // A table no longer there takes its peak with it.
+      expect(await shop.read(['orders'])).toEqual(new Map([['orders', 900]]));
+      expect(await shop.read(['orders', 'order_lines'])).toEqual(new Map([['orders', 900]]));
+      await shop.forget('orders');
+      expect(await shop.read(['orders'])).toEqual(new Map());
+      expect(await other.read(['orders'])).toEqual(new Map([['orders', 7]]));
+      // Each name fits a tally's column, whatever the table is called.
+      await shop.raise('t'.repeat(64), 1);
+      for (const tally of await tallies.list('size-peak:')) expect(tally.name).toHaveLength(40);
+    } finally {
+      await meta.db.destroy();
+    }
+  });
+
+  it('are handed to a MySQL database’s measure, for where its connection points now; a Postgres one has none', async () => {
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    try {
+      let shop = 'shop';
+      const engines: Record<string, string> = { my: 'mysql', pg: 'postgres' };
+      const sources: SizeCapSources = {
+        connections: {
+          list: async () => Object.keys(engines).map((id) => ({ id, engine: engines[id] as string, sourceKind: 'dsn', disabled: false })),
+          findById: async (id) => (engines[id] === undefined ? null : { id, engine: engines[id], sourceKind: 'dsn', disabled: false }),
+          getDsns: async (id) => ({ dataDsn: id === 'my' ? `mysql://trial:pw@mysql-trials:3306/${shop}` : 'postgres://trial:pw@pg-trials:5432/trial' }),
+        },
+        data: async () => ({ db: {} as Kysely<never> }),
+        databaseHosts: [
+          { host: 'mysql-trials', port: 3306, wildcard: false },
+          { host: 'pg-trials', port: 5432, wildcard: false },
+        ],
+      };
+      const seen: Array<{ engine: string; options: MeasureOptions }> = [];
+      const cap = (): SizeCap =>
+        createSizeCap({
+          limits: { dataMaxBytes: 100 * MB, storageMaxBytes: 100 * MB },
+          sources,
+          dataDir: tmpdir(),
+          tallies: operatorTalliesRepo(meta),
+          measureWith: async (engine, _db, options) => {
+            seen.push({ engine, options });
+            return MB;
+          },
+        });
+      const before = cap();
+      await before.measure('my');
+      await before.measure('pg');
+      expect(seen.map(({ engine, options }) => [engine, options.peaks === undefined])).toEqual([
+        ['mysql', false],
+        ['postgres', true],
+      ]);
+      await seen[0]?.options.peaks?.raise('orders', 900);
+      // After a restart, the same database's peak is there.
+      await cap().measure('my');
+      expect(await seen[2]?.options.peaks?.read(['orders'])).toEqual(new Map([['orders', 900]]));
+      // Pointed at another database: its tables are not the old one's, in memory or kept.
+      await before.measure('my');
+      const sameMemo = seen[3]?.options.memo;
+      expect(sameMemo).toBe(seen[0]?.options.memo);
+      shop = 'elsewhere';
+      await before.measure('my');
+      expect(seen[4]?.options.memo).not.toBe(sameMemo);
+      expect(await seen[4]?.options.peaks?.read(['orders'])).toEqual(new Map());
+    } finally {
+      await meta.db.destroy();
+    }
   });
 });
 

@@ -49,6 +49,7 @@ import {
   filesRepo,
   jobsRepo,
   manifestsRepo,
+  operatorTalliesRepo,
   pagesRepo,
   publicKeysRepo,
   passwordResetsRepo,
@@ -824,6 +825,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           dataDir: env.ADMINIUM_DATA_DIR,
           // The project the Designer writes to counts with the data folder, wherever it is.
           folders: projectRoot === null ? [] : [projectRoot],
+          // A MySQL table's peak rows, kept beyond a restart where only the server writes.
+          tallies: operatorTalliesRepo(meta),
           log: app.log,
         });
   app.decorate('sizeCap', sizeCap);

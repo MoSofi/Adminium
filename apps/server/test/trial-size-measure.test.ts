@@ -12,10 +12,26 @@ import { randomBytes } from 'node:crypto';
 import { CompiledQuery, Kysely, MysqlAdapter, MysqlIntrospector, MysqlQueryCompiler, PostgresAdapter, PostgresDialect, PostgresIntrospector, PostgresQueryCompiler, sql, type DatabaseConnection, type Dialect, type Driver, type QueryResult, MysqlDialect } from 'kysely';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { measureMysql, measurePostgres, type TableMemo } from '../src/trial/size-cap.js';
+import { measureMysql, measurePostgres, type TableMemo, type TablePeaks } from '../src/trial/size-cap.js';
 import { PG_HOST, PG_PORT, pgAvailable, psql } from './connections-helpers.js';
 
 const MB = 1024 * 1024;
+
+/** Peaks kept in `kept`, as the operator tallies keep them beyond a restart: a table no longer there has its peak let go. */
+function peaksIn(kept: Map<string, number>): TablePeaks {
+  return {
+    read: async (present) => {
+      for (const table of [...kept.keys()]) if (!present.includes(table)) kept.delete(table);
+      return new Map(kept);
+    },
+    raise: async (table, rows) => {
+      kept.set(table, Math.max(kept.get(table) ?? 0, rows));
+    },
+    forget: async (table) => {
+      kept.delete(table);
+    },
+  };
+}
 
 // ─── Postgres ─────────────────────────────────────────────────────────────────
 
@@ -198,6 +214,60 @@ describe.skipIf(MYSQL_URL === undefined)('the measure on a live MySQL', { timeou
     expect(await measureMysql(db, { memo, fresh: true })).toBeLessThan(MB);
   });
 
+  it('still lets go of what a delete freed of a dropped column’s values after a restart', async () => {
+    await sql`create table cycled (id int auto_increment primary key, pad varchar(4000))`.execute(db);
+    for (let batch = 0; batch < 4; batch += 1) {
+      const values = Array.from({ length: 1000 }, () => sql`(${randomBytes(900).toString('hex')})`);
+      await sql`insert into cycled (pad) values ${sql.join(values)}`.execute(db);
+    }
+    await sql`alter table cycled drop column pad`.execute(db);
+    await sql`analyze table cycled`.execute(db);
+    const kept = new Map<string, number>();
+    const dropped = await measureMysql(db, { memo: new Map(), fresh: true, peaks: peaksIn(kept) });
+    expect(dropped).toBeGreaterThan(4000 * 1800);
+    expect(kept.get('cycled')).toBe(4000);
+    await sql`delete from cycled where id % 4 <> 0`.execute(db);
+    await sql`analyze table cycled`.execute(db);
+    // A restart forgets the memo. Without the kept peak, every page counts again, the deleted rows' too.
+    expect(await measureMysql(db, { memo: new Map(), fresh: true })).toBeGreaterThan(dropped * 0.9);
+    const afterRestart = await measureMysql(db, { memo: new Map(), fresh: true, peaks: peaksIn(kept) });
+    expect(afterRestart).toBeLessThan(dropped * 0.4);
+    expect(afterRestart).toBeGreaterThan(dropped * 0.15);
+    expect(kept.get('cycled')).toBe(4000);
+    // A rebuild leaves the dropped values behind, and the peak with them.
+    await sql`optimize table cycled`.execute(db);
+    expect(await measureMysql(db, { memo: new Map(), fresh: true, peaks: peaksIn(kept) })).toBeLessThan(MB);
+    expect(kept.has('cycled')).toBe(false);
+  });
+
+  it('lets a table’s peak go once the table is gone, so one made again under its name starts afresh', async () => {
+    await sql`create table cycled (id int auto_increment primary key, pad varchar(4000))`.execute(db);
+    for (let batch = 0; batch < 4; batch += 1) {
+      const values = Array.from({ length: 1000 }, () => sql`(${randomBytes(900).toString('hex')})`);
+      await sql`insert into cycled (pad) values ${sql.join(values)}`.execute(db);
+    }
+    await sql`alter table cycled drop column pad`.execute(db);
+    await sql`analyze table cycled`.execute(db);
+    const memo: TableMemo = new Map();
+    const kept = new Map<string, number>();
+    await measureMysql(db, { memo, fresh: true, peaks: peaksIn(kept) });
+    expect(kept.get('cycled')).toBe(4000);
+    await sql`drop table cycled`.execute(db);
+    await measureMysql(db, { memo, fresh: true, peaks: peaksIn(kept) });
+    expect(kept.size).toBe(0);
+    expect(memo.has('cycled')).toBe(false);
+    // Made again with fewer rows of dropped values: all of its pages count, not a share of the old table's rows.
+    await sql`create table cycled (id int auto_increment primary key, pad varchar(4000))`.execute(db);
+    for (let batch = 0; batch < 2; batch += 1) {
+      const values = Array.from({ length: 1000 }, () => sql`(${randomBytes(900).toString('hex')})`);
+      await sql`insert into cycled (pad) values ${sql.join(values)}`.execute(db);
+    }
+    await sql`alter table cycled drop column pad`.execute(db);
+    await sql`analyze table cycled`.execute(db);
+    expect(await measureMysql(db, { memo, fresh: true, peaks: peaksIn(kept) })).toBeGreaterThan(2000 * 1800);
+    expect(kept.get('cycled')).toBe(2000);
+  });
+
   it('counts a table named like Adminium’s own, unless the meta store shares this database', async () => {
     await sql`create table adminium_bulk (id int primary key, body text not null)`.execute(db);
     for (let batch = 0; batch < 4; batch += 1) {
@@ -282,5 +352,60 @@ describe('a database of 5,000 tables', () => {
     expect(await measureMysql(db)).toBe(TABLES * 32_768);
     expect(performance.now() - started).toBeLessThan(200);
     expect(scans).toEqual([]);
+  });
+});
+
+// ─── MariaDB ──────────────────────────────────────────────────────────────────
+
+describe('the measure on MariaDB, from the answers its catalogue gives', () => {
+  /**
+   * A MariaDB 10.11 stand-in: `orders` (InnoDB, 8 MB of pages and 2 MB of
+   * index, its values 3 MB) and `log` (Aria). `SHOW EXTENDED COLUMNS` does
+   * not exist there, so asking it fails.
+   */
+  function mariadb(version: string, rows: { orders: number }) {
+    const asked: string[] = [];
+    const db = stubbed('mysql', (text) => {
+      asked.push(text);
+      if (/size-cap:version/.test(text)) return [{ version }];
+      if (/size-cap:tables/.test(text)) {
+        return [
+          { name: 'orders', rows: rows.orders, data: 8 * MB, indexes: 2 * MB, updated: null, engine: 'InnoDB' },
+          { name: 'log', rows: 5000, data: MB, indexes: 0, updated: null, engine: 'Aria' },
+        ];
+      }
+      if (/size-cap:columns/.test(text)) return [{ tableName: 'orders', columnName: 'body' }, { tableName: 'log', columnName: 'line' }];
+      if (/size-cap:hidden/.test(text)) throw new Error('You have an error in your SQL syntax near EXTENDED');
+      if (/size-cap:rows/.test(text) && text.includes('`orders`')) return [{ live: (3 * MB * rows.orders) / 1000, n: rows.orders }];
+      if (/size-cap:rows/.test(text) && text.includes('`log`')) return [{ live: MB / 2, n: 5000 }];
+      return [];
+    });
+    return { db, asked };
+  }
+
+  it('counts an InnoDB table’s pages in the share of its rows still there, as a column dropped in place leaves no sign', async () => {
+    const kept = new Map<string, number>();
+    const memo: TableMemo = new Map();
+    const full = mariadb('10.11.6-MariaDB-log', { orders: 1000 });
+    // All of orders' pages, though its values read 3 MB; log, which is not InnoDB, its values.
+    expect(await measureMysql(full.db, { memo, fresh: true, peaks: peaksIn(kept) })).toBe(10 * MB + MB / 2);
+    expect(full.asked.some((text) => /size-cap:hidden/.test(text))).toBe(false);
+    expect([...kept]).toEqual([['orders', 1000]]);
+    // Three rows in four deleted: the pages keep their size, the share lets go of them.
+    const quarter = mariadb('10.11.6-MariaDB-log', { orders: 250 });
+    expect(await measureMysql(quarter.db, { memo, fresh: true, peaks: peaksIn(kept) })).toBe(2.5 * MB + MB / 2);
+    // And after a restart, from the kept peak.
+    expect(await measureMysql(quarter.db, { memo: new Map(), fresh: true, peaks: peaksIn(kept) })).toBe(2.5 * MB + MB / 2);
+  });
+
+  it('reads the version behind the replication prefix, and counts the values on MySQL and on a MariaDB too old to drop in place', async () => {
+    const prefixed = mariadb('5.5.5-10.6.14-MariaDB', { orders: 1000 });
+    expect(await measureMysql(prefixed.db, { memo: new Map(), fresh: true })).toBe(10 * MB + MB / 2);
+    // Values and the indexes in the share their pages are filled: 3 MB + 2 MB x 3/8, and log's half MB.
+    const values = 3 * MB + 2 * MB * (3 / 8) + MB / 2;
+    for (const version of ['8.4.3', '10.3.39-MariaDB']) {
+      const other = mariadb(version, { orders: 1000 });
+      expect(await measureMysql(other.db, { memo: new Map(), fresh: true })).toBe(Math.round(values));
+    }
   });
 });

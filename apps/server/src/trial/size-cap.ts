@@ -26,8 +26,11 @@
  * share of rows still live. A dropped column's values stay in the rows
  * written before the drop until the table is rewritten, so a table that
  * dropped one counts them too: on Postgres each row's whole stored size, on
- * MySQL its files in the share of its rows still there. Nothing counts more
- * than the table's files. A table that did not change since its last
+ * MySQL its files in the share of its rows still there (on MariaDB, which
+ * shows no sign of such a column, every InnoDB table does). The most rows
+ * such a table held is kept in the operator tallies, so a restart does not
+ * count again what a delete let go. Nothing counts more than the table's
+ * files. A table that did not change since its last
  * reading is not read again, and one that cannot be read in time counts its
  * files. Tables named `adminium_*` are left out only where the meta store
  * shares the database.
@@ -58,9 +61,12 @@
  * {@link SizeCap.listen} hears every reading (a database's, the data
  * folder's), for whoever sends the operator word of a folder over 80%.
  */
+import { createHash } from 'node:crypto';
 import { lstat, opendir } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 
+import { detectServerFlavor } from '@adminium/adapter-mysql';
+import type { OperatorTalliesRepo } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
 import { databaseHostListed, parseDsn, type DatabaseHost } from '../connections/dsn.js';
@@ -149,6 +155,8 @@ export interface SizeCapOptions {
   folders?: readonly string[] | undefined;
   log?: { warn(fields: object, message: string): void } | undefined;
   clock?: (() => number) | undefined;
+  /** Where a MySQL table's peak rows are kept beyond a restart ({@link tallyPeaks}); none: in memory alone. */
+  tallies?: PeakTallies | undefined;
   /** Test seam: how a database is measured (default {@link measurePostgres} and {@link measureMysql}). */
   measureWith?: ((engine: 'postgres' | 'mysql', db: AnyDb, options: MeasureOptions) => Promise<number>) | undefined;
   /** Test seam: the delays of {@link AFTER_DELETE_MS}, {@link AFTER_DELETE_LATE_MS}, {@link AFTER_GROWTH_MS}, {@link AFTER_STORE_MS}, {@link SETTLE_WAIT_MS}. */
@@ -220,12 +228,57 @@ export interface MeasureOptions {
   fresh?: boolean | undefined;
   /** How long reading the tables may take in all; what is left counts its size on disk. */
   budgetMs?: number | undefined;
+  /** MySQL: where each table's peak rows (`TableMemo` `rows`) are kept beyond the memo, so a restart does not lose them. */
+  peaks?: TablePeaks | undefined;
+}
+
+/** A MySQL database's tables' peak rows, kept where a restart does not lose them. */
+export interface TablePeaks {
+  /** The kept peak of each table in `present` that has one; a table not in it is gone, and its peak let go. */
+  read(present: readonly string[]): Promise<Map<string, number>>;
+  /** Keep `rows` as the table's peak, unless a higher one is kept. */
+  raise(table: string, rows: number): Promise<void>;
+  /** The table holds no dropped values any more: its peak let go. */
+  forget(table: string): Promise<void>;
+}
+
+/** What {@link tallyPeaks} uses of the operator tallies. */
+export type PeakTallies = Pick<OperatorTalliesRepo, 'list' | 'raise' | 'release'>;
+
+const PEAK_TALLY = 'size-peak:';
+const digest = (text: string, length: number): string => createHash('sha256').update(text).digest('hex').slice(0, length);
+
+/**
+ * Peaks kept in the operator tallies, which only the server writes and no
+ * restore brings back, so the person cannot set a peak higher to count less.
+ * A tally is named for the database (`database`: the connection and where it
+ * points, so a connection pointed elsewhere starts afresh) and the table,
+ * both hashed to fit the 40 characters of a tally's name.
+ */
+export function tallyPeaks(tallies: PeakTallies, database: string): TablePeaks {
+  const prefix = `${PEAK_TALLY}${digest(database, 16)}:`;
+  const nameOf = (table: string): string => `${prefix}${digest(table, 13)}`;
+  return {
+    async read(present) {
+      const tables = new Map(present.map((table) => [nameOf(table), table]));
+      const kept = new Map<string, number>();
+      for (const tally of await tallies.list(prefix)) {
+        const table = tables.get(tally.name);
+        if (table === undefined) await tallies.release(tally.name);
+        else kept.set(table, tally.amount);
+      }
+      return kept;
+    },
+    raise: (table, rows) => tallies.raise(nameOf(table), rows),
+    forget: (table) => tallies.release(nameOf(table)),
+  };
 }
 
 /**
  * Per table: what it was measured to, and the figures that say whether it
  * changed since. `rows`: on MySQL, the most rows the table held while it kept
- * a dropped column's values, against which a delete lets its pages go.
+ * a dropped column's values, against which a delete lets its pages go (kept
+ * beyond a restart in `peaks`).
  */
 export type TableMemo = Map<string, { key: string; bytes: number; rows?: number }>;
 
@@ -445,10 +498,21 @@ async function largeObjectBytes(db: Kysely<never>): Promise<number> {
  * every row written before the drop until the table is rebuilt, and no
  * statement can read them. The server lists such a column as hidden, and
  * while it does the table counts at least its pages in the share of its rows
- * still there, against the most rows it held while the memo saw it so (no
- * memo: all of its pages). A rebuild (`OPTIMIZE TABLE`, `ALTER TABLE …
- * FORCE`, `TRUNCATE`) takes the hidden column away and the measure back to
- * the values.
+ * still there, against the most rows it held while it was seen so (none
+ * seen: all of its pages). That peak is kept in the memo and in `peaks`, so
+ * a restart does not count again the pages a delete let go. A rebuild
+ * (`OPTIMIZE TABLE`, `ALTER TABLE … FORCE`, `TRUNCATE`) takes the hidden
+ * column away and the measure back to the values; a table no longer there
+ * has its peak let go, so one made again under its name starts afresh.
+ *
+ * MariaDB (10.4 and later) drops a column in place too, but lists no sign of
+ * it: `SHOW EXTENDED COLUMNS` does not exist there, the dropped column is
+ * kept only in a hidden record inside the table, and the `INNODB_SYS_*`
+ * tables need the PROCESS privilege, which a shared host does not give, and
+ * are not documented to mark it either. So on MariaDB every InnoDB table
+ * counts as if it held dropped values: never less than its pages in the
+ * share of its rows still there. That counts the free room in its pages too,
+ * but nothing a person stores can hide.
  */
 export async function measureMysql(db: AnyDb, options: MeasureOptions = {}): Promise<number> {
   const left = budgetFrom(options);
@@ -456,8 +520,9 @@ export async function measureMysql(db: AnyDb, options: MeasureOptions = {}): Pro
   return (db as Kysely<never>).connection().execute(async (connection) => {
     // Fresh figures, not the cache MySQL 8 keeps for a day by default. An older server has no such cache.
     await sql`set session information_schema_stats_expiry = 0`.execute(connection).catch(() => undefined);
-    const { rows: tables } = await sql<{ name: string; rows: number | string | null; data: number | string | null; indexes: number | string | null; updated: unknown }>`/* size-cap:tables */
-      select table_name as name, table_rows as \`rows\`, data_length as data, index_length as indexes, update_time as updated
+    const unseenDrops = await dropsColumnsUnseen(connection);
+    const { rows: tables } = await sql<{ name: string; rows: number | string | null; data: number | string | null; indexes: number | string | null; updated: unknown; engine?: unknown }>`/* size-cap:tables */
+      select table_name as name, table_rows as \`rows\`, data_length as data, index_length as indexes, update_time as updated, engine as engine
         from information_schema.tables
        where table_schema = database()
          and table_type = 'BASE TABLE'
@@ -476,12 +541,22 @@ export async function measureMysql(db: AnyDb, options: MeasureOptions = {}): Pro
       if (list === undefined) byTable.set(column.tableName, [column.columnName]);
       else list.push(column.columnName);
     }
+    const present = tables.map((table) => table.name);
+    // A table gone takes its peak with it: one made again under its name has rows of its own.
+    if (options.memo !== undefined) {
+      const there = new Set(present);
+      for (const name of [...options.memo.keys()]) if (!there.has(name)) options.memo.delete(name);
+    }
+    // Not kept, or not readable: every table seen so starts from its rows now, which counts more, not less.
+    const kept = options.peaks === undefined ? new Map<string, number>() : await options.peaks.read(present).catch(() => new Map<string, number>());
     let bytes = 0;
     for (const table of tables) {
       const data = Number(table.data ?? 0);
       const indexes = Number(table.indexes ?? 0);
       if (data + indexes <= SMALL_TABLE_BYTES) {
         bytes += data + indexes;
+        // Rebuilt or emptied: a peak kept from before would let a table that grows again count less.
+        if (kept.has(table.name)) await options.peaks?.forget(table.name).catch(() => undefined);
         continue;
       }
       const key = [table.rows, data, indexes, table.updated instanceof Date ? table.updated.toISOString() : table.updated].map(String).join(':');
@@ -496,7 +571,7 @@ export async function measureMysql(db: AnyDb, options: MeasureOptions = {}): Pro
       let dropped = false;
       if (left() > 0) {
         try {
-          dropped = await holdsDroppedColumn(connection, table.name);
+          dropped = unseenDrops ? /^innodb$/i.test(String(table.engine ?? '')) : await holdsDroppedColumn(connection, table.name);
           // The hint stops a read that runs past the budget (MySQL 5.7.8 and later; others read it as a comment).
           const { rows } = await sql<{ live: number | string | null; n: number | string | null }>`/* size-cap:rows */
             select /*+ MAX_EXECUTION_TIME(${sql.raw(String(Math.max(1, Math.ceil(left()))))}) */ coalesce(sum(${sql.raw(lengths)}), 0) as live, count(*) as n
@@ -511,14 +586,30 @@ export async function measureMysql(db: AnyDb, options: MeasureOptions = {}): Pro
       // A table that could not be read in time (or at all): its pages, which order and samples cannot shrink.
       let tableBytes = live === null ? data + indexes : live + indexes * Math.min(1, data === 0 ? 1 : live / data);
       // Dropped values out of reach: its pages in the share of its rows still there, never less than what was read.
-      const most = dropped ? Math.max(known?.rows ?? 0, count) : undefined;
+      const keptRows = kept.get(table.name);
+      const most = dropped ? Math.max(known?.rows ?? 0, keptRows ?? 0, count) : undefined;
       if (live !== null && most !== undefined && most > 0) tableBytes = Math.max(tableBytes, ((data + indexes) * count) / most);
-      if (live !== null) options.memo?.set(table.name, most === undefined ? { key, bytes: tableBytes } : { key, bytes: tableBytes, rows: most });
-      else options.memo?.delete(table.name);
+      if (live !== null) {
+        options.memo?.set(table.name, most === undefined ? { key, bytes: tableBytes } : { key, bytes: tableBytes, rows: most });
+        // A peak not kept is lost at a restart, which then counts more: a failed write is let pass.
+        if (most !== undefined && most > (keptRows ?? 0)) await options.peaks?.raise(table.name, most).catch(() => undefined);
+        if (most === undefined && keptRows !== undefined) await options.peaks?.forget(table.name).catch(() => undefined);
+      } else options.memo?.delete(table.name);
       bytes += tableBytes;
     }
     return Math.round(bytes);
   });
+}
+
+/** Whether the server is MariaDB 10.4 or later, which drops a column in place and lists no sign of it. */
+async function dropsColumnsUnseen(connection: Kysely<never>): Promise<boolean> {
+  try {
+    const { rows } = await sql<{ version?: unknown }>`/* size-cap:version */ select version() as version`.execute(connection);
+    const server = detectServerFlavor(String(rows[0]?.version ?? ''));
+    return server.flavor === 'mariadb' && (server.major > 10 || (server.major === 10 && server.minor >= 4));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -612,8 +703,8 @@ export function createSizeCap(opts: SizeCapOptions): SizeCap {
   const settled = new Set<string>();
   /** Bumped each time a source's data handle opens: a reading begun before it does not settle it. */
   const opens = new Map<string, number>();
-  /** Per source, what each table measured to last time. */
-  const memos = new Map<string, TableMemo>();
+  /** Per source, what each table measured to last time, in the database it pointed at then. */
+  const memos = new Map<string, { database: string; memo: TableMemo }>();
   const inFlight = new Map<string, Promise<DataReading | null>>();
   const timers = new Map<string, { at: number; timer: NodeJS.Timeout; fresh: boolean }>();
   const listeners = new Set<(event: SizeCapEvent) => void>();
@@ -665,16 +756,20 @@ export function createSizeCap(opts: SizeCapOptions): SizeCap {
     const { db } = await opts.sources.data(connectionId);
     // Opening the handle for this reading is no reason to read again.
     opened = opens.get(connectionId) ?? 0;
+    // The connection and where it points: a connection pointed at another database knows nothing of its tables.
+    const target = parseDsn(dataDsn);
+    const database = [connectionId, target.host, String(target.port), target.database ?? ''].join('\u0000');
     let memo = memos.get(connectionId);
-    if (memo === undefined) {
-      memo = new Map();
+    if (memo?.database !== database) {
+      memo = { database, memo: new Map() };
       memos.set(connectionId, memo);
     }
     // Postgres or MySQL: anything else was set aside above.
     const usedBytes = await measureWith(connection.engine as 'postgres' | 'mysql', db, {
-      memo,
+      memo: memo.memo,
       fresh,
       skipMetaTables: opts.sources.metaSharesDatabaseWith?.(dataDsn) ?? false,
+      ...(opts.tallies === undefined || connection.engine !== 'mysql' ? {} : { peaks: tallyPeaks(opts.tallies, database) }),
     });
     const wasHeld = readings.get(connectionId)?.held ?? false;
     const held = wasHeld ? usedBytes >= dataMaxBytes * RELEASE_SHARE : usedBytes > dataMaxBytes;
