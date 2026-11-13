@@ -625,6 +625,33 @@ describe('a whole server', () => {
     expect(verifies(recv.heard[0]!)).toBe(true);
   }, 30_000);
 
+  it('on a hosted installation: the public page and the Super Admin’s sign-in are sent, signed', async () => {
+    const server = await serve({
+      ADMINIUM_HOSTED_MODE: 'on',
+      ADMINIUM_PUBLIC_ORIGIN: ORIGIN,
+      ADMINIUM_DATABASE_HOSTS: 'pg-trials:5432',
+      ADMINIUM_SETUP_TOKEN: SETUP_TOKEN,
+      ADMINIUM_OPERATOR_TOKEN: TOKEN,
+      ADMINIUM_OPERATOR_EVENTS_URL: recv.url,
+    });
+    expect(server.app.trialPolicy.profile).toBe('hosted');
+    expect(server.app.operatorEvents).not.toBeNull();
+    await recv.until(1);
+    expect(byType('public-page.changed')).toHaveLength(1);
+    const setup = await server.app.inject({
+      method: 'POST',
+      url: '/api/v1/setup/super-admin',
+      headers: { host: HOST, origin: ORIGIN },
+      payload: { email: OWNER, password: PASSWORD, name: 'Dana Price', consent: { telemetry: false, updateCheck: false }, setupToken: SETUP_TOKEN },
+    });
+    expect(setup.statusCode, setup.body).toBe(201);
+    const login = await server.app.inject({ method: 'POST', url: '/api/v1/auth/login', headers: { host: HOST, origin: ORIGIN }, remoteAddress: '203.0.113.7', payload: { email: OWNER, password: PASSWORD } });
+    expect(login.statusCode, login.body).toBe(200);
+    await recv.until(2);
+    expect(byType('super-admin.signed-in').map((event) => event.data)).toEqual([{ ip: '203.0.113.7' }]);
+    for (const heard of recv.heard) expect(verifies(heard), heard.body).toBe(true);
+  }, 30_000);
+
   it('the URL without the token stops the boot', () => {
     expect(() => makeEnv({ ADMINIUM_OPERATOR_EVENTS_URL: 'https://control.example.com/events' })).toThrow('ADMINIUM_OPERATOR_TOKEN');
     expect(() => makeEnv({ ADMINIUM_OPERATOR_EVENTS_URL: 'http://203.0.113.5/events', ADMINIUM_OPERATOR_TOKEN: TOKEN })).toThrow('ADMINIUM_OPERATOR_EVENTS_URL');
