@@ -308,12 +308,23 @@ function tokenBytes(value: string): number {
 function parseListenAddress(value: string): { host: string; port: number } | null {
   const match = /^(?:\[([0-9a-fA-F:.]+)\]|(\d{1,3}(?:\.\d{1,3}){3})):(\d{1,5})$/.exec(value.trim());
   if (match === null) return null;
-  const host = (match[1] ?? match[2] ?? '').toLowerCase();
+  const host = canonicalAddress(match[1] ?? match[2] ?? '', match[1] !== undefined);
   const port = Number(match[3]);
-  if (isIP(host) === 0 || port < 1 || port > 65535) return null;
-  if (host === '0.0.0.0' || /^[0:]+$/.test(host)) return null;
+  if (host === null || isIP(host) === 0 || port < 1 || port > 65535) return null;
+  // Every address, however it is written: `::`, `0.0.0.0`, and `0.0.0.0` mapped into IPv6.
+  if (host === '0.0.0.0' || host === '::' || host === '::ffff:0:0') return null;
   if (addressKind(host) === 'metadata') return null;
   return { host, port };
+}
+
+/** An IP address in its one written form (`[::0.0.0.0]` is `::`, `000.0.0.1` is `0.0.0.1`), or null when it is none. */
+function canonicalAddress(address: string, v6: boolean): string | null {
+  try {
+    const name = new URL(`http://${v6 ? `[${address}]` : address}/`).hostname;
+    return v6 ? name.slice(1, -1) : name;
+  } catch {
+    return null;
+  }
 }
 
 /** The start prompt's limit. */

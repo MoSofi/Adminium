@@ -159,7 +159,11 @@ describe('the operator variables parse', () => {
 
   it('serves the operator endpoint on a named address only, never every address or the public port', () => {
     expect(booted({ ADMINIUM_SECRET: TEST_SECRET, ADMINIUM_OPERATOR_TOKEN: TOKEN, ADMINIUM_OPERATOR_LISTEN: '[fd00::2]:4601' }).ADMINIUM_OPERATOR_LISTEN).toEqual({ host: 'fd00::2', port: 4601 });
-    for (const bad of ['0.0.0.0:4601', '[::]:4601', 'operator.internal:4601', '10.0.0.2', '10.0.0.2:0', '10.0.0.2:70000']) {
+    // Written another way, the same address as the one the listener binds and the checks read.
+    expect(booted({ ADMINIUM_SECRET: TEST_SECRET, ADMINIUM_OPERATOR_TOKEN: TOKEN, ADMINIUM_OPERATOR_LISTEN: '[FD00:0:0::2]:4601' }).ADMINIUM_OPERATOR_LISTEN).toEqual({ host: 'fd00::2', port: 4601 });
+    // Every spelling of "every address" Node binds as one.
+    const everyAddress = ['[::0.0.0.0]:4601', '[::ffff:0.0.0.0]:4601', '[0:0:0:0:0:0:0.0.0.0]:4601', '[0::0]:4601', '[::ffff:0:0]:4601', '000.000.000.000:4601'];
+    for (const bad of ['0.0.0.0:4601', '[::]:4601', ...everyAddress, 'operator.internal:4601', '10.0.0.2', '10.0.0.2:0', '10.0.0.2:70000']) {
       refused({ ADMINIUM_SECRET: TEST_SECRET, ADMINIUM_OPERATOR_TOKEN: TOKEN, ADMINIUM_OPERATOR_LISTEN: bad }, 'ADMINIUM_OPERATOR_LISTEN');
     }
     refused({ ADMINIUM_SECRET: TEST_SECRET, PORT: '4601', ADMINIUM_OPERATOR_TOKEN: TOKEN, ADMINIUM_OPERATOR_LISTEN: '10.0.0.2:4601' }, 'ADMINIUM_OPERATOR_LISTEN');
