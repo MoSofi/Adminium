@@ -257,7 +257,8 @@ describe.skipIf(process.platform === 'win32')('a program the server starts', () 
   /** A program on the PATH that writes down its environment, one file per run, and succeeds. */
   function fakeProgram(name: string): void {
     const file = join(bin, name);
-    writeFileSync(file, `#!/bin/sh\n/usr/bin/env > "${dumps}/${name}.$$.env"\nexit 0\n`);
+    // Written aside and renamed, so a reader never sees a dump half written.
+    writeFileSync(file, `#!/bin/sh\n/usr/bin/env > "${dumps}/.part-${name}.$$" && mv "${dumps}/.part-${name}.$$" "${dumps}/${name}.$$.env"\nexit 0\n`);
     chmodSync(file, 0o755);
   }
   /** What each run of `name` was given. */
