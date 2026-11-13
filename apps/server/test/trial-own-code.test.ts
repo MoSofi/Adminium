@@ -274,7 +274,7 @@ describe.each(PROFILES)('where the effect happens, under %s', (_name, variable, 
     const build = starter.buildFor('my-shop');
     await expect(starter.start({ key: 'shop', newKey: 'my-shop', name: 'My shop', approve: build.fingerprint, connectionId: 'env:x', model: 'x', by: { id: null, label: 'x' } })).rejects.toMatchObject({
       statusCode: 403,
-      code: 'OWN_CODE_OFF',
+      code: 'OFF_BY_OPERATOR',
       details: { question: 'ownBuilds', reason },
     });
     expect(fetched).toBe(0);
@@ -295,6 +295,15 @@ describe('the questions, both ways', () => {
     }
     vi.stubEnv('ADMINIUM_TRIAL_MODE', 'on');
     expect(ownCodeAllows('designerCode')).toEqual({ allowed: false, reason: 'trial-mode' });
+  });
+
+  it('a second server booted beside a trial one never lifts the trial’s guards; its close does', () => {
+    const releaseTrial = useOwnCodePolicy({ allows: () => ({ allowed: false, reason: 'trial-mode' }) });
+    const releaseOrdinary = useOwnCodePolicy(ORDINARY_POLICY);
+    expect(ownCodeAllows('designerCode')).toEqual({ allowed: false, reason: 'trial-mode' });
+    releaseTrial();
+    expect(ownCodeAllows('designerCode')).toEqual({ allowed: true, reason: null });
+    releaseOrdinary();
   });
 });
 

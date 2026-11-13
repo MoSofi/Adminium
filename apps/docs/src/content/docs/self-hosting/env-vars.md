@@ -40,14 +40,14 @@ half-configured and fail later.
 | `ADMINIUM_LOCAL_DATABASES` | No | `setting` | `setting` lets a super admin switch on *Allow databases on this server* in Studio's Server settings, for any database on this server's own loopback; `off` locks that switch off, so only `ADMINIUM_DATABASE_HOSTS` counts. See below. |
 | `ADMINIUM_SQLITE_DIRS` | No | *(unset)* | CSV of absolute folders a SQLite source database must lie in, such as `/srv/databases`. Unset means any file the server can open, except Adminium's own. See below. |
 | `ADMINIUM_STORAGE_DIRS` | No | *(unset)* | CSV of absolute folders a `local` storage destination must lie in, such as `/srv/files`. Unset means any folder, except Adminium's own. See below. |
-| `ADMINIUM_NETWORK_POLICY` | No | `open` | `strict` also refuses the server's own network (private ranges) for source databases, webhooks and storage endpoints. A source host in `ADMINIUM_DATABASE_HOSTS` still passes. See below. |
+| `ADMINIUM_NETWORK_POLICY` | No | `open` | `strict` also refuses the server's own network (private ranges) for source databases, webhooks and storage endpoints, and this machine and its network for add-ons' network calls. A source host in `ADMINIUM_DATABASE_HOSTS` still passes. See below. |
 | `ADMINIUM_MAP_SERVER` | No | `https://tiles.openfreemap.org` | Where maps' pictures come from: one `https://` origin, or `off` for no maps on this install. See below. |
 | `ADMINIUM_ROUTING_SERVER` | No | `https://router.project-osrm.org` | The OSRM server asked for routes along roads, once that is switched on in Settings → Maps; or `off`. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI, and the server asks adminium.dev for no list of add-ons or apps. |
 | `ADMINIUM_DEPLOY_LINK` | No | `on` | `off` hides **Put this online…**, a link to [adminium.dev/deploy](https://adminium.dev/deploy) in the user menu, on Studio's Export everything page and on About (and in the desktop app's Help menu). For an operator who offers their own hosting or rebrands. Only a link: nothing is fetched. |
 | `ADMINIUM_SUPABASE_CONNECT_URL` | No | *(unset)* | The `https://` address of an operator's connect service. Set, the connect wizards show **Connect Supabase** above the connection-string form, and the instance redeems a one-time code at `<address>/redeem`. **https only**, or the boot fails. Unset, nothing changes. See [Running Adminium for other people](/self-hosting/for-other-people/#8-connect-supabase). |
-| `ADMINIUM_TRIAL_MODE` | No | `off` | `on` runs a trial for someone else on your server: connections only to your host list, no code of their own, no outgoing calls of their choosing (mail goes through your relay), banners and size caps. Needs the four variables below, or the boot fails. See [Trial mode and the hosted profile](#trial-mode-and-the-hosted-profile). |
+| `ADMINIUM_TRIAL_MODE` | No | `off` | `on` runs a trial for someone else on your server: connections only to your host list, no code of their own, no outgoing calls of their choosing (mail goes through your relay), banners and size caps. Needs `ADMINIUM_TRIAL_ENDS_AT`, `ADMINIUM_SETUP_TOKEN`, `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`, or the boot fails. See [Trial mode and the hosted profile](#trial-mode-and-the-hosted-profile). |
 | `ADMINIUM_TRIAL_ENDS_AT` | In trial mode | — | When the trial ends: a date and time **with its zone**, `2026-12-01T00:00:00Z`. |
 | `ADMINIUM_PUBLIC_ORIGIN` | In trial and hosted mode | *(unset)* | Your address for this instance, `https://shop.example.com`. One origin; `http://` only for this machine. Set on any server, the instance answers only on this host and `ADMINIUM_OPERATOR_DOMAINS` (any other `Host` gets 421), and links in email point here. See [Your addresses for the instance](#your-addresses-for-the-instance). |
 | `ADMINIUM_TRIAL_DATA_MAX_MB` | No | `500` | Trial mode: megabytes of live data per database on one of your hosts. |
@@ -205,7 +205,10 @@ cloud metadata address stops the boot. Loopback and your own network are fine,
 and a name that does not resolve yet is left to the driver, so a database
 container that starts a moment later is no refused boot. In trial mode and the
 hosted profile the address must also pass the
-[stricter check](#what-the-two-profiles-switch-off).
+[stricter check](#what-the-two-profiles-switch-off). The address is checked,
+not pinned: the database driver looks the name up again itself when it
+connects, so keep the name of your meta store's host in DNS you control (your
+own network, a container name), not one a stranger can change.
 
 → [Where to put the meta store](/self-hosting/meta-store/)
 
@@ -520,6 +523,11 @@ server, and the server sits on a network with other machines on it: then
 nobody can make Adminium call those machines for them. Keep `open` (or leave
 it unset) when a database or a MinIO bucket on your own network is the point,
 such as a Docker Compose install whose database is the `postgres` service.
+
+Under `strict`, an add-on's network calls are held to the same check, this
+machine included: a host its manifest declares is looked up before each call,
+refused when it is or resolves to this server or its own network, and called
+at the address that passed.
 
 - **A database on your own network under `strict`**: name it in
   `ADMINIUM_DATABASE_HOSTS` (`postgres:5432`). The list lets databases
@@ -1017,8 +1025,10 @@ you to do on your own servers:
 [Run Adminium for other people](/self-hosting/for-other-people/#10-trial-mode-a-trial-for-a-stranger).
 
 Both are set by the server's environment only: no setting switches them off,
-and no route writes them. Under either, the project's `.env` is not read at
-all, and its config cannot set any trial or operator variable. Pass them
+no route writes them, and a project's `.env` or config never switches either on
+(nor sets an `ADMINIUM_TRIAL_*` variable), on any server. Under either, the
+project's `.env` is not read at all, and its config cannot set any trial or
+operator variable. Pass them
 through the Docker API's `Env` array, never an env file built from user input.
 
 A trial boot fails without `ADMINIUM_TRIAL_ENDS_AT`, `ADMINIUM_SETUP_TOKEN`,

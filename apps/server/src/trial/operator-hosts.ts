@@ -37,8 +37,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import type { Env } from '../config/env.js';
-import { AppError } from '../errors.js';
 import type { PolicyReason } from './policy.js';
+import { OffByOperatorError } from './refuse.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -54,6 +54,8 @@ export interface OperatorHosts {
   domains: readonly string[];
   /** Every host name the instance answers on: the public origin's and the listed domains, lower case, no port. */
   hosts: ReadonlySet<string>;
+  /** `ADMINIUM_PUBLIC_ORIGIN`, when set. */
+  publicOrigin: string | null;
 }
 
 /** The paths that answer on every host. */
@@ -66,7 +68,19 @@ export function operatorHostsOf(env: Pick<Env, 'ADMINIUM_PUBLIC_ORIGIN' | 'ADMIN
   const hosts = new Set(domains);
   if (publicOrigin !== undefined) hosts.add(new URL(publicOrigin).hostname);
   const first = domains[0];
-  return { origin: first === undefined ? publicOrigin! : `https://${first}`, domains, hosts };
+  return { origin: first === undefined ? publicOrigin! : `https://${first}`, domains, hosts, publicOrigin: publicOrigin ?? null };
+}
+
+/**
+ * The operator's address for the host a request came in on: the public origin
+ * on its own host, `https://` and the name on a listed domain. A browser sent
+ * back there arrives where its session cookie is (cookies are per host). Null
+ * for any other host, which the 421 gate already refuses.
+ */
+export function operatorOriginFor(hosts: OperatorHosts, host: string | undefined): string | null {
+  const name = hostNameOf(host);
+  if (hosts.publicOrigin !== null && new URL(hosts.publicOrigin).hostname === name) return hosts.publicOrigin;
+  return hosts.domains.includes(name) ? `https://${name}` : null;
 }
 
 /**
@@ -91,17 +105,17 @@ export function mayMapHost(hosts: OperatorHosts | null, host: string): boolean {
 }
 
 /**
- * Throws 403 when any of `hosts` is not one the operator listed, naming them,
- * with the profile's reason (`not-allowed` for an ordinary server with the
- * variables set). Nothing to refuse without operator hosts.
+ * Throws 403 `OFF_BY_OPERATOR` (question `mappedDomains`) when any of `hosts`
+ * is not one the operator listed, naming them, with the profile's reason
+ * (`not-allowed` for an ordinary server with the variables set). Nothing to
+ * refuse without operator hosts.
  */
 export function refuseUnlistedHosts(app: FastifyInstance, hosts: readonly string[]): void {
   const operator = app.hasDecorator('operatorHosts') ? app.operatorHosts : null;
   const refused = hosts.filter((host) => !mayMapHost(operator, host));
   if (refused.length === 0) return;
   const answer = app.hasDecorator('trialPolicy') ? app.trialPolicy.allows('mappedDomains') : { allowed: true, reason: null };
-  const reason: PolicyReason | 'not-allowed' = answer.reason ?? 'not-allowed';
-  throw new AppError(403, 'FORBIDDEN', 'Only the domains the server’s operator listed can point here.', { reason, hosts: refused });
+  throw new OffByOperatorError('mappedDomains', answer.reason ?? 'not-allowed', 'Only the domains the server’s operator listed can point here.', { hosts: refused });
 }
 
 /** Whether the websites that frame forms are held to the listed domains (trial mode and the hosted profile). */
@@ -119,7 +133,7 @@ function originHost(origin: string): string | null {
 }
 
 /**
- * Throws 403 when a website to list for framing forms (`publicPages.websites`)
+ * Throws 403 `OFF_BY_OPERATOR` (question `mappedDomains`) when a website to list for framing forms (`publicPages.websites`)
  * is not one of the operator's listed domains, where the profile holds them to
  * it. A line that is not a website at all is left to the list's own check.
  */
@@ -131,7 +145,7 @@ export function refuseUnlistedWebsites(app: FastifyInstance, lines: readonly str
     const host = originHost(line);
     return host !== null && !domains.includes(host);
   });
-  if (refused.length > 0) throw new AppError(403, 'FORBIDDEN', 'Only the domains the server’s operator listed can show forms in a frame.', { reason, origins: refused });
+  if (refused.length > 0) throw new OffByOperatorError('mappedDomains', reason, 'Only the domains the server’s operator listed can show forms in a frame.', { origins: refused });
 }
 
 /** The listed websites that may frame forms here: where the profile holds them, only the operator's domains. */

@@ -25,7 +25,7 @@ ADMINIUM_OPERATOR_LISTEN=10.0.0.2:4601
 | Variable | What it is |
 |---|---|
 | `ADMINIUM_OPERATOR_TOKEN` | The bearer token: 32 random bytes or more, one per instance. A secret: give it as `ADMINIUM_OPERATOR_TOKEN_FILE=/run/secrets/…` if you can, and it is taken out of the server's environment at boot either way. |
-| `ADMINIUM_OPERATOR_LISTEN` | `address:port` on your own network. An address of this machine, never `0.0.0.0`, `::` or a name, and never the port of the public listener (`PORT`). |
+| `ADMINIUM_OPERATOR_LISTEN` | `address:port` on your own network. An address of this machine, never `0.0.0.0`, `::` (however written, `[::ffff:0.0.0.0]` included) or a name, and never the port of the public listener (`PORT`). |
 
 The listener without the token stops the boot, and so does the token with
 neither the listener nor [`ADMINIUM_OPERATOR_EVENTS_URL`](#signed-instance-events)
@@ -137,11 +137,13 @@ instance's own people or the public, and a route that says neither counts as
 public.
 
 The state is kept in the meta store (`adminium_operator_holds`) and survives a
-restart. Each change is in the audit log (`operator.public_pages.hidden` and
+restart. Until the server has read it once at boot, every public page counts as
+hidden: a boot that cannot read it keeps serving the staff pages, logs an error,
+and reads again every 30 seconds until it can. Each change is in the audit log (`operator.public_pages.hidden` and
 `operator.public_pages.shown`, by "Server operator", with your address). No
 settings screen, config bundle (`adminium export-zip`, `import-zip`),
 [archive](/self-hosting/archive/) or restore reads or writes it: only this
-endpoint does.
+endpoint does, and `adminium archive restore --hold`, which restores with it on.
 
 ## `GET /api/v1/operator/public-content`
 
@@ -170,8 +172,10 @@ crawl a page could cloak:
 
 - `sides`: every app's customer side, each file with its size and hash, and the
   text of a text file (HTML, CSS, JavaScript, JSON, SVG, plain text): up to
-  512 KiB of one file (`truncated: true` past it) and 16 MiB in all. Up to
-  5,000 files a side.
+  512 KiB of one file and 16 MiB in all, the HTML pages read first. A text
+  file cut short, or left without its text once the 16 MiB are spent, says
+  `truncated: true`, and so does its side. Up to 5,000 files a side (the side
+  says `truncated: true` past that too).
 - `forms`: every live form, with its published definition: its fields and the
   words a stranger reads.
 

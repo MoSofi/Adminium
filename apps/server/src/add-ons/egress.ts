@@ -41,6 +41,9 @@
 
 import { auditRepo, type MetaDb } from '@adminium/meta';
 
+import type { HostLookup } from '../net/address-guard.js';
+import { checkOutboundUrl } from '../net/outbound-check.js';
+import { pinnedFetch, type PinnedAddress } from '../net/pinned-fetch.js';
 import { ORDINARY_POLICY, type TrialPolicy } from '../trial/policy.js';
 import { hostnameAllowed, type EgressRefusal } from './egress-policy.js';
 
@@ -97,8 +100,13 @@ export interface AddOnHttpClientOptions {
    * Trial mode and the hosted profile (`trial/policy.ts`): when it answers no
    * to `addOnHttp`, every call is refused, declared host or not, with the
    * operator's reason. Asked on every call. Default: an ordinary server's.
+   * Where it holds the network strict (`strictNetwork`), a declared host is
+   * looked up before each call, refused when it is or resolves to this
+   * server or its own network, and called at the addresses that passed.
    */
-  policy?: Pick<TrialPolicy, 'allows'> | undefined;
+  policy?: (Pick<TrialPolicy, 'allows'> & Partial<Pick<TrialPolicy, 'strictNetwork'>>) | undefined;
+  /** Test seam: the lookup of a declared host under a strict network. Default the system resolver's. */
+  lookup?: HostLookup | undefined;
 }
 
 export const DEFAULT_EGRESS_TIMEOUT_MS = 30_000;
@@ -178,9 +186,23 @@ export function createAddOnHttpClient(opts: AddOnHttpClientOptions): AddOnHttpCl
       );
     }
 
+    // Under a strict network the name is looked up and checked, and the call goes to what was checked.
+    let pins: PinnedAddress[] | null = null;
+    if (opts.policy?.strictNetwork === true) {
+      try {
+        pins = await checkOutboundUrl(url.href, { blockLoopback: true, blockPrivate: true, lookup: opts.lookup });
+      } catch (error) {
+        return refuse(
+          'PRIVATE_ADDRESS',
+          `${url.protocol}//${url.host}${url.pathname}`,
+          `"${opts.key}" tried to reach ${url.host}, which this server does not call: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
     let response: Response;
     try {
-      response = await doFetch()(url, {
+      response = await (pins === null ? doFetch() : (opts.fetchImpl ?? pinnedFetch(pins)))(url, {
         ...init,
         redirect: 'manual',
         signal: AbortSignal.timeout(timeoutMs),

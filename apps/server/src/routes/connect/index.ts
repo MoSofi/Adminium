@@ -31,6 +31,7 @@ import { runIntrospection } from '../../connections/introspect.js';
 import { testOutcome, type ConnectionManager } from '../../connections/manager.js';
 import { AppError, UnauthorizedError } from '../../errors.js';
 import { linkOrigin } from '../../security/public-origin.js';
+import { operatorOriginFor } from '../../trial/operator-hosts.js';
 import { CONNECTIONS_MANAGE } from '../connections/index.js';
 import {
   connectCompleteBody,
@@ -154,9 +155,12 @@ export function connectRoutes(deps: ConnectRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const owner = ownerOf(request);
         const provider = providerOf(request.body.provider);
-        // The origin the operator sends the browser back to: the stored public origin, else this request's own
-        // scheme and host (never its Origin header). The operator must send it to the origin IT registered (S14).
-        const instance = await linkOrigin(meta, request);
+        // The origin the operator sends the browser back to. With the operator's addresses set: the one this
+        // request came in on, where the person's session cookie is (links in email point at the first listed
+        // domain, which may be another host). Otherwise the stored public origin, else this request's own scheme
+        // and host (never its Origin header). The operator must send it to the origin it registered.
+        const hosts = app.hasDecorator('operatorHosts') ? app.operatorHosts : null;
+        const instance = (hosts === null ? null : operatorOriginFor(hosts, request.host)) ?? (await linkOrigin(meta, request));
         const { state, challenge } = store.start(provider.id, owner);
         await app.rbac.audit(request, {
           category: 'connection',

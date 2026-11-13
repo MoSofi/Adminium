@@ -170,12 +170,15 @@ service. It must be `https://`, or the server does not start.
 **What your service must do.**
 
 1. **The page.** The browser arrives at your address with `instance` (the
-   instance's origin), `state` and `challenge` (`base64url(SHA-256(verifier))`,
-   no padding, as in PKCE's S256). After the sign-in, send the browser to
+   instance's address the person is signed in on: `ADMINIUM_PUBLIC_ORIGIN`, or
+   `https://` and one of `ADMINIUM_OPERATOR_DOMAINS`), `state` and `challenge`
+   (`base64url(SHA-256(verifier))`, no padding, as in PKCE's S256). After the
+   sign-in, send the browser to
    `<origin>/connect/supabase/return?state=<state>&code=<code>`, where
-   `<origin>` is **the origin you registered for that instance**. Never send it
-   to the `instance` parameter as given: that would make your page an open
-   redirect. Make `code` random, single use, short-lived (a minute is plenty),
+   `<origin>` is **one of the origins you registered for that instance**: the
+   one `instance` names when it is one of them, since the person's session
+   belongs to that host. Never send it to an `instance` you did not register:
+   that would make your page an open redirect. Make `code` random, single use, short-lived (a minute is plenty),
    and keep the `challenge` with it.
 2. **The redeem.** The instance calls `POST <address>/redeem` with
    `{"code": "…", "verifier": "…"}`. Refuse a code that is unknown, spent or
@@ -314,7 +317,7 @@ network holds machines no trial should reach.
 | On one of your hosts, a login other than `ADMINIUM_SOURCE_URL`'s user and database | Off | Off | |
 | A SQLite file as a source | Off | Off | |
 | **Allow databases on this server** (`ADMINIUM_LOCAL_DATABASES=off`) | Off | Off | Shown locked |
-| The server's own network for databases, webhooks and storage (`strict`) | Off | Off | As under `strict` |
+| The server's own network for databases, webhooks, storage and add-ons' network calls (`strict`) | Off | Off | As under `strict` |
 | More than 10 database connection tests a minute, for the whole installation | Off | Off | `429 RATE_LIMITED` |
 | Moving or adopting the meta store (`/meta/relocate`, `/setup/probe`, `/setup/adopt`), setup token or not | Off | Off | |
 | Storage destinations other than the data folder | Off | Off | |
@@ -324,9 +327,9 @@ network and with the server's own access.
 
 | | Trial | Hosted | |
 |---|---|---|---|
-| Uploading an add-on or an app (catalog and bundled ones install as usual) | Off | Off | `403 PACKAGE_UPLOADS_OFF` |
-| The Designer's site zip, styles of one's own and the Code tab's hand save | Off | Off | `403 DESIGNER_UPLOADS_OFF` |
-| Code the server would run: hooks, actions, build files, the app's tests, npm packages, an app's own build, **Start with an app** | Off | Off | `403 OWN_CODE_OFF` |
+| Uploading an add-on or an app (catalog and bundled ones install as usual) | Off | Off | |
+| The Designer's site zip, styles of one's own and the Code tab's hand save | Off | Off | |
+| Code the server would run: hooks, actions, build files, the app's tests, npm packages, an app's own build, **Start with an app** | Off | Off | |
 | The project's `.env` | Not read | Not read | |
 
 The Designer still builds an app's tables, pages, manifest and screens; it
@@ -340,7 +343,7 @@ A paid installation may call the internet, never your network.
 |---|---|---|---|
 | The automation webhook step and Slack message | Off | On | |
 | Every add-on's network calls, declared hosts included | Off | On | |
-| Payment services, pay pages and inbound payment webhooks | Off | On | Pay pages and webhooks: `403 FORBIDDEN` |
+| Payment services, pay pages and inbound payment webhooks | Off | On | |
 | The Designer's picture search and Figma | Off | On | |
 | Maps, routing, telemetry and the update check | Off | On | The two settings shown locked |
 | Their own mail server: all mail goes through your relay | Off | On | `409 SET_BY_OPERATOR` |
@@ -354,7 +357,7 @@ at an address you gave it, never one a visitor chose.
 |---|---|---|---|
 | Answering on any host name | Off | Off | `421` |
 | Changing the address in email links | Off | Off | `409 SET_BY_OPERATOR` |
-| Mapping a domain you did not list, or letting another website frame its forms | Off | Off | `403 FORBIDDEN` |
+| Mapping a domain you did not list, or letting another website frame its forms | Off | Off | Also on an ordinary server with `ADMINIUM_OPERATOR_DOMAINS`, reason `not-allowed` |
 | Search engines indexing its public pages | Off | On | `noindex` everywhere |
 
 **The trial itself.** These only limit a free trial.
@@ -466,7 +469,9 @@ is awake. →
 Trial mode limits what the instance does. It cannot limit your database
 server, your relay or your proxy, which other trials share, and it does not
 end a trial: at the end date the container keeps running, read-only, until you
-stop it. These are yours.
+stop it (no request writes, and no scheduled automation, timed move, report or
+queued job of theirs runs; exports, the server's own mail and your events go
+on). These are yours.
 
 ### Postgres
 
@@ -632,9 +637,10 @@ your network on their behalf. They are yours as the operator: set them where
 the server is started (the service file, the container's environment, the
 host's settings). On such a server a project's `.env` is read too, after them,
 and fills in whatever they leave unset, so whoever can write that file on your
-server can set these limits as well; keep it yours. The one name a project's
-`.env` can never set is `ADMINIUM_RUNTIME`: the server ignores it there and
-says so. (The desktop app, which opens folders it did not make, ignores every
+server can set these limits as well; keep it yours. The names a project's
+`.env` (or its config) can never set are `ADMINIUM_RUNTIME`, the two profile
+switches `ADMINIUM_TRIAL_MODE` and `ADMINIUM_HOSTED_MODE`, and every other
+`ADMINIUM_TRIAL_*` variable: the server ignores them there and says so. (The desktop app, which opens folders it did not make, ignores every
 one of these names in a folder's `.env`, and so do trial mode and the hosted
 profile, which do not read it at all.)
 

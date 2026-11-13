@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The one-time connection hand-off with an operator (ruled O8: pull).
+ * The one-time connection hand-off with an operator: the instance pulls the connection from it.
  *
  * ```
  *  POST /connect/start            → state + challenge, browser sent to the operator

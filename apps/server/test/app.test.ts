@@ -78,10 +78,12 @@ describe('GET /api/v1/system/info', () => {
         sqliteSources: { allowed: true, reason: null },
         storageDestinations: { allowed: true, reason: null },
         webhooks: { allowed: true, reason: null },
-        metaStore: { allowed: true, reason: null },
+        metaStoreRoutes: { allowed: true, reason: null },
+        // Own code: uploads, the Designer's uploads and builds of an app's own are taken, unless the operator keeps them off.
+        packageUploads: { allowed: true, reason: null },
+        designerUploads: { allowed: true, reason: null },
+        ownBuilds: { allowed: true, reason: null },
       },
-      // Own code: uploads, the Designer's uploads and builds of an app's own are taken, unless the operator keeps them off.
-      ownCode: { packageUploads: { allowed: true, reason: null }, designerUploads: { allowed: true, reason: null }, ownBuilds: { allowed: true, reason: null } },
     });
   });
 

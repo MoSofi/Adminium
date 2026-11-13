@@ -215,6 +215,18 @@ describe('what a folder never decides', () => {
     expect(env.HOST).toBe('0.0.0.0');
     expect(env.ADMINIUM_TRUST_PROXY).toBe('true');
   });
+
+  it('a .env or the config cannot switch trial mode or the hosted profile on, nor set a trial’s variables', async () => {
+    writeFileSync(join(root, '.env'), 'ADMINIUM_TRIAL_MODE=on\nADMINIUM_HOSTED_MODE=on\nADMINIUM_TRIAL_ENDS_AT=2099-01-01T00:00:00Z\nHOST=0.0.0.0\n');
+    const env: Record<string, string | undefined> = { PATH: process.env.PATH };
+    const prepared = await prepareProject({ cwd: root, env, version: '0.0.0' });
+    for (const name of ['ADMINIUM_TRIAL_MODE', 'ADMINIUM_HOSTED_MODE', 'ADMINIUM_TRIAL_ENDS_AT']) {
+      expect(env[name], name).toBeUndefined();
+      expect(prepared?.env[name], name).toBeUndefined();
+    }
+    expect(prepared?.refused).toEqual(['ADMINIUM_HOSTED_MODE', 'ADMINIUM_TRIAL_ENDS_AT', 'ADMINIUM_TRIAL_MODE']);
+    expect(env.HOST).toBe('0.0.0.0');
+  });
 });
 
 describe('a trial or hosted server and the project folder', () => {

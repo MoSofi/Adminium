@@ -3,7 +3,7 @@
  * "Set by the operator": a setting the environment decides, shown read-only
  * and refused on save (the `designer.live` pattern).
  *
- * Never hidden, always explained (F45): a locked setting stays in its reply
+ * Never hidden, always explained: a locked setting stays in its reply
  * and on its page, with `{ allowed: false, reason }` beside it, and the
  * dashboard draws it read-only with the chip "Set by the operator"
  * (`apps/dashboard/src/settings/SetByOperator.tsx`). A save that would
@@ -12,7 +12,7 @@
  * value it is locked to is no change and passes, so a page that writes a
  * whole section at once keeps working.
  *
- * TO LOCK ANOTHER SETTING (T11, T13, T30 …):
+ * TO LOCK ANOTHER SETTING:
  *
  *   1. add it to {@link LOCKED_SETTINGS}: the policy question that locks it,
  *      and the value it holds while locked;
@@ -62,9 +62,9 @@ export const LOCKED_SETTINGS = {
   // (`trial/operator-hosts.ts`), so `value` is only a placeholder here: the route compares with
   // `heldOperatorOrigin` and the boot writes the row (`security/public-origin.ts`).
   'system.publicOrigin': { question: 'publicOriginSetting', value: null },
-  // A1, A2 (connections, outgoing traffic): a user-typed AI address.
+  // A user-typed AI address: it would reach whatever it names.
   'llm.baseUrl': { question: 'aiBaseUrl', value: null },
-  // A2: the user's own mail server. On a trial all mail goes through the operator's relay (`email/trial-relay.ts`).
+  // The user's own mail server. On a trial all mail goes through the operator's relay (`email/trial-relay.ts`).
   'email.smtp': { question: 'ownSmtp', value: null },
 } as const satisfies Record<string, { question: PolicyQuestion; value: unknown }>;
 

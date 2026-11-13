@@ -59,6 +59,7 @@ import { REPORT_RUN_KIND, registerReportRunHandler } from './report-run.js';
 import { createJobRegistry, registerNoopProgressHandler, type JobRegistry } from './registry.js';
 import { JobScheduler } from './scheduler.js';
 import { JobWorker } from './worker.js';
+import { endedTrialHold } from '../trial/ended-jobs.js';
 
 export interface JobsAndRealtimeOptions {
   meta: MetaDb;
@@ -282,6 +283,8 @@ export async function registerJobsAndRealtime(
       registerFilesMigrateHandler(registry, { meta, storage, storageCrypto: opts.dataIo.storageCrypto });
     }
   }
+  // Past a trial's end date the user's background work does not run; the end state's own does.
+  const endedHold = app.hasDecorator('trialPolicy') ? endedTrialHold(app.trialPolicy) : null;
   const worker = new JobWorker({
     meta,
     registry,
@@ -292,8 +295,9 @@ export async function registerJobsAndRealtime(
     workerId: opts.worker?.workerId,
     backoffBaseMs: opts.worker?.backoffBaseMs,
     backoffMaxMs: opts.worker?.backoffMaxMs,
+    held: endedHold?.job,
   });
-  const scheduler = new JobScheduler({ jobs, logger: app.log });
+  const scheduler = new JobScheduler({ jobs, logger: app.log, held: endedHold?.schedule });
 
   const gatewayDeps: RealtimeGatewayDeps = {
     hub,

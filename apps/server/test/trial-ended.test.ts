@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
-import { createSqliteMetaDb, firstRun, settingsRepo, type MetaDb } from '@adminium/meta';
+import { createSqliteMetaDb, firstRun, jobsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { discoverSurfaces, type HostedSurface } from '../src/cli/surfaces-root.js';
@@ -25,6 +25,7 @@ import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { createOutboxSender } from '../src/outbox/sender.js';
 import { trialPolicy } from '../src/trial/policy.js';
+import { ENDED_JOB_WORDS, ENDED_TRIAL_JOB_KINDS, ENDED_TRIAL_SCHEDULES } from '../src/trial/ended-jobs.js';
 import { writesWhenEnded } from '../src/trial/read-only.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
@@ -201,15 +202,67 @@ describe('a trial past its end date is read-only', { timeout: 60_000 }, () => {
     });
   }
 
+  it('answers the reads a record page sends as a POST', async () => {
+    const s = await serve(ENDED);
+    const record = { connectionId: '00000000-0000-0000-0000-000000000000', table: 'people', pk: '1' };
+    for (const url of ['/api/v1/consent/panel', '/api/v1/payments/panel', '/api/v1/payments/links/current']) {
+      const res = await s.call('POST', url, { payload: record });
+      expect(refusedAsEnded(res), `${url}: ${res.body}`).toBe(false);
+    }
+  });
+
+  it('refuses the POSTs that keep something: settling a project file, drawing a document', async () => {
+    const s = await serve(ENDED);
+    for (const url of ['/api/v1/project/resolve', '/api/v1/documents/render', '/api/v1/apps/crm/documents/render', '/api/v1/add-ons/crm/documents/render']) {
+      const res = await s.call('POST', url, { payload: {} });
+      expect(refusedAsEnded(res), `${url}: ${res.body}`).toBe(true);
+    }
+  });
+
   it('lists exactly the writes it keeps', () => {
     expect(writesWhenEnded('POST', '/api/v1/auth/login')).toBe(true);
     expect(writesWhenEnded('POST', '/api/v1/export/zip')).toBe(true);
-    expect(writesWhenEnded('POST', '/api/v1/apps/crm/documents/render')).toBe(true);
-    expect(writesWhenEnded('POST', '/api/v1/apps//documents/render')).toBe(false);
+    expect(writesWhenEnded('POST', '/api/v1/consent/panel')).toBe(true);
+    expect(writesWhenEnded('POST', '/api/v1/email-templates/tpl_1/audience/preview')).toBe(true);
+    expect(writesWhenEnded('POST', '/api/v1/email-templates//audience/preview')).toBe(false);
+    expect(writesWhenEnded('POST', '/api/v1/apps/crm/documents/render')).toBe(false);
+    expect(writesWhenEnded('POST', '/api/v1/project/resolve')).toBe(false);
     expect(writesWhenEnded('GET', '/api/v1/auth/login')).toBe(false);
     expect(writesWhenEnded('POST', '/api/v1/auth/login/more')).toBe(false);
     expect(writesWhenEnded('PATCH', '/api/v1/me')).toBe(false);
     expect(writesWhenEnded('POST', '/api/v1/setup/adopt')).toBe(false);
+  });
+});
+
+describe('a trial past its end date runs no work of the user’s in the background', { timeout: 60_000 }, () => {
+  it('fires no automation, timed move or report schedule, and ends a queued job of the user’s unrun', async () => {
+    await serve(ENDED);
+    const { scheduler, worker } = composed!.jobs;
+    for (const name of ['automation-schedule', 'automation-watch', 'app-timed-moves', 'app-outbox-reminders', 'scheduled-reports-poll']) {
+      expect(await scheduler.trigger(name), name).toEqual({ status: 'skipped-held' });
+    }
+    // The clean-ups the ended state needs still run.
+    expect((await scheduler.trigger('exports-retention-sweep')).status).not.toBe('skipped-held');
+    const queued = await jobsRepo(meta!).enqueue({ kind: 'noop-progress', payload: { steps: 1, userId: 'user_owner' } }, Date.now());
+    expect(await worker.runOnce()).toBe(1);
+    expect(await jobsRepo(meta!).findById(queued.id)).toMatchObject({ status: 'failed', lastError: ENDED_JOB_WORDS });
+  });
+
+  it('runs both on a running trial', async () => {
+    await serve(RUNNING);
+    const { scheduler, worker } = composed!.jobs;
+    expect((await scheduler.trigger('automation-schedule')).status).not.toBe('skipped-held');
+    const queued = await jobsRepo(meta!).enqueue({ kind: 'noop-progress', payload: { steps: 1, userId: 'user_owner' } }, Date.now());
+    await worker.runOnce();
+    expect((await jobsRepo(meta!).findById(queued.id))?.status).toBe('succeeded');
+  });
+
+  it('names its kept schedules and kinds as the server registers them', async () => {
+    await serve(ENDED);
+    const { scheduler, registry } = composed!.jobs;
+    // Telemetry is off here, and the operator's events need its events address.
+    expect([...ENDED_TRIAL_SCHEDULES].filter((name) => name !== 'telemetry-ping' && !scheduler.names().includes(name))).toEqual([]);
+    expect([...ENDED_TRIAL_JOB_KINDS].filter((kind) => kind !== 'operator.event' && !registry.has(kind))).toEqual([]);
   });
 });
 
