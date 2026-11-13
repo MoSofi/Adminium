@@ -15,8 +15,10 @@
  * setup, the export, and the few reads a page sends as a POST. The CLI's
  * `archive` does not come through here at all.
  *
- * Writes that no request makes (scheduled automations, an app's reminders)
- * are not stopped here; user mail is (`email/send.ts`, `outbox/sender.ts`).
+ * Writes that no request makes (scheduled automations, an app's reminders,
+ * queued imports) are stopped at the job worker and the schedule clock
+ * (`trial/ended-jobs.ts`); user mail where it is queued and sent
+ * (`email/send.ts`, `outbox/sender.ts`).
  */
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 

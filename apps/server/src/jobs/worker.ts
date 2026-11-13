@@ -66,6 +66,12 @@ export interface JobWorkerOptions {
   /** Clock, injectable for deterministic backoff tests. */
   now?: (() => number) | undefined;
   logger?: WorkerLogger | undefined;
+  /**
+   * Asked before each job runs: null to run it, else the words it ends
+   * `failed` with, unrun and not retried (a trial past its end date,
+   * `trial/ended-jobs.ts`).
+   */
+  held?: ((kind: string) => string | null) | undefined;
 }
 
 interface RunningJob {
@@ -92,6 +98,7 @@ export class JobWorker {
   private readonly lockRefreshMs: number;
   private readonly now: () => number;
   private readonly logger: WorkerLogger;
+  private readonly held: (kind: string) => string | null;
   readonly workerId: string;
 
   private readonly running = new Map<string, RunningJob>();
@@ -111,6 +118,7 @@ export class JobWorker {
     this.lockRefreshMs = opts.lockRefreshMs ?? JOB_LOCK_REFRESH_MS;
     this.now = opts.now ?? Date.now;
     this.logger = opts.logger ?? noopLogger;
+    this.held = opts.held ?? (() => null);
     this.workerId = opts.workerId ?? `${hostname()}:${process.pid}`;
   }
 
@@ -263,6 +271,11 @@ export class JobWorker {
 
   private async execute(job: Job, controller: AbortController): Promise<void> {
     const channel = jobChannel(job.id);
+    const heldBy = this.held(job.kind);
+    if (heldBy !== null) {
+      await this.markHeld(job, heldBy);
+      return;
+    }
     try {
       const entry = this.registry.get(job.kind);
       if (entry === undefined) {
@@ -345,6 +358,20 @@ export class JobWorker {
       .execute();
     this.hub.publish(jobChannel(job.id), 'cancelled', { jobId: job.id, kind: job.kind }, at);
     this.logger.info({ jobId: job.id, kind: job.kind }, 'job cancelled');
+  }
+
+  /** Terminal `failed`, unrun and not retried, for a job {@link JobWorkerOptions.held} answered no to. */
+  private async markHeld(job: Job, words: string): Promise<void> {
+    const at = this.now();
+    await this.meta.db
+      .updateTable('adminium_jobs')
+      .set({ status: 'failed', lastError: words, finishedAt: at, dedupeKey: null, lockedBy: null, lockedAt: null })
+      .where('id', '=', job.id)
+      .where('status', '=', 'running')
+      .where('lockedBy', '=', this.workerId)
+      .execute();
+    this.hub.publish(jobChannel(job.id), 'failed', { jobId: job.id, kind: job.kind, error: words, attempt: job.attempts, maxAttempts: job.maxAttempts, final: true, nextRunAt: null }, at);
+    this.logger.info({ jobId: job.id, kind: job.kind }, 'job not run: held');
   }
 
   private reportProgress(job: Job, pct: number, info?: { step?: string; message?: string }): void {
