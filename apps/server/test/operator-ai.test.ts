@@ -20,7 +20,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createProviderClient, createProviderRunner, PictureError, ProviderError, type PictureMaker, type ProviderConfig } from '@adminium/llm';
+import { createProviderClient, createProviderRunner, estimateTokens, PictureError, ProviderError, type PictureMaker, type ProviderConfig } from '@adminium/llm';
 import { operatorTalliesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -63,6 +63,8 @@ let script: ScriptStep[] = [];
 let asked: { messages: { role: string; content?: string }[]; tools: string[] }[] = [];
 /** What each reply reports it used, in and out. */
 const USED = { in: 50, out: 5 };
+/** Reply with what was sent as its input, counted as the server estimates it, in place of {@link USED}'s fixed 50. */
+let honestUsage = false;
 
 beforeAll(async () => {
   model = createServer((request, response) => {
@@ -79,7 +81,7 @@ beforeAll(async () => {
       const line = (value: unknown): void => {
         response.write(`${JSON.stringify(value)}\n`);
       };
-      const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: USED.in, eval_count: USED.out, message: { role: 'assistant', content: '' } };
+      const done = { model: 'fake', done: true, done_reason: 'stop', prompt_eval_count: honestUsage ? Math.ceil(JSON.stringify(sent.messages).length / 3.6) : USED.in, eval_count: USED.out, message: { role: 'assistant', content: '' } };
       // The build check a new session makes: call `echo`, then answer once the result is back.
       if (sent.tools?.some((tool) => tool.function.name === 'echo') === true) {
         line(
@@ -192,9 +194,9 @@ describe.each((['sqlite', 'postgres', 'mysql'] as EngineName[]).filter((engine) 
     const first = await connections(150);
     const runner = await first.made.runner('env:openai', 'gpt-test');
     await runner.runner.run({ system: 's', messages: [], tools: [], model: 'gpt-test', maxTokens: 1000 });
-    // Each reply may use no more than is left: 150, then 50.
+    // Each reply may use no more than is left after its input (2 tokens, as estimated): 148, then 48.
     await runner.runner.run({ system: 's', messages: [], tools: [], model: 'gpt-test', maxTokens: 1000 });
-    expect(first.calls).toEqual(['run:150', 'run:50']);
+    expect(first.calls).toEqual(['run:148', 'run:48']);
     expect(await operatorAiTokensUsed(meta)).toBe(200);
 
     // A restart: a new meter over the same store reads what was spent.
@@ -213,23 +215,44 @@ describe.each((['sqlite', 'postgres', 'mysql'] as EngineName[]).filter((engine) 
     expect(again.calls).toEqual(['complete:sk-own']);
   });
 
-  it('calls at once never pass the line together: each reserves what it may spend before it is made', async () => {
-    ({ meta, destroy } = await makeStore(engine, true));
-    const meter = createOperatorAiMeter(meta, operatorAiRules(makeEnv({ ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: '1000' })));
-    await meter.open();
-    // Each call: a big prompt, and all it was allowed out.
-    const runner = meter.runner({
+  /** A model that reports what it was sent as the estimate has it, and answers with all it was allowed. */
+  const honest = (meter: ReturnType<typeof createOperatorAiMeter>) =>
+    meter.runner({
       id: 'openai',
       run: async (req) => {
         await new Promise((resolve) => setTimeout(resolve, 20));
-        return { blocks: [], stop: 'end' as const, malformed: [], usage: { inputTokens: 500, outputTokens: req.maxTokens } };
+        return { blocks: [], stop: 'end' as const, malformed: [], usage: { inputTokens: estimateTokens(req.system) + estimateTokens(JSON.stringify(req.messages)), outputTokens: req.maxTokens } };
       },
     });
-    const results = await Promise.allSettled(Array.from({ length: 20 }, () => runner.run({ system: 's', messages: [], tools: [], model: 'm', maxTokens: 4000 })));
+
+  it('calls at once never pass the line together: each reserves its input and its most in one step', async () => {
+    ({ meta, destroy } = await makeStore(engine, true));
+    const meter = createOperatorAiMeter(meta, operatorAiRules(makeEnv({ ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: '1000' })));
+    await meter.open();
+    // Twenty Designer-sized asks at once, each for more than the whole budget: the first takes what is left, the rest are refused.
+    const system = 'x'.repeat(2000);
+    const results = await Promise.allSettled(Array.from({ length: 20 }, () => honest(meter).run({ system, messages: [], tools: [], model: 'm', maxTokens: 4000 })));
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter((result) => result.status === 'rejected').every((result) => (result as PromiseRejectedResult).reason instanceof OperatorAiUsedUpError)).toBe(true);
-    // One call's own overspend past its estimate, at most: never twenty.
-    expect(await operatorAiTokensUsed(meta)).toBe(1500);
+    expect(await operatorAiTokensUsed(meta)).toBe(1000);
+  });
+
+  it('of calls at once, only those whose reservation fits run, and the spend stays within the budget', async () => {
+    ({ meta, destroy } = await makeStore(engine, true));
+    const meter = createOperatorAiMeter(meta, operatorAiRules(makeEnv({ ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: '1000' })));
+    await meter.open();
+    // Each asks for 100 in (as estimated) and up to 200 out: 300 reserved. Three fit whole; the fourth gets the last
+    // 100 for its input and nothing to answer with, so it is refused; so are the rest.
+    const system = 'x'.repeat(356);
+    expect(estimateTokens(system) + estimateTokens('[]')).toBe(100);
+    const results = await Promise.allSettled(Array.from({ length: 10 }, () => honest(meter).run({ system, messages: [], tools: [], model: 'm', maxTokens: 200 })));
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(3);
+    expect(await operatorAiTokensUsed(meta)).toBe(900);
+    // What is left is used whole by one call that fits its input: its answer is held to the rest.
+    const last = honest(meter);
+    await last.run({ system: 'x'.repeat(38), messages: [], tools: [], model: 'm', maxTokens: 200 });
+    expect(await operatorAiTokensUsed(meta)).toBe(1000);
+    await expect(last.run({ system: 's', messages: [], tools: [], model: 'm', maxTokens: 10 })).rejects.toBeInstanceOf(OperatorAiUsedUpError);
   });
 
   it('a stopped or failed call is counted for what reached the model; one that reached none is not', async () => {
@@ -561,6 +584,7 @@ afterEach(async () => {
   root = undefined;
   script = [];
   asked = [];
+  honestUsage = false;
 });
 
 const DESIGN_PORT = 4802;
@@ -760,13 +784,17 @@ describe.skipIf(!canBuildSides)('a Designer turn on the operator’s AI', { time
   });
 
   it('the AI used up ends the turn with its card, keeps what was made, and stays used up', async () => {
-    // Each reply reports 55 tokens. The build check made when a session is made counts too.
-    const client = await server({ ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: '300' });
+    // Each call reserves its input as estimated (a Designer turn's first is about 10,500 tokens) and is billed that:
+    // two calls fit in 26,000, the third does not.
+    honestUsage = true;
+    const client = await server({ ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: '26000' });
     const { events } = await turn(client, 'env:ollama', [writesStarter('repair-desk'), writesStarter('repair-desk'), writesStarter('repair-desk'), writesStarter('repair-desk'), writesStarter('repair-desk'), writesStarter('repair-desk')]);
     expect(cardOf(events)).toBe('used-up');
     // What was made before it ran out is checked and applied.
     expect(events.find((event) => event.kind === 'apply')).toMatchObject({ state: 'installed' });
-    expect(await operatorAiTokensUsed(client.meta)).toBeGreaterThanOrEqual(300);
+    expect(asked).toHaveLength(2);
+    // Never past the budget: the third call was refused before it was made.
+    expect(await operatorAiTokensUsed(client.meta)).toBeLessThanOrEqual(26000);
     asked = [];
     const again = await turn(client, 'env:ollama', [() => ({ text: 'hi' })]);
     expect(cardOf(again.events)).toBe('used-up');
