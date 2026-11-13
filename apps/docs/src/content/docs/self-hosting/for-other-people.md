@@ -469,7 +469,9 @@ is awake. →
 Trial mode limits what the instance does. It cannot limit your database
 server, your relay or your proxy, which other trials share, and it does not
 end a trial: at the end date the container keeps running, read-only, until you
-stop it. These are yours.
+stop it (no request writes, and no scheduled automation, timed move, report or
+queued job of theirs runs; exports, the server's own mail and your events go
+on). These are yours.
 
 ### Postgres
 

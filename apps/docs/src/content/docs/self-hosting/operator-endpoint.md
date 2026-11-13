@@ -137,11 +137,13 @@ instance's own people or the public, and a route that says neither counts as
 public.
 
 The state is kept in the meta store (`adminium_operator_holds`) and survives a
-restart. Each change is in the audit log (`operator.public_pages.hidden` and
+restart. Until the server has read it once at boot, every public page counts as
+hidden: a boot that cannot read it keeps serving the staff pages, logs an error,
+and reads again every 30 seconds until it can. Each change is in the audit log (`operator.public_pages.hidden` and
 `operator.public_pages.shown`, by "Server operator", with your address). No
 settings screen, config bundle (`adminium export-zip`, `import-zip`),
 [archive](/self-hosting/archive/) or restore reads or writes it: only this
-endpoint does.
+endpoint does, and `adminium archive restore --hold`, which restores with it on.
 
 ## `GET /api/v1/operator/public-content`
 
