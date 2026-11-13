@@ -105,9 +105,17 @@ function StartCard({ body, action, onAction, busy, disabled, done }: { body: str
   );
 }
 
+/**
+ * What the error card says. An answer of the operator's that this instance
+ * refused (a redirect, a bad field, too large, too slow) is the same to the
+ * person as an expired one: start again. A host the operator does not allow
+ * is said in the person's words (`OFF_BY_OPERATOR`, `app/refusalWords.ts`).
+ * The server's own English is never on the card.
+ */
 function messageOf(cause: unknown): { expired: boolean; message: string | null } {
-  if (cause instanceof ApiError) return { expired: cause.code === 'CONNECT_EXPIRED' || cause.status === 410, message: cause.message };
-  return { expired: false, message: null };
+  if (!(cause instanceof ApiError)) return { expired: false, message: null };
+  if (cause.code === 'CONNECT_EXPIRED' || cause.code === 'CONNECT_REFUSED' || cause.status === 410) return { expired: true, message: null };
+  return { expired: false, message: cause.code === 'OFF_BY_OPERATOR' ? cause.message : null };
 }
 
 function ConnectMode({ onConnected, autoStart, onAutoStarted }: Extract<ProviderConnectProps, { mode: 'connect' }>): ReactNode {
@@ -155,9 +163,9 @@ function ConnectMode({ onConnected, autoStart, onAutoStarted }: Extract<Provider
       setPhase({ ...held, error: null });
       void connectApi.complete(held.pendingId, password).then(settle, (cause: unknown) => {
         const why = messageOf(cause);
-        // Spent or expired: start again. Anything else (a wrong password): type it again.
+        // Spent or expired: start again. Anything else (a wrong password): type it again, with what the database said.
         if (why.expired) setPhase({ kind: 'error', ...why });
-        else setPhase({ ...held, error: why.message ?? t('onboarding.connectProvider.existing.failed', 'That password did not connect. Check it and try again.') });
+        else setPhase({ ...held, error: (cause instanceof ApiError ? cause.message : null) ?? t('onboarding.connectProvider.existing.failed', 'That password did not connect. Check it and try again.') });
       });
     };
     return (

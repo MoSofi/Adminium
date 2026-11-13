@@ -13,12 +13,16 @@
  *  - before an account exists (setup, desktop): the button picks, nothing is
  *    called.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { setI18nInstance, type I18nInstance } from '../i18n/t.js';
 import { jsonResponse } from '../test/fixtures.js';
 import { ConnectStep } from '../setup/onboarding/steps/ConnectStep.js';
 import { SourceStep as DesktopSourceStep } from '../desktop/setup/steps/SourceStep.js';
@@ -184,13 +188,49 @@ describe('the card, signed in', () => {
     await waitFor(() => expect(leaving).toEqual(['https://connect.example.com/supabase']));
   });
 
-  it('says what went wrong when the operator answered something refused', async () => {
+  it('says the connection expired when the operator answered something refused, never the server’s English', async () => {
     comeBack();
     answers.replies['/api/v1/connect/return'] = () => jsonResponse(502, { error: { code: 'CONNECT_REFUSED', message: 'The operator answered with a redirect, which this instance does not follow.', requestId: 'r' } });
     render(withClient(<ProviderConnect mode="connect" onConnected={() => undefined} />));
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('Supabase could not be connected.');
-    expect(alert.textContent).toContain('does not follow');
+    expect(alert.textContent).toContain('Supabase connection expired.');
+    expect(alert.textContent).toContain('Sign in to Supabase and pick a project.');
+    expect(alert.textContent).not.toContain('does not follow');
+    expect(screen.getByRole('button', { name: 'Connect Supabase again' })).toBeDefined();
+  });
+
+  it('says a host the operator does not allow in the person’s words', async () => {
+    comeBack();
+    answers.replies['/api/v1/connect/return'] = () =>
+      jsonResponse(403, { error: { code: 'OFF_BY_OPERATOR', message: 'db.example.net is not on this server’s list of database hosts.', requestId: 'r', details: { question: 'unlistedDatabaseHosts', reason: 'trial-mode' } } });
+    render(withClient(<ProviderConnect mode="connect" onConnected={() => undefined} />));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('This installation connects only to the database hosts its operator allows.');
+    expect(alert.textContent).not.toContain('db.example.net');
+  });
+
+  it('says it in German for a German reader', async () => {
+    const common = JSON.parse(readFileSync(join(process.cwd(), '../../packages/i18n/locales/de-DE/common.json'), 'utf8')) as Record<string, unknown>;
+    setI18nInstance({
+      language: 'de-DE',
+      t: (key: string, options?: Record<string, unknown>) => {
+        let node: unknown = common;
+        for (const part of key.split('.')) node = typeof node === 'object' && node !== null ? (node as Record<string, unknown>)[part] : undefined;
+        return typeof node === 'string' ? node : String(options?.['defaultValue'] ?? key);
+      },
+    } as unknown as I18nInstance);
+    try {
+      comeBack();
+      answers.replies['/api/v1/connect/return'] = () => jsonResponse(502, { error: { code: 'CONNECT_REFUSED', message: 'The operator answered with a redirect, which this instance does not follow.', requestId: 'r' } });
+      render(withClient(<ProviderConnect mode="connect" onConnected={() => undefined} />));
+      const alert = await screen.findByRole('alert');
+      const supabase = (common['onboarding'] as { connectProvider: { supabase: Record<string, string> } }).connectProvider.supabase;
+      expect(alert.textContent).toContain(supabase['expired']);
+      expect(alert.textContent).toContain(supabase['body']);
+      expect(alert.textContent).not.toContain('does not follow');
+    } finally {
+      setI18nInstance(null);
+    }
   });
 });
 
