@@ -777,6 +777,9 @@ describe.skipIf(!canBuildSides)('the Designer’s start prompt', { timeout: 120_
 
   it('runs once, as the first user turn of a dashboard session, every question answered no; never again after a restart', async () => {
     const client = await server({ ADMINIUM_DESIGNER_START_PROMPT_B64: b64 });
+    // The first-run wizard asks the server whether one waits before it starts it.
+    const waiting = async (): Promise<unknown> => ((await client.call('GET', '/api/v1/system/info')).body['designer'] as { startPrompt?: unknown }).startPrompt;
+    expect(await waiting()).toBe(true);
     script = [() => ({ calls: [{ name: 'ask_person', arguments: { question: 'Shall I add a website too?', choices: ['Yes', 'No'] } }] }), () => ({ text: 'Built.' })];
     const started = await client.call('POST', '/api/v1/designer/start-prompt');
     expect(started.status, JSON.stringify(started.body)).toBe(201);
@@ -793,6 +796,7 @@ describe.skipIf(!canBuildSides)('the Designer’s start prompt', { timeout: 120_
     expect(events.find((event) => event.kind === 'card-answered')).toMatchObject({ value: { type: 'question', text: 'No.' } });
     expect(JSON.stringify(asked[1]?.messages)).toContain('No.');
 
+    expect(await waiting()).toBe(false);
     const twice = await client.call('POST', '/api/v1/designer/start-prompt');
     expect(twice.status).toBe(409);
     expect(twice.body).toMatchObject({ error: { details: { reason: 'START_PROMPT_RAN' } } });
@@ -804,6 +808,7 @@ describe.skipIf(!canBuildSides)('the Designer’s start prompt', { timeout: 120_
 
   it('is not there without the variable', async () => {
     const client = await server({});
+    expect(((await client.call('GET', '/api/v1/system/info')).body['designer'] as { startPrompt?: unknown }).startPrompt).toBe(false);
     const none = await client.call('POST', '/api/v1/designer/start-prompt');
     expect(none.status).toBe(404);
     expect(none.body).toMatchObject({ error: { details: { reason: 'NO_START_PROMPT' } } });

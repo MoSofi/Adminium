@@ -90,6 +90,8 @@ export const systemInfoReply = z.object({
     mode: z.enum(['local', 'live', 'off']),
     /** `adminium design` opened a one-use sign-in link: a page with no session says the link was used, not "sign in". */
     link: z.boolean(),
+    /** The operator's start prompt is set and has not run: the first-run wizard starts it (`POST /designer/start-prompt`). */
+    startPrompt: z.boolean(),
   }),
   node: z.string(),
   dialect: metaDialect.nullable(),

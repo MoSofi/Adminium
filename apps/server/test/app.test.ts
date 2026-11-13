@@ -46,7 +46,7 @@ describe('GET /api/v1/system/info', () => {
     expect(res.json()).toEqual({
       version: APP_VERSION,
       // Adminium Designer: off unless the server was started by `adminium design`.
-      designer: { mode: 'off', link: false },
+      designer: { mode: 'off', link: false, startPrompt: false },
       node: process.version,
       dialect: null,
       // The desktop feature flags. `smtpConfigured` is false because a server

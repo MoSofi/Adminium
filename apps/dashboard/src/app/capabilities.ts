@@ -49,9 +49,10 @@ export interface SystemInfo {
   /**
    * Whether this server runs Adminium Designer (`local` under `adminium
    * design`), and whether it signs its owner in with the one-use link that
-   * command opens. Absent from a server older than the Designer.
+   * command opens. Absent from a server older than the Designer. `startPrompt`: the operator's start prompt waits
+   * to run (the first-run wizard starts it).
    */
-  designer?: { mode: 'local' | 'live' | 'off'; link: boolean };
+  designer?: { mode: 'local' | 'live' | 'off'; link: boolean; startPrompt?: boolean };
   node: string;
   dialect: 'postgres' | 'mysql' | 'sqlite' | null;
   /** Which wrapper booted the server (detection contract). */
