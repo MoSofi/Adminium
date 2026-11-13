@@ -255,6 +255,17 @@ describe('a trial or hosted boot refuses what contradicts it', () => {
     });
   }
 
+  it('NODE_OPTIONS holding only heap sizes boots, as the Docker image sets one', () => {
+    for (const value of ['--max-old-space-size=512', ' --max-old-space-size=768  --max-semi-space-size=16 ']) {
+      booted({ ...TRIAL, NODE_OPTIONS: value });
+      booted({ ...HOSTED, NODE_OPTIONS: value });
+    }
+    for (const value of ['--max-old-space-size=512 --require /tmp/x.js', '--max-old-space-size=512 --import=/tmp/x.mjs', '--max-old-space-size', '--inspect=0.0.0.0:9229', '--max-old-space-size=512\t-r x']) {
+      refused({ ...TRIAL, NODE_OPTIONS: value }, 'NODE_OPTIONS');
+      refused({ ...HOSTED, NODE_OPTIONS: value }, 'NODE_OPTIONS');
+    }
+  });
+
   it('a trial refuses telemetry and map servers switched on; the hosted profile keeps them', () => {
     for (const [name, value] of [['ADMINIUM_TELEMETRY', 'on'], ['ADMINIUM_MAP_SERVER', 'https://tiles.example.com'], ['ADMINIUM_ROUTING_SERVER', 'https://osrm.example.com']] as const) {
       refused({ ...TRIAL, [name]: value }, name);

@@ -1545,6 +1545,9 @@ const isSet = (value: string | undefined): value is string => value !== undefine
  * Saying what a profile implies (`ADMINIUM_NETWORK_POLICY=strict`) is no
  * contradiction, and passes.
  */
+/** `NODE_OPTIONS` holding heap sizes and nothing else, such as the Docker image's `--max-old-space-size=512`. */
+const HEAP_ONLY_NODE_OPTIONS = /^\s*(?:--max-(?:old|semi)-space-size=\d{1,6}\s*)+$/;
+
 export function profileIssues(raw: Readonly<Record<string, string | undefined>>): EnvProblem[] {
   const trial = TRUTHY.has(raw['ADMINIUM_TRIAL_MODE'] ?? '');
   const hosted = TRUTHY.has(raw['ADMINIUM_HOSTED_MODE'] ?? '');
@@ -1572,12 +1575,15 @@ export function profileIssues(raw: Readonly<Record<string, string | undefined>>)
   const word = (name: string): string => (raw[name] ?? '').trim().toLowerCase();
   if (isSet(raw['ADMINIUM_RATE_LIMIT_SCALE'])) refuse('ADMINIUM_RATE_LIMIT_SCALE', 'it widens the limits that stop password guessing and floods. Remove it.');
   if (isSet(raw['ADMINIUM_ADD_ON_DEV_TRUST'])) refuse('ADMINIUM_ADD_ON_DEV_TRUST', 'it would run add-on code no catalogue vouched for. Remove it.');
-  if (isSet(raw['NODE_OPTIONS'])) refuse('NODE_OPTIONS', 'it changes what the server loads and is handed to every program it starts. Remove it.');
+  // A heap ceiling is all NODE_OPTIONS may say here: the Docker image sets one, and nothing else in it is safe.
+  if (isSet(raw['NODE_OPTIONS']) && !HEAP_ONLY_NODE_OPTIONS.test(raw['NODE_OPTIONS'] ?? '')) {
+    refuse('NODE_OPTIONS', 'it changes what the server loads and is handed to every program it starts. Only --max-old-space-size=<MB> and --max-semi-space-size=<MB> may be set. Remove the rest.');
+  }
   if (isSet(raw['ADMINIUM_BRIDGE_ORIGINS'])) refuse('ADMINIUM_BRIDGE_ORIGINS', 'the local bridge hands this server a connection string from another site. Remove it.');
   if (isSet(raw['ADMINIUM_DEMO_SEED_SCRIPT'])) refuse('ADMINIUM_DEMO_SEED_SCRIPT', 'it is the desktop app’s, and runs a script. Remove it.');
   if (word('ADMINIUM_RUNTIME') === 'desktop') refuse('ADMINIUM_RUNTIME', 'this is a server people reach over a network, not the desktop app. Remove it.');
   for (const name of ['ADMINIUM_STORAGE_URL', 'AWS_ENDPOINT_URL_S3']) {
-    if (isSet(raw[name])) refuse(name, 'files stay in the data folder, the one storage destination allowed (A1b). Remove it.');
+    if (isSet(raw[name])) refuse(name, 'files stay in the data folder, the one storage destination allowed. Remove it.');
   }
   if (word('ADMINIUM_NETWORK_POLICY') === 'open') refuse('ADMINIUM_NETWORK_POLICY', 'it is strict there. Remove it, or set strict.');
   if (word('ADMINIUM_LOCAL_DATABASES') === 'setting') refuse('ADMINIUM_LOCAL_DATABASES', 'databases on this server are off there, and only ADMINIUM_DATABASE_HOSTS counts. Remove it, or set off.');

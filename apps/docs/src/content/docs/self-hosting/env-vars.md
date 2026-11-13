@@ -1049,7 +1049,8 @@ the last two. Either fails on a value that contradicts it:
 |---|---|
 | `ADMINIUM_NETWORK_POLICY=open` | Both run `strict`. |
 | `ADMINIUM_LOCAL_DATABASES=setting` | Both keep databases on this server off; only the host list counts. |
-| `ADMINIUM_RATE_LIMIT_SCALE`, `ADMINIUM_ADD_ON_DEV_TRUST`, `NODE_OPTIONS` | They widen limits, trust add-on code or change what the server loads. |
+| `ADMINIUM_RATE_LIMIT_SCALE`, `ADMINIUM_ADD_ON_DEV_TRUST` | They widen limits or trust add-on code. |
+| `NODE_OPTIONS` with anything but `--max-old-space-size=<MB>` or `--max-semi-space-size=<MB>` | It changes what the server loads. The Docker image's own heap ceiling (`--max-old-space-size=512`) is allowed. |
 | `ADMINIUM_BRIDGE_ORIGINS`, `ADMINIUM_DEMO_SEED_SCRIPT`, `ADMINIUM_RUNTIME=desktop` | Not for a server other people use. |
 | `ADMINIUM_STORAGE_URL`, `AWS_ENDPOINT_URL_S3` | Files stay in the data folder. |
 | `ADMINIUM_TELEMETRY=on`, `ADMINIUM_MAP_SERVER`, `ADMINIUM_ROUTING_SERVER` (not `off`) | Trial mode only: a trial calls nothing but yours. |

@@ -298,8 +298,8 @@ offers [the Designer](/projects/designer/#on-a-server-people-reach), and
 [Environment variables](/self-hosting/env-vars/#trial-mode-and-the-hosted-profile).
 
 The boot also fails on a value that would undo the profile (an explicit
-`ADMINIUM_NETWORK_POLICY=open`, `ADMINIUM_RATE_LIMIT_SCALE`, `NODE_OPTIONS`, a
-seeded storage destination, telemetry or a map server switched on…), on a
+`ADMINIUM_NETWORK_POLICY=open`, `ADMINIUM_RATE_LIMIT_SCALE`, a `NODE_OPTIONS`
+that says more than the heap size, a seeded storage destination, telemetry or a map server switched on…), on a
 control character in any trial or operator variable, and on a trial variable
 set without trial mode:
 [the full list](/self-hosting/env-vars/#trial-mode-and-the-hosted-profile).
