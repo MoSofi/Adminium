@@ -1077,7 +1077,8 @@ hidden. The table, with the trial's and the hosted profile's answer for each:
 
 The meta store's own address is checked at every boot: on every install, a
 host in `ADMINIUM_META_URL` (or in the address a move wrote to `adminium.json`)
-that is, or resolves to, a cloud metadata address stops the boot. Under both
+that is, or resolves to, a cloud metadata address stops the boot, and the
+store's driver connects only to the addresses that were checked. Under both
 profiles it must also pass the check a typed meta-store address does: only the
 query parameters a source connection may carry, and a name that resolves.
 Loopback stays allowed.
