@@ -21,7 +21,7 @@ import { audited } from '../../audit/coverage.js';
 import { BRANDING_UPDATED, readBranding } from '../../branding/service.js';
 import { operatorSecret } from '../../config/operator-secrets.js';
 import { encryptSecret } from '../../config/secrets.js';
-import { assertSmtpHostAllowed, emailSecretKey } from '../../email/config.js';
+import { checkSmtpHost, emailSecretKey } from '../../email/config.js';
 import { ValidationFailedError } from '../../errors.js';
 import { raiseMoneyRedirect } from '../../payments/alarms.js';
 import { payAddressMovedWith } from '../../payments/links.js';
@@ -166,11 +166,12 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
    *    (`user: ''`), and so is an authenticated one, but a half-filled pair is
    *    a mistake that surfaces later as an opaque AUTH failure on a job.
    */
-  function buildSmtpValue(
+  async function buildSmtpValue(
     next: NonNullable<SettingsEmailPutBody['smtp']>,
     stored: StoredSmtp,
-  ): StoredSmtp {
-    assertSmtpHostAllowed(next.host);
+  ): Promise<StoredSmtp> {
+    // Under ADMINIUM_NETWORK_POLICY=strict, also not this machine nor the server's own network.
+    await checkSmtpHost(next.host);
     const passEncrypted =
       next.pass === undefined
         ? (stored?.passEncrypted ?? '')
@@ -642,7 +643,7 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
 
         // Absent = untouched: the senders card saves on its own.
         const next = extrasBefore.locks.smtp.allowed ? request.body.smtp : undefined;
-        const value = next === undefined ? stored : next === null ? null : buildSmtpValue(next, stored);
+        const value = next === undefined ? stored : next === null ? null : await buildSmtpValue(next, stored);
         if (next !== undefined && !sameSmtp(stored, value)) {
           await settings.set('email.smtp', value, { updatedBy: actingUserId, at });
         }
