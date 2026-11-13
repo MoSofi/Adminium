@@ -124,6 +124,11 @@ export const systemInfoReply = z.object({
   /** The "Put this online" link to adminium.dev/deploy is shown (`ADMINIUM_DEPLOY_LINK`, default on). */
   deployLink: z.boolean(),
   /**
+   * The dashboard sends `GET /presence` once a minute while a person is using it (`ADMINIUM_PRESENCE`, default
+   * off): for an operator whose proxy puts idle instances to sleep.
+   */
+  presence: z.boolean(),
+  /**
    * The wizard's demo card: can this build seed the demo database?
    *
    * The SAME condition `compose.ts` registers the route on — desktop runtime AND

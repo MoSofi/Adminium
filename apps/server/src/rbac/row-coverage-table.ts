@@ -476,6 +476,8 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'GET /api/v1/people': noRows('Names and ids of staff, to pick somebody.'),
   // --- /permissions
   'GET /api/v1/permissions/catalog': noRows('What can be granted.'),
+  // --- /presence
+  'GET /api/v1/presence': noRows('Says a signed-in person is using the dashboard; reads nothing.'),
   // --- /privacy
   'GET /api/v1/privacy/notice': noRows('The privacy notice: two settings, no source row.'),
   'PUT /api/v1/privacy/notice': noRows('The privacy notice: two settings, no source row.'),

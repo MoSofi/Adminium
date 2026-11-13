@@ -44,8 +44,9 @@ export const HOST_DECIDED_ENV: readonly string[] = [
    * folder's `.env` is not read at all and its config cannot set these (`project/boot.ts`).
    */
   ...OPERATOR_DECIDED_ENV,
-  // Whether due jobs run: the host's to say.
+  // Whether due jobs run, and whether the dashboard says someone is using it: the host's to say.
   'ADMINIUM_SCHEDULER',
+  'ADMINIUM_PRESENCE',
   'NODE_OPTIONS',
   'PATH',
   'ELECTRON_RUN_AS_NODE',

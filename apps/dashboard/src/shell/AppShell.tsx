@@ -69,6 +69,9 @@ import { workspacesShown } from './workspaces/shown.js';
 /* Lazy: only a server whose menu groups by workspace follows links between them. */
 const WorkspaceFollower = lazy(async () => ({ default: (await import('./workspaces/WorkspaceFollower.js')).WorkspaceFollower }));
 
+/* Only where the operator switched presence on (`ADMINIUM_PRESENCE`): elsewhere its file is never asked for. */
+const Presence = lazy(() => import('../app/presence.js'));
+
 /** Desktop only: the update toaster's module is loaded only where the desktop bridge is. */
 const DesktopUpdateToaster = lazy(async () => ({ default: (await import('../desktop/updates.js')).DesktopUpdateToaster }));
 
@@ -81,7 +84,9 @@ export function AppShell() {
   const tabGroup = useCurrentGroup(bootstrap);
   const shownInWorkspace = tabGroup.current === null ? null : tabGroup.current.id === OTHER_GROUP ? OTHER_DATABASES : tabGroup.current.id;
   // A cached read the capabilities provider already made: no second request.
-  const designMode = useQuery(systemInfoQuery()).data?.designer?.mode === 'local';
+  const systemInfo = useQuery(systemInfoQuery()).data;
+  const designMode = systemInfo?.designer?.mode === 'local';
+  const presence = systemInfo?.presence === true;
   const resolved = useTheme();
   const { setPref } = useThemePrefs();
   const manager = useShortcutManager();
@@ -421,6 +426,11 @@ export function AppShell() {
           desktop-only, guarded no-op elsewhere. Without a subscriber here the
           main process's broadcast update events fall off the end (green-but-
           broken); with it, a new version is heard app-wide, not only on /about. */}
+      {presence ? (
+        <Suspense fallback={null}>
+          <Presence />
+        </Suspense>
+      ) : null}
       {getDesktopApi() === null ? null : (
         <Suspense fallback={null}>
           <DesktopUpdateToaster />

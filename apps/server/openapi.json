@@ -270,6 +270,9 @@
                     "deployLink": {
                       "type": "boolean"
                     },
+                    "presence": {
+                      "type": "boolean"
+                    },
                     "desktopDemo": {
                       "type": "boolean"
                     },
@@ -580,6 +583,7 @@
                     "networkFeaturesAllowed",
                     "lanShare",
                     "deployLink",
+                    "presence",
                     "desktopDemo",
                     "connect",
                     "trial",
@@ -589,6 +593,15 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/presence": {
+      "get": {
+        "responses": {
+          "204": {
+            "description": "Default Response"
           }
         }
       }

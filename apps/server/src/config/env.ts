@@ -1361,6 +1361,12 @@ export const envSchema = z.object({
    * starts, so nothing due runs twice; never for a server people use.
    */
   ADMINIUM_SCHEDULER: booleanVar(true),
+  /*
+   * The dashboard tells the server, once a minute, that a person is using it (`GET /presence`), while its tab is
+   * visible and they moved, typed or scrolled in the last five minutes. For an operator whose proxy puts idle
+   * instances to sleep and counts any request as use. Off by default: nothing is sent.
+   */
+  ADMINIUM_PRESENCE: booleanVar(false),
   /* What operator AI may build. `dashboard` is the only scope: no customer screens on the operator's connection. */
   ADMINIUM_AI_OPERATOR_SCOPE: z.preprocess(emptyToUndefined, z.enum(['dashboard']).optional()),
   /* Tokens operator AI may spend over the instance's life, counted for every feature. */
@@ -1710,6 +1716,7 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_OPERATOR_EVENTS_URL: 'where signed instance events go: https://…, or http:// to a private address (needs ADMINIUM_OPERATOR_TOKEN)',
   ADMINIUM_AI_OPERATOR_ONLY: `one of ${BOOLEANISH.join(', ')} (default off; on: AI runs on the operator's connection unless the user adds their own key)`,
   ADMINIUM_SCHEDULER: `one of ${BOOLEANISH.join(', ')} (default on; off starts without the job scheduler and queue, so nothing due runs: an operator's check that a copy starts)`,
+  ADMINIUM_PRESENCE: `one of ${BOOLEANISH.join(', ')} (default off; on: an active dashboard tab sends GET /api/v1/presence once a minute, for an operator's sleep proxy)`,
   ADMINIUM_AI_OPERATOR_SCOPE: 'dashboard:operator AI builds dashboards only (unset: no scope)',
   ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: 'whole number of tokens operator AI may spend over the instance\'s life',
   ADMINIUM_DESIGNER_START_PROMPT_B64: `the Designer's first prompt after setup, base64, at most ${String(START_PROMPT_MAX_CHARS)} characters decoded`,

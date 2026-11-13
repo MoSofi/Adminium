@@ -98,6 +98,11 @@ export interface SystemInfo {
    */
   deployLink?: boolean;
   /**
+   * The shell tells the server once a minute that someone is using it (`app/presence.ts`): `ADMINIUM_PRESENCE` is
+   * on. Absent from a server older than the switch, which never asks for it.
+   */
+  presence?: boolean;
+  /**
    * The operators this instance takes a connection from ("Connect Supabase"):
    * one entry per provider whose connect address the operator set. Empty or
    * absent (a server older than the hand-off): the connect wizards show only

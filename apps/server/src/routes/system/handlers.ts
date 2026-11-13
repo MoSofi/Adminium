@@ -118,6 +118,7 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     networkFeaturesAllowed: env.ADMINIUM_NETWORK_FEATURES,
     lanShare: lanShareActive(env),
     deployLink: env.ADMINIUM_DEPLOY_LINK,
+    presence: env.ADMINIUM_PRESENCE,
     // The SAME predicate compose registers the route on — see `demo-seed.ts`.
     desktopDemo: demoSeedAvailable(env),
     connect: connectProviders(env).map((provider) => ({ provider: provider.id })),

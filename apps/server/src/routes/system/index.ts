@@ -21,6 +21,7 @@
  * `./schema.ts` for what each flag is entitled to claim.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 
 import type { Env } from '../../config/env.js';
 import { UnauthorizedError } from '../../errors.js';
@@ -75,6 +76,15 @@ export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod =
         designerLink: app.hasDecorator('designerLink') && (app as unknown as { designerLink: boolean }).designerLink,
       }),
   );
+
+  /*
+   * "Someone is using this": sent by the dashboard once a minute while its tab is visible and its person active,
+   * where `ADMINIUM_PRESENCE` is on. The request is the message, for an operator's proxy that counts any request as
+   * use; the server reads and writes nothing for it beyond the session check every signed-in request makes.
+   */
+  app.get('/presence', { preHandler: [app.requireAuth], schema: { response: { 204: z.null() } } }, async (_request, reply) => {
+    return await reply.status(204).send(null);
+  });
 
   // A trial's size caps as last measured, for whoever is signed in: the notice on a held database's pages.
   app.get(

@@ -81,14 +81,16 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_TRIAL_STORAGE_MAX_MB: 1000,
       ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY: 50,
       ADMINIUM_AI_OPERATOR_ONLY: false,
-      // Due jobs run unless an operator says otherwise.
+      // Due jobs run, and the dashboard reports nobody's presence, unless an operator says otherwise.
       ADMINIUM_SCHEDULER: true,
+      ADMINIUM_PRESENCE: false,
     });
   });
 
-  it('reads ADMINIUM_SCHEDULER as an on/off switch', () => {
-    const env = loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_SCHEDULER: 'off' }, makeStderr());
+  it('reads ADMINIUM_SCHEDULER and ADMINIUM_PRESENCE as on/off switches', () => {
+    const env = loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_SCHEDULER: 'off', ADMINIUM_PRESENCE: 'on' }, makeStderr());
     expect(env.ADMINIUM_SCHEDULER).toBe(false);
+    expect(env.ADMINIUM_PRESENCE).toBe(true);
     expect(() => loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_SCHEDULER: 'paused' }, makeStderr())).toThrow();
   });
 

@@ -311,6 +311,7 @@ describe('the variables a folder does not decide', () => {
     'ADMINIUM_ARCHIVE_KEY',
     'ADMINIUM_DEPLOY_LINK',
     'ADMINIUM_SCHEDULER',
+    'ADMINIUM_PRESENCE',
   ];
 
   it('holds each operator setting once', () => {

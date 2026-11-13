@@ -479,7 +479,15 @@ address.
 If your proxy wakes a container only for a page open, answer the other requests
 to a sleeping one with a `503`, `Retry-After` and the header `X-Aapp-Asleep: 1`:
 a dashboard that gets that answer to an API call reloads its page, which is a
-page open, at most once in 30 seconds. Scheduled work (reports, automations) runs only while the container
+page open, at most once in 30 seconds.
+
+If your proxy puts an instance to sleep when nobody has used it for a while,
+set `ADMINIUM_PRESENCE=on`: while a dashboard tab is visible and its person
+moved, typed or scrolled in the last 5 minutes, it sends
+`GET /api/v1/presence` once a minute (an empty `204`), so someone reading a
+page counts as using it. A hidden tab sends nothing. Off, nothing is sent.
+
+Scheduled work (reports, automations) runs only while the container
 is awake. →
 [Healthchecks](/self-hosting/docker-compose/#healthchecks)
 

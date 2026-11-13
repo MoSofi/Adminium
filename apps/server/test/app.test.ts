@@ -69,6 +69,8 @@ describe('GET /api/v1/system/info', () => {
       desktopDemo: false,
       // "Put this online": shown unless the operator sets ADMINIUM_DEPLOY_LINK=off.
       deployLink: true,
+      // The dashboard's presence request: off unless the operator sets ADMINIUM_PRESENCE=on.
+      presence: false,
       // "Connect Supabase": no operator connect address set, so no provider.
       connect: [],
       // Trial mode: off unless the operator switches it on.
