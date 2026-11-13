@@ -25,6 +25,7 @@
  * session must hand it the token in the same breath, because from that moment
  * on the tab is making credentialed mutations. See {@link csrfHeaders}.
  */
+import { reloadIfAsleep } from './asleep.js';
 import { hasRefusalWords, isRefusal, loadRefusalWords, refusalText } from './refusals.js';
 
 export class ApiError extends Error {
@@ -194,6 +195,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
+    // An operator's proxy says the instance is asleep: a page open wakes it (`asleep.ts`).
+    reloadIfAsleep(response);
     const envelope = (body ?? {}) as ErrorEnvelope;
     const code = typeof envelope.error?.code === 'string' ? envelope.error.code : 'INTERNAL';
     const message =

@@ -474,7 +474,12 @@ GET /api/v1/readyz?deep=1
 It answers `503` until the meta store answers, the bundled apps and add-ons
 are in place and the installed add-ons are loaded, then `200` with
 `"ok": true`. It answers on any host name, so you can dial the container by its
-address. Scheduled work (reports, automations) runs only while the container
+address.
+
+If your proxy wakes a container only for a page open, answer the other requests
+to a sleeping one with a `503`, `Retry-After` and the header `X-Aapp-Asleep: 1`:
+a dashboard that gets that answer to an API call reloads its page, which is a
+page open, at most once in 30 seconds. Scheduled work (reports, automations) runs only while the container
 is awake. →
 [Healthchecks](/self-hosting/docker-compose/#healthchecks)
 
