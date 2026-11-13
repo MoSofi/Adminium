@@ -44,9 +44,12 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const CLI = join(repoRoot, 'apps', 'server', 'dist', 'cli', 'index.js');
 const DASHBOARD = join(repoRoot, 'apps', 'dashboard', 'dist');
 
-/** Clear of +0, +20, +40, the own-apps servers (+60, +80) and every sink (+100 up). */
-const TRIAL_PORT = PORT + 120;
-const OPERATOR_PORT = PORT + 121;
+/**
+ * Clear of the servers at +0, +20 (first run), +40 (project) and +60, +80 (own apps), and of the SMTP sink, its
+ * messages and the scripted model each of them takes 100 above itself (+100 to +102, +120 to +122, …).
+ */
+const TRIAL_PORT = PORT + 110;
+const OPERATOR_PORT = PORT + 111;
 const ORIGIN = `http://localhost:${String(TRIAL_PORT)}`;
 const OPERATOR_URL = `http://127.0.0.1:${String(OPERATOR_PORT)}/api/v1/operator`;
 
@@ -209,7 +212,9 @@ class TrialInstance {
 
   async start(endsAt: string): Promise<void> {
     await this.stop();
-    if (!(await portIsFree(TRIAL_PORT))) throw new Error(`port ${String(TRIAL_PORT)} is taken`);
+    for (const deadline = Date.now() + 20_000; !(await portIsFree(TRIAL_PORT)); await sleep(500)) {
+      if (Date.now() > deadline) throw new Error(`port ${String(TRIAL_PORT)} is taken`);
+    }
     const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'adminium-e2e-trial-cwd-')));
     const child = spawn(process.execPath, [CLI, 'start'], { cwd, env: this.env(endsAt), stdio: ['ignore', 'pipe', 'pipe'] });
     this.child = child;
