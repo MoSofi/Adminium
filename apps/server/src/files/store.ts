@@ -199,13 +199,15 @@ export interface FileStoreOptions {
 
 /**
  * A limit on what the store takes, whoever writes: a trial's caps. Every
- * write asks it first, and tells it what was stored.
+ * write keeps room first (so writes side by side cannot all pass on the same
+ * room), and says what it stored.
  */
 export interface StoreGuard {
-  /** Throws while nothing more may be stored (the data folder past its limit). */
-  refuse(): void;
-  /** Told of the bytes of each file just stored. */
-  stored(bytes: number): void;
+  /**
+   * Room for a file of at most `bytes` (0 when not known yet): throws while
+   * nothing more may be stored (the data folder past its limit).
+   */
+  reserve(bytes: number): { done(bytes: number): void; cancel(): void };
   /** The largest file a person may upload (an upload, a file brought in, a logo); null for no limit here. */
   uploadMaxBytes: number | null;
 }
@@ -263,6 +265,7 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
     spooled: SpooledFile,
     input: { id: string; kind: string; filename: string; mime: string; createdAt: number },
     destinationId: string | null,
+    room: { done(bytes: number): void } | undefined,
   ): Promise<StoredBytes> {
     const driver = await destinations.driverFor(destinationId);
     const storageKey = driver.keyFor({ id: input.id, kind: input.kind, filename: input.filename, createdAt: input.createdAt });
@@ -279,7 +282,7 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
       // idempotent, so this needs no branch.
       await spooled.release();
     }
-    guard?.stored(spooled.sizeBytes);
+    room?.done(spooled.sizeBytes);
     return {
       storageKey,
       sizeBytes: spooled.sizeBytes,
@@ -294,35 +297,54 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
     driverFor: (destinationId) => destinations.driverFor(destinationId),
 
     async write(input) {
-      guard?.refuse();
       const size = typeof input.bytes === 'string' ? Buffer.byteLength(input.bytes) : input.bytes.length;
-      if (UPLOADED_KINDS.has(input.kind) && size > uploadMax(size)) {
-        const limit = uploadMax(size);
-        throw new AppError(413, 'FILE_TOO_LARGE', `That file is larger than the ${String(limit)}-byte limit.`, { maxBytes: limit });
-      }
-      const destinationId = await chooseDestination(input.destinationId);
-      const writer = await spool.openWriter();
-      let spooled: SpooledFile;
+      const room = guard?.reserve(size);
       try {
-        await writer.write(input.bytes);
-        spooled = await writer.close();
-      } catch (error) {
-        await writer.abort();
-        throw error;
+        if (UPLOADED_KINDS.has(input.kind) && size > uploadMax(size)) {
+          const limit = uploadMax(size);
+          throw new AppError(413, 'FILE_TOO_LARGE', `That file is larger than the ${String(limit)}-byte limit.`, { maxBytes: limit });
+        }
+        const destinationId = await chooseDestination(input.destinationId);
+        const writer = await spool.openWriter();
+        let spooled: SpooledFile;
+        try {
+          await writer.write(input.bytes);
+          spooled = await writer.close();
+        } catch (error) {
+          await writer.abort();
+          throw error;
+        }
+        return await commit(spooled, { ...input, createdAt: Date.now() }, destinationId, room);
+      } finally {
+        room?.cancel();
       }
-      return commit(spooled, { ...input, createdAt: Date.now() }, destinationId);
     },
 
     async openWriter(input) {
-      guard?.refuse();
-      const destinationId = await chooseDestination(input.destinationId);
-      const writer = await spool.openWriter();
-      const createdAt = Date.now();
-      return {
-        write: (chunk) => writer.write(chunk),
-        close: async () => commit(await writer.close(), { ...input, createdAt }, destinationId),
-        abort: () => writer.abort(),
-      };
+      // Its size is known only at the end: it keeps no room, but none is made past the limit.
+      const room = guard?.reserve(0);
+      try {
+        const destinationId = await chooseDestination(input.destinationId);
+        const writer = await spool.openWriter();
+        const createdAt = Date.now();
+        return {
+          write: (chunk) => writer.write(chunk),
+          close: async () => {
+            try {
+              return await commit(await writer.close(), { ...input, createdAt }, destinationId, room);
+            } finally {
+              room?.cancel();
+            }
+          },
+          abort: async () => {
+            room?.cancel();
+            await writer.abort();
+          },
+        };
+      } catch (error) {
+        room?.cancel();
+        throw error;
+      }
     },
 
     async open(file, range) {
@@ -346,88 +368,94 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
     },
 
     async putUpload(given) {
-      guard?.refuse();
-      const input = { ...given, maxBytes: uploadMax(given.maxBytes) };
-      const at = input.at ?? Date.now();
-      const destinationId = await chooseDestination(input.destinationId);
-      // The id is minted BEFORE the bytes land, because it is part of the key
-      // on every driver — the repo's pre-minted-id contract, used as designed.
-      const id = newId('file');
-
-      const spooled = await spool.spool(input.source, { maxBytes: input.maxBytes });
-
-      // The gate runs on the spooled head, never on the client's claim. A
-      // refusal here has already cost one local write and nothing else — no
-      // object in a bucket to clean up, which is the whole point of D4.
-      let result = sniff(spooled.head, input.filename);
-      // The kinds a head cannot vouch for (a model, a font) are read whole, and only those this upload may take.
+      // Room for the largest file this upload may be, kept until it is stored or refused.
+      const room = guard?.reserve(uploadMax(given.maxBytes));
       try {
-        result = await confirmKind(spooled, result, input.filename, input.allowedTypes);
-      } catch (error) {
-        await spooled.release();
-        if (error instanceof ModelRefused) throw new UnsupportedFileTypeError(`That file cannot be stored: ${error.message}`);
-        throw error;
-      }
-      if (!result.ok) {
-        await spooled.release();
-        throw new UnsupportedFileTypeError(
-          result.refusal.reason === 'not-text'
-            ? `That file cannot be stored: ${result.refusal.detail}.`
-            : `That file type is not accepted: ${result.refusal.detail}.`,
+        const input = { ...given, maxBytes: uploadMax(given.maxBytes) };
+        const at = input.at ?? Date.now();
+        const destinationId = await chooseDestination(input.destinationId);
+        // The id is minted BEFORE the bytes land, because it is part of the key
+        // on every driver — the repo's pre-minted-id contract, used as designed.
+        const id = newId('file');
+
+        const spooled = await spool.spool(input.source, { maxBytes: input.maxBytes });
+
+        // The gate runs on the spooled head, never on the client's claim. A
+        // refusal here has already cost one local write and nothing else — no
+        // object in a bucket to clean up, which is the whole point of D4.
+        let result = sniff(spooled.head, input.filename);
+        // The kinds a head cannot vouch for (a model, a font) are read whole, and only those this upload may take.
+        try {
+          result = await confirmKind(spooled, result, input.filename, input.allowedTypes);
+        } catch (error) {
+          await spooled.release();
+          if (error instanceof ModelRefused) throw new UnsupportedFileTypeError(`That file cannot be stored: ${error.message}`);
+          throw error;
+        }
+        if (!result.ok) {
+          await spooled.release();
+          throw new UnsupportedFileTypeError(
+            result.refusal.reason === 'not-text'
+              ? `That file cannot be stored: ${result.refusal.detail}.`
+              : `That file type is not accepted: ${result.refusal.detail}.`,
+          );
+        }
+        if (!input.allowedTypes.includes(result.type.key)) {
+          await spooled.release();
+          throw new UnsupportedFileTypeError(
+            `Files of type ${result.type.mime} are not accepted here.`,
+            result.type.mime,
+          );
+        }
+
+        const capped = input.maxBytesFor?.[result.type.key];
+        if (capped !== undefined && spooled.sizeBytes > capped) {
+          await spooled.release();
+          throw new SpoolTooLargeError(capped);
+        }
+
+        // The cleaned picture is what is kept, under its own hash: the bytes the camera wrote are never stored.
+        // A cleaned SVG likewise, and what the cleaner took out of it is said back.
+        let removed: string[] | undefined;
+        let kept = spooled;
+        if (input.clean === true && isPictureMime(result.type.mime)) kept = await cleaned(spooled, result.type.mime, input.maxBytes);
+        else if (input.cleanSvg === true && isSvgMime(result.type.mime)) ({ spooled: kept, removed } = await cleanedSvg(spooled, input.maxBytes));
+
+        const bytes = await commit(
+          kept,
+          { id, kind: input.kind, filename: input.filename, mime: result.type.mime, createdAt: at },
+          destinationId,
+          room,
         );
-      }
-      if (!input.allowedTypes.includes(result.type.key)) {
-        await spooled.release();
-        throw new UnsupportedFileTypeError(
-          `Files of type ${result.type.mime} are not accepted here.`,
-          result.type.mime,
+
+        const file = await files.create(
+          {
+            id,
+            filename: input.filename,
+            mime: result.type.mime,
+            sizeBytes: bytes.sizeBytes,
+            sha256: bytes.sha256,
+            kind: input.kind,
+            storageKey: bytes.storageKey,
+            destinationId: bytes.destinationId,
+            storage: bytes.storage,
+            uploadedBy: input.uploadedBy ?? null,
+            ...(input.entity === undefined || input.entity === null ? {} : { entity: input.entity, attachedAt: at }),
+            // No record yet: the row still records its connection, and stamps
+            // `attachedAt` only when nothing is coming to claim it later.
+            ...(input.entity == null && input.entityConnectionId !== undefined
+              ? {
+                  entityConnectionId: input.entityConnectionId,
+                  ...(input.claimed === true ? { attachedAt: at } : {}),
+                }
+              : {}),
+          },
+          at,
         );
+        return { file, sniffed: result.type, ...(removed === undefined ? {} : { removed }) };
+      } finally {
+        room?.cancel();
       }
-
-      const capped = input.maxBytesFor?.[result.type.key];
-      if (capped !== undefined && spooled.sizeBytes > capped) {
-        await spooled.release();
-        throw new SpoolTooLargeError(capped);
-      }
-
-      // The cleaned picture is what is kept, under its own hash: the bytes the camera wrote are never stored.
-      // A cleaned SVG likewise, and what the cleaner took out of it is said back.
-      let removed: string[] | undefined;
-      let kept = spooled;
-      if (input.clean === true && isPictureMime(result.type.mime)) kept = await cleaned(spooled, result.type.mime, input.maxBytes);
-      else if (input.cleanSvg === true && isSvgMime(result.type.mime)) ({ spooled: kept, removed } = await cleanedSvg(spooled, input.maxBytes));
-
-      const bytes = await commit(
-        kept,
-        { id, kind: input.kind, filename: input.filename, mime: result.type.mime, createdAt: at },
-        destinationId,
-      );
-
-      const file = await files.create(
-        {
-          id,
-          filename: input.filename,
-          mime: result.type.mime,
-          sizeBytes: bytes.sizeBytes,
-          sha256: bytes.sha256,
-          kind: input.kind,
-          storageKey: bytes.storageKey,
-          destinationId: bytes.destinationId,
-          storage: bytes.storage,
-          uploadedBy: input.uploadedBy ?? null,
-          ...(input.entity === undefined || input.entity === null ? {} : { entity: input.entity, attachedAt: at }),
-          // No record yet: the row still records its connection, and stamps
-          // `attachedAt` only when nothing is coming to claim it later.
-          ...(input.entity == null && input.entityConnectionId !== undefined
-            ? {
-                entityConnectionId: input.entityConnectionId,
-                ...(input.claimed === true ? { attachedAt: at } : {}),
-              }
-            : {}),
-        },
-        at,
-      );
-      return { file, sniffed: result.type, ...(removed === undefined ? {} : { removed }) };
     },
   };
 }

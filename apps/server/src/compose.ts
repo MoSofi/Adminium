@@ -814,7 +814,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   });
   // A trial's size caps: each operator database's live data and the data folder, measured and held (`trial/size-cap.ts`).
   const caps = app.trialPolicy.limits;
-  const sizeCap = caps === null ? null : createSizeCap({ limits: caps, sources: manager, dataDir: env.ADMINIUM_DATA_DIR, log: app.log });
+  const sizeCap =
+    caps === null
+      ? null
+      : createSizeCap({
+          limits: caps,
+          sources: manager,
+          dataDir: env.ADMINIUM_DATA_DIR,
+          // The project the Designer writes to counts with the data folder, wherever it is.
+          folders: projectRoot === null ? [] : [projectRoot],
+          log: app.log,
+        });
   app.decorate('sizeCap', sizeCap);
   // The Designer's own files and attachments ask the data folder's hold too, wherever they are written.
   useStorageHold(sizeCap);
@@ -1076,7 +1086,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     destinations: destinationResolver,
     files: filesRepo(meta),
     // A trial's caps: no file past the data folder's limit, no upload larger than the trial's per-file limit.
-    ...(sizeCap === null || caps === null ? {} : { guard: { refuse: () => sizeCap.refuseStorage(), stored: (bytes: number) => sizeCap.stored(bytes), uploadMaxBytes: caps.uploadMaxBytes } }),
+    ...(sizeCap === null || caps === null ? {} : { guard: { reserve: (bytes: number) => sizeCap.reserve(bytes), uploadMaxBytes: caps.uploadMaxBytes } }),
   });
   // Which columns hold files, and the hook that keeps `adminium_files` in step
   // with what those columns say. One reader, shared by the upload
