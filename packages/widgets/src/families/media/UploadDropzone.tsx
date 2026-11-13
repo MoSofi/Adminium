@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { IconTile } from '@adminium/ui';
 import { useMaybeT } from '../../lib/i18n.js';
+import { LockedControl } from '../../lib/write-lock.js';
 import { CloudUpload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { DragEvent } from 'react';
@@ -36,6 +37,8 @@ export interface UploadDropzoneProps {
   maxSize?: number | undefined;
   multiple?: boolean | undefined;
   disabled?: boolean | undefined;
+  /** Locked by a write lock: in reach, `aria-disabled`, takes no file, and says this in the Tooltip. */
+  lockedReason?: string | null | undefined;
   locale?: string | undefined;
   dropTitle?: string | undefined;
   browsePrefix?: string | undefined;
@@ -52,6 +55,7 @@ export function UploadDropzone({
   maxSize,
   multiple = true,
   disabled = false,
+  lockedReason = null,
   locale,
   dropTitle,
   browsePrefix,
@@ -70,7 +74,7 @@ export function UploadDropzone({
   const tag = resolveLocale(locale);
 
   const pick = (list: FileList | null): void => {
-    if (list === null || list.length === 0) return;
+    if (list === null || list.length === 0 || lockedReason !== null) return;
     const files = multiple ? [...list] : [...list].slice(0, 1);
     if (maxSize === undefined) {
       onFiles?.(files);
@@ -92,36 +96,38 @@ export function UploadDropzone({
 
   return (
     <div data-widget="upload-dropzone" data-testid={testId} className="flex h-full flex-col p-3">
-      <button
-        type="button"
-        data-part="dropzone"
-        disabled={disabled}
-        data-dragging={dragging ? '' : undefined}
-        onClick={() => inputRef.current?.click()}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
-        className={
-          'flex h-full w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed ' +
-          'border-border-strong bg-surface-2 px-6 py-8 text-center transition-colors duration-150 ' +
-          'hover:border-fg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ' +
-          'disabled:pointer-events-none disabled:opacity-40 data-[dragging]:border-accent data-[dragging]:bg-accent-soft'
-        }
-      >
-        <IconTile size="xl" tone="accent" icon={<CloudUpload />} className="mb-2" />
-        <span className="text-body-sm font-bold text-fg">{resolvedDropTitle}</span>
-        <span className="text-caption text-fg-muted">
-          {resolvedBrowsePrefix} <span className="font-bold text-accent">{resolvedBrowseLabel}</span>
-        </span>
-        {(hint !== undefined || sizeHint !== undefined) && (
-          <span className="mt-2 text-caption text-fg-subtle" data-part="dropzone-hint">
-            {[hint, sizeHint].filter((part) => part !== undefined).join(' · ')}
+      <LockedControl reason={lockedReason}>
+        <button
+          type="button"
+          data-part="dropzone"
+          disabled={disabled}
+          data-dragging={dragging ? '' : undefined}
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={onDrop}
+          className={
+            'flex h-full w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed ' +
+            'border-border-strong bg-surface-2 px-6 py-8 text-center transition-colors duration-150 ' +
+            'hover:border-fg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ' +
+            'disabled:pointer-events-none disabled:opacity-40 data-[dragging]:border-accent data-[dragging]:bg-accent-soft'
+          }
+        >
+          <IconTile size="xl" tone="accent" icon={<CloudUpload />} className="mb-2" />
+          <span className="text-body-sm font-bold text-fg">{resolvedDropTitle}</span>
+          <span className="text-caption text-fg-muted">
+            {resolvedBrowsePrefix} <span className="font-bold text-accent">{resolvedBrowseLabel}</span>
           </span>
-        )}
-      </button>
+          {(hint !== undefined || sizeHint !== undefined) && (
+            <span className="mt-2 text-caption text-fg-subtle" data-part="dropzone-hint">
+              {[hint, sizeHint].filter((part) => part !== undefined).join(' · ')}
+            </span>
+          )}
+        </button>
+      </LockedControl>
       <input
         ref={inputRef}
         type="file"

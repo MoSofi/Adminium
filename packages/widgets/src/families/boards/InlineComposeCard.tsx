@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Button } from '@adminium/ui';
 import { useMaybeT } from '../../lib/i18n.js';
+import { LockedControl } from '../../lib/write-lock.js';
 import { Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 
@@ -43,6 +44,8 @@ export interface InlineComposeCardProps {
   keepOpen?: boolean | undefined;
   /** Nothing can be added just now (a board whose columns are not there yet): the composer is shown and takes nothing. */
   disabled?: boolean | undefined;
+  /** Locked by a write lock: only its "Add card", in reach, `aria-disabled`, with this in the Tooltip. */
+  lockedReason?: string | null | undefined;
   /** Add a card; return the save's promise and the title is kept until it holds (and after it is refused). */
   onAdd?: ((title: string) => void | Promise<unknown>) | undefined;
   onCancel?: (() => void) | undefined;
@@ -57,6 +60,7 @@ export function InlineComposeCard({
   defaultOpen = false,
   keepOpen = true,
   disabled = false,
+  lockedReason = null,
   onAdd,
   onCancel,
   testId,
@@ -107,20 +111,22 @@ export function InlineComposeCard({
     );
   };
 
-  if (!open) {
+  if (!open || lockedReason !== null) {
     return (
-      <button
-        type="button"
-        data-widget="inline-compose-card"
-        data-testid={testId}
-        data-part="compose-open"
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:border-accent hover:bg-accent-soft hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-transparent disabled:hover:text-fg-muted"
-      >
-        <Plus aria-hidden="true" className="size-4" />
-        {resolvedOpenLabel}
-      </button>
+      <LockedControl reason={lockedReason}>
+        <button
+          type="button"
+          data-widget="inline-compose-card"
+          data-testid={testId}
+          data-part="compose-open"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          className="flex w-full items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:border-accent hover:bg-accent-soft hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-transparent disabled:hover:text-fg-muted"
+        >
+          <Plus aria-hidden="true" className="size-4" />
+          {resolvedOpenLabel}
+        </button>
+      </LockedControl>
     );
   }
 

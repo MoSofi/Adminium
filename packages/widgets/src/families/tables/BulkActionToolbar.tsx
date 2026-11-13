@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '../../lib/i18n.js';
+import { WriteControl, type WriteAction } from '../../lib/write-lock.js';
 import { BulkActionBar, BulkActionButton } from '@adminium/ui';
 import type { ReactNode } from 'react';
 
@@ -20,6 +21,8 @@ export interface BulkAction {
   /** Role id gating this action — host filters before passing when needed. */
   permission?: string | undefined;
   disabled?: boolean | undefined;
+  /** The write it makes: under a write lock it stays in reach, `aria-disabled`, with the lock's reason. */
+  write?: WriteAction | undefined;
 }
 
 export interface BulkActionToolbarProps {
@@ -61,17 +64,26 @@ export function BulkActionToolbar({
       label={labels?.toolbar ?? t('ui:widgets.tables.bulkActionToolbar.toolbarLabel', 'Bulk actions')}
       floating={floating}
     >
-      {actions.map((action) => (
-        <BulkActionButton
-          key={action.key}
-          icon={action.icon}
-          destructive={action.danger === true}
-          disabled={action.disabled === true}
-          onClick={() => onAction(action.key, selectedIds)}
-        >
-          {action.label}
-        </BulkActionButton>
-      ))}
+      {actions.map((action) => {
+        const button = (
+          <BulkActionButton
+            key={action.key}
+            icon={action.icon}
+            destructive={action.danger === true}
+            disabled={action.disabled === true}
+            onClick={() => onAction(action.key, selectedIds)}
+          >
+            {action.label}
+          </BulkActionButton>
+        );
+        return action.write === undefined ? (
+          button
+        ) : (
+          <WriteControl key={action.key} action={action.write}>
+            {button}
+          </WriteControl>
+        );
+      })}
     </BulkActionBar>
   );
 }

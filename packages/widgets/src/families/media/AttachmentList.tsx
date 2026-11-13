@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { EmptyState, IconButton, IconTile, MonoText } from '@adminium/ui';
 import { useMaybeT } from '../../lib/i18n.js';
+import { LockedControl } from '../../lib/write-lock.js';
 import { Download, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 import { fileIconFor } from './media-icons.js';
@@ -61,6 +62,8 @@ export interface AttachmentListProps {
   emptyBody?: string | undefined;
   onDownload?: ((item: Attachment) => void) | undefined;
   onDelete?: ((item: Attachment) => void) | undefined;
+  /** Delete locked by a write lock: in reach, `aria-disabled`, with this in the Tooltip. */
+  deleteLock?: string | null | undefined;
   testId?: string | undefined;
 }
 
@@ -76,6 +79,7 @@ export function AttachmentList({
   emptyBody,
   onDownload,
   onDelete,
+  deleteLock = null,
   testId,
 }: AttachmentListProps) {
   const t = useMaybeT();
@@ -138,15 +142,17 @@ export function AttachmentList({
               </IconButton>
             )}
             {actions.includes('delete') && item.heldIn === undefined && (
-              <IconButton
-                size="sm"
-                data-part="attachment-delete"
-                label={resolvedDeleteLabel}
-                onClick={() => onDelete?.(item)}
-                className="opacity-0 transition-opacity duration-100 hover:text-danger group-hover:opacity-100 focus-visible:opacity-100"
-              >
-                <Trash2 className="size-3.5" />
-              </IconButton>
+              <LockedControl reason={deleteLock}>
+                <IconButton
+                  size="sm"
+                  data-part="attachment-delete"
+                  label={resolvedDeleteLabel}
+                  onClick={() => onDelete?.(item)}
+                  className="opacity-0 transition-opacity duration-100 hover:text-danger group-hover:opacity-100 focus-visible:opacity-100"
+                >
+                  <Trash2 className="size-3.5" />
+                </IconButton>
+              </LockedControl>
             )}
           </li>
         );

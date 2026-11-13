@@ -27,6 +27,7 @@
  *   rendered panes client-side.
  */
 import { useMaybeT } from '../../lib/i18n.js';
+import { LockedControl, useWriteLock } from '../../lib/write-lock.js';
 import { Button, Popover, PopoverContent, PopoverTrigger, Select } from '@adminium/ui';
 import { CalendarRange, Plus } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -303,6 +304,7 @@ function AgendaPane({
   onCompose,
   labels,
   composer,
+  addLock,
 }: {
   day: string;
   events: readonly UpcomingEvent[];
@@ -314,6 +316,8 @@ function AgendaPane({
   labels: PageCalendarLabels | undefined;
   /** Replaces the text composer — the related-title pick-list. */
   composer?: ReactNode;
+  /** Adding locked by a write lock: the text composer's "Add event" says why. */
+  addLock: string | null;
 }) {
   const t = useMaybeT();
   const tag = resolveLocale(locale);
@@ -372,6 +376,7 @@ function AgendaPane({
               cancelLabel={labels?.composeCancel ?? t('ui:action.cancel', 'Cancel')}
               openLabel={labels?.composeOpen ?? t('ui:templates.calendar.addEvent', 'Add event')}
               testId="agenda-compose"
+              lockedReason={addLock}
               onAdd={onCompose}
             />
           </div>
@@ -393,6 +398,7 @@ function ChoiceCompose({
   cancelLabel,
   chooseLabel,
   placeholder,
+  lockedReason,
   onAdd,
 }: {
   choices: readonly CalendarTitleChoice[];
@@ -401,21 +407,24 @@ function ChoiceCompose({
   cancelLabel: string;
   chooseLabel: string;
   placeholder: string;
+  lockedReason: string | null;
   onAdd: (value: string | number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState('');
-  if (!open) {
+  if (!open || lockedReason !== null) {
     return (
-      <button
-        type="button"
-        data-testid="agenda-compose-open"
-        onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:bg-surface-2 hover:text-fg"
-      >
-        <Plus className="size-3.5" aria-hidden />
-        {openLabel}
-      </button>
+      <LockedControl reason={lockedReason}>
+        <button
+          type="button"
+          data-testid="agenda-compose-open"
+          onClick={() => setOpen(true)}
+          className="flex w-full items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:bg-surface-2 hover:text-fg"
+        >
+          <Plus className="size-3.5" aria-hidden />
+          {openLabel}
+        </button>
+      </LockedControl>
     );
   }
   const close = () => {
@@ -489,6 +498,8 @@ export function PageCalendar({
   const calendarRaw = calendarItem === undefined ? {} : itemConfigOf(calendarItem);
   const cfg = useMemo(() => calendarItemConfigOf(calendarRaw), [calendarRaw]);
   const source = calendarItem === undefined ? null : planningSourceOf(calendarRaw);
+  // Under a write lock (`lib/write-lock.tsx`): every way to add an event is locked with the reason.
+  const addLock = useWriteLock('create', source?.connectionId ?? null);
 
   const calendarState: WidgetDataState =
     calendarItem === undefined ? { status: 'success', data: { events: [] } } : resolvedStates[calendarItem.i] ?? { status: 'loading' };
@@ -574,7 +585,7 @@ export function PageCalendar({
   const selectDay = (day: string) => {
     setSelectedDay(day);
     // An empty day is a place to book: the form opens on it.
-    if (onCreate !== undefined && source !== null && !visibleEvents.some((event) => event.date === day)) createOn(day);
+    if (onCreate !== undefined && source !== null && addLock === null && !visibleEvents.some((event) => event.date === day)) createOn(day);
   };
 
   const applyRange = (next: DateRangeValue) => {
@@ -603,15 +614,17 @@ export function PageCalendar({
   // is a related row; else the title composer AgendaPane draws itself.
   const composer =
     onCreate !== undefined ? (
-      <button
-        type="button"
-        data-testid="agenda-compose-open"
-        onClick={() => createOn(selectedDay)}
-        className="flex w-full items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:bg-surface-2 hover:text-fg"
-      >
-        <Plus className="size-3.5" aria-hidden />
-        {addLabel}
-      </button>
+      <LockedControl reason={addLock}>
+        <button
+          type="button"
+          data-testid="agenda-compose-open"
+          onClick={() => createOn(selectedDay)}
+          className="flex w-full items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:bg-surface-2 hover:text-fg"
+        >
+          <Plus className="size-3.5" aria-hidden />
+          {addLabel}
+        </button>
+      </LockedControl>
     ) : lookup !== undefined ? (
       <ChoiceCompose
         choices={choices}
@@ -620,6 +633,7 @@ export function PageCalendar({
         cancelLabel={labels?.composeCancel ?? t('ui:action.cancel', 'Cancel')}
         chooseLabel={labels?.composeChoose ?? t('ui:templates.calendar.composeChoose', 'What this event is for')}
         placeholder={labels?.composeChoosePlaceholder ?? t('ui:templates.calendar.composeChoosePlaceholder', 'Choose…')}
+        lockedReason={addLock}
         onAdd={chooseFor(selectedDay)}
       />
     ) : undefined;
@@ -697,7 +711,7 @@ export function PageCalendar({
                         })),
                         onToggleCategory: (id: string) => setHidden((now) => (now.includes(id) ? now.filter((one) => one !== id) : [...now, id])),
                       })}
-                  {...(onCreate !== undefined && source !== null ? { onNew: () => createOn(selectedDay), newLabel: addLabel } : {})}
+                  {...(onCreate !== undefined && source !== null ? { onNew: () => createOn(selectedDay), newLabel: addLabel, newLock: addLock } : {})}
                   // Read the days on screen, not the table's first rows: a range somebody picked wins.
                   onViewChange={(first, last) => {
                     if (range.start !== null && range.end !== null) return;
@@ -721,6 +735,7 @@ export function PageCalendar({
                   colorMap={cfg.categoryColorMap}
                   locale={locale}
                   canCompose={source !== null && (onCreate !== undefined || lookup === undefined || choices.length > 0)}
+                  addLock={addLock}
                   onOpen={calendarItem === undefined ? undefined : openRecordFrom(calendarItem.i)}
                   onCompose={composeFor(selectedDay)}
                   labels={labels}

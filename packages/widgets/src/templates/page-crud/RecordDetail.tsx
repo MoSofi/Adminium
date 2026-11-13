@@ -171,14 +171,14 @@ export function RecordDetail({
         <h3 className="truncate text-modal text-fg">{title}</h3>
         <div className="flex shrink-0 items-center gap-1.5">
           {onEdit !== undefined && (
-            <WriteControl>
+            <WriteControl action="update">
               <Button size="sm" variant="secondary" iconLeft={<Pencil />} onClick={() => onEdit(record)}>
                 {labels?.edit ?? t('ui:action.edit', 'Edit')}
               </Button>
             </WriteControl>
           )}
           {onDelete !== undefined && (
-            <WriteControl>
+            <WriteControl action="delete">
               <Button size="sm" variant="destructive" iconLeft={<Trash2 />} onClick={() => onDelete(record)}>
                 {labels?.delete ?? t('ui:action.delete', 'Delete')}
               </Button>

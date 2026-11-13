@@ -60,7 +60,7 @@ import { displayValueOf, gridColumnSpecSchema, rowIdOf } from '../../families/ta
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import type { WidgetEvent } from '../../registry/types.js';
 import { describeDataError } from '../../lib/data-error.js';
-import { useWriteLock, WriteControl } from '../../lib/write-lock.js';
+import { WriteControl, WriteLockScope, type WriteAction } from '../../lib/write-lock.js';
 
 /**
  * `page-crud` — the per-table resource template (annex): toolbar (search +
@@ -264,6 +264,8 @@ export interface PageCrudBulkAction {
   /** Already translated by the host. */
   label: string;
   disabled?: boolean | undefined;
+  /** The write it makes (none for one that only reads): locked with the reason while a write lock holds it. */
+  write?: WriteAction | undefined;
   /** Called with the selected row ids. */
   run: (ids: readonly string[]) => void;
 }
@@ -317,7 +319,16 @@ interface DeleteTarget {
   loaded: boolean;
 }
 
-export function PageCrud({
+/** A table page: its write controls follow the locks of its own database. */
+export function PageCrud(props: PageCrudProps) {
+  return (
+    <WriteLockScope connectionId={props.source.connectionId}>
+      <PageCrudPage {...props} />
+    </WriteLockScope>
+  );
+}
+
+function PageCrudPage({
   api,
   columns,
   source,
@@ -357,8 +368,6 @@ export function PageCrud({
   onRemoveLinkFilter,
   onClearLinkFilters,
 }: PageCrudProps) {
-  // The host's write lock (an ended trial): the bulk delete is off with the rest of the writes.
-  const writeLock = useWriteLock();
   const entity = entityName ?? entityFromTable(source.table);
   const tableName = tableLabel ?? plainTableName(source.table);
   // A link's filter narrows the list as much as the toolbar's own do.
@@ -1166,10 +1175,10 @@ export function PageCrud({
                   key: `${HOST_BULK_PREFIX}${action.key}`,
                   label: action.label,
                   ...(action.disabled === undefined ? {} : { disabled: action.disabled }),
+                  ...(action.write === undefined ? {} : { write: action.write }),
                 })),
-                ...(canDelete
-                  ? [{ key: 'delete', label: labels?.deleteAction ?? t('ui:action.delete', 'Delete'), danger: true, ...(writeLock === null ? {} : { disabled: true }) }]
-                  : []),
+                // Under a write lock: in reach, with the reason (a database's lock leaves deletes open).
+                ...(canDelete ? [{ key: 'delete', label: labels?.deleteAction ?? t('ui:action.delete', 'Delete'), danger: true, write: 'delete' as const }] : []),
               ]}
               onAction={(key, ids) => {
                 if (key === 'delete') {
@@ -1189,7 +1198,7 @@ export function PageCrud({
                  700 weight and asymmetric inset that keeps the leading `+` from
                  drifting off its label. The default `md` rendered it a weight
                  lighter and evenly padded. */
-              <WriteControl>
+              <WriteControl action="create">
                 <Button size="topbar" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
                   {labels?.newRow ?? t('ui:templates.crud.newRow', 'New row')}
                 </Button>
@@ -1260,7 +1269,7 @@ export function PageCrud({
               {...(canCreate
                 ? {
                     actions: (
-                      <WriteControl>
+                      <WriteControl action="create">
                         <Button size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
                           {labels?.newRow ?? t('ui:templates.crud.newRow', 'New row')}
                         </Button>

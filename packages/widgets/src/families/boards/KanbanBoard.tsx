@@ -17,6 +17,7 @@ import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { BoardCard } from './BoardCard.js';
 import { CardActions } from './CardActions.js';
 import { useMaybeT } from '../../lib/i18n.js';
+import { LockedControl } from '../../lib/write-lock.js';
 
 import {
   BoardAddRefusalNotice,
@@ -126,6 +127,8 @@ export interface KanbanBoardProps {
    * once; return the save's promise so the name is kept until it holds.
    */
   onCompose?: ((columnId: string, title: string) => MoveResult) | undefined;
+  /** Adding locked by a write lock: each column's "+" stays in reach, `aria-disabled`, with this in the Tooltip. */
+  addLock?: string | null | undefined;
   /** Open the composer in a column from outside the board (a "New …" button): a new `at` opens it again. */
   composeRequest?: { column: string; at: number } | null | undefined;
   /** The Kanban Roadmap comp's card: its theme, the title, progress with the owner. */
@@ -150,6 +153,7 @@ export function KanbanBoard({
   canMoveCard,
   columnFooter,
   onCompose,
+  addLock = null,
   composeRequest,
   roadmapCards = false,
   testId,
@@ -368,19 +372,21 @@ export function KanbanBoard({
                     </span>
                   )}
                   {canAdd && (
-                    <button
-                      type="button"
-                      data-part="column-add"
-                      onClick={() => (onCompose === undefined ? addTo(column.id) : composeIn(column.id))}
-                      aria-label={labels?.addLabel ?? t('ui:widgets.boards.addCard', 'Add card')}
-                      title={labels?.addLabel ?? t('ui:widgets.boards.addCard', 'Add card')}
-                      className={`${column.total === undefined ? 'ms-auto' : ''} flex size-[26px] shrink-0 items-center justify-center rounded-[7px] text-fg-subtle transition-colors hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:scale-[.92]`}
-                    >
-                      <Plus className="size-4" aria-hidden="true" />
-                    </button>
+                    <LockedControl reason={addLock}>
+                      <button
+                        type="button"
+                        data-part="column-add"
+                        onClick={() => (onCompose === undefined ? addTo(column.id) : composeIn(column.id))}
+                        aria-label={labels?.addLabel ?? t('ui:widgets.boards.addCard', 'Add card')}
+                        title={labels?.addLabel ?? t('ui:widgets.boards.addCard', 'Add card')}
+                        className={`${column.total === undefined ? 'ms-auto' : ''} flex size-[26px] shrink-0 items-center justify-center rounded-[7px] text-fg-subtle transition-colors hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:scale-[.92]`}
+                      >
+                        <Plus className="size-4" aria-hidden="true" />
+                      </button>
+                    </LockedControl>
                   )}
                 </header>
-                {composing === column.id && onCompose !== undefined ? (
+                {composing === column.id && onCompose !== undefined && addLock === null ? (
                   <ColumnComposer
                     placeholder={labels?.composePlaceholder ?? t('ui:widgets.boards.inlineComposeCard.placeholder', 'Card title…')}
                     addLabel={labels?.composeAdd ?? t('ui:widgets.boards.inlineComposeCard.addLabel', 'Add')}

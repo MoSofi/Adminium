@@ -32,6 +32,7 @@
  */
 import { getFormatters } from '@adminium/i18n';
 import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
+import { useWriteLock, WriteControl } from '../../lib/write-lock.js';
 import { pickLocalized } from '../../lib/localized.js';
 import { Activity, ChevronLeft, ChevronRight, CircleCheck, Columns3, LayoutList, Plus, TrendingUp, Users, Wallet, type LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -913,6 +914,9 @@ function BoardSlot({
   const raw = itemConfigOf(item);
   const cfg = useMemo(() => boardItemConfigOf(raw), [raw]);
   const source = planningSourceOf(raw);
+  // Under a write lock (`lib/write-lock.tsx`): adding is locked with the reason, and no card moves.
+  const addLock = useWriteLock('create', source?.connectionId ?? null);
+  const moveLock = useWriteLock('update', source?.connectionId ?? null);
   // The columns are another table's rows: there is no board until they are read too.
   const fromTable = cfg.columnsFrom !== undefined && boardColumns !== undefined;
   const state: WidgetDataState =
@@ -1224,6 +1228,7 @@ function BoardSlot({
               labels={boardLabels}
               onCardMove={(cardId, _from, to) => mutate(cardId, moveValues(to.column, to.lane))}
               onCardOpen={openCard}
+              {...(moveLock === null ? {} : { canMoveCard: () => false })}
               addRefusal={addRefusal}
               onDismissAddRefusal={onDismissAddRefusal}
             />
@@ -1239,6 +1244,8 @@ function BoardSlot({
               {...(canCompose ? { onCompose: compose, composeRequest } : {})}
               onCardMove={(cardId, _from, toColumn) => mutate(cardId, moveValues(toColumn))}
               onCardOpen={openCard}
+              {...(moveLock === null ? {} : { canMoveCard: () => false })}
+              addLock={addLock}
               addRefusal={addRefusal}
               onDismissAddRefusal={onDismissAddRefusal}
               onAdd={(columnId) => {
@@ -1264,15 +1271,17 @@ function BoardSlot({
   const newButton =
     !canCompose || columns.length === 0 ? null : (
       // The comp's header button: a new card, typed into the board's first column.
-      <button
-        type="button"
-        data-testid="board-new"
-        onClick={() => setComposeRequest({ column: columns[0]?.id ?? '', at: Date.now() })}
-        className="ms-auto flex shrink-0 items-center gap-[7px] rounded-[10px] bg-accent py-2 pe-[13px] ps-2.5 text-[13px] font-bold leading-[normal] text-accent-fg shadow-[0_2px_8px_color-mix(in_srgb,var(--accent)_35%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-      >
-        <Plus aria-hidden="true" className="size-4" />
-        {one === undefined ? t('ui:templates.board.newCard', 'New card') : t('ui:templates.board.newItem', 'New {item}', { item: one })}
-      </button>
+      <WriteControl action="create" connectionId={source?.connectionId ?? null}>
+        <button
+          type="button"
+          data-testid="board-new"
+          onClick={() => setComposeRequest({ column: columns[0]?.id ?? '', at: Date.now() })}
+          className="ms-auto flex shrink-0 items-center gap-[7px] rounded-[10px] bg-accent py-2 pe-[13px] ps-2.5 text-[13px] font-bold leading-[normal] text-accent-fg shadow-[0_2px_8px_color-mix(in_srgb,var(--accent)_35%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <Plus aria-hidden="true" className="size-4" />
+          {one === undefined ? t('ui:templates.board.newCard', 'New card') : t('ui:templates.board.newItem', 'New {item}', { item: one })}
+        </button>
+      </WriteControl>
     );
   const stats =
     cfg.stats.length === 0 || roadmap ? null : (
@@ -1353,6 +1362,7 @@ function ComposeSlot({
   // column, and so on no board. Nothing is added until there is one to be in.
   // A board that is not drawn (its `only` cannot be read) takes no card either: what would put one on it is not known.
   const noColumnYet = boardCfg.onlyInvalid || (boardCfg.columnsFrom !== undefined && boardColumns !== undefined && firstRow === undefined);
+  const addLock = useWriteLock('create', source?.connectionId ?? null);
 
   return (
     <InlineComposeCard
@@ -1363,6 +1373,7 @@ function ComposeSlot({
       {...(labels?.composeCancel === undefined ? {} : { cancelLabel: labels.composeCancel })}
       testId={`compose-slot-${item.i}`}
       disabled={noColumnYet}
+      lockedReason={addLock}
       onAdd={(title) => {
         if (source === null || onEvent === undefined || noColumnYet) return undefined;
         // Handed back, followed to its answer: the composer keeps the typed title until the insert holds, and a
