@@ -41,7 +41,7 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { errorEnvelope } from '../errors.js';
 import { bcp47 } from '../i18n/bcp47.js';
-import { loadOverrideMap, recipientLocale } from '../i18n/server-i18n.js';
+import { recipientLocale } from '../i18n/server-i18n.js';
 import type { OperatorHolds } from '../operator/holds.js';
 import { DEFAULT_WORKSPACE_NAME, negotiateLocale, parseInstancePath, parseSurfacePath, PAY_PREFIX, PAYMENT_WEBHOOK_PREFIX } from '../plugins/surfaces.js';
 import { audienceOf } from '../security/route-audience.js';
@@ -153,7 +153,9 @@ async function sendHiddenPage(meta: MetaDb | null, holds: OperatorHolds | null, 
   const page = (request.method === 'GET' || request.method === 'HEAD') && !path.startsWith('/api/') && wantsPage(request);
   if (!page || meta === null) return reply.send(errorEnvelope('NOT_FOUND', 'Nothing is served at this address.', request.id));
   const locale = (negotiateLocale(request.headers['accept-language']) ?? ((await recipientLocale(meta, null)) as LocaleId));
-  const i18n = await createServerI18n({ locale, overrides: await loadOverrideMap(meta, locale) });
+  // The shipped words only: the instance's own translation overrides are the Super Admin's to write, and a
+  // hidden page must not say what the person whose pages were hidden wants it to.
+  const i18n = await createServerI18n({ locale });
   const workspace = await settingsRepo(meta).get('branding.appName');
   const logo = holds === null ? null : await holds.logo().catch(() => null);
   const html = renderHiddenPage({

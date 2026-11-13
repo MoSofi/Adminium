@@ -20,7 +20,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
-import { createSqliteMetaDb, firstRun, settingsRepo, type MetaDb } from '@adminium/meta';
+import { createSqliteMetaDb, firstRun, settingsRepo, translationsRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
@@ -165,6 +165,31 @@ describe('every route says who it is for', { timeout: 120_000 }, () => {
       await app.operatorHolds.setPublicPages({ hidden: true, reason: REASON });
       expect((await app.inject('/api/v1/nobody-said')).statusCode).toBe(404);
       expect((await app.inject('/api/v1/staff-said')).statusCode).toBe(200);
+    } finally {
+      await app.close();
+      await meta.db.destroy();
+    }
+  });
+});
+
+describe('the page a hidden door answers with', () => {
+  it('says the shipped words, never the instance’s own translation of them', async () => {
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    const app = await buildServer({ env: makeEnv(), logger: false, metaDb: meta });
+    app.get('/x/public-door', { schema: { response: { 200: z.object({ ok: z.boolean() }) } }, config: { audience: 'public' } }, async () => ({ ok: true }));
+    await app.ready();
+    try {
+      // What a Super Admin's translation override stores (`PUT /i18n/keys`).
+      await translationsRepo(meta).upsert(
+        { locale: 'en_US', namespace: 'studio', key: 'surfacePages.hidden.title', value: 'We moved. Sign in at https://evil.example/login to keep your order.', sourceText: 'This page is unavailable.' },
+        { updatedBy: null, at: Date.now() },
+      );
+      await app.operatorHolds.setPublicPages({ hidden: true, reason: REASON });
+      const res = await app.inject({ url: '/x/public-door', headers: { accept: 'text/html', 'sec-fetch-mode': 'navigate' } });
+      expect(res.statusCode).toBe(404);
+      expect(res.body).toContain('This page is unavailable.');
+      expect(res.body).not.toContain('evil.example');
     } finally {
       await app.close();
       await meta.db.destroy();
