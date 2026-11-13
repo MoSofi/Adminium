@@ -56,18 +56,27 @@ export const SPEECH_TOKENS_PER_SECOND = 10;
 /** What a one-token check of a connection is counted as. */
 export const PING_TOKENS = 16;
 
-/** The fixed words, the same for every feature: the dashboard words them in the person's language from `reason`. */
+/**
+ * The fixed words, the same for every feature: the dashboard words them in the person's language from `reason`.
+ * A trial's AI is "this trial"'s, with its Upgrade; on any other server it is the installation's.
+ */
 export const USED_UP_MESSAGE = 'The AI included with this trial is used up. Add your own AI key to continue, or Upgrade.';
+export const USED_UP_MESSAGE_HERE = 'The AI included with this installation is used up. Add your own AI key to continue.';
+
+/** The used-up words for a server in trial mode or not. */
+export const usedUpMessage = (trial: boolean): string => (trial ? USED_UP_MESSAGE : USED_UP_MESSAGE_HERE);
 
 export interface OperatorAiRules {
   only: boolean;
   scope: 'dashboard' | null;
   /** Tokens over the instance's life; null with no budget. */
   budget: number | null;
+  /** Trial mode: the used-up words name the trial. Left out: they name the installation. */
+  trial?: boolean;
 }
 
-export function operatorAiRules(env: Pick<Env, 'ADMINIUM_AI_OPERATOR_ONLY' | 'ADMINIUM_AI_OPERATOR_SCOPE' | 'ADMINIUM_AI_OPERATOR_BUDGET_TOKENS'>): OperatorAiRules {
-  return { only: env.ADMINIUM_AI_OPERATOR_ONLY, scope: env.ADMINIUM_AI_OPERATOR_SCOPE ?? null, budget: env.ADMINIUM_AI_OPERATOR_BUDGET_TOKENS ?? null };
+export function operatorAiRules(env: Pick<Env, 'ADMINIUM_AI_OPERATOR_ONLY' | 'ADMINIUM_AI_OPERATOR_SCOPE' | 'ADMINIUM_AI_OPERATOR_BUDGET_TOKENS' | 'ADMINIUM_TRIAL_MODE'>): OperatorAiRules {
+  return { only: env.ADMINIUM_AI_OPERATOR_ONLY, scope: env.ADMINIUM_AI_OPERATOR_SCOPE ?? null, budget: env.ADMINIUM_AI_OPERATOR_BUDGET_TOKENS ?? null, trial: env.ADMINIUM_TRIAL_MODE };
 }
 
 /** Whether this instance counts its operator's AI at all: any of the three variables set. */
@@ -76,14 +85,14 @@ export const countsOperatorAi = (rules: OperatorAiRules): boolean => rules.only 
 /** A call on the operator's connection past its budget: refused before it is made. */
 export class OperatorAiUsedUpError extends ProviderError {
   readonly operatorAi = 'used-up' as const;
-  constructor(provider: ProviderId) {
-    super({ provider, code: 'config', message: USED_UP_MESSAGE });
+  constructor(provider: ProviderId, message: string = USED_UP_MESSAGE) {
+    super({ provider, code: 'config', message });
   }
 }
 
 /** Whether an error is the operator's budget refusing a call, whichever kind of call it was. */
 export function isOperatorAiUsedUp(error: unknown): boolean {
-  return error instanceof OperatorAiUsedUpError || (error instanceof PictureError && error.message === USED_UP_MESSAGE);
+  return error instanceof OperatorAiUsedUpError || (error instanceof PictureError && (error.message === USED_UP_MESSAGE || error.message === USED_UP_MESSAGE_HERE));
 }
 
 export interface OperatorAiMeter {
@@ -111,6 +120,7 @@ const whole = (value: number): number => (Number.isFinite(value) && value > 0 ? 
 
 export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRules, opts: { now?: () => number } = {}): OperatorAiMeter {
   const now = opts.now ?? Date.now;
+  const usedUp = usedUpMessage(rules.trial === true);
   const counting = meta !== null && countsOperatorAi(rules);
   const tallies = meta === null ? null : operatorTalliesRepo(meta);
 
@@ -189,7 +199,7 @@ export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRule
         listModels: () => inner.listModels(),
         async complete(req) {
           const input = estimateTokens(req.system) + req.messages.reduce((sum, message) => sum + estimateTokens(message.content), 0);
-          const room = await reserve(input, req.maxTokens, () => new OperatorAiUsedUpError(inner.id));
+          const room = await reserve(input, req.maxTokens, () => new OperatorAiUsedUpError(inner.id, usedUp));
           let result: Awaited<ReturnType<ProviderClient['complete']>>;
           try {
             result = await inner.complete(room.most === req.maxTokens ? req : { ...req, maxTokens: Math.max(1, room.most) });
@@ -201,7 +211,7 @@ export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRule
           return result;
         },
         async test() {
-          const room = await reserve(PING_TOKENS, 0, () => new OperatorAiUsedUpError(inner.id));
+          const room = await reserve(PING_TOKENS, 0, () => new OperatorAiUsedUpError(inner.id, usedUp));
           try {
             return await inner.test();
           } finally {
@@ -214,7 +224,7 @@ export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRule
         metered.transcribe = async (req) => {
           // Speech is paid by its length; a reply that does not say how long is counted from the recording's size.
           const sent = (req.audio.byteLength / 4000) * SPEECH_TOKENS_PER_SECOND;
-          const room = await reserve(sent, 0, () => new OperatorAiUsedUpError(inner.id));
+          const room = await reserve(sent, 0, () => new OperatorAiUsedUpError(inner.id, usedUp));
           let heard: Awaited<ReturnType<typeof transcribe>>;
           try {
             heard = await transcribe(req);
@@ -234,7 +244,7 @@ export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRule
         id: inner.id,
         async run(req) {
           const input = estimateTokens(req.system) + estimateTokens(JSON.stringify(req.messages));
-          const room = await reserve(input, req.maxTokens, () => new OperatorAiUsedUpError(inner.id));
+          const room = await reserve(input, req.maxTokens, () => new OperatorAiUsedUpError(inner.id, usedUp));
           const maxTokens = Math.max(1, room.most);
           // What streamed, for a reply that is stopped: its words as they came, and a tool call's arguments (which do not
           // stream here) as all the reply could have been.
@@ -268,7 +278,7 @@ export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRule
         listModels: (signal) => inner.listModels(signal),
         async make(req) {
           const input = estimateTokens(req.prompt);
-          const room = await reserve(req.count * PICTURE_TOKENS + input, 0, () => new PictureError('billing', USED_UP_MESSAGE));
+          const room = await reserve(req.count * PICTURE_TOKENS + input, 0, () => new PictureError('billing', usedUp));
           let made: Awaited<ReturnType<PictureMaker['make']>>;
           try {
             made = await inner.make(req);

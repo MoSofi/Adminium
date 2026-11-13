@@ -38,7 +38,7 @@ import { DESIGNER_TOOL_NAMES } from '../src/designer/tool-types.js';
 import { exportZip } from '../src/export/zip-service.js';
 import { createAiEnv } from '../src/llm/ai-env.js';
 import { createAiConnections } from '../src/llm/connections.js';
-import { AI_TOKENS_TALLY, createOperatorAiMeter, OperatorAiUsedUpError, operatorAiRules, PICTURE_TOKENS, USED_UP_MESSAGE } from '../src/llm/operator-ai.js';
+import { AI_TOKENS_TALLY, createOperatorAiMeter, OperatorAiUsedUpError, operatorAiRules, PICTURE_TOKENS, USED_UP_MESSAGE, USED_UP_MESSAGE_HERE, usedUpMessage } from '../src/llm/operator-ai.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
@@ -105,6 +105,17 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await new Promise<void>((resolve) => model.close(() => resolve()));
+});
+
+describe('the used-up words', () => {
+  it('name the trial, with its Upgrade, in trial mode, and this installation on any other server', () => {
+    const env = { ADMINIUM_AI_OPERATOR_ONLY: false, ADMINIUM_AI_OPERATOR_SCOPE: undefined, ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: 1000 };
+    expect(usedUpMessage(operatorAiRules({ ...env, ADMINIUM_TRIAL_MODE: true }).trial === true)).toBe(USED_UP_MESSAGE);
+    expect(USED_UP_MESSAGE).toContain('this trial');
+    const elsewhere = usedUpMessage(operatorAiRules({ ...env, ADMINIUM_TRIAL_MODE: false }).trial === true);
+    expect(elsewhere).toBe(USED_UP_MESSAGE_HERE);
+    expect(elsewhere).not.toMatch(/trial|Upgrade/);
+  });
 });
 
 // ── the budget, at the client ────────────────────────────────────────────────
@@ -203,7 +214,8 @@ describe.each((['sqlite', 'postgres', 'mysql'] as EngineName[]).filter((engine) 
     const again = await connections(150);
     const assistant = await again.made.client('env:openai');
     await expect(assistant.client.complete({ system: 's', messages: [], model: 'gpt-test', maxTokens: 100, temperature: 0 })).rejects.toBeInstanceOf(OperatorAiUsedUpError);
-    await expect(assistant.client.transcribe!({ audio: new Uint8Array(10), mime: 'audio/webm' })).rejects.toThrow(USED_UP_MESSAGE);
+    // Not a trial: the words name this installation, with no Upgrade.
+    await expect(assistant.client.transcribe!({ audio: new Uint8Array(10), mime: 'audio/webm' })).rejects.toThrow(USED_UP_MESSAGE_HERE);
     await expect((await again.made.runner('env:openai', 'gpt-test')).runner.run({ system: 's', messages: [], tools: [], model: 'gpt-test', maxTokens: 10 })).rejects.toBeInstanceOf(OperatorAiUsedUpError);
     const maker = await again.made.pictureMaker('google', 'gemini-3.1-flash-image');
     await expect(maker.maker.make({ prompt: 'a loaf', model: 'm', shape: 'square', count: 1 })).rejects.toBeInstanceOf(PictureError);
