@@ -255,6 +255,7 @@ import { INTERRUPTED_ERROR } from './jobs/assistant-turn.js';
 import type { AssistantAddOn } from './assistant/types.js';
 import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
 import { trialPolicy } from './trial/policy.js';
+import { projectDotEnvValue } from './trial/project-env.js';
 import { createSizeCap, useStorageHold } from './trial/size-cap.js';
 import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
 import { createOperatorAiMeter, operatorAiRules } from './llm/operator-ai.js';
@@ -2926,8 +2927,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // Free pictures for an app's pages, in the picture dialog: Openverse, and Pexels, Unsplash and Pixabay with the project's own keys; none where this server calls nothing outside.
         const pictureKey = (name: PictureKeyName): string => {
           // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
+          // Nor is it under trial mode or the hosted profile (`trial/project-env.ts`).
           const host = hostModels();
-          return (host !== null ? (host.read()[name] ?? '') : (operatorSecret(name) ?? readDotEnv(root)?.[name] ?? '')).trim();
+          return (host !== null ? (host.read()[name] ?? '') : (operatorSecret(name) ?? projectDotEnvValue(app.trialPolicy, root, name) ?? '')).trim();
         };
         const pictureFetch = (url: string, fetchOpts: SafeFetchOptions) => safeFetch(url, { ...fetchOpts, ...(opts.pictureSeams ?? {}) });
         const pictureSources = (): PictureSource[] => {

@@ -11,7 +11,7 @@
  * then the hosted profile on the same meta store and data folder, as the
  * Upgrade recreates the container, on every meta-store engine.
  */
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -28,6 +28,7 @@ import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import type { HostLookup } from '../src/net/address-guard.js';
 import { ownCodeAllows } from '../src/trial/own-code.js';
+import { projectDotEnvValue } from '../src/trial/project-env.js';
 import { allowsIn, trialPolicy } from '../src/trial/policy.js';
 import { AVAILABLE, makeStore, type EngineName } from './archive.helpers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
@@ -284,6 +285,20 @@ describe('A3 own add-on and app uploads off, the Designer declarative only: kept
 });
 
 // ── A4 the operator's addresses and the origin lock; `noindex` dropped ─────
+
+describe('the project’s .env: not read, for a picture service’s key too', () => {
+  it('under the hosted profile and trial mode its key is not seen; an ordinary server reads it', async () => {
+    const folder = await mkdtemp(join(tmpdir(), 'hosted-dotenv-'));
+    try {
+      await writeFile(join(folder, '.env'), 'PEXELS_API_KEY=from-the-folder\n');
+      expect(projectDotEnvValue(trialPolicy(makeEnv(HOSTED)), folder, 'PEXELS_API_KEY')).toBeUndefined();
+      expect(projectDotEnvValue({ allows: () => ({ allowed: false, reason: 'trial-mode' }) }, folder, 'PEXELS_API_KEY')).toBeUndefined();
+      expect(projectDotEnvValue(trialPolicy(makeEnv({})), folder, 'PEXELS_API_KEY')).toBe('from-the-folder');
+    } finally {
+      await rm(folder, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('A4 the operator’s domains and the origin lock: kept; noindex: dropped', { timeout: 60_000 }, () => {
   const mapOwnDomain = async (store: MetaDb) => {
