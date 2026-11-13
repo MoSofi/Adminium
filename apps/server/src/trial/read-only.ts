@@ -41,14 +41,17 @@ export const READ_ONLY_ALLOWED: readonly string[] = [
   'POST /api/v1/export/zip',
   'POST /api/v1/exports/preview',
   'POST /api/v1/exports',
-  // Reads a page sends as a POST: widget data, files and links, drawn documents.
+  // Reads a page sends as a POST: widget data, files and links, a record's consent and payment panels, a
+  // campaign's recipient count. Each writes nothing. (Drawing a document is not one: it takes a number and
+  // stores the file. Settling a project file writes the server's pages or the project's files.)
   'POST /api/v1/widget-data/query',
   'POST /api/v1/widget-data/batch',
+  'POST /api/v1/widget-data/link-filters',
   'POST /api/v1/files/resolve',
-  'POST /api/v1/project/resolve',
-  'POST /api/v1/documents/render',
-  'POST /api/v1/apps/:key/documents/render',
-  'POST /api/v1/add-ons/:key/documents/render',
+  'POST /api/v1/consent/panel',
+  'POST /api/v1/payments/panel',
+  'POST /api/v1/payments/links/current',
+  'POST /api/v1/email-templates/:id/audience/preview',
   // The person's own display choices and their notifications marked read.
   'PATCH /api/v1/me/prefs',
   'POST /api/v1/me/notifications/:id/read',

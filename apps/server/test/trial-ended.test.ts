@@ -201,11 +201,31 @@ describe('a trial past its end date is read-only', { timeout: 60_000 }, () => {
     });
   }
 
+  it('answers the reads a record page sends as a POST', async () => {
+    const s = await serve(ENDED);
+    const record = { connectionId: '00000000-0000-0000-0000-000000000000', table: 'people', pk: '1' };
+    for (const url of ['/api/v1/consent/panel', '/api/v1/payments/panel', '/api/v1/payments/links/current']) {
+      const res = await s.call('POST', url, { payload: record });
+      expect(refusedAsEnded(res), `${url}: ${res.body}`).toBe(false);
+    }
+  });
+
+  it('refuses the POSTs that keep something: settling a project file, drawing a document', async () => {
+    const s = await serve(ENDED);
+    for (const url of ['/api/v1/project/resolve', '/api/v1/documents/render', '/api/v1/apps/crm/documents/render', '/api/v1/add-ons/crm/documents/render']) {
+      const res = await s.call('POST', url, { payload: {} });
+      expect(refusedAsEnded(res), `${url}: ${res.body}`).toBe(true);
+    }
+  });
+
   it('lists exactly the writes it keeps', () => {
     expect(writesWhenEnded('POST', '/api/v1/auth/login')).toBe(true);
     expect(writesWhenEnded('POST', '/api/v1/export/zip')).toBe(true);
-    expect(writesWhenEnded('POST', '/api/v1/apps/crm/documents/render')).toBe(true);
-    expect(writesWhenEnded('POST', '/api/v1/apps//documents/render')).toBe(false);
+    expect(writesWhenEnded('POST', '/api/v1/consent/panel')).toBe(true);
+    expect(writesWhenEnded('POST', '/api/v1/email-templates/tpl_1/audience/preview')).toBe(true);
+    expect(writesWhenEnded('POST', '/api/v1/email-templates//audience/preview')).toBe(false);
+    expect(writesWhenEnded('POST', '/api/v1/apps/crm/documents/render')).toBe(false);
+    expect(writesWhenEnded('POST', '/api/v1/project/resolve')).toBe(false);
     expect(writesWhenEnded('GET', '/api/v1/auth/login')).toBe(false);
     expect(writesWhenEnded('POST', '/api/v1/auth/login/more')).toBe(false);
     expect(writesWhenEnded('PATCH', '/api/v1/me')).toBe(false);
