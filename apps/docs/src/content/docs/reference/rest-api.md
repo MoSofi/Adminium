@@ -149,6 +149,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/payments/*` | 40 | Studio → Payments: connect a payment service with your own keys, choose the ways to pay and their rules, mark tables payable, set the pay page and make pay links. Setup changes need payments.manage and a signed-in person (never an API key); payments.view reads only. |
 | `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
+| `/api/v1/presence` | 1 | Someone is using this dashboard: an empty answer the dashboard asks for once a minute while its person is active, only where the operator set ADMINIUM_PRESENCE=on, for a proxy that counts any request as use |
 | `/api/v1/privacy/*` | 18 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address) and the sender’s postal address. Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
 | `/api/v1/project/*` | 11 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
 | `/api/v1/public/*` | 34 | The scoped public API for customer- and staff-facing pages (off by default) |
@@ -838,6 +839,12 @@ GET /api/v1/people
 
 ```http
 GET /api/v1/permissions/catalog
+```
+
+### `/presence`
+
+```http
+GET /api/v1/presence
 ```
 
 ### `/privacy`

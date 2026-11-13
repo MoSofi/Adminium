@@ -156,6 +156,9 @@ const DESCRIPTIONS = {
   'public-endpoints': 'Build the endpoints a key can be granted — source, columns, filters, methods and limits',
   'api-docs': 'The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off',
   permissions: 'The permission catalog every role is built from',
+  presence:
+    'Someone is using this dashboard: an empty answer the dashboard asks for once a minute while its person is ' +
+    'active, only where the operator set ADMINIUM_PRESENCE=on, for a proxy that counts any request as use',
   readyz: 'Readiness — per-dependency verdicts, 503 when a dependency is down',
   'report-documents':
     'Report templates and reports — the block documents behind the report builder, the starters, ' +
