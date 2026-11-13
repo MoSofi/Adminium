@@ -22,7 +22,7 @@ half-configured and fail later.
 | `ADMINIUM_SOURCE_POOL_MAX` | No | *(per pool: 10, schema reads 5; trial mode: 3)* | How many connections each pool opened against a source database may hold. Integer 1–100; at most 3 in trial mode. See below. |
 | `ADMINIUM_RATE_LIMIT_SCALE` | No | `1` | **Test servers only.** Multiplies every request limit. Integer 1–1000. Ignored when `NODE_ENV` is `production`. See below. |
 | `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
-| `ADMINIUM_SETUP_TOKEN` | No | *(derived from `ADMINIUM_SECRET`, printed at boot)* | The one-time token the first-run wizard asks for before it creates the first account. **Minimum 16 characters**, not counting spaces and dashes. See below. |
+| `ADMINIUM_SETUP_TOKEN` | In trial mode | *(derived from `ADMINIUM_SECRET`, printed at boot)* | The one-time token the first-run wizard asks for before it creates the first account. **Minimum 16 characters**, not counting spaces and dashes. See below. |
 | `ADMINIUM_DATA_DIR` | No | `./data`, or `~/.adminium` | Writable directory for files, exports, backups, installed apps and add-ons, and the embedded meta store. Put it on a persistent disk: a host that empties it on every deploy loses installed apps and add-ons, whatever else is configured. Docker and the desktop app set it for you. A CLI run that does not: `./data` when the working directory is a project (it holds a `package.json`, a `.git`, a `Dockerfile`, a `go.mod`…) or already holds an Adminium instance, and `~/.adminium` otherwise — so `npx @adminiumjs/adminium try` from a home directory leaves nothing behind in it. A service should always set it, since its working directory decides the default. |
 | `ADMINIUM_STORAGE_URL` | No | *(this server's disk)* | Where uploaded and generated files live. Seeded once, on a boot with no storage destination configured. See below. |
 | `AWS_ENDPOINT_URL_S3` | No | *(unset)* | S3-compatible endpoint. Read **only** by the first-boot storage seed, and only when `ADMINIUM_STORAGE_URL` is unset. See below. |
@@ -36,7 +36,7 @@ half-configured and fail later.
 | `ADMINIUM_STATIC_ROOT` | No | *(auto-detected)* | Serve the dashboard build from this directory instead of the auto-detected copy. |
 | `ADMINIUM_SURFACES_DIR` | No | *(unset)* | Directory of built app surfaces, served at `/apps/<app>/<side>/`. Unset means this instance hosts no apps. See below. |
 | `ADMINIUM_CSP_IMG_HOSTS` | No | *(unset)* | CSV of extra origins pictures may load from — for app data that links images hosted elsewhere. Named hosts only: **no bare `*`**, no scheme on its own. See below. |
-| `ADMINIUM_DATABASE_HOSTS` | No | *(unset)* | CSV of `host[:port]` database hosts a production server may reach on its own loopback, such as `localhost:5432` for a Postgres on the same server. Source databases only. See below. |
+| `ADMINIUM_DATABASE_HOSTS` | In trial and hosted mode | *(unset)* | CSV of `host[:port]` database hosts a production server may reach on its own loopback, such as `localhost:5432` for a Postgres on the same server. Source databases only. See below. |
 | `ADMINIUM_LOCAL_DATABASES` | No | `setting` | `setting` lets a super admin switch on *Allow databases on this server* in Studio's Server settings, for any database on this server's own loopback; `off` locks that switch off, so only `ADMINIUM_DATABASE_HOSTS` counts. See below. |
 | `ADMINIUM_SQLITE_DIRS` | No | *(unset)* | CSV of absolute folders a SQLite source database must lie in, such as `/srv/databases`. Unset means any file the server can open, except Adminium's own. See below. |
 | `ADMINIUM_STORAGE_DIRS` | No | *(unset)* | CSV of absolute folders a `local` storage destination must lie in, such as `/srv/files`. Unset means any folder, except Adminium's own. See below. |
@@ -47,7 +47,7 @@ half-configured and fail later.
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI, and the server asks adminium.dev for no list of add-ons or apps. |
 | `ADMINIUM_DEPLOY_LINK` | No | `on` | `off` hides **Put this online…**, a link to [adminium.dev/deploy](https://adminium.dev/deploy) in the user menu, on Studio's Export everything page and on About (and in the desktop app's Help menu). For an operator who offers their own hosting or rebrands. Only a link: nothing is fetched. |
 | `ADMINIUM_SUPABASE_CONNECT_URL` | No | *(unset)* | The `https://` address of an operator's connect service. Set, the connect wizards show **Connect Supabase** above the connection-string form, and the instance redeems a one-time code at `<address>/redeem`. **https only**, or the boot fails. Unset, nothing changes. See [Running Adminium for other people](/self-hosting/for-other-people/#8-connect-supabase). |
-| `ADMINIUM_TRIAL_MODE` | No | `off` | `on` runs a trial for someone else on your server: connections only to your host list, no own code, no outgoing calls but your mail relay, banners and size caps. Needs the four variables below, or the boot fails. See [Trial mode and the hosted profile](#trial-mode-and-the-hosted-profile). |
+| `ADMINIUM_TRIAL_MODE` | No | `off` | `on` runs a trial for someone else on your server: connections only to your host list, no code of their own, no outgoing calls of their choosing (mail goes through your relay), banners and size caps. Needs the four variables below, or the boot fails. See [Trial mode and the hosted profile](#trial-mode-and-the-hosted-profile). |
 | `ADMINIUM_TRIAL_ENDS_AT` | In trial mode | — | When the trial ends: a date and time **with its zone**, `2026-12-01T00:00:00Z`. |
 | `ADMINIUM_PUBLIC_ORIGIN` | In trial and hosted mode | *(unset)* | Your address for this instance, `https://shop.example.com`. One origin; `http://` only for this machine. Set on any server, the instance answers only on this host and `ADMINIUM_OPERATOR_DOMAINS` (any other `Host` gets 421), and links in email point here. See [Your addresses for the instance](#your-addresses-for-the-instance). |
 | `ADMINIUM_TRIAL_DATA_MAX_MB` | No | `500` | Trial mode: megabytes of live data per database on one of your hosts. |
@@ -198,6 +198,14 @@ Unset, Adminium falls back to an embedded SQLite store under
 there so the fallback can never be your production meta store by accident.
 
 The meta store's engine is independent of your source database's.
+
+At every start, before it connects, Adminium looks up each host the address
+names (a `host` or `hostaddr` parameter too): one that is, or resolves to, a
+cloud metadata address stops the boot. Loopback and your own network are fine,
+and a name that does not resolve yet is left to the driver, so a database
+container that starts a moment later is no refused boot. In trial mode and the
+hosted profile the address must also pass the
+[stricter check](#what-the-two-profiles-switch-off).
 
 → [Where to put the meta store](/self-hosting/meta-store/)
 
@@ -399,7 +407,13 @@ the entry to add:
 ```
 
 A database on a Docker network under its service name (`postgres:5432`) is on a
-private address, which Adminium allows today without this list. The desktop app,
+private address, which Adminium allows without this list under the default
+`ADMINIUM_NETWORK_POLICY=open`, and only with its entry under `strict`. In
+[trial mode and the hosted profile](#trial-mode-and-the-hosted-profile) the
+list is required and is the only way out: a source on a host not listed is
+refused wherever it is, on the internet too, and on a listed host that is not
+a Supabase project's only the user and database of `ADMINIUM_SOURCE_URL` may
+sign in. The desktop app,
 `adminium try`, and any server run without `NODE_ENV=production` allow loopback
 anyway: on your own computer a local database is the normal case.
 
@@ -970,8 +984,9 @@ ADMINIUM_OPERATOR_TOKEN=$(openssl rand -hex 32)
 ADMINIUM_OPERATOR_EVENTS_URL=https://control.example.com/instance-events
 ```
 
-- `https://…`, or `http://` only to a private address on your own network
-  (`http://10.0.0.5:8080/events`). No name or password in it. The cloud
+- `https://…`, or `http://` only to an address of your own network or this
+  machine, written as the address itself (`http://10.0.0.5:8080/events`), not
+  a host name. No user name or password in it. The cloud
   metadata address is refused when it is dialled, whatever the name resolves to.
 - Needs `ADMINIUM_OPERATOR_TOKEN`: every event is signed with it, and the URL
   without it stops the boot. The token does not need `ADMINIUM_OPERATOR_LISTEN`
@@ -997,10 +1012,14 @@ makes and the retries:
 
 For an operator who runs Adminium for other people: a trial for a stranger
 (`ADMINIUM_TRIAL_MODE=on`), or a paid installation on the same server
-(`ADMINIUM_HOSTED_MODE=on`). Both are set by the environment only: no setting
-switches them off, and a project's `.env` cannot set any of these variables. In
-trial mode and the hosted profile the project's `.env` is not read at all. Pass
-them through the Docker API's `Env` array, never an env file built from user input.
+(`ADMINIUM_HOSTED_MODE=on`). What each switches off, why, and what is left for
+you to do on your own servers:
+[Run Adminium for other people](/self-hosting/for-other-people/#10-trial-mode-a-trial-for-a-stranger).
+
+Both are set by the server's environment only: no setting switches them off,
+and no route writes them. Under either, the project's `.env` is not read at
+all, and its config cannot set any trial or operator variable. Pass them
+through the Docker API's `Env` array, never an env file built from user input.
 
 A trial boot fails without `ADMINIUM_TRIAL_ENDS_AT`, `ADMINIUM_SETUP_TOKEN`,
 `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`; a hosted boot without
@@ -1015,8 +1034,12 @@ the last two. Either fails on a value that contradicts it:
 | `ADMINIUM_STORAGE_URL`, `AWS_ENDPOINT_URL_S3` | Files stay in the data folder. |
 | `ADMINIUM_TELEMETRY=on`, `ADMINIUM_MAP_SERVER`, `ADMINIUM_ROUTING_SERVER` (not `off`) | Trial mode only: a trial calls nothing but yours. |
 
-A control character in any of these variables fails the boot too, and a
-trial variable (`ADMINIUM_TRIAL_*`) set without trial mode does. Saying what a
+A control character fails the boot too: on any server, in a trial, hosted,
+operator or start prompt variable; under either profile, also in every other
+variable the operator decides (the host list, the folders, the network policy,
+the setup token, the deploy link, Connect Supabase). So does a trial variable
+(`ADMINIUM_TRIAL_*`) set without trial mode, and in a trial
+`ADMINIUM_SOURCE_POOL_MAX` above 3. Saying what a
 profile implies is fine: `ADMINIUM_NETWORK_POLICY=strict` passes. What a profile
 implies is enforced whatever the variable holds, so Studio shows those settings
 read-only, marked **Set by the operator**.
@@ -1024,24 +1047,12 @@ read-only, marked **Set by the operator**.
 ### What the two profiles switch off
 
 Each refusal is a `403` with the code `OFF_BY_OPERATOR` and
-`details: { question, reason }` (`reason` is `trial-mode` or `hosted-mode`), so
-the dashboard says what is off in the person's language. Every screen that
-offers one of these shows it disabled with that reason, never hidden.
-
-| What | Trial | Hosted |
-|---|---|---|
-| A source database not on `ADMINIUM_DATABASE_HOSTS` (a MySQL source passes only through an entry that takes MySQL's port) | Off | Off |
-| A SQLite file as a source, on every way in, the desktop's "Create a new local database" included | Off | Off |
-| On a listed host that is not a Supabase project (`*.supabase.com`, `*.supabase.co`), any login but the user and database of `ADMINIUM_SOURCE_URL`. Set it even when the installation runs as a project: it is the one login allowed there. Unset, no login on your hosts is | Off | Off |
-| More than 10 database connection tests a minute, counted for the whole installation (`429 RATE_LIMITED`) | Off | Off |
-| `POST /meta/relocate`, `/setup/probe`, `/setup/adopt` (the setup token does not open them) | Off | Off |
-| Storage destinations other than the default local one: adding, testing, changing, making default, moving files out | Off | Off |
-| The automation webhook step and Slack message, at the save and at the run | Off | On |
-| Network calls of every add-on, declared hosts included | Off | On |
-| Payment services | Off | On |
-| The Designer's picture search and Figma | Off | On |
-| An AI address of the person's own (`llm.baseUrl`, shown read-only), and the OpenAI-compatible and Ollama providers; their own key to Anthropic, OpenAI or Google stays | Off | On |
-| Maps, routing, telemetry and the update check (see the table above) | Off | On |
+`details: { question, reason }` (`reason` is `trial-mode`, `hosted-mode`,
+`trial-ended` or `size-cap`), so the dashboard says what is off in the
+person's language, except where the table of switches names another answer.
+Every screen that offers one of these shows it disabled with that reason, never
+hidden. The table, with the trial's and the hosted profile's answer for each:
+[What it switches off, and why](/self-hosting/for-other-people/#what-it-switches-off-and-why).
 
 The meta store's own address is checked at every boot: on every install, a
 host in `ADMINIUM_META_URL` (or in the address a move wrote to `adminium.json`)
@@ -1167,49 +1178,14 @@ With `ADMINIUM_PUBLIC_ORIGIN` or `ADMINIUM_OPERATOR_DOMAINS` set, on any server:
 server, typically a trial after its Upgrade. Its Super Admin is still somebody
 else on your machine and your network, so the profile keeps what would let
 their code or their connections reach you, and drops what only limits a free
-trial.
+trial: the end date, the banners, the Upgrade button, the size caps and the
+pools of 3, `noindex`, mail only through your relay, and the outgoing calls of
+trial mode. It needs `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`;
+no end date and no setup token. Every `ADMINIUM_TRIAL_*` variable left set
+fails its boot.
 
-| | Hosted profile |
-|---|---|
-| The host list, the login of `ADMINIUM_SOURCE_URL` on your hosts, no SQLite source, one budget of connection tests, `strict`, databases on this server off, the meta store fixed | Kept |
-| Files only in the data folder, no other storage destination | Kept |
-| No add-on or app uploads; the Designer builds with the manifest, pages and screens only, never hooks, actions, build code or packages; the project's `.env` not read | Kept |
-| Answering only on its own addresses (421), the address in email links, mapped domains from your list | Kept |
-| The [operator endpoint](/self-hosting/operator-endpoint/) and hiding the public pages | Kept, when you set its two variables |
-| The boot refusals in the table at the top of this section | Kept, except telemetry, maps and routing, which are yours to switch on |
-| The end date, the banners, the Upgrade button, read-only after the end | Dropped |
-| The size caps and the pools of 3 | Dropped: your own quotas on the database server and the volume stay yours to set |
-| `noindex` and the disallowing `robots.txt` | Dropped |
-| Mail only through your relay | Dropped: the Super Admin sets their own mail server in **Studio → Settings → Email** |
-| Webhooks, add-on network calls, payment services and pay pages, the Designer's picture search and Figma, telemetry and the update check | Back on. Webhooks and storage still refuse your private network (`strict`) |
-| AI only on your connection | Dropped: an AI address of their own comes back. Set `ADMINIUM_AI_OPERATOR_ONLY=on` to keep the rule: the `ADMINIUM_AI_OPERATOR_*` variables work here as on any server |
-
-**What you set.** `ADMINIUM_HOSTED_MODE=on`, `ADMINIUM_PUBLIC_ORIGIN` and
-`ADMINIUM_DATABASE_HOSTS` (the boot fails without them), `ADMINIUM_SOURCE_URL`
-for the one login on your database hosts, and the instance's own random
-`ADMINIUM_SECRET`. As you need them: `ADMINIUM_OPERATOR_DOMAINS` for the
-domains you verified, `ADMINIUM_OPERATOR_TOKEN` with `ADMINIUM_OPERATOR_LISTEN`
-for the operator endpoint, and `ADMINIUM_DEPLOY_LINK=off` if you offer the
-hosting yourself (the profile does not hide that link for you). No end date and
-no setup token are needed.
-
-**What changes at the Upgrade.** Recreate the container on the same meta store,
-the same data folder and the same `ADMINIUM_SECRET`, with
-`ADMINIUM_HOSTED_MODE=on` in place of `ADMINIUM_TRIAL_MODE=on`:
-
-- remove every `ADMINIUM_TRIAL_*` variable, `ADMINIUM_TRIAL_SMTP_URL` included.
-  A hosted boot with one left fails and names it, so no old end date or relay
-  carries over;
-- keep `ADMINIUM_PUBLIC_ORIGIN`, `ADMINIUM_DATABASE_HOSTS`, `ADMINIUM_SOURCE_URL`,
-  `ADMINIUM_OPERATOR_DOMAINS`, the operator endpoint's variables and
-  `ADMINIUM_DEPLOY_LINK`. Raise `ADMINIUM_SOURCE_POOL_MAX` past 3 if you like;
-- everything in the meta store comes along: people, pages, connections,
-  settings, mapped domains. The end date and the size caps were never stored,
-  so the installation takes writes again from its first request;
-- a hide you set on the public pages through the operator endpoint stays until
-  you lift it;
-- telemetry and the update check stay off until the Super Admin switches them
-  on, and no mail goes out until they set their own mail server.
+What it keeps and drops, switch by switch, and the Upgrade from a trial:
+[A paid installation: the hosted profile](/self-hosting/for-other-people/#12-a-paid-installation-the-hosted-profile).
 
 ## The desktop block
 

@@ -17,8 +17,10 @@
  * the dashboard translates ("Set by the operator", "Read-only: this trial has
  * ended"), null when allowed. A hook is one call, so grep finds every one:
  *
- *   const answer = app.trialPolicy.allows('webhooks');
- *   if (!answer.allowed) throw new AppError(403, 'FORBIDDEN', '…', { reason: answer.reason });
+ *   refuseUnlessAllowed(app.trialPolicy, 'webhooks', 'Webhooks are off on this server.');
+ *
+ * which throws 403 `OFF_BY_OPERATOR` with `details: { question, reason }`
+ * (`trial/refuse.ts`).
  *
  * T10 defines the questions; each switch's task wires its hook and its test.
  * The question set is the plan's, so a later task adds a hook,

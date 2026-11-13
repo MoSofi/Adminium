@@ -215,7 +215,10 @@ never a cloud metadata address, whether it is typed or a name answers with
 one. A name that does not resolve gets `Could not look up <host>` (502). A
 database on this server (`localhost`) or on the server's own network is fine. A SQLite file chosen there must be inside `ADMINIUM_DATA_DIR`, written
 without `..`, and not through a link that leads out of it. To keep the store
-anywhere else, set `ADMINIUM_META_URL`; that value is yours and is not checked.
+anywhere else, set `ADMINIUM_META_URL`; that value is yours, and at each start
+only its host is checked: one that is, or resolves to, a cloud metadata
+address stops the boot. (In trial mode and the hosted profile it must also
+pass every check a typed one does: [trial mode](/self-hosting/for-other-people/#databases-the-host-list-and-one-login).)
 
 ## Accounts
 
