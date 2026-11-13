@@ -78,6 +78,17 @@ describe('the first-run wizard', () => {
     expect(onChange).not.toHaveBeenCalledWith(expect.objectContaining({ engine: 'sqlite' }));
   });
 
+  it('in trial mode: the reason stays up while SQLite holds focus, through the click an arrow key gives it, and Esc closes it', async () => {
+    renderStep(true);
+    const card = screen.getByRole('radio', { name: /SQLite/ });
+    // The radio group focuses the item an arrow key lands on, then clicks it; a plain tooltip closes on that click.
+    fireEvent.focus(card);
+    fireEvent.click(card);
+    expect((await screen.findAllByRole('tooltip')).some((tip) => tip.textContent?.includes(SQLITE_REASON))).toBe(true);
+    fireEvent.keyDown(card, { key: 'Escape' });
+    await vi.waitFor(() => expect(screen.queryAllByRole('tooltip')).toHaveLength(0));
+  });
+
   it('in trial mode: a SQLite string typed in is refused in the field with the same reason', () => {
     renderStep(true, vi.fn(), 'sqlite:/var/lib/app.db');
     expect(screen.getAllByText(SQLITE_REASON).length).toBeGreaterThan(0);

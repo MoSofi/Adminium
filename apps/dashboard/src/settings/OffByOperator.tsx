@@ -18,7 +18,7 @@
  * lazy, so none of them reaches the entry chunk.
  */
 import { QueryClient, QueryClientContext, useQuery } from '@tanstack/react-query';
-import { useContext, type ReactNode } from 'react';
+import { useContext, useRef, useState, type ReactNode } from 'react';
 import { Tooltip } from '@adminium/ui';
 
 import { ApiError } from '../app/api.js';
@@ -141,8 +141,32 @@ export function useOperatorSwitch(name: OperatorSwitchName): { off: boolean; rea
 
 /** A control the operator switched off: the shared Tooltip with the reason, around a child that carries `aria-disabled`. */
 export function OffByOperatorTip({ off, reason, children }: { off: boolean; reason: string; children: ReactNode }): ReactNode {
+  const [open, setOpen] = useState(false);
+  const focused = useRef(false);
   if (!off) return children;
-  return <Tooltip content={reason}>{children}</Tooltip>;
+  // Open for as long as the choice holds focus. A radio group "clicks" the item an arrow key lands on, and a
+  // tooltip closes on a click, so a keyboard user would otherwise lose the reason as soon as it showed. Esc
+  // still closes it.
+  return (
+    <span
+      className="contents"
+      onFocus={() => {
+        focused.current = true;
+        setOpen(true);
+      }}
+      onBlur={() => {
+        focused.current = false;
+        setOpen(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setOpen(false);
+      }}
+    >
+      <Tooltip content={reason} open={open} onOpenChange={(next) => (next || !focused.current ? setOpen(next) : undefined)}>
+        {children}
+      </Tooltip>
+    </span>
+  );
 }
 
 /** The line under a switched-off choice: the chip and the reason, for touch and for `aria-describedby`. */
