@@ -32,7 +32,7 @@ export interface PublicFile {
   sha256: string;
   /** The file's text, for a text file within the limits. */
   text?: string;
-  /** True when the text stops short of the file. */
+  /** A text file whose text stops short of the file, or is left out because the budget was spent. */
   truncated?: boolean;
 }
 
@@ -41,7 +41,7 @@ export interface PublicSide {
   /** Where it is served: `/apps/<key>/customer/`. */
   path: string;
   files: PublicFile[];
-  /** True when the side holds more files than are listed. */
+  /** True when the side holds more than is sent: more files than are listed, or a file's text cut short or left out. */
   truncated: boolean;
 }
 
@@ -68,6 +68,12 @@ export interface PublicContentDeps {
     find(slug: string): Promise<{ state: string; live?: { addOn: string; form: unknown } }>;
   } | null;
   now?: () => number;
+}
+
+/** An HTML page: its text is read before any other file's. */
+function isPage(path: string): boolean {
+  const ext = extname(path).toLowerCase();
+  return ext === '.html' || ext === '.htm';
 }
 
 async function filesOf(root: string): Promise<{ paths: string[]; truncated: boolean }> {
@@ -100,9 +106,11 @@ export async function buildPublicContent(deps: PublicContentDeps): Promise<Publi
   const sides: PublicSide[] = [];
   const customer = deps.surfaces().filter((surface) => surface.side === 'customer');
   for (const surface of [...customer].sort((a, b) => a.appKey.localeCompare(b.appKey))) {
-    const { paths, truncated } = await filesOf(surface.root);
+    const listed = await filesOf(surface.root);
+    let truncated = listed.truncated;
     const files: PublicFile[] = [];
-    for (const path of paths) {
+    // The pages first: the budget is spent on what a stranger is shown before the files it loads.
+    for (const path of [...listed.paths].sort((a, b) => Number(!isPage(a)) - Number(!isPage(b)))) {
       let bytes: Buffer;
       try {
         if (!(await lstat(path)).isFile()) continue;
@@ -111,14 +119,19 @@ export async function buildPublicContent(deps: PublicContentDeps): Promise<Publi
         continue;
       }
       const file: PublicFile = { path: relative(surface.root, path).split(sep).join('/'), bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
-      if (TEXT_EXTENSIONS.has(extname(path).toLowerCase()) && textLeft > 0) {
+      if (TEXT_EXTENSIONS.has(extname(path).toLowerCase())) {
         const take = Math.min(bytes.length, PUBLIC_CONTENT_FILE_TEXT_MAX, textLeft);
-        file.text = bytes.subarray(0, take).toString('utf8');
+        if (take > 0 || bytes.length === 0) file.text = bytes.subarray(0, take).toString('utf8');
         textLeft -= take;
-        if (take < bytes.length) file.truncated = true;
+        // Cut short, or left out once the budget is spent: said, never silent.
+        if (take < bytes.length) {
+          file.truncated = true;
+          truncated = true;
+        }
       }
       files.push(file);
     }
+    files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
     sides.push({ appKey: surface.appKey, path: `${surface.prefix}/`, files, truncated });
   }
   const forms: PublicForm[] = [];

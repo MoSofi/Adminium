@@ -170,8 +170,10 @@ crawl a page could cloak:
 
 - `sides`: every app's customer side, each file with its size and hash, and the
   text of a text file (HTML, CSS, JavaScript, JSON, SVG, plain text): up to
-  512 KiB of one file (`truncated: true` past it) and 16 MiB in all. Up to
-  5,000 files a side.
+  512 KiB of one file and 16 MiB in all, the HTML pages read first. A text
+  file cut short, or left without its text once the 16 MiB are spent, says
+  `truncated: true`, and so does its side. Up to 5,000 files a side (the side
+  says `truncated: true` past that too).
 - `forms`: every live form, with its published definition: its fields and the
   words a stranger reads.
 

