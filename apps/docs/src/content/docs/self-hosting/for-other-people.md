@@ -141,6 +141,14 @@ Your client can download **Export everything** from Studio themselves. On a
 server without a terminal, `adminium import-zip` needs `--owner <email>` when
 the file holds more than one super admin.
 
+To check that a copy starts before you delete the original (a data folder
+copied to another server, say), start the copy once with
+`ADMINIUM_SCHEDULER=off`, wait for `GET /api/v1/readyz`, then stop it. With the
+switch off, no schedule ticks and no queued job runs: the reports,
+automations, mail and [events](#9-read-its-totals-and-hide-its-public-pages)
+that are due wait in the copy's queue, so none runs on the copy and again on
+the original. Never leave it off on an instance people use.
+
 → [Back up and move an instance](/self-hosting/archive/) ·
 [Export everything from Studio](/self-hosting/export-everything/)
 

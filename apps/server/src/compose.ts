@@ -1613,6 +1613,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const jobs = await registerJobsAndRealtime(app, {
     meta,
     documents,
+    // `ADMINIUM_SCHEDULER=off`: neither the schedules nor the queue run, so a copy started once to check it
+    // runs nothing that is due (it would run again on the original).
+    startScheduler: env.ADMINIUM_SCHEDULER,
+    startWorker: env.ADMINIUM_SCHEDULER,
     resolveUser: (req) => req.user ?? null,
     // Registers the export-run / import-run / report-run handlers on the shared
     // registry — the same instances the exports/imports routes receive below.

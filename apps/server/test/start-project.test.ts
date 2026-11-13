@@ -310,6 +310,7 @@ describe('the variables a folder does not decide', () => {
     'ADMINIUM_STORAGE_DIRS',
     'ADMINIUM_ARCHIVE_KEY',
     'ADMINIUM_DEPLOY_LINK',
+    'ADMINIUM_SCHEDULER',
   ];
 
   it('holds each operator setting once', () => {

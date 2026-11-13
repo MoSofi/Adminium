@@ -81,7 +81,15 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_TRIAL_STORAGE_MAX_MB: 1000,
       ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY: 50,
       ADMINIUM_AI_OPERATOR_ONLY: false,
+      // Due jobs run unless an operator says otherwise.
+      ADMINIUM_SCHEDULER: true,
     });
+  });
+
+  it('reads ADMINIUM_SCHEDULER as an on/off switch', () => {
+    const env = loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_SCHEDULER: 'off' }, makeStderr());
+    expect(env.ADMINIUM_SCHEDULER).toBe(false);
+    expect(() => loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_SCHEDULER: 'paused' }, makeStderr())).toThrow();
   });
 
   it('rejects a boot token that is not 32 bytes of hex', () => {
