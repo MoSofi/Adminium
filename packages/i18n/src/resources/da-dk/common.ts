@@ -2208,7 +2208,16 @@ export default {
     "ownBuilds": "Operatøren har slået egne builds fra for denne installation.",
     "designerNetwork": "Operatøren har slået billedsøgning og Figma fra for denne installation.",
     "userMail": "Denne prøveperiode er slut, så denne installation sender ikke flere e-mails.",
-    "testBudget": "Denne installation har testet {limit} databaseforbindelser i det seneste minut. Vent {seconds, plural, one {# sekund} other {# sekunder}}, og prøv igen."
+    "testBudget": "Denne installation har testet {limit} databaseforbindelser i det seneste minut. Vent {seconds, plural, one {# sekund} other {# sekunder}}, og prøv igen.",
+    "payPages": "Operatøren har slået betalingssider fra for denne installation.",
+    "paymentWebhooks": "Operatøren lader ikke betalingstjenester kalde denne installation.",
+    "mappedDomains": "Kun de domæner, operatøren har angivet, kan pege på denne installation.",
+    "marketingCampaigns": "Operatøren har slået marketingkampagner fra for denne installation.",
+    "liftMailHold": "På denne installation bliver dagens bounces og spamrapporter på listen over adresser, der ikke må mailes, indtil i morgen.",
+    "customerScreens": "Den AI, der følger med denne installation, bygger kun dashboards. Skærme til kunder kræver din egen AI-nøgle.",
+    "reasonOperatorAiOnly": "På denne installation kører AI på operatørens forbindelse, medmindre du tilføjer din egen nøgle til Anthropic, OpenAI eller Google.",
+    "reasonOperatorAiScope": "Den AI, der følger med denne installation, bygger kun dashboards.",
+    "reasonNotAllowed": "Operatøren tillader ikke dette på denne installation."
   },
   "trial": {
     "testEnvironment": "Dette er et testmiljø. Indtast venligst ikke rigtige kundedata.",

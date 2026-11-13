@@ -2208,7 +2208,16 @@ export default {
     "ownBuilds": "运营方已为此安装关闭自定义构建。",
     "designerNetwork": "运营方已为此安装关闭图片搜索和 Figma。",
     "userMail": "此试用已结束，因此此安装不再发送电子邮件。",
-    "testBudget": "此安装在过去一分钟内测试了 {limit} 个数据库连接。请等待 {seconds, plural, other {# 秒}}后重试。"
+    "testBudget": "此安装在过去一分钟内测试了 {limit} 个数据库连接。请等待 {seconds, plural, other {# 秒}}后重试。",
+    "payPages": "运营方已为此安装关闭付款页面。",
+    "paymentWebhooks": "运营方不允许支付服务调用此安装。",
+    "mappedDomains": "只有运营方列出的域名才能指向此安装。",
+    "marketingCampaigns": "运营方已为此安装关闭营销活动。",
+    "liftMailHold": "在此安装上，今天的退信和垃圾邮件举报会保留在“勿发邮件”列表中，直到明天。",
+    "customerScreens": "此安装自带的 AI 只构建仪表板。面向客户的界面需要你自己的 AI 密钥。",
+    "reasonOperatorAiOnly": "在此安装上，AI 通过运营方的连接运行，除非你添加自己的 Anthropic、OpenAI 或 Google 密钥。",
+    "reasonOperatorAiScope": "此安装自带的 AI 只构建仪表板。",
+    "reasonNotAllowed": "运营方不允许在此安装上这样做。"
   },
   "trial": {
     "testEnvironment": "这是一个测试环境。请不要输入真实的客户数据。",

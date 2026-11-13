@@ -1482,7 +1482,16 @@ export default {
     "ownBuilds": "The operator has switched builds of your own off for this installation.",
     "designerNetwork": "The operator has switched picture search and Figma off for this installation.",
     "userMail": "This trial has ended, so this installation sends no more email.",
-    "testBudget": "This installation has tested {limit} database connections in the last minute. Wait {seconds, plural, one {# second} other {# seconds}} and try again."
+    "testBudget": "This installation has tested {limit} database connections in the last minute. Wait {seconds, plural, one {# second} other {# seconds}} and try again.",
+    "payPages": "The operator has switched pay pages off for this installation.",
+    "paymentWebhooks": "The operator does not let payment services call this installation.",
+    "mappedDomains": "Only the domains the operator listed can point to this installation.",
+    "marketingCampaigns": "The operator has switched marketing campaigns off for this installation.",
+    "liftMailHold": "On this installation, today’s bounces and spam reports stay on the do-not-email list until tomorrow.",
+    "customerScreens": "The AI that comes with this installation builds dashboards only. Screens for customers need your own AI key.",
+    "reasonOperatorAiOnly": "On this installation, AI runs on the operator’s connection unless you add your own key to Anthropic, OpenAI or Google.",
+    "reasonOperatorAiScope": "The AI that comes with this installation builds dashboards only.",
+    "reasonNotAllowed": "The operator does not allow this on this installation."
   },
   "board": {
     "addCard": "Add card",

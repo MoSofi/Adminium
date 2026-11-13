@@ -282,7 +282,10 @@ export default {
       "atTable": "Tabel {field}",
       "empty": "Et navn er påkrævet.",
       "identifier": "Brug små bogstaver, tal og understregninger, og start med et bogstav.",
-      "tooLong": "For langt — {dialect} tillader {max} tegn."
+      "tooLong": "For langt — {dialect} tillader {max} tegn.",
+      "unsafeDefault": "Dette standardudtryk kan ikke bruges: det indeholder et semikolon, en kommentar, en omvendt skråstreg, et dollartegn eller et åbent anførselstegn eller en åben parentes. Ret det, og prøv igen.",
+      "unsafeType": "Denne kolonnetype kan ikke bruges: den indeholder mere end en type, fx et semikolon, en kommentar, en begrænsning eller et åbent anførselstegn eller en åben parentes. Ret den, og prøv igen.",
+      "unsafeCheck": "Denne kontrol kan ikke bruges: den indeholder et semikolon, en kommentar, en omvendt skråstreg, et dollartegn eller et åbent anførselstegn eller en åben parentes. Ret den, og prøv igen."
     },
     "existing": "Eksisterende tabeller",
     "hazard": {

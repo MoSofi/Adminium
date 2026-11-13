@@ -2208,7 +2208,16 @@ export default {
     "ownBuilds": "Provozovatel pro tuto instalaci vypnul vlastní sestavení.",
     "designerNetwork": "Provozovatel pro tuto instalaci vypnul hledání obrázků a Figmu.",
     "userMail": "Tato zkušební verze skončila, tato instalace proto už neposílá e-maily.",
-    "testBudget": "Tato instalace za poslední minutu otestovala {limit} připojení k databázím. Počkejte {seconds, plural, one {# sekundu} few {# sekundy} many {# sekundy} other {# sekund}} a zkuste to znovu."
+    "testBudget": "Tato instalace za poslední minutu otestovala {limit} připojení k databázím. Počkejte {seconds, plural, one {# sekundu} few {# sekundy} many {# sekundy} other {# sekund}} a zkuste to znovu.",
+    "payPages": "Provozovatel pro tuto instalaci vypnul platební stránky.",
+    "paymentWebhooks": "Provozovatel nedovoluje platebním službám volat tuto instalaci.",
+    "mappedDomains": "Na tuto instalaci mohou ukazovat jen domény, které provozovatel uvedl.",
+    "marketingCampaigns": "Provozovatel pro tuto instalaci vypnul marketingové kampaně.",
+    "liftMailHold": "V této instalaci zůstávají dnešní nedoručené zprávy a hlášení spamu na seznamu „neposílat e-maily“ až do zítřka.",
+    "customerScreens": "AI dodávaná s touto instalací vytváří jen přehledy. Obrazovky pro zákazníky potřebují váš vlastní klíč k AI.",
+    "reasonOperatorAiOnly": "V této instalaci běží AI přes připojení provozovatele, pokud nepřidáte vlastní klíč k Anthropic, OpenAI nebo Google.",
+    "reasonOperatorAiScope": "AI dodávaná s touto instalací vytváří jen přehledy.",
+    "reasonNotAllowed": "Provozovatel to v této instalaci nepovoluje."
   },
   "trial": {
     "testEnvironment": "Toto je testovací prostředí. Nezadávejte sem prosím skutečná data zákazníků.",

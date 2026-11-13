@@ -7155,6 +7155,10 @@
     "status": "mt",
     "srcHash": "16f1e8cfae3e"
   },
+  "common.operatorSwitches.customerScreens": {
+    "status": "mt",
+    "srcHash": "194ec943fae1"
+  },
   "common.operatorSwitches.dataOverCap": {
     "status": "mt",
     "srcHash": "ae967bb7701f"
@@ -7175,6 +7179,18 @@
     "status": "mt",
     "srcHash": "7ebc8820080a"
   },
+  "common.operatorSwitches.liftMailHold": {
+    "status": "mt",
+    "srcHash": "8de70757c288"
+  },
+  "common.operatorSwitches.mappedDomains": {
+    "status": "mt",
+    "srcHash": "bcef9d5a0871"
+  },
+  "common.operatorSwitches.marketingCampaigns": {
+    "status": "mt",
+    "srcHash": "035b3397dc2d"
+  },
   "common.operatorSwitches.metaFixed": {
     "status": "mt",
     "srcHash": "4b8aadd6bbc4"
@@ -7191,9 +7207,29 @@
     "status": "mt",
     "srcHash": "22a78a2eccbd"
   },
+  "common.operatorSwitches.payPages": {
+    "status": "mt",
+    "srcHash": "fa9f2cdf6568"
+  },
+  "common.operatorSwitches.paymentWebhooks": {
+    "status": "mt",
+    "srcHash": "74b706e9bcd1"
+  },
   "common.operatorSwitches.payments": {
     "status": "mt",
     "srcHash": "83c594e4c14a"
+  },
+  "common.operatorSwitches.reasonNotAllowed": {
+    "status": "mt",
+    "srcHash": "e938667e75c1"
+  },
+  "common.operatorSwitches.reasonOperatorAiOnly": {
+    "status": "mt",
+    "srcHash": "59b31e69a090"
+  },
+  "common.operatorSwitches.reasonOperatorAiScope": {
+    "status": "mt",
+    "srcHash": "b351c0511afd"
   },
   "common.operatorSwitches.sizeCapLimit": {
     "status": "mt",
@@ -27118,6 +27154,18 @@
   "studio.design.error.tooLong": {
     "status": "mt",
     "srcHash": "e82f9077f2ac"
+  },
+  "studio.design.error.unsafeCheck": {
+    "status": "mt",
+    "srcHash": "6eedd059337c"
+  },
+  "studio.design.error.unsafeDefault": {
+    "status": "mt",
+    "srcHash": "5faa77ddd1a2"
+  },
+  "studio.design.error.unsafeType": {
+    "status": "mt",
+    "srcHash": "14c2841941f3"
   },
   "studio.design.existing": {
     "status": "mt",

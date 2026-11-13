@@ -2208,7 +2208,16 @@ export default {
     "ownBuilds": "Der Betreiber hat eigene Builds für diese Installation ausgeschaltet.",
     "designerNetwork": "Der Betreiber hat die Bildersuche und Figma für diese Installation ausgeschaltet.",
     "userMail": "Dieser Test ist beendet, daher sendet diese Installation keine E-Mails mehr.",
-    "testBudget": "Diese Installation hat in der letzten Minute {limit} Datenbankverbindungen getestet. Warten Sie {seconds, plural, one {# Sekunde} other {# Sekunden}} und versuchen Sie es erneut."
+    "testBudget": "Diese Installation hat in der letzten Minute {limit} Datenbankverbindungen getestet. Warten Sie {seconds, plural, one {# Sekunde} other {# Sekunden}} und versuchen Sie es erneut.",
+    "payPages": "Der Betreiber hat Bezahlseiten für diese Installation ausgeschaltet.",
+    "paymentWebhooks": "Der Betreiber lässt Zahlungsdienste diese Installation nicht aufrufen.",
+    "mappedDomains": "Nur die Domains, die der Betreiber aufgeführt hat, können auf diese Installation zeigen.",
+    "marketingCampaigns": "Der Betreiber hat Marketingkampagnen für diese Installation ausgeschaltet.",
+    "liftMailHold": "In dieser Installation bleiben die heutigen Bounces und Spam-Meldungen bis morgen auf der Nicht-anschreiben-Liste.",
+    "customerScreens": "Die KI, die mit dieser Installation kommt, baut nur Dashboards. Für Kundenseiten brauchst du deinen eigenen KI-Schlüssel.",
+    "reasonOperatorAiOnly": "In dieser Installation läuft KI über die Verbindung des Betreibers, außer du fügst deinen eigenen Schlüssel für Anthropic, OpenAI oder Google hinzu.",
+    "reasonOperatorAiScope": "Die KI, die mit dieser Installation kommt, baut nur Dashboards.",
+    "reasonNotAllowed": "Der Betreiber erlaubt das in dieser Installation nicht."
   },
   "trial": {
     "testEnvironment": "Dies ist eine Testumgebung. Bitte geben Sie keine echten Kundendaten ein.",

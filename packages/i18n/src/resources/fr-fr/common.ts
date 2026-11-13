@@ -2208,7 +2208,16 @@ export default {
     "ownBuilds": "L’opérateur a désactivé les builds personnels pour cette installation.",
     "designerNetwork": "L’opérateur a désactivé la recherche d’images et Figma pour cette installation.",
     "userMail": "Cet essai est terminé : cette installation n’envoie plus d’e-mails.",
-    "testBudget": "Cette installation a testé {limit} connexions à des bases de données au cours de la dernière minute. Attendez {seconds, plural, one {# seconde} other {# secondes}} et réessayez."
+    "testBudget": "Cette installation a testé {limit} connexions à des bases de données au cours de la dernière minute. Attendez {seconds, plural, one {# seconde} other {# secondes}} et réessayez.",
+    "payPages": "L’opérateur a désactivé les pages de paiement pour cette installation.",
+    "paymentWebhooks": "L’opérateur ne laisse pas les services de paiement appeler cette installation.",
+    "mappedDomains": "Seuls les domaines listés par l’opérateur peuvent pointer vers cette installation.",
+    "marketingCampaigns": "L’opérateur a désactivé les campagnes marketing pour cette installation.",
+    "liftMailHold": "Sur cette installation, les rebonds et signalements de spam du jour restent sur la liste « ne pas écrire » jusqu’à demain.",
+    "customerScreens": "L’IA fournie avec cette installation ne crée que des tableaux de bord. Les écrans pour les clients demandent votre propre clé d’IA.",
+    "reasonOperatorAiOnly": "Sur cette installation, l’IA passe par la connexion de l’opérateur, sauf si vous ajoutez votre propre clé Anthropic, OpenAI ou Google.",
+    "reasonOperatorAiScope": "L’IA fournie avec cette installation ne crée que des tableaux de bord.",
+    "reasonNotAllowed": "L’opérateur n’autorise pas cela sur cette installation."
   },
   "trial": {
     "testEnvironment": "Ceci est un environnement de test. Merci de ne pas y saisir de vraies données clients.",
