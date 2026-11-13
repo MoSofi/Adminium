@@ -1356,7 +1356,7 @@ export const envSchema = z.object({
   ADMINIUM_AI_OPERATOR_ONLY: booleanVar(false),
   /*
    * The job scheduler and the job queue. `off` starts the server with neither, so nothing that is due runs: no
-   * scheduled automation, report, sweep or watch, and no queued job (mail, a payment's follow-up, an operator
+   * scheduled automation, report or watch, and no queued job (mail, a payment's follow-up, an operator
    * event). Jobs asked for meanwhile wait in the queue. For an operator's one-off check that a copied instance
    * starts, so nothing due runs twice; never for a server people use.
    */
@@ -1717,7 +1717,7 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_AI_OPERATOR_ONLY: `one of ${BOOLEANISH.join(', ')} (default off; on: AI runs on the operator's connection unless the user adds their own key)`,
   ADMINIUM_SCHEDULER: `one of ${BOOLEANISH.join(', ')} (default on; off starts without the job scheduler and queue, so nothing due runs: an operator's check that a copy starts)`,
   ADMINIUM_PRESENCE: `one of ${BOOLEANISH.join(', ')} (default off; on: an active dashboard tab sends GET /api/v1/presence once a minute, for an operator's sleep proxy)`,
-  ADMINIUM_AI_OPERATOR_SCOPE: 'dashboard:operator AI builds dashboards only (unset: no scope)',
+  ADMINIUM_AI_OPERATOR_SCOPE: 'dashboard: operator AI builds dashboards only (unset: no scope)',
   ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: 'whole number of tokens operator AI may spend over the instance\'s life',
   ADMINIUM_DESIGNER_START_PROMPT_B64: `the Designer's first prompt after setup, base64, at most ${String(START_PROMPT_MAX_CHARS)} characters decoded`,
   ADMINIUM_DESIGNER_START_PROMPT_FILE: `absolute path to a read-only file holding the Designer's first prompt, at most ${String(START_PROMPT_MAX_CHARS)} characters`,
