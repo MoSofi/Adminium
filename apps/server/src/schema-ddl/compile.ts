@@ -195,49 +195,123 @@ function bareName(tableId: string): string {
  * which happens only when it came out of a snapshot unchanged.
  */
 /**
+ * How one engine reads the edges of SQL text: which characters open a quoted
+ * run (and which one closes it), whether `#` starts a comment, and which
+ * characters are refused outside a quoted run because the engines disagree on
+ * them. Every engine takes `'…'` strings and `"…"` runs (an identifier, or a
+ * string on MySQL), with a doubled quote inside standing for itself. MySQL and
+ * SQLite also quote an identifier in backquotes; on Postgres a backquote is
+ * an operator character and quotes nothing. SQLite also quotes one in
+ * brackets, up to the first `]`, with no doubling. `#` starts a comment on
+ * MySQL only; on Postgres it is an operator (`#`, `#>`, `#>>`, `#-`), and on
+ * SQLite a parameter mark or nothing. Text checked for no one engine
+ * (`generic`) is held to every engine at once: `#` is a comment, and a
+ * backquote or a bracket is refused, as it quotes on one engine and not on
+ * another.
+ */
+interface SqlLexicon {
+  readonly quotes: ReadonlyMap<string, string>;
+  readonly hashComment: boolean;
+  readonly strays: string;
+}
+
+const PLAIN_QUOTES: [string, string][] = [["'", "'"], ['"', '"']];
+const SQL_LEXICONS: Record<Dialect, SqlLexicon> = {
+  postgres: { quotes: new Map(PLAIN_QUOTES), hashComment: false, strays: '' },
+  mysql: { quotes: new Map([...PLAIN_QUOTES, ['`', '`']]), hashComment: true, strays: '' },
+  sqlite: { quotes: new Map([...PLAIN_QUOTES, ['`', '`'], ['[', ']']]), hashComment: false, strays: '' },
+  generic: { quotes: new Map(PLAIN_QUOTES), hashComment: true, strays: '`[' },
+};
+
+/** One piece of SQL text: a quoted run (`quote` is the character that opened it) or the text between runs. */
+interface SqlRun {
+  readonly quote: string | null;
+  readonly text: string;
+  readonly closed: boolean;
+}
+
+/** `text` cut into quoted runs and the text between them, the way `dialect` reads it. */
+function sqlRuns(text: string, dialect: Dialect): SqlRun[] {
+  const { quotes } = SQL_LEXICONS[dialect];
+  const runs: SqlRun[] = [];
+  let start = 0;
+  let i = 0;
+  while (i < text.length) {
+    const open = text[i]!;
+    const close = quotes.get(open);
+    if (close === undefined) {
+      i += 1;
+      continue;
+    }
+    if (i > start) runs.push({ quote: null, text: text.slice(start, i), closed: true });
+    let j = i + 1;
+    let closed = false;
+    while (j < text.length) {
+      if (text[j] === close) {
+        // A doubled quote stands for itself; a bracket has no such escape.
+        if (close === open && text[j + 1] === close) {
+          j += 2;
+          continue;
+        }
+        closed = true;
+        j += 1;
+        break;
+      }
+      j += 1;
+    }
+    runs.push({ quote: open, text: text.slice(i, j), closed });
+    start = j;
+    i = j;
+  }
+  if (start < text.length) runs.push({ quote: null, text: text.slice(start), closed: true });
+  return runs;
+}
+
+/**
  * Why a piece of SQL text could leave the one place in a statement it is put
  * (a default's expression, a check, a type), or null when it cannot.
  *
  * Such text is not authored through the schema editor's vocabulary, but it
  * reaches DDL from a snapshot carried through a change, and from a schema file
- * or IR an import made. Read token by token, the way all three databases read
- * it: a quoted run (`'…'`, `"…"`, `` `…` ``, a doubled quote inside it) is
- * skipped, and outside one there may be no `;`, no comment (`--`, `/*`, `#`),
- * no parenthesis closed that was not opened or left open, and no comma at the
- * top level. A backslash anywhere is refused too, as it is an escape on one
- * database and a letter on another; and a `$` anywhere but inside a
- * single-quoted string, as it opens a Postgres dollar-quoted string (a run
- * in double quotes or backquotes is not a string on every engine). So nothing
+ * or IR an import made. Read token by token, the way `dialect` reads it (see
+ * {@link SqlLexicon}): a quoted run is skipped, and outside one there may be
+ * no `;`, no comment (`--`, `/*`, and `#` on MySQL), no parenthesis closed
+ * that was not opened or left open, and no comma at the top level. MySQL
+ * reads `--` as a comment only before a space, but it is refused there in
+ * every form, as the space rule is one more thing to get wrong. A backslash
+ * anywhere is refused too, as it is an escape on one database and a letter on
+ * another; and a `$` anywhere but inside a single-quoted string, as it opens a
+ * Postgres dollar-quoted string and marks a parameter on SQLite. So nothing
  * can end the clause, start a second statement or hide the rest of one.
  */
-export function sqlTextRefusal(text: string): string | null {
+export function sqlTextRefusal(text: string, dialect: Dialect): string | null {
   if (text.trim() === '') return 'is empty';
   if (text.length > SQL_TEXT_MAX) return `is longer than ${String(SQL_TEXT_MAX)} characters`;
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\\]/.test(text)) return 'holds a backslash or a control character';
+  const { hashComment, strays } = SQL_LEXICONS[dialect];
   let depth = 0;
-  let quote: string | null = null;
-  for (let i = 0; i < text.length; i += 1) {
-    const c = text[i];
-    const next = text[i + 1];
-    if (c === '$' && quote !== "'") return 'holds a dollar sign outside a quoted string';
-    if (quote !== null) {
-      if (c === quote) {
-        if (next === quote) i += 1;
-        else quote = null;
-      }
+  for (const run of sqlRuns(text, dialect)) {
+    if (run.quote !== null) {
+      if (run.quote !== "'" && run.text.includes('$')) return 'holds a dollar sign outside a quoted string';
+      if (!run.closed) return 'leaves a quote open';
       continue;
     }
-    if (c === "'" || c === '"' || c === '`') quote = c;
-    else if (c === ';') return 'holds a ";"';
-    else if (c === '#' || (c === '-' && next === '-') || (c === '/' && next === '*') || (c === '*' && next === '/')) return 'holds a comment';
-    else if (c === '(') depth += 1;
-    else if (c === ')') {
-      depth -= 1;
-      if (depth < 0) return 'closes a parenthesis it did not open';
-    } else if (c === ',' && depth === 0) return 'holds a comma outside parentheses';
+    const part = run.text;
+    for (let i = 0; i < part.length; i += 1) {
+      const c = part[i]!;
+      const next = part[i + 1];
+      if (c === '$') return 'holds a dollar sign outside a quoted string';
+      if (strays.includes(c)) return 'holds a backquote or a bracket, which engines read differently';
+      if (c === ';') return 'holds a ";"';
+      if ((hashComment && c === '#') || (c === '-' && next === '-') || (c === '/' && next === '*') || (c === '*' && next === '/')) return 'holds a comment';
+      if (c === '(') depth += 1;
+      else if (c === ')') {
+        depth -= 1;
+        if (depth < 0) return 'closes a parenthesis it did not open';
+      } else if (c === ',' && depth === 0) return 'holds a comma outside parentheses';
+    }
   }
-  if (quote !== null) return 'leaves a quote open';
   if (depth !== 0) return 'leaves a parenthesis open';
   return null;
 }
@@ -246,33 +320,30 @@ export function sqlTextRefusal(text: string): string | null {
 const SQL_TEXT_MAX = 2000;
 
 /** Throws 422 when {@link sqlTextRefusal} refuses `text`; `what` names it ("expression default"). */
-export function assertSqlText(text: string, what: string): void {
-  const refusal = sqlTextRefusal(text);
+export function assertSqlText(text: string, what: string, dialect: Dialect): void {
+  const refusal = sqlTextRefusal(text, dialect);
   if (refusal !== null) {
     throw new ValidationFailedError(`This ${what} cannot be put into a statement: it ${refusal}.`, { reason: 'UNSAFE_SQL_TEXT', what, text: text.slice(0, 200) });
   }
 }
 
-/** `text` wholly inside one pair of parentheses already. */
-function parenthesized(text: string): boolean {
+/** `text` wholly inside one pair of parentheses already, as `dialect` reads it. */
+function parenthesized(text: string, dialect: Dialect): boolean {
   if (!text.startsWith('(') || !text.endsWith(')')) return false;
   let depth = 0;
-  let quote: string | null = null;
-  for (let i = 0; i < text.length; i += 1) {
-    const c = text[i];
-    if (quote !== null) {
-      if (c === quote) {
-        if (text[i + 1] === quote) i += 1;
-        else quote = null;
+  let at = 0;
+  for (const run of sqlRuns(text, dialect)) {
+    if (run.quote === null) {
+      for (let i = 0; i < run.text.length; i += 1) {
+        const c = run.text[i];
+        if (c === '(') depth += 1;
+        else if (c === ')') {
+          depth -= 1;
+          if (depth === 0 && at + i < text.length - 1) return false;
+        }
       }
-      continue;
     }
-    if (c === "'" || c === '"' || c === '`') quote = c;
-    else if (c === '(') depth += 1;
-    else if (c === ')') {
-      depth -= 1;
-      if (depth === 0 && i < text.length - 1) return false;
-    }
+    at += run.text.length;
   }
   return true;
 }
@@ -285,21 +356,25 @@ function parenthesized(text: string): boolean {
  * expression. Text already inside one pair keeps it, so a SQLite rebuild that
  * reads its own default back adds no pair each time.
  */
-function expressionDefault(text: string): string {
+function expressionDefault(text: string, dialect: Dialect): string {
   const trimmed = text.trim();
-  assertSqlText(trimmed, 'expression default');
-  return parenthesized(trimmed) ? trimmed : `(${trimmed})`;
+  assertSqlText(trimmed, 'expression default', dialect);
+  return parenthesized(trimmed, dialect) ? trimmed : `(${trimmed})`;
 }
 
 /** Words that would start a column constraint after a type: never part of a type's own text. */
 const CONSTRAINT_WORDS = new Set(['references', 'check', 'default', 'not', 'null', 'primary', 'unique', 'generated', 'collate', 'constraint', 'as', 'on', 'key', 'auto_increment', 'identity']);
 
 /** A type kept verbatim from a snapshot (a display-only one) as it goes into a column definition. */
-function verbatimType(dbType: string): string {
+function verbatimType(dbType: string, dialect: Dialect): string {
   const trimmed = dbType.trim();
-  assertSqlText(trimmed, 'column type');
+  assertSqlText(trimmed, 'column type', dialect);
   // Outside parentheses and quotes a type is words: none of them may start a constraint.
-  const top = trimmed.replace(/'(?:[^']|'')*'|"(?:[^"]|"")*"|`(?:[^`]|``)*`/g, '').replace(/\([^()]*\)/g, '');
+  const top = sqlRuns(trimmed, dialect)
+    .filter((run) => run.quote === null)
+    .map((run) => run.text)
+    .join('')
+    .replace(/\([^()]*\)/g, '');
   for (const word of top.toLowerCase().split(/[^a-z_]+/)) {
     if (CONSTRAINT_WORDS.has(word)) {
       throw new ValidationFailedError(`This column type cannot be put into a statement: "${word}" starts a constraint, not a type.`, { reason: 'UNSAFE_SQL_TEXT', what: 'column type', text: trimmed.slice(0, 200) });
@@ -335,7 +410,7 @@ export function renderDefault(
           return quoteLiteral(value.text, dialect);
       }
     case 'expression':
-      return expressionDefault(value.text);
+      return expressionDefault(value.text, dialect);
     case 'now':
       /*
        * SQLite has no zone: its timestamp is a wall clock, and every value
@@ -426,7 +501,7 @@ export function columnTypeOf(
     authorable === 'inet' ||
     authorable === 'unknown'
   ) {
-    return verbatimType(column.dbType);
+    return verbatimType(column.dbType, dialect);
   }
   return ddlTypeFor(
     {

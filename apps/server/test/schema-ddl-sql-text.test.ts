@@ -128,3 +128,25 @@ describe('an expression default on a live database', { timeout: 60_000 }, () => 
     });
   }
 });
+
+describe('a Postgres JSON operator in an expression default', { timeout: 60_000 }, () => {
+  it.skipIf(POSTGRES_URL === undefined)('postgres: `#>>`, `#>` and `#-` are taken as operators and run', async () => {
+    const db = await open('postgres');
+    await sql`drop table if exists sql_text_json`.execute(db);
+    const probe = {
+      ...table([
+        column('leaf', `'{"a":{"b":"x"}}'::jsonb #>> '{a,b}'`, 'text', 'text'),
+        column('branch', `'{"a":{"b":"x"}}'::jsonb #> '{a}'`, 'json', 'jsonb'),
+        column('pruned', `'{"a":1,"b":2}'::jsonb #- '{a}'`, 'json', 'jsonb'),
+      ]),
+      id: 'sql_text_json',
+      name: 'sql_text_json',
+    };
+    const defs = probe.columns.map((one) => columnDefinition(one, probe, 'postgres'));
+    await sql.raw(`create table sql_text_json (${defs.join(', ')})`).execute(db);
+    await sql.raw('insert into sql_text_json default values').execute(db);
+    const rows = await sql<{ leaf: string; branch: unknown; pruned: unknown }>`select leaf, branch, pruned from sql_text_json`.execute(db);
+    expect(rows.rows[0]).toEqual({ leaf: 'x', branch: { b: 'x' }, pruned: { b: 2 } });
+    await sql`drop table sql_text_json`.execute(db);
+  });
+});

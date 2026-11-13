@@ -880,7 +880,6 @@ describe('free SQL text from a snapshot or an import never leaves its place in a
     '0; drop table t',
     '0 -- the rest is gone',
     '0 /* hidden */',
-    '0 # MySQL comment',
     '0), evil int',
     '0, evil int',
     "'unterminated",
@@ -894,11 +893,20 @@ describe('free SQL text from a snapshot or an import never leaves its place in a
     '`$$x$$`',
     '"$$x$$"',
   ];
+  /** Text only one engine reads as leaving its place: refused there, at the least. */
+  const BREAKOUTS_ON: Record<'postgres' | 'mysql' | 'sqlite', string[]> = {
+    // Backquotes quote nothing on Postgres: what they hold is read as it is.
+    postgres: ['`a`; drop table t', '`--` 0', '`,` 0', '`a), evil int --`'],
+    // `#` starts a comment on MySQL, JSON operator or not; `--` is refused with or without a space.
+    mysql: ['0 # MySQL comment', "data #>> '$.a'", "data #> '$.a'", '1--1', '`a` # x', '`unterminated'],
+    // A bracket quotes an identifier on SQLite, up to the first `]`.
+    sqlite: ["0 + [']), evil int --']", "[']; drop table t; --']", '[unterminated', '`unterminated'],
+  };
   const expr = (text: string, logicalType: ColumnModel['logicalType'] = 'integer') => ({ logicalType, default: { kind: 'expression' as const, text } });
 
   for (const dialect of ['postgres', 'mysql', 'sqlite'] as const) {
     it(`${dialect}: an expression default that could end its clause is refused before any SQL is made`, () => {
-      for (const text of BREAKOUTS) expect(() => renderDefault(expr(text), dialect), text).toThrow(/expression/);
+      for (const text of [...BREAKOUTS, ...BREAKOUTS_ON[dialect]]) expect(() => renderDefault(expr(text), dialect), text).toThrow(/expression/);
     });
 
     it(`${dialect}: a plain expression default is kept, in parentheses of its own`, () => {
@@ -907,13 +915,42 @@ describe('free SQL text from a snapshot or an import never leaves its place in a
       // Already in one pair: not wrapped again, so a rebuild does not add a pair each time.
       expect(renderDefault(expr("(datetime('now'))", 'text'), dialect)).toBe("(datetime('now'))");
       expect(renderDefault(expr("concat('a;b', '--', '/*')", 'text'), dialect)).toBe("(concat('a;b', '--', '/*'))");
+      // A double-quoted identifier is one on every engine (a string on MySQL): what it holds is a letter.
+      expect(renderDefault(expr('"a;b" + 1'), dialect)).toBe('("a;b" + 1)');
       // A dollar sign inside a quoted string is a letter on every engine.
       expect(renderDefault(expr("'$0.00'", 'text'), dialect)).toBe("('$0.00')");
       expect(renderDefault(expr("('$0.00')", 'text'), dialect)).toBe("('$0.00')");
-      expect(sqlTextRefusal("code GLOB '[$]*'")).toBeNull();
-      expect(sqlTextRefusal("'it''s $5'")).toBeNull();
+      expect(sqlTextRefusal("code GLOB '[$]*'", dialect)).toBeNull();
+      expect(sqlTextRefusal("'it''s $5'", dialect)).toBeNull();
     });
   }
+
+  it("postgres: the JSON path operators are operators, not a MySQL comment", () => {
+    expect(renderDefault(expr(`('{"a":{"b":"x"}}'::jsonb #>> '{a,b}')`, 'text'), 'postgres')).toBe(`('{"a":{"b":"x"}}'::jsonb #>> '{a,b}')`);
+    expect(sqlTextRefusal("data #> '{a}'", 'postgres')).toBeNull();
+    expect(sqlTextRefusal("data #- '{a}'", 'postgres')).toBeNull();
+    expect(sqlTextRefusal('bits # 3', 'postgres')).toBeNull();
+    // A comment is still a comment, even right after one of them.
+    expect(sqlTextRefusal("data #-- '{a}'", 'postgres')).toBe('holds a comment');
+    expect(sqlTextRefusal("data #>> '{a}'", 'mysql')).toBe('holds a comment');
+  });
+
+  it('a backquote quotes on MySQL and SQLite only, a bracket on SQLite only', () => {
+    expect(renderDefault(expr('`a;b` + 1'), 'mysql')).toBe('(`a;b` + 1)');
+    expect(renderDefault(expr('`a``;b` + 1'), 'sqlite')).toBe('(`a``;b` + 1)');
+    expect(sqlTextRefusal('`a;b` + 1', 'postgres')).toBe('holds a ";"');
+    expect(renderDefault(expr('[a;b] + 1'), 'sqlite')).toBe('([a;b] + 1)');
+    expect(sqlTextRefusal('[a;b] + 1', 'mysql')).toBe('holds a ";"');
+    expect(sqlTextRefusal('[a;b] + 1', 'postgres')).toBe('holds a ";"');
+    // A pair a quote hides on one engine is still a pair on another: wrapped where it is not one.
+    expect(renderDefault(expr('(1) + `(2)`'), 'mysql')).toBe('((1) + `(2)`)');
+    expect(renderDefault(expr('(1 + `x`)'), 'mysql')).toBe('(1 + `x`)');
+    // Text in no one engine's terms holds to every engine's quotes at once.
+    expect(sqlTextRefusal('`a` + 1', 'generic')).not.toBeNull();
+    expect(sqlTextRefusal('[a] + 1', 'generic')).not.toBeNull();
+    expect(sqlTextRefusal('0 # x', 'generic')).toBe('holds a comment');
+    expect(sqlTextRefusal("'a' || \"b\"", 'generic')).toBeNull();
+  });
 
   it('a display-only type or a check from a snapshot is held to the same rule', () => {
     const table = tbl({ name: 't', columns: [col({ name: 'span', logicalType: 'interval', dbType: 'interval); drop table t; --' })], primaryKey: [] });

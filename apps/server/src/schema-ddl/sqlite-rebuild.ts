@@ -423,7 +423,7 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
     const isMembership = /\bin\s*\(|=\s*any/i.test(check.expression);
     if (named === null || !isMembership) {
       // The database's own text, carried through; still held to the one place it is put.
-      assertSqlText(check.expression, 'check');
+      assertSqlText(check.expression, 'check', 'sqlite');
       tableConstraints.push(`CHECK (${check.expression})`);
     }
   }
