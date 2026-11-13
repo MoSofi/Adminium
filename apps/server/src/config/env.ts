@@ -195,7 +195,7 @@ function booleanVar(fallback: boolean) {
   );
 }
 
-/** A trial's pools (A6): each pool against a source at most this size, and its default. */
+/** A trial's pools: each pool against a source at most this size, and its default. */
 export const TRIAL_SOURCE_POOL_MAX = 3;
 /** A trial's meta store pool, unless the operator sets another size. */
 export const TRIAL_META_POOL_MAX = 3;
@@ -1166,11 +1166,11 @@ export const envSchema = z.object({
         return origin;
       }),
   ),
-  /* A6: the live data of each operator database (default 500), one uploaded file (10), the whole data dir (1,000). */
+  /* The trial's size caps: the live data of each operator database (default 500), one uploaded file (10), the whole data dir (1,000). */
   ADMINIUM_TRIAL_DATA_MAX_MB: megabytesVar(500),
   ADMINIUM_TRIAL_UPLOAD_MAX_MB: megabytesVar(10),
   ADMINIUM_TRIAL_STORAGE_MAX_MB: megabytesVar(1000),
-  /* The "Upgrade" button's address (O7). Unset: no button. https only; `?instance=` is added to it. */
+  /* The "Upgrade" button's address. Unset: no button. https only; `?instance=` is added to it. */
   ADMINIUM_TRIAL_UPGRADE_URL: z.preprocess(
     emptyToUndefined,
     z
@@ -1188,7 +1188,7 @@ export const envSchema = z.object({
       }),
   ),
   /*
-   * The operator's mail relay, one credential per instance (O4 = C, S5):
+   * The operator's mail relay, one credential per instance:
    * `smtp://user:pass@relay:587` or `smtps://…`. A secret: held out of
    * `process.env` (`config/operator-secrets.ts`), and never printed back.
    */
@@ -1274,7 +1274,7 @@ export const envSchema = z.object({
    */
   ADMINIUM_HOSTED_MODE: booleanVar(false),
   /*
-   * The user's own verified domains (version 2 W-N D4), honoured with or
+   * The user's own verified domains, honoured with or
    * without trial mode: plain lower-case host names, no wildcard, address,
    * port or path.
    */
@@ -1495,7 +1495,7 @@ export interface EnvProblem {
   problem: string;
 }
 
-/** C0 and C1 control characters and DEL: never in an operator's value (S8). */
+/** C0 and C1 control characters and DEL: never in an operator's value. */
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f-\u009f]/;
 
@@ -1514,9 +1514,9 @@ const isSet = (value: string | undefined): value is string => value !== undefine
  *    code, widen limits or reach the operator's network: `ADMINIUM_ADD_ON_DEV_TRUST`
  *    (read raw by `add-ons/decider-trust.ts`), `ADMINIUM_RATE_LIMIT_SCALE`,
  *    `NODE_OPTIONS`, the bridge, the desktop's own variables, a seeded storage
- *    destination (A1b), and an explicit `ADMINIUM_NETWORK_POLICY=open` or
+ *    destination, and an explicit `ADMINIUM_NETWORK_POLICY=open` or
  *    `ADMINIUM_LOCAL_DATABASES=setting`;
- *  - in trial mode also telemetry, map and routing servers switched on (A2).
+ *  - in trial mode also telemetry, map and routing servers switched on.
  *
  * Saying what a profile implies (`ADMINIUM_NETWORK_POLICY=strict`) is no
  * contradiction, and passes.
@@ -1573,15 +1573,15 @@ export function profileIssues(raw: Readonly<Record<string, string | undefined>>)
  * contradictions have already failed the boot ({@link profileIssues}); this is
  * what an unset variable reads as.
  *
- *  - both profiles: `ADMINIUM_NETWORK_POLICY=strict`, `ADMINIUM_LOCAL_DATABASES=off` (A1);
- *  - trial mode: `ADMINIUM_TELEMETRY=off` and no map or routing server (A2);
- *    pools of 3 against a source and the meta store unless set lower (A6).
+ *  - both profiles: `ADMINIUM_NETWORK_POLICY=strict`, `ADMINIUM_LOCAL_DATABASES=off`;
+ *  - trial mode: `ADMINIUM_TELEMETRY=off` and no map or routing server;
+ *    pools of 3 against a source and the meta store unless set lower.
  */
 export function enforceProfile(env: Env): Env {
   if (!env.ADMINIUM_TRIAL_MODE && !env.ADMINIUM_HOSTED_MODE) return env;
   const enforced: Env = { ...env, ADMINIUM_NETWORK_POLICY: 'strict', ADMINIUM_LOCAL_DATABASES: 'off' };
   if (env.ADMINIUM_TRIAL_MODE) {
-    // Small pools on the operator's shared servers (A6): what an unset variable reads as; the operator may set less.
+    // Small pools on the operator's shared servers: what an unset variable reads as; the operator may set less.
     enforced.ADMINIUM_SOURCE_POOL_MAX = env.ADMINIUM_SOURCE_POOL_MAX ?? TRIAL_SOURCE_POOL_MAX;
     enforced.ADMINIUM_META_POOL_MAX = env.ADMINIUM_META_POOL_MAX ?? TRIAL_META_POOL_MAX;
     enforced.ADMINIUM_TELEMETRY = false;

@@ -9,7 +9,7 @@
  *   trial   `ADMINIUM_TRIAL_MODE=on`: a stranger is its Super Admin, on the
  *           operator's server, until `ADMINIUM_TRIAL_ENDS_AT`.
  *   hosted  `ADMINIUM_HOSTED_MODE=on`: the same stranger after the Upgrade
- *           (O12 = A). What would let their code or their connections reach
+ *           What would let their code or their connections reach
  *           the operator stays off; the clock, banners, caps and relay-only
  *           mail go.
  *
@@ -22,10 +22,9 @@
  * which throws 403 `OFF_BY_OPERATOR` with `details: { question, reason }`
  * (`trial/refuse.ts`).
  *
- * T10 defines the questions; each switch's task wires its hook and its test.
- * The question set is the plan's, so a later task adds a hook,
- * not a question; a question added later is a row in {@link QUESTIONS} and a
- * row in `trial-policy.test.ts`.
+ * Each switch is one question here, its hook where the effect happens, and
+ * a test both ways; a question added later is a row in {@link QUESTIONS} and
+ * a row in `trial-policy.test.ts`.
  *
  * The values a profile implies for variables that exist without it
  * (`ADMINIUM_NETWORK_POLICY=strict`, `ADMINIUM_LOCAL_DATABASES=off`,
@@ -50,13 +49,13 @@ export type PolicyReason =
   | 'trial-mode'
   /** The hosted profile keeps it off. */
   | 'hosted-mode'
-  /** The trial's end date has passed (A5): the instance is read-only, public pages hidden, user mail stopped. */
+  /** The trial's end date has passed: the instance is read-only, public pages hidden, user mail stopped. */
   | 'trial-ended'
   /** `ADMINIUM_AI_OPERATOR_ONLY`: AI runs on the operator's connection unless it is the user's own key to a fixed provider. */
   | 'operator-ai-only'
   /** `ADMINIUM_AI_OPERATOR_SCOPE=dashboard`: the operator's AI builds dashboards only. */
   | 'operator-ai-scope'
-  /** A trial's size caps (A6): a database or the data folder past its limit. */
+  /** A trial's size caps: a database or the data folder past its limit. */
   | 'size-cap';
 
 export const POLICY_REASONS: readonly PolicyReason[] = ['trial-mode', 'hosted-mode', 'trial-ended', 'operator-ai-only', 'operator-ai-scope', 'size-cap'];
@@ -84,42 +83,39 @@ const profiles =
   (ctx) =>
     ctx.profile === 'trial' && !trial ? 'trial-mode' : ctx.profile === 'hosted' && !hosted ? 'hosted-mode' : null;
 
-/** Not past a trial's size caps (A6); a hosted or ordinary server has none. */
+/** Not past a trial's size caps; a hosted or ordinary server has none. */
 const uncappedOutsideTrial: Rule = (ctx) => (ctx.profile === 'trial' ? 'size-cap' : null);
 
-/** Allowed until a trial ends (A5); a hosted or ordinary server has no end. */
+/** Allowed until a trial ends; a hosted or ordinary server has no end. */
 const untilTrialEnds: Rule = (ctx) => (ctx.ended ? 'trial-ended' : null);
 
-/** Off in trial mode and under `ADMINIUM_AI_OPERATOR_ONLY` (S9); the hosted profile drops operator AI. */
+/** Off in trial mode and under `ADMINIUM_AI_OPERATOR_ONLY`; the hosted profile drops operator AI. */
 const unlessOperatorAi: Rule = (ctx) => profiles(false, true)(ctx) ?? (ctx.aiOperatorOnly ? 'operator-ai-only' : null);
 
-/**
- * Every question, its rule, and where in the plan it comes from. The task that
- * wires each hook is named after the arrow.
- */
+/** Every question and its rule, grouped by what they switch off. */
 const QUESTIONS = {
-  // ── A1 connections (T11) ──────────────────────────────────────────────────
+  // ── connections ──────────────────────────────────────────────────────────
   /** "Allow databases on this server" (`connections.allowLocalDatabases`). Also locked by `ADMINIUM_LOCAL_DATABASES=off`. */
   localDatabases: profiles(false, false),
   /** A SQLite file as a source, on every front door (the wizards show it disabled with the reason). */
   sqliteSources: profiles(false, false),
   /** The server's own network (private ranges) for sources, webhooks and storage: `ADMINIUM_NETWORK_POLICY=open`. */
   privateNetwork: profiles(false, false),
-  /** On an operator host, a login other than `ADMINIUM_SOURCE_URL`'s user and database (S10). */
+  /** On an operator host, a login other than `ADMINIUM_SOURCE_URL`'s user and database. */
   anyDatabaseLogin: profiles(false, false),
-  /** `POST /connections/test` without the per-instance rate limit (S10). */
+  /** `POST /connections/test` without the per-instance rate limit. */
   unlimitedConnectionTests: profiles(false, false),
-  /** `/meta/relocate`, `/setup/probe`, `/setup/adopt`: the meta store is fixed by env (S4, G8). */
+  /** `/meta/relocate`, `/setup/probe`, `/setup/adopt`: the meta store is fixed by env. */
   metaStoreRoutes: profiles(false, false),
   /** A source host that is not on `ADMINIUM_DATABASE_HOSTS`: otherwise the list is the only hosts allowed. */
   unlistedDatabaseHosts: profiles(false, false),
-  // ── A1b storage (T11) ─────────────────────────────────────────────────────
+  // ── storage ──────────────────────────────────────────────────────────────
   /** Creating or testing storage destinations; only the default `local` one under the data dir. */
   storageDestinations: profiles(false, false),
-  // ── A2 outgoing traffic (T11, T30) ────────────────────────────────────────
+  // ── outgoing traffic ─────────────────────────────────────────────────────
   /** The automation webhook action, at save and at run. */
   webhooks: profiles(false, true),
-  /** Add-on HTTP for every add-on (the egress client's declared hosts, F44). */
+  /** Add-on HTTP for every add-on (the egress client's declared hosts). */
   addOnHttp: profiles(false, true),
   /** Payment provider connections. */
   paymentProviders: profiles(false, true),
@@ -131,31 +127,31 @@ const QUESTIONS = {
   updateCheck: profiles(false, true),
   /** Usage data (`telemetry.enabled`, and `ADMINIUM_TELEMETRY` enforced off). */
   telemetry: profiles(false, true),
-  /** The user's own SMTP server: in trial mode all mail goes through the operator's relay (O4 = C). */
+  /** The user's own SMTP server: in trial mode all mail goes through the operator's relay. */
   ownSmtp: profiles(false, true),
-  /** Marketing campaigns (S5). */
+  /** Marketing campaigns. */
   marketingCampaigns: profiles(false, true),
-  /** A user-typed `llm.baseUrl`, for every provider (S9). */
+  /** A user-typed `llm.baseUrl`, for every provider. */
   aiBaseUrl: unlessOperatorAi,
   /** AI connections other than the user's own key to a fixed public provider (`openai-compatible`, Ollama). */
   customAiProviders: unlessOperatorAi,
-  // ── A3 own code (T12) ─────────────────────────────────────────────────────
+  // ── own code ─────────────────────────────────────────────────────────────
   /** `POST /add-ons/upload` and `POST /apps/upload`: installs only from the catalogue or the image's bundle. */
   packageUploads: profiles(false, false),
   /** Designer uploads of site zips, styles and skills, and `PUT` of files. */
   designerUploads: profiles(false, false),
-  /** The Designer writing code: hooks, actions, build code, `run_tests` (declarative only, S2). */
+  /** The Designer writing code: hooks, actions, build code, `run_tests` (declarative only). */
   designerCode: profiles(false, false),
   /** Own build commands, and "Start with an app" (it fetches a repository and runs its build). */
   ownBuilds: profiles(false, false),
   /** The Designer's `request_package`. */
   requestPackage: profiles(false, false),
-  /** The project's `.env` (read, and the Designer writing a key to it): not read at all (S8). */
+  /** The project's `.env` (read, and the Designer writing a key to it): not read at all. */
   projectDotEnv: profiles(false, false),
-  // ── A4 public pages (T13, T31) ────────────────────────────────────────────
-  /** Search engines may index public pages: no `noindex`, no disallowing `robots.txt` (O5 = C). */
+  // ── public pages ─────────────────────────────────────────────────────────
+  /** Search engines may index public pages: no `noindex`, no disallowing `robots.txt`. */
   searchIndexing: profiles(false, true),
-  /** Editing `system.publicOrigin`: the origin is the operator's (S6). */
+  /** Editing `system.publicOrigin`: the origin is the operator's. */
   publicOriginSetting: profiles(false, false),
   /** Answering any `Host`: otherwise only the public origin and `ADMINIUM_OPERATOR_DOMAINS` (421). */
   anyHost: profiles(false, false),
@@ -165,21 +161,21 @@ const QUESTIONS = {
   payPages: profiles(false, true),
   /** Inbound payment webhooks. */
   paymentWebhooks: profiles(false, true),
-  // ── A5 past the end date (T14) ────────────────────────────────────────────
+  // ── past the end date ────────────────────────────────────────────────────
   /** Creating, editing and deleting: read-only once the trial has ended. */
   writes: untilTrialEnds,
   /** Public pages answering at all. */
   publicPages: untilTrialEnds,
   /** User-authored mail (system mail keeps its own quota). */
   userMail: untilTrialEnds,
-  // ── A6 size caps: asked only once a cap is passed ───────────────────────
+  // ── size caps: asked only once a cap is passed ───────────────────────────
   /** Adding to a source database past `ADMINIUM_TRIAL_DATA_MAX_MB` of live data: INSERT, UPDATE, DDL that adds. */
   dataOverCap: uncappedOutsideTrial,
   /** Uploads, Designer writes and exports past `ADMINIUM_TRIAL_STORAGE_MAX_MB` in the data folder. */
   storageOverCap: uncappedOutsideTrial,
   /** More source connections than a trial's {@link TRIAL_SOURCE_CONNECTIONS}. */
   extraSourceConnections: uncappedOutsideTrial,
-  // ── operator AI (T28) ───────────────────────────────────────────────────
+  // ── operator AI ──────────────────────────────────────────────────────────
   /** Customer screens built on the operator's AI connection. */
   customerScreensOnOperatorAi: (ctx) => (ctx.aiOperatorScope === 'dashboard' ? 'operator-ai-scope' : null),
 } satisfies Record<string, Rule>;
@@ -187,18 +183,18 @@ const QUESTIONS = {
 export type PolicyQuestion = keyof typeof QUESTIONS;
 export const POLICY_QUESTIONS = Object.keys(QUESTIONS) as PolicyQuestion[];
 
-/** A6's caps, in bytes and counts; null outside trial mode (the hosted profile drops them). */
+/** A trial's size caps, in bytes and counts; null outside trial mode (the hosted profile drops them). */
 export interface TrialLimits {
   dataMaxBytes: number;
   uploadMaxBytes: number;
   storageMaxBytes: number;
   emailsPerDay: number;
   emailsPerHour: number;
-  /** Source connections at most (A6 c). */
+  /** Source connections at most. */
   sourceConnections: number;
 }
 
-/** A6 (c), and the relay's hourly cap (A2). */
+/** A trial's source connections, and the relay's hourly mail cap. */
 export const TRIAL_EMAILS_PER_HOUR = 20;
 export const TRIAL_SOURCE_CONNECTIONS = 3;
 
@@ -237,13 +233,13 @@ export interface TrialState {
 
 export interface TrialPolicy {
   profile: Profile;
-  /** The answer to one question, at `now` (only the A5 questions read the clock). */
+  /** The answer to one question, at `now` (only the questions of a trial's end read the clock). */
   allows(question: PolicyQuestion, now?: number): PolicyAnswer;
   /** The trial's clock at `now`. */
   trial(now?: number): TrialState;
-  /** The Upgrade button's address with `?instance=<ADMINIUM_PUBLIC_ORIGIN>` (O7, S20); null outside trial mode or unset. */
+  /** The Upgrade button's address with `?instance=<ADMINIUM_PUBLIC_ORIGIN>`; null outside trial mode or unset. */
   upgradeUrl: string | null;
-  /** A6's caps; null outside trial mode. */
+  /** A trial's size caps; null outside trial mode. */
   limits: TrialLimits | null;
   /**
    * `ADMINIUM_NETWORK_POLICY=strict`, which both profiles imply: outgoing calls (add-on HTTP among them)

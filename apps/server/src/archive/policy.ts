@@ -6,7 +6,7 @@
  * an export is held to the export rules, and rows no archive should hold
  * (sessions, add-on trust) are dropped whatever the file says.
  *
- * Never in any archive, and never written by a restore (security review S15):
+ * Never in any archive, and never written by a restore:
  * - sessions, password-reset and invitation tokens, public visitors' sessions,
  *   one-time codes and proofs, and what the server's operator holds back
  *   ({@link NEVER_ARCHIVED_TABLES}), and the events queued for that operator

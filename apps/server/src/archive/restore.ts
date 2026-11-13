@@ -3,7 +3,7 @@
  * `adminium archive restore` (and `adminium import-zip` for an export file):
  * bring an archive back into a FRESH instance.
  *
- * ─── THE ARCHIVE IS NOT TRUSTED (security review S15) ──────────────────────
+ * ─── THE ARCHIVE IS NOT TRUSTED ───────────────────────────────────────────
  * In order, before anything is written:
  * 1. the zip's directory: no links, no directories, no unsafe names, no zip64,
  *    no more members than the limit (`zip-read.ts`);

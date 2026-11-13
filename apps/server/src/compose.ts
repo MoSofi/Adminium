@@ -3805,7 +3805,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     .catch((err: unknown) => {
       app.log.error({ err }, 'the add-on runtime could not be built');
     });
-  // `/readyz?deep=1` answers 503 until it has settled (`routes/system`): what a waker waits on (plan 75 A8).
+  // `/readyz?deep=1` answers 503 until it has settled (`routes/system`): what a waker waits on.
   let addOnsLoading = true;
   void addOnsLoaded.finally(() => {
     addOnsLoading = false;

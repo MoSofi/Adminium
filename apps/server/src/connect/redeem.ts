@@ -2,7 +2,7 @@
 /**
  * Redeeming a hand-off code at the operator, and reading what comes back.
  *
- * THE ANSWER IS UNTRUSTED INPUT (S14). The operator is configured by whoever
+ * THE ANSWER IS UNTRUSTED INPUT. The operator is configured by whoever
  * runs this server, but its answer is shaped by a sign-in at a third party and
  * travels over a network, and it becomes a database connection this server
  * dials. So:
