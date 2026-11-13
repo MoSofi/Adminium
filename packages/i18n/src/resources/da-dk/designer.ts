@@ -1429,6 +1429,7 @@ export default {
     "label": "AI-nøgle påkrævet",
     "scope": "At bygge skærme til kunder kræver din egen AI-nøgle.",
     "usedUp": "Den AI, der følger med denne prøveperiode, er brugt op.",
+    "usedUpHere": "Den AI, der følger med denne installation, er brugt op.",
     "keyOrUpgrade": "Tilføj din egen AI-nøgle for at fortsætte, eller opgrader.",
     "key": "Tilføj din egen AI-nøgle for at fortsætte.",
     "addKey": "Tilføj en AI-nøgle",

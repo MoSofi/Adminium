@@ -1419,6 +1419,7 @@
     "label": "AI key needed",
     "scope": "Building customer-facing screens needs your own AI key.",
     "usedUp": "The AI included with this trial is used up.",
+    "usedUpHere": "The AI included with this installation is used up.",
     "keyOrUpgrade": "Add your own AI key to continue, or Upgrade.",
     "key": "Add your own AI key to continue.",
     "addKey": "Add an AI key",

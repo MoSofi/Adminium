@@ -37,6 +37,8 @@ import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/re
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { refuseOwnCodeHook } from '../../trial/own-code.js';
+import { OffByOperatorError } from '../../trial/refuse.js';
+import { SCOPE_OFF_MESSAGE } from '../../designer/operator-scope.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, labelOf, withSessionLock, type Attachment, type Attachments } from '../../designer/attachments.js';
 import { clearTemplateNote, listSiteTemplates, readTemplateNote, SITE_TEMPLATES_DIR, walkFolder } from '../../designer/site/folder.js';
@@ -1226,6 +1228,9 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         if (onLive && !(await app.rbac.resolve(request)).superAdmin) {
           throw new ForbiddenError('On a live server, only a Super Admin copies an app: its build is a command the server runs.', 'FORBIDDEN', { reason: 'SUPER_ADMIN' });
         }
+        // A copy is a whole app, its customer side and public pages too: not one for a session on the operator's AI that
+        // builds dashboards only (`designer/operator-scope.ts`).
+        if (designer.scopedConnection(request.body.connectionId)) throw new OffByOperatorError('customerScreensOnOperatorAi', 'operator-ai-scope', SCOPE_OFF_MESSAGE);
         const job = await deps.starter.start({ ...request.body, by: actorOf(request) });
         return reply.code(202).send(job);
       },

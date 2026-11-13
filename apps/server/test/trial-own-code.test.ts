@@ -172,6 +172,11 @@ describe.each(PROFILES)('the Designer under %s', (_name, variable, reason) => {
 });
 
 describe('the Designer on an ordinary server', () => {
+  it('writes an app’s tsconfig as it always has', () => {
+    createJail(root, 'repairs').write('apps/repairs/staff/tsconfig.json', '{}');
+    expect(existsSync(join(root, 'apps/repairs/staff/tsconfig.json'))).toBe(true);
+  });
+
   it('asks before server code and tests, as it always has', async () => {
     expect(await run('write_file', { path: 'hooks/orders.ts', content: 'export default {};' })).toMatchObject({ isError: true, label: 'Server code not allowed' });
     expect(await run('run_tests')).toMatchObject({ label: 'Tests not run' });
@@ -196,6 +201,18 @@ describe.each(PROFILES)('where the effect happens, under %s', (_name, variable, 
     // The app's own declarative files are written as before.
     jail.write('apps/repairs/notes.md', 'x');
     expect(readFileSync(join(root, 'apps/repairs/notes.md'), 'utf8')).toBe('x');
+  });
+
+  it('the jail writes no tsconfig or jsconfig anywhere in an app, own build or not: a bundler reads what one extends', () => {
+    const jail = createJail(root, 'repairs');
+    const extend = JSON.stringify({ extends: '/run/secrets/operator_token' });
+    for (const path of ['apps/repairs/staff/tsconfig.json', 'apps/repairs/tsconfig.json', 'apps/repairs/staff/src/jsconfig.json', 'apps/repairs/staff/tsconfig.app.json', 'apps/repairs/staff/TSConfig.json']) {
+      expect(() => jail.write(path, extend), path).toThrow(/operator/);
+      expect(existsSync(join(root, path)), path).toBe(false);
+    }
+    mkdirSync(join(root, 'apps/repairs/staff'), { recursive: true });
+    writeFileSync(join(root, 'apps/repairs/staff/tsconfig.json'), '{}');
+    expect(() => jail.delete('apps/repairs/staff/tsconfig.json')).toThrow(/operator/);
   });
 
   it('an app’s own build command never runs, though a person approved it', async () => {

@@ -52,6 +52,9 @@ import { checkedFetch, resolveAndCheck, type ResolveCheckOptions } from './outbo
 
 /** The providers the environment can name. */
 export const ENV_PROVIDERS = ['anthropic', 'openai', 'openai-compatible', 'ollama'] as const;
+
+/** An Ollama with no address of its own, under `ADMINIUM_NETWORK_POLICY=strict`: it would be this machine's. */
+export const STRICT_LOCAL_OFF = 'This server reaches no model on its own machine or network for you. Give the address of a model on the internet, or use your own key to Anthropic, OpenAI or Google.';
 export type EnvProvider = (typeof ENV_PROVIDERS)[number];
 
 export type ConnectionId = 'database' | `env:${EnvProvider}`;
@@ -178,6 +181,12 @@ export interface AiConnectionsDeps {
   production: boolean;
   /** Refuse private addresses too: a server on the internet running the Designer for others (M4). */
   blockPrivate?: boolean;
+  /**
+   * `ADMINIUM_NETWORK_POLICY=strict` (implied by trial mode and the hosted profile): an address the person gave, saved
+   * or typed into a test, reaches nothing on this server's own network, loopback or private, Ollama's neither. The
+   * environment's addresses are the operator's own and stay as they are.
+   */
+  strictNetwork?: boolean;
   createClient?: (config: ProviderConfig) => ProviderClient;
   createRunner?: (config: ProviderConfig) => ProviderRunner;
   /** A test's own picture makers (a fake): given what the real one would be built with. */
@@ -320,7 +329,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
    * The check every call goes through: the address by name, then by what the
    * name resolves to, then whether this instance may reach a cloud at all.
    */
-  async function guard(provider: ProviderId, baseUrl: string | null, source: AiConnection['source']): Promise<void> {
+  async function guard(provider: ProviderId, baseUrl: string | null, source: AiConnection['source'], typed: boolean = source === 'database'): Promise<void> {
     if (!deps.networkFeatures && provider !== 'ollama') {
       throw new ProviderError({
         provider,
@@ -333,12 +342,15 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
       const refused = savedConnectionRefusal(policy, provider, baseUrl);
       if (refused !== null) throw refused;
     }
+    const strict = deps.strictNetwork === true && typed;
+    // An Ollama with no address is this machine's.
+    if (strict && baseUrl === null && provider === 'ollama') throw new ProviderError({ provider, code: 'config', message: STRICT_LOCAL_OFF });
     if (baseUrl === null) return;
     // The operator named an environment address themselves; the database's can come from a form or an import.
-    const blockLoopback = source === 'database' && provider !== 'ollama' && deps.production;
-    guardOutboundUrl(baseUrl, { blockLoopback });
+    const blockLoopback = strict || (source === 'database' && provider !== 'ollama' && deps.production);
+    guardOutboundUrl(baseUrl, { blockLoopback, ...(strict ? { blockPrivate: true } : {}) });
     await resolveAndCheck(baseUrl, {
-      blockPrivate: deps.blockPrivate === true && provider !== 'ollama',
+      blockPrivate: strict || (deps.blockPrivate === true && provider !== 'ollama'),
       ...(deps.resolve === undefined ? {} : { resolve: deps.resolve }),
     });
   }
@@ -390,7 +402,7 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
   }
 
   /** The draft as a provider configuration, with what was left out taken from what is saved. */
-  function draftConfig(draft: ConnectionDraft): { config: ProviderConfig; baseUrl: string | null } {
+  function draftConfig(draft: ConnectionDraft): { config: ProviderConfig; baseUrl: string | null; typed: boolean } {
     const values = aiEnv.read();
     const keyName = KEY_NAME[draft.provider];
     const urlName = URL_NAME[draft.provider];
@@ -403,6 +415,8 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
     const apiKey = typedKey ? draft.apiKey : keyName === null || !sameAddress ? undefined : values[keyName];
     return {
       baseUrl: baseUrl ?? null,
+      // Not the environment's own address: one the person typed, or none (an Ollama's is then this machine's).
+      typed: saved === undefined || baseUrl !== saved,
       config: {
         provider: draft.provider,
         model: draft.model ?? '',
@@ -453,9 +467,9 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
     },
     async test(draft, opts = {}) {
       if (typedAddressRefused(draft)) return { ok: false, models: [], canBuild: null, error: { code: 'config', message: TYPED_ADDRESS_OFF } };
-      const { config, baseUrl } = draftConfig(draft);
+      const { config, baseUrl, typed: typedAddress } = draftConfig(draft);
       try {
-        await guard(draft.provider, baseUrl, 'environment');
+        await guard(draft.provider, baseUrl, 'environment', typedAddress);
         const models = await makeClient(config).listModels();
         if (draft.model === undefined || draft.model === '') return { ok: true, models, canBuild: null, error: null };
         // A draft with no key typed is tried with the saved one: the operator's, when the operator set it.
@@ -493,8 +507,8 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
           { reason: 'ENV_SHADOWED', names: outside },
         );
       }
-      const { baseUrl } = draftConfig(draft);
-      await guard(draft.provider, baseUrl, 'environment');
+      const { baseUrl, typed: typedAddress } = draftConfig(draft);
+      await guard(draft.provider, baseUrl, 'environment', typedAddress);
       const values: Partial<Record<AiEnvName, string | null>> = { ADMINIUM_AI_MODEL: `${draft.provider}/${draft.model}` };
       if (keyName !== null && draft.apiKey !== undefined && draft.apiKey !== '') values[keyName] = draft.apiKey;
       if (urlName !== null && draft.baseUrl !== undefined && draft.baseUrl !== '') values[urlName] = draft.baseUrl;

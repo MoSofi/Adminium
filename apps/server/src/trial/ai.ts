@@ -14,14 +14,26 @@ export const ADDRESS_PROVIDERS: ReadonlySet<ProviderId> = new Set<ProviderId>(['
 
 export const CUSTOM_PROVIDER_OFF = 'The operator allows only your own key to Anthropic, OpenAI or Google on this installation, so a model at an address of your own cannot be saved here.';
 
+/** Providers that are not the person's own key at all (Adminium's own managed AI): refused wherever an address provider is. */
+export const NOT_OWN_KEY_PROVIDERS: ReadonlySet<ProviderId> = new Set<ProviderId>(['adminium-managed']);
+
+export const NOT_OWN_KEY_OFF = 'The operator allows only your own key to Anthropic, OpenAI or Google on this installation.';
+
+/** The words a saved provider is refused with where the operator allows only the person's own key; null when it is one. */
+export function providerOffMessage(provider: ProviderId): string | null {
+  if (ADDRESS_PROVIDERS.has(provider)) return CUSTOM_PROVIDER_OFF;
+  return NOT_OWN_KEY_PROVIDERS.has(provider) ? NOT_OWN_KEY_OFF : null;
+}
+
 /**
  * The saved connection as the operator allows it, or a `ProviderError` saying
  * why not: a provider reached at a typed address, or any typed address, where
  * the profile refuses them. For the paths that call a model with what is saved.
  */
 export function savedConnectionRefusal(policy: Pick<TrialPolicy, 'allows'>, provider: ProviderId, baseUrl: string | null): ProviderError | null {
-  if (ADDRESS_PROVIDERS.has(provider) && !policy.allows('customAiProviders').allowed) {
-    return new ProviderError({ provider, code: 'config', message: CUSTOM_PROVIDER_OFF });
+  const off = providerOffMessage(provider);
+  if (off !== null && !policy.allows('customAiProviders').allowed) {
+    return new ProviderError({ provider, code: 'config', message: off });
   }
   if (baseUrl !== null && baseUrl !== '' && !policy.allows('aiBaseUrl').allowed) {
     return new ProviderError({ provider, code: 'config', message: TYPED_ADDRESS_OFF });

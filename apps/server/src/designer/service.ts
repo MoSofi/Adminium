@@ -52,8 +52,9 @@ import { anthropicEfforts, type RunEffort } from '@adminium/llm';
 import { DESIGNER_MAX_OUTPUT_TOKENS, MENTIONS_WEB, WANTS_OWN_PICTURES, asksOnlyForPhoneApp } from './prompt.js';
 import { refuseOwnCode } from '../trial/own-code.js';
 import { isOperatorAiUsedUp } from '../llm/operator-ai.js';
-import { enterScope, reachRefusal, SCOPE_LABEL } from './operator-scope.js';
-import { needsOwnKeyTool } from './scope-gate.js';
+import { customerFacingPath, enterScope, outsideReachRefusal, reachRefusal, recordApplied, releaseHold, SCOPE_LABEL, SCOPE_OFF_MESSAGE, scopedNow } from './operator-scope.js';
+import { OffByOperatorError } from '../trial/refuse.js';
+import { hasPublicScreens, needsOwnKeyTool } from './scope-gate.js';
 
 export interface DesignerHost {
   /** The project folder. */
@@ -210,6 +211,8 @@ export interface Designer {
    * check, the build or the apply says is wrong with `key`, or nothing.
    */
   buildAndApply(key: string, signal?: AbortSignal): Promise<string[]>;
+  /** Whether a session on this connection is held to the operator's dashboard scope (`operator-scope.ts`). */
+  scopedConnection(connectionId: string): boolean;
   shutdown(): Promise<void>;
 }
 
@@ -438,6 +441,13 @@ export function createDesigner(host: DesignerHost): Designer {
     if (name !== '' && name !== session.title && name.length <= 80) store.update(session.id, { title: name });
   };
 
+  /** A session on the operator's AI under its dashboard scope: its turns, and the person's own actions in it, are held to it. */
+  const scopedSession = (session: Pick<DesignerSession, 'connectionId'>): boolean => host.operatorScope === true && host.connections.isOperator(session.connectionId);
+  /** The person's own action in such a session, refused as the scope refuses it in a turn. */
+  const refuseScoped = (): never => {
+    throw new OffByOperatorError('customerScreensOnOperatorAi', 'operator-ai-scope', SCOPE_OFF_MESSAGE);
+  };
+
   /** Apps whose sample rows are to be added again once they are next applied. */
   const reseeds = new Set<string>();
   /** What the last install or apply of each app said about its pages. */
@@ -448,6 +458,8 @@ export function createDesigner(host: DesignerHost): Designer {
   async function pipeline(session: DesignerSession, handle: TurnHandle, opts: { version?: boolean; askRemovals?: boolean; label?: string; saved?: readonly string[] } = {}): Promise<PipelineResult> {
     const { events, turn } = handle;
     const key = session.appKey;
+    // On the person's own key, what the operator's AI was refused is theirs to apply: the app's build is no longer held.
+    if (!scopedSession(session)) releaseHold(host.root, key);
 
     // 1. The judge: the same check `adminium app check` runs.
     const check = checkApp(host.root, key, { version: host.version });
@@ -456,9 +468,10 @@ export function createDesigner(host: DesignerHost): Designer {
     events.emit(turn, { kind: 'check', ok: errors.length === 0, findings });
     if (errors.length > 0) return { ok: false, version: null };
 
-    // A turn on the operator's AI that builds dashboards only: an app that now reaches more of the public than when the
-    // turn began is neither built nor applied, whichever tool wrote it (the turn then ends with the card).
-    if (reachRefusal(host.root, key) !== null) {
+    // A turn on the operator's AI that builds dashboards only: an app that now reaches more of the public than at its last
+    // apply is neither built nor applied, whichever tool wrote it (the turn then ends with the card). The person's own
+    // action in such a session, outside a turn, is held the same.
+    if (reachRefusal(host.root, key) !== null || (scopedSession(session) && !scopedNow(host.root) && outsideReachRefusal(host.root, key) !== null)) {
       events.emit(turn, { kind: 'apply', ok: false, state: 'not-applied', stage: 'operator', message: SCOPE_LABEL });
       return { ok: false, version: null };
     }
@@ -527,6 +540,8 @@ export function createDesigner(host: DesignerHost): Designer {
 
     // What the app allows now is what the next apply in a session of outside words is compared with.
     writeApplied(host.root, key, currentSnapshot(host.root, key));
+    // And what it reaches of the public, what a turn on the operator's AI may keep reaching.
+    recordApplied(host.root, key);
     // An apply that changes nothing says nothing about its pages: what the last real one said still holds.
     if (result?.state === 'installed' || result?.state === 'applied') {
       pageWarnings.set(key, result.pageWarnings ?? []);
@@ -760,7 +775,10 @@ export function createDesigner(host: DesignerHost): Designer {
     // On the operator's AI, under its dashboard scope: the turn is held to dashboards, and the person's request for anything
     // customer-facing is answered with the fixed card. The target is forced, whatever the session was made with.
     operatorScope: async (session) => {
-      if (host.operatorScope !== true || !host.connections.isOperator(session.connectionId)) return null;
+      if (!scopedSession(session)) {
+        releaseHold(host.root, session.appKey);
+        return null;
+      }
       if (session.target !== 'dashboard') store.update(session.id, { target: 'dashboard' });
       return { ...enterScope(host.root, session.appKey), tool: needsOwnKeyTool(host.root) };
     },
@@ -911,6 +929,8 @@ export function createDesigner(host: DesignerHost): Designer {
   async function applyPicturesNow(session: DesignerSession, fills: readonly Fill[], by: Actor, mode?: 'placeholders' | 'choose'): Promise<PicturesApplied> {
     const key = session.appKey;
     if (hasOwnBuild(host.root, key)) throw new ConflictError('This app builds its own screens: its pictures are in its own files.', 'CONFLICT', { reason: 'OWN_BUILD' });
+    // A session on the operator's AI builds dashboards: pictures on a customer side or the phone app are not placed from it.
+    if (scopedSession(session) && hasPublicScreens(host.root, key)) refuseScoped();
     if (host.pictureDialog === undefined) throw new ConflictError('This Designer fills no picture spots.', 'CONFLICT', { reason: 'NO_PICTURES' });
     // While a turn runs, nothing is fetched for an Apply that would only wait: "Wait for the Designer to finish, then apply."
     const busy = runner.busy();
@@ -1094,6 +1114,9 @@ export function createDesigner(host: DesignerHost): Designer {
       try {
         // An app that still waits for its name is moved to another folder when it gets one: nothing is saved into it before.
         if (needsName(session)) throw new ConflictError('The app has no name yet. Send the Designer a message first.', 'CONFLICT', { reason: 'APP_UNNAMED' });
+
+        // A session on the operator's AI builds dashboards: a customer side, the phone app or a site template is not saved from it.
+        if (scopedSession(session) && files.some((file) => customerFacingPath(file.path))) refuseScoped();
 
         // 1. The list, made now: a path that is not on it is not saved, and neither is anything else of this save.
         const listed = new Map((await editable(key)).map((file) => [file.path, file]));
@@ -1285,6 +1308,7 @@ export function createDesigner(host: DesignerHost): Designer {
         hold.release();
       }
     },
+    scopedConnection: (connectionId) => scopedSession({ connectionId }),
     async buildAndApply(key, signal) {
       const built = await rebuildApps(project(), { version: host.version, dev: true, ...(signal === undefined ? {} : { signal }) });
       const app = built.apps.find((candidate) => candidate.key === key);

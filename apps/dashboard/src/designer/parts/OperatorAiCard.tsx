@@ -26,16 +26,18 @@ export const AI_SETTINGS_PATH = '/studio/settings/ai';
 
 const BUTTON = 'inline-flex items-center gap-[7px] rounded-[10px] text-[13px] font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&_svg]:size-3.5';
 
-/** The card's sentence: what happened, then what the person can do, with or without Upgrade. */
-export function operatorAiText(which: Which, upgrade: boolean): string {
-  const head = which === 'used-up' ? t('designer:operatorAi.usedUp', 'The AI included with this trial is used up.') : t('designer:operatorAi.scope', 'Building customer-facing screens needs your own AI key.');
+/** The card's sentence: what happened, then what the person can do, with or without Upgrade. A trial's AI is "this trial"'s. */
+export function operatorAiText(which: Which, upgrade: boolean, trial = true): string {
+  const usedUp = trial ? t('designer:operatorAi.usedUp', 'The AI included with this trial is used up.') : t('designer:operatorAi.usedUpHere', 'The AI included with this installation is used up.');
+  const head = which === 'used-up' ? usedUp : t('designer:operatorAi.scope', 'Building customer-facing screens needs your own AI key.');
   const tail = upgrade ? t('designer:operatorAi.keyOrUpgrade', 'Add your own AI key to continue, or Upgrade.') : t('designer:operatorAi.key', 'Add your own AI key to continue.');
   return `${head} ${tail}`;
 }
 
 export function OperatorAiCard({ which }: { which: Which }): ReactNode {
   const navigate = useNavigate();
-  const upgradeUrl = useQuery(systemInfoQuery()).data?.trial?.upgradeUrl ?? null;
+  const trial = useQuery(systemInfoQuery()).data?.trial;
+  const upgradeUrl = trial?.upgradeUrl ?? null;
   return (
     <div
       role="group"
@@ -48,7 +50,7 @@ export function OperatorAiCard({ which }: { which: Which }): ReactNode {
         <span aria-hidden="true" className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-accent-soft text-accent [&_svg]:size-4">
           <KeyRound />
         </span>
-        <p className="m-0 text-[13.5px] font-semibold leading-normal text-pretty">{operatorAiText(which, upgradeUrl !== null)}</p>
+        <p className="m-0 text-[13.5px] font-semibold leading-normal text-pretty">{operatorAiText(which, upgradeUrl !== null, trial?.on !== false)}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => void navigate({ to: AI_SETTINGS_PATH })} className={`${BUTTON} border-0 bg-accent px-[15px] py-[9px] text-accent-fg hover:bg-accent-hover`}>

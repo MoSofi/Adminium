@@ -1429,6 +1429,7 @@ export default {
     "label": "需要 AI 密钥",
     "scope": "构建面向客户的界面需要您自己的 AI 密钥。",
     "usedUp": "此试用版包含的 AI 额度已用完。",
+    "usedUpHere": "此安装包含的 AI 额度已用完。",
     "keyOrUpgrade": "添加您自己的 AI 密钥以继续，或升级。",
     "key": "添加您自己的 AI 密钥以继续。",
     "addKey": "添加 AI 密钥",

@@ -13063,6 +13063,10 @@
     "status": "mt",
     "srcHash": "6d352738537c"
   },
+  "designer.operatorAi.usedUpHere": {
+    "status": "mt",
+    "srcHash": "58ab9c82f0f1"
+  },
   "designer.ownCode.codeOff": {
     "status": "mt",
     "srcHash": "9aee9990023f"

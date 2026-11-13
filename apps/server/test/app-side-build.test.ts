@@ -6,8 +6,9 @@
  * is this package's dev dependency: both are linked into a temp project the
  * way a real project has them installed.
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -16,7 +17,7 @@ import { parseSurfaceManifest } from '../src/cli/surfaces-root.js';
 import { runCli } from '../src/cli/run.js';
 import { buildProject, loadProjectBundler, loadProjectConfig, readBuildManifest, type Bundler } from '../src/project/build.js';
 import { designIssues } from '../src/project/apps/design-check.js';
-import { buildAppSides, buildSide, projectTailwind, sideBuildDir } from '../src/project/apps/side-build.js';
+import { buildAppSides, buildSide, describeSideFailure, projectTailwind, sideBuildDir } from '../src/project/apps/side-build.js';
 import { addUiParts, UI_PARTS } from '../src/project/apps/scaffold-app.js';
 import { BASE_THEME, fontsCssOf } from '../src/project/apps/theme.js';
 import { APP_VERSION } from '../src/version.js';
@@ -383,10 +384,10 @@ describe.skipIf(!ready)('what the build brings and what it keeps out', () => {
     put('apps/repairs/staff/src/main.tsx', `import linked from './linked.json';\nconsole.log(linked);\n${MAIN}`);
     await expect(build()).rejects.toThrow(/is outside this app/);
     rmSync(join(root, 'apps/repairs/staff/src/linked.json'));
-    // A name mapped onto the project by a tsconfig of the app's own.
+    // A name mapped onto the project by a tsconfig of the app's own: the build reads no tsconfig, so it maps nothing.
     put('apps/repairs/tsconfig.json', JSON.stringify({ compilerOptions: { baseUrl: '.', paths: { 'handy/*': ['../../*'] } } }));
     put('apps/repairs/staff/src/main.tsx', `import mapped from 'handy/secret.json';\nconsole.log(mapped);\n${MAIN}`);
-    await expect(build()).rejects.toThrow(/is outside this app/);
+    await expect(build()).rejects.toThrow(/Could not resolve "handy\/secret\.json"|is outside this app/);
     rmSync(join(root, 'apps/repairs/tsconfig.json'));
     // The app's own files, from anywhere in its folder, and installed packages: fine.
     put('apps/repairs/assets/pictures/hero.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>\n');
@@ -394,6 +395,49 @@ describe.skipIf(!ready)('what the build brings and what it keeps out', () => {
     const built = await build();
     expect(built.files.some((file) => /^assets\/hero-[A-Z0-9]+\.svg$/.test(file))).toBe(true);
     expect(readdirSync(join(built.dir, 'assets')).map((name) => readFileSync(join(built.dir, 'assets', name), 'utf8')).join('')).not.toContain('do-not-ship');
+  });
+
+  it('reads no tsconfig or jsconfig of the app or the project, so a file one extends is never opened, and nothing of it is said', async () => {
+    // A secret the operator mounted outside the project, as `/run/secrets/…` is: one hex word, the kind a JSON error quotes whole.
+    const outside = mkdtempSync(join(tmpdir(), 'adminium-secret-'));
+    try {
+      const secret = join(outside, 'operator_token');
+      writeFileSync(secret, '4f9c0d1e2b3a4958677685a4b3c2d1e0f9e8d7c6b5a4938271605f4e3d2c1be1\n');
+      const placed = ['apps/repairs/staff/tsconfig.json', 'apps/repairs/staff/src/jsconfig.json', 'apps/repairs/tsconfig.json', 'tsconfig.json'];
+      for (const file of placed) put(file, JSON.stringify({ extends: secret }));
+      const built = await build();
+      expect(existsSync(join(built.dir, 'index.html'))).toBe(true);
+      // And a build that fails for its own reasons says nothing of the file either.
+      put('apps/repairs/staff/src/main.tsx', 'const = ;\n');
+      const failed = await build().then(
+        () => '',
+        (error: unknown) => String((error as Error).message),
+      );
+      expect(failed).toMatch(/main\.tsx/);
+      expect(failed).not.toMatch(/4f9c|operator_token/);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('says what went wrong in a file outside the app without its words, its name or where it is', () => {
+    const app = join(root, 'apps', 'repairs');
+    const said = describeSideFailure(
+      {
+        errors: [
+          { text: 'Unexpected "4f9c0d1e2b3a" in JSON', location: { file: '/run/secrets/operator_token', line: 1, column: 0 } },
+          { text: 'Unexpected "sk-live" in JSON', location: { file: '../../.env', line: 1, column: 0 } },
+          { text: 'Expected ";" but found "="', location: { file: 'apps/repairs/staff/src/main.tsx', line: 1, column: 6 } },
+          { text: 'No matching export in "node_modules/x/index.js" for import "y"', location: { file: 'node_modules/x/index.js', line: 2, column: 1 } },
+        ],
+      },
+      root,
+      app,
+    );
+    expect(said).not.toMatch(/4f9c|sk-live|operator_token|\.env|run\/secrets/);
+    expect(said).toContain('apps/repairs/staff/src/main.tsx:1:6: Expected ";" but found "="');
+    expect(said).toContain('node_modules/x/index.js:2:1');
+    expect(said.split('\n')).toHaveLength(4);
   });
 
   it('carries a font file of the person’s own: fonts.css names it in the app’s assets, and the built page serves it from the side’s own mount', async () => {

@@ -191,9 +191,13 @@ export class OperatorScopeJailError extends JailError {}
  * Whether writing `normal` (the jail's spelling of a path) with `content` (null: a delete, or the path alone) is
  * writing code: hooks/ and actions/, which the server imports, and what a build of the app's own runs or would be
  * told to run (its build.json, its package and config files, the files its config imports, a build command in
- * app.json). The same paths a card or a person's yes guards on an ordinary server.
+ * app.json). The same paths a card or a person's yes guards on an ordinary server, and an app's tsconfig.json and
+ * jsconfig.json files.
  */
 export function isCodeWrite(root: string, appKey: string, normal: string, content: string | null): boolean {
+  // A tsconfig or jsconfig anywhere in the app, own build or not: a bundler follows its `extends` to any file.
+  const folded = normal.normalize('NFC').toLowerCase();
+  if (folded.startsWith(`apps/${appKey.toLowerCase()}/`) && /^[jt]sconfig[a-z.]*\.json$/.test(folded.slice(folded.lastIndexOf('/') + 1))) return true;
   const why = noCardRefusal(root, appKey, normal, content);
   return why !== null && why !== 'phone-file';
 }

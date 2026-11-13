@@ -65,7 +65,7 @@ beforeAll(() => {
       });
     }
     if (url.includes('/api/v1/system/info')) {
-      return jsonResponse(200, { version: '0.3.57', node: 'v22', dialect: 'sqlite', runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, connect: offerSupabase ? [{ provider: 'supabase' }] : [] });
+      return jsonResponse(200, { version: '0.3.57', designer: { mode: 'live', link: false, startPrompt: startPromptSession !== null }, node: 'v22', dialect: 'sqlite', runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, connect: offerSupabase ? [{ provider: 'supabase' }] : [] });
     }
     if (url.includes('/api/v1/designer/start-prompt') && startPromptSession !== null) {
       return jsonResponse(201, { sessionId: startPromptSession, turn: 1 });
@@ -336,10 +336,13 @@ describe('finishing', () => {
   });
 
   it('goes home when nothing was connected, seeding no wizard', async () => {
+    vi.mocked(globalThis.fetch).mockClear();
     await walkToDone(null);
     await userEvent.click(screen.getByRole('button', { name: /Go to dashboard/ }));
     await waitFor(() => expect(pushed).toContain('/'));
     expect(savedWizardState).not.toHaveBeenCalled();
+    // No start prompt waits on this server: the wizard does not ask for one.
+    expect(vi.mocked(globalThis.fetch).mock.calls.some(([input]) => String(input).includes('/api/v1/designer/start-prompt'))).toBe(false);
   });
 
   it('opens the Designer on the operator’s start prompt, where the server has one waiting', async () => {

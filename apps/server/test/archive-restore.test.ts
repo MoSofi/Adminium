@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { connectionsRepo, destinationsRepo, filesRepo, operatorHoldsRepo, pagesRepo, sessionsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { connectionsRepo, destinationsRepo, filesRepo, operatorHoldsRepo, operatorTalliesRepo, pagesRepo, sessionsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -20,6 +20,8 @@ import { restoreArchive, type RestoreArchiveOptions } from '../src/archive/resto
 import { isInstanceArchive } from '../src/archive/zip-read.js';
 import { PUBLIC_PAGES_HOLD } from '../src/operator/holds.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
+import { START_PROMPT_TALLY } from '../src/designer/start-prompt.js';
+import { AI_TOKENS_TALLY } from '../src/llm/operator-ai.js';
 import {
   AVAILABLE,
   CRYPTO,
@@ -376,6 +378,20 @@ describe('restore refuses', () => {
     const dest = await target('sqlite', true);
     await seedInstance(dest.meta, { ...dest.dirs, projectRoot: join(dest.dirs.root, 'other-project') });
     await expectRefused(restoreArchive(restoreOptions(src, dest)), /already has people/);
+  });
+
+  it('never the operator’s own rows a target holds: its AI spend, its start prompt’s run, its holds are kept as they are', async () => {
+    const src = await source('sqlite');
+    const dest = await target('sqlite', true);
+    const tallies = operatorTalliesRepo(dest.meta);
+    await tallies.add(AI_TOKENS_TALLY, 900_000, 1);
+    await tallies.claim(START_PROMPT_TALLY, 1);
+    await operatorHoldsRepo(dest.meta).set({ name: 'public-pages', held: true, reason: 'restored on hold' }, 1);
+    await restoreArchive(restoreOptions(src, dest));
+    expect((await tallies.get(AI_TOKENS_TALLY))?.amount).toBe(900_000);
+    expect(await tallies.get(START_PROMPT_TALLY)).not.toBeNull();
+    expect(await operatorHoldsRepo(dest.meta).get('public-pages')).toMatchObject({ held: true, reason: 'restored on hold' });
+    expect((await usersRepo(dest.meta).findByEmail('ava@example.com'))?.id).toBe(src.seeded.admin.id);
   });
 
   it('a full archive through import-zip, and an export through archive restore', async () => {

@@ -14,12 +14,13 @@
  * wizard with three empty screens would be worse than the two-step one it
  * replaces.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { engineForDsn } from '@adminium/widgets';
 
 import { api, ApiError } from '../../app/api.js';
+import { systemInfoQuery } from '../../app/capabilities.js';
 import { t } from '../../i18n/t.js';
 import { hasPendingBridgeTicket } from '../../studio/connect/bridgeTicket.js';
 import { studioApi, waitForRestart } from '../../studio/api.js';
@@ -77,6 +78,7 @@ export function OnboardingPage({
   databaseConnected = false,
 }: OnboardingPageProps): ReactNode {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const steps = onboardingStepIds(databaseConnected);
   const [step, setStep] = useState<OnboardingStepId>(steps[0] ?? 'start');
   const [held, setHeld] = useState<HeldAnswers>(DEFAULT_HELD_ANSWERS);
@@ -343,12 +345,14 @@ export function OnboardingPage({
   }
 
   /**
-   * The operator's start prompt (`ADMINIUM_DESIGNER_START_PROMPT_B64`), where the server has one that has not run:
-   * the Designer opens on the dashboard it starts building. Anywhere else (no prompt, it ran, no model, no Designer)
-   * the server says no, and the wizard lets go as it always does.
+   * The operator's start prompt (`ADMINIUM_DESIGNER_START_PROMPT_B64`), where the server has one that has not run
+   * (`/system/info` says so): the Designer opens on the dashboard it starts building. Anywhere else nothing is asked,
+   * and where it cannot start (no model) the server says no: the wizard lets go as it always does.
    */
   async function startPrompt(): Promise<string> {
     try {
+      const info = await queryClient.fetchQuery({ ...systemInfoQuery(), staleTime: 0 });
+      if (info.designer?.startPrompt !== true) return handOffPath();
       const started = await api.post<{ sessionId: string }>('/api/v1/designer/start-prompt', {});
       return `/design/${encodeURIComponent(started.sessionId)}`;
     } catch {

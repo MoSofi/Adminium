@@ -33,6 +33,7 @@ import { checkAppWithFiles, type AppFinding } from './check-app.js';
 import { APPS_DIR, MANIFEST_FILE, MANIFEST_PARTS_DIR, SIDES, appDir, listAppKeys, type AppSide } from './read-app.js';
 import { hasOwnBuild, isBuildApproved, readAppBuild, runOwnBuild, unapprovedProblem, type StepRunner } from './own-build.js';
 import { buildAppSides } from './side-build.js';
+import { heldRefusal } from '../../designer/operator-scope.js';
 
 /** The composed manifest of a built app, beside its sides. */
 export const APP_BUILD_FILE = 'app.json';
@@ -214,6 +215,9 @@ async function buildOne(root: string, key: string, opts: BuildAppsOptions): Prom
     );
   }
   if (errors.length > 0 || check.manifest === null || check.folder.document === null) return failed(errors);
+  // What the operator's AI was refused stays unbuilt, whoever builds next (a restart, a save), until an apply lets it go.
+  const held = heldRefusal(root, key);
+  if (held !== null) return failed([held]);
 
   const inputs: Record<string, string> = {};
   const own = readAppBuild(root, key);

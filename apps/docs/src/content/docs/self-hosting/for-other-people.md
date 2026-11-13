@@ -128,7 +128,10 @@ Two files, for two different jobs:
 
 A restore checks connection strings, storage addresses, folders and domains
 again under the new server's settings, and switches off whatever they refuse.
-**Allow databases on this server** never travels in either file. When each
+**Allow databases on this server** never travels in either file, and neither
+do your own counts and holds (the AI spent, whether the start prompt ran, hidden
+public pages): a restore leaves those the new server already has as they are,
+and the AI budget there counts from what that server spent. When each
 instance has its own secret, set the same `ADMINIUM_ARCHIVE_KEY` on both
 servers.
 

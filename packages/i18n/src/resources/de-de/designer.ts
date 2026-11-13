@@ -1429,6 +1429,7 @@ export default {
     "label": "KI-Schlüssel nötig",
     "scope": "Für Bildschirme, die Kunden sehen, brauchen Sie Ihren eigenen KI-Schlüssel.",
     "usedUp": "Die in dieser Testversion enthaltene KI ist aufgebraucht.",
+    "usedUpHere": "Die in dieser Installation enthaltene KI ist aufgebraucht.",
     "keyOrUpgrade": "Fügen Sie Ihren eigenen KI-Schlüssel hinzu, um weiterzumachen, oder führen Sie ein Upgrade durch.",
     "key": "Fügen Sie Ihren eigenen KI-Schlüssel hinzu, um weiterzumachen.",
     "addKey": "KI-Schlüssel hinzufügen",

@@ -6,6 +6,7 @@ import { sql } from 'kysely';
 import type { Env } from '../../config/env.js';
 import { connectProviders } from '../../connect/providers.js';
 import { demoSeedAvailable } from '../../desktop/demo-seed.js';
+import { startPromptWaiting } from '../../designer/start-prompt.js';
 import { lanShareActive } from '../../desktop/lan-share.js';
 import { trialPolicy } from '../../trial/policy.js';
 import { APP_VERSION } from '../../version.js';
@@ -109,7 +110,7 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
   const { env, meta } = deps;
   return {
     version: APP_VERSION,
-    designer: { mode: deps.designer ?? 'off', link: deps.designerLink === true },
+    designer: { mode: deps.designer ?? 'off', link: deps.designerLink === true, startPrompt: await startPromptOpen(env, meta, deps.designer ?? 'off') },
     node: process.version,
     dialect: meta?.dialect ?? null,
     runtime: env.ADMINIUM_RUNTIME,
@@ -123,6 +124,12 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     trial: trialInfo(env, deps.now?.() ?? Date.now()),
     offByOperator: offByOperator(env),
   };
+}
+
+/** Whether the operator's start prompt waits to run: only where the Designer runs, which is where its route is. */
+async function startPromptOpen(env: Env, meta: MetaDb | null, designer: 'local' | 'live' | 'off'): Promise<boolean> {
+  if (meta === null || designer === 'off') return false;
+  return startPromptWaiting({ meta, prompt: env.ADMINIUM_DESIGNER_START_PROMPT_B64 ?? env.ADMINIUM_DESIGNER_START_PROMPT_FILE ?? null });
 }
 
 /** The switches the dashboard explains before anyone signs in (the connect wizards' SQLite choice) or without a reply of its own. */
