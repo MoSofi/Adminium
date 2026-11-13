@@ -60,10 +60,6 @@ export type ErrorCode =
   | 'SET_BY_OPERATOR'
   /** 403: the server's operator switched this action off for this installation (`trial/refuse.ts`). */
   | 'OFF_BY_OPERATOR'
-  // 403: the operator turned own code off (`trial/own-code.ts`): uploads of packages, uploads and hand edits in the Designer, code the server would run.
-  | 'PACKAGE_UPLOADS_OFF'
-  | 'DESIGNER_UPLOADS_OFF'
-  | 'OWN_CODE_OFF'
   | 'INTERNAL';
 
 /** The wire shape of every non-2xx response. */

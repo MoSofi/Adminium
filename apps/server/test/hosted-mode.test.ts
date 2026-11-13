@@ -112,13 +112,13 @@ describe('A1 connections: kept', { timeout: 60_000 }, () => {
         expect(codeOf(sqlite)).not.toBe('OFF_BY_OPERATOR');
         expect(codeOf(unlisted)).toBe('HOST_LOOKUP_FAILED');
         expect(codeOf(otherLogin)).toBe('HOST_LOOKUP_FAILED');
-        expect(info).toMatchObject({ offByOperator: { sqliteSources: { allowed: true }, metaStore: { allowed: true } } });
+        expect(info).toMatchObject({ offByOperator: { sqliteSources: { allowed: true }, metaStoreRoutes: { allowed: true } } });
         return;
       }
       expect(sqlite).toMatchObject({ status: 403, body: offBy('sqliteSources', reason) });
       expect(unlisted).toMatchObject({ status: 403, body: offBy('unlistedDatabaseHosts', reason) });
       expect(otherLogin).toMatchObject({ status: 403, body: offBy('anyDatabaseLogin', reason) });
-      expect(info).toMatchObject({ offByOperator: { sqliteSources: { allowed: false, reason }, metaStore: { allowed: false, reason } } });
+      expect(info).toMatchObject({ offByOperator: { sqliteSources: { allowed: false, reason }, metaStoreRoutes: { allowed: false, reason } } });
       // The meta store is the operator's: a move is refused.
       expect(await s.api('POST', '/api/v1/meta/relocate', { dsn: 'postgres://u:p@pg-trials:5432/other' })).toMatchObject({ status: 403, body: offBy('metaStoreRoutes', reason) });
       // The operator's own login passes on to the lookup, within one budget of tests for the whole installation
@@ -268,11 +268,11 @@ describe('A3 own add-on and app uploads off, the Designer declarative only: kept
       const s = await serve(env);
       for (const url of [`/api/v1/add-ons/upload?expectedSha512=${SHA}`, `/api/v1/apps/upload?expectedSha512=${SHA}`]) {
         const res = await s.call('POST', url, { payload: Buffer.from('not a package'), headers: OCTET });
-        if (reason === null) expect(res.json()['error'], url).not.toMatchObject({ code: 'PACKAGE_UPLOADS_OFF' });
-        else expect(res.json()['error'], url).toMatchObject({ code: 'PACKAGE_UPLOADS_OFF', details: { question: 'packageUploads', reason } });
+        if (reason === null) expect(res.json()['error'], url).not.toMatchObject({ code: 'OFF_BY_OPERATOR' });
+        else expect(res.json()['error'], url).toMatchObject({ code: 'OFF_BY_OPERATOR', details: { question: 'packageUploads', reason } });
       }
       const answer = reason === null ? { allowed: true, reason: null } : { allowed: false, reason };
-      expect((await s.api('GET', '/api/v1/system/info')).body['ownCode']).toEqual({ packageUploads: answer, designerUploads: answer, ownBuilds: answer });
+      expect((await s.api('GET', '/api/v1/system/info')).body['offByOperator']).toMatchObject({ packageUploads: answer, designerUploads: answer, ownBuilds: answer });
       // The guards where the effect happens read the policy this server was built with.
       for (const question of ['designerCode', 'ownBuilds', 'requestPackage', 'designerUploads'] as const) {
         expect(ownCodeAllows(question), question).toEqual(answer);

@@ -12,18 +12,26 @@
  *   refuseUnlessAllowed(app.trialPolicy, 'storageDestinations', 'Storage destinations are …');
  */
 import { AppError } from '../errors.js';
-import { ORDINARY_POLICY, type PolicyQuestion, type PolicyReason, type TrialPolicy } from './policy.js';
+import type { LockReason } from './operator-lock.js';
+import { ORDINARY_POLICY, type PolicyQuestion, type TrialPolicy } from './policy.js';
 
-/** 403: the server's operator switched this off for this installation. */
+/**
+ * 403: the server's operator switched this off for this installation. The
+ * reason is the profile's (`trial-mode`, `hosted-mode`, `trial-ended`, …), or
+ * `not-allowed` for an operator's own variable outside any profile (the
+ * domains an ordinary server with `ADMINIUM_OPERATOR_DOMAINS` maps).
+ */
 export class OffByOperatorError extends AppError {
-  override readonly name = 'OffByOperatorError';
+  override readonly name: string = 'OffByOperatorError';
 
   constructor(
     readonly question: PolicyQuestion,
-    readonly reason: PolicyReason,
+    readonly reason: LockReason,
     message: string,
+    /** What the refusal names besides (the hosts a list was refused for). */
+    more: Record<string, unknown> = {},
   ) {
-    super(403, 'OFF_BY_OPERATOR', message, { question, reason });
+    super(403, 'OFF_BY_OPERATOR', message, { ...more, question, reason });
   }
 }
 

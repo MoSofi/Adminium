@@ -15,9 +15,11 @@
  *    robots.txt an app's side ships. Staff pages carry it too: no page of a
  *    trial belongs in a search index. The hosted profile and an ordinary server
  *    leave all three alone;
- *  - pay pages (`/pay…`) and inbound payment webhooks are refused (403, with
- *    the policy's reason) where the policy switches them off: a trial has no
- *    payment provider to pay through or to call back.
+ *  - pay pages (`/pay…`) and inbound payment webhooks are refused (403
+ *    `OFF_BY_OPERATOR`, `trial/refuse.ts`) where the policy switches them
+ *    off: a trial has no payment provider to pay through or to call back.
+ *    Decided by the route the router matched as well as the path, so a
+ *    percent-encoded spelling of the address is refused too.
  *
  * The request hook is also where every public page is hidden at once: while
  * the server's operator holds them back (`operator/holds.ts`), and past a
@@ -37,7 +39,7 @@ import type { LocaleId } from '@adminium/i18n';
 import { createServerI18n } from '@adminium/i18n/server';
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
-import { AppError, errorEnvelope } from '../errors.js';
+import { errorEnvelope } from '../errors.js';
 import { bcp47 } from '../i18n/bcp47.js';
 import { loadOverrideMap, recipientLocale } from '../i18n/server-i18n.js';
 import type { OperatorHolds } from '../operator/holds.js';
@@ -48,6 +50,7 @@ import { domainMappingFor, pagesMappingFor } from '../surfaces/settings.js';
 import { renderHiddenPage } from '../surfaces/unavailable-page.js';
 import { ANY_HOST_PATHS } from './operator-hosts.js';
 import type { PolicyQuestion, TrialPolicy } from './policy.js';
+import { refuseUnlessAllowed } from './refuse.js';
 
 /** Said on every response, and in the meta tag, while indexing is off. */
 export const NOINDEX = 'noindex, nofollow';
@@ -88,10 +91,30 @@ function pathOf(url: string): string {
 }
 
 /** The policy question that switches off the door this path is, if any. */
-function closedBy(path: string): PolicyQuestion | null {
+function closedByPath(path: string): PolicyQuestion | null {
   if (path === PAY_PREFIX || path.startsWith(`${PAY_PREFIX}/`)) return 'payPages';
   if (path.startsWith(PAYMENT_WEBHOOK_PREFIX)) return 'paymentWebhooks';
   return null;
+}
+
+/** `path` percent-decoded as the router reads it; as it is when it does not decode. */
+function decodedPath(path: string): string {
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
+
+/**
+ * The policy question that switches off the door a request is for, if any:
+ * by the route the router matched (`/pay/:token` for `/p%61y/…`), and by the
+ * path as sent and as decoded, so no spelling of the address gets past.
+ */
+function closedBy(request: FastifyRequest): PolicyQuestion | null {
+  const path = pathOf(request.url);
+  const route = request.routeOptions.url;
+  return closedByPath(path) ?? closedByPath(decodedPath(path)) ?? (route === undefined ? null : closedByPath(route));
 }
 
 /**
@@ -167,13 +190,8 @@ export function registerPublicPages(app: FastifyInstance, policy: Pick<TrialPoli
       return sendHiddenPage(hide?.meta ?? null, holds, request, reply);
     }
     const path = pathOf(request.url);
-    const question = closedBy(path);
-    if (question !== null) {
-      const answer = policy.allows(question);
-      if (!answer.allowed) {
-        throw new AppError(403, 'FORBIDDEN', question === 'payPages' ? 'Pay pages are off on this server.' : 'Payment services cannot call this server.', { reason: answer.reason });
-      }
-    }
+    const question = closedBy(request);
+    if (question !== null) refuseUnlessAllowed(policy, question, question === 'payPages' ? 'Pay pages are off on this server.' : 'Payment services cannot call this server.');
     if (!indexing && path === '/robots.txt' && (request.method === 'GET' || request.method === 'HEAD')) {
       return reply.code(200).type('text/plain; charset=utf-8').header('cache-control', 'no-store').send(request.method === 'HEAD' ? '' : ROBOTS_DISALLOW_ALL);
     }

@@ -122,24 +122,19 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     connect: connectProviders(env).map((provider) => ({ provider: provider.id })),
     trial: trialInfo(env, deps.now?.() ?? Date.now()),
     offByOperator: offByOperator(env),
-    ownCode: ownCodeInfo(env),
   };
 }
 
 /** The switches the dashboard explains before anyone signs in (the connect wizards' SQLite choice) or without a reply of its own. */
-function offByOperator(env: Env): NonNullable<SystemInfoReply['offByOperator']> {
-  const policy = trialPolicy(env);
-  const lock = (question: 'sqliteSources' | 'storageDestinations' | 'webhooks' | 'metaStoreRoutes') => {
-    const answer = policy.allows(question);
-    return { allowed: answer.allowed, reason: answer.reason };
-  };
-  return { sqliteSources: lock('sqliteSources'), storageDestinations: lock('storageDestinations'), webhooks: lock('webhooks'), metaStore: lock('metaStoreRoutes') };
-}
+const SWITCHES = ['sqliteSources', 'storageDestinations', 'webhooks', 'metaStoreRoutes', 'packageUploads', 'designerUploads', 'ownBuilds'] as const satisfies readonly (keyof SystemInfoReply['offByOperator'])[];
 
-/** The own code this server takes, as the dashboard's upload and "Start with an app" buttons read it. */
-function ownCodeInfo(env: Env): SystemInfoReply['ownCode'] {
+function offByOperator(env: Env): SystemInfoReply['offByOperator'] {
   const policy = trialPolicy(env);
-  return { packageUploads: policy.allows('packageUploads'), designerUploads: policy.allows('designerUploads'), ownBuilds: policy.allows('ownBuilds') };
+  const answer = (question: (typeof SWITCHES)[number]) => {
+    const { allowed, reason } = policy.allows(question);
+    return { allowed, reason };
+  };
+  return Object.fromEntries(SWITCHES.map((question) => [question, answer(question)])) as SystemInfoReply['offByOperator'];
 }
 
 /** The trial's clock and the Upgrade address, as the banners read them. */

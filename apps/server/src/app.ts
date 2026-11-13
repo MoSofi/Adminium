@@ -471,8 +471,12 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   // Trial mode and the hosted profile: every "is this allowed?" (`trial/policy.ts`), for the routes that ask.
   const policy = trialPolicy(env);
   app.decorate('trialPolicy', policy);
-  // The guards where own code would take effect (an upload staged, a hook imported, a build run) ask it too.
-  useOwnCodePolicy(policy);
+  // The guards where own code would take effect (an upload staged, a hook imported, a build run) ask it too,
+  // for as long as this server runs.
+  const releaseOwnCodePolicy = useOwnCodePolicy(policy);
+  app.addHook('onClose', async () => {
+    releaseOwnCodePolicy();
+  });
   // The same for row limits: every route says how it treats a person held to some rows (`rbac/row-coverage.ts`).
   const rowCoverage = createRowCoverageRegistry(ROW_COVERAGE);
   app.decorate('rowCoverage', rowCoverage);

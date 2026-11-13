@@ -167,27 +167,27 @@ export const systemInfoReply = z.object({
   /**
    * What the operator has switched off for this installation (trial mode, the
    * hosted profile), for the screens that offer it before anyone signs in or
-   * without a reply of their own: each `{ allowed, reason }`, drawn disabled
-   * with the reason, never hidden. Absent from a server older than trial mode.
+   * without a reply of their own: each `{ allowed, reason }` under the name
+   * of its policy question (`trial/policy.ts`), the same name a 403
+   * `OFF_BY_OPERATOR` carries in `details.question`. Drawn disabled with the
+   * reason, never hidden.
    */
-  offByOperator: z
-    .object({
-      /** A SQLite file as a source, and making one: the connect wizards' SQLite choice. */
-      sqliteSources: settingLockSchema,
-      /** Storage destinations other than the default local one. */
-      storageDestinations: settingLockSchema,
-      /** The automation webhook step (and Slack message, which is one). */
-      webhooks: settingLockSchema,
-      /** Moving or adopting the meta store: the setup wizard's and Studio's placement choices. */
-      metaStore: settingLockSchema,
-    })
-    .optional(),
-  /**
-   * What own code this server takes (`trial/own-code.ts`), each `{ allowed, reason }`: uploads of add-ons and
-   * apps, uploads and hand edits in the Designer, and builds of an app's own ("Start with an app"). The
-   * dashboard shows the buttons that lead there disabled with the reason, never hidden.
-   */
-  ownCode: z.object({ packageUploads: settingLockSchema, designerUploads: settingLockSchema, ownBuilds: settingLockSchema }),
+  offByOperator: z.object({
+    /** A SQLite file as a source, and making one: the connect wizards' SQLite choice. */
+    sqliteSources: settingLockSchema,
+    /** Storage destinations other than the default local one. */
+    storageDestinations: settingLockSchema,
+    /** The automation webhook step (and Slack message, which is one). */
+    webhooks: settingLockSchema,
+    /** Moving or adopting the meta store: the setup wizard's and Studio's placement choices. */
+    metaStoreRoutes: settingLockSchema,
+    /** Uploads of add-ons and apps (`trial/own-code.ts`). */
+    packageUploads: settingLockSchema,
+    /** Uploads and hand edits in the Designer. */
+    designerUploads: settingLockSchema,
+    /** Builds of an app's own: "Start with an app", an app's own build command. */
+    ownBuilds: settingLockSchema,
+  }),
 });
 export type SystemInfoReply = z.infer<typeof systemInfoReply>;
 

@@ -536,11 +536,8 @@ from an operator's variable on any server (`ADMINIUM_LOCAL_DATABASES=off`, `ADMI
 
 | Code | Status | When | details |
 |---|---|---|---|
-| `OFF_BY_OPERATOR` | 403 | An action the profile switches off: a database host not on the operator's list, a storage destination, a webhook step, a write after a trial's end, an insert into a database past its size cap… | `question` (what is off, such as `webhooks` or `dataOverCap`), `reason` (`trial-mode`, `hosted-mode`, `trial-ended`, `size-cap`, `operator-ai-only` or `operator-ai-scope`) |
+| `OFF_BY_OPERATOR` | 403 | An action the profile switches off: a database host not on the operator's list, a storage destination, a webhook step, uploading an add-on or an app, the Designer's uploads and code of one's own, **Start with an app**, a pay page or payment webhook, a domain the operator did not list, a write after a trial's end, an insert into a database past its size cap… | `question` (what is off, such as `webhooks`, `packageUploads`, `payPages`, `mappedDomains` or `dataOverCap`), `reason` (`trial-mode`, `hosted-mode`, `trial-ended`, `size-cap`, `operator-ai-only`, `operator-ai-scope`, or `not-allowed` for an operator's variable outside the profiles); a refused domain list also names the `hosts` or `origins` it refused |
 | `SET_BY_OPERATOR` | 409 | A change to a setting the operator decides: the address in email links, the mail server in a trial, telemetry, the update check, an AI address, **Allow databases on this server**. Sending the value it is held to is no change and passes. | `setting`, `reason` (as above, or `not-allowed` for an operator's variable outside the profiles) |
-| `PACKAGE_UPLOADS_OFF` | 403 | Uploading an add-on or an app. | `question`, `reason` |
-| `DESIGNER_UPLOADS_OFF` | 403 | The Designer's site zip, a style of one's own, the Code tab's hand save. | `question`, `reason` |
-| `OWN_CODE_OFF` | 403 | Code the server would run: the Designer writing hooks, actions or build files, an app's own build, **Start with an app**, an npm package. | `question`, `reason` |
 
 The dashboard shows each of these choices disabled with the operator's reason before anybody
 tries.

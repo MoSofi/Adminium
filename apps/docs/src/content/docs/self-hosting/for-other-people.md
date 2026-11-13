@@ -324,9 +324,9 @@ network and with the server's own access.
 
 | | Trial | Hosted | |
 |---|---|---|---|
-| Uploading an add-on or an app (catalog and bundled ones install as usual) | Off | Off | `403 PACKAGE_UPLOADS_OFF` |
-| The Designer's site zip, styles of one's own and the Code tab's hand save | Off | Off | `403 DESIGNER_UPLOADS_OFF` |
-| Code the server would run: hooks, actions, build files, the app's tests, npm packages, an app's own build, **Start with an app** | Off | Off | `403 OWN_CODE_OFF` |
+| Uploading an add-on or an app (catalog and bundled ones install as usual) | Off | Off | |
+| The Designer's site zip, styles of one's own and the Code tab's hand save | Off | Off | |
+| Code the server would run: hooks, actions, build files, the app's tests, npm packages, an app's own build, **Start with an app** | Off | Off | |
 | The project's `.env` | Not read | Not read | |
 
 The Designer still builds an app's tables, pages, manifest and screens; it
@@ -340,7 +340,7 @@ A paid installation may call the internet, never your network.
 |---|---|---|---|
 | The automation webhook step and Slack message | Off | On | |
 | Every add-on's network calls, declared hosts included | Off | On | |
-| Payment services, pay pages and inbound payment webhooks | Off | On | Pay pages and webhooks: `403 FORBIDDEN` |
+| Payment services, pay pages and inbound payment webhooks | Off | On | |
 | The Designer's picture search and Figma | Off | On | |
 | Maps, routing, telemetry and the update check | Off | On | The two settings shown locked |
 | Their own mail server: all mail goes through your relay | Off | On | `409 SET_BY_OPERATOR` |
@@ -354,7 +354,7 @@ at an address you gave it, never one a visitor chose.
 |---|---|---|---|
 | Answering on any host name | Off | Off | `421` |
 | Changing the address in email links | Off | Off | `409 SET_BY_OPERATOR` |
-| Mapping a domain you did not list, or letting another website frame its forms | Off | Off | `403 FORBIDDEN` |
+| Mapping a domain you did not list, or letting another website frame its forms | Off | Off | Also on an ordinary server with `ADMINIUM_OPERATOR_DOMAINS`, reason `not-allowed` |
 | Search engines indexing its public pages | Off | On | `noindex` everywhere |
 
 **The trial itself.** These only limit a free trial.

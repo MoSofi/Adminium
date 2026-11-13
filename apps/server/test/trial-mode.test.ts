@@ -420,7 +420,7 @@ describe('A4 mapped domains come from the operator’s list only', { timeout: 60
       );
       const refused = await map(s, 'evil.example');
       expect(refused.status, refused.body).toBe(403);
-      expect(refused.json()['error']).toMatchObject({ code: 'FORBIDDEN', details: { reason, hosts: ['evil.example'] } });
+      expect(refused.json()['error']).toMatchObject({ code: 'OFF_BY_OPERATOR', details: { question: 'mappedDomains', reason, hosts: ['evil.example'] } });
       // The first listed domain is where links in email point: Studio and the reset page stay there.
       expect((await map(s, OWN)).status).toBe(403);
       expect((await map(s, OWN_TOO)).status).toBe(200);
@@ -432,7 +432,7 @@ describe('A4 mapped domains come from the operator’s list only', { timeout: 60
     const s = await serve({ ...TRIAL, ADMINIUM_OPERATOR_DOMAINS: `${OWN},${OWN_TOO}` });
     const refused = await listWebsite(s, 'https://evil.example');
     expect(refused.status, refused.body).toBe(403);
-    expect(refused.json()['error']).toMatchObject({ code: 'FORBIDDEN', details: { reason: 'trial-mode', origins: ['https://evil.example'] } });
+    expect(refused.json()['error']).toMatchObject({ code: 'OFF_BY_OPERATOR', details: { question: 'mappedDomains', reason: 'trial-mode', origins: ['https://evil.example'] } });
     expect((await listWebsite(s, `https://${OWN_TOO}`)).status).toBe(200);
   });
 
@@ -444,14 +444,30 @@ describe('A4 mapped domains come from the operator’s list only', { timeout: 60
 });
 
 describe('A4 pay pages and payment webhooks', { timeout: 60_000 }, () => {
-  const pay = (s: Server) => s.call('GET', '/pay/not-a-real-token', { anonymous: true });
-  const webhook = (s: Server) => s.call('POST', '/api/v1/payments/webhook/stripe/live', { anonymous: true, headers: { 'content-type': 'application/json' }, payload: '{}' });
+  const pay = (s: Server, path = '/pay/not-a-real-token') => s.call('GET', path, { anonymous: true });
+  const webhook = (s: Server, path = '/api/v1/payments/webhook/stripe/live') => s.call('POST', path, { anonymous: true, headers: { 'content-type': 'application/json' }, payload: '{}' });
 
   it('trial: both refused', async () => {
     const s = await serve(TRIAL);
-    for (const res of [await pay(s), await webhook(s)]) {
+    for (const [res, question] of [
+      [await pay(s), 'payPages'],
+      [await webhook(s), 'paymentWebhooks'],
+    ] as const) {
       expect(res.status, res.body).toBe(403);
-      expect(res.json()['error']).toMatchObject({ code: 'FORBIDDEN', details: { reason: 'trial-mode' } });
+      expect(res.json()['error']).toMatchObject({ code: 'OFF_BY_OPERATOR', details: { question, reason: 'trial-mode' } });
+    }
+  });
+
+  it('trial: a percent-encoded path to either is refused too, the router reading it decoded', async () => {
+    const s = await serve(TRIAL);
+    for (const [res, question] of [
+      [await pay(s, '/%70ay/not-a-real-token'), 'payPages'],
+      [await pay(s, '/p%61y/not-a-real-token'), 'payPages'],
+      [await webhook(s, '/api/v1/%70ayments/webhook/stripe/live'), 'paymentWebhooks'],
+      [await webhook(s, '/api/v1/payments/w%65bhook/stripe/live'), 'paymentWebhooks'],
+    ] as const) {
+      expect(res.status, res.body).toBe(403);
+      expect(res.json()['error']).toMatchObject({ code: 'OFF_BY_OPERATOR', details: { question, reason: 'trial-mode' } });
     }
   });
 
@@ -485,7 +501,7 @@ describe('A1 connections', { timeout: 60_000 }, () => {
       expect(refused.status).toBe(403);
       expect(refused.body).toMatchObject(offBy('sqliteSources', reason));
       // Said before anyone signs in, so the connect wizards draw the choice disabled with the reason.
-      expect((await s.api('GET', '/api/v1/system/info')).body).toMatchObject({ offByOperator: { sqliteSources: { allowed: false, reason }, metaStore: { allowed: false, reason } } });
+      expect((await s.api('GET', '/api/v1/system/info')).body).toMatchObject({ offByOperator: { sqliteSources: { allowed: false, reason }, metaStoreRoutes: { allowed: false, reason } } });
       // The other front door, saving one, is the same guard.
       expect((await s.api('POST', '/api/v1/connections', { name: 'Local', engine: 'sqlite', dsn: 'sqlite:/tmp/p75-t11-anything.db' })).body).toMatchObject(offBy('sqliteSources', reason));
       await closeServer();

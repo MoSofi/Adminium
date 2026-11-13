@@ -118,16 +118,17 @@ describe.each([
   ['trial mode', TRIAL, 'trial-mode'],
   ['the hosted profile', HOSTED, 'hosted-mode'],
 ] as const)('package uploads under %s', { timeout: 60_000 }, (_name, env, reason) => {
-  it('are refused with PACKAGE_UPLOADS_OFF before the body is read, and /system/info says why', async () => {
+  it('are refused with OFF_BY_OPERATOR before the body is read, and /system/info says why', async () => {
     const call = await server(env);
     for (const [method, url] of UPLOADS) {
       const said = await call(method, url, Buffer.from('not a package'), OCTET);
       expect(said.status, url).toBe(403);
-      expect(said.body['error'], url).toMatchObject({ code: 'PACKAGE_UPLOADS_OFF', message: expect.stringContaining('from the catalog only'), details: { question: 'packageUploads', reason } });
+      expect(said.body['error'], url).toMatchObject({ code: 'OFF_BY_OPERATOR', message: expect.stringContaining('from the catalog only'), details: { question: 'packageUploads', reason } });
     }
     const info = (await call('GET', '/api/v1/system/info')).body;
     const off = { allowed: false, reason };
-    expect(info['ownCode']).toEqual({ packageUploads: off, designerUploads: off, ownBuilds: off });
+    expect(info['ownCode']).toBeUndefined();
+    expect(info['offByOperator']).toMatchObject({ packageUploads: off, designerUploads: off, ownBuilds: off });
   });
 });
 
@@ -138,10 +139,10 @@ describe('package uploads on an ordinary server', { timeout: 60_000 }, () => {
       const said = await call(method, url, Buffer.from('not a package'), OCTET);
       // Past the operator's word: the bytes themselves are judged, and are not a package.
       expect(said.status, url).not.toBe(403);
-      expect((said.body['error'] as { code?: string } | undefined)?.code, url).not.toBe('PACKAGE_UPLOADS_OFF');
+      expect((said.body['error'] as { code?: string } | undefined)?.code, url).not.toBe('OFF_BY_OPERATOR');
     }
     const open = { allowed: true, reason: null };
-    expect((await call('GET', '/api/v1/system/info')).body['ownCode']).toEqual({ packageUploads: open, designerUploads: open, ownBuilds: open });
+    expect((await call('GET', '/api/v1/system/info')).body['offByOperator']).toMatchObject({ packageUploads: open, designerUploads: open, ownBuilds: open });
   });
 });
 
@@ -236,10 +237,10 @@ describe.skipIf(!canBuildSides).each([
       expect(said.status, url).toBe(403);
       expect(said.body['error'], url).toMatchObject({ code, details: { question, reason } });
     };
-    await refused('POST', `/api/v1/designer/sessions/${SESSION}/attachments/site?filename=site.zip`, Buffer.from('PK'), OCTET, 'DESIGNER_UPLOADS_OFF', 'designerUploads');
-    await refused('POST', '/api/v1/designer/styles?filename=SKILL.md', Buffer.from('# Mine'), OCTET, 'DESIGNER_UPLOADS_OFF', 'designerUploads');
-    await refused('PUT', `/api/v1/designer/sessions/${SESSION}/files`, { files: [{ path: 'hooks/orders.ts', base: 'x', content: 'export default {};' }] }, {}, 'DESIGNER_UPLOADS_OFF', 'designerUploads');
-    await refused('POST', '/api/v1/designer/start', { key: 'shop', newKey: 'my-shop', name: 'My shop', approve: 'x', connectionId: 'env:ollama', model: 'fake' }, {}, 'OWN_CODE_OFF', 'ownBuilds');
+    await refused('POST', `/api/v1/designer/sessions/${SESSION}/attachments/site?filename=site.zip`, Buffer.from('PK'), OCTET, 'OFF_BY_OPERATOR', 'designerUploads');
+    await refused('POST', '/api/v1/designer/styles?filename=SKILL.md', Buffer.from('# Mine'), OCTET, 'OFF_BY_OPERATOR', 'designerUploads');
+    await refused('PUT', `/api/v1/designer/sessions/${SESSION}/files`, { files: [{ path: 'hooks/orders.ts', base: 'x', content: 'export default {};' }] }, {}, 'OFF_BY_OPERATOR', 'designerUploads');
+    await refused('POST', '/api/v1/designer/start', { key: 'shop', newKey: 'my-shop', name: 'My shop', approve: 'x', connectionId: 'env:ollama', model: 'fake' }, {}, 'OFF_BY_OPERATOR', 'ownBuilds');
     expect(existsSync(join(root, 'design-skills'))).toBe(false);
     expect(existsSync(join(root, 'apps', 'my-shop'))).toBe(false);
   });
@@ -293,7 +294,7 @@ describe.skipIf(!canBuildSides)('the Designer on an ordinary server', { timeout:
   it('takes the uploads past the operator’s word, and tells the model nothing of it', async () => {
     const { call } = await designServer({});
     const said = await call('POST', '/api/v1/designer/styles?filename=SKILL.md', Buffer.from('# Mine'), OCTET);
-    expect((said.body['error'] as { code?: string } | undefined)?.code).not.toBe('DESIGNER_UPLOADS_OFF');
+    expect((said.body['error'] as { code?: string } | undefined)?.code).not.toBe('OFF_BY_OPERATOR');
     script = [{ text: 'Hello.' }];
     const created = await call('POST', '/api/v1/designer/sessions', { title: 'Repairs', target: 'auto', connectionId: 'env:ollama', model: 'fake', text: 'Hello.' });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
