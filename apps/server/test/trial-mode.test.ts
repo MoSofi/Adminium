@@ -712,12 +712,13 @@ describe('A2 the webhook step', () => {
 describe('A2 add-on HTTP', () => {
   it('every add-on is refused in trial mode, a declared host included; the hosted profile and an ordinary server call it', async () => {
     let calls = 0;
-    const client = (env: Record<string, string>) =>
+    const client = (env: Record<string, string>, address = '93.184.216.34') =>
       createAddOnHttpClient({
         key: 'payments-stripe',
         allow: ['api.stripe.com'],
         hasOutboundHttp: true,
         policy: trialPolicy(makeEnv(env)),
+        lookup: async () => [address],
         fetchImpl: async () => {
           calls += 1;
           return new Response('{}');
@@ -729,6 +730,17 @@ describe('A2 add-on HTTP', () => {
     expect((await client(HOSTED)('https://api.stripe.com/v1/balance')).status).toBe(200);
     expect((await client(ORDINARY)('https://api.stripe.com/v1/balance')).status).toBe(200);
     expect(calls).toBe(2);
+
+    // Under strict (implied by the hosted profile, or set by the variable) a declared host that resolves
+    // into the server's own network, or to the server itself, is refused before anything is sent.
+    for (const env of [HOSTED, { ...ORDINARY, ADMINIUM_NETWORK_POLICY: 'strict' }]) {
+      for (const address of ['10.0.0.5', '127.0.0.1', '::ffff:192.168.1.2']) {
+        await expect(client(env, address)('https://api.stripe.com/v1/balance'), address).rejects.toMatchObject({ name: 'AddOnEgressError', reason: 'PRIVATE_ADDRESS' });
+      }
+    }
+    expect(calls).toBe(2);
+    // An ordinary server under the default policy calls it, as before.
+    expect((await client(ORDINARY, '10.0.0.5')('https://api.stripe.com/v1/balance')).status).toBe(200);
   });
 });
 

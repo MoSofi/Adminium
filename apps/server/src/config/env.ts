@@ -1651,7 +1651,7 @@ const ENV_HINTS: Record<string, string> = {
     'CSV of absolute folders a SQLite source database must lie in, e.g. /srv/databases (unset: any file except Adminium\'s own)',
   ADMINIUM_STORAGE_DIRS:
     'CSV of absolute folders a local storage destination must lie in, e.g. /srv/files (unset: any folder except Adminium\'s own)',
-  ADMINIUM_NETWORK_POLICY: `one of ${NETWORK_POLICIES.join(', ')} (default open; strict also refuses private ranges for source databases, webhooks and storage endpoints)`,
+  ADMINIUM_NETWORK_POLICY: `one of ${NETWORK_POLICIES.join(', ')} (default open; strict also refuses private ranges for source databases, webhooks, storage endpoints and add-ons' network calls)`,
   ADMINIUM_LOCAL_DATABASES:
     'setting (default: a Super Admin may allow databases on this server in Studio) or off (only ADMINIUM_DATABASE_HOSTS counts)',
   ADMINIUM_TRIAL_MODE: `one of ${BOOLEANISH.join(', ')} (default off; on runs a trial for a stranger: needs ADMINIUM_TRIAL_ENDS_AT, ADMINIUM_SETUP_TOKEN, ADMINIUM_PUBLIC_ORIGIN and ADMINIUM_DATABASE_HOSTS)`,

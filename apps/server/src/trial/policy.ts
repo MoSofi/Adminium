@@ -218,7 +218,8 @@ export type PolicyEnv = Pick<
   | 'ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY'
   | 'ADMINIUM_AI_OPERATOR_ONLY'
   | 'ADMINIUM_AI_OPERATOR_SCOPE'
->;
+> &
+  Partial<Pick<Env, 'ADMINIUM_NETWORK_POLICY'>>;
 
 export interface TrialState {
   on: boolean;
@@ -244,6 +245,11 @@ export interface TrialPolicy {
   upgradeUrl: string | null;
   /** A6's caps; null outside trial mode. */
   limits: TrialLimits | null;
+  /**
+   * `ADMINIUM_NETWORK_POLICY=strict`, which both profiles imply: outgoing calls (add-on HTTP among them)
+   * never reach this server or its own network.
+   */
+  strictNetwork: boolean;
 }
 
 export function profileOf(env: Pick<Env, 'ADMINIUM_TRIAL_MODE' | 'ADMINIUM_HOSTED_MODE'>): Profile {
@@ -312,6 +318,7 @@ export function trialPolicy(env: PolicyEnv, clock: () => number = Date.now): Tri
             sourceConnections: TRIAL_SOURCE_CONNECTIONS,
           }
         : null,
+    strictNetwork: profile !== 'off' || env.ADMINIUM_NETWORK_POLICY === 'strict',
   };
 }
 

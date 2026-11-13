@@ -22,7 +22,9 @@ export type EgressRefusal =
   | 'RESPONSE_TOO_LARGE'
   | 'REQUEST_FAILED'
   /** Trial mode switches add-on HTTP off for every add-on, whatever it declares (`trial/policy.ts`). */
-  | 'OFF_BY_OPERATOR';
+  | 'OFF_BY_OPERATOR'
+  /** Under `ADMINIUM_NETWORK_POLICY=strict`: a declared host that is, or resolves to, this server or its own network. */
+  | 'PRIVATE_ADDRESS';
 
 /**
  * A literal IP address in the host position, v4 or v6.
