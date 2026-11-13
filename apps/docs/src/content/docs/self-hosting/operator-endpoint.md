@@ -27,8 +27,10 @@ ADMINIUM_OPERATOR_LISTEN=10.0.0.2:4601
 | `ADMINIUM_OPERATOR_TOKEN` | The bearer token: 32 random bytes or more, one per instance. A secret: give it as `ADMINIUM_OPERATOR_TOKEN_FILE=/run/secrets/…` if you can, and it is taken out of the server's environment at boot either way. |
 | `ADMINIUM_OPERATOR_LISTEN` | `address:port` on your own network. An address of this machine, never `0.0.0.0`, `::` or a name, and never the port of the public listener (`PORT`). |
 
-Set both, or neither: one without the other stops the boot. Without them there
-is no endpoint at all.
+The listener without the token stops the boot, and so does the token with
+neither the listener nor [`ADMINIUM_OPERATOR_EVENTS_URL`](#signed-instance-events)
+(the token alone would be used nowhere). Without the listener there is no
+endpoint at all.
 
 The second listener starts once the public one is listening, and the server
 does not run without it: an address it cannot open stops the start, with the
@@ -186,7 +188,8 @@ the few things your control service must know. Set where:
 ADMINIUM_OPERATOR_EVENTS_URL=https://control.example.com/instance-events
 ```
 
-`https://…`, or `http://` only to a private address on your own network. It
+`https://…`, or `http://` only to an address of your own network or this
+machine, written as the address itself (`http://10.0.0.5:8080/events`). It
 needs `ADMINIUM_OPERATOR_TOKEN`, which signs every event; the token then does
 not need `ADMINIUM_OPERATOR_LISTEN`. Like the endpoint, it is not tied to
 trial mode. Unset, nothing is queued and nothing is sent.

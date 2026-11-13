@@ -528,6 +528,23 @@ a form still marks the right field. Naming such a column in a filter, a sort or 
 `403` `COLUMN_FORBIDDEN` with `reason: "read-limit"`; a masked column gives no reason; a column a
 role may not change gives `reason: "update-limit"` and `writable`.
 
+### Switched off by the server's operator
+
+An instance run in [trial mode or the hosted profile](/self-hosting/for-other-people/#what-it-switches-off-and-why)
+refuses what its operator switched off, on any route. The two `…_BY_OPERATOR` codes can also come
+from an operator's variable on any server (`ADMINIUM_LOCAL_DATABASES=off`, `ADMINIUM_AI_OPERATOR_ONLY=on`):
+
+| Code | Status | When | details |
+|---|---|---|---|
+| `OFF_BY_OPERATOR` | 403 | An action the profile switches off: a database host not on the operator's list, a storage destination, a webhook step, a write after a trial's end, an insert into a database past its size cap… | `question` (what is off, such as `webhooks` or `dataOverCap`), `reason` (`trial-mode`, `hosted-mode`, `trial-ended`, `size-cap`, `operator-ai-only` or `operator-ai-scope`) |
+| `SET_BY_OPERATOR` | 409 | A change to a setting the operator decides: the address in email links, the mail server in a trial, telemetry, the update check, an AI address, **Allow databases on this server**. Sending the value it is held to is no change and passes. | `setting`, `reason` (as above, or `not-allowed` for an operator's variable outside the profiles) |
+| `PACKAGE_UPLOADS_OFF` | 403 | Uploading an add-on or an app. | `question`, `reason` |
+| `DESIGNER_UPLOADS_OFF` | 403 | The Designer's site zip, a style of one's own, the Code tab's hand save. | `question`, `reason` |
+| `OWN_CODE_OFF` | 403 | Code the server would run: the Designer writing hooks, actions or build files, an app's own build, **Start with an app**, an npm package. | `question`, `reason` |
+
+The dashboard shows each of these choices disabled with the operator's reason before anybody
+tries.
+
 ## Codes met outside a request
 
 ### An email that is not sent
