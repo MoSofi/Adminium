@@ -1074,27 +1074,42 @@ server and the volume stay yours to set):
   measured at boot, every 10 minutes, before each import, and again soon after
   anything is written to it: within seconds of a delete. What counts is the
   data the rows hold now, not the files on your server's disk, which do not
-  shrink after a delete until a `VACUUM FULL`. On Postgres that is each table's
-  live rows (`pg_stat_user_tables`) times the size of one row read from a
-  sample, plus its indexes in the share of rows that are live; on MySQL, each
-  table's row count times the length of one row from a sample, plus its
-  indexes in the share its pages are still filled. Adminium's own `adminium_*`
-  tables do not count. Past the limit the database is **held by the size
+  shrink after a delete until a `VACUUM FULL`. Each table's rows are read and
+  the stored size of every value added up (on Postgres `pg_column_size`, which
+  counts a long value as TOAST keeps it without fetching it; on MySQL
+  `length`), so the order rows were written in cannot hide any of them. On
+  Postgres, b-tree indexes count an entry per live row from the same values,
+  other indexes their size in the share of rows still live, and the large
+  objects the login owns count their length; on MySQL, indexes count in the
+  share their table's pages are still filled. Nothing counts more than the
+  table's files hold. A table that has not changed since the last reading is
+  not read again, a table under 128 KB counts its files, and a table that
+  cannot be read within 30 seconds (or is locked for more than 2) counts its
+  files too. Tables named `adminium_*` do not count only when the meta store
+  shares that database. Past the limit the database is **held by the size
   cap**: inserts, updates and anything that adds a table, column or index are
   refused (`403 OFF_BY_OPERATOR`, `question: dataOverCap`, `reason: size-cap`),
   while deletes, `TRUNCATE` and `DROP` still run. The hold lets go once the
   database is under 90% of the limit. Every data page of a held database says
-  so. A connection test leaves the hold as it is.
+  so. A connection test, a pause and a resume leave the hold as it is. The
+  readings live in memory: after a restart, or once a connection is resumed,
+  the first write that adds or changes rows waits for its database to be
+  measured (refused if it cannot be within 20 seconds).
 - **Each uploaded file**, `ADMINIUM_TRIAL_UPLOAD_MAX_MB` (default 10): staff
   uploads, files strangers send through forms and the public API, and files
   brought in to import (`413 FILE_TOO_LARGE`). The installation's own limits
   (`files.maxBytes`, the public-upload quotas) can be lower, never higher.
 - **The data folder**, `ADMINIUM_TRIAL_STORAGE_MAX_MB` (default 1,000): every
-  file under `ADMINIUM_DATA_DIR`, walked at boot and every 10 minutes. Past it,
-  uploads, the Designer's writes and exports (Export everything included) are
-  refused (`question: storageOverCap`) until files are deleted.
+  file under `ADMINIUM_DATA_DIR` and in the project folder the Designer writes
+  to (less its `node_modules` and `.git`), walked at boot and every 10 minutes,
+  with each file counted as it is stored. An upload keeps room for its largest
+  size before it is written, so uploads side by side cannot all pass on the
+  same room. Past it, uploads, the Designer's writes and exports are refused
+  (`question: storageOverCap`) until files are deleted. Export everything is
+  never refused by it: it is the way out (your volume quota is the hard limit).
 - **At most 3 source connections**, a fourth refused
-  (`question: extraSourceConnections`), each with pools of at most 3
+  (`question: extraSourceConnections`), requests side by side counted one at a
+  time, each with pools of at most 3
   (`ADMINIUM_SOURCE_POOL_MAX`, default 3), and a meta store pool of 3 unless
   `ADMINIUM_META_POOL_MAX` says otherwise.
 
