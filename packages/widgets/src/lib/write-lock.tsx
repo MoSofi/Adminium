@@ -23,94 +23,20 @@
  * ignores a click, and shows the reason in the shared Tooltip on hover and on
  * keyboard focus; a tap focuses it, so touch reaches the reason too.
  */
-import {
-  cloneElement,
-  createContext,
-  isValidElement,
-  useContext,
-  useSyncExternalStore,
-  type MouseEvent,
-  type ReactElement,
-  type ReactNode,
-} from 'react';
 import { Tooltip } from '@adminium/ui';
+import type { ReactElement, ReactNode } from 'react';
 
-/** What a write control does. */
-export type WriteAction = 'create' | 'update' | 'delete';
+import { LockedControl, LockTipContext, ScopeContext, useWriteLock, type WriteAction } from './write-lock-core.js';
 
-let installation: string | null = null;
-const databases = new Map<string, string>();
-/** Moves on every change: the snapshot `useSyncExternalStore` compares. */
-let version = 0;
-const listeners = new Set<() => void>();
+export { LockedControl, setDatabaseWriteLock, setWriteLock, useWriteLock, WRITE_LOCKED_LOOK, type WriteAction } from './write-lock-core.js';
 
-function changed(): void {
-  version += 1;
-  for (const listener of listeners) listener();
-}
-
-/** Lock every write of the installation with `reason`, or release them with null. */
-export function setWriteLock(reason: string | null): void {
-  if (reason === installation) return;
-  installation = reason;
-  changed();
-}
-
-/** Lock the creates and edits of one database with `reason` (its deletes stay open), or release it with null. */
-export function setDatabaseWriteLock(connectionId: string, reason: string | null): void {
-  if ((databases.get(connectionId) ?? null) === reason) return;
-  if (reason === null) databases.delete(connectionId);
-  else databases.set(connectionId, reason);
-  changed();
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-const current = (): number => version;
-
-const ScopeContext = createContext<string | null>(null);
-
-/** The database the write controls inside write to (a template's source). */
+/** The database the write controls inside write to (a template's source), and the Tooltip they say why in. */
 export function WriteLockScope({ connectionId, children }: { connectionId: string | null | undefined; children: ReactNode }): ReactNode {
-  return <ScopeContext.Provider value={connectionId ?? null}>{children}</ScopeContext.Provider>;
-}
-
-/**
- * The reason `action` is locked, or null while it is open. The database is
- * `connectionId`, else the nearest {@link WriteLockScope}'s.
- */
-export function useWriteLock(action: WriteAction = 'update', connectionId?: string | null): string | null {
-  useSyncExternalStore(subscribe, current, current);
-  const scoped = useContext(ScopeContext);
-  if (installation !== null) return installation;
-  const database = connectionId === undefined ? scoped : connectionId;
-  return action === 'delete' || database === null ? null : (databases.get(database) ?? null);
-}
-
-/** How a locked control looks: the disabled look, still focusable. */
-export const WRITE_LOCKED_LOOK = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-50';
-
-interface LockableProps {
-  className?: string | undefined;
-  onClick?: ((event: MouseEvent<HTMLElement>) => void) | undefined;
-}
-
-/** A control locked with `reason` (as it is when null): `aria-disabled`, inert, the reason in the Tooltip. */
-export function LockedControl({ reason, children }: { reason: string | null; children: ReactElement<LockableProps> }): ReactNode {
-  if (reason === null || !isValidElement(children)) return children;
-  const locked = cloneElement(children, {
-    'aria-disabled': true,
-    className: [children.props.className, WRITE_LOCKED_LOOK].filter(Boolean).join(' '),
-    onClick: (event: MouseEvent<HTMLElement>) => {
-      // A submit button too: the form is not sent. A menu item is not chosen.
-      event.preventDefault();
-    },
-    'data-write-locked': '',
-  } as LockableProps);
-  return <Tooltip content={reason}>{locked}</Tooltip>;
+  return (
+    <LockTipContext.Provider value={Tooltip}>
+      <ScopeContext.Provider value={connectionId ?? null}>{children}</ScopeContext.Provider>
+    </LockTipContext.Provider>
+  );
 }
 
 /**
@@ -125,7 +51,11 @@ export function WriteControl({
   action: WriteAction;
   /** The database written to; the nearest {@link WriteLockScope}'s when left out. */
   connectionId?: string | null | undefined;
-  children: ReactElement<LockableProps>;
+  children: ReactElement<{ className?: string | undefined }>;
 }): ReactNode {
-  return <LockedControl reason={useWriteLock(action, connectionId)}>{children}</LockedControl>;
+  return (
+    <LockTipContext.Provider value={Tooltip}>
+      <LockedControl reason={useWriteLock(action, connectionId)}>{children}</LockedControl>
+    </LockTipContext.Provider>
+  );
 }

@@ -32,7 +32,7 @@
  */
 import { getFormatters } from '@adminium/i18n';
 import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
-import { useWriteLock, WriteControl } from '../../lib/write-lock.js';
+import { useWriteLock, WriteControl, WriteLockScope } from '../../lib/write-lock.js';
 import { pickLocalized } from '../../lib/localized.js';
 import { Activity, ChevronLeft, ChevronRight, CircleCheck, Columns3, LayoutList, Plus, TrendingUp, Users, Wallet, type LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -1410,7 +1410,16 @@ function messageOf(error: unknown): string | undefined {
   return undefined;
 }
 
-export function PageBoard({
+/** Its write controls say why they are locked in the shared Tooltip (`lib/write-lock.tsx`). */
+export function PageBoard(props: PageBoardProps) {
+  return (
+    <WriteLockScope connectionId={null}>
+      <PageBoardPage {...props} />
+    </WriteLockScope>
+  );
+}
+
+function PageBoardPage({
   config,
   boardColumns,
   states,

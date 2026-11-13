@@ -27,7 +27,7 @@
  *   rendered panes client-side.
  */
 import { useMaybeT } from '../../lib/i18n.js';
-import { LockedControl, useWriteLock } from '../../lib/write-lock.js';
+import { LockedControl, useWriteLock, WriteLockScope } from '../../lib/write-lock.js';
 import { Button, Popover, PopoverContent, PopoverTrigger, Select } from '@adminium/ui';
 import { CalendarRange, Plus } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -470,7 +470,16 @@ function ChoiceCompose({
   );
 }
 
-export function PageCalendar({
+/** Its write controls say why they are locked in the shared Tooltip (`lib/write-lock.tsx`). */
+export function PageCalendar(props: PageCalendarProps) {
+  return (
+    <WriteLockScope connectionId={null}>
+      <PageCalendarPage {...props} />
+    </WriteLockScope>
+  );
+}
+
+function PageCalendarPage({
   config,
   states,
   onEvent,

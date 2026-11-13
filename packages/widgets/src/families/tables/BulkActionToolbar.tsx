@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '../../lib/i18n.js';
-import { WriteControl, type WriteAction } from '../../lib/write-lock.js';
+import { LockedControl, useWriteLock, type WriteAction } from '../../lib/write-lock-core.js';
 import { BulkActionBar, BulkActionButton } from '@adminium/ui';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * `bulk-action-toolbar` (annex) — selection-aware toolbar wired to the host
@@ -43,6 +43,11 @@ export interface BulkActionToolbarProps {
   testId?: string | undefined;
 }
 
+/** A bulk action that writes: under a write lock (the nearest scope's database), in reach and with the reason. */
+function LockedWrite({ write, children }: { write: WriteAction; children: ReactElement<{ className?: string }> }): ReactNode {
+  return <LockedControl reason={useWriteLock(write)}>{children}</LockedControl>;
+}
+
 export function BulkActionToolbar({
   selectedIds,
   actions,
@@ -76,13 +81,7 @@ export function BulkActionToolbar({
             {action.label}
           </BulkActionButton>
         );
-        return action.write === undefined ? (
-          button
-        ) : (
-          <WriteControl key={action.key} action={action.write}>
-            {button}
-          </WriteControl>
-        );
+        return action.write === undefined ? button : <LockedWrite key={action.key} write={action.write}>{button}</LockedWrite>;
       })}
     </BulkActionBar>
   );

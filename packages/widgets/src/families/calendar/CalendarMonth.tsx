@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '../../lib/i18n.js';
-import { LockedControl } from '../../lib/write-lock.js';
+import { LockedControl } from '../../lib/write-lock-core.js';
 import { EmptyState } from '@adminium/ui';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import type { Tone } from '@adminium/ui';

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { EmptyState, IconButton, IconTile, MonoText } from '@adminium/ui';
 import { useMaybeT } from '../../lib/i18n.js';
-import { LockedControl } from '../../lib/write-lock.js';
+import { LockedControl } from '../../lib/write-lock-core.js';
 import { Download, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 import { fileIconFor } from './media-icons.js';

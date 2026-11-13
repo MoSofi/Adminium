@@ -17,7 +17,7 @@ import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { BoardCard } from './BoardCard.js';
 import { CardActions } from './CardActions.js';
 import { useMaybeT } from '../../lib/i18n.js';
-import { LockedControl } from '../../lib/write-lock.js';
+import { LockedControl } from '../../lib/write-lock-core.js';
 
 import {
   BoardAddRefusalNotice,
