@@ -10,10 +10,12 @@
  * module except inside the provider request header; nothing here logs it.
  */
 
-import { ProviderNotConfiguredError } from '../../llm/connections.js';
+import { ProviderNotConfiguredError, STRICT_LOCAL_OFF } from '../../llm/connections.js';
+import { resolveAndCheck } from '../../llm/outbound.js';
 import {
   createProviderClient,
   DEFAULT_MAX_OUTPUT_TOKENS,
+  ProviderError,
   type LlmKeyCrypto,
   type ProviderClient,
   type ProviderConfig,
@@ -188,6 +190,8 @@ export async function resolveProviderClient(
   keyCrypto: LlmKeyCrypto,
   createClient: CreateClient = createProviderClient,
   policy: Pick<TrialPolicy, 'allows'> = ORDINARY_POLICY,
+  /** `ADMINIUM_NETWORK_POLICY=strict`: the saved address reaches nothing on this server's own network, Ollama's neither. */
+  strictNetwork = false,
 ): Promise<ResolvedProviderClient> {
   const [provider, model, baseUrl, storedKey, maxOut] = await Promise.all([
     settings.get('llm.provider'),
@@ -200,6 +204,14 @@ export async function resolveProviderClient(
   // Saved before the lock, or carried in by an import: never dialled where the operator refuses it.
   const refused = savedConnectionRefusal(policy, provider, baseUrl);
   if (refused !== null) throw refused;
+
+  if (strictNetwork) {
+    if (baseUrl === null && provider === 'ollama') throw new ProviderError({ provider, code: 'config', message: STRICT_LOCAL_OFF });
+    if (baseUrl !== null) {
+      guardOutboundUrl(baseUrl, { blockLoopback: true, blockPrivate: true });
+      await resolveAndCheck(baseUrl, { blockPrivate: true });
+    }
+  }
 
   const apiKey = decryptStoredKey(storedKey, keyCrypto);
   const config: ProviderConfig = {

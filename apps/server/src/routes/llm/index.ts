@@ -136,6 +136,8 @@ export interface LlmRoutesDeps {
   collectStats?: CollectRunStats;
   /** Test seam — construct a provider client (default: the real client). */
   createClient?: CreateClient;
+  /** `ADMINIUM_NETWORK_POLICY=strict`: the saved model's address reaches nothing on this server's own network. */
+  strictNetwork?: boolean | undefined;
   /** The instance's model connections: the saved one and the environment's. Absent in a harness. */
   connections?: AiConnections | undefined;
   /** In-process apply-undo token store (default: a fresh instance per plugin). */
@@ -389,7 +391,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       { preHandler: guard, schema: { response: { 200: llmConfigTestReply } } },
       async () => {
         try {
-          const resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient, policy);
+          const resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient, policy, deps.strictNetwork === true);
           const ping = await resolved.client.test();
           return { ok: true as const, model: ping.model, latencyMs: ping.latencyMs, error: null };
         } catch (error) {
@@ -418,7 +420,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
         // nothing of the request chooses where the key is sent.
         let resolved: Awaited<ReturnType<typeof resolveProviderClient>>;
         try {
-          resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient, policy);
+          resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient, policy, deps.strictNetwork === true);
         } catch (error) {
           if (error instanceof ProviderNotConfiguredError) throw new ConflictError(error.message, 'CONFLICT');
           if (error instanceof ProviderError) {
@@ -444,7 +446,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       { preHandler: guard, schema: { response: { 200: llmModelsReply } } },
       async () => {
         try {
-          const resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient, policy);
+          const resolved = await resolveProviderClient(settings, keyCrypto, deps.createClient, policy, deps.strictNetwork === true);
           const models = await resolved.client.listModels();
           return { models, source: 'live' as const };
         } catch (error) {

@@ -928,6 +928,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     production: process.env.NODE_ENV === 'production',
     // On a live server a signed-in person names the model's address: loopback and private ranges are refused (M22).
     ...(liveAllowed ? { blockPrivate: true } : {}),
+    // Under ADMINIUM_NETWORK_POLICY=strict, an address the person gives reaches nothing on this server's network.
+    strictNetwork: manager.networkPolicy === 'strict',
     ...(opts.pictureMakerSeam === undefined ? {} : { createPictureMaker: opts.pictureMakerSeam }),
     // Trial mode: no AI address of the person's own, saved or typed into a test.
     policy: app.trialPolicy,
@@ -3342,6 +3344,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           llmRoutes({
             meta,
             policy: app.trialPolicy,
+            strictNetwork: manager.networkPolicy === 'strict',
             runService,
             applyService,
             keyCrypto: llm.keyCrypto,
