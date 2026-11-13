@@ -28,7 +28,7 @@ afterAll(async () => {
   for (const close of closers.reverse()) await close();
 });
 
-async function open(dialect: Dialect): Promise<AnyDb> {
+async function open(dialect: Exclude<Dialect, 'generic'>): Promise<AnyDb> {
   if (dialect === 'sqlite') {
     const db = new Kysely({ dialect: new SqliteDialect({ database: new BetterSqlite3(':memory:') }) }) as AnyDb;
     closers.push(async () => db.destroy());
@@ -69,7 +69,7 @@ const column = (name: string, text: string, logicalType: ColumnModel['logicalTyp
 
 const table = (columns: ColumnModel[]): TableModel => ({
   id: 'sql_text_probe',
-  schema: null,
+  schema: 'public',
   name: 'sql_text_probe',
   kind: 'table',
   comment: null,
@@ -91,13 +91,14 @@ const table = (columns: ColumnModel[]): TableModel => ({
 const STACKED = '0); create table sql_text_stacked (x int); --';
 
 /** A plain expression default each engine takes, and what a new row reads. */
-const PLAIN: Record<Dialect, { text: string; logicalType: ColumnModel['logicalType']; dbType: string }> = {
+type Engine = Exclude<Dialect, 'generic'>;
+const PLAIN: Record<Engine, { text: string; logicalType: ColumnModel['logicalType']; dbType: string }> = {
   postgres: { text: "lower('ABC')", logicalType: 'varchar', dbType: 'varchar(64)' },
   mysql: { text: "lower('ABC')", logicalType: 'varchar', dbType: 'varchar(64)' },
   sqlite: { text: "lower('ABC')", logicalType: 'text', dbType: 'text' },
 };
 
-const ENGINES: [Dialect, boolean][] = [
+const ENGINES: [Engine, boolean][] = [
   ['sqlite', true],
   ['postgres', POSTGRES_URL !== undefined],
   ['mysql', MYSQL_URL !== undefined],
