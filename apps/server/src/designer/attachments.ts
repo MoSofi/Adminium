@@ -325,7 +325,7 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
       }
       if (input.by !== undefined) refuseOverPerson(input.by, judged.bytes);
       const id = `att_${randomBytes(10).toString('hex')}`;
-      refuseDesignerWrite();
+      refuseDesignerWrite(judged.bytes);
       const dir = dirOf(sessionId);
       mkdirSync(dir, { recursive: true, mode: 0o700 });
       // Staged beside where it goes, so the rename never crosses a file system; all of it or none.
@@ -499,7 +499,7 @@ export function createAttachments(root: string, opts: { now?: () => number } = {
         sha256: createHash('sha256').update(bytes).digest('hex'),
         at: now(),
       };
-      refuseDesignerWrite();
+      refuseDesignerWrite(bytes.length);
       const dir = dirOf(sessionId);
       mkdirSync(dir, { recursive: true, mode: 0o700 });
       writeFileSync(join(dir, `${made.id}.${EXT[made.mediaType]}`), bytes, { mode: 0o600 });

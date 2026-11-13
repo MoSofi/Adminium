@@ -186,6 +186,90 @@ describe('a database held by the size cap', () => {
     await expect(cap.beforeImport('conn_a')).resolves.toBeUndefined();
   });
 
+  it('keeps a hold through a pause and a resume, and measures again before the next write adds anything', async () => {
+    const row = { id: 'conn_a', engine: 'postgres', sourceKind: 'dsn', disabled: false };
+    const sources: SizeCapSources = { ...fakeSources(['conn_a']), connections: { list: async () => [row], findById: async () => row, getDsns: async () => ({ dataDsn: 'postgres://u:p@pg-trials:5432/db' }) } };
+    let measures = 0;
+    cap = createSizeCap({ limits: { dataMaxBytes: 100, storageMaxBytes: 1e12 }, sources, dataDir: '/nonexistent', measureWith: async () => ((measures += 1), 1000), delays: { afterGrowth: 0 } });
+    await cap.measureAll();
+    expect(cap.held('conn_a')).not.toBeNull();
+    row.disabled = true;
+    // The ten-minute round while it is paused.
+    await cap.measureAll();
+    row.disabled = false;
+    expect(cap.held('conn_a')).not.toBeNull();
+    // Resumed: its data handle opens again, and the first write that adds waits for a reading.
+    cap.opened('conn_a');
+    const before = measures;
+    await cap.settle('conn_a');
+    expect(measures).toBe(before + 1);
+    expect(cap.held('conn_a')).not.toBeNull();
+    // Measured since it opened: the next write asks nothing more.
+    await cap.settle('conn_a');
+    expect(measures).toBe(before + 1);
+  });
+
+  it('after a restart, holds nothing back from a write until the database is measured, then holds it', async () => {
+    make();
+    sizes.set('conn_a', 501 * MB);
+    expect(measured).toEqual([]);
+    await cap.settle('conn_a');
+    expect(measured).toEqual(['conn_a']);
+    expect(cap.held('conn_a')).not.toBeNull();
+    // Not on an operator host: one look, and nothing to wait for after.
+    await cap.settle('conn_own');
+    await cap.settle('conn_own');
+    expect(measured).toEqual(['conn_a']);
+  });
+
+  it('refuses a write it could not measure the database for', async () => {
+    cap = createSizeCap({
+      limits: { dataMaxBytes: 500 * MB, storageMaxBytes: 1000 * MB },
+      sources: fakeSources(['conn_a']),
+      dataDir: '/nonexistent',
+      measureWith: async () => Promise.reject(new Error('unreachable')),
+    });
+    await expect(cap.settle('conn_a')).rejects.toMatchObject(refusal('dataOverCap'));
+    cap.stop();
+    cap = createSizeCap({
+      limits: { dataMaxBytes: 500 * MB, storageMaxBytes: 1000 * MB },
+      sources: fakeSources(['conn_a']),
+      dataDir: '/nonexistent',
+      measureWith: async () => new Promise(() => undefined),
+      delays: { settleWait: 20 },
+    });
+    await expect(cap.settle('conn_a')).rejects.toThrow(/being measured/);
+  });
+
+  it('reads every table again after a delete while held, and once more once the database’s own counts have caught up', async () => {
+    const fresh: boolean[] = [];
+    cap = createSizeCap({
+      limits: { dataMaxBytes: 500 * MB, storageMaxBytes: 1000 * MB },
+      sources: fakeSources(['conn_a']),
+      dataDir: '/nonexistent',
+      measureWith: async (_engine, _db, options) => (fresh.push(options.fresh === true), 600 * MB),
+      delays: { afterDelete: 10, afterDeleteLate: 40 },
+    });
+    await cap.measure('conn_a');
+    cap.wrote('conn_a', 'shrink');
+    await vi.waitFor(() => expect(fresh).toEqual([false, true, true]), { timeout: 2000 });
+  });
+
+  it('leaves Adminium’s own tables out only where the meta store shares the database', async () => {
+    const skipped: boolean[] = [];
+    for (const shares of [false, true]) {
+      cap = createSizeCap({
+        limits: { dataMaxBytes: 500 * MB, storageMaxBytes: 1000 * MB },
+        sources: { ...fakeSources(['conn_a']), metaSharesDatabaseWith: () => shares },
+        dataDir: '/nonexistent',
+        measureWith: async (_engine, _db, options) => (skipped.push(options.skipMetaTables === true), 1),
+      });
+      await cap.measure('conn_a');
+      cap.stop();
+    }
+    expect(skipped).toEqual([false, true]);
+  });
+
   it('tells a listener every reading, the data folder’s too', async () => {
     make();
     const heard: string[] = [];
@@ -209,6 +293,54 @@ describe('the data folder’s cap', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  it('counts what the Designer writes, and keeps room for writes under way', async () => {
+    const empty = await mkdtemp(join(tmpdir(), 'size-cap-empty-'));
+    const project = await mkdtemp(join(tmpdir(), 'size-cap-project-'));
+    try {
+      const cap = createSizeCap({ limits: { dataMaxBytes: 500 * MB, storageMaxBytes: 100 * MB }, sources: fakeSources([]), dataDir: empty, delays: { afterStore: 60_000 } });
+      await cap.measureStorage();
+      useStorageHold(cap);
+      createJail(project, 'shop').write('apps/shop/pages/home.json', 'x'.repeat(1000));
+      expect(cap.storage().usedBytes).toBe(1000);
+      useStorageHold(null);
+      cap.stored(90 * MB);
+      // Two uploads side by side: the first keeps its room, the second finds none left.
+      const first = cap.reserve(10 * MB);
+      expect(() => cap.reserve(10 * MB)).toThrow(expect.objectContaining(refusal('storageOverCap')) as Error);
+      first.cancel();
+      const again = cap.reserve(10 * MB);
+      again.done(11 * MB);
+      expect(cap.storage().over).toBe(true);
+      expect(() => cap.reserve(0)).toThrow(OffByOperatorError);
+      cap.stop();
+    } finally {
+      useStorageHold(null);
+      await rm(empty, { recursive: true, force: true });
+      await rm(project, { recursive: true, force: true });
+    }
+  });
+
+  it('walks the project the Designer writes to, less its packages and history', async () => {
+    const project = await mkdtemp(join(tmpdir(), 'size-cap-walk-'));
+    const data = await mkdtemp(join(tmpdir(), 'size-cap-walk-data-'));
+    try {
+      const { mkdir } = await import('node:fs/promises');
+      await mkdir(join(project, '.adminium', 'designer'), { recursive: true });
+      await writeFile(join(project, '.adminium', 'designer', 'picture.png'), Buffer.alloc(3000));
+      await mkdir(join(project, 'node_modules', 'pkg'), { recursive: true });
+      await writeFile(join(project, 'node_modules', 'pkg', 'index.js'), Buffer.alloc(50_000));
+      await mkdir(join(project, '.git'), { recursive: true });
+      await writeFile(join(project, '.git', 'pack'), Buffer.alloc(50_000));
+      await writeFile(join(data, 'upload.bin'), Buffer.alloc(2000));
+      const cap = createSizeCap({ limits: { dataMaxBytes: 500 * MB, storageMaxBytes: 100 * MB }, sources: fakeSources([]), dataDir: data, folders: [project] });
+      expect((await cap.measureStorage()).usedBytes).toBe(5000);
+      cap.stop();
+    } finally {
+      await rm(project, { recursive: true, force: true });
+      await rm(data, { recursive: true, force: true });
+    }
+  });
+
   it('refuses uploads, the Designer’s writes and exports past its limit, and counts what is stored', async () => {
     await writeFile(join(dir, 'big.bin'), Buffer.alloc(2 * MB));
     const cap = createSizeCap({ limits: { dataMaxBytes: 500 * MB, storageMaxBytes: 1 * MB }, sources: fakeSources([]), dataDir: dir, delays: { afterStore: 60_000 } });
@@ -219,7 +351,7 @@ describe('the data folder’s cap', () => {
     useStorageHold(cap);
     const project = await mkdtemp(join(tmpdir(), 'size-cap-project-'));
     try {
-      expect(() => refuseDesignerWrite()).toThrow(OffByOperatorError);
+      expect(() => refuseDesignerWrite(1)).toThrow(OffByOperatorError);
       expect(() => createJail(project, 'shop').write('apps/shop/pages/home.json', '{}')).toThrow(OffByOperatorError);
       useStorageHold(null);
       expect(() => createJail(project, 'shop').write('apps/shop/pages/home.json', '{}')).not.toThrow();
@@ -234,14 +366,25 @@ describe('the data folder’s cap', () => {
     await firstRun(store);
     let full = false;
     let stored = 0;
+    let kept = 0;
     const files = createTestFileStore({
       dataDir: dir,
       meta: store,
       guard: {
-        refuse: () => {
+        reserve: (bytes) => {
           if (full) throw new OffByOperatorError('storageOverCap', 'size-cap', 'full');
+          kept += bytes;
+          let open = true;
+          return {
+            done: (actual) => {
+              if (open) stored += actual;
+              open = false;
+            },
+            cancel: () => {
+              open = false;
+            },
+          };
         },
-        stored: (bytes) => (stored += bytes),
         uploadMaxBytes: 1000,
       },
     });
@@ -252,6 +395,8 @@ describe('the data folder’s cap', () => {
     // An export is Adminium's own file: not an upload, held only by the folder's limit.
     await files.write({ ...csv(5000), kind: 'export' });
     expect(stored).toBe(5900);
+    // Room was kept for each before it was written: its own size, known up front.
+    expect(kept).toBe(1001 + 900 + 5000);
     // An upload asks the smaller of its own limit and the trial's.
     await expect(files.putUpload({ kind: 'upload', filename: 'a.csv', source: Readable.from([Buffer.alloc(1500, 0x61)]), maxBytes: 1_000_000, allowedTypes: ['csv'] })).rejects.toThrow(/1000/);
     full = true;
@@ -378,7 +523,7 @@ describe('the caps on a composed server', () => {
     }
   });
 
-  it.each(['trial', 'hosted', 'off'] as const)('%s: past the data folder’s limit, uploads and exports', async (profile) => {
+  it.each(['trial', 'hosted', 'off'] as const)('%s: past the data folder’s limit, uploads refused, everything still exported', async (profile) => {
     const full = await mkdtemp(join(tmpdir(), 'size-cap-full-'));
     try {
       await writeFile(join(full, 'big.bin'), Buffer.alloc(2 * MB));
@@ -389,8 +534,8 @@ describe('the caps on a composed server', () => {
       if (profile === 'trial') {
         expect(up.status).toBe(403);
         expect(up.body['error']).toMatchObject(refusal('storageOverCap'));
-        expect(exported.status).toBe(403);
-        expect(exported.body['error']).toMatchObject(refusal('storageOverCap'));
+        // Exporting everything is the way out: never refused by the cap.
+        expect(exported.status, JSON.stringify(exported.body)).toBe(202);
       } else {
         expect(up.status, JSON.stringify(up.body)).toBe(201);
         expect(exported.status, JSON.stringify(exported.body)).toBe(202);
@@ -417,6 +562,32 @@ describe('the caps on a composed server', () => {
     } else {
       // Past the count: the host's lookup is what stops it here, never the cap.
       expect(res.status).not.toBe(403);
+    }
+  });
+});
+
+describe('the count of sources in a trial', () => {
+  it('lets one of three side-by-side requests take the last room', async () => {
+    const store = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(store);
+    try {
+      const parsed = enforceProfile(makeEnv({ HOST: '127.0.0.1', ...TRIAL }));
+      const manager = new ConnectionManager({ meta: store, crypto: dsnCryptoFromSecret(TEST_SECRET), metaDsn: null, policy: trialPolicy(parsed), lookup: NOTHING_RESOLVES });
+      for (const name of ['one', 'two']) {
+        await manager.connections.create({ name, engine: 'postgres', dataDsn: HOSTED.ADMINIUM_SOURCE_URL, introspectDsn: HOSTED.ADMINIUM_SOURCE_URL });
+      }
+      // Each waits on its connection test before it creates, as the routes do.
+      const add = (name: string) =>
+        manager.withRoomForSource(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          return manager.connections.create({ name, engine: 'postgres', dataDsn: HOSTED.ADMINIUM_SOURCE_URL, introspectDsn: HOSTED.ADMINIUM_SOURCE_URL });
+        });
+      const outcomes = await Promise.allSettled([add('three'), add('four'), add('five')]);
+      expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+      for (const outcome of outcomes.filter((one) => one.status === 'rejected')) expect(outcome.reason).toMatchObject(refusal('extraSourceConnections'));
+      expect((await manager.connections.list()).filter((connection) => connection.sourceKind === 'dsn')).toHaveLength(3);
+    } finally {
+      await store.db.destroy();
     }
   });
 });
@@ -580,6 +751,33 @@ describe.skipIf(!(adapterReady && pgAvailable()))('the size cap on a live Postgr
     expect((await insert(905)).statusCode).toBe(201);
     await vi.waitFor(() => expect(cap.reading(id)?.measuredAt).not.toBe(before), { timeout: 5000 });
   });
+
+  it('after a restart, holds a database over its limit from its first write, before any round has measured it', async () => {
+    const used = (await cap.measure(id))?.usedBytes ?? 0;
+    cap.stop();
+    // A server started again: no reading yet, and no round started.
+    cap = createSizeCap({ limits: { dataMaxBytes: Math.floor(used * 0.8), storageMaxBytes: 1000 * MB }, sources: sources(), dataDir: dir });
+    t.manager.watchWrites(cap);
+    expect(cap.reading(id)).toBeNull();
+    const created = await insert(906);
+    expect(created.statusCode).toBe(403);
+    expect(created.json().error).toMatchObject(refusal('dataOverCap'));
+    await expect(raw("insert into notes values (99998, 'x')")).rejects.toThrow(OffByOperatorError);
+    expect(cap.held(id)).not.toBeNull();
+  });
+
+  it('lets go soon after a delete through its own connection, without being measured by hand', async () => {
+    psql(pg.database, 'CREATE TABLE bulk (id integer PRIMARY KEY, body text NOT NULL); INSERT INTO bulk SELECT i, repeat(md5(i::text), 32) FROM generate_series(1, 8000) i');
+    cap.stop();
+    const before = await measurePostgres((await t.manager.data(id)).db);
+    // The delays a server runs with: no test seam.
+    cap = createSizeCap({ limits: { dataMaxBytes: before - 4 * MB, storageMaxBytes: 1000 * MB }, sources: sources(), dataDir: dir });
+    t.manager.watchWrites(cap);
+    expect((await cap.measure(id))?.held).toBe(true);
+    // A bulk delete through the person's own pooled connection, which then sits idle.
+    await raw('delete from bulk where id > 100');
+    await vi.waitFor(() => expect(cap.held(id)).toBeNull(), { timeout: 15_000, interval: 250 });
+  }, 30_000);
 });
 
 // ─── A real MySQL ─────────────────────────────────────────────────────────────

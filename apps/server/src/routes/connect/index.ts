@@ -98,28 +98,30 @@ export function connectRoutes(deps: ConnectRoutesDeps): FastifyPluginAsyncZod {
      */
     async function land(request: FastifyRequest, provider: ConnectProviderId, answer: RedeemedConnection, password: string | undefined): Promise<ConnectResultReply> {
       const dsn = connectionDsn(answer, password);
-      // A trial connects a few databases at most.
-      await manager.assertRoomForSource();
-      // The guard runs here: ADMINIUM_DATABASE_HOSTS, the network policy, the host's lookup.
-      const summary = await manager.testDsn('postgres', dsn);
-      if (!summary.ok) {
-        throw new AppError(502, 'SOURCE_DB_UNREACHABLE', summary.error?.message ?? 'The database did not answer.', {
-          adapterCode: summary.error?.code ?? 'UNKNOWN',
-          hint: summary.error?.hint ?? null,
-        });
-      }
-      manager.enforceMetaPlacement(dsn, summary);
       const name = answer.project ?? PROVIDER_LABEL[provider];
-      const connection = await manager.connections.create({
-        name,
-        engine: 'postgres',
-        sourceKind: 'dsn',
-        introspectDsn: dsn,
-        dataDsn: null,
-        readOnly: summary.readOnly,
-        settings: {},
-        status: 'connected',
-        createdBy: request.user?.id ?? null,
+      // A trial connects a few databases at most: counted and created one request at a time.
+      const { connection, summary } = await manager.withRoomForSource(async () => {
+        // The guard runs here: ADMINIUM_DATABASE_HOSTS, the network policy, the host's lookup.
+        const tested = await manager.testDsn('postgres', dsn);
+        if (!tested.ok) {
+          throw new AppError(502, 'SOURCE_DB_UNREACHABLE', tested.error?.message ?? 'The database did not answer.', {
+            adapterCode: tested.error?.code ?? 'UNKNOWN',
+            hint: tested.error?.hint ?? null,
+          });
+        }
+        manager.enforceMetaPlacement(dsn, tested);
+        const created = await manager.connections.create({
+          name,
+          engine: 'postgres',
+          sourceKind: 'dsn',
+          introspectDsn: dsn,
+          dataDsn: null,
+          readOnly: tested.readOnly,
+          settings: {},
+          status: 'connected',
+          createdBy: request.user?.id ?? null,
+        });
+        return { connection: created, summary: tested };
       });
       await manager.connections.recordTestResult(connection.id, testOutcome(summary));
       await app.rbac.audit(request, {

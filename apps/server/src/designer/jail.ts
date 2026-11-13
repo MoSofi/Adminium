@@ -160,7 +160,7 @@ export function createJail(root: string, appKey: string): Jail {
       const file = resolve(path, 'write');
       refuseCode(path, content);
       // A trial's data folder past its limit takes no more of the Designer's files.
-      refuseDesignerWrite();
+      refuseDesignerWrite(Buffer.byteLength(content, 'utf8'));
       const segments = segmentsOf(path);
       checkParents(segments, true);
       const temp = join(dirname(file), `.designer-${String(process.pid)}.tmp`);

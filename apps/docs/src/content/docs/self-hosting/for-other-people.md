@@ -368,7 +368,7 @@ at an address you gave it, never one a visitor chose.
 | Public pages, once it has passed | Off | — | `404` |
 | Mail the person wrote, once it has passed (account email goes on) | Off | — | Not queued |
 | Adding data past `ADMINIUM_TRIAL_DATA_MAX_MB` (deleting goes on) | Off | — | |
-| Uploads, the Designer's writes and exports past `ADMINIUM_TRIAL_STORAGE_MAX_MB` | Off | — | |
+| Uploads, the Designer's writes and exports past `ADMINIUM_TRIAL_STORAGE_MAX_MB` (Export everything goes on) | Off | — | |
 | A file over `ADMINIUM_TRIAL_UPLOAD_MAX_MB` | Off | — | `413 FILE_TOO_LARGE` |
 | A fourth source connection | Off | — | |
 

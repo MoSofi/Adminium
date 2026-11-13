@@ -1,0 +1,5 @@
+---
+'@adminium/server': patch
+---
+
+A trial's size cap now reads each table's rows and adds up the stored size of every value, so writing small rows before large ones no longer hides data, a delete counts at once and a vacuum no longer brings a hold back with nothing left to delete. On Postgres, b-tree indexes count an entry per live row and the large objects the login owns count; every catalog name is written in full, so a table named like a catalog cannot blind the measure. Tables named `adminium_*` are left out only where the meta store shares the database. A table that did not change since its last reading is not read again, and one that cannot be read within 30 seconds counts its files. A hold now survives pausing and resuming the connection, and after a restart or a resume the first write that adds or changes rows waits for its database to be measured. Three requests side by side can no longer add a fourth database. The data folder's cap now also counts the Designer's files and attachments and the project folder it writes to, keeps room for each upload before it is written so uploads side by side cannot all pass, and never refuses Export everything.
