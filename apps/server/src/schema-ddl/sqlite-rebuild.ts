@@ -51,7 +51,7 @@ import { mapSqliteType } from '@adminium/adapter-sqlite';
 import { enumCheckColumn, type Relation, type TableModel } from '@adminium/engine';
 
 import { AppError } from '../errors.js';
-import { columnDefinition, columnTypeOf, fkAction, quoteIdent, quoteLiteral } from './compile.js';
+import { assertSqlText, columnDefinition, columnTypeOf, fkAction, quoteIdent, quoteLiteral } from './compile.js';
 
 type Db = Kysely<Record<string, Record<string, unknown>>>;
 
@@ -421,7 +421,11 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
      */
     const named = enumCheckColumn(check.expression, Object.keys(input.enumValues ?? {}));
     const isMembership = /\bin\s*\(|=\s*any/i.test(check.expression);
-    if (named === null || !isMembership) tableConstraints.push(`CHECK (${check.expression})`);
+    if (named === null || !isMembership) {
+      // The database's own text, carried through; still held to the one place it is put.
+      assertSqlText(check.expression, 'check');
+      tableConstraints.push(`CHECK (${check.expression})`);
+    }
   }
 
   statements.push(

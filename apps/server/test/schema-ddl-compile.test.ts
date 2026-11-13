@@ -549,6 +549,14 @@ describe('the SQLite rebuild', () => {
     expect(drop).toBeLessThan(rename);
   });
 
+  it('carries a check of the database’s own through only when it stays inside its CHECK ( … )', () => {
+    const withCheck = (expression: string) => ({ ...actual, checks: [{ name: null, expression }] });
+    const rebuild = (expression: string) =>
+      compileSqliteRebuild({ db: compilerFor('sqlite'), actual: withCheck(expression) as TableModel, desired, columnMapping: { id: 'id', body: 'body' }, foreignKeys: [], objects: [] });
+    expect(() => rebuild("length(body) > 0); drop table notes; --")).toThrow(/check/);
+    expect(rebuild("length(body) > 0 and body <> ';'").map((q) => q.sql).join('\n')).toContain("CHECK (length(body) > 0 and body <> ';')");
+  });
+
   it('ends with PRAGMA foreign_key_check — step 9, the one that gets skipped', () => {
     const statements = compileSqliteRebuild({
       db: compilerFor('sqlite'), actual, desired,
@@ -860,6 +868,46 @@ describe('D2: the preview IS the statement', () => {
     expect(() =>
       raw.prepare("insert into tickets (title, state) values ('bad', 'nope')").run(),
     ).toThrow();
+  });
+});
+
+describe('free SQL text from a snapshot or an import never leaves its place in a statement', () => {
+  /** The payload that ran a second statement through an expression default. */
+  const STACKED = "0); select lo_from_bytea(0, convert_to(repeat(md5(random()::text), 2000000), 'UTF8')); --";
+  const BREAKOUTS = [
+    STACKED,
+    '0; drop table t',
+    '0 -- the rest is gone',
+    '0 /* hidden */',
+    '0 # MySQL comment',
+    '0), evil int',
+    '0, evil int',
+    "'unterminated",
+    '(0',
+    "'\\'); drop table t; --",
+    '$$x$$',
+  ];
+  const expr = (text: string, logicalType: ColumnModel['logicalType'] = 'integer') => ({ logicalType, default: { kind: 'expression' as const, text } });
+
+  for (const dialect of ['postgres', 'mysql', 'sqlite'] as const) {
+    it(`${dialect}: an expression default that could end its clause is refused before any SQL is made`, () => {
+      for (const text of BREAKOUTS) expect(() => renderDefault(expr(text), dialect), text).toThrow(/expression/);
+    });
+
+    it(`${dialect}: a plain expression default is kept, in parentheses of its own`, () => {
+      expect(renderDefault(expr('now()', 'timestamptz'), dialect)).toBe('(now())');
+      expect(renderDefault(expr("nextval('invoices_id_seq'::regclass)"), dialect)).toBe("(nextval('invoices_id_seq'::regclass))");
+      // Already in one pair: not wrapped again, so a rebuild does not add a pair each time.
+      expect(renderDefault(expr("(datetime('now'))", 'text'), dialect)).toBe("(datetime('now'))");
+      expect(renderDefault(expr("concat('a;b', '--', '/*')", 'text'), dialect)).toBe("(concat('a;b', '--', '/*'))");
+    });
+  }
+
+  it('a display-only type or a check from a snapshot is held to the same rule', () => {
+    const table = tbl({ name: 't', columns: [col({ name: 'span', logicalType: 'interval', dbType: 'interval); drop table t; --' })], primaryKey: [] });
+    expect(() => columnDefinition(table.columns[0]!, table, 'postgres')).toThrow(/type/);
+    const ok = tbl({ name: 't', columns: [col({ name: 'spot', logicalType: 'geometry', dbType: 'geometry(Point,4326)' })], primaryKey: [] });
+    expect(columnDefinition(ok.columns[0]!, ok, 'postgres')).toBe('"spot" geometry(Point,4326)');
   });
 });
 
