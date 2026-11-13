@@ -507,8 +507,8 @@ export function createAiConnections(deps: AiConnectionsDeps): AiConnections {
           { reason: 'ENV_SHADOWED', names: outside },
         );
       }
-      const { baseUrl } = draftConfig(draft);
-      await guard(draft.provider, baseUrl, 'environment');
+      const { baseUrl, typed: typedAddress } = draftConfig(draft);
+      await guard(draft.provider, baseUrl, 'environment', typedAddress);
       const values: Partial<Record<AiEnvName, string | null>> = { ADMINIUM_AI_MODEL: `${draft.provider}/${draft.model}` };
       if (keyName !== null && draft.apiKey !== undefined && draft.apiKey !== '') values[keyName] = draft.apiKey;
       if (urlName !== null && draft.baseUrl !== undefined && draft.baseUrl !== '') values[urlName] = draft.baseUrl;
