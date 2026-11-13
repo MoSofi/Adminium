@@ -26,7 +26,10 @@ import type { CatalogApp } from '../designer/api.js';
 
 const OFF = { allowed: false, reason: 'trial-mode' };
 const OPEN = { allowed: true, reason: null };
-const info = (allowed: boolean): Pick<SystemInfo, 'ownCode'> => ({ ownCode: { packageUploads: allowed ? OPEN : OFF, designerUploads: allowed ? OPEN : OFF, ownBuilds: allowed ? OPEN : OFF } });
+const info = (allowed: boolean): Pick<SystemInfo, 'offByOperator'> => {
+  const own = allowed ? OPEN : OFF;
+  return { offByOperator: { sqliteSources: OPEN, storageDestinations: OPEN, webhooks: OPEN, metaStoreRoutes: OPEN, packageUploads: own, designerUploads: own, ownBuilds: own } };
+};
 
 /** A query client that already holds the server's answer. */
 function withInfo(allowed: boolean) {

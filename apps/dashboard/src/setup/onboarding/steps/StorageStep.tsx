@@ -144,7 +144,7 @@ export function StorageStep({
   const [testing, setTesting] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
   // Trial mode: where the meta store lives is the operator's choice, labelled so.
-  const metaFixed = useOperatorSwitch('metaStore');
+  const metaFixed = useOperatorSwitch('metaStoreRoutes');
 
   // An instance whose store is pinned by ADMINIUM_META_URL or an existing
   // bootstrap file has nothing to choose — and saying so beats offering three

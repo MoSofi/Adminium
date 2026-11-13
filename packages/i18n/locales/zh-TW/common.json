@@ -2198,7 +2198,16 @@
     "ownBuilds": "營運方已為此安裝關閉自訂建置。",
     "designerNetwork": "營運方已為此安裝關閉圖片搜尋和 Figma。",
     "userMail": "此試用已結束，因此此安裝不再傳送電子郵件。",
-    "testBudget": "此安裝在過去一分鐘內測試了 {limit} 個資料庫連線。請等待 {seconds, plural, other {# 秒}}後再試。"
+    "testBudget": "此安裝在過去一分鐘內測試了 {limit} 個資料庫連線。請等待 {seconds, plural, other {# 秒}}後再試。",
+    "payPages": "營運方已為此安裝關閉付款頁面。",
+    "paymentWebhooks": "營運方不允許付款服務呼叫此安裝。",
+    "mappedDomains": "只有營運方列出的網域才能指向此安裝。",
+    "marketingCampaigns": "營運方已為此安裝關閉行銷活動。",
+    "liftMailHold": "在此安裝上，今天的退信和垃圾郵件檢舉會保留在「勿寄郵件」清單中，直到明天。",
+    "customerScreens": "此安裝隨附的 AI 只建立儀表板。面向客戶的畫面需要你自己的 AI 金鑰。",
+    "reasonOperatorAiOnly": "在此安裝上，AI 透過營運方的連線執行，除非你加入自己的 Anthropic、OpenAI 或 Google 金鑰。",
+    "reasonOperatorAiScope": "此安裝隨附的 AI 只建立儀表板。",
+    "reasonNotAllowed": "營運方不允許在此安裝上這麼做。"
   },
   "trial": {
     "testEnvironment": "這是一個測試環境。請不要輸入真實的客戶資料。",

@@ -272,7 +272,10 @@
       "atTable": "Tabulka {field}",
       "empty": "Název je povinný.",
       "identifier": "Použijte malá písmena, číslice a podtržítka, začněte písmenem.",
-      "tooLong": "Příliš dlouhé — {dialect} povoluje {max} znaků."
+      "tooLong": "Příliš dlouhé — {dialect} povoluje {max} znaků.",
+      "unsafeDefault": "Tento výchozí výraz nelze použít: obsahuje středník, komentář, zpětné lomítko, znak dolaru nebo neuzavřenou uvozovku či závorku. Upravte ho a zkuste to znovu.",
+      "unsafeType": "Tento typ sloupce nelze použít: obsahuje víc než typ, například středník, komentář, omezení nebo neuzavřenou uvozovku či závorku. Upravte ho a zkuste to znovu.",
+      "unsafeCheck": "Tuto kontrolu nelze použít: obsahuje středník, komentář, zpětné lomítko, znak dolaru nebo neuzavřenou uvozovku či závorku. Upravte ji a zkuste to znovu."
     },
     "existing": "Existující tabulky",
     "hazard": {

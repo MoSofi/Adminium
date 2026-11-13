@@ -272,7 +272,10 @@
       "atTable": "Table {field}",
       "empty": "Un nom est requis.",
       "identifier": "Utilisez des minuscules, des chiffres et des tirets bas, en commençant par une lettre.",
-      "tooLong": "Trop long — {dialect} autorise {max} caractères."
+      "tooLong": "Trop long — {dialect} autorise {max} caractères.",
+      "unsafeDefault": "Cette expression par défaut ne peut pas être utilisée : elle contient un point-virgule, un commentaire, une barre oblique inverse, un signe dollar, ou un guillemet ou une parenthèse non fermés. Modifiez-la, puis réessayez.",
+      "unsafeType": "Ce type de colonne ne peut pas être utilisé : il contient plus qu’un type, comme un point-virgule, un commentaire, une contrainte, ou un guillemet ou une parenthèse non fermés. Modifiez-le, puis réessayez.",
+      "unsafeCheck": "Cette vérification ne peut pas être utilisée : elle contient un point-virgule, un commentaire, une barre oblique inverse, un signe dollar, ou un guillemet ou une parenthèse non fermés. Modifiez-la, puis réessayez."
     },
     "existing": "Tables existantes",
     "hazard": {

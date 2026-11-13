@@ -94,7 +94,7 @@ export function MetaStep({ state, onPatch, placement, placementKnown = true, rel
   };
 
   // Trial mode: where the meta store lives is the operator's, labelled "Set by the operator".
-  const metaFixed = useOperatorSwitch('metaStore');
+  const metaFixed = useOperatorSwitch('metaStoreRoutes');
   // An embedded store this server can still move: the one case where the step is a real choice.
   const movable = placement !== null && placement.embedded && placement.canRelocate;
   // The first-run wizard already asked this, and "a file on this machine" was kept: that stays

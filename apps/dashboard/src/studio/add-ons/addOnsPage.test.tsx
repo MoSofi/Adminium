@@ -580,7 +580,7 @@ describe('AddOnsPage', () => {
       const off = { allowed: false, reason: 'trial-mode' };
       const { calls } = await renderPage({
         respond: (method, url) =>
-          method === 'GET' && url === '/api/v1/system/info' ? { status: 200, body: { ownCode: { packageUploads: off, designerUploads: off, ownBuilds: off } } } : undefined,
+          method === 'GET' && url === '/api/v1/system/info' ? { status: 200, body: { offByOperator: { packageUploads: off, designerUploads: off, ownBuilds: off } } } : undefined,
       });
       const upload = await screen.findByRole('button', { name: 'Upload' });
       await waitFor(() => expect(upload.getAttribute('aria-disabled')).toBe('true'));

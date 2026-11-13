@@ -37,8 +37,8 @@ function withInfo(trial: boolean, children: ReactNode): ReactNode {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const info: Partial<SystemInfo> = {
     offByOperator: trial
-      ? { sqliteSources: off, storageDestinations: off, webhooks: off, metaStore: off }
-      : { sqliteSources: open, storageDestinations: open, webhooks: open, metaStore: open },
+      ? { sqliteSources: off, storageDestinations: off, webhooks: off, metaStoreRoutes: off, packageUploads: off, designerUploads: off, ownBuilds: off }
+      : { sqliteSources: open, storageDestinations: open, webhooks: open, metaStoreRoutes: open, packageUploads: open, designerUploads: open, ownBuilds: open },
   };
   client.setQueryData(['system', 'info'], info);
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
@@ -99,17 +99,22 @@ describe("Studio's connect wizard", () => {
     return <StudioSourceStep state={state} onPatch={(patch) => setState((prev) => ({ ...prev, ...patch }))} />;
   }
 
-  it('in trial mode: the SQLite engine is shown disabled, the reason under the picker', () => {
+  it('in trial mode: the SQLite engine is in reach, aria-disabled, the reason under the picker, and a pick does nothing', () => {
     render(withInfo(true, <Harness initial={{ ...INITIAL_WIZARD_STATE, mode: 'dsn' }} />));
     const sqlite = screen.getByRole('radio', { name: 'SQLite' });
-    expect(sqlite.hasAttribute('disabled')).toBe(true);
+    // Never native `disabled`: a keyboard reaches it and the reason it carries.
+    expect(sqlite.hasAttribute('disabled')).toBe(false);
+    expect(sqlite.getAttribute('aria-disabled')).toBe('true');
     const group = sqlite.closest('[role="radiogroup"]');
     expect(document.getElementById(group?.getAttribute('aria-describedby') ?? '')?.textContent).toContain(SQLITE_REASON);
+    fireEvent.click(sqlite);
+    expect(sqlite.getAttribute('aria-checked')).toBe('false');
   });
 
   it('on an ordinary server: the SQLite engine is a choice', () => {
     render(withInfo(false, <Harness initial={{ ...INITIAL_WIZARD_STATE, mode: 'dsn' }} />));
     expect(screen.getByRole('radio', { name: 'SQLite' }).hasAttribute('disabled')).toBe(false);
+    expect(screen.getByRole('radio', { name: 'SQLite' }).hasAttribute('aria-disabled')).toBe(false);
     expect(screen.queryByTestId('off-by-operator-note')).toBeNull();
   });
 });
@@ -157,5 +162,31 @@ describe('a refusal the operator caused', () => {
       'The operator has switched this off for this installation.',
     );
     expect(offByOperatorText(new ApiError(403, 'FORBIDDEN', 'x', 'r'))).toBeNull();
+  });
+
+  it('has words for every question the server refuses, and says a question it does not know by its reason', () => {
+    const said = (question: string, reason = 'trial-mode') => offByOperatorText(new ApiError(403, 'OFF_BY_OPERATOR', 'x', 'r', { question, reason }));
+    const generic = 'The operator has switched this off for this installation.';
+    for (const question of [
+      'payPages',
+      'paymentWebhooks',
+      'mappedDomains',
+      'liftMailHold',
+      'customerScreensOnOperatorAi',
+      'unlistedDatabaseHosts',
+      'anyDatabaseLogin',
+      'marketingCampaigns',
+      'customAiProviders',
+      'aiBaseUrl',
+      'extraSourceConnections',
+      'storageOverCap',
+      'dataOverCap',
+    ]) {
+      expect(said(question), question).not.toBe(generic);
+    }
+    expect(said('liftMailHold')).toBe('On this installation, today’s bounces and spam reports stay on the do-not-email list until tomorrow.');
+    expect(said('somethingNew', 'operator-ai-scope')).toBe('The AI that comes with this installation builds dashboards only.');
+    expect(said('somethingNew', 'operator-ai-only')).toContain('the operator’s connection');
+    expect(said('somethingNew', 'not-allowed')).toBe('The operator does not allow this on this installation.');
   });
 });

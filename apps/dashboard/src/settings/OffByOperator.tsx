@@ -22,15 +22,19 @@ import { useContext, type ReactNode } from 'react';
 import { Tooltip } from '@adminium/ui';
 
 import { ApiError } from '../app/api.js';
-import { systemInfoQuery, type OperatorSwitch } from '../app/capabilities.js';
+import { systemInfoQuery, type OperatorSwitch, type OperatorSwitchName } from '../app/capabilities.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
 import { SetByOperatorChip } from './SetByOperator.js';
 
-export type OperatorSwitchName = 'sqliteSources' | 'storageDestinations' | 'webhooks' | 'metaStore';
+export type { OperatorSwitchName };
 
-/** The questions the server's `OFF_BY_OPERATOR` names, and the words for each. */
-export function offByOperatorWords(question: string): string {
+/**
+ * The questions the server's `OFF_BY_OPERATOR` names, and the words for each.
+ * A question with no words of its own is said by its `reason`, else as a
+ * plain "switched off".
+ */
+export function offByOperatorWords(question: string, reason?: string): string {
   switch (question) {
     case 'sqliteSources':
       return t('operatorSwitches.sqlite', 'This installation does not open SQLite files: the operator allows only database servers.');
@@ -39,7 +43,6 @@ export function offByOperatorWords(question: string): string {
     case 'anyDatabaseLogin':
       return t('operatorSwitches.otherLogin', 'On this database host, only the login and database the operator gave this installation work.');
     case 'metaStoreRoutes':
-    case 'metaStore':
       return t('operatorSwitches.metaFixed', 'The operator decides where this installation keeps its own data.');
     case 'storageDestinations':
       return t('operatorSwitches.storage', 'The operator keeps this installation’s files on its own disk, so no other destination can be added or tested.');
@@ -51,6 +54,18 @@ export function offByOperatorWords(question: string): string {
       return t('operatorSwitches.aiAddress', 'The operator does not allow an AI address of your own on this installation.');
     case 'paymentProviders':
       return t('operatorSwitches.payments', 'The operator has switched payment services off for this installation.');
+    case 'payPages':
+      return t('operatorSwitches.payPages', 'The operator has switched pay pages off for this installation.');
+    case 'paymentWebhooks':
+      return t('operatorSwitches.paymentWebhooks', 'The operator does not let payment services call this installation.');
+    case 'mappedDomains':
+      return t('operatorSwitches.mappedDomains', 'Only the domains the operator listed can point to this installation.');
+    case 'marketingCampaigns':
+      return t('operatorSwitches.marketingCampaigns', 'The operator has switched marketing campaigns off for this installation.');
+    case 'liftMailHold':
+      return t('operatorSwitches.liftMailHold', 'On this installation, today’s bounces and spam reports stay on the do-not-email list until tomorrow.');
+    case 'customerScreensOnOperatorAi':
+      return t('operatorSwitches.customerScreens', 'The AI that comes with this installation builds dashboards only. Screens for customers need your own AI key.');
     // Own code: uploads, the Designer's code and builds of one's own.
     case 'packageUploads':
       return t('operatorSwitches.packageUploads', 'The operator installs add-ons and apps only from the catalog on this installation, so uploads are off.');
@@ -74,6 +89,20 @@ export function offByOperatorWords(question: string): string {
     case 'writes':
       return t('trial.readOnly', 'Read-only: this trial has ended');
     default:
+      return offByOperatorReason(reason);
+  }
+}
+
+/** A refusal said by its reason alone: for a question the dashboard has no words of its own for. */
+function offByOperatorReason(reason: string | undefined): string {
+  switch (reason) {
+    case 'operator-ai-only':
+      return t('operatorSwitches.reasonOperatorAiOnly', 'On this installation, AI runs on the operator’s connection unless you add your own key to Anthropic, OpenAI or Google.');
+    case 'operator-ai-scope':
+      return t('operatorSwitches.reasonOperatorAiScope', 'The AI that comes with this installation builds dashboards only.');
+    case 'not-allowed':
+      return t('operatorSwitches.reasonNotAllowed', 'The operator does not allow this on this installation.');
+    default:
       return t('operatorLock.lockedOff', 'The operator has switched this off for this installation.');
   }
 }
@@ -90,8 +119,8 @@ export function testBudgetWords(limit: number, seconds: number): string {
 /** The sentence for a refusal the operator's switch caused, or null for any other error. */
 export function offByOperatorText(error: unknown): string | null {
   if (!(error instanceof ApiError) || error.code !== 'OFF_BY_OPERATOR') return null;
-  const question = (error.details as { question?: unknown } | null | undefined)?.question;
-  return offByOperatorWords(typeof question === 'string' ? question : '');
+  const details = error.details as { question?: unknown; reason?: unknown } | null | undefined;
+  return offByOperatorWords(typeof details?.question === 'string' ? details.question : '', typeof details?.reason === 'string' ? details.reason : undefined);
 }
 
 const OPEN: OperatorSwitch = { allowed: true, reason: null };

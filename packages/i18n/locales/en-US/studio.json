@@ -272,7 +272,10 @@
       "atTable": "Table {field}",
       "empty": "A name is required.",
       "identifier": "Use lowercase letters, numbers and underscores, starting with a letter.",
-      "tooLong": "Too long — {dialect} allows {max} characters."
+      "tooLong": "Too long — {dialect} allows {max} characters.",
+      "unsafeDefault": "This default expression cannot be used: it holds a semicolon, a comment, a backslash, a dollar sign, or a quote or parenthesis left open. Change it, then try again.",
+      "unsafeType": "This column type cannot be used: it holds more than a type, such as a semicolon, a comment, a constraint, or a quote or parenthesis left open. Change it, then try again.",
+      "unsafeCheck": "This check cannot be used: it holds a semicolon, a comment, a backslash, a dollar sign, or a quote or parenthesis left open. Change it, then try again."
     },
     "existing": "Existing tables",
     "hazard": {

@@ -272,7 +272,10 @@
       "atTable": "Tabelle {field}",
       "empty": "Ein Name ist erforderlich.",
       "identifier": "Nur Kleinbuchstaben, Ziffern und Unterstriche, beginnend mit einem Buchstaben.",
-      "tooLong": "Zu lang — {dialect} erlaubt {max} Zeichen."
+      "tooLong": "Zu lang — {dialect} erlaubt {max} Zeichen.",
+      "unsafeDefault": "Dieser Standardausdruck kann nicht verwendet werden: Er enthält ein Semikolon, einen Kommentar, einen Backslash, ein Dollarzeichen oder ein offenes Anführungszeichen bzw. eine offene Klammer. Ändere ihn und versuche es erneut.",
+      "unsafeType": "Dieser Spaltentyp kann nicht verwendet werden: Er enthält mehr als einen Typ, etwa ein Semikolon, einen Kommentar, eine Einschränkung oder ein offenes Anführungszeichen bzw. eine offene Klammer. Ändere ihn und versuche es erneut.",
+      "unsafeCheck": "Diese Prüfung kann nicht verwendet werden: Sie enthält ein Semikolon, einen Kommentar, einen Backslash, ein Dollarzeichen oder ein offenes Anführungszeichen bzw. eine offene Klammer. Ändere sie und versuche es erneut."
     },
     "existing": "Vorhandene Tabellen",
     "hazard": {

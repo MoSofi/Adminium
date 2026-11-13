@@ -78,6 +78,8 @@ export interface DesignModeProps {
  * field.
  */
 function describeValidation(error: ApiError): string {
+  const unsafe = unsafeSqlText(error);
+  if (unsafe !== null) return unsafe;
   const issues = (error.details as { issues?: { path?: string; message?: string }[] } | undefined)
     ?.issues;
   if (issues === undefined || issues.length === 0) return error.message;
@@ -98,6 +100,33 @@ function describeValidation(error: ApiError): string {
       return where === '' ? (issue.message ?? '') : `${where}: ${issue.message ?? ''}`;
     })
     .join(' · ');
+}
+
+/**
+ * A default expression, column type or check the server will not put into a
+ * statement (422 `VALIDATION_FAILED`, `details.reason: UNSAFE_SQL_TEXT`): text
+ * that could end the statement or start another. Null for any other error.
+ */
+function unsafeSqlText(error: ApiError): string | null {
+  const details = error.details as { reason?: unknown; what?: unknown } | null | undefined;
+  if (error.code !== 'VALIDATION_FAILED' || details?.reason !== 'UNSAFE_SQL_TEXT') return null;
+  switch (details.what) {
+    case 'expression default':
+      return t(
+        'studio:design.error.unsafeDefault',
+        'This default expression cannot be used: it holds a semicolon, a comment, a backslash, a dollar sign, or a quote or parenthesis left open. Change it, then try again.',
+      );
+    case 'column type':
+      return t(
+        'studio:design.error.unsafeType',
+        'This column type cannot be used: it holds more than a type, such as a semicolon, a comment, a constraint, or a quote or parenthesis left open. Change it, then try again.',
+      );
+    default:
+      return t(
+        'studio:design.error.unsafeCheck',
+        'This check cannot be used: it holds a semicolon, a comment, a backslash, a dollar sign, or a quote or parenthesis left open. Change it, then try again.',
+      );
+  }
 }
 
 export function DesignMode({

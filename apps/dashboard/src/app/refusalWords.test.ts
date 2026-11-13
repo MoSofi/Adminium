@@ -87,7 +87,7 @@ describe('a refusal the operator caused', () => {
 describe('an installation whose operator switched things off', () => {
   it('has the words in as soon as `/system/info` says so, before any refusal', async () => {
     const off = { allowed: false, reason: 'hosted-mode' };
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ offByOperator: { sqliteSources: off, storageDestinations: off, webhooks: { allowed: true, reason: null }, metaStore: off } }), { status: 200 })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ offByOperator: { sqliteSources: off, storageDestinations: off, webhooks: { allowed: true, reason: null }, metaStoreRoutes: off } }), { status: 200 })));
     const query = systemInfoQuery();
     await (query.queryFn as () => Promise<unknown>)();
     await vi.waitFor(() => expect(new ApiError(403, 'OFF_BY_OPERATOR', 'Off.', null, { question: 'ownBuilds' }).message).toBe(german('operatorSwitches.ownBuilds')));
@@ -95,7 +95,7 @@ describe('an installation whose operator switched things off', () => {
 
   it('loads nothing on an installation with every switch on', async () => {
     const on = { allowed: true, reason: null };
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ offByOperator: { sqliteSources: on, storageDestinations: on, webhooks: on, metaStore: on } }), { status: 200 })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ offByOperator: { sqliteSources: on, storageDestinations: on, webhooks: on, metaStoreRoutes: on } }), { status: 200 })));
     await (systemInfoQuery().queryFn as () => Promise<unknown>)();
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(new ApiError(403, 'OFF_BY_OPERATOR', 'Off.', null, { question: 'ownBuilds' }).message).toBe('Off.');

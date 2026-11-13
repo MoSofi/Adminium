@@ -18,11 +18,11 @@ import type { ReactElement, ReactNode } from 'react';
 
 import { systemInfoQuery, type SystemInfo } from './capabilities.js';
 
-export type OwnCodeKind = keyof NonNullable<SystemInfo['ownCode']>;
+export type OwnCodeKind = 'packageUploads' | 'designerUploads' | 'ownBuilds';
 
-/** The operator keeps `kind` off. False until the server has said, and on a server older than the switch. */
-export function ownCodeOff(info: Pick<SystemInfo, 'ownCode'> | undefined, kind: OwnCodeKind): boolean {
-  return info?.ownCode?.[kind].allowed === false;
+/** The operator keeps `kind` off (`/system/info`'s `offByOperator`). False until the server has said. */
+export function ownCodeOff(info: Partial<Pick<SystemInfo, 'offByOperator'>> | undefined, kind: OwnCodeKind): boolean {
+  return info?.offByOperator?.[kind].allowed === false;
 }
 
 export function useOwnCodeOff(kind: OwnCodeKind): boolean {

@@ -18,8 +18,8 @@ import { setRefusalWords } from './refusals.js';
 
 /** The words for `code` with `details`, or null where the server's message stands. */
 export function refusalWords(code: string, details: unknown): string | null {
-  const facts = (typeof details === 'object' && details !== null ? details : {}) as { question?: unknown; scope?: unknown; retryAfterSeconds?: unknown; limit?: unknown };
-  if (code === 'OFF_BY_OPERATOR') return offByOperatorWords(typeof facts.question === 'string' ? facts.question : '');
+  const facts = (typeof details === 'object' && details !== null ? details : {}) as { question?: unknown; reason?: unknown; scope?: unknown; retryAfterSeconds?: unknown; limit?: unknown };
+  if (code === 'OFF_BY_OPERATOR') return offByOperatorWords(typeof facts.question === 'string' ? facts.question : '', typeof facts.reason === 'string' ? facts.reason : undefined);
   if (code === 'RATE_LIMITED' && facts.scope === 'instance' && typeof facts.retryAfterSeconds === 'number') {
     return testBudgetWords(typeof facts.limit === 'number' ? facts.limit : 10, facts.retryAfterSeconds);
   }

@@ -113,7 +113,7 @@ export function OnboardingPage({
    */
   const inFlight = useRef<string | null>(null);
   // Trial mode: the operator fixes the meta store, so there is no store to find and adopt here (the server refuses the probe).
-  const metaFixed = useOperatorSwitch('metaStore');
+  const metaFixed = useOperatorSwitch('metaStoreRoutes');
   const sqlite = useOperatorSwitch('sqliteSources');
   useEffect(() => {
     const dsn = held.dsn.trim();

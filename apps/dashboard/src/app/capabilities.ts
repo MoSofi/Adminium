@@ -113,17 +113,17 @@ export interface SystemInfo {
   trial?: TrialInfo;
   /**
    * What the operator switched off for this installation (trial mode, the
-   * hosted profile), each `{ allowed, reason }`: shown disabled with the
-   * reason, never hidden. Absent from a server older than trial mode.
+   * hosted profile), each `{ allowed, reason }` under its policy question's
+   * name, the same name a 403 `OFF_BY_OPERATOR` carries in `details.question`:
+   * shown disabled with the reason, never hidden. Own code (uploads of add-ons
+   * and apps, uploads and hand edits in the Designer, builds of an app's own)
+   * is read with `ownCodeOff` (`app/ownCode.tsx`).
    */
-  offByOperator?: { sqliteSources: OperatorSwitch; storageDestinations: OperatorSwitch; webhooks: OperatorSwitch; metaStore: OperatorSwitch };
-  /**
-   * The own code this server takes, each `{ allowed, reason }` (`apps/server/src/trial/own-code.ts`): uploads of
-   * add-ons and apps, uploads and hand edits in the Designer, builds of an app's own ("Start with an app"). Read
-   * with `ownCodeOff` (`app/ownCode.tsx`). Absent from a server older than the switch: everything is taken.
-   */
-  ownCode?: Record<'packageUploads' | 'designerUploads' | 'ownBuilds', { allowed: boolean; reason: string | null }>;
+  offByOperator: Record<OperatorSwitchName, OperatorSwitch>;
 }
+
+/** The switches `/system/info` answers, by their policy question. */
+export type OperatorSwitchName = 'sqliteSources' | 'storageDestinations' | 'webhooks' | 'metaStoreRoutes' | 'packageUploads' | 'designerUploads' | 'ownBuilds';
 
 /** One switch the operator may have turned off; `reason` is a code (`trial-mode`, `hosted-mode`). */
 export interface OperatorSwitch {
