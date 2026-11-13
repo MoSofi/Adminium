@@ -37,9 +37,9 @@ afterEach(() => {
 
 const UPGRADE = 'https://operator.example/upgrade?instance=https%3A%2F%2Fhollis.example.com';
 
-function withInfo(upgradeUrl: string | null, children: ReactNode): ReactNode {
+function withInfo(upgradeUrl: string | null, children: ReactNode, trial = true): ReactNode {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
-  const info: Partial<SystemInfo> = { trial: { on: true, endsAt: '2026-11-20T00:00:00.000Z', daysLeft: 8, upgradeUrl } };
+  const info: Partial<SystemInfo> = { trial: trial ? { on: true, endsAt: '2026-11-20T00:00:00.000Z', daysLeft: 8, upgradeUrl } : { on: false, endsAt: null, daysLeft: null, upgradeUrl: null } };
   client.setQueryData(['system', 'info'], info);
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
@@ -68,6 +68,12 @@ describe('the operator’s AI card', () => {
     expect(screen.getByRole('group', { name: 'AI key needed' }).querySelector('p')?.textContent).toBe('Building customer-facing screens needs your own AI key. Add your own AI key to continue.');
     expect(screen.queryByRole('link', { name: 'Upgrade' })).toBeNull();
     expect(operatorAiText('used-up', false)).toBe('The AI included with this trial is used up. Add your own AI key to continue.');
+  });
+
+  it('says “this installation”, not “this trial”, on a server that is no trial', () => {
+    render(withInfo(null, <OperatorAiCard which="used-up" />, false));
+    expect(screen.getByRole('group', { name: 'AI key needed' }).querySelector('p')?.textContent).toBe('The AI included with this installation is used up. Add your own AI key to continue.');
+    expect(operatorAiText('used-up', false, false)).toBe('The AI included with this installation is used up. Add your own AI key to continue.');
   });
 });
 

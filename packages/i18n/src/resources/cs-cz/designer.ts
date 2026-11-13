@@ -1429,6 +1429,7 @@ export default {
     "label": "Je potřeba klíč AI",
     "scope": "Tvorba obrazovek pro zákazníky vyžaduje váš vlastní klíč AI.",
     "usedUp": "AI zahrnutá v této zkušební verzi je vyčerpána.",
+    "usedUpHere": "AI zahrnutá v této instalaci je vyčerpána.",
     "keyOrUpgrade": "Pokračujte přidáním vlastního klíče AI, nebo upgradujte.",
     "key": "Pokračujte přidáním vlastního klíče AI.",
     "addKey": "Přidat klíč AI",

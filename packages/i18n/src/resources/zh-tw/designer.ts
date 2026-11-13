@@ -1429,6 +1429,7 @@ export default {
     "label": "需要 AI 金鑰",
     "scope": "建構面向客戶的畫面需要您自己的 AI 金鑰。",
     "usedUp": "此試用版包含的 AI 額度已用完。",
+    "usedUpHere": "此安裝包含的 AI 額度已用完。",
     "keyOrUpgrade": "新增您自己的 AI 金鑰以繼續，或升級。",
     "key": "新增您自己的 AI 金鑰以繼續。",
     "addKey": "新增 AI 金鑰",

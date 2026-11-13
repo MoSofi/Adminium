@@ -1429,6 +1429,7 @@ export default {
     "label": "Clé d’IA requise",
     "scope": "Créer des écrans destinés aux clients nécessite votre propre clé d’IA.",
     "usedUp": "L’IA incluse dans cet essai est épuisée.",
+    "usedUpHere": "L’IA incluse dans cette installation est épuisée.",
     "keyOrUpgrade": "Ajoutez votre propre clé d’IA pour continuer, ou mettez à niveau.",
     "key": "Ajoutez votre propre clé d’IA pour continuer.",
     "addKey": "Ajouter une clé d’IA",
