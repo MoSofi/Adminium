@@ -89,7 +89,7 @@ describe.each(ENGINES)("a time stamped by the database's own default, on %s", (d
 });
 
 describe("a postgres session's zone, against a real server", () => {
-  const url = process.env['TEST_POSTGRES_URL'];
+  const url = process.env['TEST_POSTGRES_URL'] || undefined;
   const zoneOf = async (dsn: string): Promise<string> => {
     const engine = createQueryEngine(dsn);
     const db = new KyselyDb<SourceDatabase>({ dialect: engine.dialect as KyselyDialect });

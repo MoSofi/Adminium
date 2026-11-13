@@ -68,8 +68,9 @@ vi.mock('node:dns/promises', async (importOriginal) => {
 });
 
 const SECRET = 'a-sufficiently-long-test-secret';
-const PG_URL = process.env['TEST_POSTGRES_URL'];
-const MYSQL_URL = process.env['TEST_MYSQL_URL'];
+// CI sets these empty on push runs: empty is unset.
+const PG_URL = process.env['TEST_POSTGRES_URL'] || undefined;
+const MYSQL_URL = process.env['TEST_MYSQL_URL'] || undefined;
 
 type Route = 'probe' | 'adopt' | 'relocate';
 const ROUTES: readonly Route[] = ['probe', 'adopt', 'relocate'];
