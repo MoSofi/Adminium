@@ -132,15 +132,8 @@ RUN apt-get update \
 # walk, 2026-10-22). So the image asks for 512 MB and the docs ask for the memory
 # to back it: 1 GB for this container alone, 2 GB (or 1 GB and swap) for a server
 # that also runs a database and a proxy. Set NODE_OPTIONS yourself to change it.
-#
-# NODE_COMPILE_CACHE: Node keeps the compiled form of every module it loads in
-# this folder and reads it back on the next start, so a start (a trial waking
-# up, a restart) skips compiling the engine's ~2,200 modules again. It is
-# filled once below, while the image is built, and a container adds what it
-# compiles later to its own copy. Set it empty to turn it off.
 ENV NODE_ENV=production \
     NODE_OPTIONS=--max-old-space-size=512 \
-    NODE_COMPILE_CACHE=/app/.compile-cache \
     ADMINIUM_DATA_DIR=/data \
     PORT=4600 \
     HOST=0.0.0.0
@@ -157,18 +150,12 @@ RUN chmod +x /app/dist/cli/index.js \
 
 # The adminium-data volume mounts here; ADMINIUM_DATA_DIR points at it.
 # Created and owned before USER drops, because a non-root process cannot chown
-# its own mount point. The compile cache folder too: /app itself stays root's,
-# and Node quietly skips the cache when it cannot create the folder.
-RUN mkdir -p /data /app/.compile-cache && chown -R node:node /data /app/.compile-cache
+# its own mount point.
+RUN mkdir -p /data && chown -R node:node /data
 VOLUME ["/data"]
 
 # node:22-slim ships an unprivileged `node` user (uid 1000) — no root at runtime.
 USER node
-
-# Fill the compile cache: importing the composition root loads every module a
-# start loads. As the user that runs the server, so a container can add to it.
-RUN node --input-type=module -e 'await import("/app/dist/compose.js")' \
-    && test -n "$(ls -A /app/.compile-cache)"
 
 EXPOSE 4600
 
