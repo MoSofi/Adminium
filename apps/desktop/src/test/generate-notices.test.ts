@@ -150,7 +150,11 @@ describe('generate-notices — the real production graph', () => {
   });
 
   it('names git, which is not bundled: where it comes from, its licence, and where its source is', () => {
-    const body = readFileSync(join(repoRoot, 'apps', 'desktop', 'resources', 'THIRD-PARTY-NOTICES.txt'), 'utf8');
+    // Made here, not read from the desktop build's output: a run with no cache tests before that build.
+    const ws = workspace();
+    const out = join(ws, 'NOTICES.txt');
+    expect(run(['--out', out, '--license-out', join(ws, 'LICENSE')]).status).toBe(0);
+    const body = readFileSync(out, 'utf8');
     expect(body).toContain('git (not part of this application; fetched only when you ask for it)');
     expect(body).toContain('License: GPL-2.0-only');
     expect(body).toContain('https://github.com/desktop/dugite-native/releases');
