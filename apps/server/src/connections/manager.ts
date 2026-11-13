@@ -173,6 +173,8 @@ export class ConnectionManager {
   readonly #pool: { poolMax?: number };
   readonly #lookup: HostLookup | undefined;
   readonly #trialRules: TrialSourceRules;
+  /** The last source added in a trial, which the next waits for. */
+  #roomTurn: Promise<unknown> = Promise.resolve();
   /** Trial mode's size cap (`trial/size-cap.ts`): what holds a source's growth, and hears of every write. */
   #watch: WriteWatch | null = null;
   readonly connections: ReturnType<typeof connectionsRepo>;
@@ -271,6 +273,22 @@ export class ConnectionManager {
       answer.reason ?? 'size-cap',
       `A trial connects at most ${String(TRIAL_SOURCE_CONNECTIONS)} databases. Remove one to connect another.`,
     );
+  }
+
+  /**
+   * `create` run with room for one more source ({@link assertRoomForSource}),
+   * the count and the create one after another in a trial: requests side by
+   * side cannot all pass on the same room. One process serves an instance, so
+   * a queue in it is enough. Anything else runs `create` straight away.
+   */
+  async withRoomForSource<T>(create: () => Promise<T>): Promise<T> {
+    if (this.#trialRules.policy.allows('extraSourceConnections').allowed) return create();
+    const turn = this.#roomTurn.catch(() => undefined).then(async () => {
+      await this.assertRoomForSource();
+      return create();
+    });
+    this.#roomTurn = turn;
+    return turn;
   }
 
   /** Before an import writes to `connectionId`: its size measured now, and refused while it is held. Nothing without a watch. */
@@ -581,7 +599,11 @@ export class ConnectionManager {
     const watch = this.#watch;
     const dialect = engine.dialect as KyselyDialect;
     const db = new Kysely<SourceDatabase>({ dialect: watch === null ? dialect : holdingDialect(dialect, connectionId, watch) });
-    if (watch !== null) registerWriteHold(db, () => watch.held(connectionId));
+    if (watch !== null) {
+      registerWriteHold(db, { held: () => watch.held(connectionId), settle: () => watch.settle(connectionId) });
+      // A new handle (a restart, a resume, a changed connection string): measured again before anything is added.
+      watch.opened(connectionId);
+    }
     // `connection.engine` is validated against DIALECTS at connection create.
     return { db, engine, dialect: connection.engine as Dialect };
   }

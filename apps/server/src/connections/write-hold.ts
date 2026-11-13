@@ -23,6 +23,12 @@
  *
  * The same reading of each statement tells the watch what ran, so the size
  * is measured again after a delete, an import or a bulk write.
+ *
+ * The watch's holds live in memory. A statement that adds or changes, and a
+ * person's create or change, first wait for the watch to have measured the
+ * database since its handle opened ({@link WriteWatch.settle}): after a
+ * restart, a wake or a change of the connection, nothing is added to a
+ * database over its limit in the moment before it is measured again.
  */
 import type { CompiledQuery, DatabaseConnection, Dialect, Driver, Kysely, QueryResult, TransactionSettings } from 'kysely';
 
@@ -46,6 +52,10 @@ export type StatementEffect = 'grow' | 'update' | 'shrink' | 'read';
  */
 export interface WriteWatch {
   held(connectionId: string): WriteHold | null;
+  /** Resolves once the connection has been measured since its handle opened (at once after that); throws 403 when it could not be. */
+  settle(connectionId: string): Promise<void>;
+  /** A data handle for the connection was just opened: a restart, a resume, or a changed connection string. */
+  opened(connectionId: string): void;
   wrote(connectionId: string, effect: Exclude<StatementEffect, 'read'>): void;
   /** Measured now, then refused while held: what an import asks before it starts. */
   beforeImport(connectionId: string): Promise<void>;
@@ -110,8 +120,9 @@ function refuse(hold: WriteHold): never {
 
 /** The held check and the after-the-fact notice around one connection's statements. */
 function watchedConnection(connection: DatabaseConnection, connectionId: string, watch: WriteWatch): DatabaseConnection {
-  const before = (query: CompiledQuery): StatementEffect => {
+  const before = async (query: CompiledQuery): Promise<StatementEffect> => {
     const effect = statementEffect(query.sql);
+    if (effect === 'grow' || effect === 'update') await watch.settle(connectionId);
     if (effect === 'grow') {
       const hold = watch.held(connectionId);
       if (hold !== null) refuse(hold);
@@ -123,13 +134,13 @@ function watchedConnection(connection: DatabaseConnection, connectionId: string,
   };
   const watched: DatabaseConnection = {
     async executeQuery<R>(query: CompiledQuery, options?: Parameters<DatabaseConnection['executeQuery']>[1]): Promise<QueryResult<R>> {
-      const effect = before(query);
+      const effect = await before(query);
       const result = await connection.executeQuery<R>(query, options);
       after(effect);
       return result;
     },
     async *streamQuery<R>(query: CompiledQuery, chunkSize: number, options?: Parameters<DatabaseConnection['streamQuery']>[2]): AsyncIterableIterator<QueryResult<R>> {
-      const effect = before(query);
+      const effect = await before(query);
       yield* connection.streamQuery<R>(query, chunkSize, options);
       after(effect);
     },
@@ -188,24 +199,28 @@ function holdingDriver(driver: Driver, connectionId: string, watch: WriteWatch):
 }
 
 /** The hold over each data handle the manager opened under a watch: what the write service asks. */
-const HOLDS = new WeakMap<object, () => WriteHold | null>();
+const HOLDS = new WeakMap<object, { held: () => WriteHold | null; settle: () => Promise<void> }>();
 
 /** Tie a data handle to its connection's hold. */
-export function registerWriteHold(db: Kysely<never> | object, hold: () => WriteHold | null): void {
+export function registerWriteHold(db: Kysely<never> | object, hold: { held: () => WriteHold | null; settle: () => Promise<void> }): void {
   HOLDS.set(db, hold);
 }
 
 /** The hold over a data handle now; null when none holds it (or it was opened without a watch). */
 export function writeHoldOf(db: object): WriteHold | null {
-  return HOLDS.get(db)?.() ?? null;
+  return HOLDS.get(db)?.held() ?? null;
 }
 
 /**
- * A person's create or change of a row, refused while the database is held.
- * A delete is never refused: deleting is the way out of the hold.
+ * A person's create or change of a row, refused while the database is held,
+ * once it has been measured since its handle opened. A delete is never
+ * refused: deleting is the way out of the hold.
  */
-export function refuseHeldWrite(db: object, action: 'create' | 'update' | 'delete'): void {
+export async function refuseHeldWrite(db: object, action: 'create' | 'update' | 'delete'): Promise<void> {
   if (action === 'delete') return;
-  const hold = writeHoldOf(db);
+  const watched = HOLDS.get(db);
+  if (watched === undefined) return;
+  await watched.settle();
+  const hold = watched.held();
   if (hold !== null) refuse(hold);
 }
