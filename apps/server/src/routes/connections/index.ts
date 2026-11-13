@@ -189,30 +189,31 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           throw new ValidationFailedError('Provide `dsn` or `roles.data`.', {});
         }
 
-        // A trial connects a few databases at most.
-        await manager.assertRoomForSource();
-        tests.spend();
-        // The introspect role is stored here and dialled later, so it is
-        // guarded now; the data role is guarded by its test.
-        if (introspectDsn !== dataDsn) await manager.checkDsnAllowed(introspectDsn, body.engine);
-        // Test the data role — its probe drives read-only + meta placement.
-        const summary = await manager.testDsn(body.engine, dataDsn);
-        if (summary.ok) manager.enforceMetaPlacement(dataDsn, summary);
-
         const actorId =
           request.apiKeyPrincipal === null
             ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
             : null;
-        const connection = await manager.connections.create({
-          name: body.name,
-          engine: body.engine,
-          sourceKind: 'dsn',
-          introspectDsn,
-          dataDsn: dataDsn === introspectDsn ? null : dataDsn,
-          readOnly: summary.readOnly,
-          settings: body.settings ?? {},
-          status: summary.ok ? 'connected' : 'error',
-          createdBy: actorId,
+        // A trial connects a few databases at most: counted and created one request at a time.
+        const { connection, summary } = await manager.withRoomForSource(async () => {
+          tests.spend();
+          // The introspect role is stored here and dialled later, so it is
+          // guarded now; the data role is guarded by its test.
+          if (introspectDsn !== dataDsn) await manager.checkDsnAllowed(introspectDsn, body.engine);
+          // Test the data role — its probe drives read-only + meta placement.
+          const tested = await manager.testDsn(body.engine, dataDsn);
+          if (tested.ok) manager.enforceMetaPlacement(dataDsn, tested);
+          const created = await manager.connections.create({
+            name: body.name,
+            engine: body.engine,
+            sourceKind: 'dsn',
+            introspectDsn,
+            dataDsn: dataDsn === introspectDsn ? null : dataDsn,
+            readOnly: tested.readOnly,
+            settings: body.settings ?? {},
+            status: tested.ok ? 'connected' : 'error',
+            createdBy: actorId,
+          });
+          return { connection: created, summary: tested };
         });
         await manager.connections.recordTestResult(connection.id, testOutcome(summary));
         await app.rbac.audit(request, {
