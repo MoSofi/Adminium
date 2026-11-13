@@ -597,14 +597,22 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     if (opts.metaDb !== undefined && opts.metaDb !== null) await holdOperatorOrigin(opts.metaDb, operatorHosts.origin);
   }
   // What the server's operator holds back (every public page hidden), read before the server answers anything (`operator/holds.ts`).
-  // Until it has been read once, every public page counts as hidden; a failed read is tried again every 30 s.
+  // Where an operator can hold the pages, every public page counts as hidden until it has been read once; a
+  // failed read is tried again every 30 s.
+  const holdable = policy.profile !== 'off' || env.ADMINIUM_OPERATOR_LISTEN !== undefined;
   const operatorHolds = createOperatorHolds(opts.metaDb ?? null, {
-    onRetryFailed: (err) => app.log.error({ err }, 'the operator holds still cannot be read; every public page stays hidden'),
+    holdable,
+    onRetryFailed: (err) => app.log.error({ err }, holdable ? 'the operator holds still cannot be read; every public page stays hidden' : 'the operator holds still cannot be read'),
   });
   app.decorate('operatorHolds', operatorHolds);
   app.addHook('onReady', async () => {
     const failed = await operatorHolds.load();
-    if (failed !== null) app.log.error({ err: failed }, 'the operator holds could not be read; every public page is hidden until they can be, tried again every 30 seconds');
+    if (failed !== null) {
+      app.log.error(
+        { err: failed },
+        holdable ? 'the operator holds could not be read; every public page is hidden until they can be, tried again every 30 seconds' : 'the operator holds could not be read; tried again every 30 seconds',
+      );
+    }
   });
   app.addHook('onClose', async () => {
     operatorHolds.close();

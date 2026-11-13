@@ -310,17 +310,43 @@ for (const engine of ['sqlite', 'postgres', 'mysql'] as const) {
 describe('a hold the boot cannot read', () => {
   const page = (served: Served) => served.composed.app.inject({ method: 'GET', url: '/apps/shop/customer/', headers: { accept: 'text/html', 'sec-fetch-mode': 'navigate' } });
 
-  it('keeps every public page hidden until it has been read once', async () => {
+  it('keeps every public page hidden until it has been read once, where the operator endpoint can hold them', async () => {
     const meta = await store('sqlite');
     // A store the hold cannot be read from: its table is not where the boot looks.
     await sql`alter table adminium_operator_holds rename to adminium_operator_holds_aside`.execute(meta.db);
-    const served = await serve(meta, 'sqlite');
+    const served = await serve(meta, 'sqlite', OPERATOR());
     expect(served.composed.app.operatorHolds.unread()).toBe(true);
     const hidden = await page(served);
     expect(hidden.statusCode).toBe(404);
     expect(hidden.body).not.toContain('Fresh bread');
     // Staff pages are not public doors: they answer on.
     expect((await served.composed.app.inject({ method: 'GET', url: '/api/v1/system/info' })).statusCode).toBe(200);
+  });
+
+  it('keeps them hidden in a trial too, where no operator endpoint is set', async () => {
+    const meta = await store('sqlite');
+    await sql`alter table adminium_operator_holds rename to adminium_operator_holds_aside`.execute(meta.db);
+    const served = await serve(meta, 'sqlite', {
+      ADMINIUM_TRIAL_MODE: 'on',
+      ADMINIUM_TRIAL_ENDS_AT: '2999-01-01T00:00:00Z',
+      ADMINIUM_PUBLIC_ORIGIN: `https://${ORIGIN_HOST}`,
+      ADMINIUM_DATABASE_HOSTS: 'pg-trials:5432',
+      ADMINIUM_SETUP_TOKEN: 'a-long-enough-setup-token',
+    });
+    expect(served.composed.app.operatorHolds.unread()).toBe(true);
+    const hidden = await served.composed.app.inject({ method: 'GET', url: '/apps/shop/customer/', headers: { host: ORIGIN_HOST, accept: 'text/html', 'sec-fetch-mode': 'navigate' } });
+    expect(hidden.statusCode).toBe(404);
+    expect(hidden.body).not.toContain('Fresh bread');
+  });
+
+  it('shows them as before on an ordinary install, where no operator can hold them', async () => {
+    const meta = await store('sqlite');
+    await sql`alter table adminium_operator_holds rename to adminium_operator_holds_aside`.execute(meta.db);
+    const served = await serve(meta, 'sqlite');
+    expect(served.composed.app.operatorHolds.unread()).toBe(false);
+    const shown = await page(served);
+    expect(shown.statusCode).toBe(200);
+    expect(shown.body).toContain('Fresh bread');
   });
 
   it('shows them as before once the store reads', async () => {

@@ -139,7 +139,10 @@ public.
 The state is kept in the meta store (`adminium_operator_holds`) and survives a
 restart. Until the server has read it once at boot, every public page counts as
 hidden: a boot that cannot read it keeps serving the staff pages, logs an error,
-and reads again every 30 seconds until it can. Each change is in the audit log (`operator.public_pages.hidden` and
+and reads again every 30 seconds until it can. That is so wherever the hold can
+be set: with this endpoint's listener, or in a trial or hosted profile. A server
+with none of them keeps its public pages shown while it cannot read the hold.
+Each change is in the audit log (`operator.public_pages.hidden` and
 `operator.public_pages.shown`, by "Server operator", with your address). No
 settings screen, config bundle (`adminium export-zip`, `import-zip`),
 [archive](/self-hosting/archive/) or restore reads or writes it: only this

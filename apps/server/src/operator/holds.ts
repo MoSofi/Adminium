@@ -10,10 +10,12 @@
  * config import, export or archive reads or writes it.
  *
  * Until the hold has been read once the instance does not know whether its
- * pages are held, so it treats them as held ({@link OperatorHolds.unread}):
- * a boot that cannot read the store keeps serving staff pages and hides the
- * public ones, and tries the read again every {@link HOLDS_RETRY_MS} until
- * it works.
+ * pages are held. Where an operator can hold them (the operator endpoint is
+ * set, or a trial or hosted profile), it treats them as held
+ * ({@link OperatorHolds.unread}): a boot that cannot read the store keeps
+ * serving staff pages and hides the public ones. Anywhere else no operator
+ * can lift a hold, so the pages stay shown as before. Either way the read is
+ * tried again every {@link HOLDS_RETRY_MS} until it works.
  */
 import { operatorHoldsRepo, type MetaDb } from '@adminium/meta';
 
@@ -53,8 +55,9 @@ export interface OperatorHolds {
    */
   load(): Promise<Error | null>;
   /**
-   * True while there is a meta store and the holds have never been read from it (or set): what the
-   * operator holds is not known yet, so every public page counts as hidden.
+   * True while there is a meta store, the holds have never been read from it (or set), and an operator
+   * can hold the pages here (`holdable`): what the operator holds is not known yet, so every public page
+   * counts as hidden.
    */
   unread(): boolean;
   /** Stop trying the read again (the server's close). */
@@ -70,6 +73,11 @@ export interface OperatorHolds {
 const SHOWN: PublicPagesHold = { hidden: false, reason: null, changedAt: null };
 
 export interface OperatorHoldsOptions {
+  /**
+   * Whether an operator can hold the public pages on this server (its endpoint is set, or a trial or
+   * hosted profile): only then do they count as hidden before the hold is read. True unless the boot says.
+   */
+  holdable?: boolean;
   /** How long to wait before reading again after a read failed; {@link HOLDS_RETRY_MS} unless a test says. */
   retryMs?: number;
   /** Told of each read again that failed too. */
@@ -98,7 +106,7 @@ export function createOperatorHolds(meta: MetaDb | null, opts: OperatorHoldsOpti
   };
   return {
     publicPages: () => publicPages,
-    unread: () => !read,
+    unread: () => !read && (opts.holdable ?? true),
     async load() {
       const failed = await readOnce();
       if (failed === null) {
