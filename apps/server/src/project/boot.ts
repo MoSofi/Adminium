@@ -4,6 +4,7 @@
  * config, and work out the environment the server boots with.
  */
 
+import { OPERATOR_DECIDED_ENV } from '../config/env.js';
 import { HOST_DECIDED_ENV } from '../config/host-decided.js';
 import { holdOperatorSecrets, isOperatorSecretName, SECRET_FILE_SUFFIX, withHeldSecrets } from '../config/operator-secrets.js';
 import {
@@ -60,7 +61,13 @@ export function variableSources(
  * app started it, which turns the setup token off (`setup/token.ts`); a line
  * in a `.env` deployed with the folder must not.
  */
-export const NEVER_FROM_A_FOLDER: readonly string[] = ['ADMINIUM_RUNTIME'];
+export const NEVER_FROM_A_FOLDER: readonly string[] = [
+  'ADMINIUM_RUNTIME',
+  // The profile is the operator's, read from the environment alone: a folder never switches trial mode or
+  // the hosted profile on, nor sets a trial's variables.
+  'ADMINIUM_HOSTED_MODE',
+  ...OPERATOR_DECIDED_ENV.filter((name) => name.startsWith('ADMINIUM_TRIAL_')),
+];
 
 /**
  * The project `cwd` belongs to, prepared for a boot, or null outside a

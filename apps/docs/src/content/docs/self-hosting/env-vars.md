@@ -1017,8 +1017,10 @@ you to do on your own servers:
 [Run Adminium for other people](/self-hosting/for-other-people/#10-trial-mode-a-trial-for-a-stranger).
 
 Both are set by the server's environment only: no setting switches them off,
-and no route writes them. Under either, the project's `.env` is not read at
-all, and its config cannot set any trial or operator variable. Pass them
+no route writes them, and a project's `.env` or config never switches either on
+(nor sets an `ADMINIUM_TRIAL_*` variable), on any server. Under either, the
+project's `.env` is not read at all, and its config cannot set any trial or
+operator variable. Pass them
 through the Docker API's `Env` array, never an env file built from user input.
 
 A trial boot fails without `ADMINIUM_TRIAL_ENDS_AT`, `ADMINIUM_SETUP_TOKEN`,

@@ -635,9 +635,10 @@ your network on their behalf. They are yours as the operator: set them where
 the server is started (the service file, the container's environment, the
 host's settings). On such a server a project's `.env` is read too, after them,
 and fills in whatever they leave unset, so whoever can write that file on your
-server can set these limits as well; keep it yours. The one name a project's
-`.env` can never set is `ADMINIUM_RUNTIME`: the server ignores it there and
-says so. (The desktop app, which opens folders it did not make, ignores every
+server can set these limits as well; keep it yours. The names a project's
+`.env` (or its config) can never set are `ADMINIUM_RUNTIME`, the two profile
+switches `ADMINIUM_TRIAL_MODE` and `ADMINIUM_HOSTED_MODE`, and every other
+`ADMINIUM_TRIAL_*` variable: the server ignores them there and says so. (The desktop app, which opens folders it did not make, ignores every
 one of these names in a folder's `.env`, and so do trial mode and the hosted
 profile, which do not read it at all.)
 
