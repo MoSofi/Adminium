@@ -6,7 +6,7 @@
  * Never hidden, always explained (F45): a locked setting stays in its reply
  * and on its page, with `{ allowed: false, reason }` beside it, and the
  * dashboard draws it read-only with the chip "Set by the operator"
- * (`apps/dashboard/src/components/SetByOperator.tsx`). A save that would
+ * (`apps/dashboard/src/settings/SetByOperator.tsx`). A save that would
  * change it is refused with {@link SetByOperatorError}: 409
  * `SET_BY_OPERATOR`, `details: { setting, reason }`. A save that sends the
  * value it is locked to is no change and passes, so a page that writes a

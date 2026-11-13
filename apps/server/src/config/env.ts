@@ -360,9 +360,12 @@ function readStartPromptFile(path: string): string | { problem: string } {
 
 /**
  * The trial and operator variables: the operator's word, never a
- * project's. Every one is on `HOST_DECIDED_ENV` (`cli/start-project.ts`), so a
- * folder's `.env` or config cannot set it, and holding a control character
- * fails the boot under a profile ({@link profileIssues}).
+ * project's. Every one is on `HOST_DECIDED_ENV` (`config/host-decided.ts`), so
+ * a folder's `.env` or config cannot set it where that list is refused: the
+ * desktop app, and trial mode and the hosted profile, which do not read the
+ * `.env` at all (`project/boot.ts`). A terminal-run ordinary server still
+ * reads a project's `.env` for unset names. Under a profile, holding a control
+ * character fails the boot ({@link profileIssues}).
  */
 export const OPERATOR_DECIDED_ENV = [
   'ADMINIUM_TRIAL_MODE',
@@ -1101,8 +1104,9 @@ export const envSchema = z.object({
    * by `trial/policy.ts`. The boot refusals that need more than one variable
    * are in the superRefine below and in {@link profileIssues}, and the values a
    * profile implies are enforced by {@link enforceProfile}, never defaulted.
-   * Env only, never a setting: no route writes any of them, and a project's
-   * `.env` cannot set them (`OPERATOR_DECIDED_ENV`, `cli/start-project.ts`).
+   * Env only, never a setting: no route writes any of them, and under a
+   * profile a project's `.env` is not read and its config cannot set them
+   * (`OPERATOR_DECIDED_ENV`, `project/boot.ts`).
    */
 
   /*
