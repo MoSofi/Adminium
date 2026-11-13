@@ -2200,7 +2200,15 @@ export default {
     "extraSources": "En prøve forbinder højst 3 databaser. Fjern en for at forbinde en anden.",
     "sizeCapNotice": "Denne database er over prøvens grænse på {limit} MB, så den er skrivebeskyttet. Slet nogle rækker for at fortsætte.",
     "sizeCapUsage": "{used} / {limit} MB",
-    "sizeCapLimit": "Grænse på {limit} MB"
+    "sizeCapLimit": "Grænse på {limit} MB",
+    "sizeCapReadOnly": "Skrivebeskyttet: databasen er over prøvens grænse",
+    "packageUploads": "Operatøren installerer kun tilføjelser og apps fra kataloget på denne installation, så upload er slået fra.",
+    "designerUploads": "Operatøren har slået upload til Designeren fra for denne installation.",
+    "designerCode": "Operatøren har slået egen kode fra for denne installation: Designeren bygger kun ud fra indstillinger.",
+    "ownBuilds": "Operatøren har slået egne builds fra for denne installation.",
+    "designerNetwork": "Operatøren har slået billedsøgning og Figma fra for denne installation.",
+    "userMail": "Denne prøveperiode er slut, så denne installation sender ikke flere e-mails.",
+    "testBudget": "Denne installation har testet {limit} databaseforbindelser i det seneste minut. Vent {seconds, plural, one {# sekund} other {# sekunder}}, og prøv igen."
   },
   "trial": {
     "testEnvironment": "Dette er et testmiljø. Indtast venligst ikke rigtige kundedata.",

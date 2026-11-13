@@ -7159,6 +7159,18 @@
     "status": "mt",
     "srcHash": "ae967bb7701f"
   },
+  "common.operatorSwitches.designerCode": {
+    "status": "mt",
+    "srcHash": "4c71e33f4295"
+  },
+  "common.operatorSwitches.designerNetwork": {
+    "status": "mt",
+    "srcHash": "1bc2c7042090"
+  },
+  "common.operatorSwitches.designerUploads": {
+    "status": "mt",
+    "srcHash": "a4e781d6ea16"
+  },
   "common.operatorSwitches.extraSources": {
     "status": "mt",
     "srcHash": "7ebc8820080a"
@@ -7171,6 +7183,14 @@
     "status": "mt",
     "srcHash": "87dc347cce89"
   },
+  "common.operatorSwitches.ownBuilds": {
+    "status": "mt",
+    "srcHash": "95db1dfa1fc0"
+  },
+  "common.operatorSwitches.packageUploads": {
+    "status": "mt",
+    "srcHash": "22a78a2eccbd"
+  },
   "common.operatorSwitches.payments": {
     "status": "mt",
     "srcHash": "83c594e4c14a"
@@ -7182,6 +7202,10 @@
   "common.operatorSwitches.sizeCapNotice": {
     "status": "mt",
     "srcHash": "9307e123fc57"
+  },
+  "common.operatorSwitches.sizeCapReadOnly": {
+    "status": "mt",
+    "srcHash": "1b7bc8dac7a6"
   },
   "common.operatorSwitches.sizeCapUsage": {
     "status": "src",
@@ -7199,9 +7223,17 @@
     "status": "mt",
     "srcHash": "a3813557e53b"
   },
+  "common.operatorSwitches.testBudget": {
+    "status": "mt",
+    "srcHash": "a1aa4efc09ea"
+  },
   "common.operatorSwitches.unlistedHost": {
     "status": "mt",
     "srcHash": "509340360f9d"
+  },
+  "common.operatorSwitches.userMail": {
+    "status": "mt",
+    "srcHash": "9490be7aa7f8"
   },
   "common.operatorSwitches.webhooks": {
     "status": "mt",
@@ -12490,6 +12522,10 @@
   "designer.figma.off": {
     "status": "mt",
     "srcHash": "04ca3547bb3e"
+  },
+  "designer.figma.offByOperator": {
+    "status": "mt",
+    "srcHash": "cebf2e6dec55"
   },
   "designer.figma.reading": {
     "status": "mt",

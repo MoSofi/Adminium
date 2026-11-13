@@ -981,6 +981,7 @@
     "limitMonth": "你的席位的 Figma 限額暫時已用完。你可以在下個月再次讀取。",
     "limitWait": "Figma 要求我們稍候。請在 {minutes, plural, other {# 分鐘}}後重試。",
     "off": "此伺服器已關閉 Figma：網路功能已關閉。",
+    "offByOperator": "此安裝已關閉 Figma：營運方已將其關閉。",
     "saved": "此版本的框架已經匯入過。沒有使用 Figma 讀取次數。",
     "disconnected": "已中斷與 Figma 的連線。權杖已從此伺服器移除。",
     "disconnectTitle": "中斷 Figma 連線？",

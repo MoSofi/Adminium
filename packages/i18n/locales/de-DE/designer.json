@@ -981,6 +981,7 @@
     "limitMonth": "Das Figma-Limit für deinen Platz ist vorerst aufgebraucht. Du kannst nächsten Monat wieder lesen.",
     "limitWait": "Figma hat uns gebeten zu warten. Versuche es in {minutes, plural, one {# Minute} other {# Minuten}} erneut.",
     "off": "Figma ist auf diesem Server aus: Netzwerkfunktionen sind ausgeschaltet.",
+    "offByOperator": "Figma ist in dieser Installation aus: Der Betreiber hat es ausgeschaltet.",
     "saved": "Diese Version des Frames wurde bereits importiert. Es wurde kein Figma-Lesevorgang verbraucht.",
     "disconnected": "Von Figma getrennt. Das Token wurde von diesem Server entfernt.",
     "disconnectTitle": "Figma trennen?",

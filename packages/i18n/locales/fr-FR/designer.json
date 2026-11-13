@@ -981,6 +981,7 @@
     "limitMonth": "La limite Figma de votre place est atteinte pour le moment. Vous pourrez lire à nouveau le mois prochain.",
     "limitWait": "Figma nous a demandé d’attendre. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
     "off": "Figma est désactivé sur ce serveur : les fonctions réseau sont coupées.",
+    "offByOperator": "Figma est désactivé sur cette installation : l’opérateur l’a désactivé.",
     "saved": "Cette version du cadre a déjà été importée. Aucune lecture Figma n’a été utilisée.",
     "disconnected": "Déconnecté de Figma. Le jeton a été retiré de ce serveur.",
     "disconnectTitle": "Déconnecter Figma ?",

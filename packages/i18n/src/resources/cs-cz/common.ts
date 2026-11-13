@@ -2200,7 +2200,15 @@ export default {
     "extraSources": "Zkušební verze připojí nejvýše 3 databáze. Chcete-li připojit jinou, jednu odeberte.",
     "sizeCapNotice": "Tato databáze překročila limit zkušební verze {limit} MB, a je proto jen pro čtení. Pokračujte smazáním několika řádků.",
     "sizeCapUsage": "{used} / {limit} MB",
-    "sizeCapLimit": "Limit {limit} MB"
+    "sizeCapLimit": "Limit {limit} MB",
+    "sizeCapReadOnly": "Jen pro čtení: databáze překročila limit zkušební verze",
+    "packageUploads": "Provozovatel na této instalaci instaluje doplňky a aplikace jen z katalogu, nahrávání je proto vypnuté.",
+    "designerUploads": "Provozovatel pro tuto instalaci vypnul nahrávání do Designeru.",
+    "designerCode": "Provozovatel pro tuto instalaci vypnul vlastní kód: Designer staví jen z nastavení.",
+    "ownBuilds": "Provozovatel pro tuto instalaci vypnul vlastní sestavení.",
+    "designerNetwork": "Provozovatel pro tuto instalaci vypnul hledání obrázků a Figmu.",
+    "userMail": "Tato zkušební verze skončila, tato instalace proto už neposílá e-maily.",
+    "testBudget": "Tato instalace za poslední minutu otestovala {limit} připojení k databázím. Počkejte {seconds, plural, one {# sekundu} few {# sekundy} many {# sekundy} other {# sekund}} a zkuste to znovu."
   },
   "trial": {
     "testEnvironment": "Toto je testovací prostředí. Nezadávejte sem prosím skutečná data zákazníků.",

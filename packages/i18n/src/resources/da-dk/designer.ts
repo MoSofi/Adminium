@@ -991,6 +991,7 @@ export default {
     "limitMonth": "Figmas grænse for din plads er brugt op for nu. Du kan læse igen næste måned.",
     "limitWait": "Figma bad os vente. Prøv igen om {minutes, plural, one {# minut} other {# minutter}}.",
     "off": "Figma er slået fra på denne server: netværksfunktioner er slået fra.",
+    "offByOperator": "Figma er slået fra på denne installation: operatøren har slået det fra.",
     "saved": "Denne version af rammen er allerede importeret. Der blev ikke brugt nogen Figma-læsning.",
     "disconnected": "Forbindelsen til Figma er afbrudt. Tokenet er fjernet fra denne server.",
     "disconnectTitle": "Afbryd Figma?",
