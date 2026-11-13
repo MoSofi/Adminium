@@ -254,3 +254,28 @@ describe('what a rebuild cannot carry', () => {
     expect(raw.prepare('select name from pragma_table_info(?)').all('members')).toHaveLength(4);
   });
 });
+
+describe('a dollar sign inside a quoted string', () => {
+  const setup = `
+    create table prices (id integer primary key, code text check (code glob '[$]*'), price_label text default ('$' || '0.00'), body text);
+    insert into prices (code, body) values ('$a', 'x');
+  `;
+
+  it('rebuilds a table whose check holds one, and keeps the check', async () => {
+    const { db, raw, actual } = await open(setup);
+    const { result } = await apply(db, raw, actual, bodyRequired(asDesigned(tableOf(actual, 'prices'))));
+    expect(result.status, result.error ?? '').toBe('applied');
+    raw.prepare("insert into prices (code, body) values ('$b', 'y')").run();
+    expect(() => raw.prepare("insert into prices (code, body) values ('b', 'z')").run()).toThrow(/CHECK/);
+  });
+
+  it('rebuilds a table whose expression default holds one, and keeps the default', async () => {
+    const { db, raw, actual } = await open(setup);
+    const table = tableOf(actual, 'prices');
+    expect(table.columns.find((c) => c.name === 'price_label')?.default).toMatchObject({ kind: 'expression', text: expect.stringContaining("'$'") });
+    const desired = { ...table, columns: table.columns.map((c) => (c.name === 'body' ? { ...c, nullable: false } : c)) };
+    await runSqliteRebuild({ db, actual: table, desired, columnMapping: rebuildColumnMapping(table, desired), foreignKeys: [] });
+    raw.prepare("insert into prices (code, body) values ('$b', 'y')").run();
+    expect(raw.prepare("select price_label from prices where code = '$b'").get()).toEqual({ price_label: '$0.00' });
+  });
+});

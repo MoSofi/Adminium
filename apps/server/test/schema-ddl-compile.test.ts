@@ -42,6 +42,7 @@ import {
   renderDefault,
   resetRails,
   sessionRails,
+  sqlTextRefusal,
 } from '../src/schema-ddl/compile.js';
 import {
   assertNoForeignKeyViolations,
@@ -886,6 +887,12 @@ describe('free SQL text from a snapshot or an import never leaves its place in a
     '(0',
     "'\\'); drop table t; --",
     '$$x$$',
+    '$tag$x$tag$',
+    "'$0.00' || $$x$$",
+    "'$0.00",
+    "('$0.00'",
+    '`$$x$$`',
+    '"$$x$$"',
   ];
   const expr = (text: string, logicalType: ColumnModel['logicalType'] = 'integer') => ({ logicalType, default: { kind: 'expression' as const, text } });
 
@@ -900,6 +907,11 @@ describe('free SQL text from a snapshot or an import never leaves its place in a
       // Already in one pair: not wrapped again, so a rebuild does not add a pair each time.
       expect(renderDefault(expr("(datetime('now'))", 'text'), dialect)).toBe("(datetime('now'))");
       expect(renderDefault(expr("concat('a;b', '--', '/*')", 'text'), dialect)).toBe("(concat('a;b', '--', '/*'))");
+      // A dollar sign inside a quoted string is a letter on every engine.
+      expect(renderDefault(expr("'$0.00'", 'text'), dialect)).toBe("('$0.00')");
+      expect(renderDefault(expr("('$0.00')", 'text'), dialect)).toBe("('$0.00')");
+      expect(sqlTextRefusal("code GLOB '[$]*'")).toBeNull();
+      expect(sqlTextRefusal("'it''s $5'")).toBeNull();
     });
   }
 

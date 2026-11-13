@@ -204,22 +204,23 @@ function bareName(tableId: string): string {
  * it: a quoted run (`'…'`, `"…"`, `` `…` ``, a doubled quote inside it) is
  * skipped, and outside one there may be no `;`, no comment (`--`, `/*`, `#`),
  * no parenthesis closed that was not opened or left open, and no comma at the
- * top level. A backslash or a `$` anywhere is refused too: the first is an
- * escape on one database and a letter on another, the second opens a
- * Postgres dollar-quoted string, and neither belongs in a default, a check or
- * a type. So nothing can end the clause, start a second statement or hide the
- * rest of one.
+ * top level. A backslash anywhere is refused too, as it is an escape on one
+ * database and a letter on another; and a `$` anywhere but inside a
+ * single-quoted string, as it opens a Postgres dollar-quoted string (a run
+ * in double quotes or backquotes is not a string on every engine). So nothing
+ * can end the clause, start a second statement or hide the rest of one.
  */
 export function sqlTextRefusal(text: string): string | null {
   if (text.trim() === '') return 'is empty';
   if (text.length > SQL_TEXT_MAX) return `is longer than ${String(SQL_TEXT_MAX)} characters`;
   // eslint-disable-next-line no-control-regex
-  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\\$]/.test(text)) return 'holds a backslash, a dollar sign or a control character';
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\\]/.test(text)) return 'holds a backslash or a control character';
   let depth = 0;
   let quote: string | null = null;
   for (let i = 0; i < text.length; i += 1) {
     const c = text[i];
     const next = text[i + 1];
+    if (c === '$' && quote !== "'") return 'holds a dollar sign outside a quoted string';
     if (quote !== null) {
       if (c === quote) {
         if (next === quote) i += 1;
