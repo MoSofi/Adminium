@@ -106,6 +106,10 @@ RUN pnpm deploy --filter=@adminium/server --prod --legacy /app
 # source text. See the script's header.
 RUN node scripts/release/strip-image-comments.mjs /app
 
+# The stripping keeps licence comments. This proves it, on the image's own copy:
+# every built file of every Adminium package in it still carries its SPDX line.
+RUN node scripts/check-dist-spdx.mjs /app
+
 # The bundled add-on set: the six first-party add-on tarballs plus their
 # `.integrity` sidecars, fetched from downloads.adminium.dev and verified against
 # the exact sha512 pins in scripts/release/add-ons-bundle.json before a byte lands.

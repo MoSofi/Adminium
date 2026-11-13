@@ -24,6 +24,7 @@
     "check-assistant-places": "node scripts/check-assistant-places.mjs --self-test && node scripts/check-assistant-places.mjs",
     "check-private-citations": "node scripts/check-private-citations.mjs",
     "check-spdx": "node scripts/check-spdx.mjs",
+    "check-dist-spdx": "node scripts/check-dist-spdx.mjs",
     "check-tailwind-utilities": "node scripts/check-tailwind-utilities.mjs",
     "openapi": "pnpm --filter @adminium/server run openapi",
     "openapi-check": "pnpm --filter @adminium/server run openapi:check",

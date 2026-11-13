@@ -376,6 +376,14 @@ jobs:
       - name: Check the CLI's runtime dependency list is current
         run: pnpm run server-runtime-deps-check
 
+      # check-spdx above reads the sources; this reads what tsc wrote from them,
+      # which is what the npm tarballs and the image carry. tsc drops a header
+      # that sits right above a statement it erases (an `import type`, a type),
+      # so a source can pass check-spdx while its built file has no licence
+      # line. It reads dist, so it runs after the build.
+      - name: Check the built files carry the SPDX header
+        run: pnpm run check-dist-spdx
+
       # The two artifacts DERIVED from that spec and from the IR model. Both
       # exist because the docs published contracts nobody generated: the REST
       # reference omitted 52 of 161 operations under a heading that read as
