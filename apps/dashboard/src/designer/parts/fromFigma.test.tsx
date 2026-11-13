@@ -54,12 +54,15 @@ interface Call {
 }
 let calls: Call[];
 let figma: FigmaStatus;
+/** A trial: the operator switched Figma off (`designerNetwork`), not the network switch. */
+let trialOn: boolean;
 /** What the next import answers: a reply, or an error envelope with its status. */
 let importReply: { status: number; body: unknown };
 
 beforeEach(() => {
   calls = [];
   figma = NONE;
+  trialOn = false;
   importReply = { status: 200, body: DONE };
   window.localStorage.clear();
 });
@@ -75,7 +78,18 @@ function stubFetch(): void {
       const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;
       calls.push({ method, url, ...(body === undefined ? {} : { body }) });
       if (url.startsWith('/api/v1/bootstrap')) return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ nav: { groups: [] }, roles: ['super-admin'] }) }));
-      if (url === '/api/v1/system/info') return Promise.resolve(jsonResponse(200, { runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, designer: { mode: 'local', link: true } }));
+      if (url === '/api/v1/system/info')
+        return Promise.resolve(
+          jsonResponse(200, {
+            runtime: 'self-host',
+            smtpConfigured: false,
+            networkFeaturesAllowed: true,
+            lanShare: false,
+            desktopDemo: false,
+            designer: { mode: 'local', link: true },
+            ...(trialOn ? { trial: { on: true, endsAt: '2099-01-01T00:00:00.000Z', daysLeft: 30, upgradeUrl: null } } : {}),
+          }),
+        );
       if (url === '/api/v1/designer/live') return Promise.resolve(jsonResponse(200, { on: true }));
       if (url === '/api/v1/designer/models') return Promise.resolve(jsonResponse(200, MODELS));
       if (url === '/api/v1/designer/sessions' && method === 'GET') return Promise.resolve(jsonResponse(200, { apps: [] }));
@@ -153,6 +167,16 @@ describe('the Attach menu', () => {
     const item = await screen.findByRole('menuitem', { name: /From Figma…/ });
     await waitFor(() => expect(item.getAttribute('aria-disabled')).toBe('true'));
     expect(item.textContent).toContain('Figma is off on this server: network features are turned off.');
+  });
+
+  it('in a trial, says the operator switched Figma off', async () => {
+    figma = { ...NONE, network: false };
+    trialOn = true;
+    await renderHome();
+    await userEvent.click(attach());
+    const item = await screen.findByRole('menuitem', { name: /From Figma…/ });
+    await waitFor(() => expect(item.textContent).toContain('Figma is off on this installation: the operator has switched it off.'));
+    expect(item.textContent).not.toContain('network features');
   });
 });
 

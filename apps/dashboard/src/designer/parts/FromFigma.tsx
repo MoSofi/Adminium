@@ -20,7 +20,7 @@ import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { designerApi, designerKeys, figmaQuery, type FigmaImport, type FigmaRefusal } from '../api.js';
-import { AttachMenu, type AttachState } from './attach.js';
+import { AttachMenu, useFigmaOffWords, type AttachState } from './attach.js';
 import { DisconnectFigma } from './DisconnectFigma.js';
 import { VALUE_MARK, withValue } from './sentence.js';
 
@@ -125,6 +125,7 @@ export function FromFigmaDialog({ open, onOpenChange, onImported, returnFocus }:
 
   const data = status.data;
   const off = data?.network === false;
+  const offWords = useFigmaOffWords();
   const environment = data?.source === 'environment';
   const connected = data?.connected === true && data.source === 'mine';
   const tokenStep = !off && data !== undefined && (dead || changing || !data.connected);
@@ -284,7 +285,7 @@ export function FromFigmaDialog({ open, onOpenChange, onImported, returnFocus }:
           {off ? (
             <div className="flex items-start gap-[9px] text-[13px] leading-normal">
               <WifiOff aria-hidden="true" className="mt-0.5 size-[15px] shrink-0 text-fg-muted" />
-              <span>{t('designer:figma.off', 'Figma is off on this server: network features are turned off.')}</span>
+              <span>{offWords}</span>
             </div>
           ) : null}
           {tokenStep ? (

@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, FileCode, FileSpreadsheet, FileText, FileUp, Folder, FolderUp, Frame, Image, LayoutTemplate, Paintbrush, Paperclip, Type, X } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@adminium/ui';
 
+import { systemInfoQuery } from '../../app/capabilities.js';
 import { t } from '../../i18n/t.js';
 import { designerApi, designerKeys, type DesignerAttachment, type FigmaImport, type FigmaStatus } from '../api.js';
 import { droppedFolder } from './packSite.js';
@@ -394,6 +395,16 @@ export function attachHandlers(state: AttachState, disabled = false) {
 }
 
 /**
+ * Why Figma is off (its status says `network: false`): in a trial the operator switched it off
+ * (`designerNetwork`), elsewhere the server's network features are off.
+ */
+export function useFigmaOffWords(): string {
+  return useQuery(systemInfoQuery()).data?.trial?.on === true
+    ? t('designer:figma.offByOperator', 'Figma is off on this installation: the operator has switched it off.')
+    : t('designer:figma.off', 'Figma is off on this server: network features are turned off.');
+}
+
+/**
  * The Attach menu: the clip opens a menu of the ways in, and a drop or a paste on
  * the box still attaches at once. "From Figma…" opens its dialog; with network features off it
  * stays in the menu, unavailable, and says why.
@@ -421,6 +432,7 @@ export function AttachMenu({
   const templates = useQuery({ queryKey: designerKeys.siteTemplates, queryFn: designerApi.siteTemplates, enabled: open, staleTime: 5_000, retry: false });
   const usable = (templates.data?.templates ?? []).filter((entry) => entry.usable);
   const figmaOff = figma?.network === false;
+  const figmaOffWords = useFigmaOffWords();
   const item = 'items-start gap-2.5 rounded-[6px] [&_svg]:size-4 data-[disabled]:opacity-100 ' + (place === 'chat' ? 'px-2 py-[7px]' : 'px-2.5 py-[13px]');
   return (
     <>
@@ -496,7 +508,7 @@ export function AttachMenu({
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className={`text-[13px] font-bold leading-[1.45] ${figmaOff ? 'text-fg-subtle' : 'text-fg'}`}>{t('designer:attach.fromFigma', 'From Figma…')}</span>
               {figmaOff ? (
-                <span className="whitespace-normal text-[11.5px] font-medium leading-[1.45] text-fg-muted">{t('designer:figma.off', 'Figma is off on this server: network features are turned off.')}</span>
+                <span className="whitespace-normal text-[11.5px] font-medium leading-[1.45] text-fg-muted">{figmaOffWords}</span>
               ) : null}
             </span>
           </DropdownMenuItem>
