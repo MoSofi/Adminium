@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
+import { parse as parseHtml } from 'parse5';
 import {
   createSqliteMetaDb,
   emailTemplatesRepo,
@@ -37,11 +38,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import { enforceProfile } from '../src/config/env.js';
+import { importZip } from '../src/export/import-service.js';
+import { exportZip } from '../src/export/zip-service.js';
 import { encryptSecret } from '../src/config/secrets.js';
+import { createConsentService } from '../src/consent/index.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { seedBuiltinEmailTemplates } from '../src/email/builtins.js';
-import { emailSecretKey } from '../src/email/config.js';
+import { configureSmtpNetwork, createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../src/email/config.js';
 import {
   configureEmailRuntime,
   enqueueEmail,
@@ -64,6 +68,28 @@ import { trialPolicy } from '../src/trial/policy.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 import { META_ENGINES, type MetaHandle } from './meta-dialects.js';
 import { decodedBody, headersOf, startSmtpSink, type SmtpSink } from './smtp-sink.js';
+
+/**
+ * Whether the trial footer's sentence is drawn: a text node (never a comment),
+ * under no element that hides what it holds, in a document no style sheet can
+ * reach it from.
+ */
+function footerShown(html: string): boolean {
+  type Node = { nodeName: string; value?: string; attrs?: { name: string; value: string }[]; childNodes?: Node[]; content?: Node };
+  const hiding = (node: Node) =>
+    ['plaintext', 'template', 'style', 'script', 'noscript', 'textarea', 'xmp', 'title'].includes(node.nodeName) ||
+    (node.attrs ?? []).some((attr) => attr.name === 'style' && /display\s*:\s*none|visibility\s*:\s*hidden/i.test(attr.value)) ||
+    (node.attrs ?? []).some((attr) => attr.name === 'hidden');
+  let sheets = 0;
+  let shown = false;
+  const walk = (node: Node, hidden: boolean) => {
+    if (node.nodeName === 'style' || node.nodeName === 'link') sheets += 1;
+    if (node.nodeName === '#text' && !hidden && (node.value ?? '').includes('Sent from the installation')) shown = true;
+    for (const child of [...(node.childNodes ?? []), ...(node.content?.childNodes ?? [])]) walk(child, hidden || hiding(node));
+  };
+  walk(parseHtml(html) as unknown as Node, false);
+  return shown && sheets === 0;
+}
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -124,7 +150,9 @@ describe('the relay’s variables', () => {
 describe('the sender name filter', () => {
   it('keeps a plain business name, and takes out what a header is made of and invisible characters', () => {
     expect(safeSenderName('Hollis Bakery')).toBe('Hollis Bakery');
-    expect(safeSenderName('Riverbank Café')).toBe('Riverbank Café');
+    // Accents come off; what is left must be ASCII letters, digits, spaces and . - ' &.
+    expect(safeSenderName('Riverbank Café')).toBe('Riverbank Cafe');
+    expect(safeSenderName('Dana’s Bakery & Co.')).toBe("Dana's Bakery & Co.");
     expect(safeSenderName('Hollis‮Bakery')).toBe('HollisBakery');
     expect(safeSenderName('Dana <dana@x.example>')).not.toContain('@');
     expect(safeSenderName('Dana <dana@x.example>')).not.toContain('<');
@@ -133,6 +161,12 @@ describe('the sender name filter', () => {
 
   it('refuses a brand or an account-safety word in any spelling', () => {
     for (const name of ['PayPal', 'my-paypal-shop', 'PayPa1 Shop', 'P a y P a l', 'Аpple Store', 'G00gle Docs', 'Microsoft 365', 'rnicrosoft', 'Secure Login Team', 'Adminium', 'Password reset desk']) {
+      expect(safeSenderName(name), name).toBeNull();
+    }
+  });
+
+  it('refuses any letter outside ASCII once accents are off, so an unknown look-alike cannot pass', () => {
+    for (const name of ['Pɑypɑl', 'Mıcrosoft', 'Gօօgle Docs', 'Ꭺpple', 'Netflıx', 'Bıllıng Team', 'Verıfy account', 'Hollis ★ Bakery', 'Пекарня Холлис', 'مخبز هوليس']) {
       expect(safeSenderName(name), name).toBeNull();
     }
   });
@@ -170,6 +204,8 @@ for (const engine of META_ENGINES) {
           locale: 'en_US',
           vars: { appName, name: 'Dana Price', email: to, resetUrl: `${ORIGIN}/reset#t=abc` },
           counts: { expiresInMinutes: 30 },
+          // What the reset flow itself says: only an account flow's mail is account mail.
+          account: true,
         },
       );
     const runAt = async (id: string | undefined) => (id === undefined ? null : ((await jobsRepo(meta).findById(id))?.runAt ?? null));
@@ -344,8 +380,11 @@ for (const engine of META_ENGINES) {
         await drain();
         expect(sink.messages).toHaveLength(26);
         expect(await relayMailSent(meta, clock)).toEqual({ today: 1, thisHour: 1 });
-        // Told once per cap and window, for an operator event.
-        expect(events.map((event) => event.cap)).toEqual(['hour', 'day']);
+        // Told once per cap and window, for an operator event, the mail that met the cap counted as waiting.
+        expect(events.map((event) => [event.cap, event.waiting])).toEqual([
+          ['hour', 1],
+          ['day', 1],
+        ]);
         stop();
       }, 60_000);
 
@@ -412,6 +451,127 @@ for (const engine of META_ENGINES) {
       });
     });
 
+    describe('account mail is what the account flows send, whatever the key', () => {
+      /** Mail a Super Admin wrote, sent under the reset mail's key (a test send of that template, an assistant draft). */
+      const underAccountKey = async (to: string, key = PASSWORD_RESET_TEMPLATE_KEY) =>
+        await enqueueRenderedEmail({ meta, secret: TEST_SECRET }, { to, templateKey: key, locale: 'en_US', rendered: drawn('Your bank account is locked') });
+
+      it('on a trial: it carries the footer and a staff Reply-To', async () => {
+        trial();
+        await underAccountKey('pat@customer.example');
+        await drain();
+        const raw = sink.messages[0]!.raw;
+        expect(decodedBody(raw)).toContain('Sent from the installation');
+        expect(headersOf(raw).get('reply-to')).toBe(OWNER);
+      });
+
+      it('on a trial: it counts against user mail, so a 21st person waits for tomorrow', async () => {
+        trial();
+        for (let i = 0; i < 20; i += 1) await userMail(`person${String(i)}@customer.example`);
+        expect(await runAt((await underAccountKey('stranger@victim.example'))?.id)).toBe(T0 - 10 * HOUR + DAY);
+      });
+
+      it('on a trial: it stops at the end, queued or not, while the account flows’ own mail goes on', async () => {
+        trial({ ADMINIUM_TRIAL_ENDS_AT: new Date(T0 + HOUR).toISOString() });
+        expect(await underAccountKey('early@victim.example')).not.toBeNull();
+        clock = T0 + HOUR;
+        expect(await underAccountKey('late@victim.example', 'user-invite')).toBeNull();
+        await drain();
+        expect(sink.messages).toHaveLength(0);
+        expect(await resetMail()).not.toBeNull();
+        await drain();
+        expect(sink.messages).toHaveLength(1);
+      });
+
+      it('on a trial: the reset key sent by anything but the reset flow keeps the admin’s words, as user mail', async () => {
+        trial();
+        await emailTemplatesRepo(meta).upsert(PASSWORD_RESET_TEMPLATE_KEY, 'en_US', {
+          name: 'Password reset',
+          subject: 'URGENT: confirm your bank login',
+          blocks: [{ id: 'b1', block: 'email.text', data: { text: 'Sign in at our bank right now.' } }],
+          enabled: true,
+        });
+        // An automation's e-mail step naming the reset template: no shipped words, no account quota.
+        await enqueueEmail({ meta, secret: TEST_SECRET }, { to: 'pat@customer.example', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', vars: { resetUrl: 'https://bank.example/login' } });
+        await drain();
+        const raw = sink.messages[0]!.raw;
+        expect(headersOf(raw).get('subject')).toBe('URGENT: confirm your bank login');
+        expect(decodedBody(raw)).toContain('Sent from the installation');
+      });
+
+      it('on an ordinary server: past a stopped user mail, only the account flows’ mail is queued', async () => {
+        ordinary();
+        configureEmailRuntime({ secret: TEST_SECRET, userMail: () => false });
+        expect(await underAccountKey('pat@customer.example')).toBeNull();
+        expect(await resetMail()).not.toBeNull();
+      });
+    });
+
+    describe('one message, many people', () => {
+      const list = (count: number, at = 'customer.example') => Array.from({ length: count }, (_, i) => `p${String(i)}@${at}`).join(', ');
+
+      it('on a trial: each address is counted, a list past five or anything but plain addresses is not queued', async () => {
+        trial();
+        expect(await runAt((await userMail('a@customer.example, b@customer.example; c@customer.example'))?.id)).toBe(T0);
+        await drain();
+        expect([...sink.messages[0]!.to].sort()).toEqual(['a@customer.example', 'b@customer.example', 'c@customer.example']);
+        expect(await trialMailPanel(meta)).toMatchObject({ today: 3, people: 3 });
+        expect(await userMail(list(6))).toBeNull();
+        expect(await userMail('d@customer.example, Dana <dana@customer.example>')).toBeNull();
+        expect(await userMail('d@customer.example,')).not.toBeNull();
+        // Sixteen more people make 20: a list naming two new ones waits for tomorrow.
+        for (let i = 0; i < 16; i += 1) await userMail(`q${String(i)}@customer.example`);
+        expect(await runAt((await userMail('a@customer.example, z@customer.example'))?.id)).toBe(T0 - 10 * HOUR + DAY);
+      });
+
+      it('on a trial: the five on one message take five of the hour’s twenty', async () => {
+        trial();
+        for (let i = 0; i < 3; i += 1) await userMail(list(5, `h${String(i)}.example`));
+        expect(await runAt((await userMail(list(5, 'h3.example')))?.id)).toBe(T0);
+        expect(await runAt((await userMail('p0@h0.example'))?.id)).toBe(T0 + HOUR);
+      });
+
+      it('on an ordinary server: a list goes as it is', async () => {
+        ordinary();
+        await userMail(list(30));
+        await drain();
+        expect(sink.messages[0]!.to).toHaveLength(30);
+      });
+    });
+
+    describe('the footer stays where it can be seen', () => {
+      /** A user mail whose raw HTML block ends in `tail`. */
+      const withTail = async (tail: string) =>
+        await enqueueRenderedEmail(
+          { meta, secret: TEST_SECRET },
+          { to: 'pat@customer.example', templateKey: 'order-shipped', locale: 'en_US', rendered: { subject: 's', html: `<!DOCTYPE html><html><body><table><tr><td><p>Pay here</p>${tail}</td></tr></table></body></html>`, text: 's\n', inline: [] } },
+        );
+      const tails = [
+        '<!-- ',
+        '<div style="display:none">',
+        '<style>[data-part=trial-relay-footer], table { display:none !important }</style>',
+        '<plaintext>',
+        '<template>',
+      ];
+
+      for (const tail of tails) {
+        it(`on a trial: a block ending in ${tail.slice(0, 18)} cannot hide it`, async () => {
+          trial();
+          await withTail(tail);
+          await drain();
+          const body = decodedBody(sink.messages[0]!.raw);
+          expect(footerShown(body.slice(body.indexOf('<!DOCTYPE')))).toBe(true);
+        });
+      }
+
+      it('on an ordinary server: the HTML goes as it was written', async () => {
+        ordinary();
+        await withTail('<!-- ');
+        await drain();
+        expect(decodedBody(sink.messages[0]!.raw)).toContain('<p>Pay here</p><!-- </td></tr></table></body></html>');
+      });
+    });
+
     describe('marketing mail', () => {
       it('on a trial: not queued', async () => {
         trial();
@@ -444,7 +604,7 @@ afterAll(async () => {
 });
 
 interface Served {
-  api: (method: 'GET' | 'PUT' | 'POST', url: string, payload?: unknown) => Promise<{ status: number; body: Record<string, unknown> }>;
+  api: (method: 'GET' | 'PUT' | 'POST' | 'DELETE', url: string, payload?: unknown) => Promise<{ status: number; body: Record<string, unknown> }>;
 }
 
 /** A composed server on `env`, its first Super Admin signed in. */
@@ -537,4 +697,112 @@ describe('the Email settings and campaign routes', () => {
     const send = await server.api('POST', '/api/v1/email-templates/etpl_missing/send', { audience: { kind: 'users' } });
     expect(send.status).toBe(404);
   }, 60_000);
+
+  /** Today's spam report, a bounce from two days ago and a hand-added address, on the do-not-email list. */
+  async function listed(): Promise<{ spam: string; old: string; hand: string }> {
+    const consent = createConsentService({ meta: store!, secret: TEST_SECRET });
+    const spam = await consent.stop.add({ address: 'angry@customer.example', reason: 'spam', origin: 'a mail service' });
+    const old = await consent.stop.add({ address: 'gone@customer.example', reason: 'bounce', at: Date.now() - 2 * DAY });
+    const hand = await consent.stop.add({ address: 'asked@customer.example', reason: 'hand' });
+    return { spam: spam.entry.id, old: old.entry.id, hand: hand.entry.id };
+  }
+
+  it('on a trial: today’s bounce and spam reports stay on the list, so the mail hold cannot be lifted; others can go', async () => {
+    const server = await serve(trialEnv(2525));
+    const ids = await listed();
+    const refused = await server.api('DELETE', `/api/v1/consent/stop-list/${ids.spam}`);
+    expect(refused.status, JSON.stringify(refused.body)).toBe(403);
+    expect(refused.body).toMatchObject({ error: { code: 'OFF_BY_OPERATOR', details: { question: 'liftMailHold', reason: 'trial-mode' } } });
+    expect((await server.api('DELETE', `/api/v1/consent/stop-list/${ids.old}`)).status).toBe(200);
+    expect((await server.api('DELETE', `/api/v1/consent/stop-list/${ids.hand}`)).status).toBe(200);
+  }, 60_000);
+
+  it('on an ordinary server: today’s spam report can be taken off', async () => {
+    const server = await serve({});
+    const ids = await listed();
+    expect((await server.api('DELETE', `/api/v1/consent/stop-list/${ids.spam}`)).status).toBe(200);
+  }, 60_000);
+});
+
+describe('the user’s own mail server under ADMINIUM_NETWORK_POLICY=strict', () => {
+  afterEach(async () => {
+    await composed?.app.close();
+    composed = undefined;
+    await store?.db.destroy();
+    store = undefined;
+    configureSmtpNetwork(null);
+    resetEmailRuntime();
+  });
+
+  const HOSTED = { ADMINIUM_HOSTED_MODE: 'on', ADMINIUM_PUBLIC_ORIGIN: ORIGIN, ADMINIUM_DATABASE_HOSTS: 'pg-trials:5432' };
+  const smtp = (host: string) => ({ smtp: { host, port: 587, user: '', from: 'shop@hollisbakery.example', secure: false } });
+
+  it('the hosted profile refuses this machine and the server’s own network at save, and takes a public host', async () => {
+    const server = await serve(HOSTED);
+    for (const host of ['127.0.0.1', 'localhost', '[::1]', '10.0.0.5', '192.168.1.20', '172.16.0.9', '[fd00::1]']) {
+      const put = await server.api('PUT', '/api/v1/settings/email', smtp(host));
+      expect(put.status, `${host}: ${JSON.stringify(put.body)}`).toBe(422);
+    }
+    const put = await server.api('PUT', '/api/v1/settings/email', smtp('93.184.216.34'));
+    expect(put.status, JSON.stringify(put.body)).toBe(200);
+  }, 60_000);
+
+  it('an ordinary server keeps a relay on this machine or its own network', async () => {
+    const server = await serve({});
+    for (const host of ['127.0.0.1', '10.0.0.5']) expect((await server.api('PUT', '/api/v1/settings/email', smtp(host))).status, host).toBe(200);
+  }, 60_000);
+
+  it('strict: a stored host is checked again where it is read, and the name is dialled at the address that passed', async () => {
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    store = meta;
+    await firstRun(meta);
+    const key = emailSecretKey(TEST_SECRET);
+    const stored = (host: string) => settingsRepo(meta).set('email.smtp', { host, port: 587, user: '', passEncrypted: '', from: 'shop@hollisbakery.example', secure: false }, { updatedBy: null });
+    const answers: Record<string, string[]> = { 'mail.hollis.example': ['93.184.216.34'], 'relay.inside.example': ['10.1.2.3'] };
+    const lookup: HostLookup = async (host) => answers[host] ?? Promise.reject(new Error('ENOTFOUND'));
+    configureSmtpNetwork({ strict: true, lookup });
+    // As a config-bundle import or an archive restore writes it, past the settings route.
+    await stored('relay.inside.example');
+    await expect(resolveSmtpConfig(meta, key)).rejects.toThrow(/own network/);
+    await stored('nowhere.example');
+    await expect(resolveSmtpConfig(meta, key)).rejects.toThrow();
+    await stored('mail.hollis.example');
+    expect(await resolveSmtpConfig(meta, key)).toMatchObject({ host: 'mail.hollis.example', address: '93.184.216.34' });
+    configureSmtpNetwork(null);
+    await stored('relay.inside.example');
+    expect((await resolveSmtpConfig(meta, key))?.address).toBeUndefined();
+  });
+
+  it('the transport connects to the checked address, never looking the name up again', async () => {
+    const sink = await startSmtpSink();
+    try {
+      await createSmtpTransport({ host: 'mail.does-not-resolve.invalid', address: '127.0.0.1', port: sink.port, user: '', pass: '', from: 'shop@hollisbakery.example', secure: false }).send({
+        to: 'pat@customer.example',
+        subject: 'Pinned',
+        html: '<p>Pinned</p>',
+        text: 'Pinned',
+      });
+      expect(sink.messages).toHaveLength(1);
+    } finally {
+      await sink.close();
+    }
+  });
+
+  it('strict: a config-bundle import leaves out a mail server on the server’s own network', async () => {
+    const source = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(source);
+    const passEncrypted = encryptSecret('pw', emailSecretKey(TEST_SECRET));
+    await settingsRepo(source).set('email.smtp', { host: '10.1.2.3', port: 587, user: 'shop', passEncrypted, from: 'shop@hollisbakery.example', secure: false }, { updatedBy: null });
+    const { path } = await exportZip({ meta: source, outPath: join(dist, 'bundle.zip'), includeSecrets: true, dataDir: dist });
+    await source.db.destroy();
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    store = meta;
+    await firstRun(meta);
+    const strict = await importZip({ meta, inPath: path, strictNetwork: true });
+    expect(strict.warnings.join(' ')).toContain('email.smtp');
+    expect(await settingsRepo(meta).get('email.smtp')).toBeNull();
+    const open = await importZip({ meta, inPath: path });
+    expect(open.warnings.join(' ')).not.toContain('email.smtp');
+    expect((await settingsRepo(meta).get('email.smtp'))?.host).toBe('10.1.2.3');
+  });
 });

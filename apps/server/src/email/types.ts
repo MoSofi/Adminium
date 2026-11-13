@@ -37,6 +37,12 @@ export interface SmtpConfig {
   from: string;
   /** Implicit TLS (465) rather than STARTTLS-on-cleartext (587). */
   secure: boolean;
+  /**
+   * The address `host` was checked at (`ADMINIUM_NETWORK_POLICY=strict`): the
+   * transport dials it and keeps `host` for TLS, so the name is not looked up
+   * a second time between the check and the connection.
+   */
+  address?: string | undefined;
 }
 
 /**

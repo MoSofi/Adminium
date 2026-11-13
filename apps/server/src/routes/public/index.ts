@@ -4515,6 +4515,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           {
             to: address.trim(),
             templateKey: SIGN_IN_CODE_TEMPLATE_KEY,
+            account: true,
             locale,
             vars: { appName: (await senderOf(ok.key)).appName, code },
             // The code stays in Latin digits: it is typed back. The minutes are said.
@@ -4628,6 +4629,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             {
               to: oldAddress.trim(),
               templateKey: EMAIL_CHANGED_TEMPLATE_KEY,
+              account: true,
               locale,
               always: true,
               vars: {

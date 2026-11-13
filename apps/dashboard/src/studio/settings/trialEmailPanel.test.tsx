@@ -109,4 +109,21 @@ describe('the trial’s Email panel', () => {
     mount({ ...normal(), thisHour: 20, waiting: 1, limit: 'hour', nextAt: Date.UTC(2099, 0, 5, 11, 0) });
     expect(screen.getByRole('status').textContent).toContain('Hourly email limit reached. 1 email is waiting and goes out at');
   });
+
+  it('at a limit with nothing waiting: says only that the limit is reached', () => {
+    for (const [limit, sentence] of [
+      ['hour', 'Hourly email limit reached.'],
+      ['day', 'Daily email limit reached.'],
+    ] as const) {
+      const { unmount } = render(
+        <QueryClientProvider client={new QueryClient()}>
+          <TrialEmailPanel relay={{ ...normal(), thisHour: 20, today: 50, waiting: 0, limit, nextAt: null }} />
+        </QueryClientProvider>,
+      );
+      const status = screen.getByRole('status');
+      expect(status.textContent).toBe(sentence);
+      expect(within(status).queryByRole('button', { name: /Open the outbox/ })).toBeNull();
+      unmount();
+    }
+  });
 });

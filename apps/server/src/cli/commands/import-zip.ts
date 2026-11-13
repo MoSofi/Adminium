@@ -140,6 +140,7 @@ export const importZipCommand: Command = {
         meta: runtime.metaStore.meta,
         inPath: resolve(deps.cwd, input),
         dryRun,
+        strictNetwork: env.ADMINIUM_NETWORK_POLICY === 'strict',
       });
 
       const { manifest } = result;

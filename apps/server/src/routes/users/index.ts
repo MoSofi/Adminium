@@ -144,6 +144,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         {
           to: user.email,
           templateKey: USER_INVITE_TEMPLATE_KEY,
+          account: true,
           locale: await recipientLocale(meta, user.id),
           // Names come from BUILTIN_EMAIL_TEMPLATE_VARS['user-invite'].
           vars: {

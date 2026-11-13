@@ -131,6 +131,8 @@ const QUESTIONS = {
   ownSmtp: profiles(false, true),
   /** Marketing campaigns. */
   marketingCampaigns: profiles(false, true),
+  /** Taking today's bounce and spam reports off the do-not-email list: on a trial they hold user mail until tomorrow. */
+  liftMailHold: profiles(false, true),
   /** A user-typed `llm.baseUrl`, for every provider. */
   aiBaseUrl: unlessOperatorAi,
   /** AI connections other than the user's own key to a fixed public provider (`openai-compatible`, Ollama). */

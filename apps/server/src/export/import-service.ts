@@ -39,6 +39,7 @@ import {
 import { firstRun, isPortableSettingKey, isSettingKey, newId, settingsRepo, writeBool, type MetaDb } from '@adminium/meta';
 import { strFromU8, unzipSync } from 'fflate';
 
+import { checkSmtpHost } from '../email/config.js';
 import {
   BUNDLE_RESOURCES,
   MANIFEST_PATH,
@@ -98,6 +99,11 @@ export interface ImportZipOptions {
    * exist. Overriding one requires overriding the other.
    */
   envelopeSchema?: EnvelopeValidator | undefined;
+  /**
+   * `ADMINIUM_NETWORK_POLICY=strict`: a mail server (`email.smtp`) on this
+   * machine or the server's own network is left out, with a warning.
+   */
+  strictNetwork?: boolean | undefined;
   /** Clock override — tests. */
   now?: () => number;
 }
@@ -354,6 +360,17 @@ export const importZip: ImportZip = async (opts) => {
         warnings.push(`Skipped setting "${row.key}": it belongs to the server it was set on.`);
         counts.settings = (counts.settings ?? 1) - 1;
         continue;
+      }
+      // A strict network never calls this machine or its own network: a mail server there is not taken.
+      const smtpHost = row.key === 'email.smtp' && opts.strictNetwork === true ? (row.value as { host?: unknown } | null)?.host : undefined;
+      if (typeof smtpHost === 'string') {
+        try {
+          await checkSmtpHost(smtpHost, { strict: true });
+        } catch (error) {
+          warnings.push(`Skipped setting "email.smtp": ${error instanceof Error ? error.message : 'its host is not allowed here.'}`);
+          counts.settings = (counts.settings ?? 1) - 1;
+          continue;
+        }
       }
       try {
         await settings.set(row.key as never, row.value as never, { at });

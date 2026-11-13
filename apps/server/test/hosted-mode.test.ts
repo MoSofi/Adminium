@@ -78,6 +78,9 @@ afterEach(async () => {
 
 /** One server at a time: their schedules share one name space, so each is closed before the next boots. */
 let open: ProfileServer | null = null;
+/** The Super Admin's mail server, on the internet: `strict` looks it up before it is saved and before each send. */
+const SMTP_LOOKUP: HostLookup = async (host) => (host === 'smtp.example.com' ? ['93.184.216.34'] : Promise.reject(new Error('ENOTFOUND')));
+
 async function serve(env: Record<string, string>, opts: Omit<ServeOptions, 'fixture'> = {}): Promise<ProfileServer> {
   await open?.close();
   open = null;
@@ -225,7 +228,7 @@ describe('A2 outgoing traffic: allowed to public addresses', { timeout: 60_000 }
     ['ordinary', ORDINARY],
   ] as const) {
     it(`${profile}: the Super Admin's own SMTP server is saved and used`, async () => {
-      const s = await serve(env);
+      const s = await serve(env, { lookup: SMTP_LOOKUP });
       const smtp = { host: 'smtp.example.com', port: 587, user: 'shop', pass: 'smtp-password-1', from: 'Shop <shop@example.com>', secure: false };
       const saved = await s.api('PUT', '/api/v1/settings/email', { smtp });
       expect(saved.status, JSON.stringify(saved.body)).toBe(200);
@@ -483,7 +486,7 @@ for (const engine of ['sqlite', 'postgres', 'mysql'] as const satisfies readonly
       expect(await ended.api('PATCH', '/api/v1/me', { name: 'Dana P.' })).toMatchObject({ status: 403, body: offBy('writes', 'trial-ended') });
 
       // 3. The Upgrade: the same store and data folder, the hosted profile, no trial variable.
-      const hosted = await serve({ ...HOSTED, ...DOMAINS }, { store, account: 'sign-in' });
+      const hosted = await serve({ ...HOSTED, ...DOMAINS }, { store, account: 'sign-in', lookup: SMTP_LOOKUP });
       const info = (await hosted.api('GET', '/api/v1/system/info')).body;
       expect(info['trial']).toEqual({ on: false, endsAt: null, daysLeft: null, upgradeUrl: null });
       expect(hosted.composed.app.sizeCap).toBeNull();

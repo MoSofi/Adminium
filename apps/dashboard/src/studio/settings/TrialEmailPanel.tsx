@@ -68,10 +68,15 @@ function limitSentence(relay: TrialRelayView): string | null {
   const count = relay.waiting;
   const time = relay.nextAt === null ? '' : timeOf(relay.nextAt);
   switch (relay.limit) {
+    // With nothing waiting (the mail that met the limit went, or none came since), the limit alone.
     case 'day':
-      return t('studio:settingsHub.email.relay.limitDay', 'Daily email limit reached. {count, plural, one {# email is waiting and goes out tomorrow.} other {# emails are waiting and go out tomorrow.}}', { count });
+      return count === 0
+        ? t('studio:settingsHub.email.relay.limitDayOnly', 'Daily email limit reached.')
+        : t('studio:settingsHub.email.relay.limitDay', 'Daily email limit reached. {count, plural, one {# email is waiting and goes out tomorrow.} other {# emails are waiting and go out tomorrow.}}', { count });
     case 'hour':
-      return t('studio:settingsHub.email.relay.limitHour', 'Hourly email limit reached. {count, plural, one {# email is waiting and goes out at {time}.} other {# emails are waiting and go out from {time}.}}', { count, time });
+      return count === 0
+        ? t('studio:settingsHub.email.relay.limitHourOnly', 'Hourly email limit reached.')
+        : t('studio:settingsHub.email.relay.limitHour', 'Hourly email limit reached. {count, plural, one {# email is waiting and goes out at {time}.} other {# emails are waiting and go out from {time}.}}', { count, time });
     case 'recipients':
       return t('studio:settingsHub.email.relay.limitPeople', 'Today’s limit of {max, number} people is reached. Emails to someone new wait for tomorrow.', { max: relay.caps.recipientsPerDay });
     case 'bounces':

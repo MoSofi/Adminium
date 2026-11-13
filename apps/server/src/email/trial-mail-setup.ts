@@ -8,7 +8,7 @@
 import type { Env } from '../config/env.js';
 import { decryptSecret } from '../config/secrets.js';
 import type { TrialPolicy } from '../trial/policy.js';
-import { SYSTEM_MAIL_TEMPLATE_KEYS, emailEnvelopeKey } from './send.js';
+import { emailEnvelopeKey } from './send.js';
 import {
   relaySmtpOf,
   TRIAL_BOUNCES_PER_DAY,
@@ -56,10 +56,9 @@ export function trialMailSetupOf(env: MailEnv, policy: Pick<TrialPolicy, 'allows
       complaintsPerDay: TRIAL_COMPLAINTS_PER_DAY,
     },
     endsAt: endsAt === null || Number.isNaN(endsAt) ? null : endsAt,
-    isSystem: (templateKey) => SYSTEM_MAIL_TEMPLATE_KEYS.has(templateKey),
     openEnvelope: (sealed) => {
-      const envelope = JSON.parse(decryptSecret(sealed, key)) as { to?: unknown; subject?: unknown };
-      return { to: String(envelope.to ?? ''), subject: String(envelope.subject ?? '') };
+      const envelope = JSON.parse(decryptSecret(sealed, key)) as { to?: unknown; subject?: unknown; account?: unknown };
+      return { to: String(envelope.to ?? ''), subject: String(envelope.subject ?? ''), account: envelope.account === true };
     },
     ...(now === undefined ? {} : { now }),
   };
