@@ -739,6 +739,12 @@ describe.skipIf(!canBuildSides)('a Designer turn on the operator’s AI', { time
     const save = await client.call('PUT', `/api/v1/designer/sessions/${first.session.id}/files`, { files: [{ path: `apps/${key}/customer/src/App.tsx`, content: 'export default 1;', base: '0'.repeat(64) }] });
     expect(save.status).toBe(403);
     expect(save.body).toMatchObject({ error: { code: 'OFF_BY_OPERATOR', details: { question: 'customerScreensOnOperatorAi', reason: 'operator-ai-scope' } } });
+    // Pictures are not placed from it on an app with a customer side, however that side came to be there.
+    mkdirSync(join(root!, 'apps', key, 'customer', 'src'), { recursive: true });
+    const pictures = await client.call('POST', `/api/v1/designer/sessions/${first.session.id}/pictures/apply`, { id: 'apply-0001', fills: [], mode: 'placeholders' });
+    expect(pictures.status).toBe(403);
+    expect(pictures.body).toMatchObject({ error: { code: 'OFF_BY_OPERATOR' } });
+    rmSync(join(root!, 'apps', key, 'customer'), { recursive: true, force: true });
     const copy = await client.call('POST', '/api/v1/designer/start', { key: 'shop', newKey: 'my-shop', name: 'My shop', approve: 'x', connectionId: 'env:ollama', model: 'fake' });
     expect([403, 404]).toContain(copy.status);
     if (copy.status === 403) expect(copy.body).toMatchObject({ error: { code: 'OFF_BY_OPERATOR' } });

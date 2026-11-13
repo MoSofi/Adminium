@@ -929,9 +929,9 @@ export function createDesigner(host: DesignerHost): Designer {
   async function applyPicturesNow(session: DesignerSession, fills: readonly Fill[], by: Actor, mode?: 'placeholders' | 'choose'): Promise<PicturesApplied> {
     const key = session.appKey;
     if (hasOwnBuild(host.root, key)) throw new ConflictError('This app builds its own screens: its pictures are in its own files.', 'CONFLICT', { reason: 'OWN_BUILD' });
-    if (host.pictureDialog === undefined) throw new ConflictError('This Designer fills no picture spots.', 'CONFLICT', { reason: 'NO_PICTURES' });
     // A session on the operator's AI builds dashboards: pictures on a customer side or the phone app are not placed from it.
     if (scopedSession(session) && hasPublicScreens(host.root, key)) refuseScoped();
+    if (host.pictureDialog === undefined) throw new ConflictError('This Designer fills no picture spots.', 'CONFLICT', { reason: 'NO_PICTURES' });
     // While a turn runs, nothing is fetched for an Apply that would only wait: "Wait for the Designer to finish, then apply."
     const busy = runner.busy();
     if (busy !== null) throw new ConflictError('The app is being changed. Try again in a moment.', 'CONFLICT', { reason: busy.kind === 'turn' ? 'TURN_RUNNING' : 'DESIGNER_BUSY', busy: busy.kind });
