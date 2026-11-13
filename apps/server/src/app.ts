@@ -597,11 +597,17 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     if (opts.metaDb !== undefined && opts.metaDb !== null) await holdOperatorOrigin(opts.metaDb, operatorHosts.origin);
   }
   // What the server's operator holds back (every public page hidden), read before the server answers anything (`operator/holds.ts`).
-  const operatorHolds = createOperatorHolds(opts.metaDb ?? null);
+  // Until it has been read once, every public page counts as hidden; a failed read is tried again every 30 s.
+  const operatorHolds = createOperatorHolds(opts.metaDb ?? null, {
+    onRetryFailed: (err) => app.log.error({ err }, 'the operator holds still cannot be read; every public page stays hidden'),
+  });
   app.decorate('operatorHolds', operatorHolds);
   app.addHook('onReady', async () => {
     const failed = await operatorHolds.load();
-    if (failed !== null) app.log.warn({ err: failed }, 'the operator holds could not be read; the public pages stay as they were');
+    if (failed !== null) app.log.error({ err: failed }, 'the operator holds could not be read; every public page is hidden until they can be, tried again every 30 seconds');
+  });
+  app.addHook('onClose', async () => {
+    operatorHolds.close();
   });
   // Pages strangers reach: hidden from search engines and without pay pages where the policy says so,
   // and hidden altogether while the operator holds them back or once a trial has ended (`trial/public-pages.ts`).

@@ -183,10 +183,11 @@ export function registerPublicPages(app: FastifyInstance, policy: Pick<TrialPoli
   const indexing = policy.allows('searchIndexing').allowed;
 
   app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Hidden by the server's operator, or past a trial's end date: every public door, on every host.
-    // The page says nothing of why.
+    // Hidden by the server's operator (or not known yet: the hold has not been read), or past a trial's
+    // end date: every public door, on every host. The page says nothing of why.
     const holds = hide?.holds ?? null;
-    if ((holds?.publicPages().hidden === true || hiddenAtTrialEnd(policy)) && (await isPublicDoor(app, request))) {
+    const held = holds !== null && (holds.unread() || holds.publicPages().hidden);
+    if ((held || hiddenAtTrialEnd(policy)) && (await isPublicDoor(app, request))) {
       return sendHiddenPage(hide?.meta ?? null, holds, request, reply);
     }
     const path = pathOf(request.url);

@@ -16,7 +16,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { auditRepo, operatorHoldsRepo, operatorTalliesRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { sql } from 'kysely';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createArchive } from '../src/archive/create.js';
 import { NEVER_ARCHIVED_TABLES, sanitizeDump } from '../src/archive/policy.js';
@@ -32,7 +33,7 @@ import { createApplyService } from '../src/llm/apply-service.js';
 import { AI_TOKENS_TALLY } from '../src/llm/operator-ai.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { FAILURES_ALLOWED, OPERATOR_ACTOR_LABEL, tokenMatches } from '../src/operator/endpoint.js';
-import { PUBLIC_PAGES_HOLD } from '../src/operator/holds.js';
+import { createOperatorHolds, PUBLIC_PAGES_HOLD } from '../src/operator/holds.js';
 import { SIGN_INS_REPORTED } from '../src/operator/status.js';
 import { AVAILABLE, CRYPTO, makeStore, SECRET, SIGNING, type EngineName } from './archive.helpers.js';
 import { ADMIN_PASSWORD, adminPasswordHash, sessionCookie } from './auth-helpers.js';
@@ -304,6 +305,47 @@ for (const engine of ['sqlite', 'postgres', 'mysql'] as const) {
     });
   });
 }
+
+describe('a hold the boot cannot read', () => {
+  const page = (served: Served) => served.composed.app.inject({ method: 'GET', url: '/apps/shop/customer/', headers: { accept: 'text/html', 'sec-fetch-mode': 'navigate' } });
+
+  it('keeps every public page hidden until it has been read once', async () => {
+    const meta = await store('sqlite');
+    // A store the hold cannot be read from: its table is not where the boot looks.
+    await sql`alter table adminium_operator_holds rename to adminium_operator_holds_aside`.execute(meta.db);
+    const served = await serve(meta, 'sqlite');
+    expect(served.composed.app.operatorHolds.unread()).toBe(true);
+    const hidden = await page(served);
+    expect(hidden.statusCode).toBe(404);
+    expect(hidden.body).not.toContain('Fresh bread');
+    // Staff pages are not public doors: they answer on.
+    expect((await served.composed.app.inject({ method: 'GET', url: '/api/v1/system/info' })).statusCode).toBe(200);
+  });
+
+  it('shows them as before once the store reads', async () => {
+    const served = await serve(await store('sqlite'), 'sqlite');
+    expect(served.composed.app.operatorHolds.unread()).toBe(false);
+    const shown = await page(served);
+    expect(shown.statusCode).toBe(200);
+    expect(shown.body).toContain('Fresh bread');
+  });
+
+  it('tries again until the read works, then stops', async () => {
+    const meta = await store('sqlite');
+    await sql`alter table adminium_operator_holds rename to adminium_operator_holds_aside`.execute(meta.db);
+    const failures: Error[] = [];
+    const holds = createOperatorHolds(meta, { retryMs: 20, onRetryFailed: (error) => failures.push(error) });
+    cleanups.push(async () => holds.close());
+    expect(await holds.load()).not.toBeNull();
+    expect(holds.unread()).toBe(true);
+    await vi.waitFor(() => expect(failures.length).toBeGreaterThan(0));
+    await sql`alter table adminium_operator_holds_aside rename to adminium_operator_holds`.execute(meta.db);
+    await vi.waitFor(() => expect(holds.unread()).toBe(false));
+    const seen = failures.length;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(failures.length).toBe(seen);
+  });
+});
 
 describe('nothing but the operator endpoint touches the hold', () => {
   it('no settings write, config export, config import or archive reads or writes it', async () => {
