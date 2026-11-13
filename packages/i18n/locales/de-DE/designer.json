@@ -981,6 +981,7 @@
     "limitMonth": "Das Figma-Limit für deinen Platz ist vorerst aufgebraucht. Du kannst nächsten Monat wieder lesen.",
     "limitWait": "Figma hat uns gebeten zu warten. Versuche es in {minutes, plural, one {# Minute} other {# Minuten}} erneut.",
     "off": "Figma ist auf diesem Server aus: Netzwerkfunktionen sind ausgeschaltet.",
+    "offByOperator": "Figma ist in dieser Installation aus: Der Betreiber hat es ausgeschaltet.",
     "saved": "Diese Version des Frames wurde bereits importiert. Es wurde kein Figma-Lesevorgang verbraucht.",
     "disconnected": "Von Figma getrennt. Das Token wurde von diesem Server entfernt.",
     "disconnectTitle": "Figma trennen?",
@@ -1406,5 +1407,24 @@
     "changesPlaceholder": "Schreib, was anders sein soll.",
     "buildThis": "So bauen",
     "sendChanges": "Meine Änderungen senden"
+  },
+  "ownCode": {
+    "step": "Auf diesem Server vom Betreiber abgeschaltet",
+    "codeOff": "Änderungen von Hand sind auf diesem Server vom Betreiber abgeschaltet. Bitte den Designer um die Änderung.",
+    "codeReadOnly": "{file}, nur lesbar: Änderungen von Hand sind auf diesem Server vom Betreiber abgeschaltet",
+    "startOff": "Auf diesem Server vom Betreiber abgeschaltet: Eine Kopie führt den eigenen Build der App aus.",
+    "stylesOff": "Eigene Stile sind auf diesem Server vom Betreiber abgeschaltet.",
+    "siteOff": "Website-Vorlagen sind auf diesem Server vom Betreiber abgeschaltet."
+  },
+  "operatorAi": {
+    "label": "KI-Schlüssel nötig",
+    "scope": "Für Bildschirme, die Kunden sehen, brauchen Sie Ihren eigenen KI-Schlüssel.",
+    "usedUp": "Die in dieser Testversion enthaltene KI ist aufgebraucht.",
+    "usedUpHere": "Die in dieser Installation enthaltene KI ist aufgebraucht.",
+    "keyOrUpgrade": "Fügen Sie Ihren eigenen KI-Schlüssel hinzu, um weiterzumachen, oder führen Sie ein Upgrade durch.",
+    "key": "Fügen Sie Ihren eigenen KI-Schlüssel hinzu, um weiterzumachen.",
+    "addKey": "KI-Schlüssel hinzufügen",
+    "upgrade": "Upgrade",
+    "step": "Braucht Ihren eigenen KI-Schlüssel"
   }
 }

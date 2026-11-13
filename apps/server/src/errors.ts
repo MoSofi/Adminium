@@ -56,6 +56,10 @@ export type ErrorCode =
   | 'META_PREFIX_COLLISION'
   /** 403: the first-run wizard's one-time setup token is missing or wrong (`setup/token.ts`). */
   | 'SETUP_TOKEN_INVALID'
+  /** 409: the server's operator set this in the environment, so it cannot be changed here (`trial/operator-lock.ts`). */
+  | 'SET_BY_OPERATOR'
+  /** 403: the server's operator switched this action off for this installation (`trial/refuse.ts`). */
+  | 'OFF_BY_OPERATOR'
   | 'INTERNAL';
 
 /** The wire shape of every non-2xx response. */

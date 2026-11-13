@@ -53,6 +53,7 @@ import {
   type NotificationPrefView,
   type NotificationView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /**
  * Event keys with a live in-app producer TODAY — the prefs matrix lists these
@@ -156,6 +157,8 @@ export function notificationsRoutes(deps: NotificationsRoutesDeps): FastifyPlugi
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.get(
       '/me/notifications',
       { schema: { querystring: notificationsListQuery, response: { 200: notificationsListReply } } },

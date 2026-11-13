@@ -37,6 +37,7 @@ import { sendIdOfMessageId } from '../../email/message-id.js';
 import { createNoticeEndpoints } from '../../email/notices/endpoints.js';
 import { createNoticeReader, createReplayGuard, noticeAnswer, type NoticeEvent, type NoticeService, type ReplayGuard, type SnsFetch } from '../../email/notices/index.js';
 import { createMailDoor, type MailDoorDeps } from './door.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** The largest notice taken: SendGrid batches many events in one post. */
 export const NOTICE_BODY_LIMIT = 1024 * 1024;
@@ -126,6 +127,8 @@ export async function writeNoticeEvents(consent: ConsentService, service: Notice
 
 export function mailNoticeRoutes(deps: MailNoticeDeps): FastifyPluginAsyncZod {
   return async (app) => {
+    // A mail service telling of bounces and complaints: the instance's own business with a service it signed up with, kept while public pages are hidden.
+    tagRoutes(app, 'staff');
     const meta: MetaDb = deps.meta;
     const now = deps.now ?? Date.now;
     const door = createMailDoor(deps);

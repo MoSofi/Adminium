@@ -48,8 +48,8 @@ const SECRETS: Record<string, string> = {
   ADMINIUM_SECRET: SECRET,
   ADMINIUM_SETUP_TOKEN: SETUP_TOKEN,
   ADMINIUM_ARCHIVE_KEY: 'archive-key-'.padEnd(40, 'k'),
-  ADMINIUM_OPERATOR_TOKEN: 'operator-token-value-0001',
-  ADMINIUM_TRIAL_SMTP_URL: 'smtp://relay-user:relay-pass@relay.example.test:587',
+  // 32 random bytes, as the operator endpoint's token must be (`config/env.ts`).
+  ADMINIUM_OPERATOR_TOKEN: '0e7d1c9a4b3f2e8d6c5b4a39281706f5e4d3c2b1a0f9e8d7c6b5a49382716051',
   ADMINIUM_AI_ANTHROPIC_API_KEY: 'sk-ant-operator-key',
   ADMINIUM_AI_GOOGLE_API_KEY: 'google-operator-key',
   ADMINIUM_FIGMA_TOKEN: 'figd_operator-figma-token-0001',
@@ -68,9 +68,12 @@ afterEach(() => {
   Object.assign(process.env, saved);
 });
 
-/** Put every secret in `process.env`, as a container or a shell would. */
+/** The relay's credential: a trial's, so it is held without booting one (a trial boot needs much more). */
+const RELAY_URL = 'smtp://relay-user:relay-pass@relay.example.test:587';
+
+/** Put every secret in `process.env`, as a container or a shell would, with what the operator token needs beside it. */
 function setSecrets(): void {
-  Object.assign(process.env, SECRETS);
+  Object.assign(process.env, SECRETS, { ADMINIUM_OPERATOR_LISTEN: '10.0.0.2:4601' });
 }
 
 /** What a child saw: no secret's name, and no secret's value under any name. */
@@ -151,7 +154,6 @@ describe('after the server boots', () => {
     // The operator's own credentials are held for the modules that will read them.
     expect(operatorSecret('ADMINIUM_OPERATOR_TOKEN')).toBe(SECRETS['ADMINIUM_OPERATOR_TOKEN']);
     expect(operatorSecret('ADMINIUM_ARCHIVE_KEY')).toBe(SECRETS['ADMINIUM_ARCHIVE_KEY']);
-    expect(operatorSecret('ADMINIUM_TRIAL_SMTP_URL')).toBe(SECRETS['ADMINIUM_TRIAL_SMTP_URL']);
     // The archive's signing key, and the keys the Designer reads late (Figma, the picture sites), from the same place.
     expect(archiveSigningKey({ ADMINIUM_SECRET: SECRET })).toEqual(
       archiveSigningKey({ ADMINIUM_SECRET: SECRET, ADMINIUM_ARCHIVE_KEY: SECRETS['ADMINIUM_ARCHIVE_KEY'] }),
@@ -179,6 +181,11 @@ describe('after the server boots', () => {
     expect(holdOperatorSecrets()).toEqual([]);
     expect(process.env['SHOP_DATABASE_URL']).toBe('postgres://shop');
     for (const name of Object.keys(SECRETS)) expect(isOperatorSecretName(name), name).toBe(true);
+    // The trial's relay credential is the operator's too.
+    process.env['ADMINIUM_TRIAL_SMTP_URL'] = RELAY_URL;
+    expect(isOperatorSecretName('ADMINIUM_TRIAL_SMTP_URL')).toBe(true);
+    expect(operatorSecret('ADMINIUM_TRIAL_SMTP_URL')).toBe(RELAY_URL);
+    expect(process.env['ADMINIUM_TRIAL_SMTP_URL']).toBeUndefined();
     // Set to nothing is unset: the held value is forgotten too.
     process.env['ADMINIUM_OPERATOR_TOKEN'] = '';
     expect(operatorSecret('ADMINIUM_OPERATOR_TOKEN')).toBeUndefined();
@@ -250,7 +257,8 @@ describe.skipIf(process.platform === 'win32')('a program the server starts', () 
   /** A program on the PATH that writes down its environment, one file per run, and succeeds. */
   function fakeProgram(name: string): void {
     const file = join(bin, name);
-    writeFileSync(file, `#!/bin/sh\n/usr/bin/env > "${dumps}/${name}.$$.env"\nexit 0\n`);
+    // Written aside and renamed, so a reader never sees a dump half written.
+    writeFileSync(file, `#!/bin/sh\n/usr/bin/env > "${dumps}/.part-${name}.$$" && mv "${dumps}/.part-${name}.$$" "${dumps}/${name}.$$.env"\nexit 0\n`);
     chmodSync(file, 0o755);
   }
   /** What each run of `name` was given. */

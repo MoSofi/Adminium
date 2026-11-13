@@ -69,6 +69,15 @@ afterEach(() => {
 });
 
 describe('a list\'s own bulk action', () => {
+  it('says it creates rows, so a write lock keeps it in reach with the reason', () => {
+    function Writes(): ReactNode {
+      const actions = useManifestBulkActions({ connectionId: 'cnx_1', table: 'public.stock_items', actions: [REORDER], onDone: () => undefined });
+      return <output>{actions.bulk.map((action) => action.write).join(',')}</output>;
+    }
+    render(<Writes />);
+    expect(screen.getByRole('status').textContent).toBe('create');
+  });
+
   it('reads the ticked rows again, leaves out the ones it is not for, and asks once with what its form asks for', async () => {
     const user = userEvent.setup();
     const calls = serve();

@@ -15,7 +15,7 @@ import { NO_SITE } from './siteState.js';
 
 const MAX_PX = 216;
 /** A box that takes no files. */
-const NO_ATTACH: AttachState = { files: [], refused: null, add: () => undefined, addFigma: () => undefined, remove: () => undefined, clear: () => undefined, upload: async () => [], hasImage: false, site: NO_SITE };
+const NO_ATTACH: AttachState = { files: [], refused: null, add: () => undefined, addFigma: () => undefined, remove: () => undefined, clear: () => undefined, upload: async () => [], hasImage: false, site: NO_SITE, siteOff: false };
 
 export function BuildComposer({
   value,

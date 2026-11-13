@@ -36,9 +36,13 @@ import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@
 import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { HostLookup } from '../net/address-guard.js';
 import type { NetworkPolicy, OutboundPolicy } from '../net/outbound-check.js';
-import { checkDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase, type DatabaseHost } from './dsn.js';
+import { ORDINARY_POLICY, TRIAL_SOURCE_CONNECTIONS, type TrialPolicy } from '../trial/policy.js';
+import { OffByOperatorError } from '../trial/refuse.js';
+import { assertTrialSourceAllowed, operatorLoginOf, type TrialSourceRules } from '../trial/sources.js';
+import { checkDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, parseDsn, sameDatabase, type DatabaseHost } from './dsn.js';
 import { PRIVILEGES_PROBE_TIMEOUT_MS, PRIVILEGES_TTL_MS } from './privileges.js';
 import { assertSqliteSourceAllowed, type SqliteSourcePolicy } from './sqlite-guard.js';
+import { holdingDialect, registerWriteHold, type WriteWatch } from './write-hold.js';
 
 /** Every meta table is `adminium_`-prefixed. */
 export const META_TABLE_PREFIX = 'adminium_';
@@ -137,6 +141,14 @@ export interface ConnectionManagerOptions {
   sourcePoolMax?: number | undefined;
   /** Test seam: how a source host is looked up before each new pool. */
   lookup?: HostLookup | undefined;
+  /**
+   * Trial mode and the hosted profile (`trial/policy.ts`): no SQLite source,
+   * only listed hosts, and on an operator host only {@link operatorLogin}
+   * (`trial/sources.ts`). Default: an ordinary server's, none of that.
+   */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
+  /** `ADMINIUM_SOURCE_URL`: the one login allowed on an operator host when the policy binds logins. */
+  operatorSourceUrl?: string | undefined;
 }
 
 /** 502-ish mapping for adapter failures surfaced through API routes. */
@@ -160,6 +172,11 @@ export class ConnectionManager {
   readonly #sqliteSources: SqliteSourcePolicy | undefined;
   readonly #pool: { poolMax?: number };
   readonly #lookup: HostLookup | undefined;
+  readonly #trialRules: TrialSourceRules;
+  /** The last source added in a trial, which the next waits for. */
+  #roomTurn: Promise<unknown> = Promise.resolve();
+  /** Trial mode's size cap (`trial/size-cap.ts`): what holds a source's growth, and hears of every write. */
+  #watch: WriteWatch | null = null;
   readonly connections: ReturnType<typeof connectionsRepo>;
   readonly #dataHandles = new Map<string, Promise<DataHandle>>();
   readonly #privileges = new Map<string, { at: number; rights: Promise<TablePrivilegeMap | null> }>();
@@ -174,6 +191,7 @@ export class ConnectionManager {
     this.#sqliteSources = opts.sqliteSources;
     this.#pool = opts.sourcePoolMax === undefined ? {} : { poolMax: opts.sourcePoolMax };
     this.#lookup = opts.lookup;
+    this.#trialRules = { policy: opts.policy ?? ORDINARY_POLICY, hosts: this.#databaseHosts, operatorLogin: operatorLoginOf(opts.operatorSourceUrl) };
     this.connections = connectionsRepo(opts.meta, opts.crypto);
   }
 
@@ -228,6 +246,56 @@ export class ConnectionManager {
     return this.#meta;
   }
 
+  /**
+   * Hold sources' growth by `watch` (`connections/write-hold.ts`): every data
+   * handle opened from now on reads each statement before it leaves. Set once,
+   * as the server is composed; any handle already open is closed, so none
+   * escapes it.
+   */
+  watchWrites(watch: WriteWatch): void {
+    this.#watch = watch;
+    void this.disposeAll();
+  }
+
+  /**
+   * Before a source connection is added: a trial keeps at most
+   * {@link TRIAL_SOURCE_CONNECTIONS} (each holds pools of its own on the
+   * operator's database server). Throws 403 `OFF_BY_OPERATOR`; nothing on an
+   * ordinary server or the hosted profile.
+   */
+  async assertRoomForSource(): Promise<void> {
+    const answer = this.#trialRules.policy.allows('extraSourceConnections');
+    if (answer.allowed) return;
+    const sources = (await this.connections.list()).filter((connection) => connection.sourceKind === 'dsn');
+    if (sources.length < TRIAL_SOURCE_CONNECTIONS) return;
+    throw new OffByOperatorError(
+      'extraSourceConnections',
+      answer.reason ?? 'size-cap',
+      `A trial connects at most ${String(TRIAL_SOURCE_CONNECTIONS)} databases. Remove one to connect another.`,
+    );
+  }
+
+  /**
+   * `create` run with room for one more source ({@link assertRoomForSource}),
+   * the count and the create one after another in a trial: requests side by
+   * side cannot all pass on the same room. One process serves an instance, so
+   * a queue in it is enough. Anything else runs `create` straight away.
+   */
+  async withRoomForSource<T>(create: () => Promise<T>): Promise<T> {
+    if (this.#trialRules.policy.allows('extraSourceConnections').allowed) return create();
+    const turn = this.#roomTurn.catch(() => undefined).then(async () => {
+      await this.assertRoomForSource();
+      return create();
+    });
+    this.#roomTurn = turn;
+    return turn;
+  }
+
+  /** Before an import writes to `connectionId`: its size measured now, and refused while it is held. Nothing without a watch. */
+  async beforeImport(connectionId: string): Promise<void> {
+    await this.#watch?.beforeImport(connectionId);
+  }
+
   provider(engine: string): AdapterProvider {
     return this.#registry.get(engine as never);
   }
@@ -248,6 +316,8 @@ export class ConnectionManager {
    * addresses, never the string. SQLite keeps its DSN: a path, not a host.
    */
   async #dialConfig(dsn: string, engine: string): Promise<{ dsn: string } | { endpoint: DatabaseEndpoint }> {
+    // What the operator allows this installation, before any lookup: a refused host is never even looked up.
+    assertTrialSourceAllowed(parseDsn(dsn), this.#trialRules);
     const checked = await checkDsn(dsn, {
       blockLoopback: this.#blockLoopback,
       engine,
@@ -526,7 +596,14 @@ export class ConnectionManager {
     const engine = await provider.createQueryEngine({ role: 'data', ...target, ...this.#pool });
     // The engine package types the dialect opaquely; the server (which owns
     // the kysely dependency) casts at this composition boundary.
-    const db = new Kysely<SourceDatabase>({ dialect: engine.dialect as KyselyDialect });
+    const watch = this.#watch;
+    const dialect = engine.dialect as KyselyDialect;
+    const db = new Kysely<SourceDatabase>({ dialect: watch === null ? dialect : holdingDialect(dialect, connectionId, watch) });
+    if (watch !== null) {
+      registerWriteHold(db, { held: () => watch.held(connectionId), settle: () => watch.settle(connectionId) });
+      // A new handle (a restart, a resume, a changed connection string): measured again before anything is added.
+      watch.opened(connectionId);
+    }
     // `connection.engine` is validated against DIALECTS at connection create.
     return { db, engine, dialect: connection.engine as Dialect };
   }

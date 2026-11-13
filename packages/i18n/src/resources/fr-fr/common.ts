@@ -700,6 +700,29 @@ export default {
         "connectRefused": "La base de données a refusé la connexion.",
         "readFailed": "Adminium n’a pas pu lire les tables de cette base de données."
       }
+    },
+    "connectProvider": {
+      "or": "ou",
+      "supabase": {
+        "title": "Connecter Supabase",
+        "body": "Connectez-vous à Supabase et choisissez un projet.",
+        "action": "Connecter Supabase",
+        "again": "Reconnecter Supabase",
+        "expired": "La connexion Supabase a expiré.",
+        "failed": "Impossible de connecter Supabase.",
+        "connecting": "Connexion de votre projet Supabase…",
+        "picked": "Choisi. Vous vous connecterez à Supabase une fois votre compte créé."
+      },
+      "existing": {
+        "title": "Utiliser un projet existant",
+        "change": "Modifier",
+        "label": "Saisissez le mot de passe de la base de données du projet {project}",
+        "labelNoName": "Saisissez le mot de passe de la base de données de ce projet",
+        "help": "L’opérateur ne le voit jamais : il va directement à cette installation.",
+        "connect": "Connecter",
+        "back": "Retour",
+        "failed": "Ce mot de passe n’a pas permis la connexion. Vérifiez-le et réessayez."
+      }
     }
   },
   "views": {
@@ -2156,5 +2179,54 @@ export default {
       "docsLink": "Différences entre les deux affichages"
     },
     "switched": "Passage à {name}"
+  },
+  "operatorLock": {
+    "chip": "Défini par l’opérateur",
+    "lockedOff": "L’opérateur a désactivé ce réglage pour cette installation."
+  },
+  "operatorSwitches": {
+    "sqlite": "Cette installation n’ouvre pas de fichiers SQLite : l’opérateur n’autorise que des serveurs de base de données.",
+    "unlistedHost": "Cette installation ne se connecte qu’aux hôtes de base de données autorisés par son opérateur.",
+    "otherLogin": "Sur cet hôte de base de données, seuls l’identifiant et la base que l’opérateur a donnés à cette installation fonctionnent.",
+    "metaFixed": "L’opérateur décide où cette installation garde ses propres données.",
+    "storage": "L’opérateur garde les fichiers de cette installation sur son propre disque : aucune autre destination ne peut être ajoutée ni testée.",
+    "webhooks": "L’opérateur a désactivé les étapes webhook pour cette installation.",
+    "aiProvider": "L’opérateur n’autorise sur cette installation que votre propre clé Anthropic, OpenAI ou Google.",
+    "aiAddress": "L’opérateur n’autorise pas d’adresse d’IA personnelle sur cette installation.",
+    "payments": "L’opérateur a désactivé les services de paiement pour cette installation.",
+    "askOperator": "Seul celui qui gère cette installation peut changer cela.",
+    "dataOverCap": "Cette base de données dépasse la limite de taille de l’essai : elle est en lecture seule. Supprimez des lignes pour continuer.",
+    "storageOverCap": "Les fichiers de cette installation dépassent la limite de l’essai : plus rien ne peut être enregistré. Supprimez des fichiers pour continuer.",
+    "extraSources": "Un essai connecte au plus 3 bases de données. Retirez-en une pour en connecter une autre.",
+    "sizeCapNotice": "Cette base de données dépasse la limite de {limit} Mo de l’essai : elle est en lecture seule. Supprimez des lignes pour continuer.",
+    "sizeCapUsage": "{used} / {limit} Mo",
+    "sizeCapLimit": "Limite de {limit} Mo",
+    "sizeCapReadOnly": "Lecture seule : la base de données dépasse la limite de l’essai",
+    "packageUploads": "Sur cette installation, l’opérateur n’installe les modules et les applications que depuis le catalogue : les envois sont désactivés.",
+    "designerUploads": "L’opérateur a désactivé les envois vers le Designer pour cette installation.",
+    "designerCode": "L’opérateur a désactivé le code personnel pour cette installation : le Designer construit uniquement à partir de réglages.",
+    "ownBuilds": "L’opérateur a désactivé les builds personnels pour cette installation.",
+    "designerNetwork": "L’opérateur a désactivé la recherche d’images et Figma pour cette installation.",
+    "userMail": "Cet essai est terminé : cette installation n’envoie plus d’e-mails.",
+    "testBudget": "Cette installation a testé {limit} connexions à des bases de données au cours de la dernière minute. Attendez {seconds, plural, one {# seconde} other {# secondes}} et réessayez.",
+    "payPages": "L’opérateur a désactivé les pages de paiement pour cette installation.",
+    "paymentWebhooks": "L’opérateur ne laisse pas les services de paiement appeler cette installation.",
+    "mappedDomains": "Seuls les domaines listés par l’opérateur peuvent pointer vers cette installation.",
+    "marketingCampaigns": "L’opérateur a désactivé les campagnes marketing pour cette installation.",
+    "liftMailHold": "Sur cette installation, les rebonds et signalements de spam du jour restent sur la liste « ne pas écrire » jusqu’à demain.",
+    "customerScreens": "L’IA fournie avec cette installation ne crée que des tableaux de bord. Les écrans pour les clients demandent votre propre clé d’IA.",
+    "reasonOperatorAiOnly": "Sur cette installation, l’IA passe par la connexion de l’opérateur, sauf si vous ajoutez votre propre clé Anthropic, OpenAI ou Google.",
+    "reasonOperatorAiScope": "L’IA fournie avec cette installation ne crée que des tableaux de bord.",
+    "reasonNotAllowed": "L’opérateur n’autorise pas cela sur cette installation."
+  },
+  "trial": {
+    "testEnvironment": "Ceci est un environnement de test. Merci de ne pas y saisir de vraies données clients.",
+    "daysLeft": "{count, plural, one {# jour restant} other {# jours restants}}",
+    "exportEverything": "Tout exporter",
+    "upgrade": "Mettre à niveau",
+    "ended": "Cet essai est terminé.",
+    "readOnly": "Lecture seule : cet essai est terminé",
+    "readOnlyChip": "Lecture seule",
+    "upgradeLine": "Garder cette installation : tout reste tel quel."
   }
 } as const;

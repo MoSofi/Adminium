@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path';
 import { unzipSync } from 'fflate';
 
 import { BUILT_IN_ORDER, DESIGN_SKILL_KEY, DESIGN_SKILLS_DIR, designCssProblem, plainLine, readFrontMatter, SKILL_LIMITS } from '../project/apps/design-skills.js';
+import { refuseOwnCode } from '../trial/own-code.js';
 
 /** The most an upload may be, packed. */
 export const SKILL_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
@@ -110,6 +111,8 @@ export interface AddedSkill {
  * `SkillUploadError` with the sentence a person reads.
  */
 export function addDesignSkill(root: string, input: { filename: string; bytes: Buffer }): AddedSkill {
+  // A style's files are an upload: not while the operator keeps uploads to the Designer off (`trial/own-code.ts`).
+  refuseOwnCode('designerUploads');
   const files = filesOf(input.filename, input.bytes);
   const md = files.get('SKILL.md');
   if (md === undefined) throw new SkillUploadError('NOT_A_SKILL', 'There is no SKILL.md in it: a style is a folder with a SKILL.md file that describes a look.');

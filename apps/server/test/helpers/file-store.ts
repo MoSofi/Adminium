@@ -20,7 +20,7 @@ import { destinationsRepo, filesRepo, type FilesRepo, type MetaDb } from '@admin
 import { createDestinationResolver, type DestinationResolver } from '../../src/files/destinations.js';
 import { FILES_DIR } from '../../src/files/drivers/local.js';
 import { createSpool } from '../../src/files/spool.js';
-import { createFileStore, type FileStore } from '../../src/files/store.js';
+import { createFileStore, type FileStore, type StoreGuard } from '../../src/files/store.js';
 
 /** Round-trips, so a test can assert what was stored without holding a key. */
 export const TEST_STORAGE_CRYPTO = {
@@ -32,6 +32,8 @@ export interface TestFileStoreOptions {
   dataDir: string;
   /** Without one, `putUpload` throws — every other method works. */
   meta?: MetaDb;
+  /** A trial's caps on what the store takes. */
+  guard?: StoreGuard;
 }
 
 export function createTestFileStore(opts: TestFileStoreOptions): FileStore {
@@ -72,5 +74,5 @@ export function createTestFileStore(opts: TestFileStoreOptions): FileStore {
         ) as FilesRepo)
       : filesRepo(opts.meta);
 
-  return createFileStore({ spool: createSpool({ dataDir: opts.dataDir }), destinations, files });
+  return createFileStore({ spool: createSpool({ dataDir: opts.dataDir }), destinations, files, ...(opts.guard === undefined ? {} : { guard: opts.guard }) });
 }

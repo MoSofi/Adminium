@@ -30,6 +30,7 @@ import { useState } from 'react';
 import { Alert, Button, FormField, Input, RadioGroup, RadioCard } from '@adminium/ui';
 
 import { t } from '../../../i18n/t.js';
+import { OffByOperatorNote, useOperatorSwitch } from '../../../settings/OffByOperator.js';
 import { studioApi, type MetaStoreLocation } from '../../api.js';
 import {
   dsnValidationError,
@@ -92,6 +93,8 @@ export function MetaStep({ state, onPatch, placement, placementKnown = true, rel
       .finally(() => setTesting(false));
   };
 
+  // Trial mode: where the meta store lives is the operator's, labelled "Set by the operator".
+  const metaFixed = useOperatorSwitch('metaStoreRoutes');
   // An embedded store this server can still move: the one case where the step is a real choice.
   const movable = placement !== null && placement.embedded && placement.canRelocate;
   // The first-run wizard already asked this, and "a file on this machine" was kept: that stays
@@ -122,10 +125,12 @@ export function MetaStep({ state, onPatch, placement, placementKnown = true, rel
           data-testid="meta-step-settled"
           title={t('studio:meta.v1Note.title', 'About this install')}
           body={
-            placement?.reason ??
+            // The operator's reason in the person's language; the server's own words otherwise.
+            (metaFixed.off ? metaFixed.reason : placement?.reason) ??
             t('studio:meta.settled.body', 'Adminium keeps its own tables where they are now, and this step does not move them. There is nothing to choose here.')
           }
         />
+        {metaFixed.off ? <OffByOperatorNote id="studio-meta-fixed" reason={metaFixed.reason} /> : null}
       </section>
     );
   }

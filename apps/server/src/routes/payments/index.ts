@@ -40,6 +40,8 @@ import { addOnHttpClientFor } from '../../add-ons/egress.js';
 import { providerByKey, type AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
+import { refuseUnlessAllowed } from '../../trial/refuse.js';
 import { serverWideOrOnly } from '../../installs/resolve.js';
 import { modeCredentials, withField } from '../../payments/credentials.js';
 import { payAddress } from '../../payments/links.js';
@@ -79,6 +81,7 @@ import {
   stoppedBody,
   type ServiceView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PaymentsRoutesDeps {
   meta: MetaDb;
@@ -90,6 +93,8 @@ export interface PaymentsRoutesDeps {
   desktop: boolean;
   /** `ADMINIUM_TRUST_PROXY`. */
   trustProxy: boolean;
+  /** Trial mode and the hosted profile (`trial/policy.ts`): payment services and add-on calls. Default: an ordinary server's. */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
 }
 
 /** A payment add-on: installed, and providing `payment-provider@1`. */
@@ -142,6 +147,7 @@ function requirePerson(request: FastifyRequest): void {
 
 export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod {
   const { meta, manifests } = deps;
+  const policy = deps.policy ?? ORDINARY_POLICY;
   const docs = paymentSettingsRepo(meta);
   const clock = () => Date.now();
 
@@ -252,7 +258,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       {
         runtime: deps.runtime,
         manifests,
-        httpFor: (manifest) => addOnHttpClientFor(meta, manifest),
+        httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy }),
         demo: null,
       },
       key,
@@ -263,10 +269,11 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
   }
 
   async function lookupFor(key: string, mode: PaymentMode) {
-    return paymentProviderFor({ runtime: deps.runtime, manifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest), demo: null }, key, mode);
+    return paymentProviderFor({ runtime: deps.runtime, manifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy }), demo: null }, key, mode);
   }
 
   function refuseOffline(): void {
+    refuseUnlessAllowed(policy, 'paymentProviders', 'The operator has switched payment services off for this installation, so none can be connected here.');
     if (!deps.networkFeatures) {
       throw new ValidationFailedError('Network features are off on this server, so no payment service can be connected.', { reason: 'network-off' });
     }
@@ -276,6 +283,8 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     async function canRead(request: FastifyRequest): Promise<boolean> {
       return (await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView));
     }
@@ -331,7 +340,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       }
       return {
         data: {
-          reachability: reachability({ networkFeatures: deps.networkFeatures, desktop: deps.desktop, publicOrigin: origin, trustProxy: deps.trustProxy, forwarded }),
+          reachability: reachability({ operatorOff: !policy.allows('paymentProviders').allowed, networkFeatures: deps.networkFeatures, desktop: deps.desktop, publicOrigin: origin, trustProxy: deps.trustProxy, forwarded }),
           canManage: await request.can(PERMISSIONS.paymentsManage),
           services,
           // Without the ones this person said "Got it" to.

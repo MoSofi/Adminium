@@ -34,6 +34,7 @@ function groupTitle(key: DesignerFileGroup): string {
 
 /** Why the editor is read-only, in words. */
 export function lockLine(lock: Exclude<CodeLock, null>): string {
+  if (lock === 'operator') return t('designer:ownCode.codeOff', 'Hand edits are turned off on this server by its operator. Ask the Designer for the change.');
   if (lock === 'turn') return t('designer:code.lockTurn', 'The Designer is working. You can edit again when it finishes.');
   if (lock === 'waiting') return t('designer:code.lockWaiting', 'The Designer is waiting for your answer in the chat.');
   if (lock === 'save') return t('designer:code.lockSave', 'Saving…');
@@ -152,7 +153,9 @@ export default function CodeTab({ code, compact, onFix }: { code: CodeFiles; /**
   useEffect(() => {
     editor.current?.setHeld(held);
     editor.current?.setLabel(
-      code.lock === 'turn' || code.lock === 'waiting'
+      code.lock === 'operator'
+        ? t('designer:ownCode.codeReadOnly', '{file}, read only: hand edits are turned off on this server by its operator', { file: name })
+        : code.lock === 'turn' || code.lock === 'waiting'
         ? t('designer:code.readOnlyDesigner', '{file}, read only while the Designer works', { file: name })
         : held
           ? t('designer:code.readOnly', '{file}, read only for now', { file: name })

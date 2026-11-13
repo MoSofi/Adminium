@@ -282,7 +282,10 @@ export default {
       "atTable": "Tabel {field}",
       "empty": "Et navn er påkrævet.",
       "identifier": "Brug små bogstaver, tal og understregninger, og start med et bogstav.",
-      "tooLong": "For langt — {dialect} tillader {max} tegn."
+      "tooLong": "For langt — {dialect} tillader {max} tegn.",
+      "unsafeDefault": "Dette standardudtryk kan ikke bruges: det indeholder et semikolon, en kommentar, en omvendt skråstreg, et dollartegn eller et åbent anførselstegn eller en åben parentes. Ret det, og prøv igen.",
+      "unsafeType": "Denne kolonnetype kan ikke bruges: den indeholder mere end en type, fx et semikolon, en kommentar, en begrænsning eller et åbent anførselstegn eller en åben parentes. Ret den, og prøv igen.",
+      "unsafeCheck": "Denne kontrol kan ikke bruges: den indeholder et semikolon, en kommentar, en omvendt skråstreg, et dollartegn eller et åbent anførselstegn eller en åben parentes. Ret den, og prøv igen."
     },
     "existing": "Eksisterende tabeller",
     "hazard": {
@@ -2738,7 +2741,8 @@ export default {
       "linkOrigin": {
         "error": "Angiv en adresse som https://admin.example.com uden sti.",
         "helper": "Links til nulstilling af adgangskode og invitationer åbner denne adresse. Hvis den er tom, udfylder Adminium den fra den næste administrator, der logger ind eller gemmer en ændring, medmindre vedkommende bruger localhost.",
-        "label": "Adresse i e-maillinks"
+        "label": "Adresse i e-maillinks",
+        "operator": "Serverens operatør har angivet denne adresse. Links til nulstilling af adgangskode og invitationer åbner altid den."
       },
       "pass": {
         "error": "Dette brugernavn kræver en adgangskode.",
@@ -2773,6 +2777,34 @@ export default {
       "user": {
         "helper": "Lad feltet stå tomt, hvis relayet ikke kræver login.",
         "label": "Brugernavn"
+      },
+      "relay": {
+        "title": "E-mails sendes via operatørens mailtjeneste",
+        "from": "Afsenderadresse",
+        "fromLine": "{from}, svar går til {replyTo}",
+        "noRelay": "Operatøren har ikke sat en mailtjeneste op til denne installation, så der sendes ingen e-mails.",
+        "use": "Brug i dag",
+        "useLine": "{today, number} af {perDay, number} e-mails i dag · {hour, number} af {perHour, number} denne time",
+        "people": "{people, number} af {max, number} personer skrevet til i dag",
+        "dayBar": "E-mails i dag",
+        "hourBar": "E-mails denne time",
+        "limitDay": "Den daglige e-mailgrænse er nået. {count, plural, one {# e-mail venter og sendes i morgen.} other {# e-mails venter og sendes i morgen.}}",
+        "limitDayOnly": "Den daglige e-mailgrænse er nået.",
+        "limitHour": "Timegrænsen for e-mails er nået. {count, plural, one {# e-mail venter og sendes kl. {time}.} other {# e-mails venter og sendes fra kl. {time}.}}",
+        "limitHourOnly": "Timegrænsen for e-mails er nået.",
+        "limitPeople": "Dagens grænse på {max, number} personer er nået. E-mails til nye personer venter til i morgen.",
+        "limitBounces": "E-mail er sat på pause til i morgen: for mange e-mails kom retur eller blev meldt som spam i dag.",
+        "waiting": "{count, plural, one {# e-mail venter og sendes kl. {time}.} other {# e-mails venter; den første sendes kl. {time}.}}",
+        "open": "Åbn udbakken",
+        "outboxTitle": "Ventende e-mails",
+        "outboxHelp": "De sendes af sig selv, når e-mailgrænserne tillader det. Intet her kan ændres.",
+        "to": "Til",
+        "subject": "Emne",
+        "queued": "Sat i kø",
+        "goesOut": "Sendes",
+        "empty": "Ingen e-mails venter.",
+        "failed": "De ventende e-mails kunne ikke indlæses.",
+        "close": "Luk"
       }
     },
     "identity": {
@@ -2888,7 +2920,6 @@ export default {
       "heading": "Forbindelser",
       "subtitle": "Databaser, som denne installation læser og skriver.",
       "label": "Tillad databaser på denne server",
-      "setByOperator": "Fastsat af operatøren",
       "help": "Lader forbindelser nå databaser, der kører på denne samme server, f.eks. {example}. Kun til databaser, du selv har sat op her.",
       "alwaysHere": "Denne server når allerede databaser på denne maskine, så kontakten ændrer intet her.",
       "lockedHosts": "Operatøren tillader kun disse værter:",
@@ -3129,7 +3160,8 @@ export default {
       "readingFile": "Læser den uploadede skemafil…",
       "readingSchema": "Læser skema: public",
       "ready": "Klar",
-      "relations": "Registrerer relationer…"
+      "relations": "Registrerer relationer…",
+      "handoff": "Forbundet via Supabase · skemaet læses kun"
     },
     "logLabel": "Introspektionslog",
     "retry": "Prøv igen",
@@ -3491,6 +3523,9 @@ export default {
       "signInLink": "Log ind",
       "noCopy": "Denne adresse er flyttet til en kopi, som denne konto ikke kan åbne.",
       "guest": "Denne adresse er flyttet."
+    },
+    "hidden": {
+      "title": "Denne side er ikke tilgængelig."
     }
   },
   "appSettings": {
@@ -5920,5 +5955,15 @@ export default {
       "line": "På denne computer laver projektet sin egen fil: Åbn projektets menu i Designer (dets navn øverst til venstre), og vælg Eksportér dette projekt….",
       "open": "Åbn Designer"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "Upload er slået fra på denne server af dens operatør. Installér tilføjelser fra kataloget.",
+    "appsOff": "Upload er slået fra på denne server af dens operatør. Installér apps fra kataloget."
+  },
+  "operatorHidden": {
+    "title": "Dine offentlige sider er skjult af operatøren.",
+    "reason": "Årsag: {reason}",
+    "reply": "Svar på operatørens e-mail, hvis det er en fejl.",
+    "chip": "Skjult"
   }
 } as const;

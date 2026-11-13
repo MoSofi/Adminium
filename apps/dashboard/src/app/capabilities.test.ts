@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { emailSendGate, isHostedPlanSurface, llmAffordances } from './capabilities.js';
+import { trialState } from '../trial/TrialStrips.js';
 
 describe('emailSendGate — email row', () => {
   it('enables sends only when SMTP is configured', () => {
@@ -99,3 +100,21 @@ describe('isHostedPlanSurface — hosted-plan row', () => {
  *    none at all when the health poll is refused.
  *  - `studio/ai/studioAiLocalMode.test.tsx` — the panel order on each runtime.
  */
+
+describe('trialState — the banners read the end date, never a count', () => {
+  const endsAt = '2026-12-01T00:00:00.000Z';
+  const end = Date.parse(endsAt);
+
+  it('is off without a trial, or on a server older than trial mode', () => {
+    expect(trialState(undefined, end)).toBe('off');
+    expect(trialState({ on: false, endsAt: null, daysLeft: null, upgradeUrl: null }, end)).toBe('off');
+  });
+
+  it('is running before the end and ended at it, whatever the count says', () => {
+    expect(trialState({ on: true, endsAt, daysLeft: 1, upgradeUrl: null }, end - 1)).toBe('running');
+    expect(trialState({ on: true, endsAt, daysLeft: 1, upgradeUrl: null }, end)).toBe('ended');
+    // A reply that has gone stale in the page still ends on time.
+    expect(trialState({ on: true, endsAt, daysLeft: 3, upgradeUrl: null }, end + 60_000)).toBe('ended');
+    expect(trialState({ on: true, endsAt, daysLeft: null, upgradeUrl: null }, end + 1)).toBe('ended');
+  });
+});

@@ -28,6 +28,7 @@
 | `references/errors/staff-and-api-key-write-codes--states.md` | Staff and API-key write codes — States | 3297 |
 | `references/errors/staff-and-api-key-write-codes--a-ledger-s-refusal.md` | Staff and API-key write codes — A ledger's refusal | 2086 |
 | `references/errors/staff-and-api-key-write-codes--what-a-read-limit-leaves-out.md` | Staff and API-key write codes — What a read limit leaves out | 933 |
+| `references/errors/staff-and-api-key-write-codes--switched-off-by-the-server-s-operator.md` | Staff and API-key write codes — Switched off by the server's operator | 5609 |
 | `references/errors/codes-met-outside-a-request--an-email-that-is-not-sent.md` | Codes met outside a request — An email that is not sent | 758 |
 | `references/errors/codes-met-outside-a-request--an-app-s-install-check.md` | Codes met outside a request — An app's install check | 3098 |
 | `references/errors/codes-met-outside-a-request--uploading-installing-and-updating-an-app.md` | Codes met outside a request — Uploading, installing and updating an app | 4274 |

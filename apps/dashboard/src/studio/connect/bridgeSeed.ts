@@ -16,12 +16,9 @@
 
 import { api } from '../../app/api.js';
 import type { ConnectionEngine } from '../api.js';
+import { BRIDGE_PARAM, BRIDGE_STORAGE_KEY } from './bridgeTicket.js';
 
-/** The query parameter the site redirects with. */
-export const BRIDGE_PARAM = 'bridge';
-
-/** Where a captured ticket waits for the connect route. Per-tab, by design. */
-const STORAGE_KEY = 'adminium-bridge-ticket';
+export { BRIDGE_PARAM, hasPendingBridgeTicket, takeBridgeTicket } from './bridgeTicket.js';
 
 export interface BridgeSeed {
   dsn: string;
@@ -31,7 +28,8 @@ export interface BridgeSeed {
 /**
  * Lift the ticket out of `window.location` and park it for the connect route.
  *
- * Called from `main.tsx` BEFORE the router mounts, for the same two reasons
+ * Called from `main.tsx` BEFORE the router mounts, and loaded only when the
+ * address carries a ticket, for the same two reasons
  * `exchangeBootToken` is: the value has to leave the URL before anything can
  * copy it into router state or leak it through a `Referer` header, and the
  * route that consumes it may not be the route that first renders.
@@ -52,30 +50,10 @@ export function captureBridgeTicket(): void {
   url.searchParams.delete(BRIDGE_PARAM);
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
   try {
-    window.sessionStorage.setItem(STORAGE_KEY, ticket);
+    window.sessionStorage.setItem(BRIDGE_STORAGE_KEY, ticket);
   } catch {
     // Private mode / storage disabled. The hand-off is lost, which the wizard
     // renders as an ordinary "paste it yourself" — never as a failure.
-  }
-}
-
-/** Is a hand-off waiting? Read-only — used to decide where to send the user. */
-export function hasPendingBridgeTicket(): boolean {
-  try {
-    return window.sessionStorage.getItem(STORAGE_KEY) !== null;
-  } catch {
-    return false;
-  }
-}
-
-/** Read the parked ticket and clear it. Single-use at this end too. */
-export function takeBridgeTicket(): string | null {
-  try {
-    const ticket = window.sessionStorage.getItem(STORAGE_KEY);
-    window.sessionStorage.removeItem(STORAGE_KEY);
-    return ticket === '' ? null : ticket;
-  } catch {
-    return null;
   }
 }
 

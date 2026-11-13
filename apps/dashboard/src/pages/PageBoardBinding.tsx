@@ -38,8 +38,11 @@ import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { usePlanningStates } from './planning/planningData.js';
 import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 
 export function PageBoardBinding({ page, adapters, recordId, columnFacts, currency, formColumns, tableLabelSingular, tableLabelPlural }: PageTemplateProps) {
+  // Its words are a deferred group of `common`, fetched with the template: in before it paints.
+  useCommonWords();
   // A link may open this list narrowed (`?f.<column>=<op>:<value>`): see linkNarrowing.tsx.
   const narrowing = useLinkNarrowing(page, adapters.crud?.table);
   const view = useNarrowedPage(page, narrowing);

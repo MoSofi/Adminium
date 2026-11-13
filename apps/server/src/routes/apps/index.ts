@@ -114,6 +114,7 @@ import {
 import { CATALOG_REFRESH_KIND } from '../../jobs/add-on-acquire.js';
 import { forgetClosedDoors, loadAppParts, roleIsOffered, switchOf } from '../../rbac/app-parts.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { refuseOwnCode, refuseOwnCodeHook } from '../../trial/own-code.js';
 import { pickLabel, sameLanguage } from '../../i18n/bcp47.js';
 import { forgetAppSurfaceSettings, instancesOf, NO_SURFACE_SETTINGS, sideOffOf } from '../../surfaces/settings.js';
 import { validateDomainEntries, validateInstanceEntries } from '../../surfaces/validate.js';
@@ -197,6 +198,7 @@ import {
   updateAppReply,
   uploadAppQuery,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /**
  * 32 MB, the add-on upload's limit.
@@ -315,6 +317,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     userLabel: string;
     source?: 'upload' | 'workspace-file';
   }): Promise<z.infer<typeof stagedAppReply>> {
+    // The catalogue and the image's bundle only, while the operator keeps uploads off (`trial/own-code.ts`).
+    refuseOwnCode('packageUploads');
     const { body, asserted, userId, userLabel } = input;
     const source = input.source ?? 'upload';
 
@@ -528,6 +532,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /*
      * Raw tarball bodies, this plugin's scope only — the idiom
      * `routes/add-ons` established and `routes/imports` before it. There is no
@@ -690,7 +696,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          * nobody has authenticated. This is the cheap half, in the only phase
          * where cheap is available; it does not replace the guard below.
          */
-        onRequest: app.requireAuth,
+        // Then the operator's word, still before the body (`trial/own-code.ts`).
+        onRequest: [app.requireAuth, refuseOwnCodeHook('packageUploads')],
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         config: { audit: audited('rbac') },
         bodyLimit: APP_UPLOAD_BODY_LIMIT,

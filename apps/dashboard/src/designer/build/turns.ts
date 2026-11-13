@@ -10,7 +10,7 @@
  * files"); the header still counts every step. The end-of-turn check, build
  * and apply join the list as rows of their own.
  */
-import type { DesignerAttachment, DesignerCard, DesignerPicked, DesignerEvent, FolderHold, LimitKind, MakeJob, SpendMark, StepFacts, TurnOutcome } from '../api.js';
+import type { DesignerAttachment, DesignerCard, DesignerPicked, DesignerEvent, FolderHold, LimitKind, MakeJob, OperatorAiCard, SpendMark, StepFacts, TurnOutcome } from '../api.js';
 
 export interface StepRow extends StepFacts {
   id: string;
@@ -78,6 +78,8 @@ export interface TurnView {
   changedFiles: boolean;
   /** What happened to the app's pictures under this reply, in order. */
   pictures: PictureLine[];
+  /** The fixed card the turn ended with on the operator's AI, in place of the Designer's own words about it. */
+  operatorAi: OperatorAiCard | null;
 }
 
 const FILE_TOOLS = new Set(['write_file', 'edit_file', 'delete_file']);
@@ -107,6 +109,7 @@ function blank(turn: number, at: number): TurnView {
     finishedAt: null,
     changedFiles: false,
     pictures: [],
+    operatorAi: null,
   };
 }
 
@@ -208,6 +211,7 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
           ...(event.ended === undefined ? {} : { ended: event.ended }),
           ...(event.until === undefined ? {} : { until: event.until }),
           ...(event.dated === undefined ? {} : { dated: event.dated }),
+          ...(event.operator === undefined ? {} : { operator: event.operator }),
         };
         if (at === -1) list.push(row);
         else list[at] = row;
@@ -295,6 +299,9 @@ export function foldTurns(events: readonly DesignerEvent[]): TurnView[] {
       // Only the chat's own make is said under its reply; the dialog's progress is the dialog's (`by: 'person'`, above).
       case 'picture-make':
         turn.pictures.push({ kind: 'made', job: event.job });
+        break;
+      case 'operator-ai':
+        turn.operatorAi = event.card;
         break;
       case 'stopped':
         break;

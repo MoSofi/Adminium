@@ -282,7 +282,10 @@ export default {
       "atTable": "資料表 {field}",
       "empty": "需要填寫名稱。",
       "identifier": "請使用小寫字母、數字與底線，並以字母開頭。",
-      "tooLong": "太長 — {dialect} 允許 {max} 個字元。"
+      "tooLong": "太長 — {dialect} 允許 {max} 個字元。",
+      "unsafeDefault": "無法使用此預設運算式：它包含分號、註解、反斜線、美元符號，或未閉合的引號或括號。請修改後再試一次。",
+      "unsafeType": "無法使用此欄位類型：它包含的不只是類型，例如分號、註解、約束，或未閉合的引號或括號。請修改後再試一次。",
+      "unsafeCheck": "無法使用此檢查：它包含分號、註解、反斜線、美元符號，或未閉合的引號或括號。請修改後再試一次。"
     },
     "existing": "既有資料表",
     "hazard": {
@@ -2738,7 +2741,8 @@ export default {
       "linkOrigin": {
         "error": "請輸入類似 https://admin.example.com 的位址，不要包含路徑。",
         "helper": "密碼重設與邀請連結會開啟此位址。若留空，Adminium 會從下一位登入或儲存變更的管理員自動填入，但使用 localhost 時除外。",
-        "label": "電子郵件連結中的位址"
+        "label": "電子郵件連結中的位址",
+        "operator": "此位址由伺服器營運方設定。密碼重設與邀請連結一律開啟此位址。"
       },
       "pass": {
         "error": "此使用者名稱需要密碼。",
@@ -2773,6 +2777,34 @@ export default {
       "user": {
         "helper": "若中繼不需驗證，請留空。",
         "label": "使用者名稱"
+      },
+      "relay": {
+        "title": "郵件透過營運方的郵件服務寄出",
+        "from": "寄件地址",
+        "fromLine": "{from}，回覆將寄至 {replyTo}",
+        "noRelay": "營運方尚未為此安裝設定郵件服務，因此不會寄出任何郵件。",
+        "use": "今日用量",
+        "useLine": "今日 {today, number} / {perDay, number} 封郵件 · 本小時 {hour, number} / {perHour, number} 封",
+        "people": "今日已聯絡 {people, number} / {max, number} 人",
+        "dayBar": "今日郵件",
+        "hourBar": "本小時郵件",
+        "limitDay": "已達每日郵件上限。{count, plural, other {有 # 封郵件在等待，將於明天寄出。}}",
+        "limitDayOnly": "已達每日郵件上限。",
+        "limitHour": "已達每小時郵件上限。{count, plural, other {有 # 封郵件在等待，將從 {time} 起寄出。}}",
+        "limitHourOnly": "已達每小時郵件上限。",
+        "limitPeople": "已達今日 {max, number} 人的上限。寄給新收件人的郵件將等到明天。",
+        "limitBounces": "郵件寄送已暫停至明天：今天有太多郵件被退回或被檢舉為垃圾郵件。",
+        "waiting": "{count, plural, other {有 # 封郵件在等待，第一封將於 {time} 寄出。}}",
+        "open": "開啟寄件匣",
+        "outboxTitle": "等待中的郵件",
+        "outboxHelp": "在郵件上限允許時會自動寄出。此處無法變更任何內容。",
+        "to": "收件人",
+        "subject": "主旨",
+        "queued": "加入佇列",
+        "goesOut": "寄出時間",
+        "empty": "沒有等待中的郵件。",
+        "failed": "無法載入等待中的郵件。",
+        "close": "關閉"
       }
     },
     "identity": {
@@ -2888,7 +2920,6 @@ export default {
       "heading": "連線",
       "subtitle": "此安裝讀取和寫入的資料庫。",
       "label": "允許本伺服器上的資料庫",
-      "setByOperator": "由營運方設定",
       "help": "允許連線存取在本伺服器上執行的資料庫，例如 {example}。僅用於你在這裡建立的資料庫。",
       "alwaysHere": "此伺服器本來就能存取本機上的資料庫，因此這個開關在這裡不起作用。",
       "lockedHosts": "營運方只允許這些主機：",
@@ -3129,7 +3160,8 @@ export default {
       "readingFile": "正在讀取上傳的結構描述檔案…",
       "readingSchema": "正在讀取結構描述：public",
       "ready": "就緒",
-      "relations": "正在偵測關聯…"
+      "relations": "正在偵測關聯…",
+      "handoff": "已透過 Supabase 連線 · 只讀取結構描述"
     },
     "logLabel": "內省記錄",
     "retry": "重試",
@@ -3491,6 +3523,9 @@ export default {
       "signInLink": "登入",
       "noCopy": "此網址已搬移到此帳號無法開啟的副本。",
       "guest": "此網址已搬移。"
+    },
+    "hidden": {
+      "title": "此頁面無法使用。"
     }
   },
   "appSettings": {
@@ -5920,5 +5955,15 @@ export default {
       "line": "在這台電腦上，專案會產生自己的檔案：在設計器中開啟專案選單（左上角的專案名稱），然後選擇「匯出此專案…」。",
       "open": "開啟設計器"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "此伺服器的營運方已關閉上傳。請從目錄安裝外掛。",
+    "appsOff": "此伺服器的營運方已關閉上傳。請從目錄安裝應用程式。"
+  },
+  "operatorHidden": {
+    "title": "營運方已隱藏你的公開頁面。",
+    "reason": "原因：{reason}",
+    "reply": "如有誤，請回覆營運方的電子郵件。",
+    "chip": "已隱藏"
   }
 } as const;

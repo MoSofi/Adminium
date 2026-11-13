@@ -65,6 +65,8 @@ export * from './email-dkim-keys.js';
 export * from './email-sends.js';
 export * from './privacy-exports.js';
 export * from './form-marks.js';
+export * from './operator-holds.js';
+export * from './operator-tallies.js';
 export * from './app-parts.js';
 export * from './app-updates.js';
 export * from './app-instance-undo.js';

@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3772 entries. */
+/** `namespace:key` — 3782 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -567,6 +567,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:nav.teams',
   'common:nav.workflowLogs',
   'common:notFound.searchPlaceholder',
+  'common:onboarding.connectProvider.existing.label',
+  'common:onboarding.connectProvider.existing.labelNoName',
   'common:onboarding.desktopSetup.account.confirm',
   'common:onboarding.desktopSetup.account.email',
   'common:onboarding.desktopSetup.account.locale',
@@ -610,6 +612,8 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:onboarding.steps.workspaceDefaults.title',
   'common:onboarding.subtitle',
   'common:onboarding.title',
+  'common:operatorLock.chip',
+  'common:operatorSwitches.sizeCapLimit',
   'common:page.emptyLayout.title',
   'common:page.invalid.title',
   'common:page.linkFilters.failedTitle',
@@ -1037,6 +1041,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'designer:model.searchModels',
   'designer:model.showKey',
   'designer:needs.title',
+  'designer:operatorAi.label',
   'designer:phone.addTitle',
   'designer:phone.approveTitle',
   'designer:phone.code',
@@ -3039,6 +3044,11 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:settingsHub.email.linkOrigin.label',
   'studio:settingsHub.email.pass.label',
   'studio:settingsHub.email.port.label',
+  'studio:settingsHub.email.relay.close',
+  'studio:settingsHub.email.relay.dayBar',
+  'studio:settingsHub.email.relay.hourBar',
+  'studio:settingsHub.email.relay.outboxHelp',
+  'studio:settingsHub.email.relay.outboxTitle',
   'studio:settingsHub.email.secure.label',
   'studio:settingsHub.email.senders.address',
   'studio:settingsHub.email.senders.name',

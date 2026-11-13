@@ -20,7 +20,10 @@ import type { Starter } from '../../designer/start-with-app.js';
 import type { PhoneService } from '../../designer/phone-service.js';
 import { sourceArchiveUrl } from '../../project/apps/source-archive.js';
 import type { Actor } from '../../designer/runner.js';
+import type { MetaDb } from '@adminium/meta';
+
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { runStartPrompt } from '../../designer/start-prompt.js';
 import { LocalOwnerError } from '../../auth/local-owner.js';
 import type { Live } from '../../designer/live.js';
 import type { Versions } from '../../designer/versions.js';
@@ -33,6 +36,9 @@ import type { z } from 'zod';
 import { APPS_DIR, listAppKeys, MANIFEST_PARTS_DIR } from '../../project/apps/read-app.js';
 import { nameFromKey } from '../../project/apps/scaffold-app.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { refuseOwnCodeHook } from '../../trial/own-code.js';
+import { OffByOperatorError } from '../../trial/refuse.js';
+import { SCOPE_OFF_MESSAGE } from '../../designer/operator-scope.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import { ATTACHMENT_MAX_CSV_BYTES, AttachmentError, labelOf, withSessionLock, type Attachment, type Attachments } from '../../designer/attachments.js';
 import { clearTemplateNote, listSiteTemplates, readTemplateNote, SITE_TEMPLATES_DIR, walkFolder } from '../../designer/site/folder.js';
@@ -131,11 +137,14 @@ import {
   designerFilesSaveReply,
   designerPhoneOpenBody,
   designerPhoneReply,
+  designerStartPromptReply,
 } from './schema.js';
 import { FILES_SAVE_BODY_BYTES } from '../../designer/files.js';
 
 export interface DesignerRoutesDeps {
   designer: Designer;
+  /** The operator's start prompt, decoded, and the store that says whether it ran (`designer/start-prompt.ts`). Absent: none. */
+  startPrompt?: { meta: MetaDb; prompt: string | null } | undefined;
   /** The phone side's service: only where an app is designed on this computer (`adminium design`, the desktop app). */
   phone?: PhoneService;
   versions: Versions | null;
@@ -353,6 +362,22 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       },
     );
 
+    // The operator's start prompt: run once, after the first-run account step, as a new session's first message.
+    app.post(
+      '/designer/start-prompt',
+      {
+        preHandler: guard,
+        config: { ...RATE, audit: auditExempt('the session and its first turn are audited by the Designer itself') },
+        schema: { response: { 201: designerStartPromptReply } },
+      },
+      async (request, reply) => {
+        const start = deps.startPrompt;
+        if (start === undefined) throw new NotFoundError('This server has no start prompt.', { reason: 'NO_START_PROMPT' });
+        const started = await runStartPrompt({ ...start, designer, connections }, actorOf(request));
+        return reply.code(201).send(started);
+      },
+    );
+
     app.get(
       '/designer/sessions/:id',
       { preHandler: guard, config: RATE, schema: { params: designerSessionParams, response: { 200: designerSessionReply } } },
@@ -558,7 +583,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
     app.post(
       '/designer/sessions/:id/attachments/site',
       {
-        onRequest: app.requireAuth,
+        // A site's zip is an upload: refused before its bytes are read while the operator keeps them off (`trial/own-code.ts`).
+        onRequest: [app.requireAuth, refuseOwnCodeHook('designerUploads')],
         preHandler: guard,
         bodyLimit: SITE_BODY_LIMIT,
         config: { rateLimitBucket: 'designer-files', audit: auditExempt('a site template attached to a Designer session changes nothing by itself; the turn that builds from it is audited') },
@@ -931,7 +957,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
       '/designer/styles',
       {
         preHandler: guard,
-        onRequest: app.requireAuth,
+        // A style of one's own is an upload too (`trial/own-code.ts`).
+        onRequest: [app.requireAuth, refuseOwnCodeHook('designerUploads')],
         bodyLimit: SKILL_UPLOAD_MAX_BYTES + 64 * 1024,
         config: { rateLimitBucket: 'designer-files' as const, audit: auditExempt('the Designer audits a style added to the project itself, with its name') },
         schema: { querystring: designerStyleUploadQuery, response: { 201: designerStyleAddedReply } },
@@ -1027,6 +1054,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
     app.put(
       '/designer/sessions/:id/files',
       {
+        // The Code tab's hand save: off with the Designer's uploads (`trial/own-code.ts`), said before the body is judged.
+        preValidation: [app.requireAuth, refuseOwnCodeHook('designerUploads')],
         preHandler: guard,
         bodyLimit: FILES_SAVE_BODY_BYTES,
         config: { ...RATE, audit: auditExempt('the Designer audits a hand save itself, with the files and the version it made') },
@@ -1187,6 +1216,8 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
     app.post(
       '/designer/start',
       {
+        // A copy fetches a repository and runs its build (`trial/own-code.ts`), said before the body is judged.
+        preValidation: [app.requireAuth, refuseOwnCodeHook('ownBuilds')],
         preHandler: guard,
         config: { ...RATE, audit: auditExempt('a copy is audited by the Designer itself, once it is applied') },
         schema: { body: designerStartBody, response: { 202: designerStartJob } },
@@ -1197,6 +1228,9 @@ export function designerRoutes(deps: DesignerRoutesDeps): FastifyPluginAsyncZod 
         if (onLive && !(await app.rbac.resolve(request)).superAdmin) {
           throw new ForbiddenError('On a live server, only a Super Admin copies an app: its build is a command the server runs.', 'FORBIDDEN', { reason: 'SUPER_ADMIN' });
         }
+        // A copy is a whole app, its customer side and public pages too: not one for a session on the operator's AI that
+        // builds dashboards only (`designer/operator-scope.ts`).
+        if (designer.scopedConnection(request.body.connectionId)) throw new OffByOperatorError('customerScreensOnOperatorAi', 'operator-ai-scope', SCOPE_OFF_MESSAGE);
         const job = await deps.starter.start({ ...request.body, by: actorOf(request) });
         return reply.code(202).send(job);
       },

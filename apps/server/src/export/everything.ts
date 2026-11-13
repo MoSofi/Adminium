@@ -5,10 +5,10 @@
  *
  * The file is the same one `adminium archive create --export` writes, by the
  * same writer: no password hashes, secrets, keys or tokens (`archive/policy.ts`
- * applies those rules; nothing here can ask for secrets, S17), unsigned, read
+ * applies those rules; nothing here can ask for secrets), unsigned, read
  * back by `adminium import-zip`.
  *
- * The rules this module keeps (security review S17):
+ * The rules this module keeps:
  *  - ONE export at a time on this instance. While one is being made, or a
  *    made one waits for someone else's download, a new one is refused. The
  *    same session asking again throws its own waiting file away first.

@@ -26,8 +26,11 @@ import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { planningWindowTargetOf, usePlanningStates } from './planning/planningData.js';
 import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
+import { useCommonWords } from '../i18n/commonWords.js';
 
 export function PageSchedulerBinding({ page, adapters, recordId, columnFacts, currency, formColumns }: PageTemplateProps) {
+  // Its words are a deferred group of `common`, fetched with the template: in before it paints.
+  useCommonWords();
   const [params, setParams] = useState<WidgetDataParams>({});
   const window = useMemo(
     () => planningWindowTargetOf(page, ['schedule-matrix'], ['dateColumn', 'startColumn']),

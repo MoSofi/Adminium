@@ -36,6 +36,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync,
 import { dirname, join, posix } from 'node:path';
 
 import { childEnvironment } from '../../config/child-env.js';
+import { ownCodeAllows, OWN_CODE_MESSAGES } from '../../trial/own-code.js';
 import { buildLinePath, desktopPrograms } from '../programs.js';
 
 import { BUILD_DIR } from '../build-shared.js';
@@ -391,6 +392,8 @@ export async function runOwnBuild(
   build: AppBuildFile,
   opts: { run?: StepRunner; signal?: AbortSignal; sides: readonly AppSide[] },
 ): Promise<{ sides: AppSide[] } | { problems: string[] }> {
+  // The operator keeps own code off (`trial/own-code.ts`): a command, approved or not, does not run on this server.
+  if (!ownCodeAllows('ownBuilds').allowed) return { problems: [`${APPS_DIR}/${key} — ${OWN_CODE_MESSAGES.ownBuilds} What its last build left keeps serving.`] };
   // One build of an app at a time: two would install into, and copy out of, the same folders.
   const dir = appDir(root, key);
   const before = building.get(dir) ?? Promise.resolve();

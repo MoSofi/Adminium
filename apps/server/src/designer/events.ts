@@ -14,6 +14,7 @@
  */
 import type { DesignerCard } from './cards.js';
 import type { Picked } from './picked.js';
+import type { PolicyReason } from '../trial/policy.js';
 
 export type TurnOutcome = 'done' | 'stopped' | 'limit' | 'failed' | 'not-applied';
 /** `turn-tokens` and `session-tokens` end no turn since D92; a session written before it may still hold them. */
@@ -46,6 +47,8 @@ export type DesignerEventBody =
       /** A read of Figma that did not happen: the person's reads are paused until then (epoch ms), dated when Figma said when. */
       until?: number;
       dated?: boolean;
+      /** The server's operator turned this tool or this file off: why, as `trial/policy.ts` names it. */
+      operator?: PolicyReason;
     }
   | { kind: 'usage'; step: number; tokensIn: number; tokensOut: number; estimated: boolean; turnTokens: number }
   | { kind: 'spend'; which: SpendMark; mark: number; used: number }
@@ -78,7 +81,13 @@ export type DesignerEventBody =
    */
   | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number }
   /** A make of pictures with AI, as it goes: the job's whole state, each line's, and what is left today. */
-  | { kind: 'picture-make'; job: import('./picture-job-view.js').JobView };
+  | { kind: 'picture-make'; job: import('./picture-job-view.js').JobView }
+  /**
+   * The fixed card a turn on the operator's AI ends with, never the model's words: `scope`, the request needs
+   * customer-facing screens, which that connection does not build; `used-up`, the AI included with the instance is
+   * spent. The page words it, with "Add an AI key" and (where the operator set one) "Upgrade".
+   */
+  | { kind: 'operator-ai'; card: 'scope' | 'used-up' };
 
 /** What writes the app's folder outside a turn: a hand save, a style change, going back, a copy of a published app, pictures from the dialog. */
 export type HoldKind = 'save' | 'style' | 'restore' | 'start' | 'pictures';

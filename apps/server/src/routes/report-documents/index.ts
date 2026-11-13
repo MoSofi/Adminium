@@ -57,6 +57,7 @@ import {
   type ReportDetailView,
   type ReportSummaryView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface ReportDocumentsRoutesDeps {
   meta: MetaDb;
@@ -109,6 +110,8 @@ export function reportDocumentsRoutes(deps: ReportDocumentsRoutesDeps): FastifyP
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     // A "Shown in" names only the workspaces this person sees.
     app.addHook('preSerialization', shownInSeenOnly(meta));
     async function requireSettingsManage(request: FastifyRequest, what: string): Promise<void> {

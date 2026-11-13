@@ -49,6 +49,10 @@ vi.mock('./submitHeldAnswers.js', async (importOriginal) => {
 
 let restoreI18n: () => void;
 const realFetch = globalThis.fetch;
+/** Whether `/system/info` lists "Connect Supabase" (the operator set a connect address). */
+let offerSupabase = false;
+/** The session the operator's start prompt runs in, where the server has one waiting. */
+let startPromptSession: string | null = null;
 beforeAll(() => {
   restoreI18n = installTestI18n();
   // Hermetic: once the account exists the page asks where the meta store is,
@@ -59,6 +63,12 @@ beforeAll(() => {
       return jsonResponse(200, {
         data: { source: 'embedded', engine: 'sqlite', embedded: true, canRelocate: true },
       });
+    }
+    if (url.includes('/api/v1/system/info')) {
+      return jsonResponse(200, { version: '0.3.57', designer: { mode: 'live', link: false, startPrompt: startPromptSession !== null }, node: 'v22', dialect: 'sqlite', runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, connect: offerSupabase ? [{ provider: 'supabase' }] : [] });
+    }
+    if (url.includes('/api/v1/designer/start-prompt') && startPromptSession !== null) {
+      return jsonResponse(201, { sessionId: startPromptSession, turn: 1 });
     }
     if (url.includes('/api/v1/setup/probe')) {
       return jsonResponse(200, {
@@ -78,6 +88,8 @@ afterEach(() => {
   telemetry.mockReset();
   savedWizardState.mockReset();
   pushed.length = 0;
+  offerSupabase = false;
+  startPromptSession = null;
 });
 
 function renderPage(): void {
@@ -324,10 +336,44 @@ describe('finishing', () => {
   });
 
   it('goes home when nothing was connected, seeding no wizard', async () => {
+    vi.mocked(globalThis.fetch).mockClear();
     await walkToDone(null);
     await userEvent.click(screen.getByRole('button', { name: /Go to dashboard/ }));
     await waitFor(() => expect(pushed).toContain('/'));
     expect(savedWizardState).not.toHaveBeenCalled();
+    // No start prompt waits on this server: the wizard does not ask for one.
+    expect(vi.mocked(globalThis.fetch).mock.calls.some(([input]) => String(input).includes('/api/v1/designer/start-prompt'))).toBe(false);
+  });
+
+  it('opens the Designer on the operator’s start prompt, where the server has one waiting', async () => {
+    startPromptSession = 'ds_0123456789abcdef01234567';
+    await walkToDone(null);
+    await userEvent.click(screen.getByRole('button', { name: /Go to dashboard/ }));
+    await waitFor(() => expect(pushed).toContain('/design/ds_0123456789abcdef01234567'));
+    expect(vi.mocked(globalThis.fetch).mock.calls.some(([input, init]) => String(input).includes('/api/v1/designer/start-prompt') && init?.method === 'POST')).toBe(true);
+  });
+
+  it('hands "Connect Supabase" to the Studio wizard, which starts the sign-in once the account exists', async () => {
+    offerSupabase = true;
+    submit.mockResolvedValue({ kind: 'ok', connection: null });
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
+    // Picking it IS the answer: on to the account, nothing sent.
+    await userEvent.click(await screen.findByRole('button', { name: 'Connect Supabase' }));
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Create your account' })).toBeDefined();
+    });
+    await fillAccount();
+    await userEvent.click(screen.getByRole('button', { name: /Create account/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Where Adminium keeps its own data' })).toBeDefined();
+    });
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ held: expect.objectContaining({ dsn: '', provider: 'supabase' }) }));
+    await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    await userEvent.click(await screen.findByRole('button', { name: /Go to dashboard/ }));
+    await waitFor(() => expect(pushed).toContain('/studio/connect'));
+    expect(savedWizardState).toHaveBeenCalledWith(expect.objectContaining({ step: 'source', providerStart: 'supabase', metaAsked: true, connectionId: null }));
   });
 
   it('hands a connection to the Studio wizard, resumed at the tables step', async () => {

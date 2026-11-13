@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { HOST_DECIDED_ENV, startProject, type StartedProject } from '../src/cli/start-project.js';
+import { OPERATOR_DECIDED_ENV } from '../src/config/env.js';
 import { markRunning, readRunning, refuseIfRunning, runningFile, runningMessage } from '../src/project/running.js';
 import { fakeIo, TEST_SECRET } from './cli-helpers.js';
 
@@ -314,5 +315,13 @@ describe('the variables a folder does not decide', () => {
   it('holds each operator setting once', () => {
     for (const name of OPERATOR_SETTINGS) expect(HOST_DECIDED_ENV.filter((entry) => entry === name), name).toEqual([name]);
     expect(new Set(HOST_DECIDED_ENV).size).toBe(HOST_DECIDED_ENV.length);
+  });
+
+  it('holds every trial and operator variable the env schema parses', () => {
+    // The schema's own list, compared with the schema in `trial-env.test.ts`: a variable added there and not here fails.
+    for (const name of OPERATOR_DECIDED_ENV) expect(HOST_DECIDED_ENV, name).toContain(name);
+    for (const name of ['ADMINIUM_TRIAL_MODE', 'ADMINIUM_HOSTED_MODE', 'ADMINIUM_PUBLIC_ORIGIN', 'ADMINIUM_OPERATOR_TOKEN', 'ADMINIUM_TRIAL_SMTP_URL', 'ADMINIUM_DESIGNER_START_PROMPT_B64']) {
+      expect(HOST_DECIDED_ENV, name).toContain(name);
+    }
   });
 });

@@ -690,6 +690,29 @@
         "connectRefused": "数据库拒绝了连接。",
         "readFailed": "Adminium 无法读取该数据库的表。"
       }
+    },
+    "connectProvider": {
+      "or": "或",
+      "supabase": {
+        "title": "连接 Supabase",
+        "body": "登录 Supabase 并选择一个项目。",
+        "action": "连接 Supabase",
+        "again": "重新连接 Supabase",
+        "expired": "Supabase 连接已过期。",
+        "failed": "无法连接 Supabase。",
+        "connecting": "正在连接你的 Supabase 项目…",
+        "picked": "已选择。账户创建后，你将登录 Supabase。"
+      },
+      "existing": {
+        "title": "使用现有项目",
+        "change": "更改",
+        "label": "输入项目 {project} 的数据库密码",
+        "labelNoName": "输入此项目的数据库密码",
+        "help": "运营方永远看不到它：它直接发送到此安装。",
+        "connect": "连接",
+        "back": "返回",
+        "failed": "此密码未能连接。请检查后重试。"
+      }
     }
   },
   "views": {
@@ -2146,5 +2169,54 @@
       "docsLink": "两种显示方式有何不同"
     },
     "switched": "已切换到 {name}"
+  },
+  "operatorLock": {
+    "chip": "由运营方设置",
+    "lockedOff": "运营方已为此安装关闭此项。"
+  },
+  "operatorSwitches": {
+    "sqlite": "此安装不打开 SQLite 文件：运营方只允许数据库服务器。",
+    "unlistedHost": "此安装只连接运营方允许的数据库主机。",
+    "otherLogin": "在此数据库主机上，只有运营方分配给此安装的登录名和数据库可用。",
+    "metaFixed": "运营方决定此安装在哪里保存自身数据。",
+    "storage": "运营方将此安装的文件保存在自己的磁盘上，因此无法添加或测试其他存储位置。",
+    "webhooks": "运营方已为此安装关闭 Webhook 步骤。",
+    "aiProvider": "运营方在此安装上只允许使用你自己的 Anthropic、OpenAI 或 Google 密钥。",
+    "aiAddress": "运营方不允许在此安装上使用你自己的 AI 地址。",
+    "payments": "运营方已为此安装关闭支付服务。",
+    "askOperator": "只有运营此安装的人才能更改此项。",
+    "dataOverCap": "此数据库已超过试用版的大小上限，因此为只读。请删除一些行以继续。",
+    "storageOverCap": "此安装的文件已超过试用版的上限，无法再存储任何内容。请删除一些文件以继续。",
+    "extraSources": "试用版最多连接 3 个数据库。请移除一个后再连接其他数据库。",
+    "sizeCapNotice": "此数据库已超过试用版 {limit} MB 的上限，因此为只读。请删除一些行以继续。",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "上限 {limit} MB",
+    "sizeCapReadOnly": "只读：数据库已超过试用版的上限",
+    "packageUploads": "运营方在此安装中只从目录安装附加组件和应用，因此上传已关闭。",
+    "designerUploads": "运营方已为此安装关闭向 Designer 上传。",
+    "designerCode": "运营方已为此安装关闭自定义代码：Designer 只能根据设置构建。",
+    "ownBuilds": "运营方已为此安装关闭自定义构建。",
+    "designerNetwork": "运营方已为此安装关闭图片搜索和 Figma。",
+    "userMail": "此试用已结束，因此此安装不再发送电子邮件。",
+    "testBudget": "此安装在过去一分钟内测试了 {limit} 个数据库连接。请等待 {seconds, plural, other {# 秒}}后重试。",
+    "payPages": "运营方已为此安装关闭付款页面。",
+    "paymentWebhooks": "运营方不允许支付服务调用此安装。",
+    "mappedDomains": "只有运营方列出的域名才能指向此安装。",
+    "marketingCampaigns": "运营方已为此安装关闭营销活动。",
+    "liftMailHold": "在此安装上，今天的退信和垃圾邮件举报会保留在“勿发邮件”列表中，直到明天。",
+    "customerScreens": "此安装自带的 AI 只构建仪表板。面向客户的界面需要你自己的 AI 密钥。",
+    "reasonOperatorAiOnly": "在此安装上，AI 通过运营方的连接运行，除非你添加自己的 Anthropic、OpenAI 或 Google 密钥。",
+    "reasonOperatorAiScope": "此安装自带的 AI 只构建仪表板。",
+    "reasonNotAllowed": "运营方不允许在此安装上这样做。"
+  },
+  "trial": {
+    "testEnvironment": "这是一个测试环境。请不要输入真实的客户数据。",
+    "daysLeft": "{count, plural, other {还剩 # 天}}",
+    "exportEverything": "导出全部",
+    "upgrade": "升级",
+    "ended": "此试用已结束。",
+    "readOnly": "只读：此试用已结束",
+    "readOnlyChip": "只读",
+    "upgradeLine": "保留此安装：一切保持原样。"
   }
 }

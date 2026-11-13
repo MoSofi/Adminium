@@ -991,6 +991,7 @@ export default {
     "limitMonth": "你的席位的 Figma 限額暫時已用完。你可以在下個月再次讀取。",
     "limitWait": "Figma 要求我們稍候。請在 {minutes, plural, other {# 分鐘}}後重試。",
     "off": "此伺服器已關閉 Figma：網路功能已關閉。",
+    "offByOperator": "此安裝已關閉 Figma：營運方已將其關閉。",
     "saved": "此版本的框架已經匯入過。沒有使用 Figma 讀取次數。",
     "disconnected": "已中斷與 Figma 的連線。權杖已從此伺服器移除。",
     "disconnectTitle": "中斷 Figma 連線？",
@@ -1416,5 +1417,24 @@ export default {
     "changesPlaceholder": "寫下你希望有哪些不同。",
     "buildThis": "就這樣建置",
     "sendChanges": "送出我的修改"
+  },
+  "ownCode": {
+    "step": "此伺服器的營運方已關閉此功能",
+    "codeOff": "此伺服器的營運方已關閉手動編輯。請讓 Designer 進行修改。",
+    "codeReadOnly": "{file}，唯讀：此伺服器的營運方已關閉手動編輯",
+    "startOff": "此伺服器的營運方已關閉此功能：副本會執行應用程式自己的建置。",
+    "stylesOff": "此伺服器的營運方已關閉自訂樣式。",
+    "siteOff": "此伺服器的營運方已關閉網站範本。"
+  },
+  "operatorAi": {
+    "label": "需要 AI 金鑰",
+    "scope": "建構面向客戶的畫面需要您自己的 AI 金鑰。",
+    "usedUp": "此試用版包含的 AI 額度已用完。",
+    "usedUpHere": "此安裝包含的 AI 額度已用完。",
+    "keyOrUpgrade": "新增您自己的 AI 金鑰以繼續，或升級。",
+    "key": "新增您自己的 AI 金鑰以繼續。",
+    "addKey": "新增 AI 金鑰",
+    "upgrade": "升級",
+    "step": "需要您自己的 AI 金鑰"
   }
 } as const;

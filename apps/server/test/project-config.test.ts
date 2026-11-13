@@ -215,6 +215,60 @@ describe('what a folder never decides', () => {
     expect(env.HOST).toBe('0.0.0.0');
     expect(env.ADMINIUM_TRUST_PROXY).toBe('true');
   });
+
+  it('a .env or the config cannot switch trial mode or the hosted profile on, nor set a trial’s variables', async () => {
+    writeFileSync(join(root, '.env'), 'ADMINIUM_TRIAL_MODE=on\nADMINIUM_HOSTED_MODE=on\nADMINIUM_TRIAL_ENDS_AT=2099-01-01T00:00:00Z\nHOST=0.0.0.0\n');
+    const env: Record<string, string | undefined> = { PATH: process.env.PATH };
+    const prepared = await prepareProject({ cwd: root, env, version: '0.0.0' });
+    for (const name of ['ADMINIUM_TRIAL_MODE', 'ADMINIUM_HOSTED_MODE', 'ADMINIUM_TRIAL_ENDS_AT']) {
+      expect(env[name], name).toBeUndefined();
+      expect(prepared?.env[name], name).toBeUndefined();
+    }
+    expect(prepared?.refused).toEqual(['ADMINIUM_HOSTED_MODE', 'ADMINIUM_TRIAL_ENDS_AT', 'ADMINIUM_TRIAL_MODE']);
+    expect(env.HOST).toBe('0.0.0.0');
+  });
+});
+
+describe('a trial or hosted server and the project folder', () => {
+  let root: string;
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'adminium-trial-dotenv-'));
+    writeFileSync(join(root, 'package.json'), '{"name":"p","private":true,"type":"module"}\n');
+    // A config that names where the server listens: the operator's to decide there.
+    writeFileSync(join(root, 'adminium.config.mjs'), "export default { server: { port: 4999 }, dataDir: 'files' };\n");
+    writeFileSync(
+      join(root, '.env'),
+      'ADMINIUM_TRIAL_ENDS_AT=2099-01-01T00:00:00Z\nADMINIUM_NETWORK_POLICY=open\nADMINIUM_RATE_LIMIT_SCALE=1000\nNODE_OPTIONS=--require ./x.js\nSHOP_TOKEN=from-the-file\n',
+    );
+  });
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  for (const profile of ['ADMINIUM_TRIAL_MODE', 'ADMINIUM_HOSTED_MODE']) {
+    it(`${profile}: the .env is not read at all, and the config sets no operator variable`, async () => {
+      const env: Record<string, string | undefined> = { PATH: process.env.PATH, [profile]: 'on', ADMINIUM_TRIAL_ENDS_AT: '2026-12-01T00:00:00Z' };
+      const prepared = await prepareProject({ cwd: root, env, version: '0.0.0' });
+      expect(prepared?.fromDotEnv).toEqual([]);
+      for (const name of ['ADMINIUM_NETWORK_POLICY', 'ADMINIUM_RATE_LIMIT_SCALE', 'NODE_OPTIONS', 'SHOP_TOKEN']) {
+        expect(env[name], name).toBeUndefined();
+        expect(prepared?.env[name], name).toBeUndefined();
+      }
+      // The file's value of an operator variable is not even seen; the operator's stands.
+      expect(prepared?.env.ADMINIUM_TRIAL_ENDS_AT).toBe('2026-12-01T00:00:00Z');
+      // The config's own fields still count, but not what the host decides; that is refused, and said so.
+      expect(prepared?.env.ADMINIUM_DATA_DIR).toBe(join(root, 'files'));
+      expect(prepared?.env.PORT).toBeUndefined();
+      expect(prepared?.refused).toEqual(['PORT']);
+    });
+  }
+
+  it('an ordinary server still reads it', async () => {
+    const env: Record<string, string | undefined> = { PATH: process.env.PATH };
+    const prepared = await prepareProject({ cwd: root, env, version: '0.0.0' });
+    expect(env.SHOP_TOKEN).toBe('from-the-file');
+    expect(prepared?.fromDotEnv).toContain('SHOP_TOKEN');
+  });
 });
 
 describe("the operator's secrets and the project's own code", () => {

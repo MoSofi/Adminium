@@ -106,6 +106,8 @@ import { up as up0082 } from './0082_workspace_install_document.js';
 import { up as up0083 } from './0083_app_after_install_hidden.js';
 import { up as up0086 } from './0086_app_save_names.js';
 import { up as up0087 } from './0087_app_save_carried.js';
+import { up as up0088 } from './0088_operator_holds.js';
+import { up as up0089 } from './0089_operator_tallies.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -199,4 +201,6 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0083_app_after_install_hidden', up: up0083 },
   { name: '0086_app_save_names', up: up0086 },
   { name: '0087_app_save_carried', up: up0087 },
+  { name: '0088_operator_holds', up: up0088 },
+  { name: '0089_operator_tallies', up: up0089 },
 ];

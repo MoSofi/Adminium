@@ -41,6 +41,7 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import { api } from './api.js';
+import { loadRefusalWords } from './refusals.js';
 
 export type Runtime = 'self-host' | 'desktop';
 
@@ -49,9 +50,10 @@ export interface SystemInfo {
   /**
    * Whether this server runs Adminium Designer (`local` under `adminium
    * design`), and whether it signs its owner in with the one-use link that
-   * command opens. Absent from a server older than the Designer.
+   * command opens. Absent from a server older than the Designer. `startPrompt`: the operator's start prompt waits
+   * to run (the first-run wizard starts it).
    */
-  designer?: { mode: 'local' | 'live' | 'off'; link: boolean };
+  designer?: { mode: 'local' | 'live' | 'off'; link: boolean; startPrompt?: boolean };
   node: string;
   dialect: 'postgres' | 'mysql' | 'sqlite' | null;
   /** Which wrapper booted the server (detection contract). */
@@ -95,6 +97,48 @@ export interface SystemInfo {
    * Absent from a server older than the link, which shows none.
    */
   deployLink?: boolean;
+  /**
+   * The operators this instance takes a connection from ("Connect Supabase"):
+   * one entry per provider whose connect address the operator set. Empty or
+   * absent (a server older than the hand-off): the connect wizards show only
+   * today's form.
+   */
+  connect?: { provider: 'supabase' }[];
+  /**
+   * Trial mode: the banners' words and the Upgrade button.
+   * Absent from a server older than trial mode, which is never one. Read the
+   * state with `trialState` (`trial/TrialStrips.tsx`, loaded on a trial only): the end is a state of `endsAt`, never a
+   * `daysLeft` of 0 (`daysLeft` is null once it has ended).
+   */
+  trial?: TrialInfo;
+  /**
+   * What the operator switched off for this installation (trial mode, the
+   * hosted profile), each `{ allowed, reason }` under its policy question's
+   * name, the same name a 403 `OFF_BY_OPERATOR` carries in `details.question`:
+   * shown disabled with the reason, never hidden. Own code (uploads of add-ons
+   * and apps, uploads and hand edits in the Designer, builds of an app's own)
+   * is read with `ownCodeOff` (`app/ownCode.tsx`).
+   */
+  offByOperator: Record<OperatorSwitchName, OperatorSwitch>;
+}
+
+/** The switches `/system/info` answers, by their policy question. */
+export type OperatorSwitchName = 'sqliteSources' | 'storageDestinations' | 'webhooks' | 'metaStoreRoutes' | 'packageUploads' | 'designerUploads' | 'ownBuilds';
+
+/** One switch the operator may have turned off; `reason` is a code (`trial-mode`, `hosted-mode`). */
+export interface OperatorSwitch {
+  allowed: boolean;
+  reason: string | null;
+}
+
+export interface TrialInfo {
+  on: boolean;
+  /** ISO 8601, UTC; null outside trial mode. */
+  endsAt: string | null;
+  /** Whole days left, a part day counting as one; null outside trial mode and once ended. */
+  daysLeft: number | null;
+  /** The operator's Upgrade page, `?instance=` added; null: no button. Opened in the same tab. */
+  upgradeUrl: string | null;
 }
 
 /**
@@ -118,7 +162,12 @@ export function systemInfoQuery() {
   return queryOptions({
     queryKey: ['system', 'info'] as const,
     staleTime: SYSTEM_INFO_STALE_MS,
-    queryFn: () => api.get<SystemInfo>('/api/v1/system/info'),
+    queryFn: () =>
+      api.get<SystemInfo>('/api/v1/system/info').then((info) => {
+        // Switches turned off (a trial, the hosted profile): their refusals' words are in before the first one.
+        if (Object.values(info.offByOperator ?? {}).some((one) => !one.allowed)) void loadRefusalWords().catch(() => undefined);
+        return info;
+      }),
   });
 }
 

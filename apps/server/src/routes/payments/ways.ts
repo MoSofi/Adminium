@@ -38,6 +38,7 @@ import { addOnHttpClientFor } from '../../add-ons/egress.js';
 import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import type { TrialPolicy } from '../../trial/policy.js';
 import { raiseMoneyRedirect } from '../../payments/alarms.js';
 import { paymentProviderFor } from '../../payments/providers.js';
 import { paymentAddOnKeys, readyPaymentProviders } from '../../payments/ready.js';
@@ -48,6 +49,7 @@ import { businessName } from '../../privacy/business.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { sniffLogo } from '../branding/index.js';
 import { LOGO_BODY_LIMIT } from '../branding/schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PaymentWaysDeps {
   meta: MetaDb;
@@ -55,6 +57,8 @@ export interface PaymentWaysDeps {
   storage: FileStore;
   manifests: ManifestsRepo;
   runtime: () => AddOnRuntimeState | null;
+  /** Trial mode and the hosted profile (`trial/policy.ts`): the add-on calls a payment service makes. Default: an ordinary server's. */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
 }
 
 /** The settings document's name for the pay page. */
@@ -173,6 +177,8 @@ export function paymentWaysRoutes(deps: PaymentWaysDeps): FastifyPluginAsyncZod 
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.get('/payments/ways', { schema: { response: { 200: waysReply } } }, async (request) => {
       if (!(await canRead(request))) throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');
       return { data: { ways: (await ways.list()).map(toView), manualMethods: [...MANUAL_METHODS] } };
@@ -265,7 +271,7 @@ export function paymentWaysRoutes(deps: PaymentWaysDeps): FastifyPluginAsyncZod 
         const { source } = request.params;
         if (!(await paymentKeys()).has(source)) throw new NotFoundError(`"${source}" is not an installed payment service.`);
         const mode = await modeOf(source);
-        const lookup = await paymentProviderFor({ runtime: deps.runtime, manifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest), demo: null }, source, mode);
+        const lookup = await paymentProviderFor({ runtime: deps.runtime, manifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy: deps.policy }), demo: null }, source, mode);
         if (!lookup.ok) throw new ValidationFailedError(lookup.message, { reason: lookup.code });
         const answer = await lookup.provider.methodsFor({ country: null, currency: 'EUR', amount: '1.00' });
         if (answer.ok !== true) throw new ValidationFailedError(answer.providerMessage, { reason: answer.code });

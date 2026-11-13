@@ -66,6 +66,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
     'desktop/setup/steps/GenerateStep.tsx',
     'desktop/setup/steps/SourceStep.tsx',
   ],
+  // "Connect Supabase" (`onboarding.connectProvider`): the card waits for its words itself, in each of the three connect front doors.
+  'connect/ProviderConnect.tsx': [],
   'pages/builders/PageBuilderBinding.tsx': [],
   // Three page templates' words (`templates`): each binding is fetched with its page.
   'pages/PageDirectoryBinding.tsx': [],
@@ -74,6 +76,24 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   // A people table's e-mail consent on the record page: the panel, its words and the dashboard's dialogs for it.
   'consent/RecordConsentPanel.tsx': ['consent/ConsentPanel.tsx', 'consent/consentDialogs.tsx', 'consent/consentWords.ts'],
   // "Shown in" (`shownIn`): each piece waits for its words wherever a lazy screen draws it (email, reports, rules, a workspace's delete).
+  // "Set by the operator" (`operatorLock`, plan 75): the chip and the first-run consent each wait for their words.
+  'settings/SetByOperator.tsx': [],
+  'setup/TelemetryConsent.tsx': [],
+  // "The operator switched this off" (`operatorSwitches`): its hook waits; so do the screens that name a key of it themselves.
+  'settings/OffByOperator.tsx': [],
+  'automations/rules/NewRuleModal.tsx': [],
+  'studio/connect/steps/SourceStep.tsx': [],
+  'studio/payments/PaymentsPage.tsx': [],
+  // A trial's size cap (`operatorSwitches`, `trial`): the notice and the Read-only chip on a held database's pages wait for their words.
+  'pages/sizeCapNotice.tsx': ['trial/ReadOnlyChip.tsx'],
+  // Five page templates' words (`board`, `calendar`, `scheduler`, `chat`, `planning`): each binding is fetched with its page.
+  'pages/PageBoardBinding.tsx': [],
+  'pages/PageCalendarBinding.tsx': [],
+  'pages/PageChatBinding.tsx': [],
+  'pages/PageSchedulerBinding.tsx': [],
+  'pages/planning/PlanningRecordDrawer.tsx': [],
+  // A trial's strips, its Upgrade and its read-only state (`trial`): fetched on a trial only, each strip waits.
+  'trial/TrialStrips.tsx': [],
   'shown-in/ShownIn.tsx': [],
   'shown-in/ShownInField.tsx': [],
   // Workspaces (`workspaces`): the grouped rail and its menu, the link rule, the lists that follow them, Data connections and the defaults row.

@@ -700,6 +700,29 @@ export default {
         "connectRefused": "資料庫拒絕了連線。",
         "readFailed": "Adminium 無法讀取該資料庫的資料表。"
       }
+    },
+    "connectProvider": {
+      "or": "或",
+      "supabase": {
+        "title": "連接 Supabase",
+        "body": "登入 Supabase 並選擇一個專案。",
+        "action": "連接 Supabase",
+        "again": "重新連接 Supabase",
+        "expired": "Supabase 連線已過期。",
+        "failed": "無法連接 Supabase。",
+        "connecting": "正在連接你的 Supabase 專案…",
+        "picked": "已選擇。帳戶建立後，你將登入 Supabase。"
+      },
+      "existing": {
+        "title": "使用現有專案",
+        "change": "變更",
+        "label": "輸入專案 {project} 的資料庫密碼",
+        "labelNoName": "輸入此專案的資料庫密碼",
+        "help": "營運方永遠看不到它：它直接傳送到此安裝。",
+        "connect": "連接",
+        "back": "返回",
+        "failed": "此密碼未能連線。請檢查後再試一次。"
+      }
     }
   },
   "views": {
@@ -2156,5 +2179,54 @@ export default {
       "docsLink": "兩種顯示方式有何不同"
     },
     "switched": "已切換到 {name}"
+  },
+  "operatorLock": {
+    "chip": "由營運方設定",
+    "lockedOff": "營運方已為此安裝關閉此項。"
+  },
+  "operatorSwitches": {
+    "sqlite": "此安裝不開啟 SQLite 檔案：營運方只允許資料庫伺服器。",
+    "unlistedHost": "此安裝只連線至營運方允許的資料庫主機。",
+    "otherLogin": "在此資料庫主機上，只有營運方分配給此安裝的登入名稱和資料庫可用。",
+    "metaFixed": "營運方決定此安裝在哪裡保存自身資料。",
+    "storage": "營運方將此安裝的檔案保存在自己的磁碟上，因此無法新增或測試其他儲存位置。",
+    "webhooks": "營運方已為此安裝關閉 Webhook 步驟。",
+    "aiProvider": "營運方在此安裝上只允許使用你自己的 Anthropic、OpenAI 或 Google 金鑰。",
+    "aiAddress": "營運方不允許在此安裝上使用你自己的 AI 位址。",
+    "payments": "營運方已為此安裝關閉付款服務。",
+    "askOperator": "只有營運此安裝的人才能變更此項。",
+    "dataOverCap": "此資料庫已超過試用版的大小上限，因此為唯讀。請刪除一些列以繼續。",
+    "storageOverCap": "此安裝的檔案已超過試用版的上限，無法再儲存任何內容。請刪除一些檔案以繼續。",
+    "extraSources": "試用版最多連接 3 個資料庫。請移除一個後再連接其他資料庫。",
+    "sizeCapNotice": "此資料庫已超過試用版 {limit} MB 的上限，因此為唯讀。請刪除一些列以繼續。",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "上限 {limit} MB",
+    "sizeCapReadOnly": "唯讀：資料庫已超過試用版的上限",
+    "packageUploads": "營運方在此安裝中只從目錄安裝附加元件和應用程式，因此上傳已關閉。",
+    "designerUploads": "營運方已為此安裝關閉向 Designer 上傳。",
+    "designerCode": "營運方已為此安裝關閉自訂程式碼：Designer 只能依據設定建置。",
+    "ownBuilds": "營運方已為此安裝關閉自訂建置。",
+    "designerNetwork": "營運方已為此安裝關閉圖片搜尋和 Figma。",
+    "userMail": "此試用已結束，因此此安裝不再傳送電子郵件。",
+    "testBudget": "此安裝在過去一分鐘內測試了 {limit} 個資料庫連線。請等待 {seconds, plural, other {# 秒}}後再試。",
+    "payPages": "營運方已為此安裝關閉付款頁面。",
+    "paymentWebhooks": "營運方不允許付款服務呼叫此安裝。",
+    "mappedDomains": "只有營運方列出的網域才能指向此安裝。",
+    "marketingCampaigns": "營運方已為此安裝關閉行銷活動。",
+    "liftMailHold": "在此安裝上，今天的退信和垃圾郵件檢舉會保留在「勿寄郵件」清單中，直到明天。",
+    "customerScreens": "此安裝隨附的 AI 只建立儀表板。面向客戶的畫面需要你自己的 AI 金鑰。",
+    "reasonOperatorAiOnly": "在此安裝上，AI 透過營運方的連線執行，除非你加入自己的 Anthropic、OpenAI 或 Google 金鑰。",
+    "reasonOperatorAiScope": "此安裝隨附的 AI 只建立儀表板。",
+    "reasonNotAllowed": "營運方不允許在此安裝上這麼做。"
+  },
+  "trial": {
+    "testEnvironment": "這是一個測試環境。請不要輸入真實的客戶資料。",
+    "daysLeft": "{count, plural, other {還剩 # 天}}",
+    "exportEverything": "匯出全部",
+    "upgrade": "升級",
+    "ended": "此試用已結束。",
+    "readOnly": "唯讀：此試用已結束",
+    "readOnlyChip": "唯讀",
+    "upgradeLine": "保留此安裝：一切維持原樣。"
   }
 } as const;

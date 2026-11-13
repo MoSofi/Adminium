@@ -36,7 +36,7 @@ import { t } from '../i18n/t.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { StudioGuard } from './StudioGuard.js';
 import { studioMessagesReady } from './studioMessages.js';
-import { takeBridgeTicket } from './connect/bridgeSeed.js';
+import { takeBridgeTicket } from './connect/bridgeTicket.js';
 
 // --- the four Studio surfaces, LAZY -------------------------------------------
 //

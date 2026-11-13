@@ -148,9 +148,11 @@ import {
 import { audited, auditExempt } from '../../audit/coverage.js';
 import { attachAppDocuments, suggestedDocuments } from '../../documents/app-documents.js';
 import { ForbiddenError, AddOnUntrustedError, AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { policyOf } from '../../trial/refuse.js';
 import { settingValueIssues } from '../../apps/settings-values.js';
 import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { refuseOwnCode, refuseOwnCodeHook } from '../../trial/own-code.js';
 import { getPrincipal } from '../../rbac/principal.js';
 import { APP_VERSION } from '../../version.js';
 import { isRetiredAddOn } from '../../add-ons/retired.js';
@@ -871,6 +873,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     userId: string | null,
     userLabel: string,
   ): Promise<{ staged: StagedPackage; name: string }> {
+    // The catalogue and the image's bundle only, while the operator keeps uploads off (`trial/own-code.ts`).
+    refuseOwnCode('packageUploads');
     // An object, not a `let`: TypeScript cannot see an assignment made inside
     // the callback, and would read a `let` as never assigned below it.
     const read: { manifest?: AddOnManifest } = {};
@@ -1435,7 +1439,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
          * that. It is the cheap half, in the only phase where cheap is
          * available.
          */
-        onRequest: app.requireAuth,
+        // Then the operator's word, still before the body: an upload refused is not buffered first.
+        onRequest: [app.requireAuth, refuseOwnCodeHook('packageUploads')],
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         config: { audit: audited('rbac') },
         bodyLimit: UPLOAD_BODY_LIMIT,
@@ -2141,7 +2146,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const result = await exchangeAuthorizationCode({
           // The SAME guarded client an add-on's own calls use, so the token
           // endpoint is held to one allow-list enforced in one place.
-          http: addOnHttpClientFor(deps.meta, manifest),
+          http: addOnHttpClientFor(deps.meta, manifest, { policy: policyOf(app) }),
           connect: connectOf(manifest),
           allow: manifest.addOn.network?.allow ?? [],
           addOnKey: key,

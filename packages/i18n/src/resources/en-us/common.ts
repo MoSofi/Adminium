@@ -646,55 +646,6 @@ export default {
       "details": "Sharing details"
     }
   },
-  "board": {
-    "addCard": "Add card",
-    "compose": {
-      "placeholder": "Card title…",
-      "add": "Add",
-      "cancel": "Cancel"
-    },
-    "empty": {
-      "title": "No board columns",
-      "body": "Add a status field to group cards into columns.",
-      "noRowsTitle": "No cards yet",
-      "noRowsBody": "Cards appear here as soon as the table has rows."
-    }
-  },
-  "calendar": {
-    "dateRange": "Date range",
-    "compose": {
-      "placeholder": "Event title…",
-      "add": "Add",
-      "cancel": "Cancel",
-      "open": "Add event",
-      "choose": "What this event is for",
-      "choosePlaceholder": "Choose…"
-    },
-    "agenda": {
-      "empty": "Nothing scheduled"
-    }
-  },
-  "scheduler": {
-    "prevWeek": "Previous week",
-    "nextWeek": "Next week",
-    "week": "Week",
-    "month": "Month",
-    "resource": "Resource",
-    "coverage": "Coverage",
-    "addShift": "Add shift",
-    "shiftCount": "{n} shifts"
-  },
-  "planning": {
-    "drawer": {
-      "close": "Close",
-      "loading": "Loading record",
-      "error": "Could not load this record."
-    }
-  },
-  "chat": {
-    "messageSent": "Message sent",
-    "sendFailed": "The message could not be sent."
-  },
   "notifications": {
     "channel": {
       "inApp": "In-app",

@@ -65,6 +65,20 @@
     },
     "/api/v1/readyz": {
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "deep",
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -95,6 +109,13 @@
                           "enum": [
                             "ok",
                             "seeding"
+                          ]
+                        },
+                        "addOns": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "loading"
                           ]
                         }
                       },
@@ -145,6 +166,13 @@
                             "ok",
                             "seeding"
                           ]
+                        },
+                        "addOns": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "loading"
+                          ]
                         }
                       },
                       "required": [
@@ -193,11 +221,15 @@
                         },
                         "link": {
                           "type": "boolean"
+                        },
+                        "startPrompt": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "mode",
-                        "link"
+                        "link",
+                        "startPrompt"
                       ],
                       "additionalProperties": false
                     },
@@ -240,6 +272,302 @@
                     },
                     "desktopDemo": {
                       "type": "boolean"
+                    },
+                    "connect": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "provider": {
+                            "type": "string",
+                            "enum": [
+                              "supabase"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "provider"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "trial": {
+                      "type": "object",
+                      "properties": {
+                        "on": {
+                          "type": "boolean"
+                        },
+                        "endsAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "daysLeft": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "upgradeUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "on",
+                        "endsAt",
+                        "daysLeft",
+                        "upgradeUrl"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "offByOperator": {
+                      "type": "object",
+                      "properties": {
+                        "sqliteSources": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "storageDestinations": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "webhooks": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "metaStoreRoutes": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "packageUploads": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "designerUploads": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "ownBuilds": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "sqliteSources",
+                        "storageDestinations",
+                        "webhooks",
+                        "metaStoreRoutes",
+                        "packageUploads",
+                        "designerUploads",
+                        "ownBuilds"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -252,7 +580,106 @@
                     "networkFeaturesAllowed",
                     "lanShare",
                     "deployLink",
-                    "desktopDemo"
+                    "desktopDemo",
+                    "connect",
+                    "trial",
+                    "offByOperator"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/size-caps": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "connectionId": {
+                            "type": "string"
+                          },
+                          "usedBytes": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "limitBytes": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "measuredAt": {
+                            "type": "string"
+                          },
+                          "held": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "connectionId",
+                          "usedBytes",
+                          "limitBytes",
+                          "measuredAt",
+                          "held"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "storage": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "usedBytes": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "limitBytes": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "measuredAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "over": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "usedBytes",
+                            "limitBytes",
+                            "measuredAt",
+                            "over"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "storage"
                   ],
                   "additionalProperties": false
                 }
@@ -3791,6 +4218,21 @@
                             "client"
                           ],
                           "additionalProperties": false
+                        },
+                        "publicPagesHidden": {
+                          "type": "object",
+                          "properties": {
+                            "reason": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -6548,6 +6990,291 @@
                     "jobId"
                   ],
                   "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connect/start": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "supabase"
+                    ]
+                  }
+                },
+                "required": [
+                  "provider"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "redirectUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "redirectUrl"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connect/return": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "supabase"
+                    ]
+                  },
+                  "state": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "provider",
+                  "state",
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "connected"
+                          ]
+                        },
+                        "connection": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "engine": {
+                              "type": "string",
+                              "enum": [
+                                "postgres"
+                              ]
+                            },
+                            "readOnly": {
+                              "type": "boolean"
+                            },
+                            "introspected": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "engine",
+                            "readOnly",
+                            "introspected"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "connection"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "needs-password"
+                          ]
+                        },
+                        "pendingId": {
+                          "type": "string"
+                        },
+                        "project": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "pendingId",
+                        "project"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connect/complete": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pendingId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  }
+                },
+                "required": [
+                  "pendingId",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "connected"
+                          ]
+                        },
+                        "connection": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "engine": {
+                              "type": "string",
+                              "enum": [
+                                "postgres"
+                              ]
+                            },
+                            "readOnly": {
+                              "type": "boolean"
+                            },
+                            "introspected": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "engine",
+                            "readOnly",
+                            "introspected"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "connection"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "needs-password"
+                          ]
+                        },
+                        "pendingId": {
+                          "type": "string"
+                        },
+                        "project": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "pendingId",
+                        "project"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
                 }
               }
             }
@@ -107298,11 +108025,86 @@
                         },
                         "updateCheck": {
                           "type": "boolean"
+                        },
+                        "locks": {
+                          "type": "object",
+                          "properties": {
+                            "telemetry": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "size-cap",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "updateCheck": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "size-cap",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "telemetry",
+                            "updateCheck"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
                         "telemetry",
-                        "updateCheck"
+                        "updateCheck",
+                        "locks"
                       ],
                       "additionalProperties": false
                     }
@@ -107356,11 +108158,86 @@
                         },
                         "updateCheck": {
                           "type": "boolean"
+                        },
+                        "locks": {
+                          "type": "object",
+                          "properties": {
+                            "telemetry": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "size-cap",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "updateCheck": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "size-cap",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "telemetry",
+                            "updateCheck"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
                         "telemetry",
-                        "updateCheck"
+                        "updateCheck",
+                        "locks"
                       ],
                       "additionalProperties": false
                     }
@@ -107613,6 +108490,191 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "locks": {
+                          "type": "object",
+                          "properties": {
+                            "publicOrigin": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "size-cap",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "smtp": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "size-cap",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "publicOrigin",
+                            "smtp"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "relay": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "from": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "replyTo": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "caps": {
+                                  "type": "object",
+                                  "properties": {
+                                    "perDay": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "perHour": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "recipientsPerDay": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "perDay",
+                                    "perHour",
+                                    "recipientsPerDay"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "today": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "thisHour": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "people": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "waiting": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "limit": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "day",
+                                        "hour",
+                                        "recipients",
+                                        "bounces",
+                                        "system"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "nextAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "from",
+                                "replyTo",
+                                "caps",
+                                "today",
+                                "thisHour",
+                                "people",
+                                "waiting",
+                                "limit",
+                                "nextAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -107624,7 +108686,9 @@
                         "secure",
                         "senders",
                         "maxAttachmentBytes",
-                        "publicOrigin"
+                        "publicOrigin",
+                        "locks",
+                        "relay"
                       ],
                       "additionalProperties": false
                     }
@@ -107817,6 +108881,191 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "locks": {
+                          "type": "object",
+                          "properties": {
+                            "publicOrigin": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "size-cap",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "smtp": {
+                              "type": "object",
+                              "properties": {
+                                "allowed": {
+                                  "type": "boolean"
+                                },
+                                "reason": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "trial-mode",
+                                        "hosted-mode",
+                                        "trial-ended",
+                                        "operator-ai-only",
+                                        "operator-ai-scope",
+                                        "size-cap",
+                                        "not-allowed"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "allowed",
+                                "reason"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "publicOrigin",
+                            "smtp"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "relay": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "from": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "replyTo": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "caps": {
+                                  "type": "object",
+                                  "properties": {
+                                    "perDay": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "perHour": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "recipientsPerDay": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "perDay",
+                                    "perHour",
+                                    "recipientsPerDay"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "today": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "thisHour": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "people": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "waiting": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "limit": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "day",
+                                        "hour",
+                                        "recipients",
+                                        "bounces",
+                                        "system"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "nextAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "from",
+                                "replyTo",
+                                "caps",
+                                "today",
+                                "thisHour",
+                                "people",
+                                "waiting",
+                                "limit",
+                                "nextAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -107828,9 +109077,68 @@
                         "secure",
                         "senders",
                         "maxAttachmentBytes",
-                        "publicOrigin"
+                        "publicOrigin",
+                        "locks",
+                        "relay"
                       ],
                       "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/email/waiting": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "queuedAt": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "goesOutAt": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "to",
+                          "subject",
+                          "queuedAt",
+                          "goesOutAt"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -107865,6 +109173,12 @@
                         {
                           "type": "string",
                           "enum": [
+                            "trial-mode",
+                            "hosted-mode",
+                            "trial-ended",
+                            "operator-ai-only",
+                            "operator-ai-scope",
+                            "size-cap",
                             "not-allowed"
                           ]
                         },
@@ -107963,6 +109277,12 @@
                         {
                           "type": "string",
                           "enum": [
+                            "trial-mode",
+                            "hosted-mode",
+                            "trial-ended",
+                            "operator-ai-only",
+                            "operator-ai-scope",
+                            "size-cap",
                             "not-allowed"
                           ]
                         },
@@ -114017,6 +115337,7 @@
                             "state": {
                               "type": "string",
                               "enum": [
+                                "operator-off",
                                 "network-off",
                                 "desktop",
                                 "not-set",
@@ -123882,6 +125203,7 @@
                         "state": {
                           "type": "string",
                           "enum": [
+                            "operator-off",
                             "network-off",
                             "desktop",
                             "not-set",
@@ -125410,6 +126732,7 @@
                             "state": {
                               "type": "string",
                               "enum": [
+                                "operator-off",
                                 "network-off",
                                 "desktop",
                                 "not-set",
@@ -166166,6 +167489,80 @@
                     "assistantRowData": {
                       "type": "boolean"
                     },
+                    "locks": {
+                      "type": "object",
+                      "properties": {
+                        "baseUrl": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "customProviders": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "baseUrl",
+                        "customProviders"
+                      ],
+                      "additionalProperties": false
+                    },
                     "environment": {
                       "type": "object",
                       "properties": {
@@ -166407,6 +167804,80 @@
                     },
                     "assistantRowData": {
                       "type": "boolean"
+                    },
+                    "locks": {
+                      "type": "object",
+                      "properties": {
+                        "baseUrl": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "customProviders": {
+                          "type": "object",
+                          "properties": {
+                            "allowed": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial-mode",
+                                    "hosted-mode",
+                                    "trial-ended",
+                                    "operator-ai-only",
+                                    "operator-ai-scope",
+                                    "size-cap",
+                                    "not-allowed"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "allowed",
+                            "reason"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "baseUrl",
+                        "customProviders"
+                      ],
+                      "additionalProperties": false
                     },
                     "environment": {
                       "type": "object",

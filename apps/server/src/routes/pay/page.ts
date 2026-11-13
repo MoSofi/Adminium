@@ -40,6 +40,7 @@ import type { FileStore } from '../../files/store.js';
 import { linkForToken, payReachable } from '../../payments/links.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PayPageDeps {
   meta: MetaDb;
@@ -137,6 +138,8 @@ export function payPageRoutes(deps: PayPageDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
+    tagRoutes(app, 'public');
     // Last word on the headers of everything this plugin answers.
     app.addHook('onSend', async (request, reply, payload) => {
       void reply.header('content-security-policy', payContentPolicy(originOf(request), request.url === '/pay/preview' || request.url.startsWith('/pay/preview?')));

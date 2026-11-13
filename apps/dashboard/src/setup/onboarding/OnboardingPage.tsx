@@ -14,19 +14,22 @@
  * wizard with three empty screens would be worse than the two-step one it
  * replaces.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { engineForDsn } from '@adminium/widgets';
 
-import { ApiError } from '../../app/api.js';
+import { api, ApiError } from '../../app/api.js';
+import { systemInfoQuery } from '../../app/capabilities.js';
 import { t } from '../../i18n/t.js';
-import { hasPendingBridgeTicket } from '../../studio/connect/bridgeSeed.js';
+import { hasPendingBridgeTicket } from '../../studio/connect/bridgeTicket.js';
 import { studioApi, waitForRestart } from '../../studio/api.js';
 import {
   INITIAL_WIZARD_STATE,
   saveWizardState,
 } from '../../studio/connect/wizardState.js';
 import { setTelemetry } from '../../about/desktopAbout.js';
+import { offByOperatorText, useOperatorSwitch } from '../../settings/OffByOperator.js';
 import { adoptStore, probeStore } from '../setupApi.js';
 import {
   EMPTY_ACCOUNT,
@@ -43,7 +46,7 @@ import { StorageStep, separateDsnError, type StorageChoice } from './steps/Stora
 import { TeamStep, type InvitedPerson } from './steps/TeamStep.js';
 import { DoneStep } from './steps/DoneStep.js';
 import { connectionNameFromDsn } from './submitHeldAnswers.js';
-import { DEFAULT_HELD_ANSWERS, type HeldAnswers } from './heldAnswers.js';
+import { DEFAULT_HELD_ANSWERS, ONBOARDING_ENGINES, type HeldAnswers } from './heldAnswers.js';
 import { submitHeldAnswers, type LandedConnection } from './submitHeldAnswers.js';
 import type { ConnectedDatabase } from './steps/DoneStep.js';
 import {
@@ -75,6 +78,7 @@ export function OnboardingPage({
   databaseConnected = false,
 }: OnboardingPageProps): ReactNode {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const steps = onboardingStepIds(databaseConnected);
   const [step, setStep] = useState<OnboardingStepId>(steps[0] ?? 'start');
   const [held, setHeld] = useState<HeldAnswers>(DEFAULT_HELD_ANSWERS);
@@ -108,9 +112,12 @@ export function OnboardingPage({
    * re-ask and every edit invalidates the previous answer.
    */
   const inFlight = useRef<string | null>(null);
+  // Trial mode: the operator fixes the meta store, so there is no store to find and adopt here (the server refuses the probe).
+  const metaFixed = useOperatorSwitch('metaStoreRoutes');
+  const sqlite = useOperatorSwitch('sqliteSources');
   useEffect(() => {
     const dsn = held.dsn.trim();
-    if (step !== 'connect' || dsn === '' || connectDsnError(dsn) !== null) return;
+    if (metaFixed.off || step !== 'connect' || dsn === '' || connectDsnError(dsn) !== null) return;
     if (held.probedDsn === dsn || inFlight.current === dsn) return;
     const timer = window.setTimeout(() => {
       inFlight.current = dsn;
@@ -144,7 +151,7 @@ export function OnboardingPage({
         });
     }, PROBE_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [step, held.dsn, held.probedDsn]);
+  }, [step, held.dsn, held.probedDsn, metaFixed.off]);
 
   /**
    * A DSN worth asking about, whose answer has not arrived. Covers the debounce
@@ -153,6 +160,7 @@ export function OnboardingPage({
    */
   const dsnTrimmed = held.dsn.trim();
   const probing =
+    !metaFixed.off &&
     step === 'connect' &&
     dsnTrimmed !== '' &&
     connectDsnError(dsnTrimmed) === null &&
@@ -306,9 +314,8 @@ export function OnboardingPage({
       })
       .catch((cause: unknown) => {
         setError(
-          cause instanceof Error
-            ? cause.message
-            : t('onboarding:meta.moving.failed', 'Could not move Adminium’s data — retry.'),
+          offByOperatorText(cause) ??
+            (cause instanceof Error ? cause.message : t('onboarding:meta.moving.failed', 'Could not move Adminium’s data — retry.')),
         );
       })
       .finally(() => {
@@ -327,13 +334,30 @@ export function OnboardingPage({
    */
   function finish(): void {
     setBusy(true);
-    const leave = (): void => {
+    const leave = (to: string): void => {
       setBusy(false);
-      router.history.push(handOffPath());
+      router.history.push(to);
     };
     void setTelemetry({ telemetry: consent.telemetry, updateCheck: consent.updateCheck })
-      .then(leave)
-      .catch(leave);
+      .catch(() => undefined)
+      .then(startPrompt)
+      .then(leave);
+  }
+
+  /**
+   * The operator's start prompt (`ADMINIUM_DESIGNER_START_PROMPT_B64`), where the server has one that has not run
+   * (`/system/info` says so): the Designer opens on the dashboard it starts building. Anywhere else nothing is asked,
+   * and where it cannot start (no model) the server says no: the wizard lets go as it always does.
+   */
+  async function startPrompt(): Promise<string> {
+    try {
+      const info = await queryClient.fetchQuery({ ...systemInfoQuery(), staleTime: 0 });
+      if (info.designer?.startPrompt !== true) return handOffPath();
+      const started = await api.post<{ sessionId: string }>('/api/v1/designer/start-prompt', {});
+      return `/design/${encodeURIComponent(started.sessionId)}`;
+    } catch {
+      return handOffPath();
+    }
   }
 
   /**
@@ -347,6 +371,17 @@ export function OnboardingPage({
    */
   function handOffPath(): string {
     if (hasPendingBridgeTicket()) return '/studio/connect';
+    // "Connect Supabase" was picked before the account existed: Studio's wizard starts the sign-in now.
+    if (held.provider === 'supabase' && held.dsn.trim() === '') {
+      saveWizardState({
+        ...INITIAL_WIZARD_STATE,
+        step: 'source',
+        intent: held.start,
+        metaAsked: true,
+        providerStart: 'supabase',
+      });
+      return '/studio/connect';
+    }
     if (connection === null || held.start === 'blank') return '/';
     saveWizardState({
       ...INITIAL_WIZARD_STATE,
@@ -426,7 +461,8 @@ export function OnboardingPage({
     goto(stepAfter(step, steps));
   }
 
-  const dsnError = connectDsnError(held.dsn);
+  // A SQLite string where the operator allows none: the step says why, and Continue waits.
+  const dsnError = connectDsnError(held.dsn) ?? (sqlite.off && engineForDsn(held.dsn, ONBOARDING_ENGINES) === 'sqlite' ? sqlite.reason : null);
 
   return (
     <OnboardingWizard
@@ -472,12 +508,20 @@ export function OnboardingPage({
           onChange={(patch) =>
             // Any edit to the string invalidates what the probe said about the
             // old one — and un-parks, because the choice was about that database.
+            // Typing one also un-picks "Connect Supabase": the string is the answer now.
             setHeld({
               ...held,
               ...patch,
-              ...(patch.dsn === undefined ? {} : { existing: null, probedDsn: null, park: false }),
+              ...(patch.dsn === undefined ? {} : { existing: null, probedDsn: null, park: false, ...(patch.dsn.trim() === '' ? {} : { provider: null }) }),
             })
           }
+          provider={held.provider}
+          onPickProvider={() => {
+            // The pick is the answer: no string, so the account is made without a connection, and the
+            // wizard ends in Studio's connect wizard, which starts the Supabase sign-in (`handOffPath`).
+            setHeld({ ...held, dsn: '', existing: null, probedDsn: null, park: false, provider: 'supabase' });
+            goto(stepAfter('connect', steps));
+          }}
         />
       ) : null}
       {step === 'account' ? (
@@ -557,11 +601,12 @@ function accountErrorCopy(cause: unknown): string {
  */
 function connectionErrorCopy(cause: unknown): string {
   const detail =
-    cause instanceof ApiError
+    offByOperatorText(cause) ??
+    (cause instanceof ApiError
       ? cause.message
       : typeof cause === 'object' && cause !== null && 'message' in cause
         ? String((cause as { message: unknown }).message)
-        : t('onboarding:error.connectionUnknown', 'the database did not answer');
+        : t('onboarding:error.connectionUnknown', 'the database did not answer'));
   return t(
     'onboarding:error.connectionFailed',
     'Your account was created and you are signed in — but that database could not be reached: {detail}',

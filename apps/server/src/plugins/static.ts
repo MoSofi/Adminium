@@ -17,6 +17,7 @@ import fastifyStatic from '@fastify/static';
 import fp from 'fastify-plugin';
 
 import { kitCacheControl } from '../apps/kit.js';
+import { tagRoutesWhile } from '../security/route-audience.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -49,7 +50,9 @@ export const staticPlugin = fp<StaticPluginOptions>(
     if (root !== null) {
       app.log.info({ root }, 'serving dashboard build');
       const served = root;
-      await app.register(fastifyStatic, {
+      // The dashboard's files: Studio and the sign-in pages, for the instance's own people. A customer
+      // domain's requests never reach them as such (`trial/public-pages.ts` asks the host too).
+      await tagRoutesWhile(app, 'staff', () => app.register(fastifyStatic, {
         root,
         // The kit's files carry a hash in their names and are kept for good; its manifest never is (apps/kit.ts).
         setHeaders: (res, filePath) => {
@@ -59,7 +62,7 @@ export const staticPlugin = fp<StaticPluginOptions>(
         // Wildcard route; missing files fall through to the not-found handler,
         // which applies the SPA fallback for non-/api paths.
         wildcard: true,
-      });
+      }));
     } else {
       // No dashboard, but app surfaces still send their files with
       // `reply.sendFile`, always passing their own root. So add the decorator

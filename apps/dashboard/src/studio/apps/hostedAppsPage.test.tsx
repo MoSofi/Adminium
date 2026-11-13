@@ -88,6 +88,10 @@ interface StubOptions {
   connections?: { id: string; name: string }[];
   /** Make PUT /surfaces/domains fail with named issues. */
   domainIssues?: boolean;
+  /** The server's operator has hidden the public pages, with this reason. */
+  hiddenBecause?: string;
+  /** Where the router starts. */
+  at?: string;
 }
 
 function stubFetch(options: StubOptions = {}) {
@@ -103,7 +107,13 @@ function stubFetch(options: StubOptions = {}) {
 
     if (url.startsWith('/api/v1/bootstrap')) {
       return Promise.resolve(
-        jsonResponse(200, { data: makeBootstrap({ nav: { groups: [] }, roles: ['super-admin'] }) }),
+        jsonResponse(200, {
+          data: makeBootstrap({
+            nav: { groups: [] },
+            roles: ['super-admin'],
+            ...(options.hiddenBecause === undefined ? {} : { publicPagesHidden: { reason: options.hiddenBecause } }),
+          }),
+        }),
       );
     }
     if (url === '/api/v1/surfaces' && method === 'GET') {
@@ -182,7 +192,7 @@ async function renderPage(options: StubOptions = {}) {
   const stub = stubFetch(options);
   const queryClient = createQueryClient();
   const router = createAppRouter(queryClient, {
-    history: createMemoryHistory({ initialEntries: ['/studio/apps'] }),
+    history: createMemoryHistory({ initialEntries: [options.at ?? '/studio/apps'] }),
   });
   render(
     <QueryClientProvider client={queryClient}>
@@ -201,6 +211,41 @@ afterAll(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('while the operator has hidden the public pages', () => {
+  const REASON = 'The page review found a sign-in form that looks like another company’s.';
+
+  it('Studio shows one strip in the shell, with the reason, and each customer side says Hidden', async () => {
+    await renderPage({ hiddenBecause: REASON });
+    expect(await screen.findByRole('heading', { name: 'Surfaces' })).toBeTruthy();
+    const strips = await screen.findAllByText('Your public pages are hidden by the operator.');
+    // One copy, in the shell's slot: never a second inside the page.
+    expect(strips).toHaveLength(1);
+    const strip = strips[0]!.closest('[role="status"]')!;
+    expect(strip.textContent).toBe(`Your public pages are hidden by the operator. Reason: ${REASON} Reply to the operator’s email if this is a mistake.`);
+    expect(strip.closest('main')).toBeNull();
+    // The customer row carries the chip, the staff row does not.
+    const chips = screen.getAllByText('Hidden');
+    expect(chips).toHaveLength(1);
+    expect(chips[0]!.closest('li')?.textContent).toContain('Customer');
+    expect(chips[0]!.closest('li')?.textContent).not.toContain('Staff');
+  });
+
+  it('says nothing while the pages are shown', async () => {
+    await renderPage();
+    expect(await screen.findByRole('heading', { name: 'Surfaces' })).toBeTruthy();
+    expect(screen.queryByText('Your public pages are hidden by the operator.')).toBeNull();
+    expect(screen.queryByText('Hidden')).toBeNull();
+  });
+
+  it('draws no strip outside Studio', async () => {
+    await renderPage({ hiddenBecause: REASON, at: '/' });
+    await waitFor(() => expect(document.querySelector('main')).not.toBeNull());
+    // The rail and the page render; the strip is Studio's alone.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByText('Your public pages are hidden by the operator.')).toBeNull();
+  });
 });
 
 describe('HostedAppsPage', () => {

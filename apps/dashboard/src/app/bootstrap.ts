@@ -420,6 +420,8 @@ export interface BootstrapData {
    * through `project/client.ts`.
    */
   project?: BootstrapProject;
+  /** While the server's operator has hidden every public page: their reason. Studio says so (`studio/OperatorHiddenStrip.tsx`). */
+  publicPagesHidden?: { reason: string | null };
 }
 
 /**

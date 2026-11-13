@@ -6,9 +6,10 @@
  * where a move leads or what an action writes — and says a refusal where the
  * reader will see it: on the field it names, or under the record's heading.
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { setDatabaseWriteLock, setWriteLock } from '@adminium/widgets';
 
 import { ApiError } from '../app/api.js';
 import type { StateActionFact } from '../api/pages.js';
@@ -184,6 +185,47 @@ describe('the buttons of a record', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Add a line' }));
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
     expect(calls).toEqual([{ method: 'POST', path: '/api/v1/data/cnx_1/public.shop_order_lines', body: { values: { qty: '3', kind: 'extra', order_id: '12' } } }]);
+  });
+});
+
+describe('the buttons of a record under a write lock', () => {
+  const ENDED = 'Read-only: this trial has ended';
+  afterEach(() => {
+    act(() => {
+      setWriteLock(null);
+      setDatabaseWriteLock('cnx_1', null);
+    });
+  });
+
+  it('keeps each change in reach, locked with the reason, and its links open', async () => {
+    const calls = serve();
+    act(() => setWriteLock(ENDED));
+    mount({ state: 'sent' });
+    const close = screen.getByRole('button', { name: 'Close order' });
+    expect(close.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Send again' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Receive' }).getAttribute('aria-disabled')).toBeNull();
+    const user = userEvent.setup();
+    await user.click(close);
+    await user.click(screen.getByRole('button', { name: 'Send again' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'More' }));
+    const add = await screen.findByRole('menuitem', { name: 'Add a line' });
+    expect(add.getAttribute('aria-disabled')).toBe('true');
+    await user.click(add);
+    expect(calls).toEqual([]);
+    act(() => close.focus());
+    expect((await screen.findAllByText(ENDED)).length).toBeGreaterThan(0);
+  });
+
+  it('locks them while their database is held, and not another database’s', () => {
+    serve();
+    act(() => setDatabaseWriteLock('cnx_1', 'Read-only: the database is over the trial’s limit'));
+    const { unmount } = render(<RecordStateActions actions={ACTIONS} state="sent" connectionId="cnx_1" table="t" recordId="1" onDone={() => undefined} onRefused={() => undefined} />);
+    expect(screen.getByRole('button', { name: 'Close order' }).getAttribute('aria-disabled')).toBe('true');
+    unmount();
+    render(<RecordStateActions actions={ACTIONS} state="sent" connectionId="cnx_2" table="t" recordId="1" onDone={() => undefined} onRefused={() => undefined} />);
+    expect(screen.getByRole('button', { name: 'Close order' }).getAttribute('aria-disabled')).toBeNull();
   });
 });
 

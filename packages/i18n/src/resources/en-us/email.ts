@@ -994,5 +994,9 @@ export default {
     },
     "failed": "This could not be saved. Try again.",
     "docsLink": "How Send as chooses a sender"
+  },
+  "trialRelay": {
+    "footer": "Sent from the installation at {address}, through its operator’s mail service.",
+    "report": "Report this email"
   }
 } as const;

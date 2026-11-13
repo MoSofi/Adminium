@@ -23,8 +23,10 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import type { Env } from '../../config/env.js';
+import { UnauthorizedError } from '../../errors.js';
 import { healthz, readyz, systemInfo } from './handlers.js';
-import { systemHealthzReply, systemInfoReply, systemReadyzReply } from './schema.js';
+import { systemHealthzReply, systemInfoReply, systemReadyzQuery, systemReadyzReply, systemSizeCapsReply } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface SystemRoutesDeps {
   /**
@@ -39,17 +41,21 @@ export interface SystemRoutesDeps {
 }
 
 export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod => async (app) => {
+  // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+  tagRoutes(app, 'staff');
   app.get('/healthz', { schema: { response: { 200: systemHealthzReply } } }, async () => healthz());
 
   app.get(
     '/readyz',
-    { schema: { response: { 200: systemReadyzReply, 503: systemReadyzReply } } },
-    async (_request, reply) => {
+    { schema: { querystring: systemReadyzQuery, response: { 200: systemReadyzReply, 503: systemReadyzReply } } },
+    async (request, reply) => {
       // The meta handle rides on `authContext`, null when the server booted
       // without a meta store — which `readyz` reports as not-ready too.
-      // `packagesSeeding` is the composed server's: a bare one has no seed to wait for.
+      // `packagesSeeding` and `addOnsLoading` are the composed server's: a bare one has nothing to wait for.
       const seeding = app.hasDecorator('packagesSeeding') && (app as unknown as { packagesSeeding: () => boolean }).packagesSeeding();
-      const result = await readyz(app.authContext?.meta ?? null, seeding);
+      const loading =
+        request.query.deep === '1' ? app.hasDecorator('addOnsLoading') && (app as unknown as { addOnsLoading: () => boolean }).addOnsLoading() : null;
+      const result = await readyz(app.authContext?.meta ?? null, seeding, loading);
       void reply.status(result.ok ? 200 : 503);
       return result;
     },
@@ -68,5 +74,23 @@ export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod =
         designer: app.hasDecorator('designerMode') ? (app as unknown as { designerMode: 'local' | 'live' | 'off' }).designerMode : 'off',
         designerLink: app.hasDecorator('designerLink') && (app as unknown as { designerLink: boolean }).designerLink,
       }),
+  );
+
+  // A trial's size caps as last measured, for whoever is signed in: the notice on a held database's pages.
+  app.get(
+    '/system/size-caps',
+    {
+      // Signed in: the sizes are the instance's, not for a visitor.
+      preHandler: async (request) => {
+        if (request.user == null) throw new UnauthorizedError();
+      },
+      schema: { response: { 200: systemSizeCapsReply } },
+    },
+    async () => {
+      const caps = app.sizeCap ?? null;
+      if (caps === null) return { data: [], storage: null };
+      const storage = caps.storage();
+      return { data: caps.readings(), storage: { usedBytes: storage.usedBytes, limitBytes: storage.limitBytes, measuredAt: storage.measuredAt, over: storage.over } };
+    },
   );
 };

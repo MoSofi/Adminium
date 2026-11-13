@@ -10,10 +10,12 @@
  * module except inside the provider request header; nothing here logs it.
  */
 
-import { ProviderNotConfiguredError } from '../../llm/connections.js';
+import { ProviderNotConfiguredError, STRICT_LOCAL_OFF } from '../../llm/connections.js';
+import { resolveAndCheck } from '../../llm/outbound.js';
 import {
   createProviderClient,
   DEFAULT_MAX_OUTPUT_TOKENS,
+  ProviderError,
   type LlmKeyCrypto,
   type ProviderClient,
   type ProviderConfig,
@@ -22,7 +24,17 @@ import {
 import type { SettingsRepo } from '@adminium/meta';
 
 import { guardOutboundUrl, type DsnGuardOptions } from '../../connections/dsn.js';
+import { effectiveValue, refuseLockedChange, settingLock, type SettingLock } from '../../trial/operator-lock.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
+import { providerOffMessage, savedConnectionRefusal } from '../../trial/ai.js';
+import { OffByOperatorError } from '../../trial/refuse.js';
 import type { LlmConfigPutBody, LlmConfigReply } from './schema.js';
+
+/** What the operator locks of Settings → AI: the typed address, and the providers that need one. */
+export function llmLocks(policy: Pick<TrialPolicy, 'allows'>): { baseUrl: SettingLock; customProviders: SettingLock } {
+  const custom = policy.allows('customAiProviders');
+  return { baseUrl: settingLock(policy, 'llm.baseUrl'), customProviders: { allowed: custom.allowed, reason: custom.reason } };
+}
 
 /**
  * Loopback policy for the provider `baseUrl`. Cloud-metadata endpoints are
@@ -77,6 +89,7 @@ function decryptStoredKey(stored: string | null, keyCrypto: LlmKeyCrypto): strin
 export async function readLlmConfig(
   settings: SettingsRepo,
   keyCrypto: LlmKeyCrypto,
+  policy: Pick<TrialPolicy, 'allows'> = ORDINARY_POLICY,
 ): Promise<LlmConfigReply> {
   const [provider, model, baseUrl, storedKey, maxOutputTokens, assistantName, assistantRowData] =
     await Promise.all([
@@ -91,10 +104,13 @@ export async function readLlmConfig(
 
   const plaintext = decryptStoredKey(storedKey, keyCrypto);
   const apiKeySet = plaintext !== null && plaintext.length > 0;
+  const locks = llmLocks(policy);
   return {
     provider,
     model,
-    baseUrl,
+    // As it is in force: a locked address reads as none, whatever was saved before the lock.
+    baseUrl: effectiveValue('llm.baseUrl', locks.baseUrl, baseUrl),
+    locks,
     maxOutputTokens,
     apiKeySet,
     apiKeyLast4: apiKeySet ? plaintext.slice(-KEY_LAST_N) : null,
@@ -106,6 +122,8 @@ export async function readLlmConfig(
 export interface WriteLlmConfigContext {
   updatedBy: string | null;
   at: number;
+  /** Trial mode: a typed address and the providers that need one are refused. Default: an ordinary server's. */
+  policy?: Pick<TrialPolicy, 'allows'> | undefined;
 }
 
 /**
@@ -122,6 +140,14 @@ export async function writeLlmConfig(
   ctx: WriteLlmConfigContext,
 ): Promise<void> {
   const opts = { updatedBy: ctx.updatedBy, at: ctx.at };
+  // The operator's word first, before anything is written.
+  const policy = ctx.policy ?? ORDINARY_POLICY;
+  const off = body.provider === null ? null : providerOffMessage(body.provider);
+  if (off !== null) {
+    const custom = policy.allows('customAiProviders');
+    if (!custom.allowed) throw new OffByOperatorError('customAiProviders', custom.reason ?? 'trial-mode', off);
+  }
+  if (body.baseUrl !== undefined) refuseLockedChange(policy, 'llm.baseUrl', body.baseUrl === '' ? null : body.baseUrl);
   // SSRF: reject a metadata/loopback baseUrl BEFORE the first write, so a
   // refused save leaves the stored config untouched. Guarding inside the
   // `baseUrl` branch below threw after `llm.provider`/`llm.model` had already
@@ -163,6 +189,9 @@ export async function resolveProviderClient(
   settings: SettingsRepo,
   keyCrypto: LlmKeyCrypto,
   createClient: CreateClient = createProviderClient,
+  policy: Pick<TrialPolicy, 'allows'> = ORDINARY_POLICY,
+  /** `ADMINIUM_NETWORK_POLICY=strict`: the saved address reaches nothing on this server's own network, Ollama's neither. */
+  strictNetwork = false,
 ): Promise<ResolvedProviderClient> {
   const [provider, model, baseUrl, storedKey, maxOut] = await Promise.all([
     settings.get('llm.provider'),
@@ -172,6 +201,17 @@ export async function resolveProviderClient(
     settings.get('llm.maxOutputTokens'),
   ]);
   if (provider === null) throw new ProviderNotConfiguredError();
+  // Saved before the lock, or carried in by an import: never dialled where the operator refuses it.
+  const refused = savedConnectionRefusal(policy, provider, baseUrl);
+  if (refused !== null) throw refused;
+
+  if (strictNetwork) {
+    if (baseUrl === null && provider === 'ollama') throw new ProviderError({ provider, code: 'config', message: STRICT_LOCAL_OFF });
+    if (baseUrl !== null) {
+      guardOutboundUrl(baseUrl, { blockLoopback: true, blockPrivate: true });
+      await resolveAndCheck(baseUrl, { blockPrivate: true });
+    }
+  }
 
   const apiKey = decryptStoredKey(storedKey, keyCrypto);
   const config: ProviderConfig = {

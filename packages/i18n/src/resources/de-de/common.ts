@@ -700,6 +700,29 @@ export default {
         "connectRefused": "Die Datenbank hat die Verbindung abgelehnt.",
         "readFailed": "Adminium konnte die Tabellen dieser Datenbank nicht lesen."
       }
+    },
+    "connectProvider": {
+      "or": "oder",
+      "supabase": {
+        "title": "Supabase verbinden",
+        "body": "Bei Supabase anmelden und ein Projekt wählen.",
+        "action": "Supabase verbinden",
+        "again": "Supabase erneut verbinden",
+        "expired": "Die Supabase-Verbindung ist abgelaufen.",
+        "failed": "Supabase konnte nicht verbunden werden.",
+        "connecting": "Ihr Supabase-Projekt wird verbunden…",
+        "picked": "Ausgewählt. Sie melden sich bei Supabase an, sobald Ihr Konto besteht."
+      },
+      "existing": {
+        "title": "Ein vorhandenes Projekt verwenden",
+        "change": "Ändern",
+        "label": "Datenbankpasswort für das Projekt {project} eingeben",
+        "labelNoName": "Datenbankpasswort für dieses Projekt eingeben",
+        "help": "Der Betreiber sieht es nie: Es geht direkt an diese Installation.",
+        "connect": "Verbinden",
+        "back": "Zurück",
+        "failed": "Mit diesem Passwort klappte die Verbindung nicht. Prüfen Sie es und versuchen Sie es erneut."
+      }
     }
   },
   "views": {
@@ -2156,5 +2179,54 @@ export default {
       "docsLink": "So unterscheiden sich die beiden Ansichten"
     },
     "switched": "Zu {name} gewechselt"
+  },
+  "operatorLock": {
+    "chip": "Vom Betreiber festgelegt",
+    "lockedOff": "Der Betreiber hat dies für diese Installation ausgeschaltet."
+  },
+  "operatorSwitches": {
+    "sqlite": "Diese Installation öffnet keine SQLite-Dateien: Der Betreiber erlaubt nur Datenbankserver.",
+    "unlistedHost": "Diese Installation verbindet sich nur mit den Datenbank-Hosts, die ihr Betreiber erlaubt.",
+    "otherLogin": "Auf diesem Datenbank-Host funktionieren nur die Anmeldung und die Datenbank, die der Betreiber dieser Installation gegeben hat.",
+    "metaFixed": "Der Betreiber legt fest, wo diese Installation ihre eigenen Daten speichert.",
+    "storage": "Der Betreiber speichert die Dateien dieser Installation auf seinem eigenen Datenträger, daher kann kein anderes Ziel hinzugefügt oder getestet werden.",
+    "webhooks": "Der Betreiber hat Webhook-Schritte für diese Installation ausgeschaltet.",
+    "aiProvider": "Der Betreiber erlaubt in dieser Installation nur deinen eigenen Schlüssel für Anthropic, OpenAI oder Google.",
+    "aiAddress": "Der Betreiber erlaubt in dieser Installation keine eigene KI-Adresse.",
+    "payments": "Der Betreiber hat Zahlungsdienste für diese Installation ausgeschaltet.",
+    "askOperator": "Nur wer diese Installation betreibt, kann das ändern.",
+    "dataOverCap": "Diese Datenbank liegt über dem Größenlimit des Tests und ist daher schreibgeschützt. Löschen Sie einige Zeilen, um weiterzumachen.",
+    "storageOverCap": "Die Dateien dieser Installation liegen über dem Limit des Tests, daher kann nichts mehr gespeichert werden. Löschen Sie einige Dateien, um weiterzumachen.",
+    "extraSources": "Ein Test verbindet höchstens 3 Datenbanken. Entfernen Sie eine, um eine andere zu verbinden.",
+    "sizeCapNotice": "Diese Datenbank liegt über dem Limit des Tests von {limit} MB und ist daher schreibgeschützt. Löschen Sie einige Zeilen, um weiterzumachen.",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "Limit {limit} MB",
+    "sizeCapReadOnly": "Schreibgeschützt: Die Datenbank liegt über dem Limit des Tests",
+    "packageUploads": "Der Betreiber installiert Add-ons und Apps in dieser Installation nur aus dem Katalog, daher sind Uploads ausgeschaltet.",
+    "designerUploads": "Der Betreiber hat Uploads in den Designer für diese Installation ausgeschaltet.",
+    "designerCode": "Der Betreiber hat eigenen Code für diese Installation ausgeschaltet: Der Designer baut nur aus Einstellungen.",
+    "ownBuilds": "Der Betreiber hat eigene Builds für diese Installation ausgeschaltet.",
+    "designerNetwork": "Der Betreiber hat die Bildersuche und Figma für diese Installation ausgeschaltet.",
+    "userMail": "Dieser Test ist beendet, daher sendet diese Installation keine E-Mails mehr.",
+    "testBudget": "Diese Installation hat in der letzten Minute {limit} Datenbankverbindungen getestet. Warten Sie {seconds, plural, one {# Sekunde} other {# Sekunden}} und versuchen Sie es erneut.",
+    "payPages": "Der Betreiber hat Bezahlseiten für diese Installation ausgeschaltet.",
+    "paymentWebhooks": "Der Betreiber lässt Zahlungsdienste diese Installation nicht aufrufen.",
+    "mappedDomains": "Nur die Domains, die der Betreiber aufgeführt hat, können auf diese Installation zeigen.",
+    "marketingCampaigns": "Der Betreiber hat Marketingkampagnen für diese Installation ausgeschaltet.",
+    "liftMailHold": "In dieser Installation bleiben die heutigen Bounces und Spam-Meldungen bis morgen auf der Nicht-anschreiben-Liste.",
+    "customerScreens": "Die KI, die mit dieser Installation kommt, baut nur Dashboards. Für Kundenseiten brauchst du deinen eigenen KI-Schlüssel.",
+    "reasonOperatorAiOnly": "In dieser Installation läuft KI über die Verbindung des Betreibers, außer du fügst deinen eigenen Schlüssel für Anthropic, OpenAI oder Google hinzu.",
+    "reasonOperatorAiScope": "Die KI, die mit dieser Installation kommt, baut nur Dashboards.",
+    "reasonNotAllowed": "Der Betreiber erlaubt das in dieser Installation nicht."
+  },
+  "trial": {
+    "testEnvironment": "Dies ist eine Testumgebung. Bitte geben Sie keine echten Kundendaten ein.",
+    "daysLeft": "{count, plural, one {Noch # Tag} other {Noch # Tage}}",
+    "exportEverything": "Alles exportieren",
+    "upgrade": "Upgrade",
+    "ended": "Dieser Testzeitraum ist beendet.",
+    "readOnly": "Nur lesen: Dieser Testzeitraum ist beendet",
+    "readOnlyChip": "Nur lesen",
+    "upgradeLine": "Diese Installation behalten: Alles bleibt, wie es ist."
   }
 } as const;

@@ -89,6 +89,7 @@ import {
 } from '../../email/send.js';
 import { isEmailStarterKey, renderStarter, starterCards, starterSampleVars } from '../../email/starters.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { policyOf, refuseUnlessAllowed } from '../../trial/refuse.js';
 import type { FileStore } from '../../files/store.js';
 import { translatorFor } from '../../i18n/server-i18n.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -138,6 +139,7 @@ import {
   type EmailRunView,
   type EmailSendLogRowView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** "Send as" a workspace the reader does not see, as their replies say it. Saved again, it keeps that workspace. */
 export const SEND_AS_UNSEEN = 'unseen';
@@ -526,6 +528,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     // A "Shown in" names only the workspaces this person sees.
     app.addHook('preSerialization', shownInSeenOnly(meta));
     // So does "Send as": a workspace they do not see is said as one, never by its id.
@@ -1260,6 +1264,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       async (request, reply) => {
         const userId = requireUserId(request);
         await requireSettingsManage(request, 'send campaigns');
+        refuseUnlessAllowed(policyOf(app), 'marketingCampaigns', 'Marketing campaigns are switched off on this installation by its operator.');
         const row = await mustFind(request.params.id);
         if (row.kind !== 'campaign') {
           throw new ConflictError('Only a campaign can be sent to an audience.', 'CONFLICT', { kind: row.kind });
@@ -1448,6 +1453,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
       async (request) => {
         requireUserId(request);
         await requireSettingsManage(request, 'resume campaign sends');
+        refuseUnlessAllowed(policyOf(app), 'marketingCampaigns', 'Marketing campaigns are switched off on this installation by its operator.');
         const run = await mustFindRun(request.params.id);
         const at = app.rbac.now();
         if (!(await runs.moveState(run.id, ['paused'], 'running', { statuses: ['scheduled', 'running'] }, at))) {

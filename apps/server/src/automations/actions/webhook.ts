@@ -43,6 +43,7 @@ import { guardOutboundUrl } from '../../connections/dsn.js';
 import { AppError } from '../../errors.js';
 import { checkOutboundUrl, type OutboundPolicy } from '../../net/outbound-check.js';
 import { pinnedFetch } from '../../net/pinned-fetch.js';
+import { policyOf } from '../../trial/refuse.js';
 import { substitute } from '../templating.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
@@ -177,10 +178,15 @@ function pathOf(url: string): string {
   }
 }
 
+/** Why a webhook step is refused under trial mode: this server calls no address its users choose. */
+export const WEBHOOKS_OFF = 'The operator has switched webhook steps off for this installation, so this server calls no address a rule names.';
+
 export async function runWebhookAction(
   action: WebhookAction,
   ctx: ActionContext,
 ): Promise<ActionResult> {
+  // A rule saved before the switch, or carried in by an import: refused when it runs, before anything is sent.
+  if (!policyOf(ctx.app ?? {}).allows('webhooks').allowed) throw new ActionFailure(WEBHOOKS_OFF);
   const plan = planWebhook(action, ctx);
   let pins;
   try {

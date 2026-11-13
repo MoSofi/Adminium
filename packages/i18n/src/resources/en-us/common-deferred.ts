@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces, appFiles, appCopies groups: en-US's deferred part of `common`) — do not edit by hand.
+ * GENERATED MIRROR of ../../../locales/en-US/common.json (its builder, kb, about, team, quietHours, security, reports, changelog, onboarding, audit, capabilities, palette, account, templates, consent, shownIn, workspaces, appFiles, appCopies, operatorLock, operatorSwitches, board, calendar, scheduler, chat, planning, trial groups: en-US's deferred part of `common`) — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle;
  * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
  * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
@@ -961,6 +961,29 @@ export default {
         "connectRefused": "The database refused the connection.",
         "readFailed": "Adminium could not read that database’s tables."
       }
+    },
+    "connectProvider": {
+      "or": "or",
+      "supabase": {
+        "title": "Connect Supabase",
+        "body": "Sign in to Supabase and pick a project.",
+        "action": "Connect Supabase",
+        "again": "Connect Supabase again",
+        "expired": "Supabase connection expired.",
+        "failed": "Supabase could not be connected.",
+        "connecting": "Connecting your Supabase project…",
+        "picked": "Picked. You sign in to Supabase once your account exists."
+      },
+      "existing": {
+        "title": "Use an existing project",
+        "change": "Change",
+        "label": "Enter the database password for project {project}",
+        "labelNoName": "Enter the database password for this project",
+        "help": "The operator never sees it: it goes straight to this installation.",
+        "connect": "Connect",
+        "back": "Back",
+        "failed": "That password did not connect. Check it and try again."
+      }
     }
   },
   "audit": {
@@ -1430,5 +1453,103 @@ export default {
       "body": "It is no longer at this address. Open the copy you meant:",
       "open": "Open it on {database}"
     }
+  },
+  "operatorLock": {
+    "chip": "Set by the operator",
+    "lockedOff": "The operator has switched this off for this installation."
+  },
+  "operatorSwitches": {
+    "sqlite": "This installation does not open SQLite files: the operator allows only database servers.",
+    "unlistedHost": "This installation connects only to the database hosts its operator allows.",
+    "otherLogin": "On this database host, only the login and database the operator gave this installation work.",
+    "metaFixed": "The operator decides where this installation keeps its own data.",
+    "storage": "The operator keeps this installation’s files on its own disk, so no other destination can be added or tested.",
+    "webhooks": "The operator has switched webhook steps off for this installation.",
+    "aiProvider": "The operator allows only your own key to Anthropic, OpenAI or Google on this installation.",
+    "aiAddress": "The operator does not allow an AI address of your own on this installation.",
+    "payments": "The operator has switched payment services off for this installation.",
+    "askOperator": "Only whoever runs this installation can change this.",
+    "dataOverCap": "This database is over the trial’s size limit, so it is read-only. Delete some rows to continue.",
+    "storageOverCap": "This installation’s files are over the trial’s limit, so nothing more can be stored. Delete some files to continue.",
+    "extraSources": "A trial connects at most 3 databases. Remove one to connect another.",
+    "sizeCapNotice": "This database is over the trial’s {limit} MB limit, so it is read-only. Delete some rows to continue.",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "{limit} MB limit",
+    "sizeCapReadOnly": "Read-only: the database is over the trial’s limit",
+    "packageUploads": "The operator installs add-ons and apps only from the catalog on this installation, so uploads are off.",
+    "designerUploads": "The operator has switched uploads to the Designer off for this installation.",
+    "designerCode": "The operator has switched code of your own off for this installation: the Designer builds from settings only.",
+    "ownBuilds": "The operator has switched builds of your own off for this installation.",
+    "designerNetwork": "The operator has switched picture search and Figma off for this installation.",
+    "userMail": "This trial has ended, so this installation sends no more email.",
+    "testBudget": "This installation has tested {limit} database connections in the last minute. Wait {seconds, plural, one {# second} other {# seconds}} and try again.",
+    "payPages": "The operator has switched pay pages off for this installation.",
+    "paymentWebhooks": "The operator does not let payment services call this installation.",
+    "mappedDomains": "Only the domains the operator listed can point to this installation.",
+    "marketingCampaigns": "The operator has switched marketing campaigns off for this installation.",
+    "liftMailHold": "On this installation, today’s bounces and spam reports stay on the do-not-email list until tomorrow.",
+    "customerScreens": "The AI that comes with this installation builds dashboards only. Screens for customers need your own AI key.",
+    "reasonOperatorAiOnly": "On this installation, AI runs on the operator’s connection unless you add your own key to Anthropic, OpenAI or Google.",
+    "reasonOperatorAiScope": "The AI that comes with this installation builds dashboards only.",
+    "reasonNotAllowed": "The operator does not allow this on this installation."
+  },
+  "board": {
+    "addCard": "Add card",
+    "compose": {
+      "placeholder": "Card title…",
+      "add": "Add",
+      "cancel": "Cancel"
+    },
+    "empty": {
+      "title": "No board columns",
+      "body": "Add a status field to group cards into columns.",
+      "noRowsTitle": "No cards yet",
+      "noRowsBody": "Cards appear here as soon as the table has rows."
+    }
+  },
+  "calendar": {
+    "dateRange": "Date range",
+    "compose": {
+      "placeholder": "Event title…",
+      "add": "Add",
+      "cancel": "Cancel",
+      "open": "Add event",
+      "choose": "What this event is for",
+      "choosePlaceholder": "Choose…"
+    },
+    "agenda": {
+      "empty": "Nothing scheduled"
+    }
+  },
+  "scheduler": {
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "week": "Week",
+    "month": "Month",
+    "resource": "Resource",
+    "coverage": "Coverage",
+    "addShift": "Add shift",
+    "shiftCount": "{n} shifts"
+  },
+  "chat": {
+    "messageSent": "Message sent",
+    "sendFailed": "The message could not be sent."
+  },
+  "planning": {
+    "drawer": {
+      "close": "Close",
+      "loading": "Loading record",
+      "error": "Could not load this record."
+    }
+  },
+  "trial": {
+    "testEnvironment": "This is a test environment. Please don’t put real customer data in.",
+    "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+    "exportEverything": "Export everything",
+    "upgrade": "Upgrade",
+    "ended": "This trial has ended.",
+    "readOnly": "Read-only: this trial has ended",
+    "readOnlyChip": "Read-only",
+    "upgradeLine": "Keep this installation: everything stays as it is."
   }
 } as const;

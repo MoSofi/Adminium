@@ -45,6 +45,7 @@ import { MAIL_DOOR_PREFIX } from '../../plugins/surfaces.js';
 import type { UnsubscribeClaim } from '../../email/unsubscribe-token.js';
 import { createMailDoor, type MailDoor, type MailDoorDeps, type UnsubscribeAction } from './door.js';
 import { renderMailDoorPage, UNSUBSCRIBE_REASONS, type MailDoorView, type UnsubscribeReason } from './page.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export { createMailDoor, type MailDoor, type MailDoorDeps } from './door.js';
 
@@ -85,6 +86,8 @@ export function asksOneClick(body: unknown): boolean {
 
 export function mailDoorRoutes(deps: MailDoorDeps): FastifyPluginAsyncZod {
   return async (app) => {
+    // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
+    tagRoutes(app, 'public');
     const door: MailDoor = createMailDoor(deps);
 
     // Form bodies, for this plugin's routes only: the page's own forms, and Gmail's one-click.

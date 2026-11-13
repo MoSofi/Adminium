@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { connectionsRepo, destinationsRepo, filesRepo, pagesRepo, sessionsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { connectionsRepo, destinationsRepo, filesRepo, operatorHoldsRepo, operatorTalliesRepo, pagesRepo, sessionsRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -18,7 +18,10 @@ import { ARCHIVE_MANIFEST, ARCHIVE_SIGNATURE, ArchiveFormatError, type ArchiveMa
 import { archiveSigningKey, signManifest } from '../src/archive/mac.js';
 import { restoreArchive, type RestoreArchiveOptions } from '../src/archive/restore.js';
 import { isInstanceArchive } from '../src/archive/zip-read.js';
+import { PUBLIC_PAGES_HOLD } from '../src/operator/holds.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
+import { START_PROMPT_TALLY } from '../src/designer/start-prompt.js';
+import { AI_TOKENS_TALLY } from '../src/llm/operator-ai.js';
 import {
   AVAILABLE,
   CRYPTO,
@@ -377,6 +380,20 @@ describe('restore refuses', () => {
     await expectRefused(restoreArchive(restoreOptions(src, dest)), /already has people/);
   });
 
+  it('never the operator’s own rows a target holds: its AI spend, its start prompt’s run, its holds are kept as they are', async () => {
+    const src = await source('sqlite');
+    const dest = await target('sqlite', true);
+    const tallies = operatorTalliesRepo(dest.meta);
+    await tallies.add(AI_TOKENS_TALLY, 900_000, 1);
+    await tallies.claim(START_PROMPT_TALLY, 1);
+    await operatorHoldsRepo(dest.meta).set({ name: 'public-pages', held: true, reason: 'restored on hold' }, 1);
+    await restoreArchive(restoreOptions(src, dest));
+    expect((await tallies.get(AI_TOKENS_TALLY))?.amount).toBe(900_000);
+    expect(await tallies.get(START_PROMPT_TALLY)).not.toBeNull();
+    expect(await operatorHoldsRepo(dest.meta).get('public-pages')).toMatchObject({ held: true, reason: 'restored on hold' });
+    expect((await usersRepo(dest.meta).findByEmail('ava@example.com'))?.id).toBe(src.seeded.admin.id);
+  });
+
   it('a full archive through import-zip, and an export through archive restore', async () => {
     const full = await source('sqlite');
     await expectRefused(restoreArchive(restoreOptions(full, await target('sqlite'), { expect: 'export' })), /full archive/);
@@ -485,6 +502,15 @@ describe('--hold, --keep-api-keys, --dry-run', () => {
     expect(await settings.get('designer.live')).toBe(false);
     const apps = (await settings.get('surfaces.apps')) as Record<string, { off?: string[] }>;
     expect(apps.shop?.off).toContain('customer');
+    // Every public page hidden by the operator's own hold, which no Studio setting lifts.
+    expect(await operatorHoldsRepo(dest.meta).get(PUBLIC_PAGES_HOLD)).toMatchObject({ held: true, reason: 'Restored on hold.' });
+  });
+
+  it('without --hold, no operator hold is set', async () => {
+    const src = await source('sqlite');
+    const dest = await target('sqlite');
+    await restoreArchive(restoreOptions(src, dest));
+    expect(await operatorHoldsRepo(dest.meta).get(PUBLIC_PAGES_HOLD)).toBeNull();
   });
 
   it('--keep-api-keys keeps them', async () => {

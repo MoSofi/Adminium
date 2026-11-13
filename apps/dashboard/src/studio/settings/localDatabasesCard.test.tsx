@@ -114,6 +114,15 @@ describe('Allow databases on this server', () => {
     expect(puts).toEqual([]);
   });
 
+  it('locked by trial mode: the same read-only state, with the operator’s hosts', async () => {
+    state = { allowed: false, on: false, reason: 'trial-mode', hosts: ['pg-trials:5432'], turnedOn: null, loopbackAllowed: false };
+    mount();
+    const toggle = await screen.findByRole('switch', { name: NAME });
+    expect(toggle.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByTestId('local-databases-locked').textContent).toBe('Set by the operator');
+    expect(screen.getByText('pg-trials:5432').tagName).toBe('CODE');
+  });
+
   it('locked with no hosts says so', async () => {
     state = { allowed: false, on: true, reason: 'not-allowed', hosts: [], turnedOn: null, loopbackAllowed: false };
     mount();
@@ -157,6 +166,17 @@ describe('Allow databases on this server', () => {
     mount();
     await userEvent.click(await screen.findByRole('switch', { name: NAME }));
     refuse = { status: 409, reason: 'not-allowed' };
+    await userEvent.type(screen.getByLabelText('Your password, to switch it on'), 'pw');
+    await userEvent.click(screen.getByRole('button', { name: 'Switch it on' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('The server’s operator has locked this off.');
+  });
+
+  it('says the operator locked it for any SET_BY_OPERATOR refusal, whatever its reason', async () => {
+    mount();
+    await userEvent.click(await screen.findByRole('switch', { name: NAME }));
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      Promise.resolve(jsonResponse(409, { error: { code: 'SET_BY_OPERATOR', message: 'set', requestId: 'r', details: { setting: 'connections.allowLocalDatabases', reason: 'hosted-mode' } } })),
+    );
     await userEvent.type(screen.getByLabelText('Your password, to switch it on'), 'pw');
     await userEvent.click(screen.getByRole('button', { name: 'Switch it on' }));
     expect((await screen.findByRole('alert')).textContent).toBe('The server’s operator has locked this off.');

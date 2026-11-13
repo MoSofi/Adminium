@@ -122,6 +122,53 @@ optional. Without them the WebSocket fails to establish or is killed after 60
 seconds, and the UI silently stops updating — it does not error, it just goes
 stale. If your instance "does not refresh", this is why.
 
+## Refuse the operator paths
+
+If the instance has an [operator endpoint](/self-hosting/operator-endpoint/),
+it is served on a listener of its own, on your network, and the public listener
+answers `/api/v1/operator/*` with `404`. Refuse the path at the proxy as well,
+so a request for it from the internet never reaches the instance at all:
+
+```text title="Caddyfile"
+admin.example.com {
+	respond /api/v1/operator/* 404
+	reverse_proxy 127.0.0.1:4600
+}
+```
+
+```nginx
+    location /api/v1/operator/ {
+        return 404;
+    }
+```
+
+Put the nginx block inside the `server` above, beside `location /`. Do the same
+for every name the instance answers on: its own domains too.
+
+## Keep the setup token out of your logs
+
+A link that hands somebody the [setup token](/self-hosting/security/#the-setup-token)
+carries it after `#` (`/setup#setup-token=…`), which a browser never sends, so
+it never reaches your proxy. A link built by hand with `?` instead would, and a
+proxy logs every query string it sees. When you hand out such links (a welcome
+mail, a sign-up flow), log the setup paths without their query strings.
+
+Caddy writes no access log unless a `log` directive asks for one. nginx logs
+every request; in the `http` block:
+
+```nginx
+map $request_uri $adminium_log_uri {
+    ~^(/(?:api/v1/)?setup[^?]*)\?  $1;
+    default                         $request_uri;
+}
+
+log_format adminium '$remote_addr - $remote_user [$time_local] '
+                    '"$request_method $adminium_log_uri $server_protocol" '
+                    '$status $body_bytes_sent "$http_user_agent"';
+```
+
+and in the `server` above, `access_log /var/log/nginx/adminium.log adminium;`.
+
 ## Large uploads
 
 A file column may take files up to 100 MB (a print shop's artwork), and staff
@@ -214,6 +261,10 @@ GET /api/v1/healthz
 Check the **body** for `ok: true`, not just the status. Bare `/healthz` has no
 route and is answered by the SPA history fallback with a 200 — a probe pointed
 there passes even when the meta store is unreachable.
+
+A proxy that wakes a sleeping instance should hold the first request until
+`GET /api/v1/readyz?deep=1` answers 200:
+[Healthchecks](/self-hosting/docker-compose/#healthchecks).
 
 ## A subpath is not supported
 

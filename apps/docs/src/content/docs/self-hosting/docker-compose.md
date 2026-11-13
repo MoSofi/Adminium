@@ -165,6 +165,12 @@ should wait for `/api/v1/readyz`, not `/api/v1/healthz`: for a few seconds after
 it starts listening, Adminium is still adding the add-ons it comes with, and
 `readyz` answers 503 with `checks.packages: "seeding"` until they are all there.
 
+Something that wakes a sleeping instance and then sends it the first request
+should wait for `/api/v1/readyz?deep=1`. It waits for everything `readyz`
+does, and also until the installed add-ons are loaded, which happens just after
+the server starts answering: until then it answers 503 with
+`checks.addOns: "loading"`.
+
 The `meta-db` service uses `pg_isready`.
 
 ## No `depends_on`, deliberately

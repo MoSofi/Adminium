@@ -54,7 +54,7 @@ import {
   type TableModel,
 } from '@adminium/engine';
 
-import { AppError } from '../errors.js';
+import { AppError, ValidationFailedError } from '../errors.js';
 
 /** A step this compiler cannot express — a bug, not a user error. */
 export class DdlCompileError extends AppError {
@@ -194,6 +194,120 @@ function bareName(tableId: string): string {
  * reach here from authoring; an `expression` is passed through verbatim,
  * which happens only when it came out of a snapshot unchanged.
  */
+/**
+ * Why a piece of SQL text could leave the one place in a statement it is put
+ * (a default's expression, a check, a type), or null when it cannot.
+ *
+ * Such text is not authored through the schema editor's vocabulary, but it
+ * reaches DDL from a snapshot carried through a change, and from a schema file
+ * or IR an import made. Read token by token, the way all three databases read
+ * it: a quoted run (`'…'`, `"…"`, `` `…` ``, a doubled quote inside it) is
+ * skipped, and outside one there may be no `;`, no comment (`--`, `/*`, `#`),
+ * no parenthesis closed that was not opened or left open, and no comma at the
+ * top level. A backslash anywhere is refused too, as it is an escape on one
+ * database and a letter on another; and a `$` anywhere but inside a
+ * single-quoted string, as it opens a Postgres dollar-quoted string (a run
+ * in double quotes or backquotes is not a string on every engine). So nothing
+ * can end the clause, start a second statement or hide the rest of one.
+ */
+export function sqlTextRefusal(text: string): string | null {
+  if (text.trim() === '') return 'is empty';
+  if (text.length > SQL_TEXT_MAX) return `is longer than ${String(SQL_TEXT_MAX)} characters`;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\\]/.test(text)) return 'holds a backslash or a control character';
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i];
+    const next = text[i + 1];
+    if (c === '$' && quote !== "'") return 'holds a dollar sign outside a quoted string';
+    if (quote !== null) {
+      if (c === quote) {
+        if (next === quote) i += 1;
+        else quote = null;
+      }
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') quote = c;
+    else if (c === ';') return 'holds a ";"';
+    else if (c === '#' || (c === '-' && next === '-') || (c === '/' && next === '*') || (c === '*' && next === '/')) return 'holds a comment';
+    else if (c === '(') depth += 1;
+    else if (c === ')') {
+      depth -= 1;
+      if (depth < 0) return 'closes a parenthesis it did not open';
+    } else if (c === ',' && depth === 0) return 'holds a comma outside parentheses';
+  }
+  if (quote !== null) return 'leaves a quote open';
+  if (depth !== 0) return 'leaves a parenthesis open';
+  return null;
+}
+
+/** The longest default expression, check or type text put into DDL. */
+const SQL_TEXT_MAX = 2000;
+
+/** Throws 422 when {@link sqlTextRefusal} refuses `text`; `what` names it ("expression default"). */
+export function assertSqlText(text: string, what: string): void {
+  const refusal = sqlTextRefusal(text);
+  if (refusal !== null) {
+    throw new ValidationFailedError(`This ${what} cannot be put into a statement: it ${refusal}.`, { reason: 'UNSAFE_SQL_TEXT', what, text: text.slice(0, 200) });
+  }
+}
+
+/** `text` wholly inside one pair of parentheses already. */
+function parenthesized(text: string): boolean {
+  if (!text.startsWith('(') || !text.endsWith(')')) return false;
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i];
+    if (quote !== null) {
+      if (c === quote) {
+        if (text[i + 1] === quote) i += 1;
+        else quote = null;
+      }
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') quote = c;
+    else if (c === '(') depth += 1;
+    else if (c === ')') {
+      depth -= 1;
+      if (depth === 0 && i < text.length - 1) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * An expression default as it goes into `DEFAULT …`: checked by
+ * {@link sqlTextRefusal}, then inside parentheses of its own (all three
+ * databases take `DEFAULT (expr)`; MySQL takes an expression no other way),
+ * so even a word that would start a column constraint stays part of the
+ * expression. Text already inside one pair keeps it, so a SQLite rebuild that
+ * reads its own default back adds no pair each time.
+ */
+function expressionDefault(text: string): string {
+  const trimmed = text.trim();
+  assertSqlText(trimmed, 'expression default');
+  return parenthesized(trimmed) ? trimmed : `(${trimmed})`;
+}
+
+/** Words that would start a column constraint after a type: never part of a type's own text. */
+const CONSTRAINT_WORDS = new Set(['references', 'check', 'default', 'not', 'null', 'primary', 'unique', 'generated', 'collate', 'constraint', 'as', 'on', 'key', 'auto_increment', 'identity']);
+
+/** A type kept verbatim from a snapshot (a display-only one) as it goes into a column definition. */
+function verbatimType(dbType: string): string {
+  const trimmed = dbType.trim();
+  assertSqlText(trimmed, 'column type');
+  // Outside parentheses and quotes a type is words: none of them may start a constraint.
+  const top = trimmed.replace(/'(?:[^']|'')*'|"(?:[^"]|"")*"|`(?:[^`]|``)*`/g, '').replace(/\([^()]*\)/g, '');
+  for (const word of top.toLowerCase().split(/[^a-z_]+/)) {
+    if (CONSTRAINT_WORDS.has(word)) {
+      throw new ValidationFailedError(`This column type cannot be put into a statement: "${word}" starts a constraint, not a type.`, { reason: 'UNSAFE_SQL_TEXT', what: 'column type', text: trimmed.slice(0, 200) });
+    }
+  }
+  return trimmed;
+}
+
 export function renderDefault(
   column: Pick<ColumnModel, 'default' | 'logicalType'>,
   dialect: Dialect,
@@ -221,7 +335,7 @@ export function renderDefault(
           return quoteLiteral(value.text, dialect);
       }
     case 'expression':
-      return value.text;
+      return expressionDefault(value.text);
     case 'now':
       /*
        * SQLite has no zone: its timestamp is a wall clock, and every value
@@ -312,7 +426,7 @@ export function columnTypeOf(
     authorable === 'inet' ||
     authorable === 'unknown'
   ) {
-    return column.dbType;
+    return verbatimType(column.dbType);
   }
   return ddlTypeFor(
     {

@@ -63,6 +63,8 @@ import {
 
 import { bootstrapQuery, holdsSystemAction } from '../../app/bootstrap.js';
 import { MapsSettingsPage } from './MapsSettingsPage.js';
+import { LinkOriginLocked } from './LinkOriginLocked.js';
+import { isLocked } from '../../settings/SetByOperator.js';
 import { DoNotEmailPage } from '../marketing/DoNotEmailPage.js';
 import {
   BRANDING_QUERY_KEY,
@@ -585,7 +587,11 @@ function WorkspaceForm({
   const linkOriginText = values.publicOrigin.trim();
   const linkOrigin = linkOriginText === '' ? null : linkOriginOf(linkOriginText);
   const linkOriginInvalid = linkOriginText !== '' && linkOrigin === null;
-  const linkOriginDirty = (linkOrigin ?? linkOriginText) !== before.publicOrigin;
+  // Set by the server's operator: shown read-only, never sent.
+  const originLocked = isLocked(initialEmail.locks?.publicOrigin);
+  // On a trial the operator's relay sends all mail: its panel stands where the mail server fields are.
+  const trialRelay = initialEmail.relay ?? null;
+  const linkOriginDirty = !originLocked && (linkOrigin ?? linkOriginText) !== before.publicOrigin;
 
   // --- marketing mail: the postal address and the reply address --------------
   const postalText = values.postalAddress.trim();
@@ -1058,7 +1064,13 @@ function WorkspaceForm({
           </h3>
         </CardHeader>
         <CardBody>
-          {initialEmail.configured ? null : (
+          {trialRelay !== null ? (
+            // A trial: the operator's mail service in place of the mail server fields, nothing to change.
+            <Suspense fallback={null}>
+              <TrialEmailPanelLazy relay={trialRelay} />
+            </Suspense>
+          ) : null}
+          {trialRelay !== null || initialEmail.configured ? null : (
             <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-surface-2 p-3">
               <TriangleAlert aria-hidden className="mt-px size-4 shrink-0 text-warn" />
               <p className="text-caption text-fg-muted">
@@ -1072,6 +1084,7 @@ function WorkspaceForm({
 
           {/* Staged removal, like the logo's: nothing is cleared until Save, and
               the review modal names it. */}
+          {trialRelay !== null ? null : (
           <fieldset disabled={values.smtpRemove} className="contents">
             <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
               <FormField
@@ -1193,8 +1206,9 @@ function WorkspaceForm({
               />
             </div>
           </fieldset>
+          )}
 
-          {initialEmail.configured ? (
+          {trialRelay === null && initialEmail.configured ? (
             <div className="mt-4 flex items-center justify-end border-t border-border pt-4">
               {values.smtpRemove ? (
                 <Button variant="ghost" size="sm" onClick={() => set('smtpRemove', false)}>
@@ -1311,29 +1325,33 @@ function WorkspaceForm({
               shapes the message rather than the relay and saves without one.
               The row pattern is the cap's own. */}
           <div id="email-link-origin" className="mt-4 border-t border-border pt-4 sm:max-w-md">
-            <FormField
-              label={t('studio:settingsHub.email.linkOrigin.label', 'Address in email links')}
-              helper={t(
-                'studio:settingsHub.email.linkOrigin.helper',
-                'Password-reset and invitation links open this address. If it is empty, Adminium fills it in from the next admin who signs in or saves a change, unless they are on localhost.',
-              )}
-              {...(linkOriginInvalid
-                ? {
-                    error: t(
-                      'studio:settingsHub.email.linkOrigin.error',
-                      'Enter an address such as https://admin.example.com, with no path.',
-                    ),
-                  }
-                : {})}
-            >
-              <Input
-                inputMode="url"
-                autoComplete="off"
-                spellCheck={false}
-                value={values.publicOrigin}
-                onChange={(event) => set('publicOrigin', event.target.value)}
-              />
-            </FormField>
+            {originLocked ? (
+              <LinkOriginLocked origin={initialEmail.publicOrigin} />
+            ) : (
+              <FormField
+                label={t('studio:settingsHub.email.linkOrigin.label', 'Address in email links')}
+                helper={t(
+                  'studio:settingsHub.email.linkOrigin.helper',
+                  'Password-reset and invitation links open this address. If it is empty, Adminium fills it in from the next admin who signs in or saves a change, unless they are on localhost.',
+                )}
+                {...(linkOriginInvalid
+                  ? {
+                      error: t(
+                        'studio:settingsHub.email.linkOrigin.error',
+                        'Enter an address such as https://admin.example.com, with no path.',
+                      ),
+                    }
+                  : {})}
+              >
+                <Input
+                  inputMode="url"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={values.publicOrigin}
+                  onChange={(event) => set('publicOrigin', event.target.value)}
+                />
+              </FormField>
+            )}
           </div>
 
           <div className="mt-4 border-t border-border pt-4 sm:max-w-xs">
@@ -1672,6 +1690,9 @@ export interface StudioSettingsPageProps {
 }
 
 /** The privacy page: a chunk of its own, loaded from this one's only when it is opened. */
+/** The trial's mail panel: its own chunk, fetched only on a trial. */
+const TrialEmailPanelLazy = lazy(async () => await import('./TrialEmailPanel.js'));
+
 const PrivacyPageLazy = lazy(async () => {
   const mod = await import('../privacy/PrivacyPage.js');
   return { default: mod.PrivacyPage };

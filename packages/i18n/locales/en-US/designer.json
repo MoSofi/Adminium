@@ -981,6 +981,7 @@
     "limitMonth": "Figma's limit for your seat is used up for now. You can read again next month.",
     "limitWait": "Figma asked us to wait. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
     "off": "Figma is off on this server: network features are turned off.",
+    "offByOperator": "Figma is off on this installation: the operator has switched it off.",
     "saved": "Already imported this version of the frame. No Figma read was used.",
     "disconnected": "Disconnected from Figma. The token was removed from this server.",
     "disconnectTitle": "Disconnect Figma?",
@@ -1406,5 +1407,24 @@
     "changesPlaceholder": "Write what you want different.",
     "buildThis": "Build this",
     "sendChanges": "Send my changes"
+  },
+  "ownCode": {
+    "step": "Turned off on this server by its operator",
+    "codeOff": "Hand edits are turned off on this server by its operator. Ask the Designer for the change.",
+    "codeReadOnly": "{file}, read only: hand edits are turned off on this server by its operator",
+    "startOff": "Turned off on this server by its operator: a copy runs the app’s own build.",
+    "stylesOff": "Styles of your own are turned off on this server by its operator.",
+    "siteOff": "Site templates are turned off on this server by its operator."
+  },
+  "operatorAi": {
+    "label": "AI key needed",
+    "scope": "Building customer-facing screens needs your own AI key.",
+    "usedUp": "The AI included with this trial is used up.",
+    "usedUpHere": "The AI included with this installation is used up.",
+    "keyOrUpgrade": "Add your own AI key to continue, or Upgrade.",
+    "key": "Add your own AI key to continue.",
+    "addKey": "Add an AI key",
+    "upgrade": "Upgrade",
+    "step": "Needs your own AI key"
   }
 }

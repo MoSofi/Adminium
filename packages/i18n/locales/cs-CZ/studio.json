@@ -272,7 +272,10 @@
       "atTable": "Tabulka {field}",
       "empty": "Název je povinný.",
       "identifier": "Použijte malá písmena, číslice a podtržítka, začněte písmenem.",
-      "tooLong": "Příliš dlouhé — {dialect} povoluje {max} znaků."
+      "tooLong": "Příliš dlouhé — {dialect} povoluje {max} znaků.",
+      "unsafeDefault": "Tento výchozí výraz nelze použít: obsahuje středník, komentář, zpětné lomítko, znak dolaru nebo neuzavřenou uvozovku či závorku. Upravte ho a zkuste to znovu.",
+      "unsafeType": "Tento typ sloupce nelze použít: obsahuje víc než typ, například středník, komentář, omezení nebo neuzavřenou uvozovku či závorku. Upravte ho a zkuste to znovu.",
+      "unsafeCheck": "Tuto kontrolu nelze použít: obsahuje středník, komentář, zpětné lomítko, znak dolaru nebo neuzavřenou uvozovku či závorku. Upravte ji a zkuste to znovu."
     },
     "existing": "Existující tabulky",
     "hazard": {
@@ -2728,7 +2731,8 @@
       "linkOrigin": {
         "error": "Zadejte adresu jako https://admin.example.com bez cesty.",
         "helper": "Odkazy pro obnovení hesla a z pozvánek otevírají tuto adresu. Pokud je prázdná, Adminium ji převezme od dalšího správce, který se přihlásí nebo uloží změnu, pokud nepracuje přes localhost.",
-        "label": "Adresa v odkazech v e-mailech"
+        "label": "Adresa v odkazech v e-mailech",
+        "operator": "Tuto adresu nastavil provozovatel serveru. Odkazy pro obnovení hesla a z pozvánek vždy otevírají ji."
       },
       "pass": {
         "error": "K tomuto uživatelskému jménu patří heslo.",
@@ -2763,6 +2767,34 @@
       "user": {
         "helper": "Nechte prázdné, pokud relay nevyžaduje přihlášení.",
         "label": "Uživatelské jméno"
+      },
+      "relay": {
+        "title": "E-maily se odesílají přes poštovní službu provozovatele",
+        "from": "Adresa odesílatele",
+        "fromLine": "{from}, odpovědi jdou na {replyTo}",
+        "noRelay": "Provozovatel pro tuto instalaci nenastavil poštovní službu, proto se žádné e-maily neodesílají.",
+        "use": "Dnešní využití",
+        "useLine": "{today, number} z {perDay, number} e-mailů dnes · {hour, number} z {perHour, number} tuto hodinu",
+        "people": "{people, number} z {max, number} lidí, kterým se dnes psalo",
+        "dayBar": "E-maily dnes",
+        "hourBar": "E-maily tuto hodinu",
+        "limitDay": "Denní limit e-mailů je vyčerpán. {count, plural, one {# e-mail čeká a odejde zítra.} few {# e-maily čekají a odejdou zítra.} many {# e-mailu čeká a odejde zítra.} other {# e-mailů čeká a odejde zítra.}}",
+        "limitDayOnly": "Denní limit e-mailů je vyčerpán.",
+        "limitHour": "Hodinový limit e-mailů je vyčerpán. {count, plural, one {# e-mail čeká a odejde v {time}.} few {# e-maily čekají a odejdou od {time}.} many {# e-mailu čeká a odejde od {time}.} other {# e-mailů čeká a odejde od {time}.}}",
+        "limitHourOnly": "Hodinový limit e-mailů je vyčerpán.",
+        "limitPeople": "Dnešní limit {max, number} lidí je vyčerpán. E-maily novým lidem počkají do zítřka.",
+        "limitBounces": "Odesílání je pozastaveno do zítřka: dnes se vrátilo nebo bylo nahlášeno jako spam příliš mnoho e-mailů.",
+        "waiting": "{count, plural, one {# e-mail čeká a odejde v {time}.} few {# e-maily čekají; první odejde v {time}.} many {# e-mailu čeká; první odejde v {time}.} other {# e-mailů čeká; první odejde v {time}.}}",
+        "open": "Otevřít odchozí poštu",
+        "outboxTitle": "Čekající e-maily",
+        "outboxHelp": "Odejdou samy, jakmile to limity e-mailů dovolí. Nic zde nelze změnit.",
+        "to": "Komu",
+        "subject": "Předmět",
+        "queued": "Zařazeno",
+        "goesOut": "Odejde",
+        "empty": "Žádné e-maily nečekají.",
+        "failed": "Čekající e-maily se nepodařilo načíst.",
+        "close": "Zavřít"
       }
     },
     "identity": {
@@ -2878,7 +2910,6 @@
       "heading": "Připojení",
       "subtitle": "Databáze, které tato instalace čte a zapisuje.",
       "label": "Povolit databáze na tomto serveru",
-      "setByOperator": "Nastaveno provozovatelem",
       "help": "Umožní připojením dosáhnout databází, které běží na tomto serveru, například {example}. Jen pro databáze, které jste zde sami nastavili.",
       "alwaysHere": "Tento server už databáze na tomto počítači dosáhne, takže tento přepínač zde nic nemění.",
       "lockedHosts": "Provozovatel povoluje jen tyto hostitele:",
@@ -3119,7 +3150,8 @@
       "readingFile": "Načítání nahraného souboru schématu…",
       "readingSchema": "Čtení schématu: public",
       "ready": "Připraveno",
-      "relations": "Zjišťování vztahů…"
+      "relations": "Zjišťování vztahů…",
+      "handoff": "Připojeno přes Supabase · schéma se jen čte"
     },
     "logLabel": "Protokol introspekce",
     "retry": "Zkusit znovu",
@@ -3481,6 +3513,9 @@
       "signInLink": "Přihlásit se",
       "noCopy": "Tato adresa se přesunula ke kopii, kterou tento účet nemůže otevřít.",
       "guest": "Tato adresa se přesunula."
+    },
+    "hidden": {
+      "title": "Tato stránka není dostupná."
     }
   },
   "appSettings": {
@@ -5910,5 +5945,15 @@
       "line": "Na tomto počítači si projekt vytvoří vlastní soubor: v Designeru otevřete nabídku projektu (jeho název vlevo nahoře) a zvolte Exportovat tento projekt….",
       "open": "Otevřít Designer"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "Nahrávání je na tomto serveru vypnuto jeho provozovatelem. Doplňky instalujte z katalogu.",
+    "appsOff": "Nahrávání je na tomto serveru vypnuto jeho provozovatelem. Aplikace instalujte z katalogu."
+  },
+  "operatorHidden": {
+    "title": "Vaše veřejné stránky skryl provozovatel.",
+    "reason": "Důvod: {reason}",
+    "reply": "Pokud jde o omyl, odpovězte na e-mail provozovatele.",
+    "chip": "Skryto"
   }
 }

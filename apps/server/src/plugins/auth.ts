@@ -33,6 +33,7 @@ import {
 } from '../auth/sessions.js';
 import { totpEncryptionKey } from '../auth/totp.js';
 import { API_KEY_PREFIX } from '../rbac/api-keys.js';
+import { signedInGuard } from '../security/route-audience.js';
 
 /** Payload handed to the reset-delivery hook (email transport lands later). */
 export interface PasswordResetDelivery {
@@ -122,11 +123,14 @@ export const authPlugin = fp<AuthPluginOptions>(
       }
     });
 
-    app.decorate('requireAuth', async (request: FastifyRequest) => {
-      if (request.user !== null && request.session !== null) return;
-      if (request.sessionExpired) throw new UnauthorizedError('SESSION_EXPIRED');
-      throw new UnauthorizedError('UNAUTHENTICATED');
-    });
+    app.decorate(
+      'requireAuth',
+      signedInGuard(async (request: FastifyRequest) => {
+        if (request.user !== null && request.session !== null) return;
+        if (request.sessionExpired) throw new UnauthorizedError('SESSION_EXPIRED');
+        throw new UnauthorizedError('UNAUTHENTICATED');
+      }),
+    );
 
     if (context === null) return;
 

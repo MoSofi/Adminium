@@ -133,6 +133,7 @@ const SENTENCES: Record<Exclude<ReachabilityState, 'reachable'>, string> = {
   'dot-local': 'Only people on your own network can reach this address.',
   'not-https': 'Pay pages need https. Put this server behind HTTPS first.',
   'proxy-hidden': "This server is behind a proxy that hides your customers' addresses. Turn on ADMINIUM_TRUST_PROXY.",
+  'operator-off': 'The operator has switched payment services off for this installation.',
 };
 
 describe('PaymentsPage', () => {
@@ -145,7 +146,8 @@ describe('PaymentsPage', () => {
     expect(textOf(await screen.findByTestId('payments-reach-problem'))).toContain(SENTENCES[state as Exclude<ReachabilityState, 'reachable'>]);
     const card = screen.getByTestId('payments-service-payments-stripe');
     const first = screen.getByTestId('payments-service-payments-stripe-first');
-    expect(textOf(first)).toBe('Fix the address above first: online payments stay off until then.');
+    // Under the operator's switch there is no address to fix: the card says whose switch it is.
+    expect(textOf(first)).toBe(state === 'operator-off' ? SENTENCES['operator-off'] : 'Fix the address above first: online payments stay off until then.');
     // The line comes first in the card's body; the checklist, the key's path and both modes stay.
     const body = first.parentElement!;
     expect(body.firstElementChild).toBe(first);

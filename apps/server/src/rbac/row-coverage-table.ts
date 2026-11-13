@@ -166,6 +166,10 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/bridge/handoff': noRows('A hand-off from the website.'),
   'GET /api/v1/bridge/hello': noRows('A hand-off from the website.'),
   'GET /api/v1/bridge/seed/:ticket': noRows('A hand-off from the website.'),
+  // --- /connect ("Connect Supabase": a connection made, tested and its schema read, as POST /connections and its introspect)
+  'POST /api/v1/connect/start': noRows('A hand-off to the operator\'s connect service: no row of any table.'),
+  'POST /api/v1/connect/return': rows('system', 'The schema of the connection it makes is read under the connections grant, as the system, as POST /connections/:id/introspect reads it; no row of its tables.'),
+  'POST /api/v1/connect/complete': rows('system', 'The schema of the connection it makes is read under the connections grant, as the system, as POST /connections/:id/introspect reads it; no row of its tables.'),
   // --- /connections
   'GET /api/v1/connections': noRows('A connection\'s address, its test, its schema diff and stored rules: no row of its tables.'),
   'POST /api/v1/connections': noRows('A connection\'s address, its test, its schema diff and stored rules: no row of its tables.'),
@@ -574,6 +578,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'PUT /api/v1/settings/defaults': noRows('Server settings.'),
   'GET /api/v1/settings/email': noRows('Server settings.'),
   'PUT /api/v1/settings/email': noRows('Server settings.'),
+  'GET /api/v1/settings/email/waiting': noRows('A trial\'s queued mail: who it goes to and its subject, from the mail queue; no source row.'),
   'GET /api/v1/settings/local-databases': noRows('A server setting: which source hosts the guard lets through, no row read.'),
   'PUT /api/v1/settings/local-databases': noRows('A server setting: which source hosts the guard lets through, no row read.'),
   'GET /api/v1/settings/security': noRows('Server settings.'),
@@ -611,6 +616,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'PUT /api/v1/surfaces/instances': noRows('Where an app\'s screens are served.'),
   // --- /system
   'GET /api/v1/system/info': noRows('The server\'s own facts.'),
+  'GET /api/v1/system/size-caps': noRows('How large a trial\'s databases and files are, not what they hold.'),
   // --- /teams
   'GET /api/v1/teams': noRows('Teams and who leads them: people, not rows.'),
   'POST /api/v1/teams': noRows('Teams and who leads them: people, not rows.'),
@@ -679,4 +685,5 @@ export const JOB_ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'app-catalog-refresh': noRows('Refreshes the app catalogue.'),
   'app-sample-add': rows('system', 'Adds an app\'s sample rows as the system, under the manifests grant.'),
   'privacy.export': rows('system', 'Writes a person\'s data for the person who asked, read as the privacy search reads it, only while they still hold the privacy action.'),
+  'operator.event': rows('system', 'Tells the server\'s operator what strangers are served: a live form\'s published definition is read as the forms door serves it, as the system; no other row is read or sent.'),
 };

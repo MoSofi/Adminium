@@ -46,6 +46,11 @@
  *     primitive, not a typo) — and blocks the cloud-metadata endpoints via the
  *     shared `assertOutboundHostAllowed`. Loopback is NOT blocked: a relay on
  *     127.0.0.1 (postfix, MailHog) is a normal, correct self-host setup.
+ *     Under `ADMINIUM_NETWORK_POLICY=strict` (which the hosted profile
+ *     implies) it is, with the server's own network: {@link checkSmtpHost}
+ *     looks the name up, refuses this machine, private ranges and a name that
+ *     does not resolve, and hands back the address that passed, which the
+ *     transport dials ({@link configureSmtpNetwork}).
  *   - certificate verification is left ON. Nothing here accepts a
  *     `rejectUnauthorized: false`, an "insecure" toggle, or a
  *     `NODE_TLS_REJECT_UNAUTHORIZED` reading. An admin who needs a private CA
@@ -58,11 +63,15 @@
  * which never passes through the route.
  */
 
+import { isIP } from 'node:net';
+
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { decryptSecret, deriveKey, isEncryptedSecret } from '../config/secrets.js';
 import { assertOutboundHostAllowed } from '../connections/dsn.js';
-import { ValidationFailedError } from '../errors.js';
+import { HostLookupFailedError, ValidationFailedError } from '../errors.js';
+import { checkHost, type HostLookup } from '../net/address-guard.js';
+import { trialRelaySmtp } from './trial-relay.js';
 import type { EmailSendResult, EmailTransport, OutboundEmail, SmtpConfig } from './types.js';
 
 /** HKDF salt scoping the SMTP-password encryption key. */
@@ -127,18 +136,62 @@ export function assertSmtpHostAllowed(host: string): void {
   assertOutboundHostAllowed(host);
 }
 
+/** How the user's own mail server may be reached: `strict` refuses this machine and the server's own network. */
+export interface SmtpNetwork {
+  strict: boolean;
+  /** Test seam: the lookup. Default the system resolver's. */
+  lookup?: HostLookup | undefined;
+}
+
+let smtpNetwork: SmtpNetwork = { strict: false };
+
+/** From `compose.ts`: `ADMINIUM_NETWORK_POLICY` as the mail server sees it. Null: `open` (tests). */
+export function configureSmtpNetwork(network: SmtpNetwork | null): void {
+  smtpNetwork = network ?? { strict: false };
+}
+
+/**
+ * {@link assertSmtpHostAllowed}, then, under a strict network, the address the
+ * host is to be dialled at: every address its name gives checked, and this
+ * machine, private ranges and a name that does not resolve refused (422, or
+ * 502 `HOST_LOOKUP_FAILED`). Null under an open network: the name is dialled.
+ */
+export async function checkSmtpHost(host: string, network: SmtpNetwork = smtpNetwork): Promise<string | null> {
+  assertSmtpHostAllowed(host);
+  if (!network.strict) return null;
+  const check = await checkHost(host, { blockLoopback: true, blockPrivate: true, failClosed: true, lookup: network.lookup });
+  if (check.ok) return check.addresses[0] ?? null;
+  const at = check.address === undefined || check.address === check.host ? '' : ` (${check.address})`;
+  switch (check.reason) {
+    case 'metadata':
+      throw new ValidationFailedError('SMTP host resolves to a blocked address range.', { host: check.host, address: check.address });
+    case 'loopback':
+    case 'private':
+      throw new ValidationFailedError(
+        `The SMTP host ${check.host}${at} is this server itself or on its own network, which ADMINIUM_NETWORK_POLICY=strict does not call.`,
+        { host: check.host, address: check.address, variable: 'ADMINIUM_NETWORK_POLICY' },
+      );
+    case 'unresolved':
+      throw new HostLookupFailedError(check.host);
+  }
+}
+
 /**
  * Reads `email.smtp` and decrypts the password. `null` when mail is not
  * configured — every caller treats that as "email features are off", which is
  * what `smtpConfigured` on `/system/info` already reports.
  */
 export async function resolveSmtpConfig(meta: MetaDb, key: Uint8Array): Promise<SmtpConfig | null> {
+  // On a trial the operator's relay is the only transport, and the setting is not read (`trial-relay.ts`).
+  const relay = trialRelaySmtp();
+  if (relay !== undefined) return relay;
   const stored = await settingsRepo(meta).get('email.smtp');
   if (stored === null) return null;
 
-  // Re-guard: this row can also arrive from a config-bundle import, which never
-  // passed through the settings route's validation.
-  assertSmtpHostAllowed(stored.host);
+  // Re-guard: this row can also arrive from a config-bundle import or an archive
+  // restore, which never passed through the settings route's validation. Asked
+  // before each send, so the address checked here is the one dialled.
+  const address = await checkSmtpHost(stored.host);
 
   let pass = '';
   if (stored.passEncrypted.length > 0) {
@@ -163,6 +216,7 @@ export async function resolveSmtpConfig(meta: MetaDb, key: Uint8Array): Promise<
     pass,
     from: stored.from,
     secure: stored.secure,
+    ...(address === null ? {} : { address }),
   };
 }
 
@@ -220,7 +274,9 @@ export function createSmtpTransport(cfg: SmtpConfig): EmailTransport {
     async send(msg: OutboundEmail): Promise<EmailSendResult> {
       const { createTransport } = await import('nodemailer');
       const transporter = createTransport({
-        host: cfg.host,
+        // The checked address when there is one, the name kept for TLS (the certificate is still checked against it).
+        host: cfg.address ?? cfg.host,
+        ...(cfg.address !== undefined && isIP(cfg.host) === 0 ? { servername: cfg.host } : {}),
         port: cfg.port,
         // Implicit TLS (465) vs. cleartext-then-STARTTLS (587).
         secure: cfg.secure,
@@ -229,7 +285,7 @@ export function createSmtpTransport(cfg: SmtpConfig): EmailTransport {
         // relay omits the capability. Exempt for a loopback relay, where the
         // "network" is a unix-domain hop inside the same host and requiring a
         // certificate for it would break the ordinary MailHog/postfix setup.
-        requireTLS: !cfg.secure && !isLoopbackHost(cfg.host),
+        requireTLS: !cfg.secure && !isLoopbackHost(cfg.address ?? cfg.host),
         // An empty user means an unauthenticated relay — passing `auth` with
         // blank strings makes nodemailer attempt AUTH and fail.
         ...(cfg.user.length === 0 ? {} : { auth: { user: cfg.user, pass: cfg.pass } }),

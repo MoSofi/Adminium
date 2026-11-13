@@ -991,6 +991,7 @@ export default {
     "limitMonth": "La limite Figma de votre place est atteinte pour le moment. Vous pourrez lire à nouveau le mois prochain.",
     "limitWait": "Figma nous a demandé d’attendre. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
     "off": "Figma est désactivé sur ce serveur : les fonctions réseau sont coupées.",
+    "offByOperator": "Figma est désactivé sur cette installation : l’opérateur l’a désactivé.",
     "saved": "Cette version du cadre a déjà été importée. Aucune lecture Figma n’a été utilisée.",
     "disconnected": "Déconnecté de Figma. Le jeton a été retiré de ce serveur.",
     "disconnectTitle": "Déconnecter Figma ?",
@@ -1416,5 +1417,24 @@ export default {
     "changesPlaceholder": "Écrivez ce que vous voulez différent.",
     "buildThis": "Construire ceci",
     "sendChanges": "Envoyer mes modifications"
+  },
+  "ownCode": {
+    "step": "Désactivé sur ce serveur par son opérateur",
+    "codeOff": "Les modifications à la main sont désactivées sur ce serveur par son opérateur. Demandez la modification au Designer.",
+    "codeReadOnly": "{file}, en lecture seule : les modifications à la main sont désactivées sur ce serveur par son opérateur",
+    "startOff": "Désactivé sur ce serveur par son opérateur : une copie exécute la compilation propre à l’application.",
+    "stylesOff": "Les styles personnels sont désactivés sur ce serveur par son opérateur.",
+    "siteOff": "Les modèles de site sont désactivés sur ce serveur par son opérateur."
+  },
+  "operatorAi": {
+    "label": "Clé d’IA requise",
+    "scope": "Créer des écrans destinés aux clients nécessite votre propre clé d’IA.",
+    "usedUp": "L’IA incluse dans cet essai est épuisée.",
+    "usedUpHere": "L’IA incluse dans cette installation est épuisée.",
+    "keyOrUpgrade": "Ajoutez votre propre clé d’IA pour continuer, ou mettez à niveau.",
+    "key": "Ajoutez votre propre clé d’IA pour continuer.",
+    "addKey": "Ajouter une clé d’IA",
+    "upgrade": "Mettre à niveau",
+    "step": "Nécessite votre propre clé d’IA"
   }
 } as const;

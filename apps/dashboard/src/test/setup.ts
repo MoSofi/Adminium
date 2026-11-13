@@ -8,6 +8,11 @@ import { cleanup, configure } from '@testing-library/react';
 import { afterEach, beforeEach } from 'vitest';
 import { THEME_ATTRIBUTES } from '@adminium/tokens';
 
+import { setRefusalLoader } from '../app/refusals.js';
+
+// As `main.tsx` does: a refusal the operator's switches cause is said in the person's words.
+setRefusalLoader(() => import('../app/refusalWords.js'));
+
 /**
  * Testing Library's default `asyncUtilTimeout` is 1000ms — the budget a
  * `findBy*` gives an element to appear. That is fine for a suite running alone,

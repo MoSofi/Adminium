@@ -24,6 +24,8 @@ import {
 import { ConflictError, ValidationFailedError } from '../../errors.js';
 import { DsnSecretMismatchError } from '../../connections/crypto.js';
 import { maskDsn } from '../../connections/dsn.js';
+import { policyOf } from '../../trial/refuse.js';
+import { connectionTestBudget } from '../../trial/test-budget.js';
 import {
   INTROSPECT_JOB_KIND,
   runIntrospection,
@@ -90,6 +92,8 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
   const publicKeys = publicKeysRepo(meta);
 
   return async (app) => {
+    // Trial mode and the hosted profile: one budget of database tests for the whole installation.
+    const tests = connectionTestBudget(policyOf(app));
     async function toDto(
       connection: Connection,
       pageCounts?: Readonly<Record<string, number>>,
@@ -185,27 +189,31 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           throw new ValidationFailedError('Provide `dsn` or `roles.data`.', {});
         }
 
-        // The introspect role is stored here and dialled later, so it is
-        // guarded now; the data role is guarded by its test.
-        if (introspectDsn !== dataDsn) await manager.checkDsnAllowed(introspectDsn, body.engine);
-        // Test the data role — its probe drives read-only + meta placement.
-        const summary = await manager.testDsn(body.engine, dataDsn);
-        if (summary.ok) manager.enforceMetaPlacement(dataDsn, summary);
-
         const actorId =
           request.apiKeyPrincipal === null
             ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
             : null;
-        const connection = await manager.connections.create({
-          name: body.name,
-          engine: body.engine,
-          sourceKind: 'dsn',
-          introspectDsn,
-          dataDsn: dataDsn === introspectDsn ? null : dataDsn,
-          readOnly: summary.readOnly,
-          settings: body.settings ?? {},
-          status: summary.ok ? 'connected' : 'error',
-          createdBy: actorId,
+        // A trial connects a few databases at most: counted and created one request at a time.
+        const { connection, summary } = await manager.withRoomForSource(async () => {
+          tests.spend();
+          // The introspect role is stored here and dialled later, so it is
+          // guarded now; the data role is guarded by its test.
+          if (introspectDsn !== dataDsn) await manager.checkDsnAllowed(introspectDsn, body.engine);
+          // Test the data role — its probe drives read-only + meta placement.
+          const tested = await manager.testDsn(body.engine, dataDsn);
+          if (tested.ok) manager.enforceMetaPlacement(dataDsn, tested);
+          const created = await manager.connections.create({
+            name: body.name,
+            engine: body.engine,
+            sourceKind: 'dsn',
+            introspectDsn,
+            dataDsn: dataDsn === introspectDsn ? null : dataDsn,
+            readOnly: tested.readOnly,
+            settings: body.settings ?? {},
+            status: tested.ok ? 'connected' : 'error',
+            createdBy: actorId,
+          });
+          return { connection: created, summary: tested };
         });
         await manager.connections.recordTestResult(connection.id, testOutcome(summary));
         await app.rbac.audit(request, {
@@ -235,6 +243,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       },
       async (request) => {
         // Capability probes only — never persists.
+        tests.spend();
         const summary = await manager.testDsn(request.body.engine, request.body.dsn);
         return testReply(summary);
       },
@@ -429,6 +438,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         if (dsns?.dataDsn == null) {
           throw new ValidationFailedError('Connection has no DSN to test.', { connectionId: connection.id });
         }
+        tests.spend();
         const summary = await manager.testDsn(connection.engine, dsns.dataDsn);
         await manager.connections.recordTestResult(connection.id, testOutcome(summary));
         return testReply(summary);

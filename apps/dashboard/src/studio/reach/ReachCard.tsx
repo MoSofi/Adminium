@@ -22,7 +22,7 @@ export type ReachTone = 'pos' | 'warn' | 'danger' | 'neutral';
 /** The tone of a state, the same on both pages: reachable is good; no address or a proxy is a warning. */
 export function reachToneOf(state: ReachabilityState): ReachTone {
   if (state === 'reachable') return 'pos';
-  if (state === 'network-off') return 'neutral';
+  if (state === 'network-off' || state === 'operator-off') return 'neutral';
   if (state === 'not-set' || state === 'proxy-hidden') return 'warn';
   return 'danger';
 }

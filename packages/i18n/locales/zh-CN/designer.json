@@ -981,6 +981,7 @@
     "limitMonth": "你的席位的 Figma 限额暂时已用完。你可以在下个月再次读取。",
     "limitWait": "Figma 要求我们稍候。请在 {minutes, plural, other {# 分钟}}后重试。",
     "off": "此服务器已关闭 Figma：网络功能已关闭。",
+    "offByOperator": "此安装已关闭 Figma：运营方已将其关闭。",
     "saved": "此版本的框架已经导入过。没有使用 Figma 读取次数。",
     "disconnected": "已断开与 Figma 的连接。令牌已从此服务器移除。",
     "disconnectTitle": "断开 Figma 连接？",
@@ -1406,5 +1407,24 @@
     "changesPlaceholder": "写下你希望有哪些不同。",
     "buildThis": "就这样构建",
     "sendChanges": "发送我的修改"
+  },
+  "ownCode": {
+    "step": "此服务器的运营方已关闭此功能",
+    "codeOff": "此服务器的运营方已关闭手动编辑。请让 Designer 进行修改。",
+    "codeReadOnly": "{file}，只读：此服务器的运营方已关闭手动编辑",
+    "startOff": "此服务器的运营方已关闭此功能：副本会运行应用自己的构建。",
+    "stylesOff": "此服务器的运营方已关闭自定义样式。",
+    "siteOff": "此服务器的运营方已关闭网站模板。"
+  },
+  "operatorAi": {
+    "label": "需要 AI 密钥",
+    "scope": "构建面向客户的界面需要您自己的 AI 密钥。",
+    "usedUp": "此试用版包含的 AI 额度已用完。",
+    "usedUpHere": "此安装包含的 AI 额度已用完。",
+    "keyOrUpgrade": "添加您自己的 AI 密钥以继续，或升级。",
+    "key": "添加您自己的 AI 密钥以继续。",
+    "addKey": "添加 AI 密钥",
+    "upgrade": "升级",
+    "step": "需要您自己的 AI 密钥"
   }
 }

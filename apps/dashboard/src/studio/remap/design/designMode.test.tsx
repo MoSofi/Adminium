@@ -271,6 +271,29 @@ describe('a failed apply is not a partial one', () => {
   });
 });
 
+describe('text the server will not put into a statement', () => {
+  it('says which text and why in words, not the server’s English', async () => {
+    installFetch({
+      onPlan: () =>
+        jsonResponse(422, {
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'This expression default cannot be put into a statement: it holds a ";".',
+            requestId: 'r',
+            details: { reason: 'UNSAFE_SQL_TEXT', what: 'expression default', text: '0); drop table x; --' },
+          },
+        }),
+    });
+    await openDesign();
+    await userEvent.click(screen.getByRole('button', { name: 'order_notes' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Drop this table' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+
+    expect(await screen.findByText(/This default expression cannot be used: it holds a semicolon/)).toBeDefined();
+    expect(screen.queryByText(/cannot be put into a statement/)).toBeNull();
+  });
+});
+
 describe("D18's ceiling door", () => {
   /*
    * A design critique run before this was built found that the door, as first

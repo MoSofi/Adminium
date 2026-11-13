@@ -272,7 +272,10 @@
       "atTable": "Table {field}",
       "empty": "A name is required.",
       "identifier": "Use lowercase letters, numbers and underscores, starting with a letter.",
-      "tooLong": "Too long — {dialect} allows {max} characters."
+      "tooLong": "Too long — {dialect} allows {max} characters.",
+      "unsafeDefault": "This default expression cannot be used: it holds a semicolon, a comment, a backslash, a dollar sign, or a quote or parenthesis left open. Change it, then try again.",
+      "unsafeType": "This column type cannot be used: it holds more than a type, such as a semicolon, a comment, a constraint, or a quote or parenthesis left open. Change it, then try again.",
+      "unsafeCheck": "This check cannot be used: it holds a semicolon, a comment, a backslash, a dollar sign, or a quote or parenthesis left open. Change it, then try again."
     },
     "existing": "Existing tables",
     "hazard": {
@@ -2728,7 +2731,8 @@
       "linkOrigin": {
         "error": "Enter an address such as https://admin.example.com, with no path.",
         "helper": "Password-reset and invitation links open this address. If it is empty, Adminium fills it in from the next admin who signs in or saves a change, unless they are on localhost.",
-        "label": "Address in email links"
+        "label": "Address in email links",
+        "operator": "The server’s operator set this address. Password-reset and invitation links always open it."
       },
       "pass": {
         "error": "This username needs a password.",
@@ -2763,6 +2767,34 @@
       "user": {
         "helper": "Leave empty for a relay that does not authenticate.",
         "label": "Username"
+      },
+      "relay": {
+        "title": "Email is sent through the operator’s mail service",
+        "from": "From address",
+        "fromLine": "{from}, replies go to {replyTo}",
+        "noRelay": "The operator has not set up a mail service for this installation, so no email is sent.",
+        "use": "Today’s use",
+        "useLine": "{today, number} of {perDay, number} emails today · {hour, number} of {perHour, number} this hour",
+        "people": "{people, number} of {max, number} people written to today",
+        "dayBar": "Emails today",
+        "hourBar": "Emails this hour",
+        "limitDay": "Daily email limit reached. {count, plural, one {# email is waiting and goes out tomorrow.} other {# emails are waiting and go out tomorrow.}}",
+        "limitDayOnly": "Daily email limit reached.",
+        "limitHour": "Hourly email limit reached. {count, plural, one {# email is waiting and goes out at {time}.} other {# emails are waiting and go out from {time}.}}",
+        "limitHourOnly": "Hourly email limit reached.",
+        "limitPeople": "Today’s limit of {max, number} people is reached. Emails to someone new wait for tomorrow.",
+        "limitBounces": "Email is paused until tomorrow: too many emails bounced or were reported as spam today.",
+        "waiting": "{count, plural, one {# email is waiting and goes out at {time}.} other {# emails are waiting; the first goes out at {time}.}}",
+        "open": "Open the outbox",
+        "outboxTitle": "Waiting emails",
+        "outboxHelp": "They go out by themselves when the email limits allow. Nothing here can be changed.",
+        "to": "To",
+        "subject": "Subject",
+        "queued": "Queued",
+        "goesOut": "Goes out",
+        "empty": "No emails are waiting.",
+        "failed": "The waiting emails could not be loaded.",
+        "close": "Close"
       }
     },
     "identity": {
@@ -2878,7 +2910,6 @@
       "heading": "Connections",
       "subtitle": "Databases this installation reads and writes.",
       "label": "Allow databases on this server",
-      "setByOperator": "Set by the operator",
       "help": "Lets connections reach databases running on this same server, like {example}. Only for databases you set up here.",
       "alwaysHere": "This server already reaches databases on this machine, so this switch changes nothing here.",
       "lockedHosts": "The operator allows only these hosts:",
@@ -3119,7 +3150,8 @@
       "readingFile": "Reading uploaded schema file…",
       "readingSchema": "Reading schema: public",
       "ready": "Ready",
-      "relations": "Detecting relations…"
+      "relations": "Detecting relations…",
+      "handoff": "Connected through Supabase · read-only introspection"
     },
     "logLabel": "Introspection log",
     "retry": "Retry",
@@ -3481,6 +3513,9 @@
       "signInLink": "Sign in",
       "noCopy": "This address moved to a copy this account can’t open.",
       "guest": "This address has moved."
+    },
+    "hidden": {
+      "title": "This page is unavailable."
     }
   },
   "appSettings": {
@@ -5910,5 +5945,15 @@
       "line": "On this computer the project makes its own file: in the Designer, open the project’s menu (its name, top left) and choose Export this project….",
       "open": "Open the Designer"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "Uploads are turned off on this server by its operator. Install add-ons from the catalog.",
+    "appsOff": "Uploads are turned off on this server by its operator. Install apps from the catalog."
+  },
+  "operatorHidden": {
+    "title": "Your public pages are hidden by the operator.",
+    "reason": "Reason: {reason}",
+    "reply": "Reply to the operator’s email if this is a mistake.",
+    "chip": "Hidden"
   }
 }

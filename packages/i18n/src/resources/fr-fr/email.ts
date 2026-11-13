@@ -994,5 +994,9 @@ export default {
     },
     "failed": "Impossible d’enregistrer ce choix. Réessayez.",
     "docsLink": "Comment « Envoyer en tant que » choisit l’expéditeur"
+  },
+  "trialRelay": {
+    "footer": "Envoyé depuis l’installation à l’adresse {address}, par le service de messagerie de son opérateur.",
+    "report": "Signaler cet e-mail"
   }
 } as const;

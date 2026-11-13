@@ -64,7 +64,7 @@ export default defineConfig({
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'chromium',
-      testIgnore: [/onboarding\.spec\.ts/, /project(-app)?\.spec\.ts/, /(^|\/)designer(-stock|-cards|-sides|-phone|-figma|-pictures|-make-pictures|-template)?\.spec\.ts$/],
+      testIgnore: [/onboarding\.spec\.ts/, /trial-mode\.spec\.ts/, /project(-app)?\.spec\.ts/, /(^|\/)designer(-stock|-cards|-sides|-phone|-figma|-pictures|-make-pictures|-template)?\.spec\.ts$/],
       use: { ...devices['Desktop Chrome'], storageState: storageStatePath() },
       dependencies: ['setup'],
     },
@@ -75,6 +75,15 @@ export default defineConfig({
       name: 'onboarding',
       testMatch: /onboarding\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], baseURL: FIRST_RUN_BASE_URL, storageState: { cookies: [], origins: [] } },
+    },
+    // Trial mode, on an instance of its own that the spec boots with the
+    // operator's variables (`adminium start`, twice: running, then past its end
+    // date). No storage state and no `setup` dependency: setup makes its one
+    // session, and its sign-in budget is that instance's, not the shared one's.
+    {
+      name: 'trial',
+      testMatch: /trial-mode\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], storageState: { cookies: [], origins: [] } },
     },
     // A project folder: made by the built CLI and served by
     // `adminium dev`, then `adminium start`, which the spec starts and stops

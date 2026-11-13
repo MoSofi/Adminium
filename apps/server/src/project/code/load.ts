@@ -17,6 +17,7 @@ import { z } from 'zod';
 
 import type { BuiltServerFile } from '../build.js';
 import { PROJECT_KEY_PATTERN } from '../config.js';
+import { ownCodeAllows, OWN_CODE_MESSAGES } from '../../trial/own-code.js';
 import {
   HOOK_EVENTS,
   type ActionDefinition,
@@ -181,6 +182,11 @@ export async function loadProjectCode(
   };
 
   const sorted = [...files].sort((a, b) => (a.source < b.source ? -1 : a.source > b.source ? 1 : 0));
+  // The operator keeps own code off (`trial/own-code.ts`): nothing of hooks/ or actions/ is imported, at boot or on a rebuild.
+  if (!ownCodeAllows('designerCode').allowed) {
+    for (const file of sorted) problem(file.source, OWN_CODE_MESSAGES.designerCode);
+    return { digest, hooks, actions, problems, loadedAt: now() };
+  }
   for (const file of sorted) {
     if (file.kind === 'actions' && !ACTION_ID_PATTERN.test(file.name)) {
       problem(

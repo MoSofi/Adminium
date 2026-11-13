@@ -15,7 +15,7 @@
  */
 
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import {
   Button,
   DropdownMenu,
@@ -32,6 +32,7 @@ import {
   type IconName,
 } from '@adminium/ui';
 import { Zap } from 'lucide-react';
+import { WriteControl, type PageCrudBulkAction } from '@adminium/widgets';
 
 import { api, ApiError } from '../app/api.js';
 import { bootstrapQuery, type BootstrapData } from '../app/bootstrap.js';
@@ -213,6 +214,32 @@ export function useProjectActions(
   return { record, bulk, start, busy, dialog };
 }
 
+/** The write an action makes: none for one that only reads. Under a write lock it is in reach, with the reason. */
+const writeOf = (action: ProjectActionDto) => (action.permission === 'read' ? undefined : action.permission);
+
+/** An action as it is, or locked by a write lock when it writes. */
+function Lockable({ action, children }: { action: ProjectActionDto; children: ReactElement<{ className?: string }> }): ReactNode {
+  const write = writeOf(action);
+  return write === undefined ? (
+    children
+  ) : (
+    <WriteControl action={write} connectionId={action.connectionId}>
+      {children}
+    </WriteControl>
+  );
+}
+
+/** The bulk bar's entries for a table's project actions. */
+export function projectBulkActions(actions: ProjectActionsForTable): PageCrudBulkAction[] {
+  return actions.bulk.map((action) => ({
+    key: action.id,
+    label: action.label,
+    disabled: actions.busy,
+    write: writeOf(action),
+    run: (ids: readonly string[]) => actions.start(action, ids),
+  }));
+}
+
 /** One button per action, for the record page's action bar. */
 export function ProjectActionButtons({
   actions,
@@ -224,17 +251,18 @@ export function ProjectActionButtons({
   return (
     <>
       {actions.record.map((action) => (
-        <Button
-          key={action.id}
-          size="sm"
-          variant="secondary"
-          iconLeft={<ActionIcon name={action.icon} />}
-          disabled={actions.busy}
-          data-testid={`project-action-${action.id}`}
-          onClick={() => actions.start(action, [id])}
-        >
-          {action.label}
-        </Button>
+        <Lockable key={action.id} action={action}>
+          <Button
+            size="sm"
+            variant="secondary"
+            iconLeft={<ActionIcon name={action.icon} />}
+            disabled={actions.busy}
+            data-testid={`project-action-${action.id}`}
+            onClick={() => actions.start(action, [id])}
+          >
+            {action.label}
+          </Button>
+        </Lockable>
       ))}
     </>
   );
@@ -258,14 +286,11 @@ export function ProjectActionMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {actions.record.map((action) => (
-          <DropdownMenuItem
-            key={action.id}
-            icon={<ActionIcon name={action.icon} />}
-            data-testid={`project-action-${action.id}`}
-            onSelect={() => actions.start(action, [id])}
-          >
-            {action.label}
-          </DropdownMenuItem>
+          <Lockable key={action.id} action={action}>
+            <DropdownMenuItem icon={<ActionIcon name={action.icon} />} data-testid={`project-action-${action.id}`} onSelect={() => actions.start(action, [id])}>
+              {action.label}
+            </DropdownMenuItem>
+          </Lockable>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>

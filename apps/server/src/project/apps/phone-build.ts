@@ -24,6 +24,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, s
 import { dirname, join } from 'node:path';
 
 import { childEnvironment } from '../../config/child-env.js';
+import { ownCodeAllows, OWN_CODE_MESSAGES } from '../../trial/own-code.js';
 import { runChild, type ChildResult } from '../../designer/child.js';
 import { DESKTOP_PROGRAMS_ENV, nodeProgram, packageManagerProgram, type Launch, NPM_REGISTRY } from '../programs.js';
 import { guardEnvironment } from './own-build.js';
@@ -196,6 +197,8 @@ export interface PhoneOptions {
  * before the install holds after it.
  */
 export function installPhone(root: string, key: string, opts: PhoneOptions = {}): Promise<{ ok: true } | { ok: false; words: string }> {
+  // The operator keeps own code off (`trial/own-code.ts`): Expo's packages are not installed on this server.
+  if (!ownCodeAllows('ownBuilds').allowed) return Promise.resolve({ ok: false, words: `${APPS_DIR}/${key}/${PHONE_SIDE} — ${OWN_CODE_MESSAGES.ownBuilds}` });
   return inTurn(root, key, async () => {
     const dir = phoneDir(root, key);
     if (!isPhoneApproved(root, key)) return { ok: false, words: phoneUnapprovedWords(key) };
@@ -224,6 +227,8 @@ export function installPhone(root: string, key: string, opts: PhoneOptions = {})
  */
 export function buildPhone(root: string, key: string, opts: PhoneOptions = {}): Promise<PhoneBuild> {
   if (!hasPhoneCode(root, key)) return Promise.resolve({ state: 'none' });
+  // Nor is its build run: Expo's export runs what the phone app's packages hold.
+  if (!ownCodeAllows('ownBuilds').allowed) return Promise.resolve({ state: 'failed', words: `${APPS_DIR}/${key}/${PHONE_SIDE} — ${OWN_CODE_MESSAGES.ownBuilds}` });
   return inTurn(root, key, async (): Promise<PhoneBuild> => {
     const dir = phoneDir(root, key);
     const shape = phoneShapeProblems(root, key);

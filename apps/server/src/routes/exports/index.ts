@@ -56,6 +56,7 @@ import {
   exportsListReply,
   type ExportView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /**
  * `system:exports:manage` — see-everyone's-exports. Declared in the
@@ -124,6 +125,8 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     // The builder's reads — sources, views and
     // the preview — live beside the resource they read, under one deps object.
     await registerBuilderRoutes(app, { meta, manager });

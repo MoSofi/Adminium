@@ -276,6 +276,7 @@ import { rateLimitScale } from '../../config/rate-limit-scale.js';
 import { parseBearerPublishableKey, parsePublicSessionToken } from '../../public-api/keys.js';
 import { createConsentTicks } from '../../public-api/consent-tick.js';
 import type { PeopleConsent } from '../../people/consent-writes.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PublicRoutesDeps {
   env: Env;
@@ -1938,6 +1939,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   };
 
   return async (app) => {
+    // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
+    tagRoutes(app, 'public');
     /*
      * The whole key is charged for work done: a request refused before it (an
      * unknown ref, a missing row, a filter or a write the scope refuses) hands
@@ -4512,6 +4515,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           {
             to: address.trim(),
             templateKey: SIGN_IN_CODE_TEMPLATE_KEY,
+            account: true,
             locale,
             vars: { appName: (await senderOf(ok.key)).appName, code },
             // The code stays in Latin digits: it is typed back. The minutes are said.
@@ -4625,6 +4629,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             {
               to: oldAddress.trim(),
               templateKey: EMAIL_CHANGED_TEMPLATE_KEY,
+              account: true,
               locale,
               always: true,
               vars: {

@@ -24,6 +24,10 @@
  * and the project's hooks/ and actions/, run as the person. So tests run, and
  * server code is written, only after the person said yes in that turn. A bad
  * input is an answer the model can read and fix, never a crash of the turn.
+ *
+ * Where the operator keeps own code off (trial mode, the hosted profile), no
+ * yes is asked for: tests, server code, the files a build runs, packages and
+ * the phone app are refused with fixed words (`designer/declarative.ts`).
  */
 import { makePicturesTool, type MakePicturesDeps } from './make-pictures-tool.js';
 import { ADD_ON_INSTALL_FLOOR, compareSemver, isAddOnManifest, namedAddOns, PICTURE_FILE_KINDS, PUBLIC_PICTURE_MAX_BYTES, validateManifest, type AddOnManifest } from '@adminium/manifest';
@@ -68,7 +72,10 @@ import { dataWindow, quoted } from './untrusted.js';
 import { FOLDED_MARK } from './fold.js';
 import type { AddOnGetter, AddOnLook } from './get-add-on.js';
 import type { RowLoader } from './load-rows.js';
-import { createJail, JailError, type Jail } from './jail.js';
+import { createJail, isCodeWrite, JailError, OwnCodeJailError, type Jail } from './jail.js';
+import { gateTools, ownCodeRefusal } from './declarative.js';
+import { scopeTools } from './scope-gate.js';
+import { ownCodeAllows } from '../trial/own-code.js';
 import { PICTURE_SHAPES } from './pictures.js';
 import { EXT_OF, legacyPictures, prepareFills, writeFills, type Prepared } from './pictures-apply.js';
 import type { PictureDialog } from './picture-dialog.js';
@@ -77,6 +84,7 @@ import { DESIGNER_REACT_VERSION, fixedVersion, ICONS_PACKAGE, listedPackages, TA
 import type { Designer } from './service.js';
 import type { Skills } from './skills.js';
 import type { DesignerTool, PictureSites, ToolContext, ToolOutcome } from './tool-types.js';
+import { OffByOperatorError } from '../trial/refuse.js';
 
 /** The most a read returns; the rest is said to be there. */
 export const MAX_READ_BYTES = 65_536;
@@ -342,9 +350,28 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
       return step();
     } catch (error) {
       // A path that is not there is a miss the model recovers from, not a failure of the step.
+      // Code the operator keeps off, met at the jail itself: the fixed answer, as at the tool's own door.
+      if (error instanceof OwnCodeJailError) return ownCodeRefusal('designerCode') ?? refused(error.message, label);
       if (error instanceof JailError) return { ...refused(error.message, label), ...(error.message.endsWith(' does not exist.') ? { miss: true } : {}) };
+      // A trial's data folder past its limit: said, so the model stops writing.
+      if (error instanceof OffByOperatorError) return refused(error.message, label);
       throw error;
     }
+  };
+
+  /**
+   * While own code is off: a write of hooks/, actions/ or what a build runs is refused with the fixed answer,
+   * before any card could ask the person to allow it (`designer/declarative.ts`). `content` null: the path alone.
+   */
+  const codeWriteRefusal = (path: string, content: string | null): ToolOutcome | null => {
+    if (ownCodeAllows('designerCode').allowed) return null;
+    let normal: string;
+    try {
+      normal = jail.normalise(path);
+    } catch {
+      return null; // The jail says what is wrong with the path.
+    }
+    return isCodeWrite(deps.root, appKey, normal, content) ? ownCodeRefusal('designerCode') : null;
   };
 
   const stylesDir = deps.stylesDir === undefined ? builtInStylesDir() : deps.stylesDir;
@@ -837,7 +864,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         emptyWrites = 0;
         // An earlier step of this conversation, shown cut short, copied back as if it were the file.
         if (FOLDED_MARK.test(content)) return refused('That is a shortened copy of an earlier step, not the file: it ends in "… (N more characters …)". read_file gives the whole file; then write all of it.', 'Wrote nothing');
-        const notAllowed = unnamed(ctx) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
+        const notAllowed = unnamed(ctx) ?? codeWriteRefusal(path, content) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not write ${shown(path)}`, () => {
           const normal = jail.normalise(path);
@@ -886,7 +913,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         const after = str(input, 'new');
         if (path === null || before === null || after === null || before.length === 0) return refused('Give "path", a non-empty "old", and "new".', 'Edited nothing');
         if (FOLDED_MARK.test(after) || FOLDED_MARK.test(before)) return refused('That is a shortened copy of an earlier step, not the file\'s words: it ends in "… (N more characters …)". read_file gives the file as it is; edit from that.', 'Edited nothing');
-        const notAllowed = unnamed(ctx) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
+        const notAllowed = unnamed(ctx) ?? codeWriteRefusal(path, null) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not edit ${shown(path)}`, () => {
           const current = readFileSync(jail.resolve(path, 'read'), 'utf8');
@@ -937,7 +964,7 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
         const path = str(input, 'path');
         if (path === null) return refused('Give the "path" to delete.', 'Deleted nothing');
         // What the person changed by hand is not deleted unread either.
-        const notAllowed = buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
+        const notAllowed = codeWriteRefusal(path, null) ?? buildFileRefusal(path) ?? unreadHandEdit(path, ctx) ?? (await serverCodeRefusal(path, ctx)) ?? (await buildCodeRefusal(path, ctx));
         if (notAllowed !== null) return notAllowed;
         return jailed(`Could not delete ${shown(path)}`, () => {
           jail.delete(path);
@@ -2414,7 +2441,9 @@ export function createDesignerTools(deps: ToolsDeps, appKey: string, sessionId?:
       },
     },
   ];
-  return tools;
+  // Each tool as its line in `TOOL_REACH` says: one the operator turned off answers the fixed refusal before it runs.
+  // And as its line in `SCOPE_REACH` says, in a turn on the operator's AI that builds dashboards only.
+  return gateTools(scopeTools(deps.root, appKey, tools));
 }
 
 /**
@@ -2495,37 +2524,5 @@ function addPictureColumn(file: string): string | null {
   }
 }
 
-/** The names of the tools, in the order the model is told them. */
-export const DESIGNER_TOOL_NAMES = [
-  'list_files',
-  'read_file',
-  'write_file',
-  'edit_file',
-  'delete_file',
-  'check_app',
-  'build_sides',
-  'apply_app',
-  'run_tests',
-  'read_reference',
-  'list_add_ons',
-  'get_add_on',
-  'name_app',
-  'add_side',
-  'add_ui_part',
-  'set_style',
-  'use_font',
-  'list_styles',
-  'build_on_shape',
-  'post_to_ledger',
-  'read_attachment',
-  'load_rows',
-  'add_spots',
-  'fill_spot',
-  'use_pictures',
-  'ask_person',
-  'request_package',
-  'make_pictures',
-  'read_figma',
-  'use_site',
-  'allow_picture_site',
-] as const;
+/** The names of the tools, in the order the model is told them (kept beside the tool types, which `designer/declarative.ts` reads too). */
+export { DESIGNER_TOOL_NAMES } from './tool-types.js';

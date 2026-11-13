@@ -18,6 +18,7 @@ import { useCommandK, useTheme, useThemePrefs } from '@adminium/ui';
 
 import { bootstrapQuery, findPageBySlug, flattenNav, holdsSystemAction } from '../app/bootstrap.js';
 import { systemInfoQuery } from '../app/capabilities.js';
+import { TrialMount } from '../trial/TrialMount.js';
 import { openHref } from '../app/openHref.js';
 import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
@@ -36,6 +37,8 @@ import { AssistantBubble } from './AssistantBubble.js';
    there is nothing on screen to replace while the chunk loads. */
 const DesignBanners = lazy(async () => ({ default: (await import('../designer/DesignBanners.js')).DesignBanners }));
 const ShareBanner = lazy(async () => ({ default: (await import('../desktop/ShareBanner.js')).ShareBanner }));
+// Only while the server's operator has hidden the public pages: Studio's strip saying so.
+const OperatorHiddenStrip = lazy(() => import('../studio/OperatorHiddenStrip.js'));
 const ShortcutsPanel = lazy(async () => ({
   default: (await import('./ShortcutsPanel.js')).ShortcutsPanel,
 }));
@@ -363,12 +366,19 @@ export function AppShell() {
               <ShareBanner />
             </Suspense>
           )}
+          {/* Trial mode's strips, and its read-only state once it has ended: fetched on a trial only. */}
+          <TrialMount shell />
           {/* Only a server run by `adminium design` says these: the file is asked for there and nowhere else. */}
           {designMode ? (
             <Suspense fallback={null}>
               <DesignBanners email={bootstrap.user.email} roles={bootstrap.roles} />
             </Suspense>
           ) : null}
+          {bootstrap.publicPagesHidden && (
+            <Suspense fallback={null}>
+              <OperatorHiddenStrip />
+            </Suspense>
+          )}
           <main className="min-h-0 flex-1">
             {/* A page that waits (for its words, its code, its data) waits HERE: with no boundary of its own
                 its wait would climb past the shell and take the rail and the top bar off the screen with it. */}

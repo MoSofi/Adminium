@@ -991,6 +991,7 @@ export default {
     "limitMonth": "Limit Figmy pro vaše místo je zatím vyčerpán. Číst znovu můžete příští měsíc.",
     "limitWait": "Figma nás požádala o strpení. Zkuste to znovu za {minutes, plural, one {# minutu} few {# minuty} other {# minut}}.",
     "off": "Figma je na tomto serveru vypnutá: síťové funkce jsou vypnuté.",
+    "offByOperator": "Figma je na této instalaci vypnutá: vypnul ji provozovatel.",
     "saved": "Tato verze rámce už byla importována. Nebylo použito žádné čtení Figmy.",
     "disconnected": "Odpojeno od Figmy. Token byl z tohoto serveru odstraněn.",
     "disconnectTitle": "Odpojit Figmu?",
@@ -1416,5 +1417,24 @@ export default {
     "changesPlaceholder": "Napište, co chcete jinak.",
     "buildThis": "Postavit to",
     "sendChanges": "Odeslat moje změny"
+  },
+  "ownCode": {
+    "step": "Na tomto serveru vypnuto jeho provozovatelem",
+    "codeOff": "Ruční úpravy jsou na tomto serveru vypnuty jeho provozovatelem. Požádejte o změnu Designer.",
+    "codeReadOnly": "{file}, jen pro čtení: ruční úpravy jsou na tomto serveru vypnuty jeho provozovatelem",
+    "startOff": "Na tomto serveru vypnuto jeho provozovatelem: kopie spouští vlastní sestavení aplikace.",
+    "stylesOff": "Vlastní styly jsou na tomto serveru vypnuty jeho provozovatelem.",
+    "siteOff": "Šablony webu jsou na tomto serveru vypnuty jeho provozovatelem."
+  },
+  "operatorAi": {
+    "label": "Je potřeba klíč AI",
+    "scope": "Tvorba obrazovek pro zákazníky vyžaduje váš vlastní klíč AI.",
+    "usedUp": "AI zahrnutá v této zkušební verzi je vyčerpána.",
+    "usedUpHere": "AI zahrnutá v této instalaci je vyčerpána.",
+    "keyOrUpgrade": "Pokračujte přidáním vlastního klíče AI, nebo upgradujte.",
+    "key": "Pokračujte přidáním vlastního klíče AI.",
+    "addKey": "Přidat klíč AI",
+    "upgrade": "Upgradovat",
+    "step": "Vyžaduje váš vlastní klíč AI"
   }
 } as const;

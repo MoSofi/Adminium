@@ -282,7 +282,10 @@ export default {
       "atTable": "Tabelle {field}",
       "empty": "Ein Name ist erforderlich.",
       "identifier": "Nur Kleinbuchstaben, Ziffern und Unterstriche, beginnend mit einem Buchstaben.",
-      "tooLong": "Zu lang — {dialect} erlaubt {max} Zeichen."
+      "tooLong": "Zu lang — {dialect} erlaubt {max} Zeichen.",
+      "unsafeDefault": "Dieser Standardausdruck kann nicht verwendet werden: Er enthält ein Semikolon, einen Kommentar, einen Backslash, ein Dollarzeichen oder ein offenes Anführungszeichen bzw. eine offene Klammer. Ändere ihn und versuche es erneut.",
+      "unsafeType": "Dieser Spaltentyp kann nicht verwendet werden: Er enthält mehr als einen Typ, etwa ein Semikolon, einen Kommentar, eine Einschränkung oder ein offenes Anführungszeichen bzw. eine offene Klammer. Ändere ihn und versuche es erneut.",
+      "unsafeCheck": "Diese Prüfung kann nicht verwendet werden: Sie enthält ein Semikolon, einen Kommentar, einen Backslash, ein Dollarzeichen oder ein offenes Anführungszeichen bzw. eine offene Klammer. Ändere sie und versuche es erneut."
     },
     "existing": "Vorhandene Tabellen",
     "hazard": {
@@ -2738,7 +2741,8 @@ export default {
       "linkOrigin": {
         "error": "Geben Sie eine Adresse wie https://admin.example.com ohne Pfad ein.",
         "helper": "Links zum Zurücksetzen des Passworts und aus Einladungen öffnen diese Adresse. Ist sie leer, übernimmt Adminium sie vom nächsten Admin, der sich anmeldet oder eine Änderung speichert, außer er arbeitet über localhost.",
-        "label": "Adresse in E-Mail-Links"
+        "label": "Adresse in E-Mail-Links",
+        "operator": "Der Betreiber des Servers hat diese Adresse festgelegt. Links zum Zurücksetzen des Passworts und aus Einladungen öffnen immer sie."
       },
       "pass": {
         "error": "Zu diesem Benutzernamen gehört ein Passwort.",
@@ -2773,6 +2777,34 @@ export default {
       "user": {
         "helper": "Leer lassen, wenn das Relay keine Anmeldung verlangt.",
         "label": "Benutzername"
+      },
+      "relay": {
+        "title": "E-Mails werden über den Maildienst des Betreibers gesendet",
+        "from": "Absenderadresse",
+        "fromLine": "{from}, Antworten gehen an {replyTo}",
+        "noRelay": "Der Betreiber hat für diese Installation keinen Maildienst eingerichtet, daher werden keine E-Mails gesendet.",
+        "use": "Heutige Nutzung",
+        "useLine": "{today, number} von {perDay, number} E-Mails heute · {hour, number} von {perHour, number} in dieser Stunde",
+        "people": "{people, number} von {max, number} Personen heute angeschrieben",
+        "dayBar": "E-Mails heute",
+        "hourBar": "E-Mails in dieser Stunde",
+        "limitDay": "Tageslimit für E-Mails erreicht. {count, plural, one {# E-Mail wartet und wird morgen gesendet.} other {# E-Mails warten und werden morgen gesendet.}}",
+        "limitDayOnly": "Tageslimit für E-Mails erreicht.",
+        "limitHour": "Stundenlimit für E-Mails erreicht. {count, plural, one {# E-Mail wartet und wird um {time} gesendet.} other {# E-Mails warten und werden ab {time} gesendet.}}",
+        "limitHourOnly": "Stundenlimit für E-Mails erreicht.",
+        "limitPeople": "Das heutige Limit von {max, number} Personen ist erreicht. E-Mails an neue Empfänger warten bis morgen.",
+        "limitBounces": "E-Mails sind bis morgen pausiert: Heute sind zu viele E-Mails unzustellbar zurückgekommen oder als Spam gemeldet worden.",
+        "waiting": "{count, plural, one {# E-Mail wartet und wird um {time} gesendet.} other {# E-Mails warten; die erste wird um {time} gesendet.}}",
+        "open": "Postausgang öffnen",
+        "outboxTitle": "Wartende E-Mails",
+        "outboxHelp": "Sie werden automatisch gesendet, sobald die E-Mail-Limits es erlauben. Hier lässt sich nichts ändern.",
+        "to": "An",
+        "subject": "Betreff",
+        "queued": "Eingereiht",
+        "goesOut": "Wird gesendet",
+        "empty": "Es warten keine E-Mails.",
+        "failed": "Die wartenden E-Mails konnten nicht geladen werden.",
+        "close": "Schließen"
       }
     },
     "identity": {
@@ -2888,7 +2920,6 @@ export default {
       "heading": "Verbindungen",
       "subtitle": "Datenbanken, die diese Installation liest und schreibt.",
       "label": "Datenbanken auf diesem Server erlauben",
-      "setByOperator": "Vom Betreiber festgelegt",
       "help": "Erlaubt Verbindungen zu Datenbanken, die auf diesem Server selbst laufen, etwa {example}. Nur für Datenbanken, die Sie hier eingerichtet haben.",
       "alwaysHere": "Dieser Server erreicht Datenbanken auf diesem Rechner bereits, daher ändert dieser Schalter hier nichts.",
       "lockedHosts": "Der Betreiber erlaubt nur diese Hosts:",
@@ -3129,7 +3160,8 @@ export default {
       "readingFile": "Hochgeladene Schemadatei wird gelesen…",
       "readingSchema": "Schema wird gelesen: public",
       "ready": "Bereit",
-      "relations": "Beziehungen werden erkannt…"
+      "relations": "Beziehungen werden erkannt…",
+      "handoff": "Über Supabase verbunden · Schema wird nur gelesen"
     },
     "logLabel": "Introspektionsprotokoll",
     "retry": "Erneut versuchen",
@@ -3491,6 +3523,9 @@ export default {
       "signInLink": "Anmelden",
       "noCopy": "Diese Adresse ist zu einer Kopie umgezogen, die dieses Konto nicht öffnen kann.",
       "guest": "Diese Adresse ist umgezogen."
+    },
+    "hidden": {
+      "title": "Diese Seite ist nicht verfügbar."
     }
   },
   "appSettings": {
@@ -5920,5 +5955,15 @@ export default {
       "line": "Auf diesem Computer erstellt das Projekt seine eigene Datei: Öffnen Sie im Designer das Projektmenü (sein Name oben links) und wählen Sie „Dieses Projekt exportieren …“.",
       "open": "Designer öffnen"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "Hochladen ist auf diesem Server vom Betreiber abgeschaltet. Installiere Add-ons aus dem Katalog.",
+    "appsOff": "Hochladen ist auf diesem Server vom Betreiber abgeschaltet. Installiere Apps aus dem Katalog."
+  },
+  "operatorHidden": {
+    "title": "Ihre öffentlichen Seiten wurden vom Betreiber ausgeblendet.",
+    "reason": "Grund: {reason}",
+    "reply": "Antworten Sie auf die E-Mail des Betreibers, falls es sich um einen Irrtum handelt.",
+    "chip": "Ausgeblendet"
   }
 } as const;

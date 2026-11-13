@@ -71,6 +71,7 @@ import {
   type SetupStateReply,
   type SetupSuperAdminReply,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /** 403 `SETUP_TOKEN_INVALID`: shared with the store routes so all three refuse alike. */
 export function setupTokenInvalid(error: SetupTokenInvalidError = new SetupTokenInvalidError()): AppError {
@@ -86,6 +87,8 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
   const { service } = deps;
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     /** Non-null under requireMeta — the preHandler 503s before handlers run. */
     const ctx = (): AuthContext => {
       if (app.authContext === null) {

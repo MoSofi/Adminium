@@ -10,6 +10,7 @@ import { AuthLayout, IconButton, useTheme, useThemePrefs } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
 import { BrandMark, useBranding } from '../shell/BrandMark.js';
+import { TrialMount } from '../trial/TrialMount.js';
 import { useDocumentPageTitle } from '../shell/documentTitle.js';
 
 /** `className` lets a screen give the corner control the geometry its comp draws. */
@@ -84,8 +85,8 @@ export function AuthScreenLayout({ documentTitle, children }: AuthScreenLayoutPr
    * On an app's staff address the page is the venue's: no Adminium marketing
    * panel, no theme corner — the venue's name and the app's, over the form.
    */
-  if (surface !== undefined) {
-    return (
+  const page =
+    surface !== undefined ? (
       <AuthLayout
         variant="single"
         footer={
@@ -98,22 +99,22 @@ export function AuthScreenLayout({ documentTitle, children }: AuthScreenLayoutPr
         <StaffHeader surface={surface} />
         {children}
       </AuthLayout>
+    ) : (
+      // `logo`: the workspace's own mark, from the PUBLIC branding route — a
+      // white label that only applies after you sign in is not a white label.
+      <AuthLayout
+        logo={<BrandMark tone="onAccent" />}
+        headline={t('auth.headline', 'Turn any database into a dashboard.')}
+        description={t(
+          'auth.description',
+          'Connect PostgreSQL and Adminium generates a themeable, permission-aware admin app — no code required.',
+        )}
+        trustBadges={<span>{t('auth.trust', 'AGPL core · Self-hosted · Your data stays yours')}</span>}
+        corner={<ThemeToggleButton />}
+      >
+        {children}
+      </AuthLayout>
     );
-  }
-  return (
-    // `logo`: the workspace's own mark, from the PUBLIC branding route — a
-    // white label that only applies after you sign in is not a white label.
-    <AuthLayout
-      logo={<BrandMark tone="onAccent" />}
-      headline={t('auth.headline', 'Turn any database into a dashboard.')}
-      description={t(
-        'auth.description',
-        'Connect PostgreSQL and Adminium generates a themeable, permission-aware admin app — no code required.',
-      )}
-      trustBadges={<span>{t('auth.trust', 'AGPL core · Self-hosted · Your data stays yours')}</span>}
-      corner={<ThemeToggleButton />}
-    >
-      {children}
-    </AuthLayout>
-  );
+  // A trial's strips go above the page (`TrialMount`); on any other server the layout is the page.
+  return <TrialMount frame={page} />;
 }

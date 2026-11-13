@@ -22,6 +22,7 @@ import { createAiEnv, type AiEnv } from '../src/llm/ai-env.js';
 import { createAiConnections, parseSelected, ProviderNotConfiguredError, type AiConnections } from '../src/llm/connections.js';
 import { addressKind, resolveAndCheck } from '../src/llm/outbound.js';
 import { AI_ENV_NAMES, loadDotEnv, readDotEnv, setDotEnv } from '../src/project/dotenv.js';
+import { resolveProviderClient } from '../src/routes/llm/config-service.js';
 import { TEST_SECRET } from './helpers.js';
 
 let root: string;
@@ -319,6 +320,33 @@ describe('the model connections', () => {
     const all = connections(envOf({ ADMINIUM_AI_COMPATIBLE_BASE_URL: 'http://127.0.0.1:8000/v1' }), { production: true });
     await expect(all.client('database')).rejects.toThrow('Loopback');
     await expect(all.client('env:openai-compatible')).resolves.toMatchObject({ provider: 'openai-compatible' });
+  });
+
+  it('under ADMINIUM_NETWORK_POLICY=strict, an address the person gives reaches nothing on this server’s network, Ollama’s neither; the operator’s own does', async () => {
+    const settings = settingsRepo(meta);
+    const inside = { resolve: async () => ['10.0.0.5'] };
+    const operator = envOf({ ADMINIUM_AI_OLLAMA_BASE_URL: 'http://10.0.0.9:11434' });
+    for (const [provider, baseUrl] of [
+      ['ollama', 'http://10.0.0.5:11434'],
+      ['ollama', 'http://localhost:11434'],
+      ['ollama', null],
+      ['openai-compatible', 'http://gateway.internal/v1'],
+    ] as const) {
+      await settings.set('llm.provider', provider);
+      await settings.set('llm.baseUrl', baseUrl);
+      await expect(connections(operator, { ...inside, strictNetwork: true }).client('database'), `${provider} ${String(baseUrl)}`).rejects.toThrow(/own network|Loopback|own machine|resolve/i);
+      await expect(resolveProviderClient(settings, keyCrypto, fakeClient, undefined, true), `${provider} ${String(baseUrl)}`).rejects.toThrow(/own network|Loopback|own machine|resolve/i);
+      // Not strict: as before.
+      await expect(connections(operator, inside).client('database')).resolves.toMatchObject({ provider });
+    }
+    // A test of a typed address: the same; the operator's own environment address: as the operator set it.
+    const strict = connections(operator, { ...inside, strictNetwork: true });
+    expect(await strict.test({ provider: 'ollama', baseUrl: 'http://10.0.0.5:11434' })).toMatchObject({ ok: false });
+    await expect(strict.client('env:ollama')).resolves.toMatchObject({ provider: 'ollama' });
+    // A model on the internet is reached as ever.
+    await settings.set('llm.provider', 'openai-compatible');
+    await settings.set('llm.baseUrl', 'https://models.example/v1');
+    await expect(connections(operator, { strictNetwork: true }).client('database')).resolves.toMatchObject({ provider: 'openai-compatible' });
   });
 
   it('tests a draft: lists models, then checks the named one can build, without saving anything', async () => {

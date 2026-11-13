@@ -545,6 +545,12 @@ export const bootstrapReply = z.object({
     }),
     /** Only on a server that runs a project folder (`adminium start` in a project, `adminium dev`). */
     project: bootstrapProject.optional(),
+    /**
+     * Only while the server's operator has hidden every public page: Studio
+     * shows it on every page, with the operator's reason. Staff pages keep
+     * working. Read at sign-in, like everything here.
+     */
+    publicPagesHidden: z.object({ reason: z.string().nullable() }).optional(),
   }),
 });
 export type BootstrapReply = z.infer<typeof bootstrapReply>;

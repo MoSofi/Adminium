@@ -1356,6 +1356,13 @@ export async function bootstrapHandler(
       appSections,
       maps: { enabled: maps.enabled, server: maps.server, routing: maps.routing },
       ...(project === null ? {} : { project }),
+      // The server's operator has hidden every public page: Studio says so, with their reason (`operator/holds.ts`).
+      ...publicPagesHiddenOf(request),
     },
   };
+}
+
+function publicPagesHiddenOf(request: FastifyRequest): { publicPagesHidden?: { reason: string | null } } {
+  const hold = request.server.hasDecorator('operatorHolds') ? request.server.operatorHolds.publicPages() : null;
+  return hold === null || !hold.hidden ? {} : { publicPagesHidden: { reason: hold.reason } };
 }

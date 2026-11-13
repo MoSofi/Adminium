@@ -507,6 +507,8 @@ export type StepFacts = {
   /** A Figma read that did not happen: the person's reads are paused until then (epoch ms), dated when Figma said when. */
   until?: number;
   dated?: boolean;
+  /** The server's operator turned this off (trial mode, the hosted profile): the line says so in fixed words. */
+  operator?: string;
 };
 
 /** One element of the previewed page, as the person pointed at it: what the screen said of it. */
@@ -560,7 +562,12 @@ export type DesignerEventBody =
   /** The server's word on the page's pictures as a turn ends. */
   | { kind: 'pictures-note'; note: 'placeholders' | 'still-empty'; count: number }
   /** A make of pictures with AI: the dialog's progress (by the person), or what the chat's make_pictures made (in its turn). */
-  | { kind: 'picture-make'; job: MakeJob };
+  | { kind: 'picture-make'; job: MakeJob }
+  /** The fixed card a turn on the operator's AI ends with: the request needs customer-facing screens (`scope`), or the AI included is spent (`used-up`). */
+  | { kind: 'operator-ai'; card: OperatorAiCard };
+
+/** Which fixed card a turn on the operator's AI ended with. */
+export type OperatorAiCard = 'scope' | 'used-up';
 
 /** What a person can do from a page that takes the app's folder for a moment. */
 export type FolderHold = 'save' | 'style' | 'restore' | 'start' | 'pictures';
@@ -868,6 +875,8 @@ export const designerApi = {
   setOwnerPassword: (input: { email: string; password: string }) => api.post<{ email: string }>(`${BASE}/owner-password`, input),
   createSession: (input: { appKey?: string; name?: string; /** The session's title until the Designer names the app. */ title?: string; /** A style picked at the start. */ style?: string; target: DesignerTarget; connectionId: string; model: string; effort?: DesignerEffort; text?: string; /** With `text`: this page will show the preview and say what it sees. */ sees?: boolean }) =>
     api.post<{ session: DesignerSession; turn: number | null }>(`${BASE}/sessions`, input),
+  /** The operator's start prompt, run once after the first-run account step: 404 without one, 409 once it ran. */
+  startPrompt: () => api.post<{ sessionId: string; turn: number }>(`${BASE}/start-prompt`, {}),
 };
 
 export const designerStateQuery = () => queryOptions({ queryKey: designerKeys.state, queryFn: designerApi.state });

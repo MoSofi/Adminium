@@ -73,6 +73,10 @@ import { buildServer, type AdminiumServer, type BuildServerOptions } from './app
 import type { HostedSurface } from './cli/surfaces-root.js';
 import type { Env } from './config/env.js';
 import { holdOperatorSecrets, operatorSecret } from './config/operator-secrets.js';
+import { buildOperatorEndpoint, hiddenPageLogoReader, operatorListener } from './operator/endpoint.js';
+import { createOperatorEvents, registerOperatorEventsHandler } from './operator/events.js';
+import { buildPublicContent } from './operator/public-content.js';
+import { operatorStatus } from './operator/status.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
 import { seedStorageDestination } from './config/storage-seed.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
@@ -83,9 +87,11 @@ import { createLocalDatabases, localDatabasesMode } from './connections/local-da
 import type { ConnectionManager } from './connections/manager.js';
 import { privilegesOf } from './connections/privileges.js';
 import { UndoStore } from './crud/undo.js';
-import { seedBuiltinEmailTemplates } from './email/builtins.js';
-import { emailSecretKey } from './email/config.js';
+import { seedBuiltinEmailTemplatesIfChanged } from './email/builtins.js';
+import { configureSmtpNetwork, emailSecretKey } from './email/config.js';
 import { configureEmailRuntime } from './email/send.js';
+import { trialMailSetupOf } from './email/trial-mail-setup.js';
+import { configureTrialMail, onEmailCapReached } from './email/trial-relay.js';
 import { CATALOG_ENABLED_SETTING, createCatalogClient } from './add-ons/catalog.js';
 import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js';
 import { addOnHttpClientFor } from './add-ons/egress.js';
@@ -104,13 +110,14 @@ import { createFormsCatalog } from './forms/catalog.js';
 import { createFormsConfirm } from './forms/confirm.js';
 import { createFormsScopes } from './forms/scope.js';
 import { formsPackageVouched } from './forms/vouched.js';
-import { createFormsFiles } from './forms/files.js';
+import { createFormsFiles, formsTablesOn } from './forms/files.js';
 import { createSurveyInvitations } from './forms/invitation.js';
 import { createPublicUploads } from './public-uploads/store.js';
 import { createColumnUploads } from './public-uploads/columns.js';
 import { tellUploadsRefused } from './public-uploads/notices.js';
 import { formsFilesRoutes } from './routes/forms-files/index.js';
 import { listedWebsitesOf } from './forms/websites.js';
+import { framingWebsites } from './trial/operator-hosts.js';
 import { formsDoorRoutes } from './routes/forms-door/index.js';
 import { createLedgerRuntime } from './ledgers/registry.js';
 import { announcePostings, tellPostings, type PostingsTold } from './ledgers/announce.js';
@@ -155,6 +162,7 @@ import { createPictureDialog, type PictureKeys } from './designer/picture-dialog
 import { createPictureJobs } from './designer/picture-jobs.js';
 import { personLog } from './designer/events.js';
 import { createPictureSearch, type PictureSearch } from './designer/picture-search.js';
+import { designerCallsOut } from './trial/refuse.js';
 import { createPictureShelf, downloadPicture, openverse, pexels, pixabay, unsplash, type PictureSource } from './designer/pictures.js';
 import { readDotEnv } from './project/dotenv.js';
 import { createDesigner, type Designer } from './designer/service.js';
@@ -246,7 +254,11 @@ import { sweepAssistantSessions } from './assistant/retention.js';
 import { INTERRUPTED_ERROR } from './jobs/assistant-turn.js';
 import type { AssistantAddOn } from './assistant/types.js';
 import { AI_ENV_NAMES, createAiEnv } from './llm/ai-env.js';
+import { trialPolicy } from './trial/policy.js';
+import { projectDotEnvValue } from './trial/project-env.js';
+import { createSizeCap, useStorageHold } from './trial/size-cap.js';
 import { createAiConnections, ProviderNotConfiguredError } from './llm/connections.js';
+import { createOperatorAiMeter, operatorAiRules } from './llm/operator-ai.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
 import { assistantRoutes } from './routes/assistant/index.js';
 import type { RunService } from './llm/run-service.js';
@@ -291,6 +303,7 @@ import { createFigmaTokens } from './designer/figma/tokens.js';
 import { safeFetch, type SafeFetchOptions } from './net/safe-fetch.js';
 import { figmaRoutes } from './routes/designer/figma.js';
 import { hashPassword } from './auth/passwords.js';
+import { connectRoutes } from './routes/connect/index.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
 import { emailTemplatesRoutes } from './routes/email-templates/index.js';
@@ -616,6 +629,11 @@ export interface ComposeServerOptions {
   /** A test's own picture makers: given what the real one would be built with. */
   pictureMakerSeam?: import('./llm/connections.js').AiConnectionsDeps['createPictureMaker'] | undefined;
   /**
+   * For tests only: the certificate authority the operator's connect service is checked against (a fake one
+   * serves a certificate of its own), and a shorter redeem timeout. There is no setting for this.
+   */
+  connectSeam?: { redeemCa?: string | undefined; redeemTimeoutMs?: number | undefined; now?: (() => number) | undefined } | undefined;
+  /**
    * For tests only: marketing mail's DNS answers, the sender's postal address and the per-table "existing
    * customers" switch, given in place of the real ones (`email/marketing.ts`). There is no setting for this.
    */
@@ -756,6 +774,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const appManifests = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
   /** Forget which apps have an outbox; set once the producers exist below. */
   let outboxesChanged = (): void => {};
+  /** A customer side strangers see may have changed; set once the signed instance events exist below. */
+  let publicSidesChanged = (): void => {};
   /** The project folder's apps, kept in step with this server; set where the app routes are built. */
   let projectApps: ProjectApps | null = null;
   let designer: Designer | null = null;
@@ -768,6 +788,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // app emails' producers look again at which apps are live.
     list: async () => {
       outboxesChanged();
+      publicSidesChanged();
       return (await appManifests.list('app')).map((installed) => ({
         key: installed.row.manifestKey,
         version: installed.row.version,
@@ -792,6 +813,31 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...(opts.designer === undefined ? {} : { design: { port: opts.designer.port } }),
     ...(opts.shared === undefined ? {} : { sharedHosts: { port: opts.shared.port } }),
   });
+  // A trial's size caps: each operator database's live data and the data folder, measured and held (`trial/size-cap.ts`).
+  const caps = app.trialPolicy.limits;
+  const sizeCap =
+    caps === null
+      ? null
+      : createSizeCap({
+          limits: caps,
+          sources: manager,
+          dataDir: env.ADMINIUM_DATA_DIR,
+          // The project the Designer writes to counts with the data folder, wherever it is.
+          folders: projectRoot === null ? [] : [projectRoot],
+          log: app.log,
+        });
+  app.decorate('sizeCap', sizeCap);
+  // The Designer's own files and attachments ask the data folder's hold too, wherever they are written.
+  useStorageHold(sizeCap);
+  if (sizeCap !== null) {
+    manager.watchWrites(sizeCap);
+    app.addHook('onReady', async () => {
+      sizeCap.start();
+    });
+    app.addHook('onClose', async () => {
+      sizeCap.stop();
+    });
+  }
   // A phone side's preview: a route of its own, in a project being designed or developed, and nowhere else.
   if (opts.project?.mode === 'dev' && projectRoot !== null) {
     registerPhonePreview(app, { root: projectRoot, appBuild: (key) => projectApps?.buildOf(key) ?? null });
@@ -843,9 +889,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // Seeding is best-effort: a meta store that cannot take the seed (a partially
   // migrated relocation target, say) must still serve CRUD. Email degrades; the
   // product does not fail to boot over it.
-  configureEmailRuntime({ secret: env.ADMINIUM_SECRET });
+  configureEmailRuntime({ secret: env.ADMINIUM_SECRET, userMail: () => app.trialPolicy.allows('userMail').allowed });
+  // The user's own mail server under ADMINIUM_NETWORK_POLICY=strict: not this machine, nor the server's own network.
+  configureSmtpNetwork({ strict: env.ADMINIUM_NETWORK_POLICY === 'strict', lookup: manager.outboundPolicy.lookup });
+  // A trial's mail: only through the operator's relay, shaped and capped (`email/trial-relay.ts`); off elsewhere.
+  configureTrialMail(trialMailSetupOf(env, app.trialPolicy));
   try {
-    await seedBuiltinEmailTemplates(meta, Date.now());
+    // Once per release and translation change, not on every start (see the function).
+    await seedBuiltinEmailTemplatesIfChanged(meta, process.env['NODE_ENV'] === 'production' ? APP_VERSION : null, Date.now());
   } catch (error) {
     app.log.warn(
       { err: error },
@@ -875,9 +926,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const llmKeyCrypto = llmKeyCryptoFromSecret(env.ADMINIUM_SECRET, { deriveKey, encryptSecret, decryptSecret });
   const aiEnv = createAiEnv({
-    root: projectRoot,
+    // In trial and hosted mode the project's `.env` is not read: a key lives in Settings → AI.
+    root: trialPolicy(env).allows('projectDotEnv').allowed ? projectRoot : null,
     fromEnvironment: Object.fromEntries(AI_ENV_NAMES.map((name) => [name, env[name]])),
   });
+  // The operator's own AI, counted at the one place every call passes (`llm/operator-ai.ts`).
+  const operatorAi = createOperatorAiMeter(meta, operatorAiRules(env));
+  await operatorAi.open();
   const aiConnections = createAiConnections({
     settings: settingsRepo(meta),
     keyCrypto: llmKeyCrypto,
@@ -886,7 +941,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     production: process.env.NODE_ENV === 'production',
     // On a live server a signed-in person names the model's address: loopback and private ranges are refused (M22).
     ...(liveAllowed ? { blockPrivate: true } : {}),
+    // Under ADMINIUM_NETWORK_POLICY=strict, an address the person gives reaches nothing on this server's network.
+    strictNetwork: manager.networkPolicy === 'strict',
     ...(opts.pictureMakerSeam === undefined ? {} : { createPictureMaker: opts.pictureMakerSeam }),
+    // Trial mode: no AI address of the person's own, saved or typed into a test.
+    policy: app.trialPolicy,
+    operatorAi,
   });
   if (!app.hasDecorator('aiConnections')) app.decorate('aiConnections', aiConnections);
 
@@ -1030,6 +1090,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     spool: createSpool({ dataDir: env.ADMINIUM_DATA_DIR }),
     destinations: destinationResolver,
     files: filesRepo(meta),
+    // A trial's caps: no file past the data folder's limit, no upload larger than the trial's per-file limit.
+    ...(sizeCap === null || caps === null ? {} : { guard: { reserve: (bytes: number) => sizeCap.reserve(bytes), uploadMaxBytes: caps.uploadMaxBytes } }),
   });
   // Which columns hold files, and the hook that keeps `adminium_files` in step
   // with what those columns say. One reader, shared by the upload
@@ -1120,6 +1182,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // The apps were rebuilt: install what is new, apply what changed, tell open pages.
           onAppsChanged: async () => {
             await projectApps?.reconcile();
+            publicSidesChanged();
           },
         });
   const projectKeys = new Map<string, { key: string | null; at: number }>();
@@ -1314,6 +1377,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const outboxSender = createOutboxSender({
     meta,
     manager,
+    userMail: () => app.trialPolicy.allows('userMail').allowed,
     marketing: marketingMail,
     viewFor: (connectionId) => publicViews.viewFor(connectionId),
     writes: recordWrites,
@@ -1757,7 +1821,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   });
   const paymentProviderLookup = async (key: string, mode: PaymentMode) => {
     return paymentProviderFor(
-      { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest), demo: paymentDemo, log: (message, fields) => app.log.warn(fields, message) },
+      { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }), demo: paymentDemo, log: (message, fields) => app.log.warn(fields, message) },
       key,
       mode,
     );
@@ -2107,7 +2171,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // here. They gate on the same once-only setup window — see routes/setup/store.ts.
       await api.register(
         setupStoreRoutes({
-          service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired }),
+          service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired, policy: app.trialPolicy }),
           env,
           ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
         }),
@@ -2132,6 +2196,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             publicResolver.invalidate();
             apiCatalogue.invalidate();
           },
+        }),
+      );
+      // "Connect Supabase": the operator hand-off. Registered always; a provider whose variable is unset answers 404.
+      await api.register(
+        connectRoutes({
+          env,
+          manager,
+          meta,
+          redeemCa: opts.connectSeam?.redeemCa,
+          redeemTimeoutMs: opts.connectSeam?.redeemTimeoutMs,
+          now: opts.connectSeam?.now,
         }),
       );
       await api.register(schemaRoutes({ manager, meta }));
@@ -2171,6 +2246,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           manager,
           secret: env.ADMINIUM_SECRET,
+          policy: app.trialPolicy,
           enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
           onRulesChanged: () => automations.matcher.onRulesChanged(),
           runner: { storage, hub: jobs.hub, writes: recordWrites },
@@ -2240,13 +2316,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         // from `process.env`: the composition root already holds the parsed env,
         // and a route reading process.env directly is invisible to the desktop and
         // CLI wrappers that build their own Env.
-        settingsRoutes({ meta, emailKey: emailSecretKey(env.ADMINIUM_SECRET) }),
+        settingsRoutes({ meta, emailKey: emailSecretKey(env.ADMINIUM_SECRET), policy: app.trialPolicy }),
       );
       // "Allow databases on this server": a Super Admin's switch the operator can lock off. Read
       // now, so the guard counts it from the first request; a store not migrated yet holds nothing on.
       const localDatabases = createLocalDatabases({
         meta,
         mode: localDatabasesMode(env),
+        policy: app.trialPolicy,
         hosts: env.ADMINIUM_DATABASE_HOSTS,
         loopbackRefused: manager.blockLoopback,
         apply: (on) => {
@@ -2268,6 +2345,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           storage,
           storageCrypto,
+          uploadMaxBytes: caps?.uploadMaxBytes ?? null,
           // A file held only in a column the reader's role does not read is not theirs.
           hiddenFile: hiddenFileCheck(meta, manager),
           // …and a file of a record its reader's role does not reach is not theirs either.
@@ -2334,6 +2412,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
           desktop: env.ADMINIUM_RUNTIME === 'desktop',
           trustProxy: env.ADMINIUM_TRUST_PROXY,
+          policy: app.trialPolicy,
         }),
       );
       // Where a payment service calls back: no session, the signature is the gate.
@@ -2415,7 +2494,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           lookup: opts.marketingSeams?.lookup,
         }),
       );
-      await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime }));
+      await api.register(paymentWaysRoutes({ meta, storage, manifests: appManifests, runtime: () => addOnRuntime, policy: app.trialPolicy }));
       await api.register(
         paymentLinksRoutes({
           meta,
@@ -2857,15 +2936,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           ...(pictureSites === undefined ? {} : { pictureSites }),
           designPictures: (sessionId, userId) => designPicturesIn?.(sessionId, userId) ?? 0,
         });
+        // Picture search and Figma call outside services: off where this server calls nothing outside, and in trial mode.
+        const designerOutside = (): boolean => designerCallsOut(addOnCatalog.networkFeaturesAllowed(), app.trialPolicy);
         // Free pictures for an app's pages, in the picture dialog: Openverse, and Pexels, Unsplash and Pixabay with the project's own keys; none where this server calls nothing outside.
         const pictureKey = (name: PictureKeyName): string => {
           // A host that keeps the keys (the desktop app) is the only place they are: the project's file is not read.
+          // Nor is it under trial mode or the hosted profile (`trial/project-env.ts`).
           const host = hostModels();
-          return (host !== null ? (host.read()[name] ?? '') : (operatorSecret(name) ?? readDotEnv(root)?.[name] ?? '')).trim();
+          return (host !== null ? (host.read()[name] ?? '') : (operatorSecret(name) ?? projectDotEnvValue(app.trialPolicy, root, name) ?? '')).trim();
         };
         const pictureFetch = (url: string, fetchOpts: SafeFetchOptions) => safeFetch(url, { ...fetchOpts, ...(opts.pictureSeams ?? {}) });
         const pictureSources = (): PictureSource[] => {
-          if (!addOnCatalog.networkFeaturesAllowed()) return [];
+          if (!designerOutside()) return [];
           const pexelsKey = pictureKey('PEXELS_API_KEY');
           const unsplashKey = pictureKey('UNSPLASH_ACCESS_KEY');
           const pixabayKey = pictureKey('PIXABAY_API_KEY');
@@ -2884,7 +2966,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         const pictureKeys: PictureKeys = {
           state: () => {
             const host = hostModels();
-            if (host === null || !addOnCatalog.networkFeaturesAllowed()) return null;
+            if (host === null || !designerOutside()) return null;
             return { Pexels: pictureKey('PEXELS_API_KEY') !== '', Unsplash: pictureKey('UNSPLASH_ACCESS_KEY') !== '', keeping: host.keeping };
           },
           keep: (source, key) => hostModels()?.keep({ [source === 'Pexels' ? 'PEXELS_API_KEY' : 'UNSPLASH_ACCESS_KEY']: key }),
@@ -2947,7 +3029,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         });
 
         // Figma: each person's own token, what was read with it, and frames imported but not sent yet.
-        const figmaClient = createFigmaClient({ allowed: () => addOnCatalog.networkFeaturesAllowed(), ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
+        const figmaClient = createFigmaClient({ allowed: designerOutside, ...(opts.figmaSeams === undefined ? {} : { seams: opts.figmaSeams }) });
         const figmaCache = createFigmaCache(root);
         // The project's own token stands in for its owner's under `adminium design` only, read from the process's environment (never the project's .env).
         const figmaEnvToken = (operatorSecret('ADMINIUM_FIGMA_TOKEN') ?? '').trim();
@@ -2981,6 +3063,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           },
           ...(pictureSites === undefined ? {} : { pictureSites }),
           connections: aiConnections,
+          // The operator's AI builds dashboards only, where the operator says so (`designer/operator-scope.ts`).
+          ...(env.ADMINIUM_AI_OPERATOR_SCOPE === 'dashboard' ? { operatorScope: true } : {}),
           projectApps: () => projectApps,
           service: designerService,
           installHost: {
@@ -3072,6 +3156,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             designer,
             versions: designerVersions,
             connections: aiConnections,
+            // The operator's first request, run once after the first-run account step (`designer/start-prompt.ts`).
+            startPrompt: { meta, prompt: env.ADMINIUM_DESIGNER_START_PROMPT_B64 ?? env.ADMINIUM_DESIGNER_START_PROMPT_FILE ?? null },
             mode: designerOpts.mode,
             ignoredEnv: [...(opts.designer?.ignoredEnv ?? []), ...figmaIgnored],
             attachments: designerAttachments,
@@ -3160,7 +3246,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             client: figmaClient,
             reader: figmaReader,
             imports: figmaImports,
-            network: () => addOnCatalog.networkFeaturesAllowed(),
+            network: designerOutside,
             lasting: cacheOutlivesDeploys(figmaCache.dir, machineFacts),
             ...(live === null ? {} : { live }),
           }),
@@ -3271,6 +3357,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         await api.register(
           llmRoutes({
             meta,
+            policy: app.trialPolicy,
+            strictNetwork: manager.networkPolicy === 'strict',
             runService,
             applyService,
             keyCrypto: llm.keyCrypto,
@@ -3347,7 +3435,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const formsData = async (connectionId: string) => manager.data(connectionId);
   const formsViews = (connectionId: string) => publicViews.viewFor(connectionId);
   const formsScopes = createFormsScopes({ meta, modelOf: async (connectionId) => ((await snapshotsRepo(meta).latest(connectionId))?.schema as LooseTableIdModel | undefined) ?? null });
-  const formsWebsites = listedWebsitesOf(meta);
+  const formsWebsites = framingWebsites(app, listedWebsitesOf(meta));
   const formsConfirm = createFormsConfirm({ meta, secret: env.ADMINIUM_SECRET, consent, installs: () => addOnInstalls.fresh(), data: formsData, viewFor: formsViews });
   // A named survey's invitations: found by the token their links carry, spent by the answer.
   const surveyInvitations = createSurveyInvitations({ installs: () => addOnInstalls.fresh(), viewFor: formsViews, data: formsData, scopes: formsScopes });
@@ -3482,8 +3570,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * never a wait: a firewall that drops instead of refusing must not hold the
    * start. Asked for only by a command that starts a server for people
    * (`start`, `dev`, `design`, the desktop), never by composing one in a test.
+   * Not in trial mode: a trial sleeps and wakes many times a day, and each wake
+   * should cost a start and nothing more. Its daily tick and the Add-ons page
+   * still ask.
    */
-  if (opts.catalogBootRefresh === true) {
+  if (opts.catalogBootRefresh === true && app.trialPolicy.profile !== 'trial') {
     app.addHook('onReady', async () => {
       try {
         const stale = async (store: { readCatalogCache(): Promise<{ fetchedAt: number } | null> }): Promise<boolean> => {
@@ -3616,7 +3707,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           event: declared.on,
           module,
           // Built from the MANIFEST, so no caller can widen the allow-list.
-          http: addOnHttpClientFor(meta, manifest),
+          http: addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }),
           credential: async (installId: string | undefined) => {
             const install = await installOfRecord(repo, manifest.key, installId);
             return install === null ? null : ((await repo.getCredential(install.row.id))?.secret ?? null);
@@ -3729,6 +3820,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     .catch((err: unknown) => {
       app.log.error({ err }, 'the add-on runtime could not be built');
     });
+  // `/readyz?deep=1` answers 503 until it has settled (`routes/system`): what a waker waits on.
+  let addOnsLoading = true;
+  void addOnsLoaded.finally(() => {
+    addOnsLoading = false;
+  });
+  if (!app.hasDecorator('addOnsLoading')) app.decorate('addOnsLoading', () => addOnsLoading);
 
   /*
    * NAME WHAT DID NOT COME BACK. The meta store remembers every install; the
@@ -4068,6 +4165,55 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   app.addHook('onClose', async () => {
     await manager.disposeAll();
   });
+
+  // The page a hidden public page answers with shows the instance's logo, read from wherever files are kept.
+  app.operatorHolds.readLogoWith(hiddenPageLogoReader(meta, storage));
+  // The operator endpoint, on a listener of its own and only with the operator's token (`operator/endpoint.ts`).
+  const operatorToken = env.ADMINIUM_OPERATOR_TOKEN ?? operatorSecret('ADMINIUM_OPERATOR_TOKEN');
+  const operatorListen = env.ADMINIUM_OPERATOR_LISTEN;
+  const operatorEndpoint =
+    operatorToken === undefined || operatorListen === undefined
+      ? null
+      : await buildOperatorEndpoint({
+          meta,
+          token: operatorToken,
+          holds: app.operatorHolds,
+          status: () => operatorStatus({ meta, dataDir: env.ADMINIUM_DATA_DIR, projectRoot, publicPages: () => app.operatorHolds.publicPages() }),
+          publicContent: () => buildPublicContent({ surfaces: () => app.surfaces, forms: formsCatalog }),
+          logger: app.log.child({ listener: 'operator' }),
+        });
+  app.decorate('operatorEndpoint', operatorEndpoint === null || operatorListen === undefined ? null : operatorListener(operatorEndpoint, operatorListen));
+  app.addHook('onClose', async () => {
+    await operatorEndpoint?.close();
+  });
+  // Signed instance events, pushed to the operator while this instance is awake (`operator/events.ts`). The
+  // handler is there on every server, so an event queued before the address was taken away is let go unsent.
+  const operatorEventsOptions = {
+    meta,
+    url: env.ADMINIUM_OPERATOR_EVENTS_URL ?? null,
+    token: operatorToken ?? null,
+    surfaces: () => app.surfaces,
+    forms: formsCatalog,
+    // What is kept of the add-ons' installs, read without a query: a write to a forms table may change a form.
+    formsTable: async (connectionId: string, tableId: string) => formsTablesOn(addOnInstalls.current(), connectionId).some((tables) => tables.forms === tableId),
+    log: app.log,
+  };
+  registerOperatorEventsHandler(jobs.registry, operatorEventsOptions);
+  const operatorEvents = operatorEventsOptions.url === null || operatorEventsOptions.token === null ? null : createOperatorEvents(operatorEventsOptions);
+  app.decorate('operatorEvents', operatorEvents);
+  if (operatorEvents !== null) {
+    publicSidesChanged = () => operatorEvents.publicMayHaveChanged();
+    const stopCaps = onEmailCapReached((event) => operatorEvents.emailCapReached(event));
+    const stopReadings = sizeCap?.listen((event) => operatorEvents.storageReading(event)) ?? null;
+    app.addHook('onReady', async () => {
+      await operatorEvents.start();
+    });
+    app.addHook('onClose', async () => {
+      stopCaps();
+      stopReadings?.();
+      await operatorEvents.stop();
+    });
+  }
 
   return {
     app,

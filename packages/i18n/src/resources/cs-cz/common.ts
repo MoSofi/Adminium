@@ -700,6 +700,29 @@ export default {
         "connectRefused": "Databáze připojení odmítla.",
         "readFailed": "Adminium nemohlo přečíst tabulky této databáze."
       }
+    },
+    "connectProvider": {
+      "or": "nebo",
+      "supabase": {
+        "title": "Připojit Supabase",
+        "body": "Přihlaste se do Supabase a vyberte projekt.",
+        "action": "Připojit Supabase",
+        "again": "Připojit Supabase znovu",
+        "expired": "Připojení k Supabase vypršelo.",
+        "failed": "Supabase se nepodařilo připojit.",
+        "connecting": "Připojuje se váš projekt Supabase…",
+        "picked": "Vybráno. Do Supabase se přihlásíte, jakmile bude váš účet existovat."
+      },
+      "existing": {
+        "title": "Použít existující projekt",
+        "change": "Změnit",
+        "label": "Zadejte heslo k databázi projektu {project}",
+        "labelNoName": "Zadejte heslo k databázi tohoto projektu",
+        "help": "Provozovatel ho nikdy neuvidí: jde přímo do této instalace.",
+        "connect": "Připojit",
+        "back": "Zpět",
+        "failed": "S tímto heslem se připojit nepodařilo. Zkontrolujte ho a zkuste to znovu."
+      }
     }
   },
   "views": {
@@ -2156,5 +2179,54 @@ export default {
       "docsLink": "Jak se obě zobrazení liší"
     },
     "switched": "Přepnuto na {name}"
+  },
+  "operatorLock": {
+    "chip": "Nastaveno provozovatelem",
+    "lockedOff": "Provozovatel toto pro tuto instalaci vypnul."
+  },
+  "operatorSwitches": {
+    "sqlite": "Tato instalace neotevírá soubory SQLite: provozovatel povoluje jen databázové servery.",
+    "unlistedHost": "Tato instalace se připojuje jen k databázovým hostitelům, které provozovatel povoluje.",
+    "otherLogin": "Na tomto databázovém hostiteli fungují jen přihlášení a databáze, které provozovatel této instalaci přidělil.",
+    "metaFixed": "Provozovatel určuje, kde tato instalace uchovává svá vlastní data.",
+    "storage": "Provozovatel uchovává soubory této instalace na vlastním disku, takže nelze přidat ani otestovat jiné úložiště.",
+    "webhooks": "Provozovatel pro tuto instalaci vypnul kroky webhooku.",
+    "aiProvider": "Provozovatel v této instalaci povoluje jen váš vlastní klíč k Anthropic, OpenAI nebo Google.",
+    "aiAddress": "Provozovatel v této instalaci nepovoluje vlastní adresu AI.",
+    "payments": "Provozovatel pro tuto instalaci vypnul platební služby.",
+    "askOperator": "Změnit to může jen ten, kdo tuto instalaci provozuje.",
+    "dataOverCap": "Tato databáze překročila limit velikosti zkušební verze, a je proto jen pro čtení. Pokračujte smazáním několika řádků.",
+    "storageOverCap": "Soubory této instalace překročily limit zkušební verze, a nic dalšího proto nelze uložit. Pokračujte smazáním několika souborů.",
+    "extraSources": "Zkušební verze připojí nejvýše 3 databáze. Chcete-li připojit jinou, jednu odeberte.",
+    "sizeCapNotice": "Tato databáze překročila limit zkušební verze {limit} MB, a je proto jen pro čtení. Pokračujte smazáním několika řádků.",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "Limit {limit} MB",
+    "sizeCapReadOnly": "Jen pro čtení: databáze překročila limit zkušební verze",
+    "packageUploads": "Provozovatel na této instalaci instaluje doplňky a aplikace jen z katalogu, nahrávání je proto vypnuté.",
+    "designerUploads": "Provozovatel pro tuto instalaci vypnul nahrávání do Designeru.",
+    "designerCode": "Provozovatel pro tuto instalaci vypnul vlastní kód: Designer staví jen z nastavení.",
+    "ownBuilds": "Provozovatel pro tuto instalaci vypnul vlastní sestavení.",
+    "designerNetwork": "Provozovatel pro tuto instalaci vypnul hledání obrázků a Figmu.",
+    "userMail": "Tato zkušební verze skončila, tato instalace proto už neposílá e-maily.",
+    "testBudget": "Tato instalace za poslední minutu otestovala {limit} připojení k databázím. Počkejte {seconds, plural, one {# sekundu} few {# sekundy} many {# sekundy} other {# sekund}} a zkuste to znovu.",
+    "payPages": "Provozovatel pro tuto instalaci vypnul platební stránky.",
+    "paymentWebhooks": "Provozovatel nedovoluje platebním službám volat tuto instalaci.",
+    "mappedDomains": "Na tuto instalaci mohou ukazovat jen domény, které provozovatel uvedl.",
+    "marketingCampaigns": "Provozovatel pro tuto instalaci vypnul marketingové kampaně.",
+    "liftMailHold": "V této instalaci zůstávají dnešní nedoručené zprávy a hlášení spamu na seznamu „neposílat e-maily“ až do zítřka.",
+    "customerScreens": "AI dodávaná s touto instalací vytváří jen přehledy. Obrazovky pro zákazníky potřebují váš vlastní klíč k AI.",
+    "reasonOperatorAiOnly": "V této instalaci běží AI přes připojení provozovatele, pokud nepřidáte vlastní klíč k Anthropic, OpenAI nebo Google.",
+    "reasonOperatorAiScope": "AI dodávaná s touto instalací vytváří jen přehledy.",
+    "reasonNotAllowed": "Provozovatel to v této instalaci nepovoluje."
+  },
+  "trial": {
+    "testEnvironment": "Toto je testovací prostředí. Nezadávejte sem prosím skutečná data zákazníků.",
+    "daysLeft": "{count, plural, one {Zbývá # den} few {Zbývají # dny} many {Zbývá # dne} other {Zbývá # dní}}",
+    "exportEverything": "Exportovat vše",
+    "upgrade": "Upgradovat",
+    "ended": "Tato zkušební verze skončila.",
+    "readOnly": "Jen pro čtení: tato zkušební verze skončila",
+    "readOnlyChip": "Jen pro čtení",
+    "upgradeLine": "Ponechat tuto instalaci: vše zůstane tak, jak je."
   }
 } as const;

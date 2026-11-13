@@ -994,5 +994,9 @@ export default {
     },
     "failed": "無法儲存。請再試一次。",
     "docsLink": "「寄件身分」如何選擇寄件者"
+  },
+  "trialRelay": {
+    "footer": "由位於 {address} 的安裝透過其營運方的郵件服務寄出。",
+    "report": "檢舉此郵件"
   }
 } as const;

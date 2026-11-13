@@ -65,6 +65,7 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedErr
 import type { FileStore } from '../../files/store.js';
 import { formsReach, type FormsReachFacts } from '../../forms/reach.js';
 import { addWebsites, readWebsites, removeWebsite, type ListedWebsite } from '../../forms/websites.js';
+import { refuseUnlistedWebsites } from '../../trial/operator-hosts.js';
 import { businessName, privacyNoticeOf, senderPostalAddress } from '../../privacy/business.js';
 import { erasePerson, previewErasure } from '../../privacy/erase.js';
 import type { AnswerFilesRemover } from '../../forms/answers.js';
@@ -97,6 +98,7 @@ import {
   websitesReply,
   whatStaysReply,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PrivacyRoutesDeps {
   meta: MetaDb;
@@ -204,6 +206,8 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     const privacy = app.rbac.require(PERMISSIONS.privacyManage);
     /*
      * A PERSON'S DATA: find, download, erase. `privacy.people` opens these and
@@ -237,7 +241,7 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
     );
 
     // What a page a stranger sees links to: no sign-in, as the sign-in page's branding is read.
-    app.get('/privacy/notice/public', { schema: { response: { 200: publicNoticeReply } } }, async () => {
+    app.get('/privacy/notice/public', { schema: { response: { 200: publicNoticeReply } }, config: { audience: 'public' } }, async () => {
       const notice = await privacyNoticeOf(meta);
       return { data: { businessName: await businessName(meta), noticeUrl: notice.noticeUrl } };
     });
@@ -257,6 +261,8 @@ export function privacyRoutes(deps: PrivacyRoutesDeps): FastifyPluginAsyncZod {
       { preHandler: privacy, config: { audit: audited('rbac') }, schema: { body: websitesAddBody, response: { 200: websitesReply } } },
       async (request) => {
         const userId = personOf(request);
+        // Where the operator decides the addresses, only its listed domains (`trial/operator-hosts.ts`).
+        refuseUnlistedWebsites(app, request.body.lines);
         const result = await addWebsites(meta, request.body.lines, { userId, at: app.rbac.now() });
         if (!result.ok) {
           // Each line's code, in order; nothing was added. The page words them.

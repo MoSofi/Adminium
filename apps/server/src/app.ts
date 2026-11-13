@@ -57,6 +57,14 @@ import {
 } from './security/trust-proxy.js';
 import { createSetupService } from './setup/service.js';
 import { createUpdateCheckService } from './telemetry/update-check.js';
+import { useOwnCodePolicy } from './trial/own-code.js';
+import { trialPolicy } from './trial/policy.js';
+import { operatorHostsOf, registerOperatorHosts } from './trial/operator-hosts.js';
+import { registerPublicPages } from './trial/public-pages.js';
+import { createRouteAudienceRegistry } from './security/route-audience.js';
+import { createOperatorHolds } from './operator/holds.js';
+import { registerTrialReadOnly } from './trial/read-only.js';
+import { holdOperatorOrigin } from './security/public-origin.js';
 import { API_PREFIX, registerRoutes } from './routes/index.js';
 import { aboutRoutes } from './routes/about/index.js';
 import { authRoutes } from './routes/auth/index.js';
@@ -423,6 +431,12 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
+  // Who each route is for, staff or the public: FIRST, so it sees every route
+  // registered anywhere in the tree (`security/route-audience.ts`).
+  const routeAudience = createRouteAudienceRegistry();
+  app.decorate('routeAudience', routeAudience);
+  app.addHook('onRoute', (route) => routeAudience.record(route));
+
   // OpenAPI collection, when asked for. FIRST, before anything that can
   // register a route: @fastify/swagger collects through its own `onRoute` hook,
   // and Fastify 5 snapshots the hook array into each child scope as that scope
@@ -454,6 +468,15 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   // reaches every route in the tree, exactly as the schema check below does.
   const auditCoverage = createAuditCoverageRegistry();
   app.decorate('auditCoverage', auditCoverage);
+  // Trial mode and the hosted profile: every "is this allowed?" (`trial/policy.ts`), for the routes that ask.
+  const policy = trialPolicy(env);
+  app.decorate('trialPolicy', policy);
+  // The guards where own code would take effect (an upload staged, a hook imported, a build run) ask it too,
+  // for as long as this server runs.
+  const releaseOwnCodePolicy = useOwnCodePolicy(policy);
+  app.addHook('onClose', async () => {
+    releaseOwnCodePolicy();
+  });
   // The same for row limits: every route says how it treats a person held to some rows (`rbac/row-coverage.ts`).
   const rowCoverage = createRowCoverageRegistry(ROW_COVERAGE);
   app.decorate('rowCoverage', rowCoverage);
@@ -566,6 +589,39 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     registerDesignMode(app, opts.design);
   }
   if (opts.sharedHosts !== undefined) registerSharedHosts(app, opts.sharedHosts);
+  // The operator's addresses: the only names this server answers to, and where links in email point (`trial/operator-hosts.ts`).
+  const operatorHosts = operatorHostsOf(env);
+  app.decorate('operatorHosts', operatorHosts);
+  if (operatorHosts !== null) {
+    registerOperatorHosts(app, operatorHosts);
+    if (opts.metaDb !== undefined && opts.metaDb !== null) await holdOperatorOrigin(opts.metaDb, operatorHosts.origin);
+  }
+  // What the server's operator holds back (every public page hidden), read before the server answers anything (`operator/holds.ts`).
+  // Where an operator can hold the pages, every public page counts as hidden until it has been read once; a
+  // failed read is tried again every 30 s.
+  const holdable = policy.profile !== 'off' || env.ADMINIUM_OPERATOR_LISTEN !== undefined;
+  const operatorHolds = createOperatorHolds(opts.metaDb ?? null, {
+    holdable,
+    onRetryFailed: (err) => app.log.error({ err }, holdable ? 'the operator holds still cannot be read; every public page stays hidden' : 'the operator holds still cannot be read'),
+  });
+  app.decorate('operatorHolds', operatorHolds);
+  app.addHook('onReady', async () => {
+    const failed = await operatorHolds.load();
+    if (failed !== null) {
+      app.log.error(
+        { err: failed },
+        holdable ? 'the operator holds could not be read; every public page is hidden until they can be, tried again every 30 seconds' : 'the operator holds could not be read; tried again every 30 seconds',
+      );
+    }
+  });
+  app.addHook('onClose', async () => {
+    operatorHolds.close();
+  });
+  // Pages strangers reach: hidden from search engines and without pay pages where the policy says so,
+  // and hidden altogether while the operator holds them back or once a trial has ended (`trial/public-pages.ts`).
+  registerPublicPages(app, policy, { holds: operatorHolds, meta: opts.metaDb ?? null });
+  // Past a trial's end date: every write refused but a short list (`trial/read-only.ts`).
+  registerTrialReadOnly(app, policy);
   // `staticRoot` rides along so core can hash the served index.html's inline
   // scripts into the CSP allowance (plugins/core.ts).
   await app.register(corePlugin, { env, staticRoot: opts.staticRoot });
@@ -680,9 +736,9 @@ export async function buildServer(opts: BuildServerOptions = {}) {
       // themselves, exactly as the LLM/settings resources are wired.
       const meta = opts.metaDb;
       if (meta !== undefined && meta !== null) {
-        await api.register(setupRoutes({ service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired }) }));
+        await api.register(setupRoutes({ service: createSetupService({ meta, hashPassword, tokenRequired: opts.setupTokenRequired, policy }) }));
         await api.register(
-          aboutRoutes({ meta, updates: createUpdateCheckService({ meta, version: APP_VERSION }) }),
+          aboutRoutes({ meta, policy, updates: createUpdateCheckService({ meta, version: APP_VERSION, policy }) }),
         );
       }
     },

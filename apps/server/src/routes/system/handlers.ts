@@ -4,8 +4,11 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql } from 'kysely';
 
 import type { Env } from '../../config/env.js';
+import { connectProviders } from '../../connect/providers.js';
 import { demoSeedAvailable } from '../../desktop/demo-seed.js';
+import { startPromptWaiting } from '../../designer/start-prompt.js';
 import { lanShareActive } from '../../desktop/lan-share.js';
+import { trialPolicy } from '../../trial/policy.js';
 import { APP_VERSION } from '../../version.js';
 import type { SystemHealthzReply, SystemInfoReply, SystemReadyzReply } from './schema.js';
 
@@ -38,7 +41,7 @@ export function healthz(): SystemHealthzReply {
  * One `SELECT 1` — enough to prove the pool can hand out a working connection,
  * cheap enough to run on a probe interval.
  */
-export async function readyz(meta: MetaDb | null, seeding = false): Promise<SystemReadyzReply> {
+export async function readyz(meta: MetaDb | null, seeding = false, addOnsLoading: boolean | null = null): Promise<SystemReadyzReply> {
   /*
    * Not ready until the boot has put the bundled apps and add-ons in the
    * store either: a script that installs an app the moment this says yes
@@ -46,17 +49,23 @@ export async function readyz(meta: MetaDb | null, seeding = false): Promise<Syst
    * its install refused for a change no one made. A few seconds, once a boot.
    */
   const packages = seeding ? 'seeding' : 'ok';
+  /*
+   * `?deep=1` (null: not asked): the add-ons' code too, which the boot loads
+   * in the background after the server answers. A waker waits on this, so the
+   * first request it sends finds every add-on there.
+   */
+  const deep = addOnsLoading === null ? {} : { addOns: addOnsLoading ? ('loading' as const) : ('ok' as const) };
   if (meta === null) {
-    return { ok: false, version: APP_VERSION, checks: { meta: 'not-configured', packages } };
+    return { ok: false, version: APP_VERSION, checks: { meta: 'not-configured', packages, ...deep } };
   }
   try {
     await sql`select 1`.execute(meta.db);
-    return { ok: !seeding, version: APP_VERSION, checks: { meta: 'ok', packages } };
+    return { ok: !seeding && addOnsLoading !== true, version: APP_VERSION, checks: { meta: 'ok', packages, ...deep } };
   } catch {
     // Deliberately not surfacing the driver's message: a connection error
     // routinely quotes the whole DSN ("password authentication failed for user
     // … host=…"), and this route is unauthenticated.
-    return { ok: false, version: APP_VERSION, checks: { meta: 'unreachable', packages } };
+    return { ok: false, version: APP_VERSION, checks: { meta: 'unreachable', packages, ...deep } };
   }
 }
 
@@ -68,6 +77,8 @@ export interface SystemInfoDeps {
   designer?: 'local' | 'live' | 'off' | undefined;
   /** Whether `adminium design` signs its owner in with a one-use link. */
   designerLink?: boolean | undefined;
+  /** The clock the trial's days are counted on. Default `Date.now`. */
+  now?: (() => number) | undefined;
 }
 
 /**
@@ -99,7 +110,7 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
   const { env, meta } = deps;
   return {
     version: APP_VERSION,
-    designer: { mode: deps.designer ?? 'off', link: deps.designerLink === true },
+    designer: { mode: deps.designer ?? 'off', link: deps.designerLink === true, startPrompt: await startPromptOpen(env, meta, deps.designer ?? 'off') },
     node: process.version,
     dialect: meta?.dialect ?? null,
     runtime: env.ADMINIUM_RUNTIME,
@@ -109,7 +120,35 @@ export async function systemInfo(deps: SystemInfoDeps): Promise<SystemInfoReply>
     deployLink: env.ADMINIUM_DEPLOY_LINK,
     // The SAME predicate compose registers the route on — see `demo-seed.ts`.
     desktopDemo: demoSeedAvailable(env),
+    connect: connectProviders(env).map((provider) => ({ provider: provider.id })),
+    trial: trialInfo(env, deps.now?.() ?? Date.now()),
+    offByOperator: offByOperator(env),
   };
+}
+
+/** Whether the operator's start prompt waits to run: only where the Designer runs, which is where its route is. */
+async function startPromptOpen(env: Env, meta: MetaDb | null, designer: 'local' | 'live' | 'off'): Promise<boolean> {
+  if (meta === null || designer === 'off') return false;
+  return startPromptWaiting({ meta, prompt: env.ADMINIUM_DESIGNER_START_PROMPT_B64 ?? env.ADMINIUM_DESIGNER_START_PROMPT_FILE ?? null });
+}
+
+/** The switches the dashboard explains before anyone signs in (the connect wizards' SQLite choice) or without a reply of its own. */
+const SWITCHES = ['sqliteSources', 'storageDestinations', 'webhooks', 'metaStoreRoutes', 'packageUploads', 'designerUploads', 'ownBuilds'] as const satisfies readonly (keyof SystemInfoReply['offByOperator'])[];
+
+function offByOperator(env: Env): SystemInfoReply['offByOperator'] {
+  const policy = trialPolicy(env);
+  const answer = (question: (typeof SWITCHES)[number]) => {
+    const { allowed, reason } = policy.allows(question);
+    return { allowed, reason };
+  };
+  return Object.fromEntries(SWITCHES.map((question) => [question, answer(question)])) as SystemInfoReply['offByOperator'];
+}
+
+/** The trial's clock and the Upgrade address, as the banners read them. */
+function trialInfo(env: Env, now: number): SystemInfoReply['trial'] {
+  const policy = trialPolicy(env);
+  const state = policy.trial(now);
+  return { on: state.on, endsAt: state.endsAt, daysLeft: state.daysLeft, upgradeUrl: policy.upgradeUrl };
 }
 
 /**

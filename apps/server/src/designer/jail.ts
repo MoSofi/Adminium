@@ -14,12 +14,21 @@
  * the three folders.
  *
  * This keeps the model from WRITING outside the app. It does not make what
- * it writes harmless: hooks and actions are code this server runs.
+ * it writes harmless: hooks and actions are code this server runs. So while
+ * the operator keeps own code off (`trial/own-code.ts`), the jail itself
+ * writes and deletes no code: nothing in hooks/ or actions/, and none of the
+ * files a build of the app's own runs, whoever asks it to. And while a turn
+ * runs on the operator's AI under its dashboard scope, it writes nothing a
+ * customer sees (`operator-scope.ts`).
  */
 import { existsSync, lstatSync, mkdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 
 import { APP_KEY_PATTERN } from '../project/apps/read-app.js';
+import { ownCodeAllows, OWN_CODE_MESSAGES } from '../trial/own-code.js';
+import { noCardRefusal } from './write-guard.js';
+import { scopedNow, scopedPathRefusal } from './operator-scope.js';
+import { refuseDesignerWrite } from '../trial/size-cap.js';
 
 export class JailError extends Error {
   override readonly name = 'JailError';
@@ -129,6 +138,17 @@ export function createJail(root: string, appKey: string): Jail {
     return file;
   }
 
+  /**
+   * While own code is off, or a turn runs on the operator's AI under its dashboard scope: a path, or a content, that
+   * is code this server or a build would run is not written. In such a turn, nothing customer-facing either.
+   */
+  function refuseCode(path: string, content: string | null): void {
+    const scoped = scopedPathRefusal(root, segmentsOf(path).join('/'));
+    if (scoped !== null) throw new OperatorScopeJailError(scoped);
+    if (ownCodeAllows('designerCode').allowed && !scopedNow(root)) return;
+    if (isCodeWrite(root, appKey, segmentsOf(path).join('/'), content)) throw new OwnCodeJailError();
+  }
+
   return {
     roots: roots.map((segments) => segments.join('/')),
     normalise: (path) => segmentsOf(path).join('/'),
@@ -138,6 +158,9 @@ export function createJail(root: string, appKey: string): Jail {
       if (content.includes('\0')) throw new JailError('The content of a file is text, and this has a NUL in it.');
       if (Buffer.byteLength(content, 'utf8') > MAX_WRITE_BYTES) throw new JailError(`A file is at most ${String(MAX_WRITE_BYTES / 1024)} KB.`);
       const file = resolve(path, 'write');
+      refuseCode(path, content);
+      // A trial's data folder past its limit takes no more of the Designer's files.
+      refuseDesignerWrite(Buffer.byteLength(content, 'utf8'));
       const segments = segmentsOf(path);
       checkParents(segments, true);
       const temp = join(dirname(file), `.designer-${String(process.pid)}.tmp`);
@@ -147,10 +170,36 @@ export function createJail(root: string, appKey: string): Jail {
     },
     delete(path) {
       const file = resolve(path, 'delete');
+      refuseCode(path, null);
       rmSync(file);
       return file;
     },
   };
+}
+
+/** A write the jail refuses while own code is off: its words are the operator's, not a path's problem. */
+export class OwnCodeJailError extends JailError {
+  constructor() {
+    super(OWN_CODE_MESSAGES.designerCode);
+  }
+}
+
+/** A write the jail refuses in a turn on the operator's AI that builds dashboards only (`operator-scope.ts`). */
+export class OperatorScopeJailError extends JailError {}
+
+/**
+ * Whether writing `normal` (the jail's spelling of a path) with `content` (null: a delete, or the path alone) is
+ * writing code: hooks/ and actions/, which the server imports, and what a build of the app's own runs or would be
+ * told to run (its build.json, its package and config files, the files its config imports, a build command in
+ * app.json). The same paths a card or a person's yes guards on an ordinary server, and an app's tsconfig.json and
+ * jsconfig.json files.
+ */
+export function isCodeWrite(root: string, appKey: string, normal: string, content: string | null): boolean {
+  // A tsconfig or jsconfig anywhere in the app, own build or not: a bundler follows its `extends` to any file.
+  const folded = normal.normalize('NFC').toLowerCase();
+  if (folded.startsWith(`apps/${appKey.toLowerCase()}/`) && /^[jt]sconfig[a-z.]*\.json$/.test(folded.slice(folded.lastIndexOf('/') + 1))) return true;
+  const why = noCardRefusal(root, appKey, normal, content);
+  return why !== null && why !== 'phone-file';
 }
 
 function isLink(path: string): boolean {

@@ -892,6 +892,39 @@ server code only after a yes, and that yes is theirs to give. The screens it wri
 same browser session as the dashboard, so give the permission only to people you would give the
 server to.
 
+### Your AI connection, for other people's builds
+
+When you run instances for other people on your own AI connection (the `ADMINIUM_AI_*` keys in the
+server's environment), three variables decide what that connection does. They apply in any
+profile, and the person's own key is never held by them:
+
+| Variable | What it does |
+|---|---|
+| `ADMINIUM_AI_OPERATOR_ONLY=on` | A connection saved in **Settings → AI** works only as the person's own key to Anthropic, OpenAI or Google, never with an address they type. Every AI feature uses your connection otherwise |
+| `ADMINIUM_AI_OPERATOR_SCOPE=dashboard` | A Designer turn on your connection builds dashboards only. It is held where things happen, not by leaving tools out: nothing is written in a customer side, the phone app or a site template, and an app that would reach more of the public than at its last apply (a customer side, a public entry or form or any change that widens one, mail to customers, a pay page, a site template, a picture spot) is neither built nor applied, in that turn, a later one, or by the person's own save, style, pictures or going back in that session. Such an app is not built by a restart either, until it is applied on the person's own key. In that session a customer side is not saved by hand, pictures are not placed on an app with public screens, and **Start with an app** is refused. The session is a dashboard one whatever was picked, and code the server would run is not written |
+| `ADMINIUM_AI_OPERATOR_BUDGET_TOKENS` | The tokens your connection may spend over the instance's life, every feature together: the Designer, the page assistant, speech and pictures made with AI. It is counted where every call to a model is made, and kept in the meta store where no setting, import, export or archive reaches it; a restore keeps what the target server already counted. Each call reserves its input and the most it may answer in one step before it is made, and a call that does not fit what is left is refused, so calls at once never pass the line together; a stopped or failed call is counted for what reached the model. A picture counts as 4,200 tokens, a second of speech as 10 |
+
+A request for customer-facing screens, or a call past the budget, ends the turn with a card of
+the Designer's own, never the model's words: "Building customer-facing screens needs your own AI
+key." or "The AI included with this trial is used up." ("with this installation" outside a trial), with **Add an AI key** (Settings → AI)
+and **Upgrade** where `ADMINIUM_TRIAL_UPGRADE_URL` is set. What the turn built before the budget
+ran out is kept. The total spent is in the [operator endpoint](/self-hosting/operator-endpoint/)'s
+`operatorAiTokens`. Your gateway should keep its own budget as well: what one call's provider counts beyond the
+estimate is the most this can overspend, and each reply is held to what is left.
+
+### A start prompt
+
+`ADMINIUM_DESIGNER_START_PROMPT_B64` (base64, at most 2,000 characters decoded) or
+`ADMINIUM_DESIGNER_START_PROMPT_FILE` (a read-only file) gives the Designer its first request.
+Right after the first-run account step, the setup wizard reads `designer.startPrompt` from
+`GET /api/v1/system/info` (true while a prompt is set and has not run) and, only then, asks the
+server to start it (`POST /api/v1/designer/start-prompt`, for someone who may use the Designer). The
+Designer opens on a new dashboard session with the prompt as the person's first message, never in
+what the model is told about itself. Every question that run asks is answered no. It runs once for
+the instance's life: a second ask, after a restart too, is refused with `409 CONFLICT`
+(`details.reason: START_PROMPT_RAN`). With no prompt set the route answers `404 NOT_FOUND`
+(`details.reason: NO_START_PROMPT`).
+
 ## After the Designer
 
 The app is an ordinary app in your project. `adminium dev` runs it, `adminium app check` checks it,

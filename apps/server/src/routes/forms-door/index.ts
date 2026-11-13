@@ -84,6 +84,7 @@ import { negotiateLocale, X_PREFIX } from '../../plugins/surfaces.js';
 import { issueChallenge, PROOF_DIFFICULTY, proofKey } from '../../public-api/proof.js';
 import { PAY_PAGE_DOC, payPageSchema } from '../payments/ways.js';
 import { formsFileRoutes } from './files.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface FormsDoorDeps {
   meta: MetaDb;
@@ -223,6 +224,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // Doors anybody may open: hidden with the other public pages (`security/route-audience.ts`).
+    tagRoutes(app, 'public');
     async function xRoot(): Promise<string | null> {
       const spa = (app as unknown as { spaRoot: string | null }).spaRoot;
       if (spa === null || spa === undefined) return null;
@@ -241,7 +244,8 @@ export function formsDoorRoutes(deps: FormsDoorDeps): FastifyPluginAsyncZod {
       void reply.header('content-security-policy', xContentPolicy(originOf(request), framers));
       void reply.header('referrer-policy', 'no-referrer');
       void reply.header('x-content-type-options', 'nosniff');
-      void reply.header('x-robots-tag', 'noindex');
+      // Kept when the server already said more (trial mode's `noindex, nofollow`, `trial/public-pages.ts`).
+      if (reply.getHeader('x-robots-tag') === undefined) void reply.header('x-robots-tag', 'noindex');
       // The policy's frame-ancestors decides who may frame a form; the dashboard's own header would refuse every website.
       reply.removeHeader('x-frame-options');
       if (!request.url.startsWith(`${X_PREFIX}/assets/`) && !request.url.startsWith(`${X_PREFIX}/embed.js`)) void reply.header('cache-control', 'no-store');

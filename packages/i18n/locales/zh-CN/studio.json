@@ -272,7 +272,10 @@
       "atTable": "表 {field}",
       "empty": "需要填写名称。",
       "identifier": "请使用小写字母、数字和下划线，并以字母开头。",
-      "tooLong": "太长 — {dialect} 允许 {max} 个字符。"
+      "tooLong": "太长 — {dialect} 允许 {max} 个字符。",
+      "unsafeDefault": "无法使用此默认表达式：它包含分号、注释、反斜杠、美元符号，或未闭合的引号或括号。请修改后重试。",
+      "unsafeType": "无法使用此列类型：它包含的不只是类型，例如分号、注释、约束，或未闭合的引号或括号。请修改后重试。",
+      "unsafeCheck": "无法使用此检查：它包含分号、注释、反斜杠、美元符号，或未闭合的引号或括号。请修改后重试。"
     },
     "existing": "现有表",
     "hazard": {
@@ -2728,7 +2731,8 @@
       "linkOrigin": {
         "error": "请输入类似 https://admin.example.com 的地址，不要包含路径。",
         "helper": "密码重置和邀请链接会打开此地址。如果留空，Adminium 会从下一位登录或保存更改的管理员处自动填写，但使用 localhost 时除外。",
-        "label": "邮件链接中的地址"
+        "label": "邮件链接中的地址",
+        "operator": "此地址由服务器运营方设置。密码重置和邀请链接始终打开此地址。"
       },
       "pass": {
         "error": "该用户名需要密码。",
@@ -2763,6 +2767,34 @@
       "user": {
         "helper": "若中继无需认证，请留空。",
         "label": "用户名"
+      },
+      "relay": {
+        "title": "邮件通过运营方的邮件服务发送",
+        "from": "发件地址",
+        "fromLine": "{from}，回复将发送至 {replyTo}",
+        "noRelay": "运营方尚未为此安装设置邮件服务，因此不会发送任何邮件。",
+        "use": "今日用量",
+        "useLine": "今日 {today, number} / {perDay, number} 封邮件 · 本小时 {hour, number} / {perHour, number} 封",
+        "people": "今日已联系 {people, number} / {max, number} 人",
+        "dayBar": "今日邮件",
+        "hourBar": "本小时邮件",
+        "limitDay": "已达到每日邮件上限。{count, plural, other {有 # 封邮件在等待，将于明天发出。}}",
+        "limitDayOnly": "已达到每日邮件上限。",
+        "limitHour": "已达到每小时邮件上限。{count, plural, other {有 # 封邮件在等待，将从 {time} 起发出。}}",
+        "limitHourOnly": "已达到每小时邮件上限。",
+        "limitPeople": "已达到今日 {max, number} 人的上限。发给新收件人的邮件将等到明天。",
+        "limitBounces": "邮件发送已暂停至明天：今天有太多邮件被退回或被举报为垃圾邮件。",
+        "waiting": "{count, plural, other {有 # 封邮件在等待，第一封将于 {time} 发出。}}",
+        "open": "打开发件箱",
+        "outboxTitle": "等待中的邮件",
+        "outboxHelp": "在邮件上限允许时会自动发出。此处无法更改任何内容。",
+        "to": "收件人",
+        "subject": "主题",
+        "queued": "加入队列",
+        "goesOut": "发出时间",
+        "empty": "没有等待中的邮件。",
+        "failed": "无法加载等待中的邮件。",
+        "close": "关闭"
       }
     },
     "identity": {
@@ -2878,7 +2910,6 @@
       "heading": "连接",
       "subtitle": "此安装读取和写入的数据库。",
       "label": "允许本服务器上的数据库",
-      "setByOperator": "由运营方设置",
       "help": "允许连接访问运行在本服务器上的数据库，例如 {example}。仅用于你在这里搭建的数据库。",
       "alwaysHere": "此服务器本来就能访问本机上的数据库，因此这个开关在这里不起作用。",
       "lockedHosts": "运营方只允许这些主机：",
@@ -3119,7 +3150,8 @@
       "readingFile": "正在读取上传的架构文件…",
       "readingSchema": "正在读取架构：public",
       "ready": "就绪",
-      "relations": "正在检测关系…"
+      "relations": "正在检测关系…",
+      "handoff": "已通过 Supabase 连接 · 只读取架构"
     },
     "logLabel": "自省日志",
     "retry": "重试",
@@ -3481,6 +3513,9 @@
       "signInLink": "登录",
       "noCopy": "此地址已迁移到此账户无法打开的副本。",
       "guest": "此地址已迁移。"
+    },
+    "hidden": {
+      "title": "此页面不可用。"
     }
   },
   "appSettings": {
@@ -5910,5 +5945,15 @@
       "line": "在这台电脑上，项目会生成自己的文件：在设计器中打开项目菜单（左上角的项目名称），然后选择“导出此项目…”。",
       "open": "打开设计器"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "此服务器的运营方已关闭上传。请从目录安装插件。",
+    "appsOff": "此服务器的运营方已关闭上传。请从目录安装应用。"
+  },
+  "operatorHidden": {
+    "title": "运营方已隐藏你的公开页面。",
+    "reason": "原因：{reason}",
+    "reply": "如有误，请回复运营方的邮件。",
+    "chip": "已隐藏"
   }
 }

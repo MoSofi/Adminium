@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { readFileSync, statSync } from 'node:fs';
+import { isIP } from 'node:net';
 import { isAbsolute, resolve } from 'node:path';
 
 import { z } from 'zod';
 
-import { parseDatabaseHost, type DatabaseHost } from '../connections/dsn.js';
+import { parseConnectUrl } from '../connect/providers.js';
+import { parseDatabaseHost, parseDsn, type DatabaseHost } from '../connections/dsn.js';
+import { addressKind } from '../net/address-guard.js';
 import { NETWORK_POLICIES } from '../net/outbound-check.js';
 import { invalidTrustedProxies } from '../security/trust-proxy.js';
 import { readSecretFiles, SECRET_FILE_SUFFIX, withHeldSecrets, type SecretFileProblem } from './operator-secrets.js';
@@ -179,6 +183,241 @@ function folderListVar(example: string) {
       }),
   );
 }
+
+/** An on/off variable that is off (or on) when unset. */
+function booleanVar(fallback: boolean) {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .enum(BOOLEANISH)
+      .optional()
+      .transform((value) => (value === undefined ? fallback : TRUTHY.has(value))),
+  );
+}
+
+/** A trial's pools: each pool against a source at most this size, and its default. */
+export const TRIAL_SOURCE_POOL_MAX = 3;
+/** A trial's meta store pool, unless the operator sets another size. */
+export const TRIAL_META_POOL_MAX = 3;
+
+/** A whole number of megabytes, with its default when unset. */
+function megabytesVar(fallback: number) {
+  return z.preprocess(
+    emptyToUndefined,
+    z.coerce
+      .number({ error: 'must be a whole number of megabytes' })
+      .int('must be a whole number of megabytes')
+      .min(1, 'must be at least 1')
+      .max(10_000_000, 'must be at most 10000000')
+      .optional()
+      .transform((value) => value ?? fallback),
+  );
+}
+
+/** Milliseconds since the epoch of an ISO 8601 date and time WITH its zone, or null. A time with no zone is read differently on every server, so it is refused. */
+export function parseZonedTime(value: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})$/.exec(value.trim());
+  if (match === null) return null;
+  const [, , month = '', day = '', hour = '', minute = '', second = '0'] = match;
+  if (Number(month) < 1 || Number(month) > 12 || Number(day) < 1 || Number(day) > 31) return null;
+  if (Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null;
+  const at = Date.parse(value.trim());
+  return Number.isFinite(at) ? at : null;
+}
+
+/**
+ * An address the server or a browser is sent to that the operator chose (the
+ * Upgrade page, the events receiver): https, a host, any path and query, no
+ * name and password, no fragment. Plain http only to `loopback`, or for
+ * `operator-network` also to a private address (an address, never a name: a
+ * name can be made to resolve anywhere). Never a cloud metadata address.
+ */
+export function parseOperatorUrl(value: string, opts: { plainHttp: 'loopback' | 'operator-network' }): string | null {
+  const text = value.trim();
+  if (/[\s\\]/.test(text)) return null;
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return null;
+  }
+  if (url.username !== '' || url.password !== '' || url.hash !== '' || url.hostname === '') return null;
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  const kind = isIP(host) === 0 ? null : addressKind(host);
+  if (kind === 'metadata') return null;
+  if (url.protocol === 'http:') {
+    const loopback = LOOPBACK_HOSTS.has(url.hostname) || kind === 'loopback';
+    const network = kind === 'private';
+    if (!(loopback || (opts.plainHttp === 'operator-network' && network))) return null;
+  }
+  return url.toString();
+}
+
+/** One plain mail address with a dotted domain and no name, as the relay pins it. */
+const PLAIN_MAIL_ADDRESS = /^[^\s@,;:<>"()[\]\\]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/;
+
+/** A report link: one https:// address with no name or password, or `mailto:` one plain address. */
+function parseReportUrl(value: string): string | null {
+  const text = value.trim();
+  if (text.toLowerCase().startsWith('mailto:')) {
+    const address = text.slice('mailto:'.length).toLowerCase();
+    return PLAIN_MAIL_ADDRESS.test(address) ? `mailto:${address}` : null;
+  }
+  const url = parseOperatorUrl(text, { plainHttp: 'loopback' });
+  return url !== null && url.startsWith('https:') ? url : null;
+}
+
+/** `smtp://` or `smtps://` with a host. */
+function isSmtpUrl(value: string): boolean {
+  if (/[\s\\]/.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'smtp:' || url.protocol === 'smtps:') && url.hostname !== '';
+  } catch {
+    return false;
+  }
+}
+
+/** A plain lower-case host name of two or more labels, its last not all digits: `shop.example.com`. */
+export function isPlainDomain(value: string): boolean {
+  if (value.length > 253) return false;
+  const labels = value.split('.');
+  if (labels.length < 2) return false;
+  const label = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+  if (!labels.every((part) => label.test(part))) return false;
+  return !/^\d+$/.test(labels[labels.length - 1] ?? '');
+}
+
+/** The operator token's floor: 32 random bytes. */
+export const OPERATOR_TOKEN_MIN_BYTES = 32;
+
+/**
+ * How many bytes a token carries: hex at two characters a byte, base64 (or
+ * base64url) at four characters to three. Anything else counts as nothing, and
+ * so does one character repeated: that is a placeholder, not a random value.
+ */
+function tokenBytes(value: string): number {
+  if (/^(.)\1*$/.test(value)) return 0;
+  if (/^[0-9a-f]+$/i.test(value)) return value.length % 2 === 0 ? value.length / 2 : 0;
+  if (/^[A-Za-z0-9+/_-]+={0,2}$/.test(value)) return Math.floor((value.replace(/=+$/, '').length * 3) / 4);
+  return 0;
+}
+
+/** `10.0.0.2:4601` or `[fd00::2]:4601`: one address (not every address) and a port. */
+function parseListenAddress(value: string): { host: string; port: number } | null {
+  const match = /^(?:\[([0-9a-fA-F:.]+)\]|(\d{1,3}(?:\.\d{1,3}){3})):(\d{1,5})$/.exec(value.trim());
+  if (match === null) return null;
+  const host = canonicalAddress(match[1] ?? match[2] ?? '', match[1] !== undefined);
+  const port = Number(match[3]);
+  if (host === null || isIP(host) === 0 || port < 1 || port > 65535) return null;
+  // Every address, however it is written: `::`, `0.0.0.0`, and `0.0.0.0` mapped into IPv6.
+  if (host === '0.0.0.0' || host === '::' || host === '::ffff:0:0') return null;
+  if (addressKind(host) === 'metadata') return null;
+  return { host, port };
+}
+
+/** An IP address in its one written form (`[::0.0.0.0]` is `::`, `000.0.0.1` is `0.0.0.1`), or null when it is none. */
+function canonicalAddress(address: string, v6: boolean): string | null {
+  try {
+    const name = new URL(`http://${v6 ? `[${address}]` : address}/`).hostname;
+    return v6 ? name.slice(1, -1) : name;
+  } catch {
+    return null;
+  }
+}
+
+/** The start prompt's limit. */
+export const START_PROMPT_MAX_CHARS = 2000;
+
+/** A start prompt's text, or what is wrong with it: no control character but a line break or a tab, 2,000 characters at most. */
+function checkStartPrompt(text: string): string | { problem: string } {
+  const trimmed = text.replace(/\r?\n$/, '');
+  if (trimmed.trim() === '') return { problem: 'holds no prompt' };
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/.test(trimmed)) return { problem: 'holds a control character' };
+  if ([...trimmed].length > START_PROMPT_MAX_CHARS) return { problem: `is longer than ${String(START_PROMPT_MAX_CHARS)} characters` };
+  return trimmed;
+}
+
+function decodeStartPrompt(value: string): string | { problem: string } {
+  const compact = value.trim();
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(compact) || compact.length % 4 !== 0) return { problem: 'must be base64, e.g. `base64 -w0 prompt.txt`' };
+  const bytes = Buffer.from(compact, 'base64');
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return { problem: 'must decode to UTF-8 text' };
+  }
+  return checkStartPrompt(text);
+}
+
+function readStartPromptFile(path: string): string | { problem: string } {
+  if (!isAbsolute(path)) return { problem: `"${path}" is not an absolute file path, e.g. /run/adminium/start-prompt.txt` };
+  let text: string;
+  try {
+    const stat = statSync(path);
+    if (!stat.isFile()) return { problem: `${path} is not a file` };
+    // 4 bytes a character at most: a bigger file is the wrong file.
+    if (stat.size > START_PROMPT_MAX_CHARS * 4 + 2) return { problem: `is longer than ${String(START_PROMPT_MAX_CHARS)} characters` };
+    text = new TextDecoder('utf-8', { fatal: true }).decode(readFileSync(path));
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return { problem: code === 'ENOENT' ? `${path} does not exist` : code === undefined ? `${path} is not UTF-8 text` : `${path} cannot be read (${code})` };
+  }
+  return checkStartPrompt(text);
+}
+
+/**
+ * The trial and operator variables: the operator's word, never a
+ * project's. Every one is on `HOST_DECIDED_ENV` (`config/host-decided.ts`), so
+ * a folder's `.env` or config cannot set it where that list is refused: the
+ * desktop app, and trial mode and the hosted profile, which do not read the
+ * `.env` at all (`project/boot.ts`). A terminal-run ordinary server still
+ * reads a project's `.env` for unset names. Under a profile, holding a control
+ * character fails the boot ({@link profileIssues}).
+ */
+export const OPERATOR_DECIDED_ENV = [
+  'ADMINIUM_TRIAL_MODE',
+  'ADMINIUM_TRIAL_ENDS_AT',
+  'ADMINIUM_TRIAL_DATA_MAX_MB',
+  'ADMINIUM_TRIAL_UPLOAD_MAX_MB',
+  'ADMINIUM_TRIAL_STORAGE_MAX_MB',
+  'ADMINIUM_TRIAL_UPGRADE_URL',
+  'ADMINIUM_TRIAL_SMTP_URL',
+  'ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY',
+  'ADMINIUM_TRIAL_MAIL_FROM',
+  'ADMINIUM_TRIAL_MAIL_REPORT_URL',
+  'ADMINIUM_OPERATOR_NAME',
+  'ADMINIUM_HOSTED_MODE',
+  'ADMINIUM_PUBLIC_ORIGIN',
+  'ADMINIUM_DATABASE_HOSTS',
+  'ADMINIUM_LOCAL_DATABASES',
+  'ADMINIUM_NETWORK_POLICY',
+  'ADMINIUM_SQLITE_DIRS',
+  'ADMINIUM_STORAGE_DIRS',
+  'ADMINIUM_SETUP_TOKEN',
+  'ADMINIUM_DEPLOY_LINK',
+  'ADMINIUM_OPERATOR_DOMAINS',
+  'ADMINIUM_OPERATOR_TOKEN',
+  'ADMINIUM_OPERATOR_LISTEN',
+  'ADMINIUM_OPERATOR_EVENTS_URL',
+  'ADMINIUM_AI_OPERATOR_ONLY',
+  'ADMINIUM_AI_OPERATOR_SCOPE',
+  'ADMINIUM_AI_OPERATOR_BUDGET_TOKENS',
+  'ADMINIUM_SUPABASE_CONNECT_URL',
+  'ADMINIUM_DESIGNER_START_PROMPT_B64',
+  'ADMINIUM_DESIGNER_START_PROMPT_FILE',
+] as const;
+
+/** The ones that hold only for a trial: set without trial mode, they would do nothing, so the boot says so. */
+const TRIAL_ONLY_ENV = OPERATOR_DECIDED_ENV.filter((name) => name.startsWith('ADMINIUM_TRIAL_') && name !== 'ADMINIUM_TRIAL_MODE');
+
+/** The variables this plan added: a control character in one fails the boot on any server. */
+const NEW_OPERATOR_ENV: readonly string[] = [
+  ...OPERATOR_DECIDED_ENV.filter((name) => /^ADMINIUM_(TRIAL_|HOSTED_MODE|PUBLIC_ORIGIN|OPERATOR_|AI_OPERATOR_|DESIGNER_START_PROMPT)/.test(name)),
+];
 
 export const envSchema = z.object({
   ADMINIUM_SECRET: z
@@ -468,6 +707,28 @@ export const envSchema = z.object({
       .enum(BOOLEANISH)
       .optional()
       .transform((value) => (value === undefined ? true : TRUTHY.has(value))),
+  ),
+  /*
+   * "Connect Supabase": the address of the operator's connect service. Set,
+   * the connect wizards offer the card and the instance redeems a one-time
+   * code at `<url>/redeem` (connect/handoff.ts). https only, else the boot
+   * fails: the answer can carry a database password. Unset, nothing changes.
+   */
+  ADMINIUM_SUPABASE_CONNECT_URL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(2000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const url = parseConnectUrl(value);
+        if (url === null) {
+          ctx.addIssue({ code: 'custom', message: 'must be one https:// address with no name, password, query or fragment, e.g. https://connect.example.com/supabase' });
+          return z.NEVER;
+        }
+        return url;
+      }),
   ),
   ADMINIUM_NETWORK_FEATURES: z.preprocess(
     emptyToUndefined,
@@ -814,8 +1075,11 @@ export const envSchema = z.object({
    * `open` (default) or `strict`. `strict` also refuses the server's own
    * network (private ranges: 10/8, 172.16/12, 192.168/16, 100.64/10, IPv6
    * ULA) for source databases, webhooks and storage endpoints; a source host
-   * in `ADMINIUM_DATABASE_HOSTS` still passes. Cloud metadata is refused
-   * under both, and loopback follows its own rule (refused in production).
+   * in `ADMINIUM_DATABASE_HOSTS` still passes. Under `strict` the user's own
+   * mail server, the AI addresses a user saves (Ollama included) and add-ons'
+   * network calls may not be this machine or on that network either. Cloud
+   * metadata is refused under both, and loopback otherwise follows its own
+   * rule (refused in production).
    */
   ADMINIUM_NETWORK_POLICY: z.preprocess(
     (value) => (typeof value === 'string' ? emptyToUndefined(value.trim().toLowerCase()) : value),
@@ -846,12 +1110,358 @@ export const envSchema = z.object({
     { plainHttp: true },
     'must be off or one http(s):// origin with no path, e.g. http://osrm.internal:5000',
   ),
+
+  /*
+   * ─── Trial mode, the hosted profile and the operator ───
+   *
+   * One block, parsed here and nowhere else; what each one allows is answered
+   * by `trial/policy.ts`. The boot refusals that need more than one variable
+   * are in the superRefine below and in {@link profileIssues}, and the values a
+   * profile implies are enforced by {@link enforceProfile}, never defaulted.
+   * Env only, never a setting: no route writes any of them, and under a
+   * profile a project's `.env` is not read and its config cannot set them
+   * (`OPERATOR_DECIDED_ENV`, `project/boot.ts`).
+   */
+
+  /*
+   * A trial instance for a stranger, on the operator's server: the switches of
+   * trial (connections only to the host list, no own code, no outgoing traffic
+   * but the operator's mail relay, public pages hidden from search engines,
+   * banners, size caps). Needs an end date, a setup token, the public origin
+   * and a host list, or the boot fails.
+   */
+  ADMINIUM_TRIAL_MODE: booleanVar(false),
+  /* When the trial ends: an ISO 8601 date and time with its zone. Kept as the UTC ISO string. */
+  ADMINIUM_TRIAL_ENDS_AT: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(64)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const at = parseZonedTime(value);
+        if (at === null) {
+          ctx.addIssue({ code: 'custom', message: 'must be a date and time with its zone, e.g. 2026-12-01T00:00:00Z' });
+          return z.NEVER;
+        }
+        return new Date(at).toISOString();
+      }),
+  ),
+  /*
+   * The operator's address for this instance (`https://shop.try.example.com`):
+   * where links in email point, and the host it answers on. One origin; http
+   * only for this machine.
+   */
+  ADMINIUM_PUBLIC_ORIGIN: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(500)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const origin = parseServerOrigin(value);
+        if (origin === null) {
+          ctx.addIssue({ code: 'custom', message: 'must be one https:// origin with no path, e.g. https://shop.example.com (http:// only for this machine)' });
+          return z.NEVER;
+        }
+        return origin;
+      }),
+  ),
+  /* The trial's size caps: the live data of each operator database (default 500), one uploaded file (10), the whole data dir (1,000). */
+  ADMINIUM_TRIAL_DATA_MAX_MB: megabytesVar(500),
+  ADMINIUM_TRIAL_UPLOAD_MAX_MB: megabytesVar(10),
+  ADMINIUM_TRIAL_STORAGE_MAX_MB: megabytesVar(1000),
+  /* The "Upgrade" button's address. Unset: no button. https only; `?instance=` is added to it. */
+  ADMINIUM_TRIAL_UPGRADE_URL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(2000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const url = parseOperatorUrl(value, { plainHttp: 'loopback' });
+        if (url === null) {
+          ctx.addIssue({ code: 'custom', message: 'must be one https:// address with no name, password or fragment, e.g. https://example.com/upgrade' });
+          return z.NEVER;
+        }
+        return url;
+      }),
+  ),
+  /*
+   * The operator's mail relay, one credential per instance:
+   * `smtp://user:pass@relay:587` or `smtps://…`. A secret: held out of
+   * `process.env` (`config/operator-secrets.ts`), and never printed back.
+   */
+  ADMINIUM_TRIAL_SMTP_URL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(2000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        if (!isSmtpUrl(value)) {
+          ctx.addIssue({ code: 'custom', message: 'must be smtp:// or smtps:// with a host, e.g. smtp://user:password@relay.example.com:587' });
+          return z.NEVER;
+        }
+        return value;
+      }),
+  ),
+  /* User mail a day through the relay (default 50; 20 an hour on top). */
+  ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number({ error: 'must be a whole number' }).int('must be a whole number').min(1).max(100_000).optional().transform((value) => value ?? 50),
+  ),
+  /*
+   * The address the relay pins for this instance, `i-<instance id>@<relay
+   * domain>`: every mail through the relay goes From it, as
+   * `"<instance name> via <operator name>" <address>`. One plain address.
+   */
+  ADMINIUM_TRIAL_MAIL_FROM: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(254)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const address = value.trim().toLowerCase();
+        if (!PLAIN_MAIL_ADDRESS.test(address)) {
+          ctx.addIssue({ code: 'custom', message: 'must be one plain address with no name, e.g. i-7f3a9c@relay.example.com' });
+          return z.NEVER;
+        }
+        return address;
+      }),
+  ),
+  /* Where a recipient reports a mail from this instance: https:// or mailto:. Unset: mailto:abuse@ the From address's domain. */
+  ADMINIUM_TRIAL_MAIL_REPORT_URL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(2000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const url = parseReportUrl(value);
+        if (url === null) {
+          ctx.addIssue({ code: 'custom', message: 'must be one https:// address, or mailto: with one address, e.g. https://example.com/report or mailto:abuse@example.com' });
+          return z.NEVER;
+        }
+        return url;
+      }),
+  ),
+  /* The operator's name, as mail from the relay says it: "<instance name> via <operator name>". Unset: the From address's domain. */
+  ADMINIUM_OPERATOR_NAME: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(60)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const name = value.trim().replace(/\s+/g, ' ');
+        if (name === '' || /[@<>"\\,;:()[\]]/.test(name)) {
+          ctx.addIssue({ code: 'custom', message: 'must be a plain name of at most 60 characters with no @ < > " \\ , ; : ( ) [ ], e.g. Example Hosting' });
+          return z.NEVER;
+        }
+        return name;
+      }),
+  ),
+  /*
+   * A paid installation on the operator's server (the hosted profile): the trial's
+   * host list, network policy, own-code and origin rules stay; the clock,
+   * banners, caps and the relay-only mail go.
+   */
+  ADMINIUM_HOSTED_MODE: booleanVar(false),
+  /*
+   * The user's own verified domains, honoured with or
+   * without trial mode: plain lower-case host names, no wildcard, address,
+   * port or path.
+   */
+  ADMINIUM_OPERATOR_DOMAINS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(5000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const entries = value
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0);
+        if (entries.length === 0) return undefined;
+        const refused = entries.filter((entry) => !isPlainDomain(entry));
+        if (refused.length > 0) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `${refused.map((entry) => `"${entry}"`).join(', ')} ${refused.length === 1 ? 'is' : 'are'} not a plain lower-case host name, e.g. shop.example.com (no wildcard, address, port or path)`,
+          });
+          return z.NEVER;
+        }
+        return [...new Set(entries)];
+      }),
+  ),
+  /* The operator endpoint's bearer token: 32 random bytes or more, per instance. A secret. */
+  ADMINIUM_OPERATOR_TOKEN: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(1000)
+      .optional()
+      .refine((value) => value === undefined || tokenBytes(value) >= OPERATOR_TOKEN_MIN_BYTES, `must be at least ${String(OPERATOR_TOKEN_MIN_BYTES)} random bytes, as hex or base64, e.g. \`openssl rand -hex 32\``),
+  ),
+  /*
+   * The operator listener: `<address>:<port>` on the operator's
+   * network. An address, never a name or every address (`0.0.0.0`, `::`):
+   * the operator endpoint is never on the public listener.
+   */
+  ADMINIUM_OPERATOR_LISTEN: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(100)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const listen = parseListenAddress(value);
+        if (listen === null) {
+          ctx.addIssue({ code: 'custom', message: 'must be one address and port on the operator network, e.g. 10.0.0.2:4601 or [fd00::2]:4601 (not 0.0.0.0, not a name)' });
+          return z.NEVER;
+        }
+        return listen;
+      }),
+  ),
+  /* Signed instance events: https, or plain http to an address on the operator network. */
+  ADMINIUM_OPERATOR_EVENTS_URL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(2000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const url = parseOperatorUrl(value, { plainHttp: 'operator-network' });
+        if (url === null) {
+          ctx.addIssue({ code: 'custom', message: 'must be one https:// address, or http:// to a private address on the operator network, with no name, password or fragment' });
+          return z.NEVER;
+        }
+        return url;
+      }),
+  ),
+  /* Operator AI: AI connections saved in Settings → AI only as the user's own key to a fixed public provider; otherwise the operator's. */
+  ADMINIUM_AI_OPERATOR_ONLY: booleanVar(false),
+  /* What operator AI may build. `dashboard` is the only scope: no customer screens on the operator's connection. */
+  ADMINIUM_AI_OPERATOR_SCOPE: z.preprocess(emptyToUndefined, z.enum(['dashboard']).optional()),
+  /* Tokens operator AI may spend over the instance's life, counted for every feature. */
+  ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number({ error: 'must be a whole number' }).int('must be a whole number').min(1).max(1_000_000_000_000).optional(),
+  ),
+  /*
+   * The Designer's first user turn after setup, as base64 (never a
+   * raw value built from a visitor's text). Held decoded: 2,000 characters at
+   * most, no control character but a line break or a tab.
+   */
+  ADMINIUM_DESIGNER_START_PROMPT_B64: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(12_000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const text = decodeStartPrompt(value);
+        if (typeof text !== 'string') {
+          ctx.addIssue({ code: 'custom', message: text.problem });
+          return z.NEVER;
+        }
+        return text;
+      }),
+  ),
+  /* The same prompt from a read-only mounted file: an absolute path, read once at boot. Held as the file's text. */
+  ADMINIUM_DESIGNER_START_PROMPT_FILE: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(1000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const text = readStartPromptFile(value);
+        if (typeof text !== 'string') {
+          ctx.addIssue({ code: 'custom', message: text.problem });
+          return z.NEVER;
+        }
+        return text;
+      }),
+  ),
 })
   .superRefine((env, ctx) => {
-    // SEAM (trial mode, hosted profile): when ADMINIUM_TRIAL_MODE or ADMINIUM_HOSTED_MODE
-    // exists, an explicit ADMINIUM_LOCAL_DATABASES=setting with either one on fails here
-    // (there the Super Admin is a stranger, and loopback reaches the operator's own
-    // services), and `localDatabasesMode` returns `off` under either.
+    // ─── Trial mode, the hosted profile, the operator ─────────
+    // What one variable needs of another. The rest of the profile's refusals
+    // read the raw environment (`profileIssues`): an explicit value that a
+    // default here would hide.
+    const need = (when: boolean, variable: string, message: string): void => {
+      if (when) ctx.addIssue({ code: 'custom', path: [variable], message });
+    };
+    if (env.ADMINIUM_TRIAL_MODE && env.ADMINIUM_HOSTED_MODE) {
+      need(true, 'ADMINIUM_HOSTED_MODE', 'is on as well as ADMINIUM_TRIAL_MODE: a server is a trial or a paid installation, not both. Switch one off.');
+    }
+    if (env.ADMINIUM_TRIAL_MODE) {
+      need(
+        env.ADMINIUM_SOURCE_POOL_MAX !== undefined && env.ADMINIUM_SOURCE_POOL_MAX > TRIAL_SOURCE_POOL_MAX,
+        'ADMINIUM_SOURCE_POOL_MAX',
+        `is above ${String(TRIAL_SOURCE_POOL_MAX)}: a trial opens at most ${String(TRIAL_SOURCE_POOL_MAX)} connections in each pool on the shared database server. Remove it, or set ${String(TRIAL_SOURCE_POOL_MAX)} or less.`,
+      );
+      need(env.ADMINIUM_TRIAL_ENDS_AT === undefined, 'ADMINIUM_TRIAL_ENDS_AT', 'is required in trial mode: when the trial ends, e.g. 2026-12-01T00:00:00Z');
+      need(env.ADMINIUM_SETUP_TOKEN === undefined, 'ADMINIUM_SETUP_TOKEN', 'is required in trial mode: the welcome link carries it, so the trial user never reads a log');
+      need(
+        env.ADMINIUM_TRIAL_SMTP_URL !== undefined && env.ADMINIUM_TRIAL_MAIL_FROM === undefined,
+        'ADMINIUM_TRIAL_MAIL_FROM',
+        'is required with ADMINIUM_TRIAL_SMTP_URL: the address the relay pins for this instance, e.g. i-7f3a9c@relay.example.com',
+      );
+    }
+    if (env.ADMINIUM_TRIAL_MODE || env.ADMINIUM_HOSTED_MODE) {
+      const which = env.ADMINIUM_TRIAL_MODE ? 'trial mode' : 'hosted mode';
+      need(env.ADMINIUM_PUBLIC_ORIGIN === undefined, 'ADMINIUM_PUBLIC_ORIGIN', `is required in ${which}: the operator's address for this instance, e.g. https://shop.example.com`);
+      need((env.ADMINIUM_DATABASE_HOSTS ?? []).length === 0, 'ADMINIUM_DATABASE_HOSTS', `is required in ${which}: the only database hosts connections may reach, e.g. pg-trials:5432`);
+      need(
+        namesNoLogin(env.ADMINIUM_SOURCE_URL),
+        'ADMINIUM_SOURCE_URL',
+        `must name a user and a database in ${which}: on the operator's database host this installation may use only the login this URL names, e.g. postgres://trial_7f3a:password@pg-trials:5432/trial_7f3a`,
+      );
+    }
+    need(
+      // The token signs instance events too: with an events address it has a use without the listener.
+      env.ADMINIUM_OPERATOR_TOKEN !== undefined && env.ADMINIUM_OPERATOR_LISTEN === undefined && env.ADMINIUM_OPERATOR_EVENTS_URL === undefined,
+      'ADMINIUM_OPERATOR_TOKEN',
+      'is set, but neither ADMINIUM_OPERATOR_LISTEN nor ADMINIUM_OPERATOR_EVENTS_URL is, so the token is used nowhere. Set the listener on the operator network, the events address, or both.',
+    );
+    need(
+      env.ADMINIUM_OPERATOR_LISTEN !== undefined && env.ADMINIUM_OPERATOR_TOKEN === undefined,
+      'ADMINIUM_OPERATOR_LISTEN',
+      'is set, but ADMINIUM_OPERATOR_TOKEN is not: the operator endpoint answers only a bearer token. Set one, e.g. `openssl rand -hex 32`.',
+    );
+    need(
+      env.ADMINIUM_OPERATOR_LISTEN !== undefined && env.ADMINIUM_OPERATOR_LISTEN.port === env.PORT,
+      'ADMINIUM_OPERATOR_LISTEN',
+      'uses PORT, the public listener’s port: the operator endpoint needs a port of its own.',
+    );
+    need(
+      env.ADMINIUM_OPERATOR_EVENTS_URL !== undefined && env.ADMINIUM_OPERATOR_TOKEN === undefined,
+      'ADMINIUM_OPERATOR_EVENTS_URL',
+      'is set, but ADMINIUM_OPERATOR_TOKEN is not: every event is signed with it. Set the token as well.',
+    );
+    need(
+      env.ADMINIUM_DESIGNER_START_PROMPT_B64 !== undefined && env.ADMINIUM_DESIGNER_START_PROMPT_FILE !== undefined,
+      'ADMINIUM_DESIGNER_START_PROMPT_FILE',
+      'is set as well as ADMINIUM_DESIGNER_START_PROMPT_B64: give the start prompt one way.',
+    );
+
     if (env.ADMINIUM_TRUSTED_PROXIES !== undefined && !env.ADMINIUM_TRUST_PROXY) {
       ctx.addIssue({
         code: 'custom',
@@ -885,7 +1495,136 @@ export const envSchema = z.object({
     }
   });
 
+/**
+ * A source URL with no user or no database. A trial or hosted installation
+ * dials only the login `ADMINIUM_SOURCE_URL` names on an operator host, so
+ * without one it would refuse even its own seed. A URL that does not parse is
+ * left to the code that dials it; a SQLite path is refused there too.
+ */
+function namesNoLogin(url: string | undefined): boolean {
+  if (url === undefined) return false;
+  try {
+    const parsed = parseDsn(url);
+    return parsed.scheme !== 'sqlite' && (parsed.user === null || parsed.database === null);
+  } catch {
+    return false;
+  }
+}
+
 export type Env = z.infer<typeof envSchema>;
+
+/** One problem with the environment, as the boot's table names it. */
+export interface EnvProblem {
+  variable: string;
+  problem: string;
+}
+
+/** C0 and C1 control characters and DEL: never in an operator's value. */
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARACTER = /[\u0000-\u001f\u007f-\u009f]/;
+
+const isSet = (value: string | undefined): value is string => value !== undefined && value !== '';
+
+/**
+ * The boot refusals of a trial or hosted server that read the RAW environment:
+ * an explicit value the parsed one would hide behind its
+ * default, a variable the schema does not parse, a control character before
+ * any trimming. The parsed half is the schema's superRefine.
+ *
+ *  - any trial or operator variable holding a control character: an operator
+ *    value built from user input that smuggles in a second line;
+ *  - a trial variable without trial mode, which would do nothing;
+ *  - under either profile, what lets the stranger who is its Super Admin run
+ *    code, widen limits or reach the operator's network: `ADMINIUM_ADD_ON_DEV_TRUST`
+ *    (read raw by `add-ons/decider-trust.ts`), `ADMINIUM_RATE_LIMIT_SCALE`,
+ *    `NODE_OPTIONS`, the bridge, the desktop's own variables, a seeded storage
+ *    destination, and an explicit `ADMINIUM_NETWORK_POLICY=open` or
+ *    `ADMINIUM_LOCAL_DATABASES=setting`;
+ *  - in trial mode also telemetry, map and routing servers switched on.
+ *
+ * Saying what a profile implies (`ADMINIUM_NETWORK_POLICY=strict`) is no
+ * contradiction, and passes.
+ */
+/** `NODE_OPTIONS` holding heap sizes and nothing else, such as the Docker image's `--max-old-space-size=512`. */
+const HEAP_ONLY_NODE_OPTIONS = /^\s*(?:--max-(?:old|semi)-space-size=\d{1,6}\s*)+$/;
+
+export function profileIssues(raw: Readonly<Record<string, string | undefined>>): EnvProblem[] {
+  const trial = TRUTHY.has(raw['ADMINIUM_TRIAL_MODE'] ?? '');
+  const hosted = TRUTHY.has(raw['ADMINIUM_HOSTED_MODE'] ?? '');
+  const problems: EnvProblem[] = [];
+  for (const name of trial || hosted ? OPERATOR_DECIDED_ENV : NEW_OPERATOR_ENV) {
+    const value = raw[name];
+    const found = value === undefined ? null : CONTROL_CHARACTER.exec(value);
+    if (found !== null) {
+      const code = (found[0].codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0');
+      // The value is not printed: it may be a credential.
+      problems.push({ variable: name, problem: `holds a control character (U+${code}). Pass each value as one line, through the Docker API's Env array.` });
+    }
+  }
+  if (!trial) {
+    for (const name of TRIAL_ONLY_ENV) {
+      if (isSet(raw[name])) problems.push({ variable: name, problem: 'is set, but ADMINIUM_TRIAL_MODE is off, so it does nothing. Set ADMINIUM_TRIAL_MODE=on as well, or remove this variable.' });
+    }
+  }
+  if (!trial && !hosted) return problems;
+
+  const which = trial ? 'trial mode' : 'hosted mode';
+  const refuse = (name: string, why: string): void => {
+    problems.push({ variable: name, problem: `cannot be set in ${which}: ${why}` });
+  };
+  const word = (name: string): string => (raw[name] ?? '').trim().toLowerCase();
+  if (isSet(raw['ADMINIUM_RATE_LIMIT_SCALE'])) refuse('ADMINIUM_RATE_LIMIT_SCALE', 'it widens the limits that stop password guessing and floods. Remove it.');
+  if (isSet(raw['ADMINIUM_ADD_ON_DEV_TRUST'])) refuse('ADMINIUM_ADD_ON_DEV_TRUST', 'it would run add-on code no catalogue vouched for. Remove it.');
+  // A heap ceiling is all NODE_OPTIONS may say here: the Docker image sets one, and nothing else in it is safe.
+  if (isSet(raw['NODE_OPTIONS']) && !HEAP_ONLY_NODE_OPTIONS.test(raw['NODE_OPTIONS'] ?? '')) {
+    refuse('NODE_OPTIONS', 'it changes what the server loads and is handed to every program it starts. Only --max-old-space-size=<MB> and --max-semi-space-size=<MB> may be set. Remove the rest.');
+  }
+  if (isSet(raw['ADMINIUM_BRIDGE_ORIGINS'])) refuse('ADMINIUM_BRIDGE_ORIGINS', 'the local bridge hands this server a connection string from another site. Remove it.');
+  if (isSet(raw['ADMINIUM_DEMO_SEED_SCRIPT'])) refuse('ADMINIUM_DEMO_SEED_SCRIPT', 'it is the desktop app’s, and runs a script. Remove it.');
+  if (word('ADMINIUM_RUNTIME') === 'desktop') refuse('ADMINIUM_RUNTIME', 'this is a server people reach over a network, not the desktop app. Remove it.');
+  for (const name of ['ADMINIUM_STORAGE_URL', 'AWS_ENDPOINT_URL_S3']) {
+    if (isSet(raw[name])) refuse(name, 'files stay in the data folder, the one storage destination allowed. Remove it.');
+  }
+  if (word('ADMINIUM_NETWORK_POLICY') === 'open') refuse('ADMINIUM_NETWORK_POLICY', 'it is strict there. Remove it, or set strict.');
+  if (word('ADMINIUM_LOCAL_DATABASES') === 'setting') refuse('ADMINIUM_LOCAL_DATABASES', 'databases on this server are off there, and only ADMINIUM_DATABASE_HOSTS counts. Remove it, or set off.');
+  if (trial) {
+    if (TRUTHY.has(word('ADMINIUM_TELEMETRY'))) refuse('ADMINIUM_TELEMETRY', 'a trial sends no usage data. Remove it, or set off.');
+    for (const name of ['ADMINIUM_MAP_SERVER', 'ADMINIUM_ROUTING_SERVER']) {
+      if (isSet(raw[name]) && word(name) !== MAP_SERVER_OFF) refuse(name, 'a trial makes no outgoing calls but the operator’s. Remove it, or set off.');
+    }
+  }
+  return problems;
+}
+
+/**
+ * `env` with what its profile implies ENFORCED: set as the
+ * profile says whatever the variable held, so nothing that fills an unset
+ * variable later (a project's `.env`, a default) can change it. The explicit
+ * contradictions have already failed the boot ({@link profileIssues}); this is
+ * what an unset variable reads as.
+ *
+ *  - both profiles: `ADMINIUM_NETWORK_POLICY=strict`, `ADMINIUM_LOCAL_DATABASES=off`;
+ *  - trial mode: `ADMINIUM_TELEMETRY=off` and no map or routing server;
+ *    pools of 3 against a source and the meta store unless set lower.
+ */
+export function enforceProfile(env: Env): Env {
+  if (!env.ADMINIUM_TRIAL_MODE && !env.ADMINIUM_HOSTED_MODE) return env;
+  const enforced: Env = { ...env, ADMINIUM_NETWORK_POLICY: 'strict', ADMINIUM_LOCAL_DATABASES: 'off' };
+  if (env.ADMINIUM_TRIAL_MODE) {
+    // Small pools on the operator's shared servers: what an unset variable reads as; the operator may set less.
+    enforced.ADMINIUM_SOURCE_POOL_MAX = env.ADMINIUM_SOURCE_POOL_MAX ?? TRIAL_SOURCE_POOL_MAX;
+    enforced.ADMINIUM_META_POOL_MAX = env.ADMINIUM_META_POOL_MAX ?? TRIAL_META_POOL_MAX;
+    enforced.ADMINIUM_TELEMETRY = false;
+    enforced.ADMINIUM_MAP_SERVER = MAP_SERVER_OFF;
+    enforced.ADMINIUM_ROUTING_SERVER = MAP_SERVER_OFF;
+  }
+  return enforced;
+}
+
+/** Problems found outside the schema, as the schema's own issues, so one table prints them all. */
+export function problemIssues(problems: readonly EnvProblem[]): z.core.$ZodIssue[] {
+  return problems.map((problem) => ({ code: 'custom', path: [problem.variable], message: problem.problem, input: undefined }) as z.core.$ZodIssue);
+}
 
 const ENV_HINTS: Record<string, string> = {
   ADMINIUM_SECRET: 'set a random string of at least 16 characters, e.g. `openssl rand -hex 32`',
@@ -922,6 +1661,8 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_TELEMETRY: `one of ${BOOLEANISH.join(', ')} (default off)`,
   ADMINIUM_DESIGNER: 'off or live (default off; live lets a Super Admin switch Adminium Designer on for this server)',
   ADMINIUM_DEPLOY_LINK: `one of ${BOOLEANISH.join(', ')} (default on; off hides the "Put this online" link to adminium.dev/deploy)`,
+  ADMINIUM_SUPABASE_CONNECT_URL:
+    'the https:// address of the operator\'s connect service, e.g. https://connect.example.com/supabase (unset: no "Connect Supabase" card)',
   ADMINIUM_NETWORK_FEATURES: `one of ${BOOLEANISH.join(', ')} (default on; set off on air-gapped installs so the UI stops offering webhooks/OAuth)`,
   ADMINIUM_TRUST_PROXY: `one of ${BOOLEANISH.join(', ')} (default off; enable behind Caddy/TLS)`,
   ADMINIUM_TRUSTED_PROXIES:
@@ -940,9 +1681,33 @@ const ENV_HINTS: Record<string, string> = {
     'CSV of absolute folders a SQLite source database must lie in, e.g. /srv/databases (unset: any file except Adminium\'s own)',
   ADMINIUM_STORAGE_DIRS:
     'CSV of absolute folders a local storage destination must lie in, e.g. /srv/files (unset: any folder except Adminium\'s own)',
-  ADMINIUM_NETWORK_POLICY: `one of ${NETWORK_POLICIES.join(', ')} (default open; strict also refuses private ranges for source databases, webhooks and storage endpoints)`,
+  ADMINIUM_NETWORK_POLICY: `one of ${NETWORK_POLICIES.join(', ')} (default open; strict also refuses private ranges for source databases, webhooks, storage endpoints, the user's own SMTP server, AI addresses a user saves and add-ons' network calls, this machine too for the last three)`,
   ADMINIUM_LOCAL_DATABASES:
     'setting (default: a Super Admin may allow databases on this server in Studio) or off (only ADMINIUM_DATABASE_HOSTS counts)',
+  ADMINIUM_TRIAL_MODE: `one of ${BOOLEANISH.join(', ')} (default off; on runs a trial for a stranger: needs ADMINIUM_TRIAL_ENDS_AT, ADMINIUM_SETUP_TOKEN, ADMINIUM_PUBLIC_ORIGIN and ADMINIUM_DATABASE_HOSTS)`,
+  ADMINIUM_TRIAL_ENDS_AT: 'when the trial ends, with its zone, e.g. 2026-12-01T00:00:00Z (trial mode only)',
+  ADMINIUM_PUBLIC_ORIGIN: 'the operator\'s address for this instance, e.g. https://shop.example.com',
+  ADMINIUM_TRIAL_DATA_MAX_MB: 'whole megabytes of live data per operator database (default 500; trial mode only)',
+  ADMINIUM_TRIAL_UPLOAD_MAX_MB: 'whole megabytes per uploaded file (default 10; trial mode only)',
+  ADMINIUM_TRIAL_STORAGE_MAX_MB: 'whole megabytes for the whole data folder (default 1000; trial mode only)',
+  ADMINIUM_TRIAL_UPGRADE_URL: 'the https:// address of the operator\'s Upgrade page (unset: no Upgrade button; trial mode only)',
+  ADMINIUM_TRIAL_SMTP_URL: 'the operator\'s mail relay for this instance, smtp://user:password@relay:587 (trial mode only)',
+  ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY: 'user emails a day through the relay (default 50; trial mode only)',
+  ADMINIUM_TRIAL_MAIL_FROM: 'the address the relay pins for this instance, e.g. i-7f3a9c@relay.example.com (needed with ADMINIUM_TRIAL_SMTP_URL; trial mode only)',
+  ADMINIUM_TRIAL_MAIL_REPORT_URL: 'where a recipient reports a mail: https://… or mailto:… (default mailto:abuse@ the From address\'s domain; trial mode only)',
+  ADMINIUM_OPERATOR_NAME: 'the operator\'s name in the From of relay mail, "<instance> via <name>", at most 60 characters (default: the From address\'s domain)',
+  ADMINIUM_HOSTED_MODE: `one of ${BOOLEANISH.join(', ')} (default off; on runs a paid installation on the operator's server: needs ADMINIUM_PUBLIC_ORIGIN and ADMINIUM_DATABASE_HOSTS)`,
+  ADMINIUM_OPERATOR_DOMAINS: 'CSV of the user\'s own verified domains: plain lower-case host names, e.g. shop.example.com',
+  ADMINIUM_OPERATOR_TOKEN: 'the operator endpoint\'s bearer token and the key instance events are signed with, 32 random bytes or more, e.g. `openssl rand -hex 32` (needs ADMINIUM_OPERATOR_LISTEN or ADMINIUM_OPERATOR_EVENTS_URL)',
+  ADMINIUM_OPERATOR_LISTEN: 'address:port of the operator listener on the operator network, e.g. 10.0.0.2:4601 (needs ADMINIUM_OPERATOR_TOKEN)',
+  ADMINIUM_OPERATOR_EVENTS_URL: 'where signed instance events go: https://…, or http:// to a private address (needs ADMINIUM_OPERATOR_TOKEN)',
+  ADMINIUM_AI_OPERATOR_ONLY: `one of ${BOOLEANISH.join(', ')} (default off; on: AI runs on the operator's connection unless the user adds their own key)`,
+  ADMINIUM_AI_OPERATOR_SCOPE: 'dashboard: operator AI builds dashboards only (unset: no scope)',
+  ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: 'whole number of tokens operator AI may spend over the instance\'s life',
+  ADMINIUM_DESIGNER_START_PROMPT_B64: `the Designer's first prompt after setup, base64, at most ${String(START_PROMPT_MAX_CHARS)} characters decoded`,
+  ADMINIUM_DESIGNER_START_PROMPT_FILE: `absolute path to a read-only file holding the Designer's first prompt, at most ${String(START_PROMPT_MAX_CHARS)} characters`,
+  ADMINIUM_ADD_ON_DEV_TRUST: 'developer machines only; never with ADMINIUM_TRIAL_MODE or ADMINIUM_HOSTED_MODE',
+  NODE_OPTIONS: 'never set with ADMINIUM_TRIAL_MODE or ADMINIUM_HOSTED_MODE',
   ADMINIUM_MAP_SERVER: `off, or the one origin map pictures come from (default ${DEFAULT_MAP_SERVER})`,
   ADMINIUM_ROUTING_SERVER: `off, or the origin of an OSRM routing server (default ${DEFAULT_ROUTING_SERVER}; asked only when routing is switched on)`,
 };
@@ -997,13 +1762,13 @@ export function loadEnv(
   // A secret given as a file (`<NAME>_FILE`) is read as if it had been set in `<NAME>`.
   const files = readSecretFiles(withHeldSecrets(env));
   const result = envSchema.safeParse(files.env);
-  const issues = secretFileIssues(files.problems, result.success ? [] : result.error.issues);
+  const issues = [...secretFileIssues(files.problems, result.success ? [] : result.error.issues), ...problemIssues(profileIssues(files.env))];
   if (!result.success || issues.length > 0) {
     const table = formatEnvErrorTable(issues);
     stderr.write(`Adminium failed to start — invalid environment configuration:\n\n${table}\n`);
     throw new EnvValidationError(issues, table);
   }
-  return result.data;
+  return enforceProfile(result.data);
 }
 
 /**

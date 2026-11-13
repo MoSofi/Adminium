@@ -208,6 +208,14 @@ const TESTS = [
     phase: 'dist',
   },
   {
+    // The image's comment strip keeps licence comments and leaves code alone.
+    // The script is at the repo root; it needs only the server's TypeScript.
+    dir: 'apps/server',
+    file: 'test/strip-image-comments.test.ts',
+    reads: ['scripts/release/strip-image-comments.mjs'],
+    phase: 'source',
+  },
+  {
     // The acceptance test seeds with the REAL desktop demo script.
     // apps/desktop depends on apps/server, not the other way round.
     dir: 'apps/server',

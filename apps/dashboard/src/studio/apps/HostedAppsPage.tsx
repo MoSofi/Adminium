@@ -46,6 +46,7 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { docsUrl } from '../../kb/docsLinks.js';
 import { t } from '../../i18n/t.js';
+import { bootstrapQuery } from '../../app/bootstrap.js';
 import {
   SURFACES_QUERY_KEY,
   domainIssuesFrom,
@@ -360,6 +361,11 @@ export function HostedAppsPage() {
 
 /* ---------------------------------------------------------- the surfaces */
 
+/** "Hidden": a customer side while the operator has hidden the public pages (the Trial Mode comp's view 8, line 346). */
+function HiddenByOperatorChip() {
+  return <Badge tone="danger">{t('studio:operatorHidden.chip', 'Hidden')}</Badge>;
+}
+
 function SurfacesCard({
   surfaces,
   connections,
@@ -373,6 +379,8 @@ function SurfacesCard({
   onPlacement: (appKey: string, staff: 'internal' | 'external') => void;
   onConnection: (appKey: string, connectionId: string | null) => void;
 }) {
+  // While the server's operator has hidden the public pages, every customer side says so.
+  const publicPagesHidden = useSuspenseQuery(bootstrapQuery()).data.publicPagesHidden !== undefined;
   return (
     <Card>
       <CardHeader className="flex items-start justify-start gap-3">
@@ -404,6 +412,12 @@ function SurfacesCard({
                       ? t('studio:hostedApps.surfaces.staff', 'Staff')
                       : t('studio:hostedApps.surfaces.customer', 'Customer')}
                   </Badge>
+                  {surface.side === 'customer' && publicPagesHidden ? (
+                    <>
+                      {' '}
+                      <HiddenByOperatorChip />
+                    </>
+                  ) : null}
                 </p>
                 <p className="text-sm text-fg-muted">
                   <a

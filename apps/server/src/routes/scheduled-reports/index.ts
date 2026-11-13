@@ -43,6 +43,7 @@ import {
   scheduledReportsPatchBody,
   type ScheduledReportView,
 } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 /**
  * `system:reports:manage` — the scheduled-reports admin grant. Declared in
@@ -148,6 +149,8 @@ export function scheduledReportsRoutes(deps: ScheduledReportsRoutesDeps): Fastif
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.get(
       '/scheduled-reports',
       { schema: { querystring: scheduledReportsListQuery, response: { 200: scheduledReportsListReply } } },

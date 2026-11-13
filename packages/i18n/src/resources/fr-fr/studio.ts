@@ -282,7 +282,10 @@ export default {
       "atTable": "Table {field}",
       "empty": "Un nom est requis.",
       "identifier": "Utilisez des minuscules, des chiffres et des tirets bas, en commençant par une lettre.",
-      "tooLong": "Trop long — {dialect} autorise {max} caractères."
+      "tooLong": "Trop long — {dialect} autorise {max} caractères.",
+      "unsafeDefault": "Cette expression par défaut ne peut pas être utilisée : elle contient un point-virgule, un commentaire, une barre oblique inverse, un signe dollar, ou un guillemet ou une parenthèse non fermés. Modifiez-la, puis réessayez.",
+      "unsafeType": "Ce type de colonne ne peut pas être utilisé : il contient plus qu’un type, comme un point-virgule, un commentaire, une contrainte, ou un guillemet ou une parenthèse non fermés. Modifiez-le, puis réessayez.",
+      "unsafeCheck": "Cette vérification ne peut pas être utilisée : elle contient un point-virgule, un commentaire, une barre oblique inverse, un signe dollar, ou un guillemet ou une parenthèse non fermés. Modifiez-la, puis réessayez."
     },
     "existing": "Tables existantes",
     "hazard": {
@@ -2738,7 +2741,8 @@ export default {
       "linkOrigin": {
         "error": "Saisissez une adresse comme https://admin.example.com, sans chemin.",
         "helper": "Les liens de réinitialisation du mot de passe et d’invitation ouvrent cette adresse. Si elle est vide, Adminium la reprend du prochain administrateur qui se connecte ou enregistre une modification, sauf s’il passe par localhost.",
-        "label": "Adresse des liens dans les e-mails"
+        "label": "Adresse des liens dans les e-mails",
+        "operator": "L’opérateur du serveur a fixé cette adresse. Les liens de réinitialisation du mot de passe et d’invitation l’ouvrent toujours."
       },
       "pass": {
         "error": "Ce nom d’utilisateur exige un mot de passe.",
@@ -2773,6 +2777,34 @@ export default {
       "user": {
         "helper": "Laissez vide si le relais ne demande pas d’authentification.",
         "label": "Nom d’utilisateur"
+      },
+      "relay": {
+        "title": "Les e-mails sont envoyés par le service de messagerie de l’opérateur",
+        "from": "Adresse d’expédition",
+        "fromLine": "{from}, les réponses vont à {replyTo}",
+        "noRelay": "L’opérateur n’a pas configuré de service de messagerie pour cette installation : aucun e-mail n’est envoyé.",
+        "use": "Utilisation du jour",
+        "useLine": "{today, number} e-mails sur {perDay, number} aujourd’hui · {hour, number} sur {perHour, number} cette heure-ci",
+        "people": "{people, number} personnes sur {max, number} contactées aujourd’hui",
+        "dayBar": "E-mails aujourd’hui",
+        "hourBar": "E-mails cette heure-ci",
+        "limitDay": "Limite quotidienne d’e-mails atteinte. {count, plural, one {# e-mail attend et part demain.} other {# e-mails attendent et partent demain.}}",
+        "limitDayOnly": "Limite quotidienne d’e-mails atteinte.",
+        "limitHour": "Limite horaire d’e-mails atteinte. {count, plural, one {# e-mail attend et part à {time}.} other {# e-mails attendent et partent à partir de {time}.}}",
+        "limitHourOnly": "Limite horaire d’e-mails atteinte.",
+        "limitPeople": "La limite du jour de {max, number} personnes est atteinte. Les e-mails à une nouvelle personne attendent demain.",
+        "limitBounces": "L’envoi est suspendu jusqu’à demain : trop d’e-mails ont été rejetés ou signalés comme spam aujourd’hui.",
+        "waiting": "{count, plural, one {# e-mail attend et part à {time}.} other {# e-mails attendent ; le premier part à {time}.}}",
+        "open": "Ouvrir la boîte d’envoi",
+        "outboxTitle": "E-mails en attente",
+        "outboxHelp": "Ils partent d’eux-mêmes dès que les limites d’e-mails le permettent. Rien ne peut être modifié ici.",
+        "to": "À",
+        "subject": "Objet",
+        "queued": "Mis en file",
+        "goesOut": "Part le",
+        "empty": "Aucun e-mail en attente.",
+        "failed": "Impossible de charger les e-mails en attente.",
+        "close": "Fermer"
       }
     },
     "identity": {
@@ -2888,7 +2920,6 @@ export default {
       "heading": "Connexions",
       "subtitle": "Les bases de données que cette installation lit et écrit.",
       "label": "Autoriser les bases de données sur ce serveur",
-      "setByOperator": "Défini par l’opérateur",
       "help": "Permet aux connexions d’atteindre des bases de données qui tournent sur ce même serveur, comme {example}. Uniquement pour les bases de données que vous avez installées ici.",
       "alwaysHere": "Ce serveur atteint déjà les bases de données de cette machine : cet interrupteur ne change donc rien ici.",
       "lockedHosts": "L’opérateur n’autorise que ces hôtes :",
@@ -3129,7 +3160,8 @@ export default {
       "readingFile": "Lecture du fichier de schéma téléversé…",
       "readingSchema": "Lecture du schéma : public",
       "ready": "Prêt",
-      "relations": "Détection des relations…"
+      "relations": "Détection des relations…",
+      "handoff": "Connecté via Supabase · lecture seule du schéma"
     },
     "logLabel": "Journal d’introspection",
     "retry": "Réessayer",
@@ -3491,6 +3523,9 @@ export default {
       "signInLink": "Se connecter",
       "noCopy": "Cette adresse mène désormais à une copie que ce compte ne peut pas ouvrir.",
       "guest": "Cette adresse a changé."
+    },
+    "hidden": {
+      "title": "Cette page n’est pas disponible."
     }
   },
   "appSettings": {
@@ -5920,5 +5955,15 @@ export default {
       "line": "Sur cet ordinateur, le projet crée son propre fichier : dans le Designer, ouvrez le menu du projet (son nom, en haut à gauche) et choisissez Exporter ce projet….",
       "open": "Ouvrir le Designer"
     }
+  },
+  "ownCode": {
+    "addOnsOff": "Les envois de fichiers sont désactivés sur ce serveur par son opérateur. Installez les modules depuis le catalogue.",
+    "appsOff": "Les envois de fichiers sont désactivés sur ce serveur par son opérateur. Installez les applications depuis le catalogue."
+  },
+  "operatorHidden": {
+    "title": "Vos pages publiques sont masquées par l’opérateur.",
+    "reason": "Motif : {reason}",
+    "reply": "Répondez à l’e-mail de l’opérateur s’il s’agit d’une erreur.",
+    "chip": "Masquée"
   }
 } as const;

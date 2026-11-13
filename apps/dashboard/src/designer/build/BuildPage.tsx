@@ -13,12 +13,13 @@
  * become views with a switch between them; the one out of sight is kept at
  * its size, so the preview's frame lives on and can still be looked at.
  */
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
+import { useOwnCodeOff } from '../../app/ownCode.js';
 import { t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { AttachTray, SentFiles, useAttach, useReadsImages } from '../parts/attach.js';
@@ -76,6 +77,9 @@ import { VIEW_IDS, ViewSwitch, type BuildView } from './ViewSwitch.js';
 import { WorkArea } from './WorkArea.js';
 
 export { CHAT_WIDTH } from './barLevel.js';
+
+/** The operator's fixed card ("needs your own AI key"): loaded the first time a turn ends with it. */
+const OperatorAiCard = lazy(async () => ({ default: (await import('../parts/OperatorAiCard.js')).OperatorAiCard }));
 
 /** The window's width, kept current. */
 function useWindowWidth(): number {
@@ -196,7 +200,8 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
     onSuccess: (reply) => queryClient.setQueryData(designerKeys.session(sessionId), reply),
     onError: fail(t('designer:build.saveFailed', 'The change was not saved')),
   });
-  const attach = useAttach({ sessionId, notify: (title) => toasts.push({ variant: 'info', title }) });
+  const siteOff = useOwnCodeOff('designerUploads');
+  const attach = useAttach({ sessionId, notify: (title) => toasts.push({ variant: 'info', title }), siteOff });
   /** The element of the preview the next message is about. */
   const [picked, setPicked] = useState<DesignerPicked | null>(null);
   const start = useMutation({
@@ -300,7 +305,11 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
   const swapping = working && turns.at(-1)?.text === SWAPPABLE_MESSAGE;
 
   // What keeps the app's files from being changed by hand right now, for the Code tab to say.
-  const codeLock: CodeLock = working ? (waiting.length > 0 ? 'waiting' : 'turn') : (held ?? (restore.isPending ? 'restore' : look.isPending ? 'style' : null));
+  // The same switch: hand edits are an upload of files too.
+  const handEditsOff = siteOff;
+  const codeBusy: CodeLock = working ? (waiting.length > 0 ? 'waiting' : 'turn') : (held ?? (restore.isPending ? 'restore' : look.isPending ? 'style' : null));
+  // Where the operator keeps hand edits off, the files are read only whenever nothing else holds them.
+  const codeLock: CodeLock = codeBusy ?? (handEditsOff ? 'operator' : null);
   const versionNow = session.data?.session.version ?? 0;
   const code = useCodeFiles(sessionId, {
     lock: codeLock,
@@ -556,7 +565,13 @@ export function BuildPage({ sessionId }: { sessionId: string }): ReactNode {
               />
             );
           })}
-          {turn.outcome === 'not-applied' && turn.notApplied !== null ? <NotAppliedNote message={turn.notApplied} /> : null}
+          {/* The operator's card stands in for the engine's own word on what it refused. */}
+          {turn.outcome === 'not-applied' && turn.notApplied !== null && turn.operatorAi === null ? <NotAppliedNote message={turn.notApplied} /> : null}
+          {turn.operatorAi === null ? null : (
+            <Suspense fallback={null}>
+              <OperatorAiCard which={turn.operatorAi} />
+            </Suspense>
+          )}
           {turn.outcome === 'stopped' ? (
             <StoppedNote
               busy={busy}

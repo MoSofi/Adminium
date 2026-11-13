@@ -98,6 +98,33 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radio', { name: 'Month' }).getAttribute('aria-checked')).toBe('true');
   });
 
+  it('keeps an unavailable segment in reach, aria-disabled, and never selects it', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(
+      <SegmentedControl
+        aria-label="Engine"
+        options={[{ value: 'pg', label: 'Postgres' }, { value: 'my', label: 'MySQL' }, { value: 'lite', label: 'SQLite', unavailable: true }]}
+        value="my"
+        onValueChange={onValueChange}
+      />,
+    );
+    const lite = screen.getByRole('radio', { name: 'SQLite' }) as HTMLButtonElement;
+    expect(lite.disabled).toBe(false);
+    expect(lite.getAttribute('aria-disabled')).toBe('true');
+    await user.tab();
+    expect(document.activeElement?.textContent).toBe('MySQL');
+    await user.keyboard('{ArrowRight}');
+    // Focus reaches it, so a keyboard user finds it and the reason it carries; the value stays.
+    expect(document.activeElement).toBe(lite);
+    expect(onValueChange).not.toHaveBeenCalled();
+    await user.keyboard('{ArrowRight}');
+    expect(onValueChange).toHaveBeenLastCalledWith('pg');
+    onValueChange.mockClear();
+    await user.click(lite);
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
   it('respects the controlled value', async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();

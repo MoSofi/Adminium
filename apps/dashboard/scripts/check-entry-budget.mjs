@@ -20,6 +20,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
+import { DEFERRED_COMMON_KEY } from './entry-deferred-keys.mjs';
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const budget = JSON.parse(readFileSync(join(root, 'chunk-budget.json'), 'utf8'));
 
@@ -50,15 +52,9 @@ if (namers.length > 0) {
 }
 
 /*
- * The same for the four screens' groups of `common` (`COMMON_DEFERRED_GROUPS`):
- * the dashboard builder, the knowledge base, About and Team, and since then
- * quiet hours, the security page and the changelog. A bare key
- * (`about.title`) reads `common`, so both spellings are refused. The group
- * `reports` is deferred too and is NOT in the pattern: `reports.manage` is a
- * permission's name, which the first paint may well carry. The same for
- * `audit` (`audit.read`). `onboarding`, `capabilities`, `palette`, `account`, `consent`, `appFiles` and `appCopies` are in it.
+ * The same for the deferred groups of `common` (`COMMON_DEFERRED_GROUPS`):
+ * the pattern is built from that list (`entry-deferred-keys.mjs`).
  */
-const DEFERRED_COMMON_KEY = /['"`](?:common:)?(builder|kb|about|team|quietHours|security|changelog|onboarding|capabilities|palette|account|consent|appFiles|appCopies)\.[A-Za-z]/;
 const commonNamers = refs.filter((ref) => DEFERRED_COMMON_KEY.test(readFileSync(join(root, 'dist', ref), 'utf8')));
 if (commonNamers.length > 0) {
   console.error(`check-entry-budget: FAIL — the entry names a key of a deferred group of common (${commonNamers.join(', ')}).`);

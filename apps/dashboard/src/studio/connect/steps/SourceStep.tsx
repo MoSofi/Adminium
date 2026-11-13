@@ -37,7 +37,11 @@ import {
 } from '@adminium/ui';
 
 import { ApiError } from '../../../app/api.js';
+import type { ConnectedConnection } from '../../../connect/connectApi.js';
+import { ProviderConnect } from '../../../connect/ProviderConnect.js';
 import { t } from '../../../i18n/t.js';
+import { useCommonWords } from '../../../i18n/commonWords.js';
+import { OffByOperatorNote, useOperatorSwitch } from '../../../settings/OffByOperator.js';
 import { studioApi, type ConnectionEngine, type SchemaTable } from '../../api.js';
 import { Dropzone } from '../Dropzone.js';
 import { WorkspacesField } from './WorkspacesField.js';
@@ -65,6 +69,11 @@ export interface SourceStepProps {
   onPatch: (patch: Partial<WizardState>) => void;
   /** Hands the parsed schema-file tables to the wizard (memory-only). */
   onFileTablesCapture?: ((tables: SchemaTable[] | null) => void) | undefined;
+  /**
+   * "Connect Supabase" landed a connection (`connect/ProviderConnect.tsx`): the
+   * wizard goes on with it. The card shows only when the operator offers it.
+   */
+  onProviderConnected?: ((connection: ConnectedConnection) => void) | undefined;
 }
 
 const SSL_MODES: readonly SslMode[] = ['disable', 'require', 'verify-ca', 'verify-full'];
@@ -72,7 +81,7 @@ const SSL_MODES: readonly SslMode[] = ['disable', 'require', 'verify-ca', 'verif
 /** Everything the 8 parsers read — plus.txt for pasted dumps. */
 const FILE_ACCEPT = '.sql,.prisma,.ts,.js,.mjs,.cjs,.rb,.py,.json,.txt';
 
-export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepProps) {
+export function SourceStep({ state, onPatch, onFileTablesCapture, onProviderConnected }: SourceStepProps) {
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   /** Last uploaded file, kept in memory so a format override can re-parse. */
@@ -80,6 +89,10 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
 
   const inferredEngine = engineForDsn(state.dsn);
   const pickerEngine: ConnectionEngine = state.mode === 'dsn' ? (inferredEngine ?? state.engine) : state.engine;
+  // Trial mode: SQLite is shown, disabled, with the operator's reason under the picker (never hidden).
+  useCommonWords();
+  const sqlite = useOperatorSwitch('sqliteSources');
+  const sqliteChosen = sqlite.off && pickerEngine === 'sqlite';
 
   const parseContent = (name: string, content: string, format: FileFormatChoice) => {
     setParsing(true);
@@ -146,6 +159,15 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
         </p>
       </div>
 
+      {onProviderConnected === undefined ? null : (
+        <ProviderConnect
+          mode="connect"
+          onConnected={onProviderConnected}
+          autoStart={state.providerStart === 'supabase'}
+          onAutoStarted={() => onPatch({ providerStart: null })}
+        />
+      )}
+
       <FormField label={t('studio:source.name', 'Connection name')} required>
         <Input
           value={state.name}
@@ -174,11 +196,20 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
         <FormField label={t('studio:source.engine.label', 'Database engine')}>
           <SegmentedControl
             aria-label={t('studio:source.engine.label', 'Database engine')}
+            {...(sqlite.off ? { 'aria-describedby': 'studio-source-sqlite-off' } : {})}
             value={pickerEngine}
-            onValueChange={(engine) => onPatch(enginePickPatch(state, engine as ConnectionEngine))}
-            options={SOURCE_ENGINES.map((engine) => ({ value: engine, label: engineLabel(engine) }))}
+            onValueChange={(engine) => {
+              if (engine === 'sqlite' && sqlite.off) return;
+              onPatch(enginePickPatch(state, engine as ConnectionEngine));
+            }}
+            // Off by the operator: in reach and described (`aria-disabled`), never native `disabled`, which a keyboard skips.
+            options={SOURCE_ENGINES.map((engine) => ({ value: engine, label: engineLabel(engine), unavailable: engine === 'sqlite' && sqlite.off }))}
           />
         </FormField>
+      ) : null}
+      {state.mode !== 'file' && sqlite.off ? <OffByOperatorNote id="studio-source-sqlite-off" reason={sqlite.reason} /> : null}
+      {sqliteChosen ? (
+        <Alert tone="warn" role="alert" title={t('operatorLock.chip', 'Set by the operator')} body={sqlite.reason} />
       ) : null}
 
       {state.mode === 'dsn' ? (

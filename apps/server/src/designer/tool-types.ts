@@ -8,6 +8,7 @@
 import type { CardAnswer, CardRequest } from './cards.js';
 import type { EventLog } from './events.js';
 import type { DesignerSession } from './session-store.js';
+import type { PolicyReason } from '../trial/policy.js';
 
 /** The person behind a turn. */
 export interface Actor {
@@ -36,7 +37,7 @@ export interface ToolOutcome {
   /** More for the page, never for the model: a check's findings, the first error. */
   detail?: string;
   /** What the page words the line from, in its own language. `until`/`dated`: reads of an outside source are paused until then (Figma's limit). */
-  facts?: { count?: number; outcome?: 'added' | 'declined' | 'refused' | 'failed'; look?: string; until?: number; dated?: boolean };
+  facts?: { count?: number; outcome?: 'added' | 'declined' | 'refused' | 'failed'; look?: string; until?: number; dated?: boolean; /** The server's operator turned this off (`designer/declarative.ts`): the page says so in fixed words. */ operator?: PolicyReason };
   /** What the step is about, when the tool knows better than its input says (a Figma node's name, where the input names its id). */
   subject?: string;
   /** A picture the step read, joined to the turn after the results, named in words first (a part of a Figma frame). */
@@ -89,3 +90,38 @@ export interface PictureSites {
   /** Keep the site (the project's `.env`) and let it through from the next reply. `by` is who said yes. */
   add(host: string, by: { id: string | null; label: string }): void;
 }
+
+/** The names of the tools, in the order the model is told them. */
+export const DESIGNER_TOOL_NAMES = [
+  'list_files',
+  'read_file',
+  'write_file',
+  'edit_file',
+  'delete_file',
+  'check_app',
+  'build_sides',
+  'apply_app',
+  'run_tests',
+  'read_reference',
+  'list_add_ons',
+  'get_add_on',
+  'name_app',
+  'add_side',
+  'add_ui_part',
+  'set_style',
+  'use_font',
+  'list_styles',
+  'build_on_shape',
+  'post_to_ledger',
+  'read_attachment',
+  'load_rows',
+  'add_spots',
+  'fill_spot',
+  'use_pictures',
+  'ask_person',
+  'request_package',
+  'make_pictures',
+  'read_figma',
+  'use_site',
+  'allow_picture_site',
+] as const;

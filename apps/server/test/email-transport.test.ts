@@ -177,6 +177,9 @@ describe('PUT /settings/email', () => {
       senders: [],
       maxAttachmentBytes: 10_485_760,
       publicOrigin: null,
+      // Nobody but the Super Admin decides the address in email links on an ordinary server.
+      locks: { publicOrigin: { allowed: true, reason: null }, smtp: { allowed: true, reason: null } },
+      relay: null,
     });
   });
 
@@ -306,6 +309,9 @@ describe('PUT /settings/email', () => {
       senders: [],
       maxAttachmentBytes: 10_485_760,
       publicOrigin: null,
+      // Nobody but the Super Admin decides the address in email links on an ordinary server.
+      locks: { publicOrigin: { allowed: true, reason: null }, smtp: { allowed: true, reason: null } },
+      relay: null,
     });
     // Not the value, not a masked copy, not a last-4 — the serialized body must
     // not contain the password in ANY form.

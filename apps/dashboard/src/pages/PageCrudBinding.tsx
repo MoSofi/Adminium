@@ -49,7 +49,7 @@ import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { parseColumns, parseDefaultSort, projectionParamsOf, withFactSpecs, withFkDisplay, withLookups } from './columnSpecs.js';
 import { useManifestBulkActions } from './ManifestBulkAction.js';
-import { ProjectActionMenu, useProjectActions } from './projectActions.js';
+import { ProjectActionMenu, projectBulkActions, useProjectActions } from './projectActions.js';
 import { useAppToasts } from './toasts.js';
 import { linkPiecesOf, searchWithout, useLinkFilters, usePageSearch, withLinkWhere } from './linkFilters.js';
 import { listViewOf, rememberListView } from './listView.js';
@@ -333,12 +333,7 @@ export function PageCrudBinding({
   });
   const bulkActions = useMemo(
     () => [
-      ...projectActions.bulk.map((action) => ({
-        key: action.id,
-        label: action.label,
-        disabled: projectActions.busy,
-        run: (ids: readonly string[]) => projectActions.start(action, ids),
-      })),
+      ...projectBulkActions(projectActions),
       ...manifestBulk.bulk,
     ],
     [projectActions, manifestBulk.bulk],

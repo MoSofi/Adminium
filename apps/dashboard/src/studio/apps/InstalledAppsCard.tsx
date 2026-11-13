@@ -49,6 +49,7 @@ import {
 import { ArrowUp, ArrowUpCircle, CircleAlert, Download, HardDrive, Info, RotateCw, Trash2, TriangleAlert, Wand2 } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
 
+import { OFF_LOOK, OperatorOffTip, useOwnCodeOff } from '../../app/ownCode.js';
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { DEFAULT_BRANDING, brandingQuery } from '../../app/branding.js';
 import { useCommonWords } from '../../i18n/commonWords.js';
@@ -124,6 +125,7 @@ export function groupCopies(apps: readonly InstalledApp[]): InstalledApp[] {
 const rowId = (app: InstalledApp): string => app.installId ?? app.key;
 
 export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, onFinishUpdate, busy = false, beforeInstall }: InstalledAppsCardProps) {
+  const uploadsOff = useOwnCodeOff('packageUploads');
   useCommonWords();
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(installedAppsQuery());
@@ -190,9 +192,17 @@ export function InstalledAppsCard({ onInstall, onUpdate, onUpdateEvery, onFinish
           </Badge>
         )}
         {beforeInstall === undefined ? null : <span className={updateCount === 0 ? 'ms-auto' : undefined}>{beforeInstall}</span>}
-        <Button className={updateCount === 0 && beforeInstall === undefined ? 'ms-auto' : undefined} size="sm" onClick={onInstall}>
-          {t('studio:hostedApps.installed.install', 'Install an app')}
-        </Button>
+        {/* "Install an app" uploads one: kept, off and explained, while the operator keeps uploads off. */}
+        <OperatorOffTip off={uploadsOff} why={t('studio:ownCode.appsOff', 'Uploads are turned off on this server by its operator. Install apps from the catalog.')}>
+          <Button
+            className={`${updateCount === 0 && beforeInstall === undefined ? 'ms-auto ' : ''}${OFF_LOOK}`}
+            size="sm"
+            aria-disabled={uploadsOff || undefined}
+            onClick={uploadsOff ? undefined : onInstall}
+          >
+            {t('studio:hostedApps.installed.install', 'Install an app')}
+          </Button>
+        </OperatorOffTip>
       </CardHeader>
 
       <CardBody className="flex flex-col gap-3">

@@ -67,6 +67,12 @@ GET /api/v1/system/info
 
 Version and instance information.
 
+The two health routes answer on every host. When the operator gives the
+instance its addresses (`ADMINIUM_PUBLIC_ORIGIN`, `ADMINIUM_OPERATOR_DOMAINS`),
+every other request to another `Host` is answered `421` before any route, so
+probe a container by its address only at `/api/v1/healthz` or
+`/api/v1/readyz` ([Your addresses for the instance](/self-hosting/env-vars/#your-addresses-for-the-instance)).
+
 ## Dates in rows
 
 A `date` column is a calendar day, and every reply spells it as its text, `"2026-08-14"`, on
@@ -111,6 +117,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/automations/*` | 9 | Automation rules — the trigger, the steps and the branches between them; the tables, columns, templates and roles a rule can name; the 30-day counters the cards show; and a dry run that walks the flow without executing anything |
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
+| `/api/v1/connect/*` | 3 | Connect Supabase: the one-time hand-off from an operator's connect service (ADMINIUM_SUPABASE_CONNECT_URL). Start, the return with its one-time code, and the password for an existing project |
 | `/api/v1/connections/*` | 30 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/consent/*` | 7 | Consent and the do-not-email list — the list itself (search, add, remove), and a record's consent: its standing per purpose, its history, recording a yes, "Replied" and "They said no" |
 | `/api/v1/data/*` | 25 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
@@ -155,11 +162,11 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/scheduled-reports/*` | 4 | Recurring exports delivered on a schedule |
 | `/api/v1/schema-import` | 1 | Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR |
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
-| `/api/v1/settings/*` | 14 | Instance settings — defaults, branding, email, security, telemetry |
+| `/api/v1/settings/*` | 15 | Instance settings — defaults, branding, email, security, telemetry |
 | `/api/v1/setup/*` | 5 | First-boot super-admin creation, whether setup is still open, the one-time setup token, and — in that same window — checking a database for an Adminium store already in it and adopting that store |
 | `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
-| `/api/v1/system` | 1 | Version and instance information |
+| `/api/v1/system/*` | 2 | Version and instance information |
 | `/api/v1/teams/*` | 6 | Teams and who leads them: a lead reaches the rows of the people in the team |
 | `/api/v1/users/*` | 11 | People on the server — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
@@ -378,6 +385,14 @@ GET /api/v1/branding
 GET /api/v1/branding/logo
 POST /api/v1/branding/logo
 DELETE /api/v1/branding/logo
+```
+
+### `/connect`
+
+```http
+POST /api/v1/connect/start
+POST /api/v1/connect/return
+POST /api/v1/connect/complete
 ```
 
 ### `/connections`
@@ -1009,6 +1024,7 @@ GET /api/v1/settings/maps
 PUT /api/v1/settings/maps
 GET /api/v1/settings/email
 PUT /api/v1/settings/email
+GET /api/v1/settings/email/waiting
 GET /api/v1/settings/local-databases
 PUT /api/v1/settings/local-databases
 ```
@@ -1051,6 +1067,7 @@ PUT /api/v1/surfaces/domains
 
 ```http
 GET /api/v1/system/info
+GET /api/v1/system/size-caps
 ```
 
 ### `/teams`
@@ -1112,6 +1129,24 @@ DELETE /api/v1/workspaces/{id}/sender
 ```
 
 <!-- END GENERATED: operations -->
+
+## The operator endpoint
+
+Three routes are not served under the public address at all, and so are in
+neither the list above nor the OpenAPI document. They answer only on the
+operator's own listener (`ADMINIUM_OPERATOR_LISTEN`), and only
+`Authorization: Bearer <ADMINIUM_OPERATOR_TOKEN>`; the public listener answers
+`404` for them:
+
+| | |
+|---|---|
+| `GET /api/v1/operator/status` | Disk used, mail and AI spent, the Super Admins' last 20 sign-ins (time and address), the last sign-in, and whether the public pages are hidden |
+| `POST /api/v1/operator/public-pages` | `{ "hidden": true, "reason": "…" }` hides every public page at once (404 on every host); `{ "hidden": false }` shows them again |
+| `GET /api/v1/operator/public-content` | What the instance serves to anybody: every customer side's files, with their text, and every live form's fields |
+
+They are for whoever runs the server, not for the people who use it, and a
+client generated from the published spec could never reach them, so they are
+documented by hand: [The operator endpoint](/self-hosting/operator-endpoint/).
 
 ## Records with their rows, quotes and retries
 

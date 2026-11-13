@@ -991,6 +991,7 @@ export default {
     "limitMonth": "Figmas grænse for din plads er brugt op for nu. Du kan læse igen næste måned.",
     "limitWait": "Figma bad os vente. Prøv igen om {minutes, plural, one {# minut} other {# minutter}}.",
     "off": "Figma er slået fra på denne server: netværksfunktioner er slået fra.",
+    "offByOperator": "Figma er slået fra på denne installation: operatøren har slået det fra.",
     "saved": "Denne version af rammen er allerede importeret. Der blev ikke brugt nogen Figma-læsning.",
     "disconnected": "Forbindelsen til Figma er afbrudt. Tokenet er fjernet fra denne server.",
     "disconnectTitle": "Afbryd Figma?",
@@ -1416,5 +1417,24 @@ export default {
     "changesPlaceholder": "Skriv, hvad du vil have anderledes.",
     "buildThis": "Byg dette",
     "sendChanges": "Send mine ændringer"
+  },
+  "ownCode": {
+    "step": "Slået fra på denne server af dens operatør",
+    "codeOff": "Ændringer i hånden er slået fra på denne server af dens operatør. Bed Designeren om ændringen.",
+    "codeReadOnly": "{file}, skrivebeskyttet: ændringer i hånden er slået fra på denne server af dens operatør",
+    "startOff": "Slået fra på denne server af dens operatør: en kopi kører appens eget build.",
+    "stylesOff": "Egne stilarter er slået fra på denne server af dens operatør.",
+    "siteOff": "Webstedsskabeloner er slået fra på denne server af dens operatør."
+  },
+  "operatorAi": {
+    "label": "AI-nøgle påkrævet",
+    "scope": "At bygge skærme til kunder kræver din egen AI-nøgle.",
+    "usedUp": "Den AI, der følger med denne prøveperiode, er brugt op.",
+    "usedUpHere": "Den AI, der følger med denne installation, er brugt op.",
+    "keyOrUpgrade": "Tilføj din egen AI-nøgle for at fortsætte, eller opgrader.",
+    "key": "Tilføj din egen AI-nøgle for at fortsætte.",
+    "addKey": "Tilføj en AI-nøgle",
+    "upgrade": "Opgrader",
+    "step": "Kræver din egen AI-nøgle"
   }
 } as const;

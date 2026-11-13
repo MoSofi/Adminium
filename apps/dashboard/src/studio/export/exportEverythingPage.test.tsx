@@ -33,6 +33,8 @@ const ID = 'a'.repeat(32);
 let states: (ExportView | null)[];
 let startReply: { status: number; body: unknown };
 let deployLink: boolean;
+/** `/system/info` `trial`: absent on a server that is not running one. */
+let trial: { on: boolean; endsAt: string | null; daysLeft: number | null; upgradeUrl: string | null } | undefined;
 let calls: { method: string; url: string }[];
 
 beforeEach(async () => {
@@ -40,6 +42,7 @@ beforeEach(async () => {
   states = [null];
   startReply = { status: 202, body: { export: { id: ID, state: 'preparing', percent: 0 } } };
   deployLink = true;
+  trial = undefined;
   calls = [];
   vi.stubGlobal(
     'fetch',
@@ -48,7 +51,7 @@ beforeEach(async () => {
       const method = init?.method ?? 'GET';
       calls.push({ method, url });
       if (url.endsWith('/api/v1/system/info')) {
-        return jsonResponse(200, { version: '0.3.57', node: 'v22', dialect: 'sqlite', runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, deployLink });
+        return jsonResponse(200, { version: '0.3.57', node: 'v22', dialect: 'sqlite', runtime: 'self-host', smtpConfigured: false, networkFeaturesAllowed: true, lanShare: false, desktopDemo: false, deployLink, ...(trial === undefined ? {} : { trial }) });
       }
       if (url.endsWith('/api/v1/export/zip') && method === 'POST') return jsonResponse(startReply.status, startReply.body);
       if (url.endsWith('/api/v1/export/zip')) {
@@ -165,6 +168,30 @@ describe('Export everything', () => {
     expect(screen.queryByRole('button', { name: 'Download everything' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Move to another host' })).toBeNull();
     expect(calls.some((call) => call.url.endsWith('/api/v1/export/zip'))).toBe(false);
+  });
+
+  it('offers Upgrade on a trial with the operator’s address: same tab, the plain arrow-up icon', async () => {
+    const url = 'https://operator.example/upgrade?instance=https%3A%2F%2Fhollis.try.example.com';
+    trial = { on: true, endsAt: '2099-12-01T00:00:00.000Z', daysLeft: 9, upgradeUrl: url };
+    open();
+    const card = await screen.findByTestId('export-upgrade');
+    expect(card.textContent).toContain('Keep this installation: everything stays as it is.');
+    const upgrade = screen.getByRole('link', { name: 'Upgrade' });
+    expect(upgrade.getAttribute('href')).toBe(url);
+    expect(upgrade.hasAttribute('target')).toBe(false);
+    expect(card.querySelector('svg.lucide-circle-arrow-up')).not.toBeNull();
+    expect(card.querySelector('svg.lucide-square-arrow-out-up-right')).toBeNull();
+  });
+
+  it('offers no Upgrade without a trial, or without the operator’s address', async () => {
+    open();
+    await downloadEverything();
+    expect(screen.queryByTestId('export-upgrade')).toBeNull();
+    cleanup();
+    trial = { on: true, endsAt: '2099-12-01T00:00:00.000Z', daysLeft: 9, upgradeUrl: null };
+    open();
+    await downloadEverything();
+    expect(screen.queryByTestId('export-upgrade')).toBeNull();
   });
 
   it('is for super admins only', async () => {

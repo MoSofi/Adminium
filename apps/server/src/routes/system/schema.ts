@@ -6,6 +6,8 @@
 import { z } from 'zod';
 
 import { RUNTIMES } from '../../config/env.js';
+import { CONNECT_PROVIDER_IDS } from '../../connect/providers.js';
+import { settingLockSchema } from '../../trial/operator-lock.js';
 
 /** Meta-store dialects; `null` until meta wiring (wave 2). */
 export const metaDialect = z.enum(['postgres', 'mysql', 'sqlite']);
@@ -37,7 +39,16 @@ export const systemReadyzChecks = z.object({
    * carries in its store; an install checked now would see one as missing.
    */
   packages: z.enum(['ok', 'seeding']),
+  /**
+   * `?deep=1` only. `loading` = the boot is still loading the installed
+   * add-ons' code, which it does in the background after the server answers;
+   * a request now could reach an add-on that is not there yet.
+   */
+  addOns: z.enum(['ok', 'loading']).optional(),
 });
+
+/** `?deep=1`: also wait for the add-on runtime, the target for a waker. */
+export const systemReadyzQuery = z.object({ deep: z.enum(['0', '1']).optional() });
 
 export const systemReadyzReply = z.object({
   /** `false` ⇒ the route answers 503; take this instance out of rotation. */
@@ -79,6 +90,8 @@ export const systemInfoReply = z.object({
     mode: z.enum(['local', 'live', 'off']),
     /** `adminium design` opened a one-use sign-in link: a page with no session says the link was used, not "sign in". */
     link: z.boolean(),
+    /** The operator's start prompt is set and has not run: the first-run wizard starts it (`POST /designer/start-prompt`). */
+    startPrompt: z.boolean(),
   }),
   node: z.string(),
   dialect: metaDialect.nullable(),
@@ -127,5 +140,85 @@ export const systemInfoReply = z.object({
    * called compose can see it, and the SPA is not that process.
    */
   desktopDemo: z.boolean(),
+  /**
+   * The operators this instance can take a connection from ("Connect
+   * Supabase"): one entry per provider whose connect address the operator set
+   * (`ADMINIUM_SUPABASE_CONNECT_URL`). Empty: the connect wizards show only
+   * today's form. The address itself is not sent: the browser is given it by
+   * `POST /connect/start`, signed in.
+   */
+  connect: z.array(z.object({ provider: z.enum(CONNECT_PROVIDER_IDS) })),
+  /**
+   * Trial mode (`trial/policy.ts`): the banners' words and the
+   * Upgrade button. Signed out too: the sign-in and setup pages show the
+   * banners. Nothing here is a secret: the end date is the instance's own, and
+   * the Upgrade address is the operator's public page.
+   *
+   * The end is a STATE read from `endsAt` (at or past it, the trial has ended),
+   * never a count of 0: `daysLeft` counts a part day as one, so the last day
+   * reads 1, and is null once the trial has ended.
+   */
+  trial: z.object({
+    on: z.boolean(),
+    /** ISO 8601, UTC. Null outside trial mode. */
+    endsAt: z.string().nullable(),
+    daysLeft: z.number().int().positive().nullable(),
+    /** The operator's Upgrade page with `?instance=` added; null when unset (no button) or outside trial mode. */
+    upgradeUrl: z.string().nullable(),
+  }),
+  /**
+   * What the operator has switched off for this installation (trial mode, the
+   * hosted profile), for the screens that offer it before anyone signs in or
+   * without a reply of their own: each `{ allowed, reason }` under the name
+   * of its policy question (`trial/policy.ts`), the same name a 403
+   * `OFF_BY_OPERATOR` carries in `details.question`. Drawn disabled with the
+   * reason, never hidden.
+   */
+  offByOperator: z.object({
+    /** A SQLite file as a source, and making one: the connect wizards' SQLite choice. */
+    sqliteSources: settingLockSchema,
+    /** Storage destinations other than the default local one. */
+    storageDestinations: settingLockSchema,
+    /** The automation webhook step (and Slack message, which is one). */
+    webhooks: settingLockSchema,
+    /** Moving or adopting the meta store: the setup wizard's and Studio's placement choices. */
+    metaStoreRoutes: settingLockSchema,
+    /** Uploads of add-ons and apps (`trial/own-code.ts`). */
+    packageUploads: settingLockSchema,
+    /** Uploads and hand edits in the Designer. */
+    designerUploads: settingLockSchema,
+    /** Builds of an app's own: "Start with an app", an app's own build command. */
+    ownBuilds: settingLockSchema,
+  }),
 });
 export type SystemInfoReply = z.infer<typeof systemInfoReply>;
+
+/**
+ * A trial's size caps as last measured (`trial/size-cap.ts`): each database
+ * on the operator's host, and the data folder. For the notice on the pages of
+ * a held database. Outside trial mode: no databases, no folder.
+ */
+export const systemSizeCapsReply = z.object({
+  data: z.array(
+    z.object({
+      connectionId: z.string(),
+      /** Live data, in bytes. */
+      usedBytes: z.number().int().nonnegative(),
+      limitBytes: z.number().int().positive(),
+      /** ISO 8601, when it was measured. */
+      measuredAt: z.string(),
+      /** Held by the size cap: nothing that adds runs until it is back under 90% of the limit. */
+      held: z.boolean(),
+    }),
+  ),
+  storage: z
+    .object({
+      usedBytes: z.number().int().nonnegative(),
+      limitBytes: z.number().int().positive(),
+      measuredAt: z.string().nullable(),
+      /** Past the limit: uploads, Designer writes and exports are refused. */
+      over: z.boolean(),
+    })
+    .nullable(),
+});
+export type SystemSizeCapsReply = z.infer<typeof systemSizeCapsReply>;

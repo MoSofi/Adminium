@@ -46,7 +46,7 @@ describe('GET /api/v1/system/info', () => {
     expect(res.json()).toEqual({
       version: APP_VERSION,
       // Adminium Designer: off unless the server was started by `adminium design`.
-      designer: { mode: 'off', link: false },
+      designer: { mode: 'off', link: false, startPrompt: false },
       node: process.version,
       dialect: null,
       // The desktop feature flags. `smtpConfigured` is false because a server
@@ -69,6 +69,21 @@ describe('GET /api/v1/system/info', () => {
       desktopDemo: false,
       // "Put this online": shown unless the operator sets ADMINIUM_DEPLOY_LINK=off.
       deployLink: true,
+      // "Connect Supabase": no operator connect address set, so no provider.
+      connect: [],
+      // Trial mode: off unless the operator switches it on.
+      trial: { on: false, endsAt: null, daysLeft: null, upgradeUrl: null },
+      // Nothing switched off by an operator on an ordinary server.
+      offByOperator: {
+        sqliteSources: { allowed: true, reason: null },
+        storageDestinations: { allowed: true, reason: null },
+        webhooks: { allowed: true, reason: null },
+        metaStoreRoutes: { allowed: true, reason: null },
+        // Own code: uploads, the Designer's uploads and builds of an app's own are taken, unless the operator keeps them off.
+        packageUploads: { allowed: true, reason: null },
+        designerUploads: { allowed: true, reason: null },
+        ownBuilds: { allowed: true, reason: null },
+      },
     });
   });
 

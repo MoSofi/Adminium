@@ -37,6 +37,7 @@ import {
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { pagesRoutes, type PagesRoutesDeps } from '../src/routes/pages/index.js';
+import type { SizeCap } from '../src/trial/size-cap.js';
 import { makeEnv } from './helpers.js';
 
 interface Harness {
@@ -79,7 +80,7 @@ const SOURCELESS_ENVELOPE = {
   config: { layout: { version: 1, items: [] } },
 };
 
-async function buildHarness(tablePrivileges?: PagesRoutesDeps['tablePrivileges']): Promise<Harness> {
+async function buildHarness(tablePrivileges?: PagesRoutesDeps['tablePrivileges'], sizeCap?: SizeCap): Promise<Harness> {
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
 
@@ -141,6 +142,7 @@ async function buildHarness(tablePrivileges?: PagesRoutesDeps['tablePrivileges']
   }
 
   const app = await buildServer({ env: makeEnv(), logger: false, metaDb: meta });
+  if (sizeCap !== undefined) app.decorate('sizeCap', sizeCap);
   // Stub session auth: x-test-user-id → request.user + a live session so
   // `app.requireAuth` (which checks both) passes.
   app.addHook('onRequest', async (request) => {
@@ -255,5 +257,24 @@ describe('per-table write capabilities on GET /api/v1/pages/:pageId', () => {
       canUpdate: false,
       canDelete: false,
     });
+  });
+});
+
+describe('a trial database held by its size cap', () => {
+  const held = { held: (connectionId: string) => (connectionId === 'conn_1' ? { question: 'dataOverCap', reason: 'size-cap', message: 'over' } : null) } as unknown as SizeCap;
+
+  it('says what the person may do as granted: the hold is a state the page shows, and the write is refused', async () => {
+    const t = await buildHarness(undefined, held);
+    try {
+      const get = (user: User) => t.app.inject({ method: 'GET', url: `/api/v1/pages/${t.crudPageId}`, headers: asUser(user) });
+      // As the editor: create and update granted, so the page draws them, locked with the reason
+      // (`GET /system/size-caps`), as it does once a trial has ended; the data routes refuse the write.
+      expect((await get(t.editor)).json()).toMatchObject({ canCreate: true, canUpdate: true, canDelete: false });
+      // A super admin may delete, held or not: deleting is the way out.
+      expect((await get(t.superAdmin)).json()).toMatchObject({ canCreate: true, canUpdate: true, canDelete: true });
+    } finally {
+      await t.app.close();
+      await t.meta.db.destroy();
+    }
   });
 });

@@ -700,6 +700,29 @@ export default {
         "connectRefused": "Databasen afviste forbindelsen.",
         "readFailed": "Adminium kunne ikke læse databasens tabeller."
       }
+    },
+    "connectProvider": {
+      "or": "eller",
+      "supabase": {
+        "title": "Forbind Supabase",
+        "body": "Log ind på Supabase, og vælg et projekt.",
+        "action": "Forbind Supabase",
+        "again": "Forbind Supabase igen",
+        "expired": "Supabase-forbindelsen er udløbet.",
+        "failed": "Supabase kunne ikke forbindes.",
+        "connecting": "Forbinder dit Supabase-projekt…",
+        "picked": "Valgt. Du logger ind på Supabase, når din konto findes."
+      },
+      "existing": {
+        "title": "Brug et eksisterende projekt",
+        "change": "Skift",
+        "label": "Indtast databaseadgangskoden til projektet {project}",
+        "labelNoName": "Indtast databaseadgangskoden til dette projekt",
+        "help": "Operatøren ser den aldrig: den går direkte til denne installation.",
+        "connect": "Forbind",
+        "back": "Tilbage",
+        "failed": "Den adgangskode gav ingen forbindelse. Tjek den, og prøv igen."
+      }
     }
   },
   "views": {
@@ -2156,5 +2179,54 @@ export default {
       "docsLink": "Sådan adskiller de to visninger sig"
     },
     "switched": "Skiftet til {name}"
+  },
+  "operatorLock": {
+    "chip": "Fastsat af operatøren",
+    "lockedOff": "Operatøren har slået dette fra for denne installation."
+  },
+  "operatorSwitches": {
+    "sqlite": "Denne installation åbner ikke SQLite-filer: Operatøren tillader kun databaseservere.",
+    "unlistedHost": "Denne installation forbinder kun til de databaseværter, som operatøren tillader.",
+    "otherLogin": "På denne databasevært virker kun det login og den database, som operatøren har givet denne installation.",
+    "metaFixed": "Operatøren bestemmer, hvor denne installation gemmer sine egne data.",
+    "storage": "Operatøren gemmer denne installations filer på sin egen disk, så ingen anden destination kan tilføjes eller testes.",
+    "webhooks": "Operatøren har slået webhook-trin fra for denne installation.",
+    "aiProvider": "Operatøren tillader kun din egen nøgle til Anthropic, OpenAI eller Google på denne installation.",
+    "aiAddress": "Operatøren tillader ikke en egen AI-adresse på denne installation.",
+    "payments": "Operatøren har slået betalingstjenester fra for denne installation.",
+    "askOperator": "Kun den, der driver denne installation, kan ændre det.",
+    "dataOverCap": "Denne database er over prøvens størrelsesgrænse, så den er skrivebeskyttet. Slet nogle rækker for at fortsætte.",
+    "storageOverCap": "Denne installations filer er over prøvens grænse, så der kan ikke gemmes mere. Slet nogle filer for at fortsætte.",
+    "extraSources": "En prøve forbinder højst 3 databaser. Fjern en for at forbinde en anden.",
+    "sizeCapNotice": "Denne database er over prøvens grænse på {limit} MB, så den er skrivebeskyttet. Slet nogle rækker for at fortsætte.",
+    "sizeCapUsage": "{used} / {limit} MB",
+    "sizeCapLimit": "Grænse på {limit} MB",
+    "sizeCapReadOnly": "Skrivebeskyttet: databasen er over prøvens grænse",
+    "packageUploads": "Operatøren installerer kun tilføjelser og apps fra kataloget på denne installation, så upload er slået fra.",
+    "designerUploads": "Operatøren har slået upload til Designeren fra for denne installation.",
+    "designerCode": "Operatøren har slået egen kode fra for denne installation: Designeren bygger kun ud fra indstillinger.",
+    "ownBuilds": "Operatøren har slået egne builds fra for denne installation.",
+    "designerNetwork": "Operatøren har slået billedsøgning og Figma fra for denne installation.",
+    "userMail": "Denne prøveperiode er slut, så denne installation sender ikke flere e-mails.",
+    "testBudget": "Denne installation har testet {limit} databaseforbindelser i det seneste minut. Vent {seconds, plural, one {# sekund} other {# sekunder}}, og prøv igen.",
+    "payPages": "Operatøren har slået betalingssider fra for denne installation.",
+    "paymentWebhooks": "Operatøren lader ikke betalingstjenester kalde denne installation.",
+    "mappedDomains": "Kun de domæner, operatøren har angivet, kan pege på denne installation.",
+    "marketingCampaigns": "Operatøren har slået marketingkampagner fra for denne installation.",
+    "liftMailHold": "På denne installation bliver dagens bounces og spamrapporter på listen over adresser, der ikke må mailes, indtil i morgen.",
+    "customerScreens": "Den AI, der følger med denne installation, bygger kun dashboards. Skærme til kunder kræver din egen AI-nøgle.",
+    "reasonOperatorAiOnly": "På denne installation kører AI på operatørens forbindelse, medmindre du tilføjer din egen nøgle til Anthropic, OpenAI eller Google.",
+    "reasonOperatorAiScope": "Den AI, der følger med denne installation, bygger kun dashboards.",
+    "reasonNotAllowed": "Operatøren tillader ikke dette på denne installation."
+  },
+  "trial": {
+    "testEnvironment": "Dette er et testmiljø. Indtast venligst ikke rigtige kundedata.",
+    "daysLeft": "{count, plural, one {# dag tilbage} other {# dage tilbage}}",
+    "exportEverything": "Eksportér alt",
+    "upgrade": "Opgrader",
+    "ended": "Denne prøveperiode er slut.",
+    "readOnly": "Skrivebeskyttet: denne prøveperiode er slut",
+    "readOnlyChip": "Skrivebeskyttet",
+    "upgradeLine": "Behold denne installation: alt forbliver, som det er."
   }
 } as const;

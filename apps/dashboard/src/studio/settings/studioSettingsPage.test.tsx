@@ -998,6 +998,38 @@ describe('StudioSettingsPage', () => {
         }
         expect(calls.some((c) => c.method === 'PUT')).toBe(false);
       });
+
+      it('set by the operator: read-only with the chip and who set it, typing changes nothing, never sent', async () => {
+        const user = userEvent.setup();
+        const { calls } = await renderPage(
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          makeEmail({ publicOrigin: 'https://hollis.try.example.com', locks: { publicOrigin: { allowed: false, reason: 'trial-mode' } } }),
+        );
+        await screen.findByRole('heading', { name: 'Senders' });
+        const field = screen.getByLabelText(LABEL) as HTMLInputElement;
+        expect(field.value).toBe('https://hollis.try.example.com');
+        // In the tab order, said to be unavailable, and described by the operator's line.
+        expect(field.getAttribute('aria-disabled')).toBe('true');
+        expect(field.hasAttribute('disabled')).toBe(false);
+        expect(field.readOnly).toBe(true);
+        const line = document.getElementById(field.getAttribute('aria-describedby') ?? '');
+        expect(line?.textContent).toBe('The server’s operator set this address. Password-reset and invitation links always open it.');
+        expect(within(screen.getByTestId('link-origin-locked')).getByText('Set by the operator')).toBeDefined();
+
+        await user.type(field, 'https://evil.example');
+        expect(field.value).toBe('https://hollis.try.example.com');
+        // Another change saves without it.
+        await user.clear(screen.getByLabelText('Attachment limit (MB)'));
+        await user.type(screen.getByLabelText('Attachment limit (MB)'), '5');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+        await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Save changes' }));
+        await screen.findByText('Server settings updated');
+        const put = calls.find((c) => c.method === 'PUT' && c.url === '/api/v1/settings/email');
+        expect(put?.body).not.toHaveProperty('publicOrigin');
+      });
     });
 
     it('scrolls the SMTP card into view for /studio/settings#email', async () => {

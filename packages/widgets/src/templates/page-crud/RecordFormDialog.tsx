@@ -13,6 +13,7 @@ import { useCallback, useState, type ReactNode } from 'react';
 
 import { RecordForm, type RecordFormProps } from './RecordForm.js';
 import type { CrudFormConfig } from '../../page-config/index.js';
+import { WriteControl } from '../../lib/write-lock.js';
 
 /**
  * The dialog every create and edit form opens in.
@@ -222,16 +223,18 @@ export function RecordFormDialog({
             <ArrowRight aria-hidden="true" />
           </Button>
         ) : (
-          <Button type="submit" form={formId} variant="primary" disabled={saving}>
-            {saving ? (
-              <Spinner size="sm" />
-            ) : ctaIcon === 'plus' ? (
-              <Plus aria-hidden="true" />
-            ) : (
-              <Check aria-hidden="true" />
-            )}
-            {submitLabel}
-          </Button>
+          <WriteControl action={mode === 'create' ? 'create' : 'update'}>
+            <Button type="submit" form={formId} variant="primary" disabled={saving}>
+              {saving ? (
+                <Spinner size="sm" />
+              ) : ctaIcon === 'plus' ? (
+                <Plus aria-hidden="true" />
+              ) : (
+                <Check aria-hidden="true" />
+              )}
+              {submitLabel}
+            </Button>
+          </WriteControl>
         )}
       </FormDialogFooter>
     </FormDialog>

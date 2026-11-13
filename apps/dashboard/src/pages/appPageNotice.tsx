@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What an installed app's own page — or an add-on's generated page — says
- * above its template: today, that its sample data is loaded — to whoever manages apps, with a way to
- * remove it.
+ * above its template: that its sample data is loaded — to whoever manages apps, with a way to
+ * remove it. And in trial mode, on any page of a database over its size cap, that it is
+ * (`sizeCapNotice.tsx`).
  *
  * Wrapped around the built-in templates in `templateLoaders.ts`, so it rides
  * the template chunks and never the entry: most pages belong to no app, and
@@ -13,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 
 import { bootstrapQuery, findPageBySlug, holdsSystemAction } from '../app/bootstrap.js';
+import { SizeCapPageNotice } from './sizeCapNotice.js';
 import type { PageTemplateComponent, PageTemplateProps } from './template-types.js';
 
 // Through the app's settings page, already its own chunk: a chunk of the
@@ -51,6 +53,9 @@ export function withAppPageNotice(Template: PageTemplateComponent): PageTemplate
     return (
       <>
         <AppPageNotice />
+        <Suspense fallback={null}>
+          <SizeCapPageNotice page={props.page} />
+        </Suspense>
         <Template {...props} />
       </>
     );

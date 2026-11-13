@@ -10,6 +10,7 @@
 import type { SafeFetchOptions } from '../net/safe-fetch.js';
 import { realpathSync } from 'node:fs';
 
+import { HOST_DECIDED_ENV } from '../config/host-decided.js';
 import { findProject } from '../project/locate.js';
 import { localOwnerStart, type DesignStart, type StartedUp, startUp } from './commands/start.js';
 import { CliError, EXIT_CONFIG } from './exit.js';
@@ -80,56 +81,7 @@ export interface StartProjectOptions {
 
 export type StartedProject = StartedUp;
 
-/**
- * What a host that opens folders it did not make must decide itself: where the
- * server listens, what it trusts, what it runs and where its own files are. A
- * folder's `.env` that names one of these is not obeyed (and is told so).
- *
- * `NODE_OPTIONS`, `PATH` and `ELECTRON_RUN_AS_NODE` are here because the
- * environment the file fills is handed on to every program the server starts.
- */
-export const HOST_DECIDED_ENV: readonly string[] = [
-  'HOST',
-  'PORT',
-  'ADMINIUM_HOST',
-  'ADMINIUM_PORT',
-  'ADMINIUM_RUNTIME',
-  'ADMINIUM_BOOT_TOKEN',
-  'ADMINIUM_STATIC_ROOT',
-  'ADMINIUM_BUNDLED_ADD_ONS',
-  'ADMINIUM_BUNDLED_APPS',
-  'ADMINIUM_DEMO_SEED_SCRIPT',
-  'ADMINIUM_TRUST_PROXY',
-  'ADMINIUM_TRUSTED_PROXIES',
-  'ADMINIUM_DESIGNER',
-  // Signs the archives this host restores: the operator's key, never a folder's.
-  'ADMINIUM_ARCHIVE_KEY',
-  // Which of this machine's own databases the server may reach: the operator's call, not a folder's.
-  'ADMINIUM_DATABASE_HOSTS',
-  // Whether a Super Admin may allow this machine's own databases at all: the operator's lock.
-  'ADMINIUM_LOCAL_DATABASES',
-  // Which SQLite files the server may open as sources: the operator's call, not a folder's.
-  'ADMINIUM_SQLITE_DIRS',
-  // Which folders a local storage destination may write into: the operator's call, not a folder's.
-  'ADMINIUM_STORAGE_DIRS',
-  // Whether the server's own network may be called (databases, webhooks, storage): the operator's call.
-  'ADMINIUM_NETWORK_POLICY',
-  // Written into every staff browser's content security policy, or called by the server: not a folder's to choose.
-  'ADMINIUM_MAP_SERVER',
-  'ADMINIUM_ROUTING_SERVER',
-  // The operator's word on the "Put this online" link: a folder does not put it back.
-  'ADMINIUM_DEPLOY_LINK',
-  'ADMINIUM_PROJECT_MODE',
-  'ADMINIUM_PROJECT_DIR',
-  'ADMINIUM_DESKTOP_PROJECT',
-  'ADMINIUM_DESKTOP_PROGRAMS',
-  'ADMINIUM_DESKTOP_SINGLE_USER',
-  // Who may create the first account is the host's to decide, never a folder's (`setup/token.ts`).
-  'ADMINIUM_SETUP_TOKEN',
-  'NODE_OPTIONS',
-  'PATH',
-  'ELECTRON_RUN_AS_NODE',
-];
+export { HOST_DECIDED_ENV };
 
 function real(path: string): string {
   try {

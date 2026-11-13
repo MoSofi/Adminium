@@ -61,13 +61,14 @@ import {
   relocateMetaStore,
   type OnMetaRelocated,
 } from '../../meta/relocate.js';
+import { policyOf, refuseUnlessAllowed } from '../../trial/refuse.js';
 import {
   metaEngineFromUrl,
   MetaUrlError,
   type MetaEngine,
   type MetaStoreHandle,
 } from '../../meta/store.js';
-import { guardTypedMetaDsn } from '../../meta/typed-dsn.js';
+import { guardTypedMetaDsn, META_FIXED } from '../../meta/typed-dsn.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   metaPlacementReply,
@@ -143,17 +144,22 @@ export function metaRoutes(deps: MetaRoutesDeps): FastifyPluginAsyncZod {
         preHandler: app.rbac.require(PERMISSIONS.settingsManage),
         schema: { response: { 200: metaPlacementReply } },
       },
-      async (): Promise<MetaPlacementReply> => ({
-        data: {
-          source: metaStore.source,
-          engine: metaStore.engine,
-          embedded: metaStore.source === 'embedded',
-          canRelocate: !pinned,
-          reason: pinned
-            ? 'ADMINIUM_META_URL pins this instance’s meta store; a move would not survive a restart.'
-            : null,
-        },
-      }),
+      async (): Promise<MetaPlacementReply> => {
+        const fixed = policyOf(app).allows('metaStoreRoutes');
+        return {
+          data: {
+            source: metaStore.source,
+            engine: metaStore.engine,
+            embedded: metaStore.source === 'embedded',
+            canRelocate: !pinned && fixed.allowed,
+            reason: !fixed.allowed
+              ? META_FIXED
+              : pinned
+                ? 'ADMINIUM_META_URL pins this instance’s meta store; a move would not survive a restart.'
+                : null,
+          },
+        };
+      },
     );
 
     app.post(
@@ -164,6 +170,7 @@ export function metaRoutes(deps: MetaRoutesDeps): FastifyPluginAsyncZod {
         schema: { body: metaRelocateBody, response: { 200: metaRelocateReply } },
       },
       async (request, reply): Promise<MetaRelocateReply> => {
+        refuseUnlessAllowed(policyOf(app), 'metaStoreRoutes', META_FIXED);
         // Before the copy — see the module header. `after` names only the
         // engine the DSN asks for; the DSN itself never enters the trail.
         await app.rbac.audit(request, {

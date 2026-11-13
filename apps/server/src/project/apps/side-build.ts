@@ -106,12 +106,18 @@ const sha256 = (file: string): string => createHash('sha256').update(readFileSyn
 const escapeHtml = (text: string): string =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** esbuild's error list, as lines a person can act on. */
-function describeFailure(error: unknown): string {
+/**
+ * esbuild's error list, as lines a person can act on. The build is told only of the app's files and installed
+ * packages, but what it says is shown to a model and in the chat, so a line about any other file (outside the
+ * project, or in it beside the app: a `.env`, a key the server keeps) says neither the file nor its words.
+ */
+export function describeSideFailure(error: unknown, root: string, app: string): string {
   const errors = (error as { errors?: { text: string; location?: { file: string; line: number; column: number } | null }[] }).errors;
   if (!Array.isArray(errors) || errors.length === 0) return error instanceof Error ? error.message : String(error);
   return errors
     .map((e) => {
+      const where = e.location ? whereSaid(e.location.file, root, app) : 'named';
+      if (where === 'withheld') return 'A file outside this app stopped the build. A screen may use files of its own app and installed packages only.';
       const missing = /^Could not resolve "(react|react-dom|react-dom\/client|react\/jsx-runtime)"$/.exec(e.text);
       const icon = /^No matching export in "[^"]*lucide-react[^"]*" for import "([^"]+)"$/.exec(e.text);
       const text =
@@ -120,9 +126,24 @@ function describeFailure(error: unknown): string {
           : missing === null
             ? e.text
             : `${e.text} — install the project's dependencies first (npm install)`;
-      return e.location ? `${e.location.file}:${String(e.location.line)}:${String(e.location.column)}: ${text}` : text;
+      return e.location && where === 'named' ? `${e.location.file}:${String(e.location.line)}:${String(e.location.column)}: ${text}` : text;
     })
     .join('\n');
+}
+
+/** This module's own folder: an error a plugin of this build throws is placed in it, and its words are the engine's. */
+const ENGINE_CODE = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * How an error placed in `file` is said: with the file (the app's own, an installed package's), with its words only
+ * (the engine's own code, where a plugin of this build threw), or with neither (any other file).
+ */
+function whereSaid(file: string, root: string, app: string): 'named' | 'words' | 'withheld' {
+  // The build's own modules (`adminium-entry:…`, `adminium-tailwind:…`) hold the engine's words.
+  if (/^adminium-[a-z-]+:/.test(file)) return 'words';
+  const path = resolve(root, file);
+  if (sameOrUnder(path, app) || path.split(sep).includes('node_modules')) return 'named';
+  return sameOrUnder(path, ENGINE_CODE) ? 'words' : 'withheld';
 }
 
 interface ResolveArgs {
@@ -574,6 +595,9 @@ export function sideSpots(root: string, key: string, assetsDir: string, prefix: 
   return out;
 }
 
+/** What a side is compiled with: always these, never a tsconfig of the app's or the project's own. */
+const SIDE_TSCONFIG = { compilerOptions: { jsx: 'react-jsx' } } as const;
+
 /** Build one side, replacing what was built before only once the new build is whole. */
 export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
   const { root, key, side } = opts;
@@ -611,6 +635,9 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
       platform: 'browser',
       target: 'es2022',
       jsx: 'automatic',
+      // The engine's own settings, so esbuild looks for no tsconfig.json or jsconfig.json of the app or the project: one
+      // may `extends` any file on the server (a secret the operator mounted), and esbuild would read it and quote it.
+      tsconfigRaw: SIDE_TSCONFIG,
       minify: opts.dev !== true,
       sourcemap: opts.dev === true ? 'linked' : false,
       loader: FILE_LOADERS,
@@ -636,7 +663,7 @@ export async function buildSide(opts: SideBuildOptions): Promise<BuiltSide> {
     });
   } catch (error) {
     rmSync(staging, { recursive: true, force: true });
-    throw new CliError(`Could not build the ${side} side of "${key}":\n${describeFailure(error)}`);
+    throw new CliError(`Could not build the ${side} side of "${key}":\n${describeSideFailure(error, root, appDir(root, key))}`);
   }
 
   try {

@@ -24,7 +24,7 @@ export async function auditAuth(
   input: AuthAuditInput,
 ): Promise<AuditEntry> {
   const userAgent = request.headers['user-agent'];
-  return auditRepo(meta).append({
+  const entry = await auditRepo(meta).append({
     actorKind: 'user',
     actorId: input.actorId ?? null,
     actorLabel: input.actorLabel,
@@ -35,4 +35,7 @@ export async function auditAuth(
     userAgent: typeof userAgent === 'string' ? userAgent.slice(0, 300) : null,
     requestId: request.id,
   });
+  // A sign-in is the row the operator's status reads; a Super Admin's is told to the operator too (`operator/events.ts`).
+  if (input.action === 'login') request.server.operatorEvents?.signedIn(entry);
+  return entry;
 }

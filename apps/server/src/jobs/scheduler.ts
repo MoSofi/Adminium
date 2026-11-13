@@ -29,7 +29,9 @@ export interface RegisterScheduleOptions {
 export type ScheduleTriggerResult =
   | { status: 'enqueued'; jobId: string | null }
   | { status: 'skipped-overlap'; jobId: string }
-  | { status: 'skipped-inflight' };
+  | { status: 'skipped-inflight' }
+  /** {@link JobSchedulerOptions.held} answered yes: the tick does nothing. */
+  | { status: 'skipped-held' };
 
 export interface JobSchedulerOptions {
   /** Status lookup for the no-overlap guard (`jobsRepo` satisfies it). */
@@ -41,6 +43,8 @@ export interface JobSchedulerOptions {
   logger?: WorkerLogger | undefined;
   /** Injectable randomness for deterministic jitter tests. */
   random?: (() => number) | undefined;
+  /** Asked at each tick: true holds that schedule's tick (a trial past its end date, `trial/ended-jobs.ts`). */
+  held?: ((name: string) => boolean) | undefined;
 }
 
 interface ScheduleEntry {
@@ -63,6 +67,7 @@ export class JobScheduler {
   private readonly defaultJitterMs: number;
   private readonly logger: WorkerLogger;
   private readonly random: () => number;
+  private readonly held: (name: string) => boolean;
   private readonly schedules = new Map<string, ScheduleEntry>();
   private started = false;
 
@@ -72,6 +77,7 @@ export class JobScheduler {
     this.defaultJitterMs = opts.defaultJitterMs ?? 0;
     this.logger = opts.logger ?? noopLogger;
     this.random = opts.random ?? Math.random;
+    this.held = opts.held ?? (() => false);
   }
 
   /**
@@ -149,6 +155,7 @@ export class JobScheduler {
     if (entry === undefined) throw new Error(`unknown schedule "${name}"`);
 
     if (entry.inFlight) return { status: 'skipped-inflight' };
+    if (this.held(name)) return { status: 'skipped-held' };
 
     if (entry.lastJobId !== null) {
       const previous = await this.jobs.findById(entry.lastJobId);

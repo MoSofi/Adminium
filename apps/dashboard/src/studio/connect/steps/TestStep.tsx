@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Button } from '@adminium/ui';
 
 import { ApiError } from '../../../app/api.js';
+import { offByOperatorText } from '../../../settings/OffByOperator.js';
 import { t } from '../../../i18n/t.js';
 import { studioApi, type IntrospectResult, type SchemaTable } from '../../api.js';
 import { workspacesApi } from '../../hub/workspacesApi.js';
@@ -30,6 +31,7 @@ import {
   effectiveEngine,
   generateIntentOf,
   hintForErrorCode,
+  isHandedOff,
   supabasePoolerHint,
   type WizardState,
 } from '../wizardState.js';
@@ -183,27 +185,33 @@ export function TestStep({
 
     const engine = effectiveEngine(state) ?? 'postgres';
     const dsn = effectiveDsn(state);
+    // "Connect Supabase" made, tested and read the connection on the server: there is no string here to probe.
+    const handedOff = isHandedOff(state);
     try {
-      push('running', t('studio:test.log.connecting', 'Establishing secure connection…'));
-      const probe = await studioApi.testDsn(engine, dsn);
-      if (!probe.ok) {
-        const code = probe.error?.code ?? 'UNKNOWN';
-        // Supabase's pooler: say how it wants the user written (V25, V29).
-        const pooler = supabasePoolerHint(code, dsn);
-        const hint = probe.error?.hint ?? null;
-        fail(
-          probe.error?.message ?? t('studio:test.log.connectFailed', 'Connection failed.'),
-          code,
-          pooler === null ? hint : `${hint ?? hintForErrorCode(code)} ${pooler}`,
+      if (handedOff) {
+        push('ok', t('studio:test.log.handoff', 'Connected through Supabase · read-only introspection'));
+      } else {
+        push('running', t('studio:test.log.connecting', 'Establishing secure connection…'));
+        const probe = await studioApi.testDsn(engine, dsn);
+        if (!probe.ok) {
+          const code = probe.error?.code ?? 'UNKNOWN';
+          // Supabase's pooler: say how it wants the user written (V25, V29).
+          const pooler = supabasePoolerHint(code, dsn);
+          const hint = probe.error?.hint ?? null;
+          fail(
+            probe.error?.message ?? t('studio:test.log.connectFailed', 'Connection failed.'),
+            code,
+            pooler === null ? hint : `${hint ?? hintForErrorCode(code)} ${pooler}`,
+          );
+          return;
+        }
+        onPatch({ readOnly: probe.readOnly, privileges: probe.privileges });
+        push(
+          'ok',
+          t('studio:test.log.connected', 'Connected ({latency} ms) · read-only introspection', { latency: String(Math.round(probe.latencyMs)), }),
         );
-        return;
+        await wait(lineDelayMs);
       }
-      onPatch({ readOnly: probe.readOnly, privileges: probe.privileges });
-      push(
-        'ok',
-        t('studio:test.log.connected', 'Connected ({latency} ms) · read-only introspection', { latency: String(Math.round(probe.latencyMs)), }),
-      );
-      await wait(lineDelayMs);
 
       const create = async (): Promise<string> => {
         const intent = generateIntentOf(state.intent);
@@ -253,7 +261,8 @@ export function TestStep({
       await finishFromSchema(connectionId, result.proposedMasks);
     } catch (cause) {
       if (cause instanceof ApiError) {
-        fail(cause.message, cause.code);
+        // A switch the operator turned off is said in the person's language, not the server's English.
+        fail(offByOperatorText(cause) ?? cause.message, cause.code);
         return;
       }
       fail(t('studio:test.log.networkFailed', 'Request failed — check your connection and retry.'), null);

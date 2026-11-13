@@ -52,6 +52,9 @@ export const designerStateReply = z.object({
   ignoredEnv: z.array(z.string()),
 });
 
+/** `POST /designer/start-prompt`: the session the operator's start prompt runs in, and its turn. */
+export const designerStartPromptReply = z.object({ sessionId: z.string(), turn: z.number().int() });
+
 export const designerOwnerPasswordBody = z.object({ email: z.string().min(3).max(254), password: z.string().min(1).max(1024) });
 export const designerOwnerPasswordReply = z.object({ email: z.string() });
 

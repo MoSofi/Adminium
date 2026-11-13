@@ -353,6 +353,7 @@ export async function forgotPasswordHandler(
       {
         to: user.email,
         templateKey: PASSWORD_RESET_TEMPLATE_KEY,
+        account: true,
         locale: await recipientLocale(ctx.meta, user.id),
         // Names come from BUILTIN_EMAIL_TEMPLATE_VARS['password-reset'].
         vars: {

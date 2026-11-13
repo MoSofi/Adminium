@@ -24,6 +24,7 @@ import type { FileRecord } from '../../files/read-limited.js';
 import type { FileStore } from '../../files/store.js';
 import type { FormsFiles } from '../../forms/files.js';
 import type { PublicUploads } from '../../public-uploads/store.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface FormsFilesRoutesDeps {
   uploads: Pick<PublicUploads, 'open'>;
@@ -43,6 +44,8 @@ const params = z.object({ id: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/) });
 
 export function formsFilesRoutes(deps: FormsFilesRoutesDeps): FastifyPluginAsyncZod {
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.get(
       '/forms/files/:id',
       {

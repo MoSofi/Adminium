@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { accentSchema, densitySchema, localeSchema, themeSchema } from '@adminium/meta';
 
 import { PUBLIC_ORIGIN_MAX_LENGTH, normalizePublicOrigin } from '../../security/public-origin.js';
+import { settingLockSchema } from '../../trial/operator-lock.js';
 
 /** PUT body — a full-object write, never a partial patch. */
 /** How the menu shows workspaces, for everyone: one at a time, or all in one menu. */
@@ -124,8 +125,11 @@ export type SettingsTelemetryPutBody = z.infer<typeof settingsTelemetryPutBody>;
 
 export const settingsTelemetryReply = z.object({
   data: z.object({
+    /** What is in force: the value a lock holds while it holds (`trial/operator-lock.ts`). */
     telemetry: z.boolean(),
     updateCheck: z.boolean(),
+    /** "Set by the operator": whether each can be changed here, and why not (trial mode locks both off). */
+    locks: z.object({ telemetry: settingLockSchema, updateCheck: settingLockSchema }),
   }),
 });
 export type SettingsTelemetryReply = z.infer<typeof settingsTelemetryReply>;
@@ -309,8 +313,52 @@ export const settingsEmailView = z.object({
    * then use the address each request arrived on.
    */
   publicOrigin: z.string().nullable(),
+  /**
+   * What the operator has set on this section: `publicOrigin` is locked while
+   * `ADMINIUM_PUBLIC_ORIGIN` or `ADMINIUM_OPERATOR_DOMAINS` decides it
+   * (`trial/operator-hosts.ts`), and then a save that changes it is refused.
+   */
+  locks: z.object({ publicOrigin: settingLockSchema, smtp: settingLockSchema }),
+  /**
+   * On a trial: the operator's mail relay as this card shows it in place of
+   * the mail server fields (`email/trial-relay.ts`). Null on any other server.
+   */
+  relay: z
+    .object({
+      /** The From header a mail queued now carries; null when the operator set no relay. */
+      from: z.string().nullable(),
+      /** Where replies go by default: the first Super Admin's address. */
+      replyTo: z.string().nullable(),
+      caps: z.object({ perDay: z.number().int(), perHour: z.number().int(), recipientsPerDay: z.number().int() }),
+      /** User mail taking today's (UTC) and this hour's room. */
+      today: z.number().int(),
+      thisHour: z.number().int(),
+      /** Different people written to today. */
+      people: z.number().int(),
+      /** User mail waiting for a later hour or day. */
+      waiting: z.number().int(),
+      /** The cap a new user mail would wait for now; null when it would go at once. */
+      limit: z.enum(['day', 'hour', 'recipients', 'bounces', 'system']).nullable(),
+      /** When the first waiting mail goes out (ms). */
+      nextAt: z.number().int().nullable(),
+    })
+    .nullable(),
 });
 export type SettingsEmailView = z.infer<typeof settingsEmailView>;
+
+/** `GET /settings/email/waiting`: user mail a trial's caps hold for later, soonest first (empty on any other server). */
+export const settingsEmailWaitingReply = z.object({
+  data: z.array(
+    z.object({
+      id: z.string(),
+      to: z.string(),
+      subject: z.string(),
+      queuedAt: z.number().int(),
+      goesOutAt: z.number().int(),
+    }),
+  ),
+});
+export type SettingsEmailWaitingReply = z.infer<typeof settingsEmailWaitingReply>;
 
 export const settingsEmailReply = z.object({ data: settingsEmailView });
 export type SettingsEmailReply = z.infer<typeof settingsEmailReply>;

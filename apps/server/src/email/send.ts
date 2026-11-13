@@ -54,6 +54,7 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 import { dirForLocale, isLocaleId } from '@adminium/i18n';
+import { createServerI18n } from '@adminium/i18n/server';
 import { namesAPlaceholder } from '@adminium/manifest';
 
 import { deriveKey, encryptSecret } from '../config/secrets.js';
@@ -61,7 +62,7 @@ import { recipientLocale } from '../i18n/server-i18n.js';
 import { builtinEmailTemplates, resolveEmailTemplate, translatorForLocale } from './builtins.js';
 import { proseNumber } from '../i18n/bcp47.js';
 import { qrCarries } from '../qr/index.js';
-import { emailSecretKey, resolveSmtpConfig } from './config.js';
+import { configureSmtpNetwork, emailSecretKey, resolveSmtpConfig } from './config.js';
 import { bareAddress } from './document.js';
 import { isShippedMark } from './marks.js';
 import {
@@ -77,6 +78,7 @@ import type { MarketingCarry } from './marketing-carry.js';
 import { PLAIN_DOTTED, PLAIN_RECIPIENT } from './plain-address.js';
 import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
 import { resolveMailSender, SERVER_SENDER, type MailSender, type SendAbout } from './workspace-sender.js';
+import { configureTrialMail, queueThroughRelay, shownName, trialMailOn } from './trial-relay.js';
 
 /** The `adminium_jobs.kind` of a queued outbound email. */
 export const EMAIL_SEND_JOB_KIND = 'email.send';
@@ -213,6 +215,19 @@ export const PAYMENT_RECEIPT_TEMPLATE_KEY = 'payment-receipt';
 export const SIGN_UP_CONFIRM_TEMPLATE_KEY = 'sign-up-confirm';
 
 /**
+ * The templates of the server's own mail to its staff: getting in and keeping
+ * an account safe. Sent by an account flow ({@link EnqueueEmailInput.account})
+ * they are system mail, which goes on once a trial has ended
+ * ({@link configureEmailRuntime}'s `userMail`); everything else is user mail.
+ */
+export const SYSTEM_MAIL_TEMPLATE_KEYS: ReadonlySet<string> = new Set([
+  PASSWORD_RESET_TEMPLATE_KEY,
+  USER_INVITE_TEMPLATE_KEY,
+  SIGN_IN_CODE_TEMPLATE_KEY,
+  EMAIL_CHANGED_TEMPLATE_KEY,
+]);
+
+/**
  * Inline last resort for the `notification` key, used ONLY when no row exists
  * in any locale — an instance whose boot seed has not run yet, or a test
  * harness that mounts `notify` without one. `email/builtins.ts` seeds a proper
@@ -257,6 +272,15 @@ export interface EnqueueEmailDeps {
 export interface EnqueueEmailInput {
   to: string;
   templateKey: string;
+  /**
+   * Set ONLY by the server's own account flows (a password reset, an
+   * invitation, a sign-in code, an address changed), with one of
+   * {@link SYSTEM_MAIL_TEMPLATE_KEYS}: their mail is system mail, which goes
+   * on after a trial's end and, on a trial, says the shipped words. A mail
+   * that only names one of those keys (an automation step, a test send, an
+   * assistant draft) is user mail like any other.
+   */
+  account?: true | undefined;
   /** Recipient locale id (`en_US`); defaults to the workspace default. */
   locale?: string | undefined;
   /**
@@ -376,6 +400,8 @@ export function withOverride<T extends { subject: string; blocks: readonly Recor
 
 let runtimeSecret: string | null = null;
 let unconfiguredLogged = false;
+/** Whether user mail goes out now; system mail always does. Asked at each queueing. */
+let userMailOpen: () => boolean = () => true;
 
 /**
  * Hands the master secret to the email layer once, from `compose.ts`.
@@ -385,9 +411,10 @@ let unconfiguredLogged = false;
  * have no reason to know about `Env` — threading a credential through every one
  * of them to serve one optional side effect would be the worse trade.
  */
-export function configureEmailRuntime(opts: { secret: string }): void {
+export function configureEmailRuntime(opts: { secret: string; userMail?: (() => boolean) | undefined }): void {
   runtimeSecret = opts.secret;
   unconfiguredLogged = false;
+  userMailOpen = opts.userMail ?? (() => true);
 }
 
 /** The configured master secret, or null before/without a composition root. */
@@ -395,10 +422,13 @@ export function emailRuntimeSecret(): string | null {
   return runtimeSecret;
 }
 
-/** Test seam: forget the runtime secret and the once-only log latch. */
+/** Test seam: forget the runtime secret, the once-only log latch and a trial's mail rules. */
 export function resetEmailRuntime(): void {
   runtimeSecret = null;
   unconfiguredLogged = false;
+  userMailOpen = () => true;
+  configureTrialMail(null);
+  configureSmtpNetwork(null);
 }
 
 // --- payload ------------------------------------------------------------------------
@@ -426,6 +456,8 @@ interface EmailEnvelope {
   standing?: MarketingStanding | undefined;
   /** A service mail's consent purpose when queued, asked again at the hand-over. */
   objection?: ServiceObjection | undefined;
+  /** Sent by one of the server's account flows ({@link EnqueueEmailInput.account}): sealed, so a row cannot claim it. */
+  account?: true | undefined;
 }
 
 /** The plaintext `adminium_jobs.payload` of an `email.send` row. */
@@ -486,6 +518,8 @@ export interface PreparedEmail {
 /** What a caller knows of whose mail it is: an app's (see `EnqueueEmailInput.brandName`). */
 export interface PrepareEmailOptions {
   brandName?: string | undefined;
+  /** The Application name as the banner says it, in place of the stored one (a trial's account mail: filtered). */
+  appName?: string | undefined;
   /** Mail about a record: whose sender it goes as. Absent, the server's. */
   about?: SendAbout | undefined;
   /** The sender as the caller already resolved it; wins over `about`. */
@@ -551,7 +585,7 @@ export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource, options
   return {
     render: {
       document: { subject: doc.subject, preheader: doc.preheader, blocks: doc.blocks, footer: doc.footer },
-      brand: effectiveBrand(doc.brand, { appName: business === '' ? appName : business, accent }),
+      brand: effectiveBrand(doc.brand, { appName: business === '' ? (options.appName ?? appName) : business, accent }),
       mark,
       imageFiles,
     },
@@ -653,6 +687,11 @@ export async function enqueueRenderedEmail(
   deps: EnqueueEmailDeps,
   input: EnqueueRenderedEmailInput,
 ): Promise<Job | null> {
+  return await queueRendered(deps, input, false);
+}
+
+/** {@link enqueueRenderedEmail}; `account` only from {@link enqueueEmail}, for an account flow's mail. */
+async function queueRendered(deps: EnqueueEmailDeps, input: EnqueueRenderedEmailInput, account: boolean): Promise<Job | null> {
   const secret = deps.secret ?? runtimeSecret;
   if (secret === null || secret === undefined || secret.length === 0) {
     logUnconfiguredOnce(deps.logger, 'no master secret is available to the email layer');
@@ -660,6 +699,11 @@ export async function enqueueRenderedEmail(
   }
   const to = input.to.trim();
   if (to.length === 0) return null;
+  // Past a trial's end date only the account flows' mail goes out: every other kind stops here, where all mail is queued.
+  if (!account && !userMailOpen()) {
+    deps.logger?.info({ templateKey: input.templateKey }, 'an email was not queued: this trial has ended, so only sign-in and account mail goes out');
+    return null;
+  }
   if (input.mailClass === 'marketing' && !PLAIN_RECIPIENT.test(to)) {
     deps.logger?.warn({ templateKey: input.templateKey }, 'a marketing mail was not queued: its recipient is not one plain e-mail address');
     return null;
@@ -672,8 +716,34 @@ export async function enqueueRenderedEmail(
     deps.logger?.warn({ templateKey: input.templateKey, cid: unfit.cid }, 'an email was not queued: its QR code holds more text than a QR code here carries');
     return null;
   }
+  // On a trial every message goes through the operator's relay, shaped and counted there (`trial-relay.ts`).
+  if (trialMailOn()) {
+    return await queueThroughRelay(
+      deps.meta,
+      {
+        templateKey: input.templateKey,
+        account,
+        to,
+        locale: input.locale,
+        marketing: input.mailClass === 'marketing',
+        replyTo: replyToOf(input.replyTo) ?? undefined,
+        runAt: deps.runAt,
+        html: input.rendered.html,
+        text: input.rendered.text,
+      },
+      async (shaped) =>
+        await queueEnvelope(deps, secret, { ...input, to: shaped.to, from: shaped.from, replyTo: shaped.replyTo, rendered: { ...input.rendered, html: shaped.html, text: shaped.text } }, shaped.runAt, account),
+      deps.logger,
+    );
+  }
+  return await queueEnvelope(deps, secret, { ...input, to }, deps.runAt, account);
+}
+
+/** Seal one message and put it on the queue, due at `runAt` (absent: now). */
+async function queueEnvelope(deps: EnqueueEmailDeps, secret: string, input: EnqueueRenderedEmailInput, runAt: number | undefined, account: boolean): Promise<Job | null> {
+  const qr = qrRefs(input.rendered);
   const envelope: EmailEnvelope = {
-    to,
+    to: input.to,
     subject: input.rendered.subject,
     html: input.rendered.html,
     text: input.rendered.text,
@@ -685,6 +755,7 @@ export async function enqueueRenderedEmail(
     ...(input.headers === undefined || Object.keys(input.headers).length === 0 ? {} : { headers: input.headers }),
     ...(input.mailClass !== 'marketing' || input.standing === undefined ? {} : { standing: input.standing }),
     ...(input.mailClass !== 'service' || input.objection === undefined ? {} : { objection: input.objection }),
+    ...(account ? { account: true as const } : {}),
   };
   const inline = inlineRefs(input.rendered as RenderedEmail);
   const attachments = [...(input.attachments ?? [])];
@@ -703,7 +774,7 @@ export async function enqueueRenderedEmail(
     kind: EMAIL_SEND_JOB_KIND,
     payload: payload as unknown as Record<string, unknown>,
     maxAttempts: EMAIL_SEND_MAX_ATTEMPTS,
-    ...(deps.runAt === undefined ? {} : { runAt: deps.runAt }),
+    ...(runAt === undefined ? {} : { runAt }),
     ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
   });
 }
@@ -746,19 +817,24 @@ export async function enqueueEmail(
   }
 
   const locale = input.locale ?? (await recipientLocale(meta, null));
-  const found = input.template ?? (await resolveTemplate(meta, input, locale, deps.logger));
+  // An account flow's own mail; on a trial it says the shipped words, whatever was edited or translated here, with its names filtered.
+  const account = input.account === true && SYSTEM_MAIL_TEMPLATE_KEYS.has(input.templateKey);
+  const fixed = trialMailOn() && account;
+  const found = fixed ? await shippedTemplate(input.templateKey, locale) : (input.template ?? (await resolveTemplate(meta, input, locale, deps.logger)));
   if (found === null) return null;
-  const row = withOverride(found, input.override);
+  const row = fixed ? found : withOverride(found, input.override);
   // A stored row says its own language (US English, when the recipient's had none); the rest are written in `locale`.
   const own = (found as { locale?: unknown }).locale;
   const written = typeof own === 'string' ? own : locale;
+  const given = fixed ? namesShown(input.vars) : input.vars;
   const vars =
     input.counts === undefined
-      ? input.vars
-      : { ...input.vars, ...Object.fromEntries(Object.entries(input.counts).map(([name, value]) => [name, proseNumber(value, written)])) };
+      ? given
+      : { ...given, ...Object.fromEntries(Object.entries(input.counts).map(([name, value]) => [name, proseNumber(value, written)])) };
 
   const prepared = await prepareEmail(meta, row, {
     brandName: input.brandName,
+    ...(fixed ? { appName: shownName(await settingsRepo(meta).get('branding.appName')) } : {}),
     ...(input.sender !== undefined ? { sender: input.sender } : input.about === undefined ? {} : { about: { connectionId: input.about.connectionId, templateKey: input.templateKey } }),
   });
   // Where a reply goes: the mail's own address, else its sender's.
@@ -788,7 +864,7 @@ export async function enqueueEmail(
     ...(input.marketing === undefined ? {} : { locked: input.marketing.locked }),
   });
 
-  return await enqueueRenderedEmail(
+  return await queueRendered(
     { ...deps, secret },
     {
       to,
@@ -805,6 +881,7 @@ export async function enqueueEmail(
       ...(input.standing === undefined ? {} : { standing: input.standing }),
       ...(input.objection === undefined ? {} : { objection: input.objection }),
     },
+    account,
   );
 }
 
@@ -873,6 +950,22 @@ async function resolveTemplate(
     'no enabled email template for this key — nothing sent',
   );
   return null;
+}
+
+/** A built-in template's shipped words in `locale`, with no translation an admin wrote; null for a key that is not built in. */
+async function shippedTemplate(key: string, locale: string): Promise<EmailRenderSource | null> {
+  const def = builtinEmailTemplates((await createServerI18n({ locale })).t).find((d) => d.key === key);
+  if (def === undefined) return null;
+  return { subject: def.subject, preheader: def.preheader ?? '', blocks: def.blocks, footer: def.footer, brand: null, attachments: [] };
+}
+
+/** The names an account mail says (the Application name, the person's, who invited them), as a trial's mail may carry them. */
+function namesShown(vars: Record<string, string>): Record<string, string> {
+  const out = { ...vars };
+  for (const name of ['appName', 'name', 'inviterName']) {
+    if (typeof out[name] === 'string') out[name] = shownName(out[name]);
+  }
+  return out;
 }
 
 async function templateExists(meta: MetaDb, key: string, locale: string): Promise<boolean> {

@@ -21,13 +21,17 @@ import { audited } from '../../audit/coverage.js';
 import { BRANDING_UPDATED, readBranding } from '../../branding/service.js';
 import { operatorSecret } from '../../config/operator-secrets.js';
 import { encryptSecret } from '../../config/secrets.js';
-import { assertSmtpHostAllowed, emailSecretKey } from '../../email/config.js';
+import { checkSmtpHost, emailSecretKey } from '../../email/config.js';
 import { ValidationFailedError } from '../../errors.js';
 import { raiseMoneyRedirect } from '../../payments/alarms.js';
 import { payAddressMovedWith } from '../../payments/links.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { effectiveValue, refuseLockedChange, SetByOperatorError, settingLock, type SettingLock } from '../../trial/operator-lock.js';
+import { trialMailPanel, waitingEmails } from '../../email/trial-relay.js';
+import { ORDINARY_POLICY, type TrialPolicy } from '../../trial/policy.js';
 import {
   PUBLIC_ORIGIN_SETTING,
+  heldOperatorOrigin,
   normalizePublicOrigin,
   notePublicOrigin,
 } from '../../security/public-origin.js';
@@ -37,6 +41,7 @@ import {
   settingsDefaultsReply,
   settingsEmailPutBody,
   settingsEmailReply,
+  settingsEmailWaitingReply,
   settingsMapsPutBody,
   settingsMapsReply,
   settingsSecurityPutBody,
@@ -69,6 +74,12 @@ export interface SettingsRoutesDeps {
    * derivation this module can do for itself.
    */
   emailKey?: Uint8Array;
+  /**
+   * Trial mode and the hosted profile (`trial/policy.ts`): which settings the
+   * operator has set, shown read-only and refused on save
+   * (`trial/operator-lock.ts`). Default: an ordinary server's, nothing locked.
+   */
+  policy?: Pick<TrialPolicy, 'allows'>;
 }
 
 /** The stored shape of the `email.smtp` registry key. */
@@ -85,6 +96,9 @@ const SETTING_KEY: Record<Axis, 'appearance.theme' | 'appearance.accent' | 'appe
   locale: 'locale.default',
 };
 
+/** The most waiting emails one read lists. */
+export const WAITING_LISTED = 100;
+
 /** True when two `email.smtp` values are the same row — a no-op PUT writes nothing. */
 function sameSmtp(a: StoredSmtp, b: StoredSmtp): boolean {
   if (a === null || b === null) return a === b;
@@ -99,7 +113,7 @@ function sameSmtp(a: StoredSmtp, b: StoredSmtp): boolean {
 }
 
 /** Everything on the email section that is not the transport. */
-type EmailExtras = Pick<SettingsEmailView, 'senders' | 'maxAttachmentBytes' | 'publicOrigin'>;
+type EmailExtras = Pick<SettingsEmailView, 'senders' | 'maxAttachmentBytes' | 'publicOrigin' | 'locks' | 'relay'>;
 
 /** The password-free projection used by both the reply and the audit row. */
 function viewOf(stored: StoredSmtp, extra: EmailExtras): SettingsEmailView {
@@ -152,11 +166,12 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
    *    (`user: ''`), and so is an authenticated one, but a half-filled pair is
    *    a mistake that surfaces later as an opaque AUTH failure on a job.
    */
-  function buildSmtpValue(
+  async function buildSmtpValue(
     next: NonNullable<SettingsEmailPutBody['smtp']>,
     stored: StoredSmtp,
-  ): StoredSmtp {
-    assertSmtpHostAllowed(next.host);
+  ): Promise<StoredSmtp> {
+    // Under ADMINIUM_NETWORK_POLICY=strict, also not this machine nor the server's own network.
+    await checkSmtpHost(next.host);
     const passEncrypted =
       next.pass === undefined
         ? (stored?.passEncrypted ?? '')
@@ -182,11 +197,22 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
       settings.get('email.maxAttachmentBytes'),
       settings.get(PUBLIC_ORIGIN_SETTING),
     ]);
-    return { senders, maxAttachmentBytes, publicOrigin };
+    return { senders, maxAttachmentBytes, publicOrigin, locks: { publicOrigin: publicOriginLock(), smtp: settingLock(policy, 'email.smtp') }, relay: await trialMailPanel(meta) };
+  }
+
+  /** The address in email links is the operator's while the environment names one (`trial/operator-hosts.ts`). */
+  function publicOriginLock(): SettingLock {
+    return settingLock(policy, 'system.publicOrigin', { envLocked: heldOperatorOrigin(meta) !== null });
   }
 
   async function emailReply(): Promise<SettingsEmailReply> {
-    return { data: viewOf(await settings.get('email.smtp'), await emailExtras()) };
+    return { data: emailView(await settings.get('email.smtp'), await emailExtras()) };
+  }
+
+  /** The section as it stands: on a trial the stored mail server is not the transport, so none is shown; the relay is. */
+  function emailView(stored: StoredSmtp, extras: EmailExtras): SettingsEmailView {
+    if (extras.locks.smtp.allowed) return viewOf(stored, extras);
+    return { ...viewOf(null, extras), configured: extras.relay?.from != null };
   }
 
   async function readDefaults(): Promise<{
@@ -248,13 +274,26 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
     return { data: { sessionTtlHours, require2fa, passwordMinLength } };
   }
 
-  /** The two outbound-call consents. */
+  const policy = deps.policy ?? ORDINARY_POLICY;
+  const telemetryLocks = () => ({
+    telemetry: settingLock(policy, 'telemetry.enabled'),
+    updateCheck: settingLock(policy, 'updates.checkEnabled'),
+  });
+
+  /** The two outbound-call consents, as they are in force: a locked one reads as the value it is locked to. */
   async function telemetryReply(): Promise<SettingsTelemetryReply> {
     const [telemetry, updateCheck] = await Promise.all([
       settings.get('telemetry.enabled'),
       settings.get('updates.checkEnabled'),
     ]);
-    return { data: { telemetry, updateCheck } };
+    const locks = telemetryLocks();
+    return {
+      data: {
+        telemetry: effectiveValue('telemetry.enabled', locks.telemetry, telemetry),
+        updateCheck: effectiveValue('updates.checkEnabled', locks.updateCheck, updateCheck),
+        locks,
+      },
+    };
   }
 
   return async (app) => {
@@ -444,6 +483,9 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         schema: { body: settingsTelemetryPutBody, response: { 200: settingsTelemetryReply } },
       },
       async (request) => {
+        // The operator's word first: a change to a locked one is refused, and nothing is written.
+        refuseLockedChange(policy, 'telemetry.enabled', request.body.telemetry);
+        refuseLockedChange(policy, 'updates.checkEnabled', request.body.updateCheck);
         const before = (await telemetryReply()).data;
         const next = request.body;
         const at = app.rbac.now();
@@ -465,7 +507,7 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'settings.telemetry.update',
-          changes: { before: { ...before }, after: { ...next } },
+          changes: { before: { telemetry: before.telemetry, updateCheck: before.updateCheck }, after: { ...next } },
         });
 
         return telemetryReply();
@@ -562,6 +604,16 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
       async () => emailReply(),
     );
 
+    // The user mail a trial's caps hold for later: "Open the outbox" on the Email card. Empty on any other server.
+    app.get(
+      '/settings/email/waiting',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        schema: { response: { 200: settingsEmailWaitingReply } },
+      },
+      async () => ({ data: (await waitingEmails(meta, WAITING_LISTED)) ?? [] }),
+    );
+
     app.put(
       '/settings/email',
       {
@@ -572,9 +624,17 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         schema: { body: settingsEmailPutBody, response: { 200: settingsEmailReply } },
       },
       async (request) => {
+        // Refused before anything of the body is written: the operator's origin is not this page's to change.
+        if (request.body.publicOrigin !== undefined) {
+          const lock = publicOriginLock();
+          const next = request.body.publicOrigin === null ? null : normalizePublicOrigin(request.body.publicOrigin);
+          if (!lock.allowed && next !== heldOperatorOrigin(meta)) throw new SetByOperatorError('system.publicOrigin', lock.reason ?? 'not-allowed');
+        }
+        // The user's own mail server is the operator's to decide on a trial: a save that names one is refused.
+        if (request.body.smtp !== undefined) refuseLockedChange(policy, 'email.smtp', request.body.smtp);
         const stored = await settings.get('email.smtp');
         const extrasBefore = await emailExtras();
-        const before = viewOf(stored, extrasBefore);
+        const before = emailView(stored, extrasBefore);
         const at = app.rbac.now();
         const actingUserId =
           request.apiKeyPrincipal === null
@@ -582,8 +642,8 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
             : null;
 
         // Absent = untouched: the senders card saves on its own.
-        const next = request.body.smtp;
-        const value = next === undefined ? stored : next === null ? null : buildSmtpValue(next, stored);
+        const next = extrasBefore.locks.smtp.allowed ? request.body.smtp : undefined;
+        const value = next === undefined ? stored : next === null ? null : await buildSmtpValue(next, stored);
         if (next !== undefined && !sameSmtp(stored, value)) {
           await settings.set('email.smtp', value, { updatedBy: actingUserId, at });
         }
@@ -623,7 +683,7 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
           notePublicOrigin(meta, normalized);
         }
 
-        const after = viewOf(value, await emailExtras());
+        const after = emailView(value, await emailExtras());
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'settings.email.update',

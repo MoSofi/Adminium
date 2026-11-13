@@ -20,8 +20,17 @@
  * naming the setting that gives it more. An hourly `memory` line records the
  * heap and the process size, so a crash can be read back from the log.
  *
+ * In a container the process can be stopped before its heap is full: the
+ * container's memory limit (its cgroup) counts the whole process, and a 512 MB
+ * heap in a 768 MB container leaves little for the rest. So the watch also
+ * reads that limit, when there is one, and warns when the process comes within
+ * {@link containerHeadroomMb} of it, a share of the limit rather than a fixed
+ * number, so a small container and a large one are each warned in time.
+ *
  * Process-wide: a meta relocation rebuilds the server, never this.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { getHeapStatistics } from 'node:v8';
 
 /**
@@ -60,6 +69,50 @@ export interface HeapReading {
   limitMb: number;
   /** The whole process's resident size, in MB. */
   rssMb: number;
+  /** The memory limit of the container (cgroup) the process runs in, in MB; null when there is none. */
+  containerLimitMb?: number | null | undefined;
+}
+
+/** Where Linux shows the cgroups. */
+export const CGROUP_ROOT = '/sys/fs/cgroup';
+/** A limit this large is cgroup v1's way of saying "none". */
+const NO_LIMIT_BYTES = 2 ** 60;
+
+/**
+ * The memory limit of this process's cgroup, in MB, or null when there is none
+ * (no container, an unlimited one, or not Linux).
+ *
+ * cgroup v2 (Docker on current Linux, systemd's `MemoryMax`): `memory.max` in
+ * the process's own group, else at the root (a container sees its own group
+ * there). cgroup v1: `memory.limit_in_bytes` the same two ways. `root` and
+ * `selfCgroup` are for tests.
+ */
+export function readContainerLimitMb(root: string = CGROUP_ROOT, selfCgroup: string = '/proc/self/cgroup'): number | null {
+  const read = (path: string): string | null => {
+    try {
+      return readFileSync(path, 'utf8').trim();
+    } catch {
+      return null;
+    }
+  };
+  const groups = (read(selfCgroup) ?? '').split('\n').map((line) => line.split(':'));
+  const v2 = groups.find((parts) => parts[0] === '0' && parts[1] === '')?.[2];
+  const v1 = groups.find((parts) => (parts[1] ?? '').split(',').includes('memory'))?.[2];
+  const candidates = [
+    ...(v2 === undefined || v2 === '/' ? [] : [join(root, v2, 'memory.max')]),
+    join(root, 'memory.max'),
+    ...(v1 === undefined || v1 === '/' ? [] : [join(root, 'memory', v1, 'memory.limit_in_bytes')]),
+    join(root, 'memory', 'memory.limit_in_bytes'),
+  ];
+  for (const path of candidates) {
+    const value = read(path);
+    if (value === null) continue;
+    if (value === 'max') return null;
+    const bytes = Number(value);
+    if (!Number.isFinite(bytes) || bytes <= 0) continue;
+    return bytes >= NO_LIMIT_BYTES ? null : Math.round(bytes / MB);
+  }
+  return null;
 }
 
 export function readHeap(): HeapReading {
@@ -68,12 +121,30 @@ export function readHeap(): HeapReading {
     usedMb: Math.round(stats.used_heap_size / MB),
     limitMb: Math.round(stats.heap_size_limit / MB),
     rssMb: Math.round(process.memoryUsage.rss() / MB),
+    containerLimitMb: readContainerLimitMb(),
   };
 }
 
 /** True when the heap has less than the headroom left. */
 export function heapIsTight(reading: HeapReading, headroomMb: number = HEAP_HEADROOM_MB): boolean {
   return reading.limitMb - reading.usedMb < headroomMb;
+}
+
+/** How close the process may come to its container's limit before a warning: an eighth of it, 64 MB at least. */
+export function containerHeadroomMb(containerLimitMb: number): number {
+  return Math.max(64, Math.round(containerLimitMb / 8));
+}
+
+/** True when the process has less than {@link containerHeadroomMb} left below its container's limit. */
+export function containerIsTight(reading: HeapReading): boolean {
+  const limit = reading.containerLimitMb;
+  if (limit === null || limit === undefined) return false;
+  return limit - reading.rssMb < containerHeadroomMb(limit);
+}
+
+/** The container limit to suggest next: the next 256 MB step at least 256 MB above the one it has. */
+export function nextContainerMb(containerLimitMb: number): number {
+  return Math.ceil((containerLimitMb + 256) / 256) * 256;
 }
 
 export interface HeapLog {
@@ -122,18 +193,24 @@ export function watchHeap(log: HeapLog, options: HeapWatchOptions = {}): () => v
       return;
     }
     const at = now();
+    const container = reading.containerLimitMb ?? null;
+    const fields = { heapUsedMb: reading.usedMb, heapLimitMb: reading.limitMb, rssMb: reading.rssMb, ...(container === null ? {} : { containerLimitMb: container }) };
     if (at - loggedAt >= HEAP_LOG_EVERY_MS) {
       loggedAt = at;
-      log.info({ heapUsedMb: reading.usedMb, heapLimitMb: reading.limitMb, rssMb: reading.rssMb }, 'memory');
+      log.info(fields, 'memory');
     }
-    const tight = heapIsTight(reading);
+    const heapTight = heapIsTight(reading);
+    const tight = heapTight || containerIsTight(reading);
     if (tight && tightBefore && at - warnedAt >= HEAP_LOG_EVERY_MS) {
       warnedAt = at;
       log.warn(
-        { heapUsedMb: reading.usedMb, heapLimitMb: reading.limitMb, rssMb: reading.rssMb },
-        `The server's JavaScript heap is nearly full: ${String(reading.usedMb)} MB in use of the ${String(reading.limitMb)} MB Node.js allows it, ` +
-          `and it stops when the heap runs out. Give it more: set NODE_OPTIONS=--max-old-space-size=${String(nextHeapMb(reading.limitMb))} ` +
-          `(and let the machine or container have at least ${String(nextHeapMb(reading.limitMb) + 512)} MB).`,
+        fields,
+        heapTight
+          ? `The server's JavaScript heap is nearly full: ${String(reading.usedMb)} MB in use of the ${String(reading.limitMb)} MB Node.js allows it, ` +
+              `and it stops when the heap runs out. Give it more: set NODE_OPTIONS=--max-old-space-size=${String(nextHeapMb(reading.limitMb))} ` +
+              `(and let the machine or container have at least ${String(Math.max(nextHeapMb(reading.limitMb) + 512, container ?? 0))} MB).`
+          : `The server is using ${String(reading.rssMb)} MB of the ${String(container)} MB its container may use, ` +
+              `and the container stops it when that runs out. Give the container more memory: at least ${String(nextContainerMb(container ?? 0))} MB.`,
       );
     }
     tightBefore = tight;

@@ -23,6 +23,7 @@ import { MAPS_OFF } from '../../geo/map-policy.js';
 import { defaultPlaces, type Places } from '../../geo/places.js';
 import { createRouter, type Router } from '../../geo/route.js';
 import { placeMatchBody, placeMatchReply, placeParams, placeQuery, placeReply, placeSearchQuery, placeSearchReply, routeBody, routeReply } from './schema.js';
+import { tagRoutes } from '../../security/route-audience.js';
 
 export interface GeoRoutesDeps {
   meta: MetaDb;
@@ -36,6 +37,8 @@ export function geoRoutes(deps: GeoRoutesDeps): FastifyPluginAsyncZod {
   const places = deps.places ?? defaultPlaces();
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     const router =
       deps.router ??
       createRouter({

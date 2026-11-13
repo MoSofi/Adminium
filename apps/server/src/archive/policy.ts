@@ -6,13 +6,17 @@
  * an export is held to the export rules, and rows no archive should hold
  * (sessions, add-on trust) are dropped whatever the file says.
  *
- * Never in any archive, and never written by a restore (security review S15):
+ * Never in any archive, and never written by a restore:
  * - sessions, password-reset and invitation tokens, public visitors' sessions,
- *   one-time codes and proofs ({@link NEVER_ARCHIVED_TABLES});
+ *   one-time codes and proofs, and what the server's operator holds back
+ *   ({@link NEVER_ARCHIVED_TABLES}), and the events queued for that operator
+ *   ({@link NEVER_ARCHIVED_JOB_KINDS});
  * - `addOns.deciderTrust` (which add-on code may decide), the Designer's live
  *   switch and live id, and "Allow databases on this server"
  *   (`connections.allowLocalDatabases`: whether this server's own loopback is
- *   reachable is decided on that server, by its super admin)
+ *   reachable is decided on that server, by its super admin), and which
+ *   release the built-in email templates were last seeded from
+ *   (`email.builtinsSeededFor`: the server that restores seeds them again)
  *   ({@link NEVER_ARCHIVED_SETTINGS});
  * - copies of catalog packages: their file rows are dropped and each install's
  *   `packageFileId`/`packageIntegrity` cleared, so a restored instance shows
@@ -37,6 +41,10 @@ export const NEVER_ARCHIVED_TABLES: readonly string[] = [
   'adminium_public_sessions',
   'adminium_public_challenges',
   'adminium_public_proofs',
+  // What the server's operator holds back (public pages hidden) is that server's operator's word, never a file's.
+  'adminium_operator_holds',
+  // What the server counts for its operator (the AI budget's spend, the start prompt's run): never set back by a file.
+  'adminium_operator_tallies',
 ];
 
 /** Staff API keys and the public API's keys. */
@@ -45,7 +53,14 @@ export const API_KEY_TABLES: readonly string[] = ['adminium_api_keys', 'adminium
 /** Queue state, not anyone's work; an export leaves it out. A full archive keeps it (the same instance coming back). */
 const EXPORT_SKIPPED_TABLES: readonly string[] = ['adminium_jobs'];
 
-export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases'];
+/**
+ * Queued jobs no archive carries, even a full one: the events this instance
+ * owes its server's operator (`operator/events.ts`). Another server, or this
+ * one restored elsewhere, must not send them, signed with its own token.
+ */
+export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event'];
+
+export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases', 'email.builtinsSeededFor'];
 
 /**
  * This instance's own identity: an export does not clone it onto another server. Nor does it say who a
@@ -242,6 +257,14 @@ export function sanitizeDump(tables: Map<string, MetaTableDump>, opts: SanitizeO
   ];
   for (const table of skipTables) {
     if (tables.delete(table)) report.droppedTables.push(table);
+  }
+
+  const jobs = tables.get('adminium_jobs');
+  if (jobs !== undefined) {
+    const rows = rowsOf(jobs);
+    const kept = rows.filter((row) => !NEVER_ARCHIVED_JOB_KINDS.includes(String(row.kind)));
+    if (kept.length !== rows.length) report.droppedRows.adminium_jobs = rows.length - kept.length;
+    commitRows(jobs, kept);
   }
 
   const settings = tables.get('adminium_settings');

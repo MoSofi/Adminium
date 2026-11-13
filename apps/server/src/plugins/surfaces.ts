@@ -109,12 +109,13 @@ import { installReachOf } from '../installs/reach.js';
 import { installsOf } from '../installs/resolve.js';
 import { renderMovedPage, renderNotFoundPage, renderUnavailablePage, type MovedPageInput } from '../surfaces/unavailable-page.js';
 import { sendSurfaceIndex, type SurfaceAssistant } from './surface-index.js';
+import { tagRoutes } from '../security/route-audience.js';
 
 /** Where the script-free "not available" page's Sign out posts. */
 export const SURFACE_SIGN_OUT_PATH = '/surface-sign-out';
 
 /** The registry default for `branding.appName`: a workspace that never named itself. */
-const DEFAULT_WORKSPACE_NAME = 'Adminium';
+export const DEFAULT_WORKSPACE_NAME = 'Adminium';
 
 /**
  * The best of the built-in locales for an `Accept-Language` header: an exact
@@ -622,7 +623,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       app.post(
         SURFACE_SIGN_OUT_PATH,
         // A form target, not an API: nothing to describe in the OpenAPI document.
-        { config: { csrf: 'form' }, schema: { hide: true } },
+        { config: { csrf: 'form', audience: 'staff' }, schema: { hide: true } },
         async (request, reply) => {
           const { user, session } = request;
           if (user !== null && session !== null) {
@@ -1444,6 +1445,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
 
     for (const surface of surfaces) {
       await app.register(async (scope) => {
+        // A customer side is a public page; the staff side is the instance's own people's.
+        tagRoutes(scope, surface.side === 'customer' ? 'public' : 'staff');
         scope.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
           void reply.header('referrer-policy', 'no-referrer');
           if (await app.surfaceGate(surface, request, reply)) return reply;

@@ -40,6 +40,7 @@ import { ConflictError, NotFoundError, ValidationFailedError } from '../../error
 import { splitInstallKey } from '../../installs/resolve.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { normalizeHost } from '../../security/csrf.js';
+import { refuseUnlistedHosts } from '../../trial/operator-hosts.js';
 import { resolveLabel } from '../../cli/surfaces-root.js';
 import {
   pagesHomeIssueFor,
@@ -437,6 +438,8 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
           if ('kind' in target) pageEntries[host] = { home: target.home };
           else appEntries[host] = target;
         }
+        // Where the operator decides the addresses, only the domains it listed (`trial/operator-hosts.ts`).
+        refuseUnlistedHosts(app, Object.keys(request.body.domains));
         const requestHost = normalizeHost(request.host);
         const apps = validateDomainEntries(appEntries, { requestHost, surfaces: app.surfaces, settings: declared });
         const pages = validatePageHostEntries(pageEntries, { requestHost, taken: new Set(Object.keys(apps.normalized)) });

@@ -188,6 +188,9 @@ export const assistantDoorPlugin = fp(
           const value = request.headers[name];
           if (typeof value === 'string' && value !== '') headers[name] = value;
         }
+        // The name the person reached this server by, as a trusted proxy forwarded it: the replay has no proxy
+        // in front, and a server that answers only its own names (`trial/operator-hosts.ts`) checks this one.
+        if (typeof request.host === 'string' && request.host !== '') headers['host'] = request.host;
         const res = await app.inject({
           method: listed.method,
           url,
