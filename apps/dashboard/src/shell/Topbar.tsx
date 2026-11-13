@@ -70,7 +70,6 @@ import {
 } from './PageActionsProvider.js';
 import { TrialMount } from '../trial/TrialMount.js';
 import { useDocumentPageTitle } from './documentTitle.js';
-import { RuntimeChipHost } from './RuntimeChipHost.js';
 import { useChordPending } from './ShortcutsProvider.js';
 
 /* The bell's feed loads on first open: the popover is closed on every first
@@ -80,6 +79,10 @@ import { useChordPending } from './ShortcutsProvider.js';
 const NotificationFeed = lazy(async () => ({
   default: (await import('./NotificationFeed.js')).NotificationFeed,
 }));
+
+/* The runtime chip draws only in the desktop app: elsewhere its module (the chip, its states and the
+   connection-health poll) is never asked for. */
+const RuntimeChipHost = lazy(async () => ({ default: (await import('./RuntimeChipHost.js')).RuntimeChipHost }));
 
 /** The spinner the bell shows while its feed, or the feed's module, loads. */
 function NotificationFeedLoading() {
@@ -260,7 +263,8 @@ export function Topbar({
   useDocumentPageTitle(publishedDocumentTitle ?? publishedTitle ?? title);
   const { user } = bootstrap;
   const admin = hasStudioAccess(bootstrap.roles);
-  const deployLink = showsDeployLink(useQuery(systemInfoQuery()).data);
+  const info = useQuery(systemInfoQuery()).data;
+  const deployLink = showsDeployLink(info);
 
   return (
     <header
@@ -326,8 +330,12 @@ export function Topbar({
           environment area, desktop only." There is no environment chip in the
           shell yet (03's app-shell reserves the slot), so the chip takes the
           slot beside the title — the same position, and the one place a fact
-          about WHICH Adminium this is belongs. Renders `null` off-desktop. */}
-      <RuntimeChipHost />
+          about WHICH Adminium this is belongs. Loaded on the desktop runtime only. */}
+      {info?.runtime === 'desktop' ? (
+        <Suspense fallback={null}>
+          <RuntimeChipHost />
+        </Suspense>
+      ) : null}
 
       {pending === null ? null : (
         <span data-part="chord-pending" className="text-caption font-bold text-fg-subtle">
