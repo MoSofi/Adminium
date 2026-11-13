@@ -79,6 +79,10 @@ import {
   type EventView,
 } from './schema.js';
 import { tagRoutes } from '../../security/route-audience.js';
+import { policyOf, refuseUnlessAllowed } from '../../trial/refuse.js';
+
+/** A UTC day: a trial's bounce and spam hold lasts until the next one starts. */
+const DAY_MS = 86_400_000;
 
 export interface ConsentRoutesDeps {
   meta: MetaDb;
@@ -231,6 +235,10 @@ export function consentRoutes(deps: ConsentRoutesDeps): FastifyPluginAsyncZod {
         personOf(request);
         if (!(await superAdmin(request))) throw new ForbiddenError('Only a Super Admin may take an address off the do-not-email list.');
         const entry = await service.stop.get(request.params.id);
+        // On a trial today's bounces and spam reports hold user mail until tomorrow (`email/trial-relay.ts`): they stay on the list until then.
+        if (entry !== null && (entry.reason === 'bounce' || entry.reason === 'spam') && entry.addedAt >= Math.floor(Date.now() / DAY_MS) * DAY_MS) {
+          refuseUnlessAllowed(policyOf(app), 'liftMailHold', 'Today’s bounces and spam reports stay on the list until tomorrow on this installation.');
+        }
         const result = await service.stop.remove(request.params.id);
         if (result === 'missing' || entry === null) throw new NotFoundError('That address is not on the list.');
         if (result === 'erased') throw new ValidationFailedError("An erased person's entry stays, so they are never e-mailed again.", { reason: 'ERASED' });

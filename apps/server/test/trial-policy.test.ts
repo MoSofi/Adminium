@@ -43,6 +43,7 @@ const EXPECTED: Record<PolicyQuestion, [true | PolicyReason, true | PolicyReason
   telemetry: [true, 'trial-mode', true],
   ownSmtp: [true, 'trial-mode', true],
   marketingCampaigns: [true, 'trial-mode', true],
+  liftMailHold: [true, 'trial-mode', true],
   aiBaseUrl: [true, 'trial-mode', true],
   customAiProviders: [true, 'trial-mode', true],
   // A3: kept by the hosted profile (S2)
