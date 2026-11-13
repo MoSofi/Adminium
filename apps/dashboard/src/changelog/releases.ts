@@ -62,6 +62,22 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.58',
+    date: '2026-11-14',
+    title: 'Switches for operators, and safer SQL text',
+    summary:
+      'For people who run Adminium for others: start a copied instance without running anything that is due, keep an instance awake while someone reads, and let an old tab wake a sleeping one. Plus SQL text read the way each database reads it.',
+    changes: [
+      { tag: 'New', text: 'ADMINIUM_SCHEDULER=off starts the server without its scheduler and job queue, so you can check that a copied instance starts without anything due running on both the copy and the original.' },
+      { tag: 'New', text: 'ADMINIUM_PRESENCE=on has the dashboard tell the server once a minute that someone is using it, for a proxy that puts idle instances to sleep.' },
+      { tag: 'Improved', text: 'Behind a proxy that puts instances to sleep, an old tab reloads and wakes the instance instead of a page that stops answering. A save keeps what you typed.' },
+      { tag: 'Fixed', text: 'A trial’s size cap on MySQL keeps counting a dropped column’s values after a restart, and counts them on MariaDB too.' },
+      { tag: 'Fixed', text: 'Every built file in the npm packages and the Docker image carries its licence line again.' },
+      { tag: 'Security', text: 'SQL text in a schema change, such as an expression default or a check, is read the way its own database reads it, so a second statement hidden in it is refused on every engine.' },
+      { tag: 'Security', text: 'The meta store’s database is reached at the address its host name was checked at, checked again for each new connection.' },
+    ],
+  },
+  {
     version: '0.3.57',
     date: '2026-11-13',
     title: 'Local databases, Export everything and trial mode',

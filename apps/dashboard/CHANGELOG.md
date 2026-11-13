@@ -1,5 +1,20 @@
 # @adminium/dashboard
 
+## 0.3.58
+
+### Patch Changes
+
+- d30bf2d: A new switch, `ADMINIUM_PRESENCE=on`, has the dashboard send `GET /api/v1/presence` once a minute while its tab is visible and its person moved, typed or scrolled in the last five minutes, so an operator whose proxy puts idle instances to sleep counts someone reading a page as using it. The route answers signed-in staff with an empty 204 and reads nothing; `/system/info` says whether the dashboard sends it. A hidden tab sends nothing. Unset, nothing is sent and the dashboard does not load the code.
+- 9e36bc0: The dashboard reloads the page when an API read is answered with a 503 that carries `X-Aapp-Asleep: 1`, the answer an operator's proxy gives for an instance it has put to sleep and wakes only when a page is opened. A person who comes back to an old tab gets their app back after the proxy's waking page instead of a page that stops answering. A save that gets that answer does not reload, so what the person typed stays on the page. It reloads at most once in 30 seconds, so it never loops. No other answer does anything new.
+- Updated dependencies [9d8ac4c]
+  - @adminium/add-on-contracts@0.3.58
+  - @adminium/i18n@0.3.58
+  - @adminium/ui@0.3.58
+  - @adminium/charts@0.3.58
+  - @adminium/widgets@0.3.58
+  - @adminium/engine@0.3.58
+  - @adminium/tokens@0.3.58
+
 ## 0.3.57
 
 ### Patch Changes

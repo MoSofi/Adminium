@@ -1,5 +1,28 @@
 # @adminium/server
 
+## 0.3.58
+
+### Patch Changes
+
+- 9d8ac4c: Every built JavaScript file in the npm packages and the Docker image now starts with its `SPDX-License-Identifier: AGPL-3.0-only` line. The TypeScript compiler dropped the line from a file whose first statement it erases, such as an `import type`, so nearly 400 shipped files (223 of the CLI's own) had none. Each package's build now writes it back after the compiler, and CI and the image build check every built file.
+- 59d3bc1: The meta store's database is now reached at the address its host was checked at. Before, the boot checked the host in `ADMINIUM_META_URL` (or in `adminium.json`) and then let the Postgres or MySQL driver look the name up again, so a name that answered differently a moment later could reach an address the check refused. Each connection now dials checked addresses only, as a source database's does: the name is checked again for each new connection (one lookup serves five seconds of them), so a failover is followed and a name that moves to a cloud metadata address is refused. The address string still reaches the driver as written, so its parameters (`sslrootcert`, `sslmode`, a socket path) keep what they did, and TLS still checks the certificate against the host name. A store moved or adopted from the setup wizard or Studio is dialled the same way.
+- d30bf2d: A new switch, `ADMINIUM_PRESENCE=on`, has the dashboard send `GET /api/v1/presence` once a minute while its tab is visible and its person moved, typed or scrolled in the last five minutes, so an operator whose proxy puts idle instances to sleep counts someone reading a page as using it. The route answers signed-in staff with an empty 204 and reads nothing; `/system/info` says whether the dashboard sends it. A hidden tab sends nothing. Unset, nothing is sent and the dashboard does not load the code.
+- 08029e2: A new switch, `ADMINIUM_SCHEDULER=off`, starts the server without its job scheduler and job queue, so nothing that is due runs: no scheduled automation, report or watch, and no queued job such as a mail or an instance event. Jobs asked for meanwhile wait in the queue. It is for an operator's one-off check that a copied instance starts, so nothing due runs on the copy and again on the original. Unset, nothing changes.
+- 0043705: SQL text a change carries into a statement (an expression default, a kept column type, a check a SQLite rebuild restates) is now read the way its own database reads it. On Postgres the JSON operators `#>>`, `#>` and `#-` are taken, and `#` is a comment on MySQL only; a backquote quotes nothing on Postgres, and on SQLite a bracketed name is read as one, so a `;`, comment or comma inside either is refused where the database would see it.
+- cef84f7: A trial's size cap keeps the most rows a MySQL table held while it kept a dropped column's values in the operator tallies, not in memory alone, so after a restart the rows deleted before it no longer count again. On MariaDB, which shows no sign of a column dropped in place, every InnoDB table now counts at least its pages in the share of its rows still there, so a dropped column's values count there too. Operator tallies can be raised to a highest amount and listed by name prefix.
+- Updated dependencies [9d8ac4c]
+- Updated dependencies [cef84f7]
+  - @adminium/add-on-contracts@0.3.58
+  - @adminium/i18n@0.3.58
+  - @adminium/manifest@0.3.58
+  - @adminium/meta@0.3.58
+  - @adminium/engine@0.3.58
+  - @adminium/llm@0.3.58
+  - @adminium/adapter-mysql@0.3.58
+  - @adminium/adapter-postgres@0.3.58
+  - @adminium/adapter-sqlite@0.3.58
+  - @adminium/schema-import@0.3.58
+
 ## 0.3.57
 
 ### Patch Changes
