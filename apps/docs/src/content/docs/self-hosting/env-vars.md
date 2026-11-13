@@ -205,7 +205,10 @@ cloud metadata address stops the boot. Loopback and your own network are fine,
 and a name that does not resolve yet is left to the driver, so a database
 container that starts a moment later is no refused boot. In trial mode and the
 hosted profile the address must also pass the
-[stricter check](#what-the-two-profiles-switch-off).
+[stricter check](#what-the-two-profiles-switch-off). The address is checked,
+not pinned: the database driver looks the name up again itself when it
+connects, so keep the name of your meta store's host in DNS you control (your
+own network, a container name), not one a stranger can change.
 
 → [Where to put the meta store](/self-hosting/meta-store/)
 

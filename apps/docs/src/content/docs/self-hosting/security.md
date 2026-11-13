@@ -217,7 +217,8 @@ database on this server (`localhost`) or on the server's own network is fine. A 
 without `..`, and not through a link that leads out of it. To keep the store
 anywhere else, set `ADMINIUM_META_URL`; that value is yours, and at each start
 only its host is checked: one that is, or resolves to, a cloud metadata
-address stops the boot. (In trial mode and the hosted profile it must also
+address stops the boot. It is checked, not pinned: the driver looks the name up
+again when it connects, so the name must be one only you can point. (In trial mode and the hosted profile it must also
 pass every check a typed one does: [trial mode](/self-hosting/for-other-people/#databases-the-host-list-and-one-login).)
 
 ## Accounts
