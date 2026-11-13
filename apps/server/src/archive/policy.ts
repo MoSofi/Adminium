@@ -9,7 +9,8 @@
  * Never in any archive, and never written by a restore (security review S15):
  * - sessions, password-reset and invitation tokens, public visitors' sessions,
  *   one-time codes and proofs, and what the server's operator holds back
- *   ({@link NEVER_ARCHIVED_TABLES});
+ *   ({@link NEVER_ARCHIVED_TABLES}), and the events queued for that operator
+ *   ({@link NEVER_ARCHIVED_JOB_KINDS});
  * - `addOns.deciderTrust` (which add-on code may decide), the Designer's live
  *   switch and live id, and "Allow databases on this server"
  *   (`connections.allowLocalDatabases`: whether this server's own loopback is
@@ -49,6 +50,13 @@ export const API_KEY_TABLES: readonly string[] = ['adminium_api_keys', 'adminium
 
 /** Queue state, not anyone's work; an export leaves it out. A full archive keeps it (the same instance coming back). */
 const EXPORT_SKIPPED_TABLES: readonly string[] = ['adminium_jobs'];
+
+/**
+ * Queued jobs no archive carries, even a full one: the events this instance
+ * owes its server's operator (`operator/events.ts`). Another server, or this
+ * one restored elsewhere, must not send them, signed with its own token.
+ */
+export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event'];
 
 export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases'];
 
@@ -247,6 +255,14 @@ export function sanitizeDump(tables: Map<string, MetaTableDump>, opts: SanitizeO
   ];
   for (const table of skipTables) {
     if (tables.delete(table)) report.droppedTables.push(table);
+  }
+
+  const jobs = tables.get('adminium_jobs');
+  if (jobs !== undefined) {
+    const rows = rowsOf(jobs);
+    const kept = rows.filter((row) => !NEVER_ARCHIVED_JOB_KINDS.includes(String(row.kind)));
+    if (kept.length !== rows.length) report.droppedRows.adminium_jobs = rows.length - kept.length;
+    commitRows(jobs, kept);
   }
 
   const settings = tables.get('adminium_settings');

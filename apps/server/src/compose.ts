@@ -74,6 +74,7 @@ import type { HostedSurface } from './cli/surfaces-root.js';
 import type { Env } from './config/env.js';
 import { holdOperatorSecrets, operatorSecret } from './config/operator-secrets.js';
 import { buildOperatorEndpoint, hiddenPageLogoReader, operatorListener } from './operator/endpoint.js';
+import { createOperatorEvents, registerOperatorEventsHandler } from './operator/events.js';
 import { buildPublicContent } from './operator/public-content.js';
 import { operatorStatus } from './operator/status.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
@@ -90,7 +91,7 @@ import { seedBuiltinEmailTemplates } from './email/builtins.js';
 import { emailSecretKey } from './email/config.js';
 import { configureEmailRuntime } from './email/send.js';
 import { trialMailSetupOf } from './email/trial-mail-setup.js';
-import { configureTrialMail } from './email/trial-relay.js';
+import { configureTrialMail, onEmailCapReached } from './email/trial-relay.js';
 import { CATALOG_ENABLED_SETTING, createCatalogClient } from './add-ons/catalog.js';
 import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js';
 import { addOnHttpClientFor } from './add-ons/egress.js';
@@ -109,7 +110,7 @@ import { createFormsCatalog } from './forms/catalog.js';
 import { createFormsConfirm } from './forms/confirm.js';
 import { createFormsScopes } from './forms/scope.js';
 import { formsPackageVouched } from './forms/vouched.js';
-import { createFormsFiles } from './forms/files.js';
+import { createFormsFiles, formsTablesOn } from './forms/files.js';
 import { createSurveyInvitations } from './forms/invitation.js';
 import { createPublicUploads } from './public-uploads/store.js';
 import { createColumnUploads } from './public-uploads/columns.js';
@@ -772,6 +773,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const appManifests = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
   /** Forget which apps have an outbox; set once the producers exist below. */
   let outboxesChanged = (): void => {};
+  /** A customer side strangers see may have changed; set once the signed instance events exist below. */
+  let publicSidesChanged = (): void => {};
   /** The project folder's apps, kept in step with this server; set where the app routes are built. */
   let projectApps: ProjectApps | null = null;
   let designer: Designer | null = null;
@@ -784,6 +787,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // app emails' producers look again at which apps are live.
     list: async () => {
       outboxesChanged();
+      publicSidesChanged();
       return (await appManifests.list('app')).map((installed) => ({
         key: installed.row.manifestKey,
         version: installed.row.version,
@@ -1162,6 +1166,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // The apps were rebuilt: install what is new, apply what changed, tell open pages.
           onAppsChanged: async () => {
             await projectApps?.reconcile();
+            publicSidesChanged();
           },
         });
   const projectKeys = new Map<string, { key: string | null; at: number }>();
@@ -4160,6 +4165,34 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   app.addHook('onClose', async () => {
     await operatorEndpoint?.close();
   });
+  // Signed instance events, pushed to the operator while this instance is awake (`operator/events.ts`). The
+  // handler is there on every server, so an event queued before the address was taken away is let go unsent.
+  const operatorEventsOptions = {
+    meta,
+    url: env.ADMINIUM_OPERATOR_EVENTS_URL ?? null,
+    token: operatorToken ?? null,
+    surfaces: () => app.surfaces,
+    forms: formsCatalog,
+    // What is kept of the add-ons' installs, read without a query: a write to a forms table may change a form.
+    formsTable: async (connectionId: string, tableId: string) => formsTablesOn(addOnInstalls.current(), connectionId).some((tables) => tables.forms === tableId),
+    log: app.log,
+  };
+  registerOperatorEventsHandler(jobs.registry, operatorEventsOptions);
+  const operatorEvents = operatorEventsOptions.url === null || operatorEventsOptions.token === null ? null : createOperatorEvents(operatorEventsOptions);
+  app.decorate('operatorEvents', operatorEvents);
+  if (operatorEvents !== null) {
+    publicSidesChanged = () => operatorEvents.publicMayHaveChanged();
+    const stopCaps = onEmailCapReached((event) => operatorEvents.emailCapReached(event));
+    const stopReadings = sizeCap?.listen((event) => operatorEvents.storageReading(event)) ?? null;
+    app.addHook('onReady', async () => {
+      await operatorEvents.start();
+    });
+    app.addHook('onClose', async () => {
+      stopCaps();
+      stopReadings?.();
+      await operatorEvents.stop();
+    });
+  }
 
   return {
     app,

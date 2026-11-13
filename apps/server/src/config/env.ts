@@ -1413,9 +1413,10 @@ export const envSchema = z.object({
       need((env.ADMINIUM_DATABASE_HOSTS ?? []).length === 0, 'ADMINIUM_DATABASE_HOSTS', `is required in ${which}: the only database hosts connections may reach, e.g. pg-trials:5432`);
     }
     need(
-      env.ADMINIUM_OPERATOR_TOKEN !== undefined && env.ADMINIUM_OPERATOR_LISTEN === undefined,
+      // The token signs instance events too: with an events address it has a use without the listener.
+      env.ADMINIUM_OPERATOR_TOKEN !== undefined && env.ADMINIUM_OPERATOR_LISTEN === undefined && env.ADMINIUM_OPERATOR_EVENTS_URL === undefined,
       'ADMINIUM_OPERATOR_TOKEN',
-      'is set, but ADMINIUM_OPERATOR_LISTEN is not, so the operator endpoint is served nowhere. Set the listener on the operator network as well.',
+      'is set, but neither ADMINIUM_OPERATOR_LISTEN nor ADMINIUM_OPERATOR_EVENTS_URL is, so the token is used nowhere. Set the listener on the operator network, the events address, or both.',
     );
     need(
       env.ADMINIUM_OPERATOR_LISTEN !== undefined && env.ADMINIUM_OPERATOR_TOKEN === undefined,
@@ -1652,7 +1653,7 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_OPERATOR_NAME: 'the operator\'s name in the From of relay mail, "<instance> via <name>", at most 60 characters (default: the From address\'s domain)',
   ADMINIUM_HOSTED_MODE: `one of ${BOOLEANISH.join(', ')} (default off; on runs a paid installation on the operator's server: needs ADMINIUM_PUBLIC_ORIGIN and ADMINIUM_DATABASE_HOSTS)`,
   ADMINIUM_OPERATOR_DOMAINS: 'CSV of the user\'s own verified domains: plain lower-case host names, e.g. shop.example.com',
-  ADMINIUM_OPERATOR_TOKEN: 'the operator endpoint\'s bearer token, 32 random bytes or more, e.g. `openssl rand -hex 32` (needs ADMINIUM_OPERATOR_LISTEN)',
+  ADMINIUM_OPERATOR_TOKEN: 'the operator endpoint\'s bearer token and the key instance events are signed with, 32 random bytes or more, e.g. `openssl rand -hex 32` (needs ADMINIUM_OPERATOR_LISTEN or ADMINIUM_OPERATOR_EVENTS_URL)',
   ADMINIUM_OPERATOR_LISTEN: 'address:port of the operator listener on the operator network, e.g. 10.0.0.2:4601 (needs ADMINIUM_OPERATOR_TOKEN)',
   ADMINIUM_OPERATOR_EVENTS_URL: 'where signed instance events go: https://…, or http:// to a private address (needs ADMINIUM_OPERATOR_TOKEN)',
   ADMINIUM_AI_OPERATOR_ONLY: `one of ${BOOLEANISH.join(', ')} (default off; on: AI runs on the operator's connection unless the user adds their own key)`,
