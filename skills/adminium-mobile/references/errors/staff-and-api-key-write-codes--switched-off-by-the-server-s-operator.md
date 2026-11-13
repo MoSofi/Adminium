@@ -34,7 +34,7 @@ for it. The `question` names what was refused:
 | `aiBaseUrl` | An AI address of the person's own, typed, tested or saved | `trial-mode`, `operator-ai-only` |
 | `customAiProviders` | The OpenAI-compatible and Ollama providers, and Adminium's managed AI | `trial-mode`, `operator-ai-only` |
 | `customerScreensOnOperatorAi` | A customer side, Start with an app or pictures on an app with public screens, in a session on the AI that comes with the installation | `operator-ai-scope` |
-| `packageUploads` | Uploading an add-on, an app or a workspace file | `trial-mode`, `hosted-mode` |
+| `packageUploads` | Uploading an add-on or an app (`/add-ons/upload`, `/apps/upload`, `/apps/upload-workspace`) | `trial-mode`, `hosted-mode` |
 | `designerUploads` | A site template zip, a style of one's own, a hand save from the Code tab | `trial-mode`, `hosted-mode` |
 | `ownBuilds` | **Start with an app**, an app's own build command, the phone app's build | `trial-mode`, `hosted-mode` |
 | `designerCode`, `requestPackage` | The Designer writing server code or tests, or adding an npm package: refused inside its turn with fixed words | `trial-mode`, `hosted-mode` |
