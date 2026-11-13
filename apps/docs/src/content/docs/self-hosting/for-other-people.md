@@ -170,12 +170,15 @@ service. It must be `https://`, or the server does not start.
 **What your service must do.**
 
 1. **The page.** The browser arrives at your address with `instance` (the
-   instance's origin), `state` and `challenge` (`base64url(SHA-256(verifier))`,
-   no padding, as in PKCE's S256). After the sign-in, send the browser to
+   instance's address the person is signed in on: `ADMINIUM_PUBLIC_ORIGIN`, or
+   `https://` and one of `ADMINIUM_OPERATOR_DOMAINS`), `state` and `challenge`
+   (`base64url(SHA-256(verifier))`, no padding, as in PKCE's S256). After the
+   sign-in, send the browser to
    `<origin>/connect/supabase/return?state=<state>&code=<code>`, where
-   `<origin>` is **the origin you registered for that instance**. Never send it
-   to the `instance` parameter as given: that would make your page an open
-   redirect. Make `code` random, single use, short-lived (a minute is plenty),
+   `<origin>` is **one of the origins you registered for that instance**: the
+   one `instance` names when it is one of them, since the person's session
+   belongs to that host. Never send it to an `instance` you did not register:
+   that would make your page an open redirect. Make `code` random, single use, short-lived (a minute is plenty),
    and keep the `challenge` with it.
 2. **The redeem.** The instance calls `POST <address>/redeem` with
    `{"code": "…", "verifier": "…"}`. Refuse a code that is unknown, spent or

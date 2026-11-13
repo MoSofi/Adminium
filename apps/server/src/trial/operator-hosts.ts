@@ -54,6 +54,8 @@ export interface OperatorHosts {
   domains: readonly string[];
   /** Every host name the instance answers on: the public origin's and the listed domains, lower case, no port. */
   hosts: ReadonlySet<string>;
+  /** `ADMINIUM_PUBLIC_ORIGIN`, when set. */
+  publicOrigin: string | null;
 }
 
 /** The paths that answer on every host. */
@@ -66,7 +68,19 @@ export function operatorHostsOf(env: Pick<Env, 'ADMINIUM_PUBLIC_ORIGIN' | 'ADMIN
   const hosts = new Set(domains);
   if (publicOrigin !== undefined) hosts.add(new URL(publicOrigin).hostname);
   const first = domains[0];
-  return { origin: first === undefined ? publicOrigin! : `https://${first}`, domains, hosts };
+  return { origin: first === undefined ? publicOrigin! : `https://${first}`, domains, hosts, publicOrigin: publicOrigin ?? null };
+}
+
+/**
+ * The operator's address for the host a request came in on: the public origin
+ * on its own host, `https://` and the name on a listed domain. A browser sent
+ * back there arrives where its session cookie is (cookies are per host). Null
+ * for any other host, which the 421 gate already refuses.
+ */
+export function operatorOriginFor(hosts: OperatorHosts, host: string | undefined): string | null {
+  const name = hostNameOf(host);
+  if (hosts.publicOrigin !== null && new URL(hosts.publicOrigin).hostname === name) return hosts.publicOrigin;
+  return hosts.domains.includes(name) ? `https://${name}` : null;
 }
 
 /**

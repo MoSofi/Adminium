@@ -399,6 +399,27 @@ describe('A4 the instance answers only on its own addresses', { timeout: 60_000 
   });
 });
 
+describe('Connect Supabase sends the person back to the host they are on', { timeout: 60_000 }, () => {
+  const CONNECT = { ADMINIUM_SUPABASE_CONNECT_URL: 'https://connect.example.com/supabase' };
+  const instanceOf = async (s: Server, host: string): Promise<string | null> => {
+    const start = await s.call('POST', '/api/v1/connect/start', { host, payload: { provider: 'supabase' } });
+    expect(start.status, start.body).toBe(200);
+    return new URL(String(start.json()['redirectUrl'])).searchParams.get('instance');
+  };
+
+  it('with the operator’s domains listed: the public origin, or the listed domain the request came in on', async () => {
+    const s = await serve({ ...TRIAL, ...CONNECT, ADMINIUM_OPERATOR_DOMAINS: `${OWN},${OWN_TOO}` });
+    // Links in email point at the first listed domain; the session cookie belongs to the host the person signed in on.
+    expect(await instanceOf(s, ORIGIN_HOST)).toBe(`https://${ORIGIN_HOST}`);
+    expect(await instanceOf(s, OWN_TOO)).toBe(`https://${OWN_TOO}`);
+  });
+
+  it('without them: the public origin, as before', async () => {
+    const s = await serve({ ...TRIAL, ...CONNECT });
+    expect(await instanceOf(s, ORIGIN_HOST)).toBe(`https://${ORIGIN_HOST}`);
+  });
+});
+
 describe('A4 mapped domains come from the operator’s list only', { timeout: 60_000 }, () => {
   const map = (s: Server, host: string) => s.call('PUT', '/api/v1/surfaces/domains', { payload: { domains: { [host]: { appKey: 'clients', side: 'customer' } } } });
   const listWebsite = (s: Server, origin: string) => s.call('POST', '/api/v1/privacy/websites', { payload: { lines: [origin] } });
