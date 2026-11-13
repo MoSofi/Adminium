@@ -55,6 +55,7 @@ import {
   ALL_MIGRATIONS,
   applyMigrations,
   loadMetaDump,
+  operatorHoldsRepo,
   probeAdminiumTables,
   relocatableTables,
   SETTINGS_REGISTRY,
@@ -72,6 +73,7 @@ import { checkDestinationAddress } from '../files/destinations.js';
 import { FILES_DIR } from '../files/drivers/local.js';
 import { storageRootRefusal, type StorageRootPolicy } from '../files/root-guard.js';
 import type { HostLookup } from '../net/address-guard.js';
+import { PUBLIC_PAGES_HOLD } from '../operator/holds.js';
 import { hostIssueFor } from '../surfaces/validate.js';
 import {
   ARCHIVE_DATABASES_DIR,
@@ -95,6 +97,9 @@ import {
 import { sameSecret, verifyManifest, type ArchiveSigningKey } from './mac.js';
 import { commitRows, readJsonCell, rowsOf, sanitizeDump, writeJsonCell, type SanitizeReport } from './policy.js';
 import { ZipReader } from './zip-read.js';
+
+/** The reason the operator's hold carries after `archive restore --hold`. */
+export const RESTORED_ON_HOLD = 'Restored on hold.';
 
 /** Where local SQLite sources land: the desktop's own `<data dir>/databases/<slug>.sqlite`. */
 export const RESTORED_DATABASES_DIR = 'databases';
@@ -726,6 +731,10 @@ export async function restoreArchive(opts: RestoreArchiveOptions): Promise<Resto
       await applyMigrations(opts.meta.db, { dialect: opts.meta.dialect });
       await seedBuiltinRoles(opts.meta, at);
       await seedSystemSettings(opts.meta, at);
+      // On hold: every public page hidden by the operator's own hold (`operator/holds.ts`), a row only the
+      // operator endpoint changes, so the restored Super Admin cannot show them again from Studio. The
+      // settings above stay as a second layer.
+      if (opts.hold === true) await operatorHoldsRepo(opts.meta).set({ name: PUBLIC_PAGES_HOLD, held: true, reason: RESTORED_ON_HOLD }, at);
 
       for (const { from, to } of staged) {
         await mkdir(dirname(to), { recursive: true });

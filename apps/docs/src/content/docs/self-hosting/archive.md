@@ -90,10 +90,14 @@ is refused.
 adminium archive restore ./adminium-archive.zip --hold
 ```
 
-Restores with mail off (the SMTP setting is not restored), the public API off,
-every app's customer side switched off and the Designer off, to look at an
-instance without running it. Public forms and `/x/` pages have no switch of their
-own yet: keep a held instance off the public internet.
+Restores with every public page hidden (forms, `/x/` pages, the mail door, pay
+pages, guest links, customer sides and the public API all answer 404), mail off
+(the SMTP setting is not restored), the public API, every app's customer side and
+the Designer off, to look at an instance without running it. The pages are hidden
+by the same hold as the [operator endpoint's](/self-hosting/operator-endpoint/)
+hide switch, kept where no Studio setting reaches, so a Super Admin of the restored
+instance cannot show them again; only `POST /api/v1/operator/public-pages` does.
+To run the instance, restore the archive again without `--hold`.
 
 ## Export everything
 

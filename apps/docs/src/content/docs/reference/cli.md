@@ -959,7 +959,7 @@ start.
 |---|---|---|
 | `--export` | off | `create`: leave out password hashes, secrets, keys and tokens; the file is read back by [`import-zip`](#import-zip) |
 | `--project-dir <folder>` | `ADMINIUM_PROJECT_DIR` | `restore`: where the project folder goes (new or empty) |
-| `--hold` | off | `restore`: public pages hidden, mail off, the Designer off |
+| `--hold` | off | `restore`: public pages hidden (the operator's hold, which Studio cannot lift), mail off, the Designer off |
 | `--keep-api-keys` | off | `restore`: keep the archive's API keys |
 | `--drop-secrets` | off | `restore`: restore under a different `ADMINIUM_SECRET`, without the encrypted secrets |
 | `--dry-run` | off | `restore`: check everything, write nothing |
