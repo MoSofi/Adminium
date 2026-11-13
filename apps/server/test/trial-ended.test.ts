@@ -18,7 +18,7 @@ import { composeServer, type ComposedServer } from '../src/compose.js';
 import { enforceProfile } from '../src/config/env.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
-import { configureEmailRuntime, enqueueRenderedEmail, resetEmailRuntime, PASSWORD_RESET_TEMPLATE_KEY, NOTIFICATION_EMAIL_TEMPLATE_KEY } from '../src/email/send.js';
+import { configureEmailRuntime, enqueueEmail, enqueueRenderedEmail, resetEmailRuntime, PASSWORD_RESET_TEMPLATE_KEY, NOTIFICATION_EMAIL_TEMPLATE_KEY } from '../src/email/send.js';
 import { configureTrialMail } from '../src/email/trial-relay.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
@@ -274,14 +274,15 @@ describe('a trial past its end date stops user mail', () => {
     configureTrialMail(null);
     configureEmailRuntime({ secret: TEST_SECRET, userMail: () => false });
     const deps = { meta: undefined as never, enqueue };
-    expect(await enqueueRenderedEmail(deps, { to: 'dana@example.test', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', rendered })).not.toBeNull();
+    // Ready-made mail is never an account flow's, whatever its key (the account flows go through `enqueueEmail`).
+    expect(await enqueueRenderedEmail(deps, { to: 'dana@example.test', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', rendered })).toBeNull();
     expect(await enqueueRenderedEmail(deps, { to: 'dana@example.test', templateKey: NOTIFICATION_EMAIL_TEMPLATE_KEY, locale: 'en_US', rendered })).toBeNull();
     expect(await enqueueRenderedEmail(deps, { to: 'guest@example.test', templateKey: 'booking-confirmation', locale: 'en_US', rendered })).toBeNull();
-    expect(queued).toEqual([PASSWORD_RESET_TEMPLATE_KEY]);
+    expect(queued).toEqual([]);
 
     configureEmailRuntime({ secret: TEST_SECRET, userMail: () => true });
     expect(await enqueueRenderedEmail(deps, { to: 'dana@example.test', templateKey: NOTIFICATION_EMAIL_TEMPLATE_KEY, locale: 'en_US', rendered })).not.toBeNull();
-    expect(queued).toEqual([PASSWORD_RESET_TEMPLATE_KEY, NOTIFICATION_EMAIL_TEMPLATE_KEY]);
+    expect(queued).toEqual([NOTIFICATION_EMAIL_TEMPLATE_KEY]);
   });
 
   it('leaves an app’s queued rows queued while user mail is stopped', async () => {
@@ -301,6 +302,12 @@ describe('a trial past its end date stops user mail', () => {
     await serve({ ...ENDED, ADMINIUM_TRIAL_SMTP_URL: 'smtp://127.0.0.1:2525', ADMINIUM_TRIAL_MAIL_FROM: 'i-1@relay.example.com' });
     const enqueue = vi.fn(async () => ({ id: '1', runAt: 0 }) as never);
     expect(await enqueueRenderedEmail({ meta: meta!, enqueue }, { to: 'a@example.test', templateKey: NOTIFICATION_EMAIL_TEMPLATE_KEY, locale: 'en_US', rendered })).toBeNull();
-    expect(await enqueueRenderedEmail({ meta: meta!, enqueue }, { to: 'a@example.test', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', rendered })).not.toBeNull();
+    expect(await enqueueRenderedEmail({ meta: meta!, enqueue }, { to: 'a@example.test', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', rendered })).toBeNull();
+    // The reset flow's own mail still goes.
+    const reset = await enqueueEmail(
+      { meta: meta!, secret: TEST_SECRET, enqueue },
+      { to: 'a@example.test', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', account: true, vars: { appName: 'Shop', name: 'Ann', email: 'a@example.test', resetUrl: 'https://example.test/reset/x' }, counts: { expiresInMinutes: 30 } },
+    );
+    expect(reset).not.toBeNull();
   });
 });

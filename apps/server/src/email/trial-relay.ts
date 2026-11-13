@@ -10,16 +10,23 @@
  *  - From is fixed: `"<instance name> via <operator name>" <address>`, the
  *    address the relay pins for this instance (`ADMINIUM_TRIAL_MAIL_FROM`).
  *    The instance name is the Application name (`branding.appName`), filtered ({@link safeSenderName}):
- *    no `@`, no brand or account-safety words, no look-alike spelling of one.
- *    A name the filter refuses gives way to the instance's host name.
+ *    accents off, then ASCII letters, digits, spaces and `.-'&` only, and no
+ *    brand or account-safety word in any spelling. A name the filter refuses
+ *    gives way to the instance's host name.
  *  - Reply-To, on user mail, is a staff member's own sign-in address: the one
  *    the mail asked for when it is one, else the first Super Admin's. System
  *    mail has none.
  *  - User mail ends with a fixed footer naming the instance's address and a
- *    link to report the message (`ADMINIUM_TRIAL_MAIL_REPORT_URL`).
+ *    link to report the message (`ADMINIUM_TRIAL_MAIL_REPORT_URL`). The HTML
+ *    is parsed and written out again with the footer as the body's last part,
+ *    with no comment or style sheet left in it, so nothing the user wrote can
+ *    swallow or hide it ({@link withFooter}).
+ *  - Its recipients are plain addresses, at most
+ *    {@link TRIAL_RECIPIENTS_PER_MESSAGE} of them, each counted.
  *
- * WHAT IS COUNTED. System mail (the four account templates: password reset,
- * invitation, sign-in code, address changed) has its own quota
+ * WHAT IS COUNTED. System mail (what the server's own account flows send:
+ * password reset, invitation, sign-in code, address changed; never a mail
+ * that only carries one of their template keys) has its own quota
  * ({@link TRIAL_SYSTEM_EMAILS_PER_DAY} a day, {@link TRIAL_SYSTEM_EMAILS_PER_HOUR}
  * an hour) that user mail never touches, and its wording is the shipped one
  * (`email/send.ts`). User mail is everything else: `ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY`
@@ -50,12 +57,16 @@ import { createHash } from 'node:crypto';
 
 import { createServerI18n } from '@adminium/i18n/server';
 import { jobsRepo, settingsRepo, stopListRepo, usersRepo, type Job, type MetaDb } from '@adminium/meta';
+import { defaultTreeAdapter, parse, parseFragment, serialize, type DefaultTreeAdapterMap } from 'parse5';
 
+import { PLAIN_RECIPIENT } from './plain-address.js';
 import { escapeHtml } from './render.js';
 import type { SmtpConfig } from './types.js';
 
 /** At most this many different people get user mail in a day. */
 export const TRIAL_RECIPIENTS_PER_DAY = 20;
+/** At most this many addresses on one message; each counts as one email against the caps. */
+export const TRIAL_RECIPIENTS_PER_MESSAGE = 5;
 /** System mail's own quota: never spent by user mail. */
 export const TRIAL_SYSTEM_EMAILS_PER_DAY = 50;
 export const TRIAL_SYSTEM_EMAILS_PER_HOUR = 20;
@@ -98,10 +109,8 @@ export interface TrialMailSetup {
   caps: TrialMailCaps;
   /** When the trial ends: user mail is not queued, nor sent, from then on. Null: no end. */
   endsAt: number | null;
-  /** Whether a template is system mail (`email/send.ts`). */
-  isSystem: (templateKey: string) => boolean;
-  /** The recipient and subject of a queued message's sealed envelope. */
-  openEnvelope: (sealed: string) => { to: string; subject: string };
+  /** The recipient and subject of a queued message's sealed envelope, and whether an account flow sent it. */
+  openEnvelope: (sealed: string) => { to: string; subject: string; account: boolean };
   now?: (() => number) | undefined;
 }
 
@@ -121,8 +130,8 @@ export interface EmailCapReached {
 
 interface Entry {
   system: boolean;
-  /** sha256 of the lower-case address: in memory only. */
-  rcpt: string;
+  /** sha256 of each lower-case address: in memory only. Each is one email against the caps. */
+  rcpts: string[];
   /** When it goes out, or went. */
   at: number;
   sent: boolean;
@@ -243,7 +252,11 @@ const REFUSED_WORDS = [
   'administrator',
 ];
 
-/** Letters and digits that pass for a Latin letter, by the letter they pass for. */
+/**
+ * Digits and signs that pass for a Latin letter, by the letter they pass for.
+ * A letter of another script never reaches the comparison: {@link safeSenderName}
+ * refuses any name with one.
+ */
 const LOOK_ALIKES: Readonly<Record<string, string>> = {
   '0': 'o',
   '1': 'l',
@@ -258,44 +271,9 @@ const LOOK_ALIKES: Readonly<Record<string, string>> = {
   '!': 'l',
   // Every vertical stroke reads alike: i, l, I and 1 are one letter here.
   i: 'l',
-  // Cyrillic
-  а: 'a',
-  в: 'b',
-  е: 'e',
-  ё: 'e',
-  к: 'k',
-  м: 'm',
-  н: 'h',
-  о: 'o',
-  р: 'p',
-  с: 'c',
-  т: 't',
-  у: 'y',
-  х: 'x',
-  і: 'l',
-  ї: 'l',
-  ј: 'j',
-  ѕ: 's',
-  ԁ: 'd',
-  ӏ: 'l',
-  ɡ: 'g',
-  // Greek
-  α: 'a',
-  β: 'b',
-  ε: 'e',
-  η: 'n',
-  ι: 'l',
-  κ: 'k',
-  ν: 'v',
-  ο: 'o',
-  ρ: 'p',
-  τ: 't',
-  υ: 'u',
-  χ: 'x',
-  ω: 'w',
 };
 
-/** A name as it is compared: lower case, accents off, look-alikes read as the letter they pass for, letters only. */
+/** A name as it is compared: lower case, accents off, look-alikes read as the letter they pass for, a–z only. */
 export function folded(name: string): string {
   const plain = name
     .normalize('NFKC')
@@ -315,20 +293,25 @@ const REFUSED_FOLDED = REFUSED_WORDS.map(folded);
 /**
  * The name as a From may carry it, or null when it may not: control and
  * invisible characters and everything a header or an address is made of taken
- * out, at most 60 characters, and refused when it holds a brand or an
- * account-safety word in any spelling.
+ * out, accents taken off, at most 60 characters. Refused when anything but
+ * ASCII letters, digits, spaces and `.-'&` is left (a look-alike from another
+ * script, or one no table lists, never gets as far as the comparison), or when
+ * it holds a brand or an account-safety word in any spelling.
  */
 export function safeSenderName(raw: string | null | undefined): string | null {
   if (typeof raw !== 'string') return null;
   const name = raw
     .normalize('NFKC')
     .replace(/[\p{C}]/gu, '')
+    .replace(/[‘’]/g, "'")
     .replace(/[@<>"\\,;:()[\]]/g, ' ')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 60)
     .trim();
-  if (name === '') return null;
+  if (name === '' || /[^A-Za-z0-9 .\-'&]/.test(name)) return null;
   const key = folded(name);
   if (key === '' || REFUSED_FOLDED.some((word) => key.includes(word))) return null;
   return name;
@@ -409,11 +392,44 @@ async function footerOf(relay: TrialRelay, locale: string): Promise<{ html: stri
   return { html, text: `\n----\n${sentence}\n${report}: ${relay.reportUrl}\n` };
 }
 
-/** `html` and `text` with the footer drawn last. */
-function withFooter(body: { html: string; text: string }, footer: { html: string; text: string }): { html: string; text: string } {
-  const at = body.html.lastIndexOf('</body>');
-  const html = at < 0 ? `${body.html}${footer.html}` : `${body.html.slice(0, at)}${footer.html}\n${body.html.slice(at)}`;
-  return { html, text: `${body.text.replace(/\s+$/, '')}\n${footer.text}` };
+type HtmlParent = DefaultTreeAdapterMap['parentNode'];
+
+/**
+ * What a user's HTML may not keep under the footer: a style sheet (a rule can
+ * hide any part of the page, the footer included), and `<plaintext>`, which
+ * no end tag closes, so all that follows it would read as text.
+ */
+const FOOTER_HIDERS = new Set(['style', 'link', 'plaintext']);
+
+/** Takes comments and {@link FOOTER_HIDERS} out of a parsed document, at any depth (a `<template>`'s content too). */
+function strip(parent: HtmlParent): void {
+  for (const node of [...parent.childNodes]) {
+    if (defaultTreeAdapter.isCommentNode(node) || (defaultTreeAdapter.isElementNode(node) && FOOTER_HIDERS.has(node.tagName))) {
+      defaultTreeAdapter.detachNode(node);
+      continue;
+    }
+    if (defaultTreeAdapter.isElementNode(node)) {
+      strip(node);
+      if (node.tagName === 'template') strip(defaultTreeAdapter.getTemplateContent(node as DefaultTreeAdapterMap['template']));
+    }
+  }
+}
+
+/**
+ * `html` and `text` with the footer drawn last. The HTML is parsed and written
+ * out again, so an open comment, an element left open (a hidden one, say) or a
+ * `<template>` is closed before the footer, which goes in as the body's own
+ * last child, outside all of it; comments and style sheets are left out.
+ */
+export function withFooter(body: { html: string; text: string }, footer: { html: string; text: string }): { html: string; text: string } {
+  const document = parse(body.html);
+  strip(document);
+  const root = document.childNodes.find((node): node is DefaultTreeAdapterMap['element'] => defaultTreeAdapter.isElementNode(node) && node.tagName === 'html');
+  const page = root?.childNodes.find((node): node is DefaultTreeAdapterMap['element'] => defaultTreeAdapter.isElementNode(node) && node.tagName === 'body');
+  if (page !== undefined) {
+    for (const node of [...parseFragment(footer.html).childNodes]) defaultTreeAdapter.appendChild(page, node);
+  }
+  return { html: serialize(document), text: `${body.text.replace(/\s+$/, '')}\n${footer.text}` };
 }
 
 // --- the counts ----------------------------------------------------------------------
@@ -421,6 +437,26 @@ function withFooter(body: { html: string; text: string }, footer: { html: string
 const dayOf = (at: number): number => Math.floor(at / DAY_MS) * DAY_MS;
 const hourOf = (at: number): number => Math.floor(at / HOUR_MS) * HOUR_MS;
 const rcptOf = (address: string): string => createHash('sha256').update(address.trim().toLowerCase()).digest('hex');
+
+/**
+ * Every address a message's `to` names, split where a mail server splits it
+ * (`,` and `;`); null when one is not a plain address or there are none. The
+ * mail server would deliver to each of them, so each is counted.
+ */
+export function recipientsOf(to: string): string[] | null {
+  const addresses = to
+    .split(/[,;]/)
+    .map((one) => one.trim())
+    .filter((one) => one !== '');
+  if (addresses.length === 0 || addresses.some((one) => !PLAIN_RECIPIENT.test(one))) return null;
+  return addresses;
+}
+
+/** The addresses of `to`, hashed, for the counts: a value that is no list of addresses counts as one. */
+const rcptsOf = (to: string): string[] => (recipientsOf(to) ?? [to]).map(rcptOf);
+
+/** Emails: each recipient of each message. */
+const weight = (entries: readonly Entry[]): number => entries.reduce((sum, entry) => sum + entry.rcpts.length, 0);
 
 /** The day's mail, read once from the queue after a boot. */
 async function loaded(meta: MetaDb, s: State): Promise<void> {
@@ -434,16 +470,15 @@ async function loaded(meta: MetaDb, s: State): Promise<void> {
     }
     for (const row of rows) {
       if (s.entries.has(row.id)) continue;
-      const key = typeof row.payload['templateKey'] === 'string' ? row.payload['templateKey'] : '';
       const sealed = typeof row.payload['envelope'] === 'string' ? row.payload['envelope'] : '';
-      let to: string;
+      let opened: { to: string; account: boolean };
       try {
-        to = s.setup.openEnvelope(sealed).to;
+        opened = s.setup.openEnvelope(sealed);
       } catch {
         continue;
       }
       const sent = row.status === 'succeeded';
-      s.entries.set(row.id, { system: s.setup.isSystem(key), rcpt: rcptOf(to), at: sent ? (row.finishedAt ?? row.runAt) : row.runAt, sent });
+      s.entries.set(row.id, { system: opened.account, rcpts: rcptsOf(opened.to), at: sent ? (row.finishedAt ?? row.runAt) : row.runAt, sent });
     }
   })();
   await s.loaded;
@@ -471,8 +506,8 @@ async function bouncesHold(meta: MetaDb, s: State, now: number): Promise<boolean
   }
 }
 
-/** The first moment at or after `from` that a user mail to `rcpt` fits every cap, and the first cap that held it. */
-function slotFor(s: State, rcpt: string, from: number, held: boolean): { at: number; cap: EmailCap | null } | null {
+/** The first moment at or after `from` that a user mail to `rcpts` fits every cap, and the first cap that held it. */
+function slotFor(s: State, rcpts: readonly string[], from: number, held: boolean): { at: number; cap: EmailCap | null } | null {
   const { caps } = s.setup;
   const today = dayOf(s.now());
   let at = from;
@@ -486,18 +521,18 @@ function slotFor(s: State, rcpt: string, from: number, held: boolean): { at: num
       continue;
     }
     const sameDay = inWindow(s, false, day, DAY_MS);
-    if (sameDay.length >= caps.perDay) {
+    if (weight(sameDay) + rcpts.length > caps.perDay) {
       cap ??= 'day';
       at = day + DAY_MS;
       continue;
     }
-    const people = new Set(sameDay.map((entry) => entry.rcpt));
-    if (!people.has(rcpt) && people.size >= caps.recipientsPerDay) {
+    const people = new Set(sameDay.flatMap((entry) => entry.rcpts));
+    if (new Set([...people, ...rcpts]).size > Math.max(caps.recipientsPerDay, people.size)) {
       cap ??= 'recipients';
       at = day + DAY_MS;
       continue;
     }
-    if (sameDay.filter((entry) => entry.at >= hour && entry.at < hour + HOUR_MS).length >= caps.perHour) {
+    if (weight(sameDay.filter((entry) => entry.at >= hour && entry.at < hour + HOUR_MS)) + rcpts.length > caps.perHour) {
       cap ??= 'hour';
       at = hour + HOUR_MS;
       continue;
@@ -530,6 +565,8 @@ function tell(s: State, cap: EmailCap, window: number, now: number): void {
 /** What a message asks of the relay. */
 export interface RelayAsk {
   templateKey: string;
+  /** Sent by one of the server's own account flows (`enqueueEmail`'s `account`): system mail. Anything else is user mail, whatever its key. */
+  account: boolean;
   to: string;
   locale: string;
   /** Marketing mail is off on a trial. */
@@ -543,6 +580,8 @@ export interface RelayAsk {
 
 /** The message as the relay sends it. */
 export interface RelayShaped {
+  /** Its recipients, each a plain address. */
+  to: string;
   from: string;
   replyTo: string | undefined;
   html: string;
@@ -552,7 +591,7 @@ export interface RelayShaped {
 }
 
 /** Why a message was not queued. */
-export type RelayRefusal = 'no-relay' | 'marketing' | 'system-quota' | 'after-the-end' | 'no-slot';
+export type RelayRefusal = 'no-relay' | 'marketing' | 'recipients' | 'system-quota' | 'after-the-end' | 'no-slot';
 
 export type RelayLogger = { info(obj: Record<string, unknown>, msg?: string): void; warn(obj: Record<string, unknown>, msg?: string): void };
 
@@ -577,38 +616,46 @@ export async function queueThroughRelay(
     const relay = s.setup.relay;
     if (relay === null) return refuse('no-relay', 'an email was not queued: this trial has no mail relay');
     if (ask.marketing) return refuse('marketing', 'an email was not queued: marketing mail is off on a trial');
+    const addresses = recipientsOf(ask.to);
+    if (addresses === null || addresses.length > TRIAL_RECIPIENTS_PER_MESSAGE) {
+      return refuse('recipients', `an email was not queued: on a trial a message goes to at most ${String(TRIAL_RECIPIENTS_PER_MESSAGE)} plain addresses`);
+    }
     await loaded(meta, s);
     const now = s.now();
     prune(s, now);
-    const system = s.setup.isSystem(ask.templateKey);
-    const rcpt = rcptOf(ask.to);
+    const system = ask.account;
+    const rcpts = addresses.map(rcptOf);
     const from = Math.max(now, ask.runAt ?? now);
     let at: number;
+    let held: { cap: EmailCap; window: number } | null = null;
     if (system) {
       const caps = s.setup.caps;
-      if (inWindow(s, true, dayOf(from), DAY_MS).length >= caps.systemPerDay || inWindow(s, true, hourOf(from), HOUR_MS).length >= caps.systemPerHour) {
+      if (weight(inWindow(s, true, dayOf(from), DAY_MS)) + rcpts.length > caps.systemPerDay || weight(inWindow(s, true, hourOf(from), HOUR_MS)) + rcpts.length > caps.systemPerHour) {
         tell(s, 'system', dayOf(from), now);
         return refuse('system-quota', 'an account email was not queued: this trial has sent its share of account email for now');
       }
       at = from;
     } else {
-      const slot = slotFor(s, rcpt, from, await bouncesHold(meta, s, now));
+      const slot = slotFor(s, rcpts, from, await bouncesHold(meta, s, now));
       if (slot === null) return refuse('no-slot', 'an email was not queued: the trial’s email limits leave no room for it');
       if (s.setup.endsAt !== null && slot.at >= s.setup.endsAt) {
         return refuse('after-the-end', 'an email was not queued: the email limits hold it past the trial’s end, when user mail stops');
       }
-      if (slot.cap !== null) tell(s, slot.cap, slot.cap === 'hour' ? hourOf(from) : dayOf(from), now);
+      if (slot.cap !== null) held = { cap: slot.cap, window: slot.cap === 'hour' ? hourOf(from) : dayOf(from) };
       at = slot.at;
     }
     const body = system ? { html: ask.html, text: ask.text } : withFooter({ html: ask.html, text: ask.text }, await footerOf(relay, ask.locale));
     const job = await enqueue({
+      to: addresses.join(', '),
       from: await fromHeader(meta, relay),
       replyTo: system ? undefined : ((await staffAddress(meta, ask.replyTo)) ?? undefined),
       html: body.html,
       text: body.text,
       runAt: at,
     });
-    if (job !== null && !s.entries.has(job.id)) s.entries.set(job.id, { system, rcpt, at: Math.max(at, job.runAt), sent: false });
+    if (job !== null && !s.entries.has(job.id)) s.entries.set(job.id, { system, rcpts, at: Math.max(at, job.runAt), sent: false });
+    // Told once the held mail is in the outbox, so the count of what waits includes it.
+    if (held !== null) tell(s, held.cap, held.window, now);
     if (job !== null && at > now && !system) logger?.info({ templateKey: ask.templateKey, runAt: at }, 'an email is waiting in the outbox: the trial’s email limits hold it until then');
     return job;
   };
@@ -638,8 +685,8 @@ export async function relayCounts(meta: MetaDb, at: number): Promise<{ today: nu
   await loaded(meta, s);
   const sent = [...s.entries.values()].filter((entry) => !entry.system && entry.sent && entry.at <= at);
   return {
-    today: sent.filter((entry) => entry.at >= dayOf(at)).length,
-    thisHour: sent.filter((entry) => entry.at >= hourOf(at)).length,
+    today: weight(sent.filter((entry) => entry.at >= dayOf(at))),
+    thisHour: weight(sent.filter((entry) => entry.at >= hourOf(at))),
   };
 }
 
@@ -672,18 +719,18 @@ export async function trialMailPanel(meta: MetaDb): Promise<TrialMailPanel | nul
   prune(s, now);
   const today = inWindow(s, false, dayOf(now), DAY_MS);
   const thisHour = today.filter((entry) => entry.at >= hourOf(now) && entry.at < hourOf(now) + HOUR_MS);
-  const people = new Set(today.map((entry) => entry.rcpt)).size;
+  const people = new Set(today.flatMap((entry) => entry.rcpts)).size;
   const { caps } = s.setup;
   const held = await bouncesHold(meta, s, now);
-  const limit: EmailCap | null = held ? 'bounces' : today.length >= caps.perDay ? 'day' : thisHour.length >= caps.perHour ? 'hour' : people >= caps.recipientsPerDay ? 'recipients' : null;
+  const limit: EmailCap | null = held ? 'bounces' : weight(today) >= caps.perDay ? 'day' : weight(thisHour) >= caps.perHour ? 'hour' : people >= caps.recipientsPerDay ? 'recipients' : null;
   const waiting = [...s.entries.values()].filter((entry) => !entry.system && !entry.sent && entry.at > now);
   const relay = s.setup.relay;
   return {
     from: relay === null ? null : await fromHeader(meta, relay),
     replyTo: await ownerAddress(meta),
     caps: { perDay: caps.perDay, perHour: caps.perHour, recipientsPerDay: caps.recipientsPerDay },
-    today: today.length,
-    thisHour: thisHour.length,
+    today: weight(today),
+    thisHour: weight(thisHour),
     people,
     waiting: waiting.length,
     limit,

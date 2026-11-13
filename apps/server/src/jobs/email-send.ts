@@ -38,8 +38,8 @@ import { createMarketingMail, marketingSkipSentence, saidNoSentence, STOPPED_FOR
 import { isShippedMark, loadMarkBytes } from '../email/marks.js';
 import { campaignMessageId, campaignSendOfReport } from '../email/message-id.js';
 import type { PermanentRefusal } from '../email/refused.js';
-import { EMAIL_SEND_JOB_KIND, PLAIN_RECIPIENT, REPLY_TO, SYSTEM_MAIL_TEMPLATE_KEYS, emailEnvelopeKey, type EmailSendReport } from '../email/send.js';
-import { relayDeliveryFrom, relaySent, trialMailOn, userMailStopped } from '../email/trial-relay.js';
+import { EMAIL_SEND_JOB_KIND, PLAIN_RECIPIENT, REPLY_TO, emailEnvelopeKey, type EmailSendReport } from '../email/send.js';
+import { recipientsOf, relayDeliveryFrom, relaySent, trialMailOn, TRIAL_RECIPIENTS_PER_MESSAGE, userMailStopped } from '../email/trial-relay.js';
 import type {
   EmailSendAttachmentRef,
   EmailSendInlineRef,
@@ -118,6 +118,8 @@ const envelopeSchema = z.object({
     .optional(),
   /** Marketing or service mail to a contact (`v: 4` for marketing); absent for mail to staff and server notices. */
   mailClass: z.enum(['marketing', 'service']).optional(),
+  /** Sent by one of the server's account flows: system mail on a trial. An older server drops it. */
+  account: z.literal(true).optional(),
   /** A marketing mail's `List-Unsubscribe` and `List-Unsubscribe-Post`. */
   headers: z
     .record(z.string().regex(/^List-Unsubscribe(-Post)?$/), z.string().max(2000).regex(/^[^\r\n]*$/))
@@ -334,11 +336,16 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
     const envelope = envelopeSchema.parse(
       JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(deps.secret))),
     );
-    // On a trial: user mail held past the end does not go, nor marketing mail; From is the relay's (`email/trial-relay.ts`).
+    // On a trial: user mail held past the end does not go, nor marketing mail, nor a list the relay would not have queued;
+    // From is the relay's (`email/trial-relay.ts`). Only an account flow's mail is system mail, whatever the template key.
     const trial = trialMailOn();
-    if (trial && !SYSTEM_MAIL_TEMPLATE_KEYS.has(payload.templateKey) && (userMailStopped() || envelope.mailClass === 'marketing')) {
+    if (trial && envelope.account !== true && (userMailStopped() || envelope.mailClass === 'marketing')) {
       ctx.progress(100, { step: 'skipped' });
       return { templateKey: payload.templateKey, locale: payload.locale, skipped: envelope.mailClass === 'marketing' ? 'marketing-off' : 'trial-ended' };
+    }
+    if (trial && ((recipientsOf(envelope.to)?.length ?? Infinity) > TRIAL_RECIPIENTS_PER_MESSAGE)) {
+      ctx.progress(100, { step: 'skipped' });
+      return { templateKey: payload.templateKey, locale: payload.locale, skipped: 'not-an-address' };
     }
     if (trial) {
       const from = await relayDeliveryFrom(deps.meta, envelope.from);

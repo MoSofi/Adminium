@@ -121,6 +121,7 @@ export function createIdentityEmailWatch(deps: IdentityEmailWatchDeps): Identity
       {
         to: old.trim(),
         templateKey: EMAIL_CHANGED_TEMPLATE_KEY,
+        account: true,
         locale,
         always: true,
         vars: {
