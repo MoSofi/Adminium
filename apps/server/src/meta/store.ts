@@ -36,6 +36,7 @@ import {
 import { bootstrapPath, readBootstrap } from '../config/bootstrap.js';
 import { checkHost, type HostLookup } from '../net/address-guard.js';
 import { decryptSecret, deriveKey, encryptSecret } from '../config/secrets.js';
+import { metaDialLookup, mysqlMetaStream, pgMetaStream, type CheckedMetaHosts } from './dial.js';
 
 /**
  * HKDF purpose scope for the bootstrap `metaUrl` token. Distinct from
@@ -388,18 +389,27 @@ function surviveDroppedConnections(pool: PgEmitter): void {
 export interface ConnectMetaStoreOptions {
   /** Postgres/MySQL pool size; the single-process topology stays small. */
   poolSize?: number | undefined;
+  /** The hosts {@link guardBootMetaUrl} checked: the first connections dial these addresses. */
+  checked?: CheckedMetaHosts | undefined;
+  /** Test seam: the host lookup each connection's re-check makes. Default: the one the drivers make. */
+  lookup?: HostLookup | undefined;
 }
 
 /**
  * Open the meta store named by `resolved` and run {@link initMetaDb} (the SQLite
  * FK pragma). Does NOT migrate — `adminium migrate` and the boot sequence decide
  * when the ledger runs.
+ *
+ * A Postgres or MySQL store is dialled at checked addresses only
+ * (`meta/dial.ts`): the drivers never look its host up themselves, so a name
+ * that answers differently after the check cannot move a connection.
  */
 export async function connectMetaStore(
   resolved: ResolvedMetaUrl,
   opts: ConnectMetaStoreOptions = {},
 ): Promise<MetaStoreHandle> {
   const poolSize = opts.poolSize ?? 10;
+  const dialLookup = (): ReturnType<typeof metaDialLookup> => metaDialLookup(opts.checked ?? new Map(), opts.lookup);
   let meta: MetaDb;
 
   switch (resolved.engine) {
@@ -410,6 +420,7 @@ export async function connectMetaStore(
         connectionString: resolved.url,
         max: poolSize,
         types: postgresInt8AsNumber(mod),
+        stream: pgMetaStream(dialLookup()),
       });
       surviveDroppedConnections(pool);
       meta = createPostgresMetaDb({ pool });
@@ -418,7 +429,7 @@ export async function connectMetaStore(
     case 'mysql': {
       const mod = await importDriver('mysql2', 'mysql');
       const createPool = driverExport<(config: unknown) => never>(mod, 'createPool', 'mysql', 'mysql2');
-      meta = createMysqlMetaDb({ pool: createPool({ uri: resolved.url, connectionLimit: poolSize }) });
+      meta = createMysqlMetaDb({ pool: createPool({ uri: resolved.url, connectionLimit: poolSize, stream: mysqlMetaStream(dialLookup()) }) });
       break;
     }
     case 'sqlite': {
@@ -505,9 +516,14 @@ export interface BootMetaGuardOptions {
  * Adminium is the ordinary setup), and a name that does not resolve is left to
  * the driver to report, so a database container that starts a moment later is
  * not a refused boot. The embedded store and SQLite files have no host.
+ *
+ * Returns the addresses that passed, by host. {@link connectMetaStore} dials
+ * those and nothing else, so the name is not looked up again between the
+ * check and the connection.
  */
-export async function guardBootMetaUrl(resolved: ResolvedMetaUrl, opts: BootMetaGuardOptions = {}): Promise<void> {
-  if (resolved.engine === 'sqlite') return;
+export async function guardBootMetaUrl(resolved: ResolvedMetaUrl, opts: BootMetaGuardOptions = {}): Promise<CheckedMetaHosts> {
+  const checked = new Map<string, readonly string[]>();
+  if (resolved.engine === 'sqlite') return checked;
   for (const host of metaHostsOf(resolved.url)) {
     const check = await checkHost(host, { failClosed: false, lookup: opts.lookup });
     if (!check.ok) {
@@ -516,7 +532,9 @@ export async function guardBootMetaUrl(resolved: ResolvedMetaUrl, opts: BootMeta
         `${metaUrlOrigin(resolved)} names the host ${check.host}${at}, a cloud metadata address. Adminium does not connect there: point the meta store at your database's own address.`,
       );
     }
+    checked.set(check.host, check.addresses);
   }
+  return checked;
 }
 
 export interface OpenMetaStoreOptions extends ResolveMetaUrlOptions, ConnectMetaStoreOptions, BootMetaGuardOptions {
@@ -528,10 +546,10 @@ export interface OpenMetaStoreOptions extends ResolveMetaUrlOptions, ConnectMeta
   guard?: ((resolved: ResolvedMetaUrl) => Promise<void>) | undefined;
 }
 
-/** Resolve + check + connect in one step — what every front door actually calls. */
+/** Resolve + check + connect to the checked address, in one step — what every front door actually calls. */
 export async function openMetaStore(opts: OpenMetaStoreOptions): Promise<MetaStoreHandle> {
   const resolved = await resolveMetaUrl(opts);
-  await guardBootMetaUrl(resolved, { lookup: opts.lookup });
+  const checked = await guardBootMetaUrl(resolved, { lookup: opts.lookup });
   await opts.guard?.(resolved);
-  return connectMetaStore(resolved, { poolSize: opts.poolSize });
+  return connectMetaStore(resolved, { poolSize: opts.poolSize, checked, lookup: opts.lookup });
 }

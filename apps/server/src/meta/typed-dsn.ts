@@ -33,6 +33,9 @@
  *
  * The URL the server boots on (`ADMINIUM_META_URL`, or the bootstrap file a
  * relocation or adoption wrote) is checked at boot by {@link guardBootMetaUrl}.
+ * Every meta store connection, a typed one's included, dials checked
+ * addresses only (`meta/dial.ts`), so a name that answers differently after
+ * its check cannot move the connection.
  */
 import { lstat, realpath } from 'node:fs/promises';
 import { basename, dirname, join, resolve, sep } from 'node:path';

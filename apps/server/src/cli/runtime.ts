@@ -223,8 +223,9 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     dataDir: env.ADMINIUM_DATA_DIR,
     secret: env.ADMINIUM_SECRET,
     poolSize: env.ADMINIUM_META_POOL_MAX,
-    // Every install refuses a meta store on a cloud metadata address (`guardBootMetaUrl`). Trial mode and the
-    // hosted profile, where the meta store is fixed by the operator, hold it to the typed meta DSN's whole guard.
+    // Every install refuses a meta store on a cloud metadata address (`guardBootMetaUrl`), and its driver dials the
+    // addresses that check passed. Trial mode and the hosted profile, where the meta store is fixed by the operator,
+    // hold it to the typed meta DSN's whole guard.
     ...(policy.allows('metaStoreRoutes').allowed ? {} : { guard: strictBootMetaGuard(env.ADMINIUM_DATA_DIR) }),
   });
 

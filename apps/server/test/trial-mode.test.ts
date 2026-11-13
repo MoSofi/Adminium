@@ -10,11 +10,13 @@
  */
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { createServer, type AddressInfo } from 'node:net';
 import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
 import { llmKeyCryptoFromSecret, ProviderError, type ProviderClient } from '@adminium/llm';
 import { createSqliteMetaDb, firstRun, settingsRepo, type Automation, type MetaDb } from '@adminium/meta';
+import { sql } from 'kysely';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { ActionFailure, type ActionContext } from '../src/automations/actions/types.js';
@@ -33,7 +35,7 @@ import { createAiEnv } from '../src/llm/ai-env.js';
 import { createAiConnections } from '../src/llm/connections.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
-import { guardBootMetaUrl, MetaUrlError, type MetaStoreHandle } from '../src/meta/store.js';
+import { guardBootMetaUrl, MetaUrlError, openMetaStore, type MetaStoreHandle } from '../src/meta/store.js';
 import type { HostLookup } from '../src/net/address-guard.js';
 import { linkOrigin } from '../src/security/public-origin.js';
 import { trialPolicy } from '../src/trial/policy.js';
@@ -621,10 +623,15 @@ describe('the meta store address at boot', () => {
 
   it('every install keeps a meta store on this machine, its own network, or a name that does not resolve yet', async () => {
     const lookup = answers({ postgres: ['172.18.0.2'], localhost: ['127.0.0.1'] });
-    for (const url of ['postgres://u:p@localhost:5432/adminium', 'postgres://u:p@postgres:5432/adminium', 'postgres://u:p@not-up-yet:5432/adminium']) {
-      await expect(guardBootMetaUrl(resolved(url), { lookup }), url).resolves.toBeUndefined();
+    // Each passes with the addresses it was checked at, the ones the drivers then dial; a name not up yet has none.
+    for (const [url, host, addresses] of [
+      ['postgres://u:p@localhost:5432/adminium', 'localhost', ['127.0.0.1']],
+      ['postgres://u:p@postgres:5432/adminium', 'postgres', ['172.18.0.2']],
+      ['postgres://u:p@not-up-yet:5432/adminium', 'not-up-yet', []],
+    ] as const) {
+      await expect(guardBootMetaUrl(resolved(url), { lookup }), url).resolves.toEqual(new Map([[host, addresses]]));
     }
-    await expect(guardBootMetaUrl({ url: 'sqlite:/elsewhere/meta.db', engine: 'sqlite', source: 'env' })).resolves.toBeUndefined();
+    await expect(guardBootMetaUrl({ url: 'sqlite:/elsewhere/meta.db', engine: 'sqlite', source: 'env' })).resolves.toEqual(new Map());
   });
 
   it('trial mode holds it to the typed meta DSN guard before it dials; an ordinary server goes on to dial', async () => {
@@ -635,6 +642,105 @@ describe('the meta store address at boot', () => {
     // Without the profile the parameter is the operator's business: the boot reaches the database (nothing listens on port 1).
     const open = makeEnv({ ADMINIUM_META_URL: url, ADMINIUM_DATA_DIR: '/tmp/p75-t11-boot' });
     await expect(openRuntime(open)).rejects.not.toThrow(/is refused/);
+  });
+
+  /** A listener that takes each connection, notes it, and hangs up: the driver's query fails, the dial is proved. */
+  async function listen(at: { port: 0 } | { path: string }): Promise<{ dials: () => number; port: number; close: () => Promise<void> }> {
+    let dials = 0;
+    const server = createServer((socket) => {
+      dials += 1;
+      socket.destroy();
+    });
+    await new Promise<void>((done) => ('path' in at ? server.listen(at.path, done) : server.listen(0, '127.0.0.1', done)));
+    const port = 'path' in at ? 0 : (server.address() as AddressInfo).port;
+    return {
+      dials: () => dials,
+      port,
+      close: () => new Promise<void>((done) => server.close(() => done())),
+    };
+  }
+
+  it('the drivers dial the address the boot checked, not a later answer for the same name', async () => {
+    for (const engine of ['postgres', 'mysql'] as const) {
+      const listener = await listen({ port: 0 });
+      const asked: string[] = [];
+      // The first answer is the one checked. A second, were anything to ask, would be cloud metadata.
+      const lookup: HostLookup = async (host) => {
+        asked.push(host);
+        return asked.length === 1 ? ['127.0.0.1'] : ['169.254.169.254'];
+      };
+      const handle = await openMetaStore({
+        metaUrl: `${engine}://u:p@meta-rebind.example:${listener.port}/adminium`,
+        dataDir: '/nonexistent/meta-rebind',
+        secret: TEST_SECRET,
+        poolSize: 1,
+        lookup,
+      });
+      try {
+        // Two queries, two connections: both reach the checked address, and the driver never looks the name up itself.
+        await expect(sql`select 1`.execute(handle.meta.db), engine).rejects.toThrow();
+        await expect(sql`select 1`.execute(handle.meta.db), engine).rejects.toThrow();
+      } finally {
+        await handle.close();
+        await listener.close();
+      }
+      expect(listener.dials(), engine).toBe(2);
+      expect(asked, engine).toEqual(['meta-rebind.example']);
+    }
+  });
+
+  it('a Postgres store dialled at its checked address still names the host for TLS', async () => {
+    // Answer the SSL request with yes, then keep the first bytes of the TLS hello: the server name rides in it.
+    let hello: Buffer = Buffer.alloc(0);
+    const server = createServer((socket) => {
+      socket.once('data', () => {
+        socket.write('S');
+        socket.once('data', (chunk: Buffer) => {
+          hello = chunk;
+          socket.destroy();
+        });
+      });
+    });
+    await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+    const port = (server.address() as AddressInfo).port;
+    const handle = await openMetaStore({
+      metaUrl: `postgres://u:p@meta-tls.example:${port}/adminium?sslmode=require`,
+      dataDir: '/nonexistent/meta-tls',
+      secret: TEST_SECRET,
+      poolSize: 1,
+      lookup: async () => ['127.0.0.1'],
+    });
+    try {
+      await expect(sql`select 1`.execute(handle.meta.db)).rejects.toThrow();
+    } finally {
+      await handle.close();
+      await new Promise<void>((done) => server.close(() => done()));
+    }
+    expect(hello.includes(Buffer.from('meta-tls.example'))).toBe(true);
+  });
+
+  it('a meta store on a socket path still reaches its socket', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'meta-sock-'));
+    try {
+      // Postgres names the folder and dials `.s.PGSQL.<port>` in it; MySQL names the file.
+      for (const [url, path] of [
+        [`postgres://u:p@/adminium?host=${encodeURIComponent(dir)}`, join(dir, '.s.PGSQL.5432')],
+        [`mysql://u:p@localhost/adminium?socketPath=${encodeURIComponent(join(dir, 'mysql.sock'))}`, join(dir, 'mysql.sock')],
+      ] as const) {
+        const listener = await listen({ path });
+        const lookup: HostLookup = async () => Promise.reject(new Error('ENOTFOUND'));
+        const handle = await openMetaStore({ metaUrl: url, dataDir: dir, secret: TEST_SECRET, poolSize: 1, lookup });
+        try {
+          await expect(sql`select 1`.execute(handle.meta.db), url).rejects.toThrow();
+        } finally {
+          await handle.close();
+          await listener.close();
+        }
+        expect(listener.dials(), url).toBe(1);
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 

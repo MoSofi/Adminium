@@ -19,6 +19,10 @@
  *   - GET /bootstrap → epoch timestamps survive the engine's int8 decoding as
  *     JS numbers, which is the whole reply schema's premise
  *
+ *   - the store opened the way the server opens it (`openMetaStore`), under a
+ *     name only the boot's lookup knows, so every connection is proved to dial
+ *     the address the boot checked and never a lookup of the driver's own
+ *
  * Each engine leg gates on TEST_POSTGRES_URL / TEST_MYSQL_URL exactly like the
  * other live suites and skips green when the engine is absent. In CI both
  * services are present (ci.yml verify job), so both legs run.
@@ -30,14 +34,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { strFromU8, unzipSync } from 'fflate';
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createFirstSuperAdmin,
-  createMysqlMetaDb,
-  createPostgresMetaDb,
   firstRun,
   initMetaDb,
-  postgresInt8AsNumber,
   settingsRepo,
   type MetaDb,
   type User,
@@ -48,8 +50,10 @@ import { hashPassword } from '../src/auth/passwords.js';
 import { readBranding } from '../src/branding/service.js';
 import { resourcePath } from '../src/export/bundle.js';
 import { exportZip } from '../src/export/zip-service.js';
+import { openMetaStore } from '../src/meta/store.js';
+import { systemLookup, type HostLookup } from '../src/net/address-guard.js';
 import { sessionCookie } from './auth-helpers.js';
-import { makeEnv } from './helpers.js';
+import { makeEnv, TEST_SECRET } from './helpers.js';
 
 const ADMIN_EMAIL = 'boot-admin@example.com';
 const ADMIN_PASSWORD = 'correct-horse-battery-staple';
@@ -76,6 +80,46 @@ function withDatabase(base: string, database: string): string {
   return url.toString();
 }
 
+/** A name no resolver knows: only the lookup handed to the store can answer it. */
+const META_NAME = 'meta-boot.example';
+
+/** `base` with its host swapped for {@link META_NAME}. */
+function underMetaName(base: string): string {
+  const url = new URL(base);
+  url.hostname = META_NAME;
+  return url.toString();
+}
+
+/** Where the engine really listens: the addresses of the base URL's own host. */
+async function realAddresses(base: string): Promise<readonly string[]> {
+  return systemLookup(new URL(base).hostname.replace(/^\[|\]$/g, ''));
+}
+
+/**
+ * Open the store at `url` the way the server does, under {@link META_NAME}.
+ * The lookup answers the real addresses `first` times, then a cloud metadata
+ * address, so a connection opened after the answer moved is refused.
+ */
+async function openUnderMetaName(base: string, url: string, poolSize: number, first = Number.POSITIVE_INFINITY): Promise<MetaHandle & { asked: () => number }> {
+  const real = await realAddresses(base);
+  let asked = 0;
+  const lookup: HostLookup = async (host) => {
+    if (host !== META_NAME) throw new Error(`ENOTFOUND ${host}`);
+    asked += 1;
+    return asked <= first ? real : ['169.254.169.254'];
+  };
+  const dataDir = await mkdtemp(join(tmpdir(), 'adminium-boot-'));
+  const store = await openMetaStore({ metaUrl: underMetaName(url), dataDir, secret: TEST_SECRET, poolSize, lookup });
+  return {
+    meta: store.meta,
+    asked: () => asked,
+    destroy: async () => {
+      await store.close();
+      await rm(dataDir, { recursive: true, force: true });
+    },
+  };
+}
+
 const ENGINES: Engine[] = [
   {
     name: 'postgres',
@@ -87,24 +131,17 @@ const ENGINES: Engine[] = [
       await admin.connect();
       await admin.query(`CREATE DATABASE "${database}"`);
       await admin.end();
-      const meta = createPostgresMetaDb({
-        // The SAME per-pool int8 parser production uses, rather than the global
-        // `pg.types.setTypeParser(20, …)` this used to call. That global was the
-        // only thing in the codebase satisfying `createPostgresMetaDb`'s stated
-        // requirement, and setting it process-wide made the production pool's
-        // omission invisible: every timestamp came back a string in the product
-        // and a number here, for years, in the one suite built to catch exactly
-        // that class of difference.
-        pool: new pg.Pool({
-          connectionString: withDatabase(base, database),
-          max: 4,
-          types: postgresInt8AsNumber(pg as unknown as Record<string, unknown>),
-        }),
-      });
+      // The production pool itself (`openMetaStore`), with its per-pool int8
+      // parser, rather than the global `pg.types.setTypeParser(20, …)` this
+      // once called. That global made the production pool's omission
+      // invisible: every timestamp came back a string in the product and a
+      // number here, for years, in the one suite built to catch exactly that
+      // class of difference.
+      const store = await openUnderMetaName(base, withDatabase(base, database), 4);
       return {
-        meta,
+        meta: store.meta,
         destroy: async () => {
-          await meta.db.destroy();
+          await store.destroy();
           const drop = new pg.Client({ connectionString: base });
           await drop.connect();
           await drop.query(`DROP DATABASE IF EXISTS "${database}"`);
@@ -123,14 +160,11 @@ const ENGINES: Engine[] = [
       const admin = await mysqlP.createConnection({ uri: base });
       await admin.query(`CREATE DATABASE \`${database}\``);
       await admin.end();
-      const { createPool } = await import('mysql2');
-      const meta = createMysqlMetaDb({
-        pool: createPool({ uri: withDatabase(base, database), connectionLimit: 4 }),
-      });
+      const store = await openUnderMetaName(base, withDatabase(base, database), 4);
       return {
-        meta,
+        meta: store.meta,
         destroy: async () => {
-          await meta.db.destroy();
+          await store.destroy();
           const drop = await mysqlP.createConnection({ uri: base });
           await drop.query(`DROP DATABASE IF EXISTS \`${database}\``);
           await drop.end();
@@ -173,6 +207,18 @@ for (const engine of ENGINES) {
       expect(res.statusCode, res.body).toBe(200);
       return sessionCookie(res.headers['set-cookie']);
     }
+
+    it('dials the address the boot checked, while the name already answers a refused one', async () => {
+      const store = await openUnderMetaName(engine.url as string, engine.url as string, 1, 1);
+      try {
+        const rows = await sql<{ one: number }>`select 1 as one`.execute(store.meta.db);
+        expect(Number(rows.rows[0]?.one)).toBe(1);
+        // The boot's lookup was the only one: the driver dialled what it checked, not what the name answers now.
+        expect(store.asked()).toBe(1);
+      } finally {
+        await store.destroy();
+      }
+    });
 
     it('rejects an unauthenticated /me against this store', async () => {
       const res = await app.inject({ method: 'GET', url: '/api/v1/me' });
