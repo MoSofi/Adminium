@@ -43,7 +43,7 @@
   ],
   "scripts": {
     "dev": "node scripts/copy-fonts.mjs && tsc -p tsconfig.json --watch --preserveWatchOutput",
-    "build": "node scripts/copy-fonts.mjs && tsc -p tsconfig.json",
+    "build": "node scripts/copy-fonts.mjs && tsc -p tsconfig.json && node ../../scripts/stamp-dist-spdx.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
     "contrast": "node scripts/contrast-check.mjs --strict",

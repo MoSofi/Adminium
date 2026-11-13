@@ -57,7 +57,7 @@
   },
   "scripts": {
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/stamp-dist-spdx.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
     "test": "vitest run --coverage"

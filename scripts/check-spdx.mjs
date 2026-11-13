@@ -72,6 +72,11 @@
  * what this product DOES. Membership is decided by the extension and nothing
  * else.
  *
+ * A passing source is not yet a passing build: tsc drops a header that sits
+ * right above a statement it erases (an `import type`, a type). Each shipped
+ * package's build writes the line back (`scripts/stamp-dist-spdx.mjs`), and
+ * `scripts/check-dist-spdx.mjs` checks the built files themselves.
+ *
  * Usage:
  *   node scripts/check-spdx.mjs                      check every tracked source
  *   node scripts/check-spdx.mjs --fix                insert the missing headers
