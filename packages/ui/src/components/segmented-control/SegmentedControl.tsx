@@ -19,6 +19,12 @@ export interface SegmentedControlOption {
   /** Leading status dot in the given tone. */
   dot?: Tone | undefined;
   disabled?: boolean | undefined;
+  /**
+   * Shown and in reach (in the arrow-key cycle, focusable, `aria-disabled`)
+   * but never selected: a choice that is off for a reason the screen says
+   * beside it. A native `disabled` would take it out of a keyboard's reach.
+   */
+  unavailable?: boolean | undefined;
 }
 
 const dotToneClasses: Record<Tone, string> = {
@@ -70,15 +76,17 @@ export function SegmentedControl({
 }: SegmentedControlProps) {
   const direction = useDirection();
   const trayRef = useRef<HTMLDivElement | null>(null);
-  const firstEnabled = options.find((option) => !option.disabled)?.value;
+  const firstEnabled = options.find((option) => !option.disabled && !option.unavailable)?.value;
   const [internal, setInternal] = useState<string | undefined>(defaultValue ?? firstEnabled);
   const current = value !== undefined ? value : internal;
 
   const anySelected = options.some((option) => option.value === current);
 
   const select = (nextValue: string, focus = false) => {
-    if (value === undefined) setInternal(nextValue);
-    onValueChange?.(nextValue);
+    if (options.find((option) => option.value === nextValue)?.unavailable !== true) {
+      if (value === undefined) setInternal(nextValue);
+      onValueChange?.(nextValue);
+    }
     if (focus) {
       trayRef.current
         ?.querySelector<HTMLButtonElement>(`[data-value="${CSS.escape(nextValue)}"]`)
@@ -99,7 +107,9 @@ export function SegmentedControl({
     } else {
       const delta = forwardKeys.includes(event.key) ? 1 : backwardKeys.includes(event.key) ? -1 : 0;
       if (delta === 0) return;
-      const fromIndex = enabled.findIndex((option) => option.value === current);
+      // From the segment in focus: an unavailable one takes focus without being selected.
+      const focused = trayRef.current?.querySelector<HTMLElement>('[data-value]:focus')?.dataset['value'] ?? current;
+      const fromIndex = enabled.findIndex((option) => option.value === focused);
       // Nothing chosen yet: forward lands on the first segment, backward on the last.
       next =
         fromIndex === -1
@@ -130,6 +140,7 @@ export function SegmentedControl({
             type="button"
             role="radio"
             aria-checked={selected}
+            {...(option.unavailable === true ? { 'aria-disabled': true } : {})}
             {...(option.ariaLabel === undefined ? {} : { 'aria-label': option.ariaLabel })}
             tabIndex={tabbable ? 0 : -1}
             data-value={option.value}
@@ -140,7 +151,7 @@ export function SegmentedControl({
               'group inline-flex h-7 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] px-3 ',
               'text-[12.5px] font-semibold text-fg-muted transition-colors duration-150 hover:text-fg ',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ',
-              'disabled:pointer-events-none disabled:opacity-40 ',
+              'disabled:pointer-events-none disabled:opacity-40 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 ',
               'data-[selected]:bg-surface data-[selected]:text-fg data-[selected]:shadow-card ',
               '[&_svg]:size-3.5 [&_svg]:shrink-0',
               option.label === undefined || option.label === null ? 'px-2' : '',

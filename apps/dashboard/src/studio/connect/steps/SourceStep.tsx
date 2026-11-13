@@ -202,7 +202,8 @@ export function SourceStep({ state, onPatch, onFileTablesCapture, onProviderConn
               if (engine === 'sqlite' && sqlite.off) return;
               onPatch(enginePickPatch(state, engine as ConnectionEngine));
             }}
-            options={SOURCE_ENGINES.map((engine) => ({ value: engine, label: engineLabel(engine), disabled: engine === 'sqlite' && sqlite.off }))}
+            // Off by the operator: in reach and described (`aria-disabled`), never native `disabled`, which a keyboard skips.
+            options={SOURCE_ENGINES.map((engine) => ({ value: engine, label: engineLabel(engine), unavailable: engine === 'sqlite' && sqlite.off }))}
           />
         </FormField>
       ) : null}
