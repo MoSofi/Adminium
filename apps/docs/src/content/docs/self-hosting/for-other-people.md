@@ -425,7 +425,8 @@ ADMINIUM_SOURCE_URL=postgres://trial_7f3a9c:…@pg-trials:5432/trial_7f3a9c
   project's (`*.supabase.com`, `*.supabase.co`), a connection must use the user
   and the database of `ADMINIUM_SOURCE_URL`. Any other, however they learnt it,
   is refused before a packet leaves. Without `ADMINIUM_SOURCE_URL`, no login on
-  your hosts is allowed. Their own Supabase project takes their own login.
+  your hosts is allowed, and an `ADMINIUM_SOURCE_URL` that names no user or no
+  database stops the boot. Their own Supabase project takes their own login.
 - **No SQLite**, no database on the container's own loopback, nothing on your
   private network that is not listed. A MySQL source passes only through an
   entry on MySQL's port.

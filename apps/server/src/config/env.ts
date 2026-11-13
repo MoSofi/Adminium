@@ -6,7 +6,7 @@ import { isAbsolute, resolve } from 'node:path';
 import { z } from 'zod';
 
 import { parseConnectUrl } from '../connect/providers.js';
-import { parseDatabaseHost, type DatabaseHost } from '../connections/dsn.js';
+import { parseDatabaseHost, parseDsn, type DatabaseHost } from '../connections/dsn.js';
 import { addressKind } from '../net/address-guard.js';
 import { NETWORK_POLICIES } from '../net/outbound-check.js';
 import { invalidTrustedProxies } from '../security/trust-proxy.js';
@@ -1426,6 +1426,11 @@ export const envSchema = z.object({
       const which = env.ADMINIUM_TRIAL_MODE ? 'trial mode' : 'hosted mode';
       need(env.ADMINIUM_PUBLIC_ORIGIN === undefined, 'ADMINIUM_PUBLIC_ORIGIN', `is required in ${which}: the operator's address for this instance, e.g. https://shop.example.com`);
       need((env.ADMINIUM_DATABASE_HOSTS ?? []).length === 0, 'ADMINIUM_DATABASE_HOSTS', `is required in ${which}: the only database hosts connections may reach, e.g. pg-trials:5432`);
+      need(
+        namesNoLogin(env.ADMINIUM_SOURCE_URL),
+        'ADMINIUM_SOURCE_URL',
+        `must name a user and a database in ${which}: on the operator's database host this installation may use only the login this URL names, e.g. postgres://trial_7f3a:password@pg-trials:5432/trial_7f3a`,
+      );
     }
     need(
       // The token signs instance events too: with an events address it has a use without the listener.
@@ -1486,6 +1491,22 @@ export const envSchema = z.object({
       });
     }
   });
+
+/**
+ * A source URL with no user or no database. A trial or hosted installation
+ * dials only the login `ADMINIUM_SOURCE_URL` names on an operator host, so
+ * without one it would refuse even its own seed. A URL that does not parse is
+ * left to the code that dials it; a SQLite path is refused there too.
+ */
+function namesNoLogin(url: string | undefined): boolean {
+  if (url === undefined) return false;
+  try {
+    const parsed = parseDsn(url);
+    return parsed.scheme !== 'sqlite' && (parsed.user === null || parsed.database === null);
+  } catch {
+    return false;
+  }
+}
 
 export type Env = z.infer<typeof envSchema>;
 

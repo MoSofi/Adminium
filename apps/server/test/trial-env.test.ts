@@ -293,6 +293,20 @@ describe('a trial or hosted boot refuses what contradicts it', () => {
     }
   });
 
+  it('a source URL must name a user and a database in either profile: the operator host takes only the login it names', () => {
+    for (const url of ['postgres://pg-trials:5432/trial_hollis', 'postgres://trial_hollis:secret@pg-trials:5432', 'mysql://pg-trials:5432/trial_hollis']) {
+      const table = refused({ ...TRIAL, ADMINIUM_SOURCE_URL: url }, 'ADMINIUM_SOURCE_URL');
+      expect(table).toContain('must name a user and a database');
+      // Never the password it was given.
+      expect(table).not.toContain('secret');
+      refused({ ...HOSTED, ADMINIUM_SOURCE_URL: url }, 'ADMINIUM_SOURCE_URL');
+      expect(cliBoot({ ...TRIAL, ADMINIUM_SOURCE_URL: url })).toMatchObject({ ok: false, message: expect.stringContaining('ADMINIUM_SOURCE_URL') });
+      // An ordinary server dials it as it is.
+      booted({ ADMINIUM_SECRET: TEST_SECRET, ADMINIUM_SOURCE_URL: url });
+    }
+    booted({ ...TRIAL, ADMINIUM_SOURCE_URL: 'postgres://trial_hollis:secret@pg-trials:5432/trial_hollis' });
+  });
+
   it('a hosted boot needs the host list and the public origin, not an end date or a setup token', () => {
     booted(HOSTED);
     for (const name of ['ADMINIUM_PUBLIC_ORIGIN', 'ADMINIUM_DATABASE_HOSTS']) {
