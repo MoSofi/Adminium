@@ -23,10 +23,14 @@
  * order rows were written in nor a sample can hide any, a delete counts at
  * once, and a vacuum cannot bring back what was deleted. Indexes count an
  * entry per live row where that can be worked out, else their size in the
- * share of rows still live. Nothing counts more than the table's files. A
- * table that did not change since its last reading is not read again, and one
- * that cannot be read in time counts its files. Tables named `adminium_*` are
- * left out only where the meta store shares the database.
+ * share of rows still live. A dropped column's values stay in the rows
+ * written before the drop until the table is rewritten, so a table that
+ * dropped one counts them too: on Postgres each row's whole stored size, on
+ * MySQL its files in the share of its rows still there. Nothing counts more
+ * than the table's files. A table that did not change since its last
+ * reading is not read again, and one that cannot be read in time counts its
+ * files. Tables named `adminium_*` are left out only where the meta store
+ * shares the database.
  *
  * Over `ADMINIUM_TRIAL_DATA_MAX_MB`, the connection is HELD BY THE SIZE CAP:
  * nothing that adds to the database runs (INSERT, UPDATE, DDL that adds),
@@ -218,8 +222,12 @@ export interface MeasureOptions {
   budgetMs?: number | undefined;
 }
 
-/** Per table: what it was measured to, and the figures that say whether it changed since. */
-export type TableMemo = Map<string, { key: string; bytes: number }>;
+/**
+ * Per table: what it was measured to, and the figures that say whether it
+ * changed since. `rows`: on MySQL, the most rows the table held while it kept
+ * a dropped column's values, against which a delete lets its pages go.
+ */
+export type TableMemo = Map<string, { key: string; bytes: number; rows?: number }>;
 
 /** Below this on disk, a table counts its size as it stands: reading its rows would cost more than the difference. */
 const SMALL_TABLE_BYTES = 128 * 1024;
@@ -229,6 +237,8 @@ const MEASURE_BUDGET_MS = 30_000;
 const LOCK_WAIT_MS = 2_000;
 /** Postgres: each row's header and its slot in the page. */
 const PG_ROW_BYTES = 28;
+/** Postgres: a row's slot in the page alone (a whole row's stored size carries its header). */
+const PG_ROW_SLOT_BYTES = 4;
 /** Postgres: each b-tree entry's header and slot, and the largest entry a b-tree takes. */
 const PG_INDEX_ENTRY_BYTES = 16;
 const PG_INDEX_ENTRY_MAX = 2_720;
@@ -269,6 +279,8 @@ interface PgTable {
   updated: number | string | null;
   deleted: number | string | null;
   toast_chunks: number | string | null;
+  /** Whether a column of the table was ever dropped (absent from a test's stand-in). */
+  dropped?: boolean | null;
   columns: unknown;
   index_list: unknown;
 }
@@ -281,7 +293,10 @@ interface PgTable {
  * it, without being fetched), so neither the order rows were written in nor a
  * sample can hide any of them, and a delete counts at once. A table's
  * b-tree indexes count an entry per live row, from the same values; any other
- * index counts its size scaled by the share of rows still live. Nothing
+ * index counts its size scaled by the share of rows still live. In a
+ * table that dropped a column, each row counts its whole stored size, which
+ * keeps the dropped values written before the drop, until a rewrite (`VACUUM
+ * FULL`, `CLUSTER`, a column type change) leaves them behind. Nothing
  * counts more than the table's files hold. A table that did not change since
  * the last reading (`memo`) is not read again; a small one counts its files.
  * Large objects the login owns count their length.
@@ -308,6 +323,8 @@ export async function measurePostgres(db: AnyDb, options: MeasureOptions = {}): 
              s.n_tup_upd::pg_catalog.float8 as updated,
              s.n_tup_del::pg_catalog.float8 as deleted,
              (select ts.n_live_tup from pg_catalog.pg_stat_all_tables ts where ts.relid = c.reltoastrelid)::pg_catalog.float8 as toast_chunks,
+             exists (select 1 from pg_catalog.pg_attribute a
+                      where a.attrelid = c.oid and a.attnum > 0 and a.attisdropped) as dropped,
              (select pg_catalog.json_agg(a.attname order by a.attnum)
                 from pg_catalog.pg_attribute a
                where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped) as columns,
@@ -361,7 +378,9 @@ async function readPgTable(db: Kysely<never>, table: PgTable, timeoutMs: number)
   const columns = parsedJson<string[] | null>(table.columns, null) ?? [];
   const indexes = parsedJson<{ bytes: number; btree: boolean; keys: string[] | null }[] | null>(table.index_list, null) ?? [];
   const size = (column: string): string => `coalesce(pg_catalog.pg_column_size(t.${quotePg(column)}), 0)`;
-  const row = [String(PG_ROW_BYTES), ...columns.map(size)].join(' + ');
+  const values = [String(PG_ROW_BYTES), ...columns.map(size)].join(' + ');
+  // A dropped column's values stay in each row written before the drop, out of reach by name; the whole row's stored size still holds them.
+  const row = table.dropped === true ? `greatest(${values}, ${String(PG_ROW_SLOT_BYTES)} + pg_catalog.pg_column_size(t.*))` : values;
   const btrees = indexes.filter((index) => index.btree && index.keys !== null && index.keys.length > 0);
   const entries = btrees.map(
     (index, at) => `coalesce(sum(least(${[String(PG_INDEX_ENTRY_BYTES), ...(index.keys ?? []).map(size)].join(' + ')}, ${String(PG_INDEX_ENTRY_MAX)})), 0)::pg_catalog.float8 as i${String(at)}`,
@@ -378,7 +397,7 @@ async function readPgTable(db: Kysely<never>, table: PgTable, timeoutMs: number)
       const read = rows[0] ?? {};
       const live = Number(read['n'] ?? 0);
       const dead = Number(table.dead ?? 0);
-      // A value of a dropped column is out of reach of the rows, not of the disk: TOAST's own count of its chunks says what it holds.
+      // Values kept out of the page: TOAST's own count of its chunks says what it holds, whatever the rows say.
       let total = Math.max(Number(read['data'] ?? 0), Number(table.toast_chunks ?? 0) * PG_TOAST_CHUNK_BYTES);
       for (const index of indexes) {
         const at = btrees.indexOf(index);
@@ -421,6 +440,15 @@ async function largeObjectBytes(db: Kysely<never>): Promise<number> {
  * indexes count in the share its data pages are still filled (InnoDB's pages
  * do not shrink after a delete). A table that did not change since the last
  * reading (`memo`) is not read again; a small one counts its pages.
+ *
+ * A column dropped in place (MySQL 8.0.29 and later) leaves its values in
+ * every row written before the drop until the table is rebuilt, and no
+ * statement can read them. The server lists such a column as hidden, and
+ * while it does the table counts at least its pages in the share of its rows
+ * still there, against the most rows it held while the memo saw it so (no
+ * memo: all of its pages). A rebuild (`OPTIMIZE TABLE`, `ALTER TABLE …
+ * FORCE`, `TRUNCATE`) takes the hidden column away and the measure back to
+ * the values.
  */
 export async function measureMysql(db: AnyDb, options: MeasureOptions = {}): Promise<number> {
   const left = budgetFrom(options);
@@ -464,26 +492,47 @@ export async function measureMysql(db: AnyDb, options: MeasureOptions = {}): Pro
       }
       const lengths = [String(MYSQL_ROW_BYTES), ...(byTable.get(table.name) ?? []).map((column) => `coalesce(length(${quoteMysql(column)}), 0)`)].join(' + ');
       let live: number | null = null;
+      let count = 0;
+      let dropped = false;
       if (left() > 0) {
         try {
+          dropped = await holdsDroppedColumn(connection, table.name);
           // The hint stops a read that runs past the budget (MySQL 5.7.8 and later; others read it as a comment).
-          const { rows } = await sql<{ live: number | string | null }>`/* size-cap:rows */
-            select /*+ MAX_EXECUTION_TIME(${sql.raw(String(Math.max(1, Math.ceil(left()))))}) */ coalesce(sum(${sql.raw(lengths)}), 0) as live
+          const { rows } = await sql<{ live: number | string | null; n: number | string | null }>`/* size-cap:rows */
+            select /*+ MAX_EXECUTION_TIME(${sql.raw(String(Math.max(1, Math.ceil(left()))))}) */ coalesce(sum(${sql.raw(lengths)}), 0) as live, count(*) as n
               from ${sql.raw(quoteMysql(table.name))}
           `.execute(connection);
           live = Number(rows[0]?.live ?? 0);
+          count = Number(rows[0]?.n ?? 0);
         } catch {
           live = null;
         }
       }
       // A table that could not be read in time (or at all): its pages, which order and samples cannot shrink.
-      const tableBytes = live === null ? data + indexes : live + indexes * Math.min(1, data === 0 ? 1 : live / data);
-      if (live !== null) options.memo?.set(table.name, { key, bytes: tableBytes });
+      let tableBytes = live === null ? data + indexes : live + indexes * Math.min(1, data === 0 ? 1 : live / data);
+      // Dropped values out of reach: its pages in the share of its rows still there, never less than what was read.
+      const most = dropped ? Math.max(known?.rows ?? 0, count) : undefined;
+      if (live !== null && most !== undefined && most > 0) tableBytes = Math.max(tableBytes, ((data + indexes) * count) / most);
+      if (live !== null) options.memo?.set(table.name, most === undefined ? { key, bytes: tableBytes } : { key, bytes: tableBytes, rows: most });
       else options.memo?.delete(table.name);
       bytes += tableBytes;
     }
     return Math.round(bytes);
   });
+}
+
+/**
+ * Whether a MySQL table keeps the values of a column dropped in place: listed
+ * among its hidden columns until a rebuild. A server that cannot list them
+ * (before MySQL 8.0.29 none drops a column in place) says no.
+ */
+async function holdsDroppedColumn(connection: Kysely<never>, table: string): Promise<boolean> {
+  try {
+    const { rows } = await sql<{ Field?: unknown }>`/* size-cap:hidden */ show extended columns from ${sql.raw(quoteMysql(table))}`.execute(connection);
+    return rows.some((column) => String(column.Field ?? '').startsWith('!hidden!_dropped_'));
+  } catch {
+    return false;
+  }
 }
 
 /** In a project folder: what its packages and history hold, which the server's image brings, not the person. */

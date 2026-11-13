@@ -12,7 +12,7 @@ import { randomBytes } from 'node:crypto';
 import { CompiledQuery, Kysely, MysqlAdapter, MysqlIntrospector, MysqlQueryCompiler, PostgresAdapter, PostgresDialect, PostgresIntrospector, PostgresQueryCompiler, sql, type DatabaseConnection, type Dialect, type Driver, type QueryResult, MysqlDialect } from 'kysely';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { measureMysql, measurePostgres } from '../src/trial/size-cap.js';
+import { measureMysql, measurePostgres, type TableMemo } from '../src/trial/size-cap.js';
 import { PG_HOST, PG_PORT, pgAvailable, psql } from './connections-helpers.js';
 
 const MB = 1024 * 1024;
@@ -101,6 +101,28 @@ describe.skipIf(!pgAvailable())('the measure on a live Postgres', { timeout: 120
     }
   });
 
+  it('counts a dropped column’s values until the table is rewritten, and a delete still lets them go', async () => {
+    psql(database, 'CREATE TABLE cycled (id serial PRIMARY KEY)');
+    const memo: TableMemo = new Map();
+    let dropped = 0;
+    // Add a column, fill it, drop it: each round's values stay in its rows, kept in the page (about 1.8 KB, under TOAST's line).
+    for (let round = 1; round <= 3; round += 1) {
+      psql(database, `ALTER TABLE cycled ADD COLUMN pad text; INSERT INTO cycled (pad) SELECT repeat(md5(g::text || '${String(round)}'), 56) FROM generate_series(1, 5000) g`);
+      psql(database, 'VACUUM cycled');
+      const filled = await measurePostgres(db, { memo, fresh: true });
+      psql(database, 'ALTER TABLE cycled DROP COLUMN pad');
+      dropped = await measurePostgres(db, { memo, fresh: true });
+      expect(dropped).toBeGreaterThan(filled * 0.9);
+    }
+    expect(dropped).toBeGreaterThan(3 * 5000 * 1792);
+    psql(database, 'DELETE FROM cycled WHERE id % 2 = 0');
+    const half = await measurePostgres(db, { memo, fresh: true });
+    expect(half).toBeLessThan(dropped * 0.6);
+    // A rewrite leaves the dropped values behind.
+    psql(database, 'VACUUM FULL cycled');
+    expect(await measurePostgres(db, { memo, fresh: true })).toBeLessThan(MB);
+  });
+
   it('counts the large objects this login owns', async () => {
     const before = await measurePostgres(db);
     psql(database, "SELECT lo_from_bytea(0, convert_to(repeat(md5('a'), 131072), 'UTF8'))");
@@ -132,7 +154,7 @@ describe.skipIf(MYSQL_URL === undefined)('the measure on a live MySQL', { timeou
     await admin.end();
   });
   afterEach(async () => {
-    await sql`drop table if exists heavy, adminium_bulk`.execute(db);
+    await sql`drop table if exists heavy, adminium_bulk, cycled`.execute(db);
   });
 
   it('is not fooled by small rows written before large ones', async () => {
@@ -147,6 +169,33 @@ describe.skipIf(MYSQL_URL === undefined)('the measure on a live MySQL', { timeou
     const live = Number(rows[0]?.live);
     expect(live).toBeGreaterThan(12 * MB);
     expect(await measureMysql(db)).toBeGreaterThanOrEqual(live * 0.8);
+  });
+
+  it('counts a dropped column’s values until the table is rebuilt, and a delete still lets them go', async () => {
+    await sql`create table cycled (id int auto_increment primary key)`.execute(db);
+    const memo: TableMemo = new Map();
+    let dropped = 0;
+    // Add a column, fill it, drop it: a drop made in place leaves each round's values in its rows.
+    for (let round = 1; round <= 3; round += 1) {
+      await sql`alter table cycled add column pad varchar(4000)`.execute(db);
+      for (let batch = 0; batch < 4; batch += 1) {
+        const values = Array.from({ length: 1000 }, () => sql`(${randomBytes(900).toString('hex')})`);
+        await sql`insert into cycled (pad) values ${sql.join(values)}`.execute(db);
+      }
+      await sql`analyze table cycled`.execute(db);
+      const filled = await measureMysql(db, { memo, fresh: true });
+      await sql`alter table cycled drop column pad`.execute(db);
+      await sql`analyze table cycled`.execute(db);
+      dropped = await measureMysql(db, { memo, fresh: true });
+      expect(dropped).toBeGreaterThan(filled * 0.9);
+    }
+    expect(dropped).toBeGreaterThan(3 * 4000 * 1800);
+    await sql`delete from cycled where id % 4 <> 0`.execute(db);
+    await sql`analyze table cycled`.execute(db);
+    expect(await measureMysql(db, { memo, fresh: true })).toBeLessThan(dropped * 0.4);
+    // A rebuild leaves the dropped values behind.
+    await sql`optimize table cycled`.execute(db);
+    expect(await measureMysql(db, { memo, fresh: true })).toBeLessThan(MB);
   });
 
   it('counts a table named like Adminium’s own, unless the meta store shares this database', async () => {
