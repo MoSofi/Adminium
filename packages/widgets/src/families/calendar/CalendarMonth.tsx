@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '../../lib/i18n.js';
+import { LockedControl } from '../../lib/write-lock-core.js';
 import { EmptyState } from '@adminium/ui';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import type { Tone } from '@adminium/ui';
@@ -61,6 +62,8 @@ export interface CalendarMonthProps {
   /** "New event" at the header's end (the Calendar Scheduler comp), with its words. */
   onNew?: (() => void) | undefined;
   newLabel?: string | undefined;
+  /** "New event" locked by a write lock: in reach, `aria-disabled`, with this in the Tooltip. */
+  newLock?: string | null | undefined;
   /**
    * The days the grid shows, first and last (`YYYY-MM-DD`), when it is drawn
    * and whenever the month changes: a host reads only those days' rows, so a
@@ -164,6 +167,7 @@ export function CalendarMonth({
   onToggleCategory,
   onNew,
   newLabel,
+  newLock = null,
   onViewChange,
   testId,
 }: CalendarMonthProps) {
@@ -251,15 +255,17 @@ export function CalendarMonth({
             </button>
           ))}
           {onNew === undefined ? null : (
-            <button
-              type="button"
-              data-part="calendar-new"
-              onClick={onNew}
-              className="flex items-center gap-[7px] rounded-[10px] bg-accent py-2 pe-[13px] ps-2.5 text-[13px] font-bold text-accent-fg shadow-[0_2px_8px_color-mix(in_srgb,var(--accent)_35%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              <Plus className="size-4" aria-hidden="true" />
-              {newLabel ?? t('ui:widgets.calendar.calendarMonth.newEvent', 'New event')}
-            </button>
+            <LockedControl reason={newLock}>
+              <button
+                type="button"
+                data-part="calendar-new"
+                onClick={onNew}
+                className="flex items-center gap-[7px] rounded-[10px] bg-accent py-2 pe-[13px] ps-2.5 text-[13px] font-bold text-accent-fg shadow-[0_2px_8px_color-mix(in_srgb,var(--accent)_35%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <Plus className="size-4" aria-hidden="true" />
+                {newLabel ?? t('ui:widgets.calendar.calendarMonth.newEvent', 'New event')}
+              </button>
+            </LockedControl>
           )}
         </div>
       </div>

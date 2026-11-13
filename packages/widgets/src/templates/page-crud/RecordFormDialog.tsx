@@ -223,7 +223,7 @@ export function RecordFormDialog({
             <ArrowRight aria-hidden="true" />
           </Button>
         ) : (
-          <WriteControl>
+          <WriteControl action={mode === 'create' ? 'create' : 'update'}>
             <Button type="submit" form={formId} variant="primary" disabled={saving}>
               {saving ? (
                 <Spinner size="sm" />

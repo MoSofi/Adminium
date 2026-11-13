@@ -2200,7 +2200,15 @@ export default {
     "extraSources": "Un essai connecte au plus 3 bases de données. Retirez-en une pour en connecter une autre.",
     "sizeCapNotice": "Cette base de données dépasse la limite de {limit} Mo de l’essai : elle est en lecture seule. Supprimez des lignes pour continuer.",
     "sizeCapUsage": "{used} / {limit} Mo",
-    "sizeCapLimit": "Limite de {limit} Mo"
+    "sizeCapLimit": "Limite de {limit} Mo",
+    "sizeCapReadOnly": "Lecture seule : la base de données dépasse la limite de l’essai",
+    "packageUploads": "Sur cette installation, l’opérateur n’installe les modules et les applications que depuis le catalogue : les envois sont désactivés.",
+    "designerUploads": "L’opérateur a désactivé les envois vers le Designer pour cette installation.",
+    "designerCode": "L’opérateur a désactivé le code personnel pour cette installation : le Designer construit uniquement à partir de réglages.",
+    "ownBuilds": "L’opérateur a désactivé les builds personnels pour cette installation.",
+    "designerNetwork": "L’opérateur a désactivé la recherche d’images et Figma pour cette installation.",
+    "userMail": "Cet essai est terminé : cette installation n’envoie plus d’e-mails.",
+    "testBudget": "Cette installation a testé {limit} connexions à des bases de données au cours de la dernière minute. Attendez {seconds, plural, one {# seconde} other {# secondes}} et réessayez."
   },
   "trial": {
     "testEnvironment": "Ceci est un environnement de test. Merci de ne pas y saisir de vraies données clients.",

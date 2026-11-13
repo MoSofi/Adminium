@@ -23,13 +23,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { CircleArrowUp, FlaskConical, Hourglass, Lock } from 'lucide-react';
 import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import { Button, Card, DropdownMenuItem, DropdownMenuSeparator } from '@adminium/ui';
 import { setWriteLock } from '@adminium/widgets';
 
 import { showsDeployLink, systemInfoQuery, type TrialInfo } from '../app/capabilities.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
+import { TitleReadOnlyChip } from './ReadOnlyChip.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** The longest a browser timer waits. */
@@ -91,23 +91,6 @@ function UpgradeButton({ url }: { url: string }): ReactNode {
   );
 }
 
-/** "Read-only" after the page title, once the trial has ended. */
-export function ReadOnlyChip(): ReactNode {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-[5px] rounded-full bg-surface-3 px-[9px] py-0.5 text-[11.5px] font-bold text-fg-muted" data-testid="trial-read-only">
-      <Lock aria-hidden="true" className="size-3" />
-      {t('trial.readOnlyChip', 'Read-only')}
-    </span>
-  );
-}
-
-/** Beside the title in the Topbar: the chip goes where pages put theirs (the slot the Topbar, drawn first, holds). */
-function TitleChip(): ReactNode {
-  const [slot, setSlot] = useState<Element | null>(null);
-  useEffect(() => setSlot(document.querySelector('[data-part="topbar-title-adornment"]')), []);
-  return slot === null ? null : createPortal(<ReadOnlyChip />, slot);
-}
-
 export function TrialStrips({ shell = false }: { shell?: boolean }): ReactNode {
   useCommonWords();
   const trial = useQuery(systemInfoQuery()).data?.trial;
@@ -140,7 +123,7 @@ export function TrialStrips({ shell = false }: { shell?: boolean }): ReactNode {
             </>
           )}
         </div>
-        {shell ? <TitleChip /> : null}
+        {shell ? <TitleReadOnlyChip /> : null}
       </>
     );
   }

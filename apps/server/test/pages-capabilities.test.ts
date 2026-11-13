@@ -263,14 +263,15 @@ describe('per-table write capabilities on GET /api/v1/pages/:pageId', () => {
 describe('a trial database held by its size cap', () => {
   const held = { held: (connectionId: string) => (connectionId === 'conn_1' ? { question: 'dataOverCap', reason: 'size-cap', message: 'over' } : null) } as unknown as SizeCap;
 
-  it('offers no create and no edit on its pages, and keeps delete as granted', async () => {
+  it('says what the person may do as granted: the hold is a state the page shows, and the write is refused', async () => {
     const t = await buildHarness(undefined, held);
     try {
       const get = (user: User) => t.app.inject({ method: 'GET', url: `/api/v1/pages/${t.crudPageId}`, headers: asUser(user) });
-      // As the editor: create and update granted, both left out while held.
-      expect((await get(t.editor)).json()).toMatchObject({ canCreate: false, canUpdate: false, canDelete: false });
+      // As the editor: create and update granted, so the page draws them, locked with the reason
+      // (`GET /system/size-caps`), as it does once a trial has ended; the data routes refuse the write.
+      expect((await get(t.editor)).json()).toMatchObject({ canCreate: true, canUpdate: true, canDelete: false });
       // A super admin may delete, held or not: deleting is the way out.
-      expect((await get(t.superAdmin)).json()).toMatchObject({ canCreate: false, canUpdate: false, canDelete: true });
+      expect((await get(t.superAdmin)).json()).toMatchObject({ canCreate: true, canUpdate: true, canDelete: true });
     } finally {
       await t.app.close();
       await t.meta.db.destroy();

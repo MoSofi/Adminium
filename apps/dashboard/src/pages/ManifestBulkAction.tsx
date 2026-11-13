@@ -120,7 +120,7 @@ export function useManifestBulkActions(input: {
   );
 
   const bulk = useMemo<PageCrudBulkAction[]>(
-    () => (connectionId === null || table === undefined ? [] : (actions ?? []).map((action) => ({ key: `manifest:${action.id}`, label: action.label, disabled: step !== null && step.at === 'confirm' && step.busy, run: (ids) => void start(action, ids) }))),
+    () => (connectionId === null || table === undefined ? [] : (actions ?? []).map((action) => ({ key: `manifest:${action.id}`, label: action.label, disabled: step !== null && step.at === 'confirm' && step.busy, write: 'create' as const, run: (ids) => void start(action, ids) }))),
     [actions, connectionId, table, start, step],
   );
 

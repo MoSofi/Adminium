@@ -10,7 +10,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -568,11 +568,25 @@ describe('a page of a trial database over its size cap', () => {
     expect(await screen.findByText('Northwind')).toBeDefined();
   });
 
+  it('keeps New row on the page, locked with the reason, and says Read-only by the title', async () => {
+    await renderAt('/p/customers', { trial: { readings: [reading('conn_1', true)] } });
+    await screen.findByTestId('size-cap-notice');
+    const add = await screen.findByRole('button', { name: /New row/ });
+    await waitFor(() => expect(add.getAttribute('aria-disabled')).toBe('true'));
+    act(() => add.focus());
+    expect((await screen.findAllByText('Read-only: the database is over the trial’s limit')).length).toBeGreaterThan(0);
+    const chip = await screen.findByTestId('size-cap-read-only');
+    expect(chip.textContent).toBe('Read-only');
+    expect(chip.closest('[data-part="topbar-title-adornment"]')).not.toBeNull();
+  });
+
   it('shows nothing for a database that is not held, or another database', async () => {
     const { fetchMock } = await renderAt('/p/customers', { trial: { readings: [reading('conn_1', false), reading('conn_2', true)] } });
     expect(await screen.findByText('Northwind')).toBeDefined();
     await waitFor(() => expect(sizeCalls(fetchMock).length).toBeGreaterThan(0));
     expect(screen.queryByTestId('size-cap-notice')).toBeNull();
+    expect(screen.queryByTestId('size-cap-read-only')).toBeNull();
+    expect(screen.getByRole('button', { name: /New row/ }).getAttribute('aria-disabled')).toBeNull();
   });
 
   it('asks nothing outside trial mode', async () => {

@@ -991,6 +991,7 @@ export default {
     "limitMonth": "Limit Figmy pro vaše místo je zatím vyčerpán. Číst znovu můžete příští měsíc.",
     "limitWait": "Figma nás požádala o strpení. Zkuste to znovu za {minutes, plural, one {# minutu} few {# minuty} other {# minut}}.",
     "off": "Figma je na tomto serveru vypnutá: síťové funkce jsou vypnuté.",
+    "offByOperator": "Figma je na této instalaci vypnutá: vypnul ji provozovatel.",
     "saved": "Tato verze rámce už byla importována. Nebylo použito žádné čtení Figmy.",
     "disconnected": "Odpojeno od Figmy. Token byl z tohoto serveru odstraněn.",
     "disconnectTitle": "Odpojit Figmu?",

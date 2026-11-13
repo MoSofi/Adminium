@@ -1,22 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * In trial mode, the notice on a page of a database held by the size cap:
+ * In trial mode, a database held by the size cap: on a page of it, the notice
  * that it is over the trial's limit and read-only until some rows are
- * deleted, with how full it is. The server refuses the writes itself and
- * leaves the page's create and edit buttons out; this says why.
+ * deleted, with how full it is, and "Read-only" by the title. On every page,
+ * the creates and edits of each held database are locked with the reason
+ * (`setDatabaseWriteLock`, @adminium/widgets) while its deletes stay open;
+ * the server refuses the writes itself.
  *
  * Drawn by `appPageNotice.tsx`, in the template loader's chunk, never the
  * entry; it asks the server nothing outside trial mode.
  */
-import { useEffect, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { HardDrive } from 'lucide-react';
 import type { PageEnvelope } from '@adminium/engine/config';
+import { setDatabaseWriteLock } from '@adminium/widgets';
 
 import { api } from '../app/api.js';
 import { systemInfoQuery } from '../app/capabilities.js';
 import { useCommonWords } from '../i18n/commonWords.js';
 import { t } from '../i18n/t.js';
+import { TitleReadOnlyChip } from '../trial/ReadOnlyChip.js';
 
 /** A trial database's last reading (`GET /system/size-caps`). */
 export interface SizeCapReading {
@@ -73,24 +77,38 @@ export function SizeCapNotice({ reading }: { reading: Pick<SizeCapReading, 'used
   );
 }
 
-function SizeCapForPage({ page }: { page: PageEnvelope }) {
-  const connectionId = page.source.connectionId;
-  const caps = useQuery({ ...sizeCapsQuery(), enabled: connectionId !== null });
-  const reading = caps.data?.data.find((candidate) => candidate.connectionId === connectionId && candidate.held) ?? null;
-  // The page's own buttons follow the hold: read the page again when it starts or lets go.
-  const queryClient = useQueryClient();
-  const held = reading !== null;
-  const was = useRef(held);
+function SizeCapForPage({ page, ended }: { page: PageEnvelope; ended: boolean }) {
+  useCommonWords();
+  const caps = useQuery(sizeCapsQuery());
+  // Every held database, keyed: a board or a calendar writes to the database of its own source.
+  const held = (caps.data?.data ?? []).filter((candidate) => candidate.held).map((candidate) => candidate.connectionId);
+  const heldKey = held.join(' ');
   useEffect(() => {
-    if (was.current === held) return;
-    was.current = held;
-    void queryClient.invalidateQueries({ queryKey: ['page', page.id] });
-  }, [held, page.id, queryClient]);
-  return reading === null ? null : <SizeCapNotice reading={reading} />;
+    if (heldKey === '') return undefined;
+    const reason = t('operatorSwitches.sizeCapReadOnly', 'Read-only: the database is over the trial’s limit');
+    const ids = heldKey.split(' ');
+    for (const id of ids) setDatabaseWriteLock(id, reason);
+    return () => {
+      for (const id of ids) setDatabaseWriteLock(id, null);
+    };
+  }, [heldKey]);
+  const connectionId = page.source.connectionId;
+  const reading = caps.data?.data.find((candidate) => candidate.connectionId === connectionId && candidate.held) ?? null;
+  if (reading === null) return null;
+  return (
+    <>
+      <SizeCapNotice reading={reading} />
+      {/* Once the trial has ended, the ended trial's chip already says it. */}
+      {ended ? null : <TitleReadOnlyChip testId="size-cap-read-only" />}
+    </>
+  );
 }
 
-/** In trial mode, on a page bound to a database: the notice while that database is held. */
+/** In trial mode: the locks of each held database, and on a page of one, the notice. */
 export function SizeCapPageNotice({ page }: { page: PageEnvelope }) {
   const { data: info } = useQuery(systemInfoQuery());
-  return info?.trial?.on === true && page.source.connectionId !== null ? <SizeCapForPage page={page} /> : null;
+  const trial = info?.trial;
+  if (trial?.on !== true) return null;
+  const end = trial.endsAt === null ? Number.NaN : Date.parse(trial.endsAt);
+  return <SizeCapForPage page={page} ended={Number.isFinite(end) && Date.now() >= end} />;
 }

@@ -25,6 +25,7 @@
  * session must hand it the token in the same breath, because from that moment
  * on the tab is making credentialed mutations. See {@link csrfHeaders}.
  */
+import { hasRefusalWords, isRefusal, loadRefusalWords, refusalText } from './refusals.js';
 
 export class ApiError extends Error {
   override readonly name = 'ApiError';
@@ -35,7 +36,8 @@ export class ApiError extends Error {
   readonly details: unknown;
 
   constructor(status: number, code: string, message: string, requestId: string | null, details?: unknown) {
-    super(message);
+    // A refusal the server says in English is said in the person's words, once they are in (`refusals.ts`).
+    super(refusalText(code, details) ?? message);
     this.status = status;
     this.code = code;
     this.requestId = requestId;
@@ -202,6 +204,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       typeof envelope.error?.requestId === 'string'
         ? envelope.error.requestId
         : (response.headers.get('x-request-id') ?? null);
+    if (!hasRefusalWords() && isRefusal(code, envelope.error?.details)) await loadRefusalWords().catch(() => undefined);
     throw new ApiError(response.status, code, message, requestId, envelope.error?.details);
   }
 

@@ -15,8 +15,9 @@
  */
 import { useRouter } from '@tanstack/react-router';
 import { MoreHorizontal } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, FormField, Input, Modal, ModalBody, ModalFooter, ModalHeader } from '@adminium/ui';
+import { WriteControl } from '@adminium/widgets';
 
 import { api } from '../app/api.js';
 import type { StateActionFact } from '../api/pages.js';
@@ -71,6 +72,19 @@ export function leftToOthers(action: Pick<StateActionFact, 'notBy' | 'by'>, row:
   // A column the reader is not shown is not judged here: the save is.
   if ((action.notBy ?? []).some((column) => column in row && names(column))) return true;
   return action.by !== undefined && action.by in row && !names(action.by);
+}
+
+/**
+ * A button that changes the record (or makes a row under it): locked by a write lock, in reach and
+ * with the reason. A link changes nothing and stays open.
+ */
+function Lockable({ action, connectionId, children }: { action: StateActionFact; connectionId: string; children: ReactElement<{ className?: string }> }): ReactNode {
+  if (action.kind === 'link') return children;
+  return (
+    <WriteControl action={action.kind === 'child' ? 'create' : 'update'} connectionId={connectionId}>
+      {children}
+    </WriteControl>
+  );
 }
 
 export function RecordStateActions({ actions, state, connectionId, table, recordId, linksOnly = false, row, me, onDone, onRefused }: RecordStateActionsProps): ReactNode {
@@ -148,9 +162,11 @@ export function RecordStateActions({ actions, state, connectionId, table, record
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5" data-part="record-state-actions">
       {shown.map((action) => (
-        <Button key={action.id} size="sm" variant={VARIANT[action.tone]} disabled={busy !== null} onClick={() => press(action)}>
-          {action.label}
-        </Button>
+        <Lockable key={action.id} action={action} connectionId={connectionId}>
+          <Button size="sm" variant={VARIANT[action.tone]} disabled={busy !== null} onClick={() => press(action)}>
+            {action.label}
+          </Button>
+        </Lockable>
       ))}
       {more.length === 0 ? null : (
         <DropdownMenu>
@@ -161,9 +177,11 @@ export function RecordStateActions({ actions, state, connectionId, table, record
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" aria-label={t('ui:pages.record.more', 'More')}>
             {more.map((action) => (
-              <DropdownMenuItem key={action.id} destructive={action.tone === 'danger'} onSelect={() => press(action)}>
-                {action.label}
-              </DropdownMenuItem>
+              <Lockable key={action.id} action={action} connectionId={connectionId}>
+                <DropdownMenuItem destructive={action.tone === 'danger'} onSelect={() => press(action)}>
+                  {action.label}
+                </DropdownMenuItem>
+              </Lockable>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>

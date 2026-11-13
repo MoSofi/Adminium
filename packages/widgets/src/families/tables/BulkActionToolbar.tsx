@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '../../lib/i18n.js';
+import { LockedControl, useWriteLock, type WriteAction } from '../../lib/write-lock-core.js';
 import { BulkActionBar, BulkActionButton } from '@adminium/ui';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * `bulk-action-toolbar` (annex) — selection-aware toolbar wired to the host
@@ -20,6 +21,8 @@ export interface BulkAction {
   /** Role id gating this action — host filters before passing when needed. */
   permission?: string | undefined;
   disabled?: boolean | undefined;
+  /** The write it makes: under a write lock it stays in reach, `aria-disabled`, with the lock's reason. */
+  write?: WriteAction | undefined;
 }
 
 export interface BulkActionToolbarProps {
@@ -38,6 +41,11 @@ export interface BulkActionToolbarProps {
       }
     | undefined;
   testId?: string | undefined;
+}
+
+/** A bulk action that writes: under a write lock (the nearest scope's database), in reach and with the reason. */
+function LockedWrite({ write, children }: { write: WriteAction; children: ReactElement<{ className?: string }> }): ReactNode {
+  return <LockedControl reason={useWriteLock(write)}>{children}</LockedControl>;
 }
 
 export function BulkActionToolbar({
@@ -61,17 +69,20 @@ export function BulkActionToolbar({
       label={labels?.toolbar ?? t('ui:widgets.tables.bulkActionToolbar.toolbarLabel', 'Bulk actions')}
       floating={floating}
     >
-      {actions.map((action) => (
-        <BulkActionButton
-          key={action.key}
-          icon={action.icon}
-          destructive={action.danger === true}
-          disabled={action.disabled === true}
-          onClick={() => onAction(action.key, selectedIds)}
-        >
-          {action.label}
-        </BulkActionButton>
-      ))}
+      {actions.map((action) => {
+        const button = (
+          <BulkActionButton
+            key={action.key}
+            icon={action.icon}
+            destructive={action.danger === true}
+            disabled={action.disabled === true}
+            onClick={() => onAction(action.key, selectedIds)}
+          >
+            {action.label}
+          </BulkActionButton>
+        );
+        return action.write === undefined ? button : <LockedWrite key={action.key} write={action.write}>{button}</LockedWrite>;
+      })}
     </BulkActionBar>
   );
 }

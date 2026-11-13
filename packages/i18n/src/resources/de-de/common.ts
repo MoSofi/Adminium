@@ -2200,7 +2200,15 @@ export default {
     "extraSources": "Ein Test verbindet höchstens 3 Datenbanken. Entfernen Sie eine, um eine andere zu verbinden.",
     "sizeCapNotice": "Diese Datenbank liegt über dem Limit des Tests von {limit} MB und ist daher schreibgeschützt. Löschen Sie einige Zeilen, um weiterzumachen.",
     "sizeCapUsage": "{used} / {limit} MB",
-    "sizeCapLimit": "Limit {limit} MB"
+    "sizeCapLimit": "Limit {limit} MB",
+    "sizeCapReadOnly": "Schreibgeschützt: Die Datenbank liegt über dem Limit des Tests",
+    "packageUploads": "Der Betreiber installiert Add-ons und Apps in dieser Installation nur aus dem Katalog, daher sind Uploads ausgeschaltet.",
+    "designerUploads": "Der Betreiber hat Uploads in den Designer für diese Installation ausgeschaltet.",
+    "designerCode": "Der Betreiber hat eigenen Code für diese Installation ausgeschaltet: Der Designer baut nur aus Einstellungen.",
+    "ownBuilds": "Der Betreiber hat eigene Builds für diese Installation ausgeschaltet.",
+    "designerNetwork": "Der Betreiber hat die Bildersuche und Figma für diese Installation ausgeschaltet.",
+    "userMail": "Dieser Test ist beendet, daher sendet diese Installation keine E-Mails mehr.",
+    "testBudget": "Diese Installation hat in der letzten Minute {limit} Datenbankverbindungen getestet. Warten Sie {seconds, plural, one {# Sekunde} other {# Sekunden}} und versuchen Sie es erneut."
   },
   "trial": {
     "testEnvironment": "Dies ist eine Testumgebung. Bitte geben Sie keine echten Kundendaten ein.",

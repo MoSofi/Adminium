@@ -991,6 +991,7 @@ export default {
     "limitMonth": "Figma's limit for your seat is used up for now. You can read again next month.",
     "limitWait": "Figma asked us to wait. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
     "off": "Figma is off on this server: network features are turned off.",
+    "offByOperator": "Figma is off on this installation: the operator has switched it off.",
     "saved": "Already imported this version of the frame. No Figma read was used.",
     "disconnected": "Disconnected from Figma. The token was removed from this server.",
     "disconnectTitle": "Disconnect Figma?",

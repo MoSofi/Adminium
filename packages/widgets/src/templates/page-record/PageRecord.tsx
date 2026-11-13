@@ -53,7 +53,7 @@ import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import { TimelineVertical } from '../../families/feeds/TimelineVertical.js';
 import type { TimelineEntry } from '../../families/feeds/feeds-types.js';
 import type { WidgetEvent } from '../../registry/types.js';
-import { WriteControl } from '../../lib/write-lock.js';
+import { useWriteLock, WriteControl, WriteLockScope } from '../../lib/write-lock.js';
 
 /**
  * `page-record` — the record detail page (Customer 360 comp): the template
@@ -598,9 +598,11 @@ function RelatedRecordsTab({
   };
 
   const addButton = creatable ? (
-    <Button size="sm" variant="secondary" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-      {t('ui:templates.crud.newRow', 'New row')}
-    </Button>
+    <WriteControl action="create">
+      <Button size="sm" variant="secondary" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+        {t('ui:templates.crud.newRow', 'New row')}
+      </Button>
+    </WriteControl>
   ) : null;
   /*
    * The related tab's "New row" — the SAME dialog as the table page's create
@@ -782,6 +784,10 @@ function AttachmentsPanel({
   listError: string | null;
 }) {
   const t = useMaybeT();
+  // Kept in a column of the record, a file is a change to the record; kept beside it, the installation's own data.
+  const inColumn = attachments.column !== undefined;
+  const addLock = useWriteLock(inColumn ? 'update' : 'create', inColumn ? undefined : null);
+  const deleteLock = useWriteLock(inColumn ? 'update' : 'delete', inColumn ? undefined : null);
   const [uploads, setUploads] = useState<{ id: string; name: string; fraction: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [undoable, setUndoable] = useState<RecordAttachment | null>(null);
@@ -820,6 +826,7 @@ function AttachmentsPanel({
       {canAttach && (
         <UploadDropzone
           multiple
+          lockedReason={addLock}
           {...(maxBytes === undefined ? {} : { maxSize: maxBytes })}
           {...(locale === undefined ? {} : { locale })}
           onFiles={(files) => {
@@ -901,6 +908,7 @@ function AttachmentsPanel({
             };
           })}
           actions={canAttach ? ['download', 'delete'] : ['download']}
+          deleteLock={deleteLock}
           {...(locale === undefined ? {} : { locale })}
           emptyTitle={t('ui:templates.record.attachments.emptyTitle', 'No files yet')}
           emptyBody={t(
@@ -1035,7 +1043,16 @@ function ActivityTab({ feed, locale }: { feed: RecordActivityFeed; locale?: stri
 
 // --- the page ----------------------------------------------------------------
 
-export function PageRecord({
+/** A record page: its write controls follow the locks of its own database. */
+export function PageRecord(props: PageRecordProps) {
+  return (
+    <WriteLockScope connectionId={props.source.connectionId}>
+      <PageRecordPage {...props} />
+    </WriteLockScope>
+  );
+}
+
+function PageRecordPage({
   api,
   columns,
   source,
@@ -1443,14 +1460,14 @@ export function PageRecord({
               </span>
             ))}
             {showEdit && (
-              <WriteControl>
+              <WriteControl action="update">
                 <Button size="sm" variant="secondary" iconLeft={<Pencil />} onClick={() => setEditOpen(true)}>
                   {labels?.edit ?? t('ui:action.edit', 'Edit')}
                 </Button>
               </WriteControl>
             )}
             {showDelete && (
-              <WriteControl>
+              <WriteControl action="delete">
                 <Button size="sm" variant="destructive" iconLeft={<Trash2 />} onClick={openDelete}>
                   {labels?.delete ?? t('ui:action.delete', 'Delete')}
                 </Button>

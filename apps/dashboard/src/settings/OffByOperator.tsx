@@ -51,6 +51,19 @@ export function offByOperatorWords(question: string): string {
       return t('operatorSwitches.aiAddress', 'The operator does not allow an AI address of your own on this installation.');
     case 'paymentProviders':
       return t('operatorSwitches.payments', 'The operator has switched payment services off for this installation.');
+    // Own code: uploads, the Designer's code and builds of one's own.
+    case 'packageUploads':
+      return t('operatorSwitches.packageUploads', 'The operator installs add-ons and apps only from the catalog on this installation, so uploads are off.');
+    case 'designerUploads':
+      return t('operatorSwitches.designerUploads', 'The operator has switched uploads to the Designer off for this installation.');
+    case 'designerCode':
+      return t('operatorSwitches.designerCode', 'The operator has switched code of your own off for this installation: the Designer builds from settings only.');
+    case 'ownBuilds':
+      return t('operatorSwitches.ownBuilds', 'The operator has switched builds of your own off for this installation.');
+    case 'designerNetwork':
+      return t('operatorSwitches.designerNetwork', 'The operator has switched picture search and Figma off for this installation.');
+    case 'userMail':
+      return t('operatorSwitches.userMail', 'This trial has ended, so this installation sends no more email.');
     // A trial's size caps: a limit passed, not a switch.
     case 'dataOverCap':
       return t('operatorSwitches.dataOverCap', 'This database is over the trial’s size limit, so it is read-only. Delete some rows to continue.');
@@ -63,6 +76,15 @@ export function offByOperatorWords(question: string): string {
     default:
       return t('operatorLock.lockedOff', 'The operator has switched this off for this installation.');
   }
+}
+
+/** The installation's connection-test budget spent (429 `RATE_LIMITED`, scope `instance`): how long to wait. */
+export function testBudgetWords(limit: number, seconds: number): string {
+  return t(
+    'operatorSwitches.testBudget',
+    'This installation has tested {limit} database connections in the last minute. Wait {seconds, plural, one {# second} other {# seconds}} and try again.',
+    { limit, seconds },
+  );
 }
 
 /** The sentence for a refusal the operator's switch caused, or null for any other error. */

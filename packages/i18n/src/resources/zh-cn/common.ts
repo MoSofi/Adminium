@@ -2200,7 +2200,15 @@ export default {
     "extraSources": "试用版最多连接 3 个数据库。请移除一个后再连接其他数据库。",
     "sizeCapNotice": "此数据库已超过试用版 {limit} MB 的上限，因此为只读。请删除一些行以继续。",
     "sizeCapUsage": "{used} / {limit} MB",
-    "sizeCapLimit": "上限 {limit} MB"
+    "sizeCapLimit": "上限 {limit} MB",
+    "sizeCapReadOnly": "只读：数据库已超过试用版的上限",
+    "packageUploads": "运营方在此安装中只从目录安装附加组件和应用，因此上传已关闭。",
+    "designerUploads": "运营方已为此安装关闭向 Designer 上传。",
+    "designerCode": "运营方已为此安装关闭自定义代码：Designer 只能根据设置构建。",
+    "ownBuilds": "运营方已为此安装关闭自定义构建。",
+    "designerNetwork": "运营方已为此安装关闭图片搜索和 Figma。",
+    "userMail": "此试用已结束，因此此安装不再发送电子邮件。",
+    "testBudget": "此安装在过去一分钟内测试了 {limit} 个数据库连接。请等待 {seconds, plural, other {# 秒}}后重试。"
   },
   "trial": {
     "testEnvironment": "这是一个测试环境。请不要输入真实的客户数据。",

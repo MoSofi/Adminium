@@ -1474,7 +1474,15 @@ export default {
     "extraSources": "A trial connects at most 3 databases. Remove one to connect another.",
     "sizeCapNotice": "This database is over the trial’s {limit} MB limit, so it is read-only. Delete some rows to continue.",
     "sizeCapUsage": "{used} / {limit} MB",
-    "sizeCapLimit": "{limit} MB limit"
+    "sizeCapLimit": "{limit} MB limit",
+    "sizeCapReadOnly": "Read-only: the database is over the trial’s limit",
+    "packageUploads": "The operator installs add-ons and apps only from the catalog on this installation, so uploads are off.",
+    "designerUploads": "The operator has switched uploads to the Designer off for this installation.",
+    "designerCode": "The operator has switched code of your own off for this installation: the Designer builds from settings only.",
+    "ownBuilds": "The operator has switched builds of your own off for this installation.",
+    "designerNetwork": "The operator has switched picture search and Figma off for this installation.",
+    "userMail": "This trial has ended, so this installation sends no more email.",
+    "testBudget": "This installation has tested {limit} database connections in the last minute. Wait {seconds, plural, one {# second} other {# seconds}} and try again."
   },
   "board": {
     "addCard": "Add card",

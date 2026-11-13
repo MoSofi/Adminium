@@ -101,6 +101,8 @@ export interface KanbanSwimlaneGridProps {
       ) => MoveResult)
     | undefined;
   onCardOpen?: ((cardId: string) => void) | undefined;
+  /** Can this card be moved? Absent: every card can. A card that cannot stays put and can still be opened. */
+  canMoveCard?: ((cardId: string) => boolean) | undefined;
   /** An add made for this board and refused (a composer beside it): shown where a refused move is, and said aloud. */
   addRefusal?: BoardAddRefusal | null | undefined;
   onDismissAddRefusal?: (() => void) | undefined;
@@ -116,6 +118,7 @@ export function KanbanSwimlaneGrid({
   labels,
   onCardMove,
   onCardOpen,
+  canMoveCard,
   addRefusal,
   onDismissAddRefusal,
   testId,
@@ -177,7 +180,17 @@ export function KanbanSwimlaneGrid({
     moves.requestMove(String(event.active.id), String(event.over.id));
   };
 
+  const locked = (cardId: string): boolean => canMoveCard !== undefined && !canMoveCard(cardId);
+
   const onCardKeyDown = (event: ReactKeyboardEvent<HTMLElement>, card: BoardCardData): void => {
+    if (locked(card.id)) {
+      // A card that stays where it is has one thing a key can do: be opened.
+      if (onCardOpen !== undefined && (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar')) {
+        event.preventDefault();
+        onCardOpen(card.id);
+      }
+      return;
+    }
     const grabbed = moves.isGrabbed(card.id);
     if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
       event.preventDefault();
@@ -218,6 +231,7 @@ export function KanbanSwimlaneGrid({
       ariaLabel={card.title}
       className="cursor-grab rounded-[11px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       onKeyDown={(event) => onCardKeyDown(event, card)}
+      {...(locked(card.id) ? { disabled: true, tabbable: onCardOpen !== undefined } : {})}
       {...(onCardOpen === undefined ? {} : { onClick: () => onCardOpen(card.id) })}
     >
       <BoardCard

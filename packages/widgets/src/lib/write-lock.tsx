@@ -1,65 +1,61 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The page-wide write lock: while the host holds one, every create, edit,
- * delete and save control the templates draw is off, and says why.
+ * The write locks: while the host holds one, the create, edit, delete and save
+ * controls the templates draw are off, and say why.
  *
- * The host sets it ({@link setWriteLock}) with the sentence to show, the way
- * a trial that has ended makes the installation read-only; the server refuses
- * the write itself, so this is what a person sees rather than the guard.
+ * Two locks, set apart and never lifted by each other:
+ *  - the installation's ({@link setWriteLock}): every write, deletes too, the
+ *    way a trial that has ended makes the installation read-only;
+ *  - a database's ({@link setDatabaseWriteLock}): creates and edits of that
+ *    one database, while deletes stay open, the way a trial database over its
+ *    size limit is held until rows are deleted.
+ * The installation's reason wins where both hold. The server refuses the write
+ * itself; this is what a person sees rather than the guard.
+ *
+ * A control names what it does (`create`, `update`, `delete`) and the database
+ * it writes to, by prop or from the nearest {@link WriteLockScope} (a template
+ * wraps itself in one for its source). A control outside any database (a file
+ * kept with a record is the installation's own data) follows the
+ * installation's lock alone.
  *
  * A locked control stays in the tab order with `aria-disabled` (a native
  * `disabled` would take it out of reach of a keyboard and of the tooltip),
  * ignores a click, and shows the reason in the shared Tooltip on hover and on
  * keyboard focus; a tap focuses it, so touch reaches the reason too.
  */
-import { cloneElement, isValidElement, useSyncExternalStore, type MouseEvent, type ReactElement, type ReactNode } from 'react';
 import { Tooltip } from '@adminium/ui';
+import type { ReactElement, ReactNode } from 'react';
 
-let held: string | null = null;
-const listeners = new Set<() => void>();
+import { LockedControl, LockTipContext, ScopeContext, useWriteLock, type WriteAction } from './write-lock-core.js';
 
-/** Lock every write control with `reason`, or release them with null. */
-export function setWriteLock(reason: string | null): void {
-  if (reason === held) return;
-  held = reason;
-  for (const listener of listeners) listener();
-}
+export { LockedControl, setDatabaseWriteLock, setWriteLock, useWriteLock, WRITE_LOCKED_LOOK, type WriteAction } from './write-lock-core.js';
 
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-const current = (): string | null => held;
-
-/** The lock's reason, or null while writes are open. */
-export function useWriteLock(): string | null {
-  return useSyncExternalStore(subscribe, current, current);
-}
-
-/** How a locked control looks: the disabled look, still focusable. */
-export const WRITE_LOCKED_LOOK = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-50';
-
-interface LockableProps {
-  className?: string | undefined;
-  onClick?: ((event: MouseEvent<HTMLElement>) => void) | undefined;
+/** The database the write controls inside write to (a template's source), and the Tooltip they say why in. */
+export function WriteLockScope({ connectionId, children }: { connectionId: string | null | undefined; children: ReactNode }): ReactNode {
+  return (
+    <LockTipContext.Provider value={Tooltip}>
+      <ScopeContext.Provider value={connectionId ?? null}>{children}</ScopeContext.Provider>
+    </LockTipContext.Provider>
+  );
 }
 
 /**
- * A create, edit, delete or save control: as it is while writes are open;
- * `aria-disabled`, inert and explained while the host holds a lock.
+ * A create, edit, delete or save control: as it is while its write is open;
+ * `aria-disabled`, inert and explained while a lock holds it.
  */
-export function WriteControl({ children }: { children: ReactElement<LockableProps> }): ReactNode {
-  const reason = useWriteLock();
-  if (reason === null || !isValidElement(children)) return children;
-  const locked = cloneElement(children, {
-    'aria-disabled': true,
-    className: [children.props.className, WRITE_LOCKED_LOOK].filter(Boolean).join(' '),
-    onClick: (event: MouseEvent<HTMLElement>) => {
-      // A submit button too: the form is not sent.
-      event.preventDefault();
-    },
-    'data-write-locked': '',
-  } as LockableProps);
-  return <Tooltip content={reason}>{locked}</Tooltip>;
+export function WriteControl({
+  action,
+  connectionId,
+  children,
+}: {
+  action: WriteAction;
+  /** The database written to; the nearest {@link WriteLockScope}'s when left out. */
+  connectionId?: string | null | undefined;
+  children: ReactElement<{ className?: string | undefined }>;
+}): ReactNode {
+  return (
+    <LockTipContext.Provider value={Tooltip}>
+      <LockedControl reason={useWriteLock(action, connectionId)}>{children}</LockedControl>
+    </LockTipContext.Provider>
+  );
 }

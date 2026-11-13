@@ -12,19 +12,28 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { gridColumnSpecSchema } from '../families/tables/column-spec.js';
 import { RecordDetail } from '../templates/page-crud/RecordDetail.js';
 import type { CrudApi } from '../templates/page-crud/crud-api.js';
-import { setWriteLock, WriteControl } from './write-lock.js';
+import { setDatabaseWriteLock, setWriteLock, useWriteLock, WriteControl, WriteLockScope, type WriteAction } from './write-lock.js';
 
 const REASON = 'Read-only: this trial has ended';
+const CAPPED = 'Read-only: the database is over the trial’s limit';
 
 afterEach(() => {
-  act(() => setWriteLock(null));
+  act(() => {
+    setWriteLock(null);
+    setDatabaseWriteLock('conn_1', null);
+    setDatabaseWriteLock('conn_2', null);
+  });
 });
+
+function Lock({ action, connectionId }: { action: WriteAction; connectionId?: string }) {
+  return <output data-testid={`lock-${action}`}>{useWriteLock(action, connectionId) ?? 'open'}</output>;
+}
 
 describe('the write lock', () => {
   it('leaves a control as it is while writes are open', async () => {
     const onClick = vi.fn();
     render(
-      <WriteControl>
+      <WriteControl action="create">
         <button type="button" onClick={onClick}>
           New order
         </button>
@@ -41,7 +50,7 @@ describe('the write lock', () => {
     const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
     render(
       <form onSubmit={onSubmit}>
-        <WriteControl>
+        <WriteControl action="update">
           <button type="submit" onClick={onClick}>
             Save
           </button>
@@ -84,5 +93,79 @@ describe('the write lock', () => {
     await userEvent.setup().click(remove);
     expect(onEdit).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it('locks creates and edits of a held database, and keeps its deletes open', async () => {
+    render(
+      <WriteLockScope connectionId="conn_1">
+        <Lock action="create" />
+        <Lock action="update" />
+        <Lock action="delete" />
+        <WriteControl action="create">
+          <button type="button">New row</button>
+        </WriteControl>
+        <WriteControl action="delete">
+          <button type="button">Delete</button>
+        </WriteControl>
+      </WriteLockScope>,
+    );
+    act(() => setDatabaseWriteLock('conn_1', CAPPED));
+    expect(screen.getByTestId('lock-create').textContent).toBe(CAPPED);
+    expect(screen.getByTestId('lock-update').textContent).toBe(CAPPED);
+    expect(screen.getByTestId('lock-delete').textContent).toBe('open');
+    const create = screen.getByRole('button', { name: 'New row' });
+    expect(create.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Delete' }).getAttribute('aria-disabled')).toBeNull();
+    await userEvent.setup().tab();
+    expect(document.activeElement).toBe(create);
+    expect((await screen.findAllByText(CAPPED)).length).toBeGreaterThan(0);
+  });
+
+  it('holds a database lock to its own database', () => {
+    render(
+      <>
+        <Lock action="create" connectionId="conn_2" />
+        <WriteLockScope connectionId="conn_2">
+          <WriteControl action="update">
+            <button type="button">Edit</button>
+          </WriteControl>
+        </WriteLockScope>
+        {/* Outside any database (an attachment, which is the installation's own data): only the installation's lock. */}
+        <WriteControl action="create">
+          <button type="button">Upload</button>
+        </WriteControl>
+      </>,
+    );
+    act(() => setDatabaseWriteLock('conn_1', CAPPED));
+    expect(screen.getByTestId('lock-create').textContent).toBe('open');
+    expect(screen.getByRole('button', { name: 'Edit' }).getAttribute('aria-disabled')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Upload' }).getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('keeps the two locks apart: neither one lifts the other', () => {
+    render(
+      <WriteLockScope connectionId="conn_1">
+        <Lock action="create" />
+        <Lock action="delete" />
+      </WriteLockScope>,
+    );
+    act(() => {
+      setDatabaseWriteLock('conn_1', CAPPED);
+      setWriteLock(REASON);
+    });
+    // The installation's lock covers every write, deletes too, and says its own reason.
+    expect(screen.getByTestId('lock-create').textContent).toBe(REASON);
+    expect(screen.getByTestId('lock-delete').textContent).toBe(REASON);
+    // The trial's lock let go: the database is still held.
+    act(() => setWriteLock(null));
+    expect(screen.getByTestId('lock-create').textContent).toBe(CAPPED);
+    expect(screen.getByTestId('lock-delete').textContent).toBe('open');
+    // And the other way round.
+    act(() => {
+      setWriteLock(REASON);
+      setDatabaseWriteLock('conn_1', null);
+    });
+    expect(screen.getByTestId('lock-create').textContent).toBe(REASON);
+    expect(screen.getByTestId('lock-delete').textContent).toBe(REASON);
   });
 });
