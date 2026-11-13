@@ -382,7 +382,8 @@ export function createFileStore(opts: FileStoreOptions): FileStore {
 
         // The gate runs on the spooled head, never on the client's claim. A
         // refusal here has already cost one local write and nothing else — no
-        // object in a bucket to clean up, which is the whole point of D4.
+        // object in a bucket to clean up, which is why the file is spooled
+        // locally before anything is sent to a destination.
         let result = sniff(spooled.head, input.filename);
         // The kinds a head cannot vouch for (a model, a font) are read whole, and only those this upload may take.
         try {

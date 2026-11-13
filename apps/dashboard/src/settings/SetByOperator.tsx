@@ -12,10 +12,10 @@
  *   - a line says what the operator decided, and the control's
  *     `aria-describedby` points at it.
  *
- * The chip is the Trial Mode comp's (lines 272, 307): lock 12 px, 11.5 px
+ * The chip is drawn as the trial mode design has it: lock 12 px, 11.5 px
  * bold, muted on surface-3, fully rounded, one line. `LocalDatabasesCard` and
- * the first-run consent use it; T11, T13 and T30 draw their locked settings
- * the same way.
+ * the first-run consent use it; the trial's switched-off choices, its public
+ * origin and its mail relay draw their locked settings the same way.
  */
 import { Lock } from 'lucide-react';
 import type { HTMLAttributes, ReactNode } from 'react';

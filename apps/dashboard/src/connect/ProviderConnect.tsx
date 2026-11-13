@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * "Connect Supabase" at the top of a connect wizard's source step
- * (`Trial Mode.dc.html` view 11; design map H1.47–H1.50, H1-D5, H1-D10).
+ * "Connect Supabase" at the top of a connect wizard's source step, as the
+ * trial mode design draws it.
  *
  * Shown only when the operator set a connect address (`/system/info`
  * `connect`); otherwise nothing renders and the step is exactly what it was.
