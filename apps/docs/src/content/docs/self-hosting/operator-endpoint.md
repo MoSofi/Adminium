@@ -25,7 +25,7 @@ ADMINIUM_OPERATOR_LISTEN=10.0.0.2:4601
 | Variable | What it is |
 |---|---|
 | `ADMINIUM_OPERATOR_TOKEN` | The bearer token: 32 random bytes or more, one per instance. A secret: give it as `ADMINIUM_OPERATOR_TOKEN_FILE=/run/secrets/…` if you can, and it is taken out of the server's environment at boot either way. |
-| `ADMINIUM_OPERATOR_LISTEN` | `address:port` on your own network. An address of this machine, never `0.0.0.0`, `::` or a name, and never the port of the public listener (`PORT`). |
+| `ADMINIUM_OPERATOR_LISTEN` | `address:port` on your own network. An address of this machine, never `0.0.0.0`, `::` (however written, `[::ffff:0.0.0.0]` included) or a name, and never the port of the public listener (`PORT`). |
 
 The listener without the token stops the boot, and so does the token with
 neither the listener nor [`ADMINIUM_OPERATOR_EVENTS_URL`](#signed-instance-events)
