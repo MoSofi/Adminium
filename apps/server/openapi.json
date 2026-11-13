@@ -425,7 +425,7 @@
                           ],
                           "additionalProperties": false
                         },
-                        "metaStore": {
+                        "metaStoreRoutes": {
                           "type": "object",
                           "properties": {
                             "allowed": {
@@ -456,19 +456,7 @@
                             "reason"
                           ],
                           "additionalProperties": false
-                        }
-                      },
-                      "required": [
-                        "sqliteSources",
-                        "storageDestinations",
-                        "webhooks",
-                        "metaStore"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "ownCode": {
-                      "type": "object",
-                      "properties": {
+                        },
                         "packageUploads": {
                           "type": "object",
                           "properties": {
@@ -567,6 +555,10 @@
                         }
                       },
                       "required": [
+                        "sqliteSources",
+                        "storageDestinations",
+                        "webhooks",
+                        "metaStoreRoutes",
                         "packageUploads",
                         "designerUploads",
                         "ownBuilds"
@@ -587,7 +579,7 @@
                     "desktopDemo",
                     "connect",
                     "trial",
-                    "ownCode"
+                    "offByOperator"
                   ],
                   "additionalProperties": false
                 }
