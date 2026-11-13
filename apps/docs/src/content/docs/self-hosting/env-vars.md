@@ -40,7 +40,7 @@ half-configured and fail later.
 | `ADMINIUM_LOCAL_DATABASES` | No | `setting` | `setting` lets a super admin switch on *Allow databases on this server* in Studio's Server settings, for any database on this server's own loopback; `off` locks that switch off, so only `ADMINIUM_DATABASE_HOSTS` counts. See below. |
 | `ADMINIUM_SQLITE_DIRS` | No | *(unset)* | CSV of absolute folders a SQLite source database must lie in, such as `/srv/databases`. Unset means any file the server can open, except Adminium's own. See below. |
 | `ADMINIUM_STORAGE_DIRS` | No | *(unset)* | CSV of absolute folders a `local` storage destination must lie in, such as `/srv/files`. Unset means any folder, except Adminium's own. See below. |
-| `ADMINIUM_NETWORK_POLICY` | No | `open` | `strict` also refuses the server's own network (private ranges) for source databases, webhooks and storage endpoints, and this machine and its network for add-ons' network calls. A source host in `ADMINIUM_DATABASE_HOSTS` still passes. See below. |
+| `ADMINIUM_NETWORK_POLICY` | No | `open` | `strict` also refuses the server's own network (private ranges) for source databases, webhooks and storage endpoints, and this machine and its network for the user's own SMTP server, AI addresses a user saves (Ollama included) and add-ons' network calls. A source host in `ADMINIUM_DATABASE_HOSTS` still passes. See below. |
 | `ADMINIUM_MAP_SERVER` | No | `https://tiles.openfreemap.org` | Where maps' pictures come from: one `https://` origin, or `off` for no maps on this install. See below. |
 | `ADMINIUM_ROUTING_SERVER` | No | `https://router.project-osrm.org` | The OSRM server asked for routes along roads, once that is switched on in Settings → Maps; or `off`. See below. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
@@ -536,6 +536,12 @@ at the address that passed.
   machine or on the server's own network either: refused when it is saved,
   left out of a config import, and checked again before every send, which
   then connects to the address that was checked.
+- **An AI address under `strict`** (Settings → AI: an address of your own, the
+  OpenAI-compatible provider, Ollama) may not be this machine or on the
+  server's own network either: refused when it is saved or tested, and
+  checked again before every call. An Ollama with no address is this machine's,
+  so it is refused too. An address the operator sets in the environment is
+  the operator's own and is not held to this.
 - **Every request is checked**: a source host before every new pool, a webhook
   before every send, a storage endpoint before a file's requests (looked up
   again at least once a minute while connections to it stay open). The

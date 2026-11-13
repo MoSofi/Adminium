@@ -1075,8 +1075,11 @@ export const envSchema = z.object({
    * `open` (default) or `strict`. `strict` also refuses the server's own
    * network (private ranges: 10/8, 172.16/12, 192.168/16, 100.64/10, IPv6
    * ULA) for source databases, webhooks and storage endpoints; a source host
-   * in `ADMINIUM_DATABASE_HOSTS` still passes. Cloud metadata is refused
-   * under both, and loopback follows its own rule (refused in production).
+   * in `ADMINIUM_DATABASE_HOSTS` still passes. Under `strict` the user's own
+   * mail server, the AI addresses a user saves (Ollama included) and add-ons'
+   * network calls may not be this machine or on that network either. Cloud
+   * metadata is refused under both, and loopback otherwise follows its own
+   * rule (refused in production).
    */
   ADMINIUM_NETWORK_POLICY: z.preprocess(
     (value) => (typeof value === 'string' ? emptyToUndefined(value.trim().toLowerCase()) : value),
@@ -1672,7 +1675,7 @@ const ENV_HINTS: Record<string, string> = {
     'CSV of absolute folders a SQLite source database must lie in, e.g. /srv/databases (unset: any file except Adminium\'s own)',
   ADMINIUM_STORAGE_DIRS:
     'CSV of absolute folders a local storage destination must lie in, e.g. /srv/files (unset: any folder except Adminium\'s own)',
-  ADMINIUM_NETWORK_POLICY: `one of ${NETWORK_POLICIES.join(', ')} (default open; strict also refuses private ranges for source databases, webhooks, storage endpoints and add-ons' network calls)`,
+  ADMINIUM_NETWORK_POLICY: `one of ${NETWORK_POLICIES.join(', ')} (default open; strict also refuses private ranges for source databases, webhooks, storage endpoints, the user's own SMTP server, AI addresses a user saves and add-ons' network calls, this machine too for the last three)`,
   ADMINIUM_LOCAL_DATABASES:
     'setting (default: a Super Admin may allow databases on this server in Studio) or off (only ADMINIUM_DATABASE_HOSTS counts)',
   ADMINIUM_TRIAL_MODE: `one of ${BOOLEANISH.join(', ')} (default off; on runs a trial for a stranger: needs ADMINIUM_TRIAL_ENDS_AT, ADMINIUM_SETUP_TOKEN, ADMINIUM_PUBLIC_ORIGIN and ADMINIUM_DATABASE_HOSTS)`,

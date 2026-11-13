@@ -66,7 +66,9 @@ By default Adminium may call addresses on the server's own network
 Adminium is the usual case. When that network holds machines your client
 should not reach, set `strict`. Source databases, webhooks and S3 or WebDAV
 storage then refuse private addresses; databases you named in
-`ADMINIUM_DATABASE_HOSTS` still pass.
+`ADMINIUM_DATABASE_HOSTS` still pass. The user's own mail server, the AI
+addresses a user saves (Ollama included) and add-ons' network calls refuse this
+machine as well as private addresses.
 
 ```bash
 ADMINIUM_NETWORK_POLICY=strict
@@ -320,7 +322,7 @@ network holds machines no trial should reach.
 | On one of your hosts, a login other than `ADMINIUM_SOURCE_URL`'s user and database | Off | Off | |
 | A SQLite file as a source | Off | Off | |
 | **Allow databases on this server** (`ADMINIUM_LOCAL_DATABASES=off`) | Off | Off | Shown locked |
-| The server's own network for databases, webhooks, storage and add-ons' network calls (`strict`) | Off | Off | As under `strict` |
+| The server's own network for databases, webhooks, storage, the user's own SMTP server, AI addresses a user saves and add-ons' network calls (`strict`) | Off | Off | As under `strict` |
 | More than 10 database connection tests a minute, for the whole installation | Off | Off | `429 RATE_LIMITED` |
 | Moving or adopting the meta store (`/meta/relocate`, `/setup/probe`, `/setup/adopt`), setup token or not | Off | Off | |
 | Storage destinations other than the data folder | Off | Off | |
