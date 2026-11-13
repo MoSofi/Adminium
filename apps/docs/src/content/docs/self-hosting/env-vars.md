@@ -524,6 +524,10 @@ such as a Docker Compose install whose database is the `postgres` service.
 - **A database on your own network under `strict`**: name it in
   `ADMINIUM_DATABASE_HOSTS` (`postgres:5432`). The list lets databases
   through, never webhooks or storage.
+- **Your own mail server under `strict`** (Settings → Email) may not be this
+  machine or on the server's own network either: refused when it is saved,
+  left out of a config import, and checked again before every send, which
+  then connects to the address that was checked.
 - **Every request is checked**: a source host before every new pool, a webhook
   before every send, a storage endpoint before a file's requests (looked up
   again at least once a minute while connections to it stay open). The
@@ -1120,27 +1124,36 @@ set, a trial sends no email at all.
 
 - **From** is always `"<instance name> via <ADMINIUM_OPERATOR_NAME>" <ADMINIUM_TRIAL_MAIL_FROM>`.
   The instance name is the **Application name** (Studio's Server identity) with everything a header or an
-  address is made of taken out, and is dropped for the instance's host name
-  when it holds a brand or an account-safety word (`PayPal`, `Microsoft`,
-  `login`, `password`…) in any spelling, look-alike letters and digits
+  address is made of and accents taken out. It is dropped for the instance's
+  host name when anything but ASCII letters, digits, spaces and `.-'&` is
+  left, or when it holds a brand or an account-safety word (`PayPal`,
+  `Microsoft`, `login`, `password`…) in any spelling, look-alike digits
   included. Have your relay pin the same address for the instance's credential.
 - **Reply-To**, on mail the person wrote, is a staff member's own sign-in
   address: the one the mail asked for when it is one, else the first Super
   Admin's.
 - **A footer** on mail the person wrote names the instance's address
   (`ADMINIUM_PUBLIC_ORIGIN`) and links to `ADMINIUM_TRIAL_MAIL_REPORT_URL`.
-- **Account email** (password reset, invitation, sign-in code, address changed)
-  says Adminium's own words, whatever was edited or translated on the
-  instance, and has its own quota of 50 a day and 20 an hour that mail the
-  person wrote never uses up. Past it, account email is not sent.
-- **Mail the person wrote** is capped at `ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY` a
-  day (default 50), 20 an hour and 20 different people a day (UTC). Past a
+  The mail's HTML is read and written out again with the footer as its last
+  part, comments and style sheets left out, so nothing in it can hide the
+  footer.
+- **Account email** is what the instance's own sign-in and account flows send
+  (password reset, invitation, sign-in code, address changed). It says
+  Adminium's own words, whatever was edited or translated on the instance, and
+  has its own quota of 50 a day and 20 an hour that mail the person wrote
+  never uses up. Past it, account email is not sent. A mail that only uses one
+  of those templates (a test send, an automation step, an assistant draft) is
+  mail the person wrote.
+- **Mail the person wrote** goes to at most 5 plain addresses per message,
+  each counted as one email, and is capped at `ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY`
+  a day (default 50), 20 an hour and 20 different people a day (UTC). Past a
   cap it waits in the outbox and goes out in the first hour the caps leave
   room in; Studio's Email settings say how many wait and list them. Five
   bounced addresses or one spam report in a day (what the do-not-email list
   learns from your relay's refusals and the mail services' notices) hold it
-  until the next day. Nothing is queued to go after the trial's end, and what
-  waits does not go then.
+  until the next day; those reports cannot be taken off the list before then
+  (403 `OFF_BY_OPERATOR`, `question: liftMailHold`). Nothing is queued to go
+  after the trial's end, and what waits does not go then.
 - **Marketing mail** is off: campaigns cannot be sent (403 `OFF_BY_OPERATOR`,
   `question: marketingCampaigns`), and mail classed as marketing is not queued.
 

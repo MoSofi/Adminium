@@ -548,8 +548,8 @@ Your relay holds the real ones:
 - **pin the envelope and header From** to the address of the credential, so
   a trial cannot send as anybody else;
 - **cap each instance and each account**: at least the user cap
-  (`ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY`, 20 an hour, 20 different people a day)
-  plus 50 account emails a day;
+  (`ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY`, 20 an hour, 20 different people a day,
+  at most 5 recipients a message) plus 50 account emails a day;
 - report bounces and spam complaints back, so the instance holds its mail.
 
 ### The Supabase hand-off and the Upgrade page
