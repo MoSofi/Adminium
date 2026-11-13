@@ -478,8 +478,9 @@ address.
 
 If your proxy wakes a container only for a page open, answer the other requests
 to a sleeping one with a `503`, `Retry-After` and the header `X-Aapp-Asleep: 1`:
-a dashboard that gets that answer to an API call reloads its page, which is a
-page open, at most once in 30 seconds.
+a dashboard that gets that answer to an API read reloads its page, which is a
+page open, at most once in 30 seconds. A save that gets it fails with your
+message instead, so what the person typed stays on the page.
 
 If your proxy puts an instance to sleep when nobody has used it for a while,
 set `ADMINIUM_PRESENCE=on`: while a dashboard tab is visible and its person

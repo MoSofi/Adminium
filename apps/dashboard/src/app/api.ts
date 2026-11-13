@@ -195,8 +195,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    // An operator's proxy says the instance is asleep: a page open wakes it (`asleep.ts`).
-    reloadIfAsleep(response);
+    // An operator's proxy says the instance is asleep: a page open wakes it (`asleep.ts`). Only for a read: a
+    // reload on a save would throw away what the person typed, so a save just fails with the proxy's message.
+    if (!isMutating(init?.method)) reloadIfAsleep(response);
     const envelope = (body ?? {}) as ErrorEnvelope;
     const code = typeof envelope.error?.code === 'string' ? envelope.error.code : 'INTERNAL';
     const message =

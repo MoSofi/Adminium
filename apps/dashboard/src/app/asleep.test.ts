@@ -75,6 +75,12 @@ describe('the API client', () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it('does not reload for a save, so what the person typed stays, and still rejects it', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(answer(503, ASLEEP)));
+    await expect(api.post('/api/v1/bootstrap', { a: 1 })).rejects.toBeInstanceOf(ApiError);
+    expect(reload).not.toHaveBeenCalled();
+  });
+
   it('does not reload for an ordinary 503', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(answer(503)));
     await expect(api.get('/api/v1/bootstrap')).rejects.toBeInstanceOf(ApiError);

@@ -3,9 +3,10 @@
  * The asleep answer. An operator whose proxy puts idle instances to sleep
  * (adminium.app) answers an API call to a sleeping one with a JSON 503,
  * `Retry-After` and `X-Aapp-Asleep: 1`, and wakes the instance only when a page
- * is opened. So when an API call gets that answer, the dashboard reloads the
+ * is opened. So when an API read gets that answer, the dashboard reloads the
  * page: the reload is a page open, and the person gets their app back after the
- * proxy's waking page.
+ * proxy's waking page. A save that gets it does not reload (`api.ts`): it fails
+ * with the proxy's message and what the person typed stays on the page.
  *
  * At most once in {@link ASLEEP_RELOAD_GAP_MS}, remembered across the reload in
  * session storage, so a proxy that keeps answering it never makes a loop.
