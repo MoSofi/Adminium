@@ -221,11 +221,15 @@
                         },
                         "link": {
                           "type": "boolean"
+                        },
+                        "startPrompt": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "mode",
-                        "link"
+                        "link",
+                        "startPrompt"
                       ],
                       "additionalProperties": false
                     },
