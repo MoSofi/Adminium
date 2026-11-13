@@ -1,7 +1,0 @@
----
-'@adminium/server': patch
-'@adminium/dashboard': patch
-'@adminium/i18n': patch
----
-
-A trial's mail rules hold against mail the person writes. Account mail is now only what the server's own sign-in and account flows send: a test send, an automation step or an assistant draft that uses the password reset or invitation template is ordinary mail, with the footer, a staff Reply-To and the user caps, and it stops at the trial's end. A message goes to at most 5 plain addresses, each counted against the caps. The footer goes in after the mail's HTML has been read and written out again, without comments or style sheets, so an unclosed comment, a hidden element or a style rule in a raw HTML block can no longer hide it. The sender name keeps only ASCII letters, digits, spaces and `.-'&` once accents are off, else the instance's host stands in. Today's bounce and spam reports cannot be taken off the do-not-email list on a trial, so the mail hold lasts the day (403 `OFF_BY_OPERATOR`, `question: liftMailHold`). The cap event counts the mail that met the cap as waiting, and the Email card says only "Daily (Hourly) email limit reached." when nothing waits. Under `ADMINIUM_NETWORK_POLICY=strict` (the hosted profile), the user's own mail server may not be this machine or the server's own network: refused when saved, left out of a config import, and checked again before each send, which then connects to the checked address.

@@ -1,5 +1,33 @@
 # @adminium/widgets
 
+## 0.3.57
+
+### Patch Changes
+
+- 109aa85: A trial installation now says so on every page. Two strips sit under the top bar, and above the sign-in and setup screens: "This is a test environment. Please don’t put real customer data in." (the whole sentence on every width, wrapping on a phone) and "N days left · Export everything", with "Upgrade" when the operator set `ADMINIUM_TRIAL_UPGRADE_URL`. Neither can be closed. Upgrade opens the operator's page in the same tab, and also sits in the user menu (in one group with "Put this online…", after the Studio group) and on the Export everything page. Once `ADMINIUM_TRIAL_ENDS_AT` has passed, one strip says "This trial has ended." with Export everything and Upgrade, page titles carry a "Read-only" chip, and the create, edit, delete and save buttons of data pages stay reachable but off, with "Read-only: this trial has ended" in their tooltip. The server then refuses every write with 403 `OFF_BY_OPERATOR` except signing in and out, a forgotten password, the first-run setup, the exports and the reads a page sends as a POST; it answers 404 at every public page, the same bare "This page is unavailable." page the operator's hide switch shows (forms, the mail door, pay pages, the public API and its docs, customer sides and the domains mapped to them); and it queues no user mail, while password resets, invitations and sign-in codes still go out. An app's queued emails wait in its outbox. Nothing changes outside trial mode or before the end date.
+- b537492: The trial's read-only states now reach every write a page draws. Once a trial has ended, a board's "+" and "New card", its composer and card moves, a calendar's "New event", "Add event" and a click on an empty day, a record page's related "New row" and its attachments' upload and Delete, a project's own actions and an app's row buttons, and a list's bulk actions (Delete included) stay reachable but off, with the reason in their tooltip. A database held by the size cap locks only its creates and edits the same way, and keeps its deletes open; the page's create and edit capabilities no longer fold the hold in, so its buttons show, locked, instead of disappearing. A refusal the operator's switches cause (`OFF_BY_OPERATOR`) and the installation's connection-test limit are said in the person's language on every screen, not in the server's English. A Supabase hand-off the instance refused now says "Supabase connection expired." with "Connect Supabase again", and Figma in a trial says the operator switched it off rather than that network features are off.
+- Updated dependencies [f569085]
+- Updated dependencies [ccb2441]
+- Updated dependencies [33a8289]
+- Updated dependencies [929ccf6]
+- Updated dependencies [2039698]
+- Updated dependencies [e097143]
+- Updated dependencies [4664070]
+- Updated dependencies [33a8289]
+- Updated dependencies [109aa85]
+- Updated dependencies [899792d]
+- Updated dependencies [b537492]
+- Updated dependencies [cad4343]
+- Updated dependencies [c97cb7c]
+- Updated dependencies [872c447]
+- Updated dependencies [44432a0]
+- Updated dependencies [c2f8dea]
+- Updated dependencies [c49a848]
+  - @adminium/i18n@0.3.57
+  - @adminium/ui@0.3.57
+  - @adminium/charts@0.3.57
+  - @adminium/tokens@0.3.57
+
 ## 0.3.56
 
 ### Patch Changes

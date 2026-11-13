@@ -1,8 +1,0 @@
----
-'@adminium/server': patch
-'@adminium/dashboard': patch
-'@adminium/meta': patch
-'@adminium/i18n': patch
----
-
-Whoever runs an instance for somebody else can now reach it on a listener of their own. Set `ADMINIUM_OPERATOR_TOKEN` (32 random bytes or more) and `ADMINIUM_OPERATOR_LISTEN` (an address and port on your own network) and the server opens a second listener beside the public one, behind that bearer token alone: compared in constant time, and an address that sends a wrong one 10 times in 10 minutes is refused for the rest of its window. The public listener never serves `/api/v1/operator/*`, and the docs' proxy examples refuse the path too. `GET /api/v1/operator/status` says how much disk the data folder, the stored files and the project folder use, the Super Admins' last 20 sign-ins (time and address only) and the last sign-in. `POST /api/v1/operator/public-pages` with `{ "hidden": true, "reason": "…" }` hides every public page at once, on every host and domain: customer sides, forms, the mail door, pay pages, survey and payment links, guest pages, the public API and its docs, sites the Designer built and the add-on pages' domains answer 404 with a bare "This page is unavailable." page, the instance's own logo and name and nothing else, while staff pages keep working and every Studio page shows the reason in a strip, with a "Hidden" chip on each customer side in Studio → Apps. The state survives a restart, is audited, and no settings screen, config bundle or archive reads or writes it. `GET /api/v1/operator/public-content` returns every customer side's files with their text and every live form's fields. Every route of the server now says whether it is for the instance's own people or the public, and a test fails on one that says neither.

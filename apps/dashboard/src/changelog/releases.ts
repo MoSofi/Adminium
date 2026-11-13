@@ -62,6 +62,29 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.57',
+    date: '2026-11-13',
+    title: 'Local databases, Export everything and trial mode',
+    summary:
+      'Connect a production server to a database on the same machine, take a whole installation with you in one file, and give a fresh server a one-time setup token. For people who run Adminium for others: trial mode, a hosted profile, an operator endpoint with signed events, Connect Supabase and a mail relay.',
+    changes: [
+      { tag: 'New', text: 'Allow databases on this server: a Super Admin can let a production server connect to a database on its own machine, or the operator names exactly which host and port with ADMINIUM_DATABASE_HOSTS.' },
+      { tag: 'New', text: 'Export everything: one file with everything made in the installation (pages, people without their passwords, uploads, local SQLite databases, the project folder). The desktop app opens it as a new project.' },
+      { tag: 'New', text: 'adminium archive create and restore move a whole instance to another server, from any database engine to any other.' },
+      { tag: 'New', text: 'A fresh server asks for a one-time setup token, printed in its log, before anyone can create the first account. The desktop app and adminium dev do not ask.' },
+      { tag: 'New', text: 'Secrets can be given as files (ADMINIUM_SECRET_FILE and the same _FILE ending for every secret), the way Docker and Kubernetes hand them over.' },
+      { tag: 'New', text: 'ADMINIUM_NETWORK_POLICY=strict keeps databases, webhooks, storage, mail and AI addresses off the server’s own network.' },
+      { tag: 'New', text: 'Trial mode and the hosted profile, for operators who run Adminium for other people: banners with the days left, an end date after which the installation is read-only, size caps, a mail relay, and every switch that keeps a stranger off the operator’s machine.' },
+      { tag: 'New', text: 'An operator endpoint on its own listener and token, signed events about public pages, sign-ins and caps, Connect Supabase with a one-time code, and an AI budget the installation cannot reset.' },
+      { tag: 'New', text: '“Put this online…” in the user menu, on About and in the desktop app opens the deploy guide.' },
+      { tag: 'Improved', text: 'A server starts lighter: about 40 MB less memory once it is idle, and email templates are no longer seeded on every start.' },
+      { tag: 'Improved', text: 'A source database’s host name is checked again for each new connection, so a managed database that fails over is followed within seconds.' },
+      { tag: 'Security', text: 'Free SQL text that reaches a schema change, such as an expression default or a check, is refused when it could start a second statement. Earlier versions let a person allowed to change the schema run extra SQL this way.' },
+      { tag: 'Security', text: 'An app’s screens are built with Adminium’s own TypeScript settings and never read the app’s tsconfig.json. Import an app’s own files by relative path; a paths alias such as @/components no longer resolves.' },
+      { tag: 'Security', text: 'A SQLite source or a storage folder can no longer open Adminium’s own files, and the server takes its secrets out of its environment before any project code loads.' },
+    ],
+  },
+  {
     version: '0.3.49',
     date: '2026-11-07',
     title: 'Your own apps, and workspaces',

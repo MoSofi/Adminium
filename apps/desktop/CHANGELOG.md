@@ -1,5 +1,55 @@
 # @adminium/desktop
 
+## 0.3.57
+
+### Patch Changes
+
+- ccb2441: The desktop app opens an "Export everything" file: File → Open a project… picks the file, and Start makes a NEW project from it (an open project is closed first; nothing goes into it). The engine reads and checks the file first (`adminium import-zip --dry-run --json`), the person names the project and its folder, picks the Super Admin who signs in first and types their new password twice; the import runs through the same `import-zip` with the export's rules, the password on standard input. A whole-server archive is refused with the command that restores one (`adminium archive restore`), and a changed or unsafe file is refused with nothing made. A connection that came without its connection string now shows as Draft in Studio, as a new one without a string does. `adminium import-zip --json` prints the outcome or the refusal as one line of JSON. Studio's Export everything page says "Choose Open a project and pick the file." for the desktop app again. An export no longer carries who a desktop app signs in without a password (`designer.ownerId`, `designer.localOwnerId`), and a restore with the export's rules drops them from any file; `import-zip --local-owner` makes the Super Admin given the password this computer's owner instead (the desktop app passes it). A project folder that came in an export gets the `.env` its config reads, written as `new` writes one: each project database's variable pointed at the restored SQLite file, or empty when its string must be entered again, and the names `.env.example` lists, empty.
+- 03ec37e: An export file decides less on the server that imports it. A `local` storage destination in it comes back switched off, and the files that were in it land in `<data dir>/files` instead of the folder the file names. A full archive's connection strings are checked on restore as when they are saved: the host is looked up where production or `ADMINIUM_NETWORK_POLICY=strict` refuses this server's own addresses, and `ADMINIUM_DATABASE_HOSTS` is honoured. The `.env` an import writes for a project folder takes no line from the file: a connection's project key that is not a database key is dropped (the connection stays, named in the import's warnings), and its name stays on its comment line. The desktop app asks about the code an export brought whenever it brought any project file, not only when it brought a config file. An archive or export no longer carries a project's `data/` folder, and a restore refuses a file that names any path the writer leaves out (`.env`, `.adminium/`, `data/`, `node_modules/`, `.git/`, in any case), names two paths that differ only in case, or names one path as a file and as a folder, before anything is written.
+- 33a8289: "Put this online…" opens adminium.dev/deploy in the browser: in the user menu, on the Export everything page, on About, and in the desktop app's Help menu. An operator hides it everywhere with the new `ADMINIUM_DEPLOY_LINK=off`; `/api/v1/system/info` gains `deployLink`.
+- Updated dependencies [3fc09b2]
+- Updated dependencies [f569085]
+- Updated dependencies [ac2012a]
+- Updated dependencies [f5c2bf3]
+- Updated dependencies [ccb2441]
+- Updated dependencies [5db561e]
+- Updated dependencies [33a8289]
+- Updated dependencies [03ec37e]
+- Updated dependencies [d6ce0ec]
+- Updated dependencies [fb5ca45]
+- Updated dependencies [0b27299]
+- Updated dependencies [152af63]
+- Updated dependencies [e806d3e]
+- Updated dependencies [929ccf6]
+- Updated dependencies [2039698]
+- Updated dependencies [e097143]
+- Updated dependencies [4664070]
+- Updated dependencies [683321f]
+- Updated dependencies [3415403]
+- Updated dependencies [6443ed3]
+- Updated dependencies [33a8289]
+- Updated dependencies [8f44588]
+- Updated dependencies [eac0820]
+- Updated dependencies [788da82]
+- Updated dependencies [c9c21fa]
+- Updated dependencies [49fc3a6]
+- Updated dependencies [b862c4a]
+- Updated dependencies [e806d3e]
+- Updated dependencies [109aa85]
+- Updated dependencies [4278bda]
+- Updated dependencies [899792d]
+- Updated dependencies [b537492]
+- Updated dependencies [cad4343]
+- Updated dependencies [c97cb7c]
+- Updated dependencies [872c447]
+- Updated dependencies [44432a0]
+- Updated dependencies [f441937]
+- Updated dependencies [c49a848]
+  - @adminium/server@0.3.57
+  - @adminium/adapter-postgres@0.3.57
+  - @adminium/adapter-mysql@0.3.57
+  - @adminium/adapter-sqlite@0.3.57
+
 ## 0.3.56
 
 ### Patch Changes
