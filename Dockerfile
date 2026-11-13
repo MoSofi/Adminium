@@ -157,8 +157,9 @@ RUN chmod +x /app/dist/cli/index.js \
 
 # The adminium-data volume mounts here; ADMINIUM_DATA_DIR points at it.
 # Created and owned before USER drops, because a non-root process cannot chown
-# its own mount point.
-RUN mkdir -p /data && chown -R node:node /data
+# its own mount point. The compile cache folder too: /app itself stays root's,
+# and Node quietly skips the cache when it cannot create the folder.
+RUN mkdir -p /data /app/.compile-cache && chown -R node:node /data /app/.compile-cache
 VOLUME ["/data"]
 
 # node:22-slim ships an unprivileged `node` user (uid 1000) — no root at runtime.
