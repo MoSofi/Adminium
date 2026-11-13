@@ -20,11 +20,17 @@
  * (`adminium_operator_tallies`), which no settings route, config import,
  * export or archive reads or writes: a super admin cannot set it back.
  *
- * Past the budget a call is refused before it is made, with
- * {@link OperatorAiUsedUpError} (a picture, with a `PictureError` that says
- * the same). The operator's gateway keeps its own budget too, so a call that
- * starts just under the line and ends over it is the most this can overspend:
- * each call's reply is held to what is left.
+ * Each call RESERVES what it may spend before it is made (its input, as
+ * estimated, and the most it may answer), out of what is left after the calls
+ * still running reserved theirs; past the budget a call is refused before it
+ * is made, with {@link OperatorAiUsedUpError} (a picture, with a
+ * `PictureError` that says the same). When the call ends, what it spent is
+ * counted and its reservation let go. A call that fails or is stopped is
+ * counted too: the provider was sent its input, and a stopped reply was billed
+ * for what it streamed (a tool call that had begun, for all it reserved). So
+ * calls at once never pass the line together, and the most this can overspend
+ * is what one call's provider counts beyond the estimate. The operator's
+ * gateway keeps its own budget too.
  */
 import {
   estimateTokens,
@@ -97,6 +103,9 @@ export interface OperatorAiMeter {
   open(): Promise<void>;
 }
 
+/** A failed call's codes that say no model ran: nothing was billed. */
+const NOT_RUN: ReadonlySet<string> = new Set(['config', 'network', 'auth', 'rate_limit', 'not_found', 'http']);
+
 const whole = (value: number): number => (Number.isFinite(value) && value > 0 ? Math.ceil(value) : 0);
 
 export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRules, opts: { now?: () => number } = {}): OperatorAiMeter {
@@ -117,12 +126,37 @@ export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRule
     if (!counting || tallies === null || n === 0) return;
     await tallies.add(AI_TOKENS_TALLY, n, now());
   };
-  /** What is left, or the refusal when nothing is. */
-  const room = async (provider: ProviderId): Promise<number | null> => {
-    const rest = await left();
-    if (rest !== null && rest <= 0) throw new OperatorAiUsedUpError(provider);
-    return rest;
+  /** Tokens the calls running now reserved and have not yet counted. */
+  let reserved = 0;
+  /**
+   * Room for one call: `want` tokens (its input and its most), held out of what is left after the running calls' own;
+   * the refusal when nothing is. `rest` is what the call may spend (null with no budget); `settle` counts what it spent
+   * and lets the reservation go.
+   */
+  const reserve = async (want: number, refuse: () => Error): Promise<{ rest: number | null; settle(spent: number): Promise<void> }> => {
+    if (!counting) return { rest: null, settle: async () => undefined };
+    const spent = (await used()) ?? 0;
+    // Nothing is awaited from here until the reservation is made: two calls never both read the same room.
+    const rest = rules.budget === null ? null : rules.budget - spent - reserved;
+    if (rest !== null && rest <= 0) throw refuse();
+    const held = rest === null ? 0 : Math.min(rest, Math.max(1, whole(want)));
+    reserved += held;
+    let open = true;
+    return {
+      rest,
+      async settle(tokens) {
+        if (!open) return;
+        open = false;
+        try {
+          await charge(tokens);
+        } finally {
+          reserved -= held;
+        }
+      },
+    };
   };
+  /** A call that failed or was stopped: its input and what it streamed, unless it never reached a model. */
+  const failedCost = (error: unknown, input: number, streamed: number): number => (error instanceof ProviderError && NOT_RUN.has(error.code) ? 0 : input + streamed);
 
   return {
     rules,
@@ -138,30 +172,42 @@ export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRule
         id: inner.id,
         listModels: () => inner.listModels(),
         async complete(req) {
-          const rest = await room(inner.id);
-          const result = await inner.complete(rest === null ? req : { ...req, maxTokens: Math.max(1, Math.min(req.maxTokens, rest)) });
-          await charge(
-            result.usage === undefined
-              ? estimateTokens(req.system) + req.messages.reduce((sum, message) => sum + estimateTokens(message.content), 0) + estimateTokens(result.text)
-              : result.usage.inputTokens + result.usage.outputTokens,
-          );
+          const input = estimateTokens(req.system) + req.messages.reduce((sum, message) => sum + estimateTokens(message.content), 0);
+          const room = await reserve(input + req.maxTokens, () => new OperatorAiUsedUpError(inner.id));
+          let result: Awaited<ReturnType<ProviderClient['complete']>>;
+          try {
+            result = await inner.complete(room.rest === null ? req : { ...req, maxTokens: Math.max(1, Math.min(req.maxTokens, room.rest)) });
+          } catch (error) {
+            await room.settle(failedCost(error, input, 0));
+            throw error;
+          }
+          await room.settle(result.usage === undefined ? input + estimateTokens(result.text) : result.usage.inputTokens + result.usage.outputTokens);
           return result;
         },
         async test() {
-          await room(inner.id);
-          const result = await inner.test();
-          await charge(PING_TOKENS);
-          return result;
+          const room = await reserve(PING_TOKENS, () => new OperatorAiUsedUpError(inner.id));
+          try {
+            return await inner.test();
+          } finally {
+            await room.settle(PING_TOKENS);
+          }
         },
       };
       if (inner.transcribe !== undefined) {
         const transcribe = inner.transcribe.bind(inner);
         metered.transcribe = async (req) => {
-          await room(inner.id);
-          const heard = await transcribe(req);
           // Speech is paid by its length; a reply that does not say how long is counted from the recording's size.
+          const sent = (req.audio.byteLength / 4000) * SPEECH_TOKENS_PER_SECOND;
+          const room = await reserve(sent, () => new OperatorAiUsedUpError(inner.id));
+          let heard: Awaited<ReturnType<typeof transcribe>>;
+          try {
+            heard = await transcribe(req);
+          } catch (error) {
+            await room.settle(failedCost(error, sent, 0));
+            throw error;
+          }
           const seconds = heard.seconds ?? req.audio.byteLength / 4000;
-          await charge(seconds * SPEECH_TOKENS_PER_SECOND + estimateTokens(heard.text));
+          await room.settle(seconds * SPEECH_TOKENS_PER_SECOND + estimateTokens(heard.text));
           return heard;
         };
       }
@@ -171,9 +217,31 @@ export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRule
       return {
         id: inner.id,
         async run(req) {
-          const rest = await room(inner.id);
-          const result = await inner.run(rest === null ? req : { ...req, maxTokens: Math.max(1, Math.min(req.maxTokens, rest)) });
-          await charge(result.usage === undefined ? estimateTokens(req.system) + estimateTokens(JSON.stringify(req.messages)) + estimateTokens(JSON.stringify(result.blocks)) : result.usage.inputTokens + result.usage.outputTokens);
+          const input = estimateTokens(req.system) + estimateTokens(JSON.stringify(req.messages));
+          const room = await reserve(input + req.maxTokens, () => new OperatorAiUsedUpError(inner.id));
+          const maxTokens = room.rest === null ? req.maxTokens : Math.max(1, Math.min(req.maxTokens, room.rest));
+          // What streamed, for a reply that is stopped: its words as they came, and a tool call's arguments (which do not
+          // stream here) as all the reply could have been.
+          let words = '';
+          let calling = false;
+          const onEvent = req.onEvent;
+          const watched = {
+            ...req,
+            maxTokens,
+            onEvent: (event: Parameters<NonNullable<typeof onEvent>>[0]) => {
+              if (event.type === 'text') words += event.delta;
+              else calling = true;
+              onEvent?.(event);
+            },
+          };
+          let result: Awaited<ReturnType<ProviderRunner['run']>>;
+          try {
+            result = await inner.run(watched);
+          } catch (error) {
+            await room.settle(failedCost(error, input, calling ? maxTokens : estimateTokens(words)));
+            throw error;
+          }
+          await room.settle(result.usage === undefined ? input + estimateTokens(JSON.stringify(result.blocks)) : result.usage.inputTokens + result.usage.outputTokens);
           return result;
         },
       };
@@ -183,9 +251,17 @@ export function createOperatorAiMeter(meta: MetaDb | null, rules: OperatorAiRule
         kind: inner.kind,
         listModels: (signal) => inner.listModels(signal),
         async make(req) {
-          if ((await left()) === 0) throw new PictureError('billing', USED_UP_MESSAGE);
-          const made = await inner.make(req);
-          await charge(made.pictures.length * PICTURE_TOKENS + estimateTokens(req.prompt));
+          const input = estimateTokens(req.prompt);
+          const room = await reserve(req.count * PICTURE_TOKENS + input, () => new PictureError('billing', USED_UP_MESSAGE));
+          let made: Awaited<ReturnType<PictureMaker['make']>>;
+          try {
+            made = await inner.make(req);
+          } catch (error) {
+            // A picture is paid for when it is delivered.
+            await room.settle(0);
+            throw error;
+          }
+          await room.settle(made.pictures.length * PICTURE_TOKENS + input);
           return made;
         },
       };
