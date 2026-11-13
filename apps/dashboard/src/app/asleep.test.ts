@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { api, ApiError } from './api.js';
-import { ASLEEP_RELOAD_GAP_MS, reloadIfAsleep, resetAsleepReload, type AsleepDeps } from './asleep.js';
+import { ASLEEP_RELOAD_GAP_MS, reloadIfAsleep, resetAsleepReload } from './asleep.js';
 
 function answer(status: number, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify({ error: { code: 'ASLEEP', message: 'Waking up.' } }), {
@@ -17,29 +17,15 @@ function answer(status: number, headers: Record<string, string> = {}): Response 
 }
 
 const ASLEEP = { 'retry-after': '5', 'x-aapp-asleep': '1' };
+const T = 1_000_000;
 
-function deps(start = 1_000_000): AsleepDeps & { at: { now: number }; reloads: number; store: Map<string, string> } {
-  const store = new Map<string, string>();
-  const state = {
-    at: { now: start },
-    reloads: 0,
-    store,
-    now: () => state.at.now,
-    reload: () => {
-      state.reloads += 1;
-    },
-    storage: () => ({ getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) }),
-  };
-  return state;
-}
+let reload: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   resetAsleepReload();
-  try {
-    window.sessionStorage.clear();
-  } catch {
-    // None in this environment.
-  }
+  sessionStorage.clear();
+  reload = vi.fn();
+  vi.stubGlobal('location', { ...window.location, reload });
 });
 
 afterEach(() => {
@@ -49,54 +35,47 @@ afterEach(() => {
 
 describe('reloadIfAsleep', () => {
   it('reloads on the asleep answer', () => {
-    const d = deps();
-    expect(reloadIfAsleep(answer(503, ASLEEP), d)).toBe(true);
-    expect(d.reloads).toBe(1);
+    expect(reloadIfAsleep(answer(503, ASLEEP), T)).toBe(true);
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
   it('does nothing for any other answer', () => {
-    const d = deps();
-    expect(reloadIfAsleep(answer(503, { 'retry-after': '5' }), d)).toBe(false);
-    expect(reloadIfAsleep(answer(500, { 'x-aapp-asleep': '1' }), d)).toBe(false);
-    expect(reloadIfAsleep(answer(503, { 'x-aapp-asleep': '0' }), d)).toBe(false);
-    expect(d.reloads).toBe(0);
+    expect(reloadIfAsleep(answer(503, { 'retry-after': '5' }), T)).toBe(false);
+    expect(reloadIfAsleep(answer(500, { 'x-aapp-asleep': '1' }), T)).toBe(false);
+    expect(reloadIfAsleep(answer(503, { 'x-aapp-asleep': '0' }), T)).toBe(false);
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('reloads at most once in the gap, remembered across the reload', () => {
-    const d = deps();
-    expect(reloadIfAsleep(answer(503, ASLEEP), d)).toBe(true);
+    expect(reloadIfAsleep(answer(503, ASLEEP), T)).toBe(true);
     // The page reloaded: its memory is gone, session storage is not.
     resetAsleepReload();
-    d.at.now += ASLEEP_RELOAD_GAP_MS - 1;
-    expect(reloadIfAsleep(answer(503, ASLEEP), d)).toBe(false);
-    d.at.now += 1;
-    expect(reloadIfAsleep(answer(503, ASLEEP), d)).toBe(true);
-    expect(d.reloads).toBe(2);
+    expect(reloadIfAsleep(answer(503, ASLEEP), T + ASLEEP_RELOAD_GAP_MS - 1)).toBe(false);
+    expect(reloadIfAsleep(answer(503, ASLEEP), T + ASLEEP_RELOAD_GAP_MS)).toBe(true);
+    expect(reload).toHaveBeenCalledTimes(2);
   });
 
   it('still keeps the gap within the page when session storage throws', () => {
-    const d = deps();
-    d.storage = () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked');
-    };
-    expect(reloadIfAsleep(answer(503, ASLEEP), d)).toBe(true);
-    expect(reloadIfAsleep(answer(503, ASLEEP), d)).toBe(false);
-    expect(d.reloads).toBe(1);
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(reloadIfAsleep(answer(503, ASLEEP), T)).toBe(true);
+    expect(reloadIfAsleep(answer(503, ASLEEP), T + 1000)).toBe(false);
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('the API client', () => {
   it('reloads the page when a call gets the asleep answer, and still rejects the call', async () => {
-    const reload = vi.fn();
-    vi.stubGlobal('location', { ...window.location, reload });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(answer(503, ASLEEP)));
     await expect(api.get('/api/v1/bootstrap')).rejects.toBeInstanceOf(ApiError);
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
   it('does not reload for an ordinary 503', async () => {
-    const reload = vi.fn();
-    vi.stubGlobal('location', { ...window.location, reload });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(answer(503)));
     await expect(api.get('/api/v1/bootstrap')).rejects.toBeInstanceOf(ApiError);
     expect(reload).not.toHaveBeenCalled();
