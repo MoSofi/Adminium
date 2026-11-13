@@ -634,17 +634,16 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         // write gets from the data routes.
         const rights =
           source !== null && deps.tablePrivileges !== undefined ? await deps.tablePrivileges(source.connectionId) : null;
-        // A trial database over its size cap takes no new row and no change; deletes stay.
-        const heldBySizeCap = source !== null && (request.server.sizeCap?.held(source.connectionId) ?? null) !== null;
+        // A trial database over its size cap is NOT folded in: these say what the person may do by
+        // grant, and the page shows the hold itself, its create and edit locked with the reason
+        // (`GET /system/size-caps`), as it does once a trial has ended. The data routes refuse the write.
         const tableCapabilities =
           source !== null && typeof request.can === 'function'
             ? {
                 canCreate:
-                  !heldBySizeCap &&
                   (await request.can(`table:${source.connectionId}:${source.table}:create`)) &&
                   !writeRefused(rights, source.table, 'create'),
                 canUpdate:
-                  !heldBySizeCap &&
                   (await request.can(`table:${source.connectionId}:${source.table}:update`)) &&
                   !writeRefused(rights, source.table, 'update'),
                 canDelete:
