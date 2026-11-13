@@ -20,7 +20,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createProviderClient, createProviderRunner, PictureError, type PictureMaker, type ProviderConfig } from '@adminium/llm';
+import { createProviderClient, createProviderRunner, PictureError, ProviderError, type PictureMaker, type ProviderConfig } from '@adminium/llm';
 import { operatorTalliesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -30,7 +30,7 @@ import { composeServer, type ComposedServer } from '../src/compose.js';
 import { gateTools } from '../src/designer/declarative.js';
 import { createEventLog } from '../src/designer/events.js';
 import { createJail, JailError } from '../src/designer/jail.js';
-import { enterScope, publicReach, reachRefusal } from '../src/designer/operator-scope.js';
+import { enterScope, heldRefusal, outsideReachRefusal, publicReach, reachRefusal, recordApplied, releaseHold } from '../src/designer/operator-scope.js';
 import { SCOPE_REACH, scopeTools } from '../src/designer/scope-gate.js';
 import type { DesignerSession } from '../src/designer/session-store.js';
 import type { DesignerTool, ToolContext } from '../src/designer/tool-types.js';
@@ -44,7 +44,7 @@ import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { operatorAiTokensUsed } from '../src/operator/counters.js';
 import { starterParts } from '../src/project/apps/scaffold-app.js';
-import { buildProject } from '../src/project/build.js';
+import { buildProject, rebuildApps } from '../src/project/build.js';
 import { writeLlmConfig } from '../src/routes/llm/config-service.js';
 import { trialPolicy } from '../src/trial/policy.js';
 import { APP_VERSION } from '../src/version.js';
@@ -213,6 +213,55 @@ describe.each((['sqlite', 'postgres', 'mysql'] as EngineName[]).filter((engine) 
     expect(again.calls).toEqual(['complete:sk-own']);
   });
 
+  it('calls at once never pass the line together: each reserves what it may spend before it is made', async () => {
+    ({ meta, destroy } = await makeStore(engine, true));
+    const meter = createOperatorAiMeter(meta, operatorAiRules(makeEnv({ ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: '1000' })));
+    await meter.open();
+    // Each call: a big prompt, and all it was allowed out.
+    const runner = meter.runner({
+      id: 'openai',
+      run: async (req) => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return { blocks: [], stop: 'end' as const, malformed: [], usage: { inputTokens: 500, outputTokens: req.maxTokens } };
+      },
+    });
+    const results = await Promise.allSettled(Array.from({ length: 20 }, () => runner.run({ system: 's', messages: [], tools: [], model: 'm', maxTokens: 4000 })));
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected').every((result) => (result as PromiseRejectedResult).reason instanceof OperatorAiUsedUpError)).toBe(true);
+    // One call's own overspend past its estimate, at most: never twenty.
+    expect(await operatorAiTokensUsed(meta)).toBe(1500);
+  });
+
+  it('a stopped or failed call is counted for what reached the model; one that reached none is not', async () => {
+    ({ meta, destroy } = await makeStore(engine, true));
+    const meter = createOperatorAiMeter(meta, operatorAiRules(makeEnv({ ADMINIUM_AI_OPERATOR_BUDGET_TOKENS: '100000' })));
+    await meter.open();
+    const system = 'x'.repeat(400);
+    const stopped = (events: { type: 'text'; delta: string }[] | 'tool') =>
+      meter.runner({
+        id: 'openai',
+        run: async (req) => {
+          if (events === 'tool') req.onEvent?.({ type: 'tool_call', id: 'c1', name: 'write_file' });
+          else for (const event of events) req.onEvent?.(event);
+          throw new ProviderError({ provider: 'openai', code: 'aborted', message: 'the run was stopped' });
+        },
+      });
+    const run = (runner: ReturnType<typeof stopped>) => runner.run({ system, messages: [], tools: [], model: 'm', maxTokens: 2000 }).catch(() => undefined);
+    await run(stopped([]));
+    const input = (await operatorAiTokensUsed(meta)) ?? 0;
+    expect(input).toBeGreaterThan(50);
+    await run(stopped([{ type: 'text', delta: 'y'.repeat(400) }]));
+    expect(await operatorAiTokensUsed(meta)).toBeGreaterThan(input * 2 + 50);
+    const before = (await operatorAiTokensUsed(meta)) ?? 0;
+    // A tool call had begun: its arguments do not stream, so all the reply could have been is counted.
+    await run(stopped('tool'));
+    expect(await operatorAiTokensUsed(meta)).toBe(before + input + 2000);
+    // Refused before any model ran (no connection, a 401, a 429): nothing.
+    const refused = meter.runner({ id: 'openai', run: async () => Promise.reject(new ProviderError({ provider: 'openai', code: 'network', message: 'refused' })) });
+    await run(refused);
+    expect(await operatorAiTokensUsed(meta)).toBe(before + input + 2000);
+  });
+
   it('counts nothing where no operator variable is set', async () => {
     ({ meta, destroy } = await makeStore(engine, true));
     const { made } = await connections(undefined, { counted: false });
@@ -268,6 +317,32 @@ describe('ADMINIUM_AI_OPERATOR_ONLY', () => {
       await settings.set('llm.provider', 'ollama', { updatedBy: null });
       await settings.set('llm.baseUrl', 'http://10.0.0.5:11434', { updatedBy: null });
       await settings.set('llm.model', 'own', { updatedBy: null });
+      const made = (env: Record<string, string>) =>
+        createAiConnections({
+          settings,
+          keyCrypto: PLAIN_KEYS,
+          aiEnv: createAiEnv({ root: null, fromEnvironment: OPERATOR_ENV }),
+          networkFeatures: true,
+          production: false,
+          policy: trialPolicy(makeEnv(env)),
+          createClient: createProviderClient,
+          createRunner: createProviderRunner,
+        });
+      expect((await made({ ADMINIUM_AI_OPERATOR_ONLY: 'on' }).default())?.connection.id).toBe('env:openai');
+      expect((await made({}).default())?.connection.id).toBe('database');
+    } finally {
+      await store.destroy();
+    }
+  });
+
+  it('refuses Adminium’s managed AI, saved or saving: it is not the person’s own key', async () => {
+    const store = await makeStore('sqlite', true);
+    try {
+      const settings = settingsRepo(store.meta);
+      const body = { provider: 'adminium-managed', model: 'm' };
+      await expect(writeLlmConfig(settings, PLAIN_KEYS, body as never, { updatedBy: null, at: 1, policy: trialPolicy(makeEnv({ ADMINIUM_AI_OPERATOR_ONLY: 'on' })) })).rejects.toMatchObject({ code: 'OFF_BY_OPERATOR', details: { question: 'customAiProviders' } });
+      await writeLlmConfig(settings, PLAIN_KEYS, body as never, { updatedBy: null, at: 1, policy: trialPolicy(makeEnv()) });
+      // Saved before the variable was set: the operator's own connection is used in its place.
       const made = (env: Record<string, string>) =>
         createAiConnections({
           settings,
@@ -378,6 +453,101 @@ describe('every Designer tool is listed with what it may reach on the operator�
   });
 });
 
+describe('what a scoped turn may keep reaching is the app’s at its last apply', () => {
+  const bareApp = (dir: string): string => {
+    const parts = join(dir, 'apps', 'repairs', 'manifest');
+    mkdirSync(parts, { recursive: true });
+    writeFileSync(join(parts, 'app.json'), JSON.stringify({ kind: 'app', key: 'repairs', frontends: [{ side: 'staff', kind: 'spa' }] }));
+    return parts;
+  };
+
+  it('a second turn does not take what the first was refused as given; the build is held until an apply on the person’s own key', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'adminium-scope-'));
+    try {
+      const parts = bareApp(dir);
+      const first = enterScope(dir, 'repairs');
+      writeFileSync(join(parts, 'access.json'), JSON.stringify({ publicAccess: [{ table: 'jobs', methods: ['GET'], select: ['id'] }] }));
+      expect(reachRefusal(dir, 'repairs')).not.toBeNull();
+      first.end();
+      // The file stays for the person to carry on with their own key; nothing builds it meanwhile.
+      expect(heldRefusal(dir, 'repairs')).not.toBeNull();
+      const second = enterScope(dir, 'repairs');
+      expect(reachRefusal(dir, 'repairs')).not.toBeNull();
+      second.end();
+      // A person's own action in the session (a save, a style, pictures) is held the same.
+      expect(outsideReachRefusal(dir, 'repairs')).not.toBeNull();
+      // On the person's own key: the hold is let go, and once applied the entry is what a scoped turn may keep.
+      releaseHold(dir, 'repairs');
+      expect(heldRefusal(dir, 'repairs')).toBeNull();
+      recordApplied(dir, 'repairs');
+      const third = enterScope(dir, 'repairs');
+      expect(reachRefusal(dir, 'repairs')).toBeNull();
+      third.end();
+      expect(outsideReachRefusal(dir, 'repairs')).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('an app a turn names (its folder moved) began bare, in this turn and the next', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'adminium-scope-'));
+    try {
+      bareApp(dir);
+      const first = enterScope(dir, 'repairs');
+      const parts = join(dir, 'apps', 'repair-desk', 'manifest');
+      mkdirSync(parts, { recursive: true });
+      writeFileSync(join(parts, 'app.json'), JSON.stringify({ kind: 'app', key: 'repair-desk', frontends: [{ side: 'staff', kind: 'spa' }] }));
+      writeFileSync(join(parts, 'access.json'), JSON.stringify({ publicAccess: [{ table: 'jobs', methods: ['GET'], select: ['id'] }] }));
+      expect(reachRefusal(dir, 'repair-desk')).not.toBeNull();
+      first.end();
+      const next = enterScope(dir, 'repair-desk');
+      expect(reachRefusal(dir, 'repair-desk')).not.toBeNull();
+      next.end();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('widening an entry is new reach, whatever part of it; taking a column away is not', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'adminium-scope-'));
+    try {
+      const parts = bareApp(dir);
+      // Built and applied earlier on the person's own key: customers read their own jobs, published ones only.
+      const before = { table: 'jobs', methods: ['GET'], select: ['id', 'title'], claimedBy: { table: 'customers', column: 'customer_id' }, filters: [{ column: 'published', eq: true }] };
+      const mail = { emailTemplates: [{ key: 'ready', subject: 'Ready' }], outbox: { table: 'mail', kinds: ['ready'] } };
+      const rule = (to: unknown) => ({ automations: [{ key: 'tell', name: 'Tell', enabled: true, trigger: { kind: 'record' }, graph: { nodes: [{ id: 'a', action: { kind: 'email', templateKey: 'ready', to } }] } }] });
+      const write = (entry: unknown, extra: Record<string, unknown> = {}): void => {
+        const { automations, ...rest } = extra;
+        writeFileSync(join(parts, 'access.json'), JSON.stringify({ publicAccess: [entry] }));
+        writeFileSync(join(parts, 'emails.json'), JSON.stringify({ ...mail, ...rest }));
+        if (automations !== undefined) writeFileSync(join(parts, 'automations.json'), JSON.stringify(automations));
+      };
+      write(before, rule({ kind: 'staff', column: 'owner' }));
+      recordApplied(dir, 'repairs');
+      const scope = enterScope(dir, 'repairs');
+      const widened: [string, unknown, Record<string, unknown>][] = [
+        ['every row, not only the customer’s own, and unpublished too', { table: 'jobs', methods: ['GET'], select: ['id', 'title'] }, {}],
+        ['every column', { ...before, select: undefined }, {}],
+        ['public uploads and files', { ...before, uploads: ['photo'], files: ['contract'] }, {}],
+        ['a share link', { ...before, shareLink: 'token' }, {}],
+        ['another kind of mail in the outbox', before, { outbox: { table: 'mail', kinds: ['ready', 'offer'] } }],
+        ['a template’s words', before, { emailTemplates: [{ key: 'ready', subject: 'Click here' }] }],
+        ['an automation’s mail to the record’s own address', before, rule({ kind: 'field', column: 'email' })],
+      ];
+      for (const [what, entry, extra] of widened) {
+        write(entry, { ...rule({ kind: 'staff', column: 'owner' }), ...extra });
+        expect(reachRefusal(dir, 'repairs'), what).not.toBeNull();
+      }
+      // Narrower is never stopped, and staff mail is a dashboard's.
+      write({ ...before, select: ['id'] }, rule({ kind: 'listed', table: 'watchers' }));
+      expect(reachRefusal(dir, 'repairs')).toBeNull();
+      scope.end();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 // ── a whole server ───────────────────────────────────────────────────────────
 
 let composed: ComposedServer | undefined;
@@ -399,7 +569,7 @@ const HOST = `127.0.0.1:${String(DESIGN_PORT)}`;
 interface Client {
   meta: MetaDb;
   cookie: string;
-  call: (method: 'GET' | 'POST' | 'PATCH', url: string, payload?: unknown) => Promise<{ status: number; body: Record<string, unknown> }>;
+  call: (method: 'GET' | 'POST' | 'PATCH' | 'PUT', url: string, payload?: unknown) => Promise<{ status: number; body: Record<string, unknown> }>;
 }
 
 const memoryStore = (meta: MetaDb): MetaStoreHandle => ({ meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() });
@@ -541,6 +711,46 @@ describe.skipIf(!canBuildSides)('a Designer turn on the operator’s AI', { time
     const own = await turn(client, 'database', [writesStarter('repair-desk-2'), () => ({ calls: [access('repair-desk-2')] }), () => ({ calls: [{ name: 'apply_app', arguments: {} }] })]);
     expect(cardOf(own.events)).toBeNull();
     expect(own.events.some((event) => event.kind === 'apply' && event.state === 'installed')).toBe(true);
+  });
+
+  it('a public entry a refused turn left is applied by no later turn, no save and no restart’s build; on the person’s own key it is', async () => {
+    const client = await server(SCOPED);
+    const access = (key: string) => ({ name: 'write_file', arguments: { path: `apps/${key}/manifest/access.json`, content: JSON.stringify({ publicAccess: [{ table: 'items', methods: ['GET'], select: ['id', 'title'] }] }) } });
+    const first = await turn(client, 'env:ollama', [writesStarter('repair-desk'), () => ({ calls: [access('repair-desk')] })]);
+    const key = first.session.appKey;
+    expect(cardOf(first.events)).toBe('scope');
+    // Left on disk, for the person to carry on with their own key.
+    expect(existsSync(join(root!, 'apps', key, 'manifest', 'access.json'))).toBe(true);
+
+    // A second turn on the same connection changes nothing customer-facing: the entry is still refused.
+    script = [() => ({ text: 'Done.' })];
+    expect((await client.call('POST', `/api/v1/designer/sessions/${first.session.id}/turns`, { text: 'rename the dashboard title please' })).status).toBe(202);
+    const second = await finishedTurn(client, first.session.id, 2);
+    expect(second.filter((event) => event.kind === 'apply').some((event) => event.state === 'installed' || event.state === 'applied')).toBe(false);
+    expect(cardOf(second.filter((event) => event.seq > (first.events.at(-1)?.seq ?? 0)))).toBe('scope');
+    const keys = await (client.meta.db as unknown as { selectFrom(table: string): { selectAll(): { execute(): Promise<unknown[]> } } }).selectFrom('adminium_public_keys').selectAll().execute();
+    expect(keys).toEqual([]);
+
+    // A restart's build makes nothing of it.
+    const rebuilt = await rebuildApps({ root: root!, configFile: join(root!, 'adminium.config.ts') }, { version: APP_VERSION, dev: true });
+    expect(rebuilt.apps.find((app) => app.key === key)?.problems?.join(' ')).toMatch(/operator's AI/);
+
+    // The person's own hand in that session is held to the same: a customer side is not saved from it, and nothing is copied.
+    const save = await client.call('PUT', `/api/v1/designer/sessions/${first.session.id}/files`, { files: [{ path: `apps/${key}/customer/src/App.tsx`, content: 'export default 1;', base: '0'.repeat(64) }] });
+    expect(save.status).toBe(403);
+    expect(save.body).toMatchObject({ error: { code: 'OFF_BY_OPERATOR', details: { question: 'customerScreensOnOperatorAi', reason: 'operator-ai-scope' } } });
+    const copy = await client.call('POST', '/api/v1/designer/start', { key: 'shop', newKey: 'my-shop', name: 'My shop', approve: 'x', connectionId: 'env:ollama', model: 'fake' });
+    expect([403, 404]).toContain(copy.status);
+    if (copy.status === 403) expect(copy.body).toMatchObject({ error: { code: 'OFF_BY_OPERATOR' } });
+
+    // On the person's own key, the same app applies with its entry.
+    await ownKey(client);
+    script = [() => ({ text: 'Done.' })];
+    const created = await client.call('POST', '/api/v1/designer/sessions', { appKey: key, target: 'web', connectionId: 'database', model: 'fake', text: 'carry on' });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    const own = await finishedTurn(client, (created.body['session'] as { id: string }).id);
+    expect(cardOf(own)).toBeNull();
+    expect(own.some((event) => event.kind === 'apply' && event.state === 'installed')).toBe(true);
   });
 
   it('the AI used up ends the turn with its card, keeps what was made, and stays used up', async () => {

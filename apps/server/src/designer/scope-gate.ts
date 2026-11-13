@@ -71,7 +71,7 @@ export const SCOPE_REACH: Record<(typeof DESIGNER_TOOL_NAMES)[number], ScopeReac
 const refusal = (content: string): ToolOutcome => ({ content, label: SCOPE_LABEL, isError: true, facts: { outcome: 'refused', operator: 'operator-ai-scope' } });
 
 /** Whether the app has screens a stranger sees: a customer side or a phone app. */
-const hasPublicScreens = (root: string, appKey: string): boolean => existsSync(join(appDir(root, appKey), 'customer', 'src')) || existsSync(join(appDir(root, appKey), PHONE_SIDE));
+export const hasPublicScreens = (root: string, appKey: string): boolean => existsSync(join(appDir(root, appKey), 'customer', 'src')) || existsSync(join(appDir(root, appKey), PHONE_SIDE));
 
 /** The tools as a scoped turn's model gets them: outside a scoped turn each runs as it is. */
 export function scopeTools(root: string, appKey: string, tools: readonly DesignerTool[]): DesignerTool[] {
