@@ -40927,9 +40927,17 @@
     "status": "mt",
     "srcHash": "20028a9b0694"
   },
+  "studio.settingsHub.email.relay.limitDayOnly": {
+    "status": "mt",
+    "srcHash": "e7cceace02bc"
+  },
   "studio.settingsHub.email.relay.limitHour": {
     "status": "mt",
     "srcHash": "29dabc48e846"
+  },
+  "studio.settingsHub.email.relay.limitHourOnly": {
+    "status": "mt",
+    "srcHash": "d48fcd9e5e97"
   },
   "studio.settingsHub.email.relay.limitPeople": {
     "status": "mt",
