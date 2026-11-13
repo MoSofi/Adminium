@@ -103,6 +103,10 @@ const SWEEP: Record<PolicyQuestion, BothWays> = {
     refused: p('trial-email.test.ts', 'on a trial: not queued'),
     allowed: p('trial-email.test.ts', 'on an ordinary server: queued'),
   },
+  liftMailHold: {
+    refused: p('trial-email.test.ts', 'on a trial: today’s bounce and spam reports stay on the list, so the mail hold cannot be lifted'),
+    allowed: p('trial-email.test.ts', 'on an ordinary server: today’s spam report can be taken off'),
+  },
   aiBaseUrl: {
     refused: p('trial-mode.test.ts', 'a model connection: a typed address refused in a test and a save, a saved one never dialled, in trial mode only'),
     allowed: p('trial-mode.test.ts', "on an ordinary server: an address of one\\'s own is saved as before"),
@@ -113,7 +117,7 @@ const SWEEP: Record<PolicyQuestion, BothWays> = {
   },
   // ── own code ──
   packageUploads: {
-    refused: p('trial-own-code-routes.test.ts', 'are refused with PACKAGE_UPLOADS_OFF before the body is read, and /system/info says why'),
+    refused: p('trial-own-code-routes.test.ts', 'are refused with OFF_BY_OPERATOR before the body is read, and /system/info says why'),
     allowed: p('trial-own-code-routes.test.ts', 'reach the upload itself, and /system/info says they are taken'),
   },
   designerUploads: {
@@ -180,8 +184,8 @@ const SWEEP: Record<PolicyQuestion, BothWays> = {
     allowed: p('hosted-mode.test.ts', "'no cap, no watch, its own pools'"),
   },
   storageOverCap: {
-    refused: p('trial-size-cap.test.ts', "%s: past the data folder’s limit, uploads and exports"),
-    allowed: p('trial-size-cap.test.ts', "%s: past the data folder’s limit, uploads and exports"),
+    refused: p('trial-size-cap.test.ts', "%s: past the data folder’s limit, uploads refused, everything still exported"),
+    allowed: p('trial-size-cap.test.ts', "%s: past the data folder’s limit, uploads refused, everything still exported"),
   },
   extraSourceConnections: {
     refused: p('trial-size-cap.test.ts', '%s: a fourth source connection'),
