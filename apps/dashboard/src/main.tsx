@@ -17,6 +17,7 @@ import { LiveI18nProvider } from './i18n/LiveI18nProvider.js';
 import { initDashboardI18n } from './i18n/setup.js';
 import { createQueryClient } from './app/query.js';
 import { createAppRouter } from './app/router.js';
+import { setRefusalLoader } from './app/refusals.js';
 import './styles.css';
 
 async function start(): Promise<void> {
@@ -43,6 +44,8 @@ async function start(): Promise<void> {
   if (window.location.pathname.startsWith('/connect/')) (await import('./connect/connectReturn.js')).captureConnectReturn();
 
   await initDashboardI18n();
+  // A refusal the operator's switches cause is said in the person's words: that chunk, once one comes.
+  setRefusalLoader(() => import('./app/refusalWords.js'));
 
   const queryClient = createQueryClient();
   const router = createAppRouter(queryClient);

@@ -41,6 +41,7 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import { api } from './api.js';
+import { loadRefusalWords } from './refusals.js';
 
 export type Runtime = 'self-host' | 'desktop';
 
@@ -160,7 +161,12 @@ export function systemInfoQuery() {
   return queryOptions({
     queryKey: ['system', 'info'] as const,
     staleTime: SYSTEM_INFO_STALE_MS,
-    queryFn: () => api.get<SystemInfo>('/api/v1/system/info'),
+    queryFn: () =>
+      api.get<SystemInfo>('/api/v1/system/info').then((info) => {
+        // Switches turned off (a trial, the hosted profile): their refusals' words are in before the first one.
+        if (Object.values(info.offByOperator ?? {}).some((one) => !one.allowed)) void loadRefusalWords().catch(() => undefined);
+        return info;
+      }),
   });
 }
 
