@@ -17,6 +17,7 @@
  *     in `database`, a host the guard refuses: each refused, nothing created;
  *   - no password and no connection string in a log line or an audit row.
  */
+import { X509Certificate } from 'node:crypto';
 import { request } from 'node:https';
 import { userInfo } from 'node:os';
 import { Writable } from 'node:stream';
@@ -64,6 +65,14 @@ describe('ADMINIUM_SUPABASE_CONNECT_URL', () => {
 });
 
 // ── the pieces ──────────────────────────────────────────────────────────────
+
+describe('the fake operator’s certificate', () => {
+  it('is valid DER every time, its serial number included', () => {
+    // A serial whose first byte was 0 was "illegal padding" to OpenSSL, about one certificate in 300: the TLS
+    // front then threw, and the live hand-off below hung to its timeout.
+    for (let i = 0; i < 2000; i += 1) expect(() => new X509Certificate(selfSignedTls().cert)).not.toThrow();
+  });
+});
 
 describe('the redeem answer', () => {
   const good = { engine: 'postgres', host: 'aws-0-eu-central-1.pooler.supabase.com', port: 5432, database: 'postgres', user: 'postgres.abcdefgh', sslmode: 'require' };

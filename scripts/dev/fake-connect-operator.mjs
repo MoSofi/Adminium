@@ -94,9 +94,13 @@ export function selfSignedTls() {
     ),
   );
   const now = Date.now();
+  // DER takes an integer in its fewest bytes: a serial whose first byte is 0 (and the next under 0x80) is refused
+  // as "illegal padding", one certificate in about 500. A first byte from 1 to 0x7f is always minimal and positive.
+  const serial = randomBytes(8);
+  serial[0] = (serial[0] % 0x7f) + 1;
   const tbs = seq(
     tlv(0xa0, integer(Buffer.from([2]))),
-    integer(randomBytes(8)),
+    integer(serial),
     ecdsaSha256,
     name,
     seq(utcTime(now - 60_000), utcTime(now + 2 * 86_400_000)),
