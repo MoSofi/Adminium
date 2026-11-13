@@ -84,8 +84,8 @@ const SCREENS: Readonly<Record<string, readonly string[]>> = {
   'automations/rules/NewRuleModal.tsx': [],
   'studio/connect/steps/SourceStep.tsx': [],
   'studio/payments/PaymentsPage.tsx': [],
-  // A trial's size cap (`operatorSwitches`): the notice on a held database's pages waits for its words.
-  'pages/sizeCapNotice.tsx': [],
+  // A trial's size cap (`operatorSwitches`, `trial`): the notice and the Read-only chip on a held database's pages wait for their words.
+  'pages/sizeCapNotice.tsx': ['trial/ReadOnlyChip.tsx'],
   // Five page templates' words (`board`, `calendar`, `scheduler`, `chat`, `planning`): each binding is fetched with its page.
   'pages/PageBoardBinding.tsx': [],
   'pages/PageCalendarBinding.tsx': [],
