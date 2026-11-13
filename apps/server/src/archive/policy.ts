@@ -14,7 +14,9 @@
  * - `addOns.deciderTrust` (which add-on code may decide), the Designer's live
  *   switch and live id, and "Allow databases on this server"
  *   (`connections.allowLocalDatabases`: whether this server's own loopback is
- *   reachable is decided on that server, by its super admin)
+ *   reachable is decided on that server, by its super admin), and which
+ *   release the built-in email templates were last seeded from
+ *   (`email.builtinsSeededFor`: the server that restores seeds them again)
  *   ({@link NEVER_ARCHIVED_SETTINGS});
  * - copies of catalog packages: their file rows are dropped and each install's
  *   `packageFileId`/`packageIntegrity` cleared, so a restored instance shows
@@ -58,7 +60,7 @@ const EXPORT_SKIPPED_TABLES: readonly string[] = ['adminium_jobs'];
  */
 export const NEVER_ARCHIVED_JOB_KINDS: readonly string[] = ['operator.event'];
 
-export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases'];
+export const NEVER_ARCHIVED_SETTINGS: readonly string[] = ['addOns.deciderTrust', 'designer.live', 'designer.liveId', 'connections.allowLocalDatabases', 'email.builtinsSeededFor'];
 
 /**
  * This instance's own identity: an export does not clone it onto another server. Nor does it say who a
