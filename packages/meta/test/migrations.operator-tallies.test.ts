@@ -2,7 +2,8 @@
 /**
  * Wave 0089: what the server counts for its operator, on every available
  * dialect. A store from before the wave upgrades with nothing counted; adds
- * from two callers at once both count; a claim is taken once.
+ * from two callers at once both count; a claim is taken once; a raise keeps
+ * the highest amount; a listing by prefix holds that prefix's names alone.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -55,6 +56,50 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.claim('start-prompt', T0 + 1)).toBe(false);
       await repo.release('start-prompt');
       expect(await repo.claim('start-prompt', T0 + 2)).toBe(true);
+    });
+  });
+}
+
+for (const dialect of TEST_DIALECTS) {
+  describe.skipIf(!dialect.available)(`operator tallies kept at their highest [${dialect.name}]`, () => {
+    let t: TestDb;
+
+    beforeEach(async () => {
+      t = await dialect.make();
+      await applyMigrations(t.meta.db, { dialect: t.meta.dialect, migrations: ALL_MIGRATIONS });
+    });
+    afterEach(async () => {
+      await t.destroy();
+    });
+
+    it('a raise keeps the highest amount, from many callers at once, past 32 bits', async () => {
+      const repo = operatorTalliesRepo(t.meta);
+      await repo.raise('peak:a', 40, T0);
+      expect(await repo.get('peak:a')).toEqual({ name: 'peak:a', amount: 40, changedAt: T0 });
+      // A lower amount changes nothing, not even when it changed.
+      await repo.raise('peak:a', 10, T0 + 1);
+      expect(await repo.get('peak:a')).toEqual({ name: 'peak:a', amount: 40, changedAt: T0 });
+      await Promise.all([7, 90, 55, 12, 89].map((amount, n) => repo.raise('peak:b', amount, T0 + n)));
+      expect((await repo.get('peak:b'))?.amount).toBe(90);
+      await repo.raise('peak:a', 6_000_000_000, T0 + 2);
+      expect((await repo.get('peak:a'))?.amount).toBe(6_000_000_000);
+      await expect(repo.raise('peak:a', 1.5)).rejects.toThrow(/whole number/);
+    });
+
+    it('lists the tallies whose names start with a prefix, and no other', async () => {
+      const repo = operatorTalliesRepo(t.meta);
+      await repo.raise('peak:one:x', 1, T0);
+      await repo.raise('peak:one:y', 2, T0);
+      await repo.raise('peak:onex', 3, T0);
+      await repo.raise('PEAK:ONE:Z', 4, T0);
+      await repo.add('ai-tokens', 5, T0);
+      const listed = await repo.list('peak:one:');
+      expect(listed.map((tally) => [tally.name, tally.amount]).sort()).toEqual([
+        ['peak:one:x', 1],
+        ['peak:one:y', 2],
+      ]);
+      // A prefix that a LIKE would read as a pattern is refused.
+      await expect(repo.list('peak_%')).rejects.toThrow(/prefix/);
     });
   });
 }

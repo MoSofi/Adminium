@@ -5,7 +5,7 @@
  * it last changed.
  *
  * Written only by the server itself (the AI client's count, the Designer's
- * start prompt). No settings route, config import, export or archive touches
+ * start prompt, the most rows a trial's size cap saw in a table). No settings route, config import, export or archive touches
  * it, so a super admin cannot set a count back.
  */
 import type { MetaDb } from '../connect.js';
@@ -61,6 +61,29 @@ export function operatorTalliesRepo(meta: MetaDb) {
         if (await insert(name, amount, at)) return;
       }
       throw new Error(`The operator tally "${name}" could not be counted.`);
+    },
+
+    /**
+     * Keep the tally at `amount` or more (a whole number, 0 or more): raised
+     * when it is lower, left as it is, `changedAt` too, when it is not. Two
+     * raises at once keep the higher.
+     */
+    async raise(name: string, amount: number, at: number = Date.now()): Promise<void> {
+      checkName(name);
+      if (!Number.isSafeInteger(amount) || amount < 0) throw new Error('An operator tally is raised to a whole number, 0 or more.');
+      const lift = () => db.updateTable('adminium_operator_tallies').set({ amount, changedAt: at }).where('name', '=', name).where('amount', '<', amount).execute();
+      await lift();
+      if (await insert(name, amount, at)) return;
+      // Its row is there: made by another raise just now, or it was already this high.
+      await lift();
+    },
+
+    /** Every tally whose name starts with `prefix` (no `%`, `_` or `\\` in it). */
+    async list(prefix: string): Promise<OperatorTally[]> {
+      if (prefix.length === 0 || prefix.length > OPERATOR_TALLY_NAME_WIDTH || /[%_\\]/.test(prefix)) throw new Error('An operator tally prefix is empty, too long, or holds a pattern character.');
+      const rows = await db.selectFrom('adminium_operator_tallies').selectAll().where('name', 'like', `${prefix}%`).execute();
+      // A LIKE may ignore case; the names themselves do not.
+      return rows.filter((row) => row.name.startsWith(prefix)).map((row) => ({ name: row.name, amount: Number(row.amount), changedAt: Number(row.changedAt) }));
     },
 
     /**
