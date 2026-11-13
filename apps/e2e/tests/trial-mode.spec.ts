@@ -360,7 +360,13 @@ test.describe('trial mode', () => {
       await expect(page.getByTestId('off-by-operator-note')).toContainText('does not open SQLite files');
       // Reached by keyboard: the arrows walk the engines onto it, and it stays unchosen.
       await page.getByRole('radio', { name: /PostgreSQL/ }).focus();
-      for (let i = 0; i < 3 && !(await sqlite.evaluate((el) => el === document.activeElement)); i += 1) await page.keyboard.press('ArrowRight');
+      const focused = () => page.evaluate(() => document.activeElement?.getAttribute('value') ?? null);
+      for (let i = 0; i < 3 && !(await sqlite.evaluate((el) => el === document.activeElement)); i += 1) {
+        // One arrow at a time: the next waits until focus has moved, so a slow page is not pressed past SQLite.
+        const before = await focused();
+        await page.keyboard.press('ArrowRight');
+        await expect.poll(focused).not.toBe(before);
+      }
       await expect(sqlite).toBeFocused();
       await expect(sqlite).toHaveAttribute('aria-checked', 'false');
       await expect(page.getByRole('tooltip').filter({ hasText: 'does not open SQLite files' })).toHaveCount(1);
