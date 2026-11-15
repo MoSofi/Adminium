@@ -74,6 +74,7 @@ headers are exposed to cross-origin pages, so `headers.get()` reads them, and
 | `PUBLIC_QUERY_REFUSED` | 400 | A read the endpoint does not take. See [below](#a-refused-query). | `parameter` for U+0000 only |
 | `PUBLIC_UPSTREAM_UNAVAILABLE` | 503 | The database cannot be reached, is paused, or a document could not be drawn. | none |
 | `PUBLIC_SWITCHED_OFF` | 403 | The app switched this off in its settings. See [below](#switched-off). | none |
+| `PUBLIC_PAY_REFUSED` | 409 | A payment could not be started for this record: `params.reason` is `off` (the app takes no payments online right now), `nothing-due`, `not-now` (not in a state it is paid in) or `not-payable`. Never more. | `reason` |
 | `PUBLIC_WRITE_REFUSED` | 400, or 409 | A write refused. See [below](#a-refused-write). | several shapes |
 | `PUBLIC_WRITE_REJECTED` | 400 | A project hook refused the write. Its `message` is the project's own text, meant for people. | none |
 | `PUBLIC_SLOT_FULL` | 409 | The time asked for has no room left. | `column` |
@@ -363,7 +364,8 @@ role-bound key answers with the staff envelope:
 | `DOCUMENT_NOT_FOR_ROW` | 409 | The app's document kind is only for some rows (its `where`), and this row is not one of them: money given back has no receipt. Nothing was drawn. | `kind` |
 | `NIGHTLY_RATE_UNREADABLE` | 409 | A [price by the night](/reference/manifest/#prices-by-the-night) reads a rate rule that cannot be read. Correct the rule. | `table`, `key`, `column` |
 | `COLUMN_FORBIDDEN` | 403 | A column the caller's role does not read, reads masked, or may not change. | `table`, `column`, `reason` |
-| `TABLE_FORBIDDEN` | 403 | The caller's role lacks the table permission the write needs, on the table or a child table. | `permission` |
+| `TABLE_FORBIDDEN` | 403 | The caller's role lacks the table permission the write needs, on the table or a child table. Also a write no role may make: rows only Adminium writes (`reason: adminium-writes`), a payment taken online, which only a refund changes (`online-payment`), and a column only a payment fills (`payment-column`, with `column`). | `permission`, `reason`, `column` |
+| `PAYMENT_REFUND_NOT_ALLOWED` | 403 | A write that makes, or turns into, a row of an app's refund table that sends money back (its `refunds.when`), by someone who may not refund payments (the install's refund right, or the app's own). | `table` |
 
 A bulk edit or delete adds the row's `id` to a state refusal's details. The rest of this section
 takes the codes with the most to say.

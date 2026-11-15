@@ -146,13 +146,13 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/option-lists/*` | 5 | Named sets of answers a column accepts, written once and pointed at by as many columns as need them. Reading one needs only a session — a create dialog has to render the choices to anyone who may add a row — while writing needs the same grant that points a column at a list. The built-in lists live in code and are served with their labels in the caller's locale; editing one makes an ordinary copy rather than changing it. Deleting a list a column still names is refused with 409 and the columns using it. |
 | `/api/v1/pages/*` | 15 | Pages and dashboards — layout, config, nav order, shared views, and what a template needs from a table (with a new table drafted to fit when none does) |
-| `/api/v1/payments/*` | 40 | Studio → Payments: connect a payment service with your own keys, choose the ways to pay and their rules, mark tables payable, set the pay page and make pay links. Setup changes need payments.manage and a signed-in person (never an API key); payments.view reads only. |
+| `/api/v1/payments/*` | 56 | Studio → Payments: connect a payment service with your own keys, choose the ways to pay and their rules, mark tables payable, set the pay page and make pay links. Setup changes need payments.manage and a signed-in person (never an API key); payments.view reads only. |
 | `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/presence` | 1 | Someone is using this dashboard: an empty answer the dashboard asks for once a minute while its person is active, only where the operator set ADMINIUM_PRESENCE=on, for a proxy that counts any request as use |
 | `/api/v1/privacy/*` | 18 | A person’s data by their e-mail address — finding everything kept about them, downloading it as a .zip of JSON and CSV, erasing them in place (with a preview of what goes and what stays), and how long things are kept — plus the privacy notice (business name, notice address) and the sender’s postal address. Needs privacy.manage (only the Super Admin holds it unless granted) and a signed-in person; the postal address needs settings.manage. |
 | `/api/v1/project/*` | 11 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
-| `/api/v1/public/*` | 34 | The scoped public API for customer- and staff-facing pages (off by default) |
+| `/api/v1/public/*` | 36 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
 | `/api/v1/public-endpoints/*` | 5 | Build the endpoints a key can be granted — source, columns, filters, methods and limits |
 | `/api/v1/public-keys/*` | 5 | Issue, reveal, rotate and revoke the browser-safe keys your pages use |
@@ -808,12 +808,28 @@ POST /api/v1/payments/links/{id}/email
 POST /api/v1/payments/test-payments
 GET /api/v1/payments/test-payments/{rowKey}
 POST /api/v1/payments/panel
+POST /api/v1/payments/panel/rows
 POST /api/v1/payments/record-payment
 GET /api/v1/payments/payables
 POST /api/v1/payments/payables
 POST /api/v1/payments/payables/check
 PATCH /api/v1/payments/payables/{id}
 DELETE /api/v1/payments/payables/{id}
+GET /api/v1/payments/apps
+POST /api/v1/payments/apps/switch
+GET /api/v1/payments/rehearsal
+PUT /api/v1/payments/rehearsal
+GET /api/v1/payments/public-starts
+POST /api/v1/payments/public-starts/resume
+POST /api/v1/payments/terminal/charge
+GET /api/v1/payments/terminal/charges/{id}
+POST /api/v1/payments/terminal/charges/{id}/cancel
+GET /api/v1/payments/terminal/readers
+GET /api/v1/payments/readers
+POST /api/v1/payments/readers/pairing
+POST /api/v1/payments/readers/pairing/finish
+PATCH /api/v1/payments/readers/{id}
+DELETE /api/v1/payments/readers/{id}
 GET /api/v1/payments/ways
 PUT /api/v1/payments/ways/{source}/{method}
 DELETE /api/v1/payments/ways/{source}/{method}
@@ -897,6 +913,8 @@ GET /api/v1/public/records/{ref}/{id}
 PUT /api/v1/public/records/{ref}/{id}
 PATCH /api/v1/public/records/{ref}/{id}
 DELETE /api/v1/public/records/{ref}/{id}
+GET /api/v1/public/payments/available
+POST /api/v1/public/payments/start
 POST /api/v1/public/records/{ref}/dry-run
 POST /api/v1/public/records/{ref}/{id}/dry-run
 POST /api/v1/public/records/{ref}/batch

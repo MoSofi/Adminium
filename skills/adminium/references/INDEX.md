@@ -52,6 +52,7 @@ file. Every file is 8 KB or less.
 | `references/guides/take-payments--refunds.md` | Refunds | 847 |
 | `references/guides/take-payments--disputes.md` | Disputes | 1354 |
 | `references/guides/take-payments--activity.md` | Activity | 415 |
+| `references/guides/take-payments--card-testing.md` | Card testing | 1518 |
 | `references/guides/take-payments--stopping.md` | Stopping | 404 |
 | `references/guides/take-payments--what-it-does-not-do.md` | What it does not do | 481 |
 | `references/guides/take-payments--see-also.md` | See also | 636 |

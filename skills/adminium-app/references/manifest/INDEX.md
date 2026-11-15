@@ -34,9 +34,9 @@
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
 | `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 5565 |
 | `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 5609 |
-| `references/manifest/requiredschema--states.md` | requiredSchema — States | 7649 |
-| `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7789 |
-| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7547 |
+| `references/manifest/requiredschema--states.md` | requiredSchema — States | 7779 |
+| `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7804 |
+| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7717 |
 | `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 7225 |
 | `references/manifest/requiredschema--states-5.md` | requiredSchema — States (part 5) | 3307 |
 | `references/manifest/requiredschema--buttons-on-a-record.md` | requiredSchema — Buttons on a record | 3020 |
@@ -87,7 +87,7 @@
 | `references/manifest/people-2.md` | People (part 2) | 7722 |
 | `references/manifest/people-3.md` | People (part 3) | 308 |
 | `references/manifest/public-access.md` | Public access | 2014 |
-| `references/manifest/public-access-2.md` | Public access (part 2) | 7649 |
+| `references/manifest/public-access-2.md` | Public access (part 2) | 7738 |
 | `references/manifest/public-access-3.md` | Public access (part 3) | 6896 |
 | `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
 | `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |

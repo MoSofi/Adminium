@@ -2,6 +2,9 @@
 
 # Manifest spec: requiredSchema — States
 
+`create` holds a new row to the same conditions before it is created at all: a check-in recorded
+only for a paid ticket, on its day, from half an hour before the doors.
+
 ```json
 "create": { "requires": {
   "linked": [{ "via": "ticket_id", "where": [{ "column": "status", "in": ["valid", "offered"] }] }],

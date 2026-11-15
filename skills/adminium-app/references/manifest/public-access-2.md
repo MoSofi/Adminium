@@ -31,7 +31,7 @@
 | `rank` | no | `{ "orderBy", "where"? }`: a create also answers where the new row stands, as the number of rows ordered by `orderBy` at or before it. `where` is `{ "column", "eq" }`. Needs `POST`. |
 | `humanCheck` | no | `true`: the browser solves a small proof of work before a create or a claim is taken. Only on an entry that creates or claims. |
 | `anonymous` | no | Limits on a create nobody signed in for. See [Limits on a stranger's create](https://docs.adminium.dev/reference/manifest/#limits-on-a-strangers-create). |
-| `requireSetting` | no | Up to 4 `{ "table", "column", "when"? }`, each a bool of the settings table. While one is false, every write through the entry is refused. |
+| `requireSetting` | no | Up to 4 `{ "table", "column", "when"?, "in"? }`, each a bool of the settings table, or with `in` (1–8 values) an `enum` of it. While a bool is false, or the choice holds none of `in`, every write through the entry is refused. |
 | `confirm` | no | An email Adminium sends when a guest creates a row; needs `POST`. See below. |
 | `children` | no | The rows a create carries with it, by child table, two levels at most. See [A create with its child rows](https://docs.adminium.dev/reference/manifest/#a-create-with-its-child-rows). |
 | `agrees` | no | 1–8 checks the created row's own values must pass (guests no more than a room sleeps). See [A create with its child rows](https://docs.adminium.dev/reference/manifest/#a-create-with-its-child-rows). |

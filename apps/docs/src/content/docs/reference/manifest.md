@@ -1789,6 +1789,7 @@ lines are locked and payments may be recorded against it.
 |---|---|---|
 | `column` | yes | The `enum` column that holds the state. Every state named below is one of its values. |
 | `initial` | yes | The state a new row starts in. |
+| `starts` | no | 1–4 other states a new row may be made in, each with a move out of it (an order made already waiting for its payment, `"paying"`, beside one made `"placed"`). Whoever makes the row says which by the value it writes: a public entry by its `defaults`. |
 | `moves` | yes | From each state, up to 16 states a row may move to. A move is a state (`"void"`), or `{ "to", "requires"?, "roles"?, "undo"?, "clears"? }`. A move goes to another state. `undo: true` marks a move that takes back the listed move the other way; `clears` (1–8 columns, on an undo only) names further columns it empties. See [Undo of a move](#undo-of-a-move). |
 | `lock` | no | `{ "when", "except"? }`. While a row is in one of `when` (1–16 states), only the columns in `except` (up to 32) may change, and the state itself through a move. The state column is never in `except`. |
 | `children` | no | Child tables tied to the row's state, keyed by table ref. See below. |
@@ -1875,12 +1876,12 @@ Studio, to bill through it again. A refusal names tables by their own names (`li
 `parent`), never with a schema in front.
 
 A move that is not listed is not one the row may make. Columns Adminium keeps (totals, balances,
-formulas, stamps) are Adminium's to write whatever the state. A new row starts in `initial`. A
+formulas, stamps) are Adminium's to write whatever the state. A new row starts in `initial`, or in one of `starts`. A
 locked row cannot be deleted either, with or without `noDelete`.
 
 The states hold on every write to the table: a form, a bulk edit, an automation, the public API,
 and an outbox's `onSent` change. A refusal is `409`: `STATE_MOVE_REFUSED` for a move the row may
-not make (or a new row that does not start in `initial`), `RECORD_LOCKED` for a change to a locked
+not make (or a new row that starts in neither `initial` nor one of `starts`), `RECORD_LOCKED` for a change to a locked
 row or to a child row its parent's state does not allow (`details.on` says `create` or `change`,
 beside the parent's `state` and the states that allow it), and `DELETE_REFUSED` for a delete. An
 `onlyLater` column moved earlier, or emptied, is refused `422` with the code `out-of-range`.
@@ -4563,7 +4564,7 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `rank` | no | `{ "orderBy", "where"? }`: a create also answers where the new row stands, as the number of rows ordered by `orderBy` at or before it. `where` is `{ "column", "eq" }`. Needs `POST`. |
 | `humanCheck` | no | `true`: the browser solves a small proof of work before a create or a claim is taken. Only on an entry that creates or claims. |
 | `anonymous` | no | Limits on a create nobody signed in for. See [Limits on a stranger's create](#limits-on-a-strangers-create). |
-| `requireSetting` | no | Up to 4 `{ "table", "column", "when"? }`, each a bool of the settings table. While one is false, every write through the entry is refused. |
+| `requireSetting` | no | Up to 4 `{ "table", "column", "when"?, "in"? }`, each a bool of the settings table, or with `in` (1–8 values) an `enum` of it. While a bool is false, or the choice holds none of `in`, every write through the entry is refused. |
 | `confirm` | no | An email Adminium sends when a guest creates a row; needs `POST`. See below. |
 | `children` | no | The rows a create carries with it, by child table, two levels at most. See [A create with its child rows](#a-create-with-its-child-rows). |
 | `agrees` | no | 1–8 checks the created row's own values must pass (guests no more than a room sleeps). See [A create with its child rows](#a-create-with-its-child-rows). |
@@ -5299,7 +5300,10 @@ See [Limits on a stranger's create](/guides/apps/public-access/#limits-on-a-stra
 `requireSetting` switches an entry off from the settings row: while one of its bools is false,
 writes through the entry are refused with `PUBLIC_SWITCHED_OFF`. With `"when": "anonymous"`, the
 switch holds only for a create with no session, so a found patient can still book while new
-patients are turned away; it is allowed only on an optional `claimedBy` entry. A switch is read
+patients are turned away; it is allowed only on an optional `claimedBy` entry. With `"in"`, the
+setting is a choice (an `enum` of the settings table) and the entry is open only while it holds one
+of those values: a hotel's booking entry that takes no payment names `"in": ["nothing", "optional"]`,
+and the one that sends the guest to pay names `"in": ["optional", "required"]`. A switch is read
 from the settings table and trusted for 15 seconds. No row, no column or a failed read counts as
 off. See [Switches in the settings row](/guides/apps/public-access/#switches-in-the-settings-row).
 
@@ -6025,7 +6029,7 @@ Every field below needs `minAdminiumVersion` `0.3.49` or later. An older server 
 | [`apps.requires`](#appsrequires) | top level | self-made apps only |
 | [`instance`](#instance) | top level | self-made apps only |
 | [`reports`, `invoiceLayouts`, `scheduledReports`](#reports-invoicelayouts-and-scheduledreports) | top level | self-made apps only |
-| [`payments`](#payments) | top level | self-made apps only |
+| [`payments`](#payments) | top level | `payables`: every app (Adminium 0.3.59 and later); `ways` and `payPage`: self-made apps only |
 | [`envelope`, `views`](#a-pages-envelope-and-its-views) | a page | self-made apps only |
 | [`name`, `schema`](#a-tables-real-name-and-schema) | a table | self-made apps only |
 | [A column's own name](#columns-under-their-own-names) | a column's `ref` | self-made apps only |
@@ -6188,9 +6192,18 @@ owner to choose.
 Which tables take payments, and how. Never a key, a bank account or a contact: those are the
 owner's to give after the install.
 
+Any app may carry `payables` (Adminium 0.3.59 and later). A catalog app's payables arrive switched
+off: installing or updating it asks for no payments right, and someone who manages payments switches
+the app on in Payments. Each is checked at install as the payments screen checks a mapping (money
+columns, the currency's decimals, the way-to-pay values, a unique reference), on tables the app made
+itself, never one shared with another app or made by hand; one that fails is not made. An update that
+changes how an app's money lands switches it off again and tells the payment managers. Its payments
+table's reference is a text column marked `unique`, and no public entry writes it or the columns only a
+payment fills (`provider`, `approvalCode`, `last4`). `ways` and `payPage` stay a self-made file's.
+
 | Field | Rule |
 |---|---|
-| `payables` | Up to 16 payable tables, each once: `table`; `amount: { "column", "unit"? }` (`units` or `minor`); `currency` as `{ "column" }`, `{ "fixed": "EUR" }` or `{ "connection": true }`; `due: { "column" }`; `payments` as `{ "kind": "kept" }` (Adminium keeps them) or the table's own payments table, column by column (then `due` is required); and optionally `label`, `status: { "column", "paid", "refunded"? }`, `customerEmail`, `customerCountry` and up to 50 `pageFields`. Every column is one of that table's. |
+| `payables` | Up to 16 payable tables, each once: `table`; `amount: { "column", "unit"? }` (`units` or `minor`); `currency` as `{ "column" }`, `{ "fixed": "EUR" }` or `{ "connection": true }`; `due: { "column" }`; `payments` as `{ "kind": "kept" }` (Adminium keeps them) or the table's own payments table, column by column (then `due` is required); and optionally `label`, `status: { "column", "paid", "refunded"?, "from"?, "refundedFrom"? }`, `customerEmail`, `customerCountry` and up to 50 `pageFields`. Every column is one of that table's. `currency` may also be `{ "setting": { "table", "column" } }`, a text column of the app's one-row settings table. The payments table may leave out `date` when it names `paidAt` (the moment), and names `provider`, `approvalCode`, `last4` and `currency` columns, which Adminium alone fills. `status.from` lists the states a payment moves a row to `paid` from (`["paying"]`); a row in any other state keeps its state. Also: `payableWhen` (1–8 conditions on the row, the `requires` grammar: outside them there is no link and no checkout), `returnTo` (a path on the app's customer side, no query and no fragment), `receipt` (`app` or `engine`: who mails the receipt, never both), `onlyOnline` (the pay page offers no way to pay by hand) and `instantOnly` (`true`, or `{ "where": [...] }`: only ways that settle at once). An invoice built on the Invoices shape at version 2 or later is `{ "table", "shape": true }` with only `returnTo`, `receipt` and `onlyOnline`. |
 | `ways` | Up to 32 ways to pay, each `{ "source", "method" }` once: `manual` or a payment service's key, and the way to pay, with `enabled`, a `label` per language, `rules` (`countries`, `currencies`, `min`, `max`) and `position`. |
 | `payPage` | The pay page's plain settings: `shopName`, `shopCountry` (two letters) and `showLines`. Never a logo or a contact. |
 

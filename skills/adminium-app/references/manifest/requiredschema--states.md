@@ -30,6 +30,7 @@ lines are locked and payments may be recorded against it.
 |---|---|---|
 | `column` | yes | The `enum` column that holds the state. Every state named below is one of its values. |
 | `initial` | yes | The state a new row starts in. |
+| `starts` | no | 1–4 other states a new row may be made in, each with a move out of it (an order made already waiting for its payment, `"paying"`, beside one made `"placed"`). Whoever makes the row says which by the value it writes: a public entry by its `defaults`. |
 | `moves` | yes | From each state, up to 16 states a row may move to. A move is a state (`"void"`), or `{ "to", "requires"?, "roles"?, "undo"?, "clears"? }`. A move goes to another state. `undo: true` marks a move that takes back the listed move the other way; `clears` (1–8 columns, on an undo only) names further columns it empties. See [Undo of a move](https://docs.adminium.dev/reference/manifest/#undo-of-a-move). |
 | `lock` | no | `{ "when", "except"? }`. While a row is in one of `when` (1–16 states), only the columns in `except` (up to 32) may change, and the state itself through a move. The state column is never in `except`. |
 | `children` | no | Child tables tied to the row's state, keyed by table ref. See below. |
@@ -75,6 +76,3 @@ and, with `lock`:
 | Field | Rule |
 |---|---|
 | `release` | `{ "when", "columns" }`: while this row is in one of `when` (states the `lock` holds, and that no move leaves), a child row may still **empty** the listed columns (1–8 nullable columns of the child, never `via` or the key), and change nothing else. A released state must be final: a released link stops locking the row it points at, so a document that could move on would bring its line back billing a row that changed meanwhile. |
-
-Time and purchases billed on invoice lines, so that nothing is billed twice (each link `unique`),
-and billed again once the invoice is void:

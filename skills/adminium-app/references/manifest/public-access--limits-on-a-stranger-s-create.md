@@ -29,6 +29,9 @@ See [Limits on a stranger's create](https://docs.adminium.dev/guides/apps/public
 `requireSetting` switches an entry off from the settings row: while one of its bools is false,
 writes through the entry are refused with `PUBLIC_SWITCHED_OFF`. With `"when": "anonymous"`, the
 switch holds only for a create with no session, so a found patient can still book while new
-patients are turned away; it is allowed only on an optional `claimedBy` entry. A switch is read
+patients are turned away; it is allowed only on an optional `claimedBy` entry. With `"in"`, the
+setting is a choice (an `enum` of the settings table) and the entry is open only while it holds one
+of those values: a hotel's booking entry that takes no payment names `"in": ["nothing", "optional"]`,
+and the one that sends the guest to pay names `"in": ["optional", "required"]`. A switch is read
 from the settings table and trusted for 15 seconds. No row, no column or a failed read counts as
 off. See [Switches in the settings row](https://docs.adminium.dev/guides/apps/public-access/#switches-in-the-settings-row).

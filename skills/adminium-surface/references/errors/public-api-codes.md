@@ -19,6 +19,7 @@
 | `PUBLIC_QUERY_REFUSED` | 400 | A read the endpoint does not take. See [below](https://docs.adminium.dev/reference/errors/#a-refused-query). | `parameter` for U+0000 only |
 | `PUBLIC_UPSTREAM_UNAVAILABLE` | 503 | The database cannot be reached, is paused, or a document could not be drawn. | none |
 | `PUBLIC_SWITCHED_OFF` | 403 | The app switched this off in its settings. See [below](https://docs.adminium.dev/reference/errors/#switched-off). | none |
+| `PUBLIC_PAY_REFUSED` | 409 | A payment could not be started for this record: `params.reason` is `off` (the app takes no payments online right now), `nothing-due`, `not-now` (not in a state it is paid in) or `not-payable`. Never more. | `reason` |
 | `PUBLIC_WRITE_REFUSED` | 400, or 409 | A write refused. See [below](https://docs.adminium.dev/reference/errors/#a-refused-write). | several shapes |
 | `PUBLIC_WRITE_REJECTED` | 400 | A project hook refused the write. Its `message` is the project's own text, meant for people. | none |
 | `PUBLIC_SLOT_FULL` | 409 | The time asked for has no room left. | `column` |

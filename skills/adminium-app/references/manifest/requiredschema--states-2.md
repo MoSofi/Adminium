@@ -2,6 +2,9 @@
 
 # Manifest spec: requiredSchema — States
 
+Time and purchases billed on invoice lines, so that nothing is billed twice (each link `unique`),
+and billed again once the invoice is void:
+
 ```json
 "children": {
   "invoice_lines": {
@@ -39,12 +42,12 @@ Studio, to bill through it again. A refusal names tables by their own names (`li
 `parent`), never with a schema in front.
 
 A move that is not listed is not one the row may make. Columns Adminium keeps (totals, balances,
-formulas, stamps) are Adminium's to write whatever the state. A new row starts in `initial`. A
+formulas, stamps) are Adminium's to write whatever the state. A new row starts in `initial`, or in one of `starts`. A
 locked row cannot be deleted either, with or without `noDelete`.
 
 The states hold on every write to the table: a form, a bulk edit, an automation, the public API,
 and an outbox's `onSent` change. A refusal is `409`: `STATE_MOVE_REFUSED` for a move the row may
-not make (or a new row that does not start in `initial`), `RECORD_LOCKED` for a change to a locked
+not make (or a new row that starts in neither `initial` nor one of `starts`), `RECORD_LOCKED` for a change to a locked
 row or to a child row its parent's state does not allow (`details.on` says `create` or `change`,
 beside the parent's `state` and the states that allow it), and `DELETE_REFUSED` for a delete. An
 `onlyLater` column moved earlier, or emptied, is refused `422` with the code `out-of-range`.
@@ -121,6 +124,3 @@ A public entry can also close a change by a date with [`writableWhen`](https://d
 move's last day holds the staff too.
 
 #### Conditions on a new row
-
-`create` holds a new row to the same conditions before it is created at all: a check-in recorded
-only for a paid ticket, on its day, from half an hour before the doors.
