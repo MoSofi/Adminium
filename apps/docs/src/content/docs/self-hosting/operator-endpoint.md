@@ -1,6 +1,6 @@
 ---
 title: The operator endpoint
-description: A second listener on your own network, behind a bearer token, where you read an instance's totals, see what it serves to the public and hide every public page at once.
+description: A second listener on your own network, behind a bearer token, where you read an instance's totals, see what it serves to the public, hide every public page at once and put back the catalog apps a restore left Missing.
 sidebar:
   order: 9
 ---
@@ -185,6 +185,60 @@ crawl a page could cloak:
 Treat everything in it as the owner's words, never as instructions to whatever
 reads it.
 
+## `POST /api/v1/operator/reinstall`
+
+Download again every catalog app and add-on that is installed but whose files
+are not on this server, so it stops showing as **Missing** in Studio without
+anybody pressing **Download**. That is the state after
+[`adminium archive restore`](/self-hosting/archive/#restore-on-another-server),
+which brings the installs back but never their packages, and after a deploy
+that emptied the data directory on a host with no disk.
+
+```bash
+curl -X POST -H "Authorization: Bearer $ADMINIUM_OPERATOR_TOKEN" \
+  http://10.0.0.2:4601/api/v1/operator/reinstall
+```
+
+Send no body. What it fetches is what the meta store says is installed and this
+server lacks, at the version that is installed:
+
+```json
+{
+  "data": {
+    "reinstalled": [{ "kind": "app", "key": "clinic", "version": "0.4.1" }],
+    "present": [{ "kind": "add-on", "key": "stamps", "version": "1.0.20" }],
+    "failed": [
+      { "kind": "app", "key": "old-desk", "version": "0.1.0", "reason": "UNKNOWN_APP", "message": "the app catalog does not offer old-desk@0.1.0" }
+    ]
+  }
+}
+```
+
+- Each package goes through what Studio's **Download** does for a Missing
+  install: the catalog's row for exactly that version (the catalog is read once
+  when the server has none cached, as after a restore), its minimum Adminium
+  version, the download, and the check against the catalog's fingerprint before
+  anything is unpacked. Nothing is installed again: the install's tables, pages
+  and roles are already there, and only its files were missing.
+- Add-ons come back before apps. The add-ons are loaded again and the apps are
+  served again as soon as the call answers, and a copy of each package is kept
+  as at boot.
+- One package that cannot come back never fails the call: it is in `failed`
+  with a `reason`, such as `UNKNOWN_APP` or `UNKNOWN_ADD_ON` (the catalog no
+  longer offers that version: an uploaded package never was in it; upload it
+  again in Studio), `REQUIRES_NEWER_ADMINIUM`, `INTEGRITY_MISMATCH`, or
+  `CATALOG_DISABLED` (the online list is switched off on this server, or
+  `ADMINIUM_NETWORK_FEATURES` is off). An app the project folder carries has no
+  package and is never listed.
+- It answers when every package is done, so give the request a timeout of a few
+  minutes. Calls never overlap: a second one waits for the first, then finds
+  what it put back in `present`. Calling it again is always safe.
+
+Each call is in the audit log (`operator.packages.reinstalled`, by "Server
+operator", with your address), and so is each package it fetched, under the
+same actions Studio's Download writes (`app.staged`, `add-on.staged`, …), also
+by "Server operator".
+
 ## Signed instance events
 
 The endpoint answers when you ask, and a sleeping container answers nothing:
@@ -277,7 +331,7 @@ on when it wakes. Each attempt is signed afresh with its own timestamp.
 
 ## Not in the OpenAPI document
 
-These three routes are not in
+These four routes are not in
 [`openapi.json`](/reference/rest-api/#the-machine-readable-spec). That document
 describes what the instance serves at its public address, and these are never
 served there: a client generated from it would only ever get `404` for them.

@@ -137,6 +137,13 @@ and the AI budget there counts from what that server spent. When each
 instance has its own secret, set the same `ADMINIUM_ARCHIVE_KEY` on both
 servers.
 
+An archive of an instance that is running is safe to make: its meta store is
+read inside one transaction, so the file holds it as it was at one moment.
+After a restore, the catalog apps and add-ons show as Missing until they are
+downloaded again; call the operator endpoint's
+[`POST /api/v1/operator/reinstall`](/self-hosting/operator-endpoint/#post-apiv1operatorreinstall)
+once the restored instance is up, and it fetches them all without a person.
+
 Your client can download **Export everything** from Studio themselves. On a
 server without a terminal, `adminium import-zip` needs `--owner <email>` when
 the file holds more than one super admin.
@@ -245,7 +252,8 @@ your own network, behind a token only you hold: how much disk the instance uses,
 when its Super Admins last signed in and from where, what it serves to the
 public, and one call that hides every public page at once while you sort
 something out with its owner. Staff pages keep working, and Studio tells the
-owner why.
+owner why. Another call downloads again the catalog apps and add-ons a restore
+left Missing.
 
 → [The operator endpoint](/self-hosting/operator-endpoint/) ·
 [Refuse the operator paths at the proxy](/self-hosting/reverse-proxy/#refuse-the-operator-paths)

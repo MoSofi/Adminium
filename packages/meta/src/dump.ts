@@ -12,6 +12,10 @@
  * SQLite dump loads into Postgres by exactly the rule a SQLite → Postgres
  * relocation follows, and there is one definition of that rule.
  *
+ * ONE POINT IN TIME. A dump of a store that is in use is read inside
+ * {@link withMetaSnapshot}: one read-only transaction around every table, so a
+ * write that lands between two tables is in neither or in both, never half.
+ *
  * What a dump is NOT: it carries no ledger (`adminium_migrations` is never
  * dumped, as it is never relocated) and no DDL. The loader expects a target
  * that is migrated to the dump's own level; the archive restore makes sure of
@@ -19,6 +23,9 @@
  * then runs the rest, so data migrations still apply to old rows).
  */
 
+import { sql } from 'kysely';
+
+import type { MetaDialect } from './columns.js';
 import type { MetaDb } from './connect.js';
 import { assertMetaTable } from './prefix.js';
 import {
@@ -54,6 +61,62 @@ function portable(value: unknown): unknown {
     throw new MetaRelocateError('A meta column holds binary data, which a dump cannot carry.');
   }
   return value === undefined ? null : value;
+}
+
+/**
+ * What each dialect says to open a read-only transaction whose every read sees
+ * the same committed state, and the read that fixes that state at once.
+ *
+ *  - SQLite: a deferred transaction, made to read straight away. Under WAL that
+ *    read takes the one read view every later statement uses; without WAL it
+ *    takes the SHARED lock, which keeps any writer from committing until the
+ *    transaction ends (a writer waits for its busy timeout).
+ *  - Postgres: REPEATABLE READ, READ ONLY. The snapshot is taken by the first
+ *    statement after `start transaction`, hence the `select 1`.
+ *  - MySQL/MariaDB: the isolation level for this one transaction first (WITH
+ *    CONSISTENT SNAPSHOT means nothing at READ COMMITTED, and a server may
+ *    default to it), then a transaction that takes its read view as it starts.
+ *    Only InnoDB keeps a read view; every meta table is InnoDB.
+ */
+const SNAPSHOT_STATEMENTS: Record<MetaDialect, { begin: readonly string[]; pin: string | null }> = {
+  sqlite: { begin: ['begin'], pin: 'select count(*) from sqlite_master' },
+  postgres: { begin: ['start transaction isolation level repeatable read, read only'], pin: 'select 1' },
+  mysql: {
+    begin: ['set transaction isolation level repeatable read', 'start transaction with consistent snapshot, read only'],
+    pin: null,
+  },
+};
+
+/**
+ * Run `read` against ONE point in time of `meta`: a single read-only
+ * transaction on one pinned connection, opened before `read` is called (so
+ * nothing committed after this function hands over is seen) and closed after
+ * it settles. `read` gets a {@link MetaDb} bound to that transaction and must
+ * use nothing else: on SQLite the store has one connection, and a query on
+ * `meta` itself would wait for this transaction to end.
+ *
+ * Read only. A write inside `read` is refused by Postgres and MySQL; nothing
+ * here stops one on SQLite, so do not write.
+ */
+export async function withMetaSnapshot<T>(meta: MetaDb, read: (snapshot: MetaDb) => Promise<T>): Promise<T> {
+  if (meta.db.isTransaction) {
+    throw new MetaRelocateError('A meta-store snapshot cannot be taken inside another transaction.');
+  }
+  const statements = SNAPSHOT_STATEMENTS[meta.dialect];
+  return meta.db.connection().execute(async (pinned) => {
+    for (const statement of statements.begin) await sql.raw(statement).execute(pinned);
+    let result: T;
+    try {
+      if (statements.pin !== null) await sql.raw(statements.pin).execute(pinned);
+      result = await read({ db: pinned, dialect: meta.dialect });
+    } catch (error) {
+      await sql.raw('rollback').execute(pinned).catch(() => undefined);
+      throw error;
+    }
+    // Nothing was written; ending it with COMMIT or ROLLBACK is the same, and COMMIT says the read went through.
+    await sql.raw('commit').execute(pinned);
+    return result;
+  });
 }
 
 /** The physical kinds of every `adminium_` table on `meta`, keyed by table. */

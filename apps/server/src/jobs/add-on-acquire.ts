@@ -73,6 +73,8 @@ export interface AddOnAcquireDeps {
   now?: (() => number) | undefined;
   /** Tests only; production checks minimums against the running version. */
   serverVersion?: string | undefined;
+  /** Who the audit log names when no person asked (`userId` absent): `system` unless set (the operator's reinstall sets its own). */
+  actorLabel?: string | undefined;
   /**
    * The app list beside this one. With it, a refresh nobody asked for by hand
    * (the server starting, the daily tick) asks adminium.dev for BOTH lists in
@@ -118,7 +120,7 @@ async function audit(
     {
       actorKind: userId === undefined ? 'system' : 'user',
       actorId: userId ?? null,
-      actorLabel: userId === undefined ? 'system' : (person?.email ?? userId),
+      actorLabel: userId === undefined ? (deps.actorLabel ?? 'system') : (person?.email ?? userId),
       category: 'add-on',
       action,
       changes: { after: { ...(key === null ? {} : { key }), ...data } },
@@ -169,183 +171,179 @@ export async function addOnEntryFromCache(
   return entry;
 }
 
-export function registerAddOnAcquireHandlers(
-  registry: JobRegistry,
-  deps: AddOnAcquireDeps,
-): void {
-  const now = deps.now ?? Date.now;
+/**
+ * One download of `(key, version)` into the store, checked against the cached
+ * catalog's integrity: the `add-on-download` job's whole work, and what the
+ * operator's reinstall (`operator/reinstall.ts`) runs for each package that is missing.
+ */
+export async function downloadAddOnRelease(deps: AddOnAcquireDeps, payload: AddOnDownloadPayload, ctx: Pick<JobHandlerContext, 'jobId' | 'signal' | 'progress'>): Promise<{ key: string; version: string; integrity: string; dir: string }> {
   const serverVersion = deps.serverVersion ?? APP_VERSION;
+  const { key, version } = payload;
+  const label = `${key}@${version}`;
 
-  registry.registerJobHandler(
-    ADD_ON_DOWNLOAD_KIND,
-    addOnDownloadPayloadSchema,
-    async (payload: AddOnDownloadPayload, ctx: JobHandlerContext) => {
-      const { key, version } = payload;
-      const label = `${key}@${version}`;
+  ctx.progress(5, { step: 'catalog', message: `Looking up ${label}` });
+  const entry = await addOnEntryFromCache(deps.store, key, version);
+  /*
+   * THE MINIMUM, BEFORE A BYTE IS FETCHED. The route checks it too, so the
+   * page can say so at once; this checks again because the cache it reads
+   * may have been refreshed between the click and the run.
+   *
+   * Refusing here rather than at install is what makes the refusal
+   * truthful: an add-on's host support lives in the engine, so a package
+   * that installs cleanly against a server too old for it fails later, at
+   * runtime, in a place that says nothing about the version.
+   */
+  if (!meetsMinimum(entry.minAdminiumVersion, serverVersion)) {
+    await audit(
+      deps,
+      'add-on.download-failed',
+      key,
+      {
+        version,
+        reason: 'REQUIRES_NEWER_ADMINIUM',
+        minAdminiumVersion: entry.minAdminiumVersion,
+        serverVersion,
+      },
+      payload.userId,
+    );
+    throw new AddOnCatalogError(
+      'REQUIRES_NEWER_ADMINIUM',
+      `${label} needs Adminium ${entry.minAdminiumVersion} or later; this server is ${serverVersion}`,
+    );
+  }
+  if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
-      ctx.progress(5, { step: 'catalog', message: `Looking up ${label}` });
-      const entry = await addOnEntryFromCache(deps.store, key, version);
-      /*
-       * THE MINIMUM, BEFORE A BYTE IS FETCHED. The route checks it too, so the
-       * page can say so at once; this checks again because the cache it reads
-       * may have been refreshed between the click and the run.
-       *
-       * Refusing here rather than at install is what makes the refusal
-       * truthful: an add-on's host support lives in the engine, so a package
-       * that installs cleanly against a server too old for it fails later, at
-       * runtime, in a place that says nothing about the version.
-       */
-      if (!meetsMinimum(entry.minAdminiumVersion, serverVersion)) {
-        await audit(
-          deps,
-          'add-on.download-failed',
-          key,
-          {
-            version,
-            reason: 'REQUIRES_NEWER_ADMINIUM',
-            minAdminiumVersion: entry.minAdminiumVersion,
-            serverVersion,
-          },
-          payload.userId,
-        );
-        throw new AddOnCatalogError(
-          'REQUIRES_NEWER_ADMINIUM',
-          `${label} needs Adminium ${entry.minAdminiumVersion} or later; this server is ${serverVersion}`,
-        );
-      }
-      if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
+  // The client builds the address from the row's key and exact version.
+  // The row's `integrity` goes to the store below, untouched: the download
+  // host never supplies the value its own bytes are checked by.
+  ctx.progress(20, { step: 'download', message: `Downloading ${label}` });
+  let tarball;
+  try {
+    tarball = await deps.catalog.fetchTarball(entry, ctx.signal);
+  } catch (err) {
+    // Audited like the verify and unpack legs. A download that dies at the
+    // transport — a redirect off the download host, a 404, an over-cap
+    // body, a timeout — is exactly the kind of event wants on the
+    // record, and leaving it as the one silent leg would have made the
+    // audit trail's completeness a matter of which failure happened to occur.
+    await audit(
+      deps,
+      'add-on.download-failed',
+      key,
+      { version, reason: err instanceof AddOnCatalogError ? err.reason : 'UNKNOWN' },
+      payload.userId,
+    );
+    throw err;
+  }
+  if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
-      // The client builds the address from the row's key and exact version.
-      // The row's `integrity` goes to the store below, untouched: the download
-      // host never supplies the value its own bytes are checked by.
-      ctx.progress(20, { step: 'download', message: `Downloading ${label}` });
-      let tarball;
-      try {
-        tarball = await deps.catalog.fetchTarball(entry, ctx.signal);
-      } catch (err) {
-        // Audited like the verify and unpack legs. A download that dies at the
-        // transport — a redirect off the download host, a 404, an over-cap
-        // body, a timeout — is exactly the kind of event wants on the
-        // record, and leaving it as the one silent leg would have made the
-        // audit trail's completeness a matter of which failure happened to occur.
-        await audit(
-          deps,
-          'add-on.download-failed',
-          key,
-          { version, reason: err instanceof AddOnCatalogError ? err.reason : 'UNKNOWN' },
-          payload.userId,
-        );
-        throw err;
-      }
-      if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
+  // Verify + hardened unpack + atomic stage, all inside the store. A hash
+  // mismatch or a hostile archive is refused there and audited here, under
+  // the same two actions the upload route uses for the same two refusals.
+  ctx.progress(70, { step: 'verify', message: 'Verifying and unpacking' });
+  let staged;
+  try {
+    staged = await deps.store.stage({
+      key,
+      version,
+      tarball,
+      expectedIntegrity: entry.integrity,
+    });
+  } catch (err) {
+    const reason = (err as { reason?: string }).reason ?? 'UNKNOWN';
+    await audit(
+      deps,
+      reason === 'INTEGRITY_MISMATCH' ? 'add-on.verify-refused' : 'add-on.unpack-refused',
+      key,
+      { version, reason, bytes: tarball.byteLength },
+      payload.userId,
+    );
+    throw err;
+  }
 
-      // Verify + hardened unpack + atomic stage, all inside the store. A hash
-      // mismatch or a hostile archive is refused there and audited here, under
-      // the same two actions the upload route uses for the same two refusals.
-      ctx.progress(70, { step: 'verify', message: 'Verifying and unpacking' });
-      let staged;
-      try {
-        staged = await deps.store.stage({
-          key,
-          version,
-          tarball,
-          expectedIntegrity: entry.integrity,
-        });
-      } catch (err) {
-        const reason = (err as { reason?: string }).reason ?? 'UNKNOWN';
-        await audit(
-          deps,
-          reason === 'INTEGRITY_MISMATCH' ? 'add-on.verify-refused' : 'add-on.unpack-refused',
-          key,
-          { version, reason, bytes: tarball.byteLength },
-          payload.userId,
-        );
-        throw err;
-      }
-
-      // The store has just checked these bytes against the catalogue's own hash: its deciding code may run.
-      await recordDeciderTrust(deps.meta, { key, version, integrity: staged.tree.integrity });
-      ctx.progress(100, { step: 'staged', message: `${label} is ready to install` });
-      await audit(
-        deps,
-        'add-on.staged',
-        key,
-        { version, integrity: staged.tree.integrity, source: 'download', files: Object.keys(staged.tree.files).length },
-        payload.userId,
-      );
-
-      return { key, version, integrity: staged.tree.integrity, dir: staged.dir };
-    },
-    { internal: true },
+  // The store has just checked these bytes against the catalogue's own hash: its deciding code may run.
+  await recordDeciderTrust(deps.meta, { key, version, integrity: staged.tree.integrity });
+  ctx.progress(100, { step: 'staged', message: `${label} is ready to install` });
+  await audit(
+    deps,
+    'add-on.staged',
+    key,
+    { version, integrity: staged.tree.integrity, source: 'download', files: Object.keys(staged.tree.files).length },
+    payload.userId,
   );
 
-  registry.registerJobHandler(
-    CATALOG_REFRESH_KIND,
-    catalogRefreshPayloadSchema,
-    async (payload: CatalogRefreshPayload, ctx: JobHandlerContext) => {
-      // The gate is inside the client and runs before any URL is built, so a
-      // scheduled tick on an air-gapped instance is a typed refusal, not a
-      // blocked socket. Reported as a no-op rather than a failure: the operator
-      // did not do anything wrong by leaving the switch off.
-      if (!(await deps.catalog.isEnabled())) {
-        ctx.progress(100, { step: 'skipped', message: 'The online catalog is off' });
-        return { refreshed: false, reason: 'disabled' };
-      }
+  return { key, version, integrity: staged.tree.integrity, dir: staged.dir };
+}
 
-      ctx.progress(20, { step: 'fetch', message: 'Fetching the catalog' });
-      let catalog;
-      // Both lists in one request, when both are on and no person asked for this one alone.
-      let apps: AppCatalog | null = null;
-      try {
-        const together = payload.userId === undefined && deps.both !== undefined && (await bothListsOn({ addOns: deps.catalog, apps: deps.both.apps }));
-        if (together && deps.both !== undefined) {
-          const lists = await fetchBothLists({ addOns: deps.catalog, apps: deps.both.apps, endpoint: deps.both.endpoint, fetchImpl: deps.both.fetchImpl }, ctx.signal);
-          catalog = lists.addOns;
-          apps = lists.apps;
-        } else {
-          catalog = await deps.catalog.fetchCatalog(ctx.signal);
-        }
-      } catch (err) {
-        await audit(
-          deps,
-          'add-on.catalog-refresh-failed',
-          null,
-          { reason: err instanceof AddOnCatalogError ? err.reason : 'UNKNOWN' },
-          payload.userId,
-        );
-        throw err;
-      }
-      if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
+/** Fetch the catalog and cache it: the `catalog-refresh` job's whole work. */
+export async function refreshAddOnCatalog(deps: AddOnAcquireDeps, payload: CatalogRefreshPayload, ctx: Pick<JobHandlerContext, 'jobId' | 'signal' | 'progress'>): Promise<{ refreshed: boolean; reason?: string; count?: number }> {
+  const now = deps.now ?? Date.now;
+  // The gate is inside the client and runs before any URL is built, so a
+  // scheduled tick on an air-gapped instance is a typed refusal, not a
+  // blocked socket. Reported as a no-op rather than a failure: the operator
+  // did not do anything wrong by leaving the switch off.
+  if (!(await deps.catalog.isEnabled())) {
+    ctx.progress(100, { step: 'skipped', message: 'The online catalog is off' });
+    return { refreshed: false, reason: 'disabled' };
+  }
 
-      await deps.store.writeCatalogCache(catalog, now());
-      if (apps !== null && deps.both !== undefined) {
-        await deps.both.appStore.writeCatalogCache(apps, now());
-        await auditRepo(deps.meta).append(
-          {
-            actorKind: 'system',
-            actorId: null,
-            actorLabel: 'system',
-            category: 'app',
-            action: 'app.catalog-refreshed',
-            changes: { after: { count: apps.apps.length, generatedAt: apps.generatedAt, skipped: apps.skipped, with: 'add-ons' } },
-          },
-          now(),
-        );
-      }
-      ctx.progress(100, { step: 'cached', message: `${catalog.addOns.length} add-ons listed` });
-      await audit(
-        deps,
-        'add-on.catalog-refreshed',
-        null,
-        // An item this server could not read is named here: the page lists
-        // only what it could.
-        { count: catalog.addOns.length, generatedAt: catalog.generatedAt, skipped: catalog.skipped },
-        payload.userId,
-      );
+  ctx.progress(20, { step: 'fetch', message: 'Fetching the catalog' });
+  let catalog;
+  // Both lists in one request, when both are on and no person asked for this one alone.
+  let apps: AppCatalog | null = null;
+  try {
+    const together = payload.userId === undefined && deps.both !== undefined && (await bothListsOn({ addOns: deps.catalog, apps: deps.both.apps }));
+    if (together && deps.both !== undefined) {
+      const lists = await fetchBothLists({ addOns: deps.catalog, apps: deps.both.apps, endpoint: deps.both.endpoint, fetchImpl: deps.both.fetchImpl }, ctx.signal);
+      catalog = lists.addOns;
+      apps = lists.apps;
+    } else {
+      catalog = await deps.catalog.fetchCatalog(ctx.signal);
+    }
+  } catch (err) {
+    await audit(
+      deps,
+      'add-on.catalog-refresh-failed',
+      null,
+      { reason: err instanceof AddOnCatalogError ? err.reason : 'UNKNOWN' },
+      payload.userId,
+    );
+    throw err;
+  }
+  if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
-      return { refreshed: true, count: catalog.addOns.length };
-    },
+  await deps.store.writeCatalogCache(catalog, now());
+  if (apps !== null && deps.both !== undefined) {
+    await deps.both.appStore.writeCatalogCache(apps, now());
+    await auditRepo(deps.meta).append(
+      {
+        actorKind: 'system',
+        actorId: null,
+        actorLabel: deps.actorLabel ?? 'system',
+        category: 'app',
+        action: 'app.catalog-refreshed',
+        changes: { after: { count: apps.apps.length, generatedAt: apps.generatedAt, skipped: apps.skipped, with: 'add-ons' } },
+      },
+      now(),
+    );
+  }
+  ctx.progress(100, { step: 'cached', message: `${catalog.addOns.length} add-ons listed` });
+  await audit(
+    deps,
+    'add-on.catalog-refreshed',
+    null,
+    // An item this server could not read is named here: the page lists
+    // only what it could.
+    { count: catalog.addOns.length, generatedAt: catalog.generatedAt, skipped: catalog.skipped },
+    payload.userId,
   );
+
+  return { refreshed: true, count: catalog.addOns.length };
+}
+
+export function registerAddOnAcquireHandlers(registry: JobRegistry, deps: AddOnAcquireDeps): void {
+  registry.registerJobHandler(ADD_ON_DOWNLOAD_KIND, addOnDownloadPayloadSchema, (payload: AddOnDownloadPayload, ctx: JobHandlerContext) => downloadAddOnRelease(deps, payload, ctx), { internal: true });
+  registry.registerJobHandler(CATALOG_REFRESH_KIND, catalogRefreshPayloadSchema, (payload: CatalogRefreshPayload, ctx: JobHandlerContext) => refreshAddOnCatalog(deps, payload, ctx));
 }
 
 /**

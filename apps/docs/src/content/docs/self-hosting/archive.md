@@ -13,14 +13,30 @@ One file holds the whole instance, as far as one file can:
 
 | In the archive | Not in the archive |
 |---|---|
-| The meta store: people (with their password hashes), roles, pages, settings, apps' rows of configuration, audit log. From SQLite, Postgres or MySQL; it restores into any of the three. | Adminium itself. Install the same or a newer version on the new server. |
+| The meta store: people (with their password hashes), roles, pages, settings, apps' rows of configuration, audit log. From SQLite, Postgres or MySQL; it restores into any of the three. Copied consistently from a running instance: every table as it was at one moment. | Adminium itself. Install the same or a newer version on the new server. |
 | Uploads kept on this server's disk (`<data dir>/files` and every `local` storage destination) | Uploads in S3 or WebDAV: they stay where they are, and the restored instance reads them there. |
 | Local SQLite databases you connected, copied safely while the server runs | Databases on other hosts. Back those up with their own tools (`pg_dump`, `mysqldump`). |
 | The project folder: Designer-built apps, sides and sites, pages, lists | The project's `.env` files, its `.adminium/` folder, `data/`, `node_modules/` and `.git/`. Copy `.env` yourself if you need it. A file that holds any of them was not made by Adminium, and a restore refuses it. |
-| A list of installed catalog apps and add-ons with their versions | The packages themselves: after a restore they show as **Missing** in Studio until you download them again, and each is checked again when it is. |
+| A list of installed catalog apps and add-ons with their versions | The packages themselves: after a restore they show as **Missing** in Studio until they are downloaded again (from Studio, or all at once by the [operator endpoint](/self-hosting/operator-endpoint/#post-apiv1operatorreinstall)), and each is checked again when it is. |
 | Secrets (connection strings, mail and AI keys), still encrypted with `ADMINIUM_SECRET` | Sessions, password-reset and invitation links, add-on trust, the Designer's live switch, and **Allow databases on this server**. |
 
 The file holds password hashes and encrypted secrets: keep it as safe as the server.
+
+### Archiving a running instance
+
+You do not need to stop the server. The meta store is read inside one read-only
+transaction (SQLite: one transaction; Postgres: `REPEATABLE READ, READ ONLY`;
+MySQL and MariaDB: a consistent snapshot), so the archive holds every table as
+it was at one moment: a change saved while the archive is being made is in all
+of its tables or in none of them, never half of it. People keep working
+meanwhile. On a SQLite meta store, the server cannot save a change while the
+meta store is being read (usually well under a second): a change waits for the
+read to end, up to SQLite's own wait of five seconds, and fails after that.
+
+Uploads, local SQLite databases and the project folder are copied after the
+meta store. A file uploaded during the copy is not in the archive; a file
+deleted during it travels as a row without its bytes, and `archive create`
+names it.
 
 ## Restore on another server
 
@@ -61,7 +77,9 @@ After the restore:
   [`ADMINIUM_STORAGE_DIRS`](/self-hosting/env-vars/#adminium_storage_dirs).
 - Local SQLite databases land in `<data dir>/databases/`, and their connections
   point there.
-- Download catalog apps and add-ons again from Studio → Add-ons.
+- Download catalog apps and add-ons again from Studio → Add-ons, or have the
+  [operator endpoint](/self-hosting/operator-endpoint/#post-apiv1operatorreinstall)
+  fetch them all with `POST /api/v1/operator/reinstall` once the server is up.
 - Switch the Designer on again if you use it.
 
 ## The signature, and `ADMINIUM_ARCHIVE_KEY`

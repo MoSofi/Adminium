@@ -64,6 +64,8 @@ export interface AppAcquireDeps {
   now?: (() => number) | undefined;
   /** Tests only; production checks minimums against the running version. */
   serverVersion?: string | undefined;
+  /** Who the audit log names when no person asked (`userId` absent): `system` unless set (the operator's reinstall sets its own). */
+  actorLabel?: string | undefined;
   /**
    * Whether the add-on refresh, which runs just before the scheduled one of this list, already asked for both
    * lists and wrote this cache recently. The scheduled tick then makes no request of its own.
@@ -85,7 +87,7 @@ async function audit(
     {
       actorKind: userId === undefined ? 'system' : 'user',
       actorId: userId ?? null,
-      actorLabel: userId === undefined ? 'system' : (person?.email ?? userId),
+      actorLabel: userId === undefined ? (deps.actorLabel ?? 'system') : (person?.email ?? userId),
       category: 'app',
       action,
       changes: { after: { ...(key === null ? {} : { key }), ...data } },
@@ -115,156 +117,155 @@ export async function appEntryFromCache(store: AppStore, key: string, version: s
   return entry;
 }
 
-export function registerAppAcquireHandlers(registry: JobRegistry, deps: AppAcquireDeps): void {
-  const now = deps.now ?? Date.now;
+/**
+ * One download of `(key, version)` into the store, checked against the cached
+ * catalog's integrity: the `app-download` job's whole work, and what the
+ * operator's reinstall (`operator/reinstall.ts`) runs for each package that is missing.
+ */
+export async function downloadAppRelease(deps: AppAcquireDeps, payload: AppDownloadPayload, ctx: Pick<JobHandlerContext, 'jobId' | 'signal' | 'progress'>): Promise<{ key: string; version: string; integrity: string }> {
   const serverVersion = deps.serverVersion ?? APP_VERSION;
+  const { key, version } = payload;
+  const label = `${key}@${version}`;
 
-  registry.registerJobHandler(
-    APP_DOWNLOAD_KIND,
-    appDownloadPayloadSchema,
-    async (payload: AppDownloadPayload, ctx: JobHandlerContext) => {
-      const { key, version } = payload;
-      const label = `${key}@${version}`;
+  ctx.progress(5, { step: 'catalog', message: `Looking up ${label}` });
+  const entry = await appEntryFromCache(deps.store, key, version);
+  if (!meetsMinimum(entry.minAdminiumVersion, serverVersion)) {
+    await audit(
+      deps,
+      'app.download-failed',
+      key,
+      { version, reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: entry.minAdminiumVersion, serverVersion },
+      payload.userId,
+    );
+    throw new AddOnCatalogError(
+      'REQUIRES_NEWER_ADMINIUM',
+      `${label} needs Adminium ${entry.minAdminiumVersion} or later; this server is ${serverVersion}`,
+    );
+  }
+  if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
-      ctx.progress(5, { step: 'catalog', message: `Looking up ${label}` });
-      const entry = await appEntryFromCache(deps.store, key, version);
-      if (!meetsMinimum(entry.minAdminiumVersion, serverVersion)) {
-        await audit(
-          deps,
-          'app.download-failed',
-          key,
-          { version, reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: entry.minAdminiumVersion, serverVersion },
-          payload.userId,
-        );
-        throw new AddOnCatalogError(
-          'REQUIRES_NEWER_ADMINIUM',
-          `${label} needs Adminium ${entry.minAdminiumVersion} or later; this server is ${serverVersion}`,
-        );
-      }
-      if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
+  /*
+   * A KEY A SELF-MADE APP HOLDS IS NOT THE CATALOGUE'S TO FILL. Staging
+   * writes `<key>/<version>` in place, so a download of the same version
+   * would overwrite the files of an installed local app, and any version
+   * of it would then be installable over that app. Refused before a byte
+   * is fetched.
+   */
+  for (const staged of await deps.store.versions(key)) {
+    if (await claimsLocalPublisher(deps.store, key, staged)) {
+      await audit(deps, 'app.download-failed', key, { version, reason: 'PUBLISHER_CHANGED' }, payload.userId);
+      throw new AddOnCatalogError('PUBLISHER_CHANGED', `"${key}" is an app made on this install; the catalogue's app of that name cannot be downloaded over it`);
+    }
+  }
 
-      /*
-       * A KEY A SELF-MADE APP HOLDS IS NOT THE CATALOGUE'S TO FILL. Staging
-       * writes `<key>/<version>` in place, so a download of the same version
-       * would overwrite the files of an installed local app, and any version
-       * of it would then be installable over that app. Refused before a byte
-       * is fetched.
-       */
-      for (const staged of await deps.store.versions(key)) {
-        if (await claimsLocalPublisher(deps.store, key, staged)) {
-          await audit(deps, 'app.download-failed', key, { version, reason: 'PUBLISHER_CHANGED' }, payload.userId);
-          throw new AddOnCatalogError('PUBLISHER_CHANGED', `"${key}" is an app made on this install; the catalogue's app of that name cannot be downloaded over it`);
-        }
-      }
+  ctx.progress(20, { step: 'download', message: `Downloading ${label}` });
+  let tarball;
+  try {
+    tarball = await deps.catalog.fetchTarball(entry, ctx.signal);
+  } catch (err) {
+    await audit(
+      deps,
+      'app.download-failed',
+      key,
+      { version, reason: err instanceof AddOnCatalogError ? err.reason : 'UNKNOWN' },
+      payload.userId,
+    );
+    throw err;
+  }
+  if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
-      ctx.progress(20, { step: 'download', message: `Downloading ${label}` });
-      let tarball;
-      try {
-        tarball = await deps.catalog.fetchTarball(entry, ctx.signal);
-      } catch (err) {
-        await audit(
-          deps,
-          'app.download-failed',
-          key,
-          { version, reason: err instanceof AddOnCatalogError ? err.reason : 'UNKNOWN' },
-          payload.userId,
-        );
-        throw err;
-      }
-      if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
+  // Verify + hardened unpack + atomic stage, all inside the store, against
+  // the row's integrity and never a value the download host supplied.
+  ctx.progress(70, { step: 'verify', message: 'Verifying and unpacking' });
+  let staged;
+  try {
+    staged = await deps.store.stage({ key, version, tarball, expectedIntegrity: entry.integrity });
+  } catch (err) {
+    const reason = (err as { reason?: string }).reason ?? 'UNKNOWN';
+    await audit(
+      deps,
+      reason === 'INTEGRITY_MISMATCH' ? 'app.verify-refused' : 'app.unpack-refused',
+      key,
+      { version, reason, bytes: tarball.byteLength },
+      payload.userId,
+    );
+    throw err;
+  }
 
-      // Verify + hardened unpack + atomic stage, all inside the store, against
-      // the row's integrity and never a value the download host supplied.
-      ctx.progress(70, { step: 'verify', message: 'Verifying and unpacking' });
-      let staged;
-      try {
-        staged = await deps.store.stage({ key, version, tarball, expectedIntegrity: entry.integrity });
-      } catch (err) {
-        const reason = (err as { reason?: string }).reason ?? 'UNKNOWN';
-        await audit(
-          deps,
-          reason === 'INTEGRITY_MISMATCH' ? 'app.verify-refused' : 'app.unpack-refused',
-          key,
-          { version, reason, bytes: tarball.byteLength },
-          payload.userId,
-        );
-        throw err;
-      }
+  /*
+   * A CATALOGUE NEVER DELIVERS A SELF-MADE APP. The publisher `local` is
+   * for an app made on the install it runs on and put there from a file;
+   * a download that claims it is passing for something it is not, and is
+   * taken back out of the store rather than left to be installed.
+   */
+  if (await claimsLocalPublisher(deps.store, key, version)) {
+    await deps.store.removeVersion(key, version);
+    await audit(deps, 'app.verify-refused', key, { version, reason: 'LOCAL_FROM_CATALOG' }, payload.userId);
+    throw new AddOnCatalogError('LOCAL_FROM_CATALOG', `${label} says it was made locally, which a catalogue download never is`);
+  }
 
-      /*
-       * A CATALOGUE NEVER DELIVERS A SELF-MADE APP. The publisher `local` is
-       * for an app made on the install it runs on and put there from a file;
-       * a download that claims it is passing for something it is not, and is
-       * taken back out of the store rather than left to be installed.
-       */
-      if (await claimsLocalPublisher(deps.store, key, version)) {
-        await deps.store.removeVersion(key, version);
-        await audit(deps, 'app.verify-refused', key, { version, reason: 'LOCAL_FROM_CATALOG' }, payload.userId);
-        throw new AddOnCatalogError('LOCAL_FROM_CATALOG', `${label} says it was made locally, which a catalogue download never is`);
-      }
-
-      ctx.progress(100, { step: 'staged', message: `${label} is ready to install` });
-      await audit(
-        deps,
-        'app.staged',
-        key,
-        {
-          version,
-          integrity: staged.tree.integrity,
-          source: 'download',
-          files: Object.keys(staged.tree.files).length,
-        },
-        payload.userId,
-      );
-      return { key, version, integrity: staged.tree.integrity };
+  ctx.progress(100, { step: 'staged', message: `${label} is ready to install` });
+  await audit(
+    deps,
+    'app.staged',
+    key,
+    {
+      version,
+      integrity: staged.tree.integrity,
+      source: 'download',
+      files: Object.keys(staged.tree.files).length,
     },
-    { internal: true },
+    payload.userId,
   );
+  return { key, version, integrity: staged.tree.integrity };
+}
 
-  registry.registerJobHandler(
-    APP_CATALOG_REFRESH_KIND,
-    appCatalogRefreshPayloadSchema,
-    async (payload: AppCatalogRefreshPayload, ctx: JobHandlerContext) => {
-      // The gate runs inside the client before any URL is built. A tick on an
-      // instance with the switch off is a no-op, not a failure.
-      if (!(await deps.catalog.isEnabled())) {
-        ctx.progress(100, { step: 'skipped', message: 'The online app catalog is off' });
-        return { refreshed: false, reason: 'disabled' };
-      }
-      // The daily tick, on a server whose add-on list is on too: the add-on refresh asks for both lists in one request.
-      if (payload.userId === undefined && (await deps.coveredByBoth?.()) === true) {
-        ctx.progress(100, { step: 'skipped', message: 'Refreshed with the add-on list' });
-        return { refreshed: false, reason: 'with-add-ons' };
-      }
+/** Fetch the catalog and cache it: the `app-catalog-refresh` job's whole work. */
+export async function refreshAppCatalog(deps: AppAcquireDeps, payload: AppCatalogRefreshPayload, ctx: Pick<JobHandlerContext, 'jobId' | 'signal' | 'progress'>): Promise<{ refreshed: boolean; reason?: string; count?: number }> {
+  const now = deps.now ?? Date.now;
+  // The gate runs inside the client before any URL is built. A tick on an
+  // instance with the switch off is a no-op, not a failure.
+  if (!(await deps.catalog.isEnabled())) {
+    ctx.progress(100, { step: 'skipped', message: 'The online app catalog is off' });
+    return { refreshed: false, reason: 'disabled' };
+  }
+  // The daily tick, on a server whose add-on list is on too: the add-on refresh asks for both lists in one request.
+  if (payload.userId === undefined && (await deps.coveredByBoth?.()) === true) {
+    ctx.progress(100, { step: 'skipped', message: 'Refreshed with the add-on list' });
+    return { refreshed: false, reason: 'with-add-ons' };
+  }
 
-      ctx.progress(20, { step: 'fetch', message: 'Fetching the app catalog' });
-      let catalog;
-      try {
-        catalog = await deps.catalog.fetchCatalog(ctx.signal);
-      } catch (err) {
-        await audit(
-          deps,
-          'app.catalog-refresh-failed',
-          null,
-          { reason: err instanceof AddOnCatalogError ? err.reason : 'UNKNOWN' },
-          payload.userId,
-        );
-        throw err;
-      }
-      if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
+  ctx.progress(20, { step: 'fetch', message: 'Fetching the app catalog' });
+  let catalog;
+  try {
+    catalog = await deps.catalog.fetchCatalog(ctx.signal);
+  } catch (err) {
+    await audit(
+      deps,
+      'app.catalog-refresh-failed',
+      null,
+      { reason: err instanceof AddOnCatalogError ? err.reason : 'UNKNOWN' },
+      payload.userId,
+    );
+    throw err;
+  }
+  if (ctx.signal.aborted) throw new JobCancelledError(ctx.jobId);
 
-      await deps.store.writeCatalogCache(catalog, now());
-      ctx.progress(100, { step: 'cached', message: `${catalog.apps.length} apps listed` });
-      await audit(
-        deps,
-        'app.catalog-refreshed',
-        null,
-        { count: catalog.apps.length, generatedAt: catalog.generatedAt, skipped: catalog.skipped },
-        payload.userId,
-      );
-      return { refreshed: true, count: catalog.apps.length };
-    },
+  await deps.store.writeCatalogCache(catalog, now());
+  ctx.progress(100, { step: 'cached', message: `${catalog.apps.length} apps listed` });
+  await audit(
+    deps,
+    'app.catalog-refreshed',
+    null,
+    { count: catalog.apps.length, generatedAt: catalog.generatedAt, skipped: catalog.skipped },
+    payload.userId,
   );
+  return { refreshed: true, count: catalog.apps.length };
+}
+
+export function registerAppAcquireHandlers(registry: JobRegistry, deps: AppAcquireDeps): void {
+  registry.registerJobHandler(APP_DOWNLOAD_KIND, appDownloadPayloadSchema, (payload: AppDownloadPayload, ctx: JobHandlerContext) => downloadAppRelease(deps, payload, ctx), { internal: true });
+  registry.registerJobHandler(APP_CATALOG_REFRESH_KIND, appCatalogRefreshPayloadSchema, (payload: AppCatalogRefreshPayload, ctx: JobHandlerContext) => refreshAppCatalog(deps, payload, ctx));
 }
 
 /** Enqueue one download, idempotent per `(key, version)`. Routes call this, never `POST /jobs`. */

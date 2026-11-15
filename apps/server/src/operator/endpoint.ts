@@ -6,6 +6,7 @@
  *   GET  /api/v1/operator/status          totals: disk, mail, AI, sign-ins (`operator/status.ts`)
  *   POST /api/v1/operator/public-pages    hide or show every public page, with a reason
  *   GET  /api/v1/operator/public-content  what the instance serves to anybody (`operator/public-content.ts`)
+ *   POST /api/v1/operator/reinstall       download again the catalog apps and add-ons whose files are missing (`operator/reinstall.ts`)
  *
  * ── A LISTENER OF ITS OWN ──────────────────────────────────────────────────
  * `ADMINIUM_OPERATOR_LISTEN=<address>:<port>`, an address on the operator's
@@ -45,6 +46,7 @@ import { AppError, errorEnvelope } from '../errors.js';
 import type { HiddenPageLogo, OperatorHolds } from './holds.js';
 import type { OperatorStatus } from './status.js';
 import type { PublicContent } from './public-content.js';
+import type { ReinstallResult } from './reinstall.js';
 
 export const OPERATOR_PREFIX = '/api/v1/operator';
 
@@ -54,7 +56,7 @@ export const FAILURE_WINDOW_MS = 10 * 60_000;
 /** Requests from one address in a minute, right token or not. */
 export const REQUESTS_PER_MINUTE = 120;
 
-/** Who the audit log says changed a hold. */
+/** Who the audit log names for what the operator asked: a hold changed, packages put back. */
 export const OPERATOR_ACTOR_LABEL = 'Server operator';
 
 export interface OperatorEndpointDeps {
@@ -64,6 +66,8 @@ export interface OperatorEndpointDeps {
   holds: OperatorHolds;
   status: () => Promise<OperatorStatus>;
   publicContent: () => Promise<PublicContent>;
+  /** Put back the packages whose files are gone (`operator/reinstall.ts`). */
+  reinstall: () => Promise<ReinstallResult>;
   logger: FastifyBaseLogger;
   now?: () => number;
 }
@@ -97,6 +101,15 @@ const publicContentReply = z.object({
     at: z.number(),
     sides: z.array(z.object({ appKey: z.string(), path: z.string(), files: z.array(publicFile), truncated: z.boolean() })),
     forms: z.array(z.object({ slug: z.string(), addOn: z.string(), form: z.unknown() })),
+  }),
+});
+
+const reinstallPackage = z.object({ kind: z.enum(['add-on', 'app']), key: z.string(), version: z.string() });
+const reinstallReply = z.object({
+  data: z.object({
+    reinstalled: z.array(reinstallPackage),
+    present: z.array(reinstallPackage),
+    failed: z.array(reinstallPackage.extend({ reason: z.string(), message: z.string() })),
   }),
 });
 
@@ -260,6 +273,21 @@ export async function buildOperatorEndpoint(deps: OperatorEndpointDeps): Promise
       });
 
       operator.get('/public-content', { schema: { response: { 200: publicContentReply } } }, async () => ({ data: await deps.publicContent() }));
+
+      // No body: what is put back is what the meta store says is installed and this server lacks.
+      operator.post('/reinstall', { schema: { response: { 200: reinstallReply } } }, async (request) => {
+        const result = await deps.reinstall();
+        await auditRepo(deps.meta).append({
+          actorKind: 'system',
+          actorLabel: OPERATOR_ACTOR_LABEL,
+          category: 'system',
+          action: 'operator.packages.reinstalled',
+          changes: { after: { reinstalled: result.reinstalled, present: result.present.length, failed: result.failed } },
+          ip: request.ip,
+          requestId: request.id,
+        });
+        return { data: result };
+      });
     },
     { prefix: OPERATOR_PREFIX },
   );

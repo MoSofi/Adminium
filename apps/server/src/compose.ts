@@ -74,7 +74,8 @@ import { buildServer, type AdminiumServer, type BuildServerOptions } from './app
 import type { HostedSurface } from './cli/surfaces-root.js';
 import type { Env } from './config/env.js';
 import { holdOperatorSecrets, operatorSecret } from './config/operator-secrets.js';
-import { buildOperatorEndpoint, hiddenPageLogoReader, operatorListener } from './operator/endpoint.js';
+import { buildOperatorEndpoint, hiddenPageLogoReader, OPERATOR_ACTOR_LABEL, operatorListener } from './operator/endpoint.js';
+import { addOnReinstallSide, appReinstallSide, createPackageReinstaller } from './operator/reinstall.js';
 import { createOperatorEvents, registerOperatorEventsHandler } from './operator/events.js';
 import { buildPublicContent } from './operator/public-content.js';
 import { operatorStatus } from './operator/status.js';
@@ -4176,6 +4177,39 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
   // The page a hidden public page answers with shows the instance's logo, read from wherever files are kept.
   app.operatorHolds.readLogoWith(hiddenPageLogoReader(meta, storage));
+  // What the operator's `POST /reinstall` runs: the Download a Missing install needs, for every one of them (`operator/reinstall.ts`).
+  const operatorManifests = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
+  const operatorReinstaller = createPackageReinstaller({
+    sides: [
+      addOnReinstallSide(
+        { meta, store: addOnStore, catalog: jobsAddOnCatalog, both: { apps: appCatalog, appStore }, actorLabel: OPERATOR_ACTOR_LABEL },
+        { installed: () => operatorManifests.list('add-on'), changed: () => rebuildAddOnRuntime() },
+      ),
+      appReinstallSide(
+        { meta, store: appStore, catalog: appCatalog, actorLabel: OPERATOR_ACTOR_LABEL },
+        {
+          installed: () => operatorManifests.list('app'),
+          // An app the project folder carries never had a package.
+          skip: ({ row }) => row.source === FOLDER_SOURCE || appFiles.sourceOf(row.manifestKey) === 'folder',
+          changed: async () => {
+            await installedApps.refresh();
+          },
+        },
+      ),
+    ],
+    ready: () => packagesReady,
+    keepCopy: (installed) =>
+      createPackageCopies({
+        files: storage,
+        filesRepo: filesRepo(meta),
+        manifests: operatorManifests,
+        storeFor: (kind) => (kind === 'app' ? appStore : kind === 'add-on' ? addOnStore : null),
+        log: (level, message, data) => {
+          app.log[level](data ?? {}, message);
+        },
+      }).keep(installed),
+    log: (message, data) => app.log.warn(data, message),
+  });
   // The operator endpoint, on a listener of its own and only with the operator's token (`operator/endpoint.ts`).
   const operatorToken = env.ADMINIUM_OPERATOR_TOKEN ?? operatorSecret('ADMINIUM_OPERATOR_TOKEN');
   const operatorListen = env.ADMINIUM_OPERATOR_LISTEN;
@@ -4188,6 +4222,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           holds: app.operatorHolds,
           status: () => operatorStatus({ meta, dataDir: env.ADMINIUM_DATA_DIR, projectRoot, publicPages: () => app.operatorHolds.publicPages() }),
           publicContent: () => buildPublicContent({ surfaces: () => app.surfaces, forms: formsCatalog }),
+          reinstall: () => operatorReinstaller.reinstall(),
           logger: app.log.child({ listener: 'operator' }),
         });
   app.decorate('operatorEndpoint', operatorEndpoint === null || operatorListen === undefined ? null : operatorListener(operatorEndpoint, operatorListen));

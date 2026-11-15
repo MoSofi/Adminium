@@ -137,6 +137,9 @@ function reportRestore(io: CliIo, result: RestoreArchiveResult, where: { dataDir
         (manifest.packages.length > 8 ? ', …' : '') +
         ').',
     );
+    if (!result.dryRun) {
+      io.out('Once the server is up, Studio → Add-ons downloads them, or the operator endpoint’s POST /api/v1/operator/reinstall fetches them all.');
+    }
   }
   if (manifest.external.length > 0) {
     io.out(`${String(manifest.external.length)} database(s) on other hosts were not in the archive; their connections point where they did.`);

@@ -1150,6 +1150,7 @@ operator's own listener (`ADMINIUM_OPERATOR_LISTEN`), and only
 | `GET /api/v1/operator/status` | Disk used, mail and AI spent, the Super Admins' last 20 sign-ins (time and address), the last sign-in, and whether the public pages are hidden |
 | `POST /api/v1/operator/public-pages` | `{ "hidden": true, "reason": "…" }` hides every public page at once (404 on every host); `{ "hidden": false }` shows them again |
 | `GET /api/v1/operator/public-content` | What the instance serves to anybody: every customer side's files, with their text, and every live form's fields |
+| `POST /api/v1/operator/reinstall` | Downloads again every installed catalog app and add-on whose files are not on this server (after a restore, say), at its installed version and checked as Studio's Download checks it; answers what came back, what was already here, and what failed and why |
 
 They are for whoever runs the server, not for the people who use it, and a
 client generated from the published spec could never reach them, so they are

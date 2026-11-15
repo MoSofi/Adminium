@@ -5,8 +5,10 @@
  * Contents and rules: `format.ts` (layout), `policy.ts` (what is left out),
  * `mac.ts` (the signature). This module gathers the parts:
  *
- * 1. the meta store, dumped table by table (`@adminium/meta` `dumpMetaTable`),
- *    then sanitized by the same function a restore runs;
+ * 1. the meta store, dumped table by table (`@adminium/meta` `dumpMetaTable`)
+ *    inside one read-only transaction, so a running instance is copied as it
+ *    was at one moment (`withMetaSnapshot`), then sanitized by the same
+ *    function a restore runs;
  * 2. uploads kept on this server's disk: the implicit destination
  *    (`<data dir>/files`) and every `local` destination. Remote ones (S3,
  *    WebDAV) keep their bytes where they are;
@@ -36,6 +38,7 @@ import {
   isId,
   metaColumnKinds,
   relocatableTables,
+  withMetaSnapshot,
   type DsnCrypto,
   type MetaDb,
   type MetaTableDump,
@@ -86,6 +89,8 @@ export interface CreateArchiveOptions {
   scratchRoot?: string;
   /** How far along the file is, 0 to 1: called as members are read and written, at most once per percent. */
   onProgress?: (fraction: number) => void;
+  /** Called after each meta table is read, inside the snapshot. Tests only: what a write landing mid-dump does. */
+  afterMetaTable?: (table: string) => Promise<void> | void;
 }
 
 export interface CreateArchiveResult {
@@ -168,14 +173,20 @@ export async function createArchive(opts: CreateArchiveOptions): Promise<CreateA
   }
 
   // ── 1. the meta store ──────────────────────────────────────────────────────
-  const kinds = await metaColumnKinds(opts.meta);
-  const tables = new Map<string, MetaTableDump>();
-  for (const table of relocatableTables()) {
-    const tableKinds = kinds.get(table);
-    if (tableKinds === undefined) continue;
-    tables.set(table, await dumpMetaTable(opts.meta, table, tableKinds));
-  }
-  const metaVersion = await readMetaVersion(opts.meta);
+  // Every table read inside ONE read-only transaction (`withMetaSnapshot`): a
+  // running instance keeps writing while this reads, and a row written between
+  // two tables must be in both or in neither, never a child without its parent.
+  const { tables, metaVersion } = await withMetaSnapshot(opts.meta, async (snapshot) => {
+    const kinds = await metaColumnKinds(snapshot);
+    const read = new Map<string, MetaTableDump>();
+    for (const table of relocatableTables()) {
+      const tableKinds = kinds.get(table);
+      if (tableKinds === undefined) continue;
+      read.set(table, await dumpMetaTable(snapshot, table, tableKinds));
+      await opts.afterMetaTable?.(table);
+    }
+    return { tables: read, metaVersion: await readMetaVersion(snapshot) };
+  });
   // A full archive carries API keys; the RESTORE drops them unless asked.
   const sanitized = sanitizeDump(tables, { kind: opts.kind, dialect: opts.meta.dialect, keepApiKeys: true });
 
