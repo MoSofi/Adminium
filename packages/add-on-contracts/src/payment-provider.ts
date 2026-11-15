@@ -129,6 +129,10 @@ export const PROVIDER_ERROR_CODES = [
   'RATE_LIMITED',
   /** The provider could not be reached or failed; try later. */
   'UNAVAILABLE',
+  /** A card reader is taking another payment (`card-terminal@1`). */
+  'READER_BUSY',
+  /** A card reader is off the network (`card-terminal@1`). */
+  'READER_OFFLINE',
 ] as const;
 export type ProviderErrorCode = (typeof PROVIDER_ERROR_CODES)[number];
 

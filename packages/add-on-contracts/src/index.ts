@@ -319,6 +319,37 @@ export {
 } from './payment-demo.js';
 
 export {
+  CARD_TERMINAL_ANSWER_SCHEMAS,
+  CARD_TERMINAL_CONTRACT,
+  CARD_TERMINAL_FACTORY,
+  CARD_TERMINAL_VERSION,
+  READER_CHARGE_STATUSES,
+  pairingFinishedSchema,
+  pairingStartedSchema,
+  readerChargeStateSchema,
+  readerListSchema,
+  readerLocationsSchema,
+  readerUnpairedSchema,
+  terminalEventsSchema,
+  type CardTerminal,
+  type CardTerminalCall,
+  type CreateCardTerminal,
+  type PairingFinished,
+  type PairingStarted,
+  type Reader,
+  type ReaderChargeInput,
+  type ReaderChargeState,
+  type ReaderChargeStatus,
+  type ReaderList,
+  type ReaderLocation,
+  type ReaderLocations,
+  type ReaderUnpaired,
+  type TerminalEvents,
+} from './card-terminal.js';
+
+export { DEMO_TAPS, DEMO_TERMINAL_KEY, createDemoTerminalBackend, type DemoTap, type DemoTerminalBackend } from './terminal-demo.js';
+
+export {
   RECORD_TABS_MAX,
   RECORD_TAB_COLUMNS_MAX,
   recordTabIssues,

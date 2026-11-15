@@ -870,3 +870,5 @@ export {
   type PaymentConformanceDriver,
   type PaymentConformanceOptions,
 } from './payment-provider.js';
+
+export { cardTerminalConformance, type CardTerminalConformanceDriver, type CardTerminalConformanceOptions } from './card-terminal.js';
