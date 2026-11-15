@@ -166,7 +166,10 @@ describe('reports, invoice layouts, scheduled reports and payments', () => {
 
   it('are refused from any other publisher, which the published feed never carries', () => {
     const issues = check(asCatalog(app(parts)), false).join('\n');
-    for (const block of ['reports', 'invoiceLayouts', 'scheduledReports', 'payments']) expect(issues).toContain(`${block}: "${block}" is read only from a file made on an Adminium`);
+    for (const block of ['reports', 'invoiceLayouts', 'scheduledReports']) expect(issues).toContain(`${block}: "${block}" is read only from a file made on an Adminium`);
+    // Payables any app may carry; the ways to pay and the pay page are the shop's.
+    for (const part of ['ways', 'payPage']) expect(issues).toContain(`payments.${part}: "payments.${part}" is read only from a file made on an Adminium`);
+    expect(issues).not.toContain('payments.payables.0: ');
     // The feed's release record is the same strict shape: no block of these is a key of it.
     expect(Object.keys(appReleaseWireSchema.shape)).not.toContain('payments');
   });
