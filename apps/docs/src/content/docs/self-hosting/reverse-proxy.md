@@ -211,7 +211,7 @@ and let it reach the container:
 ```yaml
 services:
   adminium:
-    image: ghcr.io/mosofi/adminium:0.3.58
+    image: ghcr.io/mosofi/adminium:0.3.59
     environment:
       ADMINIUM_SECRET: ${ADMINIUM_SECRET:?}
       ADMINIUM_TRUST_PROXY: 'on'

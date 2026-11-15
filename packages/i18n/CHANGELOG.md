@@ -1,5 +1,7 @@
 # @adminium/i18n
 
+## 0.3.59
+
 ## 0.3.58
 
 ### Patch Changes

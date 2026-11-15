@@ -62,6 +62,18 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.59',
+    date: '2026-11-15',
+    title: 'Mail and archives for hosted installations',
+    summary:
+      'For people who run Adminium for others: an installation can send its mail through your mail server until it has one of its own, an archive of a running instance holds one moment, and one call downloads again the apps and add-ons a restore left missing.',
+    changes: [
+      { tag: 'New', text: 'ADMINIUM_OPERATOR_SMTP_URL and ADMINIUM_OPERATOR_MAIL_FROM send an installation’s mail through the operator’s mail server while it has none of its own, capped by ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY (500 a day by default). Saving its own mail server moves all mail there with no cap.' },
+      { tag: 'New', text: 'POST /api/v1/operator/reinstall downloads again every catalog app and add-on that is installed but whose files are missing, as after a restore or a deploy that emptied the data directory.' },
+      { tag: 'Improved', text: 'adminium archive create and Studio’s “Download everything” read the meta store inside one read-only snapshot, so a row written during the archive is in all of its tables or in none.' },
+    ],
+  },
+  {
     version: '0.3.58',
     date: '2026-11-14',
     title: 'Switches for operators, and safer SQL text',
