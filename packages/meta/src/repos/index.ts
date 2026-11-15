@@ -56,6 +56,7 @@ export * from './automation-spells.js';
 export * from './notification-schedules.js';
 export * from './payments.js';
 export * from './payment-setup.js';
+export * from './payment-readers.js';
 export * from './figma-tokens.js';
 export * from './removed-rows.js';
 export * from './consent.js';

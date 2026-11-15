@@ -681,6 +681,8 @@ const statesTiming = {
           at: storedMoment,
           /** Fixed values the timed move writes to other columns of the row. */
           set: z.record(ruleColumn, z.union([z.string().max(256), z.number(), z.boolean(), z.null()])).optional(),
+          /** Waits while a payment for the row is on its way. */
+          waitsForPayment: z.literal(true).optional(),
         })
         .strict(),
     )
@@ -1570,6 +1572,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     value: z.object({
       column: ruleColumn,
       initial: stateName,
+      /** Other states a new row may be made in (an order made already waiting for its payment). */
+      starts: z.array(stateName).min(1).max(4).optional(),
       moves: z.record(
         stateName,
         z

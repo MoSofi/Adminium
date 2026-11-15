@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ATTEMPT_MOVES,
   amountLeft,
+  appRefundKeyOf,
   connectionsRepo,
   keptPaymentsRepo,
   openKeyOf,
@@ -20,6 +21,7 @@ import {
   paymentEventsRepo,
   paymentLinksRepo,
   paymentMethodsRepo,
+  paymentReadersRepo,
   paymentSettingsRepo,
   refundsRepo,
   sumAmounts,
@@ -681,6 +683,22 @@ for (const dialect of TEST_DIALECTS) {
         expect(await refunds.countNeedingLook()).toBe(before - 1);
       });
 
+      it("asks one refund per app refund row, found again by that row, whoever asks", async () => {
+        const refunds = refundsRepo(meta());
+        const row = { connectionId: 'conn_1', table: 'public.order_refunds', rowKey: '7' };
+        const made = await refunds.create({ ...base, idempotencyKey: appRefundKeyOf(row), source: 'app', appRow: row }, T0);
+        expect(made.fresh).toBe(true);
+        expect(made.refund).toMatchObject({ source: 'app', appRow: row });
+        expect(appRefundKeyOf(row)).toMatch(/^app:[A-Za-z0-9_-]{43}$/);
+        expect(appRefundKeyOf({ ...row, rowKey: '8' })).not.toBe(appRefundKeyOf(row));
+        const again = await refunds.create({ ...base, idempotencyKey: appRefundKeyOf(row), source: 'auto', appRow: row }, T0 + 1);
+        expect(again).toMatchObject({ fresh: false, refund: { id: made.refund.id, source: 'app' } });
+        expect((await refunds.forAppRow(row))?.id).toBe(made.refund.id);
+        expect(await refunds.forAppRow({ ...row, rowKey: '9' })).toBeNull();
+        // A refund asked in Adminium names no app row.
+        expect((await refunds.create({ ...base, idempotencyKey: 'rk-plain' }, T0)).refund.appRow).toBeNull();
+      });
+
       it('lists the refunds still on their way, longest waiting first, and the refunds of one attempt', async () => {
         const refunds = refundsRepo(meta());
         const a = (await refunds.create({ ...base, attemptId: 'pat_w', idempotencyKey: 'rk-w1' }, T0)).refund;
@@ -707,6 +725,23 @@ for (const dialect of TEST_DIALECTS) {
         expect(await links.currentFor(INVOICE)).toBeNull();
         expect((await links.byId(second.link.id))?.revokedAt).toBe(T0 + 2);
         expect((await links.byId(second.link.id))?.revokeReason).toBeNull();
+      });
+
+      it("keeps a public start's own link current beside the shop's, never in its place", async () => {
+        const links = paymentLinksRepo(meta());
+        const shop = await links.mint({ tokenHash: 'p-s1', tokenSealed: 's1', payable: INVOICE, mode: 'live', expiresAt: T0 + 9, createdBy: 'usr_1' }, T0);
+        const pub = await links.mint({ tokenHash: 'p-p1', tokenSealed: 's2', payable: INVOICE, mode: 'live', expiresAt: T0 + 9, createdBy: null, audience: 'public' }, T0);
+        expect(pub.replaced).toBe(false);
+        expect(pub.link.audience).toBe('public');
+        expect(await links.currentFor(INVOICE)).toMatchObject({ id: shop.link.id, audience: 'staff' });
+        expect(await links.currentFor(INVOICE, 'public')).toMatchObject({ id: pub.link.id, audience: 'public', current: true });
+        // A new public link replaces only the public one; a paid record ends both.
+        const again = await links.mint({ tokenHash: 'p-p2', tokenSealed: 's3', payable: INVOICE, mode: 'live', expiresAt: T0 + 9, createdBy: null, audience: 'public' }, T0);
+        expect(again.replaced).toBe(true);
+        expect((await links.currentFor(INVOICE))?.id).toBe(shop.link.id);
+        expect(await links.retire(INVOICE)).toBe(2);
+        expect(await links.currentFor(INVOICE)).toBeNull();
+        expect(await links.currentFor(INVOICE, 'public')).toBeNull();
       });
 
       it('ends every current test link at once, saying why, and leaves live ones', async () => {
@@ -796,6 +831,57 @@ for (const dialect of TEST_DIALECTS) {
         expect(await counters.hit('link:1', T0 + 1)).toBe(9);
         expect(await counters.read('link:1', T0 + 3_600_000)).toBe(0);
         expect(await counters.gc(T0 + 30 * 3_600_000)).toBeGreaterThan(0);
+      });
+
+      it('reads a count over this hour and the one before', async () => {
+        const counters = paymentCountersRepo(meta());
+        const hour = Math.floor(T0 / 3_600_000) * 3_600_000;
+        await counters.hit('decline:a', hour + 3_590_000);
+        await counters.hit('decline:a', hour + 3_610_000);
+        await counters.hit('decline:a', hour + 3_620_000);
+        expect(await counters.read('decline:a', hour + 3_620_000)).toBe(2);
+        expect(await counters.readRecent('decline:a', hour + 3_620_000)).toBe(3);
+        expect(await counters.readRecent('decline:a', hour + 2 * 3_600_000 + 10)).toBe(2);
+      });
+
+      it('holds a card reader for one charge at a time, and frees it once the charge is off the reader', async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const first = (await attempts.create(attempt({ ...INVOICE, rowKey: 'r1' }, { mode: 'live', readerId: 'prd_1' }), T0))!;
+        expect(first.reader).toEqual({ readerId: 'prd_1', asked: '120.00', tip: null, approvalCode: null, last4: null, interac: false });
+        // Another charge on the same reader, from another till: refused while the first is on it.
+        expect(await attempts.create(attempt({ ...INVOICE, rowKey: 'r2' }, { mode: 'live', readerId: 'prd_1' }), T0)).toBeNull();
+        expect(await attempts.move(first.id, 'open', { providerRef: 'tmc_1' }, T0 + 1)).toBe(true);
+        expect(await attempts.move(first.id, 'succeeded', { takenAmount: '125.00', takenCurrency: 'EUR', paymentRef: 'tmp_1', tipAmount: '5.00', approvalCode: 'A1B2', cardLast4: '4242', interac: false }, T0 + 2)).toBe(true);
+        expect((await attempts.byId(first.id))!.reader).toEqual({ readerId: 'prd_1', asked: '120.00', tip: '5.00', approvalCode: 'A1B2', last4: '4242', interac: false });
+        const next = await attempts.create(attempt({ ...INVOICE, rowKey: 'r3' }, { mode: 'live', readerId: 'prd_1' }), T0 + 3);
+        expect(next?.reader?.readerId).toBe('prd_1');
+        // A pay page's attempt names no reader.
+        expect((await attempts.create(attempt({ ...INVOICE, rowKey: 'r4' }), T0))!.reader).toBeNull();
+      });
+
+      it('keeps the paired card readers, named, by service and mode', async () => {
+        const readers = paymentReadersRepo(meta());
+        const front = await readers.pair({ provider: 'demo-reader', mode: 'test', readerRef: 'tmr_1', label: 'Front counter', locationId: 'loc_1', locationName: 'Shop', model: 'Demo reader', online: true, lastSeenAt: T0, createdBy: 'usr_1' }, T0);
+        const again = await readers.pair({ provider: 'demo-reader', mode: 'test', readerRef: 'tmr_1', label: 'Front', locationId: 'loc_1', locationName: 'Shop', model: 'Demo reader', online: false, lastSeenAt: T0 + 5, createdBy: 'usr_2' }, T0 + 5);
+        expect(again.id).toBe(front.id);
+        expect(again).toMatchObject({ label: 'Front', online: false, lastSeenAt: T0 + 5 });
+        await readers.pair({ provider: 'demo-reader', mode: 'live', readerRef: 'tmr_1', label: 'Back', locationId: null, locationName: null, model: null, online: true, lastSeenAt: null, createdBy: null }, T0);
+        expect((await readers.list({ mode: 'test' })).map((one) => one.label)).toEqual(['Front']);
+        expect(await readers.rename(front.id, 'Till 1', T0 + 6)).toBe(true);
+        await readers.seen(front.id, true, T0 + 7, T0 + 7);
+        expect(await readers.byId(front.id)).toMatchObject({ label: 'Till 1', online: true, lastSeenAt: T0 + 7 });
+        expect(await readers.remove(front.id)).toBe(true);
+        expect(await readers.byId(front.id)).toBeNull();
+      });
+
+      it("keeps a public checkout's hashed start address, and forgets it once its window is over", async () => {
+        const attempts = paymentAttemptsRepo(meta());
+        const made = (await attempts.create(attempt(INVOICE, { mode: 'live', startAddress: 'a'.repeat(43) }), T0))!;
+        expect(made.startAddress).toBe('a'.repeat(43));
+        expect((await attempts.byId(made.id))?.startAddress).toBe('a'.repeat(43));
+        expect(await attempts.clearStartAddresses(T0)).toBe(0);
+        expect(await attempts.clearStartAddresses(T0 + 1)).toBe(1);
+        expect((await attempts.byId(made.id))?.startAddress).toBeNull();
       });
     });
   });

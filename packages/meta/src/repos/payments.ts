@@ -226,6 +226,20 @@ export interface PaymentAttempt {
   refundCommitted: string;
   /** A dispute the provider told of, or null. `outcome`: how a closed one ended, when the provider said. */
   dispute: { state: 'open' | 'closed'; at: number; closedAt: number | null; outcome: DisputeOutcome | null } | null;
+  /** A keyed hash of the address a public checkout started from, until the breakers' window is over; null otherwise. */
+  startAddress: string | null;
+  /** A payment on a card reader at the counter (0092), or null for a pay page's. */
+  reader: AttemptReader | null;
+}
+
+/** What a reader payment carries: its reader, what was asked and tipped, and the card as the reader said it. */
+export interface AttemptReader {
+  readerId: string;
+  asked: string | null;
+  tip: string | null;
+  approvalCode: string | null;
+  last4: string | null;
+  interac: boolean;
 }
 
 /** How a closed dispute ended, when the provider said so. */
@@ -255,6 +269,10 @@ export interface CreateAttemptInput {
   linkId: string | null;
   nonce: string;
   createdBy: string | null;
+  /** A public checkout's start address, hashed by the caller (never the address itself). */
+  startAddress?: string | null;
+  /** A charge on a card reader: the reader, held for this charge alone while it is on its way. */
+  readerId?: string;
 }
 
 /** What a move may write besides the state. */
@@ -270,6 +288,12 @@ export interface AttemptPatch {
   recordedKey?: string | null;
   settledAt?: number | null;
   recordedAt?: number | null;
+  /** A reader payment's tip, the card's approval code and last four, an Interac card, and what was asked. */
+  tipAmount?: string | null;
+  approvalCode?: string | null;
+  cardLast4?: string | null;
+  interac?: boolean;
+  askedAmount?: string | null;
 }
 
 function decodeAttempt(row: Selectable<AdminiumPaymentAttemptsTable>): PaymentAttempt {
@@ -322,6 +346,11 @@ function decodeAttempt(row: Selectable<AdminiumPaymentAttemptsTable>): PaymentAt
             outcome: row.disputeState === 'closed' && (DISPUTE_OUTCOMES as readonly string[]).includes(row.disputeOutcome ?? '') ? (row.disputeOutcome as DisputeOutcome) : null,
           }
         : null,
+    startAddress: row.startAddress ?? null,
+    reader:
+      row.channel === 'reader' && row.readerId != null
+        ? { readerId: row.readerId, asked: row.askedAmount ?? null, tip: row.tipAmount ?? null, approvalCode: row.approvalCode ?? null, last4: row.cardLast4 ?? null, interac: readBool(row.interac ?? false) }
+        : null,
   };
 }
 
@@ -331,11 +360,11 @@ function samePayable(attempt: PaymentAttempt, ref: PayableRef): boolean {
 }
 
 
-function patchColumns(patch: AttemptPatch): Partial<Record<string, unknown>> {
+function patchColumns(patch: AttemptPatch, dialect: MetaDb['dialect']): Partial<Record<string, unknown>> {
   const out: Partial<Record<string, unknown>> = {};
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
-    out[key] = key === 'paidWith' || key === 'problem' ? (value === null ? null : packJson(value)) : value;
+    out[key] = key === 'paidWith' || key === 'problem' ? (value === null ? null : packJson(value)) : key === 'interac' ? (dialect === 'postgres' ? value === true : value === true ? 1 : 0) : value;
     if (key === 'problem') out['problemCode'] = value === null ? null : String((value as AttemptProblem).code).slice(0, 40);
   }
   return out;
@@ -419,6 +448,16 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         disputedAt: null,
         disputeClosedAt: null,
         failCounted: 0,
+        startAddress: input.startAddress ?? null,
+        channel: input.readerId === undefined ? null : 'reader',
+        readerId: input.readerId ?? null,
+        // The reader is this charge's alone while it is on its way: a second charge on it fails the unique index.
+        readerBusyKey: input.readerId ?? null,
+        askedAmount: input.readerId === undefined ? null : input.amount,
+        tipAmount: null,
+        approvalCode: null,
+        cardLast4: null,
+        interac: input.readerId === undefined ? null : writeBool(meta, false),
       };
       try {
         await db.insertInto('adminium_payment_attempts').values(row).execute();
@@ -432,6 +471,17 @@ export function paymentAttemptsRepo(meta: MetaDb) {
     async byId(id: string): Promise<PaymentAttempt | null> {
       const row = await db.selectFrom('adminium_payment_attempts').selectAll().where('id', '=', id).executeTakeFirst();
       return row === undefined ? null : decodeAttempt(row);
+    },
+
+    /** Forgets the start address of every attempt made before `before` (the breakers' window is over). Returns how many. */
+    async clearStartAddresses(before: number): Promise<number> {
+      const res = await db
+        .updateTable('adminium_payment_attempts')
+        .set({ startAddress: null })
+        .where('startAddress', 'is not', null)
+        .where('createdAt', '<', before)
+        .executeTakeFirst();
+      return affected(res.numUpdatedRows);
     },
 
     /**
@@ -511,8 +561,10 @@ export function paymentAttemptsRepo(meta: MetaDb) {
     async move(id: string, to: AttemptState, patch: AttemptPatch = {}, at: number = Date.now()): Promise<boolean> {
       const from = ATTEMPT_MOVES[to];
       if (from.length === 0) throw new RangeError(`An attempt never moves to "${to}".`);
-      const set: Record<string, unknown> = { ...patchColumns(patch), state: to, updatedAt: at };
+      const set: Record<string, unknown> = { ...patchColumns(patch, meta.dialect), state: to, updatedAt: at };
       if (!OPEN_ATTEMPT_STATES.includes(to)) set['openKey'] = null;
+      // A reader is free again once its charge is no longer on it (taken, declined, cancelled, given up).
+      if (to !== 'creating' && to !== 'open' && to !== 'processing') set['readerBusyKey'] = null;
       const run = (values: Record<string, unknown>) =>
         db.updateTable('adminium_payment_attempts').set(values).where('id', '=', id).where('state', 'in', [...from]).executeTakeFirst();
       if (to === 'succeeded') {
@@ -530,6 +582,21 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         }
       }
       return affected((await run(set)).numUpdatedRows) === 1;
+    },
+
+    /**
+     * Flags a recorded payment for a person (a refund it is owed), or clears
+     * that flag (null): only while it stays recorded, and only the flag of
+     * that code is cleared.
+     */
+    async flagRecorded(id: string, problem: AttemptProblem | null, at: number = Date.now(), clearing?: string): Promise<boolean> {
+      let query = db.updateTable('adminium_payment_attempts').where('id', '=', id).where('state', '=', 'recorded');
+      if (problem === null) {
+        if (clearing === undefined) throw new RangeError('Clearing a flag names its code.');
+        query = query.where('problemCode', '=', clearing);
+      }
+      const values = problem === null ? { problem: null, problemCode: null, updatedAt: at } : { problem: packJson(problem), problemCode: problem.code.slice(0, 40), flaggedAt: at, updatedAt: at };
+      return affected((await query.set(values).executeTakeFirst()).numUpdatedRows) === 1;
     },
 
     /** The provider was asked about it now (whatever it answered). */
@@ -612,6 +679,9 @@ export function paymentAttemptsRepo(meta: MetaDb) {
         .where('state', '=', 'creating')
         .where('providerRef', 'is', null)
         .where('updatedAt', '<', before)
+        // A charge on a card reader is never given up blind: the reader may show the amount, and a card tapped is money
+        // (`reader-charges.ts` sends it again with the same key, and ends it only through the reader).
+        .where((eb) => eb.or([eb('channel', 'is', null), eb('channel', '<>', 'reader')]))
         .executeTakeFirst();
       return affected(res.numUpdatedRows);
     },
@@ -620,7 +690,7 @@ export function paymentAttemptsRepo(meta: MetaDb) {
     async note(id: string, state: AttemptState, patch: AttemptPatch, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_payment_attempts')
-        .set({ ...patchColumns(patch), updatedAt: at })
+        .set({ ...patchColumns(patch, meta.dialect), updatedAt: at })
         .where('id', '=', id)
         .where('state', '=', state)
         .executeTakeFirst();
@@ -1245,6 +1315,15 @@ export interface RefundRow {
   /** What kept the record from following this refund as it should, until it does (or a person checked it). */
   problemCode: RefundProblemCode | null;
   check: AttemptCheck | null;
+  /** The app's own refund row it was asked for (the rows model), or null. */
+  appRow: AppRefundRow | null;
+}
+
+/** An app's refund row, by its database, table and key. */
+export interface AppRefundRow {
+  connectionId: string;
+  table: string;
+  rowKey: string;
 }
 
 /**
@@ -1259,7 +1338,7 @@ export interface RefundRow {
  * provider's own dashboard, `dispute` a dispute lost (the customer's bank took
  * the money back).
  */
-export const REFUND_SOURCES = ['staff', 'provider', 'dispute'] as const;
+export const REFUND_SOURCES = ['staff', 'provider', 'dispute', 'app', 'auto'] as const;
 export type RefundSource = (typeof REFUND_SOURCES)[number];
 
 export const REFUND_PROBLEM_CODES = ['NOT_WRITTEN', 'RECORD_GONE', 'MORE_THAN_PAID', 'CURRENCY_DIFFERS'] as const;
@@ -1281,6 +1360,10 @@ export interface CreateRefundInput {
   /** A refund made at the provider arrives already settled; one made here starts `requested`. */
   state?: RefundRowState;
   providerRefundId?: string | null;
+  /** The app's refund row it is asked for (source `app` or `auto`). */
+  appRow?: AppRefundRow | null;
+  /** Why it failed, for a refund kept as failed from the start (one that could not be asked). */
+  failureMessage?: string | null;
 }
 
 export interface RefundPatch {
@@ -1314,7 +1397,13 @@ function decodeRefund(row: Selectable<AdminiumRefundsTable>): RefundRow {
     undoneAt: row.undoneAt === null ? null : Number(row.undoneAt),
     problemCode: (REFUND_PROBLEM_CODES as readonly string[]).includes(row.problemCode ?? '') ? (row.problemCode as RefundProblemCode) : null,
     check: row.checkedAt === null ? null : { at: Number(row.checkedAt), by: row.checkedBy, note: row.checkNote },
+    appRow: row.appConnection != null && row.appTable != null && row.appRowKey != null ? { connectionId: row.appConnection, table: row.appTable, rowKey: row.appRowKey } : null,
   };
+}
+
+/** The idempotency key of the refund asked for an app's refund row: one per row, whoever asks. */
+export function appRefundKeyOf(row: AppRefundRow): string {
+  return `app:${createHash('sha256').update(`${row.connectionId}\u0000${row.table}\u0000${row.rowKey}`, 'utf8').digest('base64url')}`;
 }
 
 export function refundsRepo(meta: MetaDb) {
@@ -1326,6 +1415,11 @@ export function refundsRepo(meta: MetaDb) {
   }
 
   return {
+    /** The refund asked for an app's refund row, or null when none was. */
+    async forAppRow(row: AppRefundRow): Promise<RefundRow | null> {
+      return byKey(appRefundKeyOf(row));
+    },
+
     /**
      * Creates a refund under its idempotency key. A second create with the
      * same key (a double click, a retry) returns the first refund, `fresh:
@@ -1348,7 +1442,7 @@ export function refundsRepo(meta: MetaDb) {
         providerRefundId: input.providerRefundId ?? null,
         source: input.source,
         requestedBy: input.requestedBy,
-        failureMessage: null,
+        failureMessage: input.failureMessage ?? null,
         createdAt: at,
         updatedAt: at,
         settledAt: input.state === 'succeeded' ? at : null,
@@ -1358,6 +1452,9 @@ export function refundsRepo(meta: MetaDb) {
         checkedAt: null,
         checkedBy: null,
         checkNote: null,
+        appConnection: input.appRow?.connectionId ?? null,
+        appTable: input.appRow?.table ?? null,
+        appRowKey: input.appRow?.rowKey ?? null,
       };
       try {
         await db.insertInto('adminium_refunds').values(row).execute();

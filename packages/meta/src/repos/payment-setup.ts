@@ -11,6 +11,11 @@
  * link before inserting the new one; a concurrent mint that loses the race
  * gets a duplicate and tries once more.
  *
+ * A PUBLIC START's link (0090: `audience` public) is current beside the
+ * shop's own, under its own key (`<payable key>:public`), never in its place:
+ * a card tester's declines lock only it, and the link staff sent keeps
+ * working. `retire` ends both.
+ *
  * ─── A profile's mapping is parsed, never cast ─────────────────────────────
  *
  * The mapping is a JSON column an older build may have written, so it is read
@@ -43,7 +48,12 @@ export interface PaymentLink {
   revokeReason: string | null;
   createdBy: string | null;
   createdAt: number;
+  /** Who it was made for: a public start's own link, or one staff or the system made. */
+  audience: LinkAudience;
 }
+
+/** A link a public start made (`public`), or one staff or the system made (`staff`). */
+export type LinkAudience = 'staff' | 'public';
 
 export interface MintLinkInput {
   tokenHash: string;
@@ -52,6 +62,13 @@ export interface MintLinkInput {
   mode: 'test' | 'live';
   expiresAt: number;
   createdBy: string | null;
+  /** `public` for a public start's own link; staff's when not said. */
+  audience?: LinkAudience;
+}
+
+/** The key a payable's current link of one audience is held under. */
+function currentKeyOf(payable: PayableRef, audience: LinkAudience): string {
+  return audience === 'public' ? `${payableKeyOf(payable)}:public` : payableKeyOf(payable);
 }
 
 function decodeLink(row: Selectable<AdminiumPaymentLinksTable>): PaymentLink {
@@ -67,27 +84,32 @@ function decodeLink(row: Selectable<AdminiumPaymentLinksTable>): PaymentLink {
     revokeReason: row.revokeReason ?? null,
     createdBy: row.createdBy,
     createdAt: Number(row.createdAt),
+    audience: row.audience === 'public' ? 'public' : 'staff',
   };
 }
 
 export function paymentLinksRepo(meta: MetaDb) {
   const { db } = meta;
 
-  async function retire(payable: PayableRef): Promise<number> {
-    const res = await db
-      .updateTable('adminium_payment_links')
-      .set({ currentKey: null })
-      .where('currentKey', '=', payableKeyOf(payable))
-      .executeTakeFirst();
+  async function retireKey(key: string): Promise<number> {
+    const res = await db.updateTable('adminium_payment_links').set({ currentKey: null }).where('currentKey', '=', key).executeTakeFirst();
     return affected(res.numUpdatedRows);
+  }
+
+  /** Ends a payable's current links, the shop's and a public start's (it was paid, voided, deleted or removed with sample data). */
+  async function retire(payable: PayableRef): Promise<number> {
+    return (await retireKey(currentKeyOf(payable, 'staff'))) + (await retireKey(currentKeyOf(payable, 'public')));
   }
 
   return {
     /**
-     * Makes a payable's new current link, retiring the one before it. Returns
-     * the link and whether an older one was replaced (the panel says so).
+     * Makes a payable's new current link of its audience, retiring the one
+     * before it of that audience only. Returns the link and whether an older
+     * one was replaced (the panel says so).
      */
     async mint(input: MintLinkInput, at: number = Date.now()): Promise<{ link: PaymentLink; replaced: boolean }> {
+      const audience = input.audience ?? 'staff';
+      const key = currentKeyOf(input.payable, audience);
       const row: Selectable<AdminiumPaymentLinksTable> = {
         id: newId('plk'),
         tokenHash: input.tokenHash,
@@ -97,20 +119,21 @@ export function paymentLinksRepo(meta: MetaDb) {
         tableName: input.payable.tableName,
         rowKey: input.payable.rowKey,
         mode: input.mode,
-        currentKey: payableKeyOf(input.payable),
+        currentKey: key,
         expiresAt: input.expiresAt,
         revokedAt: null,
         revokeReason: null,
         createdBy: input.createdBy,
         createdAt: at,
+        audience: audience === 'public' ? 'public' : null,
       };
-      let replaced = (await retire(input.payable)) > 0;
+      let replaced = (await retireKey(key)) > 0;
       try {
         await db.insertInto('adminium_payment_links').values(row).execute();
       } catch (error) {
         if (!isDuplicateKeyError(error)) throw error;
         // Another mint for the same payable landed between the retire and the insert: retire it too.
-        replaced = (await retire(input.payable)) > 0 || replaced;
+        replaced = (await retireKey(key)) > 0 || replaced;
         await db.insertInto('adminium_payment_links').values(row).execute();
       }
       return { link: decodeLink(row), replaced };
@@ -126,11 +149,12 @@ export function paymentLinksRepo(meta: MetaDb) {
       return row === undefined ? null : decodeLink(row);
     },
 
-    async currentFor(payable: PayableRef): Promise<PaymentLink | null> {
+    /** The payable's current link: the shop's own, or (`public`) the one public starts reuse. */
+    async currentFor(payable: PayableRef, audience: LinkAudience = 'staff'): Promise<PaymentLink | null> {
       const row = await db
         .selectFrom('adminium_payment_links')
         .selectAll()
-        .where('currentKey', '=', payableKeyOf(payable))
+        .where('currentKey', '=', currentKeyOf(payable, audience))
         .executeTakeFirst();
       return row === undefined ? null : decodeLink(row);
     },
@@ -146,7 +170,6 @@ export function paymentLinksRepo(meta: MetaDb) {
       return affected(res.numUpdatedRows) === 1;
     },
 
-    /** Ends a payable's current link (it was paid, voided, deleted or removed with sample data). */
     retire,
 
     /** Revokes every current test link (live payments were switched on), saying why. */
@@ -177,7 +200,10 @@ export const ownPaymentsMappingSchema = z
     /** The column naming the payable's row. */
     link: column,
     amount: column,
-    date: column,
+    /** The day it was paid; null where a column stamps itself (`paidAt`, or a create stamp). */
+    date: column.nullable(),
+    /** The moment it was paid (a till's shift counts by it). */
+    paidAt: column.nullable().optional(),
     method: z.object({ column, values: z.record(z.string().min(1).max(64), z.string().min(1).max(255)) }).strict(),
     note: column.nullable(),
     voided: column.nullable(),
@@ -185,10 +211,97 @@ export const ownPaymentsMappingSchema = z
     reference: column,
     /** What has been refunded of each payment, in the amount's unit; a refund then reopens the balance. */
     refunded: column.nullable().optional(),
+    /** The service it was taken by; a terminal's approval code and the card's last four; its currency. Written by Adminium alone. */
+    provider: column.nullable().optional(),
+    approvalCode: column.nullable().optional(),
+    last4: column.nullable().optional(),
+    currency: column.nullable().optional(),
+    /**
+     * Money given back that no refund row of the app's says (a refund made in
+     * the provider's dashboard, a lost dispute), in the amount's unit: written
+     * by Adminium alone, where the app keeps refunds as rows of its own.
+     */
+    refundedElsewhere: column.nullable().optional(),
+    /** The tip a customer added on a card reader, in the amount's unit: written by Adminium beside what was asked. */
+    tip: column.nullable().optional(),
     /** Whether `amount` holds whole units ("12.50") or the smallest unit (1250). */
     amountUnit: z.enum(['units', 'minor']).default('units'),
   })
   .strict();
+
+/** A condition on the payable row (the manifest's `requires` grammar, by column name): one of eq, in, isNull, gt, gte, lt, lte. */
+export const payableConditionSchema = z
+  .object({
+    column,
+    eq: z.union([z.string(), z.number(), z.boolean()]).optional(),
+    in: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1).max(32).optional(),
+    isNull: z.boolean().optional(),
+    gt: z.number().finite().optional(),
+    gte: z.number().finite().optional(),
+    lt: z.number().finite().optional(),
+    lte: z.number().finite().optional(),
+  })
+  .strict();
+export type PayableCondition = z.infer<typeof payableConditionSchema>;
+
+/** Where the pay page sends the customer back: a path on the app's own customer side, never a query or a fragment. */
+const returnTo = z
+  .string()
+  .max(200)
+  .regex(/^\/(?:[A-Za-z0-9._~-]+\/?)*$/);
+
+/** A state a refund starts from or goes to, by its value. */
+const stateValue = z.string().min(1).max(64);
+
+/**
+ * Refunds an app keeps as rows of its own refund table (E4, the rows model):
+ * its staff write the row as they always did, and Adminium sends the money
+ * back for it, stamping the provider's reference and where the refund stands.
+ * Adminium writes no amount into the app's formulas.
+ */
+export const refundRowsMappingSchema = z
+  .object({
+    model: z.literal('rows'),
+    /** The refund table (its id). */
+    table: column,
+    /** Its column naming the payment row refunded. */
+    payment: column,
+    /** What is given back, in the payment amount's unit: read once, after the write. */
+    amount: column,
+    /** Which of its rows send money back (`method eq online`): all of these hold. */
+    when: z.array(payableConditionSchema).min(1).max(8),
+    /** Stamped by Adminium alone: the provider's refund reference, and `asked`, `pending`, `done` or `not-sent`. */
+    providerRef: column,
+    state: column,
+    /** The staff screen a refund is made on (Activity's "Refund in {app}"). */
+    openIn: returnTo.optional(),
+    /** A free cancellation's refund row, written by Adminium as the system: the values it writes beside the payment link and the amount. */
+    auto: z.object({ values: z.record(column, z.union([z.string().max(255), z.number(), z.boolean()])) }).strict().optional(),
+  })
+  .strict();
+export type RefundRowsMapping = z.infer<typeof refundRowsMappingSchema>;
+
+/** Who made a move that may refund by itself: the customer through the app's public side, Adminium's timed move, or staff holding the refund right. */
+export const REFUND_ON_WHO = ['customer', 'system', 'refund-right'] as const;
+
+/**
+ * The moves after which the full refund starts by itself (`refundOn`): a
+ * show cancelled, a customer's free cancellation. Judged at the move, on the
+ * server; anyone else's move leaves "Refund owed" for a person.
+ */
+export const refundOnSchema = z
+  .object({
+    moves: z
+      .array(z.object({ from: z.array(stateValue).min(1).max(16).optional(), to: stateValue, by: z.array(z.enum(REFUND_ON_WHO)).min(1).max(3) }).strict())
+      .min(1)
+      .max(8),
+    /** The app's own switch ("Refund free cancellations automatically"), a boolean column of its one-row settings table, read at the move. */
+    switch: z.object({ table: column, column }).strict().optional(),
+    /** Only while the moment in this column is still this many hours ahead (a clinic's late-cancel window), read from the settings row. */
+    before: z.object({ column, hours: z.object({ table: column, column }).strict() }).strict().optional(),
+  })
+  .strict();
+export type RefundOn = z.infer<typeof refundOnSchema>;
 
 export const payableMappingSchema = z
   .object({
@@ -199,15 +312,40 @@ export const payableMappingSchema = z
       z.object({ column }).strict(),
       z.object({ fixed: currencyCode }).strict(),
       z.object({ connection: z.literal(true) }).strict(),
+      /** A column of a one-row settings table (its id here). */
+      z.object({ setting: z.object({ table: column, column }).strict() }).strict(),
     ]),
     /** A balance column, or null when the due is computed (amount − payments Adminium holds). */
     due: z.object({ column }).strict().nullable(),
     payments: z.union([z.object({ kind: z.literal('kept') }).strict(), ownPaymentsMappingSchema]),
-    status: z.object({ column, paid: z.string().min(1).max(255), refunded: z.string().min(1).max(255).nullable() }).strict().nullable(),
+    status: z
+      .object({
+        column,
+        paid: z.string().min(1).max(255),
+        refunded: z.string().min(1).max(255).nullable(),
+        /** The states a row is moved to `paid` from; absent, from any (as the payments screen maps it). */
+        from: z.array(z.string().min(1).max(64)).min(1).max(16).optional(),
+        refundedFrom: z.array(z.string().min(1).max(64)).min(1).max(16).optional(),
+      })
+      .strict()
+      .nullable(),
     customerEmail: column.nullable(),
     customerCountry: column.nullable(),
     /** The only columns the pay page may show. */
     pageFields: z.array(column).max(50),
+    /** While the row meets all of these it may be paid; absent, whenever something is due. */
+    payableWhen: z.array(payableConditionSchema).min(1).max(8).optional(),
+    returnTo: returnTo.optional(),
+    /** Who sends the receipt: the app's own email, or Adminium's (the default). */
+    receipt: z.enum(['app', 'engine']).optional(),
+    /** The pay page offers no way to pay by hand. */
+    onlyOnline: z.boolean().optional(),
+    /** Only ways that settle at once: always, or while the row meets these. */
+    instantOnly: z.union([z.literal(true), z.object({ where: z.array(payableConditionSchema).min(1).max(8) }).strict()]).optional(),
+    /** How the table keeps refunds: a running total on the payment row (the column model, the default), or rows of its own. */
+    refunds: z.union([z.object({ model: z.literal('column') }).strict(), refundRowsMappingSchema]).optional(),
+    /** The moves after which the full refund starts by itself. */
+    refundOn: refundOnSchema.optional(),
   })
   .strict()
   // Payments written into the table's own payments table are not Adminium's to
@@ -219,6 +357,21 @@ export const payableMappingSchema = z
   });
 
 export type PayableMapping = z.input<typeof payableMappingSchema>;
+
+/**
+ * An invoice table built on the Invoices shape, as an app declares it: the
+ * shape maps its columns; the profile is its on/off switch and what the app
+ * says beyond the shape.
+ */
+export const shapePayableMappingSchema = z
+  .object({
+    kind: z.literal('shape'),
+    returnTo: returnTo.optional(),
+    receipt: z.enum(['app', 'engine']).optional(),
+    onlyOnline: z.boolean().optional(),
+  })
+  .strict();
+export type ShapePayableMapping = z.infer<typeof shapePayableMappingSchema>;
 export type ParsedPayableMapping = z.output<typeof payableMappingSchema>;
 export type OwnPaymentsMapping = z.output<typeof ownPaymentsMappingSchema>;
 
@@ -226,8 +379,10 @@ export interface PayableProfile {
   id: string;
   connectionId: string;
   tableName: string;
-  /** Null when the stored mapping no longer parses: the table is not payable until saved again. */
+  /** Null when the stored mapping no longer parses: the table is not payable until saved again (and for an invoice shape's profile). */
   mapping: ParsedPayableMapping | null;
+  /** An invoice shape's profile: what the app says beyond the shape. Null for every other profile. */
+  shape: ShapePayableMapping | null;
   ownerApp: string | null;
   enabled: boolean;
   createdBy: string | null;
@@ -235,13 +390,21 @@ export interface PayableProfile {
   updatedAt: number;
 }
 
+/** A mapping as stored: an invoice shape's own, or a table's column by column. */
+function packedMapping(mapping: PayableMapping | ShapePayableMapping): unknown {
+  return 'kind' in mapping && mapping.kind === 'shape' ? shapePayableMappingSchema.parse(mapping) : payableMappingSchema.parse(mapping);
+}
+
 function decodeProfile(row: Selectable<AdminiumPayableProfilesTable>): PayableProfile {
-  const parsed = payableMappingSchema.safeParse(readJson(row.mapping));
+  const stored = readJson(row.mapping);
+  const parsed = payableMappingSchema.safeParse(stored);
+  const shape = parsed.success ? null : shapePayableMappingSchema.safeParse(stored);
   return {
     id: row.id,
     connectionId: row.connectionId,
     tableName: row.tableName,
     mapping: parsed.success ? parsed.data : null,
+    shape: shape?.success === true ? shape.data : null,
     ownerApp: row.ownerApp,
     enabled: readBool(row.enabled),
     createdBy: row.createdBy,
@@ -255,16 +418,24 @@ export function payableProfilesRepo(meta: MetaDb) {
   return {
     /** Marks a table payable. Null when it already is (one profile per table). */
     async create(
-      input: { connectionId: string; tableName: string; mapping: PayableMapping; ownerApp: string | null; createdBy: string | null },
+      input: {
+        connectionId: string;
+        tableName: string;
+        mapping: PayableMapping | ShapePayableMapping;
+        ownerApp: string | null;
+        createdBy: string | null;
+        /** Switched on as it is made (a person's own, a file saved here), or off (a catalog app's, for a payments manager to switch on). */
+        enabled?: boolean;
+      },
       at: number = Date.now(),
     ): Promise<PayableProfile | null> {
       const row: Insertable<AdminiumPayableProfilesTable> = {
         id: newId('ppf'),
         connectionId: input.connectionId,
         tableName: input.tableName,
-        mapping: packJson(payableMappingSchema.parse(input.mapping)),
+        mapping: packJson(packedMapping(input.mapping)),
         ownerApp: input.ownerApp,
-        enabled: writeBool(meta, true),
+        enabled: writeBool(meta, input.enabled ?? true),
         createdBy: input.createdBy,
         createdAt: at,
         updatedAt: at,
@@ -305,9 +476,9 @@ export function payableProfilesRepo(meta: MetaDb) {
       return rows.map(decodeProfile);
     },
 
-    async update(id: string, patch: { mapping?: PayableMapping; enabled?: boolean }, at: number = Date.now()): Promise<boolean> {
+    async update(id: string, patch: { mapping?: PayableMapping | ShapePayableMapping; enabled?: boolean }, at: number = Date.now()): Promise<boolean> {
       const set: Record<string, unknown> = { updatedAt: at };
-      if (patch.mapping !== undefined) set['mapping'] = packJson(payableMappingSchema.parse(patch.mapping));
+      if (patch.mapping !== undefined) set['mapping'] = packJson(packedMapping(patch.mapping));
       if (patch.enabled !== undefined) set['enabled'] = writeBool(meta, patch.enabled);
       const res = await db.updateTable('adminium_payable_profiles').set(set).where('id', '=', id).executeTakeFirst();
       return affected(res.numUpdatedRows) === 1;
@@ -550,6 +721,15 @@ export function paymentCountersRepo(meta: MetaDb) {
         .where('windowStart', '=', windowStart)
         .executeTakeFirst();
       return row === undefined ? 0 : Number(row.hits);
+    },
+
+    /**
+     * The count in `bucket` over the last hour or two: this hour's and the
+     * one before it, so a run that starts late in an hour cannot spend a
+     * whole new hour's allowance a minute later.
+     */
+    async readRecent(bucket: string, at: number = Date.now()): Promise<number> {
+      return (await this.read(bucket, at)) + (await this.read(bucket, at - COUNTER_WINDOW_MS));
     },
 
     /** Deletes windows older than a day. */

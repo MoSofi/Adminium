@@ -152,6 +152,8 @@ export const ID_PREFIXES = {
   plk: 'adminium_payment_links',
   ppf: 'adminium_payable_profiles',
   pmt: 'adminium_payment_methods',
+  // wave 0092 — a card reader paired for the tills.
+  prd: 'adminium_payment_readers',
   // wave 0064 — a removed row kept under a row it linked to.
   rmv: 'adminium_removed_rows',
   /** wave 0065 — a consent event; 0066 — a stopped address. */

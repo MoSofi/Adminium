@@ -1653,6 +1653,18 @@ export interface AdminiumPaymentAttemptsTable {
   disputeClosedAt: ColumnType<number | null, number | null | undefined, number | null>;
   /** How a closed dispute ended, when the provider said: `won` or `lost` (0063). */
   disputeOutcome: ColumnType<string | null, string | null | undefined, string | null>;
+  /** A keyed hash of the address a public checkout started from (0090), cleared after the breakers' window; NULL otherwise. */
+  startAddress: ColumnType<string | null, string | null | undefined, string | null>;
+  /** Wave 0092 — a payment taken on a card reader: `reader` (NULL is a pay page's); its reader; the reader's id while its charge is on its way. */
+  channel: ColumnType<string | null, string | null | undefined, string | null>;
+  readerId: ColumnType<string | null, string | null | undefined, string | null>;
+  readerBusyKey: ColumnType<string | null, string | null | undefined, string | null>;
+  /** What the till asked, and the tip added on the reader; the bank's approval code and the card's last four; an Interac card. */
+  askedAmount: ColumnType<string | null, string | null | undefined, string | null>;
+  tipAmount: ColumnType<string | null, string | null | undefined, string | null>;
+  approvalCode: ColumnType<string | null, string | null | undefined, string | null>;
+  cardLast4: ColumnType<string | null, string | null | undefined, string | null>;
+  interac: ColumnType<number | boolean | null, number | boolean | null | undefined, number | boolean | null>;
 }
 
 /** A webhook, or a status change a poll found, unique per provider, mode and event id (0062). */
@@ -1730,6 +1742,10 @@ export interface AdminiumRefundsTable {
   checkedAt: Ts | null;
   checkedBy: string | null;
   checkNote: string | null;
+  /** The app's refund row it was asked for (0091), NULL for a refund asked in Adminium, made at the provider, or a lost dispute. */
+  appConnection: ColumnType<string | null, string | null | undefined, string | null>;
+  appTable: ColumnType<string | null, string | null | undefined, string | null>;
+  appRowKey: ColumnType<string | null, string | null | undefined, string | null>;
 }
 
 /** A pay link: its token hashed and sealed, one current per payable (0062). */
@@ -1748,6 +1764,8 @@ export interface AdminiumPaymentLinksTable {
   revokeReason: ColumnType<string | null, string | null | undefined, string | null>;
   createdBy: Id | null;
   createdAt: Ts;
+  /** `public` for a link a public start made (0090); NULL for a link staff or the system made. */
+  audience: ColumnType<string | null, string | null | undefined, string | null>;
 }
 
 /** A table an admin marked payable, and how (0062). */
@@ -1976,6 +1994,23 @@ export interface AdminiumOperatorHoldsTable {
   /** The operator's reason, shown to the instance's owner; null without one. */
   reason: string | null;
   changedAt: Ts;
+}
+
+/** Wave 0092 — a card reader paired with a service, for the tills. */
+export interface AdminiumPaymentReadersTable {
+  id: Id;
+  provider: string;
+  mode: string;
+  readerRef: string;
+  label: string;
+  locationId: string | null;
+  locationName: string | null;
+  model: string | null;
+  online: number | boolean;
+  lastSeenAt: Ts | null;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
 }
 
 /** Wave 0089 — a whole number the server counts for its operator, by name (operator AI tokens, the start prompt run). */
@@ -2268,6 +2303,7 @@ export interface MetaDB {
   adminium_app_after_install_hidden: AdminiumAppAfterInstallHiddenTable;
   adminium_operator_holds: AdminiumOperatorHoldsTable;
   adminium_operator_tallies: AdminiumOperatorTalliesTable;
+  adminium_payment_readers: AdminiumPaymentReadersTable;
 }
 
 /**
