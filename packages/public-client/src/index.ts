@@ -103,6 +103,7 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_LIMIT_REACHED',
   /** The app switched this off in its own settings — online booking, say (403). */
   'PUBLIC_SWITCHED_OFF',
+  'PUBLIC_PAY_REFUSED',
   /**
    * A kiosk's key used without its staff member signed in on this screen
    * (403). One code for every reason, so do not try to tell them apart.
@@ -407,6 +408,30 @@ export interface TreeCreated<T = Row> {
   told: ToldOfCode[];
   /** What a gift card (or any payment whose amount the server decides) took, and what is still to pay; null when the order had none. */
   payment: DecidedPayment | null;
+  /**
+   * Where the customer pays for the new row, on an entry that answers a pay
+   * link, when the shop takes payments online right now; null otherwise (show
+   * the other ways), and always null on a replay.
+   */
+  payUrl: string | null;
+}
+
+/**
+ * Paying online from the app's own screens. `available` says whether the app
+ * takes payments online right now: show "Pay now" only when it is true, and
+ * the screens as they always were when it is not. `start` answers the pay link
+ * of a record the visitor can read through `ref` (a 409 `PUBLIC_PAY_REFUSED`
+ * with `params.reason` off / nothing-due / not-now / not-payable otherwise).
+ * The amount is always the record's own, never sent from the page. `test`
+ * is true while someone who manages payments rehearses the checkout on this
+ * address (a test payment, on a sample row): show the TEST band. A rehearsal's
+ * writes carry the staff session's CSRF token, which the customer side's
+ * config hands out as `rehearsal.csrfToken` to that person only (pass it as
+ * `csrfToken`).
+ */
+export interface PublicPayments {
+  available(signal?: AbortSignal): Promise<{ online: boolean; test?: true }>;
+  start(ref: string, id: string): Promise<{ payUrl: string }>;
 }
 
 /** A payment whose amount the server decided: a gift card pays what is due as far as it goes. Nothing else of the card is ever answered. */
@@ -1131,6 +1156,8 @@ export interface PublicClient {
    * key's `documents.create` flag, which `config()` reports.
    */
   documents: PublicDocuments;
+  /** Paying online from the app's own screens (see {@link PublicPayments}). */
+  payments: PublicPayments;
   /**
    * Assert the live scope carries what this app needs.
    *
@@ -1562,7 +1589,7 @@ export function createPublicClient(
 
     async createTree<T = Row>(ref: string, write: { values: Row; children?: TreeRows; expect?: { total: string }; replaces?: string }) {
       const out = await withProof('write', ref, (proof) =>
-        request<{ data: T; children?: Record<string, TreeReplyRow[]>; rank?: number; replayed?: true; link?: WireLink; applied?: AppliedReduction[]; told?: ToldOfCode[]; payment?: DecidedPayment }>(
+        request<{ data: T; children?: Record<string, TreeReplyRow[]>; rank?: number; replayed?: true; link?: WireLink; applied?: AppliedReduction[]; told?: ToldOfCode[]; payment?: DecidedPayment; payUrl?: string }>(
           `/api/v1/public/records/${ref}`,
           { method: 'POST', body: JSON.stringify(write) },
           proof,
@@ -1577,6 +1604,7 @@ export function createPublicClient(
         applied: out.applied ?? [],
         told: out.told ?? [],
         payment: out.payment ?? null,
+        payUrl: out.replayed === true ? null : (out.payUrl ?? null),
       };
     },
 
@@ -1872,6 +1900,19 @@ export function createPublicClient(
       }
     },
 
+    payments: {
+      async available(signal?: AbortSignal) {
+        const out = await request<{ data: { online: boolean; test?: boolean } }>('/api/v1/public/payments/available', signal === undefined ? {} : { signal });
+        return { online: out.data.online === true, ...(out.data.test === true ? { test: true as const } : {}) };
+      },
+      // Starting a payment always owes a visitor's key a proof: solved first, never tried without.
+      async start(ref: string, id: string) {
+        const proof = humanCheck === false ? {} : { [PROOF_HEADER]: await prove('pay-start') };
+        const out = await request<{ data: { payUrl: string } }>('/api/v1/public/payments/start', { method: 'POST', body: JSON.stringify({ ref, id }) }, proof);
+        return { payUrl: out.data.payUrl };
+      },
+    },
+
     documents: {
       list: (async (options?: AbortSignal | DocumentListOptions) => {
         const paged = options !== undefined && !isSignal(options);
@@ -2039,7 +2080,7 @@ export function isCanonicalTimeZone(timezone: string): boolean {
 /* ----------------------------------------------------------- human check */
 
 /** What a proof is asked for: a create, a claim, or one file uploaded. */
-export type ProofPurpose = 'write' | 'claim' | 'upload';
+export type ProofPurpose = 'write' | 'claim' | 'upload' | 'pay-start';
 
 /** A challenge, as `GET /public/challenge` hands it out. */
 export interface ProofChallenge {

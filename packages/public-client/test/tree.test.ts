@@ -35,7 +35,7 @@ describe('a create with its child rows', () => {
     const made = await client.createTree('orders', { ...ORDER, expect: { total: '34.64' } });
     expect(calls[0]!.url).toBe('https://x/api/v1/public/records/orders');
     expect(JSON.parse(String(calls[0]!.init?.body))).toEqual({ ...ORDER, expect: { total: '34.64' } });
-    expect(made).toEqual({ data: { id: 7, total: '34.64' }, children: { order_items: [{ data: { id: 70, line_total: '32.00' } }] }, rank: 3, replayed: false, link: null, applied: [], told: [], payment: null });
+    expect(made).toEqual({ data: { id: 7, total: '34.64' }, children: { order_items: [{ data: { id: 70, line_total: '32.00' } }] }, rank: 3, replayed: false, link: null, applied: [], told: [], payment: null, payUrl: null });
   });
 
   it('reads which reductions an order has, from the quote, the save and a changed price; and the minimum of a code under it', async () => {
@@ -130,5 +130,40 @@ describe('a create with its child rows', () => {
     const b = newClientKey();
     expect(a).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(a).not.toBe(b);
+  });
+});
+
+describe('paying online from the app\'s own screens', () => {
+  it('says when the checkout is a rehearsal in test mode', async () => {
+    const { client } = over(() => ({ data: { online: true, test: true } }));
+    expect(await client.payments.available()).toEqual({ online: true, test: true });
+  });
+
+
+  it('asks whether the app takes payments, starts a payment for a record with a proof, and reads a checkout\'s pay link', async () => {
+    const { client, calls } = over((url) =>
+      url.endsWith('/payments/available')
+        ? { data: { online: true } }
+        : url.endsWith('/payments/start')
+          ? { data: { payUrl: 'https://pay.x/pay/AAAAAAAAAAAAAAAAAAAAAA' } }
+          : new Response(JSON.stringify({ data: { id: 9 }, payUrl: 'https://pay.x/pay/BBBBBBBBBBBBBBBBBBBBBB' }), { status: 201 }),
+    );
+    expect(await client.payments.available()).toEqual({ online: true });
+    expect(await client.payments.start('orders', '9')).toEqual({ payUrl: 'https://pay.x/pay/AAAAAAAAAAAAAAAAAAAAAA' });
+    const start = calls.find((call) => call.url.endsWith('/payments/start'))!;
+    expect(start.init?.method).toBe('POST');
+    expect(JSON.parse(String(start.init?.body))).toEqual({ ref: 'orders', id: '9' });
+    expect((await client.createTree('orders', ORDER)).payUrl).toBe('https://pay.x/pay/BBBBBBBBBBBBBBBBBBBBBB');
+  });
+
+  it('never answers a pay link on a retry of an order already made', async () => {
+    const { client } = over(() => new Response(JSON.stringify({ data: { id: 9 }, replayed: true, payUrl: 'https://pay.x/pay/CCCCCCCCCCCCCCCCCCCCCC' }), { status: 200 }));
+    expect((await client.createTree('orders', ORDER)).payUrl).toBeNull();
+  });
+
+  it('reads a refused start as the error it is', async () => {
+    const { client } = over(() => refusal(409, 'PUBLIC_PAY_REFUSED', { reason: 'off' }));
+    await expect(client.payments.start('orders', '9')).rejects.toBeInstanceOf(PublicApiError);
+    expect(PUBLIC_ERROR_CODES).toContain('PUBLIC_PAY_REFUSED');
   });
 });
