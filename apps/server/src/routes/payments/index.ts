@@ -293,13 +293,17 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
     return paymentProviderFor({ runtime: deps.runtime, manifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy }), demo: null }, key, mode);
   }
 
-  function refuseOffline(readers = false): void {
+  /** Refused before anything else is looked up: the operator's switch, then the network. The desktop app last, once the service is known (`desktopToo`). */
+  function refuseOffline(desktopToo = true): void {
     refuseUnlessAllowed(policy, 'paymentProviders', 'The operator has switched payment services off for this installation, so none can be connected here.');
     if (!deps.networkFeatures) {
       throw new ValidationFailedError('Network features are off on this server, so no payment service can be connected.', { reason: 'network-off' });
     }
-    // A card reader is asked by this computer, outbound: no customer needs to reach it.
-    if (deps.desktop && !readers) {
+    if (desktopToo) refuseOnDesktop();
+  }
+
+  function refuseOnDesktop(): void {
+    if (deps.desktop) {
       throw new ValidationFailedError('The desktop app takes payments by hand only: customers cannot reach this computer.', { reason: 'desktop' });
     }
   }
@@ -393,9 +397,11 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request) => {
         requirePerson(request);
+        refuseOffline(false);
         const { key, mode, field } = request.params;
         const addOn = await paymentAddOn(key);
-        refuseOffline(readersOnly(addOn.manifest));
+        // A card reader is asked by this computer, outbound: no customer needs to reach it, so the desktop app may connect one.
+        if (!readersOnly(addOn.manifest)) refuseOnDesktop();
         const fields = secretFields(addOn.manifest);
         if (!fields.some((one) => one.key === field)) {
           throw new ValidationFailedError(`"${key}" has no field "${field}".`, { expected: fields.map((one) => one.key) });
@@ -457,9 +463,10 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request) => {
         requirePerson(request);
+        refuseOffline(false);
         const { key, mode } = request.params;
         const addOn = await paymentAddOn(key);
-        refuseOffline(readersOnly(addOn.manifest));
+        if (!readersOnly(addOn.manifest)) refuseOnDesktop();
         const state = await checked(request, addOn, mode);
         return { data: await viewNow(key, state) };
       },
