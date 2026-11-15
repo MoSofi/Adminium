@@ -4644,6 +4644,7 @@ export default {
       "live": "Live",
       "name": "Name",
       "namePh": "Front counter",
+      "location": "Location",
       "enterCode": "Type the code the reader shows",
       "showCode": "Type this code on the reader, then press Done: {code}",
       "waiting": "The reader has not taken the code yet.",

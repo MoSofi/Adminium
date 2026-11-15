@@ -26,6 +26,7 @@ function renderTab(canManage = true) {
       const method = init?.method ?? 'GET';
       calls.push({ method, url, body: init?.body === undefined ? undefined : (JSON.parse(String(init.body)) as unknown) });
       if (url === '/api/v1/payments/readers' && method === 'GET') return Promise.resolve(jsonResponse(200, { data: { readers, services: [{ key: 'demo-reader', name: 'Demo card reader' }] } }));
+      if (url.startsWith('/api/v1/payments/readers/locations')) return Promise.resolve(jsonResponse(200, { data: [{ id: 'tml_berlin', name: 'Berlin shop' }, { id: 'tml_hamburg', name: 'Hamburg shop' }] }));
       if (url === '/api/v1/payments/readers/pairing') return Promise.resolve(jsonResponse(200, { data: { way: 'enter', code: null, pairing: 'pair_1', expiresAt: 1 } }));
       if (url === '/api/v1/payments/readers/pairing/finish') {
         readers = [COUNTER];
@@ -59,12 +60,16 @@ describe('ReadersTab', () => {
     expect(await screen.findByTestId('payments-readers-empty')).toBeTruthy();
     await user.click(screen.getByTestId('readers-pair'));
     await user.type(screen.getByTestId('readers-pair-label'), 'Counter');
+    // The service's locations in this mode: the reader is paired at the one chosen.
+    await user.selectOptions(await screen.findByTestId('readers-pair-location'), 'tml_hamburg');
     await user.click(screen.getByTestId('readers-pair-next'));
     await user.type(await screen.findByTestId('readers-pair-code'), '123456');
     await user.click(screen.getByTestId('readers-pair-next'));
     const row = await screen.findByTestId('reader-prd_1');
     expect(within(row).getByText('Counter')).toBeTruthy();
     expect(within(row).getByText('Online')).toBeTruthy();
+    expect(calls.some((call) => call.url === '/api/v1/payments/readers/locations?provider=demo-reader&mode=test')).toBe(true);
+    expect(calls.find((call) => call.url === '/api/v1/payments/readers/pairing')?.body).toEqual({ provider: 'demo-reader', mode: 'test', label: 'Counter', locationId: 'tml_hamburg' });
     expect(calls.find((call) => call.url === '/api/v1/payments/readers/pairing/finish')?.body).toEqual({ provider: 'demo-reader', mode: 'test', label: 'Counter', pairing: 'pair_1', code: '123456' });
     await user.click(within(row).getByTestId('reader-unpair-prd_1'));
     await waitFor(() => expect(screen.queryByTestId('reader-prd_1')).toBeNull());

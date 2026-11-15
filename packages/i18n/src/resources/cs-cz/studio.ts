@@ -4644,6 +4644,7 @@ export default {
       "live": "Ostrý",
       "name": "Název",
       "namePh": "Přední pult",
+      "location": "Místo",
       "enterCode": "Zadejte kód, který čtečka zobrazuje",
       "showCode": "Zadejte tento kód na čtečce a pak stiskněte Hotovo: {code}",
       "waiting": "Čtečka kód zatím nepřijala.",

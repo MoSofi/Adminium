@@ -4644,6 +4644,7 @@ export default {
       "live": "Production",
       "name": "Nom",
       "namePh": "Comptoir avant",
+      "location": "Emplacement",
       "enterCode": "Saisissez le code affiché par le terminal",
       "showCode": "Saisissez ce code sur le terminal, puis appuyez sur Terminé : {code}",
       "waiting": "Le terminal n’a pas encore pris le code.",

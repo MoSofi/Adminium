@@ -477,7 +477,13 @@ export function readersQuery() {
   });
 }
 
-export async function startPairing(input: { provider: string; mode: 'test' | 'live'; label: string }): Promise<PairingView> {
+/** A service's locations in one mode: where a reader is paired (Stripe needs one). */
+export async function readerLocations(provider: string, mode: 'test' | 'live'): Promise<{ id: string; name: string }[]> {
+  const query = new URLSearchParams({ provider, mode }).toString();
+  return (await api.get<{ data: { id: string; name: string }[] }>(`/api/v1/payments/readers/locations?${query}`)).data;
+}
+
+export async function startPairing(input: { provider: string; mode: 'test' | 'live'; label: string; locationId?: string | null }): Promise<PairingView> {
   return (await api.post<{ data: PairingView }>('/api/v1/payments/readers/pairing', input)).data;
 }
 

@@ -4644,6 +4644,7 @@ export default {
       "live": "Live",
       "name": "Navn",
       "namePh": "Forreste disk",
+      "location": "Placering",
       "enterCode": "Skriv koden, som læseren viser",
       "showCode": "Skriv denne kode på læseren, og tryk derefter på Færdig: {code}",
       "waiting": "Læseren har ikke taget koden endnu.",

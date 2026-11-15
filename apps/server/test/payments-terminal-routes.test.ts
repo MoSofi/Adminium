@@ -138,6 +138,12 @@ describe.each(LEGS)('the card reader routes — %s', (dialect, available) => {
     expect((await as(cashier, 'GET', '/payments/readers')).statusCode).toBe(403);
     const services = await as(owner, 'GET', '/payments/readers');
     expect(services.json().data).toEqual({ readers: [], services: [DEMO_READER_SERVICE] });
+    // The locations a reader may be paired at, for payment managers alone.
+    expect((await as(cashier, 'GET', '/payments/readers/locations?provider=demo-reader&mode=test')).statusCode).toBe(403);
+    const locations = await as(owner, 'GET', '/payments/readers/locations?provider=demo-reader&mode=test');
+    expect(locations.statusCode, locations.body).toBe(200);
+    expect(Array.isArray(locations.json().data)).toBe(true);
+    expect((await as(owner, 'GET', '/payments/readers/locations?provider=payments-nope&mode=test')).statusCode).toBe(422);
     const started = await as(owner, 'POST', '/payments/readers/pairing', { provider: 'demo-reader', mode: 'test', label: 'Counter' });
     expect(started.statusCode, started.body).toBe(200);
     expect(started.json().data).toMatchObject({ way: 'enter', code: null });

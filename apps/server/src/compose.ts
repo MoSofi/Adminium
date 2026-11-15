@@ -2561,7 +2561,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           enqueue: (input) => jobs.enqueue(input),
           // Each by the name its manifest gives ("Card readers", "Card payments"), the key where none is found.
           services: async () => {
-            const names = new Map((await appManifests.list('add-on')).map((one) => [one.row.key, typeof (one.document as { name?: unknown }).name === 'string' ? ((one.document as { name: string }).name) : one.row.key] as const));
+            const names = new Map((await appManifests.list('add-on')).map((one) => [one.row.manifestKey, typeof (one.document as { name?: unknown }).name === 'string' ? ((one.document as { name: string }).name) : one.row.manifestKey] as const));
             return [DEMO_READER_SERVICE, ...(addOnRuntime === null ? [] : providersFor(addOnRuntime, CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION).map((entry) => ({ key: entry.addOnKey, name: names.get(entry.addOnKey) ?? entry.addOnKey })))];
           },
           networkFeatures: env.ADMINIUM_NETWORK_FEATURES,

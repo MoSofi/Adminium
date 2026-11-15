@@ -456,6 +456,7 @@ export const ROW_COVERAGE: Readonly<Record<string, RowMark>> = {
   'POST /api/v1/payments/terminal/charges/:id/cancel': noRows('Takes a charge kept in meta off its reader.'),
   'GET /api/v1/payments/terminal/readers': noRows('The paired readers, kept in meta.'),
   'GET /api/v1/payments/readers': noRows('The paired readers, kept in meta.'),
+  'GET /api/v1/payments/readers/locations': noRows('Asks the card reader service for its locations.'),
   'POST /api/v1/payments/readers/pairing': noRows('Asks the card reader service to start pairing.'),
   'POST /api/v1/payments/readers/pairing/finish': noRows('Keeps a reader the service paired, in meta.'),
   'PATCH /api/v1/payments/readers/:id': noRows('Renames a reader kept in meta.'),

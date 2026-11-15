@@ -4634,6 +4634,7 @@
       "live": "Live",
       "name": "Name",
       "namePh": "Vordere Theke",
+      "location": "Standort",
       "enterCode": "Geben Sie den Code ein, den das Lesegerät anzeigt",
       "showCode": "Geben Sie diesen Code am Lesegerät ein und drücken Sie dann Fertig: {code}",
       "waiting": "Das Lesegerät hat den Code noch nicht übernommen.",

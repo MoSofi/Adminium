@@ -4644,6 +4644,7 @@ export default {
       "live": "正式",
       "name": "名称",
       "namePh": "前台",
+      "location": "位置",
       "enterCode": "输入读卡器显示的代码",
       "showCode": "在读卡器上输入此代码，然后按“完成”：{code}",
       "waiting": "读卡器尚未接受代码。",

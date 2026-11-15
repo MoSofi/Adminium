@@ -4644,6 +4644,7 @@ export default {
       "live": "正式",
       "name": "名稱",
       "namePh": "前台",
+      "location": "位置",
       "enterCode": "輸入讀卡機顯示的代碼",
       "showCode": "在讀卡機上輸入此代碼，然後按「完成」：{code}",
       "waiting": "讀卡機尚未接受代碼。",

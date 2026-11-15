@@ -36115,6 +36115,10 @@
     "status": "mt",
     "srcHash": "65c821a596ce"
   },
+  "studio.payments.readers.location": {
+    "status": "mt",
+    "srcHash": "d219c68101f5"
+  },
   "studio.payments.readers.mode": {
     "status": "src",
     "srcHash": "a7b93d2128e8"

@@ -13,6 +13,7 @@
  *
  * Studio → Payments → Card readers (payments.manage):
  *   GET    /payments/readers                  the paired readers, and the services that offer readers
+ *   GET    /payments/readers/locations        a service's locations in one mode, to pair a reader at one
  *   POST   /payments/readers/pairing          start pairing (the reader shows a code, or the person types one on it)
  *   POST   /payments/readers/pairing/finish   finish: the reader is kept, named
  *   PATCH  /payments/readers/:id              rename
@@ -81,6 +82,8 @@ const readerView = z.object({
 });
 const readersReply = z.object({ data: z.array(readerView) });
 const studioReply = z.object({ data: z.object({ readers: z.array(readerView), services: z.array(z.object({ key: z.string(), name: z.string() })) }) });
+const locationsQuery = z.object({ provider: z.string().min(1).max(80), mode: z.enum(['test', 'live']) }).strict();
+const locationsReply = z.object({ data: z.array(z.object({ id: z.string(), name: z.string() })) });
 const pairStart = z.object({ provider: z.string().min(1).max(80), mode: z.enum(['test', 'live']), label: z.string().trim().min(1).max(120), locationId: z.string().max(255).nullable().optional() }).strict();
 const pairStartReply = z.object({ data: z.object({ way: z.enum(['enter', 'show']), code: z.string().nullable(), pairing: z.string(), expiresAt: z.number() }) });
 const pairFinish = pairStart.extend({ pairing: z.string().min(1).max(512), code: z.string().trim().max(64).nullable() }).strict();
@@ -196,6 +199,23 @@ export function paymentTerminalRoutes(deps: TerminalRoutesDeps): FastifyPluginAs
       '/payments/readers',
       { preHandler: app.rbac.require(PERMISSIONS.paymentsManage), config: { audit: auditExempt('reading the paired readers changes nothing') }, schema: { response: { 200: studioReply } } },
       async () => ({ data: { readers: (await paymentReadersRepo(meta).list()).map(viewOf), services: await deps.services() } }),
+    );
+
+    app.get(
+      '/payments/readers/locations',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.paymentsManage),
+        config: { audit: auditExempt('reading a service\'s locations changes nothing') },
+        schema: { querystring: locationsQuery, response: { 200: locationsReply } },
+      },
+      async (request) => {
+        personOf(request);
+        const lookup = await deps.terminalFor(request.query.provider, request.query.mode);
+        if (!lookup.ok) throw new ValidationFailedError(lookup.message, { reason: lookup.code });
+        const answer = await lookup.terminal.listLocations();
+        if (isProviderError(answer)) throw new ValidationFailedError(answer.providerMessage, { reason: answer.code });
+        return { data: answer.locations.map((one) => ({ id: one.id, name: one.name })) };
+      },
     );
 
     app.post(

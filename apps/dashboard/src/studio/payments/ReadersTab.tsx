@@ -13,7 +13,7 @@ import { Alert, Badge, Button, Card, CardHeader, IconTile, Input, Modal, ModalBo
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
-import { READERS_QUERY_KEY, finishPairing, readersQuery, startPairing, unpairReader, type PairingView, type ReaderView } from './paymentsApi.js';
+import { READERS_QUERY_KEY, finishPairing, readerLocations, readersQuery, startPairing, unpairReader, type PairingView, type ReaderView } from './paymentsApi.js';
 
 function errorText(error: unknown): string {
   return error instanceof ApiError ? error.message : t('studio:payments.error.unknown', 'That did not work. Try again.');
@@ -26,8 +26,13 @@ function PairDialog({ services, onClose }: { services: { key: string; name: stri
   const [mode, setMode] = useState<'test' | 'live'>('test');
   const [label, setLabel] = useState('');
   const [code, setCode] = useState('');
+  const [location, setLocation] = useState('');
   const [pairing, setPairing] = useState<PairingView | null>(null);
-  const start = useMutation({ mutationFn: () => startPairing({ provider: service, mode, label: label.trim() }), onSuccess: setPairing });
+  // The service's locations in this mode: a reader is paired at one (Stripe needs one; with none listed, none is asked).
+  const locations = useQuery({ queryKey: ['payments', 'reader-locations', service, mode], queryFn: () => readerLocations(service, mode), enabled: service !== '' && pairing === null, retry: false });
+  const listed = locations.data ?? [];
+  const chosen = listed.some((one) => one.id === location) ? location : (listed[0]?.id ?? '');
+  const start = useMutation({ mutationFn: () => startPairing({ provider: service, mode, label: label.trim(), locationId: chosen === '' ? null : chosen }), onSuccess: setPairing });
   const finish = useMutation({
     mutationFn: () => finishPairing({ provider: service, mode, label: label.trim(), pairing: pairing!.pairing, code: pairing!.way === 'enter' ? code.trim() : null }),
     onSuccess: async (data) => {
@@ -70,6 +75,18 @@ function PairDialog({ services, onClose }: { services: { key: string; name: stri
                 {t('studio:payments.readers.name', 'Name')}
                 <Input id={`${ids}-label`} value={label} onChange={(event) => setLabel(event.target.value)} placeholder={t('studio:payments.readers.namePh', 'Front counter')} data-testid="readers-pair-label" />
               </label>
+              {listed.length > 0 ? (
+                <label className="flex flex-col gap-1 text-[12.5px] font-semibold" htmlFor={`${ids}-location`}>
+                  {t('studio:payments.readers.location', 'Location')}
+                  <select id={`${ids}-location`} className="h-9 rounded-[8px] border border-border bg-surface px-2" value={chosen} onChange={(event) => setLocation(event.target.value)} data-testid="readers-pair-location">
+                    {listed.map((one) => (
+                      <option key={one.id} value={one.id}>
+                        {one.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
             </>
           ) : pairing.way === 'enter' ? (
             <label className="flex flex-col gap-1 text-[12.5px] font-semibold" htmlFor={`${ids}-code`}>
