@@ -504,7 +504,7 @@ export const appInstallPlanDto = z.object({
   afterInstall: z
     .array(
       z.object({
-        kind: z.enum(['webhook', 'address', 'document', 'delivery', 'recipients', 'payment-key', 'bank-account', 'sender', 'system-grant', 'outbound']),
+        kind: z.enum(['webhook', 'address', 'document', 'delivery', 'recipients', 'payment-key', 'bank-account', 'payments-switch', 'sender', 'system-grant', 'outbound']),
         item: z.string(),
         field: z.string(),
       }),
@@ -585,6 +585,21 @@ export const appInstallPlanDto = z.object({
    * past every role's limits. Shown on the check step. Absent when none.
    */
   privacyGrants: z
+    .array(
+      z.object({
+        role: z.string(),
+        roleName: z.string(),
+        /** An update's check: the running version's role was not given it. The update gives it only with `"roleGrants": true`. */
+        added: z.literal(true).optional(),
+      }),
+    )
+    .optional(),
+  /**
+   * The roles that would give back the money paid online for the app's own
+   * records (`payments:@:refund`), each ticked on the check step: the
+   * installer may untick one (`refundsUnticked`). Absent when none.
+   */
+  refundGrants: z
     .array(
       z.object({
         role: z.string(),
@@ -756,6 +771,12 @@ export const installAppBody = z.object({
    * box starts ticked — for an app that asks for any.
    */
   publicAccess: z.boolean().optional(),
+  /**
+   * The roles (by slug, from `refundGrants`) the installer unticked on the
+   * check: not given the app's refund right. Remembered, so an update never
+   * hands it over unasked. Absent: every listed role is given it.
+   */
+  refundsUnticked: z.array(z.string().min(1).max(160)).max(32).optional(),
   /**
    * The add-ons to install, connect or update with the app. A required one
    * that needs only installing or connecting is done without being listed; a

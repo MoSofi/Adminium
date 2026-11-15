@@ -36,7 +36,7 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 
-import { paymentLinksRepo, paymentSettingsRepo, settingsRepo, type MetaDb, type PayableRef, type PaymentLink } from '@adminium/meta';
+import { paymentLinksRepo, paymentSettingsRepo, settingsRepo, type LinkAudience, type MetaDb, type PayableRef, type PaymentLink } from '@adminium/meta';
 import { z } from 'zod';
 
 import { decryptSecret, deriveKey, encryptSecret } from '../config/secrets.js';
@@ -83,7 +83,7 @@ export interface MintedLink {
 export async function mintLink(
   meta: MetaDb,
   seal: LinkSeal,
-  input: { payable: PayableRef; mode: 'test' | 'live'; createdBy: string | null; lifetimeMs?: number },
+  input: { payable: PayableRef; mode: 'test' | 'live'; createdBy: string | null; lifetimeMs?: number; audience?: LinkAudience },
   at: number = Date.now(),
 ): Promise<MintedLink> {
   const token = randomBytes(16).toString('base64url');
@@ -95,6 +95,7 @@ export async function mintLink(
       mode: input.mode,
       expiresAt: at + (input.lifetimeMs ?? LINK_LIFETIME_MS),
       createdBy: input.createdBy,
+      ...(input.audience === undefined ? {} : { audience: input.audience }),
     },
     at,
   );

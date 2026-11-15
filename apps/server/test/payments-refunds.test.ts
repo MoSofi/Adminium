@@ -204,6 +204,8 @@ describe.each(LEGS)('refunds — %s', (dialect, available) => {
     for (const [ref, part] of [['shape_invoices', 'document'], ['shape_payments', 'payments']] as const) {
       await h.meta.db.updateTable('adminium_app_tables').set({ builtOn: `invoices/invoice@2#${part}` } as never).where('connectionId', '=', h.connectionId).where('ref', '=', ref).execute();
     }
+    // …and switched on for online payments in Payments.
+    await payableProfilesRepo(h.meta).create({ connectionId: h.connectionId, tableName: shapeInvoicesId, mapping: { kind: 'shape' }, ownerApp: null, createdBy: null });
     const invoiceMapping: PayableMapping = {
       label: 'number',
       amount: { column: 'total', unit: null },
@@ -876,7 +878,7 @@ describe.each(LEGS)('refunds — %s', (dialect, available) => {
       expect(await refundsRepo(h.meta).forAttempt(attemptId)).toEqual([]);
       const seen = await preview(refunder);
       expect(seen.statusCode).toBe(200);
-      expect(seen.json().data).toEqual({ label: 'INV-R', provider: PROVIDER, test: false, taken: '42.00', currency: 'EUR', refundable: '42.00', paidWith: 'Visa ••4242', refusal: null });
+      expect(seen.json().data).toEqual({ label: 'INV-R', provider: PROVIDER, test: false, taken: '42.00', currency: 'EUR', refundable: '42.00', paidWith: 'Visa ••4242', refusal: null, inApp: null });
 
       const once = key();
       const made = await refund(refunder, { key: once });

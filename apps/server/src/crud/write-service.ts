@@ -1993,6 +1993,52 @@ export interface WriteServiceOptions {
    * Without it, no table is.
    */
   ownRecords?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
+  /**
+   * Whether a table is a payable's payments table, and which of its columns
+   * name a payment taken online (`payments/payment-rows.ts`). A row that
+   * carries the reference is the provider's record: no person, key, rule or
+   * stranger creates, changes or deletes it, whichever door they came
+   * through; only the payment itself writes it, and a refund changes it. The
+   * reference and the service it was taken by are never filled by anyone
+   * else, on any row. A payment a person recorded by hand (cash, a card on
+   * the counter's own terminal) is theirs, as before. Without it, no table is
+   * guarded.
+   */
+  paymentRows?: ((target: Pick<WriteTarget, 'connectionId' | 'view' | 'table'>) => Promise<PaymentRowRule | null>) | undefined;
+}
+
+/** What {@link WriteServiceOptions.paymentRows} says of a payable's payments table, or of an app's refund table. */
+export interface PaymentRowRule {
+  /** The column Adminium writes each online payment's attempt id into: a row with it filled is a payment taken online. Null on a refund table alone. */
+  reference: string | null;
+  /** The columns only Adminium fills, on any row: the reference, the service the payment was taken by, a refund's stamps. */
+  engineOnly: readonly string[];
+  /**
+   * A table where the app keeps refunds as rows (E4): a row that sends money
+   * back (`sendsMoney`, the mapping's `when`) is made only by someone who may
+   * refund (`mayRefund`), so a cashier who may write the table cannot move
+   * money; it is checked before the write commits.
+   */
+  refund?: { sendsMoney: (row: Row) => boolean; mayRefund: (context: WriteContext) => Promise<boolean> } | undefined;
+}
+
+/** Whether a write may make or change a payment taken online: the payment itself, and an app's own sample or seed rows. */
+export function mayWritePayments(context: Pick<WriteContext, 'origin' | 'stamps'>): boolean {
+  return context.origin === 'payment' || (context.origin === 'import' && context.stamps !== 'left-out');
+}
+
+/** The row a multi-row change names by its own key columns, as it stands; null when the values carry no whole key. */
+async function fetchMatched(target: Pick<WriteTarget, 'db' | 'table'>, values: Row): Promise<Row | null> {
+  const keys = target.table.primaryKey;
+  if (keys.length === 0 || keys.some((column) => !filledValue(values[column]))) return null;
+  return (await fetchByPk(target.db, target.table, Object.fromEntries(keys.map((column) => [column, values[column]])))) ?? null;
+}
+
+/** The reference a payment recorded by hand in Payments carries (`routes/payments/panel.ts`): never an online payment's. */
+export const HAND_REFERENCE_PREFIX = 'hand_';
+
+function filledValue(value: unknown): boolean {
+  return value !== null && value !== undefined && !(typeof value === 'string' && value.trim() === '');
 }
 
 /**
@@ -2238,6 +2284,48 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (opts.ownRecords === undefined || writtenByAdminium(context)) return;
     if (!(await opts.ownRecords(target.connectionId, target.table.id))) return;
     throw new ForbiddenError('Only Adminium writes these rows. You can read and delete them.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'adminium-writes' });
+  };
+
+  /**
+   * A payment taken online, refused to everyone but the payment itself
+   * ({@link WriteServiceOptions.paymentRows}): its row is neither made, changed
+   * nor deleted, and nobody fills the columns that say a payment was taken
+   * online. `stored` reads the row as it stands, for a change or a delete; a
+   * reference is written once and never changes, so the read cannot race it.
+   */
+  const refusePaymentRows = async (
+    action: WriteAction,
+    target: Pick<WriteTarget, 'connectionId' | 'view' | 'table'>,
+    context: WriteContext,
+    rows: readonly { values: Row; stored: () => Promise<Row | null> }[],
+  ): Promise<void> => {
+    if (opts.paymentRows === undefined || mayWritePayments(context) || rows.length === 0) return;
+    const rule = await opts.paymentRows(target);
+    if (rule === null) return;
+    for (const row of rows) {
+      if (action !== 'delete') {
+        const column = rule.engineOnly.find((one) => filledValue(row.values[one]));
+        if (column !== undefined) {
+          throw new ForbiddenError(`Only Adminium fills ${column}: it names a payment taken online.`, 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'payment-column', column });
+        }
+      }
+      // A refund row that sends money back: only someone who may refund makes one, or turns one into one.
+      if (rule.refund !== undefined && action !== 'delete') {
+        const before = action === 'create' ? null : await row.stored();
+        const after = { ...(before ?? {}), ...row.values };
+        const sends = rule.refund.sendsMoney(after) && (before === null || !rule.refund.sendsMoney(before));
+        if (sends && !(await rule.refund.mayRefund(context))) {
+          throw new ForbiddenError('Sending money back needs the right to refund payments.', 'PAYMENT_REFUND_NOT_ALLOWED', { table: target.table.id });
+        }
+      }
+      if (action === 'create' || rule.reference === null) continue;
+      const stored = await row.stored();
+      // A payment recorded by hand in Payments carries a reference too (`hand_<key>`, its retry key): it stays a person's.
+      const reference = stored === null ? null : stored[rule.reference!];
+      if (filledValue(reference) && !String(reference).startsWith(HAND_REFERENCE_PREFIX)) {
+        throw new ForbiddenError('This payment was taken online. Only a refund changes it.', 'TABLE_FORBIDDEN', { table: target.table.id, reason: 'online-payment' });
+      }
+    }
   };
 
   /**
@@ -3656,6 +3744,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     refuseUnbuiltTable(target);
     await refuseHeldWrite(target.db, 'create');
     await refuseOwnRecords(target, context);
+    await refusePaymentRows('create', target, context, [{ values: input.values, stored: async () => null }]);
     refuseEarly(target, 'create', input.values, mapError);
     const hooks = current();
     await freshCodes(target);
@@ -4179,6 +4268,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (action !== 'delete') refuseUnbuiltTable(target);
       await refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
+      await refusePaymentRows(action, target, context, rows.map((values, index) => ({ values, stored: async () => checkOpts?.stored?.[index] ?? (action === 'create' ? null : await fetchMatched(target, values)) })));
       if (action !== 'delete') await freshCodes(target);
       const rules = rulesOf(target);
       refuseGuardedBatch(rules, action, target, rows, checkOpts?.capacity);
@@ -4502,6 +4592,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // A table only Adminium writes takes no row of a person's tree, at its root or below.
       for (const row of everyRow) await refuseHeldWrite(row.target.db, 'create');
       for (const row of everyRow) await refuseOwnRecords(row.target, context);
+      for (const row of everyRow) await refusePaymentRows('create', row.target, context, [{ values: row.node.values, stored: async () => null }]);
       // A child table a before hook runs for cannot take rows here: a hook may write through its own connection, which waits on this transaction.
       for (const row of everyRow.slice(1)) {
         refuseUnbuiltTable(row.target);
@@ -4963,6 +5054,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       refuseUnbuiltTable(target);
       await refuseHeldWrite(target.db, 'update');
       await refuseOwnRecords(target, context);
+      await refusePaymentRows('update', target, context, [
+        { values: input.values, stored: async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null)) },
+      ]);
       refuseEarly(target, 'update', input.values, input.mapError);
       await freshCodes(target);
       const hooks = current();
@@ -5453,6 +5547,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const hooks = current();
       const before = input.before ?? (input.load === undefined ? null : await input.load());
       if (before === null && input.load !== undefined && input.skipIfNone === true) return 0;
+      // A row the caller's read could not see is not looked at here: the DELETE below matches nothing.
+      await refusePaymentRows('delete', target, context, [
+        { values: {}, stored: async () => (before !== null ? before : input.load !== undefined ? null : ((await fetchByPk(target.db, target.table, pk)) ?? null)) },
+      ]);
       if (before !== null && (await hooks.wants('before', 'delete', target, context))) {
         await runBefore(hooks, 'delete', target, context, {}, before);
       }
@@ -5515,6 +5613,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (action !== 'delete') refuseUnbuiltTable(target);
       await refuseHeldWrite(target.db, action);
       if (action !== 'delete') await refuseOwnRecords(target, context);
+      await refusePaymentRows(
+        action,
+        target,
+        context,
+        rows.map((row) => ({ values: row.values, stored: async () => (row.record !== undefined ? row.record : row.match === undefined ? null : ((await fetchByPk(target.db, target.table, row.match)) ?? null)) })),
+      );
       if (action !== 'delete') await freshCodes(target);
       const hooks = current();
       const withRules = beforeOpts?.rules !== false;

@@ -166,7 +166,8 @@ export class ForbiddenError extends AppError {
       | 'READ_ONLY_MODE'
       | 'SOURCE_READ_REFUSED'
       // Someone whose every role opens only an app's own screens.
-      | 'APP_SCREENS_ONLY' = 'FORBIDDEN',
+      | 'APP_SCREENS_ONLY'
+      | 'PAYMENT_REFUND_NOT_ALLOWED' = 'FORBIDDEN',
     details?: unknown,
   ) {
     super(403, code, message, details);

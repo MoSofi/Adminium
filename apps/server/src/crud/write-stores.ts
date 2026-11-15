@@ -18,6 +18,7 @@ import { installedCustomerKey } from '../public-api/customer-key.js';
 import { createFileColumnJudge } from '../files/column-judge.js';
 import { assertListedCanOpen } from './row-writes.js';
 import { peopleTablesOf } from '../people/tables-of.js';
+import { paymentRowsOf } from './payment-rows.js';
 
 /**
  * One of an add-on's settings (or an app's own, under the app's key): the
@@ -48,8 +49,12 @@ function defaultIn(document: unknown, setting: string): unknown {
   return 'default' in declared ? declared.default : undefined;
 }
 
-export function writeStores(meta: MetaDb): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files' | 'fileFacts' | 'listings' | 'people'> {
+export function writeStores(
+  meta: MetaDb,
+): Pick<WriteServiceOptions, 'sequences' | 'timezoneOf' | 'settings' | 'rolesOf' | 'customerKey' | 'files' | 'fileFacts' | 'listings' | 'people' | 'paymentRows'> {
   return {
+    // A payment taken online is written by the payment alone and changed only by a refund, whoever writes (`payment-rows.ts`).
+    paymentRows: paymentRowsOf(meta),
     // The people an app declares: a table's opt-out mark is set by no trigger of its own, whoever writes (`decide.ts`).
     people: { tableOf: (target) => peopleTablesOf(meta).of(target.connectionId, target.view?.model, target.table.id) },
     // A row that lists somebody against rows of other tables lists only somebody who can open them, whoever writes it.

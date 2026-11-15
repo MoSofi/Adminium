@@ -289,6 +289,8 @@ export interface ColumnStampRule {
 export interface TableStatesRule {
   column: string;
   initial: string;
+  /** Other states a new row may be made in (an order made waiting for its payment): absent, `initial` only. */
+  starts?: string[];
   moves: Record<string, (string | StateMoveRule)[]>;
   lock?: { when: string[]; except?: string[] };
   children?: Record<

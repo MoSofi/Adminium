@@ -148,6 +148,14 @@ declare module 'fastify' {
     fileReconciler: FileReconciler;
     /** A form answer's files go with the answer, a form's with the form (`forms/files.ts`); decorated by compose. Never throws. */
     formsFiles: { onRecordEvent(event: RecordWriteEvent): Promise<void> };
+    /** A record that stopped being payable ends its open pay pages (`payments/row-left.ts`); decorated by compose. Never throws. */
+    payableRows: { onRecordEvent(event: RecordWriteEvent): Promise<void> };
+    /** A row of an app's refund table that sends money back is asked for (`payments/app-refunds.ts`); decorated by compose. Never throws. */
+    appRefundRows: { onRecordEvent(event: RecordWriteEvent): Promise<void> };
+    /** A payable row's move that refunds by itself, or owes a refund (`payments/refund-moves.ts`); decorated by compose. Never throws. */
+    refundMoves: { onRecordEvent(event: RecordWriteEvent): Promise<void> };
+    /** A row a person rehearsing their app's checkout made on its staff screens is a sample row (`payments/rehearsal.ts`). Never throws. */
+    rehearsalRows: { onCreate(input: { connectionId: string; table: ResolvedTable; pk: Row; userId: string }): Promise<void> };
   }
 }
 
@@ -233,6 +241,12 @@ export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEv
   if (app.hasDecorator('publicIdentities')) await app.publicIdentities.onRecordEvent(event);
   // A form's answer removed, by any door: the files a stranger sent with it go too. Never throws.
   if (event.action === 'delete' && app.hasDecorator('formsFiles')) await app.formsFiles.onRecordEvent(event);
+  // A record that stopped being payable: its open pay pages are ended, by a job. Never throws.
+  if (event.action !== 'create' && app.hasDecorator('payableRows')) await app.payableRows.onRecordEvent(event);
+  // A row of an app's refund table that sends money back: the money is asked for, by a job. Never throws.
+  if (event.action !== 'delete' && app.hasDecorator('appRefundRows')) await app.appRefundRows.onRecordEvent(event);
+  // A cancellation that refunds by itself (or owes a refund): judged now, at the move, by who made it. Never throws.
+  if (event.action === 'update' && app.hasDecorator('refundMoves')) await app.refundMoves.onRecordEvent(event);
   // A forms table's row may publish or change a form strangers see: the operator is told what changed. Never waits, never throws.
   app.operatorEvents?.onRecordEvent(event);
   if (!app.hasDecorator('automations')) return;
@@ -276,6 +290,13 @@ export async function afterRecordWrite(
   const { connectionId, table, action, entity, before, after } = input;
 
   invalidateWidgetData(app, connectionId, table.id);
+
+  // A row a person rehearsing their app's checkout made on its staff screens: a sample row from the start (the
+  // public door enters its own rows, with the rows below them).
+  const maker = input.request?.user?.id;
+  if (action === 'create' && input.origin !== 'public' && typeof maker === 'string' && app.hasDecorator('rehearsalRows')) {
+    await app.rehearsalRows.onCreate({ connectionId, table, pk: entity.pk as Row, userId: maker });
+  }
 
   // Before/after images are PII-redacted in the audit trail, and carry no
   // code: whoever reads the audit log may not read this table (`keptImages`).

@@ -86,7 +86,9 @@
 import { appPartIsOn } from '../rbac/app-parts.js';
 import type { Dialect } from '@adminium/engine';
 import { removalTableOf, resendAddressOf, sameDecimal, type Outbox, type OutboxProducer, type SettingSource } from '@adminium/manifest';
-import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, manifestsRepo, type AppOutboxRow, type MetaDb } from '@adminium/meta';
+import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, manifestsRepo, usersRepo, type AppOutboxRow, type MetaDb } from '@adminium/meta';
+
+import { noteRehearsalRow, rehearsalRowOwner } from '../payments/rehearsal-state.js';
 import { tableIdIn, tableIdOrNull } from '../installs/table-id.js';
 import { sql, type Kysely } from 'kysely';
 
@@ -499,9 +501,14 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     const { at, now } = opts;
     // Inside a caller's transaction the lock is taken in it; MySQL's cannot join one, and the repeat key (a new code) keeps it one message there.
     const lockName = [{ name: `outbox|${box.connectionId}|${box.appKey}`, busy: 'CAPACITY_BUSY' as const }];
+    // The rehearsing person whose row this message is about, when it is a rehearsal's (read inside the lock below).
+    let rehearser: string | null = null;
     const written = await withNamedLocks({ db: opts.db ?? handle.db, dialect: handle.dialect }, lockName, async (db): Promise<Row | null> => {
-      if (await isSample(db, box, source, sourceKey)) return null;
-      if (about.row !== row && (await isSample(db, box, about.table, Object.fromEntries(about.table.primaryKey.map((c) => [c, about.row[c]]))))) return null;
+      // A rehearsal's row (a payments manager walking the app's checkout): its mail goes to them, marked TEST. Any other sample row sends none.
+      const aboutKeyRow = Object.fromEntries(about.table.primaryKey.map((c) => [c, about.row[c]]));
+      rehearser = (await rehearsalRowOwner(deps.meta, box.connectionId, source.id, sourceKey)) ?? (about.row !== row ? await rehearsalRowOwner(deps.meta, box.connectionId, about.table.id, aboutKeyRow) : null);
+      if (rehearser === null && (await isSample(db, box, source, sourceKey))) return null;
+      if (rehearser === null && about.row !== row && (await isSample(db, box, about.table, aboutKeyRow))) return null;
       // An email of a part of the app that is switched off is not queued.
       if (producer.module !== undefined && !(await appPartIsOn(deps.meta, box.appKey, producer.module, { installId: box.row.manifestId, connectionId: box.connectionId }))) return null;
       if (producer.gate !== undefined && !(await switchedOn(db, box, producer.gate))) return null;
@@ -563,7 +570,9 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
         opts.onAddress?.(addressed.address);
         return addressed.address === null ? null : values;
       }
-      values[cols.to] = addressed.address;
+      // A rehearsal's message is the rehearsing person's: never the address the row carries.
+      const rehearsing = rehearser === null ? null : ((await usersRepo(deps.meta).findById(rehearser))?.email ?? null);
+      values[cols.to] = rehearser === null ? addressed.address : rehearsing;
       // The row the message is about may say its language (an order placed in German): it wins over the person's.
       const width = cols.language === undefined ? null : (outbox.table.columns.find((column) => column.name === cols.language)?.maxLength ?? null);
       const language = producedLanguage(box.definition, producer, about.row, width) ?? addressed.language;
@@ -590,6 +599,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     }, opts.db === undefined ? {} : { openTransaction: 'run' });
     if (written === null) return false;
     if (opts.dry === true) return true;
+    if (rehearser !== null) await noteRehearsalRow(deps.meta, box.connectionId, outbox.id, Object.fromEntries(outbox.primaryKey.map((c) => [c, written[c]])), rehearser);
     if (opts.db !== undefined) {
       opts.written?.(written);
       return written[cols.status] === 'queued' || written[cols.status] === 'held';

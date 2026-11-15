@@ -145,7 +145,7 @@ import {
   type AppManifest,
   type OutboxProducer,
 } from '@adminium/manifest';
-import { CUSTOMER_KEY_PURPOSE, addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb, type RecordRef } from '@adminium/meta';
+import { CUSTOMER_KEY_PURPOSE, addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, usersRepo, type MetaDb, type RecordRef } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
@@ -188,6 +188,7 @@ import { QR_MAX_BYTES, qrCarries } from '../qr/index.js';
 import type { EffectsAnnouncement } from '../states/effects.js';
 import { outboxContext, outboxEffectContext } from './context.js';
 import { usableLanguage } from './language.js';
+import { rehearsalRowOwner } from '../payments/rehearsal-state.js';
 import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import { columnRecipientOf } from './column-recipient.js';
@@ -1469,8 +1470,13 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const producer = producerOf(box.definition, kind);
     // A message the app's sample brought in is sample data like the rest: never sent, whatever address it carries.
     const key = Object.fromEntries(ctx.outbox.primaryKey.map((column) => [column, row[column]]));
-    if (await isSampleRow(deps.meta, ctx.db, box, ctx.outbox, key)) return { status: 'skipped', error: 'Sample data (never sent)' };
-    const { addressed, to: found, lookedUp } = await addressOf(ctx, box, producer, row);
+    // A message about a rehearsal's row goes to the rehearsing person alone, marked TEST; any other sample row's never goes.
+    const rehearser = await rehearsalRowOwner(deps.meta, box.connectionId, ctx.outbox.id, key);
+    if (rehearser === null && (await isSampleRow(deps.meta, ctx.db, box, ctx.outbox, key))) return { status: 'skipped', error: 'Sample data (never sent)' };
+    const rehearsing = rehearser === null ? null : ((await usersRepo(deps.meta).findById(rehearser))?.email ?? null);
+    if (rehearser !== null && rehearsing === null) return { status: 'skipped', error: 'Sample data (never sent)' };
+    const { addressed, to: addressedTo, lookedUp } = await addressOf(ctx, box, producer, row);
+    const found = rehearsing ?? addressedTo;
     if (!plausibleAddress(found)) return { status: 'skipped', error: 'No email on file' };
     // A person who deleted their details since the message was queued: read as they are now, and written to no more.
     if (await toForgotten(ctx, box.definition, row, addressed, columnRecipientOf(producer)?.column)) return { status: 'skipped', error: 'No email on file' };
@@ -1543,7 +1549,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       const value = column === undefined ? undefined : row[column];
       return typeof value === 'string' && value.trim() !== '' ? onlyReads(value, personal) : undefined;
     };
-    const override = { subject: text(cols.subjectOverride), body: text(cols.bodyOverride) };
+    const asked = { subject: text(cols.subjectOverride), body: text(cols.bodyOverride) };
+    // A rehearsal's mail says it is a test in its subject, so it is never taken for a real customer's.
+    const override = rehearser === null ? asked : { ...asked, subject: `[TEST] ${asked.subject ?? String(template.subject ?? '')}` };
     // A person's wording replaces the blocks; the template's own are sent only without it.
     if (override.body === undefined && (template.blocks as { block?: unknown }[]).some((block) => block.block === 'email.html')) {
       return { status: 'failed', error: 'The email has an HTML block, which cannot carry what a person typed' };

@@ -167,6 +167,16 @@ describe.each(LEGS)('the vocabulary, kept through install on %s', (dialect, avai
     expect(codes((d) => [batched(d), (d.expect = 'total')])).toContain('ENDPOINT_CHILDREN_NO_CREATE');
     expect(codes((d) => [batched(d), (d.agrees = [{ column: 'guests', lte: { via: 'room_type_id', column: 'sleeps' } }])])).toContain('ENDPOINT_CHILDREN_NO_CREATE');
     expect(codes((d) => delete d.human_check)).toContain('ENDPOINT_CHILDREN_NEED_PROOF');
+    // A create that answers a pay link: a single create, behind the human check when anyone may make it.
+    const said = (change: (d: PublicEndpointDefinition) => void) => {
+      const d = structuredClone(create) as PublicEndpointDefinition & { text?: string };
+      delete d.text;
+      change(d);
+      return endpointIssues(d, { ref, view }).map((i) => i.message).join('\n');
+    };
+    expect(codes((d) => (d.pay = true))).toEqual([]);
+    expect(said((d) => [(d.pay = true), delete d.human_check])).toContain('that answers a pay link asks the human check');
+    expect(said((d) => [(d.pay = true), d.methods.push('BATCH')])).toContain('a pay link is answered by a single create');
     expect(codes((d) => (d.expect = 'note'))).toContain('ENDPOINT_EXPECT_COLUMN');
     expect(codes((d) => d.select.push('client_key'))).toContain('ENDPOINT_CLIENT_KEY');
     expect(codes((d) => d.select.push('customer_id'))).toContain('ENDPOINT_FIND_OR_CREATE_SHAPE');

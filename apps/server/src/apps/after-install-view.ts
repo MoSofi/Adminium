@@ -16,7 +16,7 @@
  *    ticked it. Best effort: payment keys and bank accounts are never seen,
  *    only ticked.
  */
-import {
+import { payableProfilesRepo,
   appAfterInstallRepo,
   appPartsRepo,
   appTablesRepo,
@@ -47,6 +47,8 @@ export const AFTER_INSTALL_RIGHTS: Readonly<Record<AfterInstallKind, string>> = 
   recipients: PERMISSIONS.reportsManage,
   'payment-key': PERMISSIONS.paymentsManage,
   'bank-account': PERMISSIONS.paymentsManage,
+  // An app's payments, switched on in Payments → Apps by someone who manages payments.
+  'payments-switch': PERMISSIONS.paymentsManage,
   sender: PERMISSIONS.settingsManage,
   'system-grant': PERMISSIONS.rolesManage,
   // A rule step that sends out: looked at, and switched on, on the rule.
@@ -160,6 +162,12 @@ function finder(meta: MetaDb, install: AfterInstallInstall): (item: StoredItem) 
       case 'payment-key':
       case 'bank-account':
         return { name: null, seen: false, link: { to: 'payments' } };
+      case 'payments-switch': {
+        // Seen once the app's payments are switched on.
+        if (install.connectionId === null) return { ...none, link: { to: 'payments' } };
+        const owned = (await payableProfilesRepo(meta).list(install.connectionId)).filter((profile) => profile.ownerApp === key);
+        return { name: null, seen: owned.length > 0 && owned.every((profile) => profile.enabled), link: { to: 'payments' } };
+      }
       default:
         return none;
     }

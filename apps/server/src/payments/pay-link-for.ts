@@ -10,8 +10,9 @@
  * link a customer was already sent. Anything else is no link, and the slot
  * stays empty: a document never prints a link that would not open.
  */
-import { paymentLinksRepo, payableProfilesRepo, type MetaDb, type PayableRef, type RecordRef } from '@adminium/meta';
+import { paymentCountersRepo, paymentLinksRepo, payableProfilesRepo, type MetaDb, type PayableRef, type RecordRef } from '@adminium/meta';
 
+import { LINK_FAILURES_TO_LOCK, linkFailBucket } from './checkout.js';
 import { linkOpens, linkSealFromSecret, mintLink, payAddress, payReachable, payUrl } from './links.js';
 import { resolvePayable, type PayableSources } from './payables.js';
 
@@ -27,9 +28,31 @@ export interface PayLinkForDeps {
   now?: () => number;
 }
 
+/** A public start's own link lasts a day: a customer pays at checkout, or starts again. */
+export const PUBLIC_LINK_LIFETIME_MS = 24 * 3_600_000;
+
 export function createPayLinkFor(deps: PayLinkForDeps): (entity: RecordRef) => Promise<string | null> {
-  const seal = linkSealFromSecret(deps.secret);
+  const linkFor = createLinkFor(deps);
   return async (entity) => {
+    const made = await linkFor(entity, 'staff');
+    return typeof made === 'string' ? made : null;
+  };
+}
+
+/**
+ * A public start's link: the record's own public link (current beside the
+ * one the shop sent, never in its place) while it opens, else a new one. A
+ * public link locked by its declines is not replaced: `locked`, so a card
+ * tester cannot buy a fresh five declines by starting again.
+ */
+export function createPublicLinkFor(deps: PayLinkForDeps): (entity: RecordRef) => Promise<string | 'locked' | null> {
+  const linkFor = createLinkFor(deps);
+  return (entity) => linkFor(entity, 'public');
+}
+
+function createLinkFor(deps: PayLinkForDeps): (entity: RecordRef, audience: 'staff' | 'public') => Promise<string | 'locked' | null> {
+  const seal = linkSealFromSecret(deps.secret);
+  return async (entity, audience) => {
     const at = (deps.now ?? Date.now)();
     const keys = Object.keys(entity.pk);
     if (keys.length !== 1) return null;
@@ -50,9 +73,12 @@ export function createPayLinkFor(deps: PayLinkForDeps): (entity: RecordRef) => P
     const reach = await payReachable(deps.meta, { networkFeatures: deps.networkFeatures, desktop: deps.desktop, trustProxy: deps.trustProxy, forwarded: false });
     const address = await payAddress(deps.meta);
     if (reach.state !== 'reachable' || address === null) return null;
-    const current = await paymentLinksRepo(deps.meta).currentFor(ref);
-    if (current !== null && current.mode === 'live' && linkOpens(current, at)) return payUrl(address, seal.unseal(current.tokenSealed));
-    const minted = await mintLink(deps.meta, seal, { payable: ref, mode: 'live', createdBy: null }, at);
+    const current = await paymentLinksRepo(deps.meta).currentFor(ref, audience);
+    if (current !== null && current.mode === 'live' && linkOpens(current, at)) {
+      if (audience === 'public' && (await paymentCountersRepo(deps.meta).read(linkFailBucket(current.id), at)) >= LINK_FAILURES_TO_LOCK) return 'locked';
+      return payUrl(address, seal.unseal(current.tokenSealed));
+    }
+    const minted = await mintLink(deps.meta, seal, { payable: ref, mode: 'live', createdBy: null, ...(audience === 'public' ? { audience, lifetimeMs: PUBLIC_LINK_LIFETIME_MS } : {}) }, at);
     return payUrl(address, minted.token);
   };
 }

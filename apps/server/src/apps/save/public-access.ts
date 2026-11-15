@@ -188,7 +188,7 @@ function entryOf(inv: Inverse, endpoint: PublicEndpoint, def: Def, keyName: stri
   const anonymous = def['anonymous'] as Rec | undefined;
   const limits = def['limits'] as Rec | undefined;
   const confirm = def['confirm'] as (Rec & { venue?: Rec }) | undefined;
-  const settings = def['require_setting'] as { table: string; column: string; when?: 'anonymous' }[] | undefined;
+  const settings = def['require_setting'] as { table: string; column: string; when?: 'anonymous'; in?: string[] }[] | undefined;
   const identityDef = def['identity'] as Rec | undefined;
   const children = def['children'] as Record<string, Rec> | undefined;
   const shareLink = def['share_link'] as { column: string } | undefined;
@@ -215,6 +215,7 @@ function entryOf(inv: Inverse, endpoint: PublicEndpoint, def: Def, keyName: stri
     // A row's own link opens a verified session by itself: the level is the link's.
     ...opt('level', ownToken ? undefined : def.level),
     ...(def.human_check === true ? { humanCheck: true as const } : {}),
+    ...(def.pay === true ? { pay: true as const } : {}),
     ...opt('sensitive', def.sensitive),
     ...opt('onClaim', def.on_claim === undefined ? undefined : { clear: [...def.on_claim.clear] }),
     ...opt('maxOpen', def.max_open as PublicAccess['maxOpen']),

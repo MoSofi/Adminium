@@ -732,9 +732,11 @@ export async function guardedInsert<T>(
       const state = text(row[states.column]);
       // A row a ledger's own answer adds may start where only a plan could take it from the first state: adding it there is
       // that add and that move in one (an older gift card brought in already active). A move that asks something first is not
-      // stepped over: its row starts at the beginning and is moved. Nobody else's new row starts anywhere else.
+      // stepped over: its row starts at the beginning and is moved. Nobody else's new row starts anywhere else —
+      // but in a state the table names as another start (`starts`: an order made already waiting for its payment).
       const plannedStart = guard.origin === 'ledger' && state !== null && (states.moves[states.initial] ?? []).some((move) => typeof move !== 'string' && move.to === state && move.planned === true && move.requires === undefined);
-      if (state !== null && state !== states.initial && !plannedStart) {
+      const declaredStart = state !== null && (states.starts ?? []).includes(state);
+      if (state !== null && state !== states.initial && !plannedStart && !declaredStart) {
         throw new StateMoveRefused(`A new ${table.name} row starts as ${states.initial}.`, { column: states.column, from: null, to: state });
       }
     }

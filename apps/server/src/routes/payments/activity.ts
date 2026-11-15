@@ -42,7 +42,7 @@
  * visible as checked, never deleted. `payments.view` sees everything and may
  * export it, and acts on nothing.
  */
-import { paymentAttemptsRepo, refundsRepo, usersRepo, type AttemptState, type MetaDb, type PaymentAttempt, type RefundRow, type RefundRowState } from '@adminium/meta';
+import { REFUND_SOURCES, paymentAttemptsRepo, refundsRepo, usersRepo, type AttemptState, type MetaDb, type PaymentAttempt, type RefundRow, type RefundRowState } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -57,11 +57,11 @@ export interface PaymentActivityDeps {
   meta: MetaDb;
 }
 
-export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'refund-record', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'disputed', 'dispute-lost'] as const;
+export const ACTIVITY_FLAGS = ['paid-not-recorded', 'amount-differs', 'payable-voided', 'refunded-at-provider', 'refund-record', 'mode-mismatch', 'paid-twice', 'waiting-long', 'record-changed', 'status-refused', 'disputed', 'dispute-lost', 'refund-owed'] as const;
 export type ActivityFlag = (typeof ACTIVITY_FLAGS)[number];
 
 /** The flags whose "Mark as checked" must say what was found. */
-export const NOTE_REQUIRED: ReadonlySet<ActivityFlag> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided', 'refund-record', 'mode-mismatch', 'paid-twice', 'record-changed']);
+export const NOTE_REQUIRED: ReadonlySet<ActivityFlag> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided', 'refund-record', 'mode-mismatch', 'paid-twice', 'record-changed', 'status-refused']);
 
 /** How long a payment may wait for the bank before it needs a look (a direct debit takes up to a week). */
 export const WAITING_LONG_MS = 14 * 86_400_000;
@@ -148,7 +148,7 @@ const rowView = z.object({
   /** Ids a person may quote to the payment service, or look up. */
   refs: z.object({ attempt: z.string().nullable(), checkout: z.string().nullable(), payment: z.string().nullable(), refund: z.string().nullable() }),
   /** A refund: made in Adminium (`staff`), in the service's own dashboard (`provider`), or by a lost dispute (`dispute`). */
-  refundSource: z.enum(['staff', 'provider', 'dispute']).nullable(),
+  refundSource: z.enum(REFUND_SOURCES).nullable(),
   flag: z.object({ code: z.enum(ACTIVITY_FLAGS), reason: z.string().nullable(), message: z.string().nullable() }).nullable(),
   check: z.object({ at: z.number(), by: z.string().nullable(), byName: z.string().nullable(), note: z.string().nullable() }).nullable(),
   /** An attempt that took money: what may still be refunded, and why nothing may now. Null on a refund row. */
@@ -169,6 +169,10 @@ export function attemptFlag(attempt: PaymentAttempt, now: number = Date.now()): 
   if (problem?.code === 'MODE_MISMATCH') return { code: 'mode-mismatch', reason: problem.code, message: problem.message };
   if (attempt.flaggedAt !== null && attempt.state !== 'record_refused') {
     if (problem?.code === 'TWO_AT_ONCE') return { code: 'paid-twice', reason: problem.code, message: problem.message };
+    // Written down, but the record would not move to its paid state: a person moves it, or refunds.
+    if (problem?.code === 'STATUS_REFUSED') return { code: 'status-refused', reason: problem.code, message: problem.message };
+    // Its record was cancelled by someone who may not refund (or with the app's switch off): a person gives it back.
+    if (problem?.code === 'REFUND_OWED') return { code: 'refund-owed', reason: problem.code, message: problem.message };
     return { code: 'record-changed', reason: problem?.code ?? null, message: problem?.message ?? null };
   }
   if (attempt.state === 'processing' && now - attempt.createdAt > WAITING_LONG_MS) return { code: 'waiting-long', reason: null, message: null };

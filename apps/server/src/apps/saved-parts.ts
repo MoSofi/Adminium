@@ -29,13 +29,16 @@
  */
 import { createHash } from 'node:crypto';
 
-import type { Manifest, SavedPayable, SavedPayments } from '@adminium/manifest';
+import { isShapePayable, type Manifest, type SavedPayable, type SavedPayments } from '@adminium/manifest';
 import {
   appPartsRepo,
+  appTablesRepo,
+  connectionTenantConfig,
   invoiceDocumentsRepo,
   manifestsRepo,
   NO_RULES,
   pagesRepo,
+  payableMappingSchema,
   payableProfilesRepo,
   paymentMethodsRepo,
   paymentSettingsRepo,
@@ -47,7 +50,11 @@ import {
   type DocumentProfile,
   type MetaDb,
   type PayableMapping,
+  type ShapePayableMapping,
 } from '@adminium/meta';
+import type { EffectiveModel } from '../connections/effective-schema.js';
+import { tellPaymentManagers } from '../payments/notices.js';
+import { payableIssues } from '../payments/payable-rules.js';
 
 import { ForbiddenError, ValidationFailedError } from '../errors.js';
 import { acceptInvoiceBody, bodyColumn as invoiceBodyColumn, withInferredCode } from '../invoices/document.js';
@@ -113,7 +120,9 @@ export async function savedPartsRefusal(manifest: Manifest, can: (permission: st
     [parts.reports, PERMISSIONS.settingsManage, 'report documents'],
     [parts.invoiceLayouts, PERMISSIONS.settingsManage, 'invoice layouts'],
     [parts.scheduledReports, PERMISSIONS.reportsManage, 'scheduled reports'],
-    [parts.payments, PERMISSIONS.paymentsManage, 'payments'],
+    // An app's payables arrive switched off, for a payments manager to switch on: installing them asks for no right.
+    // A file made on an Adminium brings them switched on, with its ways to pay and pay page: those ask for the payments right.
+    [manifest.publisher.id === 'local' ? parts.payments : undefined, PERMISSIONS.paymentsManage, 'payments'],
   ];
   for (const [part, permission, what] of asks) {
     if (part === undefined || (await can(permission))) continue;
@@ -150,6 +159,8 @@ export interface InstallSavedPartsInput {
   at?: number | undefined;
   /** The bytes of a file of the app's package, by its path there: a body's pictures. */
   readPackageFile?: ((path: string) => Promise<Uint8Array>) | undefined;
+  /** The database as Adminium reads it now, the app's tables made: an app's payables are checked against it. */
+  model?: Pick<EffectiveModel, 'tables' | 'enums'> | null | undefined;
 }
 
 /** One kind of part: what a row of it holds that the fingerprint reads, and how a row is made, read and rewritten. */
@@ -326,25 +337,89 @@ function storedMapping(payable: SavedPayable, realId: (ref: string) => string | 
       table,
       link: payments.link,
       amount: payments.amount,
-      date: payments.date,
       method: { column: payments.method.column, values: { ...payments.method.values } },
       note: payments.note ?? null,
       voided: payments.voided ?? null,
       reference: payments.reference,
       refunded: payments.refunded ?? null,
       amountUnit: payments.amountUnit ?? 'units',
+      date: payments.date ?? null,
+      ...(payments.paidAt === undefined ? {} : { paidAt: payments.paidAt }),
+      ...(payments.provider === undefined ? {} : { provider: payments.provider }),
+      ...(payments.approvalCode === undefined ? {} : { approvalCode: payments.approvalCode }),
+      ...(payments.last4 === undefined ? {} : { last4: payments.last4 }),
+      ...(payments.currency === undefined ? {} : { currency: payments.currency }),
+      ...(payments.refundedElsewhere === undefined ? {} : { refundedElsewhere: payments.refundedElsewhere }),
+      ...(payments.tip === undefined ? {} : { tip: payments.tip }),
     };
   }
+  // Refunds kept as the app's own rows, and the moves that refund by themselves: their tables by their names here.
+  let refunds: PayableMapping['refunds'];
+  if (payable.refunds?.model === 'rows') {
+    const rows = payable.refunds;
+    const table = realId(rows.table);
+    if (table === null) return { reason: `"${rows.table}" is not a table the install made` };
+    refunds = {
+      model: 'rows',
+      table,
+      payment: rows.payment,
+      amount: rows.amount,
+      when: rows.when.map((condition) => ({ ...condition })),
+      providerRef: rows.providerRef,
+      state: rows.state,
+      ...(rows.openIn === undefined ? {} : { openIn: rows.openIn }),
+      ...(rows.auto === undefined ? {} : { auto: { values: { ...rows.auto.values } } }),
+    };
+  } else if (payable.refunds !== undefined) refunds = { model: 'column' };
+  let refundOn: PayableMapping['refundOn'];
+  if (payable.refundOn !== undefined) {
+    const on = payable.refundOn;
+    const settingOf = (ref: { table: string; column: string }): { table: string; column: string } | null => {
+      const table = realId(ref.table);
+      return table === null ? null : { table, column: ref.column };
+    };
+    const toggle = on.switch === undefined ? undefined : settingOf(on.switch);
+    const hours = on.before === undefined ? undefined : settingOf(on.before.hours);
+    if (toggle === null || hours === null) return { reason: 'a refund setting is not in a table the install made' };
+    refundOn = {
+      moves: on.moves.map((move) => ({ ...(move.from === undefined ? {} : { from: [...move.from] }), to: move.to, by: [...move.by] })),
+      ...(toggle === undefined ? {} : { switch: toggle }),
+      ...(hours === undefined || on.before === undefined ? {} : { before: { column: on.before.column, hours } }),
+    };
+  }
+  let currency: PayableMapping['currency'];
+  if ('setting' in payable.currency) {
+    const settings = realId(payable.currency.setting.table);
+    if (settings === null) return { reason: `"${payable.currency.setting.table}" is not a table the install made` };
+    currency = { setting: { table: settings, column: payable.currency.setting.column } };
+  } else currency = { ...payable.currency };
+  const status = payable.status;
   return {
     label: payable.label ?? null,
     amount: { column: payable.amount.column, unit: payable.amount.unit ?? null },
-    currency: { ...payable.currency },
+    currency,
     due: payable.due === undefined ? null : { column: payable.due.column },
     payments: kept,
-    status: payable.status === undefined ? null : { column: payable.status.column, paid: payable.status.paid, refunded: payable.status.refunded ?? null },
+    status:
+      status === undefined
+        ? null
+        : {
+            column: status.column,
+            paid: status.paid,
+            refunded: status.refunded ?? null,
+            ...(status.from === undefined ? {} : { from: [...status.from] }),
+            ...(status.refundedFrom === undefined ? {} : { refundedFrom: [...status.refundedFrom] }),
+          },
     customerEmail: payable.customerEmail ?? null,
     customerCountry: payable.customerCountry ?? null,
     pageFields: [...(payable.pageFields ?? [])],
+    ...(payable.payableWhen === undefined ? {} : { payableWhen: payable.payableWhen.map((condition) => ({ ...condition })) }),
+    ...(payable.returnTo === undefined ? {} : { returnTo: payable.returnTo }),
+    ...(payable.receipt === undefined ? {} : { receipt: payable.receipt }),
+    ...(payable.onlyOnline === undefined ? {} : { onlyOnline: payable.onlyOnline }),
+    ...(payable.instantOnly === undefined ? {} : { instantOnly: payable.instantOnly === true ? true : { where: payable.instantOnly.where.map((condition) => ({ ...condition })) } }),
+    ...(refunds === undefined ? {} : { refunds }),
+    ...(refundOn === undefined ? {} : { refundOn }),
   };
 }
 
@@ -353,6 +428,30 @@ async function installPayments(payments: SavedPayments | undefined, input: Insta
   const profiles = payableProfilesRepo(meta);
   const owned = (await profiles.list(connectionId)).filter((profile) => profile.ownerApp === input.manifest.key);
   const keep = new Set<string>();
+  // A file made on an Adminium is the owner's own set-up, switched on as it was; a catalog app's payables arrive
+  // switched off, on tables the app made itself, for someone who manages payments to switch on.
+  const local = input.manifest.publisher.id === 'local';
+  const made = local ? null : new Map((await appTablesRepo(meta).forInstall(connectionId, input.manifest.key)).map((record) => [record.ref, record]));
+  const ownTable = (ref: string): string | null => {
+    if (made === null) return null;
+    const record = made.get(ref);
+    if (record === undefined) return `"${ref}" is not a table this app made`;
+    // A table shared with another app, or one made by hand and taken over, is not the app's to take payments into.
+    return record.state === 'created' ? null : `"${ref}" is ${record.state === 'shared' ? 'shared with another app' : 'not one the app made'}: no payments are taken into it`;
+  };
+  const currency = local ? null : ((await connectionTenantConfig(meta, connectionId))?.currency ?? null);
+  let changed = false;
+  // A payable this version cannot set up, on a table the app's earlier version made payable: its profile stays (it
+  // guards the payments already taken there) and goes off, for someone who manages payments to look at.
+  const keepOff = async (table: string | null): Promise<void> => {
+    const earlier = table === null ? undefined : owned.find((profile) => profile.tableName === table);
+    if (earlier === undefined) return;
+    keep.add(earlier.id);
+    if (earlier.enabled) {
+      await profiles.update(earlier.id, { enabled: false }, input.at);
+      changed = true;
+    }
+  };
   for (const payable of payments?.payables ?? []) {
     const name = `payable:${payable.table}`;
     const table = input.realId(payable.table);
@@ -360,9 +459,42 @@ async function installPayments(payments: SavedPayments | undefined, input: Insta
       result.skipped.push({ entry: name, reason: `"${payable.table}" is not a table the install made` });
       continue;
     }
-    const mapping = storedMapping(payable, input.realId);
+    const notOwn = ownTable(payable.table) ?? (isShapePayable(payable) || payable.payments.kind !== 'table' ? null : ownTable(payable.payments.table));
+    if (notOwn !== null) {
+      result.skipped.push({ entry: name, reason: notOwn });
+      await keepOff(table);
+      continue;
+    }
+    let mapping: PayableMapping | ShapePayableMapping | { reason: string };
+    if (isShapePayable(payable)) {
+      mapping = {
+        kind: 'shape',
+        ...(payable.returnTo === undefined ? {} : { returnTo: payable.returnTo }),
+        ...(payable.receipt === undefined ? {} : { receipt: payable.receipt }),
+        ...(payable.onlyOnline === undefined ? {} : { onlyOnline: payable.onlyOnline }),
+      };
+    } else {
+      mapping = storedMapping(payable, input.realId);
+      // Checked as the payments screen checks a person's mapping, against the tables the install made.
+      if (!('reason' in mapping) && !local && input.model !== undefined && input.model !== null) {
+        const parsed = payableMappingSchema.parse(mapping);
+        const issues = payableIssues({ model: input.model, tableId: table, mapping: parsed, connectionCurrency: currency });
+        // The connection's currency may be set after the install: that one is the owner's to give, not a fault of the app.
+        // A column the app declares as money is one Adminium made for money, whatever SQLite reads it back as (`real`).
+        const declaredMoney = new Set(
+          (input.manifest.kind === 'app' ? (input.manifest.requiredSchema?.tables ?? []) : []).flatMap((one) =>
+            one.columns.filter((column) => column.type === 'decimal' || column.type === 'money').map((column) => column.ref),
+          ),
+        );
+        const faults = issues.filter(
+          (issue) => !(issue.code === 'NO_CURRENCY' && issue.path === 'currency') && !(issue.code === 'NOT_A_MONEY_COLUMN' && issue.column !== null && declaredMoney.has(issue.column)),
+        );
+        if (faults.length > 0) mapping = { reason: faults.map((issue) => `${issue.path}: ${issue.code}${issue.column === null ? '' : ` (${issue.column})`}`).join('; ') };
+      }
+    }
     if ('reason' in mapping) {
       result.skipped.push({ entry: name, reason: mapping.reason });
+      await keepOff(table);
       continue;
     }
     const here = await profiles.byTable(connectionId, table);
@@ -371,20 +503,42 @@ async function installPayments(payments: SavedPayments | undefined, input: Insta
       continue;
     }
     if (here === null) {
-      const made = await profiles.create({ connectionId, tableName: table, mapping, ownerApp: input.manifest.key, createdBy: input.createdBy }, input.at);
-      if (made !== null) keep.add(made.id);
+      const madeProfile = await profiles.create({ connectionId, tableName: table, mapping, ownerApp: input.manifest.key, createdBy: input.createdBy, enabled: local }, input.at);
+      if (madeProfile !== null) keep.add(madeProfile.id);
       result.written.push(name);
       continue;
     }
     keep.add(here.id);
-    // The mapping is the app's; whether the table takes payments is the owner's switch.
-    if (hashOf(here.mapping) !== hashOf(mapping)) await profiles.update(here.id, { mapping }, input.at);
+    // The mapping is the app's; whether the table takes payments is the owner's switch — and an app's update that
+    // changes where its money goes switches it off, for someone who manages payments to look at and switch on again.
+    const before = here.shape ?? here.mapping;
+    if (hashOf(before) !== hashOf(mapping)) {
+      const off = !local && here.enabled;
+      await profiles.update(here.id, { mapping, ...(off ? { enabled: false } : {}) }, input.at);
+      if (off) changed = true;
+    }
     result.written.push(name);
   }
   for (const profile of owned) {
     if (keep.has(profile.id)) continue;
     await profiles.remove(profile.id);
     result.removed.push(`payable:${profile.tableName}`);
+  }
+  if (changed) {
+    const app = input.manifest.name;
+    await tellPaymentManagers(
+      { meta, ...(input.at === undefined ? {} : { now: () => input.at! }) },
+      {
+        kind: 'payments.needs-look',
+        about: `app-payables-changed:${connectionId}:${input.manifest.key}:${input.manifest.version}`,
+        actionUrl: '/studio/payments',
+        words: () => ({
+          title: { key: 'appPayablesChanged.title', fallback: '{app} was switched off for payments' },
+          body: { key: 'appPayablesChanged.body', fallback: 'Its update changed how its payments are taken. Look at it in Payments and switch it on again.' },
+          values: { app },
+        }),
+      },
+    ).catch(() => 0);
   }
 
   // The ways to pay and the pay page are the deployment's: only where none is set yet.
@@ -426,8 +580,10 @@ async function installPayments(payments: SavedPayments | undefined, input: Insta
 }
 
 /** What the owner gives the payments after the install: each service's keys, the bank account a transfer pays into. */
-function paymentItems(payments: SavedPayments | undefined): AfterInstallItem[] {
+function paymentItems(payments: SavedPayments | undefined, manifest?: Pick<Manifest, 'key' | 'publisher'>): AfterInstallItem[] {
   const out: AfterInstallItem[] = [];
+  // An app's payables arrive switched off: someone who manages payments switches the app on.
+  if (manifest !== undefined && manifest.publisher.id !== 'local' && (payments?.payables ?? []).length > 0) out.push({ kind: 'payments-switch', item: manifest.key, field: 'enabled' });
   const services = new Set((payments?.ways ?? []).filter((way) => way.source !== MANUAL_SOURCE).map((way) => way.source));
   for (const source of [...services].sort()) out.push({ kind: 'payment-key', item: source, field: 'keys' });
   if ((payments?.ways ?? []).some((way) => way.source === MANUAL_SOURCE && way.method === 'bank-transfer')) out.push({ kind: 'bank-account', item: `${MANUAL_SOURCE}/bank-transfer`, field: 'details.accounts' });
@@ -443,7 +599,7 @@ function paymentItems(payments: SavedPayments | undefined): AfterInstallItem[] {
 export function plannedAfterInstallOfParts(manifest: Manifest): AfterInstallItem[] {
   const parts = partsOf(manifest);
   const out: AfterInstallItem[] = (parts.scheduledReports ?? []).map((entry) => ({ kind: 'recipients' as const, item: entry.key, field: 'recipients' }));
-  out.push(...paymentItems(parts.payments));
+  out.push(...paymentItems(parts.payments, manifest));
   for (const entry of manifest.kind === 'app' ? (manifest.documents ?? []) : []) {
     // A slot always arrives empty: where it is mailed is chosen here.
     if (entry.deliver?.emailSlot !== undefined) out.push({ kind: 'delivery', item: `${entry.table}/${entry.kind}`, field: 'deliver.emailSlot' });
@@ -476,7 +632,7 @@ export async function installSavedParts(input: InstallSavedPartsInput): Promise<
     const row = await scheduledReportsRepo(input.meta).findById(record.targetId);
     if (row !== null && row.recipients.length === 0) result.afterInstall.push({ kind: 'recipients', item: record.partKey, field: 'recipients' });
   }
-  result.afterInstall.push(...paymentItems(parts.payments));
+  result.afterInstall.push(...paymentItems(parts.payments, input.manifest));
   return result;
 }
 

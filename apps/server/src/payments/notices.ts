@@ -23,7 +23,9 @@
  *   - `payments.webhook`     a service's webhook has gone quiet;
  *   - `payments.reads`       the sweep slowed: half the provider's read allowance is used;
  *   - `payments.keys-removed` a person removed a service's keys (Disconnect);
- *   - `payments.refund-failed`, `payments.dispute` (refunds and disputes say these).
+ *   - `payments.refund-failed`, `payments.dispute` (refunds and disputes say these);
+ *   - `payments.card-testing` declines from many addresses paused the payments apps start;
+ *   - `payments.auto-refund`  a free cancellation's money went back by itself (`refundOn`).
  */
 import { paymentSettingsRepo, permissionsRepo, rolesRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
@@ -31,7 +33,7 @@ import { z } from 'zod';
 import { translatorFor } from '../i18n/server-i18n.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
 
-export const NOTICE_KINDS = ['payments.landed', 'payments.needs-look', 'payments.key-refused', 'payments.webhook', 'payments.reads', 'payments.keys-removed', 'payments.refund-failed', 'payments.dispute'] as const;
+export const NOTICE_KINDS = ['payments.landed', 'payments.needs-look', 'payments.key-refused', 'payments.webhook', 'payments.reads', 'payments.keys-removed', 'payments.refund-failed', 'payments.dispute', 'payments.card-testing', 'payments.auto-refund'] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
 
 /** The words of a notice: a key under `payments:notice.` for the title and one for the body, with their values. */

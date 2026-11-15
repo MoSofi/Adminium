@@ -36,7 +36,7 @@
  * the slow cadence only, and the setup page warns.
  */
 import { DEMO_PAYMENT_KEY, isProviderError, type PaymentMode } from '@adminium/add-on-contracts';
-import { paymentAttemptsRepo, paymentEventsRepo, paymentSettingsRepo, refundsRepo, type MetaDb } from '@adminium/meta';
+import { paymentAttemptsRepo, paymentEventsRepo, paymentSettingsRepo, refundsRepo, type MetaDb, type PayableRef } from '@adminium/meta';
 import { z } from 'zod';
 
 import type { JobRegistry } from '../jobs/registry.js';
@@ -100,6 +100,8 @@ export interface SweepDeps {
   /** Who is told of a dispute the sweep finds. */
   notices?: NoticeDeps;
   now?: () => number;
+  /** Ends the open pages of a record that may no longer be paid (`row-left.ts`), and says how many; nothing when the record may still be paid. */
+  endLeft?: (ref: PayableRef) => Promise<number>;
 }
 
 export interface SweepResult {
@@ -181,6 +183,10 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
     // A declined attempt's page may still take a later card: asked hourly while it can.
     const declined = (await attempts.waitingOn(key, mode, ['failed'], at - SWEEP_PROCESSING_EVERY_MS, 100, at - MAX_CHECKOUT_LIFE_MS)).filter((one) => one.checkoutUrl !== null);
     for (const attempt of [...due, ...declined]) {
+      // A page whose record may no longer be paid (a write's job that never ran): ended first, then asked about as any other.
+      if (attempt.state === 'open' && deps.endLeft !== undefined && attempt.payable.kind !== 'document') {
+        await deps.endLeft(attempt.payable).catch(() => 0);
+      }
       await deps.checkout.settle(attempt.id);
       result.lookedUp += 1;
       result.reads += 1;

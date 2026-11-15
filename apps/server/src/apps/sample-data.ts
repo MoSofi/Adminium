@@ -2549,6 +2549,13 @@ export function createSampleDataService(deps: SampleDataDeps) {
   }
 
   return {
+    /**
+     * The app's list of sample rows on a database, made when there is none yet
+     * (a rehearsal order, made before any sample data was added): its table name.
+     */
+    async ledgerFor(app: SampleApp, connectionId: string): Promise<string> {
+      return ensureLedger(app, connectionId, await deps.manager.data(connectionId));
+    },
     /** Whether this app's sample data was ever added here (and may since have been removed by a person). */
     async everAdded(app: SampleApp): Promise<boolean> {
       return app.connectionId !== null && (await ledgerRecord(app, app.connectionId)) !== undefined;

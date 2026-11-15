@@ -138,6 +138,18 @@ export function addOnSettingsPermission(addOnKey: string): string {
  */
 const ADD_ON_SETTINGS_REF_PREFIX = 'add-on/';
 
+/**
+ * `payments:<appKey>:refund` (D20) — give back the money paid online for ONE
+ * app's records: the refund right an app's role is given (`payments:@:refund`),
+ * never the install's `system:payments:refund`, which reaches every payable.
+ * Stored, like an add-on's settings grant, as an `app` row whose ref has a `/`
+ * no app key can hold.
+ */
+export function appRefundPermission(appKey: string): string {
+  return `payments:${appKey}:refund`;
+}
+const APP_REFUND_REF_PREFIX = 'payments-refund/';
+
 /** The matrix row ref an add-on's settings grant is stored under. */
 export function addOnSettingsRef(addOnKey: string): string {
   return `${ADD_ON_SETTINGS_REF_PREFIX}${addOnKey}`;
@@ -149,7 +161,8 @@ export type ParsedGrant =
   | { kind: 'page'; pageId: string; action: PageAction | '*' }
   /** `app:<key>:staff` — an installed app's staff screens; `app:*:staff` is every app's. */
   | { kind: 'app'; appKey: string; action: 'staff' }
-  | { kind: 'addOn'; addOnKey: string; action: 'settings' };
+  | { kind: 'addOn'; addOnKey: string; action: 'settings' }
+  | { kind: 'payments'; appKey: string; action: 'refund' };
 
 /** A concrete (wildcard-free) permission, as passed to `can()`/`require()`. */
 export type ParsedPermission =
@@ -157,7 +170,8 @@ export type ParsedPermission =
   | { kind: 'table'; connectionId: string; table: string; action: TableAction }
   | { kind: 'page'; pageId: string; action: PageAction }
   | { kind: 'app'; appKey: string; action: 'staff' }
-  | { kind: 'addOn'; addOnKey: string; action: 'settings' };
+  | { kind: 'addOn'; addOnKey: string; action: 'settings' }
+  | { kind: 'payments'; appKey: string; action: 'refund' };
 
 const SYSTEM_KEY_SET: ReadonlySet<string> = new Set(SYSTEM_ACTION_KEYS);
 const TABLE_ACTION_SET: ReadonlySet<string> = new Set(TABLE_ACTIONS);
@@ -210,6 +224,13 @@ export function parseGrant(input: string): ParsedGrant | null {
     // including ones installed after the role was written.
     if (!validSegment(addOnKey) || addOnKey === '*' || action !== 'settings') return null;
     return { kind: 'addOn', addOnKey, action: 'settings' };
+  }
+
+  if (kind === 'payments' && segments.length === 3) {
+    const [, appKey, action] = segments as [string, string, string];
+    // Concrete only: one app's payments, never "every app's".
+    if (!validSegment(appKey) || appKey === '*' || action !== 'refund') return null;
+    return { kind: 'payments', appKey, action: 'refund' };
   }
 
   return null;
@@ -269,6 +290,10 @@ export function grantMatches(grant: string, required: string): boolean {
       const go = g as Extract<ParsedGrant, { kind: 'addOn' }>;
       return go.addOnKey === r.addOnKey;
     }
+    case 'payments': {
+      const gp = g as Extract<ParsedGrant, { kind: 'payments' }>;
+      return gp.appKey === r.appKey;
+    }
   }
 }
 
@@ -324,7 +349,9 @@ export function grantsFromMatrixRows(rows: readonly RolePermission[]): string[] 
     }
     if (row.resourceKind === 'app') {
       if ((row.actions as { staff?: boolean }).staff !== true) continue;
-      if (row.resourceRef.startsWith(ADD_ON_SETTINGS_REF_PREFIX)) {
+      if (row.resourceRef.startsWith(APP_REFUND_REF_PREFIX)) {
+        grants.push(appRefundPermission(row.resourceRef.slice(APP_REFUND_REF_PREFIX.length)));
+      } else if (row.resourceRef.startsWith(ADD_ON_SETTINGS_REF_PREFIX)) {
         grants.push(addOnSettingsPermission(row.resourceRef.slice(ADD_ON_SETTINGS_REF_PREFIX.length)));
       } else {
         grants.push(`app:${row.resourceRef}:staff`);
@@ -383,6 +410,10 @@ export function matrixRowsFromGrants(grants: readonly string[]): MatrixConversio
     }
     if (parsed.kind === 'addOn') {
       appRefs.add(`${ADD_ON_SETTINGS_REF_PREFIX}${parsed.addOnKey}`);
+      continue;
+    }
+    if (parsed.kind === 'payments') {
+      appRefs.add(`${APP_REFUND_REF_PREFIX}${parsed.appKey}`);
       continue;
     }
     if (parsed.kind === 'table') {

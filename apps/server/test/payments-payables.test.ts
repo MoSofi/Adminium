@@ -29,9 +29,21 @@ const SHAPE: PayableRef = { kind: 'shape', connectionId: 'conn_1', tableName: 'p
 const DOC: PayableRef = { kind: 'document', connectionId: null, tableName: null, rowKey: 'idoc_1' };
 const invoice = (over: Row = {}): Row => ({ id: 42, number: 'INV-0042', status: 'sent', currency: 'EUR', total: '120.00', balance: '120.00', ...over });
 
+/** The app's invoices, switched on for online payments in Payments. */
+const SWITCHED_ON: Partial<PayableSources> = { profile: async () => ({ id: 'ppf_s', enabled: true, mapping: null, shape: { kind: 'shape' } }) };
+
 describe('a table built on the invoice shape', () => {
+  it("takes online payments while its app's switch is on, and as always when no app declared it", async () => {
+    const none = await resolvePayable(sources({ rows: { '42': invoice() } }), SHAPE);
+    expect(none?.refusal).toBeNull();
+    const off = await resolvePayable(sources({ rows: { '42': invoice() }, profile: async () => ({ id: 'ppf_s', enabled: false, mapping: null, shape: { kind: 'shape' } }) }), SHAPE);
+    expect(off?.refusal?.code).toBe('NOT_NOW');
+    const on = await resolvePayable(sources({ rows: { '42': invoice() }, ...SWITCHED_ON }), SHAPE);
+    expect(on?.refusal).toBeNull();
+  });
+
   it('is payable while sent with a balance, its due the balance', async () => {
-    const payable = await resolvePayable(sources({ rows: { '42': invoice({ balance: '70.00' }) } }), SHAPE);
+    const payable = await resolvePayable(sources({ rows: { '42': invoice({ balance: '70.00' }) }, ...SWITCHED_ON }), SHAPE);
     expect(payable).toMatchObject({ label: 'INV-0042', currency: 'EUR', total: '120.00', due: '70.00', refusal: null, manualOnly: false });
     expect(payable?.recordInto).toMatchObject({ kind: 'table', tableName: 'public.payments', link: 'document_id', reference: 'payment_ref', shapeColumns: true, linkValue: 42 });
   });
@@ -43,7 +55,7 @@ describe('a table built on the invoice shape', () => {
     [{ balance: '0.005' }, 'AMOUNT_UNCLEAR'],
     [{ currency: null }, null],
   ] as const)('%o → %s', async (over, code) => {
-    const payable = await resolvePayable(sources({ rows: { '42': invoice(over as Row) } }), SHAPE);
+    const payable = await resolvePayable(sources({ rows: { '42': invoice(over as Row) }, ...SWITCHED_ON }), SHAPE);
     expect(payable?.refusal?.code ?? null).toBe(code);
   });
 

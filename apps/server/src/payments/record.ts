@@ -34,7 +34,7 @@
  * A test-mode success is kept in the meta store only, marked test: a test
  * card must never settle a real invoice.
  */
-import { compareAmounts, decimalToMinor, sameAmount } from '@adminium/add-on-contracts';
+import { addAmounts, compareAmounts, decimalToMinor, sameAmount } from '@adminium/add-on-contracts';
 import { currencyScale } from '@adminium/manifest';
 import { isDuplicateKeyError, keptPaymentsRepo, paymentAttemptsRepo, type AttemptProblem, type MetaDb, type PayableRef, type PaymentAttempt } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
@@ -51,7 +51,8 @@ import { writeStores } from '../crud/write-stores.js';
 import { normalizeWriteValue } from '../crud/write-values.js';
 import { AppError } from '../errors.js';
 import type { JobRegistry } from '../jobs/registry.js';
-import { resolvePayable, rowKeyOf, type ResolvedPayable } from './payables.js';
+import { pkOfRowKey, resolvePayable, rowKeyOf, type ResolvedPayable } from './payables.js';
+import { listRuleMadeRow, rehashSampleRow, sampleListsNaming, type SampleList } from '../apps/sample-data.js';
 import { followDocumentStatus } from './document-status.js';
 import type { RecordDeps } from './record-deps.js';
 import { followRefundsOnRecord } from './refunds.js';
@@ -86,9 +87,13 @@ function actorOf(attempt: PaymentAttempt): WriteActor & { kind: 'system' } {
   return { kind: 'system', id: null, label: recordedByOf(attempt.provider) };
 }
 
+/** A lock another write holds, or a write that met another: tried again, as a timed move tries again the next minute. */
+const BUSY = new Set(['WRITE_CONFLICT', 'CAPACITY_BUSY', 'NUMBER_BUSY', 'BOOKING_BUSY']);
+
 /** A refusal from the write path (the table said no) as opposed to a failure to try again. */
 function refusalOf(error: unknown): AttemptProblem | null {
   if (isWriteConflict(error)) return null;
+  if (error instanceof AppError && BUSY.has(error.code)) return null;
   if (error instanceof AppError && error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 429) {
     return { code: error.code, message: error.message };
   }
@@ -103,6 +108,8 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
   if (attempt.state === 'recorded') return { state: 'recorded', key: attempt.recordedKey ?? '', already: true };
 
   // 1. Claim. A run that finds it `recording` resumes; any other state is not ours to record.
+  // A resumed run may find the record already moved to paid by the run that died: it says so again (`setPaidStatus`).
+  const resumed = attempt.state === 'recording';
   if (attempt.state === 'succeeded') {
     await attempts.move(attempt.id, 'recording', {}, now());
     attempt = (await attempts.byId(attempt.id))!;
@@ -118,8 +125,12 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
   const finish = async (key: string, already: boolean, payable: ResolvedPayable | null = null): Promise<RecordOutcome> => {
     // The paid status first, so a crash or a failure here leaves the attempt
     // `recording` and the next run (which finds the row) sets it again.
-    if (payable !== null) await setPaidStatus(deps, attempt!.payable, payable, actorOf(attempt!), null);
-    const moved = await attempts.move(attempt!.id, 'recorded', { recordedKey: key, recordedAt: now() }, now());
+    const unmoved = payable === null ? null : await setPaidStatus(deps, attempt!.payable, payable, actorOf(attempt!), null, { resumed, mode: attempt!.mode });
+    // A sample row Adminium moved to paid is still the sample's own to take away.
+    if (sampleLists !== null && payable !== null) await rehashPayable(deps, attempt!.payable);
+    // The money is written; the record would not move to paid. Kept on the attempt and flagged for a person, never a log line only.
+    const moved = await attempts.move(attempt!.id, 'recorded', { recordedKey: key, recordedAt: now(), ...(unmoved === null ? {} : { problem: unmoved }) }, now());
+    if (moved && unmoved !== null) await attempts.flag(attempt!.id, now());
     // Refunds made before it was written down (an event that came first) follow now.
     if (moved) {
       await followRefundsOnRecord(deps, attempt!.id).catch((error: unknown) => {
@@ -143,14 +154,19 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
   if (taken === null || takenCurrency === null) return refuse({ code: 'NOT_TAKEN', message: 'The payment service did not say what it took.' });
 
   // ── Test mode (and the demo service, which is never live): kept in meta,
-  //    marked test, never in a shop table. Anything but a live attempt counts. ──
-  if (attempt.mode !== 'live' || attempt.provider === 'demo') {
+  //    marked test, never in a shop table — but for a sample row (a rehearsal's
+  //    order, or one "Add sample data" made), written into the app's own tables
+  //    like a real payment and listed with the sample, so "Remove sample data"
+  //    takes it. A real row never gets a test payment. ──
+  const test = attempt.mode !== 'live' || attempt.provider === 'demo';
+  const sampleLists = test ? await sampleListsOf(deps, attempt.payable) : null;
+  if (test && sampleLists === null) {
     const kept = await keepPayment(deps, attempt, taken, takenCurrency, now());
     await deps.faults?.afterWrite?.();
     return finish(`kept:${kept.id}`, kept.already);
   }
 
-  const payable = await resolvePayable(deps.sources, attempt.payable);
+  const payable = await resolvePayable(deps.sources, attempt.payable, { mode: attempt.mode });
 
   // 2. Already written by a run that died before finishing?
   if (payable !== null) {
@@ -162,19 +178,29 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
   }
 
   // 3. Check what was taken against what is due now.
+  // A rehearsal's row removed with the sample data while it was being paid: the test payment ends quietly, kept in meta.
+  if (payable === null && test) {
+    const kept = await keepPayment(deps, attempt, taken, takenCurrency, now());
+    return finish(`kept:${kept.id}`, kept.already);
+  }
   if (payable === null) return refuse({ code: 'GONE', message: 'The record this payment was for no longer exists.' });
   if (takenCurrency !== attempt.currency || takenCurrency !== payable.currency) {
     return refuse({ code: 'CURRENCY_DIFFERS', message: `The payment service took ${takenCurrency}; the record is in ${payable.currency || attempt.currency}.` });
   }
-  if (!sameAmount(taken, attempt.amount)) {
-    return refuse({ code: 'AMOUNT_DIFFERS', message: `The payment service took ${taken} ${takenCurrency}; ${attempt.amount} was asked.` });
+  // A card reader takes what was asked and the tip the customer added on it: nothing else.
+  const asked = attempt.reader?.asked ?? attempt.amount;
+  const tip = attempt.reader?.tip ?? '0';
+  const expected = attempt.reader === null ? attempt.amount : addAmounts(asked, tip, currencyScale(takenCurrency));
+  if (expected === null || !sameAmount(taken, expected)) {
+    return refuse({ code: 'AMOUNT_DIFFERS', message: `The payment service took ${taken} ${takenCurrency}; ${expected ?? attempt.amount} was asked.` });
   }
   if (payable.refusal !== null) {
     const code = payable.refusal.code === 'NOTHING_DUE' ? 'ALREADY_PAID' : payable.refusal.code;
     return refuse({ code, message: payable.refusal.message });
   }
-  if (compareAmounts(taken, payable.due) === 1) {
-    return refuse({ code: 'MORE_THAN_DUE', message: `${taken} ${takenCurrency} was taken, but only ${payable.due} is due now.` });
+  // What counts against the record is what was asked: the tip is the staff's, never the record's.
+  if (compareAmounts(asked, payable.due) === 1) {
+    return refuse({ code: 'MORE_THAN_DUE', message: `${asked} ${takenCurrency} was taken, but only ${payable.due} is due now.` });
   }
 
   // 4. Write, insert-first.
@@ -189,6 +215,8 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
       const written = await writePaymentRow(deps, payable, attemptWrite(attempt, taken, takenCurrency, now()));
       if (written === 'refused') return refuse({ code: 'NOT_PAYABLE', message: 'The payment cannot be written into its payments table.' });
       key = written;
+      // A rehearsal's payment goes in the same lists as the row it pays: a sample row too.
+      if (sampleLists !== null) await listSamplePayment(deps, payable, written, sampleLists);
     } catch (error) {
       // Whatever went wrong, a row carrying this attempt means the payment is
       // written (a hook that failed after the save, a racing run): finish.
@@ -204,6 +232,37 @@ export async function recordAttempt(deps: RecordDeps, attemptId: string): Promis
 
   // 5. Finish.
   return finish(key, already, payable);
+}
+
+/** The sample lists naming a test payment's row, or null when it is no sample row (or no table's row at all). */
+async function sampleListsOf(deps: RecordDeps, ref: PayableRef): Promise<SampleList[] | null> {
+  if ((ref.kind !== 'profile' && ref.kind !== 'shape') || ref.connectionId === null || ref.tableName === null) return null;
+  const found = await deps.sources.table(ref.connectionId, ref.tableName);
+  if (found === null) return null;
+  const pk = pkOfRowKey(found.table, ref.rowKey);
+  if (pk === null) return null;
+  const lists = await sampleListsNaming(deps.meta, found.target.db, ref.connectionId, found.table, pk);
+  return lists.length === 0 ? null : lists;
+}
+
+/** A rehearsal's payment row, entered in the lists its paid row is in. */
+async function listSamplePayment(deps: RecordDeps, payable: ResolvedPayable, written: string, lists: readonly SampleList[]): Promise<void> {
+  const into = payable.recordInto;
+  if (into.kind !== 'table' || payable.ref.connectionId === null) return;
+  const found = await deps.sources.table(payable.ref.connectionId, into.tableName);
+  if (found === null) return;
+  const pk = pkOfRowKey(found.table, written.slice(`row:${into.tableName}:`.length));
+  if (pk === null) return;
+  await listRuleMadeRow(deps.meta, found.target, pk, lists, (deps.now ?? Date.now)());
+}
+
+/** A sample row Adminium changed, recorded again as it now stands. */
+async function rehashPayable(deps: RecordDeps, ref: PayableRef): Promise<void> {
+  if (ref.connectionId === null || ref.tableName === null) return;
+  const found = await deps.sources.table(ref.connectionId, ref.tableName);
+  const pk = found === null ? null : pkOfRowKey(found.table, ref.rowKey);
+  if (found === null || pk === null) return;
+  await rehashSampleRow(deps.meta, found.target, pk).catch(() => undefined);
 }
 
 /** Inserts the kept payment, or finds the one this attempt already made. */
@@ -275,6 +334,8 @@ export interface PaymentWrite {
   provider: string | null;
   approvalCode: string | null;
   cardLast4: string | null;
+  /** A card reader payment's tip, beside the amount asked. */
+  tip?: string | null;
   /** The system for an online payment; the person who recorded one by hand. */
   actor: PaymentActor;
   request: FastifyRequest | null;
@@ -286,9 +347,12 @@ export type PaymentActor = WriteActor & { kind: 'system' | 'user' };
 /** The write an attempt the provider confirmed makes. */
 function attemptWrite(attempt: PaymentAttempt, taken: string, currency: string, at: number): PaymentWrite {
   const paidWith = attempt.paidWith as { method?: string; label?: string } | null;
+  const reader = attempt.reader;
   return {
     ref: attempt.payable,
-    amount: taken,
+    // A reader payment writes what was asked; its tip goes beside it.
+    amount: reader?.asked ?? taken,
+    ...(reader === null || reader.tip === null ? {} : { tip: reader.tip }),
     currency,
     method: paidWith?.method ?? 'online',
     manual: false,
@@ -296,8 +360,8 @@ function attemptWrite(attempt: PaymentAttempt, taken: string, currency: string, 
     reference: attempt.id,
     paidAt: attempt.settledAt ?? at,
     provider: attempt.provider,
-    approvalCode: null,
-    cardLast4: null,
+    approvalCode: reader?.approvalCode ?? null,
+    cardLast4: reader?.last4 ?? null,
     actor: actorOf(attempt),
     request: null,
   };
@@ -321,9 +385,19 @@ export async function writePaymentRow(deps: RecordDeps, payable: ResolvedPayable
     values[into.method.column] = mapped;
   }
   if (into.note !== null && write.note !== null) values[into.note] = write.note;
+  // A profile's own columns: when it was paid, by which service, a terminal's code and the card's last four, the currency.
+  if (into.paidAt !== undefined && into.paidAt !== null) values[into.paidAt] = new Date(write.paidAt).toISOString();
+  if (into.provider !== undefined && into.provider !== null && write.provider !== null) values[into.provider] = providerWord(write.provider);
+  if (into.approvalCode !== undefined && into.approvalCode !== null && write.approvalCode !== null) values[into.approvalCode] = write.approvalCode;
+  if (into.last4 !== undefined && into.last4 !== null && write.cardLast4 !== null) values[into.last4] = write.cardLast4;
+  if (into.currency !== undefined && into.currency !== null) values[into.currency] = write.currency;
+  if (into.tip !== undefined && into.tip !== null && write.tip != null) {
+    const tip = into.amountUnit === 'minor' ? decimalToMinor(write.tip, currencyScale(write.currency)) : write.tip;
+    if (tip !== null) values[into.tip] = tip;
+  }
   if (into.shapeColumns) {
     values['currency'] = write.currency;
-    if (write.provider !== null) values['provider'] = recordedByOf(write.provider).replace(/^Online payment \((.*)\)$/, '$1');
+    if (write.provider !== null) values['provider'] = providerWord(write.provider);
     // A person's write is stamped with their name by the table's own rule.
     if (write.actor.kind === 'system') values['recorded_by'] = write.actor.label;
     if (write.approvalCode !== null) values['approval_code'] = write.approvalCode;
@@ -361,6 +435,11 @@ export async function writePaymentRow(deps: RecordDeps, payable: ResolvedPayable
   return `row:${into.tableName}:${rowKeyOf(found.table, row)}`;
 }
 
+/** The service's name as a record shows it ("Stripe", "PayPal"). */
+function providerWord(provider: string): string {
+  return recordedByOf(provider).replace(/^Online payment \((.*)\)$/, '$1');
+}
+
 /** `YYYY-MM-DD` of an instant in a time zone. */
 export function localDate(at: number, timeZone: string): string {
   try {
@@ -372,40 +451,94 @@ export function localDate(at: number, timeZone: string): string {
 
 /**
  * When the due reached zero and the profile names a status, set it — as a
- * payment write. The table refusing the move (its rules say no) is logged and
- * left: the payment stands. Anything else is thrown, so the job tries again.
+ * payment write, announced like any write, so the app's own "paid" mail, its
+ * live screens and its rules hear of it. Only from the states the payable
+ * names (`status.from`): a record in any other state keeps its state. The move
+ * is the app's own declared one, so a move only some roles may make is made.
+ * A lock another write holds is thrown, so the job tries again; the table
+ * refusing the move (its rules say no) is returned: the payment stands, and
+ * the attempt says so for a person.
  */
-export async function setPaidStatus(deps: RecordDeps, ref: PayableRef, before: ResolvedPayable, actor: PaymentActor, request: FastifyRequest | null): Promise<void> {
+export async function setPaidStatus(
+  deps: RecordDeps,
+  ref: PayableRef,
+  before: ResolvedPayable,
+  actor: PaymentActor,
+  request: FastifyRequest | null,
+  /** A run that took over from one that died: a record it finds paid may never have been announced. */
+  opts: { resumed?: boolean; mode?: 'live' | 'test' } = {},
+): Promise<AttemptProblem | null> {
   // A designer invoice: its Paid follows the balance (a meta write; a failure is thrown, so the job tries again).
   if (ref.kind === 'document') {
     await followDocumentStatus({ meta: deps.meta, sources: deps.sources, ...(deps.now === undefined ? {} : { now: deps.now }) }, ref);
-    return;
+    return null;
   }
   try {
-    await setPaidStatusOnce(deps, ref, before, actor, request);
+    await setPaidStatusOnce(deps, ref, before, actor, request, opts.resumed === true, opts.mode ?? 'live');
+    return null;
   } catch (error) {
-    if (refusalOf(error) === null) throw error;
-    deps.log?.warn({ payable: ref.rowKey, code: (error as AppError).code }, 'payment recorded; its table refused the paid status');
+    const problem = refusalOf(error);
+    if (problem === null) throw error;
+    deps.log?.warn({ payable: ref.rowKey, code: problem.code }, 'payment recorded; its table refused the paid status');
+    return { code: 'STATUS_REFUSED', message: problem.message };
   }
 }
 
-async function setPaidStatusOnce(deps: RecordDeps, ref: PayableRef, before: ResolvedPayable, actor: PaymentActor, request: FastifyRequest | null): Promise<void> {
-  if (before.status === null || ref.connectionId === null || ref.tableName === null) return;
-  const after = await resolvePayable(deps.sources, ref);
+async function setPaidStatusOnce(deps: RecordDeps, ref: PayableRef, before: ResolvedPayable, actor: PaymentActor, request: FastifyRequest | null, resumed: boolean, mode: 'live' | 'test'): Promise<void> {
+  const status = before.status;
+  if (status === null || ref.connectionId === null || ref.tableName === null) return;
+  const after = await resolvePayable(deps.sources, ref, { mode });
   if (after === null || !sameAmount(after.due, '0')) return;
   const found = await deps.sources.table(ref.connectionId, ref.tableName);
   if (found === null) return;
   const row = await deps.sources.readRow(ref.connectionId, ref.tableName, ref.rowKey);
-  if (row === null || row[before.status.column] === before.status.paid) return;
+  if (row === null) return;
+  if (row[status.column] === status.paid) {
+    // The run that died moved it and may have died before saying so: said again. The app's mail is queued once whatever is said twice.
+    if (resumed && status.from !== undefined && deps.app !== undefined) {
+      const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column]]));
+      await afterRecordWrite(deps.app, {
+        request,
+        actor,
+        meta: deps.meta,
+        connectionId: found.target.connectionId,
+        table: found.table,
+        action: 'update',
+        entity: { connectionId: found.target.connectionId, table: found.table.id, pk, label: pkLabel(found.table, pk) },
+        before: { ...row, [status.column]: status.from[0] },
+        after: row,
+        origin: 'payment',
+      });
+    }
+    return;
+  }
+  const from = row[status.column] === null || row[status.column] === undefined ? null : String(row[status.column]);
+  // Only from the states the payable names: a visit already seen, a stay already in the house, keep theirs.
+  if (status.from !== undefined && (from === null || !status.from.includes(from))) return;
   const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column]]));
   const writes = deps.writes ?? createWriteService(writeStores(deps.meta));
   await writes.update({
     target: found.target,
     pk,
-    values: { [before.status.column]: before.status.paid },
-    context: { origin: 'payment', hops: 0, actor, request },
+    values: { [status.column]: status.paid },
+    // The app's own move to paid, made by Adminium: as a timed move is, whatever roles the move names.
+    context: { origin: 'payment', hops: 0, actor, request, ...(from === null ? {} : { declared: { from, to: status.paid } }) },
     skipIfNone: true,
-    announce: async () => {},
+    announce: async (outcome) => {
+      if (deps.app === undefined || outcome.count === 0) return;
+      await afterRecordWrite(deps.app, {
+        request,
+        actor,
+        meta: deps.meta,
+        connectionId: found.target.connectionId,
+        table: found.table,
+        action: 'update',
+        entity: { connectionId: found.target.connectionId, table: found.table.id, pk, label: pkLabel(found.table, pk) },
+        before: outcome.before ?? row,
+        after: outcome.after,
+        origin: 'payment',
+      });
+    },
   });
 }
 

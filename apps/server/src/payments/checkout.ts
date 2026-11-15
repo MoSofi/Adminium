@@ -73,6 +73,8 @@ export interface CheckoutDeps {
   enqueue: (input: { kind: string; payload: Record<string, unknown>; dedupeKey: string; maxAttempts: number }) => Promise<unknown>;
   /** Who is told of a dispute that arrived before its payment was known. */
   notices?: NoticeDeps;
+  /** Hears each counted decline of a public checkout (one that kept its start address): the card-testing breakers. */
+  onPublicDecline?: (attempt: PaymentAttempt, count: number) => Promise<void>;
   now?: () => number;
 }
 
@@ -86,6 +88,8 @@ export interface StartInput {
   payAddress: string;
   /** The customer's language, one of Adminium's eight, or null. */
   locale: string | null;
+  /** A public link's checkout: the keyed hash of the address it starts from (`card-testing.ts`). */
+  startAddress?: string | null;
 }
 
 export type StartOutcome =
@@ -186,8 +190,8 @@ export function createCheckoutService(deps: CheckoutDeps) {
     if (held !== null) {
       if (HELD_ELSEWHERE.includes(held.state)) return { kind: 'in-progress', attemptId: held.id };
       if (held.state === 'creating') return { kind: 'busy' };
-      // `open`.
-      const same = held.provider === input.provider && held.currency === payable.currency && sameAmount(held.amount, payable.due);
+      // `open`. Reused only through the link that opened it: a page a public start opened is never handed to the shop's link (or back).
+      const same = held.linkId === input.link.id && held.provider === input.provider && held.currency === payable.currency && sameAmount(held.amount, payable.due);
       if (same && held.checkoutUrl !== null) return { kind: 'redirect', url: held.checkoutUrl, attemptId: held.id, reused: true };
       const ended = await endAtProvider(held);
       if (ended === 'completed') {
@@ -230,6 +234,7 @@ export function createCheckoutService(deps: CheckoutDeps) {
         linkId: input.link.id,
         nonce,
         createdBy: null,
+        startAddress: input.startAddress ?? null,
       },
       now(),
     );
@@ -281,6 +286,8 @@ export function createCheckoutService(deps: CheckoutDeps) {
     let count = 0;
     for (let one = 0; one < add; one += 1) count = await counters.hit(linkFailBucket(attempt.linkId), now());
     if (add > 0 && count >= LINK_FAILURES_TO_LOCK) await endPagesOfLink(attempt);
+    // A public checkout's decline is counted by its address too; a breaker failing never undoes the count above.
+    if (add > 0 && attempt.startAddress !== null && deps.onPublicDecline !== undefined) await deps.onPublicDecline(attempt, add).catch(() => undefined);
   }
 
   /** A locked link: every provider page still open for it is ended, so no card is tried there again. */
@@ -366,7 +373,7 @@ export function createCheckoutService(deps: CheckoutDeps) {
     let state;
     let captured = false;
     if (attempt.state === 'open' || attempt.state === 'failed') {
-      const payable = await resolvePayable(deps.sources, attempt.payable);
+      const payable = await resolvePayable(deps.sources, attempt.payable, { mode: attempt.mode });
       const owes = payable !== null && payable.refusal === null && payable.currency === attempt.currency && sameAmount(payable.due, attempt.amount);
       captured = owes;
       state = owes ? await service.complete(attempt.providerRef, `${attempt.id}:capture:${String(attempt.captureTry)}`) : await service.status(attempt.providerRef);

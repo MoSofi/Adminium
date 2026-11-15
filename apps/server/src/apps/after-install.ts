@@ -18,7 +18,7 @@
  */
 import { appAfterInstallRepo, type MetaDb } from '@adminium/meta';
 
-export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant' | 'outbound';
+export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'payments-switch' | 'sender' | 'system-grant' | 'outbound';
 
 export interface AfterInstallItem {
   kind: AfterInstallKind;

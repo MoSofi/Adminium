@@ -16,7 +16,7 @@
  * What a refund does, and why each refusal, is `payments/refunds.ts`.
  */
 import { REFUND_REASONS } from '@adminium/add-on-contracts';
-import { paymentAttemptsRepo, refundsRepo, type PaymentAttempt, type RefundRow } from '@adminium/meta';
+import { REFUND_SOURCES, paymentAttemptsRepo, refundsRepo, type PaymentAttempt, type RefundRow } from '@adminium/meta';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -25,10 +25,12 @@ import { audited, auditExempt } from '../../audit/coverage.js';
 import { fetchVisible } from '../../crud/row-limit.js';
 import { rowLimitContextOf } from '../../crud/row-limit-context.js';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
+import { mayRefundPayment, refundsKeptInApp } from '../../payments/app-refund-queue.js';
 import { pkOfRowKey } from '../../payments/payables.js';
 import { refundableOf, refundRefusalOf, requestRefund, type RefundDeps } from '../../payments/refunds.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { tagRoutes } from '../../security/route-audience.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
 
 const idParams = z.object({ id: z.string().min(1).max(64) });
@@ -50,7 +52,7 @@ export const refundView = z.object({
   currency: z.string(),
   state: z.enum(['requested', 'pending', 'requires_action', 'succeeded', 'failed', 'cancelled']),
   /** `staff`: asked in Adminium; `provider`: made in the provider's own dashboard; `dispute`: a lost dispute gave it back. */
-  source: z.enum(['staff', 'provider', 'dispute']),
+  source: z.enum(REFUND_SOURCES),
   failureMessage: z.string().nullable(),
   createdAt: z.number(),
   settledAt: z.number().nullable(),
@@ -66,6 +68,8 @@ const previewReply = z.object({
     refundable: z.string(),
     paidWith: z.string().nullable(),
     refusal: z.object({ code: z.string(), message: z.string() }).nullable(),
+    /** Refunded in its app, where its refund rows are kept (CR4): the app, and the staff screen a refund is made on. */
+    inApp: z.object({ app: z.string().nullable(), openIn: z.string().nullable() }).nullable(),
   }),
 });
 const refundReply = z.object({ data: z.object({ refund: refundView, fresh: z.boolean() }) });
@@ -95,6 +99,11 @@ export function paymentRefundRoutes(deps: RefundDeps): FastifyPluginAsyncZod {
   const views = createPublicViews(deps.meta);
 
   /** The payment, when this person reaches its record; refuses (or answers "no such payment") otherwise. */
+  /** The install's refund right, or the app's own for a payment of its records (D20): a 403 otherwise. */
+  async function mayRefundOrRefuse(request: FastifyRequest, attempt: PaymentAttempt): Promise<void> {
+    if (!(await mayRefundPayment(deps.meta, request, attempt.payable))) throw new ForbiddenError('Refunding needs the right to refund payments.', 'FORBIDDEN', { permission: PERMISSIONS.paymentsRefund });
+  }
+
   async function reachable(request: FastifyRequest, attemptId: string): Promise<PaymentAttempt> {
     const attempt = await paymentAttemptsRepo(deps.meta).byId(attemptId);
     if (attempt === null) throw new NotFoundError('No such payment.');
@@ -123,12 +132,15 @@ export function paymentRefundRoutes(deps: RefundDeps): FastifyPluginAsyncZod {
   }
 
   return async (app) => {
+    // For the instance's own people, not the public: kept while the public pages are hidden (`security/route-audience.ts`).
+    tagRoutes(app, 'staff');
     app.get(
       '/payments/attempts/:id/refund',
-      { preHandler: app.rbac.require(PERMISSIONS.paymentsRefund), config: { audit: auditExempt('reading what a refund would do changes nothing') }, schema: { params: idParams, response: { 200: previewReply } } },
+      { config: { audit: auditExempt('reading what a refund would do changes nothing') }, schema: { params: idParams, response: { 200: previewReply } } },
       async (request) => {
         personOf(request);
         const attempt = await reachable(request, request.params.id);
+        await mayRefundOrRefuse(request, attempt);
         return {
           data: {
             label: attempt.payableLabel,
@@ -138,7 +150,11 @@ export function paymentRefundRoutes(deps: RefundDeps): FastifyPluginAsyncZod {
             currency: attempt.takenCurrency ?? attempt.currency,
             refundable: refundableOf(attempt),
             paidWith: (attempt.paidWith as { label?: string } | null)?.label ?? null,
-            refusal: refundRefusalOf(attempt),
+            ...(await (async () => {
+              const inApp = await refundsKeptInApp(deps.meta, attempt.payable);
+              // Its refunds are the app's own rows: made in the app, never here (CR4).
+              return { refusal: refundRefusalOf(attempt) ?? (inApp === null ? null : { code: 'IN_APP', message: 'Refund this payment in its app, where its refunds are kept.' }), inApp };
+            })()),
           },
         };
       },
@@ -146,11 +162,11 @@ export function paymentRefundRoutes(deps: RefundDeps): FastifyPluginAsyncZod {
 
     app.post(
       '/payments/refunds',
-      { preHandler: app.rbac.require(PERMISSIONS.paymentsRefund), config: { audit: audited('rbac') }, schema: { body: refundBody, response: { 200: refundReply } } },
+      { config: { audit: audited('rbac') }, schema: { body: refundBody, response: { 200: refundReply } } },
       async (request) => {
         const by = personOf(request);
         const body = request.body;
-        await reachable(request, body.attemptId);
+        await mayRefundOrRefuse(request, await reachable(request, body.attemptId));
         const answer = await requestRefund(deps, { attemptId: body.attemptId, amount: body.amount, reason: body.reason, note: body.note === '' ? null : body.note, key: body.key, requestedBy: by });
         if (!answer.ok) {
           if (answer.refusal.code === 'KEY_REUSED' || answer.refusal.code === 'BUSY') throw new ConflictError(answer.refusal.message, 'CONFLICT', { reason: answer.refusal.code });

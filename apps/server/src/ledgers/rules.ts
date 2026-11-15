@@ -165,7 +165,7 @@ export const requiredInputs = (action: LedgerAction): string[] =>
 export function statesOf(table: Pick<EffectiveTable, 'states'>): string[] {
   const states = table.states;
   if (states === undefined) return [];
-  const out = new Set<string>([states.initial]);
+  const out = new Set<string>([states.initial, ...(states.starts ?? [])]);
   for (const [from, moves] of Object.entries(states.moves)) {
     out.add(from);
     for (const move of moves) out.add(typeof move === 'string' ? move : String((move as { to: unknown }).to));

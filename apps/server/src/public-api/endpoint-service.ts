@@ -547,8 +547,10 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     const columns = new Set<string>();
     const methods = new Set<string>(before === null ? [] : input.definition.methods.filter((m) => !before.methods.includes(m)));
     let rows = false;
+    let heldByApp = false;
     for (const key of await affectedKeys(input.connectionId, existing.id, input.ref, now())) {
       if (key.managedBy === null || !hasOwn(key.access, existing.id)) continue;
+      heldByApp = heldByApp || hasVisitorReach(key.kind);
       const next = deriveScopeDocument({ kind: key.kind, access: key.access, app: key.app }, after, view);
       // Against the document the key serves now, as a save compares them.
       const gains = hasVisitorReach(key.kind) ? wideningOf(key.storedDocument, next.document) : [];
@@ -561,8 +563,12 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         rows = rows || gain.rows;
       }
     }
-    if (reasons.length === 0) return null;
-    return { ref: input.ref, columns: [...columns], methods: [...methods].filter((m) => before === null || !before.methods.includes(m as PublicMethod)), rows, reasons: [...new Set(dedupeIssues(reasons).map((issue) => issue.message))] };
+    // An entry that newly answers a pay link lets a stranger reach a checkout: a widening, asked like the others.
+    const payGained = heldByApp && before !== null && before.pay !== true && input.definition.pay === true;
+    if (reasons.length === 0 && !payGained) return null;
+    const words = [...new Set(dedupeIssues(reasons).map((issue) => issue.message))];
+    if (payGained) words.push(`"${input.ref}" now answers a pay link: a visitor who makes a row here is sent to pay for it.`);
+    return { ref: input.ref, columns: [...columns], methods: [...methods].filter((m) => before === null || !before.methods.includes(m as PublicMethod)), rows, reasons: words };
   }
 
   /** The builder's Apply and Save: what a save would refuse, break and widen (the `/check` route). */

@@ -196,6 +196,23 @@ describe.each(LEGS)('the Payment panel — %s', (dialect, available) => {
     });
   const paymentsOf = (invoice: Record<string, unknown>) => h.rows(`select * from ${h.real('payments')} where invoice_id = ${String(invoice['id'])}`);
 
+  it.runIf(available)("answers many records' payment state for an app's list, leaving out what the person may not read", async () => {
+    const unpaid = await sentInvoice('80.00');
+    const part = await sentInvoice('100.00');
+    expect((await record(owner, invoicesId, part['id'], { amount: '40.00' })).statusCode).toBe(200);
+    const listed = await app.inject({
+      method: 'POST',
+      url: '/api/v1/payments/panel/rows',
+      headers: as(reader),
+      payload: { connectionId: h.connectionId, table: invoicesId, recordIds: [String(unpaid['id']), String(part['id']), '999999'] },
+    });
+    expect(listed.statusCode, listed.payload).toBe(200);
+    expect(listed.json().data).toEqual([
+      { recordId: String(unpaid['id']), state: 'unpaid', currency: expect.any(String), due: '80.00', paid: '0.00', refundable: '0.00', refundOwed: false, disputed: false },
+      { recordId: String(part['id']), state: 'part', currency: expect.any(String), due: '60.00', paid: '40.00', refundable: '0.00', refundOwed: false, disputed: false },
+    ]);
+  });
+
   it.runIf(available)('has no panel on a table that takes no payments', async () => {
     const answer = await panel(owner, w.targetOf('clients').table.id, client['id']);
     expect(answer.statusCode, answer.payload).toBe(200);

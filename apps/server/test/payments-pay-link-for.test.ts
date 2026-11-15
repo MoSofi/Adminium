@@ -54,7 +54,8 @@ describe('a record\'s live pay link for a document', () => {
     readRow: async () => ({ id: 42, number: 'INV-0042', status, currency: 'EUR', total: '120.00', balance: due }),
     shapeOf: async () => ({ version: 2, paymentsTable: 'main.payments' }),
     connectionCurrency: async () => 'EUR',
-    profile: async () => null,
+    // The app's invoices, switched on for online payments in Payments.
+    profile: async () => ({ id: 'ppf_s', enabled: true, mapping: null, shape: { kind: 'shape' } }),
     keptPaid: async () => '0',
     document: async () => null,
   };

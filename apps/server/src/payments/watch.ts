@@ -34,6 +34,7 @@ import { keptPaymentsRepo, payableProfilesRepo, paymentAttemptsRepo, paymentSett
 import type { Row } from '../crud/mask.js';
 import type { NotificationPublisher } from '../notifications/notify.js';
 import { noticeDay, noticeMoney, providerName, tellPaymentManagers, toldAlready, type NoticeWords } from './notices.js';
+import { START_ADDRESS_KEEP_MS } from './card-testing.js';
 import { exactAmount, fromMinorUnits, pkOfRowKey, type PayableSources } from './payables.js';
 import { fetchByPk } from '../crud/records.js';
 import { sweepDocName, sweepStateSchema } from './sweep.js';
@@ -116,6 +117,9 @@ export async function runPaymentWatch(deps: WatchDeps): Promise<WatchResult> {
   const notices = { meta: deps.meta, now: () => at, ...(deps.hub === undefined ? {} : { hub: deps.hub }) };
   const attempts = paymentAttemptsRepo(deps.meta);
   const result: WatchResult = { landed: 0, looks: 0, unrecorded: 0, keys: 0, silent: 0, reads: 0 };
+
+  // A public checkout's hashed start address is kept for the card-testing breakers' window only.
+  await attempts.clearStartAddresses(at - START_ADDRESS_KEEP_MS).catch(() => 0);
 
   // A payment received. What was told before is read in one go, not tried claim by claim.
   const landedNow = (await recordedSince(deps.meta, at - 2 * 3_600_000, 500)).filter((attempt) => attempt.provider !== DEMO_PAYMENT_KEY);

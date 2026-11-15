@@ -297,6 +297,8 @@ function definitionOf(
     ...(entry.level === undefined ? {} : { level: entry.level }),
     // A proof of work: before a session-less create here, or (on an identity) before every claim.
     ...(entry.humanCheck === true ? { human_check: true } : {}),
+    // A create that answers the new row's pay link.
+    ...(entry.pay === true ? { pay: true } : {}),
     ...(entry.sensitive === undefined ? {} : { sensitive: entry.sensitive }),
     ...(entry.onClaim === undefined ? {} : { on_claim: { clear: [...entry.onClaim.clear] } }),
     ...(entry.maxOpen === undefined ? {} : { max_open: { ...entry.maxOpen } }),

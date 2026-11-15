@@ -29,12 +29,15 @@
 import { subtractAmounts, type PaymentMode } from '@adminium/add-on-contracts';
 import { localeFromTag, type LocaleId } from '@adminium/i18n';
 import { createServerI18n, type I18nInstance } from '@adminium/i18n/server';
-import { translationsRepo, paymentAttemptsRepo, paymentCountersRepo, paymentLinksRepo, paymentMethodsRepo, paymentSettingsRepo, publicProofsRepo, type MetaDb, type PaymentAttempt, type PaymentLink } from '@adminium/meta';
+import { guestBaseOn } from '../../public-api/guest-base.js';
+import { installOnConnection, installsOf } from '../../installs/resolve.js';
+import { translationsRepo, payableProfilesRepo, paymentAttemptsRepo, paymentCountersRepo, paymentLinksRepo, paymentMethodsRepo, paymentSettingsRepo, publicProofsRepo, type MetaDb, type PayableRef, type PaymentAttempt, type PaymentLink } from '@adminium/meta';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import { auditExempt } from '../../audit/coverage.js';
+import { PUBLIC_CHECKOUTS_PER_HOUR, startAddressOf, type CardTesting } from '../../payments/card-testing.js';
 import { LINK_FAILURES_TO_LOCK, linkFailBucket, type CheckoutService } from '../../payments/checkout.js';
 import { linkForToken, linkOpens, linkStateForToken, payAddress, payReachable } from '../../payments/links.js';
 import { currencyScale } from '@adminium/manifest';
@@ -63,6 +66,8 @@ export interface PayRoutesDeps {
   receiptSent?: (attempt: PaymentAttempt) => Promise<boolean>;
   /** The provider for a key and mode (`paymentProviderFor`): what a staff test payment offers by default. */
   providerFor?: (key: string, mode: PaymentMode) => Promise<ProviderLookup>;
+  /** The card-testing breakers (`card-testing.ts`): what a public start's link may still start. */
+  cardTesting?: Pick<CardTesting, 'pausedUntil' | 'addressBlocked'>;
   now?: () => number;
 }
 
@@ -122,7 +127,14 @@ const pageReply = z.object({
   processing: z.object({ method: z.string().nullable(), startedAt: z.number() }).nullable(),
   /** On the way back: which service, what it took and when, and whether a receipt went out. */
   attempt: z.object({ provider: z.string(), amount: z.string(), currency: z.string(), at: z.number(), receiptSent: z.boolean() }).nullable(),
+  /**
+   * Back to the app the record was paid in, when its app names where
+   * (`returnTo`): its own customer address and that path, never anything the
+   * request or the link carried. Null for any other record.
+   */
+  back: z.object({ url: z.string(), app: z.string() }).nullable().optional(),
 });
+
 type PageReply = z.infer<typeof pageReply>;
 const challengeReply = z.object({ id: z.string(), salt: z.string(), difficulty: z.number(), expiresAt: z.number() });
 const checkoutReply = z.union([z.object({ url: z.string() }), z.object({ state: z.enum(PAY_STATES), message: z.string().nullable(), code: z.string().optional() })]);
@@ -256,7 +268,32 @@ export function createPayPageReader(deps: PayRoutesDeps) {
     return deps.receiptSent === undefined ? false : deps.receiptSent(attempt);
   }
 
+  /** The app's own customer address and the path its payable names, for the page's "Back to" link; null when there is none. */
+  async function backOf(ref: PayableRef): Promise<{ url: string; app: string } | null> {
+    if (ref.connectionId === null || ref.tableName === null || (ref.kind !== 'profile' && ref.kind !== 'shape')) return null;
+    const profile = await payableProfilesRepo(meta).byTable(ref.connectionId, ref.tableName).catch(() => null);
+    const path = profile?.mapping?.returnTo ?? profile?.shape?.returnTo;
+    if (profile === null || profile.ownerApp === null || path === undefined) return null;
+    const base = await guestBaseOn({ meta }, profile.ownerApp, ref.connectionId).catch(() => null);
+    if (base === null) return null;
+    const install = await installOnConnection(installsOf(meta), profile.ownerApp, ref.connectionId).catch(() => null);
+    const name = (install?.document as { name?: unknown } | null | undefined)?.name;
+    return { url: `${base.replace(/\/+$/, '')}${path}`, app: typeof name === 'string' ? name : profile.ownerApp };
+  }
+
   /** The page for a link, from scratch, every time. */
+  /**
+   * A public start's link while card testing holds it: every public start
+   * paused, or this address declined too often. The shop's own links are
+   * never held.
+   */
+  async function publicStartsHeld(request: FastifyRequest, link: { audience: 'staff' | 'public' }): Promise<boolean> {
+    if (link.audience !== 'public' || deps.cardTesting === undefined) return false;
+    if ((await deps.cardTesting.pausedUntil()) !== null) return true;
+    const address = startAddressOf(deps.secret, request.ip);
+    return address !== null && (await deps.cardTesting.addressBlocked(address));
+  }
+
   async function page(request: FastifyRequest, token: string): Promise<PageReply> {
     const shopInfo = await shop();
     const { country, ...shopView } = shopInfo;
@@ -274,9 +311,10 @@ export function createPayPageReader(deps: PayRoutesDeps) {
     if (!(await mayOpen(request, link))) return { ...base, state: 'test-staff-only', test: true };
     // A staff test payable is never paid through a live link.
     if (isTestPayable(link.payable) && link.mode === 'live') return base;
-    const payable = await resolvePayable(deps.sources, link.payable);
+    const payable = await resolvePayable(deps.sources, link.payable, { mode: link.mode });
     if (payable === null) return base;
     const shown = await shownOf(payable);
+    const back = await backOf(link.payable);
     // What holds the payable: the open attempt, else money taken and not yet written down — succeeded,
     // being recorded, or refused and not yet looked at (the shop decides; the customer never pays twice).
     const open =
@@ -284,18 +322,18 @@ export function createPayPageReader(deps: PayRoutesDeps) {
       (await attempts.forPayable(payable.ref, 20)).find((one) => one.mode === link.mode && (one.state === 'succeeded' || one.state === 'recording' || (one.state === 'record_refused' && one.check === null))) ??
       null;
     const held = open === null ? null : stateOfAttempt(open);
-    if (held === 'processing') return { ...base, state: 'processing', test: link.mode === 'test', payable: shown, processing: { method: (open?.paidWith as { label?: string } | null)?.label ?? null, startedAt: open!.createdAt } };
-    if (held === 'paid' || held === 'shop-checks') return { ...base, state: held, test: link.mode === 'test', payable: shown };
+    if (held === 'processing') return { ...base, state: 'processing', test: link.mode === 'test', payable: shown, back, processing: { method: (open?.paidWith as { label?: string } | null)?.label ?? null, startedAt: open!.createdAt } };
+    if (held === 'paid' || held === 'shop-checks') return { ...base, state: held, test: link.mode === 'test', payable: shown, back };
     if (payable.refusal !== null) {
       const state: PayState = payable.refusal.code === 'VOIDED' ? 'voided' : payable.refusal.code === 'NOTHING_DUE' ? 'paid' : payable.refusal.code === 'NOT_SENT' ? 'nothing-due' : 'unavailable';
-      return { ...base, state, test: link.mode === 'test', payable: shown };
+      return { ...base, state, test: link.mode === 'test', payable: shown, back };
     }
     const ways = await waysOf(payable, country, link.mode);
-    if (ways.length === 0) return { ...base, state: 'no-ways', test: link.mode === 'test', payable: shown };
-    const locked = (await counters.read(linkFailBucket(link.id), now())) >= LINK_FAILURES_TO_LOCK;
+    if (ways.length === 0) return { ...base, state: 'no-ways', test: link.mode === 'test', payable: shown, back };
+    const locked = (await counters.read(linkFailBucket(link.id), now())) >= LINK_FAILURES_TO_LOCK || (await publicStartsHeld(request, link));
     // A locked link still shows the ways to pay by hand.
-    if (locked) return { ...base, state: 'locked', test: link.mode === 'test', payable: shown, ways: ways.filter((way) => way.source === 'manual') };
-    return { ...base, state: 'ready', test: link.mode === 'test', payable: shown, ways };
+    if (locked) return { ...base, state: 'locked', test: link.mode === 'test', payable: shown, back, ways: ways.filter((way) => way.source === 'manual') };
+    return { ...base, state: 'ready', test: link.mode === 'test', payable: shown, back, ways };
   }
 
   /** Staff only: the pay page settings' preview (a made-up invoice, as a customer would see it). */
@@ -465,10 +503,11 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
         if (!proved.ok || !(await proofs.spend({ id: proved.spendId, keyId: link.id, purpose: 'pay', expiresAt: proved.expiresAt }))) {
           return reply.status(403).send(say('ready', 'The check that you are a person did not pass. Try again.'));
         }
+        // Two budgets: what public starts' links start never uses up what the shop's own links may.
         const caps: [string, number][] = [
           [`link:${link.id}`, LINK_CHECKOUTS_PER_HOUR],
           [`address:${request.ip}`, ADDRESS_CHECKOUTS_PER_HOUR],
-          ['install', INSTALL_CHECKOUTS_PER_HOUR],
+          link.audience === 'public' ? ['install-public', PUBLIC_CHECKOUTS_PER_HOUR] : ['install', INSTALL_CHECKOUTS_PER_HOUR],
         ];
         for (const [bucket, max] of caps) {
           if ((await counters.hit(`checkout-${bucket}`, now())) > max) return say('locked');
@@ -476,7 +515,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
 
         const way = answer.ways.find((one) => one.source === request.body.source && one.source !== 'manual');
         if (way === undefined) return say('no-ways');
-        const payable = await resolvePayable(deps.sources, link.payable);
+        const payable = await resolvePayable(deps.sources, link.payable, { mode: link.mode });
         if (payable === null) return say('unknown');
         // A test link is opened by signed-in staff, whose session lives on the
         // host they signed in on: a test payment comes back there. A live one
@@ -489,6 +528,8 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
           methods: answer.ways.filter((one) => one.source === request.body.source).map((one) => one.method),
           payAddress: address!,
           locale: request.body.locale ?? null,
+          // A public start's checkout keeps where it started from, hashed, so its declines count by address.
+          ...(link.audience === 'public' ? { startAddress: startAddressOf(deps.secret, request.ip) } : {}),
         });
         if (started.kind === 'redirect') return { url: started.url };
         if (started.kind === 'in-progress') return say('processing');
@@ -512,7 +553,7 @@ export function payRoutes(deps: PayRoutesDeps): FastifyPluginAsyncZod {
         const attempt = (await deps.checkout.settle(found.id)) ?? found;
         // A link revoked, replaced or expired since still tells its holder how
         // their own payment stands, but no longer what the record asks.
-        const payable = linkOpens(link, now()) ? await resolvePayable(deps.sources, attempt.payable) : null;
+        const payable = linkOpens(link, now()) ? await resolvePayable(deps.sources, attempt.payable, { mode: attempt.mode }) : null;
         const shown = payable === null ? null : await shownOf(payable);
         const test = attempt.mode === 'test';
         const told = {

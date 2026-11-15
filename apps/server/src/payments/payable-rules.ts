@@ -157,6 +157,12 @@ export function payableIssues(input: PayableRulesInput): PayableIssue[] {
   else if ('connection' in mapping.currency) {
     currency = input.connectionCurrency;
     if (currency === null) add('NO_CURRENCY', 'currency');
+  } else if ('setting' in mapping.currency) {
+    // A column of a one-row settings table: read when a payment starts, so its code is judged then.
+    const { table: settingsId, column } = mapping.currency.setting;
+    const settings = model.tables.find((one) => one.id === settingsId);
+    if (settings === undefined || settings.private === true || settings.excluded === true) add('TABLE_UNAVAILABLE', 'currency.setting.table');
+    else columnOf(settings, column, 'currency.setting.column');
   } else columnOf(table, mapping.currency.column, 'currency');
 
   // ─── The amount ──────────────────────────────────────────────────────────
@@ -196,7 +202,10 @@ export function payableIssues(input: PayableRulesInput): PayableIssue[] {
         const scale = paid.numericScale ?? (typeof paid.scale === 'number' ? paid.scale : null);
         if (scale !== null && scale < currencyScale(currency)) add('TOO_FEW_DECIMALS', 'payments.amount', paid.name);
       }
-      columnOf(payments, own.date, 'payments.date');
+      if (own.date !== null) columnOf(payments, own.date, 'payments.date');
+      for (const [name, ref] of [['paidAt', own.paidAt], ['provider', own.provider], ['approvalCode', own.approvalCode], ['last4', own.last4], ['currency', own.currency]] as const) {
+        if (ref !== undefined && ref !== null) columnOf(payments, ref, `payments.${name}`);
+      }
       const way = columnOf(payments, own.method.column, 'payments.method');
       if (Object.keys(own.method.values).length === 0) add('NO_METHOD_VALUES', 'payments.method.values');
       // A method column with its own value list takes only those values.

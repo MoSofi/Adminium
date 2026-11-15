@@ -36,10 +36,15 @@ import type { PermissionSet } from '../../rbac/resolver.js';
 import { createLimitOf, updateLimitOf } from '../../rbac/update-limits.js';
 import { workspaceIdQuery, workspaceScope } from '../../workspaces/list-filter.js';
 import { tagRoutes } from '../../security/route-audience.js';
+import { installOnConnection, installsOf } from '../../installs/resolve.js';
+import type { CardTesting } from '../../payments/card-testing.js';
+import { rehearsalUntil, setRehearsal } from '../../payments/rehearsal.js';
 
 export interface PaymentPayablesDeps {
   meta: MetaDb;
   manager: Pick<ConnectionManager, 'data'>;
+  /** The card-testing breakers (`payments/card-testing.ts`): the pause of public starts, read and resumed here. */
+  cardTesting?: Pick<CardTesting, 'pausedUntil' | 'resume'>;
 }
 
 const tableBody = z.object({
@@ -88,6 +93,10 @@ const profileView = z.object({
   /** False when the stored mapping no longer reads: the table is not payable until it is saved again. */
   valid: z.boolean(),
   payments: z.enum(['kept', 'table']).nullable(),
+  /** The app that declared it, switched on and off with that app in the Apps tab; null for one a person made here. */
+  ownerApp: z.string().nullable(),
+  /** An invoice an app built on the Invoices shape: the shape maps it. */
+  shape: z.boolean(),
   updatedAt: z.number(),
 });
 const listReply = z.object({
@@ -98,6 +107,25 @@ const listReply = z.object({
   }),
 });
 const profileReply = z.object({ data: profileView });
+/** Until when card testing paused the payments apps start; null when they are not paused. */
+const publicStartsReply = z.object({ data: z.object({ pausedUntil: z.number().nullable() }) });
+
+/** Until when the person's rehearsal is on; null when it is off. */
+const rehearsalReply = z.object({ data: z.object({ until: z.number().nullable() }) });
+const appsReply = z.object({
+  data: z.object({
+    apps: z.array(
+      z.object({
+        connectionId: z.string(),
+        appKey: z.string(),
+        name: z.string(),
+        /** On when every payable table of the app is: one switch per app. */
+        enabled: z.boolean(),
+        tables: z.array(z.object({ tableName: z.string(), shape: z.boolean(), valid: z.boolean() })),
+      }),
+    ),
+  }),
+});
 
 type MayMark = z.infer<typeof mayMarkView>;
 
@@ -174,10 +202,22 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
       connectionId: profile.connectionId,
       tableName: profile.tableName,
       enabled: profile.enabled,
-      valid: profile.mapping !== null,
+      valid: profile.mapping !== null || profile.shape !== null,
       payments: profile.mapping === null ? null : profile.mapping.payments.kind,
+      ownerApp: profile.ownerApp,
+      shape: profile.shape !== null,
       updatedAt: profile.updatedAt,
     };
+  }
+
+  /** An app's payable is the app's: changed by its update, removed by its uninstall, never by hand here. */
+  function refuseAppPayable(profile: { ownerApp: string | null }, what: string): void {
+    if (profile.ownerApp !== null) {
+      throw new ForbiddenError(`This table is payable because the app "${profile.ownerApp}" says so: ${what} it by updating or removing the app. Switch the app on or off in the Apps tab.`, 'FORBIDDEN', {
+        reason: 'app-payable',
+        app: profile.ownerApp,
+      });
+    }
   }
 
   /** Refuses a mapping that may not be saved, with every reason at once. */
@@ -271,7 +311,12 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
         requirePerson(request);
         const current = await profiles.byId(request.params.id);
         if (current === null) throw new NotFoundError('No such payable table.');
+        if (request.body.mapping !== undefined) refuseAppPayable(current, 'change');
         if (request.body.mapping !== undefined) await assertMarkable(request, current.connectionId, current.tableName, request.body.mapping);
+        // An app's payable is switched on by someone who manages payments: the install already checked the app's mapping.
+        else if (request.body.enabled === true && current.ownerApp !== null) {
+          if (current.mapping === null && current.shape === null) throw new ValidationFailedError('This table\'s mapping no longer reads. Update the app to make it payable.');
+        }
         // Switching a table back on is marking it payable again: the person and the stored mapping are checked again.
         else if (request.body.enabled === true) {
           if (current.mapping === null) throw new ValidationFailedError('This table\'s mapping no longer reads. Save it again to make it payable.');
@@ -305,6 +350,7 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
         requirePerson(request);
         const current = await profiles.byId(request.params.id);
         if (current === null) throw new NotFoundError('No such payable table.');
+        refuseAppPayable(current, 'remove');
         await profiles.remove(current.id);
         await app.rbac.audit(request, {
           category: 'payments',
@@ -312,6 +358,132 @@ export function paymentPayablesRoutes(deps: PaymentPayablesDeps): FastifyPluginA
           changes: { before: { id: current.id, connectionId: current.connectionId, tableId: current.tableName } },
         });
         return reply.status(204).send();
+      },
+    );
+
+    /**
+     * THE APPS TAB: each installed app that says which of its tables a
+     * customer pays, one switch per app on each database. Off as it arrives
+     * (an install never switches payments on); someone who manages payments
+     * switches it on, whatever rights they hold on the app's own tables (the
+     * install already checked the app's mapping).
+     */
+    app.get('/payments/apps', { schema: { querystring: z.object({ workspaceId: workspaceIdQuery }), response: { 200: appsReply } } }, async (request) => {
+      if (!((await request.can(PERMISSIONS.paymentsManage)) || (await request.can(PERMISSIONS.paymentsView)))) {
+        throw new ForbiddenError('Seeing payments needs payments.manage or payments.view.');
+      }
+      const scope = await workspaceScope(meta, request);
+      if (scope !== undefined && scope.size === 0) return { data: { apps: [] } };
+      const byApp = new Map<string, { connectionId: string; appKey: string; profiles: Awaited<ReturnType<typeof profiles.list>> }>();
+      for (const profile of await profiles.list(scope === undefined ? undefined : [...scope])) {
+        if (profile.ownerApp === null) continue;
+        const key = `${profile.connectionId}|${profile.ownerApp}`;
+        const found = byApp.get(key) ?? { connectionId: profile.connectionId, appKey: profile.ownerApp, profiles: [] };
+        found.profiles.push(profile);
+        byApp.set(key, found);
+      }
+      const installs = installsOf(meta);
+      const apps = [];
+      for (const one of byApp.values()) {
+        const install = await installOnConnection(installs, one.appKey, one.connectionId).catch(() => null);
+        const document = (install?.document ?? null) as { name?: unknown; icon?: unknown } | null;
+        apps.push({
+          connectionId: one.connectionId,
+          appKey: one.appKey,
+          name: typeof document?.name === 'string' ? document.name : one.appKey,
+          enabled: one.profiles.every((profile) => profile.enabled),
+          tables: one.profiles.map((profile) => ({ tableName: profile.tableName, shape: profile.shape !== null, valid: profile.mapping !== null || profile.shape !== null })),
+        });
+      }
+      apps.sort((a, b) => a.name.localeCompare(b.name) || a.connectionId.localeCompare(b.connectionId));
+      return { data: { apps } };
+    });
+
+    app.post(
+      '/payments/apps/switch',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.paymentsManage),
+        config: { audit: audited('rbac') },
+        schema: { body: z.object({ connectionId: z.string().min(1).max(64), appKey: z.string().min(1).max(80), enabled: z.boolean() }).strict(), response: { 200: z.object({ data: z.object({ changed: z.number() }) }) } },
+      },
+      async (request) => {
+        requirePerson(request);
+        const { connectionId, appKey, enabled } = request.body;
+        const owned = (await profiles.list(connectionId)).filter((profile) => profile.ownerApp === appKey);
+        if (owned.length === 0) throw new NotFoundError('That app takes no payments on that database.');
+        if (enabled && owned.some((profile) => profile.mapping === null && profile.shape === null)) {
+          throw new ValidationFailedError("One of this app's payable tables no longer reads. Update the app to make it payable.");
+        }
+        let changed = 0;
+        for (const profile of owned) {
+          if (profile.enabled === enabled) continue;
+          await profiles.update(profile.id, { enabled }, app.rbac.now());
+          changed += 1;
+        }
+        await app.rbac.audit(request, {
+          category: 'payments',
+          action: enabled ? 'payments.app.on' : 'payments.app.off',
+          changes: { after: { connectionId, app: appKey, enabled, tables: owned.map((profile) => profile.tableName) } },
+        });
+        return { data: { changed } };
+      },
+    );
+
+    /*
+     * REHEARSAL (`payments/rehearsal.ts`): the signed-in person's own switch.
+     * While on (a few hours), the apps' checkouts they open on the staff
+     * address take test payments, and the rows they make are sample rows.
+     */
+    app.get(
+      '/payments/rehearsal',
+      { schema: { response: { 200: rehearsalReply } } },
+      async (request) => {
+        requirePerson(request);
+        if (!(await request.can(PERMISSIONS.paymentsManage))) throw new ForbiddenError('Rehearsing a checkout needs payments.manage.');
+        const userId = (request as unknown as { user: { id: string } }).user.id;
+        return { data: { until: await rehearsalUntil(meta, userId, app.rbac.now()) } };
+      },
+    );
+
+    app.put(
+      '/payments/rehearsal',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.paymentsManage),
+        config: { audit: audited('rbac') },
+        schema: { body: z.object({ on: z.boolean() }).strict(), response: { 200: rehearsalReply } },
+      },
+      async (request) => {
+        requirePerson(request);
+        const userId = (request as unknown as { user: { id: string } }).user.id;
+        const until = await setRehearsal(meta, userId, request.body.on, app.rbac.now());
+        await app.rbac.audit(request, { category: 'payments', action: request.body.on ? 'payments.rehearsal.on' : 'payments.rehearsal.off', changes: { after: { until } } });
+        return { data: { until } };
+      },
+    );
+
+    /*
+     * THE PAUSE OF PUBLIC STARTS (`payments/card-testing.ts`): declines from
+     * many addresses paused the payments apps start for an hour. Read by
+     * anyone who may see payments; resumed sooner by someone who manages them.
+     */
+    app.get(
+      '/payments/public-starts',
+      { preHandler: app.rbac.require(PERMISSIONS.paymentsView), schema: { response: { 200: publicStartsReply } } },
+      async () => ({ data: { pausedUntil: deps.cardTesting === undefined ? null : await deps.cardTesting.pausedUntil() } }),
+    );
+
+    app.post(
+      '/payments/public-starts/resume',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.paymentsManage),
+        config: { audit: audited('rbac') },
+        schema: { response: { 200: publicStartsReply } },
+      },
+      async (request) => {
+        requirePerson(request);
+        const resumed = deps.cardTesting === undefined ? false : await deps.cardTesting.resume();
+        if (resumed) await app.rbac.audit(request, { category: 'payments', action: 'payments.public-starts.resume', changes: { after: { pausedUntil: null } } });
+        return { data: { pausedUntil: deps.cardTesting === undefined ? null : await deps.cardTesting.pausedUntil() } };
       },
     );
   };

@@ -363,6 +363,8 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'appGrants.more',
   // An app role that finds, downloads and erases a person's data (apps/manifest-roles.ts, routes/privacy).
   'roles.privacyPeople',
+  // An app role that refunds the app's own online payments (apps/manifest-roles.ts, rbac/permissions.ts payments:<app>:refund).
+  'roles.paymentsRefund',
   // The columns a records page's list opens on, written to the page at install (apps/manifest-page-config.ts).
   'config.columns',
   // A form's reference picker narrowed by another field: kept in the form at install, read by the picker (widgets reference.tsx).
@@ -420,6 +422,17 @@ export const MANIFEST_WORDS_RUN: readonly ManifestWordName[] = [
   'invoiceLayouts',
   'scheduledReports',
   'payments',
+  // A catalog app's payable tables, made switched off, and what a payable says beyond the mapping: read by the
+  // record job, the pay page and the links (apps/saved-parts.ts, payments/payables.ts, payments/record.ts).
+  'payments.appPayables',
+  'payments.payableExtras',
+  // A new row made in another first state (crud/states.ts), a timed move that waits for a payment on its way
+  // (states/timed-moves.ts), and an entry open while a settings choice holds some values (public-api/switches.ts).
+  'states.starts',
+  'states.waitsForPayment',
+  'publicAccess.requireSettingIn',
+  // A public create that answers the new row's pay link (routes/public/index.ts, payments/public-pay.ts).
+  'publicAccess.pay',
   // A public entry's wider methods, address, pages, rate and reply (apps/manifest-public.ts).
   'publicAccess.put',
   'publicAccess.delete',

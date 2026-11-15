@@ -172,6 +172,9 @@ import { provedAddressOf } from '../../public-api/proved-address.js';
 import { createSwitches, type Switches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
 import { checkProof, issueChallenge, proofKey, type ProofPurpose } from '../../public-api/proof.js';
+import type { PublicPay } from '../../payments/public-pay.js';
+import { startAddressOf, type CardTesting } from '../../payments/card-testing.js';
+import { isSampleRow, rehearsingPerson, stampRehearsalRow } from '../../payments/rehearsal.js';
 import { detailsDeletedLines, emailChangedLines, translatorForLocale } from '../../email/builtins.js';
 import { DETAILS_DELETED_TEMPLATE_KEY, EMAIL_CHANGED_TEMPLATE_KEY, SIGN_IN_CODE_TEMPLATE_KEY, enqueueEmail, isEmailConfigured } from '../../email/send.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
@@ -247,6 +250,9 @@ import {
   publicListQuery,
   publicListShapes,
   publicRecordParams,
+  publicPayAvailableReply,
+  publicPayStartBody,
+  publicPayStartReply,
   publicBatchBody,
   PUBLIC_BATCH_MAX,
   publicRecordReply,
@@ -307,6 +313,12 @@ export interface PublicRoutesDeps {
   peopleConsent?: Pick<PeopleConsent, 'withdrawOnForget'> | undefined;
   /** The add-ons a stock-words entry is answered by. Absent = nothing answers, and such an entry says every row is in. */
   ledgers?: LedgerRuntime | undefined;
+  /** Paying from an app's own screens (`payments/public-pay.ts`). Absent = this server takes no payments from the public API. */
+  pay?: PublicPay | undefined;
+  /** The card-testing breakers: what a public start may still start (`payments/card-testing.ts`). */
+  cardTesting?: Pick<CardTesting, 'countStart'> | undefined;
+  /** A rehearsal's rows, entered in their app's list of sample rows (`payments/rehearsal.ts`). */
+  rehearsal?: { ledgerFor(appKey: string, connectionId: string): Promise<string | null> } | undefined;
   /**
    * The key resolver. `compose.ts` passes the one it also hands the admin
    * routes, so a revoke there empties THIS cache. A plugin mounted
@@ -477,11 +489,13 @@ function proofExcused(resource: CompiledResource, session: PublicSessionContext 
 function proofOwed(
   key: ResolvedKey,
   session: PublicSessionContext | null,
-  kind: 'create' | 'claim' | undefined,
+  kind: 'create' | 'claim' | 'pay-start' | undefined,
   ref: unknown,
 ): ProofPurpose | null {
   // A staff-bound key is a signed-in staff member's screen: no proof asked.
   if (kind === undefined || !hasVisitorReach(key.kind) || key.requiresStaff !== null) return null;
+  // Starting a payment always costs a stranger a proof: a card tester gets no cheap way to a checkout.
+  if (kind === 'pay-start') return 'pay-start';
   if (kind === 'claim') return key.scope.claim?.humanCheck === true ? 'claim' : null;
   const resource = typeof ref === 'string' ? key.scope.byRef.get(ref) : undefined;
   return resource?.humanCheck === true && !proofExcused(resource, session) ? 'write' : null;
@@ -556,9 +570,9 @@ function unfilled(resource: CompiledResource, values: Readonly<Record<string, un
 /**
  * Whether a create through this entry goes the tree's way: it declares child
  * rows, a dry run, a price check, a retry key, a person found by address, a
- * row's own link answered once, or an agreement its row is held to —
- * whether or not a request sends rows below it. A row visible with a parent
- * keeps its own path.
+ * row's own link answered once, an agreement its row is held to, or a pay
+ * link answered with the new row (`pay`) — whether or not a request sends rows
+ * below it. A row visible with a parent keeps its own path.
  */
 function treeEntry(resource: CompiledResource): boolean {
   if (parentOf(resource) !== null) return false;
@@ -569,7 +583,8 @@ function treeEntry(resource: CompiledResource): boolean {
     (resource.clientKey ?? null) !== null ||
     (resource.findOrCreate ?? null) !== null ||
     (resource.shareLink ?? null) !== null ||
-    (resource.agrees?.length ?? 0) > 0
+    (resource.agrees?.length ?? 0) > 0 ||
+    resource.pay === true
   );
 }
 
@@ -1220,7 +1235,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
        * or a claim through a proved identity. Checked after the visitor's own
        * limit and before the whole key's, so bad proofs cost the key nothing.
        */
-      proof?: 'create' | 'claim';
+      proof?: 'create' | 'claim' | 'pay-start';
       /** Counted per visitor only: a challenge costs nothing to hand out. */
       keyWide?: false;
       /**
@@ -1827,7 +1842,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const unsigned = ok.session === null || resource.claim === null;
       for (const setting of resource.requireSetting) {
         if (setting.when === 'anonymous' && !(unsigned && (action === 'create' || action === 'batch'))) continue;
-        if (!(await switches.isOn(ok.key.connectionId, setting.table, setting.column))) {
+        if (!(await switches.isOn(ok.key.connectionId, setting.table, setting.column, setting.in))) {
           switchedOff = true;
           break;
         }
@@ -2456,6 +2471,92 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+    /* ------------------------------------------------------------ payments */
+
+    /*
+     * Whether the key's app takes payments online right now: switched on by
+     * someone who manages payments, a service live, the pay address reachable.
+     * Nothing else is told: the app shows "Pay now" only when it is true, and
+     * reads exactly as before when it is not.
+     */
+    // A browser on another origin asks first, as for every public path.
+    app.options('/public/payments/available', { schema: { hide: true } }, preflight);
+    app.options('/public/payments/start', { schema: { hide: true } }, preflight);
+    app.get(
+      '/public/payments/available',
+      { config: { rateLimitBucket: 'public' }, schema: { response: { 200: publicPayAvailableReply, 401: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } } },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        // A signed-in person's answer may be a rehearsal's, theirs alone: never kept by a browser or a cache.
+        if (request.session != null) personal.add(request);
+        const online = deps.pay !== undefined && ok.key.managedBy !== null ? (await deps.pay.available(ok.key.connectionId, ok.key.managedBy)).online : false;
+        await touchKey(ok.key.keyId);
+        if (online || deps.pay === undefined || ok.key.managedBy === null) return reply.send({ data: { online } });
+        // Someone who manages payments rehearsing the app's checkout: "Pay now" in test mode, for them alone.
+        if ((await rehearsing(request)) !== null && (await deps.pay.hasPayables(ok.key.connectionId, ok.key.managedBy))) return reply.send({ data: { online: true, test: true } });
+        return reply.send({ data: { online } });
+      },
+    );
+
+    /*
+     * The pay link of one record the caller can already read: read first
+     * through the record's own entry, with the same check and the same 404 as a
+     * public read of it, so "not yours" and "not payable" look alike. A proof is
+     * owed. The amount is the record's, read again; the record's current live
+     * link is reused while it opens.
+     */
+    app.post(
+      '/public/payments/start',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: {
+          body: publicPayStartBody,
+          response: { 200: publicPayStartReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 409: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-write', { proof: 'pay-start' });
+        if (ok === null) return reply;
+        const found = await resolveResource(request, reply, ok, request.body.ref, 'read');
+        if (found === null) return reply;
+        let pk;
+        try {
+          pk = parseRecordId(found.table, request.body.id);
+        } catch {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        }
+        const byKey: RecordFilter[] = Object.entries(pk).map(([column, value]) => ({ column, op: 'eq', value }) as RecordFilter);
+        const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
+        const result = await runList({
+          db: readerFor(found, found.table, found.visibility),
+          view: found.view,
+          table: found.table,
+          params: { limit: 1, count: 'none' },
+          canReadPii: false,
+          dialect: found.dialect,
+          mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
+          // Whether the row is there for this caller, and nothing of it: its key alone.
+          exposeColumns: [...found.table.primaryKey],
+          searchColumns: found.resource.searchable,
+        });
+        if (result.data[0] === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        if (deps.pay === undefined || ok.key.managedBy === null) return fail(reply, 409, 'PUBLIC_PAY_REFUSED', 'This record cannot be paid online now.', { reason: 'off' });
+        const entity = { connectionId: ok.key.connectionId, table: found.table.id, pk, label: request.body.id };
+        // A rehearsal's order: a test link on this address. A real order is never paid in test mode.
+        const by = await rehearsing(request);
+        const sample = by !== null && (await isSampleRow(meta, { connectionId: ok.key.connectionId, db: found.db, dialect: found.dialect, table: found.table }, pk));
+        // A real start is counted by its address and for the install (`card-testing.ts`): one too many waits.
+        if (!sample && deps.cardTesting !== undefined && !(await deps.cardTesting.countStart(startAddressOf(deps.env.ADMINIUM_SECRET, request.ip)))) {
+          return fail(reply, 429, 'PUBLIC_RATE_LIMITED', 'Too many requests.');
+        }
+        const started = sample ? await deps.pay.startTest(entity, ok.key.managedBy, originOf(request), by!) : await deps.pay.start(entity, ok.key.managedBy);
+        await touchKey(ok.key.keyId);
+        if (!started.ok) return fail(reply, 409, 'PUBLIC_PAY_REFUSED', 'This record cannot be paid online now.', { reason: started.reason });
+        return reply.send({ data: { payUrl: started.payUrl } });
+      },
+    );
+
     /* --------------------------------------------------------------- writes */
 
     /** A person a public create made by address, heard of as any public create is (after its write committed). */
@@ -2509,6 +2610,30 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       }),
       subject: subjectOf(ok.key.connectionId, table.id, linkKey.column, row[linkKey.column]),
     });
+
+    /** The person rehearsing their app's checkout on this request (`payments/rehearsal.ts`), or null. */
+    const rehearsing = (request: FastifyRequest): Promise<string | null> =>
+      rehearsingPerson(request, meta, { sameOrigin: isSameOriginRequest, csrfOk: (one) => csrfHeaderMatches(one, csrfKey) });
+    const originOf = (request: FastifyRequest): string => `${request.protocol}://${request.host}`;
+
+    /**
+     * The new row's pay link, on an entry that says `pay`, when its app takes
+     * payments online now (`payments/public-pay.ts`); null otherwise, and the
+     * app shows its other ways. Never fails the create: the row is made.
+     */
+    const payUrlOf = async (request: FastifyRequest, ok: { key: ResolvedKey }, table: ResolvedTable, row: Row, wanted: boolean, rehearsedBy: string | null): Promise<string | null> => {
+      if (!wanted || deps.pay === undefined || ok.key.managedBy === null || table.primaryKey.length !== 1) return null;
+      const pk = { [table.primaryKey[0]!]: row[table.primaryKey[0]!] };
+      const entity = { connectionId: ok.key.connectionId, table: table.id, pk, label: String(row[table.primaryKey[0]!]) };
+      // A real start is counted as the start call is: one too many answers no link (the row is made all the same).
+      if (rehearsedBy === null && deps.cardTesting !== undefined && !(await deps.cardTesting.countStart(startAddressOf(deps.env.ADMINIUM_SECRET, request.ip)))) return null;
+      // A rehearsal's order (a sample row from the start): a test link on the address the person is on.
+      const started = await (rehearsedBy !== null ? deps.pay.startTest(entity, ok.key.managedBy, originOf(request), rehearsedBy) : deps.pay.start(entity, ok.key.managedBy)).catch((error: unknown) => {
+        request.log.warn({ err: error, table: table.id }, 'public create: the pay link could not be made');
+        return null;
+      });
+      return started?.ok === true ? started.payUrl : null;
+    };
 
     /**
      * The new row's own link: its code, the key that opens it, and a session
@@ -2877,10 +3002,22 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         throw new PublicWriteRefused();
       };
+      // A rehearsal's rows are sample rows from the start: "Remove sample data" takes them all, and being sample rows they
+      // are entered before anything hears of them — the app's mail and rules never take a rehearsal for a real order.
+      const rehearsedBy = deps.rehearsal !== undefined && ok.key.managedBy !== null ? await rehearsing(request) : null;
+      let rootRehearsed = false;
       const announce = async (row: TreeWritten): Promise<void> => {
         const of = row.node.target.table;
         const pk = Object.fromEntries(of.primaryKey.map((c) => [c, row.record[c]]));
         const entity: RecordRef = { connectionId: ok.key.connectionId, table: of.id, pk, label: pkLabel(of, pk) };
+        if (rehearsedBy !== null && deps.rehearsal !== undefined && ok.key.managedBy !== null) {
+          // On the connection itself: the write's own transaction is over (rows are announced after the commit).
+          const stamped = await stampRehearsalRow({ meta, ledgerFor: deps.rehearsal.ledgerFor }, { connectionId: row.node.target.connectionId, db: found.db, dialect: found.dialect, table: of }, pk, ok.key.managedBy, Date.now(), rehearsedBy).catch((error: unknown) => {
+            request.log.warn({ err: error }, 'rehearsal: a row could not be entered as sample data');
+            return false;
+          });
+          if (row.node.at.length === 0) rootRehearsed = stamped;
+        }
         if (row.node.at.length === 0) {
           await auditWrite(request, ok, 'public.record.create', { ref, table: resource.table, ...(Object.keys(childCounts).length === 0 ? {} : { children: childCounts }) }, entity);
           await touchKey(ok.key.keyId);
@@ -3144,7 +3281,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const rank = await rankOf(found, outcome.root);
       // The new row's own link, answered this once (a retry answers the rows, never the link).
       const link = shareLink === null ? null : await ownLinkOf(ok, view, table, outcome.root, shareLink, carried);
-      return reply.code(201).send({ data, children, ...(rank === null ? {} : { rank }), ...(link === null ? {} : { link }), ...(await pricedAs(request, outcome.adjusted, { tree: outcome.rows })), ...(await paidAs(found, view, outcome)) });
+      // An entry that answers the pay link: the new row's, when its app takes payments online now; else none, and the app shows its other ways.
+      // A rehearsal's order that could not be entered as a sample row gets no link at all: never a live one, and a test one only on a sample row.
+      const payUrl = rehearsedBy !== null && !rootRehearsed ? null : await payUrlOf(request, ok, table, outcome.root, resource.pay === true, rehearsedBy);
+      return reply.code(201).send({
+        data,
+        children,
+        ...(rank === null ? {} : { rank }),
+        ...(link === null ? {} : { link }),
+        ...(payUrl === null ? {} : { payUrl }),
+        ...(await pricedAs(request, outcome.adjusted, { tree: outcome.rows })),
+        ...(await paidAs(found, view, outcome)),
+      });
     };
 
     app.options('/public/claim', { schema: { hide: true } }, preflight);

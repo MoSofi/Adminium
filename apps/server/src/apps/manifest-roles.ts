@@ -20,6 +20,10 @@
  *                              everything the workspace keeps about one address
  *                              (`system:privacy:people`); never the privacy
  *                              notice or the websites. Shown on the install check.
+ *   `payments:@:refund`        give back the money paid online for THIS app's
+ *                              records (`payments:<appKey>:refund`, D20); never
+ *                              the install's refund right. Shown on the install
+ *                              check, ticked; the installer may untick it.
  *
  * `read_pii` shows the table's personal columns in clear (crud/mask.ts): a
  * reception that rings patients holds it on the patients table.
@@ -46,7 +50,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest, RowReach } from '@adminium/manifest';
 import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type RowLimit, type RowReach as StoredRowReach, type TableActions, type UpdateLimit } from '@adminium/meta';
 
-import { matrixRowsFromGrants } from '../rbac/permissions.js';
+import { matrixRowsFromGrants, appRefundPermission } from '../rbac/permissions.js';
 import type { RoleTableResult } from '@adminium/manifest';
 import { grantKeyOf, installRoleSlug, type InstallAddress } from '../installs/resolve.js';
 import type { AfterInstallItem } from './after-install.js';
@@ -75,6 +79,8 @@ const ADD_ON_SETTINGS = /^addOn:([a-z][a-z0-9-]{1,79}):settings$/;
 const PRIVACY_PEOPLE = /^privacy:@:people$/;
 /** What `privacy:@:people` is given as: the console's own key for a person's data. */
 const PRIVACY_PEOPLE_GRANT = 'system:privacy:people';
+/** Giving back the money paid online for the app's own records: the one payments right an app's role may carry. */
+const PAYMENTS_REFUND = /^payments:@:refund$/;
 
 /**
  * An app role's slug: `<key>-<role>` for the install holding the bare
@@ -260,6 +266,9 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         // An add-on's own role may be given the add-on's own settings: that is what its manager is for.
         const own = (manifest as Manifest).kind === 'add-on' && addOn === manifest.key;
         if (!named && !own) refuse(`"${grant}" names an add-on the app neither requires nor suggests`);
+      } else if (PAYMENTS_REFUND.test(grant)) {
+        // The money an app takes is its own business's: an add-on's role is never given it.
+        if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
       } else if (PRIVACY_PEOPLE.test(grant)) {
         // An add-on's role is never given people's data: it is the business's to give, through its own apps' roles.
         if ((manifest as Manifest).kind === 'add-on') refuse(`"${grant}" is given by an app's role, never an add-on's`);
@@ -271,7 +280,7 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         const theirs = /([a-z][a-z0-9_]*):(?:read|create|update)$/.exec(grant);
         refuse(
           named === undefined
-            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff or privacy:@:people)`
+            ? `"${grant}" is not a grant an app can give (table:@…, page:@…, app:@:staff, privacy:@:people or payments:@:refund)`
             : `"${grant}" is not a grant an app can give. A table of the add-on "${named.key}" is granted beside "permissions", on the role itself: "tables": [{ "addOn": "${named.key}", "table": "${theirs?.[1] ?? '<its table>'}", "actions": ["read"] }]`,
         );
       }
@@ -342,6 +351,17 @@ export function privacyGrantsOf(manifest: Manifest): { role: string; roleName: s
 }
 
 /**
+ * The roles that would give back the money paid online for the app's own
+ * records (`payments:@:refund`): shown on the install check, each ticked,
+ * for the installer to untick a role that should not refund.
+ */
+export function refundGrantsOf(manifest: Manifest): { role: string; roleName: string }[] {
+  if (!ownsBlocks(manifest) || manifest.kind !== 'app') return [];
+  const roles = manifest.roles ?? [];
+  return roles.flatMap((role) => (grantsOf(role, roles).some((grant) => PAYMENTS_REFUND.test(grant)) ? [{ role: roleSlugFor(manifest.key, role.key), roleName: role.name }] : []));
+}
+
+/**
  * What a new version's roles are given that the running version's were not,
  * by role: the add-on settings (`addOn:<key>:settings`) and finding and
  * erasing people's data (`privacy:@:people`). An update gives them only when
@@ -349,13 +369,18 @@ export function privacyGrantsOf(manifest: Manifest): { role: string; roleName: s
  * that wants one counts too. Nothing is said for a first install, whose check
  * lists every grant.
  */
-export function grantsAdded(running: Manifest | null, next: Manifest): { addOnGrants: ReturnType<typeof addOnGrantsOf>; privacyGrants: ReturnType<typeof privacyGrantsOf> } {
-  if (running === null) return { addOnGrants: [], privacyGrants: [] };
+export function grantsAdded(
+  running: Manifest | null,
+  next: Manifest,
+): { addOnGrants: ReturnType<typeof addOnGrantsOf>; privacyGrants: ReturnType<typeof privacyGrantsOf>; refundGrants: ReturnType<typeof refundGrantsOf> } {
+  if (running === null) return { addOnGrants: [], privacyGrants: [], refundGrants: [] };
   const had = new Set(addOnGrantsOf(running).map((grant) => `${grant.role}\u0000${grant.addOn}`));
   const erased = new Set(privacyGrantsOf(running).map((grant) => grant.role));
+  const refunding = new Set(refundGrantsOf(running).map((grant) => grant.role));
   return {
     addOnGrants: addOnGrantsOf(next).filter((grant) => !had.has(`${grant.role}\u0000${grant.addOn}`)),
     privacyGrants: privacyGrantsOf(next).filter((grant) => !erased.has(grant.role)),
+    refundGrants: refundGrantsOf(next).filter((grant) => !refunding.has(grant.role)),
   };
 }
 
@@ -381,6 +406,8 @@ export async function writeManifestRoles(input: {
   connectionId: string;
   /** Short name → real table. */
   names: Readonly<Record<string, string>>;
+  /** The roles (by slug) the installer unticked on the check: not given the app's refund right (`payments:@:refund`). */
+  refundsUnticked?: readonly string[] | undefined;
 }): Promise<RolesResult> {
   const { meta, manifest, connectionId } = input;
   const result: RolesResult = { created: [], seeded: 0 };
@@ -473,6 +500,9 @@ export async function writeManifestRoles(input: {
       await permissions.revoke(roleId, 'app', grantKeyOf({ manifestKey: manifest.key, instanceSlug: input.install.slug }));
     } else if (PRIVACY_PEOPLE.test(grant)) {
       const row = matrixRowsFromGrants([PRIVACY_PEOPLE_GRANT]).rows[0];
+      if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
+    } else if (PAYMENTS_REFUND.test(grant)) {
+      const row = matrixRowsFromGrants([appRefundPermission(manifest.key)]).rows[0];
       if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
     } else if (ADD_ON_SETTINGS.test(grant)) {
       const row = matrixRowsFromGrants([grant]).rows[0];
@@ -576,6 +606,14 @@ export async function writeManifestRoles(input: {
         const row = matrixRowsFromGrants([PRIVACY_PEOPLE_GRANT]).rows[0];
         if (row === undefined) continue;
         await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
+      } else if (PAYMENTS_REFUND.test(grant)) {
+        if (manifest.kind !== 'app') continue;
+        // Unticked on the install check: remembered as given, so an update never hands it over unasked.
+        if (!(input.refundsUnticked ?? []).includes(slug)) {
+          const row = matrixRowsFromGrants([appRefundPermission(manifest.key)]).rows[0];
+          if (row === undefined) continue;
+          await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
+        }
       } else if (ADD_ON_SETTINGS.test(grant)) {
         const row = matrixRowsFromGrants([grant]).rows[0];
         if (row === undefined) continue;

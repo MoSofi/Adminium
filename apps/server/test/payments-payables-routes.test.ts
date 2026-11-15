@@ -15,6 +15,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import {
   connectionsRepo,
   createSqliteMetaDb,
+  payableProfilesRepo,
   firstRun,
   permissionsRepo,
   rolesRepo,
@@ -76,6 +77,16 @@ describe('payables routes', () => {
   let limited: User;
 
   const asUser = (user: User) => ({ 'x-test-user-id': user.id });
+  /** The card-testing pause, as the routes see it. */
+  let pausedUntil: number | null = null;
+  const pause = {
+    pausedUntil: async () => pausedUntil,
+    resume: async () => {
+      const was = pausedUntil !== null;
+      pausedUntil = null;
+      return was;
+    },
+  };
   const body = (mapping: Partial<PayableMapping> = {}) => ({ connectionId, tableId: 'main.orders', mapping: { ...MAPPING, ...mapping } });
 
   beforeEach(async () => {
@@ -134,7 +145,7 @@ describe('payables routes', () => {
     await app.register(rbacPlugin, { meta });
     await app.register(
       async (api) => {
-        await api.register(paymentPayablesRoutes({ meta, manager: { data: async () => ({ db: source as never, dialect: 'sqlite', engine: null as never }) } }));
+        await api.register(paymentPayablesRoutes({ meta, manager: { data: async () => ({ db: source as never, dialect: 'sqlite', engine: null as never }) }, cardTesting: pause }));
       },
       { prefix: '/api/v1' },
     );
@@ -145,6 +156,31 @@ describe('payables routes', () => {
     await app.close();
     await source.destroy();
     await meta.db.destroy();
+  });
+
+  it("an app's payable is the app's: one switch per app for whoever manages payments, never edited or removed by hand", async () => {
+    const made = (await payableProfilesRepo(meta).create({ connectionId, tableName: 'main.orders', mapping: MAPPING, ownerApp: 'counter', createdBy: null, enabled: false }))!;
+    const as = (user: User, method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: Record<string, unknown>) =>
+      app.inject({ method, url: `/api/v1${url}`, headers: { 'x-test-user-id': user.id }, ...(payload === undefined ? {} : { payload }) });
+
+    const listed = await as(clerk, 'GET', '/payments/payables');
+    expect(listed.json()).toMatchObject({ data: { profiles: [{ id: made.id, ownerApp: 'counter', shape: false, enabled: false }] } });
+    const apps = await as(clerk, 'GET', '/payments/apps');
+    expect(apps.json()).toMatchObject({ data: { apps: [{ connectionId, appKey: 'counter', enabled: false, tables: [{ tableName: 'main.orders' }] }] } });
+
+    // Tom manages payments and cannot update the orders table: he switches the app on all the same.
+    const on = await as(clerk, 'POST', '/payments/apps/switch', { connectionId, appKey: 'counter', enabled: true });
+    expect(on.statusCode, on.body).toBe(200);
+    expect((await payableProfilesRepo(meta).byId(made.id))!.enabled).toBe(true);
+    expect((await as(clerk, 'PATCH', `/payments/payables/${made.id}`, { enabled: false })).statusCode).toBe(200);
+    expect((await as(clerk, 'PATCH', `/payments/payables/${made.id}`, { enabled: true })).statusCode).toBe(200);
+
+    // Its mapping and its life are the app's.
+    for (const res of [await as(owner, 'PATCH', `/payments/payables/${made.id}`, { mapping: MAPPING }), await as(owner, 'DELETE', `/payments/payables/${made.id}`)]) {
+      expect(res.statusCode, res.body).toBe(403);
+      expect(res.json()).toMatchObject({ error: { details: { reason: 'app-payable', app: 'counter' } } });
+    }
+    expect((await as(clerk, 'POST', '/payments/apps/switch', { connectionId, appKey: 'nope', enabled: true })).statusCode).toBe(404);
   });
 
   it('checks a mapping and previews three real rows as the pay page would read them', async () => {
@@ -227,6 +263,20 @@ describe('payables routes', () => {
     const checked = (await app.inject({ method: 'POST', url: '/api/v1/payments/payables/check', headers: asUser(narrow), payload: body() })).json().data;
     expect(checked.mayMark).toEqual({ ok: false, reason: 'column-limit' });
     expect(checked.preview).toEqual([]);
+  });
+
+  it('says when card testing paused the payments apps start, and only someone who manages payments resumes them', async () => {
+    pausedUntil = 1_800_000_000_000;
+    const viewRole = await rolesRepo(meta).create({ slug: 'payments-viewer', name: 'Viewer' });
+    await permissionsRepo(meta).grant(viewRole.id, 'system', 'payments.view', { allowed: true });
+    const viewer = await usersRepo(meta).create({ email: 'vic@adminium.test', name: 'Vic', status: 'active' });
+    await rolesRepo(meta).assignToUser(viewer.id, viewRole.id);
+    expect((await app.inject({ method: 'GET', url: '/api/v1/payments/public-starts', headers: asUser(viewer) })).json()).toEqual({ data: { pausedUntil: 1_800_000_000_000 } });
+    expect((await app.inject({ method: 'POST', url: '/api/v1/payments/public-starts/resume', headers: asUser(viewer) })).statusCode).toBe(403);
+    expect(pausedUntil).toBe(1_800_000_000_000);
+    const resumed = await app.inject({ method: 'POST', url: '/api/v1/payments/public-starts/resume', headers: asUser(owner) });
+    expect(resumed.statusCode, resumed.body).toBe(200);
+    expect(resumed.json()).toEqual({ data: { pausedUntil: null } });
   });
 
   it('never lets someone who reads only some rows make every row payable', async () => {

@@ -46,11 +46,17 @@
  *
  * Holds never wait for this job: a held order stops counting against a limit
  * at its moment by the clock, whether or not it has been moved.
+ *
+ * A move that says `waitsForPayment` waits while a payment for its row is on
+ * its way — the service has said it is processing, or it succeeded and is
+ * being written down — and runs the minute after it settles: an unpaid hold
+ * never lapses under money that is landing. It waits `PAYMENT_WAIT_MS` at
+ * most: a payment slower than that goes to a person, as any late money does.
  */
 import type { FastifyInstance } from 'fastify';
 import { sql, type Kysely, type RawBuilder } from 'kysely';
 import type { Dialect } from '@adminium/engine';
-import { connectionTenantConfig, jobsRepo, type EnqueueJobInput, type MetaDb } from '@adminium/meta';
+import { connectionTenantConfig, jobsRepo, paymentAttemptsRepo, type EnqueueJobInput, type MetaDb } from '@adminium/meta';
 import type { Moment, TimedMove } from '@adminium/manifest';
 import { z } from 'zod';
 
@@ -89,6 +95,21 @@ const LEAVE_ALONE_MS = 3_600_000;
 const SLOW_QUERY_MS = 200;
 /** Who a timed move is, in the audit log. */
 const ACTOR = { kind: 'system' as const, id: null, label: 'Timed move' };
+/** The longest a move waits for a payment on its way (a provider's page lives six hours at most). */
+export const PAYMENT_WAIT_MS = 7 * 3_600_000;
+
+/** A payment for the row the service has taken or is taking, and not yet written down: a move that waits for it waits. */
+async function paymentOnItsWay(meta: MetaDb, connectionId: string, table: ResolvedTable, pk: Row, now: Date): Promise<boolean> {
+  if (table.primaryKey.length !== 1) return false;
+  const rowKey = String(pk[table.primaryKey[0]!]);
+  const attempts = paymentAttemptsRepo(meta);
+  for (const kind of ['profile', 'shape'] as const) {
+    const found = await attempts.forPayable({ kind, connectionId, tableName: table.id, rowKey });
+    if (found.some((attempt) => ['processing', 'succeeded', 'recording'].includes(attempt.state) && now.getTime() - attempt.createdAt < PAYMENT_WAIT_MS)) return true;
+  }
+  return false;
+}
+
 /** Refusals that pass: the next minute tries again. */
 const TRANSIENT = new Set(['WRITE_CONFLICT', 'CAPACITY_BUSY', 'NUMBER_BUSY', 'BOOKING_BUSY']);
 
@@ -341,9 +362,17 @@ async function moveDue(deps: TimedMovesDeps, connectionId: string, view: Snapsho
     }
   }
   due.sort((a, b) => a.at.getTime() - b.at.getTime() || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
-  tick.skipped = Math.max(0, due.length - perTick);
-  for (const one of due.slice(0, perTick)) {
+  // A row waiting for its payment is not counted against the minute's rows: many of them never keep the others waiting.
+  let tried = 0;
+  for (const [n, one] of due.entries()) {
+    if (tried >= perTick) {
+      tick.skipped = due.length - n;
+      break;
+    }
     try {
+      // Money on its way for this row: the move waits a minute, and is asked again.
+      if (one.rule.waitsForPayment === true && (await paymentOnItsWay(deps.meta, connectionId, one.target.table, one.pk, now))) continue;
+      tried += 1;
       if (await moveOne(deps, writes, one)) tick.moved += 1;
     } catch (error) {
       // The database itself is gone: nothing more moves this minute.

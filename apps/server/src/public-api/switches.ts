@@ -23,7 +23,8 @@ import { sameValue } from '../crud/write-values.js';
 export const SWITCH_TTL_MS = 15_000;
 
 export interface Switches {
-  isOn(connectionId: string, table: string, column: string): Promise<boolean>;
+  /** On: every row holds true — or, given `values`, one of those values (a choice: "nothing", "optional", "required"). */
+  isOn(connectionId: string, table: string, column: string, values?: readonly string[]): Promise<boolean>;
   /** A row of `table` was written: its switches are read again on the next ask. A table is named by its id or its bare name. */
   forget(connectionId: string, table: string): void;
 }
@@ -31,8 +32,8 @@ export interface Switches {
 export function createSwitches(dbFor: (connectionId: string) => Promise<Kysely<SourceDatabase>>, now: () => number = () => Date.now()): Switches {
   const cache = new Map<string, { at: number; on: boolean }>();
   return {
-    async isOn(connectionId, table, column) {
-      const key = JSON.stringify([connectionId, table, column]);
+    async isOn(connectionId, table, column, values) {
+      const key = JSON.stringify([connectionId, table, column, ...(values === undefined ? [] : [[...values].sort()])]);
       const hit = cache.get(key);
       if (hit !== undefined && now() - hit.at < SWITCH_TTL_MS) return hit.on;
       let on = false;
@@ -41,7 +42,7 @@ export function createSwitches(dbFor: (connectionId: string) => Promise<Kysely<S
         // Every row, not the first one a database happens to hand back: on only
         // when there is a row and none is off.
         const rows = (await db.selectFrom(table as never).select(sql.ref(column).as('v')).limit(50).execute()) as { v?: unknown }[];
-        on = rows.length > 0 && rows.every((row) => sameValue(true, row.v));
+        on = rows.length > 0 && rows.every((row) => (values === undefined ? sameValue(true, row.v) : typeof row.v === 'string' && values.includes(row.v)));
       } catch {
         on = false;
       }
@@ -51,7 +52,7 @@ export function createSwitches(dbFor: (connectionId: string) => Promise<Kysely<S
     forget(connectionId, table) {
       const bare = (name: string) => name.slice(name.lastIndexOf('.') + 1);
       for (const key of [...cache.keys()]) {
-        const [owner, kept] = JSON.parse(key) as [string, string, string];
+        const [owner, kept] = JSON.parse(key) as [string, string, ...unknown[]];
         if (owner === connectionId && (kept === table || bare(kept) === bare(table))) cache.delete(key);
       }
     },

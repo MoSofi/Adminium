@@ -429,9 +429,11 @@ const resourceSchema = z
     rank: z.object({ orderBy: columnSchema, where: z.object({ column: columnSchema, eq: scalarSchema }).strict().optional() }).strict().optional(),
     /** A create with no session carries a proof of work. */
     humanCheck: z.literal(true).optional(),
-    /** Writes refused while a bool in the settings row is false. */
+    /** A create answers the new row's pay link. */
+    pay: z.literal(true).optional(),
+    /** Writes refused while a bool in the settings row is false, or (`in`) while a choice there holds none of those values. */
     requireSetting: z
-      .array(z.object({ table: z.string().min(1).max(200), column: columnSchema, when: z.literal('anonymous').optional() }).strict())
+      .array(z.object({ table: z.string().min(1).max(200), column: columnSchema, when: z.literal('anonymous').optional(), in: z.array(z.string().min(1).max(64)).min(1).max(8).optional() }).strict())
       .min(1)
       .max(4)
       .optional(),
@@ -710,12 +712,14 @@ export interface CompiledResource {
   rank: { orderBy: string; where?: { column: string; eq: string | number | boolean } | undefined } | null;
   /** A create with no session (or one this resource does not cap) carries a proof of work. */
   humanCheck: boolean;
+  /** A create answers the new row's pay link, when its app takes payments online right now. */
+  pay?: boolean | undefined;
   /** The limits on a create nobody signed in for; null when there are none. */
   anonymous: AnonymousCaps | null;
   /** The limits on a change: per value a day, plain text (absent in a resource built by hand: none). */
   limits?: Pick<AnonymousCaps, 'perValue' | 'plainText'> | null | undefined;
-  /** The settings switches a write here needs on. */
-  requireSetting: readonly { table: string; column: string; when?: 'anonymous' | undefined }[];
+  /** The settings switches a write here needs on (`in`: a choice that must hold one of these values). */
+  requireSetting: readonly { table: string; column: string; when?: 'anonymous' | undefined; in?: readonly string[] | undefined }[];
   claim: z.infer<typeof claimScopeSchema> | null;
   /**
    * The parent whose visible rows this resource's rows belong to; null (or
@@ -1552,6 +1556,7 @@ export function compileScope(
       maxOpen: r.maxOpen === undefined ? null : { ...r.maxOpen },
       rank: r.rank === undefined ? null : { ...r.rank },
       humanCheck: r.humanCheck === true,
+      ...(r.pay === true ? { pay: true } : {}),
       anonymous: r.anonymous === undefined ? null : { ...r.anonymous },
       limits: r.limits === undefined ? null : { ...r.limits },
       requireSetting: (r.requireSetting ?? []).map((setting) => ({ ...setting })),

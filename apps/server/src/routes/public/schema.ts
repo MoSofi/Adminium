@@ -338,6 +338,8 @@ export const publicCreateReply = publicRecordReply.extend({
   children: publicTreeReplyChildren.optional(),
   replayed: z.literal(true).optional(),
   link: publicCreatedLink.optional(),
+  /** Where the customer pays for the new row, on an entry that says `pay`: only in the create's first reply, never a replay's. */
+  payUrl: z.string().optional(),
 });
 
 /**
@@ -425,7 +427,14 @@ export const publicCodeReply = z.object({
 });
 
 /** `GET /public/challenge`: a proof of work for a write or a claim. */
-export const publicChallengeQuery = z.object({ purpose: z.enum(['write', 'claim', 'upload']) }).strict();
+export const publicChallengeQuery = z.object({ purpose: z.enum(['write', 'claim', 'upload', 'pay-start']) }).strict();
+
+/** Whether the key's app takes payments online right now. */
+export const publicPayAvailableReply = z.object({ data: z.object({ online: z.boolean(), /** A rehearsal: test mode, for the signed-in person alone. */ test: z.boolean().optional() }) });
+/** A record to pay, by the entry it is read through and its id. */
+export const publicPayStartBody = z.object({ ref: z.string().min(1).max(200), id: z.string().min(1).max(200) }).strict();
+/** Where the customer pays: the record's pay link. */
+export const publicPayStartReply = z.object({ data: z.object({ payUrl: z.string() }) });
 
 export const publicChallengeReply = z.object({
   data: z.object({
@@ -521,6 +530,12 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_LIMIT_REACHED',
   /** The app has switched this off in its settings (online booking, new patients online) (403). */
   'PUBLIC_SWITCHED_OFF',
+  /**
+   * A payment could not be started for this record (409): `params.reason` is
+   * `off` (the app takes no payments online right now), `nothing-due`,
+   * `not-now` (not in a state it is paid in) or `not-payable`. Never more.
+   */
+  'PUBLIC_PAY_REFUSED',
   /**
    * A staff-bound key (a kiosk's) used without its staff member signed in on
    * this screen, from this page, holding the key's role (403). One code for

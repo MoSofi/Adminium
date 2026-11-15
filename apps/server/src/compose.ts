@@ -58,6 +58,7 @@ import {
   publicChallengesRepo,
   publicProofsRepo,
   publicSessionsRepo,
+  payableProfilesRepo,
   paymentCountersRepo,
   paymentEventsRepo,
   removedRowsRepo,
@@ -68,6 +69,7 @@ import {
   type RecordRef,
   snapshotsRepo,
   assistantSessionsRepo,
+  type PayableRef,
 } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer, type BuildServerOptions } from './app.js';
@@ -102,6 +104,7 @@ import {
   deciderFor,
   isLoadable,
   importServerHalf,
+  providersFor,
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
 import { addOnStateOn, installOfRecord, resolveInstall } from './installs/resolve.js';
@@ -361,15 +364,26 @@ import { payPageRoutes } from './routes/pay/page.js';
 import { createCheckoutService } from './payments/checkout.js';
 import { paymentProviderFor } from './payments/providers.js';
 import { createPayLinkFor } from './payments/pay-link-for.js';
+import { createAppRefundWatch, pickUpAppRefunds, registerAppRefundHandler } from './payments/app-refunds.js';
+import { createRefundMoveWatch, registerAutoRefundHandler } from './payments/refund-moves.js';
+import type { FastifyRequest } from 'fastify';
+import { rehearsalUntil } from './payments/rehearsal-state.js';
+import { registerReaderPollHandler } from './payments/reader-charges.js';
+import { cardTerminalFor } from './payments/terminals.js';
+import { DEMO_READER_SERVICE, paymentTerminalRoutes } from './routes/payments/terminal.js';
+import { createCardTesting } from './payments/card-testing.js';
+import { createPublicPay, type PublicPay } from './payments/public-pay.js';
+import { createRehearsalWatch, ledgerMaker } from './payments/rehearsal.js';
 import { PAYMENTS_INTEGRITY_CRON, PAYMENTS_INTEGRITY_NAME, PAYMENTS_WATCH_CRON, PAYMENTS_WATCH_NAME, runPaymentIntegrity, runPaymentWatch } from './payments/watch.js';
 import { gcNoticeClaims } from './payments/notices.js';
 import { endPaymentsForRows } from './payments/going-live.js';
 import { pickUpRefunds, registerPaymentsRefundHandler } from './payments/refunds.js';
 import { paymentRefundRoutes } from './routes/payments/refunds.js';
 import { anyLiveOn, paymentAddOnKeys, readyInMode } from './payments/ready.js';
-import { DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoPaymentBackend, type PaymentMode } from '@adminium/add-on-contracts';
+import { CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION, DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoPaymentBackend, createDemoTerminalBackend, type PaymentMode } from '@adminium/add-on-contracts';
 import { registerPaymentsSettleHandler } from './payments/webhook.js';
 import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
+import { createRowLeftWatch, endLeftPages, registerRowLeftHandler } from './payments/row-left.js';
 import { paymentWebhookRoutes } from './routes/payments/webhook.js';
 import { paymentActivityRoutes } from './routes/payments/activity.js';
 import { keyAppRoutes } from './routes/payments/key-app.js';
@@ -1835,7 +1849,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       mode,
     );
   };
-  documentPayLink = createPayLinkFor({
+  // Card readers at the counter (E6): the demo reader where the demo payment service is, and add-ons providing `card-terminal@1`.
+  const terminalDemo = createDemoTerminalBackend();
+  const terminalLookup = (key: string, mode: PaymentMode) =>
+    cardTerminalFor(
+      { runtime: () => addOnRuntime, manifests: appManifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy: app.trialPolicy }), demoTerminal: terminalDemo, log: (message, fields) => app.log.warn(fields, message) },
+      key,
+      mode,
+    );
+  const payLinkDeps = {
     meta,
     sources: paymentSources,
     secret: env.ADMINIUM_SECRET,
@@ -1843,6 +1865,32 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     desktop: env.ADMINIUM_RUNTIME === 'desktop',
     trustProxy: env.ADMINIUM_TRUST_PROXY,
     liveOn: () => anyLiveOn({ meta, manifests: appManifests, runtime: () => addOnRuntime }),
+  };
+  documentPayLink = createPayLinkFor(payLinkDeps);
+  // Card testing when the public starts payments: declines counted by address, and a pause of every public start.
+  const cardTesting = createCardTesting({ meta, secret: env.ADMINIUM_SECRET, hub: { publish: (channel: string, event: string, payload: unknown) => app.realtime.publish(channel, event, payload as never) } });
+  // Paying from an app's own screens: only while the operator allows payments (never in a trial), the app is switched on, and public starts are not paused.
+  const publicPay: PublicPay = createPublicPay({ ...payLinkDeps, cardTesting, paymentsAllowed: () => app.trialPolicy.allows('paymentProviders').allowed && app.trialPolicy.allows('payPages').allowed });
+  /*
+   * An app's staff screens read whether it takes payments, and what the person may do (E5, the staff config):
+   * `on` — someone switched the app on; `online` — customers can pay it online right now; `test` — this person is
+   * rehearsing it; `refund` — they may give money back (the install's right, or the app's own).
+   */
+  app.decorate('appPaymentsState', async (appKey: string, connectionId: string, request: FastifyRequest) => {
+    const owned = (await payableProfilesRepo(meta).list(connectionId)).filter((profile) => profile.ownerApp === appKey);
+    const userId = request.user?.id ?? null;
+    let refund = false;
+    try {
+      refund = request.apiKeyPrincipal == null && userId !== null && ((await request.can('system:payments:refund')) || (await request.can(`payments:${appKey}:refund`)));
+    } catch {
+      refund = false;
+    }
+    return {
+      on: owned.some((profile) => profile.enabled),
+      online: owned.length > 0 && (await publicPay.available(connectionId, appKey)).online,
+      test: userId !== null && (await rehearsalUntil(meta, userId)) !== null,
+      refund,
+    };
   });
   endPaymentsOnRows = async (connectionId, rows) => {
     await endPaymentsForRows({ meta, providerFor: paymentProviderLookup }, connectionId, rows);
@@ -1862,10 +1910,34 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     providerFor: paymentProviderLookup,
     enqueue: (input) => jobs.enqueue(input),
     notices: paymentNotices,
+    onPublicDecline: (attempt, count) => cardTesting.noteDecline(attempt, count),
   });
   // What a webhook queues (settle), and the sweep that stands in for a webhook that never came.
   registerPaymentsSettleHandler(jobs.registry, { meta, checkout: paymentCheckout });
-  registerPaymentsSweepHandler(jobs.registry, { meta, checkout: paymentCheckout, providerFor: paymentProviderLookup, enqueue: (input) => jobs.enqueue(input), notices: paymentNotices });
+  registerPaymentsSweepHandler(jobs.registry, {
+    meta,
+    checkout: paymentCheckout,
+    providerFor: paymentProviderLookup,
+    enqueue: (input) => jobs.enqueue(input),
+    notices: paymentNotices,
+    // An open page of a record that may no longer be paid is ended, before the service is asked about it.
+    endLeft: (ref) => endLeftPagesNow(ref),
+  });
+  // A record that stopped being payable (its app's `payableWhen`): its open pages end, by a job tried again while a service is away.
+  const rowLeftDeps = { meta, sources: paymentSources, providerFor: paymentProviderLookup };
+  registerRowLeftHandler(jobs.registry, rowLeftDeps);
+  const endLeftPagesNow = async (ref: PayableRef): Promise<number> => endLeftPages(rowLeftDeps, ref);
+  // A person rehearsing their app's checkout: the rows they make on its staff screens are sample rows.
+  app.decorate(
+    'rehearsalRows',
+    createRehearsalWatch({
+      meta,
+      ledgerFor: ledgerMaker(meta, (sampleApp, connectionId) => createSampleDataService(sampleDataDeps).ledgerFor(sampleApp, connectionId)),
+      dataFor: async (connectionId) => manager.data(connectionId),
+      warn: (fields, message) => app.log.warn(fields, message),
+    }),
+  );
+  app.decorate('payableRows', createRowLeftWatch({ meta, enqueue: (input) => jobs.enqueue(input), warn: (fields, message) => app.log.warn(fields, message) }));
   jobs.scheduler.registerSchedule(
     PAYMENTS_SWEEP_PLAN_NAME,
     PAYMENTS_SWEEP_PLAN_CRON,
@@ -1888,12 +1960,31 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     app,
     log: app.log,
     notices: paymentNotices,
+    // A reader payment's refund goes back through its card reader service.
+    terminalFor: terminalLookup,
   };
   registerPaymentsRefundHandler(jobs.registry, paymentRefundDeps);
+  // An app's own refund rows (E4): each one that sends money back is asked for, and stamped.
+  registerAppRefundHandler(jobs.registry, paymentRefundDeps);
+  // A charge on a card reader: the reader asked where it stands, by short jobs that re-queue themselves.
+  registerReaderPollHandler(jobs.registry, { meta, sources: paymentSources, terminalFor: terminalLookup, enqueue: (input) => jobs.enqueue(input) });
+  app.decorate('appRefundRows', createAppRefundWatch({ meta, enqueue: (input) => jobs.enqueue(input), warn: (fields, message) => app.log.warn(fields, message) }));
+  // Refunds that start by themselves after a move (`refundOn`): judged at the move, given by a job, or flagged "Refund owed".
+  registerAutoRefundHandler(jobs.registry, paymentRefundDeps);
+  app.decorate(
+    'refundMoves',
+    createRefundMoveWatch({
+      ...paymentRefundDeps,
+      setting: async (connectionId, table, column) => (await paymentSources.setting?.(connectionId, table, column)) ?? null,
+      warn: (fields, message) => app.log.warn(fields, message),
+    }),
+  );
   jobs.scheduler.registerSchedule(PAYMENTS_WATCH_NAME, PAYMENTS_WATCH_CRON, async () => {
     await runPaymentWatch(paymentWatchDeps);
     const queued = await pickUpRefunds(paymentRefundDeps);
     if (queued > 0) app.log.info({ queued }, 'payments: refunds asked about again');
+    const rows = await pickUpAppRefunds(paymentRefundDeps).catch((error: unknown) => (app.log.warn({ err: error }, 'payments: refund rows could not be swept'), 0));
+    if (rows > 0) app.log.info({ queued: rows }, 'payments: app refund rows queued');
   }, { jitterMs: 30_000 });
   jobs.scheduler.registerSchedule(PAYMENTS_INTEGRITY_NAME, PAYMENTS_INTEGRITY_CRON, async () => {
     await runPaymentIntegrity(paymentWatchDeps);
@@ -2455,7 +2546,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           writes: recordWrites,
         }),
       );
-      await api.register(paymentPayablesRoutes({ meta, manager }));
+      await api.register(paymentPayablesRoutes({ meta, manager, cardTesting }));
+      await api.register(
+        paymentTerminalRoutes({
+          meta,
+          sources: paymentSources,
+          terminalFor: terminalLookup,
+          enqueue: (input) => jobs.enqueue(input),
+          services: async () => [DEMO_READER_SERVICE, ...(addOnRuntime === null ? [] : providersFor(addOnRuntime, CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION).map((entry) => ({ key: entry.addOnKey, name: entry.addOnKey })))],
+          networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+        }),
+      );
       // Consent and the do-not-email list: the list for the e-mail screens' grant, a record's consent for its readers.
       await api.register(
         consentRoutes({
@@ -3415,6 +3516,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     trustProxy: env.ADMINIUM_TRUST_PROXY,
     receiptSent: (attempt) => receiptSentFor(meta, attempt),
     providerFor: paymentProviderLookup,
+    cardTesting,
   };
   await app.register(payRoutes(payDeps));
 
@@ -3516,6 +3618,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         storage,
         writes: recordWrites,
         ledgers,
+        pay: publicPay,
+        cardTesting,
+        // A rehearsal's rows go in their app's list of sample rows (made first when there is none).
+        rehearsal: { ledgerFor: ledgerMaker(meta, (app, connectionId) => createSampleDataService(sampleDataDeps).ledgerFor(app, connectionId)) },
         // "Delete my details" withdraws a yes before it empties the column that held it.
         peopleConsent: consentMirror,
         // A guest's file for an app's column, and the holds a write that names it makes.

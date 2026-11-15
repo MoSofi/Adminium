@@ -34,7 +34,7 @@ import { addAmounts, compareAmounts, sameAmount, subtractAmounts } from '@admini
 import { currencyScale } from '@adminium/manifest';
 import { createHash } from 'node:crypto';
 
-import { appTablesRepo, isDuplicateKeyError, keptPaymentsRepo, payableKeyOf, payableProfilesRepo, paymentAttemptsRepo, refundsRepo, type KeptPayment, type MetaDb, type PayableRef, type PaymentAttempt } from '@adminium/meta';
+import { appTablesRepo, isDuplicateKeyError, keptPaymentsRepo, payableKeyOf, payableProfilesRepo, paymentAttemptsRepo, refundsRepo, sumAmounts, type KeptPayment, type MetaDb, type PayableRef, type PaymentAttempt } from '@adminium/meta';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -57,6 +57,8 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { createPublicViews } from '../../public-api/runtime.js';
 import type { PermissionSet } from '../../rbac/resolver.js';
 import { refundView, refundViewOf } from './refunds.js';
+import { HAND_REFERENCE_PREFIX } from '../../crud/write-service.js';
+import { mayRefundPayment } from '../../payments/app-refund-queue.js';
 import { tagRoutes } from '../../security/route-audience.js';
 
 export interface PaymentPanelDeps {
@@ -152,6 +154,24 @@ const panelView = z.object({
   payments: z.array(paymentView),
 });
 const panelReply = z.object({ data: panelView.nullable() });
+
+/** Many records of one table, for an app's list ("Paid", "Part paid", "Refund owed" beside each row). */
+const rowsBody = z.object({ connectionId: z.string().min(1).max(64), table: z.string().min(1).max(255), recordIds: z.array(z.string().min(1).max(512)).min(1).max(50) }).strict();
+/** One record's payment state, in a word, with what a list shows beside it. */
+const rowStateView = z.object({
+  recordId: z.string(),
+  /** `none`: nothing is due and nothing was paid; `unpaid`, `part` (paid in part), `paid`; `waiting` (a payment on its way). */
+  state: z.enum(['none', 'unpaid', 'part', 'paid', 'waiting']),
+  currency: z.string(),
+  due: z.string(),
+  paid: z.string(),
+  /** What may still be refunded online, over its payments. */
+  refundable: z.string(),
+  /** A payment of it is owed a refund (a cancel nobody who may refund made), or disputed. */
+  refundOwed: z.boolean(),
+  disputed: z.boolean(),
+});
+const rowsReply = z.object({ data: z.array(rowStateView) });
 const recordReply = z.object({ data: z.object({ key: z.string(), already: z.boolean(), due: z.string() }) });
 
 type PanelView = z.infer<typeof panelView>;
@@ -368,8 +388,9 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
     const attempts = await paymentAttemptsRepo(meta).forPayable(ref);
     const kept = (await keptPaymentsRepo(meta).forPayable(ref)).filter((row) => !row.voided);
     const payments = await withRefunds(attempts, [...tableRows, ...kept.map(keptView)]);
-    const mayRefund = request.apiKeyPrincipal == null && (await request.can(PERMISSIONS.paymentsRefund));
-    const handOk = payable.refusal === null || payable.refusal.code === 'NEEDS_UPDATE';
+    const mayRefund = await mayRefundPayment(meta, request, ref);
+    // Paid by hand whatever state the record is in: only online payments wait for the app's own moment (`NOT_NOW`).
+    const handOk = payable.refusal === null || payable.refusal.code === 'NEEDS_UPDATE' || payable.refusal.code === 'NOT_NOW';
     return {
       payable: { kind: ref.kind as PanelView['payable']['kind'], connectionId: ref.connectionId, tableName: ref.tableName, rowKey: ref.rowKey },
       label: payable.label,
@@ -491,6 +512,45 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
       async (request) => ({ data: await panelOf(request, request.body) }),
     );
 
+    /*
+     * THE LIST READ (E5): each record's payment state, for an app's list. Each
+     * record is read as the panel reads it, through the person's own grants and
+     * row limits: a record they may not read is left out, never said.
+     */
+    app.post(
+      '/payments/panel/rows',
+      { config: { audit: auditExempt('reading how records stand changes nothing') }, schema: { body: rowsBody, response: { 200: rowsReply } } },
+      async (request) => {
+        const out: z.infer<typeof rowStateView>[] = [];
+        for (const recordId of [...new Set(request.body.recordIds)]) {
+          let panel: PanelView | null;
+          try {
+            panel = await panelOf(request, { connectionId: request.body.connectionId, table: request.body.table, recordId });
+          } catch (error) {
+            if (error instanceof ForbiddenError || error instanceof NotFoundError) continue;
+            throw error;
+          }
+          if (panel === null) continue;
+          const scale = panel.currency === '' ? 2 : currencyScale(panel.currency);
+          const refundable = sumAmounts(panel.payments.map((payment) => payment.refundable));
+          const attempts = await paymentAttemptsRepo(meta).forPayable(panel.payable as PayableRef);
+          const paidSome = compareAmounts(panel.paid, '0') === 1;
+          const dueSome = compareAmounts(panel.due, '0') === 1;
+          out.push({
+            recordId,
+            state: panel.waiting.length > 0 ? 'waiting' : paidSome && dueSome ? 'part' : paidSome ? 'paid' : dueSome ? 'unpaid' : 'none',
+            currency: panel.currency,
+            due: panel.due,
+            paid: panel.paid,
+            refundable: exactAmount(refundable, scale) ?? refundable,
+            refundOwed: attempts.some((attempt) => attempt.problem?.code === 'REFUND_OWED' && attempt.check === null),
+            disputed: panel.payments.some((payment) => payment.dispute?.state === 'open'),
+          });
+        }
+        return { data: out };
+      },
+    );
+
     app.post(
       '/payments/record-payment',
       { config: { audit: audited('rbac') }, schema: { body: recordBody, response: { 200: recordReply } } },
@@ -522,7 +582,7 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
         const claim = claimOf(memoryKey, now);
         if (await claimed(claim)) return { data: { key: body.key, already: true, due: sameAmount(payable.due, '0') ? '0' : payable.due } };
 
-        if (payable.refusal !== null && payable.refusal.code !== 'NEEDS_UPDATE') {
+        if (payable.refusal !== null && payable.refusal.code !== 'NEEDS_UPDATE' && payable.refusal.code !== 'NOT_NOW') {
           throw new ValidationFailedError(payable.refusal.message, { reason: payable.refusal.code });
         }
         const scale = currencyScale(payable.currency);
@@ -563,7 +623,7 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
                 method: body.way,
                 manual: true,
                 note,
-                reference: `hand_${body.key}`,
+                reference: `${HAND_REFERENCE_PREFIX}${body.key}`,
                 paidAt,
                 provider: null,
                 approvalCode: terminal ? body.approvalCode : null,

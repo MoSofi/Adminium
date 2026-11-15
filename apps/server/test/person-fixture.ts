@@ -162,7 +162,7 @@ export function guest(served: Served, h: InvoicingHarness, first = 1) {
     ip += 1;
     return `10.${String((ip >> 16) & 255)}.${String((ip >> 8) & 255)}.${String(ip & 255)}`;
   };
-  const proof = async (purpose: 'write' | 'claim') => {
+  const proof = async (purpose: 'write' | 'claim' | 'pay-start') => {
     const res = await served.composed.app.inject({ method: 'GET', url: `/api/v1/public/challenge?purpose=${purpose}`, remoteAddress: from(), headers: served.headers() });
     const c = (res.json() as { data: { id: string; salt: string; difficulty: number } }).data;
     return `${c.id}.${solveProof(c.salt, c.difficulty)}`;
@@ -170,7 +170,7 @@ export function guest(served: Served, h: InvoicingHarness, first = 1) {
   const request = async (
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     url: string,
-    opts: { payload?: Record<string, unknown>; session?: string; proof?: 'write' | 'claim'; address?: string } = {},
+    opts: { payload?: Record<string, unknown>; session?: string; proof?: 'write' | 'claim' | 'pay-start'; address?: string } = {},
   ) =>
     served.composed.app.inject({
       method,

@@ -113,6 +113,7 @@ import {
   subtractAmounts,
   type PaymentDispute,
   type PaymentMode,
+  type PaymentProvider,
   type RefundReason,
   type RefundState,
 } from '@adminium/add-on-contracts';
@@ -124,6 +125,7 @@ import {
   paymentEventsRepo,
   refundsRepo,
   sumAmounts,
+  type AppRefundRow,
   type MetaDb,
   type DisputeOutcome,
   type PaymentAttempt,
@@ -135,9 +137,11 @@ import { z } from 'zod';
 import { createWriteService } from '../crud/write-service.js';
 import { writeStores } from '../crud/write-stores.js';
 import type { JobRegistry } from '../jobs/registry.js';
+import { enqueueAppRefund, refundsKeptInApp } from './app-refund-queue.js';
 import { noticeMoney, providerName, tellPaymentManagers, type NoticeDeps } from './notices.js';
 import { exactAmount, pkOfRowKey, resolvePayable, type PayableSources } from './payables.js';
 import type { ProviderLookup } from './providers.js';
+import type { TerminalLookup } from './terminals.js';
 import { followDocumentStatus } from './document-status.js';
 import type { RecordDeps } from './record-deps.js';
 import { noteKeyRefused } from './services.js';
@@ -156,11 +160,28 @@ export interface RefundDeps extends Pick<RecordDeps, 'writes' | 'app' | 'log'> {
   providerFor: (key: string, mode: PaymentMode) => Promise<ProviderLookup>;
   enqueue?: (input: { kind: string; payload: Record<string, unknown>; dedupeKey: string; maxAttempts: number }) => Promise<unknown>;
   notices?: NoticeDeps;
+  /** The card reader service a reader payment was taken by: its refunds go back through it (`card-terminal@1`). */
+  terminalFor?: (key: string, mode: PaymentMode) => Promise<TerminalLookup>;
   now?: () => number;
 }
 
+/**
+ * The service that gives a refund back: a reader payment's card reader
+ * service when there is one (a reader-only add-on has no pay page), else the
+ * payment service. Both answer `refund` and `refundStatus` the same way.
+ */
+async function refunderFor(deps: Pick<RefundDeps, 'meta' | 'providerFor' | 'terminalFor'>, refund: Pick<RefundRow, 'provider' | 'mode' | 'attemptId'>): Promise<{ ok: true; refunder: Pick<PaymentProvider, 'refund' | 'refundStatus'> } | { ok: false }> {
+  const attempt = refund.attemptId === null ? null : await paymentAttemptsRepo(deps.meta).byId(refund.attemptId);
+  if (attempt?.reader != null && deps.terminalFor !== undefined) {
+    const terminal = await deps.terminalFor(refund.provider, refund.mode as PaymentMode);
+    return terminal.ok ? { ok: true, refunder: terminal.terminal } : { ok: false };
+  }
+  const lookup = await deps.providerFor(refund.provider, refund.mode as PaymentMode);
+  return lookup.ok ? { ok: true, refunder: lookup.provider } : { ok: false };
+}
+
 /** Why a refund cannot be asked now. */
-export const REFUND_REFUSALS = ['NOT_TAKEN', 'PROCESSING', 'DISPUTED', 'FULLY_REFUNDED', 'MORE_THAN_REFUNDABLE', 'AMOUNT', 'KEY_REUSED', 'BUSY', 'NOT_ONLINE'] as const;
+export const REFUND_REFUSALS = ['NOT_TAKEN', 'PROCESSING', 'DISPUTED', 'FULLY_REFUNDED', 'MORE_THAN_REFUNDABLE', 'AMOUNT', 'KEY_REUSED', 'BUSY', 'NOT_ONLINE', 'IN_APP'] as const;
 export type RefundRefusalCode = (typeof REFUND_REFUSALS)[number];
 
 export interface RefundRefusal {
@@ -172,10 +193,12 @@ export interface RefundRefusal {
 const TAKEN_STATES: ReadonlySet<string> = new Set(['succeeded', 'recording', 'recorded', 'record_refused']);
 
 /** What may still be refunded of an attempt: taken less what refunds hold. */
-export function refundableOf(attempt: Pick<PaymentAttempt, 'takenAmount' | 'takenCurrency' | 'currency' | 'refundCommitted'>): string {
+export function refundableOf(attempt: Pick<PaymentAttempt, 'takenAmount' | 'takenCurrency' | 'currency' | 'refundCommitted'> & { reader?: PaymentAttempt['reader'] | undefined }): string {
   if (attempt.takenAmount === null) return '0';
   const scale = currencyScale(attempt.takenCurrency ?? attempt.currency);
-  const left = subtractAmounts(attempt.takenAmount, attempt.refundCommitted, scale);
+  // A card reader payment gives back what was asked: its tip was the staff's.
+  const base = attempt.reader?.asked ?? attempt.takenAmount;
+  const left = subtractAmounts(base, attempt.refundCommitted, scale);
   return left === null || compareAmounts(left, '0') !== 1 ? '0' : left;
 }
 
@@ -226,6 +249,9 @@ export interface RefundRequest {
   /** Minted by the screen at the confirm step; bound to (payment, amount). */
   key: string;
   requestedBy: string | null;
+  /** Asked for an app's own refund row (`app-refunds.ts`): who asked, and the row. A refund asked in Adminium otherwise. */
+  source?: 'app' | 'auto';
+  appRow?: AppRefundRow;
 }
 
 export type RefundAnswer = { ok: true; refund: RefundRow; fresh: boolean } | { ok: false; refusal: RefundRefusal };
@@ -269,6 +295,14 @@ export async function requestRefund(deps: RefundDeps, input: RefundRequest): Pro
 
   const refusal = refundRefusalOf(attempt);
   if (refusal !== null) return { ok: false, refusal };
+  // An Interac card (Canada) is refunded only on the reader, with the card: not online.
+  if (attempt.reader?.interac === true) {
+    return { ok: false, refusal: { code: 'NOT_ONLINE', message: 'An Interac payment is refunded on the reader with the card. Refund it in cash or store credit.' } };
+  }
+  // An app that keeps refunds as rows of its own writes its refund row first: asked from Adminium beside it, its books would not say so.
+  if (input.source === undefined && (await refundsKeptInApp(deps.meta, attempt.payable)) !== null) {
+    return { ok: false, refusal: { code: 'IN_APP', message: 'Refund this payment in its app, where its refunds are kept.' } };
+  }
   const currency = attempt.takenCurrency ?? attempt.currency;
   const amount = exactAmount(input.amount, currencyScale(currency));
   if (amount === null || compareAmounts(amount, '0') !== 1) return { ok: false, refusal: { code: 'AMOUNT', message: 'Enter an amount above zero, in the currency’s own decimals.' } };
@@ -292,8 +326,9 @@ export async function requestRefund(deps: RefundDeps, input: RefundRequest): Pro
         reason: input.reason,
         note: input.note,
         idempotencyKey: input.key,
-        source: 'staff',
+        source: input.source ?? 'staff',
         requestedBy: input.requestedBy,
+        ...(input.appRow === undefined ? {} : { appRow: input.appRow }),
       },
       at,
     );
@@ -338,10 +373,10 @@ async function askOnce(deps: RefundDeps, asked: RefundRow): Promise<RefundRow> {
   // As it stands now: an ask that finished a moment ago may have moved it.
   const refund = (await refundsRepo(deps.meta).byId(asked.id)) ?? asked;
   if (refund.state !== 'requested' || refund.providerRefundId !== null) return refund;
-  const lookup = await deps.providerFor(refund.provider, refund.mode as PaymentMode);
+  const lookup = await refunderFor(deps, refund);
   // The service cannot be asked now (switched off, keys being replaced): asked again later, same key.
   if (!lookup.ok) return refund;
-  const answer = await lookup.provider.refund({
+  const answer = await lookup.refunder.refund({
     paymentRef: refund.paymentRef,
     amount: refund.amount,
     currency: refund.currency,
@@ -395,6 +430,8 @@ async function moveTo(deps: RefundDeps, refund: RefundRow, to: RefundRowState, p
     await tellRefundFailed(deps, now).catch(() => undefined);
   }
   if (refund.attemptId !== null && (to === 'succeeded' || refund.state === 'succeeded')) await followOrRetry(deps, refund.id, refund.attemptId);
+  // An app's own refund row says where its refund stands: stamped again, by a job tried until it lands.
+  if (now.appRow !== null) await enqueueAppRefund(deps, now.appRow).catch(() => undefined);
   return (await refunds.byId(refund.id)) ?? now;
 }
 
@@ -483,6 +520,9 @@ export async function followRecord(deps: FollowDeps, attemptId: string): Promise
     total = exactAmount(attempt.takenAmount, scale) ?? attempt.takenAmount;
     past = done.at(-1) ?? null;
   }
+  // What came back with no row of the app's own (made at the provider, a lost dispute): an app that keeps refunds as rows takes it apart.
+  const elsewhereSum = sumAmounts(done.filter((row) => row.appRow === null).map((row) => row.amount));
+  const elsewhere = exactAmount(elsewhereSum, scale) ?? elsewhereSum;
   const key = attempt.recordedKey;
   let outcome: RecordFollow;
   if (attempt.state !== 'recorded' || key === null) outcome = 'not-recorded';
@@ -490,7 +530,11 @@ export async function followRecord(deps: FollowDeps, attemptId: string): Promise
     const written = await keptPaymentsRepo(deps.meta).setRefunded(key.slice('kept:'.length), total);
     outcome = written ? 'written' : 'gone';
   } else if (!writesShop(attempt)) outcome = 'kept-only';
-  else outcome = await writeTableRefund(deps, attempt, key, total);
+  else outcome = await writeTableRefund(deps, attempt, key, total, elsewhere);
+  // A payment owed a refund (a move nobody who may refund made) that is now refunded in full owes nothing more.
+  if (attempt.problem?.code === 'REFUND_OWED' && attempt.takenAmount !== null && compareAmounts(sumAmounts(rows.filter((row) => row.state !== 'failed' && row.state !== 'cancelled').map((row) => row.amount)), attempt.takenAmount) !== -1) {
+    await attempts.flagRecorded(attempt.id, null, at, 'REFUND_OWED');
+  }
   if (outcome === 'written' || outcome === 'kept-only') {
     for (const row of done) if (row.appliedAt === null) await refunds.markApplied(row.id, at);
     for (const row of rows) if (row.state === 'failed' && row.appliedAt !== null && row.undoneAt === null) await refunds.markUndone(row.id, at);
@@ -512,16 +556,19 @@ export async function followRecord(deps: FollowDeps, attemptId: string): Promise
 }
 
 /** The refunded total on a payments table row (`row:<table>:<rowKey>`), when the table keeps refunds. */
-async function writeTableRefund(deps: FollowDeps, attempt: PaymentAttempt, key: string, total: string): Promise<RecordFollow> {
-  const payable = await resolvePayable(deps.sources, attempt.payable);
+async function writeTableRefund(deps: FollowDeps, attempt: PaymentAttempt, key: string, total: string, elsewhere: string): Promise<RecordFollow> {
+  const payable = await resolvePayable(deps.sources, attempt.payable, { mode: attempt.mode, taken: true });
   if (payable === null || payable.recordInto.kind !== 'table' || attempt.payable.connectionId === null) return 'gone';
   const into = payable.recordInto;
-  if (into.refunded === null) return 'kept-only';
+  // The column model writes the whole refunded total; an app that keeps refund rows takes only what no row of its says.
+  const column = into.refunded ?? into.refundedElsewhere ?? null;
+  if (column === null) return 'kept-only';
+  if (into.refunded === null) total = elsewhere;
   const rest = key.slice('row:'.length);
   const tableName = rest.slice(0, rest.indexOf(':'));
   const rowKey = rest.slice(rest.indexOf(':') + 1);
   const found = await deps.sources.table(attempt.payable.connectionId, tableName);
-  if (found === null || !found.table.columns.has(into.refunded)) return 'gone';
+  if (found === null || !found.table.columns.has(column)) return 'gone';
   const pk = pkOfRowKey(found.table, rowKey);
   if (pk === null) return 'gone';
   const scale = currencyScale(attempt.takenCurrency ?? attempt.currency);
@@ -531,7 +578,7 @@ async function writeTableRefund(deps: FollowDeps, attempt: PaymentAttempt, key: 
   const written = await writes.update({
     target: found.target,
     pk,
-    values: { [into.refunded]: value },
+    values: { [column]: value },
     context: { origin: 'payment', hops: 0, actor: { kind: 'system', id: null, label: 'Refund' }, request: null },
     skipIfNone: true,
     announce: async () => {},
@@ -555,7 +602,7 @@ async function setRefundedStatus(deps: FollowDeps, attempt: PaymentAttempt, tota
   if (attempt.takenAmount === null) return;
   const full = sameAmount(total, attempt.takenAmount);
   const ref = attempt.payable;
-  const payable = await resolvePayable(deps.sources, ref);
+  const payable = await resolvePayable(deps.sources, ref, { mode: attempt.mode, taken: true });
   if (payable?.status?.refunded == null || ref.connectionId === null || ref.tableName === null) return;
   const found = await deps.sources.table(ref.connectionId, ref.tableName);
   const row = await deps.sources.readRow(ref.connectionId, ref.tableName, ref.rowKey);
@@ -563,13 +610,17 @@ async function setRefundedStatus(deps: FollowDeps, attempt: PaymentAttempt, tota
   const now = row[payable.status.column];
   const want = full ? payable.status.refunded : now === payable.status.refunded ? payable.status.paid : null;
   if (want === null || now === want) return;
+  // Only from the states the payable names: an order already collected keeps its state when its money goes back.
+  const from = now === null || now === undefined ? null : String(now);
+  if (full && payable.status.refundedFrom !== undefined && (from === null || !payable.status.refundedFrom.includes(from))) return;
   const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column]]));
   const writes = deps.writes ?? createWriteService(writeStores(deps.meta));
   await writes.update({
     target: found.target,
     pk,
     values: { [payable.status.column]: want },
-    context: { origin: 'payment', hops: 0, actor: { kind: 'system', id: null, label: 'Refund' }, request: null },
+    // The app's own move, made by Adminium, whatever roles it names.
+    context: { origin: 'payment', hops: 0, actor: { kind: 'system', id: null, label: 'Refund' }, request: null, ...(from === null ? {} : { declared: { from, to: want } }) },
     skipIfNone: true,
     announce: async () => {},
   });
@@ -590,12 +641,12 @@ export async function settleRefund(deps: RefundDeps, refundId: string, options: 
     if (options.strict === true && asked.state === 'requested') throw new Error('The payment service could not be asked for the refund yet.');
     return asked;
   }
-  const lookup = await deps.providerFor(refund.provider, refund.mode as PaymentMode);
+  const lookup = await refunderFor(deps, refund);
   if (!lookup.ok) {
-    if (options.strict === true) throw new Error(`The payment service cannot be asked now (${lookup.code}).`);
+    if (options.strict === true) throw new Error('The payment service cannot be asked now.');
     return refund;
   }
-  const state = await lookup.provider.refundStatus(refund.providerRefundId);
+  const state = await lookup.refunder.refundStatus(refund.providerRefundId);
   if (isProviderError(state)) {
     if (options.strict === true && state.retryable) throw new Error('The payment service could not be asked about the refund now.');
     return refund;

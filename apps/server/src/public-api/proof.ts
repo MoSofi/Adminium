@@ -31,7 +31,7 @@ import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from '
  * a guest uploads for an app's column (`POST /public/uploads`), bound to the
  * key it is sent through: one proof per file.
  */
-export const PROOF_PURPOSES = ['write', 'claim', 'pay', 'form', 'upload'] as const;
+export const PROOF_PURPOSES = ['write', 'claim', 'pay', 'form', 'upload', 'pay-start'] as const;
 export type ProofPurpose = (typeof PROOF_PURPOSES)[number];
 
 /** Leading zero bits a proof needs: about a second on a low-end phone. */

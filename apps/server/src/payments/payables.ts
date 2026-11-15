@@ -32,14 +32,18 @@ import {
   realTableOf,
   type MetaDb,
   type ParsedPayableMapping,
+  type PayableCondition,
+  type ShapePayableMapping,
   type PayableRef,
 } from '@adminium/meta';
 import { sameAmount, subtractAmounts } from '@adminium/add-on-contracts';
+import { sql } from 'kysely';
 
 import type { ConnectionManager } from '../connections/manager.js';
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { fetchByPk } from '../crud/records.js';
+import { sameValue } from '../crud/write-values.js';
 import type { WriteTarget } from '../crud/write-context.js';
 import { isDesignerCurrency } from '../invoices/document.js';
 import { createPublicViews } from '../public-api/runtime.js';
@@ -120,7 +124,9 @@ export type PayableRefusalCode =
   | 'NOTHING_DUE'
   | 'NEEDS_UPDATE'
   | 'NO_CURRENCY'
-  | 'AMOUNT_UNCLEAR';
+  | 'AMOUNT_UNCLEAR'
+  /** Owed, but not payable online in the state the record is in now (an app's `payableWhen`). */
+  | 'NOT_NOW';
 
 export interface PayableRefusal {
   code: PayableRefusalCode;
@@ -146,8 +152,18 @@ export type RecordInto =
       reference: string;
       /** What has been refunded of each payment (the amount's unit), when the table keeps it; null when it does not. */
       refunded: string | null;
+      /** Where an app that keeps refunds as rows of its own takes the money given back with no row of its (made at the provider, a lost dispute). */
+      refundedElsewhere?: string | null;
+      /** Where a card reader payment's tip goes, beside what was asked. */
+      tip?: string | null;
       /** Columns the shape adds (currency, provider, recorded by). */
       shapeColumns: boolean;
+      /** A profile's own columns for the moment paid, the service, a terminal's approval code, the last four and the currency; null when it keeps none. */
+      paidAt?: string | null;
+      provider?: string | null;
+      approvalCode?: string | null;
+      last4?: string | null;
+      currency?: string | null;
     };
 
 export interface ResolvedPayable {
@@ -169,8 +185,11 @@ export interface ResolvedPayable {
   manualOnly: boolean;
   customerEmail: string | null;
   customerCountry: string | null;
-  /** The status column to set when the due reaches zero (and back on a full refund). */
-  status: { column: string; paid: string; refunded: string | null } | null;
+  /**
+   * The status column to set when the due reaches zero (and back on a full refund);
+   * `from`/`refundedFrom`, the states it is moved from (absent, any).
+   */
+  status: { column: string; paid: string; refunded: string | null; from?: readonly string[] | undefined; refundedFrom?: readonly string[] | undefined } | null;
   recordInto: RecordInto;
 }
 
@@ -182,7 +201,9 @@ export interface PayableSources {
   /** The invoice shape a table is built on, and its payments part, or null. */
   shapeOf(connectionId: string, tableName: string): Promise<{ version: number; paymentsTable: string | null } | null>;
   connectionCurrency(connectionId: string): Promise<string | null>;
-  profile(connectionId: string, tableName: string): Promise<{ id: string; enabled: boolean; mapping: ParsedPayableMapping | null } | null>;
+  /** A column of a one-row settings table (its id), or null when the table has not exactly one row. */
+  setting?(connectionId: string, tableName: string, column: string): Promise<unknown>;
+  profile(connectionId: string, tableName: string): Promise<{ id: string; enabled: boolean; mapping: ParsedPayableMapping | null; shape?: ShapePayableMapping | null; ownerApp?: string | null } | null>;
   /** What Adminium keeps as paid on a payable, live payments only. */
   keptPaid(ref: PayableRef, currency: string): Promise<string>;
   /** The lines a payable lists (an invoice's), in order, at most 50; null when it has none to show. */
@@ -237,16 +258,36 @@ export function designerTotal(totalMinor: unknown, scale: number): string | null
   return fromMinorUnits(Math.floor((totalMinor + divisor / 2) / divisor), scale);
 }
 
+/** How a payable is read: for a live payment (the default) or a test one. */
+export interface ResolveOptions {
+  /**
+   * A test payment reads an app's own payable as switched on: an app is
+   * rehearsed in test mode before anyone switches it on for real money. A
+   * person's own payable that was switched off stays off in either mode.
+   */
+  mode?: 'live' | 'test';
+  /**
+   * Money already taken is followed whatever the switch says now: a refund
+   * of it reaches its record after the app was switched off.
+   */
+  taken?: boolean;
+}
+
+/** Whether a stored profile takes this payment: switched on, or an app's own payable read for a test payment. */
+function takes(profile: { enabled: boolean; ownerApp?: string | null }, opts: ResolveOptions): boolean {
+  return profile.enabled || opts.taken === true || (opts.mode === 'test' && profile.ownerApp !== null && profile.ownerApp !== undefined);
+}
+
 /** Resolves a payable; null when it no longer exists at all. */
-export async function resolvePayable(sources: PayableSources, ref: PayableRef): Promise<ResolvedPayable | null> {
+export async function resolvePayable(sources: PayableSources, ref: PayableRef, opts: ResolveOptions = {}): Promise<ResolvedPayable | null> {
   if (isTestPayable(ref)) return resolveTest(sources, ref);
   if (ref.kind === 'document') return resolveDocument(sources, ref);
   if (ref.connectionId === null || ref.tableName === null) return null;
-  if (ref.kind === 'shape') return resolveShape(sources, ref, ref.connectionId, ref.tableName);
-  return resolveProfile(sources, ref, ref.connectionId, ref.tableName);
+  if (ref.kind === 'shape') return resolveShape(sources, ref, ref.connectionId, ref.tableName, opts);
+  return resolveProfile(sources, ref, ref.connectionId, ref.tableName, opts);
 }
 
-async function resolveShape(sources: PayableSources, ref: PayableRef, connectionId: string, tableName: string): Promise<ResolvedPayable | null> {
+async function resolveShape(sources: PayableSources, ref: PayableRef, connectionId: string, tableName: string, opts: ResolveOptions): Promise<ResolvedPayable | null> {
   const shape = await sources.shapeOf(connectionId, tableName);
   if (shape === null) return null;
   const row = await sources.readRow(connectionId, tableName, ref.rowKey);
@@ -298,6 +339,12 @@ async function resolveShape(sources: PayableSources, ref: PayableRef, connection
   else if (status !== 'sent') refusal = refused('NOT_SENT', 'Send the invoice first. A payment can only be recorded against a sent invoice.');
   else if (!positive(due)) refusal = refused('NOTHING_DUE', 'This invoice is paid.');
   else if (shape.version < 2) refusal = refused('NEEDS_UPDATE', "This invoice table needs its app's update to take online payments.");
+  else {
+    // An app that declares its invoices (`{ shape: true }`) has them switched on and off in Payments → Apps: off as they arrive.
+    // An invoice table no app declared keeps taking payments as it always has.
+    const profile = await sources.profile(connectionId, tableName);
+    if (profile !== null && profile.shape !== null && profile.shape !== undefined && !takes(profile, opts)) refusal = refused('NOT_NOW', "This app's invoices are not switched on for online payments.");
+  }
   return { ...base, currency, total, due, refusal, recordInto };
 }
 
@@ -319,7 +366,7 @@ function positive(amount: string): boolean {
   return subtractAmounts(amount, '0', 6) !== null && !sameAmount(amount, '0');
 }
 
-async function resolveProfile(sources: PayableSources, ref: PayableRef, connectionId: string, tableName: string): Promise<ResolvedPayable | null> {
+async function resolveProfile(sources: PayableSources, ref: PayableRef, connectionId: string, tableName: string, opts: ResolveOptions): Promise<ResolvedPayable | null> {
   const profile = await sources.profile(connectionId, tableName);
   if (profile === null) return null;
   const found = await sources.table(connectionId, tableName);
@@ -329,7 +376,7 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
   const mapping = profile.mapping;
   const label = mapping?.label === null || mapping === null ? ref.rowKey : String(row[mapping.label] ?? ref.rowKey);
   const base = { ref, label, dueDate: null, manualOnly: false, customerEmail: null as string | null, customerCountry: null as string | null };
-  if (mapping === null || !profile.enabled) {
+  if (mapping === null || !takes(profile, opts)) {
     return {
       ...base,
       currency: '',
@@ -344,7 +391,11 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
   let currency: string | null;
   if ('column' in mapping.currency) currency = typeof row[mapping.currency.column] === 'string' ? (row[mapping.currency.column] as string).toUpperCase() : null;
   else if ('fixed' in mapping.currency) currency = mapping.currency.fixed;
-  else currency = await sources.connectionCurrency(connectionId);
+  else if ('setting' in mapping.currency) {
+    // A clinic's own currency, in its settings row.
+    const held = (await sources.setting?.(connectionId, mapping.currency.setting.table, mapping.currency.setting.column)) ?? null;
+    currency = typeof held === 'string' ? held.trim().toUpperCase() : null;
+  } else currency = await sources.connectionCurrency(connectionId);
 
   const email = mapping.customerEmail === null ? null : row[mapping.customerEmail];
   const country = mapping.customerCountry === null ? null : row[mapping.customerCountry];
@@ -367,7 +418,14 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
           note: mapping.payments.note,
           reference: mapping.payments.reference,
           refunded: mapping.payments.refunded ?? null,
+          refundedElsewhere: mapping.payments.refundedElsewhere ?? null,
+          tip: mapping.payments.tip ?? null,
           shapeColumns: false,
+          paidAt: mapping.payments.paidAt ?? null,
+          provider: mapping.payments.provider ?? null,
+          approvalCode: mapping.payments.approvalCode ?? null,
+          last4: mapping.payments.last4 ?? null,
+          currency: mapping.payments.currency ?? null,
         };
 
   if (currency === null || !ISO.test(currency)) {
@@ -391,10 +449,27 @@ async function resolveProfile(sources: PayableSources, ref: PayableRef, connecti
   }
   const refusal = recordInto.kind === 'table' && recordInto.linkValue === null
     ? refused('NOT_PAYABLE', 'A table with a key of several columns cannot be paid into its own payments table.')
-    : positive(due)
-      ? null
-      : refused('NOTHING_DUE', 'Nothing is due on this record.');
+    : !positive(due)
+      ? refused('NOTHING_DUE', 'Nothing is due on this record.')
+      : mapping.payableWhen !== undefined && !mapping.payableWhen.every((condition) => conditionHolds(condition, row))
+        ? refused('NOT_NOW', 'This record cannot be paid online now.')
+        : null;
   return { ...base, ...people, currency, total, due, refusal, status: mapping.status, recordInto };
+}
+
+/** Whether the row meets one of a payable's conditions (`payableWhen`, `instantOnly`): the manifest's `requires` grammar. */
+export function conditionHolds(condition: PayableCondition, row: Row): boolean {
+  const value = row[condition.column];
+  if (condition.isNull !== undefined) return (value === null || value === undefined) === condition.isNull;
+  if (condition.eq !== undefined) return sameValue(condition.eq, value);
+  if (condition.in !== undefined) return condition.in.some((one) => sameValue(one, value));
+  const number = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
+  if (Number.isNaN(number)) return false;
+  if (condition.gt !== undefined) return number > condition.gt;
+  if (condition.gte !== undefined) return number >= condition.gte;
+  if (condition.lt !== undefined) return number < condition.lt;
+  if (condition.lte !== undefined) return number <= condition.lte;
+  return false;
 }
 
 async function resolveTest(sources: PayableSources, ref: PayableRef): Promise<ResolvedPayable | null> {
@@ -494,9 +569,16 @@ export function createPayableSources(deps: PayableSourceDeps): PayableSources {
     async connectionCurrency(connectionId) {
       return (await connectionTenantConfig(deps.meta, connectionId))?.currency ?? null;
     },
+    async setting(connectionId, tableName, column) {
+      const found = await table(connectionId, tableName);
+      if (found === null || !found.table.columns.has(column)) return null;
+      // One row, or no setting at all: two rows would make the answer a guess.
+      const rows = (await found.target.db.selectFrom(found.table.id as never).select(sql.ref(column).as('v')).limit(2).execute()) as { v?: unknown }[];
+      return rows.length === 1 ? (rows[0]!.v ?? null) : null;
+    },
     async profile(connectionId, tableName) {
       const profile = await payableProfilesRepo(deps.meta).byTable(connectionId, tableName);
-      return profile === null ? null : { id: profile.id, enabled: profile.enabled, mapping: profile.mapping };
+      return profile === null ? null : { id: profile.id, enabled: profile.enabled, mapping: profile.mapping, shape: profile.shape, ownerApp: profile.ownerApp };
     },
     keptPaid: (ref, currency) => keptPaymentsRepo(deps.meta).paid(ref, currency, 'live'),
     async lines(ref) {

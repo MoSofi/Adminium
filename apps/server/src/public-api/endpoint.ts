@@ -353,6 +353,8 @@ export const publicEndpointDefinitionSchema = z
      * identity endpoint, before every claim (`x-adminium-proof`).
      */
     human_check: z.literal(true).optional(),
+    /** A create answers the new row's pay link, when its app takes payments online right now. */
+    pay: z.literal(true).optional(),
     /** On an optional claim: the columns a signed-in create empties (a first visit's own details). */
     on_claim: z.object({ clear: z.array(columnSchema).min(1).max(12) }).strict().optional(),
     /** A signed-in person may hold at most `n` rows whose column is one of `values` (still ahead, with `upcoming`). */
@@ -372,10 +374,11 @@ export const publicEndpointDefinitionSchema = z
       .optional(),
     /**
      * Writes refused while a bool in the settings row is false; `when:
-     * anonymous` refuses only a create nobody signed in for.
+     * anonymous` refuses only a create nobody signed in for; `in`: refused
+     * while a choice in the settings row holds none of these values.
      */
     require_setting: z
-      .array(z.object({ table: z.string().min(1).max(200), column: columnSchema, when: z.literal('anonymous').optional() }).strict())
+      .array(z.object({ table: z.string().min(1).max(200), column: columnSchema, when: z.literal('anonymous').optional(), in: z.array(z.string().min(1).max(64)).min(1).max(8).optional() }).strict())
       .min(1)
       .max(4)
       .optional(),
@@ -611,6 +614,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.writable_when !== undefined) out['writable_when'] = { ...def.writable_when };
   if (def.level !== undefined) out['level'] = def.level;
   if (def.human_check !== undefined) out['human_check'] = def.human_check;
+  if (def.pay !== undefined) out['pay'] = def.pay;
   if (def.on_claim !== undefined) out['on_claim'] = { clear: [...def.on_claim.clear] };
   if (def.max_open !== undefined) out['max_open'] = { ...def.max_open };
   if (def.rank !== undefined) out['rank'] = { ...def.rank };
@@ -998,6 +1002,7 @@ export function definitionToResource(
   if (def.writable_when !== undefined) resource.writableWhen = { ...def.writable_when };
   if (def.level !== undefined) resource.level = def.level;
   if (def.human_check !== undefined) resource.humanCheck = true;
+  if (def.pay !== undefined) resource.pay = true;
   if (def.on_claim !== undefined) resource.onClaim = { clear: [...def.on_claim.clear] };
   if (def.max_open !== undefined) resource.maxOpen = { ...def.max_open };
   if (def.rank !== undefined) resource.rank = { orderBy: def.rank.order_by, ...(def.rank.where === undefined ? {} : { where: { ...def.rank.where } }) };
@@ -1568,8 +1573,10 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     } catch {
       type = undefined;
     }
-    // A yes/no: a boolean, or the 0/1 integer SQLite and MySQL keep one in.
-    if (type !== 'boolean' && type !== 'integer') push('ENDPOINT_SETTING_NOT_A_SWITCH', `"${setting.table}.${setting.column}" is not a yes/no column of this database`, setting.column);
+    // A choice named by its values is a text column; a yes/no, a boolean or the 0/1 integer SQLite and MySQL keep one in.
+    if (setting.in !== undefined) {
+      if (type !== 'text' && type !== 'varchar' && type !== 'enum') push('ENDPOINT_SETTING_NOT_A_SWITCH', `"${setting.table}.${setting.column}" is not a choice column of this database`, setting.column);
+    } else if (type !== 'boolean' && type !== 'integer') push('ENDPOINT_SETTING_NOT_A_SWITCH', `"${setting.table}.${setting.column}" is not a yes/no column of this database`, setting.column);
   }
   if (def.max_open?.upcoming !== undefined) {
     const type = table.columns.get(def.max_open.upcoming)?.logicalType;
@@ -1728,6 +1735,12 @@ function treeAndPersonIssues(
     if (def.identity !== undefined || def.visible_with !== undefined) push('ENDPOINT_CHILDREN_NO_CREATE', 'an identity or a child endpoint makes no child rows of its own');
     const anonymous = def.auth.role === 'anon' || def.claim?.optional === true || def.find_or_create !== undefined;
     if (anonymous && def.human_check !== true) push('ENDPOINT_CHILDREN_NEED_PROOF', 'a create anyone may make with its child rows asks the human check, once for the whole write');
+  }
+  // A create that answers a pay link: one create, made by a visitor only behind the human check (a checkout is never free to call in a loop).
+  if (def.pay === true) {
+    if (!creates || methods.has('BATCH') || def.visible_with !== undefined) push('ENDPOINT_CHILDREN_NO_CREATE', 'a pay link is answered by a single create of this endpoint\'s own row');
+    const anonymous = def.auth.role === 'anon' || def.claim?.optional === true || def.find_or_create !== undefined;
+    if (anonymous && def.human_check !== true) push('ENDPOINT_CHILDREN_NEED_PROOF', 'a create anyone may make that answers a pay link asks the human check');
   }
   if (def.dry_run === true && !creates && !methods.has('PATCH')) push('ENDPOINT_CHILDREN_NO_CREATE', 'a dry run tries a create or a change, and this endpoint makes neither');
   if (def.client_key !== undefined && !creates) push('ENDPOINT_CHILDREN_NO_CREATE', 'a retry key belongs to a create');

@@ -120315,6 +120315,35 @@
                               "type": "null"
                             }
                           ]
+                        },
+                        "inApp": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "app": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "openIn": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "app",
+                                "openIn"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -120325,7 +120354,8 @@
                         "currency",
                         "refundable",
                         "paidWith",
-                        "refusal"
+                        "refusal",
+                        "inApp"
                       ],
                       "additionalProperties": false
                     }
@@ -120441,7 +120471,9 @@
                               "enum": [
                                 "staff",
                                 "provider",
-                                "dispute"
+                                "dispute",
+                                "app",
+                                "auto"
                               ]
                             },
                             "failureMessage": {
@@ -120805,7 +120837,9 @@
                                     "enum": [
                                       "staff",
                                       "provider",
-                                      "dispute"
+                                      "dispute",
+                                      "app",
+                                      "auto"
                                     ]
                                   },
                                   {
@@ -120830,8 +120864,10 @@
                                           "paid-twice",
                                           "waiting-long",
                                           "record-changed",
+                                          "status-refused",
                                           "disputed",
-                                          "dispute-lost"
+                                          "dispute-lost",
+                                          "refund-owed"
                                         ]
                                       },
                                       "reason": {
@@ -121874,7 +121910,9 @@
                                           "enum": [
                                             "staff",
                                             "provider",
-                                            "dispute"
+                                            "dispute",
+                                            "app",
+                                            "auto"
                                           ]
                                         },
                                         "failureMessage": {
@@ -122001,6 +122039,116 @@
                           "type": "null"
                         }
                       ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/panel/rows": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "recordIds": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    }
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "table",
+                  "recordIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "recordId": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "none",
+                              "unpaid",
+                              "part",
+                              "paid",
+                              "waiting"
+                            ]
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "due": {
+                            "type": "string"
+                          },
+                          "paid": {
+                            "type": "string"
+                          },
+                          "refundable": {
+                            "type": "string"
+                          },
+                          "refundOwed": {
+                            "type": "boolean"
+                          },
+                          "disputed": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "recordId",
+                          "state",
+                          "currency",
+                          "due",
+                          "paid",
+                          "refundable",
+                          "refundOwed",
+                          "disputed"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -122290,6 +122438,15 @@
                                   }
                                 ]
                               },
+                              "ownerApp": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "shape": {
+                                "type": "boolean"
+                              },
                               "updatedAt": {
                                 "type": "number"
                               }
@@ -122301,6 +122458,8 @@
                               "enabled",
                               "valid",
                               "payments",
+                              "ownerApp",
+                              "shape",
                               "updatedAt"
                             ],
                             "additionalProperties": false
@@ -122452,6 +122611,35 @@
                               "connection"
                             ],
                             "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "setting": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "setting"
+                            ],
+                            "additionalProperties": false
                           }
                         ]
                       },
@@ -122518,9 +122706,28 @@
                                 "maxLength": 255
                               },
                               "date": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 255
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "paidAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               },
                               "method": {
                                 "type": "object",
@@ -122591,6 +122798,78 @@
                                   }
                                 ]
                               },
+                              "provider": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "approvalCode": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "last4": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "currency": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "refundedElsewhere": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "tip": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
                               "amountUnit": {
                                 "default": "units",
                                 "type": "string",
@@ -122641,6 +122920,26 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "from": {
+                                "minItems": 1,
+                                "maxItems": 16,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
+                              },
+                              "refundedFrom": {
+                                "minItems": 1,
+                                "maxItems": 16,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
                               }
                             },
                             "required": [
@@ -122687,6 +122986,407 @@
                           "minLength": 1,
                           "maxLength": 255
                         }
+                      },
+                      "payableWhen": {
+                        "minItems": 1,
+                        "maxItems": 8,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "column": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "eq": {
+                              "type": [
+                                "string",
+                                "number",
+                                "boolean"
+                              ]
+                            },
+                            "in": {
+                              "minItems": 1,
+                              "maxItems": 32,
+                              "type": "array",
+                              "items": {
+                                "type": [
+                                  "string",
+                                  "number",
+                                  "boolean"
+                                ]
+                              }
+                            },
+                            "isNull": {
+                              "type": "boolean"
+                            },
+                            "gt": {
+                              "type": "number"
+                            },
+                            "gte": {
+                              "type": "number"
+                            },
+                            "lt": {
+                              "type": "number"
+                            },
+                            "lte": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "column"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "returnTo": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "pattern": "^\\/(?:[A-Za-z0-9._~-]+\\/?)*$"
+                      },
+                      "receipt": {
+                        "type": "string",
+                        "enum": [
+                          "app",
+                          "engine"
+                        ]
+                      },
+                      "onlyOnline": {
+                        "type": "boolean"
+                      },
+                      "instantOnly": {
+                        "anyOf": [
+                          {
+                            "type": "boolean",
+                            "enum": [
+                              true
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "where": {
+                                "minItems": 1,
+                                "maxItems": 8,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 255
+                                    },
+                                    "eq": {
+                                      "type": [
+                                        "string",
+                                        "number",
+                                        "boolean"
+                                      ]
+                                    },
+                                    "in": {
+                                      "minItems": 1,
+                                      "maxItems": 32,
+                                      "type": "array",
+                                      "items": {
+                                        "type": [
+                                          "string",
+                                          "number",
+                                          "boolean"
+                                        ]
+                                      }
+                                    },
+                                    "isNull": {
+                                      "type": "boolean"
+                                    },
+                                    "gt": {
+                                      "type": "number"
+                                    },
+                                    "gte": {
+                                      "type": "number"
+                                    },
+                                    "lt": {
+                                      "type": "number"
+                                    },
+                                    "lte": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "column"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "where"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "refunds": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "model": {
+                                "type": "string",
+                                "enum": [
+                                  "column"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "model"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "model": {
+                                "type": "string",
+                                "enum": [
+                                  "rows"
+                                ]
+                              },
+                              "table": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "payment": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "amount": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "when": {
+                                "minItems": 1,
+                                "maxItems": 8,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 255
+                                    },
+                                    "eq": {
+                                      "type": [
+                                        "string",
+                                        "number",
+                                        "boolean"
+                                      ]
+                                    },
+                                    "in": {
+                                      "minItems": 1,
+                                      "maxItems": 32,
+                                      "type": "array",
+                                      "items": {
+                                        "type": [
+                                          "string",
+                                          "number",
+                                          "boolean"
+                                        ]
+                                      }
+                                    },
+                                    "isNull": {
+                                      "type": "boolean"
+                                    },
+                                    "gt": {
+                                      "type": "number"
+                                    },
+                                    "gte": {
+                                      "type": "number"
+                                    },
+                                    "lt": {
+                                      "type": "number"
+                                    },
+                                    "lte": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "column"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "providerRef": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "state": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "openIn": {
+                                "type": "string",
+                                "maxLength": 200,
+                                "pattern": "^\\/(?:[A-Za-z0-9._~-]+\\/?)*$"
+                              },
+                              "auto": {
+                                "type": "object",
+                                "properties": {
+                                  "values": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 255
+                                    },
+                                    "additionalProperties": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 255
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "values"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "model",
+                              "table",
+                              "payment",
+                              "amount",
+                              "when",
+                              "providerRef",
+                              "state"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "refundOn": {
+                        "type": "object",
+                        "properties": {
+                          "moves": {
+                            "minItems": 1,
+                            "maxItems": 8,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "from": {
+                                  "minItems": 1,
+                                  "maxItems": 16,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
+                                  }
+                                },
+                                "to": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "by": {
+                                  "minItems": 1,
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "customer",
+                                      "system",
+                                      "refund-right"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "to",
+                                "by"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "switch": {
+                            "type": "object",
+                            "properties": {
+                              "table": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "column": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              }
+                            },
+                            "required": [
+                              "table",
+                              "column"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "before": {
+                            "type": "object",
+                            "properties": {
+                              "column": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "hours": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "column",
+                              "hours"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "moves"
+                        ],
+                        "additionalProperties": false
                       }
                     },
                     "required": [
@@ -122752,6 +123452,15 @@
                             }
                           ]
                         },
+                        "ownerApp": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shape": {
+                          "type": "boolean"
+                        },
                         "updatedAt": {
                           "type": "number"
                         }
@@ -122763,6 +123472,8 @@
                         "enabled",
                         "valid",
                         "payments",
+                        "ownerApp",
+                        "shape",
                         "updatedAt"
                       ],
                       "additionalProperties": false
@@ -122885,6 +123596,35 @@
                               "connection"
                             ],
                             "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "setting": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "setting"
+                            ],
+                            "additionalProperties": false
                           }
                         ]
                       },
@@ -122951,9 +123691,28 @@
                                 "maxLength": 255
                               },
                               "date": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 255
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "paidAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               },
                               "method": {
                                 "type": "object",
@@ -123024,6 +123783,78 @@
                                   }
                                 ]
                               },
+                              "provider": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "approvalCode": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "last4": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "currency": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "refundedElsewhere": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "tip": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
                               "amountUnit": {
                                 "default": "units",
                                 "type": "string",
@@ -123074,6 +123905,26 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "from": {
+                                "minItems": 1,
+                                "maxItems": 16,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
+                              },
+                              "refundedFrom": {
+                                "minItems": 1,
+                                "maxItems": 16,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
                               }
                             },
                             "required": [
@@ -123120,6 +123971,407 @@
                           "minLength": 1,
                           "maxLength": 255
                         }
+                      },
+                      "payableWhen": {
+                        "minItems": 1,
+                        "maxItems": 8,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "column": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "eq": {
+                              "type": [
+                                "string",
+                                "number",
+                                "boolean"
+                              ]
+                            },
+                            "in": {
+                              "minItems": 1,
+                              "maxItems": 32,
+                              "type": "array",
+                              "items": {
+                                "type": [
+                                  "string",
+                                  "number",
+                                  "boolean"
+                                ]
+                              }
+                            },
+                            "isNull": {
+                              "type": "boolean"
+                            },
+                            "gt": {
+                              "type": "number"
+                            },
+                            "gte": {
+                              "type": "number"
+                            },
+                            "lt": {
+                              "type": "number"
+                            },
+                            "lte": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "column"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "returnTo": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "pattern": "^\\/(?:[A-Za-z0-9._~-]+\\/?)*$"
+                      },
+                      "receipt": {
+                        "type": "string",
+                        "enum": [
+                          "app",
+                          "engine"
+                        ]
+                      },
+                      "onlyOnline": {
+                        "type": "boolean"
+                      },
+                      "instantOnly": {
+                        "anyOf": [
+                          {
+                            "type": "boolean",
+                            "enum": [
+                              true
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "where": {
+                                "minItems": 1,
+                                "maxItems": 8,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 255
+                                    },
+                                    "eq": {
+                                      "type": [
+                                        "string",
+                                        "number",
+                                        "boolean"
+                                      ]
+                                    },
+                                    "in": {
+                                      "minItems": 1,
+                                      "maxItems": 32,
+                                      "type": "array",
+                                      "items": {
+                                        "type": [
+                                          "string",
+                                          "number",
+                                          "boolean"
+                                        ]
+                                      }
+                                    },
+                                    "isNull": {
+                                      "type": "boolean"
+                                    },
+                                    "gt": {
+                                      "type": "number"
+                                    },
+                                    "gte": {
+                                      "type": "number"
+                                    },
+                                    "lt": {
+                                      "type": "number"
+                                    },
+                                    "lte": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "column"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "where"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "refunds": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "model": {
+                                "type": "string",
+                                "enum": [
+                                  "column"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "model"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "model": {
+                                "type": "string",
+                                "enum": [
+                                  "rows"
+                                ]
+                              },
+                              "table": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "payment": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "amount": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "when": {
+                                "minItems": 1,
+                                "maxItems": 8,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 255
+                                    },
+                                    "eq": {
+                                      "type": [
+                                        "string",
+                                        "number",
+                                        "boolean"
+                                      ]
+                                    },
+                                    "in": {
+                                      "minItems": 1,
+                                      "maxItems": 32,
+                                      "type": "array",
+                                      "items": {
+                                        "type": [
+                                          "string",
+                                          "number",
+                                          "boolean"
+                                        ]
+                                      }
+                                    },
+                                    "isNull": {
+                                      "type": "boolean"
+                                    },
+                                    "gt": {
+                                      "type": "number"
+                                    },
+                                    "gte": {
+                                      "type": "number"
+                                    },
+                                    "lt": {
+                                      "type": "number"
+                                    },
+                                    "lte": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "column"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "providerRef": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "state": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "openIn": {
+                                "type": "string",
+                                "maxLength": 200,
+                                "pattern": "^\\/(?:[A-Za-z0-9._~-]+\\/?)*$"
+                              },
+                              "auto": {
+                                "type": "object",
+                                "properties": {
+                                  "values": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 255
+                                    },
+                                    "additionalProperties": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 255
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "values"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "model",
+                              "table",
+                              "payment",
+                              "amount",
+                              "when",
+                              "providerRef",
+                              "state"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "refundOn": {
+                        "type": "object",
+                        "properties": {
+                          "moves": {
+                            "minItems": 1,
+                            "maxItems": 8,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "from": {
+                                  "minItems": 1,
+                                  "maxItems": 16,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
+                                  }
+                                },
+                                "to": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "by": {
+                                  "minItems": 1,
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "customer",
+                                      "system",
+                                      "refund-right"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "to",
+                                "by"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "switch": {
+                            "type": "object",
+                            "properties": {
+                              "table": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "column": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              }
+                            },
+                            "required": [
+                              "table",
+                              "column"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "before": {
+                            "type": "object",
+                            "properties": {
+                              "column": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "hours": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "column",
+                              "hours"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "moves"
+                        ],
+                        "additionalProperties": false
                       }
                     },
                     "required": [
@@ -123420,6 +124672,35 @@
                               "connection"
                             ],
                             "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "setting": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "setting"
+                            ],
+                            "additionalProperties": false
                           }
                         ]
                       },
@@ -123486,9 +124767,28 @@
                                 "maxLength": 255
                               },
                               "date": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 255
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "paidAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               },
                               "method": {
                                 "type": "object",
@@ -123559,6 +124859,78 @@
                                   }
                                 ]
                               },
+                              "provider": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "approvalCode": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "last4": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "currency": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "refundedElsewhere": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "tip": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
                               "amountUnit": {
                                 "default": "units",
                                 "type": "string",
@@ -123609,6 +124981,26 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "from": {
+                                "minItems": 1,
+                                "maxItems": 16,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
+                              },
+                              "refundedFrom": {
+                                "minItems": 1,
+                                "maxItems": 16,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
                               }
                             },
                             "required": [
@@ -123655,6 +125047,407 @@
                           "minLength": 1,
                           "maxLength": 255
                         }
+                      },
+                      "payableWhen": {
+                        "minItems": 1,
+                        "maxItems": 8,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "column": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "eq": {
+                              "type": [
+                                "string",
+                                "number",
+                                "boolean"
+                              ]
+                            },
+                            "in": {
+                              "minItems": 1,
+                              "maxItems": 32,
+                              "type": "array",
+                              "items": {
+                                "type": [
+                                  "string",
+                                  "number",
+                                  "boolean"
+                                ]
+                              }
+                            },
+                            "isNull": {
+                              "type": "boolean"
+                            },
+                            "gt": {
+                              "type": "number"
+                            },
+                            "gte": {
+                              "type": "number"
+                            },
+                            "lt": {
+                              "type": "number"
+                            },
+                            "lte": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "column"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "returnTo": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "pattern": "^\\/(?:[A-Za-z0-9._~-]+\\/?)*$"
+                      },
+                      "receipt": {
+                        "type": "string",
+                        "enum": [
+                          "app",
+                          "engine"
+                        ]
+                      },
+                      "onlyOnline": {
+                        "type": "boolean"
+                      },
+                      "instantOnly": {
+                        "anyOf": [
+                          {
+                            "type": "boolean",
+                            "enum": [
+                              true
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "where": {
+                                "minItems": 1,
+                                "maxItems": 8,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 255
+                                    },
+                                    "eq": {
+                                      "type": [
+                                        "string",
+                                        "number",
+                                        "boolean"
+                                      ]
+                                    },
+                                    "in": {
+                                      "minItems": 1,
+                                      "maxItems": 32,
+                                      "type": "array",
+                                      "items": {
+                                        "type": [
+                                          "string",
+                                          "number",
+                                          "boolean"
+                                        ]
+                                      }
+                                    },
+                                    "isNull": {
+                                      "type": "boolean"
+                                    },
+                                    "gt": {
+                                      "type": "number"
+                                    },
+                                    "gte": {
+                                      "type": "number"
+                                    },
+                                    "lt": {
+                                      "type": "number"
+                                    },
+                                    "lte": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "column"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "where"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "refunds": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "model": {
+                                "type": "string",
+                                "enum": [
+                                  "column"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "model"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "model": {
+                                "type": "string",
+                                "enum": [
+                                  "rows"
+                                ]
+                              },
+                              "table": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "payment": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "amount": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "when": {
+                                "minItems": 1,
+                                "maxItems": 8,
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 255
+                                    },
+                                    "eq": {
+                                      "type": [
+                                        "string",
+                                        "number",
+                                        "boolean"
+                                      ]
+                                    },
+                                    "in": {
+                                      "minItems": 1,
+                                      "maxItems": 32,
+                                      "type": "array",
+                                      "items": {
+                                        "type": [
+                                          "string",
+                                          "number",
+                                          "boolean"
+                                        ]
+                                      }
+                                    },
+                                    "isNull": {
+                                      "type": "boolean"
+                                    },
+                                    "gt": {
+                                      "type": "number"
+                                    },
+                                    "gte": {
+                                      "type": "number"
+                                    },
+                                    "lt": {
+                                      "type": "number"
+                                    },
+                                    "lte": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "column"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "providerRef": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "state": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "openIn": {
+                                "type": "string",
+                                "maxLength": 200,
+                                "pattern": "^\\/(?:[A-Za-z0-9._~-]+\\/?)*$"
+                              },
+                              "auto": {
+                                "type": "object",
+                                "properties": {
+                                  "values": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 255
+                                    },
+                                    "additionalProperties": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 255
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "values"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "model",
+                              "table",
+                              "payment",
+                              "amount",
+                              "when",
+                              "providerRef",
+                              "state"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "refundOn": {
+                        "type": "object",
+                        "properties": {
+                          "moves": {
+                            "minItems": 1,
+                            "maxItems": 8,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "from": {
+                                  "minItems": 1,
+                                  "maxItems": 16,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
+                                  }
+                                },
+                                "to": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "by": {
+                                  "minItems": 1,
+                                  "maxItems": 3,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "customer",
+                                      "system",
+                                      "refund-right"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "to",
+                                "by"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "switch": {
+                            "type": "object",
+                            "properties": {
+                              "table": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "column": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              }
+                            },
+                            "required": [
+                              "table",
+                              "column"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "before": {
+                            "type": "object",
+                            "properties": {
+                              "column": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "hours": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  "column": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "column",
+                              "hours"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "moves"
+                        ],
+                        "additionalProperties": false
                       }
                     },
                     "required": [
@@ -123730,6 +125523,15 @@
                             }
                           ]
                         },
+                        "ownerApp": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "shape": {
+                          "type": "boolean"
+                        },
                         "updatedAt": {
                           "type": "number"
                         }
@@ -123741,7 +125543,1210 @@
                         "enabled",
                         "valid",
                         "payments",
+                        "ownerApp",
+                        "shape",
                         "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/apps": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            },
+            "in": "query",
+            "name": "workspaceId",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "apps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "connectionId": {
+                                "type": "string"
+                              },
+                              "appKey": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "tables": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "tableName": {
+                                      "type": "string"
+                                    },
+                                    "shape": {
+                                      "type": "boolean"
+                                    },
+                                    "valid": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "tableName",
+                                    "shape",
+                                    "valid"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "connectionId",
+                              "appKey",
+                              "name",
+                              "enabled",
+                              "tables"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "apps"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/apps/switch": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "appKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "appKey",
+                  "enabled"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "changed": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "changed"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/rehearsal": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "until": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "until"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "on"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "until": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "until"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/public-starts": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pausedUntil": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "pausedUntil"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/public-starts/resume": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pausedUntil": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "pausedUntil"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/terminal/charge": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "recordId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "readerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "amount": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tipping": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "table",
+                  "recordId",
+                  "readerId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "attemptId": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "sending",
+                            "on_reader",
+                            "paid",
+                            "declined",
+                            "cancelled",
+                            "failed"
+                          ]
+                        },
+                        "amount": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "tip": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "last4": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "message": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "attemptId",
+                        "state",
+                        "amount",
+                        "currency",
+                        "tip",
+                        "last4",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/terminal/charges/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "attemptId": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "sending",
+                            "on_reader",
+                            "paid",
+                            "declined",
+                            "cancelled",
+                            "failed"
+                          ]
+                        },
+                        "amount": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "tip": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "last4": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "message": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "attemptId",
+                        "state",
+                        "amount",
+                        "currency",
+                        "tip",
+                        "last4",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/terminal/charges/{id}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "attemptId": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "sending",
+                            "on_reader",
+                            "paid",
+                            "declined",
+                            "cancelled",
+                            "failed"
+                          ]
+                        },
+                        "amount": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "tip": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "last4": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "message": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "attemptId",
+                        "state",
+                        "amount",
+                        "currency",
+                        "tip",
+                        "last4",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/terminal/readers": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "provider": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "test",
+                              "live"
+                            ]
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "locationName": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "model": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "online": {
+                            "type": "boolean"
+                          },
+                          "lastSeenAt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "provider",
+                          "mode",
+                          "label",
+                          "locationName",
+                          "model",
+                          "online",
+                          "lastSeenAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/readers": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "readers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "provider": {
+                                "type": "string"
+                              },
+                              "mode": {
+                                "type": "string",
+                                "enum": [
+                                  "test",
+                                  "live"
+                                ]
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "locationName": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "model": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "online": {
+                                "type": "boolean"
+                              },
+                              "lastSeenAt": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "provider",
+                              "mode",
+                              "label",
+                              "locationName",
+                              "model",
+                              "online",
+                              "lastSeenAt"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "services": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "readers",
+                        "services"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/readers/pairing": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "live"
+                    ]
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "locationId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "provider",
+                  "mode",
+                  "label"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "way": {
+                          "type": "string",
+                          "enum": [
+                            "enter",
+                            "show"
+                          ]
+                        },
+                        "code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "pairing": {
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "way",
+                        "code",
+                        "pairing",
+                        "expiresAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/readers/pairing/finish": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "live"
+                    ]
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "locationId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "pairing": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "code": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "provider",
+                  "mode",
+                  "label",
+                  "pairing",
+                  "code"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "paired",
+                            "waiting"
+                          ]
+                        },
+                        "reader": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "provider": {
+                                  "type": "string"
+                                },
+                                "mode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "test",
+                                    "live"
+                                  ]
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "locationName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "model": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "online": {
+                                  "type": "boolean"
+                                },
+                                "lastSeenAt": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "provider",
+                                "mode",
+                                "label",
+                                "locationName",
+                                "model",
+                                "online",
+                                "lastSeenAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "reader"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/readers/{id}": {
+      "patch": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "label"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "provider": {
+                          "type": "string"
+                        },
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "test",
+                            "live"
+                          ]
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "locationName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "model": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "online": {
+                          "type": "boolean"
+                        },
+                        "lastSeenAt": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "provider",
+                        "mode",
+                        "label",
+                        "locationName",
+                        "model",
+                        "online",
+                        "lastSeenAt"
                       ],
                       "additionalProperties": false
                     }
@@ -136360,6 +139365,15 @@
                             "publicAccess": {
                               "type": "boolean"
                             },
+                            "refundsUnticked": {
+                              "maxItems": 32,
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 160
+                              }
+                            },
                             "addOns": {
                               "maxItems": 16,
                               "type": "array",
@@ -140029,6 +143043,7 @@
                                   "recipients",
                                   "payment-key",
                                   "bank-account",
+                                  "payments-switch",
                                   "sender",
                                   "system-grant",
                                   "outbound"
@@ -140387,6 +143402,31 @@
                           }
                         },
                         "privacyGrants": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "roleName": {
+                                "type": "string"
+                              },
+                              "added": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "roleName"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "refundGrants": {
                           "type": "array",
                           "items": {
                             "type": "object",
@@ -141270,6 +144310,15 @@
                   },
                   "publicAccess": {
                     "type": "boolean"
+                  },
+                  "refundsUnticked": {
+                    "maxItems": 32,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    }
                   },
                   "addOns": {
                     "maxItems": 16,
@@ -171352,6 +174401,9 @@
                         "token"
                       ],
                       "additionalProperties": false
+                    },
+                    "payUrl": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -171546,6 +174598,9 @@
                         "token"
                       ],
                       "additionalProperties": false
+                    },
+                    "payUrl": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -173704,6 +176759,455 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/payments/available": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "online": {
+                          "type": "boolean"
+                        },
+                        "test": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "online"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/payments/start": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "ref",
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "payUrl": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "payUrl"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -178829,7 +182333,8 @@
               "enum": [
                 "write",
                 "claim",
-                "upload"
+                "upload",
+                "pay-start"
               ]
             },
             "in": "query",

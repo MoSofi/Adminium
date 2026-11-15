@@ -205,6 +205,11 @@ export const convertRoles: ConvertPart = async (ctx) => {
       }
       // An app's screens or one add-on's settings.
       if ((row.actions as { staff?: boolean }).staff !== true) continue;
+      // The app's own refund right travels as its placeholder: the saved app's roles refund its own payments.
+      if (row.resourceRef.startsWith('payments-refund/')) {
+        give('payments:@:refund');
+        continue;
+      }
       if (row.resourceRef.startsWith(ADD_ON_SETTINGS_REF)) {
         const addOn = row.resourceRef.slice(ADD_ON_SETTINGS_REF.length);
         if (addOns.has(addOn)) give(`addOn:${addOn}:settings`);

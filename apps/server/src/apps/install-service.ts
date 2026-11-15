@@ -137,6 +137,7 @@ import { pagePlanProblems } from './manifest-page-config.js';
 import {
   addOnGrantsOf,
   privacyGrantsOf,
+  refundGrantsOf,
   grantsAdded,
   addOnPageGrantIssues,
   plannedAfterInstallOfRoles,
@@ -1340,6 +1341,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     const added = grantsAdded((runningApp?.document as Manifest | null | undefined) ?? null, manifest);
     const isAdded = (role: string, addOn?: string) =>
       addOn === undefined ? added.privacyGrants.some((grant) => grant.role === role) : added.addOnGrants.some((grant) => grant.role === role && grant.addOn === addOn);
+    const refundAdded = (role: string) => added.refundGrants.some((grant) => grant.role === role);
     return {
       plan,
       shapeRecords: shapes === null ? new Map() : shapeRecordsFor(manifest, shapes),
@@ -1406,6 +1408,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         ...(addOnGrantsOf(manifest).length === 0 ? {} : { addOnGrants: addOnGrantsOf(manifest).map((grant) => (isAdded(grant.role, grant.addOn) ? { ...grant, added: true as const } : grant)) }),
         // The roles that would find, download and erase anybody the workspace keeps: said before anyone agrees.
         ...(privacyGrantsOf(manifest).length === 0 ? {} : { privacyGrants: privacyGrantsOf(manifest).map((grant) => (isAdded(grant.role) ? { ...grant, added: true as const } : grant)) }),
+        // The roles that would refund the app's own online payments: each ticked, for the installer to untick.
+        ...(refundGrantsOf(manifest).length === 0 ? {} : { refundGrants: refundGrantsOf(manifest).map((grant) => (refundAdded(grant.role) ? { ...grant, added: true as const } : grant)) }),
         // What each role would hold of the tables of the add-ons the app names, once each is there for it: with the columns, cut to the add-on's words.
         ...(roleTables.length === 0 ? {} : { roleTables }),
         pageWarnings:
@@ -1967,6 +1971,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
     pageChoices?: Readonly<Record<string, PageChoice>>,
     /** The endpoints the operator allowed this update to widen for the keys already using them (`publicWider`). */
     wider?: ReadonlyMap<string, readonly string[]>,
+    /** The roles the installer unticked on the check: not given the app's refund right (`payments:@:refund`). */
+    refundsUnticked?: readonly string[],
   ): Promise<
     | {
         pages: MaterialiseResult;
@@ -2027,6 +2033,7 @@ export function createAppInstallService(deps: AppRoutesDeps) {
               install,
               connectionId,
               names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key)),
+              ...(refundsUnticked === undefined ? {} : { refundsUnticked }),
             });
       // What the app's roles hold of the tables of the add-ons that are here for it: written with the roles, taken back for any that is not.
       const roleTables = connectionId === null || manifest.kind !== 'app' ? [] : await settleRoleTables({ meta: deps.meta, app: manifest, connectionId, live: await liveAddOnsFor(deps.meta, manifest, connectionId) });
@@ -2139,6 +2146,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
           realId,
           timezone: connection?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
           createdBy: userId,
+          // An app's payables are checked against the tables as Adminium now reads them.
+          model: view?.model ?? null,
           // The pictures a report or layout body keeps as files of the package.
           readPackageFile: async (path: string) => (await files.readVerifiedFile(manifest.key, manifest.version, path)).bytes,
         });
@@ -3317,6 +3326,8 @@ export function createAppInstallService(deps: AppRoutesDeps) {
         false,
         true,
         answers.pages,
+        undefined,
+        input.refundsUnticked,
       );
       /*
        * The rows its tables start with (`seeds`): after the rules, so each
@@ -3658,15 +3669,16 @@ export function createAppInstallService(deps: AppRoutesDeps) {
      * before anything moves.
      */
     const newGrants = grantsAdded(installed.document as Manifest | null, manifest);
-    if ((newGrants.privacyGrants.length > 0 || newGrants.addOnGrants.length > 0) && input.body?.roleGrants !== true) {
+    if ((newGrants.privacyGrants.length > 0 || newGrants.addOnGrants.length > 0 || newGrants.refundGrants.length > 0) && input.body?.roleGrants !== true) {
       const said = [
         ...newGrants.privacyGrants.map((grant) => `"${grant.roleName}" may find, download and erase people's data`),
+        ...newGrants.refundGrants.map((grant) => `"${grant.roleName}" may refund the app's online payments`),
         ...newGrants.addOnGrants.map((grant) => `"${grant.roleName}" may change the settings of the add-on "${grant.addOn}"`),
       ];
       throw new ValidationFailedError(
         `"${key}" ${to} gives its roles more than ${from} did: ${said.join('; ')}. ` +
           'Check the update and allow it ("roleGrants": true), or keep the running version.',
-        { reason: 'ROLE_GRANTS_ADDED', privacyGrants: newGrants.privacyGrants, addOnGrants: newGrants.addOnGrants },
+        { reason: 'ROLE_GRANTS_ADDED', privacyGrants: newGrants.privacyGrants, addOnGrants: newGrants.addOnGrants, refundGrants: newGrants.refundGrants },
       );
     }
 
