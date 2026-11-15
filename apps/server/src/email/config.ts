@@ -71,7 +71,7 @@ import { decryptSecret, deriveKey, isEncryptedSecret } from '../config/secrets.j
 import { assertOutboundHostAllowed } from '../connections/dsn.js';
 import { HostLookupFailedError, ValidationFailedError } from '../errors.js';
 import { checkHost, type HostLookup } from '../net/address-guard.js';
-import { trialRelaySmtp } from './trial-relay.js';
+import { operatorRelaySmtp, trialRelaySmtp } from './trial-relay.js';
 import type { EmailSendResult, EmailTransport, OutboundEmail, SmtpConfig } from './types.js';
 
 /** HKDF salt scoping the SMTP-password encryption key. */
@@ -186,7 +186,8 @@ export async function resolveSmtpConfig(meta: MetaDb, key: Uint8Array): Promise<
   const relay = trialRelaySmtp();
   if (relay !== undefined) return relay;
   const stored = await settingsRepo(meta).get('email.smtp');
-  if (stored === null) return null;
+  // No mail server of its own: the operator's (`ADMINIUM_OPERATOR_SMTP_URL`), when there is one. Its own always wins.
+  if (stored === null) return operatorRelaySmtp();
 
   // Re-guard: this row can also arrive from a config-bundle import or an archive
   // restore, which never passed through the settings route's validation. Asked

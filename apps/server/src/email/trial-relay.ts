@@ -52,6 +52,18 @@
  * read after a boot: a container that sleeps and wakes counts on where it
  * stopped. The engine's caps are a courtesy; the relay's own, per instance, are
  * the limit.
+ *
+ * THE OPERATOR'S MAIL SERVER (`kind: 'operator'`, `ADMINIUM_OPERATOR_SMTP_URL`):
+ * the same code for an installation that is not a trial (the hosted profile),
+ * but only while it has no mail server of its own ({@link relayInUse}): once
+ * `email.smtp` is saved, all mail goes through that, uncounted, and removing it
+ * falls back here. Through the operator's server From is pinned the same way
+ * and the mail people write is capped a day (`ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY`,
+ * no hourly or per-person cap) and held, never dropped; account mail is never
+ * counted against it. There is no footer, no recipient limit, no bounce hold
+ * and no fixed wording; the mail's own Reply-To is kept (the first Super
+ * Admin's when it has none). Marketing campaigns need the installation's own
+ * mail server: refused here, and in the campaign runner.
  */
 import { createHash } from 'node:crypto';
 
@@ -104,13 +116,18 @@ export interface TrialMailCaps {
 }
 
 export interface TrialMailSetup {
+  /**
+   * `trial` (the default): all mail goes through the relay, under every rule above. `operator`: the operator's
+   * mail server for an installation that is not a trial, used only while it has no mail server of its own.
+   */
+  kind?: 'trial' | 'operator' | undefined;
   /** Null: trial mode with no relay set, so no mail goes at all. */
   relay: TrialRelay | null;
   caps: TrialMailCaps;
   /** When the trial ends: user mail is not queued, nor sent, from then on. Null: no end. */
   endsAt: number | null;
-  /** The recipient and subject of a queued message's sealed envelope, and whether an account flow sent it. */
-  openEnvelope: (sealed: string) => { to: string; subject: string; account: boolean };
+  /** The recipient, subject and From of a queued message's sealed envelope, and whether an account flow sent it. */
+  openEnvelope: (sealed: string) => { to: string; subject: string; account: boolean; from?: string | undefined };
   now?: (() => number) | undefined;
 }
 
@@ -155,15 +172,52 @@ export function configureTrialMail(setup: TrialMailSetup | null): void {
   state = setup === null ? null : { setup, now: setup.now ?? Date.now, entries: new Map(), loaded: null, chain: Promise.resolve(), told: new Set() };
 }
 
+const isTrial = (s: State | null): boolean => s !== null && (s.setup.kind ?? 'trial') === 'trial';
+const isOperator = (s: State | null): boolean => s !== null && s.setup.kind === 'operator';
+
 /** Whether this server runs a trial's mail rules. */
 export function trialMailOn(): boolean {
-  return state !== null;
+  return isTrial(state);
+}
+
+/** Whether the operator set a mail server for this (non-trial) installation: used while it has none of its own. */
+export function operatorMailOn(): boolean {
+  return isOperator(state);
 }
 
 /** The relay's connection on a trial (null: no relay, so no mail); undefined on any other server. */
 export function trialRelaySmtp(): SmtpConfig | null | undefined {
-  if (state === null) return undefined;
+  if (state === null || !isTrial(state)) return undefined;
   return state.setup.relay?.smtp ?? null;
+}
+
+/** The relay of the operator's mail server for a non-trial installation; null when there is none. */
+function operatorRelay(): TrialRelay | null {
+  return state !== null && isOperator(state) ? state.setup.relay : null;
+}
+
+/** The operator's mail server for a non-trial installation, the fallback while it has none of its own; null when there is none. */
+export function operatorRelaySmtp(): SmtpConfig | null {
+  return operatorRelay()?.smtp ?? null;
+}
+
+/**
+ * Whether a message queued now goes through the relay, shaped and counted here: always on a trial; with the
+ * operator's mail server, only while the installation has no mail server of its own (`email.smtp`).
+ */
+export async function relayInUse(meta: MetaDb): Promise<boolean> {
+  if (isTrial(state)) return true;
+  if (operatorRelay() === null) return false;
+  return (await settingsRepo(meta).get('email.smtp')) === null;
+}
+
+/**
+ * The From a queued message goes out with through the installation's OWN mail server: undefined in place of the
+ * operator's pinned address (a mail queued while the operator's server was in use, sent after its own was saved),
+ * so the own server's From is used.
+ */
+export function ownServerFrom(envelopeFrom: string | undefined): string | undefined {
+  return pinned(envelopeFrom, operatorRelay()) ? undefined : envelopeFrom;
 }
 
 /** Listen for a cap holding mail back; the returned function stops listening. */
@@ -471,17 +525,24 @@ async function loaded(meta: MetaDb, s: State): Promise<void> {
     for (const row of rows) {
       if (s.entries.has(row.id)) continue;
       const sealed = typeof row.payload['envelope'] === 'string' ? row.payload['envelope'] : '';
-      let opened: { to: string; account: boolean };
+      let opened: { to: string; account: boolean; from?: string | undefined };
       try {
         opened = s.setup.openEnvelope(sealed);
       } catch {
         continue;
       }
+      // The operator's server counts only what went through it: mail sent through the installation's own is not its.
+      if (isOperator(s) && !pinned(opened.from, s.setup.relay)) continue;
       const sent = row.status === 'succeeded';
       s.entries.set(row.id, { system: opened.account, rcpts: rcptsOf(opened.to), at: sent ? (row.finishedAt ?? row.runAt) : row.runAt, sent });
     }
   })();
   await s.loaded;
+}
+
+/** Whether a From is the relay's pinned address. */
+function pinned(from: string | undefined, relay: TrialRelay | null): boolean {
+  return relay !== null && from !== undefined && from.trim().toLowerCase().endsWith(`<${relay.address}>`);
 }
 
 /** Forget what went before today. */
@@ -496,6 +557,7 @@ function inWindow(s: State, system: boolean, from: number, length: number): Entr
 
 /** Bounces or spam reports today past their limit: user mail waits for tomorrow. */
 async function bouncesHold(meta: MetaDb, s: State, now: number): Promise<boolean> {
+  if (!Number.isFinite(s.setup.caps.bouncesPerDay) && !Number.isFinite(s.setup.caps.complaintsPerDay)) return false;
   const stop = stopListRepo(meta);
   const today = dayOf(now);
   try {
@@ -607,7 +669,8 @@ export async function queueThroughRelay(
   logger?: RelayLogger | undefined,
 ): Promise<Job | null> {
   const s = state;
-  if (s === null) throw new Error('queueThroughRelay outside trial mode');
+  if (s === null) throw new Error('queueThroughRelay with no relay configured');
+  const trial = isTrial(s);
   const run = async (): Promise<Job | null> => {
     const refuse = (why: RelayRefusal, message: string): null => {
       logger?.info({ templateKey: ask.templateKey, why }, message);
@@ -615,11 +678,15 @@ export async function queueThroughRelay(
     };
     const relay = s.setup.relay;
     if (relay === null) return refuse('no-relay', 'an email was not queued: this trial has no mail relay');
-    if (ask.marketing) return refuse('marketing', 'an email was not queued: marketing mail is off on a trial');
-    const addresses = recipientsOf(ask.to);
-    if (addresses === null || addresses.length > TRIAL_RECIPIENTS_PER_MESSAGE) {
+    if (ask.marketing) {
+      return refuse('marketing', trial ? 'an email was not queued: marketing mail is off on a trial' : 'a marketing email was not queued: marketing mail needs the installation’s own mail server, not the operator’s');
+    }
+    const listed = recipientsOf(ask.to);
+    if (trial && (listed === null || listed.length > TRIAL_RECIPIENTS_PER_MESSAGE)) {
       return refuse('recipients', `an email was not queued: on a trial a message goes to at most ${String(TRIAL_RECIPIENTS_PER_MESSAGE)} plain addresses`);
     }
+    // Through the operator's server a message keeps its recipients as written; each listed address still counts.
+    const addresses = listed ?? [ask.to.trim()];
     await loaded(meta, s);
     const now = s.now();
     prune(s, now);
@@ -637,18 +704,20 @@ export async function queueThroughRelay(
       at = from;
     } else {
       const slot = slotFor(s, rcpts, from, await bouncesHold(meta, s, now));
-      if (slot === null) return refuse('no-slot', 'an email was not queued: the trial’s email limits leave no room for it');
+      if (slot === null) return refuse('no-slot', 'an email was not queued: the email limits leave no room for it');
       if (s.setup.endsAt !== null && slot.at >= s.setup.endsAt) {
         return refuse('after-the-end', 'an email was not queued: the email limits hold it past the trial’s end, when user mail stops');
       }
       if (slot.cap !== null) held = { cap: slot.cap, window: slot.cap === 'hour' ? hourOf(from) : dayOf(from) };
       at = slot.at;
     }
-    const body = system ? { html: ask.html, text: ask.text } : withFooter({ html: ask.html, text: ask.text }, await footerOf(relay, ask.locale));
+    const body = system || !trial ? { html: ask.html, text: ask.text } : withFooter({ html: ask.html, text: ask.text }, await footerOf(relay, ask.locale));
+    // A trial's Reply-To is a staff member's sign-in address; the operator's server keeps the mail's own.
+    const replyTo = system ? null : trial ? await staffAddress(meta, ask.replyTo) : (ask.replyTo ?? (await ownerAddress(meta)));
     const job = await enqueue({
-      to: addresses.join(', '),
+      to: listed === null ? ask.to.trim() : addresses.join(', '),
       from: await fromHeader(meta, relay),
-      replyTo: system ? undefined : ((await staffAddress(meta, ask.replyTo)) ?? undefined),
+      replyTo: replyTo ?? undefined,
       html: body.html,
       text: body.text,
       runAt: at,
@@ -656,7 +725,7 @@ export async function queueThroughRelay(
     if (job !== null && !s.entries.has(job.id)) s.entries.set(job.id, { system, rcpts, at: Math.max(at, job.runAt), sent: false });
     // Told once the held mail is in the outbox, so the count of what waits includes it.
     if (held !== null) tell(s, held.cap, held.window, now);
-    if (job !== null && at > now && !system) logger?.info({ templateKey: ask.templateKey, runAt: at }, 'an email is waiting in the outbox: the trial’s email limits hold it until then');
+    if (job !== null && at > now && !system) logger?.info({ templateKey: ask.templateKey, runAt: at }, 'an email is waiting in the outbox: the email limits hold it until then');
     return job;
   };
   const result = s.chain.then(run, run);
@@ -692,6 +761,8 @@ export async function relayCounts(meta: MetaDb, at: number): Promise<{ today: nu
 
 /** What the Email settings card shows on a trial: the relay's From and Reply-To, the caps, today's use and what waits. */
 export interface TrialMailPanel {
+  /** `trial`: the relay is the only way out. `operator`: the operator's server, in use until the installation saves its own. */
+  kind: 'trial' | 'operator';
   /** The From header as a mail queued now carries it; null with no relay. */
   from: string | null;
   /** Where replies go by default: the first Super Admin's address. */
@@ -710,10 +781,11 @@ export interface TrialMailPanel {
   nextAt: number | null;
 }
 
-/** Null on any other server. */
+/** Null on any other server, and while the installation's own mail server is in use instead of the operator's. */
 export async function trialMailPanel(meta: MetaDb): Promise<TrialMailPanel | null> {
   const s = state;
   if (s === null) return null;
+  if (isOperator(s) && !(await relayInUse(meta))) return null;
   await loaded(meta, s);
   const now = s.now();
   prune(s, now);
@@ -726,9 +798,11 @@ export async function trialMailPanel(meta: MetaDb): Promise<TrialMailPanel | nul
   const waiting = [...s.entries.values()].filter((entry) => !entry.system && !entry.sent && entry.at > now);
   const relay = s.setup.relay;
   return {
+    kind: isOperator(s) ? 'operator' : 'trial',
     from: relay === null ? null : await fromHeader(meta, relay),
     replyTo: await ownerAddress(meta),
-    caps: { perDay: caps.perDay, perHour: caps.perHour, recipientsPerDay: caps.recipientsPerDay },
+    // A cap the operator's server does not have reads as the day's: it caps the day alone.
+    caps: { perDay: caps.perDay, perHour: Math.min(caps.perHour, caps.perDay), recipientsPerDay: Math.min(caps.recipientsPerDay, caps.perDay) },
     today: weight(today),
     thisHour: weight(thisHour),
     people,

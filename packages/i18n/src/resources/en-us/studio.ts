@@ -2804,7 +2804,10 @@ export default {
         "goesOut": "Goes out",
         "empty": "No emails are waiting.",
         "failed": "The waiting emails could not be loaded.",
-        "close": "Close"
+        "close": "Close",
+        "operatorTitle": "Email goes through the operator’s mail service for now",
+        "operatorUseLine": "{today, number} of {perDay, number} emails today",
+        "operatorOwn": "Password resets, invitations and other account emails are not counted. Add your own mail server below and all email goes through it, with no daily limit."
       }
     },
     "identity": {

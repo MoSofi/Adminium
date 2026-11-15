@@ -127,3 +127,30 @@ describe('the trial’s Email panel', () => {
     }
   });
 });
+
+describe('the operator’s mail server standing in for the installation’s own', () => {
+  const operator = (): TrialRelayView => ({
+    ...normal(),
+    kind: 'operator',
+    from: '"Hollis Bakery via Example Hosting" <shop-7f3a9c@mail.example.com>',
+    caps: { perDay: 500, perHour: 500, recipientsPerDay: 500 },
+    today: 42,
+  });
+
+  it('says mail goes through the operator for now, the daily cap alone, and that an own server removes it; no chip', () => {
+    mount(operator());
+    const panel = screen.getByTestId('trial-email-panel');
+    expect(within(panel).getByRole('heading', { name: 'Email goes through the operator’s mail service for now' })).toBeTruthy();
+    expect(within(panel).queryByText('Set by the operator')).toBeNull();
+    expect(panel.textContent).toContain('42 of 500 emails today');
+    expect(panel.textContent).not.toContain('this hour');
+    expect(panel.textContent).not.toContain('people written to today');
+    expect(within(panel).getAllByRole('progressbar').map((bar) => bar.getAttribute('aria-valuemax'))).toEqual(['500']);
+    expect(screen.getByTestId('operator-mail-own').textContent).toContain('Add your own mail server below and all email goes through it, with no daily limit.');
+  });
+
+  it('at the cap: the same daily warning and outbox', () => {
+    mount({ ...operator(), today: 500, waiting: 3, limit: 'day', nextAt: TOMORROW });
+    expect(screen.getByRole('status').textContent).toContain('Daily email limit reached. 3 emails are waiting and go out tomorrow.');
+  });
+});

@@ -108583,6 +108583,13 @@
                             {
                               "type": "object",
                               "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial",
+                                    "operator"
+                                  ]
+                                },
                                 "from": {
                                   "type": [
                                     "string",
@@ -108672,6 +108679,7 @@
                                 }
                               },
                               "required": [
+                                "kind",
                                 "from",
                                 "replyTo",
                                 "caps",
@@ -108974,6 +108982,13 @@
                             {
                               "type": "object",
                               "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "trial",
+                                    "operator"
+                                  ]
+                                },
                                 "from": {
                                   "type": [
                                     "string",
@@ -109063,6 +109078,7 @@
                                 }
                               },
                               "required": [
+                                "kind",
                                 "from",
                                 "replyTo",
                                 "caps",

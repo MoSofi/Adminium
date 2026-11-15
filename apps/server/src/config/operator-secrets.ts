@@ -35,6 +35,8 @@ export const OPERATOR_SECRET_NAMES: readonly string[] = [
   'ADMINIUM_ARCHIVE_KEY',
   'ADMINIUM_OPERATOR_TOKEN',
   'ADMINIUM_TRIAL_SMTP_URL',
+  // The operator's mail server for a non-trial installation (`email/trial-mail-setup.ts`).
+  'ADMINIUM_OPERATOR_SMTP_URL',
   // The project owner's Figma token under `adminium design`, read late by the Designer (`compose.ts`).
   'ADMINIUM_FIGMA_TOKEN',
   // The picture sites' keys (`llm/host-models.ts` PICTURE_KEY_NAMES), read late by the picture dialog (`compose.ts`).

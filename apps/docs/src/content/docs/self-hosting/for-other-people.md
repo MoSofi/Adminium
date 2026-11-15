@@ -608,8 +608,9 @@ that guards them, and drops what only limits a free trial: the table's
   never writes code, the project's `.env` not read, its own addresses only, the
   operator endpoint and the hide switch.
 - **Dropped**: the end date, the banners and the Upgrade button, the size caps
-  and the pools of 3, `noindex`, mail only through your relay (they set their
-  own mail server), and the outgoing calls: webhooks, add-on calls, payments,
+  and the pools of 3, `noindex`, mail only through your relay (they may set
+  their own mail server; until they do, [your mail server](#your-mail-server-until-they-set-their-own)
+  sends it), and the outgoing calls: webhooks, add-on calls, payments,
   telemetry and the update check come back. Your own quotas on the database
   server and the volume stay yours to set.
 
@@ -617,6 +618,36 @@ It needs `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`, refuses the
 same contradicting values as a trial (except telemetry, maps and routing,
 which become theirs), and needs no end date and no setup token. It does not
 hide **Put this online…** for you: set `ADMINIUM_DEPLOY_LINK=off` as well.
+
+### Your mail server, until they set their own
+
+A paid installation sends password resets, invitations and its automations'
+mail through your mail server while it has none of its own:
+
+| Variable | Required | Default | What it does |
+|---|---|---|---|
+| `ADMINIUM_OPERATOR_SMTP_URL` | No | *(unset)* | Your mail server, with this installation's own credential, `smtp://user:password@mail:587` or `smtps://…`. Unset, the installation sends no mail until its Super Admin sets a server. A secret: takes `_FILE`. |
+| `ADMINIUM_OPERATOR_MAIL_FROM` | With the URL | — | The address your server pins for this installation, `shop-7f3a9c@mail.example.com`. Each needs the other, or the boot fails. |
+| `ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY` | No | `500` | Mail people write, a day (UTC). Account mail is not counted. |
+| `ADMINIUM_OPERATOR_NAME` | No | The From address's domain | Your name in the From, as with the relay. |
+
+- **Used only while the installation has no mail server of its own.** Once
+  the Super Admin saves one in **Settings → Mail**, all mail goes through
+  theirs, with no cap. Removing it falls back to yours.
+- **From** is `"<instance name> via <ADMINIUM_OPERATOR_NAME>" <ADMINIUM_OPERATOR_MAIL_FROM>`,
+  the name filtered as on a trial. Reply-To is the mail's own, else the first
+  Super Admin's address.
+- **The cap** counts the mail people write (automations, documents, test
+  sends). Mail past it waits in the outbox for the next day. Password resets,
+  invitations and sign-in codes are never counted or held.
+- **Marketing campaigns** need their own mail server: a campaign run on yours
+  fails and says so.
+- **Settings → Mail** shows that mail goes through your service, today's use
+  against the cap, and that adding their own server removes the cap.
+
+Trial mode refuses these three variables: a trial uses the relay. Hold the
+real limits on your server, as with [the relay](#the-relay): pin the From to the
+credential and cap each installation.
 
 ### The Upgrade
 
@@ -626,7 +657,8 @@ same `ADMINIUM_SECRET`, with `ADMINIUM_HOSTED_MODE=on` in place of
 
 1. **Remove every `ADMINIUM_TRIAL_*` variable**, the relay included. A hosted
    boot with one left fails and names it, so no old end date or relay carries
-   over.
+   over. To keep sending mail for them, set
+   [`ADMINIUM_OPERATOR_SMTP_URL` and `ADMINIUM_OPERATOR_MAIL_FROM`](#your-mail-server-until-they-set-their-own).
 2. **Keep** `ADMINIUM_PUBLIC_ORIGIN`, `ADMINIUM_DATABASE_HOSTS`,
    `ADMINIUM_SOURCE_URL`, `ADMINIUM_OPERATOR_DOMAINS`, the operator endpoint's
    variables and `ADMINIUM_DEPLOY_LINK`. Raise `ADMINIUM_SOURCE_POOL_MAX` and
@@ -636,8 +668,9 @@ same `ADMINIUM_SECRET`, with `ADMINIUM_HOSTED_MODE=on` in place of
    so the installation takes writes again from its first request.
 
 A hide you set on the public pages stays until you lift it. Telemetry and the
-update check stay off until the Super Admin switches them on, and no mail goes
-out until they set their own mail server. Keep `ADMINIUM_AI_OPERATOR_ONLY=on`
+update check stay off until the Super Admin switches them on. Mail goes
+through your mail server when you set `ADMINIUM_OPERATOR_SMTP_URL`, until they
+set their own; without it, no mail goes out until they do. Keep `ADMINIUM_AI_OPERATOR_ONLY=on`
 if AI should still run on your connection only.
 
 ## 13. All together

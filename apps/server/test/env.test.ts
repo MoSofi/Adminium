@@ -80,6 +80,7 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_TRIAL_UPLOAD_MAX_MB: 10,
       ADMINIUM_TRIAL_STORAGE_MAX_MB: 1000,
       ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY: 50,
+      ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY: 500,
       ADMINIUM_AI_OPERATOR_ONLY: false,
       // Due jobs run, and the dashboard reports nobody's presence, unless an operator says otherwise.
       ADMINIUM_SCHEDULER: true,

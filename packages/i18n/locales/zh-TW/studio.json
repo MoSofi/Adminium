@@ -2794,7 +2794,10 @@
         "goesOut": "寄出時間",
         "empty": "沒有等待中的郵件。",
         "failed": "無法載入等待中的郵件。",
-        "close": "關閉"
+        "close": "關閉",
+        "operatorTitle": "目前郵件透過營運方的郵件服務寄送",
+        "operatorUseLine": "今日 {today, number} / {perDay, number} 封郵件",
+        "operatorOwn": "密碼重設、邀請和其他帳戶郵件不計入。在下方新增你自己的郵件伺服器後，所有郵件都會透過它寄送，且沒有每日上限。"
       }
     },
     "identity": {

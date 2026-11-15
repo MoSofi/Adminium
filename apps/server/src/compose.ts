@@ -91,7 +91,7 @@ import { UndoStore } from './crud/undo.js';
 import { seedBuiltinEmailTemplatesIfChanged } from './email/builtins.js';
 import { configureSmtpNetwork, emailSecretKey } from './email/config.js';
 import { configureEmailRuntime } from './email/send.js';
-import { trialMailSetupOf } from './email/trial-mail-setup.js';
+import { operatorMailSetupOf, trialMailSetupOf } from './email/trial-mail-setup.js';
 import { configureTrialMail, onEmailCapReached } from './email/trial-relay.js';
 import { CATALOG_ENABLED_SETTING, createCatalogClient } from './add-ons/catalog.js';
 import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js';
@@ -895,8 +895,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   configureEmailRuntime({ secret: env.ADMINIUM_SECRET, userMail: () => app.trialPolicy.allows('userMail').allowed });
   // The user's own mail server under ADMINIUM_NETWORK_POLICY=strict: not this machine, nor the server's own network.
   configureSmtpNetwork({ strict: env.ADMINIUM_NETWORK_POLICY === 'strict', lookup: manager.outboundPolicy.lookup });
-  // A trial's mail: only through the operator's relay, shaped and capped (`email/trial-relay.ts`); off elsewhere.
-  configureTrialMail(trialMailSetupOf(env, app.trialPolicy));
+  // A trial's mail: only through the operator's relay, shaped and capped (`email/trial-relay.ts`). Any other server:
+  // the operator's mail server (`ADMINIUM_OPERATOR_SMTP_URL`) while it has none of its own, else nothing.
+  configureTrialMail(trialMailSetupOf(env, app.trialPolicy) ?? operatorMailSetupOf(env));
   try {
     // Once per release and translation change, not on every start (see the function).
     await seedBuiltinEmailTemplatesIfChanged(meta, process.env['NODE_ENV'] === 'production' ? APP_VERSION : null, Date.now());

@@ -390,6 +390,9 @@ export const OPERATOR_DECIDED_ENV = [
   'ADMINIUM_TRIAL_MAIL_FROM',
   'ADMINIUM_TRIAL_MAIL_REPORT_URL',
   'ADMINIUM_OPERATOR_NAME',
+  'ADMINIUM_OPERATOR_SMTP_URL',
+  'ADMINIUM_OPERATOR_MAIL_FROM',
+  'ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY',
   'ADMINIUM_HOSTED_MODE',
   'ADMINIUM_PUBLIC_ORIGIN',
   'ADMINIUM_DATABASE_HOSTS',
@@ -1271,6 +1274,53 @@ export const envSchema = z.object({
       }),
   ),
   /*
+   * The operator's mail server for an installation that is not a trial (the
+   * hosted profile, or any other): used ONLY while the installation has no mail
+   * server of its own (`email.smtp`); saving one in Settings → Mail moves all
+   * mail to it. Through the operator's server every mail goes From the pinned
+   * address as `"<instance name> via <operator name>"`, and the mail people
+   * write is capped a day (`email/trial-relay.ts`). A secret: held out of
+   * `process.env`, takes `_FILE`. Refused in trial mode: the trial relay
+   * (`ADMINIUM_TRIAL_SMTP_URL`) is the trial's.
+   */
+  ADMINIUM_OPERATOR_SMTP_URL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(2000)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        if (!isSmtpUrl(value)) {
+          ctx.addIssue({ code: 'custom', message: 'must be smtp:// or smtps:// with a host, e.g. smtp://user:password@mail.example.com:587' });
+          return z.NEVER;
+        }
+        return value;
+      }),
+  ),
+  /* The address the operator's server pins for this installation: one plain address. Needed with ADMINIUM_OPERATOR_SMTP_URL. */
+  ADMINIUM_OPERATOR_MAIL_FROM: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .max(254)
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const address = value.trim().toLowerCase();
+        if (!PLAIN_MAIL_ADDRESS.test(address)) {
+          ctx.addIssue({ code: 'custom', message: 'must be one plain address with no name, e.g. shop-7f3a9c@mail.example.com' });
+          return z.NEVER;
+        }
+        return address;
+      }),
+  ),
+  /* Mail people write, a day, through the operator's server (default 500). Account mail is not counted against it. */
+  ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number({ error: 'must be a whole number' }).int('must be a whole number').min(1).max(1_000_000).optional().transform((value) => value ?? 500),
+  ),
+  /*
    * A paid installation on the operator's server (the hosted profile): the trial's
    * host list, network policy, own-code and origin rules stay; the clock,
    * banners, caps and the relay-only mail go.
@@ -1438,6 +1488,16 @@ export const envSchema = z.object({
         'is required with ADMINIUM_TRIAL_SMTP_URL: the address the relay pins for this instance, e.g. i-7f3a9c@relay.example.com',
       );
     }
+    need(
+      env.ADMINIUM_OPERATOR_SMTP_URL !== undefined && env.ADMINIUM_OPERATOR_MAIL_FROM === undefined,
+      'ADMINIUM_OPERATOR_MAIL_FROM',
+      'is required with ADMINIUM_OPERATOR_SMTP_URL: the address your mail server pins for this installation, e.g. shop-7f3a9c@mail.example.com',
+    );
+    need(
+      env.ADMINIUM_OPERATOR_MAIL_FROM !== undefined && env.ADMINIUM_OPERATOR_SMTP_URL === undefined,
+      'ADMINIUM_OPERATOR_SMTP_URL',
+      'is required with ADMINIUM_OPERATOR_MAIL_FROM: the mail server that sends from it, e.g. smtp://user:password@mail.example.com:587',
+    );
     if (env.ADMINIUM_TRIAL_MODE || env.ADMINIUM_HOSTED_MODE) {
       const which = env.ADMINIUM_TRIAL_MODE ? 'trial mode' : 'hosted mode';
       need(env.ADMINIUM_PUBLIC_ORIGIN === undefined, 'ADMINIUM_PUBLIC_ORIGIN', `is required in ${which}: the operator's address for this instance, e.g. https://shop.example.com`);
@@ -1601,6 +1661,10 @@ export function profileIssues(raw: Readonly<Record<string, string | undefined>>)
   if (word('ADMINIUM_NETWORK_POLICY') === 'open') refuse('ADMINIUM_NETWORK_POLICY', 'it is strict there. Remove it, or set strict.');
   if (word('ADMINIUM_LOCAL_DATABASES') === 'setting') refuse('ADMINIUM_LOCAL_DATABASES', 'databases on this server are off there, and only ADMINIUM_DATABASE_HOSTS counts. Remove it, or set off.');
   if (trial) {
+    // A trial's mail goes through the trial relay alone: the operator's mail server is for an installation that is not a trial.
+    for (const name of ['ADMINIUM_OPERATOR_SMTP_URL', 'ADMINIUM_OPERATOR_MAIL_FROM', 'ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY']) {
+      if (isSet(raw[name])) refuse(name, 'a trial sends mail through the trial relay (ADMINIUM_TRIAL_SMTP_URL and ADMINIUM_TRIAL_MAIL_FROM). Remove it.');
+    }
     if (TRUTHY.has(word('ADMINIUM_TELEMETRY'))) refuse('ADMINIUM_TELEMETRY', 'a trial sends no usage data. Remove it, or set off.');
     for (const name of ['ADMINIUM_MAP_SERVER', 'ADMINIUM_ROUTING_SERVER']) {
       if (isSet(raw[name]) && word(name) !== MAP_SERVER_OFF) refuse(name, 'a trial makes no outgoing calls but the operator’s. Remove it, or set off.');
@@ -1709,6 +1773,9 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_TRIAL_MAIL_FROM: 'the address the relay pins for this instance, e.g. i-7f3a9c@relay.example.com (needed with ADMINIUM_TRIAL_SMTP_URL; trial mode only)',
   ADMINIUM_TRIAL_MAIL_REPORT_URL: 'where a recipient reports a mail: https://… or mailto:… (default mailto:abuse@ the From address\'s domain; trial mode only)',
   ADMINIUM_OPERATOR_NAME: 'the operator\'s name in the From of relay mail, "<instance> via <name>", at most 60 characters (default: the From address\'s domain)',
+  ADMINIUM_OPERATOR_SMTP_URL: 'your mail server for this installation, smtp://user:password@mail:587, used only while it has no mail server of its own (not in trial mode)',
+  ADMINIUM_OPERATOR_MAIL_FROM: 'the address your mail server pins for this installation, e.g. shop-7f3a9c@mail.example.com (needed with ADMINIUM_OPERATOR_SMTP_URL)',
+  ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY: 'mail people write, a day, through ADMINIUM_OPERATOR_SMTP_URL (default 500; account mail is not counted)',
   ADMINIUM_HOSTED_MODE: `one of ${BOOLEANISH.join(', ')} (default off; on runs a paid installation on the operator's server: needs ADMINIUM_PUBLIC_ORIGIN and ADMINIUM_DATABASE_HOSTS)`,
   ADMINIUM_OPERATOR_DOMAINS: 'CSV of the user\'s own verified domains: plain lower-case host names, e.g. shop.example.com',
   ADMINIUM_OPERATOR_TOKEN: 'the operator endpoint\'s bearer token and the key instance events are signed with, 32 random bytes or more, e.g. `openssl rand -hex 32` (needs ADMINIUM_OPERATOR_LISTEN or ADMINIUM_OPERATOR_EVENTS_URL)',

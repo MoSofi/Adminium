@@ -321,10 +321,15 @@ export const settingsEmailView = z.object({
   locks: z.object({ publicOrigin: settingLockSchema, smtp: settingLockSchema }),
   /**
    * On a trial: the operator's mail relay as this card shows it in place of
-   * the mail server fields (`email/trial-relay.ts`). Null on any other server.
+   * the mail server fields (`email/trial-relay.ts`). On another server whose
+   * operator set a mail server (`ADMINIUM_OPERATOR_SMTP_URL`), that server
+   * while it is in use, above the mail server fields: until the installation
+   * saves its own. Null otherwise.
    */
   relay: z
     .object({
+      /** `trial`: the only way mail goes. `operator`: the operator's server, used until the installation saves its own (no cap then). */
+      kind: z.enum(['trial', 'operator']),
       /** The From header a mail queued now carries; null when the operator set no relay. */
       from: z.string().nullable(),
       /** Where replies go by default: the first Super Admin's address. */

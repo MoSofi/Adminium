@@ -79,7 +79,7 @@ import {
 import { pkLabel } from '../../crud/records.js';
 import { renderEmail } from '../../email/render.js';
 import { enqueueRenderedEmail, inlineRefs, prepareEmail } from '../../email/send.js';
-import { trialMailOn } from '../../email/trial-relay.js';
+import { relayInUse, trialMailOn } from '../../email/trial-relay.js';
 import { resolveMailSender, type SendAbout } from '../../email/workspace-sender.js';
 import { formatTag } from '../../i18n/bcp47.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
@@ -332,6 +332,8 @@ async function mailPerson(action: EmailAction, ctx: ActionContext, user: User, r
 
 /** Why a step's mail was not queued on a trial: the relay's caps, its end, or marketing mail being off. */
 const NOT_QUEUED_ON_TRIAL = 'Not queued: this trial’s email rules leave it out';
+/** Why it was not queued through the operator's mail server: marketing mail needs the installation's own. */
+const NOT_QUEUED_ON_OPERATOR = 'Not queued: the operator’s mail server does not send this; add your own mail server in Settings → Mail';
 
 /**
  * The step on a trial: each recipient's mail queued through the operator's relay
@@ -360,7 +362,7 @@ async function queueThroughTrialRelay(action: EmailAction, ctx: ActionContext, t
         ...(mailClass === undefined ? {} : { mailClass }),
       },
     );
-    replies.push(job === null ? ctx.text.emailSkipped(NOT_QUEUED_ON_TRIAL, to) : ctx.text.emailQueued(to));
+    replies.push(job === null ? ctx.text.emailSkipped(trialMailOn() ? NOT_QUEUED_ON_TRIAL : NOT_QUEUED_ON_OPERATOR, to) : ctx.text.emailQueued(to));
   }
   const unfilled = unfilledIn(template, vars);
   if (unfilled.length > 0) replies.push(ctx.text.emailUnfilled(listed(unfilled)));
@@ -375,7 +377,8 @@ export async function runEmailAction(
   if (action.to?.kind === 'listed') return runListedEmail(action as EmailAction & { to: { kind: 'listed'; table: string } }, ctx, false);
   const { template, recipients } = await resolve(action, ctx);
   // On a trial every message goes through the operator's relay, counted and capped there: queued, never handed over here.
-  if (trialMailOn()) return await queueThroughTrialRelay(action, ctx, template, recipients);
+  // So does every message while the operator's mail server stands in for an installation's own.
+  if (await relayInUse(ctx.meta)) return await queueThroughTrialRelay(action, ctx, template, recipients);
 
   const config = await resolveSmtpConfig(ctx.meta, emailSecretKey(ctx.secret));
   if (config === null) throw new ActionFailure(ctx.text.emailNoSmtp());

@@ -2804,7 +2804,10 @@ export default {
         "goesOut": "Odejde",
         "empty": "Žádné e-maily nečekají.",
         "failed": "Čekající e-maily se nepodařilo načíst.",
-        "close": "Zavřít"
+        "close": "Zavřít",
+        "operatorTitle": "E-maily zatím odcházejí přes poštovní službu provozovatele",
+        "operatorUseLine": "Dnes {today, number} z {perDay, number} e-mailů",
+        "operatorOwn": "Obnovení hesla, pozvánky a další e-maily k účtu se nepočítají. Níže přidejte vlastní poštovní server a všechny e-maily půjdou přes něj, bez denního limitu."
       }
     },
     "identity": {

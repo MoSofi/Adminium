@@ -2804,7 +2804,10 @@ export default {
         "goesOut": "Sendes",
         "empty": "Ingen e-mails venter.",
         "failed": "De ventende e-mails kunne ikke indlæses.",
-        "close": "Luk"
+        "close": "Luk",
+        "operatorTitle": "E-mail sendes indtil videre gennem operatørens mailtjeneste",
+        "operatorUseLine": "{today, number} af {perDay, number} e-mails i dag",
+        "operatorOwn": "Nulstilling af adgangskode, invitationer og andre konto-e-mails tælles ikke med. Tilføj din egen mailserver nedenfor, så går al e-mail gennem den uden en daglig grænse."
       }
     },
     "identity": {

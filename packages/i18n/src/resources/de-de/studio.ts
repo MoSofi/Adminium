@@ -2804,7 +2804,10 @@ export default {
         "goesOut": "Wird gesendet",
         "empty": "Es warten keine E-Mails.",
         "failed": "Die wartenden E-Mails konnten nicht geladen werden.",
-        "close": "Schließen"
+        "close": "Schließen",
+        "operatorTitle": "E-Mails laufen vorerst über den Maildienst des Betreibers",
+        "operatorUseLine": "{today, number} von {perDay, number} E-Mails heute",
+        "operatorOwn": "Passwort-Resets, Einladungen und andere Konto-E-Mails werden nicht mitgezählt. Fügen Sie unten Ihren eigenen Mailserver hinzu, dann laufen alle E-Mails darüber, ohne Tageslimit."
       }
     },
     "identity": {

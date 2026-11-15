@@ -590,7 +590,10 @@ function WorkspaceForm({
   // Set by the server's operator: shown read-only, never sent.
   const originLocked = isLocked(initialEmail.locks?.publicOrigin);
   // On a trial the operator's relay sends all mail: its panel stands where the mail server fields are.
-  const trialRelay = initialEmail.relay ?? null;
+  const trialRelay = initialEmail.relay != null && initialEmail.relay.kind !== 'operator' ? initialEmail.relay : null;
+  // Elsewhere, the operator's mail server while the installation has none of its own: its panel stands above the fields.
+  const operatorRelay = initialEmail.relay?.kind === 'operator' ? initialEmail.relay : null;
+  const relayPanel = trialRelay ?? operatorRelay;
   const linkOriginDirty = !originLocked && (linkOrigin ?? linkOriginText) !== before.publicOrigin;
 
   // --- marketing mail: the postal address and the reply address --------------
@@ -1064,13 +1067,14 @@ function WorkspaceForm({
           </h3>
         </CardHeader>
         <CardBody>
-          {trialRelay !== null ? (
-            // A trial: the operator's mail service in place of the mail server fields, nothing to change.
+          {relayPanel !== null ? (
+            // A trial: the operator's mail service in place of the mail server fields, nothing to change. The operator's
+            // mail server standing in for the installation's own: above the fields, which replace it once saved.
             <Suspense fallback={null}>
-              <TrialEmailPanelLazy relay={trialRelay} />
+              <TrialEmailPanelLazy relay={relayPanel} />
             </Suspense>
           ) : null}
-          {trialRelay !== null || initialEmail.configured ? null : (
+          {trialRelay !== null || operatorRelay !== null || initialEmail.configured ? null : (
             <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-surface-2 p-3">
               <TriangleAlert aria-hidden className="mt-px size-4 shrink-0 text-warn" />
               <p className="text-caption text-fg-muted">

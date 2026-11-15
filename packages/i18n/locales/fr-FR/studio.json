@@ -2794,7 +2794,10 @@
         "goesOut": "Part le",
         "empty": "Aucun e-mail en attente.",
         "failed": "Impossible de charger les e-mails en attente.",
-        "close": "Fermer"
+        "close": "Fermer",
+        "operatorTitle": "Les e-mails passent pour l’instant par le service de messagerie de l’opérateur",
+        "operatorUseLine": "{today, number} e-mails sur {perDay, number} aujourd’hui",
+        "operatorOwn": "Les réinitialisations de mot de passe, invitations et autres e-mails de compte ne sont pas comptés. Ajoutez votre propre serveur de messagerie ci-dessous et tous les e-mails passeront par lui, sans limite quotidienne."
       }
     },
     "identity": {

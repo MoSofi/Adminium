@@ -58,7 +58,10 @@ half-configured and fail later.
 | `ADMINIUM_TRIAL_EMAIL_MAX_PER_DAY` | No | `50` | Trial mode: user emails a day through the relay (and 20 an hour). |
 | `ADMINIUM_TRIAL_MAIL_FROM` | With `ADMINIUM_TRIAL_SMTP_URL` | — | Trial mode: the address your relay pins for this instance, `i-7f3a9c@relay.example.com`. Every mail goes from it. See [Email in trial mode](#email-in-trial-mode). |
 | `ADMINIUM_TRIAL_MAIL_REPORT_URL` | No | `mailto:abuse@` the From address's domain | Trial mode: where a recipient reports a mail, `https://…` or `mailto:…`; linked in the footer of every user-written mail. |
-| `ADMINIUM_OPERATOR_NAME` | No | the From address's domain | Your name as mail from the relay says it: `"<instance> via <your name>"`. At most 60 characters, no `@ < > " \ , ; : ( ) [ ]`. |
+| `ADMINIUM_OPERATOR_NAME` | No | the From address's domain | Your name as mail from the relay, or from `ADMINIUM_OPERATOR_SMTP_URL`, says it: `"<instance> via <your name>"`. At most 60 characters, no `@ < > " \ , ; : ( ) [ ]`. |
+| `ADMINIUM_OPERATOR_SMTP_URL` | No | *(unset)* | Not in trial mode: your mail server for this installation, `smtp://user:password@mail:587`, used only while it has no mail server of its own. A secret: takes `_FILE`. See [Your mail server for a paid installation](#your-mail-server-for-a-paid-installation). |
+| `ADMINIUM_OPERATOR_MAIL_FROM` | With `ADMINIUM_OPERATOR_SMTP_URL` | — | The address your mail server pins for this installation, `shop-7f3a9c@mail.example.com`. Each needs the other, or the boot fails. |
+| `ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY` | No | `500` | Mail people write, a day, through `ADMINIUM_OPERATOR_SMTP_URL`. Account mail is not counted. |
 | `ADMINIUM_HOSTED_MODE` | No | `off` | `on` runs a paid installation on your server: the trial's host list, network policy, own-code and address rules stay; the clock, banners and caps go. Needs `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`. |
 | `ADMINIUM_OPERATOR_DOMAINS` | No | *(unset)* | CSV of the user's own verified domains: plain lower-case host names, `shop.example.com`. No wildcard, address, port or path. Honoured with or without trial mode: the instance answers on these and `ADMINIUM_PUBLIC_ORIGIN`'s host, links in email point at `https://` and the first one, and only these can be mapped to an app's side or the add-on pages. |
 | `ADMINIUM_OPERATOR_TOKEN` | No | *(unset)* | The [operator endpoint](/self-hosting/operator-endpoint/)'s bearer token, and the key [instance events](#adminium_operator_events_url) are signed with: 32 random bytes or more (`openssl rand -hex 32`), one per instance. Needs `ADMINIUM_OPERATOR_LISTEN`, `ADMINIUM_OPERATOR_EVENTS_URL` or both. A secret: takes `_FILE`. |
@@ -159,7 +162,7 @@ ADMINIUM_SECRET_FILE=/run/secrets/adminium_secret
 
 The names that take it: `ADMINIUM_SECRET_FILE`, `ADMINIUM_SETUP_TOKEN_FILE`,
 `ADMINIUM_ARCHIVE_KEY_FILE`, `ADMINIUM_OPERATOR_TOKEN_FILE`,
-`ADMINIUM_TRIAL_SMTP_URL_FILE`, `ADMINIUM_FIGMA_TOKEN_FILE`,
+`ADMINIUM_TRIAL_SMTP_URL_FILE`, `ADMINIUM_OPERATOR_SMTP_URL_FILE`, `ADMINIUM_FIGMA_TOKEN_FILE`,
 `PEXELS_API_KEY_FILE`, `UNSPLASH_ACCESS_KEY_FILE`, `PIXABAY_API_KEY_FILE`, and
 every `ADMINIUM_AI_*` variable with `_FILE` added
 (`ADMINIUM_AI_ANTHROPIC_API_KEY_FILE`, …).
@@ -1230,10 +1233,37 @@ trial: the end date, the banners, the Upgrade button, the size caps and the
 pools of 3, `noindex`, mail only through your relay, and the outgoing calls of
 trial mode. It needs `ADMINIUM_PUBLIC_ORIGIN` and `ADMINIUM_DATABASE_HOSTS`;
 no end date and no setup token. Every `ADMINIUM_TRIAL_*` variable left set
-fails its boot.
+fails its boot, the relay included.
 
 What it keeps and drops, switch by switch, and the Upgrade from a trial:
 [A paid installation: the hosted profile](/self-hosting/for-other-people/#12-a-paid-installation-the-hosted-profile).
+
+### Your mail server for a paid installation
+
+`ADMINIUM_OPERATOR_SMTP_URL` and `ADMINIUM_OPERATOR_MAIL_FROM` give an
+installation that is not a trial (the hosted profile, or any other) your mail
+server **while it has no mail server of its own**. Once its Super Admin saves
+one in **Settings → Mail**, all mail goes through theirs, with no cap; removing
+it falls back to yours. Trial mode refuses all three variables: it has the
+relay.
+
+- **From** is `"<instance name> via <ADMINIUM_OPERATOR_NAME>" <ADMINIUM_OPERATOR_MAIL_FROM>`,
+  the name filtered as in [Email in trial mode](#email-in-trial-mode).
+  **Reply-To** is the mail's own, else the first Super Admin's address. No
+  footer is added.
+- **Mail the person wrote** is capped at `ADMINIUM_OPERATOR_EMAIL_MAX_PER_DAY`
+  a day (default 500, UTC), each recipient counted. Past it, it waits in the
+  outbox for the next day, and Studio's Email settings say how many wait.
+- **Account email** (password reset, invitation, sign-in code, address
+  changed) is never counted or held, and keeps the installation's own wording.
+- **Marketing mail** needs their own mail server: it is not queued through
+  yours, and a campaign run fails and says so.
+- **Settings → Mail** shows that mail goes through your service, today's use
+  against the cap, and that adding their own server removes the cap, above
+  the mail server fields.
+
+Pin the From to the credential on your server and cap each installation there
+too: these limits are a courtesy.
 
 ## The desktop block
 

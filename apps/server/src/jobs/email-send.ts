@@ -39,7 +39,17 @@ import { isShippedMark, loadMarkBytes } from '../email/marks.js';
 import { campaignMessageId, campaignSendOfReport } from '../email/message-id.js';
 import type { PermanentRefusal } from '../email/refused.js';
 import { EMAIL_SEND_JOB_KIND, PLAIN_RECIPIENT, REPLY_TO, emailEnvelopeKey, type EmailSendReport } from '../email/send.js';
-import { recipientsOf, relayDeliveryFrom, relaySent, trialMailOn, TRIAL_RECIPIENTS_PER_MESSAGE, userMailStopped } from '../email/trial-relay.js';
+import {
+  operatorMailOn,
+  ownServerFrom,
+  recipientsOf,
+  relayDeliveryFrom,
+  relayInUse,
+  relaySent,
+  trialMailOn,
+  TRIAL_RECIPIENTS_PER_MESSAGE,
+  userMailStopped,
+} from '../email/trial-relay.js';
 import type {
   EmailSendAttachmentRef,
   EmailSendInlineRef,
@@ -347,9 +357,18 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
       ctx.progress(100, { step: 'skipped' });
       return { templateKey: payload.templateKey, locale: payload.locale, skipped: 'not-an-address' };
     }
-    if (trial) {
+    // The operator's mail server (`ADMINIUM_OPERATOR_SMTP_URL`) carries this mail only while the installation has none
+    // of its own: then its From is pinned and no marketing mail goes; through its own, the operator's From is dropped.
+    const relay = trial || (await relayInUse(deps.meta));
+    if (!trial && relay && envelope.mailClass === 'marketing') {
+      ctx.progress(100, { step: 'skipped' });
+      return { templateKey: payload.templateKey, locale: payload.locale, skipped: 'marketing-off' };
+    }
+    if (relay) {
       const from = await relayDeliveryFrom(deps.meta, envelope.from);
       if (from !== undefined) envelope.from = from;
+    } else if (operatorMailOn() && envelope.from !== undefined && ownServerFrom(envelope.from) === undefined) {
+      delete envelope.from;
     }
     // A marketing mail asks the do-not-email list, and its purpose's answer, once more right before it goes (see `stoppedAtDelivery`).
     if (envelope.mailClass === 'marketing') {
@@ -405,7 +424,7 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
       ctx.progress(100, { step: 'refused' });
       return { templateKey: payload.templateKey, locale: payload.locale, refused: refused.code };
     }
-    if (trial) relaySent(ctx.jobId);
+    if (relay) relaySent(ctx.jobId);
     ctx.progress(100, { step: 'sent' });
     // The recipient address is PII and the body is a secret — the result is
     // the only thing that survives into `adminium_jobs.result`, so it names

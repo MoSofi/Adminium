@@ -78,7 +78,7 @@ import type { MarketingCarry } from './marketing-carry.js';
 import { PLAIN_DOTTED, PLAIN_RECIPIENT } from './plain-address.js';
 import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
 import { resolveMailSender, SERVER_SENDER, type MailSender, type SendAbout } from './workspace-sender.js';
-import { configureTrialMail, queueThroughRelay, shownName, trialMailOn } from './trial-relay.js';
+import { configureTrialMail, queueThroughRelay, relayInUse, shownName, trialMailOn } from './trial-relay.js';
 
 /** The `adminium_jobs.kind` of a queued outbound email. */
 export const EMAIL_SEND_JOB_KIND = 'email.send';
@@ -716,8 +716,9 @@ async function queueRendered(deps: EnqueueEmailDeps, input: EnqueueRenderedEmail
     deps.logger?.warn({ templateKey: input.templateKey, cid: unfit.cid }, 'an email was not queued: its QR code holds more text than a QR code here carries');
     return null;
   }
-  // On a trial every message goes through the operator's relay, shaped and counted there (`trial-relay.ts`).
-  if (trialMailOn()) {
+  // On a trial every message goes through the operator's relay, shaped and counted there (`trial-relay.ts`); so does
+  // every message of an installation using the operator's mail server because it has none of its own.
+  if (await relayInUse(deps.meta)) {
     return await queueThroughRelay(
       deps.meta,
       {

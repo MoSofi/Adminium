@@ -2794,7 +2794,10 @@
         "goesOut": "发出时间",
         "empty": "没有等待中的邮件。",
         "failed": "无法加载等待中的邮件。",
-        "close": "关闭"
+        "close": "关闭",
+        "operatorTitle": "目前邮件通过运营方的邮件服务发送",
+        "operatorUseLine": "今日 {today, number} / {perDay, number} 封邮件",
+        "operatorOwn": "密码重置、邀请和其他账户邮件不计入。在下方添加你自己的邮件服务器后，所有邮件都将通过它发送，且没有每日上限。"
       }
     },
     "identity": {

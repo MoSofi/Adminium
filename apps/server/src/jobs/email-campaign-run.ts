@@ -83,7 +83,7 @@ import { dirForLocale, isLocaleId } from '@adminium/i18n';
 
 import { EMAIL_CAMPAIGN_SENT_KIND, recipientVars } from '../email/audience.js';
 import { emailSecretKey, resolveSmtpConfig } from '../email/config.js';
-import { trialMailOn } from '../email/trial-relay.js';
+import { relayInUse, trialMailOn } from '../email/trial-relay.js';
 import { renderEmail, type RenderedEmail } from '../email/render.js';
 import {
   enqueueRenderedEmail,
@@ -383,6 +383,8 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
       if (found.state === 'paused' || found.state === 'stopped' || found.state === 'done') return { runId: found.id, state: found.state };
       // Marketing campaigns are off on a trial (`email/trial-relay.ts`): a run from before, or restored, ends here.
       if (trialMailOn()) return await fail(found, 'marketing campaigns are switched off by the server’s operator');
+      // The operator's mail server, standing in while the installation has none of its own, sends no campaign.
+      if (await relayInUse(meta)) return await fail(found, 'marketing campaigns need your own mail server: add one in Settings → Mail, then send the campaign again');
 
       let run = found;
       if (run.status === 'scheduled') {

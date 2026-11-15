@@ -10,6 +10,11 @@
  * The server sends all of it as `relay` beside the email settings
  * (`apps/server/src/email/trial-relay.ts`). Loaded on its own, and only on a
  * trial: nothing of it is in Studio's settings chunk or the first load.
+ *
+ * `kind: 'operator'`: an installation that is not a trial, sending through the
+ * operator's mail server because it has none of its own. The panel then stands
+ * ABOVE the mail server fields, with no chip, today's use against the daily
+ * cap only, and the sentence that saving an own server removes the cap.
  */
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, MailWarning, Send } from 'lucide-react';
@@ -20,8 +25,10 @@ import { api } from '../../app/api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { SetByOperatorChip } from '../../settings/SetByOperator.js';
 
-/** `relay` on `GET /settings/email`, on a trial. */
+/** `relay` on `GET /settings/email`: on a trial, or while the operator's mail server stands in for the installation's own. */
 export interface TrialRelayView {
+  /** Absent from a server before the operator's mail server: a trial. */
+  kind?: 'trial' | 'operator';
   from: string | null;
   replyTo: string | null;
   caps: { perDay: number; perHour: number; recipientsPerDay: number };
@@ -154,16 +161,40 @@ export function TrialEmailPanel({ relay }: { relay: TrialRelayView }): ReactNode
         ? [<span key="from" className="font-mono text-[12.5px]">{relay.from}</span>]
         : withMono(t('studio:settingsHub.email.relay.fromLine', '{from}, replies go to {replyTo}', { from: '\u0000', replyTo: '\u0001' }), [relay.from, relay.replyTo]);
   const label = 'font-bold text-fg-muted';
+  // The operator's mail server standing in for the installation's own: a daily cap alone, and a way out of it.
+  const operator = relay.kind === 'operator';
   return (
-    <section aria-labelledby="trial-email-relay" className="flex flex-col gap-4" data-testid="trial-email-panel">
+    <section aria-labelledby="trial-email-relay" className={operator ? 'mb-4 flex flex-col gap-4' : 'flex flex-col gap-4'} data-testid="trial-email-panel">
       <div className="flex flex-wrap items-center gap-3">
         <IconTile tone="neutral" size="md" icon={<Send />} />
         <h4 id="trial-email-relay" className="min-w-[220px] flex-1 text-[14.5px] font-bold text-fg">
-          {t('studio:settingsHub.email.relay.title', 'Email is sent through the operator’s mail service')}
+          {operator
+            ? t('studio:settingsHub.email.relay.operatorTitle', 'Email goes through the operator’s mail service for now')
+            : t('studio:settingsHub.email.relay.title', 'Email is sent through the operator’s mail service')}
         </h4>
-        <SetByOperatorChip />
+        {operator ? null : <SetByOperatorChip />}
       </div>
-      {fromLine === null ? (
+      {fromLine !== null && operator ? (
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-body-sm sm:grid-cols-[120px_minmax(0,1fr)]">
+          <dt className={label}>{t('studio:settingsHub.email.relay.from', 'From address')}</dt>
+          <dd className="m-0 min-w-0 break-words">{fromLine}</dd>
+          <dt className={label}>{t('studio:settingsHub.email.relay.use', 'Today’s use')}</dt>
+          <dd className="m-0 flex flex-col gap-2">
+            <span>
+              {t('studio:settingsHub.email.relay.operatorUseLine', '{today, number} of {perDay, number} emails today', { today: relay.today, perDay: relay.caps.perDay })}
+            </span>
+            <div className="max-w-[210px]">
+              <UseBar used={relay.today} cap={relay.caps.perDay} label={t('studio:settingsHub.email.relay.dayBar', 'Emails today')} />
+            </div>
+            <span className="text-caption text-fg-muted" data-testid="operator-mail-own">
+              {t(
+                'studio:settingsHub.email.relay.operatorOwn',
+                'Password resets, invitations and other account emails are not counted. Add your own mail server below and all email goes through it, with no daily limit.',
+              )}
+            </span>
+          </dd>
+        </dl>
+      ) : fromLine === null ? (
         <p className="text-body-sm text-fg-muted">
           {t('studio:settingsHub.email.relay.noRelay', 'The operator has not set up a mail service for this installation, so no email is sent.')}
         </p>
