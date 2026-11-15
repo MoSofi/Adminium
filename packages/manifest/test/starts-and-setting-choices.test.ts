@@ -20,11 +20,11 @@ describe('states.starts', () => {
     const left = Object.keys(states(m).moves).find((state) => state !== states(m).initial && (states(m).moves[state] ?? []).length > 0)!;
     states(m)['starts'] = [left];
     // An Adminium before the word refuses it: the floor says so.
-    expect(startsIssues(m)).toEqual([expect.stringContaining('"states.starts" is read by Adminium 0.3.59 and later')]);
-    (m['compatibility'] as Doc)['minAdminiumVersion'] = '0.3.59';
+    expect(startsIssues(m)).toEqual([expect.stringContaining('"states.starts" is read by Adminium 0.3.60 and later')]);
+    (m['compatibility'] as Doc)['minAdminiumVersion'] = '0.3.60';
     expect(startsIssues(m)).toEqual([]);
-    expect(WORD_FLOORS['states.starts']).toBe('0.3.59');
-    expect(WORD_FLOORS['publicAccess.requireSettingIn']).toBe('0.3.59');
+    expect(WORD_FLOORS['states.starts']).toBe('0.3.60');
+    expect(WORD_FLOORS['publicAccess.requireSettingIn']).toBe('0.3.60');
   });
 
   it('refuses an unknown state, the first state, a state named twice, and one with no way out', () => {
@@ -58,8 +58,8 @@ describe('requireSetting with "in"', () => {
   it('takes values of a choice in the settings row', () => {
     const m = withChoice();
     entry(m)['requireSetting'] = [{ table: 'settings', column: 'pay_mode', in: ['optional', 'required'] }];
-    expect(issuesText(m)).toContain('"publicAccess.requireSettingIn" is read by Adminium 0.3.59');
-    (m['compatibility'] as Doc)['minAdminiumVersion'] = '0.3.59';
+    expect(issuesText(m)).toContain('"publicAccess.requireSettingIn" is read by Adminium 0.3.60');
+    (m['compatibility'] as Doc)['minAdminiumVersion'] = '0.3.60';
     expect(issuesText(m)).not.toContain('pay_mode');
   });
 

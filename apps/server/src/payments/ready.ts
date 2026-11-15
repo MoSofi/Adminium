@@ -8,7 +8,7 @@
  * and its key for the current mode saved and checked. The current mode is
  * live once live payments are switched on for that service, test before.
  */
-import { PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, type PaymentMode } from '@adminium/add-on-contracts';
+import { CARD_TERMINAL_CONTRACT, PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, type PaymentMode } from '@adminium/add-on-contracts';
 import { addOnManifestSchema } from '@adminium/manifest';
 import { paymentSettingsRepo, type ManifestsRepo, type MetaDb } from '@adminium/meta';
 
@@ -28,6 +28,19 @@ export async function paymentAddOnKeys(deps: Pick<ReadyDeps, 'manifests'>): Prom
     if (installed.row.status !== 'installed') continue;
     const parsed = addOnManifestSchema.safeParse(installed.document);
     if (parsed.success && (parsed.data.addOn.provides ?? []).some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT)) keys.push(parsed.data.key);
+  }
+  return keys;
+}
+
+/** The installed card reader services with no pay page (`card-terminal@1` alone): connected in Payments, asked by the sweep. */
+export async function readerOnlyAddOnKeys(deps: Pick<ReadyDeps, 'manifests'>): Promise<string[]> {
+  const keys: string[] = [];
+  for (const installed of await deps.manifests.list('add-on')) {
+    if (installed.row.status !== 'installed') continue;
+    const parsed = addOnManifestSchema.safeParse(installed.document);
+    if (!parsed.success) continue;
+    const provides = parsed.data.addOn.provides ?? [];
+    if (provides.some((entry) => entry.contract === CARD_TERMINAL_CONTRACT) && !provides.some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT)) keys.push(parsed.data.key);
   }
   return keys;
 }

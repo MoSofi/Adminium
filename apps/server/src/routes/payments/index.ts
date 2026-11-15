@@ -25,6 +25,8 @@
  * app: neither can take a payment online.
  */
 import {
+  CARD_TERMINAL_CONTRACT,
+  CARD_TERMINAL_VERSION,
   PAYMENT_PROVIDER_CONTRACT,
   PAYMENT_PROVIDER_VERSION,
   PAYMENT_WEBHOOK_EVENTS_EXPORT,
@@ -47,6 +49,7 @@ import { modeCredentials, withField } from '../../payments/credentials.js';
 import { payAddress } from '../../payments/links.js';
 import { checkPaste } from '../../payments/paste-checks.js';
 import { paymentProviderFor } from '../../payments/providers.js';
+import { cardTerminalFor } from '../../payments/terminals.js';
 import { dismissAlarm, raiseMoneyRedirect, recentAlarms } from '../../payments/alarms.js';
 import { clockSkewOf } from '../../payments/clock.js';
 import { refundableCount, removeKeysSafely, setLive, waitingCount } from '../../payments/going-live.js';
@@ -97,7 +100,7 @@ export interface PaymentsRoutesDeps {
   policy?: Pick<TrialPolicy, 'allows'> | undefined;
 }
 
-/** A payment add-on: installed, and providing `payment-provider@1`. */
+/** A payment add-on: installed, and providing `payment-provider@1`, or `card-terminal@1` alone (a card reader service). */
 interface PaymentAddOn {
   installed: InstalledManifest;
   manifest: AddOnManifest;
@@ -117,7 +120,13 @@ function webhookEventsOf(module: unknown): string[] {
 const TWO_PATHS = new Set(['payments-stripe']);
 
 function isPaymentAddOn(manifest: AddOnManifest): boolean {
-  return (manifest.addOn.provides ?? []).some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT);
+  return (manifest.addOn.provides ?? []).some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT || entry.contract === CARD_TERMINAL_CONTRACT);
+}
+
+/** A card reader service with no pay page: it takes money only at the counter. */
+export function readersOnly(manifest: AddOnManifest): boolean {
+  const provides = manifest.addOn.provides ?? [];
+  return provides.some((entry) => entry.contract === CARD_TERMINAL_CONTRACT) && !provides.some((entry) => entry.contract === PAYMENT_PROVIDER_CONTRACT);
 }
 
 function secretFields(manifest: AddOnManifest): { key: string; webhook: boolean; label: { key: string; fallback: string } | null; help: { key: string; fallback: string } | null }[] {
@@ -217,7 +226,8 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
     const { manifest, installed } = addOn;
     const fields = secretFields(manifest);
     const runtime = deps.runtime();
-    const entry = runtime === null ? null : providerByKey(runtime, PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, manifest.key);
+    const readers = readersOnly(manifest);
+    const entry = runtime === null ? null : readers ? providerByKey(runtime, CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION, manifest.key) : providerByKey(runtime, PAYMENT_PROVIDER_CONTRACT, PAYMENT_PROVIDER_VERSION, manifest.key);
     const mode = (which: PaymentMode) => ({
       fields: fields.map((field) => {
         const saved = state[which].fields[field.key];
@@ -229,6 +239,8 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       firstEventAt: state[which].firstEventAt,
       firstPaymentAt: state[which].firstPaymentAt,
       health: health[which],
+      // A reader service is asked by the server: no webhook comes to an address.
+      ...(readers ? { webhookUrl: null } : {}),
     });
     return {
       key: manifest.key,
@@ -237,7 +249,8 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       status: installed.row.status,
       loaded: entry !== null,
       hasPaths: TWO_PATHS.has(manifest.key),
-      webhookEvents: entry === null ? [] : webhookEventsOf(entry.module),
+      readersOnly: readers,
+      webhookEvents: entry === null || readers ? [] : webhookEventsOf(entry.module),
       path: state.path,
       stopped: state.stopped,
       liveOn: state.liveOn,
@@ -248,12 +261,20 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
         keyFields: fields.filter((field) => !field.webhook).map((field) => field.key),
         webhookFields: fields.filter((field) => field.webhook).map((field) => field.key),
         hasPaths: TWO_PATHS.has(manifest.key),
+        readersOnly: readers,
       }),
       ...extra,
     };
   }
 
-  async function runCheck(key: string, mode: PaymentMode): Promise<CredentialCheck | CheckRefusal> {
+  async function runCheck(addOn: PaymentAddOn, mode: PaymentMode): Promise<CredentialCheck | CheckRefusal> {
+    const key = addOn.manifest.key;
+    if (readersOnly(addOn.manifest)) {
+      // A card reader service answers its own Check, with the same saved keys.
+      const terminal = await cardTerminalFor({ runtime: deps.runtime, manifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy }), demoTerminal: null }, key, mode);
+      if (!terminal.ok) return { ok: false, code: terminal.code, providerMessage: terminal.message };
+      return terminal.terminal.checkCredentials();
+    }
     const lookup = await paymentProviderFor(
       {
         runtime: deps.runtime,
@@ -272,12 +293,13 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
     return paymentProviderFor({ runtime: deps.runtime, manifests, httpFor: (manifest) => addOnHttpClientFor(meta, manifest, { policy }), demo: null }, key, mode);
   }
 
-  function refuseOffline(): void {
+  function refuseOffline(readers = false): void {
     refuseUnlessAllowed(policy, 'paymentProviders', 'The operator has switched payment services off for this installation, so none can be connected here.');
     if (!deps.networkFeatures) {
       throw new ValidationFailedError('Network features are off on this server, so no payment service can be connected.', { reason: 'network-off' });
     }
-    if (deps.desktop) {
+    // A card reader is asked by this computer, outbound: no customer needs to reach it.
+    if (deps.desktop && !readers) {
       throw new ValidationFailedError('The desktop app takes payments by hand only: customers cannot reach this computer.', { reason: 'desktop' });
     }
   }
@@ -305,7 +327,7 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
      */
     async function checked(request: FastifyRequest, addOn: PaymentAddOn, mode: PaymentMode): Promise<ServiceState> {
       const key = addOn.manifest.key;
-      let answer = await runCheck(key, mode);
+      let answer = await runCheck(addOn, mode);
       if (answer.ok !== true) {
         const saved = modeCredentials(await manifests.getCredential(addOn.installed.row.id), mode) ?? {};
         let message = answer.providerMessage;
@@ -371,9 +393,9 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request) => {
         requirePerson(request);
-        refuseOffline();
         const { key, mode, field } = request.params;
         const addOn = await paymentAddOn(key);
+        refuseOffline(readersOnly(addOn.manifest));
         const fields = secretFields(addOn.manifest);
         if (!fields.some((one) => one.key === field)) {
           throw new ValidationFailedError(`"${key}" has no field "${field}".`, { expected: fields.map((one) => one.key) });
@@ -435,9 +457,9 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request) => {
         requirePerson(request);
-        refuseOffline();
         const { key, mode } = request.params;
         const addOn = await paymentAddOn(key);
+        refuseOffline(readersOnly(addOn.manifest));
         const state = await checked(request, addOn, mode);
         return { data: await viewNow(key, state) };
       },
@@ -492,7 +514,9 @@ export function paymentsRoutes(deps: PaymentsRoutesDeps): FastifyPluginAsyncZod 
       async (request) => {
         requirePerson(request);
         const { key } = request.params;
-        await paymentAddOn(key);
+        const addOn = await paymentAddOn(key);
+        // A card reader takes the mode its pairing chose: the service has no live switch of its own.
+        if (readersOnly(addOn.manifest)) throw new ValidationFailedError('A card reader service has no live switch: each reader is paired in test or live mode.', { reason: 'readers-only' });
         if (request.body.on) {
           refuseOffline();
           const current = await stateOf(key);

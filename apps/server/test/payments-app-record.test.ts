@@ -26,7 +26,7 @@ import { attemptFlag } from '../src/routes/payments/activity.js';
 import { LEGS, wholeServer, type WholeServer } from './whole-server.helpers.js';
 
 // The server says the version it was built at; the words tried here are read from the release to come.
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.59' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.60' }));
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength = 120) => ({ ref, type: 'text', maxLength, nullable: true });
@@ -42,7 +42,7 @@ function counter(moves: Record<string, unknown>): Record<string, unknown> {
     license: 'AGPL-3.0-only',
     description: { key: 'mft.counter.desc', fallback: 'A counter.' },
     categories: ['commerce'],
-    compatibility: { minAdminiumVersion: '0.3.59', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.60', engines: ['postgres', 'mysql', 'sqlite'] },
     navGroups: [{ key: 'counter', label: { 'en-US': 'Counter' }, order: 1 }],
     requiredSchema: {
       prefixed: true,

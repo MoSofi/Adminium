@@ -13,7 +13,7 @@ Every field below needs `minAdminiumVersion` `0.3.49` or later. An older server 
 | [`apps.requires`](https://docs.adminium.dev/reference/manifest/#appsrequires) | top level | self-made apps only |
 | [`instance`](https://docs.adminium.dev/reference/manifest/#instance) | top level | self-made apps only |
 | [`reports`, `invoiceLayouts`, `scheduledReports`](https://docs.adminium.dev/reference/manifest/#reports-invoicelayouts-and-scheduledreports) | top level | self-made apps only |
-| [`payments`](https://docs.adminium.dev/reference/manifest/#payments) | top level | `payables`: every app (Adminium 0.3.59 and later); `ways` and `payPage`: self-made apps only |
+| [`payments`](https://docs.adminium.dev/reference/manifest/#payments) | top level | `payables`: every app (Adminium 0.3.60 and later); `ways` and `payPage`: self-made apps only |
 | [`envelope`, `views`](https://docs.adminium.dev/reference/manifest/#a-pages-envelope-and-its-views) | a page | self-made apps only |
 | [`name`, `schema`](https://docs.adminium.dev/reference/manifest/#a-tables-real-name-and-schema) | a table | self-made apps only |
 | [A column's own name](https://docs.adminium.dev/reference/manifest/#columns-under-their-own-names) | a column's `ref` | self-made apps only |

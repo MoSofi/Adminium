@@ -21,7 +21,7 @@ import { rbacPlugin } from '../src/plugins/rbac.js';
 import { DEMO_READER_SERVICE, paymentTerminalRoutes } from '../src/routes/payments/terminal.js';
 import { installInvoicing, invoicingManifest, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.59' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.60' }));
 
 type Doc = Record<string, unknown>;
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -46,7 +46,7 @@ function till(): Doc {
     },
   ]);
   m['key'] = 'till';
-  m['compatibility'] = { minAdminiumVersion: '0.3.59' };
+  m['compatibility'] = { minAdminiumVersion: '0.3.60' };
   (m['pages'] as { bindings: Record<string, string> }[])[0]!.bindings = { rows: 'tickets' };
   m['payments'] = {
     payables: [

@@ -663,8 +663,11 @@ export async function refundEvent(deps: RefundDeps, input: { provider: string; m
   const known = await refunds.byProviderId(input.provider, input.mode, input.refundRef);
   if (known !== null) return settleRefund(deps, known.id, { strict: true });
   const lookup = await deps.providerFor(input.provider, input.mode);
-  if (!lookup.ok) throw new Error(`The payment service cannot be asked now (${lookup.code}).`);
-  const state = await lookup.provider.refundStatus(input.refundRef);
+  // A card reader service with no pay page answers for its own refunds.
+  const terminal = !lookup.ok && deps.terminalFor !== undefined ? await deps.terminalFor(input.provider, input.mode) : null;
+  const asker = lookup.ok ? lookup.provider : terminal?.ok === true ? terminal.terminal : null;
+  if (asker === null) throw new Error(`The payment service cannot be asked now (${lookup.ok ? 'NOT_LOADED' : lookup.code}).`);
+  const state = await asker.refundStatus(input.refundRef);
   if (isProviderError(state)) {
     if (state.retryable) throw new Error('The payment service could not be asked about the refund now.');
     return null;

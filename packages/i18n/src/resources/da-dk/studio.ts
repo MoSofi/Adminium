@@ -3945,10 +3945,12 @@ export default {
     "service": {
       "connectsStripe": "Forbinder til Stripe",
       "connectsPaypal": "Forbinder til PayPal",
+      "connectsSquare": "Forbinder til Square",
       "notLoaded": "Denne tilføjelse blev ikke indlæst, så dens nøgler kan ikke tjekkes.",
       "notLoadedBody": "En betalingstjeneste indlæses kun fra en pakke, Adminium kan stå inde for: en, der følger med denne version, eller en, der er hentet fra kataloget.",
       "paypalOnce": "PayPal vises kun én gang: gennem dette kort, ikke på siden hos Stripe.",
-      "fixAddressFirst": "Ret først adressen ovenfor: indtil da forbliver onlinebetalinger slået fra."
+      "fixAddressFirst": "Ret først adressen ovenfor: indtil da forbliver onlinebetalinger slået fra.",
+      "readersOnly": "Til kortlæsere ved din disk. Gem nøglerne her, og par derefter hver kortlæser under Kortlæsere, i test- eller live-tilstand."
     },
     "reach": {
       "badge": {

@@ -7,7 +7,7 @@
 Which tables take payments, and how. Never a key, a bank account or a contact: those are the
 owner's to give after the install.
 
-Any app may carry `payables` (Adminium 0.3.59 and later). A catalog app's payables arrive switched
+Any app may carry `payables` (Adminium 0.3.60 and later). A catalog app's payables arrive switched
 off: installing or updating it asks for no payments right, and someone who manages payments switches
 the app on in Payments. Each is checked at install as the payments screen checks a mapping (money
 columns, the currency's decimals, the way-to-pay values, a unique reference), on tables the app made

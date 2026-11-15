@@ -114,12 +114,14 @@ export interface PaymentsPageProps {
 function providerWord(provider: KnownProvider, fallback: string): string {
   if (provider === 'stripe') return 'Stripe';
   if (provider === 'paypal') return 'PayPal';
+  if (provider === 'square') return 'Square';
   return fallback;
 }
 
 function connectsTo(provider: KnownProvider): string | null {
   if (provider === 'stripe') return t('studio:payments.service.connectsStripe', 'Connects to Stripe');
   if (provider === 'paypal') return t('studio:payments.service.connectsPaypal', 'Connects to PayPal');
+  if (provider === 'square') return t('studio:payments.service.connectsSquare', 'Connects to Square');
   return null;
 }
 
@@ -771,9 +773,14 @@ function ModeSection({ service, mode, canManage, onOpenWays }: { service: Servic
       ))}
       {recheck.isError ? <Alert tone="danger" role="alert" title={errorText(recheck.error)} /> : null}
       <CheckLine service={service} mode={mode} view={view} />
-      <WebhookCard service={service} mode={mode} view={view} canManage={canManage} />
-      {mode === 'test' && canManage && view.check?.ok === true ? <TestPaymentCard service={service} onOpenWays={onOpenWays} /> : null}
-      {mode === 'live' ? <LiveCard service={service} view={view} canManage={canManage} /> : null}
+      {/* A card reader service has no webhook, no pay page and no live switch: each reader is paired in its own mode. */}
+      {service.readersOnly === true ? null : (
+        <>
+          <WebhookCard service={service} mode={mode} view={view} canManage={canManage} />
+          {mode === 'test' && canManage && view.check?.ok === true ? <TestPaymentCard service={service} onOpenWays={onOpenWays} /> : null}
+          {mode === 'live' ? <LiveCard service={service} view={view} canManage={canManage} /> : null}
+        </>
+      )}
     </section>
   );
 }
@@ -1274,7 +1281,7 @@ function ServiceCard({ service, canManage, reachable, operatorOff = false, paypa
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-[14.5px] font-bold">{service.name}</h2>
-            <Badge tone={service.liveOn ? 'pos' : 'info'}>{service.liveOn ? t('studio:payments.mode.live', 'Live') : t('studio:payments.mode.test', 'Test')}</Badge>
+            {service.readersOnly === true ? null : <Badge tone={service.liveOn ? 'pos' : 'info'}>{service.liveOn ? t('studio:payments.mode.live', 'Live') : t('studio:payments.mode.test', 'Test')}</Badge>}
             {service.stopped ? <Badge tone="warn">{t('studio:payments.stop.badge', 'New payments stopped')}</Badge> : null}
           </div>
           {connects !== null ? <p className="text-[12.5px] text-fg-muted">{connects}</p> : null}
@@ -1283,7 +1290,12 @@ function ServiceCard({ service, canManage, reachable, operatorOff = false, paypa
       </CardHeader>
       <CardBody className="flex flex-col gap-5">
         {/* Unreachable: the card stays whole, so its checklist and keys can be read and set ahead; one line says what comes first. */}
-        {!reachable ? (
+        {service.readersOnly === true ? (
+          <p className="text-[12.5px] text-fg-muted" data-testid={`payments-service-${service.key}-readers`}>
+            {t('studio:payments.service.readersOnly', 'For card readers at your counter. Save its keys here, then pair each reader in Card readers, in test or live mode.')}
+          </p>
+        ) : null}
+        {!reachable && service.readersOnly !== true ? (
           <Alert tone="warn" icon={<Globe />} data-testid={`payments-service-${service.key}-first`} title={operatorOff ? offByOperatorWords('paymentProviders') : t('studio:payments.service.fixAddressFirst', 'Fix the address above first: online payments stay off until then.')} />
         ) : null}
         {!service.loaded ? (
@@ -1322,7 +1334,7 @@ function ServiceCard({ service, canManage, reachable, operatorOff = false, paypa
         {service.hasPaths ? <PathChooser service={service} canManage={canManage} /> : null}
         <ModeSection service={service} mode="test" canManage={canManage} onOpenWays={onOpenWays} />
         <ModeSection service={service} mode="live" canManage={canManage} onOpenWays={onOpenWays} />
-        <StopSwitch service={service} canManage={canManage} />
+        {service.readersOnly === true ? null : <StopSwitch service={service} canManage={canManage} />}
       </CardBody>
     </Card>
   );

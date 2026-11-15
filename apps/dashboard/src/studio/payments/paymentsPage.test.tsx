@@ -326,6 +326,32 @@ describe('PaymentsPage', () => {
     expect(within(denied).getByRole('button', { name: 'Copy PAYMENT.CAPTURE.DENIED' })).toBeTruthy();
   });
 
+  it('shows a card reader service with its keys alone: no webhook, no test payment, no live switch, and works where customers cannot reach', async () => {
+    const tokenField = { key: 'access_token', label: { key: 'k', fallback: 'Access token' }, help: null, webhook: false, set: false, hint: null, setAt: null };
+    const square = stripe({
+      key: 'payments-square',
+      name: 'Card readers',
+      hasPaths: false,
+      readersOnly: true,
+      webhookEvents: [],
+      test: mode({ fields: [tokenField], webhookUrl: null }),
+      live: mode({ fields: [tokenField], webhookUrl: null }),
+      checklist: [
+        { step: 'test-key', done: false },
+        { step: 'live-key', done: false },
+      ],
+    });
+    renderPage(setup({ reachability: { state: 'desktop', origin: null, notPort443: false }, services: [square] }));
+    const card = await screen.findByTestId('payments-service-payments-square');
+    expect(within(card).getByText('Connects to Square')).toBeTruthy();
+    expect(within(card).getByTestId('payments-service-payments-square-readers').textContent).toContain('pair each reader in Card readers');
+    expect(within(card).queryByTestId('payments-service-payments-square-first')).toBeNull();
+    expect(within(card).queryByTestId('payments-payments-square-test-webhook')).toBeNull();
+    expect(within(card).queryByTestId('payments-payments-square-live-webhook')).toBeNull();
+    expect(within(card).getByTestId('payments-service-payments-square-progress').textContent).toContain('0 of 2 done');
+    expect(within(card).getAllByText('Access token').length).toBe(2);
+  });
+
   it('lists Stripe events by their codes alone, as the Stripe form does', async () => {
     renderPage(setup());
     const event = await screen.findAllByTestId('payments-event-checkout.session.completed');

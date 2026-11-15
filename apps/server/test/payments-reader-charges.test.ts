@@ -15,11 +15,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createPayableSources, type PayableSources } from '../src/payments/payables.js';
 import { cancelReaderCharge, chargeView, pollReaderCharge, READER_OFFLINE_MS, startReaderCharge, type ReaderChargeDeps } from '../src/payments/reader-charges.js';
 import { recordAttempt } from '../src/payments/record.js';
-import { requestRefund } from '../src/payments/refunds.js';
+import { refundEvent, requestRefund } from '../src/payments/refunds.js';
 import { guardTerminal } from '../src/payments/terminals.js';
 import { installInvoicing, invoicingManifest, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.59' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.60' }));
 
 type Doc = Record<string, unknown>;
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -44,7 +44,7 @@ function till(): Doc {
     },
   ]);
   m['key'] = 'till';
-  m['compatibility'] = { minAdminiumVersion: '0.3.59' };
+  m['compatibility'] = { minAdminiumVersion: '0.3.60' };
   (m['pages'] as { bindings: Record<string, string> }[])[0]!.bindings = { rows: 'tickets' };
   m['payments'] = {
     payables: [
@@ -182,6 +182,24 @@ describe.each(LEGS)('charges on a card reader — %s', (dialect, available) => {
     // An Interac card is refunded on the reader alone.
     await h.meta.db.updateTable('adminium_payment_attempts').set({ interac: h.meta.dialect === 'postgres' ? true : 1, refundCommitted: '0' } as never).where('id', '=', started.attempt.id).execute();
     expect(await requestRefund(refundDeps, { attemptId: started.attempt.id, amount: '1.00', reason: 'requested_by_customer', note: null, key: `rk-interac-${dialect}`.padEnd(20, 'x'), requestedBy: 'usr_mara' })).toMatchObject({ ok: false, refusal: { code: 'NOT_ONLINE' } });
+  });
+
+  it.skipIf(!available)('records a refund made at a card reader service with no pay page, read through the service itself', async () => {
+    const ref = await ticket('8.00');
+    const started = await startReaderCharge(deps, { ref, readerId: reader.id, tipping: false, by: null });
+    if (!started.ok) throw new Error(started.message);
+    backend.tap(readerRef, 'succeeds');
+    await pollReaderCharge(deps, started.attempt.id);
+    expect(await recordAttempt({ meta: h.meta, sources }, started.attempt.id)).toMatchObject({ state: 'recorded' });
+    const taken = (await paymentAttemptsRepo(h.meta).byId(started.attempt.id))!;
+    // Given back in the service's own dashboard: Adminium never asked for it.
+    const lookup = await deps.terminalFor('demo-reader', 'live');
+    if (!lookup.ok) throw new Error('no terminal');
+    const there = await lookup.terminal.refund({ paymentRef: taken.paymentRef!, amount: '3.00', currency: taken.currency, reason: 'other', idempotencyKey: `there-${dialect}` });
+    if (!there.ok) throw new Error(there.providerMessage);
+    const refundDeps = { meta: h.meta, sources, providerFor: async () => ({ ok: false, code: 'NOT_INSTALLED', message: 'no pay page here' }) as never, terminalFor: deps.terminalFor };
+    const made = await refundEvent(refundDeps, { provider: 'demo-reader', mode: 'live', refundRef: there.ref });
+    expect(made).toMatchObject({ attemptId: started.attempt.id, source: 'provider', amount: '3.00', providerRefundId: there.ref });
   });
 
   it.skipIf(!available)('asks at most what is due now, and refuses a reader that is not paired', async () => {

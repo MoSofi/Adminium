@@ -3945,10 +3945,12 @@ export default {
     "service": {
       "connectsStripe": "连接到 Stripe",
       "connectsPaypal": "连接到 PayPal",
+      "connectsSquare": "连接到 Square",
       "notLoaded": "此附加组件未加载，因此无法检查它的密钥。",
       "notLoadedBody": "支付服务只会从 Adminium 能够担保的软件包加载：随此版本附带的软件包，或从目录下载的软件包。",
       "paypalOnce": "PayPal 只出现一次：通过此卡片，而不是在 Stripe 页面上。",
-      "fixAddressFirst": "请先修正上方的地址：在此之前，在线付款保持关闭。"
+      "fixAddressFirst": "请先修正上方的地址：在此之前，在线付款保持关闭。",
+      "readersOnly": "用于柜台的读卡器。在此保存其密钥，然后在“读卡器”中以测试或正式模式配对每台读卡器。"
     },
     "reach": {
       "badge": {

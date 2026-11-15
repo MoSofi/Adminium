@@ -33,7 +33,7 @@ function counter(): Doc {
     },
   ]);
   m['key'] = 'counter';
-  m['compatibility'] = { minAdminiumVersion: '0.3.59' };
+  m['compatibility'] = { minAdminiumVersion: '0.3.60' };
   (m['pages'] as { bindings: Record<string, string> }[])[0]!.bindings = { rows: 'orders' };
   m['frontends'] = [
     { side: 'staff', kind: 'spa', entry: 'index.html' },

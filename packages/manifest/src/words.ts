@@ -558,7 +558,7 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   'roles.addOnActions': '0.3.47',
   'appGrants.more': '0.3.47',
   'roles.privacyPeople': '0.3.47',
-  'roles.paymentsRefund': '0.3.59',
+  'roles.paymentsRefund': '0.3.60',
   // A release before ignores the key, and the list opens on the columns Adminium picks.
   'config.columns': '0.3.47',
   'addOn.scope': '0.3.49',
@@ -622,13 +622,13 @@ export const WORD_FLOORS: Readonly<Partial<Record<ManifestWordName, string>>> = 
   // A release before refuses the key.
   'stamp.notEarlier': '0.3.53',
   // A release before refuses the key (and a new row made outside `initial`), or the value list.
-  'states.starts': '0.3.59',
-  'publicAccess.requireSettingIn': '0.3.59',
+  'states.starts': '0.3.60',
+  'publicAccess.requireSettingIn': '0.3.60',
   // A release before refuses payables from any file but a local one, and the keys it does not know.
-  'payments.appPayables': '0.3.59',
-  'payments.payableExtras': '0.3.59',
-  'states.waitsForPayment': '0.3.59',
-  'publicAccess.pay': '0.3.59',
+  'payments.appPayables': '0.3.60',
+  'payments.payableExtras': '0.3.60',
+  'states.waitsForPayment': '0.3.60',
+  'publicAccess.pay': '0.3.60',
 };
 
 /** The kinds of file a column takes from the release that cleans SVG and reads models and fonts whole (`ASSET_FILE_KINDS`). */

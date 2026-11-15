@@ -3945,10 +3945,12 @@ export default {
     "service": {
       "connectsStripe": "Se connecte à Stripe",
       "connectsPaypal": "Se connecte à PayPal",
+      "connectsSquare": "Se connecte à Square",
       "notLoaded": "Ce module n’a pas été chargé : ses clés ne peuvent donc pas être vérifiées.",
       "notLoadedBody": "Un service de paiement ne se charge que depuis un paquet dont Adminium peut se porter garant : un paquet fourni avec cette version, ou téléchargé depuis le catalogue.",
       "paypalOnce": "PayPal n’apparaît qu’une fois : via cette carte, pas sur la page Stripe.",
-      "fixAddressFirst": "Corrigez d’abord l’adresse ci-dessus : les paiements en ligne restent désactivés d’ici là."
+      "fixAddressFirst": "Corrigez d’abord l’adresse ci-dessus : les paiements en ligne restent désactivés d’ici là.",
+      "readersOnly": "Pour les terminaux de paiement à votre comptoir. Enregistrez ses clés ici, puis associez chaque terminal dans Terminaux de paiement, en mode test ou en direct."
     },
     "reach": {
       "badge": {

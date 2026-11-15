@@ -3945,10 +3945,12 @@ export default {
     "service": {
       "connectsStripe": "Verbindet mit Stripe",
       "connectsPaypal": "Verbindet mit PayPal",
+      "connectsSquare": "Verbindet mit Square",
       "notLoaded": "Dieses Add-on wurde nicht geladen, daher können seine Schlüssel nicht geprüft werden.",
       "notLoadedBody": "Ein Zahlungsdienst lädt nur aus einem Paket, für das Adminium bürgen kann: eines, das dieser Build mitbringt, oder eines aus dem Katalog.",
       "paypalOnce": "PayPal erscheint nur einmal: über diese Karte, nicht auf der Seite von Stripe.",
-      "fixAddressFirst": "Beheben Sie zuerst das Problem mit der Adresse oben: Bis dahin bleiben Online-Zahlungen aus."
+      "fixAddressFirst": "Beheben Sie zuerst das Problem mit der Adresse oben: Bis dahin bleiben Online-Zahlungen aus.",
+      "readersOnly": "Für Kartenlesegeräte an Ihrer Kasse. Speichern Sie hier die Schlüssel und koppeln Sie dann jedes Lesegerät unter Kartenlesegeräte, im Test- oder Live-Modus."
     },
     "reach": {
       "badge": {

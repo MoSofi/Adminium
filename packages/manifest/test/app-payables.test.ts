@@ -42,7 +42,7 @@ function app(payables: Doc[] = [payable()], over: Doc = {}): Doc {
     license: 'AGPL-3.0-only',
     description: { key: 'c.desc', fallback: 'A counter.' },
     categories: ['commerce'],
-    compatibility: { minAdminiumVersion: '0.3.59' },
+    compatibility: { minAdminiumVersion: '0.3.60' },
     requiredSchema: {
       tables: [
         { ref: 'settings', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'currency', type: 'text', maxLength: 3, nullable: true }, { ref: 'open', type: 'bool', default: true }] },
@@ -84,11 +84,11 @@ const issues = (doc: Doc): string[] => {
 const columnsOf = (doc: Doc, table: string): Doc[] => ((doc['requiredSchema'] as { tables: Doc[] }).tables.find((one) => one['ref'] === table)!['columns'] as Doc[]);
 
 describe("a catalog app's payables", () => {
-  it('are read from any app, from Adminium 0.3.59', () => {
+  it('are read from any app, from Adminium 0.3.60', () => {
     expect(issues(app())).toEqual([]);
     expect(installFloorWords(app()).map((found) => found.word)).toEqual(expect.arrayContaining(['payments', 'payments.appPayables', 'payments.payableExtras']));
-    expect(WORD_FLOORS['payments.appPayables']).toBe('0.3.59');
-    expect(issues({ ...app(), compatibility: { minAdminiumVersion: '0.3.58' } }).join('\n')).toContain('"payments.appPayables" is read by Adminium 0.3.59 and later');
+    expect(WORD_FLOORS['payments.appPayables']).toBe('0.3.60');
+    expect(issues({ ...app(), compatibility: { minAdminiumVersion: '0.3.58' } }).join('\n')).toContain('"payments.appPayables" is read by Adminium 0.3.60 and later');
   });
 
   it('never carry the ways to pay or the pay page', () => {

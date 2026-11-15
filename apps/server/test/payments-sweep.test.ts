@@ -8,7 +8,7 @@
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createDemoPaymentBackend, type DemoPaymentBackend } from '@adminium/add-on-contracts';
+import { createDemoPaymentBackend, providerError, type CardTerminal, type DemoPaymentBackend, type PaymentEvent } from '@adminium/add-on-contracts';
 import { createSqliteMetaDb, firstRun, paymentAttemptsRepo, paymentEventsRepo, paymentLinksRepo, paymentSettingsRepo, type MetaDb } from '@adminium/meta';
 
 import { createCheckoutService, type CheckoutService } from '../src/payments/checkout.js';
@@ -159,6 +159,30 @@ describe('the safety sweep', () => {
     // Past the longest a provider page lives, it is let be.
     clock += 49 * 60 * MIN;
     expect(await sweepDue(meta, 'demo', 'test', clock)).toBe(false);
+  });
+
+  it('reads a card reader service with no pay page through its own events, hourly while its money may still come back', async () => {
+    const attempts = paymentAttemptsRepo(meta);
+    const made = await attempts.create({ provider: 'payments-square', mode: 'test', accountId: null, payable: { ...REF, rowKey: 'till-7' }, payableLabel: 'Ticket 7', amount: '12.50', currency: 'USD', linkId: null, nonce: 'till7'.padEnd(22, 'x'), createdBy: null, readerId: 'prd_front' }, clock);
+    await attempts.move(made!.id, 'open', { providerRef: 'chk_7' }, clock);
+    await attempts.move(made!.id, 'succeeded', { paymentRef: 'PAY_7', takenAmount: '12.50', takenCurrency: 'USD' }, clock);
+    const refund: PaymentEvent = { ok: true, eventId: 'refund:R7:COMPLETED', type: 'refund.updated', kind: 'refund', checkoutRef: null, paymentRef: 'PAY_7', refundRef: 'R7', livemode: false, occurredAt: clock };
+    let asked = 0;
+    const refuse = async () => providerError('UNAVAILABLE', 'not in this test');
+    const terminal = { listEvents: async () => { asked += 1; return { ok: true as const, events: [refund], cursor: 'c1', more: false }; }, refundStatus: refuse } as unknown as CardTerminal;
+    const readers: SweepDeps = { ...deps, terminalFor: async (key, mode) => ({ ok: true, key, mode, terminal }) };
+    // No payment service by that key: the card reader service's own list is read, and a refund at the service is followed.
+    const result = await runSweep(readers, 'payments-square', 'test');
+    expect(asked).toBe(1);
+    expect(result.events).toBe(1);
+    expect(queued.some((job) => job.kind === 'payments.refund' && job.payload['refundRef'] === 'R7' && job.payload['provider'] === 'payments-square')).toBe(true);
+    // A reader service has no webhook to miss.
+    expect((await paymentSettingsRepo(meta).get(sweepDocName('payments-square', 'test'), sweepStateSchema))?.caughtAt).toBeNull();
+    // Due hourly while it holds money taken in the last 120 days; not for a service that took none.
+    expect(await sweepDue(meta, 'payments-square', 'test', clock + 30 * MIN, true)).toBe(false);
+    expect(await sweepDue(meta, 'payments-square', 'test', clock + 61 * MIN, true)).toBe(true);
+    expect(await sweepDue(meta, 'payments-square', 'live', clock + 61 * MIN, true)).toBe(false);
+    expect(await sweepDue(meta, 'payments-square', 'test', clock + 121 * 24 * 60 * MIN, true)).toBe(false);
   });
 
   it('is not made busy by an event about a refund only', async () => {

@@ -379,7 +379,7 @@ import { gcNoticeClaims } from './payments/notices.js';
 import { endPaymentsForRows } from './payments/going-live.js';
 import { pickUpRefunds, registerPaymentsRefundHandler } from './payments/refunds.js';
 import { paymentRefundRoutes } from './routes/payments/refunds.js';
-import { anyLiveOn, paymentAddOnKeys, readyInMode } from './payments/ready.js';
+import { anyLiveOn, paymentAddOnKeys, readerOnlyAddOnKeys, readyInMode } from './payments/ready.js';
 import { CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION, DEMO_PAYMENT_ORIGIN, PAYMENT_MODES, createDemoPaymentBackend, createDemoTerminalBackend, type PaymentMode } from '@adminium/add-on-contracts';
 import { registerPaymentsSettleHandler } from './payments/webhook.js';
 import { PAYMENTS_SWEEP_PLAN_CRON, PAYMENTS_SWEEP_PLAN_NAME, planSweeps, registerPaymentsSweepHandler } from './payments/sweep.js';
@@ -1918,6 +1918,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     meta,
     checkout: paymentCheckout,
     providerFor: paymentProviderLookup,
+    terminalFor: terminalLookup,
     enqueue: (input) => jobs.enqueue(input),
     notices: paymentNotices,
     // An open page of a record that may no longer be paid is ended, before the service is asked about it.
@@ -1945,7 +1946,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Every installed service in both modes, stopped or not: an attempt opened before a stop or a
       // switch to live still waits on its answer. A service and mode with nothing waiting is skipped.
       const keys = await paymentAddOnKeys({ manifests: appManifests });
-      const queued = await planSweeps({ meta, enqueue: (input) => jobs.enqueue(input) }, keys.flatMap((key) => PAYMENT_MODES.map((mode) => ({ key, mode }))));
+      // Card reader services with no pay page send no webhook: their refunds and disputes are read by the sweep alone.
+      const readers = await readerOnlyAddOnKeys({ manifests: appManifests });
+      const queued = await planSweeps(
+        { meta, enqueue: (input) => jobs.enqueue(input) },
+        [...keys.flatMap((key) => PAYMENT_MODES.map((mode) => ({ key, mode }))), ...readers.flatMap((key) => PAYMENT_MODES.map((mode) => ({ key, mode, readersOnly: true })))],
+      );
       if (queued > 0) app.log.info({ queued }, 'payments: safety sweeps queued');
     },
     { jitterMs: 30_000 },
@@ -2553,7 +2559,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           sources: paymentSources,
           terminalFor: terminalLookup,
           enqueue: (input) => jobs.enqueue(input),
-          services: async () => [DEMO_READER_SERVICE, ...(addOnRuntime === null ? [] : providersFor(addOnRuntime, CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION).map((entry) => ({ key: entry.addOnKey, name: entry.addOnKey })))],
+          // Each by the name its manifest gives ("Card readers", "Card payments"), the key where none is found.
+          services: async () => {
+            const names = new Map((await appManifests.list('add-on')).map((one) => [one.row.key, typeof (one.document as { name?: unknown }).name === 'string' ? ((one.document as { name: string }).name) : one.row.key] as const));
+            return [DEMO_READER_SERVICE, ...(addOnRuntime === null ? [] : providersFor(addOnRuntime, CARD_TERMINAL_CONTRACT, CARD_TERMINAL_VERSION).map((entry) => ({ key: entry.addOnKey, name: names.get(entry.addOnKey) ?? entry.addOnKey })))];
+          },
           networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
         }),
       );

@@ -14,6 +14,10 @@
  *      Stripe's goes back 30 days), and, hourly, about declined attempts
  *      whose provider page may still be open (a later card may succeed
  *      there);
+ *      A card reader service with no pay page (`card-terminal@1` alone)
+ *      sends no webhook at all: its refunds and disputes made at the service
+ *      are read the same way, from its own events list, hourly while it has
+ *      taken money in the last 120 days;
  *   3. queues the settle again for stored events nobody processed; ties an
  *      event stored before its payment was known (`events.ts`) to the attempt
  *      that has since taken its money, and follows it.
@@ -44,6 +48,7 @@ import { MAX_CHECKOUT_LIFE_MS, type CheckoutService } from './checkout.js';
 import { eventBodyOf, followEvent, followUnattached, keptUnattached, occurredAtOf, UNATTACHED_GIVE_UP_MS, type Enqueue } from './events.js';
 import type { NoticeDeps } from './notices.js';
 import type { ProviderLookup } from './providers.js';
+import type { TerminalLookup } from './terminals.js';
 import { serviceDocName, serviceStateSchema } from './services.js';
 
 export const PAYMENTS_SWEEP_JOB = 'payments.sweep';
@@ -62,6 +67,8 @@ export const ABANDON_AFTER_MS = 15 * 60_000;
 export const REDRIVE_AFTER_MS = 10 * 60_000;
 /** Pages of missed events read per run. */
 export const PAGES_PER_RUN = 3;
+/** How long a card reader payment may still be refunded or disputed at its service: read for that long. */
+export const READER_WATCH_MS = 120 * 24 * 3_600_000;
 /** The floor of Stripe's monthly read allowance, and the share of it where the sweep slows. */
 export const READS_FLOOR = 10_000;
 export const READS_PER_TRANSACTION = 500;
@@ -96,6 +103,8 @@ export interface SweepDeps {
   meta: MetaDb;
   checkout: CheckoutService;
   providerFor: (key: string, mode: PaymentMode) => Promise<ProviderLookup>;
+  /** A card reader service with no pay page: its events are read through it. */
+  terminalFor?: (key: string, mode: PaymentMode) => Promise<TerminalLookup>;
   enqueue: Enqueue;
   /** Who is told of a dispute the sweep finds. */
   notices?: NoticeDeps;
@@ -139,11 +148,13 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
   const lookup = await deps.providerFor(key, mode);
   const follow = { meta: deps.meta, enqueue: deps.enqueue, ...(deps.notices === undefined ? {} : { notices: deps.notices }), ...(deps.now === undefined ? {} : { now: deps.now }) };
 
-  // 1. Missed events, from the cursor.
-  if (lookup.ok) {
+  // 1. Missed events, from the cursor: the payment service's, else a card reader service's own list.
+  const terminal = !lookup.ok && deps.terminalFor !== undefined ? await deps.terminalFor(key, mode) : null;
+  const listEvents = lookup.ok ? (from: string | null) => lookup.provider.listMissedEvents(from) : terminal?.ok === true ? (from: string | null) => terminal.terminal.listEvents(from) : null;
+  if (listEvents !== null) {
     let cursor = state.cursor;
     for (let page = 0; page < PAGES_PER_RUN; page += 1) {
-      const answer = await lookup.provider.listMissedEvents(cursor);
+      const answer = await listEvents(cursor);
       result.reads += 1;
       if (isProviderError(answer)) break;
       for (const event of answer.events) {
@@ -161,8 +172,8 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
         if (!stored.fresh || attempt === null) continue;
         result.events += 1;
         await followEvent(follow, stored.event, attempt, event.occurredAt);
-        // The webhook never brought this one: it is not reaching this server.
-        state = { ...state, caughtAt: at };
+        // The webhook never brought this one: it is not reaching this server. (A reader service has no webhook to miss.)
+        if (lookup.ok) state = { ...state, caughtAt: at };
       }
       cursor = answer.cursor;
       if (!answer.more) break;
@@ -218,9 +229,11 @@ export async function runSweep(deps: SweepDeps, key: string, mode: PaymentMode):
 }
 
 /** Whether a service and mode is due a run now, by what waits on it (counted in the database). */
-export async function sweepDue(meta: MetaDb, key: string, mode: PaymentMode, at: number): Promise<boolean> {
+export async function sweepDue(meta: MetaDb, key: string, mode: PaymentMode, at: number, readersOnly = false): Promise<boolean> {
   const state = await paymentSettingsRepo(meta).get(sweepDocName(key, mode), sweepStateSchema);
   const since = at - (state?.lastRunAt ?? 0);
+  // A card reader service: hourly while money it took may still be refunded or disputed at the service.
+  if (readersOnly) return since >= SWEEP_PROCESSING_EVERY_MS && (await readerTakenSince(meta, key, mode, at - READER_WATCH_MS));
   const attempts = paymentAttemptsRepo(meta);
   if ((await attempts.countIn(key, mode, ['creating', 'open'])) > 0) return since >= SWEEP_OPEN_EVERY_MS;
   // Unprocessed events still count as work.
@@ -231,6 +244,21 @@ export async function sweepDue(meta: MetaDb, key: string, mode: PaymentMode, at:
     return since >= ((await liveUnproven(meta, key, mode)) ? SWEEP_OPEN_EVERY_MS : SWEEP_PROCESSING_EVERY_MS);
   }
   return false;
+}
+
+/** Whether a card reader service took any money since `since`. */
+async function readerTakenSince(meta: MetaDb, key: string, mode: PaymentMode, since: number): Promise<boolean> {
+  const row = await meta.db
+    .selectFrom('adminium_payment_attempts')
+    .select('id')
+    .where('provider', '=', key)
+    .where('mode', '=', mode)
+    .where('channel', '=', 'reader')
+    .where('state', 'in', ['succeeded', 'recording', 'recorded', 'record_refused'])
+    .where('updatedAt', '>=', since)
+    .limit(1)
+    .executeTakeFirst();
+  return row !== undefined;
 }
 
 /** Live payments are on for the service and no live event has arrived yet. */
@@ -253,7 +281,7 @@ export function registerPaymentsSweepHandler(registry: JobRegistry, deps: SweepD
  */
 export async function planSweeps(
   deps: Pick<SweepDeps, 'meta' | 'enqueue' | 'now'>,
-  services: readonly { key: string; mode: PaymentMode }[],
+  services: readonly { key: string; mode: PaymentMode; readersOnly?: boolean }[],
 ): Promise<number> {
   const at = (deps.now ?? Date.now)();
   await paymentAttemptsRepo(deps.meta).abandonStale(at - ABANDON_AFTER_MS, at);
@@ -262,8 +290,8 @@ export async function planSweeps(
   const all = [...services];
   if (!all.some((one) => one.key === DEMO_PAYMENT_KEY)) all.push({ key: DEMO_PAYMENT_KEY, mode: 'test' });
   let queued = 0;
-  for (const { key, mode } of all) {
-    if (!(await sweepDue(deps.meta, key, mode, at))) continue;
+  for (const { key, mode, readersOnly } of all) {
+    if (!(await sweepDue(deps.meta, key, mode, at, readersOnly === true))) continue;
     try {
       await deps.enqueue({ kind: PAYMENTS_SWEEP_JOB, payload: { key, mode }, dedupeKey: `payments-sweep:${key}:${mode}`, maxAttempts: 3 });
       queued += 1;

@@ -3945,10 +3945,12 @@ export default {
     "service": {
       "connectsStripe": "連接到 Stripe",
       "connectsPaypal": "連接到 PayPal",
+      "connectsSquare": "連接到 Square",
       "notLoaded": "此附加元件未載入，因此無法檢查它的金鑰。",
       "notLoadedBody": "付款服務只會從 Adminium 能夠擔保的套件載入：隨此版本附帶的套件，或從目錄下載的套件。",
       "paypalOnce": "PayPal 只出現一次：透過此卡片，而不是在 Stripe 頁面上。",
-      "fixAddressFirst": "請先修正上方的網址：在此之前，線上付款保持關閉。"
+      "fixAddressFirst": "請先修正上方的網址：在此之前，線上付款保持關閉。",
+      "readersOnly": "用於櫃檯的讀卡機。在此儲存其金鑰，然後在「讀卡機」中以測試或正式模式配對每台讀卡機。"
     },
     "reach": {
       "badge": {

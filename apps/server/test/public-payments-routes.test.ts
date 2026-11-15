@@ -16,7 +16,7 @@ import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from
 import { guest } from './person-fixture.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
-vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.59' }));
+vi.mock('../src/version.js', () => ({ APP_VERSION: '0.3.60' }));
 
 type Doc = Record<string, unknown>;
 const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -31,7 +31,7 @@ function counter(checkout = false): Doc {
     },
   ]);
   m['key'] = 'counter';
-  m['compatibility'] = { minAdminiumVersion: '0.3.59' };
+  m['compatibility'] = { minAdminiumVersion: '0.3.60' };
   (m['pages'] as { bindings: Record<string, string> }[])[0]!.bindings = { rows: 'orders' };
   m['frontends'] = [
     { side: 'staff', kind: 'spa', entry: 'index.html' },

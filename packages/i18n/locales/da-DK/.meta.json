@@ -36243,6 +36243,10 @@
     "status": "mt",
     "srcHash": "6612de49d1f9"
   },
+  "studio.payments.service.connectsSquare": {
+    "status": "mt",
+    "srcHash": "6fb1231d3b33"
+  },
   "studio.payments.service.connectsStripe": {
     "status": "mt",
     "srcHash": "4af2da0946d8"
@@ -36262,6 +36266,10 @@
   "studio.payments.service.paypalOnce": {
     "status": "mt",
     "srcHash": "f6fdc0ad8a75"
+  },
+  "studio.payments.service.readersOnly": {
+    "status": "mt",
+    "srcHash": "25fc2c992af1"
   },
   "studio.payments.step.liveKey": {
     "status": "mt",

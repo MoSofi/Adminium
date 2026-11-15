@@ -98,6 +98,8 @@ export interface ServiceView {
   status: string;
   loaded: boolean;
   hasPaths: boolean;
+  /** A card reader service with no pay page: connected here, its readers paired in Card readers. */
+  readersOnly?: boolean;
   webhookEvents: string[];
   path: 'app' | 'by-hand' | null;
   stopped: boolean;
@@ -209,11 +211,12 @@ export function saveRefusalOf(error: unknown): SaveRefusal | null {
 }
 
 /** The two first-party services, by their add-on key. Any other is named by its manifest. */
-export type KnownProvider = 'stripe' | 'paypal' | null;
+export type KnownProvider = 'stripe' | 'paypal' | 'square' | null;
 
 export function knownProvider(key: string): KnownProvider {
   if (key === 'payments-stripe') return 'stripe';
   if (key === 'payments-paypal') return 'paypal';
+  if (key === 'payments-square') return 'square';
   return null;
 }
 

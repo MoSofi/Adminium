@@ -3935,10 +3935,12 @@
     "service": {
       "connectsStripe": "Připojuje se ke Stripe",
       "connectsPaypal": "Připojuje se k PayPal",
+      "connectsSquare": "Připojuje se k Square",
       "notLoaded": "Tento doplněk se nenačetl, takže jeho klíče nelze ověřit.",
       "notLoadedBody": "Platební služba se načte jen z balíčku, za který se Adminium může zaručit: z balíčku dodaného s tímto sestavením, nebo staženého z katalogu.",
       "paypalOnce": "PayPal se zobrazí jen jednou: přes tuto kartu, ne na stránce Stripe.",
-      "fixAddressFirst": "Nejdřív opravte adresu výše: do té doby zůstanou online platby vypnuté."
+      "fixAddressFirst": "Nejdřív opravte adresu výše: do té doby zůstanou online platby vypnuté.",
+      "readersOnly": "Pro čtečky karet u vaší pokladny. Uložte zde jeho klíče a pak spárujte každou čtečku v části Čtečky karet, v testovacím nebo ostrém režimu."
     },
     "reach": {
       "badge": {

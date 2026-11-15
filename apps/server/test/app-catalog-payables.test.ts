@@ -27,7 +27,7 @@ function counter(version = '1.0.0', methodValues: Record<string, string> = { car
   return appManifest('counter', {
     name: 'Counter',
     version,
-    compatibility: { minAdminiumVersion: '0.3.59', engines: ['postgres', 'mysql', 'sqlite'] },
+    compatibility: { minAdminiumVersion: '0.3.60', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: {
       tables: [
         {

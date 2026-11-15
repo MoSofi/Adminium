@@ -143,6 +143,8 @@ export interface ChecklistInput {
   webhookFields: readonly string[];
   /** Whether this provider offers more than one way to make the key (Stripe: the app or by hand). */
   hasPaths: boolean;
+  /** A card reader service with no pay page (`card-terminal@1` alone): its steps are its two keys. */
+  readersOnly?: boolean;
 }
 
 function keyDone(mode: ModeState, fields: readonly string[]): boolean {
@@ -165,7 +167,9 @@ export function checklist(input: ChecklistInput): { step: ChecklistStep; done: b
     'live-webhook': webhookDone(state.live, input.webhookFields),
     'live-payment': state.live.firstPaymentAt !== null,
   };
-  return CHECKLIST_STEPS.filter((step) => step !== 'path' || input.hasPaths).map((step) => ({ step, done: done[step] }));
+  // A reader service has no webhook and no pay page: its payments are taken at the counter, its keys are its setup.
+  const steps = input.readersOnly === true ? CHECKLIST_STEPS.filter((step) => step === 'test-key' || step === 'live-key') : CHECKLIST_STEPS.filter((step) => step !== 'path' || input.hasPaths);
+  return steps.map((step) => ({ step, done: done[step] }));
 }
 
 /**

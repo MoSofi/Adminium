@@ -3945,10 +3945,12 @@ export default {
     "service": {
       "connectsStripe": "Connects to Stripe",
       "connectsPaypal": "Connects to PayPal",
+      "connectsSquare": "Connects to Square",
       "notLoaded": "This add-on did not load, so its keys cannot be checked.",
       "notLoadedBody": "A payment service loads only from a package Adminium can vouch for: one this build bundles, or one downloaded from the catalogue.",
       "paypalOnce": "PayPal shows once: through this card, not on the Stripe page.",
-      "fixAddressFirst": "Fix the address above first: online payments stay off until then."
+      "fixAddressFirst": "Fix the address above first: online payments stay off until then.",
+      "readersOnly": "For card readers at your counter. Save its keys here, then pair each reader in Card readers, in test or live mode."
     },
     "reach": {
       "badge": {
