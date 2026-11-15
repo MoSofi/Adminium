@@ -59,6 +59,9 @@ import { PAY_LANGUAGES } from './words.js';
  */
 const FINAL_REFUSALS: ReadonlySet<string> = new Set(['CURRENCY_UNSUPPORTED']);
 
+/** The states that end a visit: where the page offers the way back to the app the record is paid in. */
+const BACK_STATES: ReadonlySet<string> = new Set(['paid', 'processing', 'shop-checks', 'failed', 'cancelled', 'nothing-due', 'voided']);
+
 /** How often the way-back page asks again while the provider has not said. */
 export const BACK_POLL_MS = 3000;
 /** After this many asks the page says it is taking long, and keeps asking more slowly. */
@@ -714,6 +717,12 @@ export function PayApp({ route }: { route: Exclude<PayRoute, { kind: 'demo' } | 
                 </a>
               )}
               {current.contact === true ? <Contact shop={shop} /> : null}
+              {page?.back != null && BACK_STATES.has(page.state) ? (
+                <a className="pp-link" href={page.back.url} data-testid="pay-back">
+                  <Icon of={ArrowLeft} size={14} flip />
+                  {t('pay:back', 'Back to {app}', { app: page.back.app })}
+                </a>
+              ) : null}
             </section>
           )}
 

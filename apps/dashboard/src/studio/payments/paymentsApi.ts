@@ -150,6 +150,22 @@ export function paymentsSetupQuery() {
 
 const service = (key: string) => `/api/v1/payments/services/${encodeURIComponent(key)}`;
 
+export const PUBLIC_STARTS_QUERY_KEY = ['payments', 'public-starts'] as const;
+
+/** Until when card testing paused the payments apps start (their own checkouts); null while they are not paused. */
+export function publicStartsQuery() {
+  return queryOptions({
+    queryKey: PUBLIC_STARTS_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: { pausedUntil: number | null } }>('/api/v1/payments/public-starts')).data,
+    retry: false,
+  });
+}
+
+/** Ends the pause of public starts before its hour is over. */
+export async function resumePublicStarts(): Promise<{ pausedUntil: number | null }> {
+  return (await api.post<{ data: { pausedUntil: number | null } }>('/api/v1/payments/public-starts/resume')).data;
+}
+
 /** "Got it" on an alarm banner: hidden for this person only. */
 export async function dismissAlarm(id: string): Promise<void> {
   await api.post(`/api/v1/payments/alarms/${encodeURIComponent(id)}/dismiss`);
@@ -369,6 +385,10 @@ export interface PayableProfileView {
   enabled: boolean;
   valid: boolean;
   payments: 'kept' | 'table' | null;
+  /** The app that declared it (switched on and off in the Apps tab); null for one made here. Absent from a server one step behind. */
+  ownerApp?: string | null;
+  /** An invoice an app built on the Invoices shape. */
+  shape?: boolean;
   updatedAt: number;
 }
 
@@ -407,6 +427,90 @@ export async function markPayable(connectionId: string, tableId: string, mapping
 
 export async function patchPayable(id: string, patch: { mapping?: PayableMapping; enabled?: boolean }): Promise<PayableProfileView> {
   return (await api.patch<{ data: PayableProfileView }>(`/api/v1/payments/payables/${encodeURIComponent(id)}`, patch)).data;
+}
+
+// ─── Apps that take payments ────────────────────────────────────────────────
+
+export interface PaymentAppView {
+  connectionId: string;
+  appKey: string;
+  name: string;
+  /** On when every payable table of the app is. */
+  enabled: boolean;
+  tables: { tableName: string; shape: boolean; valid: boolean }[];
+}
+
+export const PAYMENTS_APPS_QUERY_KEY = ['payments', 'apps'] as const;
+
+export const REHEARSAL_QUERY_KEY = ['payments', 'rehearsal'] as const;
+
+/** A card reader paired for the tills. */
+export interface ReaderView {
+  id: string;
+  provider: string;
+  mode: 'test' | 'live';
+  label: string;
+  locationName: string | null;
+  model: string | null;
+  online: boolean;
+  lastSeenAt: number | null;
+}
+
+/** The first step of pairing: type the reader's code here (`enter`), or this code on the reader (`show`). */
+export interface PairingView {
+  way: 'enter' | 'show';
+  code: string | null;
+  pairing: string;
+  expiresAt: number;
+}
+
+export const READERS_QUERY_KEY = ['payments', 'readers'] as const;
+
+export function readersQuery() {
+  return queryOptions({
+    queryKey: READERS_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: { readers: ReaderView[]; services: { key: string; name: string }[] } }>('/api/v1/payments/readers')).data,
+    retry: false,
+  });
+}
+
+export async function startPairing(input: { provider: string; mode: 'test' | 'live'; label: string }): Promise<PairingView> {
+  return (await api.post<{ data: PairingView }>('/api/v1/payments/readers/pairing', input)).data;
+}
+
+export async function finishPairing(input: { provider: string; mode: 'test' | 'live'; label: string; pairing: string; code: string | null }): Promise<{ state: 'paired' | 'waiting'; reader: ReaderView | null }> {
+  return (await api.post<{ data: { state: 'paired' | 'waiting'; reader: ReaderView | null } }>('/api/v1/payments/readers/pairing/finish', input)).data;
+}
+
+export async function unpairReader(id: string): Promise<void> {
+  await api.delete(`/api/v1/payments/readers/${encodeURIComponent(id)}`);
+}
+
+/** Until when this person rehearses the apps' checkouts (test payments, sample rows); null while they do not. */
+export function rehearsalQuery() {
+  return queryOptions({
+    queryKey: REHEARSAL_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: { until: number | null } }>('/api/v1/payments/rehearsal')).data,
+    retry: false,
+  });
+}
+
+/** Switches this person's rehearsal on (for a few hours) or off. */
+export async function setRehearsal(on: boolean): Promise<{ until: number | null }> {
+  return (await api.put<{ data: { until: number | null } }>('/api/v1/payments/rehearsal', { on })).data;
+}
+
+export function paymentsAppsQuery(workspaceId?: string) {
+  return queryOptions({
+    queryKey: workspaceId === undefined ? PAYMENTS_APPS_QUERY_KEY : ([...PAYMENTS_APPS_QUERY_KEY, workspaceId] as const),
+    queryFn: async () => (await api.get<{ data: { apps: PaymentAppView[] } }>(`/api/v1/payments/apps${workspaceId === undefined ? '' : `?workspaceId=${encodeURIComponent(workspaceId)}`}`)).data.apps,
+    retry: false,
+  });
+}
+
+/** One switch per app: every payable table it declared on that database, on or off together. */
+export async function switchPaymentApp(connectionId: string, appKey: string, enabled: boolean): Promise<void> {
+  await api.post('/api/v1/payments/apps/switch', { connectionId, appKey, enabled });
 }
 
 export async function stopPayable(id: string): Promise<void> {

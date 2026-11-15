@@ -857,7 +857,11 @@
         "title": "Un rôle peut effacer des personnes",
         "body": "{roles} peut trouver, télécharger et effacer tout ce que ce serveur conserve sur une personne, sur la page de confidentialité."
       },
-      "footerStepVersion": "Étape {n} sur {total} · {app} {version}"
+      "footerStepVersion": "Étape {n} sur {total} · {app} {version}",
+      "refundGrants": {
+        "title": "Qui peut rembourser les paiements en ligne",
+        "body": "Ces rôles peuvent rendre l’argent payé en ligne par les clients pour les fiches de cette application. Décochez un rôle qui ne doit pas le faire."
+      }
     },
     "installed": {
       "title": "Applications installées",
@@ -956,7 +960,8 @@
       "grantsSubtitle": "Vérifiez ce que les rôles de cette version reçoivent de nouveau.",
       "grantsAdded": {
         "title": "Cette version donne plus à ses rôles",
-        "addOnSettings": "{roles} peut modifier les réglages de {addOn}, partagés par toutes les apps qu’il sert."
+        "addOnSettings": "{roles} peut modifier les réglages de {addOn}, partagés par toutes les apps qu’il sert.",
+        "refund": "{roles} peuvent rendre l’argent payé en ligne par les clients pour les fiches de cette application."
       },
       "stopped": {
         "pages": "La mise à jour vers {to} s’est arrêtée pendant l’écriture des pages. Rien n’a été perdu ; les pages de {from} sont toujours là.",
@@ -1103,7 +1108,8 @@
         "systemGrant": "Les droits de console du rôle {item}",
         "outbound": "Ce que la règle {item} envoie à l’extérieur",
         "title": "Après l’installation",
-        "note": "Ils restent sur la page de l’application jusqu’à ce qu’ils soient faits."
+        "note": "Ils restent sur la page de l’application jusqu’à ce qu’ils soient faits.",
+        "paymentsSwitch": "Paiements : désactivés. Activez-les dans Paiements quand vous voulez que les clients paient dans cette app."
       },
       "title": "Vérifier avant d’installer",
       "intro": "{app} s’installe dans {database}. Rien ne change tant que vous n’avez pas cliqué sur Installer.",
@@ -4136,7 +4142,9 @@
       "ways": "Moyens de paiement",
       "payables": "Ce qui peut être payé",
       "page": "Page de paiement",
-      "activity": "Activité"
+      "activity": "Activité",
+      "apps": "Apps",
+      "readers": "Terminaux de paiement"
     },
     "loadFailed": "Les paiements n’ont pas pu être chargés",
     "forbidden": "Pour voir les paiements, il faut l’autorisation « Configurer les paiements » ou « Voir l’activité des paiements ».",
@@ -4332,7 +4340,8 @@
       "ready": "Prête",
       "builtOn": "Construite au format facture",
       "needsUpdate": "Construite au format facture. Les paiements en ligne demandent la mise à jour de l’application ; les paiements à la main fonctionnent.",
-      "previewHidden": "Les lignes ne sont montrées qu’à une personne qui peut configurer cette table."
+      "previewHidden": "Les lignes ne sont montrées qu’à une personne qui peut configurer cette table.",
+      "fromApp": "De {app} · activé et désactivé dans Apps"
     },
     "page": {
       "logoType": "Le logo doit être une image PNG, JPEG ou WebP.",
@@ -4432,9 +4441,11 @@
         "paidTwice": "Payé deux fois : un paiement pour {record} · {amount} est arrivé alors qu'un autre était en cours. Les deux sont enregistrés.",
         "waitingLong": "En attente de la banque depuis {days} jours : {record} · {amount}.",
         "waitingLongWay": "En attente de la banque depuis {days} jours : {record} · {amount} ({way}).",
+        "statusRefused": "Payé et enregistré, mais {record} n'est pas passé à l'état payé : {reason} Changez-le dans l'app, ou remboursez le paiement.",
         "recordChanged": "Un paiement enregistré a changé : {record} · {amount} n'est plus enregistré comme avant.",
         "disputed": "Litige : {record} · {amount}. Répondez-y dans le tableau de bord {service}.",
-        "disputeLost": "Litige perdu : {amount} est revenu au client sur {record}. Enregistré comme remboursement."
+        "disputeLost": "Litige perdu : {amount} est revenu au client sur {record}. Enregistré comme remboursement.",
+        "refundOwed": "Remboursement dû : {record} · {amount} a été annulé, et son remboursement n’a pas démarré tout seul. Remboursez-le, ou marquez-le comme vérifié."
       },
       "why": {
         "alreadyPaid": "La facture était déjà entièrement payée.",
@@ -4468,7 +4479,9 @@
         "disputeClosed": "Le litige est clos. Son issue figure dans le tableau de bord {service}.",
         "disputeWon": "Le litige a été gagné.",
         "disputeLost": "Le litige a été perdu : l’argent est revenu au client.",
-        "refundDisputeWon": "Litige gagné — {amount} sont revenus"
+        "refundDisputeWon": "Litige gagné — {amount} sont revenus",
+        "refundAuto": "Remboursé automatiquement après une annulation gratuite : {amount}",
+        "refundInApp": "Remboursement de {amount} lancé depuis le remboursement de l’application"
       },
       "checkedBy": "Vérifié par {name}",
       "someone": "quelqu'un",
@@ -4581,7 +4594,59 @@
       "title": "L’horloge de ce serveur est décalée de {seconds} secondes par rapport à celle de {provider}.",
       "body": "Réglez l’heure du serveur automatiquement (NTP). Au-delà de cinq minutes, les messages de paiement de {provider} sont refusés."
     },
-    "menuLabel": "Plus pour {service}"
+    "menuLabel": "Plus pour {service}",
+    "apps": {
+      "title": "Apps qui peuvent encaisser des paiements",
+      "sub": "Chaque app installée qui peut demander aux clients de payer. Les paiements restent désactivés jusqu’à ce que vous les activiez.",
+      "line": "Les clients paient : {tables}",
+      "needsUpdate": "Mettez l’app à jour pour encaisser à nouveau des paiements.",
+      "connectFirst": "Connectez d’abord un service de paiement",
+      "canTake": "Peut encaisser des paiements",
+      "on": "Activé",
+      "off": "Désactivé",
+      "confirmTitle": "Activer les paiements pour {app} ?",
+      "confirmBody": "{app} demandera à ses clients de payer en ligne, via les services de paiement que vous avez connectés. Vous pouvez le désactiver à tout moment.",
+      "cancel": "Annuler",
+      "switchOn": "Activer",
+      "toastOn": "Les paiements sont activés pour {app}.",
+      "toastOff": "Les paiements sont désactivés pour {app}.",
+      "empty": "Aucune app installée n’encaisse encore de paiements.",
+      "viewOnly": "Vous pouvez voir les paiements. Demandez à une personne qui gère les paiements d’agir.",
+      "tryAsCustomer": "Essayer {app} en tant que client"
+    },
+    "publicPaused": {
+      "title": "Les paiements de vos applications sont en pause jusqu'à {time}",
+      "body": "Des cartes ont été refusées depuis de nombreuses adresses en moins d'une heure : quelqu'un semble tester des cartes volées. En attendant, vos applications proposent leurs autres moyens de paiement ; les liens de paiement que vous envoyez fonctionnent toujours.",
+      "resume": "Reprendre maintenant"
+    },
+    "rehearsal": {
+      "title": "TEST · Répétition jusqu’à {time}",
+      "body": "Les commandes que vous passez dans vos applications sont des données d’exemple, et vous les payez par des paiements de test. Leurs e-mails vous sont envoyés. Retirer les données d’exemple les enlève toutes.",
+      "stop": "Arrêter la répétition"
+    },
+    "readers": {
+      "pairTitle": "Associer un terminal de paiement",
+      "service": "Service",
+      "mode": "Mode",
+      "test": "Test",
+      "live": "Production",
+      "name": "Nom",
+      "namePh": "Comptoir avant",
+      "enterCode": "Saisissez le code affiché par le terminal",
+      "showCode": "Saisissez ce code sur le terminal, puis appuyez sur Terminé : {code}",
+      "waiting": "Le terminal n’a pas encore pris le code.",
+      "next": "Suivant",
+      "done": "Terminé",
+      "lastSeen": "Vu pour la dernière fois {when}",
+      "online": "En ligne",
+      "offline": "Hors ligne",
+      "unpair": "Dissocier",
+      "viewOnly": "Associer des terminaux de paiement demande l’autorisation « Configurer les paiements ».",
+      "title": "Terminaux de paiement",
+      "sub": "Les terminaux de votre comptoir. Chaque caisse choisit son terminal dans ses propres réglages.",
+      "pair": "Associer un terminal",
+      "empty": "Aucun terminal de paiement n’est associé."
+    }
   },
   "appDocuments": {
     "waiting": {
@@ -5794,7 +5859,8 @@
         "systemGrant": "Donner au rôle {name} ses droits sur la console",
         "outbound": "Vérifier ce que '{name}' envoie à l’extérieur, puis l’activer",
         "webhook": "Ajouter l’adresse web à '{name}'",
-        "webhookHeader": "Remplir la valeur d’en-tête de '{name}'"
+        "webhookHeader": "Remplir la valeur d’en-tête de '{name}'",
+        "paymentsSwitch": "Activer les paiements pour cette app dans Paiements"
       },
       "link": {
         "automation": "Ouvrir la règle",

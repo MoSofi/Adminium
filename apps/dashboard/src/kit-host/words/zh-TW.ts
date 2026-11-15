@@ -291,6 +291,40 @@ const words: KitWords = {
     "common:consent.why.oldMark": "在開始記錄之前取消訂閱",
     "common:consent.why.relayUnsubscribe": "透過郵件服務取消訂閱",
     "common:consent.why.spam": "被標記為垃圾郵件"
+  },
+  "refund": {
+    "payments:panel.test": "測試",
+    "payments:panel.toast.refundRequested": "已申請退款 {amount}。",
+    "payments:panel.why.full": "這筆付款已全額退款。",
+    "payments:panel.why.notTaken": "這筆付款沒有扣到款項。",
+    "payments:panel.why.pending": "這筆付款仍在等待銀行處理。",
+    "payments:refund.amount": "金額",
+    "payments:refund.back": "返回",
+    "payments:refund.continue": "繼續",
+    "payments:refund.failed": "未能申請退款：{message}",
+    "payments:refund.full": "全額",
+    "payments:refund.goesBack": "退回至 {paidWith}。通常需要 5–10 天。",
+    "payments:refund.goesBackPlain": "依原付款方式退回。通常需要 5–10 天。",
+    "payments:refund.lost": "沒有收到回覆。請再次點擊「退款」：這會請求同一筆退款，絕不會退第二次。",
+    "payments:refund.part": "部分",
+    "payments:refund.question": "要退款 {amount} 至 {paidWith} 嗎？",
+    "payments:refund.questionPlain": "要退款 {amount} 嗎？",
+    "payments:refund.reason": "原因",
+    "payments:refund.reasons.duplicate": "重複付款",
+    "payments:refund.reasons.fraudulent": "詐欺",
+    "payments:refund.reasons.other": "其他",
+    "payments:refund.reasons.requested_by_customer": "客戶要求",
+    "payments:refund.refusal.inApp": "請在此付款所屬的應用程式中退款，它的退款記錄保存在那裡。",
+    "payments:refund.submit": "退款",
+    "payments:refund.title": "退款",
+    "payments:refund.upTo": "最多可退款 {amount}"
+  },
+  "pay-link": {
+    "payments:panel.copyLink": "複製付款連結",
+    "payments:panel.linkLine": "付款連結建立於 {made} · 有效至 {until}",
+    "payments:panel.toast.copied": "已複製付款連結。",
+    "payments:panel.toast.copyFailed": "付款連結已建立，但此瀏覽器未能複製：{url}",
+    "payments:panel.toast.failed": "操作未成功：{message}"
   }
 };
 

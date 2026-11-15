@@ -176,6 +176,18 @@ export default {
       "lostTitle": "爭議敗訴",
       "lostTitleTest": "測試爭議敗訴",
       "lostBody": "{label} · {amount} 已退回給客戶"
+    },
+    "appPayablesChanged": {
+      "title": "{app} 的付款已關閉",
+      "body": "其更新改變了收款方式。請在「付款」中查看，然後重新開啟。"
+    },
+    "cardTesting": {
+      "title": "來自你的應用程式的付款已暫停",
+      "body": "一小時內有來自 {count} 個不同位址的卡片被拒絕，看起來有人在測試被盜的卡片。從你的應用程式畫面發起的付款已暫停一小時；你傳送的付款連結仍可使用。你可以在「付款」中恢復。"
+    },
+    "autoRefund": {
+      "title": "已自動退款",
+      "body": "{label} 的 {amount}，在 {app} 中免費取消之後"
     }
   },
   "refund": {
@@ -206,6 +218,9 @@ export default {
     "back": "返回",
     "submit": "退款",
     "failed": "未能申請退款：{message}",
-    "lost": "沒有收到回覆。請再次點擊「退款」：這會請求同一筆退款，絕不會退第二次。"
+    "lost": "沒有收到回覆。請再次點擊「退款」：這會請求同一筆退款，絕不會退第二次。",
+    "refusal": {
+      "inApp": "請在此付款所屬的應用程式中退款，它的退款記錄保存在那裡。"
+    }
   }
 } as const;

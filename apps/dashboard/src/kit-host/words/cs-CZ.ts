@@ -291,6 +291,40 @@ const words: KitWords = {
     "common:consent.why.oldMark": "odhlášení před zavedením záznamů",
     "common:consent.why.relayUnsubscribe": "odhlášení přes poštovní službu",
     "common:consent.why.spam": "označeno jako spam"
+  },
+  "refund": {
+    "payments:panel.test": "Test",
+    "payments:panel.toast.refundRequested": "Vrácení {amount} vyžádáno.",
+    "payments:panel.why.full": "Tato platba je vrácena celá.",
+    "payments:panel.why.notTaken": "Za tuto platbu nebyly strženy žádné peníze.",
+    "payments:panel.why.pending": "Tato platba stále čeká na banku.",
+    "payments:refund.amount": "Částka",
+    "payments:refund.back": "Zpět",
+    "payments:refund.continue": "Pokračovat",
+    "payments:refund.failed": "Vrácení nebylo vyžádáno: {message}",
+    "payments:refund.full": "Celá",
+    "payments:refund.goesBack": "Vrátí se na {paidWith}. Obvykle za 5–10 dní.",
+    "payments:refund.goesBackPlain": "Vrátí se stejnou cestou, jakou bylo zaplaceno. Obvykle za 5–10 dní.",
+    "payments:refund.lost": "Nepřišla žádná odpověď. Stiskněte znovu Vrátit: požádá o stejné vrácení, nikdy o druhé.",
+    "payments:refund.part": "Část",
+    "payments:refund.question": "Vrátit {amount} na {paidWith}?",
+    "payments:refund.questionPlain": "Vrátit {amount}?",
+    "payments:refund.reason": "Důvod",
+    "payments:refund.reasons.duplicate": "Duplicitní",
+    "payments:refund.reasons.fraudulent": "Podvodná",
+    "payments:refund.reasons.other": "Jiný",
+    "payments:refund.reasons.requested_by_customer": "Na žádost zákazníka",
+    "payments:refund.refusal.inApp": "Tuto platbu vraťte v její aplikaci, kde se vedou její refundace.",
+    "payments:refund.submit": "Vrátit",
+    "payments:refund.title": "Vrátit platbu",
+    "payments:refund.upTo": "Vrátit lze až {amount}"
+  },
+  "pay-link": {
+    "payments:panel.copyLink": "Kopírovat platební odkaz",
+    "payments:panel.linkLine": "Platební odkaz vytvořen {made} · platí do {until}",
+    "payments:panel.toast.copied": "Platební odkaz zkopírován.",
+    "payments:panel.toast.copyFailed": "Platební odkaz je vytvořen, ale tento prohlížeč ho nezkopíroval: {url}",
+    "payments:panel.toast.failed": "To se nepovedlo: {message}"
   }
 };
 

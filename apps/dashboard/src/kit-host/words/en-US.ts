@@ -291,6 +291,40 @@ const words: KitWords = {
     "common:consent.why.oldMark": "unsubscribed before records were kept",
     "common:consent.why.relayUnsubscribe": "unsubscribed through the mail service",
     "common:consent.why.spam": "marked as spam"
+  },
+  "refund": {
+    "payments:panel.test": "Test",
+    "payments:panel.toast.refundRequested": "Refund of {amount} requested.",
+    "payments:panel.why.full": "This payment is fully refunded.",
+    "payments:panel.why.notTaken": "No money was taken for this payment.",
+    "payments:panel.why.pending": "This payment is still waiting for the bank.",
+    "payments:refund.amount": "Amount",
+    "payments:refund.back": "Back",
+    "payments:refund.continue": "Continue",
+    "payments:refund.failed": "The refund was not asked: {message}",
+    "payments:refund.full": "Full",
+    "payments:refund.goesBack": "Goes back to {paidWith}. Usually 5–10 days.",
+    "payments:refund.goesBackPlain": "Goes back the way it was paid. Usually 5–10 days.",
+    "payments:refund.lost": "No answer came back. Press Refund again: it asks for the same refund, never a second one.",
+    "payments:refund.part": "Part",
+    "payments:refund.question": "Refund {amount} to {paidWith}?",
+    "payments:refund.questionPlain": "Refund {amount}?",
+    "payments:refund.reason": "Reason",
+    "payments:refund.reasons.duplicate": "Duplicate",
+    "payments:refund.reasons.fraudulent": "Fraudulent",
+    "payments:refund.reasons.other": "Other",
+    "payments:refund.reasons.requested_by_customer": "Requested by customer",
+    "payments:refund.refusal.inApp": "Refund this payment in its app, where its refunds are kept.",
+    "payments:refund.submit": "Refund",
+    "payments:refund.title": "Refund a payment",
+    "payments:refund.upTo": "Up to {amount} can be refunded"
+  },
+  "pay-link": {
+    "payments:panel.copyLink": "Copy pay link",
+    "payments:panel.linkLine": "Pay link made {made} · works until {until}",
+    "payments:panel.toast.copied": "Pay link copied.",
+    "payments:panel.toast.copyFailed": "The pay link is made, but this browser would not copy it: {url}",
+    "payments:panel.toast.failed": "That did not work: {message}"
   }
 };
 

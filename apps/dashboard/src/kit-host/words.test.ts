@@ -80,6 +80,8 @@ const PART_SOURCES: Record<KitPartName, string[]> = {
     'apps/dashboard/src/consent/ConsentPanel.tsx',
     'apps/dashboard/src/consent/consentWords.ts',
   ],
+  refund: ['apps/dashboard/src/kit-host/parts/refund.tsx'],
+  'pay-link': ['apps/dashboard/src/kit-host/parts/pay-link.tsx'],
 };
 
 function catalogueText(tag: string, key: string): unknown {

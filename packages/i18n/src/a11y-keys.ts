@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 3782 entries. */
+/** `namespace:key` — 3791 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -2627,6 +2627,10 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:payments.alarm.heading',
   'studio:payments.alarm.permission',
   'studio:payments.alarm.refused',
+  'studio:payments.apps.confirmTitle',
+  'studio:payments.apps.toastOff',
+  'studio:payments.apps.toastOn',
+  'studio:payments.apps.viewOnly',
   'studio:payments.check.failed',
   'studio:payments.check.liveInTest',
   'studio:payments.check.missing',
@@ -2689,7 +2693,12 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:payments.payables.voided',
   'studio:payments.payables.wayToPay',
   'studio:payments.payables.wholeAmounts',
+  'studio:payments.publicPaused.title',
   'studio:payments.reach.portTitle',
+  'studio:payments.readers.namePh',
+  'studio:payments.readers.pairTitle',
+  'studio:payments.readers.viewOnly',
+  'studio:payments.rehearsal.title',
   'studio:payments.service.fixAddressFirst',
   'studio:payments.service.notLoaded',
   'studio:payments.step.liveKey',

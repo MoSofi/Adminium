@@ -132,6 +132,22 @@ describe('the pay page', () => {
     }
   });
 
+  it('offers the way back to the app the record was paid in, once the visit is over, and only then', async () => {
+    const back = { url: 'https://order.crumbandco.de/orders', app: 'Online Ordering' };
+    answers['/pay/api/back/abcdefghijklmnop'] = pageOf({ state: 'paid', ways: [], back, attempt: { provider: 'payments-stripe', amount: '120.00', at: 1, receiptSent: true } });
+    await show({ kind: 'back', nonce: 'abcdefghijklmnop', left: false });
+    const link = await screen.findByTestId('pay-back');
+    expect(link.textContent).toContain('Back to Online Ordering');
+    expect(link.getAttribute('href')).toBe('https://order.crumbandco.de/orders');
+    cleanup();
+    // A record still to be paid: no way back yet, the ways to pay.
+    answers['/pay/api/back/abcdefghijklmnop'] = pageOf({ state: 'ready', back, attempt: null });
+    await show({ kind: 'back', nonce: 'abcdefghijklmnop', left: false });
+    await screen.findAllByText(/./);
+    expect(screen.queryByTestId('pay-back')).toBeNull();
+    cleanup();
+  });
+
   it('names the service it is checking with, and says the shop will check a payment that differs', async () => {
     answers['/pay/api/back/abcdefghijklmnop'] = pageOf({ state: 'checking', ways: [], attempt: { provider: 'payments-paypal', amount: '120.00', at: 1, receiptSent: false } });
     await show({ kind: 'back', nonce: 'abcdefghijklmnop', left: false });

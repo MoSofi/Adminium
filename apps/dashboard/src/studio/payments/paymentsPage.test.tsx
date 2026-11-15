@@ -157,6 +157,61 @@ describe('PaymentsPage', () => {
     expect(within(card).getByTestId('payments-payments-stripe-live')).toBeTruthy();
   });
 
+  it('says when card testing paused the payments apps start, and a manager resumes them', async () => {
+    let paused = true;
+    const posts: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: unknown, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/v1/payments/setup') return Promise.resolve(jsonResponse(200, { data: setup() }));
+        if (url === '/api/v1/payments/public-starts/resume') {
+          posts.push(init?.method ?? 'GET');
+          paused = false;
+          return Promise.resolve(jsonResponse(200, { data: { pausedUntil: null } }));
+        }
+        if (url === '/api/v1/payments/public-starts') return Promise.resolve(jsonResponse(200, { data: { pausedUntil: paused ? Date.UTC(2026, 10, 15, 18, 30) : null } }));
+        return Promise.resolve(jsonResponse(200, { data: stripe() }));
+      }),
+    );
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <PageActionsProvider>
+          <PageActionsSlot />
+          <PaymentsPage onOpenSettings={() => undefined} />
+        </PageActionsProvider>
+      </QueryClientProvider>,
+    );
+    const band = await screen.findByTestId('payments-public-paused');
+    expect(textOf(band)).toContain('Payments from your apps are paused until');
+    expect(textOf(band)).toContain('pay links you send keep working');
+    await userEvent.setup().click(within(band).getByTestId('payments-public-resume'));
+    await waitFor(() => expect(screen.queryByTestId('payments-public-paused')).toBeNull());
+    expect(posts).toEqual(['POST']);
+  });
+
+  it('offers no resume to someone who may only see payments', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: unknown) => {
+        const url = String(input);
+        if (url === '/api/v1/payments/setup') return Promise.resolve(jsonResponse(200, { data: setup({ canManage: false }) }));
+        if (url === '/api/v1/payments/public-starts') return Promise.resolve(jsonResponse(200, { data: { pausedUntil: Date.UTC(2026, 10, 15, 18, 30) } }));
+        return Promise.resolve(jsonResponse(200, { data: stripe() }));
+      }),
+    );
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <PageActionsProvider>
+          <PageActionsSlot />
+          <PaymentsPage onOpenSettings={() => undefined} />
+        </PageActionsProvider>
+      </QueryClientProvider>,
+    );
+    const band = await screen.findByTestId('payments-public-paused');
+    expect(within(band).queryByTestId('payments-public-resume')).toBeNull();
+  });
+
   it('says nothing about the address on a card while customers can reach the server', async () => {
     renderPage(setup());
     await screen.findByTestId('payments-service-payments-stripe');

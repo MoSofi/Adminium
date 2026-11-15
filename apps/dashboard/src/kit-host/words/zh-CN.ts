@@ -291,6 +291,40 @@ const words: KitWords = {
     "common:consent.why.oldMark": "在开始记录之前退订",
     "common:consent.why.relayUnsubscribe": "通过邮件服务退订",
     "common:consent.why.spam": "被标记为垃圾邮件"
+  },
+  "refund": {
+    "payments:panel.test": "测试",
+    "payments:panel.toast.refundRequested": "已申请退款 {amount}。",
+    "payments:panel.why.full": "这笔付款已全额退款。",
+    "payments:panel.why.notTaken": "这笔付款没有扣到钱。",
+    "payments:panel.why.pending": "这笔付款仍在等待银行处理。",
+    "payments:refund.amount": "金额",
+    "payments:refund.back": "返回",
+    "payments:refund.continue": "继续",
+    "payments:refund.failed": "未能申请退款：{message}",
+    "payments:refund.full": "全额",
+    "payments:refund.goesBack": "退回至 {paidWith}。通常需要 5–10 天。",
+    "payments:refund.goesBackPlain": "按原付款方式退回。通常需要 5–10 天。",
+    "payments:refund.lost": "没有收到回复。请再次点击“退款”：这会请求同一笔退款，绝不会退第二次。",
+    "payments:refund.part": "部分",
+    "payments:refund.question": "向 {paidWith} 退款 {amount}？",
+    "payments:refund.questionPlain": "退款 {amount}？",
+    "payments:refund.reason": "原因",
+    "payments:refund.reasons.duplicate": "重复付款",
+    "payments:refund.reasons.fraudulent": "欺诈",
+    "payments:refund.reasons.other": "其他",
+    "payments:refund.reasons.requested_by_customer": "客户要求",
+    "payments:refund.refusal.inApp": "请在此付款所属的应用中退款，它的退款记录保存在那里。",
+    "payments:refund.submit": "退款",
+    "payments:refund.title": "退款",
+    "payments:refund.upTo": "最多可退款 {amount}"
+  },
+  "pay-link": {
+    "payments:panel.copyLink": "复制付款链接",
+    "payments:panel.linkLine": "付款链接创建于 {made} · 有效期至 {until}",
+    "payments:panel.toast.copied": "已复制付款链接。",
+    "payments:panel.toast.copyFailed": "付款链接已创建，但此浏览器未能复制：{url}",
+    "payments:panel.toast.failed": "操作未成功：{message}"
   }
 };
 

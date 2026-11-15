@@ -21,7 +21,7 @@ import { CornerDownLeft, RotateCcw } from 'lucide-react';
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
 import type { PanelRefund } from './paymentPanelApi.js';
-import { fetchRefundPreview, REFUND_REASONS, requestRefund, type RefundPreview, type RefundReason } from './refundApi.js';
+import { DASHBOARD_REFUNDS, REFUND_REASONS, type RefundClient, type RefundPreview, type RefundReason } from './refundApi.js';
 import { decimalsOf, formatMoney, holdsCardNumber, moreThan, newPaymentKey, typedAmount } from './paymentText.js';
 import { readerLocale, usePaymentsMessages } from './paymentsMessages.js';
 import { refusalWords } from './refundWords.js';
@@ -42,6 +42,8 @@ export interface RefundDialogProps {
   number?: string | null | undefined;
   /** Called once the server took the refund (asked, done, or refused by the service in its words). */
   onRequested: (refund: PanelRefund) => void;
+  /** How it reaches the server; the dashboard's own session when left out (the kit passes its own). */
+  client?: RefundClient | undefined;
 }
 
 /** What the amount must be, in the decimals the payment was taken in. */
@@ -50,7 +52,7 @@ function amountProblem(typed: string | null, preview: RefundPreview): 'invalid' 
   return moreThan(typed, preview.refundable) ? 'over' : null;
 }
 
-export default function RefundDialog({ open, onOpenChange, attemptId, number, onRequested }: RefundDialogProps): ReactNode {
+export default function RefundDialog({ open, onOpenChange, attemptId, number, onRequested, client = DASHBOARD_REFUNDS }: RefundDialogProps): ReactNode {
   usePaymentsMessages();
   const locale = readerLocale();
   const [step, setStep] = useState<1 | 2>(1);
@@ -64,7 +66,7 @@ export default function RefundDialog({ open, onOpenChange, attemptId, number, on
   const keyFor = useRef<string | null>(null);
   const backRef = useRef<HTMLButtonElement | null>(null);
 
-  const preview = useQuery({ queryKey: ['payment-refund', attemptId], queryFn: () => fetchRefundPreview(attemptId), enabled: open, staleTime: 0 });
+  const preview = useQuery({ queryKey: ['payment-refund', attemptId], queryFn: () => client.preview(attemptId), enabled: open, staleTime: 0 });
   const view = preview.data;
 
   // A fresh dialog each time it opens: what is left now, Full, and no key yet.
@@ -98,7 +100,7 @@ export default function RefundDialog({ open, onOpenChange, attemptId, number, on
   }, [view, number, locale]);
 
   const send = useMutation({
-    mutationFn: () => requestRefund({ attemptId, amount: amount!, reason, note: note.trim() === '' ? null : note.trim(), key: key.current! }),
+    mutationFn: () => client.request({ attemptId, amount: amount!, reason, note: note.trim() === '' ? null : note.trim(), key: key.current! }),
     onSuccess: ({ refund }) => {
       onRequested(refund);
       onOpenChange(false);

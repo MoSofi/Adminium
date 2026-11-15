@@ -170,5 +170,6 @@ export default {
     "title": "Tato stránka potřebuje k online platbě JavaScript."
   },
   "shopFallback": "obchod",
-  "shopFallbackStart": "Obchod"
+  "shopFallbackStart": "Obchod",
+  "back": "Zpět do {app}"
 } as const;

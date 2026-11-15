@@ -11,6 +11,8 @@ export function refusalWords(code: string, provider: string | null, fallback: st
   switch (code) {
     case 'BY_HAND':
       return t('payments:panel.why.offline', 'This way to pay cannot be refunded online. Refund the customer by hand.');
+    case 'IN_APP':
+      return t('payments:refund.refusal.inApp', 'Refund this payment in its app, where its refunds are kept.');
     case 'PROCESSING':
       return t('payments:panel.why.pending', 'This payment is still waiting for the bank.');
     case 'FULLY_REFUNDED':

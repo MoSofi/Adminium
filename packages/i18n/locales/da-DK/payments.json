@@ -166,6 +166,18 @@
       "lostTitle": "Indsigelsen tabt",
       "lostTitleTest": "Testindsigelsen tabt",
       "lostBody": "{label} · {amount} gik tilbage til kunden"
+    },
+    "appPayablesChanged": {
+      "title": "{app} er slået fra for betalinger",
+      "body": "Opdateringen har ændret, hvordan betalinger modtages. Se den i Betalinger, og slå den til igen."
+    },
+    "cardTesting": {
+      "title": "Betalinger fra dine apps er sat på pause",
+      "body": "Kort blev afvist fra {count} forskellige adresser inden for en time. Det ligner, at nogen tester stjålne kort. Betalinger, der startes fra dine apps' egne skærme, er sat på pause i en time; betalingslinks, du sender, virker stadig. Du kan genoptage dem i Betalinger."
+    },
+    "autoRefund": {
+      "title": "Refunderet automatisk",
+      "body": "{amount} for {label} efter den gratis annullering i {app}"
     }
   },
   "refund": {
@@ -196,6 +208,9 @@
     "back": "Tilbage",
     "submit": "Refundér",
     "failed": "Der blev ikke anmodet om refunderingen: {message}",
-    "lost": "Der kom intet svar. Tryk på Refundér igen: Det beder om den samme refusion, aldrig en ny."
+    "lost": "Der kom intet svar. Tryk på Refundér igen: Det beder om den samme refusion, aldrig en ny.",
+    "refusal": {
+      "inApp": "Refundér denne betaling i dens app, hvor dens refunderinger føres."
+    }
   }
 }

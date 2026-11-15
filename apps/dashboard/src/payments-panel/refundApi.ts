@@ -17,6 +17,14 @@ export interface RefundPreview {
   refundable: string;
   paidWith: string | null;
   refusal: { code: string; message: string } | null;
+  /** Refunded in its app, where its refund rows are kept (CR4): the app, and the staff screen a refund is made on. */
+  inApp?: { app: string | null; openIn: string | null } | null;
+}
+
+/** How the dialog reaches the server: the dashboard's own session, or (on an app's screen) the kit's. */
+export interface RefundClient {
+  preview(attemptId: string): Promise<RefundPreview>;
+  request(input: RefundInput): Promise<{ refund: PanelRefund; fresh: boolean }>;
 }
 
 export const REFUND_REASONS = ['requested_by_customer', 'duplicate', 'fraudulent', 'other'] as const;
@@ -38,3 +46,6 @@ export async function fetchRefundPreview(attemptId: string): Promise<RefundPrevi
 export async function requestRefund(input: RefundInput): Promise<{ refund: PanelRefund; fresh: boolean }> {
   return (await api.post<{ data: { refund: PanelRefund; fresh: boolean } }>('/api/v1/payments/refunds', input)).data;
 }
+
+/** The dashboard's own client. */
+export const DASHBOARD_REFUNDS: RefundClient = { preview: fetchRefundPreview, request: requestRefund };

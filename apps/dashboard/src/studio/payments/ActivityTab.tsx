@@ -67,7 +67,7 @@ import { locale as activeLocale, wayName } from './paymentsWords.js';
 const RefundDialog = lazy(() => import('../../payments-panel/RefundDialog.js'));
 
 /** The flags where money may be owed back, and so offer a refund. */
-const REFUND_FLAGS: ReadonlySet<string> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided']);
+const REFUND_FLAGS: ReadonlySet<string> = new Set(['paid-not-recorded', 'amount-differs', 'payable-voided', 'refund-owed']);
 
 type Tone = 'warn' | 'info' | 'danger' | 'neutral' | 'pos';
 
@@ -231,6 +231,10 @@ export function flagSentence(row: ActivityRow, services: readonly ServiceView[],
         ? t('studio:payments.activity.flag.waitingLong', 'Waiting for the bank for {days} days: {record} · {amount}.', { days, record, amount })
         : t('studio:payments.activity.flag.waitingLongWay', 'Waiting for the bank for {days} days: {record} · {amount} ({way}).', { days, record, amount, way: wayWord(row.way) });
     }
+    case 'status-refused':
+      return t('studio:payments.activity.flag.statusRefused', 'Paid and recorded, but {record} did not move to its paid state: {reason} Move it in its app, or refund the payment.', { record, reason: row.flag.message ?? '' });
+    case 'refund-owed':
+      return t('studio:payments.activity.flag.refundOwed', 'Refund owed: {record} · {amount} was cancelled, and its refund did not start by itself. Give it back, or mark it as checked.', { record, amount });
     case 'record-changed':
       return t('studio:payments.activity.flag.recordChanged', 'A recorded payment changed: {record} · {amount} is no longer written down as it was.', { record, amount });
     case 'disputed':
@@ -258,6 +262,10 @@ function flagLook(row: ActivityRow): { icon: LucideIcon; tone: Tone } {
       return { icon: ShieldAlert, tone: 'warn' };
     case 'paid-twice':
       return { icon: Layers, tone: 'warn' };
+    case 'status-refused':
+      return { icon: CircleAlert, tone: 'warn' };
+    case 'refund-owed':
+      return { icon: RotateCcw, tone: 'warn' };
     case 'waiting-long':
       return { icon: Landmark, tone: 'info' };
     case 'disputed':
@@ -291,7 +299,11 @@ export function storyOf(row: ActivityRow, services: readonly ServiceView[], loca
           ? row.group === 'refundFailed'
             ? { text: t('studio:payments.activity.story.refundDisputeWon', 'Dispute won — {amount} came back', { amount }), at: row.times.started, tone: 'pos' }
             : { text: t('studio:payments.activity.story.refundDispute', 'Dispute lost — {amount} returned to the customer', { amount }), at: row.times.started, tone: 'warn' }
-          : { text: t('studio:payments.activity.story.refundStarted', 'Refund of {amount} started', { amount }), at: row.times.started, tone: 'neutral' },
+          : row.refundSource === 'auto'
+            ? { text: t('studio:payments.activity.story.refundAuto', 'Refunded by itself after a free cancellation: {amount}', { amount }), at: row.times.started, tone: 'neutral' }
+            : row.refundSource === 'app'
+              ? { text: t('studio:payments.activity.story.refundInApp', 'Refund of {amount} started from the app’s own refund', { amount }), at: row.times.started, tone: 'neutral' }
+              : { text: t('studio:payments.activity.story.refundStarted', 'Refund of {amount} started', { amount }), at: row.times.started, tone: 'neutral' },
     ];
     if (row.group === 'refunded') steps.push({ text: t('studio:payments.activity.story.refunded', '{service} says refunded', { service }), at: row.times.settled ?? row.times.updated, tone: 'pos' });
     if (row.group === 'refundFailed' && row.refundSource !== 'dispute') steps.push({ text: t('studio:payments.activity.story.refundFailed', '{service} says the refund failed', { service }), at: row.times.settled ?? row.times.updated, tone: 'danger' });

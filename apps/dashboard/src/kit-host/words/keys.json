@@ -287,5 +287,39 @@
     "common:consent.why.oldMark",
     "common:consent.why.relayUnsubscribe",
     "common:consent.why.spam"
+  ],
+  "refund": [
+    "payments:panel.test",
+    "payments:panel.toast.refundRequested",
+    "payments:panel.why.full",
+    "payments:panel.why.notTaken",
+    "payments:panel.why.pending",
+    "payments:refund.amount",
+    "payments:refund.back",
+    "payments:refund.continue",
+    "payments:refund.failed",
+    "payments:refund.full",
+    "payments:refund.goesBack",
+    "payments:refund.goesBackPlain",
+    "payments:refund.lost",
+    "payments:refund.part",
+    "payments:refund.question",
+    "payments:refund.questionPlain",
+    "payments:refund.reason",
+    "payments:refund.reasons.duplicate",
+    "payments:refund.reasons.fraudulent",
+    "payments:refund.reasons.other",
+    "payments:refund.reasons.requested_by_customer",
+    "payments:refund.refusal.inApp",
+    "payments:refund.submit",
+    "payments:refund.title",
+    "payments:refund.upTo"
+  ],
+  "pay-link": [
+    "payments:panel.copyLink",
+    "payments:panel.linkLine",
+    "payments:panel.toast.copied",
+    "payments:panel.toast.copyFailed",
+    "payments:panel.toast.failed"
   ]
 }

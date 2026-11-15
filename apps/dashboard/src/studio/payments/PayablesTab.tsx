@@ -652,9 +652,14 @@ function ProfileRow({ profile, canManage, tableName, workspace }: { profile: Pay
           <Badge tone={profile.enabled ? 'pos' : 'neutral'}>{profile.enabled ? t('studio:payments.payables.on', 'Can be paid') : t('studio:payments.payables.paused', 'Paused')}</Badge>
         )}
         <span className="ms-2 text-[12px] text-fg-muted">{profile.payments === 'table' ? t('studio:payments.payables.intoOwn', 'Into its own payments table') : t('studio:payments.payables.keptShort', 'Adminium keeps the payments')}</span>
+        {profile.ownerApp != null ? (
+          <span className="ms-2 text-[12px] text-fg-muted" data-testid={`payments-payable-from-${profile.id}`}>
+            {t('studio:payments.payables.fromApp', 'From {app} · switched on and off in Apps', { app: profile.ownerApp })}
+          </span>
+        ) : null}
       </td>
       <td className="py-2 text-end">
-        {canManage ? (
+        {canManage && profile.ownerApp == null ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Switch aria-label={t('studio:payments.payables.pauseLabel', 'Payments for {table}', { table: tableName })} checked={profile.enabled} disabled={toggle.isPending || !profile.valid} onCheckedChange={(next) => toggle.mutate(next)} />
             <Button variant="secondary" size="sm" onClick={() => setStopping(true)}>

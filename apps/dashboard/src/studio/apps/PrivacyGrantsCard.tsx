@@ -36,11 +36,14 @@ export function PrivacyGrantsCard({ grants }: { grants: readonly { role: string;
 export function RoleGrantsAddedCard({
   privacy,
   addOn,
+  refund = [],
 }: {
   privacy: readonly { role: string; roleName: string }[];
   addOn: readonly { role: string; roleName: string; addOn: string }[];
+  /** Roles newly given the app's refund right (`payments:@:refund`). */
+  refund?: readonly { role: string; roleName: string }[];
 }) {
-  if (privacy.length === 0 && addOn.length === 0) return null;
+  if (privacy.length === 0 && addOn.length === 0 && refund.length === 0) return null;
   const addOns = [...new Set(addOn.map((grant) => grant.addOn))];
   return (
     <section className="rounded-[14px] border border-warn/30 bg-warn-soft p-[14px]" data-testid="role-grants-added">
@@ -52,6 +55,13 @@ export function RoleGrantsAddedCard({
         <p className="mt-1 text-[12px] leading-[1.5] text-fg-muted">
           {t('studio:hostedApps.install.privacyGrants.body', '{roles} can find, download and erase everything this server keeps about a person, on the privacy page.', {
             roles: namesList(privacy.map((grant) => grant.roleName)),
+          })}
+        </p>
+      )}
+      {refund.length === 0 ? null : (
+        <p className="mt-1 text-[12px] leading-[1.5] text-fg-muted">
+          {t('studio:hostedApps.update.grantsAdded.refund', '{roles} can give back money customers paid online for this app’s records.', {
+            roles: namesList(refund.map((grant) => grant.roleName)),
           })}
         </p>
       )}

@@ -170,5 +170,6 @@ export default {
     "title": "Diese Seite braucht JavaScript, um online zu bezahlen."
   },
   "shopFallback": "den Shop",
-  "shopFallbackStart": "Der Shop"
+  "shopFallbackStart": "Der Shop",
+  "back": "Zurück zu {app}"
 } as const;

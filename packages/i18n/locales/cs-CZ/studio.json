@@ -857,7 +857,11 @@
         "title": "Role může mazat osoby",
         "body": "{roles} může na stránce soukromí najít, stáhnout a vymazat vše, co tento server o osobě uchovává."
       },
-      "footerStepVersion": "Krok {n} z {total} · {app} {version}"
+      "footerStepVersion": "Krok {n} z {total} · {app} {version}",
+      "refundGrants": {
+        "title": "Kdo smí vracet online platby",
+        "body": "Tyto role smí vracet peníze, které zákazníci zaplatili online za záznamy této aplikace. Odškrtněte roli, která to dělat nemá."
+      }
     },
     "installed": {
       "title": "Nainstalované aplikace",
@@ -956,7 +960,8 @@
       "grantsSubtitle": "Zkontrolujte, co role této verze nově dostávají.",
       "grantsAdded": {
         "title": "Tato verze dává svým rolím víc",
-        "addOnSettings": "{roles} může měnit nastavení doplňku {addOn}, která sdílejí všechny aplikace, jimž slouží."
+        "addOnSettings": "{roles} může měnit nastavení doplňku {addOn}, která sdílejí všechny aplikace, jimž slouží.",
+        "refund": "{roles} smí vracet peníze, které zákazníci zaplatili online za záznamy této aplikace."
       },
       "stopped": {
         "pages": "Aktualizace na {to} se zastavila při zápisu stránek. Nic se neztratilo; stránky verze {from} tu stále jsou.",
@@ -1103,7 +1108,8 @@
         "systemGrant": "Práva konzole role {item}",
         "outbound": "Co pravidlo {item} posílá ven",
         "title": "Po instalaci",
-        "note": "Zůstanou na stránce aplikace, dokud nebudou hotové."
+        "note": "Zůstanou na stránce aplikace, dokud nebudou hotové.",
+        "paymentsSwitch": "Platby: vypnuto. Zapněte je v sekci Platby, až budete chtít, aby zákazníci v této aplikaci platili."
       },
       "title": "Před instalací zkontrolujte",
       "intro": "{app} se nainstaluje do {database}. Dokud nestisknete Instalovat, nic se nezmění.",
@@ -4136,7 +4142,9 @@
       "ways": "Způsoby platby",
       "payables": "Co lze zaplatit",
       "page": "Platební stránka",
-      "activity": "Aktivita"
+      "activity": "Aktivita",
+      "apps": "Aplikace",
+      "readers": "Čtečky karet"
     },
     "loadFailed": "Platby se nepodařilo načíst",
     "forbidden": "K zobrazení plateb potřebujete oprávnění „Nastavit platby“ nebo „Zobrazit aktivitu plateb“.",
@@ -4332,7 +4340,8 @@
       "ready": "Připraveno",
       "builtOn": "Postaveno na formátu faktury",
       "needsUpdate": "Postaveno na formátu faktury. Online platby potřebují aktualizaci aplikace; ruční platby fungují.",
-      "previewHidden": "Řádky uvidí jen ten, kdo smí tuto tabulku nastavit."
+      "previewHidden": "Řádky uvidí jen ten, kdo smí tuto tabulku nastavit.",
+      "fromApp": "Z {app} · zapíná a vypíná se v Aplikacích"
     },
     "page": {
       "logoType": "Logo musí být obrázek PNG, JPEG nebo WebP.",
@@ -4432,9 +4441,11 @@
         "paidTwice": "Zaplaceno dvakrát: platba za {record} · {amount} přišla, když už byla na cestě jiná. Obě jsou zaznamenány.",
         "waitingLong": "Čeká na banku už {days} dní: {record} · {amount}.",
         "waitingLongWay": "Čeká na banku už {days} dní: {record} · {amount} ({way}).",
+        "statusRefused": "Zaplaceno a zaznamenáno, ale {record} se nepřesunulo do stavu zaplaceno: {reason} Přesuňte ho v aplikaci, nebo platbu vraťte.",
         "recordChanged": "Zaznamenaná platba se změnila: {record} · {amount} už není zaznamenána jako předtím.",
         "disputed": "Spor: {record} · {amount}. Odpovězte v ovládacím panelu {service}.",
-        "disputeLost": "Spor prohrán: {amount} se vrátilo zákazníkovi u {record}. Zaznamenáno jako vrácení peněz."
+        "disputeLost": "Spor prohrán: {amount} se vrátilo zákazníkovi u {record}. Zaznamenáno jako vrácení peněz.",
+        "refundOwed": "Dlužná refundace: {record} · {amount} bylo zrušeno a refundace se nespustila sama. Vraťte peníze, nebo to označte jako zkontrolované."
       },
       "why": {
         "alreadyPaid": "Faktura už byla zaplacena v plné výši.",
@@ -4468,7 +4479,9 @@
         "disputeClosed": "Spor je uzavřen. Jeho výsledek najdete v ovládacím panelu {service}.",
         "disputeWon": "Spor byl vyhrán.",
         "disputeLost": "Spor byl prohrán: peníze se vrátily zákazníkovi.",
-        "refundDisputeWon": "Spor vyhrán — {amount} se vrátilo"
+        "refundDisputeWon": "Spor vyhrán — {amount} se vrátilo",
+        "refundAuto": "Vráceno automaticky po bezplatném zrušení: {amount}",
+        "refundInApp": "Refundace {amount} zahájena z vlastní refundace aplikace"
       },
       "checkedBy": "Zkontroloval(a) {name}",
       "someone": "někdo",
@@ -4581,7 +4594,59 @@
       "title": "Hodiny tohoto serveru se od hodin služby {provider} liší o {seconds} s.",
       "body": "Nastavte čas serveru automaticky (NTP). Po pěti minutách jsou platební zprávy od služby {provider} odmítnuty."
     },
-    "menuLabel": "Další pro {service}"
+    "menuLabel": "Další pro {service}",
+    "apps": {
+      "title": "Aplikace, které mohou přijímat platby",
+      "sub": "Každá nainstalovaná aplikace, která může žádat zákazníky o platbu. Platby zůstanou vypnuté, dokud je nezapnete.",
+      "line": "Zákazníci platí za: {tables}",
+      "needsUpdate": "Aktualizujte aplikaci, aby znovu přijímala platby.",
+      "connectFirst": "Nejprve připojte platební službu",
+      "canTake": "Může přijímat platby",
+      "on": "Zapnuto",
+      "off": "Vypnuto",
+      "confirmTitle": "Zapnout platby pro {app}?",
+      "confirmBody": "{app} bude žádat své zákazníky o platbu online přes platební služby, které jste připojili. Kdykoli to můžete vypnout.",
+      "cancel": "Zrušit",
+      "switchOn": "Zapnout",
+      "toastOn": "Platby jsou pro {app} zapnuté.",
+      "toastOff": "Platby jsou pro {app} vypnuté.",
+      "empty": "Zatím žádná nainstalovaná aplikace nepřijímá platby.",
+      "viewOnly": "Platby můžete prohlížet. Požádejte někoho, kdo spravuje platby, aby jednal.",
+      "tryAsCustomer": "Vyzkoušet {app} jako zákazník"
+    },
+    "publicPaused": {
+      "title": "Platby z vašich aplikací jsou pozastavené do {time}",
+      "body": "Během hodiny byly odmítnuty karty z mnoha adres. Vypadá to, že někdo zkouší kradené karty. Vaše aplikace mezitím nabízejí jiné způsoby platby; platební odkazy, které posíláte, fungují dál.",
+      "resume": "Obnovit hned"
+    },
+    "rehearsal": {
+      "title": "TEST · Zkouška zapnutá do {time}",
+      "body": "Objednávky, které ve svých aplikacích vytvoříte, jsou ukázková data a platíte je testovacími platbami. Jejich e-maily chodí vám. Odstranění ukázkových dat je všechny odebere.",
+      "stop": "Ukončit zkoušku"
+    },
+    "readers": {
+      "pairTitle": "Spárovat čtečku karet",
+      "service": "Služba",
+      "mode": "Režim",
+      "test": "Test",
+      "live": "Ostrý",
+      "name": "Název",
+      "namePh": "Přední pult",
+      "enterCode": "Zadejte kód, který čtečka zobrazuje",
+      "showCode": "Zadejte tento kód na čtečce a pak stiskněte Hotovo: {code}",
+      "waiting": "Čtečka kód zatím nepřijala.",
+      "next": "Další",
+      "done": "Hotovo",
+      "lastSeen": "Naposledy viděna {when}",
+      "online": "Online",
+      "offline": "Offline",
+      "unpair": "Zrušit spárování",
+      "viewOnly": "Párování čteček karet vyžaduje oprávnění „Nastavit platby“.",
+      "title": "Čtečky karet",
+      "sub": "Čtečky u vašeho pultu. Každá pokladna si vybírá čtečku ve svém nastavení.",
+      "pair": "Spárovat čtečku",
+      "empty": "Zatím není spárována žádná čtečka karet."
+    }
   },
   "appDocuments": {
     "waiting": {
@@ -5794,7 +5859,8 @@
         "systemGrant": "Dát roli {name} její práva v konzoli",
         "outbound": "Zkontrolovat, co '{name}' posílá ven, a pak ho zapnout",
         "webhook": "Doplnit webovou adresu do '{name}'",
-        "webhookHeader": "Vyplnit hodnotu hlavičky v '{name}'"
+        "webhookHeader": "Vyplnit hodnotu hlavičky v '{name}'",
+        "paymentsSwitch": "Zapněte platby pro tuto aplikaci v sekci Platby"
       },
       "link": {
         "automation": "Otevřít pravidlo",

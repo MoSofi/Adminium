@@ -867,7 +867,11 @@ export default {
         "title": "Eine Rolle kann Personen löschen",
         "body": "{roles} kann auf der Datenschutzseite alles finden, herunterladen und löschen, was dieser Server über eine Person speichert."
       },
-      "footerStepVersion": "Schritt {n} von {total} · {app} {version}"
+      "footerStepVersion": "Schritt {n} von {total} · {app} {version}",
+      "refundGrants": {
+        "title": "Wer Online-Zahlungen erstatten darf",
+        "body": "Diese Rollen dürfen Geld zurückgeben, das Kunden online für Datensätze dieser App bezahlt haben. Entfernen Sie den Haken bei einer Rolle, die das nicht darf."
+      }
     },
     "installed": {
       "title": "Installierte Apps",
@@ -966,7 +970,8 @@ export default {
       "grantsSubtitle": "Prüfen Sie, was die Rollen dieser Version neu erhalten.",
       "grantsAdded": {
         "title": "Diese Version gibt ihren Rollen mehr",
-        "addOnSettings": "{roles} kann die Einstellungen von {addOn} ändern, die alle Apps teilen, für die es arbeitet."
+        "addOnSettings": "{roles} kann die Einstellungen von {addOn} ändern, die alle Apps teilen, für die es arbeitet.",
+        "refund": "{roles} dürfen Geld zurückgeben, das Kunden online für Datensätze dieser App bezahlt haben."
       },
       "stopped": {
         "pages": "Die Aktualisierung auf {to} wurde beim Schreiben der Seiten unterbrochen. Nichts ging verloren; die Seiten von {from} sind noch da.",
@@ -1113,7 +1118,8 @@ export default {
         "systemGrant": "Die Konsolenrechte der Rolle {item}",
         "outbound": "Was die Regel {item} nach außen sendet",
         "title": "Nach der Installation",
-        "note": "Sie bleiben auf der Seite der App, bis sie erledigt sind."
+        "note": "Sie bleiben auf der Seite der App, bis sie erledigt sind.",
+        "paymentsSwitch": "Zahlungen: aus. Schalten Sie sie unter Zahlungen ein, wenn Kunden in dieser App bezahlen sollen."
       },
       "title": "Vor dem Installieren prüfen",
       "intro": "{app} kommt in {database}. Nichts ändert sich, bevor Sie auf Installieren klicken.",
@@ -4146,7 +4152,9 @@ export default {
       "ways": "Zahlungsarten",
       "payables": "Was bezahlt werden kann",
       "page": "Zahlungsseite",
-      "activity": "Aktivität"
+      "activity": "Aktivität",
+      "apps": "Apps",
+      "readers": "Kartenlesegeräte"
     },
     "loadFailed": "Zahlungen konnten nicht geladen werden",
     "forbidden": "Um Zahlungen zu sehen, brauchen Sie die Berechtigung „Zahlungen einrichten“ oder „Zahlungsaktivität sehen“.",
@@ -4342,7 +4350,8 @@ export default {
       "ready": "Bereit",
       "builtOn": "Im Rechnungsformat aufgebaut",
       "needsUpdate": "Im Rechnungsformat aufgebaut. Online-Zahlungen brauchen das Update der App; Zahlungen von Hand funktionieren.",
-      "previewHidden": "Zeilen sieht nur, wer diese Tabelle einrichten darf."
+      "previewHidden": "Zeilen sieht nur, wer diese Tabelle einrichten darf.",
+      "fromApp": "Aus {app} · in Apps ein- und ausgeschaltet"
     },
     "page": {
       "logoType": "Das Logo muss ein PNG-, JPEG- oder WebP-Bild sein.",
@@ -4442,9 +4451,11 @@ export default {
         "paidTwice": "Doppelt bezahlt: Eine Zahlung für {record} · {amount} kam an, während eine andere unterwegs war. Beide sind erfasst.",
         "waitingLong": "Wartet seit {days} Tagen auf die Bank: {record} · {amount}.",
         "waitingLongWay": "Wartet seit {days} Tagen auf die Bank: {record} · {amount} ({way}).",
+        "statusRefused": "Bezahlt und erfasst, aber {record} wurde nicht auf bezahlt gesetzt: {reason} Setzen Sie den Status in der App oder erstatten Sie die Zahlung.",
         "recordChanged": "Eine erfasste Zahlung hat sich geändert: {record} · {amount} ist nicht mehr so erfasst wie zuvor.",
         "disputed": "Rückbuchung: {record} · {amount}. Beantworten Sie sie im Dashboard von {service}.",
-        "disputeLost": "Rückbuchung verloren: {amount} ging bei {record} an die Kundschaft zurück. Als Erstattung erfasst."
+        "disputeLost": "Rückbuchung verloren: {amount} ging bei {record} an die Kundschaft zurück. Als Erstattung erfasst.",
+        "refundOwed": "Erstattung offen: {record} · {amount} wurde storniert, und die Erstattung startete nicht von selbst. Erstatten Sie den Betrag oder markieren Sie ihn als geprüft."
       },
       "why": {
         "alreadyPaid": "Die Rechnung war bereits vollständig bezahlt.",
@@ -4478,7 +4489,9 @@ export default {
         "disputeClosed": "Die Rückbuchung ist abgeschlossen. Das Ergebnis steht im Dashboard von {service}.",
         "disputeWon": "Die Rückbuchung wurde gewonnen.",
         "disputeLost": "Die Rückbuchung wurde verloren: Das Geld ging an die Kundschaft zurück.",
-        "refundDisputeWon": "Rückbuchung gewonnen — {amount} kamen zurück"
+        "refundDisputeWon": "Rückbuchung gewonnen — {amount} kamen zurück",
+        "refundAuto": "Nach einer kostenlosen Stornierung von selbst erstattet: {amount}",
+        "refundInApp": "Erstattung von {amount} aus der eigenen Erstattung der App gestartet"
       },
       "checkedBy": "Geprüft von {name}",
       "someone": "jemandem",
@@ -4591,7 +4604,59 @@ export default {
       "title": "Die Uhr dieses Servers weicht {seconds} Sekunden von der Uhr von {provider} ab.",
       "body": "Stellen Sie die Serverzeit automatisch ein (NTP). Ab fünf Minuten werden Zahlungsnachrichten von {provider} abgelehnt."
     },
-    "menuLabel": "Mehr zu {service}"
+    "menuLabel": "Mehr zu {service}",
+    "apps": {
+      "title": "Apps, die Zahlungen annehmen können",
+      "sub": "Jede installierte App, die Kunden um eine Zahlung bitten kann. Zahlungen bleiben aus, bis Sie sie einschalten.",
+      "line": "Kunden bezahlen: {tables}",
+      "needsUpdate": "Aktualisieren Sie die App, um wieder Zahlungen anzunehmen.",
+      "connectFirst": "Verbinden Sie zuerst einen Zahlungsdienst",
+      "canTake": "Kann Zahlungen annehmen",
+      "on": "An",
+      "off": "Aus",
+      "confirmTitle": "Zahlungen für {app} einschalten?",
+      "confirmBody": "{app} bittet seine Kunden, online zu bezahlen, über die Zahlungsdienste, die Sie verbunden haben. Sie können es jederzeit ausschalten.",
+      "cancel": "Abbrechen",
+      "switchOn": "Einschalten",
+      "toastOn": "Zahlungen sind für {app} an.",
+      "toastOff": "Zahlungen sind für {app} aus.",
+      "empty": "Noch keine installierte App nimmt Zahlungen an.",
+      "viewOnly": "Sie können Zahlungen ansehen. Bitten Sie jemanden, der Zahlungen verwaltet, zu handeln.",
+      "tryAsCustomer": "{app} als Kunde ausprobieren"
+    },
+    "publicPaused": {
+      "title": "Zahlungen aus Ihren Apps sind bis {time} pausiert",
+      "body": "Innerhalb einer Stunde wurden Karten von vielen Adressen abgelehnt. Das sieht danach aus, dass jemand gestohlene Karten testet. Ihre Apps bieten bis dahin ihre anderen Zahlungswege an; Zahlungslinks, die Sie senden, funktionieren weiter.",
+      "resume": "Jetzt fortsetzen"
+    },
+    "rehearsal": {
+      "title": "TEST · Probelauf bis {time}",
+      "body": "Bestellungen, die Sie in Ihren Apps anlegen, sind Beispieldaten, und Sie bezahlen sie mit Testzahlungen. Ihre E-Mails gehen an Sie. Beispieldaten entfernen nimmt alles wieder weg.",
+      "stop": "Probelauf beenden"
+    },
+    "readers": {
+      "pairTitle": "Kartenlesegerät koppeln",
+      "service": "Dienst",
+      "mode": "Modus",
+      "test": "Test",
+      "live": "Live",
+      "name": "Name",
+      "namePh": "Vordere Theke",
+      "enterCode": "Geben Sie den Code ein, den das Lesegerät anzeigt",
+      "showCode": "Geben Sie diesen Code am Lesegerät ein und drücken Sie dann Fertig: {code}",
+      "waiting": "Das Lesegerät hat den Code noch nicht übernommen.",
+      "next": "Weiter",
+      "done": "Fertig",
+      "lastSeen": "Zuletzt gesehen {when}",
+      "online": "Online",
+      "offline": "Offline",
+      "unpair": "Entkoppeln",
+      "viewOnly": "Zum Koppeln von Kartenlesegeräten brauchen Sie die Berechtigung „Zahlungen einrichten“.",
+      "title": "Kartenlesegeräte",
+      "sub": "Lesegeräte an Ihrer Theke. Jede Kasse wählt ihr Lesegerät in ihren eigenen Einstellungen.",
+      "pair": "Lesegerät koppeln",
+      "empty": "Noch kein Kartenlesegerät gekoppelt."
+    }
   },
   "appDocuments": {
     "waiting": {
@@ -5804,7 +5869,8 @@ export default {
         "systemGrant": "Der Rolle {name} ihre Konsolenrechte geben",
         "outbound": "Prüfen, was '{name}' nach außen sendet, dann einschalten",
         "webhook": "Die Webadresse in '{name}' eintragen",
-        "webhookHeader": "Den Header-Wert in '{name}' ausfüllen"
+        "webhookHeader": "Den Header-Wert in '{name}' ausfüllen",
+        "paymentsSwitch": "Zahlungen für diese App unter Zahlungen einschalten"
       },
       "link": {
         "automation": "Regel öffnen",

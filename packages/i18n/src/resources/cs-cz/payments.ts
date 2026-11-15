@@ -176,6 +176,18 @@ export default {
       "lostTitle": "Spor prohrán",
       "lostTitleTest": "Testovací spor prohrán",
       "lostBody": "{label} · {amount} se vrátilo zákazníkovi"
+    },
+    "appPayablesChanged": {
+      "title": "{app} má vypnuté platby",
+      "body": "Její aktualizace změnila způsob přijímání plateb. Zkontrolujte ji v sekci Platby a znovu ji zapněte."
+    },
+    "cardTesting": {
+      "title": "Platby z vašich aplikací jsou pozastavené",
+      "body": "Během hodiny byly odmítnuty karty z {count} různých adres. Vypadá to, že někdo zkouší kradené karty. Platby zahájené na obrazovkách vašich aplikací jsou na hodinu pozastavené; platební odkazy, které posíláte, fungují dál. Obnovit je můžete v sekci Platby."
+    },
+    "autoRefund": {
+      "title": "Automaticky vráceno",
+      "body": "{amount} za {label} po bezplatném zrušení v aplikaci {app}"
     }
   },
   "refund": {
@@ -206,6 +218,9 @@ export default {
     "back": "Zpět",
     "submit": "Vrátit",
     "failed": "Vrácení nebylo vyžádáno: {message}",
-    "lost": "Nepřišla žádná odpověď. Stiskněte znovu Vrátit: požádá o stejné vrácení, nikdy o druhé."
+    "lost": "Nepřišla žádná odpověď. Stiskněte znovu Vrátit: požádá o stejné vrácení, nikdy o druhé.",
+    "refusal": {
+      "inApp": "Tuto platbu vraťte v její aplikaci, kde se vedou její refundace."
+    }
   }
 } as const;

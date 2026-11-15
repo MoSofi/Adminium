@@ -867,7 +867,11 @@ export default {
         "title": "En rolle kan slette personer",
         "body": "{roles} kan finde, hente og slette alt, hvad denne server gemmer om en person, på privatlivssiden."
       },
-      "footerStepVersion": "Trin {n} af {total} · {app} {version}"
+      "footerStepVersion": "Trin {n} af {total} · {app} {version}",
+      "refundGrants": {
+        "title": "Hvem må refundere onlinebetalinger",
+        "body": "Disse roller må give penge tilbage, som kunder har betalt online for denne apps poster. Fjern fluebenet ved en rolle, der ikke skal."
+      }
     },
     "installed": {
       "title": "Installerede apps",
@@ -966,7 +970,8 @@ export default {
       "grantsSubtitle": "Tjek, hvad denne versions roller får af nyt.",
       "grantsAdded": {
         "title": "Denne version giver sine roller mere",
-        "addOnSettings": "{roles} kan ændre indstillingerne for {addOn}, som alle de apps, den betjener, deler."
+        "addOnSettings": "{roles} kan ændre indstillingerne for {addOn}, som alle de apps, den betjener, deler.",
+        "refund": "{roles} må give penge tilbage, som kunder har betalt online for denne apps poster."
       },
       "stopped": {
         "pages": "Opdateringen til {to} stoppede under skrivning af siderne. Intet gik tabt; siderne fra {from} er her stadig.",
@@ -1113,7 +1118,8 @@ export default {
         "systemGrant": "Konsolrettighederne for rollen {item}",
         "outbound": "Hvad reglen {item} sender ud",
         "title": "Efter installationen",
-        "note": "De bliver på appens side, til de er gjort."
+        "note": "De bliver på appens side, til de er gjort.",
+        "paymentsSwitch": "Betalinger: fra. Slå dem til under Betalinger, når kunderne skal betale i denne app."
       },
       "title": "Kontrollér før du installerer",
       "intro": "{app} installeres i {database}. Intet ændres, før du trykker på Installer.",
@@ -4146,7 +4152,9 @@ export default {
       "ways": "Betalingsmåder",
       "payables": "Hvad der kan betales",
       "page": "Betalingsside",
-      "activity": "Aktivitet"
+      "activity": "Aktivitet",
+      "apps": "Apps",
+      "readers": "Kortlæsere"
     },
     "loadFailed": "Betalinger kunne ikke indlæses",
     "forbidden": "For at se betalinger skal du have tilladelsen »Opsæt betalinger« eller »Se betalingsaktivitet«.",
@@ -4342,7 +4350,8 @@ export default {
       "ready": "Klar",
       "builtOn": "Bygget på fakturaformatet",
       "needsUpdate": "Bygget på fakturaformatet. Onlinebetalinger kræver appens opdatering; manuelle betalinger virker.",
-      "previewHidden": "Rækker vises kun for en, der må sætte denne tabel op."
+      "previewHidden": "Rækker vises kun for en, der må sætte denne tabel op.",
+      "fromApp": "Fra {app} · slås til og fra under Apps"
     },
     "page": {
       "logoType": "Logoet skal være et PNG-, JPEG- eller WebP-billede.",
@@ -4442,9 +4451,11 @@ export default {
         "paidTwice": "Betalt to gange: en betaling for {record} · {amount} kom, mens en anden var på vej. Begge er registreret.",
         "waitingLong": "Har ventet på banken i {days} dage: {record} · {amount}.",
         "waitingLongWay": "Har ventet på banken i {days} dage: {record} · {amount} ({way}).",
+        "statusRefused": "Betalt og registreret, men {record} blev ikke sat til betalt: {reason} Flyt den i appen, eller refundér betalingen.",
         "recordChanged": "En registreret betaling er ændret: {record} · {amount} står ikke længere som før.",
         "disputed": "Indsigelse: {record} · {amount}. Besvar den i {service}-dashboardet.",
-        "disputeLost": "Indsigelse tabt: {amount} gik tilbage til kunden på {record}. Registreret som en refusion."
+        "disputeLost": "Indsigelse tabt: {amount} gik tilbage til kunden på {record}. Registreret som en refusion.",
+        "refundOwed": "Refundering skyldes: {record} · {amount} blev annulleret, og refunderingen startede ikke af sig selv. Giv pengene tilbage, eller markér den som tjekket."
       },
       "why": {
         "alreadyPaid": "Fakturaen var allerede betalt fuldt ud.",
@@ -4478,7 +4489,9 @@ export default {
         "disputeClosed": "Indsigelsen er lukket. Udfaldet står i {service}-dashboardet.",
         "disputeWon": "Indsigelsen blev vundet.",
         "disputeLost": "Indsigelsen blev tabt: pengene gik tilbage til kunden.",
-        "refundDisputeWon": "Indsigelsen vundet — {amount} kom tilbage"
+        "refundDisputeWon": "Indsigelsen vundet — {amount} kom tilbage",
+        "refundAuto": "Refunderet af sig selv efter en gratis annullering: {amount}",
+        "refundInApp": "Refundering af {amount} startet fra appens egen refundering"
       },
       "checkedBy": "Tjekket af {name}",
       "someone": "nogen",
@@ -4591,7 +4604,59 @@ export default {
       "title": "Denne servers ur går {seconds} sekunder forkert i forhold til uret hos {provider}.",
       "body": "Indstil servertiden automatisk (NTP). Efter fem minutter afvises betalingsbeskeder fra {provider}."
     },
-    "menuLabel": "Mere for {service}"
+    "menuLabel": "Mere for {service}",
+    "apps": {
+      "title": "Apps, der kan tage imod betalinger",
+      "sub": "Hver installeret app, der kan bede kunder om at betale. Betalinger er slået fra, indtil du slår dem til.",
+      "line": "Kunderne betaler for: {tables}",
+      "needsUpdate": "Opdater appen for at tage imod betalinger igen.",
+      "connectFirst": "Tilslut først en betalingstjeneste",
+      "canTake": "Kan tage imod betalinger",
+      "on": "Til",
+      "off": "Fra",
+      "confirmTitle": "Slå betalinger til for {app}?",
+      "confirmBody": "{app} vil bede sine kunder om at betale online via de betalingstjenester, du har tilsluttet. Du kan slå det fra når som helst.",
+      "cancel": "Annuller",
+      "switchOn": "Slå til",
+      "toastOn": "Betalinger er slået til for {app}.",
+      "toastOff": "Betalinger er slået fra for {app}.",
+      "empty": "Ingen installeret app tager imod betalinger endnu.",
+      "viewOnly": "Du kan se betalinger. Bed en, der administrerer betalinger, om at handle.",
+      "tryAsCustomer": "Prøv {app} som kunde"
+    },
+    "publicPaused": {
+      "title": "Betalinger fra dine apps er sat på pause indtil {time}",
+      "body": "Kort blev afvist fra mange adresser inden for en time. Det ligner, at nogen tester stjålne kort. Dine apps tilbyder imens deres andre betalingsmåder; betalingslinks, du sender, virker stadig.",
+      "resume": "Genoptag nu"
+    },
+    "rehearsal": {
+      "title": "TEST · Prøvekørsel til {time}",
+      "body": "Ordrer, du laver i dine apps, er eksempeldata, og du betaler for dem med testbetalinger. Deres e-mails kommer til dig. Fjern eksempeldata fjerner dem alle.",
+      "stop": "Stop prøvekørslen"
+    },
+    "readers": {
+      "pairTitle": "Par en kortlæser",
+      "service": "Tjeneste",
+      "mode": "Tilstand",
+      "test": "Test",
+      "live": "Live",
+      "name": "Navn",
+      "namePh": "Forreste disk",
+      "enterCode": "Skriv koden, som læseren viser",
+      "showCode": "Skriv denne kode på læseren, og tryk derefter på Færdig: {code}",
+      "waiting": "Læseren har ikke taget koden endnu.",
+      "next": "Næste",
+      "done": "Færdig",
+      "lastSeen": "Sidst set {when}",
+      "online": "Online",
+      "offline": "Offline",
+      "unpair": "Fjern parring",
+      "viewOnly": "Parring af kortlæsere kræver tilladelsen “Opsæt betalinger”.",
+      "title": "Kortlæsere",
+      "sub": "Læsere ved jeres disk. Hver kasse vælger sin læser i sine egne indstillinger.",
+      "pair": "Par en læser",
+      "empty": "Ingen kortlæser er parret endnu."
+    }
   },
   "appDocuments": {
     "waiting": {
@@ -5804,7 +5869,8 @@ export default {
         "systemGrant": "Giv rollen {name} dens konsolrettigheder",
         "outbound": "Tjek hvad '{name}' sender ud, og slå den så til",
         "webhook": "Tilføj webadressen til '{name}'",
-        "webhookHeader": "Udfyld headerværdien i '{name}'"
+        "webhookHeader": "Udfyld headerværdien i '{name}'",
+        "paymentsSwitch": "Slå betalinger til for denne app under Betalinger"
       },
       "link": {
         "automation": "Åbn reglen",

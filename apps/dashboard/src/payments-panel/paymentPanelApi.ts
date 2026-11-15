@@ -65,7 +65,7 @@ export interface PanelRefund {
   currency: string;
   state: RefundState;
   /** `staff`: asked in Adminium; `provider`: made in the service's own dashboard; `dispute`: a lost dispute gave it back. */
-  source: 'staff' | 'provider' | 'dispute';
+  source: 'staff' | 'provider' | 'dispute' | 'app' | 'auto';
   /** The service's own words, when it failed. */
   failureMessage: string | null;
   createdAt: number;
@@ -88,6 +88,8 @@ export interface PaymentPanelView {
   due: string;
   paid: string;
   refusal: { code: string; message: string } | null;
+  /** Refunded in its app, where its refund rows are kept (CR4). */
+  inApp?: { app: string | null; openIn: string | null } | null;
   links: { on: boolean; reason: string | null };
   mayChange: boolean;
   mayRecord: boolean;

@@ -170,5 +170,6 @@ export default {
     "title": "此頁面需要 JavaScript 才能線上付款。"
   },
   "shopFallback": "商家",
-  "shopFallbackStart": "商家"
+  "shopFallbackStart": "商家",
+  "back": "返回 {app}"
 } as const;

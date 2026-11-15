@@ -91,6 +91,8 @@ describe('the deferred `payments` namespace', () => {
     const outside: string[] = [];
     for (const file of sourceFiles(SRC, true)) {
       if (file.startsWith(SURFACE + sep) || file === join(SRC, 'i18n', 'paymentsNamespace.test.ts')) continue;
+      // The kit's refund and pay-link parts carry their own copy of these words (`kit-host/words`, from `words/keys.json`).
+      if (file.startsWith(join(SRC, 'kit-host') + sep)) continue;
       for (const match of readFileSync(file, 'utf8').matchAll(ANY_KEY)) outside.push(`${file}: payments:${match[1] ?? ''}`);
     }
     expect(outside, `a deferred namespace read outside the surface that loads it:\n${outside.join('\n')}`).toEqual([]);

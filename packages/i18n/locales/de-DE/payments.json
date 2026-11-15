@@ -166,6 +166,18 @@
       "lostTitle": "Rückbuchung verloren",
       "lostTitleTest": "Test-Rückbuchung verloren",
       "lostBody": "{label} · {amount} gingen an den Kunden zurück"
+    },
+    "appPayablesChanged": {
+      "title": "{app} wurde für Zahlungen ausgeschaltet",
+      "body": "Sein Update hat geändert, wie Zahlungen angenommen werden. Prüfen Sie es unter Zahlungen und schalten Sie es wieder ein."
+    },
+    "cardTesting": {
+      "title": "Zahlungen aus Ihren Apps sind pausiert",
+      "body": "Innerhalb einer Stunde wurden Karten von {count} verschiedenen Adressen abgelehnt. Das sieht danach aus, dass jemand gestohlene Karten testet. Zahlungen, die in Ihren Apps gestartet werden, sind für eine Stunde pausiert; Zahlungslinks, die Sie senden, funktionieren weiter. Sie können sie unter Zahlungen wieder aufnehmen."
+    },
+    "autoRefund": {
+      "title": "Automatisch erstattet",
+      "body": "{amount} für {label}, nach der kostenlosen Stornierung in {app}"
     }
   },
   "refund": {
@@ -196,6 +208,9 @@
     "back": "Zurück",
     "submit": "Erstatten",
     "failed": "Die Erstattung wurde nicht angefordert: {message}",
-    "lost": "Es kam keine Antwort. Drücken Sie erneut auf Erstatten: Es wird dieselbe Erstattung angefragt, nie eine zweite."
+    "lost": "Es kam keine Antwort. Drücken Sie erneut auf Erstatten: Es wird dieselbe Erstattung angefragt, nie eine zweite.",
+    "refusal": {
+      "inApp": "Erstatten Sie diese Zahlung in ihrer App, wo ihre Erstattungen geführt werden."
+    }
   }
 }

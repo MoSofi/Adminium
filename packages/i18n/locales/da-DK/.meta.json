@@ -21455,6 +21455,10 @@
     "status": "mt",
     "srcHash": "a9bbc9167ef3"
   },
+  "pay.back": {
+    "status": "mt",
+    "srcHash": "59e24217a743"
+  },
   "pay.bank.accountNumber": {
     "status": "mt",
     "srcHash": "25d74dd58e6d"
@@ -21886,6 +21890,30 @@
   "pay.ways.title": {
     "status": "mt",
     "srcHash": "705052ddcba9"
+  },
+  "payments.notice.appPayablesChanged.body": {
+    "status": "mt",
+    "srcHash": "b84439a9e9b1"
+  },
+  "payments.notice.appPayablesChanged.title": {
+    "status": "mt",
+    "srcHash": "b6ba609fd978"
+  },
+  "payments.notice.autoRefund.body": {
+    "status": "mt",
+    "srcHash": "6179ec9a945f"
+  },
+  "payments.notice.autoRefund.title": {
+    "status": "mt",
+    "srcHash": "7ad202bea5a3"
+  },
+  "payments.notice.cardTesting.body": {
+    "status": "mt",
+    "srcHash": "541048a85792"
+  },
+  "payments.notice.cardTesting.title": {
+    "status": "mt",
+    "srcHash": "f8472cc93671"
   },
   "payments.notice.dispute.body": {
     "status": "mt",
@@ -22494,6 +22522,10 @@
   "payments.refund.reasons.requested_by_customer": {
     "status": "mt",
     "srcHash": "502d8ef19445"
+  },
+  "payments.refund.refusal.inApp": {
+    "status": "mt",
+    "srcHash": "3f25ccc4a05b"
   },
   "payments.refund.step1": {
     "status": "mt",
@@ -26611,6 +26643,10 @@
     "status": "mt",
     "srcHash": "e9aad4de08e4"
   },
+  "studio.apps.afterInstall.item.paymentsSwitch": {
+    "status": "mt",
+    "srcHash": "6fdfdcff4c48"
+  },
   "studio.apps.afterInstall.item.recipients": {
     "status": "mt",
     "srcHash": "455ddada2b91"
@@ -29899,6 +29935,14 @@
     "status": "mt",
     "srcHash": "0ae3233e0e20"
   },
+  "studio.hostedApps.install.refundGrants.body": {
+    "status": "mt",
+    "srcHash": "24f234a0afe2"
+  },
+  "studio.hostedApps.install.refundGrants.title": {
+    "status": "mt",
+    "srcHash": "a5f69a6ef4bd"
+  },
   "studio.hostedApps.install.running.hint": {
     "status": "mt",
     "srcHash": "e11dfbd50243"
@@ -30338,6 +30382,10 @@
   "studio.hostedApps.review.after.paymentKey": {
     "status": "mt",
     "srcHash": "6c9b44928229"
+  },
+  "studio.hostedApps.review.after.paymentsSwitch": {
+    "status": "mt",
+    "srcHash": "b9083c71286e"
   },
   "studio.hostedApps.review.after.recipients": {
     "status": "mt",
@@ -30802,6 +30850,10 @@
   "studio.hostedApps.update.grantsAdded.addOnSettings": {
     "status": "mt",
     "srcHash": "82720177cc8e"
+  },
+  "studio.hostedApps.update.grantsAdded.refund": {
+    "status": "mt",
+    "srcHash": "75579feade47"
   },
   "studio.hostedApps.update.grantsAdded.title": {
     "status": "mt",
@@ -34575,6 +34627,10 @@
     "status": "mt",
     "srcHash": "d82e6d625a18"
   },
+  "studio.payments.activity.flag.refundOwed": {
+    "status": "mt",
+    "srcHash": "2a825ea742ed"
+  },
   "studio.payments.activity.flag.refundPastPaid": {
     "status": "mt",
     "srcHash": "dedd64410903"
@@ -34590,6 +34646,10 @@
   "studio.payments.activity.flag.refundedThereNoRecord": {
     "status": "mt",
     "srcHash": "874d2a88d160"
+  },
+  "studio.payments.activity.flag.statusRefused": {
+    "status": "mt",
+    "srcHash": "766c5ce30a0d"
   },
   "studio.payments.activity.flag.voided": {
     "status": "mt",
@@ -34811,6 +34871,10 @@
     "status": "mt",
     "srcHash": "5dcd26339c7c"
   },
+  "studio.payments.activity.story.refundAuto": {
+    "status": "mt",
+    "srcHash": "84877d63be74"
+  },
   "studio.payments.activity.story.refundDispute": {
     "status": "mt",
     "srcHash": "7edd007321cf"
@@ -34822,6 +34886,10 @@
   "studio.payments.activity.story.refundFailed": {
     "status": "mt",
     "srcHash": "b491f8ec7193"
+  },
+  "studio.payments.activity.story.refundInApp": {
+    "status": "mt",
+    "srcHash": "3858e6f8525b"
   },
   "studio.payments.activity.story.refundStarted": {
     "status": "mt",
@@ -34950,6 +35018,74 @@
   "studio.payments.alarm.refused": {
     "status": "mt",
     "srcHash": "05e8100260f5"
+  },
+  "studio.payments.apps.canTake": {
+    "status": "mt",
+    "srcHash": "0ff0b0090562"
+  },
+  "studio.payments.apps.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "studio.payments.apps.confirmBody": {
+    "status": "mt",
+    "srcHash": "69ab7d1e767b"
+  },
+  "studio.payments.apps.confirmTitle": {
+    "status": "mt",
+    "srcHash": "9754aee3414a"
+  },
+  "studio.payments.apps.connectFirst": {
+    "status": "mt",
+    "srcHash": "41c3e1636a64"
+  },
+  "studio.payments.apps.empty": {
+    "status": "mt",
+    "srcHash": "5d74e6be0fc5"
+  },
+  "studio.payments.apps.line": {
+    "status": "mt",
+    "srcHash": "99a5ed11939b"
+  },
+  "studio.payments.apps.needsUpdate": {
+    "status": "mt",
+    "srcHash": "78f883762fdd"
+  },
+  "studio.payments.apps.off": {
+    "status": "mt",
+    "srcHash": "e3de5ab0ca4c"
+  },
+  "studio.payments.apps.on": {
+    "status": "mt",
+    "srcHash": "e0049a66519c"
+  },
+  "studio.payments.apps.sub": {
+    "status": "mt",
+    "srcHash": "2ffb27c0ae85"
+  },
+  "studio.payments.apps.switchOn": {
+    "status": "mt",
+    "srcHash": "bcdb919b512b"
+  },
+  "studio.payments.apps.title": {
+    "status": "mt",
+    "srcHash": "22a5b0b73149"
+  },
+  "studio.payments.apps.toastOff": {
+    "status": "mt",
+    "srcHash": "02bd00d707fd"
+  },
+  "studio.payments.apps.toastOn": {
+    "status": "mt",
+    "srcHash": "6b926d30d60f"
+  },
+  "studio.payments.apps.tryAsCustomer": {
+    "status": "mt",
+    "srcHash": "658cff7f9d31"
+  },
+  "studio.payments.apps.viewOnly": {
+    "status": "mt",
+    "srcHash": "522567df1eb0"
   },
   "studio.payments.check.again": {
     "status": "mt",
@@ -35515,6 +35651,10 @@
     "status": "mt",
     "srcHash": "73f91b6363ab"
   },
+  "studio.payments.payables.fromApp": {
+    "status": "mt",
+    "srcHash": "f982e484931e"
+  },
   "studio.payments.payables.intoOwn": {
     "status": "mt",
     "srcHash": "135590d2686d"
@@ -35819,6 +35959,18 @@
     "status": "mt",
     "srcHash": "ec66a93e2563"
   },
+  "studio.payments.publicPaused.body": {
+    "status": "mt",
+    "srcHash": "34ba0711dda6"
+  },
+  "studio.payments.publicPaused.resume": {
+    "status": "mt",
+    "srcHash": "94bd2d2ff808"
+  },
+  "studio.payments.publicPaused.title": {
+    "status": "mt",
+    "srcHash": "59452afc11cf"
+  },
   "studio.payments.reach.address": {
     "status": "mt",
     "srcHash": "fd8f297e2998"
@@ -35943,6 +36095,90 @@
     "status": "mt",
     "srcHash": "1f6cfc70456e"
   },
+  "studio.payments.readers.done": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "studio.payments.readers.empty": {
+    "status": "mt",
+    "srcHash": "b55806e381fd"
+  },
+  "studio.payments.readers.enterCode": {
+    "status": "mt",
+    "srcHash": "f2c7cb71fd41"
+  },
+  "studio.payments.readers.lastSeen": {
+    "status": "mt",
+    "srcHash": "35632716a54b"
+  },
+  "studio.payments.readers.live": {
+    "status": "src",
+    "srcHash": "65c821a596ce"
+  },
+  "studio.payments.readers.mode": {
+    "status": "mt",
+    "srcHash": "a7b93d2128e8"
+  },
+  "studio.payments.readers.name": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "studio.payments.readers.namePh": {
+    "status": "mt",
+    "srcHash": "7fbec11136e2"
+  },
+  "studio.payments.readers.next": {
+    "status": "mt",
+    "srcHash": "bc981983e7f5"
+  },
+  "studio.payments.readers.offline": {
+    "status": "src",
+    "srcHash": "e01fa717bacc"
+  },
+  "studio.payments.readers.online": {
+    "status": "src",
+    "srcHash": "c3e839df6084"
+  },
+  "studio.payments.readers.pair": {
+    "status": "mt",
+    "srcHash": "8ce50db5d07a"
+  },
+  "studio.payments.readers.pairTitle": {
+    "status": "mt",
+    "srcHash": "81d4bd891a2f"
+  },
+  "studio.payments.readers.service": {
+    "status": "mt",
+    "srcHash": "329cb8b6ba8c"
+  },
+  "studio.payments.readers.showCode": {
+    "status": "mt",
+    "srcHash": "c22a44507f95"
+  },
+  "studio.payments.readers.sub": {
+    "status": "mt",
+    "srcHash": "67f3cb84de45"
+  },
+  "studio.payments.readers.test": {
+    "status": "src",
+    "srcHash": "640ab2bae07b"
+  },
+  "studio.payments.readers.title": {
+    "status": "mt",
+    "srcHash": "d704dfa9aed3"
+  },
+  "studio.payments.readers.unpair": {
+    "status": "mt",
+    "srcHash": "9c293ad46574"
+  },
+  "studio.payments.readers.viewOnly": {
+    "status": "mt",
+    "srcHash": "826a36ce4820"
+  },
+  "studio.payments.readers.waiting": {
+    "status": "mt",
+    "srcHash": "7e4260cd32d9"
+  },
   "studio.payments.refused.desktop": {
     "status": "mt",
     "srcHash": "13b8d480a56e"
@@ -35990,6 +36226,18 @@
   "studio.payments.refused.webhookSecretInKey": {
     "status": "mt",
     "srcHash": "6c8c665531f2"
+  },
+  "studio.payments.rehearsal.body": {
+    "status": "mt",
+    "srcHash": "22d8ac138626"
+  },
+  "studio.payments.rehearsal.stop": {
+    "status": "mt",
+    "srcHash": "836546f392fd"
+  },
+  "studio.payments.rehearsal.title": {
+    "status": "mt",
+    "srcHash": "72b6a43853d7"
   },
   "studio.payments.service.connectsPaypal": {
     "status": "mt",
@@ -36091,6 +36339,10 @@
     "status": "mt",
     "srcHash": "81c0d915fa6d"
   },
+  "studio.payments.tab.apps": {
+    "status": "src",
+    "srcHash": "d9a36850b7f3"
+  },
   "studio.payments.tab.page": {
     "status": "mt",
     "srcHash": "dfe9bc362765"
@@ -36098,6 +36350,10 @@
   "studio.payments.tab.payables": {
     "status": "mt",
     "srcHash": "52e8d81c16c9"
+  },
+  "studio.payments.tab.readers": {
+    "status": "mt",
+    "srcHash": "d704dfa9aed3"
   },
   "studio.payments.tab.setup": {
     "status": "mt",

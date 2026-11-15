@@ -51,6 +51,8 @@ export interface PayPage {
   processing: { method: string | null; startedAt: number } | null;
   /** On the way back: the service the customer paid with, and what it took. */
   attempt: { provider: string; amount: string; at: number; receiptSent: boolean } | null;
+  /** Back to the app the record is paid in, when it names where. Absent from a server one step behind. */
+  back?: { url: string; app: string } | null;
 }
 
 export type Credentials = 'omit' | 'same-origin';

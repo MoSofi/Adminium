@@ -16,10 +16,10 @@
 /** The contract's number, as the side's config and `kit.json` say it. */
 export const KIT_CONTRACT = 1;
 
-export type KitPartName = 'mentions' | 'board' | 'map' | 'import' | 'signature' | 'photos' | 'consent';
+export type KitPartName = 'mentions' | 'board' | 'map' | 'import' | 'signature' | 'photos' | 'consent' | 'refund' | 'pay-link';
 
 /** The parts a mount can draw today. The others are named so that adding one changes no signature. */
-export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board', 'map', 'import', 'signature', 'photos', 'consent'];
+export const KIT_PARTS_AVAILABLE: readonly KitPartName[] = ['mentions', 'board', 'map', 'import', 'signature', 'photos', 'consent', 'refund', 'pay-link'];
 
 /** One language's words, part by part: `ns:key` to its text (./words/, written by scripts/gen-kit-words.mjs). */
 export type KitWords = Record<KitPartName, Record<string, string>>;
@@ -549,6 +549,34 @@ export interface ConsentProps extends KitCommonProps {
   onChange?: (() => void) | undefined;
 }
 
+/**
+ * Giving back an online payment from an app's own screen: the two steps the
+ * dashboard's refund takes, with its words and its toast, over the person's
+ * own session. Shown to someone who may refund (`payments.refund` of the
+ * side's config); the server checks the right again.
+ */
+export interface RefundProps extends KitCommonProps {
+  /** The online payment to refund: `attemptId` of the payment state the app read. */
+  attemptId: string;
+  /** `csrfToken` of the side's config. */
+  csrfToken: string;
+  fetch?: ((input: string, init?: RequestInit) => Promise<Response>) | undefined;
+  /** Called once the server took the refund: the app reads its record again. */
+  onRefunded?: ((refund: { id: string; state: string; amount: string; currency: string }) => void) | undefined;
+}
+
+/**
+ * A record's pay link on an app's own screen: Copy reuses the record's
+ * current link (never retiring the one a customer holds), else makes one,
+ * and says until when it works.
+ */
+export interface PayLinkProps extends KitCommonProps {
+  /** The record, as the payment state says it: `profile` for a payable table, `shape` for an invoice built on the Invoices shape. */
+  payable: { kind: 'profile' | 'shape'; connectionId: string; tableName: string; rowKey: string };
+  csrfToken: string;
+  fetch?: ((input: string, init?: RequestInit) => Promise<Response>) | undefined;
+}
+
 /** A part that is named but cannot be mounted yet. None is, today; the type stays for the next one. */
 export type KitPartNotYet = Record<string, never>;
 
@@ -560,6 +588,8 @@ export interface KitPartProps {
   signature: SignatureProps;
   photos: PhotosProps;
   consent: ConsentProps;
+  refund: RefundProps;
+  'pay-link': PayLinkProps;
 }
 
 /** What a mount answers. */

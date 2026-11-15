@@ -176,6 +176,18 @@ export default {
       "lostTitle": "Dispute lost",
       "lostTitleTest": "Test dispute lost",
       "lostBody": "{label} · {amount} went back to the customer"
+    },
+    "appPayablesChanged": {
+      "title": "{app} was switched off for payments",
+      "body": "Its update changed how its payments are taken. Look at it in Payments and switch it on again."
+    },
+    "cardTesting": {
+      "title": "Payments from your apps are paused",
+      "body": "Cards were declined from {count} different addresses within an hour, which looks like someone testing stolen cards. Payments started from your apps' own screens are paused for an hour; pay links you send keep working. You can resume them in Payments."
+    },
+    "autoRefund": {
+      "title": "Refunded automatically",
+      "body": "{amount} for {label}, after its free cancellation in {app}"
     }
   },
   "refund": {
@@ -206,6 +218,9 @@ export default {
     "back": "Back",
     "submit": "Refund",
     "failed": "The refund was not asked: {message}",
-    "lost": "No answer came back. Press Refund again: it asks for the same refund, never a second one."
+    "lost": "No answer came back. Press Refund again: it asks for the same refund, never a second one.",
+    "refusal": {
+      "inApp": "Refund this payment in its app, where its refunds are kept."
+    }
   }
 } as const;

@@ -291,6 +291,40 @@ const words: KitWords = {
     "common:consent.why.oldMark": "afmeldt, før der blev ført optegnelser",
     "common:consent.why.relayUnsubscribe": "afmeldt via mailtjenesten",
     "common:consent.why.spam": "markeret som spam"
+  },
+  "refund": {
+    "payments:panel.test": "Test",
+    "payments:panel.toast.refundRequested": "Refundering af {amount} anmodet.",
+    "payments:panel.why.full": "Denne betaling er refunderet fuldt ud.",
+    "payments:panel.why.notTaken": "Der blev ikke trukket penge for denne betaling.",
+    "payments:panel.why.pending": "Denne betaling venter stadig på banken.",
+    "payments:refund.amount": "Beløb",
+    "payments:refund.back": "Tilbage",
+    "payments:refund.continue": "Fortsæt",
+    "payments:refund.failed": "Der blev ikke anmodet om refunderingen: {message}",
+    "payments:refund.full": "Fuld",
+    "payments:refund.goesBack": "Går tilbage til {paidWith}. Normalt 5–10 dage.",
+    "payments:refund.goesBackPlain": "Går tilbage samme vej, som der blev betalt. Normalt 5–10 dage.",
+    "payments:refund.lost": "Der kom intet svar. Tryk på Refundér igen: Det beder om den samme refusion, aldrig en ny.",
+    "payments:refund.part": "Delvis",
+    "payments:refund.question": "Refundér {amount} til {paidWith}?",
+    "payments:refund.questionPlain": "Refundér {amount}?",
+    "payments:refund.reason": "Årsag",
+    "payments:refund.reasons.duplicate": "Dublet",
+    "payments:refund.reasons.fraudulent": "Svindel",
+    "payments:refund.reasons.other": "Andet",
+    "payments:refund.reasons.requested_by_customer": "Kunden har bedt om det",
+    "payments:refund.refusal.inApp": "Refundér denne betaling i dens app, hvor dens refunderinger føres.",
+    "payments:refund.submit": "Refundér",
+    "payments:refund.title": "Refundér en betaling",
+    "payments:refund.upTo": "Op til {amount} kan refunderes"
+  },
+  "pay-link": {
+    "payments:panel.copyLink": "Kopiér betalingslink",
+    "payments:panel.linkLine": "Betalingslink lavet {made} · virker til {until}",
+    "payments:panel.toast.copied": "Betalingslink kopieret.",
+    "payments:panel.toast.copyFailed": "Betalingslinket er lavet, men denne browser ville ikke kopiere det: {url}",
+    "payments:panel.toast.failed": "Det virkede ikke: {message}"
   }
 };
 

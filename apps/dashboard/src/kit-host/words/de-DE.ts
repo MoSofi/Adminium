@@ -291,6 +291,40 @@ const words: KitWords = {
     "common:consent.why.oldMark": "abgemeldet, bevor Aufzeichnungen geführt wurden",
     "common:consent.why.relayUnsubscribe": "über den Mail-Dienst abgemeldet",
     "common:consent.why.spam": "als Spam markiert"
+  },
+  "refund": {
+    "payments:panel.test": "Test",
+    "payments:panel.toast.refundRequested": "Erstattung von {amount} angefordert.",
+    "payments:panel.why.full": "Diese Zahlung ist vollständig erstattet.",
+    "payments:panel.why.notTaken": "Für diese Zahlung wurde kein Geld eingezogen.",
+    "payments:panel.why.pending": "Diese Zahlung wartet noch auf die Bank.",
+    "payments:refund.amount": "Betrag",
+    "payments:refund.back": "Zurück",
+    "payments:refund.continue": "Weiter",
+    "payments:refund.failed": "Die Erstattung wurde nicht angefordert: {message}",
+    "payments:refund.full": "Voll",
+    "payments:refund.goesBack": "Geht zurück an {paidWith}. Meist 5–10 Tage.",
+    "payments:refund.goesBackPlain": "Geht auf dem Weg zurück, auf dem bezahlt wurde. Meist 5–10 Tage.",
+    "payments:refund.lost": "Es kam keine Antwort. Drücken Sie erneut auf Erstatten: Es wird dieselbe Erstattung angefragt, nie eine zweite.",
+    "payments:refund.part": "Teil",
+    "payments:refund.question": "{amount} an {paidWith} erstatten?",
+    "payments:refund.questionPlain": "{amount} erstatten?",
+    "payments:refund.reason": "Grund",
+    "payments:refund.reasons.duplicate": "Doppelt",
+    "payments:refund.reasons.fraudulent": "Betrug",
+    "payments:refund.reasons.other": "Anderer Grund",
+    "payments:refund.reasons.requested_by_customer": "Auf Wunsch des Kunden",
+    "payments:refund.refusal.inApp": "Erstatten Sie diese Zahlung in ihrer App, wo ihre Erstattungen geführt werden.",
+    "payments:refund.submit": "Erstatten",
+    "payments:refund.title": "Zahlung erstatten",
+    "payments:refund.upTo": "Bis zu {amount} können erstattet werden"
+  },
+  "pay-link": {
+    "payments:panel.copyLink": "Zahlungslink kopieren",
+    "payments:panel.linkLine": "Zahlungslink erstellt am {made} · gültig bis {until}",
+    "payments:panel.toast.copied": "Zahlungslink kopiert.",
+    "payments:panel.toast.copyFailed": "Der Zahlungslink ist erstellt, aber dieser Browser hat ihn nicht kopiert: {url}",
+    "payments:panel.toast.failed": "Das hat nicht geklappt: {message}"
   }
 };
 

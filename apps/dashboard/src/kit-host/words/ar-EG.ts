@@ -291,6 +291,40 @@ const words: KitWords = {
     "common:consent.why.oldMark": "إلغاء اشتراك قبل حفظ السجلات",
     "common:consent.why.relayUnsubscribe": "إلغاء اشتراك عبر خدمة البريد",
     "common:consent.why.spam": "بُلِّغ عنه كبريد عشوائي"
+  },
+  "refund": {
+    "payments:panel.test": "اختبار",
+    "payments:panel.toast.refundRequested": "طُلب استرداد {amount}.",
+    "payments:panel.why.full": "استُردت هذه الدفعة بالكامل.",
+    "payments:panel.why.notTaken": "لم يُحصَّل أي مبلغ لهذه الدفعة.",
+    "payments:panel.why.pending": "هذه الدفعة ما زالت تنتظر البنك.",
+    "payments:refund.amount": "المبلغ",
+    "payments:refund.back": "رجوع",
+    "payments:refund.continue": "متابعة",
+    "payments:refund.failed": "لم يُطلب الاسترداد: {message}",
+    "payments:refund.full": "كامل",
+    "payments:refund.goesBack": "يعود إلى {paidWith}. عادةً خلال 5–10 أيام.",
+    "payments:refund.goesBackPlain": "يعود بالطريقة التي دُفع بها. عادةً خلال 5–10 أيام.",
+    "payments:refund.lost": "لم يصل أي رد. اضغط «استرداد» مرة أخرى: سيُطلب الاسترداد نفسه، ولن يُطلب استرداد ثانٍ أبدًا.",
+    "payments:refund.part": "جزء",
+    "payments:refund.question": "استرداد {amount} إلى {paidWith}؟",
+    "payments:refund.questionPlain": "استرداد {amount}؟",
+    "payments:refund.reason": "السبب",
+    "payments:refund.reasons.duplicate": "مكررة",
+    "payments:refund.reasons.fraudulent": "احتيالية",
+    "payments:refund.reasons.other": "سبب آخر",
+    "payments:refund.reasons.requested_by_customer": "بطلب من العميل",
+    "payments:refund.refusal.inApp": "استرد هذا الدفع في تطبيقه، حيث تُحفظ استرداداته.",
+    "payments:refund.submit": "استرداد",
+    "payments:refund.title": "استرداد دفعة",
+    "payments:refund.upTo": "يمكن استرداد ما يصل إلى {amount}"
+  },
+  "pay-link": {
+    "payments:panel.copyLink": "نسخ رابط الدفع",
+    "payments:panel.linkLine": "أُنشئ رابط الدفع في {made} · يعمل حتى {until}",
+    "payments:panel.toast.copied": "نُسخ رابط الدفع.",
+    "payments:panel.toast.copyFailed": "أُنشئ رابط الدفع، لكن هذا المتصفح لم ينسخه: {url}",
+    "payments:panel.toast.failed": "لم ينجح ذلك: {message}"
   }
 };
 

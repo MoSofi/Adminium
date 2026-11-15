@@ -447,7 +447,7 @@ export function appOverviewQuery(key: string, install: string | null = null) {
 /** Mirrors `afterInstallReply`'s item. */
 export interface AfterInstallEntry {
   id: string;
-  kind: 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant' | 'outbound' | string;
+  kind: 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'payments-switch' | 'sender' | 'system-grant' | 'outbound' | string;
   item: string;
   field: string;
   /** What it points at, by name; null when it is gone. */
@@ -915,6 +915,8 @@ export interface AppInstallPlan {
    * `added`, on an update's check: the running version's role was not given it, and the update asks first.
    */
   privacyGrants?: { role: string; roleName: string; added?: true }[];
+  /** The roles that would refund the app's own online payments (`payments:@:refund`), each ticked on the check. */
+  refundGrants?: { role: string; roleName: string; added?: true }[];
   /**
    * What each role would hold of the tables of the add-ons the app names, with
    * the columns of each action, cut to each add-on's own words. Absent when
@@ -957,7 +959,7 @@ export interface PageClash {
   renameTo?: string;
 }
 
-export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'sender' | 'system-grant' | 'outbound';
+export type AfterInstallKind = 'webhook' | 'address' | 'document' | 'delivery' | 'recipients' | 'payment-key' | 'bank-account' | 'payments-switch' | 'sender' | 'system-grant' | 'outbound';
 
 /** One thing the owner fills in after the install. Mirrors `plan.afterInstall[]`. */
 export interface AfterInstallItem {
@@ -1154,6 +1156,8 @@ export function installApp(
     planChecksum?: string;
     /** False declines the public access the app asks for. */
     publicAccess?: boolean;
+    /** The roles (by slug) unticked on the check: not given the app's refund right. */
+    refundsUnticked?: string[];
     /** The add-ons to install, connect or update with the app. */
     addOns?: AddOnChoice[];
     /** The parts of the app to start with, by id; one left out starts as the app says. */

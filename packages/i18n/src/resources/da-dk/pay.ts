@@ -170,5 +170,6 @@ export default {
     "title": "Denne side kræver JavaScript for at betale online."
   },
   "shopFallback": "butikken",
-  "shopFallbackStart": "Butikken"
+  "shopFallbackStart": "Butikken",
+  "back": "Tilbage til {app}"
 } as const;

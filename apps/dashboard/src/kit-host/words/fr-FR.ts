@@ -291,6 +291,40 @@ const words: KitWords = {
     "common:consent.why.oldMark": "désabonnement avant la tenue des registres",
     "common:consent.why.relayUnsubscribe": "désabonnement via le service d’e-mail",
     "common:consent.why.spam": "signalé comme spam"
+  },
+  "refund": {
+    "payments:panel.test": "Test",
+    "payments:panel.toast.refundRequested": "Remboursement de {amount} demandé.",
+    "payments:panel.why.full": "Ce paiement est entièrement remboursé.",
+    "payments:panel.why.notTaken": "Aucun argent n’a été prélevé pour ce paiement.",
+    "payments:panel.why.pending": "Ce paiement attend encore la banque.",
+    "payments:refund.amount": "Montant",
+    "payments:refund.back": "Retour",
+    "payments:refund.continue": "Continuer",
+    "payments:refund.failed": "Le remboursement n’a pas été demandé : {message}",
+    "payments:refund.full": "Total",
+    "payments:refund.goesBack": "Retourne vers {paidWith}. En général 5 à 10 jours.",
+    "payments:refund.goesBackPlain": "Retourne par le moyen de paiement utilisé. En général 5 à 10 jours.",
+    "payments:refund.lost": "Aucune réponse n’est revenue. Appuyez à nouveau sur Rembourser : c’est le même remboursement qui est demandé, jamais un second.",
+    "payments:refund.part": "Partiel",
+    "payments:refund.question": "Rembourser {amount} vers {paidWith} ?",
+    "payments:refund.questionPlain": "Rembourser {amount} ?",
+    "payments:refund.reason": "Motif",
+    "payments:refund.reasons.duplicate": "Doublon",
+    "payments:refund.reasons.fraudulent": "Frauduleux",
+    "payments:refund.reasons.other": "Autre",
+    "payments:refund.reasons.requested_by_customer": "Demandé par le client",
+    "payments:refund.refusal.inApp": "Remboursez ce paiement dans son application, où ses remboursements sont tenus.",
+    "payments:refund.submit": "Rembourser",
+    "payments:refund.title": "Rembourser un paiement",
+    "payments:refund.upTo": "Jusqu’à {amount} peuvent être remboursés"
+  },
+  "pay-link": {
+    "payments:panel.copyLink": "Copier le lien de paiement",
+    "payments:panel.linkLine": "Lien de paiement créé le {made} · valable jusqu’au {until}",
+    "payments:panel.toast.copied": "Lien de paiement copié.",
+    "payments:panel.toast.copyFailed": "Le lien de paiement est créé, mais ce navigateur ne l’a pas copié : {url}",
+    "payments:panel.toast.failed": "Cela n’a pas fonctionné : {message}"
   }
 };
 

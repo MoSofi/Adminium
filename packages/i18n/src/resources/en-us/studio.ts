@@ -867,7 +867,11 @@ export default {
         "title": "A role can erase people",
         "body": "{roles} can find, download and erase everything this server keeps about a person, on the privacy page."
       },
-      "footerStepVersion": "Step {n} of {total} · {app} {version}"
+      "footerStepVersion": "Step {n} of {total} · {app} {version}",
+      "refundGrants": {
+        "title": "Who may refund online payments",
+        "body": "These roles may give back money customers paid online for this app’s records. Untick a role that should not."
+      }
     },
     "installed": {
       "title": "Installed apps",
@@ -966,7 +970,8 @@ export default {
       "grantsSubtitle": "Check what this version’s roles are newly given.",
       "grantsAdded": {
         "title": "This version gives its roles more",
-        "addOnSettings": "{roles} can change the settings of {addOn}, which every app it serves shares."
+        "addOnSettings": "{roles} can change the settings of {addOn}, which every app it serves shares.",
+        "refund": "{roles} can give back money customers paid online for this app’s records."
       },
       "stopped": {
         "pages": "The update to {to} stopped while writing pages. Nothing was lost; {from}’s pages are still here.",
@@ -1113,7 +1118,8 @@ export default {
         "systemGrant": "The {item} role’s console rights",
         "outbound": "What the rule {item} sends out",
         "title": "After you install",
-        "note": "These stay on the app’s page until they are done."
+        "note": "These stay on the app’s page until they are done.",
+        "paymentsSwitch": "Payments: off. Switch it on in Payments when you want customers to pay in this app."
       },
       "title": "Check before you install",
       "intro": "{app} goes into {database}. Nothing changes until you press Install.",
@@ -4146,7 +4152,9 @@ export default {
       "ways": "Ways to pay",
       "payables": "What can be paid",
       "page": "Pay page",
-      "activity": "Activity"
+      "activity": "Activity",
+      "apps": "Apps",
+      "readers": "Card readers"
     },
     "loadFailed": "Payments could not be loaded",
     "forbidden": "Seeing payments needs the “Set up payments” or the “See payment activity” permission.",
@@ -4342,7 +4350,8 @@ export default {
       "ready": "Ready",
       "builtOn": "Built on the invoice format",
       "needsUpdate": "Built on the invoice format. Online payments need the app’s update; payments by hand work.",
-      "previewHidden": "Rows are shown only to someone who may set this table up."
+      "previewHidden": "Rows are shown only to someone who may set this table up.",
+      "fromApp": "From {app} · switched on and off in Apps"
     },
     "page": {
       "logoType": "The logo must be a PNG, JPEG or WebP image.",
@@ -4442,9 +4451,11 @@ export default {
         "paidTwice": "Paid twice: a payment for {record} · {amount} arrived while another was on its way. Both are recorded.",
         "waitingLong": "Waiting for the bank for {days} days: {record} · {amount}.",
         "waitingLongWay": "Waiting for the bank for {days} days: {record} · {amount} ({way}).",
+        "statusRefused": "Paid and recorded, but {record} did not move to its paid state: {reason} Move it in its app, or refund the payment.",
         "recordChanged": "A recorded payment changed: {record} · {amount} is no longer written down as it was.",
         "disputed": "Disputed: {record} · {amount}. Answer it in the {service} dashboard.",
-        "disputeLost": "Dispute lost: {amount} went back to the customer on {record}. Recorded as a refund."
+        "disputeLost": "Dispute lost: {amount} went back to the customer on {record}. Recorded as a refund.",
+        "refundOwed": "Refund owed: {record} · {amount} was cancelled, and its refund did not start by itself. Give it back, or mark it as checked."
       },
       "why": {
         "alreadyPaid": "The invoice was already paid in full.",
@@ -4478,7 +4489,9 @@ export default {
         "disputeClosed": "The dispute was closed. Its outcome is in the {service} dashboard.",
         "disputeWon": "The dispute was won.",
         "disputeLost": "The dispute was lost: the money went back to the customer.",
-        "refundDisputeWon": "Dispute won — {amount} came back"
+        "refundDisputeWon": "Dispute won — {amount} came back",
+        "refundAuto": "Refunded by itself after a free cancellation: {amount}",
+        "refundInApp": "Refund of {amount} started from the app’s own refund"
       },
       "checkedBy": "Checked by {name}",
       "someone": "someone",
@@ -4591,7 +4604,59 @@ export default {
       "title": "This server's clock is {seconds} seconds off the {provider} clock.",
       "body": "Set the server time automatically (NTP). Past five minutes, payment messages from {provider} are refused."
     },
-    "menuLabel": "More for {service}"
+    "menuLabel": "More for {service}",
+    "apps": {
+      "title": "Apps that can take payments",
+      "sub": "Each installed app that can ask customers to pay. Payments stay off until you switch them on.",
+      "line": "Customers pay for: {tables}",
+      "needsUpdate": "Update the app to take payments again.",
+      "connectFirst": "Connect a payment service first",
+      "canTake": "Can take payments",
+      "on": "On",
+      "off": "Off",
+      "confirmTitle": "Switch on payments for {app}?",
+      "confirmBody": "{app} will ask its customers to pay online, through the payment services you connected. You can switch it off at any time.",
+      "cancel": "Cancel",
+      "switchOn": "Switch on",
+      "toastOn": "Payments are on for {app}.",
+      "toastOff": "Payments are off for {app}.",
+      "empty": "No installed app takes payments yet.",
+      "viewOnly": "You can view payments. Ask someone who manages payments to act.",
+      "tryAsCustomer": "Try {app} as a customer"
+    },
+    "publicPaused": {
+      "title": "Payments from your apps are paused until {time}",
+      "body": "Cards were declined from many addresses within an hour, which looks like someone testing stolen cards. Your apps offer their other ways to pay meanwhile; pay links you send keep working.",
+      "resume": "Resume now"
+    },
+    "rehearsal": {
+      "title": "TEST · Rehearsal on until {time}",
+      "body": "Orders you make in your apps are sample data, and you pay for them with test payments. Their e-mails come to you. Remove sample data takes them all away.",
+      "stop": "Stop rehearsing"
+    },
+    "readers": {
+      "pairTitle": "Pair a card reader",
+      "service": "Service",
+      "mode": "Mode",
+      "test": "Test",
+      "live": "Live",
+      "name": "Name",
+      "namePh": "Front counter",
+      "enterCode": "Type the code the reader shows",
+      "showCode": "Type this code on the reader, then press Done: {code}",
+      "waiting": "The reader has not taken the code yet.",
+      "next": "Next",
+      "done": "Done",
+      "lastSeen": "Last seen {when}",
+      "online": "Online",
+      "offline": "Offline",
+      "unpair": "Unpair",
+      "viewOnly": "Pairing card readers needs the “Set up payments” permission.",
+      "title": "Card readers",
+      "sub": "Readers at your counter. Each till picks its reader in its own settings.",
+      "pair": "Pair a reader",
+      "empty": "No card reader is paired yet."
+    }
   },
   "appDocuments": {
     "waiting": {
@@ -5821,7 +5886,8 @@ export default {
         "bankAccount": "Add the bank account for '{name}'",
         "systemGrant": "Give the {name} role its console rights",
         "outbound": "Check what '{name}' sends out, then switch it on",
-        "other": "Fill in '{name}'"
+        "other": "Fill in '{name}'",
+        "paymentsSwitch": "Switch on payments for this app in Payments"
       },
       "link": {
         "automation": "Open the rule",

@@ -867,7 +867,11 @@ export default {
         "title": "某個角色可以刪除個人資料",
         "body": "{roles} 可以在隱私頁面尋找、下載並刪除此伺服器保存的關於某人的全部資料。"
       },
-      "footerStepVersion": "第 {n} 步，共 {total} 步 · {app} {version}"
+      "footerStepVersion": "第 {n} 步，共 {total} 步 · {app} {version}",
+      "refundGrants": {
+        "title": "誰可以退還線上付款",
+        "body": "這些角色可以退還客戶為此應用程式的記錄線上支付的款項。取消勾選不應擁有此權限的角色。"
+      }
     },
     "installed": {
       "title": "已安裝的應用程式",
@@ -966,7 +970,8 @@ export default {
       "grantsSubtitle": "檢查此版本的角色新獲得了什麼。",
       "grantsAdded": {
         "title": "此版本給了它的角色更多權限",
-        "addOnSettings": "{roles} 可以變更 {addOn} 的設定，這些設定由它服務的所有應用程式共用。"
+        "addOnSettings": "{roles} 可以變更 {addOn} 的設定，這些設定由它服務的所有應用程式共用。",
+        "refund": "{roles} 可以退還客戶為此應用程式的記錄線上支付的款項。"
       },
       "stopped": {
         "pages": "更新至 {to} 時在寫入頁面期間停止。沒有遺失任何內容；{from} 的頁面仍在。",
@@ -1113,7 +1118,8 @@ export default {
         "systemGrant": "角色 {item} 的主控台權限",
         "outbound": "規則 {item} 向外傳送的內容",
         "title": "安裝之後",
-        "note": "這些會一直留在應用程式頁面，直到完成。"
+        "note": "這些會一直留在應用程式頁面，直到完成。",
+        "paymentsSwitch": "付款：關閉。想讓客戶在此應用程式中付款時，請在「付款」中開啟。"
       },
       "title": "安裝前檢查",
       "intro": "{app} 將裝入 {database}。按下「安裝」之前不會有任何變更。",
@@ -4146,7 +4152,9 @@ export default {
       "ways": "付款方式",
       "payables": "可付款的內容",
       "page": "付款頁面",
-      "activity": "動態"
+      "activity": "動態",
+      "apps": "應用程式",
+      "readers": "讀卡機"
     },
     "loadFailed": "無法載入付款",
     "forbidden": "查看付款需要「設定付款」或「查看付款活動」權限。",
@@ -4342,7 +4350,8 @@ export default {
       "ready": "就緒",
       "builtOn": "基於發票格式",
       "needsUpdate": "基於發票格式。線上付款需要更新該應用程式；線下付款可以使用。",
-      "previewHidden": "只有可以設定此資料表的人才能看到這些列。"
+      "previewHidden": "只有可以設定此資料表的人才能看到這些列。",
+      "fromApp": "來自 {app} · 在「應用程式」中開啟和關閉"
     },
     "page": {
       "logoType": "標誌必須是 PNG、JPEG 或 WebP 圖片。",
@@ -4442,9 +4451,11 @@ export default {
         "paidTwice": "重複付款：{record} · {amount} 的一筆付款抵達時，另一筆付款正在處理中。兩筆都已記錄。",
         "waitingLong": "已等待銀行確認 {days} 天：{record} · {amount}。",
         "waitingLongWay": "已等待銀行確認 {days} 天：{record} · {amount}（{way}）。",
+        "statusRefused": "已付款並記錄，但 {record} 未變為已付款狀態：{reason} 請在其應用程式中變更，或退款。",
         "recordChanged": "一筆已記錄的付款有了變化：{record} · {amount} 的紀錄已與先前不同。",
         "disputed": "有爭議：{record} · {amount}。請在 {service} 主控台中回覆。",
-        "disputeLost": "爭議敗訴：{record} 的 {amount} 已退回客戶。已記為退款。"
+        "disputeLost": "爭議敗訴：{record} 的 {amount} 已退回客戶。已記為退款。",
+        "refundOwed": "待退款：{record} · {amount} 已取消，但退款沒有自動開始。請退還，或標記為已檢查。"
       },
       "why": {
         "alreadyPaid": "該發票已全額付清。",
@@ -4478,7 +4489,9 @@ export default {
         "disputeClosed": "爭議已結束。結果請在 {service} 主控台中查看。",
         "disputeWon": "爭議已勝訴。",
         "disputeLost": "爭議敗訴：款項已退回客戶。",
-        "refundDisputeWon": "爭議勝訴 — {amount} 已退回"
+        "refundDisputeWon": "爭議勝訴 — {amount} 已退回",
+        "refundAuto": "免費取消後已自動退款：{amount}",
+        "refundInApp": "已從應用程式自己的退款發起 {amount} 的退款"
       },
       "checkedBy": "由 {name} 核對",
       "someone": "某人",
@@ -4591,7 +4604,59 @@ export default {
       "title": "此伺服器的時鐘與 {provider} 的時鐘相差 {seconds} 秒。",
       "body": "請自動設定伺服器時間（NTP）。超過五分鐘，來自 {provider} 的付款訊息將被拒絕。"
     },
-    "menuLabel": "{service} 的更多操作"
+    "menuLabel": "{service} 的更多操作",
+    "apps": {
+      "title": "可以收款的應用程式",
+      "sub": "每個可以請客戶付款的已安裝應用程式。在你開啟之前，付款保持關閉。",
+      "line": "客戶付款項目：{tables}",
+      "needsUpdate": "更新該應用程式以重新收款。",
+      "connectFirst": "請先連接一個支付服務",
+      "canTake": "可以收款",
+      "on": "開",
+      "off": "關",
+      "confirmTitle": "為 {app} 開啟付款？",
+      "confirmBody": "{app} 將透過你連接的支付服務請客戶線上付款。你可以隨時關閉。",
+      "cancel": "取消",
+      "switchOn": "開啟",
+      "toastOn": "{app} 的付款已開啟。",
+      "toastOff": "{app} 的付款已關閉。",
+      "empty": "還沒有已安裝的應用程式收款。",
+      "viewOnly": "你可以查看付款。請讓管理付款的人來操作。",
+      "tryAsCustomer": "以客戶身分試用 {app}"
+    },
+    "publicPaused": {
+      "title": "來自你的應用程式的付款已暫停，直到 {time}",
+      "body": "一小時內有來自許多位址的卡片被拒絕，看起來有人在測試被盜的卡片。在此期間，你的應用程式會提供其他付款方式；你傳送的付款連結仍可使用。",
+      "resume": "立即恢復"
+    },
+    "rehearsal": {
+      "title": "測試 · 演練開啟至 {time}",
+      "body": "你在應用程式中建立的訂單是範例資料，並以測試付款支付。它們的電子郵件會寄給你。「移除範例資料」會把它們全部刪除。",
+      "stop": "停止演練"
+    },
+    "readers": {
+      "pairTitle": "配對讀卡機",
+      "service": "服務",
+      "mode": "模式",
+      "test": "測試",
+      "live": "正式",
+      "name": "名稱",
+      "namePh": "前台",
+      "enterCode": "輸入讀卡機顯示的代碼",
+      "showCode": "在讀卡機上輸入此代碼，然後按「完成」：{code}",
+      "waiting": "讀卡機尚未接受代碼。",
+      "next": "下一步",
+      "done": "完成",
+      "lastSeen": "上次在線 {when}",
+      "online": "在線",
+      "offline": "離線",
+      "unpair": "取消配對",
+      "viewOnly": "配對讀卡機需要「設定付款」權限。",
+      "title": "讀卡機",
+      "sub": "櫃檯上的讀卡機。每台收銀機在自己的設定中選擇讀卡機。",
+      "pair": "配對讀卡機",
+      "empty": "尚未配對讀卡機。"
+    }
   },
   "appDocuments": {
     "waiting": {
@@ -5804,7 +5869,8 @@ export default {
         "systemGrant": "授予 {name} 角色其主控台權限",
         "outbound": "檢查 '{name}' 向外傳送的內容，然後再啟用",
         "webhook": "為 '{name}' 新增網址",
-        "webhookHeader": "填寫 '{name}' 的標頭值"
+        "webhookHeader": "填寫 '{name}' 的標頭值",
+        "paymentsSwitch": "在「付款」中為此應用程式開啟付款"
       },
       "link": {
         "automation": "開啟規則",

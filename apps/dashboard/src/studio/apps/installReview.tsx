@@ -867,6 +867,9 @@ export function afterInstallLines(items: readonly AfterInstallItem[] | undefined
       case 'payment-key':
         lines.push({ key, words: sentence('studio:hostedApps.review.after.paymentKey', 'The keys of the payment service {item}', { item: mono(entry.item) }) });
         break;
+      case 'payments-switch':
+        lines.push({ key, words: t('studio:hostedApps.review.after.paymentsSwitch', 'Payments: off. Switch it on in Payments when you want customers to pay in this app.') });
+        break;
       case 'bank-account':
         lines.push({ key, words: sentence('studio:hostedApps.review.after.bankAccount', 'The bank account for {item}', { item: mono(entry.item) }) });
         break;

@@ -188,6 +188,7 @@ import { MapsInstallCard, PartsInstallCard, partChoicesOf } from './AppPartsCard
 import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
 import { AppsRoleTablesWiderCard } from './RoleTablesList.js';
 import { PrivacyGrantsCard } from './PrivacyGrantsCard.js';
+import { RefundGrantsCard } from './RefundGrantsCard.js';
 import { SampleInstallCard, runSampleAdd } from './SampleData.js';
 
 type StepId = 'bundle' | 'database' | 'plan' | 'done';
@@ -289,6 +290,8 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
   const [file, setFile] = useState<File | null>(null);
   /** An upload the server refused before anything was staged: an older file, another lineage, a newer Adminium. */
   const [refusal, setRefusal] = useState<{ title: string; body: ReactNode } | null>(null);
+  // The roles unticked on the check's refund card: not given the app's refund right.
+  const [refundsUnticked, setRefundsUnticked] = useState<ReadonlySet<string>>(() => new Set());
   /** The fingerprint typed on the review, compared in this browser with the uploaded file's own. */
   const [fingerprint, setFingerprint] = useState('');
   /*
@@ -462,6 +465,7 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         ...(addOnRows.length === 0 ? {} : { addOns: addOnChoicesOf(addOnRows, addOnPicks) }),
         ...(plan?.modules === undefined ? {} : { modules: partChoicesOf(plan.modules, partPicks) }),
         ...(plan?.maps === true ? { maps: showMaps } : {}),
+        ...((plan?.refundGrants ?? []).some((grant) => refundsUnticked.has(grant.role)) ? { refundsUnticked: (plan?.refundGrants ?? []).filter((grant) => refundsUnticked.has(grant.role)).map((grant) => grant.role) } : {}),
         // Shown on the check: what an add-on it updates gives other apps' roles more of its tables. The Install button is the say.
         ...((plan?.roleTables ?? []).some((entry) => entry.app !== undefined && entry.wider !== undefined) ? { roleTables: true } : {}),
         ...checked,
@@ -761,6 +765,18 @@ export function InstallAppWizard({ onClose, preselected, quick = false, onMoreCh
         )}
         <AppsRoleTablesWiderCard entries={plan.roleTables ?? []} />
         <PrivacyGrantsCard grants={plan.privacyGrants ?? []} />
+        <RefundGrantsCard
+          grants={plan.refundGrants ?? []}
+          unticked={refundsUnticked}
+          onTick={(role, given) =>
+            setRefundsUnticked((now) => {
+              const next = new Set(now);
+              if (given) next.delete(role);
+              else next.add(role);
+              return next;
+            })
+          }
+        />
         {plan.modules === undefined ? null : (
           <PartsInstallCard
             appName={appName}

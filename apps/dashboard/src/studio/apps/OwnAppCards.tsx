@@ -147,6 +147,8 @@ export function afterInstallText(row: AfterInstallRow): string {
       return t('studio:apps.afterInstall.item.sender', '{count, plural, one {Set the sender address for # email template} other {Set the sender address for # email templates}}', { count });
     case 'payment-key':
       return t('studio:apps.afterInstall.item.paymentKey', "Add the keys for '{name}'", { name });
+    case 'payments-switch':
+      return t('studio:apps.afterInstall.item.paymentsSwitch', 'Switch on payments for this app in Payments');
     case 'bank-account':
       return t('studio:apps.afterInstall.item.bankAccount', "Add the bank account for '{name}'", { name });
     case 'system-grant':

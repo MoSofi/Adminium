@@ -66,13 +66,18 @@ import { PageSurface } from '../../shell/PageSurface.js';
 import { ActivityTab } from './ActivityTab.js';
 import { useActivityCount } from './activityApi.js';
 import { PayablesTab } from './PayablesTab.js';
+import { AppsTab } from './AppsTab.js';
 import { PayPageTab } from './PayPageTab.js';
+import { ReadersTab } from './ReadersTab.js';
 import { WaysTab } from './WaysTab.js';
 import {
   PAYMENTS_SETUP_QUERY_KEY,
   checkKeys,
   checklistProgress,
   choosePath,
+  PUBLIC_STARTS_QUERY_KEY,
+  publicStartsQuery,
+  resumePublicStarts,
   dismissAlarm,
   knownProvider,
   paymentsSetupQuery,
@@ -1371,7 +1376,46 @@ function AlarmsCard({ alarms, services }: { alarms: MoneyAlarm[]; services: Serv
   );
 }
 
+// ─── Card testing: the pause of the payments apps start ─────────────────────
+
+/** Declines from many addresses paused the payments apps start: said here until it lapses, with a way to resume sooner. */
+function PublicStartsPause({ canManage }: { canManage: boolean }) {
+  const client = useQueryClient();
+  const pause = useQuery(publicStartsQuery());
+  const resume = useMutation({
+    mutationFn: resumePublicStarts,
+    onSuccess: (data) => client.setQueryData(PUBLIC_STARTS_QUERY_KEY, data),
+  });
+  const until = pause.data?.pausedUntil ?? null;
+  if (until === null) return null;
+  return (
+    <Alert
+      tone="warn"
+      role="alert"
+      icon={<ShieldAlert />}
+      data-testid="payments-public-paused"
+      title={t('studio:payments.publicPaused.title', 'Payments from your apps are paused until {time}', { time: new Date(until).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}
+      body={
+        <>
+          {t('studio:payments.publicPaused.body', 'Cards were declined from many addresses within an hour, which looks like someone testing stolen cards. Your apps offer their other ways to pay meanwhile; pay links you send keep working.')}
+          {resume.isError ? <span role="alert" className="block text-danger">{t('studio:payments.error.unknown', 'That did not work. Try again.')}</span> : null}
+        </>
+      }
+      action={
+        canManage ? (
+          <Button size="sm" variant="secondary" data-testid="payments-public-resume" disabled={resume.isPending} onClick={() => resume.mutate()}>
+            {t('studio:payments.publicPaused.resume', 'Resume now')}
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+}
+
 // ─── The page ───────────────────────────────────────────────────────────────
+
+/** Every tab, by the name the address may ask for (`?tab=apps`): a notice or a page links straight to one. */
+const PAYMENT_TABS: readonly string[] = ['setup', 'ways', 'payables', 'apps', 'readers', 'page', 'activity'];
 
 export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
   // The operator's words (a deferred group) may be needed by the reach card and a refusal: in before this paints.
@@ -1384,7 +1428,10 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
   ) && (data?.services ?? []).some((one) => knownProvider(one.key) === 'stripe' && [one.test.check, one.live.check].some((check) => check?.ok === true));
 
   // Which tab: the one asked for in the address (the hub's "need a look" opens Activity), else Setup.
-  const [tab, setTab] = useState<string>(() => (new URLSearchParams(window.location.search).get('tab') === 'activity' ? 'activity' : 'setup'));
+  const [tab, setTab] = useState<string>(() => {
+    const asked = new URLSearchParams(window.location.search).get('tab');
+    return asked !== null && PAYMENT_TABS.includes(asked) ? asked : 'setup';
+  });
   const shownTab = tab;
   const activityCount = useActivityCount(data !== undefined);
 
@@ -1419,6 +1466,12 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
           <TabsTrigger value="setup">{t('studio:payments.tab.setup', 'Setup')}</TabsTrigger>
           <TabsTrigger value="ways">{t('studio:payments.tab.ways', 'Ways to pay')}</TabsTrigger>
           <TabsTrigger value="payables">{t('studio:payments.tab.payables', 'What can be paid')}</TabsTrigger>
+          <TabsTrigger value="apps" data-testid="payments-tab-apps">
+            {t('studio:payments.tab.apps', 'Apps')}
+          </TabsTrigger>
+          <TabsTrigger value="readers" data-testid="payments-tab-readers">
+            {t('studio:payments.tab.readers', 'Card readers')}
+          </TabsTrigger>
           <TabsTrigger value="page">{t('studio:payments.tab.page', 'Pay page')}</TabsTrigger>
           <TabsTrigger value="activity" data-testid="payments-tab-activity">
             {t('studio:payments.tab.activity', 'Activity')}
@@ -1437,6 +1490,7 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
               {!data.canManage ? (
                 <Alert tone="info" data-testid="payments-view-only" title={t('studio:payments.viewOnly', 'You can see how payments are set up, but not change it.')} />
               ) : null}
+              <PublicStartsPause canManage={data.canManage} />
               <AlarmsCard alarms={data.alarms ?? []} services={data.services} />
               <ReachabilityCard
                 reach={data.reachability}
@@ -1463,6 +1517,20 @@ export function PaymentsPage({ onOpenSettings }: PaymentsPageProps): ReactNode {
         </TabsContent>
         <TabsContent value="payables" className="pt-4">
           {data !== undefined ? <PayablesTab canManage={data.canManage} /> : loadState('payables')}
+        </TabsContent>
+        <TabsContent value="apps" className="pt-4">
+          {data !== undefined ? (
+            <AppsTab
+              canManage={data.canManage}
+              connected={data.services.some((one) => [one.test.check, one.live.check].some((check) => check?.ok === true))}
+              onConnect={() => setTab('setup')}
+            />
+          ) : (
+            loadState('apps')
+          )}
+        </TabsContent>
+        <TabsContent value="readers" className="pt-4">
+          {data !== undefined ? <ReadersTab canManage={data.canManage} /> : loadState('readers')}
         </TabsContent>
         <TabsContent value="page" className="pt-4">
           {data !== undefined ? <PayPageTab canManage={data.canManage} /> : loadState('page')}

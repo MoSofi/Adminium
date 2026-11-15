@@ -176,6 +176,18 @@ export default {
       "lostTitle": "Litige perdu",
       "lostTitleTest": "Litige de test perdu",
       "lostBody": "{label} · {amount} rendus au client"
+    },
+    "appPayablesChanged": {
+      "title": "{app} a été désactivée pour les paiements",
+      "body": "Sa mise à jour a changé la façon dont ses paiements sont encaissés. Vérifiez-la dans Paiements et réactivez-la."
+    },
+    "cardTesting": {
+      "title": "Les paiements de vos applications sont en pause",
+      "body": "Des cartes ont été refusées depuis {count} adresses différentes en moins d'une heure : quelqu'un semble tester des cartes volées. Les paiements lancés depuis les écrans de vos applications sont en pause pendant une heure ; les liens de paiement que vous envoyez fonctionnent toujours. Vous pouvez les reprendre dans Paiements."
+    },
+    "autoRefund": {
+      "title": "Remboursé automatiquement",
+      "body": "{amount} pour {label}, après son annulation gratuite dans {app}"
     }
   },
   "refund": {
@@ -206,6 +218,9 @@ export default {
     "back": "Retour",
     "submit": "Rembourser",
     "failed": "Le remboursement n’a pas été demandé : {message}",
-    "lost": "Aucune réponse n’est revenue. Appuyez à nouveau sur Rembourser : c’est le même remboursement qui est demandé, jamais un second."
+    "lost": "Aucune réponse n’est revenue. Appuyez à nouveau sur Rembourser : c’est le même remboursement qui est demandé, jamais un second.",
+    "refusal": {
+      "inApp": "Remboursez ce paiement dans son application, où ses remboursements sont tenus."
+    }
   }
 } as const;

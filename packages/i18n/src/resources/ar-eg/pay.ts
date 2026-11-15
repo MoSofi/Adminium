@@ -170,5 +170,6 @@ export default {
     "title": "تحتاج هذه الصفحة إلى JavaScript للدفع عبر الإنترنت."
   },
   "shopFallback": "المتجر",
-  "shopFallbackStart": "المتجر"
+  "shopFallbackStart": "المتجر",
+  "back": "العودة إلى {app}"
 } as const;
