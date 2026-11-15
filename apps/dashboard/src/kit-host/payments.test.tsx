@@ -42,7 +42,7 @@ describe('the kit payment parts', () => {
   afterEach(() => {
     act(() => mounted?.unmount());
     mounted = null;
-    document.body.innerHTML = '';
+    document.body.replaceChildren();
     vi.unstubAllGlobals();
   });
 

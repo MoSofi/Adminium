@@ -115434,6 +115434,9 @@
                               "hasPaths": {
                                 "type": "boolean"
                               },
+                              "readersOnly": {
+                                "type": "boolean"
+                              },
                               "webhookEvents": {
                                 "type": "array",
                                 "items": {
@@ -115932,6 +115935,7 @@
                               "status",
                               "loaded",
                               "hasPaths",
+                              "readersOnly",
                               "webhookEvents",
                               "path",
                               "stopped",
@@ -116137,6 +116141,9 @@
                         "hasPaths": {
                           "type": "boolean"
                         },
+                        "readersOnly": {
+                          "type": "boolean"
+                        },
                         "webhookEvents": {
                           "type": "array",
                           "items": {
@@ -116635,6 +116642,7 @@
                         "status",
                         "loaded",
                         "hasPaths",
+                        "readersOnly",
                         "webhookEvents",
                         "path",
                         "stopped",
@@ -116735,6 +116743,9 @@
                         "hasPaths": {
                           "type": "boolean"
                         },
+                        "readersOnly": {
+                          "type": "boolean"
+                        },
                         "webhookEvents": {
                           "type": "array",
                           "items": {
@@ -117233,6 +117244,7 @@
                         "status",
                         "loaded",
                         "hasPaths",
+                        "readersOnly",
                         "webhookEvents",
                         "path",
                         "stopped",
@@ -117325,6 +117337,9 @@
                         "hasPaths": {
                           "type": "boolean"
                         },
+                        "readersOnly": {
+                          "type": "boolean"
+                        },
                         "webhookEvents": {
                           "type": "array",
                           "items": {
@@ -117823,6 +117838,7 @@
                         "status",
                         "loaded",
                         "hasPaths",
+                        "readersOnly",
                         "webhookEvents",
                         "path",
                         "stopped",
@@ -117925,6 +117941,9 @@
                         "hasPaths": {
                           "type": "boolean"
                         },
+                        "readersOnly": {
+                          "type": "boolean"
+                        },
                         "webhookEvents": {
                           "type": "array",
                           "items": {
@@ -118423,6 +118442,7 @@
                         "status",
                         "loaded",
                         "hasPaths",
+                        "readersOnly",
                         "webhookEvents",
                         "path",
                         "stopped",
@@ -118521,6 +118541,9 @@
                         "hasPaths": {
                           "type": "boolean"
                         },
+                        "readersOnly": {
+                          "type": "boolean"
+                        },
                         "webhookEvents": {
                           "type": "array",
                           "items": {
@@ -119019,6 +119042,7 @@
                         "status",
                         "loaded",
                         "hasPaths",
+                        "readersOnly",
                         "webhookEvents",
                         "path",
                         "stopped",
@@ -119117,6 +119141,9 @@
                         "hasPaths": {
                           "type": "boolean"
                         },
+                        "readersOnly": {
+                          "type": "boolean"
+                        },
                         "webhookEvents": {
                           "type": "array",
                           "items": {
@@ -119615,6 +119642,7 @@
                         "status",
                         "loaded",
                         "hasPaths",
+                        "readersOnly",
                         "webhookEvents",
                         "path",
                         "stopped",
@@ -119721,6 +119749,9 @@
                         "hasPaths": {
                           "type": "boolean"
                         },
+                        "readersOnly": {
+                          "type": "boolean"
+                        },
                         "webhookEvents": {
                           "type": "array",
                           "items": {
@@ -120219,6 +120250,7 @@
                         "status",
                         "loaded",
                         "hasPaths",
+                        "readersOnly",
                         "webhookEvents",
                         "path",
                         "stopped",
@@ -126379,6 +126411,71 @@
                         "services"
                       ],
                       "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/readers/locations": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "in": "query",
+            "name": "provider",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "test",
+                "live"
+              ]
+            },
+            "in": "query",
+            "name": "mode",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [

@@ -146,7 +146,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/option-lists/*` | 5 | Named sets of answers a column accepts, written once and pointed at by as many columns as need them. Reading one needs only a session — a create dialog has to render the choices to anyone who may add a row — while writing needs the same grant that points a column at a list. The built-in lists live in code and are served with their labels in the caller's locale; editing one makes an ordinary copy rather than changing it. Deleting a list a column still names is refused with 409 and the columns using it. |
 | `/api/v1/pages/*` | 15 | Pages and dashboards — layout, config, nav order, shared views, and what a template needs from a table (with a new table drafted to fit when none does) |
-| `/api/v1/payments/*` | 56 | Studio → Payments: connect a payment service with your own keys, choose the ways to pay and their rules, mark tables payable, set the pay page and make pay links. Setup changes need payments.manage and a signed-in person (never an API key); payments.view reads only. |
+| `/api/v1/payments/*` | 57 | Studio → Payments: connect a payment service with your own keys, choose the ways to pay and their rules, mark tables payable, set the pay page and make pay links. Setup changes need payments.manage and a signed-in person (never an API key); payments.view reads only. |
 | `/api/v1/people` | 1 | Names and ids of staff, for picking somebody (an owner, a hand-over) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/presence` | 1 | Someone is using this dashboard: an empty answer the dashboard asks for once a minute while its person is active, only where the operator set ADMINIUM_PRESENCE=on, for a proxy that counts any request as use |
@@ -826,6 +826,7 @@ GET /api/v1/payments/terminal/charges/{id}
 POST /api/v1/payments/terminal/charges/{id}/cancel
 GET /api/v1/payments/terminal/readers
 GET /api/v1/payments/readers
+GET /api/v1/payments/readers/locations
 POST /api/v1/payments/readers/pairing
 POST /api/v1/payments/readers/pairing/finish
 PATCH /api/v1/payments/readers/{id}
