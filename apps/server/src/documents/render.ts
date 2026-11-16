@@ -171,8 +171,12 @@ export interface RenderDeps {
    * document's database (each business keeps its own), else a server-wide one.
    */
   settingsFor: (addOnKey: string, where: DocumentInstall) => Promise<Record<string, unknown>>;
-  /** The record's live pay link, for a slot whose default is `pay-link`; null when it cannot be paid online now. */
-  payLinkFor?: ((entity: RecordRef) => Promise<string | null>) | undefined;
+  /**
+   * The record's live pay link, for a slot whose default is `pay-link`; null
+   * when it cannot be paid online now. With the moment it stops opening, a
+   * `date` slot of that default prints the day.
+   */
+  payLinkFor?: ((entity: RecordRef) => Promise<string | { url: string; expiresAt: number } | null>) | undefined;
   /**
    * The deployment's business identity, for a profile that maps none.
    *
@@ -731,10 +735,12 @@ async function renderCore(
   const drawnBefore = (await documents.drawnFor(profile.id, source.entity))?.subject?.['fields'];
 
   // A slot that prints the record's pay link: asked once, and a failure to ask is no link.
-  const payLink =
+  const asked =
     deps.payLinkFor !== undefined && outline.slots.some((slot) => slot.default === 'pay-link')
       ? await deps.payLinkFor(source.entity).catch(() => null)
       : null;
+  const payLink = typeof asked === 'string' ? asked : (asked?.url ?? null);
+  const payLinkExpiresAt = asked !== null && typeof asked === 'object' ? asked.expiresAt : null;
 
   pictures = await picturesFor({ meta: deps.meta, storage: deps.storage, view: schema, profile, slots: outline.slots, row: source.row, pk: source.entity.pk });
   const pictureValues = Object.fromEntries(Object.entries(pictures).map(([slot, made]) => [slot, made.value]));
@@ -742,6 +748,7 @@ async function renderCore(
   const subjectFor = (printed: string | null) =>
     buildSubject({
       payLink,
+      payLinkExpiresAt,
       pictures: pictureValues,
       slots: outline.slots,
       mapping: profile.mapping as ProfileMapping,

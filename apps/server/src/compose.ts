@@ -363,7 +363,7 @@ import { createPayPageReader, payRoutes, type PayRoutesDeps } from './routes/pay
 import { payPageRoutes } from './routes/pay/page.js';
 import { createCheckoutService } from './payments/checkout.js';
 import { paymentProviderFor } from './payments/providers.js';
-import { createPayLinkFor } from './payments/pay-link-for.js';
+import { createPayLinkFor, createPayLinkWithExpiryFor, type PayLinkWithExpiry } from './payments/pay-link-for.js';
 import { createAppRefundWatch, pickUpAppRefunds, registerAppRefundHandler } from './payments/app-refunds.js';
 import { createRefundMoveWatch, registerAutoRefundHandler } from './payments/refund-moves.js';
 import type { FastifyRequest } from 'fastify';
@@ -1386,6 +1386,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   let signInLinkMinter: ReturnType<typeof createSignInLinkMinter> | undefined;
   // A record's live pay link, for printed invoices and reminders; found once the payment parts exist (below).
   let documentPayLink: ((entity: RecordRef) => Promise<string | null>) | null = null;
+  // The same link with the moment it stops opening, for a printed document's "Works until …".
+  let printedPayLink: ((entity: RecordRef) => Promise<PayLinkWithExpiry | null>) | null = null;
   // Marketing mail's checks, signature and carry: one for every send path (the outbox, the campaigns, a rule's e-mail step).
   const marketingMail = createMarketingMail({
     meta,
@@ -1620,7 +1622,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     manager,
     storage,
     runtime: () => addOnRuntime,
-    payLinkFor: async (entity) => (documentPayLink === null ? null : documentPayLink(entity)),
+    payLinkFor: async (entity) => (printedPayLink === null ? null : printedPayLink(entity)),
     // Step 8's delivery reports here. The outcome is on the register row
     // either way — this is for whoever is watching the queue.
     logger: app.log,
@@ -1867,6 +1869,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     liveOn: () => anyLiveOn({ meta, manifests: appManifests, runtime: () => addOnRuntime }),
   };
   documentPayLink = createPayLinkFor(payLinkDeps);
+  printedPayLink = createPayLinkWithExpiryFor(payLinkDeps);
   // Card testing when the public starts payments: declines counted by address, and a pause of every public start.
   const cardTesting = createCardTesting({ meta, secret: env.ADMINIUM_SECRET, hub: { publish: (channel: string, event: string, payload: unknown) => app.realtime.publish(channel, event, payload as never) } });
   // Paying from an app's own screens: only while the operator allows payments (never in a trial), the app is switched on, and public starts are not paused.

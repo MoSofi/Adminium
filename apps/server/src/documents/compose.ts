@@ -497,8 +497,8 @@ export interface DocumentPipelineDeps {
   runtime: () => AddOnRuntimeState | null;
   /** Where delivery reports itself; the outcome is on the row regardless. */
   logger?: EmailLogger | undefined;
-  /** A record's live pay link, for documents that print one. */
-  payLinkFor?: ((entity: RecordRef) => Promise<string | null>) | undefined;
+  /** A record's live pay link, for documents that print one, with the moment it stops opening. */
+  payLinkFor?: ((entity: RecordRef) => Promise<string | { url: string; expiresAt: number } | null>) | undefined;
 }
 
 
