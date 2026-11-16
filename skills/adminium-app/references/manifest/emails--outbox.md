@@ -40,7 +40,7 @@
 | `classes` | from 0.3.38 | Each kind's class, `marketing` or `service`; see [Marketing or service](https://docs.adminium.dev/reference/manifest/#marketing-or-service). Needs Adminium 0.3.38, and from that floor every kind has one. |
 | `purposes` | no | Each kind's consent purpose, `newsletter` or `surveys`; see [A kind's purpose](https://docs.adminium.dev/reference/manifest/#a-kinds-purpose). Needs Adminium 0.3.40. |
 | `surveyLinks` | no | The kinds whose template prints `{{survey_link}}`: a forms add-on's survey invitations; see [A survey's link](https://docs.adminium.dev/reference/manifest/#a-surveys-link). Needs Adminium 0.3.40. |
-| `producers` | no | Up to 24 rules that queue rows by themselves. See below. |
+| `producers` | no | Up to 32 rules that queue rows by themselves (more than 24 needs Adminium 0.3.62). See below. |
 
 **`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.
 `via` is the outbox's foreign key to the person, `table` the person's table, and the rest are its

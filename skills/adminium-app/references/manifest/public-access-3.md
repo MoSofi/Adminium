@@ -4,6 +4,8 @@
 
 | Field | Required | Rule |
 |---|---|---|
+| `newLink` | no | `{ "column", "kind", "when"? }`: "Make a new link" for a signed-in person's row, or "Send it again" through a row's own link. See [A row's own link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link). |
+| `forget` | no | On an identity entry: what "delete my details" empties. See [Delete my details](https://docs.adminium.dev/reference/manifest/#delete-my-details). |
 | `withhold` | no | Columns left out of a row for some readers. See [Withheld columns](https://docs.adminium.dev/reference/manifest/#withheld-columns). |
 | `limits` | no | Limits on a change a guest makes. See [Limits on a guest's change](https://docs.adminium.dev/reference/manifest/#limits-on-a-guests-change). |
 | `unlockBy` | no | Rows readable only with a code that unlocks them. See [Codes that unlock rows](https://docs.adminium.dev/reference/manifest/#codes-that-unlock-rows). |

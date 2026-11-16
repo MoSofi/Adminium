@@ -1813,6 +1813,7 @@ A move's `requires` says what must be true first:
 | `time` | `{ "after"?, "before"? }`: a window on the clock, each end a [moment](#moments) (from half an hour before the doors, until the ticket's day ends). |
 | `setting` | 1–4 `{ "table", "column", "eq" }`: a value of the settings row (door sales switched on). |
 | `notPast` | A `date` column of the row: the move is refused once that day has passed. See [A move's last day](#a-moves-last-day). |
+| `noPaymentInFlight` | `true`: the move is refused while a payment for the row is on its way. Only on a [payable](#payments) table. See [No payment on its way](#no-payment-on-its-way). Needs Adminium 0.3.62. |
 
 A move's `roles` (1–8 of the app's [role](#roles) keys) keeps it for the people holding one of
 them: any role may void a draft, only a manager a sent invoice.
@@ -1952,6 +1953,35 @@ column), `from`, `to`, `date` (the date column) and `until` (the day it held). T
 API it is `409` `PUBLIC_TOO_LATE` with no `params`: the entry may not show the date. The row is
 still read as before, so a page opened by its link can say the quote ran out. Needs Adminium
 0.3.28.
+
+#### No payment on its way
+
+`requires.noPaymentInFlight: true` refuses a move while a payment for the row is on its way: the
+payment service has said it is processing it (a bank confirming), or it succeeded and Adminium is
+writing it into the record. A diner who chose "Pay when you pick up instead" (`paying → placed`)
+while their card payment is landing is told to wait, rather than leaving the order unpaid with
+money arriving for it.
+
+```json
+"moves": {
+  "paying": [{ "to": "placed", "requires": { "noPaymentInFlight": true } }, "cancelled"]
+}
+```
+
+- It holds every writer alike — the public API, a person on the dashboard, a bulk edit, the app's
+  code, a rule, a timed move — except the payment's own move to paid, which may be the very same
+  move (`status.paid`, from `status.from`).
+- "On its way" is the test a timed move's [`waitsForPayment`](#timed-moves) waits on: an attempt for
+  the row that is `processing`, `succeeded` or `recording`, younger than seven hours. A payment
+  that did not finish, was cancelled or ran out of time is not on its way.
+- Only on a table of the app's `payments.payables`; a part left out that takes the payable away
+  takes the condition with it.
+
+A refused move is `409` `PAYMENT_IN_FLIGHT`, never `STATE_MOVE_REFUSED`, with `column`, `from` and
+`to`. Through the public API it is `400` `PUBLIC_WRITE_REFUSED` with `{ "column", "reason":
+"payment-in-flight" }`: show "Your payment is still going through" and read the record again
+([`payments.state`](#paying-from-the-apps-own-customer-screens) says when it settles). Needs Adminium
+0.3.62.
 
 A public entry can also close a change by a date with [`writableWhen`](#public-access)
 (`"from-today"`), which refuses a row whose date is empty and holds only that entry's writes. The
@@ -3975,7 +4005,7 @@ there for the same kind and source is what stops a second send.
 | `classes` | from 0.3.38 | Each kind's class, `marketing` or `service`; see [Marketing or service](#marketing-or-service). Needs Adminium 0.3.38, and from that floor every kind has one. |
 | `purposes` | no | Each kind's consent purpose, `newsletter` or `surveys`; see [A kind's purpose](#a-kinds-purpose). Needs Adminium 0.3.40. |
 | `surveyLinks` | no | The kinds whose template prints `{{survey_link}}`: a forms add-on's survey invitations; see [A survey's link](#a-surveys-link). Needs Adminium 0.3.40. |
-| `producers` | no | Up to 24 rules that queue rows by themselves. See below. |
+| `producers` | no | Up to 32 rules that queue rows by themselves (more than 24 needs Adminium 0.3.62). See below. |
 
 **`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.
 `via` is the outbox's foreign key to the person, `table` the person's table, and the rest are its
@@ -4076,6 +4106,37 @@ A producer may also say:
 | `was` | 1–8 columns of the changed row kept as they were before the change (a stay's old dates, its old total), read by the template as `{{was.<column>}}` in every form the column has. On an `onChange` producer, and on an `onDelete` producer, where they are the removed row's own values; needs the outbox's `was` column. Never a secret, personal, code, share-code, withheld or typed-code column. |
 | `batchMinutes` | 1–240: one message per linked row in each window of this many minutes. The first event opens a message due at the window's end; every event while it still waits is taken in by it (five versions posted in ten minutes make one email). The window's end is its due, so it takes no `due`; it may still be dropped (`dropWhen`) or overtaken (`supersede`) while it waits. Not on a `before` producer. |
 | `onSent` | `{ "table", "via"?, "set" }`: a change made once the message has gone. Without `via`, `table` is the row the message is about; with it, `via` is that row's foreign key to `table`. `set` maps columns to values (`null` empties a nullable column). |
+| `payments` | `on` or `off`: queued only while the app takes payments online for the row the message is about, or only while it does not. See [Mail that follows payments](#mail-that-follows-payments). Needs Adminium 0.3.62. |
+
+#### Mail that follows payments
+
+A producer with `payments: "on"` is queued only while the app takes payments online for the row the
+message is about — what [`GET /public/payments/available`](#paying-from-the-apps-own-customer-screens)
+answers its customer, for that row's table: the app's payable switched on, a payment service live,
+the pay address reachable, payments not paused or switched off by the operator. `payments: "off"`
+is queued only while it does not. It is judged when the message is queued, beside `gate`, `module`
+and `optIn`; a message already waiting (`holdSeconds`, `due`) is not judged again, and its pay
+blocks follow `{{pay_url}}` when it goes.
+
+Two producers of one event, one `on` and one `off`, each with its own template, send one mail
+whichever way the shop is set, each with its own subject and preheader:
+
+```json
+"producers": [
+  { "kind": "order-unpaid",   "link": "order_id", "onCreate": { "table": "orders" }, "payments": "on", "holdSeconds": 3600,
+    "dropWhen": [{ "column": "status", "eq": "paid", "reason": "paid" }] },
+  { "kind": "order-received", "link": "order_id", "onCreate": { "table": "orders" }, "payments": "off" }
+]
+```
+
+- A mail that only makes sense with payments on ("Your delivery quote is accepted — pay online")
+  is `on` alone: with payments off nothing is sent.
+- A preheader that follows payments ("You owe {balance}" with them on, "{balance} still to settle"
+  with them off) is two kinds, each with its template.
+- The row is one of the app's payable tables, or a child row whose `via` points at one. Never on an
+  `onDelete` producer.
+- A row someone who manages payments is [rehearsing](/guides/take-payments/) counts as on: its mail
+  goes to them, marked TEST.
 
 `due.days` is one of:
 
@@ -4573,6 +4634,7 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `humanCheck` | no | `true`: the browser solves a small proof of work before a create or a claim is taken. Only on an entry that creates or claims. |
 | `anonymous` | no | Limits on a create nobody signed in for. See [Limits on a stranger's create](#limits-on-a-strangers-create). |
 | `requireSetting` | no | Up to 4 `{ "table", "column", "when"?, "in"? }`, each a bool of the settings table, or with `in` (1–8 values) an `enum` of it. While a bool is false, or the choice holds none of `in`, every write through the entry is refused. |
+| `requirePayments` | no | `on` or `off`: open only while the app takes payments online for the entry's table, or only while it does not; refused `PUBLIC_SWITCHED_OFF` otherwise. Only on a create of one of the app's payable tables. See below. Needs Adminium 0.3.62. |
 | `confirm` | no | An email Adminium sends when a guest creates a row; needs `POST`. See below. |
 | `children` | no | The rows a create carries with it, by child table, two levels at most. See [A create with its child rows](#a-create-with-its-child-rows). |
 | `agrees` | no | 1–8 checks the created row's own values must pass (guests no more than a room sleeps). See [A create with its child rows](#a-create-with-its-child-rows). |
@@ -5314,6 +5376,18 @@ of those values: a hotel's booking entry that takes no payment names `"in": ["no
 and the one that sends the guest to pay names `"in": ["optional", "required"]`. A switch is read
 from the settings table and trusted for 15 seconds. No row, no column or a failed read counts as
 off. See [Switches in the settings row](/guides/apps/public-access/#switches-in-the-settings-row).
+
+`requirePayments` opens an entry by whether the app takes payments online for its table right now,
+as `GET /public/payments/available` answers it (the app's payable switched on, a service live, the
+pay address reachable, payments not paused): `"on"` only while it does, `"off"` only while it does
+not. With `requireSetting` both must hold. A hotel that asks guests to pay as they book declares
+three booking entries — unpaid with `"in": ["nothing", "optional"]`; unpaid with `"in": ["required"]`
+and `"requirePayments": "off"`; and one that starts the stay in its paying state (`defaults`, from
+[`states.starts`](#states)) with `"in": ["required"]`, `"requirePayments": "on"` and `pay: true` — so
+while paying is required and possible the only booking a caller can make waits for its payment,
+and while payments are off the hotel books as it always did. The state column is never `writable`:
+which state a create starts in is the entry's, not the caller's. Someone who manages payments
+rehearsing the app's checkout sees payments on, for them alone.
 
 ### publicKeys
 
@@ -6206,12 +6280,23 @@ the app on in Payments. Each is checked at install as the payments screen checks
 columns, the currency's decimals, the way-to-pay values, a unique reference), on tables the app made
 itself, never one shared with another app or made by hand; one that fails is not made. An update that
 changes how an app's money lands switches it off again and tells the payment managers. Its payments
-table's reference is a text column marked `unique`, and no public entry writes it or the columns only a
+table's reference is a text column marked `unique`, and no public entry writes it or the columns a
 payment fills (`provider`, `approvalCode`, `last4`). `ways` and `payPage` stay a self-made file's.
+
+What Adminium guards in the payments table, whoever writes (staff, an API key, the app's own code):
+
+- **A row taken online** (its reference holds the payment's attempt id) is the payment's whole: only the
+  payment makes it and only a refund changes it. Nobody edits any of its columns — its amount, service,
+  approval code, last four — nor voids or deletes it (`403 TABLE_FORBIDDEN`, `reason: online-payment`).
+- **The reference** and **`refundedElsewhere`** are filled by Adminium alone, on any row
+  (`reason: payment-column`); so are a refund table's `providerRef` and `state` stamps.
+- **A row recorded by hand** (no reference, or the `hand_…` one Payments gives a hand payment) stays its
+  person's: made, corrected and removed as before — its approval code and last four included, which a
+  card paid on the counter's own terminal is written with. The same goes for `provider` and `paidAt`.
 
 | Field | Rule |
 |---|---|
-| `payables` | Up to 16 payable tables, each once: `table`; `amount: { "column", "unit"? }` (`units` or `minor`); `currency` as `{ "column" }`, `{ "fixed": "EUR" }` or `{ "connection": true }`; `due: { "column" }`; `payments` as `{ "kind": "kept" }` (Adminium keeps them) or the table's own payments table, column by column (then `due` is required); and optionally `label`, `status: { "column", "paid", "refunded"?, "from"?, "refundedFrom"? }`, `customerEmail`, `customerCountry` and up to 50 `pageFields`. Every column is one of that table's. `currency` may also be `{ "setting": { "table", "column" } }`, a text column of the app's one-row settings table. The payments table may leave out `date` when it names `paidAt` (the moment), and names `provider`, `approvalCode`, `last4` and `currency` columns, which Adminium alone fills. `status.from` lists the states a payment moves a row to `paid` from (`["paying"]`); a row in any other state keeps its state. Also: `payableWhen` (1–8 conditions on the row, the `requires` grammar: outside them there is no link and no checkout), `returnTo` (a path on the app's customer side, no query and no fragment), `receipt` (`app` or `engine`: who mails the receipt, never both), `onlyOnline` (the pay page offers no way to pay by hand) and `instantOnly` (`true`, or `{ "where": [...] }`: only ways that settle at once). An invoice built on the Invoices shape at version 2 or later is `{ "table", "shape": true }` with only `returnTo`, `receipt` and `onlyOnline`. |
+| `payables` | Up to 16 payable tables, each once: `table`; `amount: { "column", "unit"? }` (`units` or `minor`); `currency` as `{ "column" }`, `{ "fixed": "EUR" }` or `{ "connection": true }`; `due: { "column" }`; `payments` as `{ "kind": "kept" }` (Adminium keeps them) or the table's own payments table, column by column (then `due` is required); and optionally `label`, `status: { "column", "paid", "refunded"?, "from"?, "refundedFrom"?, "set"? }`, `customerEmail`, `customerCountry` and up to 50 `pageFields`. Every column is one of that table's. `currency` may also be `{ "setting": { "table", "column" } }`, a text column of the app's one-row settings table. The payments table may leave out `date` when it names `paidAt` (the moment), and names `provider`, `approvalCode`, `last4` and `currency` columns, which Adminium fills on a payment taken online (a payment recorded by hand fills them as its person writes them: what is guarded is listed above). `status.from` lists the states a payment moves a row to `paid` from (`["paying"]`); a row in any other state keeps its state. `status.set` (Adminium 0.3.62 and later) names up to 4 more columns of the record, with fixed values, that a payment made on the pay page writes in the same write as its move to `paid` — a ticket order's `{ "paid_method": "online" }`; a payment recorded by hand, or taken on a card reader, writes none of them. Only plain columns of the payable's own table: never the state column, the amount, the balance, the currency, a money column, a key or a link. Also: `payableWhen` (1–8 conditions on the row, the `requires` grammar: outside them there is no link and no checkout), `returnTo` (a path on the app's customer side, no query and no fragment), `receipt` (`app` or `engine`: who mails the receipt, never both), `onlyOnline` (the pay page offers no way to pay by hand) and `instantOnly` (`true`, or `{ "where": [...] }`: only ways that settle at once). An invoice built on the Invoices shape at version 2 or later is `{ "table", "shape": true }` with only `returnTo`, `receipt` and `onlyOnline`. |
 | `ways` | Up to 32 ways to pay, each `{ "source", "method" }` once: `manual` or a payment service's key, and the way to pay, with `enabled`, a `label` per language, `rules` (`countries`, `currencies`, `min`, `max`) and `position`. |
 | `payPage` | The pay page's plain settings: `shopName`, `shopCountry` (two letters) and `showLines`. Never a logo or a contact. |
 

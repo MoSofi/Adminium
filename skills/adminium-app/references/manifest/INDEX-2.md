@@ -4,6 +4,7 @@
 
 | File | What it covers | Bytes |
 |---|---|---|
+| `references/manifest/public-access--a-person-s-own-rows.md` | Public access — A person's own rows | 7450 |
 | `references/manifest/public-access--rows-visible-with-their-parent.md` | Public access — Rows visible with their parent | 2567 |
 | `references/manifest/public-access--a-create-with-its-child-rows.md` | Public access — A create with its child rows | 5159 |
 | `references/manifest/public-access--dry-runs-price-checks-and-retries.md` | Public access — Dry runs, price checks and retries | 1764 |
@@ -19,7 +20,7 @@
 | `references/manifest/public-access--guests-uploads.md` | Public access — Guests' uploads | 4192 |
 | `references/manifest/public-access--assets.md` | Public access — Assets | 1606 |
 | `references/manifest/public-access--availability.md` | Public access — Availability | 1991 |
-| `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 3689 |
+| `references/manifest/public-access--limits-on-a-stranger-s-create.md` | Public access — Limits on a stranger's create | 4789 |
 | `references/manifest/public-access--publickeys.md` | Public access — publicKeys | 3463 |
 | `references/manifest/automations.md` | Automations | 7120 |
 | `references/manifest/automations-2.md` | Automations (part 2) | 1062 |
@@ -50,7 +51,7 @@
 | `references/manifest/a-self-made-app--apps-requires.md` | A self-made app — `apps.requires` | 1407 |
 | `references/manifest/a-self-made-app--instance.md` | A self-made app — `instance` | 2327 |
 | `references/manifest/a-self-made-app--reports-invoicelayouts-and-scheduledreports.md` | A self-made app — `reports`, `invoiceLayouts` and `scheduledReports` | 1310 |
-| `references/manifest/a-self-made-app--payments.md` | A self-made app — `payments` | 5428 |
+| `references/manifest/a-self-made-app--payments.md` | A self-made app — `payments` | 6915 |
 | `references/manifest/add-on-manifests.md` | Add-on manifests | 5370 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own.md` | Add-on manifests — An add-on with tables of its own | 7800 |
 | `references/manifest/add-on-manifests--an-add-on-with-tables-of-its-own-2.md` | Add-on manifests — An add-on with tables of its own (part 2) | 2439 |

@@ -2,6 +2,49 @@
 
 # Manifest spec: requiredSchema — States
 
+```json
+"effects": [
+  { "on": { "to": "in_house" }, "via": "room_id", "set": { "status": "occupied" } },
+  { "on": { "to": "departed" }, "via": "room_id", "set": { "status": "cleaning" } },
+  { "on": { "change": "room_id", "in": ["in_house"] },
+    "old": { "set": { "status": "cleaning" } }, "new": { "set": { "status": "occupied" } } }
+]
+```
+
+There are two kinds, up to 8 effects a table:
+
+- **On a move** (`on.to`): when this row moves to the state, the row `via` points at moves to the
+  state `set` names. At most one such effect per state and link.
+- **On a changed link** (`on.change`, a foreign key): when the link really changes while the row
+  is in one of `on.in` (before and after the write; absent: any state), the row it pointed at
+  moves by `old` and the row it now points at by `new`; either may be left out. A link first set
+  or emptied moves only the side there is. One such effect per link. Without `in`, a booked
+  guest's room assignment would flip rooms too; a hotel says `in: ["in_house"]`.
+
+`set` names one column, the linked table's state column, and a state one of its listed moves goes
+to. The linked row is moved by that declared move and judged as it: its conditions, the limits and
+totals it moves, its own states. A row already in the state an effect's `old` side names is left as
+it is; a new row already in the state `new` names refuses the whole write (`409`
+`STATE_MOVE_REFUSED` with `details.effect: "new"`: the new room is not ready). Any refusal refuses
+the whole write.
+
+The linked row is moved by its own table's declared move, with that move's conditions, its lock
+and its totals, and not by what the person who made the first move may do to it: whoever may
+make the move that sets an effect off thereby moves the linked row too, whatever their role
+writes of that table and whichever of its rows they reach. Give an effect only a link whose
+row belongs with the row that moves. A link that points at the moving row itself moves nothing.
+
+An effect moves one row, one link away, never a chain. The linked table may not be one whose rows
+are lines of another table's states, one that books people by the day, or the app's outbox; the
+state it sets may not be one the linked table's own effects start from (a table with effects may
+be moved to any other state, its own rows included: a quote that is sent withdraws the quote it
+replaces); and the move it makes may not wait for another row, be an
+undo, or be judged late by another row's time. A table a project hook watches is refused at run
+time. History (an import, sample data) sets off no effect. A move that set off an effect offers no
+Undo.
+
+#### A new child moves its parent
+
 A child row may move the row it belongs to, in the same write: the crew's sign-off, made on a
 phone by somebody who reads no job, signs the job off, and the office's counts and the rules that
 run on a job signed off follow. Say it on the child, under the parent's `children`, with
@@ -79,41 +122,3 @@ When a row is created, every other row of the table with the same `by` value and
 state, judged as that move: its conditions on the row, its lock, its stamps, the totals and limits
 it moves. Each is announced as a change of that row by whoever made the new one: its screens
 refresh, its audit names them, and a rule that runs on the move runs.
-
-- **Every door.** A create from a staff screen or the data API (with or without a retry key, one
-  row or several in one save), a guest's public write, a rule's `record.create`, a project's code:
-  each new row moves the earlier ones. Several rows made in one save move each other in order: the
-  last is the one left in `initial`.
-- **The new row itself is never moved**, and a new row whose `by` is empty moves nothing. A row in
-  a state not in `from` (an approved proof) is left as it is, and so is a row of another line.
-- **One write.** A move refused (an earlier row whose move's conditions do not hold) refuses the
-  whole create, `409` `STATE_MOVE_REFUSED`, and no row is made or moved. A create refused for any
-  other reason moves nothing.
-- **In turn.** The row `by` points at is held first, so two rows made for one line at the same
-  moment take their turns: the second finds the first, and one row is left waiting.
-- **The table's rule, not the person's.** As with an [effect](https://docs.adminium.dev/reference/manifest/#effects), the earlier rows move
-  whether or not the person who made the new one may read or change them, and the roles a move is
-  kept for do not stop it.
-- Only a create moves them. A change of a row's link, or a move of its own, moves no other row.
-  Importing rows and loading sample data are history: they keep the state each row was in and move
-  nothing. A save that moved an earlier row offers no Undo.
-
-The moves are made as an effect's are, so the same limits apply: each move from `from` to `to` is
-not an undo, not a ledger's own (`planned`), and does not wait for another row; a move to `to` is
-not judged late by another row's time, and sets off none of this table's own [effects](https://docs.adminium.dev/reference/manifest/#effects).
-The table may not be a line of another table's states, book people by the day, keep a
-[limit](https://docs.adminium.dev/reference/manifest/#capacity), be private, be the app's outbox, or be watched by a project hook (refused
-when the row is made). An add-on's shape keeps its `supersedes` as it wrote it: an app adds none.
-
-#### Undo of a move
-
-A move marked `"undo": true` takes back the listed move the other way: the kitchen marked an
-order ready by mistake, and moves it back to preparing.
-
-```json
-"moves": {
-  "preparing": ["ready"],
-  "ready": [{ "to": "preparing", "undo": true,
-              "requires": { "time": { "before": { "column": "ready_at", "plus": { "minutes": 1 } } } } }]
-}
-```

@@ -16,6 +16,37 @@
 | `was` | 1–8 columns of the changed row kept as they were before the change (a stay's old dates, its old total), read by the template as `{{was.<column>}}` in every form the column has. On an `onChange` producer, and on an `onDelete` producer, where they are the removed row's own values; needs the outbox's `was` column. Never a secret, personal, code, share-code, withheld or typed-code column. |
 | `batchMinutes` | 1–240: one message per linked row in each window of this many minutes. The first event opens a message due at the window's end; every event while it still waits is taken in by it (five versions posted in ten minutes make one email). The window's end is its due, so it takes no `due`; it may still be dropped (`dropWhen`) or overtaken (`supersede`) while it waits. Not on a `before` producer. |
 | `onSent` | `{ "table", "via"?, "set" }`: a change made once the message has gone. Without `via`, `table` is the row the message is about; with it, `via` is that row's foreign key to `table`. `set` maps columns to values (`null` empties a nullable column). |
+| `payments` | `on` or `off`: queued only while the app takes payments online for the row the message is about, or only while it does not. See [Mail that follows payments](https://docs.adminium.dev/reference/manifest/#mail-that-follows-payments). Needs Adminium 0.3.62. |
+
+#### Mail that follows payments
+
+A producer with `payments: "on"` is queued only while the app takes payments online for the row the
+message is about — what [`GET /public/payments/available`](https://docs.adminium.dev/reference/manifest/#paying-from-the-apps-own-customer-screens)
+answers its customer, for that row's table: the app's payable switched on, a payment service live,
+the pay address reachable, payments not paused or switched off by the operator. `payments: "off"`
+is queued only while it does not. It is judged when the message is queued, beside `gate`, `module`
+and `optIn`; a message already waiting (`holdSeconds`, `due`) is not judged again, and its pay
+blocks follow `{{pay_url}}` when it goes.
+
+Two producers of one event, one `on` and one `off`, each with its own template, send one mail
+whichever way the shop is set, each with its own subject and preheader:
+
+```json
+"producers": [
+  { "kind": "order-unpaid",   "link": "order_id", "onCreate": { "table": "orders" }, "payments": "on", "holdSeconds": 3600,
+    "dropWhen": [{ "column": "status", "eq": "paid", "reason": "paid" }] },
+  { "kind": "order-received", "link": "order_id", "onCreate": { "table": "orders" }, "payments": "off" }
+]
+```
+
+- A mail that only makes sense with payments on ("Your delivery quote is accepted — pay online")
+  is `on` alone: with payments off nothing is sent.
+- A preheader that follows payments ("You owe {balance}" with them on, "{balance} still to settle"
+  with them off) is two kinds, each with its template.
+- The row is one of the app's payable tables, or a child row whose `via` points at one. Never on an
+  `onDelete` producer.
+- A row someone who manages payments is [rehearsing](https://docs.adminium.dev/guides/take-payments/) counts as on: its mail
+  goes to them, marked TEST.
 
 `due.days` is one of:
 
@@ -36,16 +67,3 @@ or `{ "column", "isNull": true|false }`, exactly one of the three. `before.lead`
 (an `int`) of the row that `via` points at, else from the settings `fallback`, and never more
 than `max` hours (1–336). `max` is also how far ahead Adminium looks. A reminder is queued with
 its moment in `columns.due`.
-
-A source row produces each kind once, unless its producer says `repeat` or `repeatBy`. A reminder
-is produced again only when its moment moves; a batched message, once its window has closed. An
-undo of a change is heard by the producers of `"changed": true` alone, so the dates it puts back are
-mailed; a `{ "column", "to" }` producer never fires on an undo. Sample data and imports fire no
-producer when they are written. A sample row never has a message at all. An imported row is a real one, so the
-minute's look-over still makes its `before` reminder when the moment comes, and a held producer's
-messages for it (an imported sent invoice gets its reminders).
-
-A message row an import or an undo brings back never goes by itself: nothing here made it and
-nobody approved it. One that arrives `queued` comes in `held` for a person to approve, or `failed`
-with a sentence saying why where the outbox has no `held` (queue it again to send it); one that
-says it went, with a sent time and no error, comes in `sent`.

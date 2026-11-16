@@ -2,6 +2,44 @@
 
 # Manifest spec: requiredSchema — States
 
+- **Every door.** A create from a staff screen or the data API (with or without a retry key, one
+  row or several in one save), a guest's public write, a rule's `record.create`, a project's code:
+  each new row moves the earlier ones. Several rows made in one save move each other in order: the
+  last is the one left in `initial`.
+- **The new row itself is never moved**, and a new row whose `by` is empty moves nothing. A row in
+  a state not in `from` (an approved proof) is left as it is, and so is a row of another line.
+- **One write.** A move refused (an earlier row whose move's conditions do not hold) refuses the
+  whole create, `409` `STATE_MOVE_REFUSED`, and no row is made or moved. A create refused for any
+  other reason moves nothing.
+- **In turn.** The row `by` points at is held first, so two rows made for one line at the same
+  moment take their turns: the second finds the first, and one row is left waiting.
+- **The table's rule, not the person's.** As with an [effect](https://docs.adminium.dev/reference/manifest/#effects), the earlier rows move
+  whether or not the person who made the new one may read or change them, and the roles a move is
+  kept for do not stop it.
+- Only a create moves them. A change of a row's link, or a move of its own, moves no other row.
+  Importing rows and loading sample data are history: they keep the state each row was in and move
+  nothing. A save that moved an earlier row offers no Undo.
+
+The moves are made as an effect's are, so the same limits apply: each move from `from` to `to` is
+not an undo, not a ledger's own (`planned`), and does not wait for another row; a move to `to` is
+not judged late by another row's time, and sets off none of this table's own [effects](https://docs.adminium.dev/reference/manifest/#effects).
+The table may not be a line of another table's states, book people by the day, keep a
+[limit](https://docs.adminium.dev/reference/manifest/#capacity), be private, be the app's outbox, or be watched by a project hook (refused
+when the row is made). An add-on's shape keeps its `supersedes` as it wrote it: an app adds none.
+
+#### Undo of a move
+
+A move marked `"undo": true` takes back the listed move the other way: the kitchen marked an
+order ready by mistake, and moves it back to preparing.
+
+```json
+"moves": {
+  "preparing": ["ready"],
+  "ready": [{ "to": "preparing", "undo": true,
+              "requires": { "time": { "before": { "column": "ready_at", "plus": { "minutes": 1 } } } } }]
+}
+```
+
 An undo move is made only by a write that names the state it saw the row in (`from` on a staff
 change): a stale screen's tap never takes back another screen's move, and is refused `409`
 `STATE_MOVE_REFUSED` naming both states. What it waits for is judged on the row as it stands. The

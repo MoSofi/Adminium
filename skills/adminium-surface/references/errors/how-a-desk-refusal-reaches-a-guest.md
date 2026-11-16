@@ -16,6 +16,7 @@ code:
 | `CAPACITY_TOO_LATE`, `BOOKING_TOO_LATE` | `409` `PUBLIC_TOO_LATE` |
 | `STATE_TOO_LATE` | `409` `PUBLIC_TOO_LATE`, `{ at }` |
 | `STATE_DATE_PASSED` | `409` `PUBLIC_TOO_LATE`, no params |
+| `PAYMENT_IN_FLIGHT` | `400` `PUBLIC_WRITE_REFUSED`, `{ column, reason: "payment-in-flight" }` |
 | `WRITE_WINDOW_CLOSED`, or `STATE_MOVE_REFUSED` waiting for a time: before it opens | `409` `PUBLIC_TOO_EARLY`, `{ at, from }` |
 | The same, after it closed | `409` `PUBLIC_TOO_LATE`, `{ at }` |
 | The same, shut by a linked row or a moment with no value | `400` `PUBLIC_WRITE_REFUSED` |

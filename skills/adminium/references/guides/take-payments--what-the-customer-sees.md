@@ -23,3 +23,17 @@ says it in its own words: still being checked, paid, the bank confirming it, did
 time to pay ran out. The app is told that one word and nothing else of the payment: no amount, no
 service and no card. While the app is switched off in Payments, its screens read as they always
 did.
+
+Switching an app on or off changes more than its screens, when the app says so in its manifest
+(Adminium 0.3.62 and later):
+
+- **What a customer can make.** An app that asks for payment up front (a hotel set to "ask guests to
+  pay now") takes a booking that waits for its payment while it can take payments online, and books
+  as it always did while it cannot — whatever the customer's browser sends. Nobody gets the rooms
+  unpaid by calling the app's public address directly.
+- **Which emails go.** An app may send one email while it takes payments online ("Pay for your
+  order") and another while it does not ("We'll send an invoice"), each with its own subject and
+  preview line. A mail that only makes sense with payments on is not sent while they are off.
+- **What waits for money on its way.** An order whose customer is paying is not moved to "pay when
+  you pick up instead" while the bank is still confirming the payment; the customer is told to
+  wait.

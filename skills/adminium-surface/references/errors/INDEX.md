@@ -18,8 +18,8 @@
 | `references/errors/public-api-codes--no-email-can-go.md` | Public API codes — No email can go | 488 |
 | `references/errors/public-api-codes--a-typed-code.md` | Public API codes — A typed code | 512 |
 | `references/errors/public-api-codes--out-of-stock-and-a-refused-card.md` | Public API codes — Out of stock, and a refused card | 1500 |
-| `references/errors/how-a-desk-refusal-reaches-a-guest.md` | How a desk refusal reaches a guest | 2155 |
-| `references/errors/staff-and-api-key-write-codes.md` | Staff and API-key write codes | 5304 |
+| `references/errors/how-a-desk-refusal-reaches-a-guest.md` | How a desk refusal reaches a guest | 2253 |
+| `references/errors/staff-and-api-key-write-codes.md` | Staff and API-key write codes | 5575 |
 | `references/errors/staff-and-api-key-write-codes--a-refused-price.md` | Staff and API-key write codes — A refused price | 1581 |
 | `references/errors/staff-and-api-key-write-codes--a-refused-design.md` | Staff and API-key write codes — A refused design | 1691 |
 | `references/errors/staff-and-api-key-write-codes--validation-failed.md` | Staff and API-key write codes — VALIDATION_FAILED | 2335 |

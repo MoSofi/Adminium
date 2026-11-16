@@ -35,3 +35,15 @@ of those values: a hotel's booking entry that takes no payment names `"in": ["no
 and the one that sends the guest to pay names `"in": ["optional", "required"]`. A switch is read
 from the settings table and trusted for 15 seconds. No row, no column or a failed read counts as
 off. See [Switches in the settings row](https://docs.adminium.dev/guides/apps/public-access/#switches-in-the-settings-row).
+
+`requirePayments` opens an entry by whether the app takes payments online for its table right now,
+as `GET /public/payments/available` answers it (the app's payable switched on, a service live, the
+pay address reachable, payments not paused): `"on"` only while it does, `"off"` only while it does
+not. With `requireSetting` both must hold. A hotel that asks guests to pay as they book declares
+three booking entries — unpaid with `"in": ["nothing", "optional"]`; unpaid with `"in": ["required"]`
+and `"requirePayments": "off"`; and one that starts the stay in its paying state (`defaults`, from
+[`states.starts`](https://docs.adminium.dev/reference/manifest/#states)) with `"in": ["required"]`, `"requirePayments": "on"` and `pay: true` — so
+while paying is required and possible the only booking a caller can make waits for its payment,
+and while payments are off the hotel books as it always did. The state column is never `writable`:
+which state a create starts in is the entry's, not the caller's. Someone who manages payments
+rehearsing the app's checkout sees payments on, for them alone.

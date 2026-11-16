@@ -183,6 +183,20 @@ time to pay ran out. The app is told that one word and nothing else of the payme
 service and no card. While the app is switched off in Payments, its screens read as they always
 did.
 
+Switching an app on or off changes more than its screens, when the app says so in its manifest
+(Adminium 0.3.62 and later):
+
+- **What a customer can make.** An app that asks for payment up front (a hotel set to "ask guests to
+  pay now") takes a booking that waits for its payment while it can take payments online, and books
+  as it always did while it cannot — whatever the customer's browser sends. Nobody gets the rooms
+  unpaid by calling the app's public address directly.
+- **Which emails go.** An app may send one email while it takes payments online ("Pay for your
+  order") and another while it does not ("We'll send an invoice"), each with its own subject and
+  preview line. A mail that only makes sense with payments on is not sent while they are off.
+- **What waits for money on its way.** An order whose customer is paying is not moved to "pay when
+  you pick up instead" while the bank is still confirming the payment; the customer is told to
+  wait.
+
 ## When a payment arrives
 
 The service tells Adminium through the webhook, and Adminium also asks the service itself when a
@@ -190,9 +204,11 @@ customer comes back. If a webhook goes missing, a safety check finds the payment
 while a payment is open, every hour while a bank is still confirming one.
 
 The payment is written once, whichever of these finds it first. It is written with the person
-**Online payment (Stripe)** or **Online payment (PayPal)** as the one who recorded it. When the
-record is paid in full, its status is set as you mapped it. For a live payment, a receipt email
-goes to the customer when the record has a customer email.
+**Online payment (Stripe)** or **Online payment (PayPal)** as the one who recorded it — each
+service named as it spells itself. When the record is paid in full, its status is set as you
+mapped it; an app may also have its record say how it was paid (a ticket order marked "paid
+online"), written with the status by a payment made on the pay page, never by one recorded by hand.
+For a live payment, a receipt email goes to the customer when the record has a customer email.
 
 If the payment cannot be written (the amount differs from what is due, the invoice was voided, the
 row is gone), nothing is refunded by itself. **Activity** shows it, the people who set up payments
@@ -209,13 +225,19 @@ Activity:
 1. The amount (at most what is still refundable), a reason and an optional note.
 2. One sentence that says what will happen. It cannot be undone. **Refund**.
 
-The panel then shows the refund as requested, and as done when the service confirms it. A refund
-the service refuses says why. The amount refunded opens the balance again. The old pay link is not
+The panel then shows the refund as requested, and as done when the service confirms it, with who
+asked for it and why ("By Ana Ruiz · Duplicate") to people who may see payments or give refunds;
+others who can read the record see the refund without them. A refund the service refuses says why. The amount refunded opens the balance again. The old pay link is not
 revived; **Copy pay link** makes a new one. The record's status changes only through the
 "refunded in full" value you mapped.
 
 A refund made in the Stripe or PayPal dashboard is recorded too, as made at the service, and
 flagged in Activity so you can check it.
+
+In an app that keeps refunds as rows of its own (a ticket shop's refund list), the app writes the
+row and Adminium sends the money and marks the row as asked, on its way, done or not sent. Each mark
+counts as a change of the row: the app's own rules and emails follow it, so a "Refund sent" email
+goes out once when the refund is done.
 
 ## Disputes
 

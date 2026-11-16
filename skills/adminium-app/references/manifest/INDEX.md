@@ -34,11 +34,11 @@
 | `references/manifest/requiredschema--capacity-2.md` | requiredSchema — Capacity (part 2) | 5558 |
 | `references/manifest/requiredschema--booking.md` | requiredSchema — Booking | 5565 |
 | `references/manifest/requiredschema--a-resource-and-a-time.md` | requiredSchema — A resource and a time | 5609 |
-| `references/manifest/requiredschema--states.md` | requiredSchema — States | 7779 |
-| `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7804 |
-| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7717 |
-| `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 7225 |
-| `references/manifest/requiredschema--states-5.md` | requiredSchema — States (part 5) | 3307 |
+| `references/manifest/requiredschema--states.md` | requiredSchema — States | 7604 |
+| `references/manifest/requiredschema--states-2.md` | requiredSchema — States (part 2) | 7489 |
+| `references/manifest/requiredschema--states-3.md` | requiredSchema — States (part 3) | 7516 |
+| `references/manifest/requiredschema--states-4.md` | requiredSchema — States (part 4) | 7411 |
+| `references/manifest/requiredschema--states-5.md` | requiredSchema — States (part 5) | 5797 |
 | `references/manifest/requiredschema--buttons-on-a-record.md` | requiredSchema — Buttons on a record | 3020 |
 | `references/manifest/requiredschema--postings.md` | requiredSchema — Postings | 3904 |
 | `references/manifest/requiredschema--a-price-an-add-on-lowers.md` | requiredSchema — A price an add-on lowers | 3110 |
@@ -73,9 +73,10 @@
 | `references/manifest/documents--a-list-of-an-add-on-s-rows.md` | Documents — A list of an add-on's rows | 1524 |
 | `references/manifest/documents--documents-that-print-a-money-code.md` | Documents — Documents that print a money code | 987 |
 | `references/manifest/emails.md` | Emails | 850 |
-| `references/manifest/emails--outbox.md` | Emails — outbox | 7310 |
+| `references/manifest/emails--outbox.md` | Emails — outbox | 7347 |
 | `references/manifest/emails--outbox-2.md` | Emails — outbox (part 2) | 4433 |
-| `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 6445 |
+| `references/manifest/emails--outbox-3.md` | Emails — outbox (part 3) | 7503 |
+| `references/manifest/emails--outbox-4.md` | Emails — outbox (part 4) | 1158 |
 | `references/manifest/emails--a-reply-to-the-rep.md` | Emails — A reply to the rep | 1672 |
 | `references/manifest/emails--marketing-or-service.md` | Emails — Marketing or service | 1710 |
 | `references/manifest/emails--a-kind-s-purpose.md` | Emails — A kind's purpose | 1036 |
@@ -87,10 +88,9 @@
 | `references/manifest/people-2.md` | People (part 2) | 7722 |
 | `references/manifest/people-3.md` | People (part 3) | 308 |
 | `references/manifest/public-access.md` | Public access | 2014 |
-| `references/manifest/public-access-2.md` | Public access (part 2) | 7738 |
-| `references/manifest/public-access-3.md` | Public access (part 3) | 6896 |
+| `references/manifest/public-access-2.md` | Public access (part 2) | 7606 |
+| `references/manifest/public-access-3.md` | Public access (part 3) | 7296 |
 | `references/manifest/public-access--filters.md` | Public access — Filters | 835 |
 | `references/manifest/public-access--windows-on-a-moment.md` | Public access — Windows on a moment | 2049 |
-| `references/manifest/public-access--a-person-s-own-rows.md` | Public access — A person's own rows | 7450 |
 
 More: `references/manifest/INDEX-2.md`

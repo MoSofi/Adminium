@@ -2,6 +2,48 @@
 
 # Manifest spec: requiredSchema — States
 
+A refused move is `409` `STATE_DATE_PASSED`, never `STATE_MOVE_REFUSED`, so a screen can tell "its
+day has passed" from "it is not in a state that allows this". `details` carry `column` (the state
+column), `from`, `to`, `date` (the date column) and `until` (the day it held). Through the public
+API it is `409` `PUBLIC_TOO_LATE` with no `params`: the entry may not show the date. The row is
+still read as before, so a page opened by its link can say the quote ran out. Needs Adminium
+0.3.28.
+
+#### No payment on its way
+
+`requires.noPaymentInFlight: true` refuses a move while a payment for the row is on its way: the
+payment service has said it is processing it (a bank confirming), or it succeeded and Adminium is
+writing it into the record. A diner who chose "Pay when you pick up instead" (`paying → placed`)
+while their card payment is landing is told to wait, rather than leaving the order unpaid with
+money arriving for it.
+
+```json
+"moves": {
+  "paying": [{ "to": "placed", "requires": { "noPaymentInFlight": true } }, "cancelled"]
+}
+```
+
+- It holds every writer alike — the public API, a person on the dashboard, a bulk edit, the app's
+  code, a rule, a timed move — except the payment's own move to paid, which may be the very same
+  move (`status.paid`, from `status.from`).
+- "On its way" is the test a timed move's [`waitsForPayment`](https://docs.adminium.dev/reference/manifest/#timed-moves) waits on: an attempt for
+  the row that is `processing`, `succeeded` or `recording`, younger than seven hours. A payment
+  that did not finish, was cancelled or ran out of time is not on its way.
+- Only on a table of the app's `payments.payables`; a part left out that takes the payable away
+  takes the condition with it.
+
+A refused move is `409` `PAYMENT_IN_FLIGHT`, never `STATE_MOVE_REFUSED`, with `column`, `from` and
+`to`. Through the public API it is `400` `PUBLIC_WRITE_REFUSED` with `{ "column", "reason":
+"payment-in-flight" }`: show "Your payment is still going through" and read the record again
+([`payments.state`](https://docs.adminium.dev/reference/manifest/#paying-from-the-apps-own-customer-screens) says when it settles). Needs Adminium
+0.3.62.
+
+A public entry can also close a change by a date with [`writableWhen`](https://docs.adminium.dev/reference/manifest/#public-access)
+(`"from-today"`), which refuses a row whose date is empty and holds only that entry's writes. The
+move's last day holds the staff too.
+
+#### Conditions on a new row
+
 `create` holds a new row to the same conditions before it is created at all: a check-in recorded
 only for a paid ticket, on its day, from half an hour before the doors.
 
@@ -75,46 +117,3 @@ conditions, limits and totals), and sets off stamps, code renewals, effects and 
 
 An effect moves the row one of this row's links points at, in the same write: a guest checked out
 turns the room to cleaning.
-
-```json
-"effects": [
-  { "on": { "to": "in_house" }, "via": "room_id", "set": { "status": "occupied" } },
-  { "on": { "to": "departed" }, "via": "room_id", "set": { "status": "cleaning" } },
-  { "on": { "change": "room_id", "in": ["in_house"] },
-    "old": { "set": { "status": "cleaning" } }, "new": { "set": { "status": "occupied" } } }
-]
-```
-
-There are two kinds, up to 8 effects a table:
-
-- **On a move** (`on.to`): when this row moves to the state, the row `via` points at moves to the
-  state `set` names. At most one such effect per state and link.
-- **On a changed link** (`on.change`, a foreign key): when the link really changes while the row
-  is in one of `on.in` (before and after the write; absent: any state), the row it pointed at
-  moves by `old` and the row it now points at by `new`; either may be left out. A link first set
-  or emptied moves only the side there is. One such effect per link. Without `in`, a booked
-  guest's room assignment would flip rooms too; a hotel says `in: ["in_house"]`.
-
-`set` names one column, the linked table's state column, and a state one of its listed moves goes
-to. The linked row is moved by that declared move and judged as it: its conditions, the limits and
-totals it moves, its own states. A row already in the state an effect's `old` side names is left as
-it is; a new row already in the state `new` names refuses the whole write (`409`
-`STATE_MOVE_REFUSED` with `details.effect: "new"`: the new room is not ready). Any refusal refuses
-the whole write.
-
-The linked row is moved by its own table's declared move, with that move's conditions, its lock
-and its totals, and not by what the person who made the first move may do to it: whoever may
-make the move that sets an effect off thereby moves the linked row too, whatever their role
-writes of that table and whichever of its rows they reach. Give an effect only a link whose
-row belongs with the row that moves. A link that points at the moving row itself moves nothing.
-
-An effect moves one row, one link away, never a chain. The linked table may not be one whose rows
-are lines of another table's states, one that books people by the day, or the app's outbox; the
-state it sets may not be one the linked table's own effects start from (a table with effects may
-be moved to any other state, its own rows included: a quote that is sent withdraws the quote it
-replaces); and the move it makes may not wait for another row, be an
-undo, or be judged late by another row's time. A table a project hook watches is refused at run
-time. History (an import, sample data) sets off no effect. A move that set off an effect offers no
-Undo.
-
-#### A new child moves its parent

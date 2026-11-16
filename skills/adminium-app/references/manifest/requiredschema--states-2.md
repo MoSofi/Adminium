@@ -2,6 +2,10 @@
 
 # Manifest spec: requiredSchema — States
 
+| Field | Rule |
+|---|---|
+| `release` | `{ "when", "columns" }`: while this row is in one of `when` (states the `lock` holds, and that no move leaves), a child row may still **empty** the listed columns (1–8 nullable columns of the child, never `via` or the key), and change nothing else. A released state must be final: a released link stops locking the row it points at, so a document that could move on would bring its line back billing a row that changed meanwhile. |
+
 Time and purchases billed on invoice lines, so that nothing is billed twice (each link `unique`),
 and billed again once the invoice is void:
 
@@ -111,16 +115,3 @@ refused from the day after: a quote is accepted no later than its `valid_until`.
 - No public entry on the table may list the date column as `writable`: a guest would move their own
   deadline.
 - An undo and a planned move take no last day.
-
-A refused move is `409` `STATE_DATE_PASSED`, never `STATE_MOVE_REFUSED`, so a screen can tell "its
-day has passed" from "it is not in a state that allows this". `details` carry `column` (the state
-column), `from`, `to`, `date` (the date column) and `until` (the day it held). Through the public
-API it is `409` `PUBLIC_TOO_LATE` with no `params`: the entry may not show the date. The row is
-still read as before, so a page opened by its link can say the quote ran out. Needs Adminium
-0.3.28.
-
-A public entry can also close a change by a date with [`writableWhen`](https://docs.adminium.dev/reference/manifest/#public-access)
-(`"from-today"`), which refuses a row whose date is empty and holds only that entry's writes. The
-move's last day holds the staff too.
-
-#### Conditions on a new row

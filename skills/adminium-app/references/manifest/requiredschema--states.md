@@ -54,6 +54,7 @@ A move's `requires` says what must be true first:
 | `time` | `{ "after"?, "before"? }`: a window on the clock, each end a [moment](https://docs.adminium.dev/reference/manifest/#moments) (from half an hour before the doors, until the ticket's day ends). |
 | `setting` | 1–4 `{ "table", "column", "eq" }`: a value of the settings row (door sales switched on). |
 | `notPast` | A `date` column of the row: the move is refused once that day has passed. See [A move's last day](https://docs.adminium.dev/reference/manifest/#a-moves-last-day). |
+| `noPaymentInFlight` | `true`: the move is refused while a payment for the row is on its way. Only on a [payable](https://docs.adminium.dev/reference/manifest/#payments) table. See [No payment on its way](https://docs.adminium.dev/reference/manifest/#no-payment-on-its-way). Needs Adminium 0.3.62. |
 
 A move's `roles` (1–8 of the app's [role](https://docs.adminium.dev/reference/manifest/#roles) keys) keeps it for the people holding one of
 them: any role may void a draft, only a manager a sent invoice.
@@ -72,7 +73,3 @@ least one of:
 | `lockLinked` | `{ "<link>": ["<column>", …] }`: for 1–8 of the child's foreign keys to other tables, 1–16 columns of the row the link points at that do not change while a child row points at it (the hours of time an invoice line bills). The key is never one. |
 
 and, with `lock`:
-
-| Field | Rule |
-|---|---|
-| `release` | `{ "when", "columns" }`: while this row is in one of `when` (states the `lock` holds, and that no move leaves), a child row may still **empty** the listed columns (1–8 nullable columns of the child, never `via` or the key), and change nothing else. A released state must be final: a released link stops locking the row it points at, so a document that could move on would bring its line back billing a row that changed meanwhile. |

@@ -32,6 +32,7 @@
 | `humanCheck` | no | `true`: the browser solves a small proof of work before a create or a claim is taken. Only on an entry that creates or claims. |
 | `anonymous` | no | Limits on a create nobody signed in for. See [Limits on a stranger's create](https://docs.adminium.dev/reference/manifest/#limits-on-a-strangers-create). |
 | `requireSetting` | no | Up to 4 `{ "table", "column", "when"?, "in"? }`, each a bool of the settings table, or with `in` (1–8 values) an `enum` of it. While a bool is false, or the choice holds none of `in`, every write through the entry is refused. |
+| `requirePayments` | no | `on` or `off`: open only while the app takes payments online for the entry's table, or only while it does not; refused `PUBLIC_SWITCHED_OFF` otherwise. Only on a create of one of the app's payable tables. See below. Needs Adminium 0.3.62. |
 | `confirm` | no | An email Adminium sends when a guest creates a row; needs `POST`. See below. |
 | `children` | no | The rows a create carries with it, by child table, two levels at most. See [A create with its child rows](https://docs.adminium.dev/reference/manifest/#a-create-with-its-child-rows). |
 | `agrees` | no | 1–8 checks the created row's own values must pass (guests no more than a room sleeps). See [A create with its child rows](https://docs.adminium.dev/reference/manifest/#a-create-with-its-child-rows). |
@@ -40,5 +41,3 @@
 | `clientKey` | no | A column holding a key the browser mints, so a retried create lands on the same row. |
 | `identity` | no | On a create, the person it is made for, found or made by the address typed. See [A person found by address](https://docs.adminium.dev/reference/manifest/#a-person-found-by-address). |
 | `shareLink` | no | A share-code column: a create answers, once, the new row's own link. See [A row's own link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link). |
-| `newLink` | no | `{ "column", "kind", "when"? }`: "Make a new link" for a signed-in person's row, or "Send it again" through a row's own link. See [A row's own link](https://docs.adminium.dev/reference/manifest/#a-rows-own-link). |
-| `forget` | no | On an identity entry: what "delete my details" empties. See [Delete my details](https://docs.adminium.dev/reference/manifest/#delete-my-details). |
