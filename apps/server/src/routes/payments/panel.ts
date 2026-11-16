@@ -205,6 +205,20 @@ function textOf(value: unknown): string | null {
   return text === '' ? null : text;
 }
 
+/**
+ * The day a payment was paid (`YYYY-MM-DD`), from a date or a moment as each
+ * database hands it back: a Date (Postgres, MySQL) or text (SQLite, and a
+ * plain date anywhere). A moment is read in UTC, as a kept payment's day is.
+ */
+function dayOf(value: unknown): string | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+  const text = textOf(value);
+  if (text === null) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const moment = new Date(/^\d{4}-\d{2}-\d{2} \d/.test(text) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(text) ? `${text.replace(' ', 'T')}Z` : text);
+  return Number.isNaN(moment.getTime()) ? null : moment.toISOString().slice(0, 10);
+}
+
 /** The online fields of a payment: none for one recorded by hand. */
 const BY_HAND = { attemptId: null, refundable: '0', refundRefusal: null, refunds: [], dispute: null } as const;
 
@@ -310,20 +324,22 @@ export function paymentPanelRoutes(deps: PaymentPanelDeps): FastifyPluginAsyncZo
       if (amount === null) continue;
       const rawRefunded = has(into.refunded) ? (row[into.refunded] ?? 0) : 0;
       const refunded = (into.amountUnit === 'minor' ? fromMinorUnits(rawRefunded, scale) : exactAmount(rawRefunded, scale)) ?? '0';
-      const provider = into.shapeColumns ? textOf(row['provider']) : null;
+      // A shape's own columns, or the ones an app's payable maps (`provider`, `paidAt`, `last4`, `currency`).
+      const mapped = (column: string | null | undefined): string | null => (has(column ?? null) ? textOf(row[column!]) : null);
+      const provider = into.shapeColumns ? textOf(row['provider']) : mapped(into.provider);
       out.push({
         id: `row:${String(row[found.table.primaryKey[0] ?? 'id'])}`,
         number: into.shapeColumns ? textOf(row['number']) : null,
         amount,
-        currency: (into.shapeColumns ? textOf(row['currency']) : null) ?? payable.currency,
+        currency: (into.shapeColumns ? textOf(row['currency']) : mapped(into.currency)) ?? payable.currency,
         refunded,
         way: into.method === null ? 'other' : (textOf(row[into.method.column]) ?? 'other'),
         wayLabel: into.note === null ? null : textOf(row[into.note]),
         provider,
         test: false,
-        paidOn: (into.date === null ? null : textOf(row[into.date])) ?? '',
+        paidOn: (into.date === null ? null : dayOf(row[into.date])) ?? (has(into.paidAt ?? null) ? dayOf(row[into.paidAt!]) : null) ?? '',
         recordedBy: into.shapeColumns ? textOf(row['recorded_by']) : null,
-        cardLast4: into.shapeColumns ? textOf(row['card_last4']) : null,
+        cardLast4: into.shapeColumns ? textOf(row['card_last4']) : mapped(into.last4),
         attemptId: into.reference === null ? null : textOf(row[into.reference]),
       });
     }
