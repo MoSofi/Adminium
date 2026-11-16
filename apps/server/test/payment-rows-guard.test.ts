@@ -53,6 +53,8 @@ function till(): Record<string, unknown> {
             { ref: 'method', type: 'enum', enum: ['cash', 'card', 'online'], default: 'cash' },
             { ref: 'payment_ref', type: 'text', maxLength: 64, nullable: true, unique: true },
             { ref: 'provider', type: 'text', maxLength: 64, nullable: true },
+            { ref: 'approval_code', type: 'text', maxLength: 12, nullable: true },
+            { ref: 'card_last4', type: 'text', maxLength: 4, nullable: true },
             money('refunded'),
           ],
         },
@@ -95,7 +97,7 @@ for (const [dialect, available] of LEGS) {
           amount: { column: 'total', unit: null },
           currency: { fixed: 'EUR' },
           due: { column: 'balance' },
-          payments: { kind: 'table', table: s.t('sale_payments'), link: 'sale_id', amount: 'amount', date: 'paid_on', method: { column: 'method', values: { card: 'online' } }, note: null, voided: null, reference: 'payment_ref', refunded: 'refunded' },
+          payments: { kind: 'table', table: s.t('sale_payments'), link: 'sale_id', amount: 'amount', date: 'paid_on', method: { column: 'method', values: { card: 'online' } }, note: null, voided: null, reference: 'payment_ref', refunded: 'refunded', provider: 'provider', approvalCode: 'approval_code', last4: 'card_last4' },
           status: { column: 'status', paid: 'paid', refunded: null },
           customerEmail: null,
           customerCountry: null,
@@ -147,6 +149,25 @@ for (const [dialect, available] of LEGS) {
         expect(said(removed), removed.body).toBe('403 TABLE_FORBIDDEN');
       }
       expect(await payment(9)).toMatchObject({ method: 'online', payment_ref: 'PAT01ONLINE' });
+    });
+
+    it('an online payment\'s card details are the payment\'s; a hand payment\'s are the person\'s', async () => {
+      // On a row taken online, the service, the approval code and the last four are as the payment wrote them: nobody changes them.
+      await s.rows(`UPDATE ${real('sale_payments')} SET approval_code = 'A1B2C3', card_last4 = '4242' WHERE id = 9`);
+      for (const who of ['cleo', 'owner']) {
+        for (const values of [{ approval_code: 'FORGED' }, { card_last4: '0000' }, { provider: 'payments-paypal' }, { approval_code: null, card_last4: null }]) {
+          const edited = await s.change(who, 'sale_payments', 9, values);
+          expect(said(edited), `${who} ${JSON.stringify(values)}: ${edited.body}`).toBe('403 TABLE_FORBIDDEN');
+          expect(reason(edited)).toBe('online-payment');
+        }
+      }
+      const kept = (await s.rows(`SELECT approval_code, card_last4, provider FROM ${real('sale_payments')} WHERE id = 9`))[0]!;
+      expect(kept).toMatchObject({ approval_code: 'A1B2C3', card_last4: '4242', provider: 'payments-stripe' });
+      // A card paid on the counter's own terminal, recorded by hand: its approval code and last four are the person's to write and correct.
+      expect(said(await s.make('cleo', 'sale_payments', { id: 11, sale_id: 1, amount: '5.00', method: 'card', approval_code: 'Z9Y8X7', card_last4: '1881' }))).toBe('ok');
+      expect(said(await s.change('cleo', 'sale_payments', 11, { approval_code: 'Z9Y8X6', card_last4: '1880' }))).toBe('ok');
+      expect((await s.rows(`SELECT approval_code, card_last4 FROM ${real('sale_payments')} WHERE id = 11`))[0]).toMatchObject({ approval_code: 'Z9Y8X6', card_last4: '1880' });
+      await s.rows(`DELETE FROM ${real('sale_payments')} WHERE id = 11`);
     });
 
     it('nor through a multi-row change, nor the owner\'s code', async () => {
