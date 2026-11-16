@@ -62,6 +62,21 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
+    version: '0.3.61',
+    date: '2026-11-16',
+    title: 'Card readers come with Adminium, and apps say how a payment stands',
+    summary:
+      'The bundled add-ons are now 1.0.28, with Card readers for a Square Terminal at the counter. An app’s own customer screens can now tell a customer coming back from the pay page whether the payment went through, and a few gaps in apps that take payments are closed.',
+    changes: [
+      { tag: 'New', text: 'Card readers comes with Adminium: it connects to Square, so a till puts the amount on a Square Terminal. Card payments also runs Stripe smart readers with the same key, which needs three more permissions once a reader is paired.' },
+      { tag: 'New', text: 'An app’s customer screen can ask how a record’s online payment stands (GET /api/v1/public/payments/state, client.payments.state()): open, the bank confirming, paid, did not finish, or expired. Only for a record the visitor can already read, and one word only.' },
+      { tag: 'New', text: 'A printed document can say until when its pay link works: a date slot whose default is pay-link takes the day that link stops opening.' },
+      { tag: 'Fixed', text: 'An app whose payable sits in a part it installs without now installs: the payable goes with the part.' },
+      { tag: 'Fixed', text: 'The record page’s Payment panel shows the day, the service, the last four and the currency of an app’s online payments.' },
+      { tag: 'Fixed', text: 'An app whose only public door is a shared link’s key keeps its public access through an update that widens it, without asking again.' },
+    ],
+  },
+  {
     version: '0.3.60',
     date: '2026-11-16',
     title: 'Apps take payments, and card readers at the counter',

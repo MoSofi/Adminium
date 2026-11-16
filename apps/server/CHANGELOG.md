@@ -1,5 +1,28 @@
 # @adminium/server
 
+## 0.3.61
+
+### Patch Changes
+
+- f6a2627: The add-ons that come with Adminium are now 1.0.28, with a new one, Card readers: it connects to Square, so a till puts the amount on a Square Terminal at the counter. Card payments now also runs Stripe smart readers at the counter with the same key; its key needs three more permissions only once a reader is paired (Payment Intents: write, Terminal Readers: write, Terminal Locations: read).
+- 6e9418f: An app whose only public door is a shared link's own key (a quote opened by its code) now has its public access follow an update as an app with a guest key does: an endpoint the update widens is saved when the update is allowed to widen it (`publicWider: true`), without also sending `publicAccess: true`. Before, the update went through but left the endpoint as it was, and the next update asked again. The same holds when an app is applied again from its folder.
+- 4623e94: The record page's Payment panel now shows the day and the service of each online payment of an app's payable whose payments table keeps the moment it was paid (`paidAt`) and the service (`provider`), and the card's last four and the currency where the table keeps them. It showed no day and no service before.
+- 61f165b: An app whose payable sits in a part it installs without (a part built on an add-on the app only suggests) now installs: the payable goes with the part, whole, when any table it names is not made or a link column it names went with the part, and with it a public entry's pay link on that table and, when no payable is left, the app's refund right. Before, the manifest check refused such an app ("is not a table of this app"). When the add-on is connected later, the payable comes with the part, switched off.
+- 6562ec0: A printed document can now say until when its pay link works. A `date` slot whose default is `pay-link` takes the day that same link stops opening, on the venue's clock (`YYYY-MM-DD`), beside the link and the code to scan; it is the link's own expiry, so a document drawn again a week later prints the same day. An earlier Adminium puts the link's text in such a slot, so a provider prints the day only when the value is a `YYYY-MM-DD` day.
+- 328e468: An app's customer screen can now ask how a record's online payment stands when the customer comes back from the pay page: `GET /api/v1/public/payments/state?ref=…&id=…` (`client.payments.state(ref, id)`) answers `none`, `open`, `confirming`, `paid`, `failed` or `expired` (and `test` for a rehearsal's test payment). It answers only for a record the visitor can already read through that entry, as a start does, and says nothing else of the payment: no amount, no service, no id. It is never kept by a browser or a cache.
+- Updated dependencies [61f165b]
+- Updated dependencies [6562ec0]
+  - @adminium/manifest@0.3.61
+  - @adminium/add-on-contracts@0.3.61
+  - @adminium/adapter-mysql@0.3.61
+  - @adminium/adapter-postgres@0.3.61
+  - @adminium/adapter-sqlite@0.3.61
+  - @adminium/engine@0.3.61
+  - @adminium/i18n@0.3.61
+  - @adminium/llm@0.3.61
+  - @adminium/meta@0.3.61
+  - @adminium/schema-import@0.3.61
+
 ## 0.3.60
 
 ### Patch Changes
