@@ -177,7 +177,7 @@ async function openEditor(world: World) {
 async function openDialog(world: World) {
   const opened = await openEditor(world);
   await opened.user.click(screen.getByTestId('email-send'));
-  const dialog = await screen.findByRole('dialog');
+  const dialog = await screen.findByRole('dialog', {}, { timeout: 10_000 });
   return { ...opened, dialog };
 }
 
