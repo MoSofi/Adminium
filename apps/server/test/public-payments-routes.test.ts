@@ -8,8 +8,10 @@
  * key cannot read is the same 404 as a missing one — and is refused `off`
  * while the app takes no payments. (Starting for real, with a live service
  * and a reachable pay address, is `payments-public-pay.test.ts`.)
+ * `GET /public/payments/state` reads the record the same way, and answers how
+ * its newest online payment stands in one word, and nothing else of it.
  */
-import { payableProfilesRepo } from '@adminium/meta';
+import { payableProfilesRepo, paymentAttemptsRepo, type AttemptState } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -98,6 +100,74 @@ describe.each(LEGS)('the public payment routes — %s', (dialect, available) => 
     const off = await g.request('POST', '/payments/start', { payload: { ref, id: '1' }, proof: 'pay-start' });
     expect(off.statusCode, off.body).toBe(409);
     expect(off.json()).toMatchObject({ error: { code: 'PUBLIC_PAY_REFUSED', params: { reason: 'off' } } });
+  });
+
+  it.skipIf(!available)('answers how a record\'s newest payment stands, in one word, only for a record the key reads', async () => {
+    const stateOf = (rowId: string) => g.request('GET', `/payments/state?ref=${encodeURIComponent(ref)}&id=${rowId}`);
+    // Order 2 is not on the board this key reads, order 99 is not there: the same 404.
+    for (const rowId of ['2', '99']) {
+      const hidden = await stateOf(rowId);
+      expect(hidden.statusCode, hidden.body).toBe(404);
+      expect(hidden.json()).toMatchObject({ error: { code: 'PUBLIC_REF_NOT_FOUND' } });
+    }
+    const none = await stateOf('1');
+    expect(none.statusCode, none.body).toBe(200);
+    expect(none.json()).toEqual({ data: { state: 'none' } });
+    // It changes as the bank answers: never kept by a browser or a cache.
+    expect(none.headers['cache-control']).toBe('no-store');
+
+    // Asked whether or not the app is switched on now: the app is off here.
+    const [profile] = await payableProfilesRepo(h.meta).list(h.connectionId);
+    const attempts = paymentAttemptsRepo(h.meta);
+    let n = 0;
+    const attempt = async (rowKey: string, mode: 'live' | 'test' = 'live') => {
+      n += 1;
+      const made = await attempts.create({
+        provider: 'payments-stripe',
+        mode,
+        accountId: 'acct_1',
+        payable: { kind: 'profile', connectionId: h.connectionId, tableName: profile!.tableName, rowKey },
+        payableLabel: `C-${rowKey}`,
+        amount: '12.50',
+        currency: 'EUR',
+        linkId: null,
+        nonce: `nonce-${dialect}-state-${String(n)}`.padEnd(22, 'x'),
+        createdBy: null,
+      });
+      return made!;
+    };
+    const told = async (rowId: string) => {
+      const res = await stateOf(rowId);
+      expect(res.statusCode, res.body).toBe(200);
+      return res.json() as { data: Record<string, unknown> };
+    };
+    const one = await attempt('1');
+    expect(await told('1')).toEqual({ data: { state: 'open' } });
+    await attempts.move(one.id, 'open', { providerRef: `cs_${dialect}_state` });
+    expect(await told('1')).toEqual({ data: { state: 'open' } });
+    await attempts.move(one.id, 'processing', {});
+    expect(await told('1')).toEqual({ data: { state: 'confirming' } });
+    await attempts.move(one.id, 'succeeded', { takenAmount: '12.50', takenCurrency: 'EUR', paymentRef: `pi_${dialect}_state`, paidWith: { method: 'card', label: 'Visa ••4242', delayed: false } });
+    // Paid, and nothing of the payment beside the word: no amount, service, card or id.
+    const paid = await stateOf('1');
+    expect(paid.json()).toEqual({ data: { state: 'paid' } });
+    for (const secret of ['12.50', 'stripe', '4242', one.id, 'pi_', 'cs_']) expect(paid.body).not.toContain(secret);
+
+    const ended: [string, AttemptState, string][] = [
+      ['3', 'failed', 'failed'],
+      ['4', 'cancelled', 'failed'],
+      ['5', 'expired', 'expired'],
+    ];
+    await h.rows(`insert into ${h.real('orders')} (id, number, total, balance, status) values (3, 'C-3', 5, 5, 'paying'), (4, 'C-4', 5, 5, 'paying'), (5, 'C-5', 5, 5, 'paying'), (6, 'C-6', 5, 5, 'paying')`);
+    for (const [rowId, to, word] of ended) {
+      const made = await attempt(rowId);
+      await attempts.move(made.id, 'open', { providerRef: `cs_${dialect}_${rowId}` });
+      await attempts.move(made.id, to, {});
+      expect(await told(rowId)).toEqual({ data: { state: word } });
+    }
+    // A rehearsal's test payment says so.
+    await attempt('6', 'test');
+    expect(await told('6')).toEqual({ data: { state: 'open', test: true } });
   });
 });
 

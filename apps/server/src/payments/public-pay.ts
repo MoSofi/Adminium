@@ -18,11 +18,17 @@
  *    (`card-testing.ts`): reused while it opens, made when there is none, and
  *    refused `not-now` once its declines locked it. While card testing has
  *    paused public starts, the app reads as not taking payments online.
+ *  - `state`: how the newest online payment of one record the caller can
+ *    already read stands, in one word, for the customer who comes back from
+ *    the pay page: a checkout still open, the bank confirming, paid, didn't
+ *    finish, or the time on the service's page ran out. Never an amount, a
+ *    service, an id or anything of the customer: the record itself says what
+ *    is paid and what is due.
  *
  * Only the app's own payables: a record of a table some other app or a person
  * made payable is not this key's to start a payment for.
  */
-import { payableProfilesRepo, type MetaDb, type RecordRef } from '@adminium/meta';
+import { payableProfilesRepo, paymentAttemptsRepo, type AttemptState, type MetaDb, type RecordRef } from '@adminium/meta';
 
 import type { CardTesting } from './card-testing.js';
 import { createPublicLinkFor, type PayLinkForDeps } from './pay-link-for.js';
@@ -42,9 +48,47 @@ const TEST_LINK_LIFETIME_MS = 60 * 60_000;
 /** Why a payment could not be started, as the public is told it: never more than this. */
 export type StartRefusal = 'off' | 'not-payable' | 'nothing-due' | 'not-now';
 
+/**
+ * How the newest online payment of a record stands, as its customer is told:
+ * `none` (no payment was started online), `open` (a checkout is open at the
+ * service, which has not said yet), `confirming` (the bank is confirming it:
+ * some ways take days), `paid`, `failed` (it did not finish, or the customer
+ * left it; nothing was taken) or `expired` (the time to pay on the service's
+ * page ran out; nothing was taken).
+ */
+export const PUBLIC_PAY_STATES = ['none', 'open', 'confirming', 'paid', 'failed', 'expired'] as const;
+export type PublicPayState = (typeof PUBLIC_PAY_STATES)[number];
+
+/** An attempt's state in the customer's word. Money taken is paid, whether or not it is written into the record yet. */
+const SAID: Readonly<Record<AttemptState, PublicPayState>> = {
+  creating: 'open',
+  open: 'open',
+  processing: 'confirming',
+  succeeded: 'paid',
+  recording: 'paid',
+  recorded: 'paid',
+  record_refused: 'paid',
+  failed: 'failed',
+  cancelled: 'failed',
+  abandoned: 'failed',
+  expired: 'expired',
+};
+
+/** A record's payment state as the public reads it; `test` while it is a rehearsal's test payment. */
+export interface PublicPayStateAnswer {
+  state: PublicPayState;
+  test?: true;
+}
+
 export interface PublicPay {
   available(connectionId: string, appKey: string): Promise<{ online: boolean }>;
   start(entity: RecordRef, appKey: string): Promise<{ ok: true; payUrl: string } | { ok: false; reason: StartRefusal }>;
+  /**
+   * How the newest online payment of the app's own payable record stands
+   * (`none` for a record of any other table). Asked whether or not the app is
+   * switched on now: a customer coming back is told the truth either way.
+   */
+  state(entity: RecordRef, appKey: string): Promise<PublicPayStateAnswer>;
   /** Whether the app has payables at all, switched on or not: what a rehearsal walks. */
   hasPayables(connectionId: string, appKey: string): Promise<boolean>;
   /**
@@ -94,6 +138,19 @@ export function createPublicPay(deps: PublicPayDeps & { meta: MetaDb; sources: P
       const payUrl = await linkFor(entity);
       if (payUrl === 'locked') return { ok: false, reason: 'not-now' };
       return payUrl === null ? { ok: false, reason: 'off' } : { ok: true, payUrl };
+    },
+
+    async state(entity, appKey) {
+      const keys = Object.keys(entity.pk);
+      if (keys.length !== 1) return { state: 'none' };
+      const found = await deps.sources.table(entity.connectionId, entity.table);
+      if (found === null) return { state: 'none' };
+      const profile = await payableProfilesRepo(deps.meta).byTable(entity.connectionId, found.table.id);
+      if (profile === null || profile.ownerApp !== appKey || (profile.mapping === null && profile.shape === null)) return { state: 'none' };
+      const ref = { kind: profile.shape !== null ? ('shape' as const) : ('profile' as const), connectionId: entity.connectionId, tableName: found.table.id, rowKey: String(entity.pk[keys[0]!]) };
+      const [newest] = await paymentAttemptsRepo(deps.meta).forPayable(ref, 1);
+      if (newest === undefined) return { state: 'none' };
+      return { state: SAID[newest.state], ...(newest.mode === 'test' ? { test: true as const } : {}) };
     },
 
     async hasPayables(connectionId, appKey) {

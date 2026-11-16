@@ -428,10 +428,33 @@ export interface TreeCreated<T = Row> {
  * writes carry the staff session's CSRF token, which the customer side's
  * config hands out as `rehearsal.csrfToken` to that person only (pass it as
  * `csrfToken`).
+ *
+ * `state` answers how the newest online payment of a record the visitor can
+ * read through `ref` stands, for the customer who comes back from the pay
+ * page — one word and nothing else (a 404 `PUBLIC_REF_NOT_FOUND` for a record
+ * the visitor cannot read):
+ *
+ * - `none`: no payment was started online for it;
+ * - `open`: a checkout is open at the service, which has not said yet (show
+ *   "Checking your payment…" and ask again in a few seconds);
+ * - `confirming`: the bank is confirming it, which some ways take days for
+ *   (say so, and that they should not pay again);
+ * - `paid`: the money arrived (read the record again for what it now says);
+ * - `failed`: it did not finish; nothing was taken;
+ * - `expired`: the time to pay on the service's page ran out; nothing was taken.
+ *
+ * `test` is true for a rehearsal's test payment.
  */
 export interface PublicPayments {
   available(signal?: AbortSignal): Promise<{ online: boolean; test?: true }>;
   start(ref: string, id: string): Promise<{ payUrl: string }>;
+  state(ref: string, id: string, signal?: AbortSignal): Promise<PublicPaymentState>;
+}
+
+/** How a record's newest online payment stands, as `payments.state` answers it. */
+export interface PublicPaymentState {
+  state: 'none' | 'open' | 'confirming' | 'paid' | 'failed' | 'expired';
+  test?: true;
 }
 
 /** A payment whose amount the server decided: a gift card pays what is due as far as it goes. Nothing else of the card is ever answered. */
@@ -1910,6 +1933,11 @@ export function createPublicClient(
         const proof = humanCheck === false ? {} : { [PROOF_HEADER]: await prove('pay-start') };
         const out = await request<{ data: { payUrl: string } }>('/api/v1/public/payments/start', { method: 'POST', body: JSON.stringify({ ref, id }) }, proof);
         return { payUrl: out.data.payUrl };
+      },
+      async state(ref: string, id: string, signal?: AbortSignal) {
+        const query = new URLSearchParams({ ref, id }).toString();
+        const out = await request<{ data: { state: PublicPaymentState['state']; test?: boolean } }>(`/api/v1/public/payments/state?${query}`, signal === undefined ? {} : { signal });
+        return { state: out.data.state, ...(out.data.test === true ? { test: true as const } : {}) };
       },
     },
 

@@ -161,6 +161,16 @@ describe('paying online from the app\'s own screens', () => {
     expect((await client.createTree('orders', ORDER)).payUrl).toBeNull();
   });
 
+  it('reads how a record\'s payment stands, by the entry and the id, and nothing else', async () => {
+    const { client, calls } = over(() => ({ data: { state: 'confirming' } }));
+    expect(await client.payments.state('orders', '9')).toEqual({ state: 'confirming' });
+    const asked = calls.at(-1)!;
+    expect(asked.url).toMatch(/\/api\/v1\/public\/payments\/state\?ref=orders&id=9$/);
+    expect(asked.init?.method ?? 'GET').toBe('GET');
+    const rehearsal = over(() => ({ data: { state: 'paid', test: true } }));
+    expect(await rehearsal.client.payments.state('orders', '9')).toEqual({ state: 'paid', test: true });
+  });
+
   it('reads a refused start as the error it is', async () => {
     const { client } = over(() => refusal(409, 'PUBLIC_PAY_REFUSED', { reason: 'off' }));
     await expect(client.payments.start('orders', '9')).rejects.toBeInstanceOf(PublicApiError);

@@ -253,6 +253,8 @@ import {
   publicPayAvailableReply,
   publicPayStartBody,
   publicPayStartReply,
+  publicPayStateQuery,
+  publicPayStateReply,
   publicBatchBody,
   PUBLIC_BATCH_MAX,
   publicRecordReply,
@@ -2482,6 +2484,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     // A browser on another origin asks first, as for every public path.
     app.options('/public/payments/available', { schema: { hide: true } }, preflight);
     app.options('/public/payments/start', { schema: { hide: true } }, preflight);
+    app.options('/public/payments/state', { schema: { hide: true } }, preflight);
     app.get(
       '/public/payments/available',
       { config: { rateLimitBucket: 'public' }, schema: { response: { 200: publicPayAvailableReply, 401: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } } },
@@ -2554,6 +2557,57 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         await touchKey(ok.key.keyId);
         if (!started.ok) return fail(reply, 409, 'PUBLIC_PAY_REFUSED', 'This record cannot be paid online now.', { reason: started.reason });
         return reply.send({ data: { payUrl: started.payUrl } });
+      },
+    );
+
+    /*
+     * How the newest online payment of one record the caller can already read
+     * stands, for the customer who comes back from the pay page: read through
+     * the record's own entry first, as a start is, with the same 404 for a row
+     * that is not the caller's. One word and nothing else: no amount, no
+     * service, no id, nothing of the customer. Never kept by a browser or a
+     * cache: it changes as the bank answers.
+     */
+    app.get(
+      '/public/payments/state',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: { querystring: publicPayStateQuery, response: { 200: publicPayStateReply, 401: publicErrorReply, 404: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        personal.add(request);
+        const found = await resolveResource(request, reply, ok, request.query.ref, 'read');
+        if (found === null) return reply;
+        let pk;
+        try {
+          pk = parseRecordId(found.table, request.query.id);
+        } catch {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        }
+        const byKey: RecordFilter[] = Object.entries(pk).map(([column, value]) => ({ column, op: 'eq', value }) as RecordFilter);
+        const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
+        const result = await runList({
+          db: readerFor(found, found.table, found.visibility),
+          view: found.view,
+          table: found.table,
+          params: { limit: 1, count: 'none' },
+          canReadPii: false,
+          dialect: found.dialect,
+          mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
+          // Whether the row is there for this caller, and nothing of it: its key alone.
+          exposeColumns: [...found.table.primaryKey],
+          searchColumns: found.resource.searchable,
+        });
+        const row = result.data[0];
+        if (row === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        await touchKey(ok.key.keyId);
+        if (deps.pay === undefined || ok.key.managedBy === null) return reply.send({ data: { state: 'none' as const } });
+        // The row's own spelling of its key, as its payments are counted under.
+        const own = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column] ?? pk[column]]));
+        const answer = await deps.pay.state({ connectionId: ok.key.connectionId, table: found.table.id, pk: own, label: request.query.id }, ok.key.managedBy);
+        return reply.send({ data: answer });
       },
     );
 

@@ -435,6 +435,19 @@ export const publicPayAvailableReply = z.object({ data: z.object({ online: z.boo
 export const publicPayStartBody = z.object({ ref: z.string().min(1).max(200), id: z.string().min(1).max(200) }).strict();
 /** Where the customer pays: the record's pay link. */
 export const publicPayStartReply = z.object({ data: z.object({ payUrl: z.string() }) });
+/** A record whose payment state is asked, by the entry it is read through and its id. */
+export const publicPayStateQuery = z.object({ ref: z.string().min(1).max(200), id: z.string().min(1).max(200) }).strict();
+/**
+ * How the record's newest online payment stands, in one word, and nothing else
+ * of it: `none`, `open`, `confirming`, `paid`, `failed` or `expired`.
+ */
+export const publicPayStateReply = z.object({
+  data: z.object({
+    state: z.enum(['none', 'open', 'confirming', 'paid', 'failed', 'expired']),
+    /** A rehearsal's test payment: show the TEST band. */
+    test: z.boolean().optional(),
+  }),
+});
 
 export const publicChallengeReply = z.object({
   data: z.object({
