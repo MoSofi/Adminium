@@ -79,9 +79,10 @@ app file.
 
 ## What does not exist yet
 
-- A payment started from a customer screen. Payments are Adminium's (A): customers pay on its own
-  pay page through a pay link, set up by the shop in Studio → Payments. Write no payment code. For
-  invoices paid online, build on `invoice@2`. Read `references/guides/take-payments--*.md`.
+- Card details on a customer screen. Customers pay on Adminium's own pay page (Studio →
+  Payments); write no payment code. An app's screen opens it for a row its `payments.payables`
+  names (client `payments`: `available`, `start`, `state`). Invoices paid online build on
+  `invoice@2`. Read `references/guides/take-payments--*.md`.
 - Publishing an app to the adminium.dev marketplace. A self-made app carries the publisher `local`
   and installs from a file.
 
