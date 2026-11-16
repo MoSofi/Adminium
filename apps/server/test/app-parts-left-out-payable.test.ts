@@ -119,6 +119,8 @@ for (const [dialect, available] of ENGINES) {
       const plan = planned.json().plan;
       expect(plan.problems).toEqual([]);
       expect(plan.modules[1]).toMatchObject({ id: 'quotes', leftOut: true, tables: ['quotes', 'quote_lines', 'quote_payments'] });
+      // The check offers no refund right for money the app will not take.
+      expect(plan.refundGrants).toBeUndefined();
 
       const installed = await h.install('crm', '0.2.0', { planChecksum: plan.checksum });
       expect(installed.statusCode, installed.body).toBe(200);
